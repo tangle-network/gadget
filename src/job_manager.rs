@@ -568,8 +568,8 @@ mod tests {
         fn clock(&self) -> Self::Clock {
             0
         }
-        fn associated_block_id_acceptable(_now: Self::Clock, _compare: Self::Clock) -> bool {
-            true
+        fn associated_block_id_acceptable(now: Self::Clock, compare: Self::Clock) -> bool {
+            now == compare
         }
     }
 
@@ -907,5 +907,109 @@ mod tests {
         // Verify that the tasks were removed
         assert!(!work_manager.job_exists(&[1; 32]));
         assert!(!work_manager.job_exists(&[2; 32]));
+    }
+
+    #[tokio::test]
+    async fn test_max_tasks_limit() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 2, 2, PollMethod::Manual);
+
+        let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
+        let (remote2, task2, _rx) = generate_async_protocol(2, 2, 0);
+        let (remote3, task3, _rx) = generate_async_protocol(3, 3, 0);
+        let (remote4, task4, _rx) = generate_async_protocol(4, 4, 0);
+        let (remote5, task5, _rx) = generate_async_protocol(5, 5, 0);
+
+        assert!(work_manager
+            .push_task([1; 32], true, remote1, task1)
+            .is_ok());
+        assert!(work_manager
+            .push_task([2; 32], true, remote2, task2)
+            .is_ok());
+        assert!(work_manager
+            .push_task([3; 32], false, remote3, task3)
+            .is_ok());
+        assert!(work_manager
+            .push_task([4; 32], false, remote4, task4)
+            .is_ok());
+
+        // Try to add a fifth task, should fail
+        assert!(work_manager
+            .push_task([5; 32], false, remote5, task5)
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_task_completion() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+        let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
+
+        work_manager
+            .push_task([1; 32], true, remote1, task1)
+            .unwrap();
+
+        // Wait some time for the tasks to finish
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        // Poll again to cleanup
+        work_manager.poll();
+
+        // Check that the task has completed
+        assert!(!work_manager.job_exists(&[1; 32]));
+    }
+
+    #[tokio::test]
+    async fn test_job_removal_on_drop() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+        let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
+
+        work_manager
+            .push_task([1; 32], true, remote1, task1)
+            .unwrap();
+
+        // Manual drop of all jobs
+        work_manager.force_shutdown_all();
+
+        // Check that the job has been removed
+        assert!(!work_manager.job_exists(&[1; 32]));
+    }
+
+    #[tokio::test]
+    async fn test_message_delivery_to_non_existent_job() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+
+        let message = TestMessage {
+            message: "test".to_string(),
+            associated_block_id: 0,
+            associated_session_id: 1,
+            associated_ssid: 1,
+        };
+
+        // Deliver a message to a non-existent job
+        let delivery_type = work_manager.deliver_message(message, [1; 32]).unwrap();
+
+        // The message should be enqueued for future use
+        assert_eq!(delivery_type, DeliveryType::EnqueuedMessage);
+    }
+
+    #[tokio::test]
+    async fn test_message_delivery_to_job_with_outdated_block_id() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+        let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
+
+        work_manager
+            .push_task([1; 32], true, remote1, task1)
+            .unwrap();
+
+        let message = TestMessage {
+            message: "test".to_string(),
+            associated_block_id: 10, // Outdated block ID
+            associated_session_id: 1,
+            associated_ssid: 1,
+        };
+
+        // Try to deliver a message with an outdated block ID
+        let delivery_type = work_manager.deliver_message(message, [1; 32]).unwrap();
+
+        // The message should be enqueued for future use
+        assert_eq!(delivery_type, DeliveryType::EnqueuedMessage);
     }
 }
