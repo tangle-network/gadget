@@ -1,0 +1,81 @@
+name: Validate PR
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: rust-validation-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  formatting:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+
+      - name: Check Formatting
+        run: cargo fmt -- --check
+
+  linting:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+
+      - name: Run Clippy
+        run: cargo clippy --tests -- -D warnings
+
+  testing:
+    name: Cargo Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Run Tests
+        run: cargo test
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install Tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Run Tarpaulin
+        run: |
+          COVERAGE=$(cargo tarpaulin --out Xml | grep 'Coverage' | grep -o '[0-9]\+\.[0-9]\+')
+          echo "Code coverage is $COVERAGE%"
+          if (( $(echo "$COVERAGE < 90.0" |bc -l) )); then
+            echo "Code coverage is below 90%, failing CI"
+            exit 1
+          fi

@@ -622,7 +622,7 @@ mod tests {
             TestProtocolRemote::new(session_id, ssid, started_at, tx, start_tx, is_done.clone());
         let task = async move {
             start_rx.await.unwrap();
-            is_done.store(true, std::sync::atomic::Ordering::SeqCst);
+            is_done.store(true, Ordering::SeqCst);
         };
         let task = Box::pin(task);
         (remote, task, rx)
@@ -648,13 +648,13 @@ mod tests {
             Ok(())
         }
         fn is_done(&self) -> bool {
-            self.is_done.load(std::sync::atomic::Ordering::SeqCst)
+            self.is_done.load(Ordering::SeqCst)
         }
         fn deliver_message(&self, message: TestMessage) -> Result<(), ()> {
             self.delivered_messages.send(message).map_err(|_| ())
         }
         fn has_started(&self) -> bool {
-            self.has_started.load(std::sync::atomic::Ordering::SeqCst)
+            self.has_started.load(Ordering::SeqCst)
         }
         fn is_active(&self) -> bool {
             self.has_started() && !self.is_done()
@@ -1073,5 +1073,57 @@ mod tests {
                 has_started: false,
                 is_active: false,
             }));
+    }
+
+    #[tokio::test]
+    async fn test_can_submit_more_tasks_with_enqueued_tasks() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 1, PollMethod::Manual);
+        let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
+        let (remote2, task2, _rx) = generate_async_protocol(2, 2, 0);
+
+        assert!(work_manager.can_submit_more_tasks());
+        work_manager
+            .push_task([1; 32], true, remote1, task1)
+            .unwrap();
+        assert!(work_manager.can_submit_more_tasks()); // one more task can be enqueued
+        work_manager
+            .push_task([2; 32], false, remote2, task2)
+            .unwrap();
+        assert!(!work_manager.can_submit_more_tasks()); // no more tasks can be added
+    }
+
+    #[tokio::test]
+    async fn test_message_delivery_to_stalled_task() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 0, PollMethod::Manual);
+        let (remote, task, _rx) = generate_async_protocol(1, 1, 1); // Task will stall immediately
+        let msg = TestMessage {
+            message: "test".to_string(),
+            associated_block_id: 0,
+            associated_session_id: 1,
+            associated_ssid: 1,
+        };
+
+        work_manager.push_task([1; 32], true, remote, task).unwrap();
+        work_manager.poll(); // should identify and remove the stalled task
+
+        let delivery_type = work_manager.deliver_message(msg, [1; 32]).unwrap();
+        assert_eq!(delivery_type, DeliveryType::EnqueuedMessage); // message should be enqueued because task is stalled and removed
+    }
+
+    #[tokio::test]
+    async fn test_message_delivery_with_incorrect_task_hash() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 0, PollMethod::Manual);
+        let (remote, task, _rx) = generate_async_protocol(1, 1, 0);
+        let msg = TestMessage {
+            message: "test".to_string(),
+            associated_block_id: 0,
+            associated_session_id: 1,
+            associated_ssid: 1,
+        };
+
+        work_manager.push_task([1; 32], true, remote, task).unwrap();
+
+        let delivery_type = work_manager.deliver_message(msg, [2; 32]).unwrap(); // incorrect task hash
+        assert_eq!(delivery_type, DeliveryType::EnqueuedMessage); // message should be enqueued because the task hash is incorrect
     }
 }
