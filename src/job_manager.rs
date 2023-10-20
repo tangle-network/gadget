@@ -494,9 +494,8 @@ fn should_deliver<WM: WorkManagerInterface>(
 mod tests {
 
     use super::*;
-    use parking_lot::Mutex;
     use std::sync::Arc;
-    use std::time::Duration;
+    use tokio::sync::mpsc::UnboundedSender;
 
     struct TestWorkManager;
     #[derive(Clone, Eq, PartialEq, Debug)]
@@ -541,7 +540,7 @@ mod tests {
         session_id: u32,
         ssid: u32,
         started_at: u64,
-        delivered_messages: Arc<Mutex<Vec<TestMessage>>>,
+        delivered_messages: UnboundedSender<TestMessage>,
     }
 
     impl ProtocolRemote<TestWorkManager> for TestProtocolRemote {
@@ -565,8 +564,7 @@ mod tests {
             false
         }
         fn deliver_message(&self, message: TestMessage) -> Result<(), ()> {
-            self.delivered_messages.lock().push(message);
-            Ok(())
+            self.delivered_messages.send(message).map_err(|_| ())
         }
         fn has_started(&self) -> bool {
             true
@@ -582,12 +580,13 @@ mod tests {
     #[tokio::test]
     async fn test_push_task() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
 
         let remote = Arc::new(TestProtocolRemote {
             session_id: 1,
             ssid: 1,
             started_at: 0,
-            delivered_messages: Mutex::new(Default::default()).into(),
+            delivered_messages: tx,
         });
 
         let task = async {};
@@ -601,12 +600,12 @@ mod tests {
     #[tokio::test]
     async fn test_deliver_message() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
-
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let remote = Arc::new(TestProtocolRemote {
-            session_id: 1,
-            ssid: 1,
+            session_id: 0,
+            ssid: 0,
             started_at: 0,
-            delivered_messages: Mutex::new(Default::default()).into(),
+            delivered_messages: tx,
         });
 
         work_manager
@@ -620,11 +619,13 @@ mod tests {
             associated_ssid: 0,
         };
         work_manager.deliver_message(message, [0; 32]);
+        let _ = rx.recv().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_job_exists() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
 
         let result = work_manager.job_exists(&[0; 32]);
         assert!(!result);
@@ -633,7 +634,7 @@ mod tests {
             session_id: 1,
             ssid: 1,
             started_at: 0,
-            delivered_messages: Mutex::new(Default::default()).into(),
+            delivered_messages: tx,
         });
 
         work_manager
@@ -653,25 +654,27 @@ mod tests {
             PollMethod::Manual,
         );
 
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+
         let remote1 = Arc::new(TestProtocolRemote {
             session_id: 1,
             ssid: 1,
             started_at: 0,
-            delivered_messages: Mutex::new(Default::default()).into(),
+            delivered_messages: tx.clone(),
         });
 
         let remote2 = Arc::new(TestProtocolRemote {
             session_id: 2,
             ssid: 2,
             started_at: 0,
-            delivered_messages: Mutex::new(Default::default()).into(),
+            delivered_messages: tx.clone(),
         });
 
         let remote3 = Arc::new(TestProtocolRemote {
             session_id: 3,
             ssid: 3,
             started_at: 0,
-            delivered_messages: Mutex::new(Default::default()).into(),
+            delivered_messages: tx,
         });
 
         let task1 = Box::pin(async {});
@@ -695,12 +698,12 @@ mod tests {
     #[tokio::test]
     async fn test_deliver_to_queued_task() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
-
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let remote1 = Arc::new(TestProtocolRemote {
             session_id: 1,
             ssid: 1,
             started_at: 0,
-            delivered_messages: Mutex::new(Default::default()).into(),
+            delivered_messages: tx,
         });
 
         let task1 = Box::pin(async {});
@@ -718,8 +721,7 @@ mod tests {
             associated_ssid: 1,
         };
         work_manager.deliver_message(msg.clone(), [1; 32]);
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        let stored_messages = remote1.delivered_messages.lock().clone();
-        assert_eq!(stored_messages, &[msg])
+        let next_message = rx.recv().await.unwrap();
+        assert_eq!(next_message, msg);
     }
 }
