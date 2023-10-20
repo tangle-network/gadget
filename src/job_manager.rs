@@ -14,6 +14,14 @@ pub enum PollMethod {
     Interval { millis: u64 },
     Manual,
 }
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum DeliveryType {
+    EnqueuedProtocol,
+    ActiveProtocol,
+    // Protocol for the message is not yet available
+    EnqueuedMessage,
+}
 pub struct ProtocolWorkManager<WM: WorkManagerInterface> {
     inner: Arc<RwLock<WorkManagerInner<WM>>>,
     utility: Arc<WM>,
@@ -79,7 +87,7 @@ pub trait ProtocolRemote<WM: WorkManagerInterface>: Send + Sync + 'static {
     fn ssid(&self) -> WM::SSID;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct JobMetadata<WM: WorkManagerInterface> {
     pub session_id: WM::SessionID,
     pub is_stalled: bool,
@@ -161,8 +169,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
                 "[FORCE START] Force starting task {}",
                 hex::encode(task_hash)
             ));
-            self.start_job_unconditional(job, &mut *lock);
-            return Ok(());
+            return self.start_job_unconditional(job, &mut *lock);
         }
 
         if lock.enqueued_tasks.len() + lock.active_tasks.len()
@@ -176,17 +183,18 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         lock.enqueued_tasks.push_back(job);
 
         drop(lock);
+
         if *self.poll_method != PollMethod::Manual {
             self.poll();
-            Ok(())
-        } else {
-            Ok(())
         }
+
+        Ok(())
     }
 
     pub fn can_submit_more_tasks(&self) -> bool {
         let lock = self.inner.read();
-        lock.enqueued_tasks.len() < *self.max_enqueued_tasks
+        lock.enqueued_tasks.len() + lock.active_tasks.len()
+            <= *self.max_enqueued_tasks + *self.max_tasks
     }
 
     // Only relevant for keygen
@@ -245,7 +253,13 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         let tasks_to_start = self.max_tasks.saturating_sub(lock.active_tasks.len());
         for _ in 0..tasks_to_start {
             if let Some(job) = lock.enqueued_tasks.pop_front() {
-                self.start_job_unconditional(job, &mut *lock);
+                let task_hash = job.task_hash;
+                if let Err(err) = self.start_job_unconditional(job, &mut *lock) {
+                    self.utility.error(format!(
+                        "[worker] Failed to start job {:?}: {err:?}",
+                        hex::encode(task_hash)
+                    ));
+                }
             } else {
                 break;
             }
@@ -288,16 +302,22 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         lock.enqueued_messages.retain(|_, v| !v.is_empty());
     }
 
-    fn start_job_unconditional(&self, job: Job<WM>, lock: &mut WorkManagerInner<WM>) {
+    fn start_job_unconditional(
+        &self,
+        job: Job<WM>,
+        lock: &mut WorkManagerInner<WM>,
+    ) -> Result<(), WorkManagerError> {
         self.utility.debug(format!(
             "[worker] Starting job {:?}",
             hex::encode(job.task_hash)
         ));
         if let Err(err) = job.handle.start() {
-            self.utility.error(format!(
-                "Failed to start job {:?}: {err:?}",
-                hex::encode(job.task_hash)
-            ));
+            return Err(WorkManagerError::PushTaskFailed {
+                reason: format!(
+                    "Failed to start job {:?}: {err:?}",
+                    hex::encode(job.task_hash)
+                ),
+            });
         } else {
             // deliver all the enqueued messages to the protocol now
             if let Some(mut enqueued_messages_map) = lock.enqueued_messages.remove(&job.task_hash) {
@@ -342,6 +362,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
 
         // Spawn the task. When it finishes, it will clean itself up
         tokio::task::spawn(task);
+        Ok(())
     }
 
     pub fn job_exists(&self, job: &[u8; 32]) -> bool {
@@ -349,7 +370,11 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         lock.active_tasks.contains(job) || lock.enqueued_tasks.iter().any(|j| &j.task_hash == job)
     }
 
-    pub fn deliver_message(&self, msg: WM::ProtocolMessage, message_task_hash: [u8; 32]) {
+    pub fn deliver_message(
+        &self,
+        msg: WM::ProtocolMessage,
+        message_task_hash: [u8; 32],
+    ) -> Result<DeliveryType, WorkManagerError> {
         self.utility.debug(format!(
             "Delivered message is intended for session_id = {}",
             msg.associated_session_id()
@@ -363,12 +388,13 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
                     "Message is for this ENQUEUED signing execution in session: {}",
                     task.handle.session_id()
                 ));
-                if let Err(_err) = task.handle.deliver_message(msg) {
-                    self.utility
-                        .warn("Failed to deliver message to signing task".to_string());
+                if let Err(err) = task.handle.deliver_message(msg) {
+                    return Err(WorkManagerError::DeliverMessageFailed {
+                        reason: format!("{err:?}"),
+                    });
                 }
 
-                return;
+                return Ok(DeliveryType::EnqueuedProtocol);
             }
         }
 
@@ -380,12 +406,12 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
                     task.handle.session_id()
                 ));
                 if let Err(err) = task.handle.deliver_message(msg) {
-                    self.utility.warn(format!(
-                        "Failed to deliver message to signing task: {err:?}"
-                    ));
+                    return Err(WorkManagerError::DeliverMessageFailed {
+                        reason: format!("{err:?}"),
+                    });
                 }
 
-                return;
+                return Ok(DeliveryType::ActiveProtocol);
             }
         }
 
@@ -408,7 +434,9 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
             .or_default()
             .entry(msg.associated_ssid())
             .or_default()
-            .push_back(msg)
+            .push_back(msg);
+
+        Ok(DeliveryType::EnqueuedMessage)
     }
 }
 
@@ -434,6 +462,7 @@ impl<WM: WorkManagerInterface> Job<WM> {
 #[derive(Debug, Clone)]
 pub enum WorkManagerError {
     PushTaskFailed { reason: String },
+    DeliverMessageFailed { reason: String },
 }
 
 pub enum ShutdownReason {
@@ -494,12 +523,16 @@ fn should_deliver<WM: WorkManagerInterface>(
 mod tests {
 
     use super::*;
+    use parking_lot::Mutex;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
-    use tokio::sync::mpsc::UnboundedSender;
+    use std::time::Duration;
+    use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
+    #[derive(Debug, Eq, PartialEq)]
     struct TestWorkManager;
     #[derive(Clone, Eq, PartialEq, Debug)]
-    struct TestMessage {
+    pub struct TestMessage {
         message: String,
         associated_block_id: u64,
         associated_session_id: u32,
@@ -526,8 +559,12 @@ mod tests {
         type SessionID = u32;
 
         fn debug(&self, _input: String) {}
-        fn error(&self, _input: String) {}
-        fn warn(&self, _input: String) {}
+        fn error(&self, input: String) {
+            println!("ERROR: {input}")
+        }
+        fn warn(&self, input: String) {
+            println!("WARN: {input}")
+        }
         fn clock(&self) -> Self::Clock {
             0
         }
@@ -536,23 +573,73 @@ mod tests {
         }
     }
 
-    struct TestProtocolRemote {
+    #[derive(Clone)]
+    pub struct TestProtocolRemote {
         session_id: u32,
         ssid: u32,
         started_at: u64,
         delivered_messages: UnboundedSender<TestMessage>,
+        start_tx: Arc<Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
+        is_done: Arc<AtomicBool>,
+        has_started: Arc<AtomicBool>,
+    }
+
+    impl TestProtocolRemote {
+        pub fn new(
+            session_id: u32,
+            ssid: u32,
+            started_at: u64,
+            task_tx: UnboundedSender<TestMessage>,
+            start_tx: tokio::sync::oneshot::Sender<()>,
+            is_done: Arc<AtomicBool>,
+        ) -> Arc<Self> {
+            Arc::new(Self {
+                session_id,
+                ssid,
+                started_at,
+                delivered_messages: task_tx,
+                start_tx: Arc::new(Mutex::new(Some(start_tx))),
+                is_done,
+                has_started: Arc::new(AtomicBool::new(false)),
+            })
+        }
+    }
+
+    #[allow(clippy::type_complexity)]
+    pub fn generate_async_protocol(
+        session_id: u32,
+        ssid: u32,
+        started_at: u64,
+    ) -> (
+        Arc<TestProtocolRemote>,
+        Pin<Box<dyn SendFuture<'static, ()>>>,
+        UnboundedReceiver<TestMessage>,
+    ) {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (start_tx, start_rx) = tokio::sync::oneshot::channel();
+        let is_done = Arc::new(AtomicBool::new(false));
+        let remote =
+            TestProtocolRemote::new(session_id, ssid, started_at, tx, start_tx, is_done.clone());
+        let task = async move {
+            start_rx.await.unwrap();
+            is_done.store(true, std::sync::atomic::Ordering::SeqCst);
+        };
+        let task = Box::pin(task);
+        (remote, task, rx)
     }
 
     impl ProtocolRemote<TestWorkManager> for TestProtocolRemote {
         fn start(&self) -> Result<(), ()> {
+            self.start_tx.lock().take().unwrap().send(())?;
+            self.has_started.store(true, Ordering::SeqCst);
             Ok(())
         }
         fn session_id(&self) -> u32 {
             self.session_id
         }
         fn set_as_primary(&self) {}
-        fn has_stalled(&self, _now: u64) -> bool {
-            false
+        fn has_stalled(&self, now: u64) -> bool {
+            now > self.started_at
         }
         fn started_at(&self) -> u64 {
             self.started_at
@@ -561,16 +648,16 @@ mod tests {
             Ok(())
         }
         fn is_done(&self) -> bool {
-            false
+            self.is_done.load(std::sync::atomic::Ordering::SeqCst)
         }
         fn deliver_message(&self, message: TestMessage) -> Result<(), ()> {
             self.delivered_messages.send(message).map_err(|_| ())
         }
         fn has_started(&self) -> bool {
-            true
+            self.has_started.load(std::sync::atomic::Ordering::SeqCst)
         }
         fn is_active(&self) -> bool {
-            true
+            self.has_started() && !self.is_done()
         }
         fn ssid(&self) -> u32 {
             self.ssid
@@ -580,36 +667,18 @@ mod tests {
     #[tokio::test]
     async fn test_push_task() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
-        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-
-        let remote = Arc::new(TestProtocolRemote {
-            session_id: 1,
-            ssid: 1,
-            started_at: 0,
-            delivered_messages: tx,
-        });
-
-        let task = async {};
-        let task = Box::pin(task);
-
+        let (remote, task, _rx) = generate_async_protocol(1, 1, 0);
         let result = work_manager.push_task([0; 32], false, remote, task);
-
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_deliver_message() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        let remote = Arc::new(TestProtocolRemote {
-            session_id: 0,
-            ssid: 0,
-            started_at: 0,
-            delivered_messages: tx,
-        });
+        let (remote, task, mut rx) = generate_async_protocol(0, 0, 0);
 
         work_manager
-            .push_task([0; 32], true, remote.clone(), Box::pin(async {}))
+            .push_task([0; 32], true, remote.clone(), task)
             .unwrap();
 
         let message = TestMessage {
@@ -618,28 +687,22 @@ mod tests {
             associated_session_id: 0,
             associated_ssid: 0,
         };
-        work_manager.deliver_message(message, [0; 32]);
+        assert_ne!(
+            DeliveryType::EnqueuedMessage,
+            work_manager.deliver_message(message, [0; 32]).unwrap()
+        );
         let _ = rx.recv().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_job_exists() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
-        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+        let (remote, task, _rx) = generate_async_protocol(1, 1, 0);
 
         let result = work_manager.job_exists(&[0; 32]);
         assert!(!result);
 
-        let remote = Arc::new(TestProtocolRemote {
-            session_id: 1,
-            ssid: 1,
-            started_at: 0,
-            delivered_messages: tx,
-        });
-
-        work_manager
-            .push_task([0; 32], true, remote, Box::pin(async {}))
-            .unwrap();
+        work_manager.push_task([0; 32], true, remote, task).unwrap();
 
         let result = work_manager.job_exists(&[0; 32]);
         assert!(result);
@@ -654,63 +717,32 @@ mod tests {
             PollMethod::Manual,
         );
 
-        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-
-        let remote1 = Arc::new(TestProtocolRemote {
-            session_id: 1,
-            ssid: 1,
-            started_at: 0,
-            delivered_messages: tx.clone(),
-        });
-
-        let remote2 = Arc::new(TestProtocolRemote {
-            session_id: 2,
-            ssid: 2,
-            started_at: 0,
-            delivered_messages: tx.clone(),
-        });
-
-        let remote3 = Arc::new(TestProtocolRemote {
-            session_id: 3,
-            ssid: 3,
-            started_at: 0,
-            delivered_messages: tx,
-        });
-
-        let task1 = Box::pin(async {});
-        let task2 = Box::pin(async {});
-        let task3 = Box::pin(async {});
+        let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
+        let (remote2, task2, _rx) = generate_async_protocol(2, 2, 0);
+        let (remote3, task3, _rx) = generate_async_protocol(3, 3, 0);
 
         // Add 2 tasks, should succeed
         assert!(work_manager
-            .push_task([1; 32], false, remote1.clone(), task1)
+            .push_task([1; 32], false, remote1, task1)
             .is_ok());
         assert!(work_manager
-            .push_task([2; 32], false, remote2.clone(), task2)
+            .push_task([2; 32], false, remote2, task2)
             .is_ok());
 
         // Try to add a third, should fail
         assert!(work_manager
-            .push_task([3; 32], false, remote3.clone(), task3)
+            .push_task([3; 32], false, remote3, task3)
             .is_err());
     }
 
     #[tokio::test]
     async fn test_deliver_to_queued_task() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        let remote1 = Arc::new(TestProtocolRemote {
-            session_id: 1,
-            ssid: 1,
-            started_at: 0,
-            delivered_messages: tx,
-        });
-
-        let task1 = Box::pin(async {});
+        let (remote, task, mut rx) = generate_async_protocol(1, 1, 0);
 
         // Add a queued task
         work_manager
-            .push_task([1; 32], false, remote1.clone(), task1)
+            .push_task([1; 32], false, remote.clone(), task)
             .unwrap();
 
         // Deliver message, should succeed
@@ -720,8 +752,160 @@ mod tests {
             associated_session_id: 1,
             associated_ssid: 1,
         };
-        work_manager.deliver_message(msg.clone(), [1; 32]);
+        assert_ne!(
+            DeliveryType::EnqueuedMessage,
+            work_manager.deliver_message(msg.clone(), [1; 32]).unwrap()
+        );
         let next_message = rx.recv().await.unwrap();
         assert_eq!(next_message, msg);
+    }
+
+    #[tokio::test]
+    async fn test_get_task_metadata() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+        let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
+        let (remote2, task2, _rx) = generate_async_protocol(2, 2, 0);
+
+        work_manager
+            .push_task([1; 32], true, remote1, task1)
+            .unwrap();
+        work_manager
+            .push_task([2; 32], true, remote2, task2)
+            .unwrap();
+
+        let now = 0;
+        let metadata = work_manager.get_active_sessions_metadata(now);
+
+        assert_eq!(metadata.len(), 2);
+        let expected1 = JobMetadata {
+            session_id: 1,
+            is_stalled: false,
+            is_finished: false,
+            has_started: true,
+            is_active: true,
+        };
+
+        let expected2 = JobMetadata {
+            session_id: 2,
+            is_stalled: false,
+            is_finished: false,
+            has_started: true,
+            is_active: true,
+        };
+
+        assert!(metadata.contains(&expected1));
+        assert!(metadata.contains(&expected2));
+
+        // Now, start the tasks
+        work_manager.poll();
+        // Wait some time for the tasks to finish
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        // Poll again to cleanup
+        work_manager.poll();
+        // Re-check the statuses
+        let metadata = work_manager.get_active_sessions_metadata(now);
+
+        assert!(metadata.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_task_metadata_no_force_start() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+        let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
+        let (remote2, task2, _rx) = generate_async_protocol(2, 2, 0);
+
+        let now = 0;
+
+        work_manager
+            .push_task([1; 32], false, remote1, task1)
+            .unwrap();
+        work_manager
+            .push_task([2; 32], false, remote2, task2)
+            .unwrap();
+
+        let metadata = work_manager.get_active_sessions_metadata(now);
+        assert!(metadata.is_empty());
+
+        // Now, poll to start the tasks
+        work_manager.poll();
+
+        let metadata = work_manager.get_active_sessions_metadata(now);
+
+        assert_eq!(metadata.len(), 2);
+        let expected1 = JobMetadata {
+            session_id: 1,
+            is_stalled: false,
+            is_finished: false,
+            has_started: true,
+            is_active: true,
+        };
+
+        let expected2 = JobMetadata {
+            session_id: 2,
+            is_stalled: false,
+            is_finished: false,
+            has_started: true,
+            is_active: true,
+        };
+
+        assert!(metadata.contains(&expected1));
+        assert!(metadata.contains(&expected2));
+
+        // Wait some time for the tasks to finish
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        // Poll again to cleanup
+        work_manager.poll();
+        // Re-check the statuses
+        let metadata = work_manager.get_active_sessions_metadata(now);
+
+        assert!(metadata.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_force_shutdown_all() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+        let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
+        let (remote2, task2, _rx) = generate_async_protocol(2, 2, 0);
+        work_manager
+            .push_task([1; 32], true, remote1, task1)
+            .unwrap();
+        work_manager
+            .push_task([2; 32], true, remote2, task2)
+            .unwrap();
+
+        // Verify that the tasks were added
+        assert!(work_manager.job_exists(&[1; 32]));
+        assert!(work_manager.job_exists(&[2; 32]));
+
+        // Force shutdown all tasks
+        work_manager.force_shutdown_all();
+
+        // Verify that the tasks were removed
+        assert!(!work_manager.job_exists(&[1; 32]));
+        assert!(!work_manager.job_exists(&[2; 32]));
+    }
+
+    #[tokio::test]
+    async fn test_clear_enqueued_tasks() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+        let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
+        let (remote2, task2, _rx) = generate_async_protocol(2, 2, 0);
+        work_manager
+            .push_task([1; 32], false, remote1, task1)
+            .unwrap();
+        work_manager
+            .push_task([2; 32], false, remote2, task2)
+            .unwrap();
+
+        // Verify that the tasks were added
+        assert!(work_manager.job_exists(&[1; 32]));
+        assert!(work_manager.job_exists(&[2; 32]));
+
+        // Clear enqueued tasks
+        work_manager.clear_enqueued_tasks();
+
+        // Verify that the tasks were removed
+        assert!(!work_manager.job_exists(&[1; 32]));
+        assert!(!work_manager.job_exists(&[2; 32]));
     }
 }
