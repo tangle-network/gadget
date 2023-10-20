@@ -14,17 +14,16 @@ pub enum PollMethod {
     Interval { millis: u64 },
     Manual,
 }
-pub struct WorkManager<WM: WorkManagerInterface> {
+pub struct ProtocolWorkManager<WM: WorkManagerInterface> {
     inner: Arc<RwLock<WorkManagerInner<WM>>>,
     utility: Arc<WM>,
     // for now, use a hard-coded value for the number of tasks
     max_tasks: Arc<usize>,
     max_enqueued_tasks: Arc<usize>,
     poll_method: Arc<PollMethod>,
-    to_handler: tokio::sync::mpsc::UnboundedSender<[u8; 32]>,
 }
 
-impl<WM: WorkManagerInterface> Clone for WorkManager<WM> {
+impl<WM: WorkManagerInterface> Clone for ProtocolWorkManager<WM> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -32,7 +31,6 @@ impl<WM: WorkManagerInterface> Clone for WorkManager<WM> {
             max_tasks: self.max_tasks.clone(),
             max_enqueued_tasks: self.max_enqueued_tasks.clone(),
             poll_method: self.poll_method.clone(),
-            to_handler: self.to_handler.clone(),
         }
     }
 }
@@ -65,6 +63,8 @@ pub trait ProtocolMessageMetadata<WM: WorkManagerInterface> {
     fn associated_ssid(&self) -> WM::SSID;
 }
 
+/// The [`ProtocolRemote`] is the interface between the [`ProtocolWorkManager`] and the async protocol.
+/// It *must* be unique between each async protocol.
 pub trait ProtocolRemote<WM: WorkManagerInterface>: Send + Sync + 'static {
     fn start(&self) -> Result<(), WM::Error>;
     fn session_id(&self) -> WM::SessionID;
@@ -88,14 +88,13 @@ pub struct JobMetadata<WM: WorkManagerInterface> {
     pub is_active: bool,
 }
 
-impl<WM: WorkManagerInterface> WorkManager<WM> {
+impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
     pub fn new(
         utility: WM,
         max_tasks: usize,
         max_enqueued_tasks: usize,
         poll_method: PollMethod,
     ) -> Self {
-        let (to_handler, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let this = Self {
             inner: Arc::new(RwLock::new(WorkManagerInner {
                 active_tasks: HashSet::new(),
@@ -105,7 +104,6 @@ impl<WM: WorkManagerInterface> WorkManager<WM> {
             utility: Arc::new(utility),
             max_tasks: Arc::new(max_tasks),
             max_enqueued_tasks: Arc::new(max_enqueued_tasks),
-            to_handler,
             poll_method: Arc::new(poll_method),
         };
 
@@ -114,15 +112,6 @@ impl<WM: WorkManagerInterface> WorkManager<WM> {
             let handler = async move {
                 let job_receiver_worker = this_worker.clone();
                 let logger = job_receiver_worker.utility.clone();
-
-                let job_receiver = async move {
-                    while let Some(task_hash) = rx.recv().await {
-                        job_receiver_worker
-                            .utility
-                            .debug(format!("[worker] Received job {task_hash:?}",));
-                        job_receiver_worker.poll();
-                    }
-                };
 
                 let periodic_poller = async move {
                     let mut interval =
@@ -133,14 +122,8 @@ impl<WM: WorkManagerInterface> WorkManager<WM> {
                     }
                 };
 
-                tokio::select! {
-                    _ = job_receiver => {
-                        logger.error("[worker] job_receiver exited".to_string());
-                    },
-                    _ = periodic_poller => {
-                        logger.error("[worker] periodic_poller exited".to_string());
-                    }
-                }
+                periodic_poller.await;
+                logger.error("[worker] periodic_poller exited".to_string());
             };
 
             tokio::task::spawn(handler);
@@ -182,14 +165,20 @@ impl<WM: WorkManagerInterface> WorkManager<WM> {
             return Ok(());
         }
 
+        if lock.enqueued_tasks.len() + lock.active_tasks.len()
+            >= *self.max_enqueued_tasks + *self.max_tasks
+        {
+            return Err(WorkManagerError::PushTaskFailed {
+                reason: "Too many active and enqueued tasks".to_string(),
+            });
+        }
+
         lock.enqueued_tasks.push_back(job);
 
+        drop(lock);
         if *self.poll_method != PollMethod::Manual {
-            self.to_handler
-                .send(task_hash)
-                .map_err(|_| WorkManagerError::PushTaskFailed {
-                    reason: "Failed to send job to worker".to_string(),
-                })
+            self.poll();
+            Ok(())
         } else {
             Ok(())
         }
@@ -499,4 +488,238 @@ fn should_deliver<WM: WorkManagerInterface>(
             task.handle.started_at(), // use to be associated_block_id
             msg.associated_block_id(),
         )
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use parking_lot::Mutex;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    struct TestWorkManager;
+    #[derive(Clone, Eq, PartialEq, Debug)]
+    struct TestMessage {
+        message: String,
+        associated_block_id: u64,
+        associated_session_id: u32,
+        associated_ssid: u32,
+    }
+
+    impl ProtocolMessageMetadata<TestWorkManager> for TestMessage {
+        fn associated_block_id(&self) -> u64 {
+            self.associated_block_id
+        }
+        fn associated_session_id(&self) -> u32 {
+            self.associated_session_id
+        }
+        fn associated_ssid(&self) -> u32 {
+            self.associated_ssid
+        }
+    }
+
+    impl WorkManagerInterface for TestWorkManager {
+        type SSID = u32;
+        type Clock = u64;
+        type ProtocolMessage = TestMessage;
+        type Error = ();
+        type SessionID = u32;
+
+        fn debug(&self, _input: String) {}
+        fn error(&self, _input: String) {}
+        fn warn(&self, _input: String) {}
+        fn clock(&self) -> Self::Clock {
+            0
+        }
+        fn associated_block_id_acceptable(_now: Self::Clock, _compare: Self::Clock) -> bool {
+            true
+        }
+    }
+
+    struct TestProtocolRemote {
+        session_id: u32,
+        ssid: u32,
+        started_at: u64,
+        delivered_messages: Arc<Mutex<Vec<TestMessage>>>,
+    }
+
+    impl ProtocolRemote<TestWorkManager> for TestProtocolRemote {
+        fn start(&self) -> Result<(), ()> {
+            Ok(())
+        }
+        fn session_id(&self) -> u32 {
+            self.session_id
+        }
+        fn set_as_primary(&self) {}
+        fn has_stalled(&self, _now: u64) -> bool {
+            false
+        }
+        fn started_at(&self) -> u64 {
+            self.started_at
+        }
+        fn shutdown(&self, _reason: ShutdownReason) -> Result<(), ()> {
+            Ok(())
+        }
+        fn is_done(&self) -> bool {
+            false
+        }
+        fn deliver_message(&self, message: TestMessage) -> Result<(), ()> {
+            self.delivered_messages.lock().push(message);
+            Ok(())
+        }
+        fn has_started(&self) -> bool {
+            true
+        }
+        fn is_active(&self) -> bool {
+            true
+        }
+        fn ssid(&self) -> u32 {
+            self.ssid
+        }
+    }
+
+    #[tokio::test]
+    async fn test_push_task() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+
+        let remote = Arc::new(TestProtocolRemote {
+            session_id: 1,
+            ssid: 1,
+            started_at: 0,
+            delivered_messages: Mutex::new(Default::default()).into(),
+        });
+
+        let task = async {};
+        let task = Box::pin(task);
+
+        let result = work_manager.push_task([0; 32], false, remote, task);
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_deliver_message() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+
+        let remote = Arc::new(TestProtocolRemote {
+            session_id: 1,
+            ssid: 1,
+            started_at: 0,
+            delivered_messages: Mutex::new(Default::default()).into(),
+        });
+
+        work_manager
+            .push_task([0; 32], true, remote.clone(), Box::pin(async {}))
+            .unwrap();
+
+        let message = TestMessage {
+            message: "test".to_string(),
+            associated_block_id: 0,
+            associated_session_id: 0,
+            associated_ssid: 0,
+        };
+        work_manager.deliver_message(message, [0; 32]);
+    }
+
+    #[tokio::test]
+    async fn test_job_exists() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+
+        let result = work_manager.job_exists(&[0; 32]);
+        assert!(!result);
+
+        let remote = Arc::new(TestProtocolRemote {
+            session_id: 1,
+            ssid: 1,
+            started_at: 0,
+            delivered_messages: Mutex::new(Default::default()).into(),
+        });
+
+        work_manager
+            .push_task([0; 32], true, remote, Box::pin(async {}))
+            .unwrap();
+
+        let result = work_manager.job_exists(&[0; 32]);
+        assert!(result);
+    }
+
+    #[tokio::test]
+    async fn test_add_multiple_tasks() {
+        let work_manager = ProtocolWorkManager::new(
+            TestWorkManager,
+            2, // max 2 tasks
+            0,
+            PollMethod::Manual,
+        );
+
+        let remote1 = Arc::new(TestProtocolRemote {
+            session_id: 1,
+            ssid: 1,
+            started_at: 0,
+            delivered_messages: Mutex::new(Default::default()).into(),
+        });
+
+        let remote2 = Arc::new(TestProtocolRemote {
+            session_id: 2,
+            ssid: 2,
+            started_at: 0,
+            delivered_messages: Mutex::new(Default::default()).into(),
+        });
+
+        let remote3 = Arc::new(TestProtocolRemote {
+            session_id: 3,
+            ssid: 3,
+            started_at: 0,
+            delivered_messages: Mutex::new(Default::default()).into(),
+        });
+
+        let task1 = Box::pin(async {});
+        let task2 = Box::pin(async {});
+        let task3 = Box::pin(async {});
+
+        // Add 2 tasks, should succeed
+        assert!(work_manager
+            .push_task([1; 32], false, remote1.clone(), task1)
+            .is_ok());
+        assert!(work_manager
+            .push_task([2; 32], false, remote2.clone(), task2)
+            .is_ok());
+
+        // Try to add a third, should fail
+        assert!(work_manager
+            .push_task([3; 32], false, remote3.clone(), task3)
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn test_deliver_to_queued_task() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+
+        let remote1 = Arc::new(TestProtocolRemote {
+            session_id: 1,
+            ssid: 1,
+            started_at: 0,
+            delivered_messages: Mutex::new(Default::default()).into(),
+        });
+
+        let task1 = Box::pin(async {});
+
+        // Add a queued task
+        work_manager
+            .push_task([1; 32], false, remote1.clone(), task1)
+            .unwrap();
+
+        // Deliver message, should succeed
+        let msg = TestMessage {
+            message: "test".to_string(),
+            associated_block_id: 0,
+            associated_session_id: 1,
+            associated_ssid: 1,
+        };
+        work_manager.deliver_message(msg.clone(), [1; 32]);
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let stored_messages = remote1.delivered_messages.lock().clone();
+        assert_eq!(stored_messages, &[msg])
+    }
 }
