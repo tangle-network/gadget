@@ -11,8 +11,7 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use tokio::sync::Mutex;
 
-pub struct SubstrateGadget<B: Block, BE, C, API, Module> {
-    client: C,
+pub struct SubstrateGadget<B: Block, BE, API, Module> {
     module: Module,
     finality_notification_stream: Mutex<FinalityNotifications<B>>,
     block_import_notification_stream: Mutex<ImportNotifications<B>>,
@@ -24,22 +23,24 @@ pub struct SubstrateGadgetError {}
 
 /// Designed to plug-in to the substrate gadget
 #[async_trait]
-pub trait SubstrateGadgetModule<Gadget: AbstractGadget>: Send + Sync {
+pub trait SubstrateGadgetModule: Send + Sync {
     type Error: Error + Send;
+    type FinalityNotification: Send;
+    type BlockImportNotification: Send;
     type ProtocolMessage: Send;
 
-    async fn get_next_protocol_message(&self) -> Option<Gadget::ProtocolMessage>;
+    async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage>;
     async fn process_finality_notification(
         &self,
-        notification: Gadget::FinalityNotification,
+        notification: Self::FinalityNotification,
     ) -> Result<(), Self::Error>;
     async fn process_block_import_notification(
         &self,
-        notification: Gadget::BlockImportNotification,
+        notification: Self::BlockImportNotification,
     ) -> Result<(), Self::Error>;
     async fn process_protocol_message(
         &self,
-        message: Gadget::ProtocolMessage,
+        message: Self::ProtocolMessage,
     ) -> Result<(), Self::Error>;
     async fn process_error(&self, error: Self::Error);
 }
@@ -60,20 +61,18 @@ where
 {
 }
 
-impl<B, BE, C, Api, Module> SubstrateGadget<B, BE, C, Api, Module>
+impl<B, BE, Api, Module> SubstrateGadget<B, BE, Api, Module>
 where
     B: Block,
     BE: Backend<B>,
-    C: Client<B, BE, Api = Api>,
-    Module: SubstrateGadgetModule<Self>,
+    Module: SubstrateGadgetModule,
     Api: Send + Sync,
 {
-    pub fn new(client: C, module: Module) -> Self {
+    pub fn new<C: Client<B, BE, Api = Api>>(client: &C, module: Module) -> Self {
         let finality_notification_stream = client.finality_notification_stream();
         let block_import_notification_stream = client.import_notification_stream();
 
         Self {
-            client,
             module,
             finality_notification_stream: Mutex::new(finality_notification_stream),
             block_import_notification_stream: Mutex::new(block_import_notification_stream),
@@ -83,12 +82,14 @@ where
 }
 
 #[async_trait]
-impl<B, BE, C, Api, Module> AbstractGadget for SubstrateGadget<B, BE, C, Api, Module>
+impl<B, BE, Api, Module> AbstractGadget for SubstrateGadget<B, BE, Api, Module>
 where
     B: Block,
     BE: Backend<B>,
-    C: Client<B, BE, Api = Api>,
-    Module: SubstrateGadgetModule<Self>,
+    Module: SubstrateGadgetModule<
+        FinalityNotification = FinalityNotification<B>,
+        BlockImportNotification = BlockImportNotification<B>,
+    >,
     Api: Send + Sync,
 {
     type FinalityNotification = FinalityNotification<B>;
