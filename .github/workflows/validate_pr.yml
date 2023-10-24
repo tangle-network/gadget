@@ -54,4 +54,4 @@ jobs:
           toolchain: stable
 
       - name: Run Tests
-        run: cargo test
+        run: cargo test --features=substrate

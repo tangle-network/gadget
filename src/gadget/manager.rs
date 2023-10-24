@@ -1,0 +1,114 @@
+use async_trait::async_trait;
+use std::error::Error;
+use std::future::Future;
+use std::pin::Pin;
+
+pub struct GadgetManager<'a> {
+    gadget: Pin<Box<dyn Future<Output = Result<(), GadgetError>> + 'a>>,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum GadgetError {
+    FinalityNotificationStreamEnded,
+    BlockImportNotificationStreamEnded,
+    ProtocolMessageStreamEnded,
+}
+
+#[async_trait]
+pub trait AbstractGadget: Send {
+    type FinalityNotification: Send;
+    type BlockImportNotification: Send;
+    type ProtocolMessage: Send;
+    type Error: Error;
+
+    async fn get_next_finality_notification(&self) -> Option<Self::FinalityNotification>;
+    async fn get_next_block_import_notification(&self) -> Option<Self::BlockImportNotification>;
+    async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage>;
+
+    async fn process_finality_notification(
+        &self,
+        notification: Self::FinalityNotification,
+    ) -> Result<(), Self::Error>;
+    async fn process_block_import_notification(
+        &self,
+        notification: Self::BlockImportNotification,
+    ) -> Result<(), Self::Error>;
+    async fn process_protocol_message(
+        &self,
+        message: Self::ProtocolMessage,
+    ) -> Result<(), Self::Error>;
+
+    async fn process_error(&self, error: Self::Error);
+}
+
+impl<'a> GadgetManager<'a> {
+    pub fn new<T: AbstractGadget + 'a>(gadget: T) -> Self {
+        let gadget_task = async move {
+            let gadget = &gadget;
+
+            let finality_notification_task = async move {
+                loop {
+                    if let Some(notification) = gadget.get_next_finality_notification().await {
+                        if let Err(err) = gadget.process_finality_notification(notification).await {
+                            gadget.process_error(err).await;
+                        }
+                    } else {
+                        return Err(GadgetError::FinalityNotificationStreamEnded);
+                    }
+                }
+            };
+
+            let block_import_notification_task = async move {
+                loop {
+                    if let Some(notification) = gadget.get_next_block_import_notification().await {
+                        if let Err(err) =
+                            gadget.process_block_import_notification(notification).await
+                        {
+                            gadget.process_error(err).await;
+                        }
+                    } else {
+                        return Err(GadgetError::BlockImportNotificationStreamEnded);
+                    }
+                }
+            };
+
+            let protocol_message_task = async move {
+                loop {
+                    if let Some(message) = gadget.get_next_protocol_message().await {
+                        if let Err(err) = gadget.process_protocol_message(message).await {
+                            gadget.process_error(err).await;
+                        }
+                    } else {
+                        return Err(GadgetError::ProtocolMessageStreamEnded);
+                    }
+                }
+            };
+
+            tokio::select! {
+                res0 = finality_notification_task => res0,
+                res1 = block_import_notification_task => res1,
+                res2 = protocol_message_task => res2
+            }
+        };
+
+        Self {
+            gadget: Box::pin(gadget_task),
+        }
+    }
+}
+
+impl Future for GadgetManager<'_> {
+    type Output = Result<(), GadgetError>;
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        self.gadget.as_mut().poll(cx)
+    }
+}
+
+impl<'a, T: AbstractGadget + 'a> From<T> for GadgetManager<'a> {
+    fn from(gadget: T) -> Self {
+        Self::new(gadget)
+    }
+}
