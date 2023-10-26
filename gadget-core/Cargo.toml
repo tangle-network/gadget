@@ -1,5 +1,5 @@
 [package]
-name = "gadget"
+name = "gadget-core"
 version = "0.0.1"
 authors = ["Thomas P Braun"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
