@@ -109,7 +109,7 @@ impl RegistryService {
         // Upgrade to TLS
         let tls = mpc_net::prod::create_client_mutual_tls_connector(king_certs, client_identity)
             .map_err(|err| Error::RegistryCreateError {
-                err: err.to_string(),
+                err: format!("{err:?}"),
             })?;
 
         let connection = tls
@@ -150,7 +150,7 @@ impl RegistryService {
                 let listener = listener.expect("Should exist");
                 let tls_acceptor = create_server_tls_acceptor(identity).map_err(|err| {
                     Error::RegistryCreateError {
-                        err: err.to_string(),
+                        err: format!("{err:?}"),
                     }
                 })?;
 
@@ -158,7 +158,7 @@ impl RegistryService {
                     println!("[Registry] Accepted connection from {peer_addr}, upgrading to TLS");
                     let stream = tls_acceptor.accept(stream).await.map_err(|err| {
                         Error::RegistryCreateError {
-                            err: err.to_string(),
+                            err: format!("{err:?}"),
                         }
                     })?;
 
@@ -200,6 +200,10 @@ impl RegistryService {
                         }
                     }
                 }
+
+                Err(Error::RegistryListenError {
+                    err: "Connection closed".to_string(),
+                })
             }
         }
     }
@@ -232,7 +236,7 @@ impl RegistryService {
 
                 if !matches!(
                     &response,
-                    &RegistryPacket::RegisterResponse { success: true }
+                    &RegistryPacket::RegisterResponse { success: true, .. }
                 ) {
                     return Err(Error::RegistryCreateError {
                         err: "Unexpected response".to_string(),
@@ -258,7 +262,7 @@ impl RegistryService {
 #[derive(Serialize, Deserialize)]
 enum RegistryPacket {
     Register { id: RegistantId, cert_der: Vec<u8> },
-    RegisterResponse { success: bool },
+    RegisterResponse { id: RegistantId, success: bool },
     // A message for the substrate gadget
     SubstrateGadgetMessage { payload: GadgetProtocolMessage },
 }
@@ -282,7 +286,7 @@ fn handle_stream_as_king(
                         registrants.insert(id, Registrant { id, cert_der });
                         if let Err(err) = send_stream(
                             &mut wrapped_stream,
-                            RegistryPacket::RegisterResponse { success: true },
+                            RegistryPacket::RegisterResponse { id, success: true },
                         )
                         .await
                         {

@@ -1,0 +1,13 @@
+[workspace]
+members = [
+    "gadget-core",
+    "webb-gadget"
+]
+
+[workspace.dependencies]
+gadget-core = { path = "./gadget-core" }
+
+sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }

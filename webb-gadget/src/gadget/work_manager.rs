@@ -1,19 +1,31 @@
 use crate::gadget::message::GadgetProtocolMessage;
-use gadget::job_manager::WorkManagerInterface;
+use gadget_core::job_manager::WorkManagerInterface;
 use std::sync::Arc;
 
-pub struct ZKWorkManager {
-    pub(crate) clock: Arc<dyn Fn() -> ZKWorkManager::Clock>,
+pub struct WebbWorkManager {
+    pub(crate) clock:
+        Arc<dyn Fn() -> <WebbWorkManager as WorkManagerInterface>::Clock + Send + Sync>,
+}
+
+impl WebbWorkManager {
+    pub fn new(
+        clock: impl Fn() -> <WebbWorkManager as WorkManagerInterface>::Clock + Send + Sync,
+    ) -> Self {
+        Self {
+            clock: Arc::new(clock),
+        }
+    }
 }
 
 const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 5;
 
-impl WorkManagerInterface for ZKWorkManager {
+impl WorkManagerInterface for WebbWorkManager {
     type SSID = u16;
     type Clock = u64;
     type ProtocolMessage = GadgetProtocolMessage;
     type Error = crate::Error;
     type SessionID = u64;
+    type TaskID = [u8; 32];
 
     fn debug(&self, input: String) {
         log::debug!(target: "gadget", "{input}")

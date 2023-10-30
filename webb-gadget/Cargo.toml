@@ -7,6 +7,7 @@ edition = "2021"
 
 [features]
 zk = []
+tss = []
 
 [dependencies]
 mpc-net = { git = "https://github.com/webb-tools/zk-SaaS/" }
@@ -20,3 +21,7 @@ futures-util = "0.3.28"
 log = "0.4.20"
 parking_lot = "0.12.1"
 tokio-rustls = "0.24.1"
+auto_impl = "1.1.0"
+sc-client-api = { workspace = true }
+sp-core = { workspace = true }
+sp-runtime = { workspace = true }

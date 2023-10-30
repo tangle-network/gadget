@@ -1,12 +1,15 @@
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::registry::RegistantId;
-use crate::gadget::work_manager::ZKWorkManager;
+use crate::gadget::work_manager::WebbWorkManager;
 use crate::Error;
 use async_trait::async_trait;
 use gadget_core::gadget::substrate::SubstrateGadgetModule;
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager};
 use mpc_net::prod::RustlsCertificate;
 use parking_lot::RwLock;
+use sc_client_api::{BlockImportNotification, FinalityNotification};
+use sp_runtime::traits::Block;
+use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -25,17 +28,18 @@ pub mod message;
 /// When it does so, since the clients may change, we will need to also update the TLS certs of
 /// the king to match the new clients. As such, for each new async protocol we spawn, we will
 /// also need to create a new [`ProdNet`] instance for the king and the clients
-pub struct ZkGadget {
+pub struct ZkGadget<B> {
     registry: registry::RegistryService,
-    job_manager: ProtocolWorkManager<ZKWorkManager>,
+    job_manager: ProtocolWorkManager<WebbWorkManager>,
     from_registry: Mutex<tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>>,
     clock: Arc<RwLock<u64>>,
+    _pd: PhantomData<B>,
 }
 
 const MAX_ACTIVE_TASKS: usize = 4;
 const MAX_PENDING_TASKS: usize = 4;
 
-impl ZkGadget {
+impl<B: Block> ZkGadget<B> {
     pub async fn new_king<T: tokio::net::ToSocketAddrs>(
         bind_addr: SocketAddr,
         identity: RustlsCertificate,
@@ -67,9 +71,7 @@ impl ZkGadget {
         let clock_clone = clock.clone();
         let from_registry = registry.take_subscription_channel().expect("Should exist");
 
-        let job_manager_zk = ZKWorkManager {
-            clock: Arc::new(move || *clock_clone.read()),
-        };
+        let job_manager_zk = WebbWorkManager::new(move || *clock_clone.read());
 
         let job_manager = ProtocolWorkManager::new(
             job_manager_zk,
@@ -83,15 +85,16 @@ impl ZkGadget {
             job_manager,
             clock,
             from_registry: Mutex::new(from_registry),
+            _pd: Default::default(),
         }
     }
 }
 
 #[async_trait]
-impl SubstrateGadgetModule for ZkGadget {
+impl<B: Block> SubstrateGadgetModule for ZkGadget<B> {
     type Error = Error;
-    type FinalityNotification = ();
-    type BlockImportNotification = ();
+    type FinalityNotification = FinalityNotification<B>;
+    type BlockImportNotification = BlockImportNotification<B>;
     type ProtocolMessage = GadgetProtocolMessage;
 
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage> {
@@ -116,7 +119,10 @@ impl SubstrateGadgetModule for ZkGadget {
         &self,
         message: Self::ProtocolMessage,
     ) -> Result<(), Self::Error> {
-        todo!()
+        self.job_manager
+            .deliver_message(message)
+            .map(|_| ())
+            .map_err(|err| Error::WorkManagerError { err })
     }
 
     async fn process_error(&self, error: Self::Error) {

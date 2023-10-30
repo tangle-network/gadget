@@ -2,7 +2,9 @@ use crate::gadget::registry::RegistantId;
 use crate::gadget::ZkGadget;
 use gadget_core::gadget::manager::{GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::SubstrateGadget;
+use gadget_core::job_manager::WorkManagerError;
 use mpc_net::prod::RustlsCertificate;
+use std::fmt::{Debug, Display, Formatter};
 use std::net::SocketAddr;
 use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
 
@@ -13,9 +15,19 @@ pub enum Error {
     RegistryCreateError { err: String },
     RegistrySendError { err: String },
     RegistryRecvError { err: String },
+    RegistryListenError { err: String },
     GadgetManagerError { err: GadgetError },
     InitError { err: String },
+    WorkManagerError { err: WorkManagerError },
 }
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+impl std::error::Error for Error {}
 
 pub struct GadgetConfig {
     king_bind_addr: Option<SocketAddr>,
@@ -27,7 +39,7 @@ pub struct GadgetConfig {
 }
 
 pub async fn run(config: GadgetConfig) -> Result<(), Error> {
-    let client = Default::default(); // TODO: Replace with a real substrate client
+    let client: u32 = Default::default(); // TODO: Replace with a real substrate client
     let now = 0; // TODO: Replace with a real clock from client
 
     // Create the zk gadget module
@@ -59,8 +71,8 @@ pub async fn run(config: GadgetConfig) -> Result<(), Error> {
         ZkGadget::new_client(king_addr, config.id, our_identity, king_certs, now).await?
     };
 
-    // Plug the module into the substrate gadget
-    let substrate_gadget = SubstrateGadget::new(client, gadget_module);
+    // Plug the module into the substrate gadget to interface the WebbGadget with Substrate
+    let substrate_gadget = SubstrateGadget::new(&client, gadget_module);
 
     // Run the GadgetManager to execute the substrate gadget
     GadgetManager::new(substrate_gadget)
