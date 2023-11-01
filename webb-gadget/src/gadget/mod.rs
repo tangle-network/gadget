@@ -1,75 +1,43 @@
 use crate::gadget::message::GadgetProtocolMessage;
-use crate::gadget::registry::RegistantId;
+use crate::gadget::network::Network;
 use crate::gadget::work_manager::WebbWorkManager;
 use crate::Error;
 use async_trait::async_trait;
-use gadget_core::gadget::substrate::SubstrateGadgetModule;
+use gadget_core::gadget::substrate::{Client, SubstrateGadgetModule};
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager};
-use mpc_net::prod::RustlsCertificate;
 use parking_lot::RwLock;
-use sc_client_api::{BlockImportNotification, FinalityNotification};
-use sp_runtime::traits::Block;
+use sc_client_api::{Backend, BlockImportNotification, FinalityNotification};
+use sp_runtime::traits::{Block, Header};
+use sp_runtime::SaturatedConversion;
 use std::marker::PhantomData;
-use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio_rustls::rustls::RootCertStore;
-
-pub mod registry;
-pub mod work_manager;
-
-pub mod async_protocols;
 
 pub mod message;
+pub mod network;
+pub mod work_manager;
 
 /// Used as a module to place inside the SubstrateGadget
-///
-/// The zkGadget will need to create async protocols for each job it receives from the blockchain.
-/// When it does so, since the clients may change, we will need to also update the TLS certs of
-/// the king to match the new clients. As such, for each new async protocol we spawn, we will
-/// also need to create a new [`ProdNet`] instance for the king and the clients
-pub struct ZkGadget<B> {
-    registry: registry::RegistryService,
+pub struct WebbGadget<B, C, BE, N, M> {
+    #[allow(dead_code)]
+    network: N,
+    module: M,
     job_manager: ProtocolWorkManager<WebbWorkManager>,
-    from_registry: Mutex<tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>>,
-    clock: Arc<RwLock<u64>>,
-    _pd: PhantomData<B>,
+    from_network: Mutex<tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>>,
+    clock: Arc<RwLock<Option<u64>>>,
+    _pd: PhantomData<(B, C, BE)>,
 }
 
 const MAX_ACTIVE_TASKS: usize = 4;
 const MAX_PENDING_TASKS: usize = 4;
 
-impl<B: Block> ZkGadget<B> {
-    pub async fn new_king<T: tokio::net::ToSocketAddrs>(
-        bind_addr: SocketAddr,
-        identity: RustlsCertificate,
-        now: u64,
-    ) -> Result<Self, Error> {
-        let registry = registry::RegistryService::new_king(bind_addr, identity).await?;
-        Ok(Self::new_inner(registry, now))
-    }
-
-    pub async fn new_client<T: std::net::ToSocketAddrs>(
-        king_registry_addr: T,
-        registrant_id: RegistantId,
-        client_identity: RustlsCertificate,
-        king_cert: RootCertStore,
-        now: u64,
-    ) -> Result<Self, Error> {
-        let registry = registry::RegistryService::new_client(
-            king_registry_addr,
-            registrant_id,
-            client_identity,
-            king_cert,
-        )
-        .await?;
-        Ok(Self::new_inner(registry, now))
-    }
-
-    fn new_inner(mut registry: registry::RegistryService, now: u64) -> Self {
+impl<C: Client<B, BE>, B: Block, BE: Backend<B>, N: Network, M: WebbGadgetModule<B>>
+    WebbGadget<B, C, BE, N, M>
+{
+    pub fn new(mut network: N, mut module: M, now: Option<u64>) -> Self {
         let clock = Arc::new(RwLock::new(now));
         let clock_clone = clock.clone();
-        let from_registry = registry.take_subscription_channel().expect("Should exist");
+        let from_registry = network.take_message_receiver().expect("Should exist");
 
         let job_manager_zk = WebbWorkManager::new(move || *clock_clone.read());
 
@@ -80,39 +48,50 @@ impl<B: Block> ZkGadget<B> {
             PollMethod::Interval { millis: 200 },
         );
 
-        ZkGadget {
-            registry,
+        module.on_job_manager_created(job_manager.clone());
+
+        WebbGadget {
+            module,
+            network,
             job_manager,
             clock,
-            from_registry: Mutex::new(from_registry),
+            from_network: Mutex::new(from_registry),
             _pd: Default::default(),
         }
     }
 }
 
 #[async_trait]
-impl<B: Block> SubstrateGadgetModule for ZkGadget<B> {
+impl<C: Client<B, BE>, B: Block, BE: Backend<B>, N: Network, M: WebbGadgetModule<B>>
+    SubstrateGadgetModule for WebbGadget<B, C, BE, N, M>
+{
     type Error = Error;
-    type FinalityNotification = FinalityNotification<B>;
-    type BlockImportNotification = BlockImportNotification<B>;
     type ProtocolMessage = GadgetProtocolMessage;
+    type Block = B;
+    type Backend = BE;
+    type Client = C;
 
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage> {
-        self.from_registry.lock().await.recv().await
+        self.from_network.lock().await.recv().await
     }
 
     async fn process_finality_notification(
         &self,
-        notification: Self::FinalityNotification,
+        notification: FinalityNotification<B>,
     ) -> Result<(), Self::Error> {
-        todo!()
+        *self.clock.write() = Some((*notification.header.number()).saturated_into());
+        self.module
+            .process_finality_notification(notification)
+            .await
     }
 
     async fn process_block_import_notification(
         &self,
-        notification: Self::BlockImportNotification,
+        notification: BlockImportNotification<B>,
     ) -> Result<(), Self::Error> {
-        todo!()
+        self.module
+            .process_block_import_notification(notification)
+            .await
     }
 
     async fn process_protocol_message(
@@ -126,6 +105,20 @@ impl<B: Block> SubstrateGadgetModule for ZkGadget<B> {
     }
 
     async fn process_error(&self, error: Self::Error) {
-        todo!()
+        self.module.process_error(error).await
     }
+}
+
+#[async_trait]
+pub trait WebbGadgetModule<B: Block>: Send + Sync {
+    fn on_job_manager_created(&mut self, job_manager: ProtocolWorkManager<WebbWorkManager>);
+    async fn process_finality_notification(
+        &self,
+        notification: FinalityNotification<B>,
+    ) -> Result<(), Error>;
+    async fn process_block_import_notification(
+        &self,
+        notification: BlockImportNotification<B>,
+    ) -> Result<(), Error>;
+    async fn process_error(&self, error: Error);
 }

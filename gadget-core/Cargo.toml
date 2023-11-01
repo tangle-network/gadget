@@ -16,7 +16,7 @@ substrate = [
 [dependencies]
 sync_wrapper = "0.1.2"
 parking_lot = "0.12.1"
-tokio = { version = "1.32.0", features = ["sync", "time", "macros", "rt"] }
+tokio = { workspace = true, features = ["sync", "time", "macros", "rt"] }
 hex = "0.4.3"
 async-trait = "0.1.73"
 

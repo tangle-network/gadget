@@ -9,13 +9,14 @@ use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::Block;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub struct SubstrateGadget<B: Block, BE, API, Module> {
+pub struct SubstrateGadget<Module: SubstrateGadgetModule> {
     module: Module,
-    finality_notification_stream: Mutex<FinalityNotifications<B>>,
-    block_import_notification_stream: Mutex<ImportNotifications<B>>,
-    _pd: std::marker::PhantomData<(B, BE, API)>,
+    finality_notification_stream: Mutex<FinalityNotifications<Module::Block>>,
+    block_import_notification_stream: Mutex<ImportNotifications<Module::Block>>,
+    client: Arc<Module::Client>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -25,18 +26,19 @@ pub struct SubstrateGadgetError {}
 #[async_trait]
 pub trait SubstrateGadgetModule: Send + Sync {
     type Error: Error + Send;
-    type FinalityNotification: Send;
-    type BlockImportNotification: Send;
     type ProtocolMessage: Send;
+    type Block: Block;
+    type Backend: Backend<Self::Block>;
+    type Client: Client<Self::Block, Self::Backend>;
 
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage>;
     async fn process_finality_notification(
         &self,
-        notification: Self::FinalityNotification,
+        notification: FinalityNotification<Self::Block>,
     ) -> Result<(), Self::Error>;
     async fn process_block_import_notification(
         &self,
-        notification: Self::BlockImportNotification,
+        notification: BlockImportNotification<Self::Block>,
     ) -> Result<(), Self::Error>;
     async fn process_protocol_message(
         &self,
@@ -61,14 +63,11 @@ where
 {
 }
 
-impl<B, BE, Api, Module> SubstrateGadget<B, BE, Api, Module>
+impl<Module> SubstrateGadget<Module>
 where
-    B: Block,
-    BE: Backend<B>,
     Module: SubstrateGadgetModule,
-    Api: Send + Sync,
 {
-    pub fn new<C: Client<B, BE, Api = Api>>(client: &C, module: Module) -> Self {
+    pub fn new(client: Module::Client, module: Module) -> Self {
         let finality_notification_stream = client.finality_notification_stream();
         let block_import_notification_stream = client.import_notification_stream();
 
@@ -76,24 +75,22 @@ where
             module,
             finality_notification_stream: Mutex::new(finality_notification_stream),
             block_import_notification_stream: Mutex::new(block_import_notification_stream),
-            _pd: std::marker::PhantomData,
+            client: Arc::new(client),
         }
+    }
+
+    pub fn client(&self) -> &Arc<Module::Client> {
+        &self.client
     }
 }
 
 #[async_trait]
-impl<B, BE, Api, Module> AbstractGadget for SubstrateGadget<B, BE, Api, Module>
+impl<Module> AbstractGadget for SubstrateGadget<Module>
 where
-    B: Block,
-    BE: Backend<B>,
-    Module: SubstrateGadgetModule<
-        FinalityNotification = FinalityNotification<B>,
-        BlockImportNotification = BlockImportNotification<B>,
-    >,
-    Api: Send + Sync,
+    Module: SubstrateGadgetModule,
 {
-    type FinalityNotification = FinalityNotification<B>;
-    type BlockImportNotification = BlockImportNotification<B>;
+    type FinalityNotification = FinalityNotification<Module::Block>;
+    type BlockImportNotification = BlockImportNotification<Module::Block>;
     type ProtocolMessage = Module::ProtocolMessage;
     type Error = Module::Error;
 

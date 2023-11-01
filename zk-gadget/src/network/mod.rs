@@ -10,6 +10,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
+use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::Mutex;
 use tokio_rustls::rustls::server::NoClientAuth;
 use tokio_rustls::rustls::{RootCertStore, ServerConfig};
@@ -18,7 +19,7 @@ use tokio_rustls::{rustls, TlsAcceptor, TlsStream};
 /// Type should correspond to the on-chain identifier of the registrant
 pub type RegistantId = u64;
 
-pub enum RegistryService {
+pub enum ZkNetworkService {
     King {
         listener: Option<tokio::net::TcpListener>,
         registrants: Arc<Mutex<HashMap<RegistantId, Registrant>>>,
@@ -36,13 +37,15 @@ pub enum RegistryService {
     },
 }
 
+#[allow(dead_code)]
 pub struct Registrant {
     id: RegistantId,
     cert_der: Vec<u8>,
 }
 
-use crate::gadget::message::GadgetProtocolMessage;
 use crate::Error;
+use webb_gadget::gadget::message::GadgetProtocolMessage;
+use webb_gadget::gadget::network::Network;
 
 pub fn create_server_tls_acceptor<T: CertToDer>(
     server_certificate: T,
@@ -61,11 +64,21 @@ pub fn create_server_tls_acceptor<T: CertToDer>(
     Ok(TlsAcceptor::from(Arc::new(server_config)))
 }
 
-impl RegistryService {
-    pub async fn new_king(
-        bind_addr: SocketAddr,
+impl ZkNetworkService {
+    pub async fn new_king<T: std::net::ToSocketAddrs>(
+        bind_addr: T,
         identity: RustlsCertificate,
     ) -> Result<Self, Error> {
+        let bind_addr: SocketAddr = bind_addr
+            .to_socket_addrs()
+            .map_err(|err| Error::RegistryCreateError {
+                err: err.to_string(),
+            })?
+            .next()
+            .ok_or(Error::RegistryCreateError {
+                err: "No address found".to_string(),
+            })?;
+
         let listener = tokio::net::TcpListener::bind(bind_addr)
             .await
             .map_err(|err| Error::RegistryCreateError {
@@ -73,7 +86,7 @@ impl RegistryService {
             })?;
         let registrants = Arc::new(Mutex::new(HashMap::new()));
         let (to_gadget, from_registry) = tokio::sync::mpsc::unbounded_channel();
-        Ok(RegistryService::King {
+        Ok(ZkNetworkService::King {
             listener: Some(listener),
             registrants,
             to_gadget,
@@ -124,7 +137,7 @@ impl RegistryService {
 
         let (to_gadget, from_registry) = tokio::sync::mpsc::unbounded_channel();
 
-        let mut this = RegistryService::Client {
+        let mut this = ZkNetworkService::Client {
             king_registry_addr,
             registrant_id,
             cert_der,
@@ -247,16 +260,6 @@ impl RegistryService {
             }
         }
     }
-
-    /// Returns a handle that allows listening to messages from the registry intended for the gadget
-    pub fn take_subscription_channel(
-        &mut self,
-    ) -> Option<tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>> {
-        match self {
-            Self::King { from_registry, .. } => from_registry.take(),
-            Self::Client { from_registry, .. } => from_registry.take(),
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -352,4 +355,13 @@ async fn recv_stream<T: DeserializeOwned, R: AsyncRead + AsyncWrite + Unpin>(
     })?;
 
     Ok(deserialized)
+}
+
+impl Network for ZkNetworkService {
+    fn take_message_receiver(&mut self) -> Option<UnboundedReceiver<GadgetProtocolMessage>> {
+        match self {
+            Self::King { from_registry, .. } => from_registry.take(),
+            Self::Client { from_registry, .. } => from_registry.take(),
+        }
+    }
 }

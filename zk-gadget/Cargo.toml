@@ -1,0 +1,17 @@
+[package]
+name = "zk-gadget"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio-rustls = { workspace = true }
+mpc-net = { workspace = true }
+webb-gadget = { workspace = true }
+gadget-core = { workspace = true }
+bincode2 = { workspace = true }
+tokio = { workspace = true }
+futures-util = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+async-trait = { workspace = true }

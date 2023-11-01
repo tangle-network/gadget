@@ -3,13 +3,20 @@ use gadget_core::job_manager::WorkManagerInterface;
 use std::sync::Arc;
 
 pub struct WebbWorkManager {
-    pub(crate) clock:
-        Arc<dyn Fn() -> <WebbWorkManager as WorkManagerInterface>::Clock + Send + Sync>,
+    pub(crate) clock: Arc<
+        dyn Fn() -> Option<<WebbWorkManager as WorkManagerInterface>::Clock>
+            + Send
+            + Sync
+            + 'static,
+    >,
 }
 
 impl WebbWorkManager {
     pub fn new(
-        clock: impl Fn() -> <WebbWorkManager as WorkManagerInterface>::Clock + Send + Sync,
+        clock: impl Fn() -> Option<<WebbWorkManager as WorkManagerInterface>::Clock>
+            + Send
+            + Sync
+            + 'static,
     ) -> Self {
         Self {
             clock: Arc::new(clock),
@@ -40,7 +47,7 @@ impl WorkManagerInterface for WebbWorkManager {
     }
 
     fn clock(&self) -> Self::Clock {
-        (self.clock)()
+        (self.clock)().expect("No finality notification received")
     }
 
     fn acceptable_block_tolerance() -> Self::Clock {

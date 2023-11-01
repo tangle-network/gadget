@@ -6,21 +6,17 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-zk = []
-tss = []
 
 [dependencies]
-mpc-net = { git = "https://github.com/webb-tools/zk-SaaS/" }
+mpc-net = { workspace = true }
+tokio-rustls = { workspace = true }
 gadget-core = { workspace = true, features = ["substrate"] }
-tokio = "1.32.0"
-bincode2 = "2"
-serde = { version = "1.0.188", features = ["derive"]}
+tokio = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 tokio-util = { version = "0.7.9" }
-async-trait = "0.1.73"
-futures-util = "0.3.28"
+async-trait = { workspace = true }
 log = "0.4.20"
 parking_lot = "0.12.1"
-tokio-rustls = "0.24.1"
 auto_impl = "1.1.0"
 sc-client-api = { workspace = true }
 sp-core = { workspace = true }

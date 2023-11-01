@@ -1,12 +1,12 @@
-use crate::gadget::registry::RegistantId;
-use crate::gadget::ZkGadget;
+use crate::gadget::network::Network;
+use crate::gadget::{WebbGadget, WebbGadgetModule};
 use gadget_core::gadget::manager::{GadgetError, GadgetManager};
-use gadget_core::gadget::substrate::SubstrateGadget;
+use gadget_core::gadget::substrate::{Client, SubstrateGadget};
 use gadget_core::job_manager::WorkManagerError;
-use mpc_net::prod::RustlsCertificate;
+pub use sc_client_api::BlockImportNotification;
+pub use sc_client_api::{Backend, FinalityNotification};
+use sp_runtime::traits::Block;
 use std::fmt::{Debug, Display, Formatter};
-use std::net::SocketAddr;
-use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
 
 pub mod gadget;
 
@@ -29,50 +29,15 @@ impl Display for Error {
 
 impl std::error::Error for Error {}
 
-pub struct GadgetConfig {
-    king_bind_addr: Option<SocketAddr>,
-    client_only_king_addr: Option<SocketAddr>,
-    id: RegistantId,
-    public_identity_der: Vec<u8>,
-    private_identity_der: Vec<u8>,
-    client_only_king_public_identity_der: Option<Vec<u8>>,
-}
-
-pub async fn run(config: GadgetConfig) -> Result<(), Error> {
-    let client: u32 = Default::default(); // TODO: Replace with a real substrate client
-    let now = 0; // TODO: Replace with a real clock from client
-
-    // Create the zk gadget module
-    let our_identity = RustlsCertificate {
-        cert: Certificate(config.public_identity_der),
-        private_key: PrivateKey(config.private_identity_der),
-    };
-
-    // TODO: make registry a gossip networking, since this will be the most generalized for the modularity
-    // we are seeking for all possible async protocol types
-    let gadget_module = if let Some(addr) = &config.king_bind_addr {
-        ZkGadget::new_king(*addr, our_identity, now).await?
-    } else {
-        let king_addr = config
-            .client_only_king_addr
-            .expect("King address must be specified if king bind address is not specified");
-
-        let mut king_certs = RootCertStore::empty();
-        king_certs
-            .add(&Certificate(
-                config
-                    .client_only_king_public_identity_der
-                    .expect("The client must specify the identity of the king"),
-            ))
-            .map_err(|err| Error::InitError {
-                err: err.to_string(),
-            })?;
-
-        ZkGadget::new_client(king_addr, config.id, our_identity, king_certs, now).await?
-    };
-
+pub async fn run<C: Client<B, BE>, B: Block, BE: Backend<B>, N: Network, M: WebbGadgetModule<B>>(
+    network: N,
+    module: M,
+    client: C,
+) -> Result<(), Error> {
+    let now = None;
+    let webb_gadget = WebbGadget::new(network, module, now);
     // Plug the module into the substrate gadget to interface the WebbGadget with Substrate
-    let substrate_gadget = SubstrateGadget::new(&client, gadget_module);
+    let substrate_gadget = SubstrateGadget::new(client, webb_gadget);
 
     // Run the GadgetManager to execute the substrate gadget
     GadgetManager::new(substrate_gadget)
