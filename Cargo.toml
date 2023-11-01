@@ -1,0 +1,24 @@
+[workspace]
+members = [
+    "gadget-core",
+    "webb-gadget",
+    "zk-gadget"
+]
+
+[workspace.dependencies]
+gadget-core = { path = "./gadget-core" }
+webb-gadget = { path = "./webb-gadget" }
+zk-gadget = { path = "./zk-gadget" }
+
+sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+
+mpc-net = { git = "https://github.com/webb-tools/zk-SaaS/" }
+tokio-rustls = "0.24.1"
+tokio = "1.32.0"
+bincode2 = "2"
+futures-util = "0.3.28"
+serde = "1.0.188"
+async-trait = "0.1.73"

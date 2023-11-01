@@ -1,0 +1,28 @@
+[package]
+name = "gadget-core"
+version = "0.0.1"
+authors = ["Thomas P Braun"]
+license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
+edition = "2021"
+
+[features]
+substrate = [
+    "sp-runtime",
+    "sc-client-api",
+    "sp-api",
+    "futures"
+]
+
+[dependencies]
+sync_wrapper = "0.1.2"
+parking_lot = "0.12.1"
+tokio = { workspace = true, features = ["sync", "time", "macros", "rt"] }
+hex = "0.4.3"
+async-trait = "0.1.73"
+
+sp-runtime = { optional = true, workspace = true, default-features = false }
+sc-client-api = { optional = true, workspace = true, default-features = false }
+sp-api = { optional = true, workspace = true, default-features = false }
+futures = { optional = true, version = "0.3.28" }
+
+[dev-dependencies]
