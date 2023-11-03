@@ -5,7 +5,8 @@ use crate::work_manager::{
 };
 use async_trait::async_trait;
 use gadget_core::gadget::manager::AbstractGadget;
-use gadget_core::job_manager::{ProtocolWorkManager, SendFuture, WorkManagerInterface};
+use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, SendFuture, WorkManagerInterface};
+use parking_lot::RwLock;
 use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -15,10 +16,37 @@ use tokio::sync::Mutex;
 pub struct TestGadget {
     job_manager: ProtocolWorkManager<TestWorkManager>,
     blockchain_connection: Mutex<tokio::sync::broadcast::Receiver<TestFinalityNotification>>,
-    network_connection: Mutex<tokio::sync::mpsc::Receiver<TestProtocolMessage>>,
+    network_connection: Mutex<tokio::sync::mpsc::UnboundedReceiver<TestProtocolMessage>>,
     // Specifies at which blocks we should start a job on
     run_test_at: Arc<Vec<u64>>,
+    clock: Arc<RwLock<u64>>,
     async_protocol_generator: Box<dyn AsyncProtocolGenerator>,
+}
+
+impl TestGadget {
+    pub fn new<T: AsyncProtocolGenerator + 'static>(
+        blockchain_connection: tokio::sync::broadcast::Receiver<TestFinalityNotification>,
+        network_connection: tokio::sync::mpsc::UnboundedReceiver<TestProtocolMessage>,
+        run_test_at: Arc<Vec<u64>>,
+        async_protocol_generator: T,
+    ) -> Self {
+        let clock = Arc::new(RwLock::new(0));
+        Self {
+            job_manager: ProtocolWorkManager::new(
+                TestWorkManager {
+                    clock: clock.clone(),
+                },
+                10,
+                5,
+                PollMethod::Interval { millis: 100 },
+            ),
+            blockchain_connection: Mutex::new(blockchain_connection),
+            network_connection: Mutex::new(network_connection),
+            run_test_at,
+            async_protocol_generator: Box::new(async_protocol_generator),
+            clock,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -53,6 +81,7 @@ impl AbstractGadget for TestGadget {
     ) -> Result<(), Self::Error> {
         let now = notification.number;
         let session_id = notification.session_id;
+        *self.clock.write() = now;
 
         if self.run_test_at.contains(&now) {
             log::info!("Running test at block {now}");

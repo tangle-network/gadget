@@ -7,7 +7,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 pub struct TestWorkManager {
-    clock: Arc<RwLock<u64>>,
+    pub clock: Arc<RwLock<u64>>,
 }
 
 pub struct TestProtocolRemote {
