@@ -10,6 +10,7 @@ mod tests {
     use std::time::Duration;
     use test_gadget::error::TestError;
     use test_gadget::gadget::TestGadget;
+    use test_gadget::message::{TestProtocolMessage, UserID};
     use test_gadget::test_network::InMemoryNetwork;
     use test_gadget::work_manager::TestAsyncProtocolParameters;
     use tracing_subscriber::fmt::SubscriberBuilder;
@@ -32,17 +33,24 @@ mod tests {
         const N_BLOCKS_PER_SESSION: u64 = 10;
         const BLOCK_DURATION: Duration = Duration::from_millis(1000);
 
-        let (_network, recv_handles) = InMemoryNetwork::new(N_PEERS);
+        let (network, recv_handles) = InMemoryNetwork::new(N_PEERS);
         let (bc_tx, _bc_rx) = tokio::sync::broadcast::channel(1000);
         let run_tests_at = Arc::new(vec![0, 2, 4]);
         let gadget_futures = FuturesUnordered::new();
         let (count_finished_tx, mut count_finished_rx) = tokio::sync::mpsc::unbounded_channel();
 
-        for (_party_id, network_handle) in recv_handles.into_iter().enumerate() {
+        for (party_id, network_handle) in recv_handles.into_iter().enumerate() {
             // Create a TestGadget
             let count_finished_tx = count_finished_tx.clone();
+            let network = network.clone();
             let async_protocol_gen = move |params: TestAsyncProtocolParameters| {
-                async_proto_generator(params, count_finished_tx.clone())
+                async_proto_generator(
+                    params,
+                    count_finished_tx.clone(),
+                    network.clone(),
+                    N_PEERS,
+                    party_id as UserID,
+                )
             };
 
             let gadget = TestGadget::new(
@@ -99,6 +107,9 @@ mod tests {
     fn async_proto_generator(
         mut params: TestAsyncProtocolParameters,
         on_finish: tokio::sync::mpsc::UnboundedSender<()>,
+        network: InMemoryNetwork,
+        n_peers: usize,
+        party_id: UserID,
     ) -> Pin<Box<dyn SendFuture<'static, ()>>> {
         Box::pin(async move {
             params
@@ -107,6 +118,30 @@ mod tests {
                 .expect("Already started")
                 .await
                 .expect("Failed to start");
+            // Broadcast a message to each peer
+            network
+                .broadcast(
+                    party_id,
+                    TestProtocolMessage {
+                        payload: vec![],
+                        from: party_id,
+                        to: None,
+                        associated_block_id: params.associated_block_id,
+                        associated_session_id: params.associated_session_id,
+                        associated_ssid: params.associated_ssid,
+                        associated_task_id: params.associated_task_id,
+                    },
+                )
+                .expect("Failed to send broadcast");
+            // Wait to receive a message from each peer
+            for _ in 0..(n_peers - 1) {
+                let _ = params
+                    .protocol_message_rx
+                    .recv()
+                    .await
+                    .expect("Failed to receive message");
+            }
+
             params
                 .is_done
                 .store(true, std::sync::atomic::Ordering::Relaxed);

@@ -122,6 +122,10 @@ pub struct TestAsyncProtocolParameters {
     >,
     pub start_rx: Option<tokio::sync::oneshot::Receiver<()>>,
     pub shutdown_rx: Option<tokio::sync::oneshot::Receiver<ShutdownReason>>,
+    pub associated_block_id: <TestWorkManager as WorkManagerInterface>::Clock,
+    pub associated_ssid: <TestWorkManager as WorkManagerInterface>::SSID,
+    pub associated_session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
+    pub associated_task_id: <TestWorkManager as WorkManagerInterface>::TaskID,
 }
 
 pub trait AsyncProtocolGenerator:

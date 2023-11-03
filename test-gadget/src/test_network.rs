@@ -30,12 +30,14 @@ impl InMemoryNetwork {
         )
     }
 
-    pub fn broadcast(&self, msg: TestProtocolMessage) -> Result<(), TestError> {
+    pub fn broadcast(&self, my_id: UserID, msg: TestProtocolMessage) -> Result<(), TestError> {
         let to_peers = self.to_peers.read();
-        for (_, tx) in to_peers.iter() {
-            tx.send(msg.clone()).map_err(|_| TestError {
-                reason: "Failed to broadcast".to_string(),
-            })?;
+        for (id, tx) in to_peers.iter() {
+            if *id != my_id {
+                tx.send(msg.clone()).map_err(|_| TestError {
+                    reason: "Failed to broadcast".to_string(),
+                })?;
+            }
         }
 
         Ok(())

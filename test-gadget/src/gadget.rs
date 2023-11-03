@@ -87,8 +87,13 @@ impl AbstractGadget for TestGadget {
             log::info!("Running test at block {now}");
             let task_hash = now.to_be_bytes();
             let ssid = 0; // Assume SSID = 0 for now
-            let (remote, task) =
-                create_test_async_protocol(session_id, now, ssid, &*self.async_protocol_generator);
+            let (remote, task) = create_test_async_protocol(
+                session_id,
+                now,
+                ssid,
+                task_hash,
+                &*self.async_protocol_generator,
+            );
             self.job_manager
                 .push_task(task_hash, true, Arc::new(remote), task)
                 .map_err(|err| TestError {
@@ -127,6 +132,7 @@ fn create_test_async_protocol(
     session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
     now: <TestWorkManager as WorkManagerInterface>::Clock,
     ssid: <TestWorkManager as WorkManagerInterface>::SSID,
+    task_id: <TestWorkManager as WorkManagerInterface>::TaskID,
     proto_gen: &dyn AsyncProtocolGenerator,
 ) -> (TestProtocolRemote, Pin<Box<dyn SendFuture<'static, ()>>>) {
     let is_done = Arc::new(AtomicBool::new(false));
@@ -139,6 +145,10 @@ fn create_test_async_protocol(
         protocol_message_rx,
         start_rx: Some(start_rx),
         shutdown_rx: Some(shutdown_rx),
+        associated_block_id: now,
+        associated_ssid: ssid,
+        associated_session_id: session_id,
+        associated_task_id: task_id,
     };
 
     let remote = TestProtocolRemote {
