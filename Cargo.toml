@@ -2,7 +2,8 @@
 members = [
     "gadget-core",
     "webb-gadget",
-    "zk-gadget"
+    "zk-gadget",
+    "test-gadget"
 ]
 
 [workspace.dependencies]
@@ -22,3 +23,6 @@ bincode2 = "2"
 futures-util = "0.3.28"
 serde = "1.0.188"
 async-trait = "0.1.73"
+log = "0.4.20"
+parking_lot = "0.12.1"
+futures = "0.3.28"

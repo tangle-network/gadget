@@ -110,14 +110,21 @@ pub trait ProtocolRemote<WM: WorkManagerInterface>: Send + Sync + 'static {
     fn start(&self) -> Result<(), WM::Error>;
     fn session_id(&self) -> WM::SessionID;
     fn set_as_primary(&self);
-    fn has_stalled(&self, now: WM::Clock) -> bool;
     fn started_at(&self) -> WM::Clock;
     fn shutdown(&self, reason: ShutdownReason) -> Result<(), WM::Error>;
     fn is_done(&self) -> bool;
     fn deliver_message(&self, message: WM::ProtocolMessage) -> Result<(), WM::Error>;
     fn has_started(&self) -> bool;
-    fn is_active(&self) -> bool;
     fn ssid(&self) -> WM::SSID;
+
+    fn has_stalled(&self, now: WM::Clock) -> bool {
+        now >= self.started_at() + WM::acceptable_block_tolerance()
+    }
+
+    fn is_active(&self) -> bool {
+        // If the protocol has started, is not done, and has not stalled, then it is active
+        self.has_started() && !self.is_done() && !self.has_started()
+    }
 }
 
 #[derive(Debug, Eq, PartialEq)]

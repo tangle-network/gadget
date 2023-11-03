@@ -15,7 +15,7 @@ substrate = [
 
 [dependencies]
 sync_wrapper = "0.1.2"
-parking_lot = "0.12.1"
+parking_lot = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "macros", "rt"] }
 hex = "0.4.3"
 async-trait = "0.1.73"
@@ -23,6 +23,6 @@ async-trait = "0.1.73"
 sp-runtime = { optional = true, workspace = true, default-features = false }
 sc-client-api = { optional = true, workspace = true, default-features = false }
 sp-api = { optional = true, workspace = true, default-features = false }
-futures = { optional = true, version = "0.3.28" }
+futures = { optional = true, workspace = true }
 
 [dev-dependencies]
