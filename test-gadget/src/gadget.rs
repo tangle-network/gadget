@@ -13,21 +13,23 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// An AbstractGadget endowed with a WorkerManager, a fake blockchain that delivers FinalityNotifications to the gadgets, and a TestProtocolMessage stream
-pub struct TestGadget {
+pub struct TestGadget<B> {
     job_manager: ProtocolWorkManager<TestWorkManager>,
     blockchain_connection: Mutex<tokio::sync::broadcast::Receiver<TestFinalityNotification>>,
     network_connection: Mutex<tokio::sync::mpsc::UnboundedReceiver<TestProtocolMessage>>,
     // Specifies at which blocks we should start a job on
     run_test_at: Arc<Vec<u64>>,
     clock: Arc<RwLock<u64>>,
-    async_protocol_generator: Box<dyn AsyncProtocolGenerator>,
+    test_bundle: B,
+    async_protocol_generator: Box<dyn AsyncProtocolGenerator<B>>,
 }
 
-impl TestGadget {
-    pub fn new<T: AsyncProtocolGenerator + 'static>(
+impl<B: Send + Sync + Clone + 'static> TestGadget<B> {
+    pub fn new<T: AsyncProtocolGenerator<B> + 'static>(
         blockchain_connection: tokio::sync::broadcast::Receiver<TestFinalityNotification>,
         network_connection: tokio::sync::mpsc::UnboundedReceiver<TestProtocolMessage>,
         run_test_at: Arc<Vec<u64>>,
+        test_bundle: B,
         async_protocol_generator: T,
     ) -> Self {
         let clock = Arc::new(RwLock::new(0));
@@ -43,6 +45,7 @@ impl TestGadget {
             blockchain_connection: Mutex::new(blockchain_connection),
             network_connection: Mutex::new(network_connection),
             run_test_at,
+            test_bundle,
             async_protocol_generator: Box::new(async_protocol_generator),
             clock,
         }
@@ -56,7 +59,7 @@ pub struct TestFinalityNotification {
 }
 
 #[async_trait]
-impl AbstractGadget for TestGadget {
+impl<B: Send + Sync + Clone + 'static> AbstractGadget for TestGadget<B> {
     type FinalityNotification = TestFinalityNotification;
     type BlockImportNotification = ();
     type ProtocolMessage = TestProtocolMessage;
@@ -92,6 +95,7 @@ impl AbstractGadget for TestGadget {
                 now,
                 ssid,
                 task_hash,
+                self.test_bundle.clone(),
                 &*self.async_protocol_generator,
             );
             self.job_manager
@@ -128,12 +132,13 @@ impl AbstractGadget for TestGadget {
     }
 }
 
-fn create_test_async_protocol(
+fn create_test_async_protocol<B: Send + Sync + 'static>(
     session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
     now: <TestWorkManager as WorkManagerInterface>::Clock,
     ssid: <TestWorkManager as WorkManagerInterface>::SSID,
     task_id: <TestWorkManager as WorkManagerInterface>::TaskID,
-    proto_gen: &dyn AsyncProtocolGenerator,
+    test_bundle: B,
+    proto_gen: &dyn AsyncProtocolGenerator<B>,
 ) -> (TestProtocolRemote, Pin<Box<dyn SendFuture<'static, ()>>>) {
     let is_done = Arc::new(AtomicBool::new(false));
     let (to_async_protocol, protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -149,6 +154,7 @@ fn create_test_async_protocol(
         associated_ssid: ssid,
         associated_session_id: session_id,
         associated_task_id: task_id,
+        test_bundle,
     };
 
     let remote = TestProtocolRemote {
