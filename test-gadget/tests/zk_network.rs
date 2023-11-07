@@ -75,11 +75,6 @@ mod tests {
 
             tokio::task::spawn(async move {
                 while let Some(message) = params.protocol_message_rx.recv().await {
-                    log::info!(
-                        "Received message on party {} from {}",
-                        params.test_bundle.party_id,
-                        message.from
-                    );
                     let deserialized: MpcNetMessage =
                         bincode2::deserialize(&message.payload).expect("Failed to deser message");
                     let tx = &txs[deserialized.sid as usize];
@@ -186,7 +181,6 @@ mod tests {
                     packets_ordered.push(payload);
                 }
 
-                log::info!("King done with receive, ret = {}", packets_ordered.len());
                 Ok(Some(packets_ordered))
             } else {
                 send_bytes(sid, bytes.to_vec().into(), self, Some(0)).await;
@@ -200,7 +194,6 @@ mod tests {
             sid: MultiplexedStreamID,
         ) -> Result<bytes::Bytes, MpcNetError> {
             if self.is_king() {
-                log::info!("King beginning send");
                 let payloads = bytes.expect("Missing bytes");
                 let my_payload = payloads[self.party_id as usize].clone();
                 // Send bytes to each party except us
@@ -210,11 +203,8 @@ mod tests {
                     .take(self.n_peers)
                     .filter(|r| r.0 != self.party_id as usize)
                 {
-                    log::info!("King SEND | Sending to {to}", to = i);
                     send_bytes(sid, payload, self, Some(i as u32)).await;
                 }
-
-                log::info!("King SEND | DONE");
 
                 // Return our own bytes
                 Ok(my_payload)

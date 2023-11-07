@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests {
+    use dist_primitives::dmsm::d_msm;
+    use dist_primitives::dmsm::packexp_from_public;
     use gadget_core::job_manager::SendFuture;
     use std::collections::HashMap;
     use std::error::Error;
@@ -11,14 +13,10 @@ mod tests {
     use tracing_subscriber::EnvFilter;
 
     use ark_bls12_377::Fr;
-    use ark_ff::{FftField, PrimeField};
+    use ark_ec::CurveGroup;
     use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
+    use ark_std::UniformRand;
     use async_trait::async_trait;
-    use dist_primitives::{
-        channel::MpcSerNet,
-        dfft::{d_fft, fft_in_place_rearrange},
-        utils::pack::transpose,
-    };
     use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
     use secret_sharing::pss::PackedSharingParams;
     use serde::{Deserialize, Serialize};
@@ -26,77 +24,67 @@ mod tests {
     use test_gadget::test_network::InMemoryNetwork;
     use tokio::sync::Mutex;
 
-    pub async fn d_fft_test<F: FftField + PrimeField, Net: MpcNet>(
-        pp: &PackedSharingParams<F>,
-        dom: &Radix2EvaluationDomain<F>,
-        net: &Net,
+    pub async fn d_msm_test<G: CurveGroup, Net: MpcNet + 'static>(
+        pp: PackedSharingParams<G::ScalarField>,
+        dom: Radix2EvaluationDomain<G::ScalarField>,
+        net: Net,
     ) {
-        log::info!("Starting d_fft_test on party {}", net.party_id());
-        let mbyl: usize = dom.size() / pp.l;
-        // We apply FFT on this vector
-        // let mut x = vec![F::ONE; cd.m];
-        let mut x: Vec<F> = Vec::new();
-        for i in 0..dom.size() {
-            x.push(F::from(i as u64));
-        }
+        let (x_share_aff, y_share, pp, net, should_be_output) =
+            tokio::task::spawn_blocking(move || {
+                // let m = pp.l*4;
+                let mbyl: usize = dom.size() / pp.l;
+                log::info!(
+                    "m: {}, mbyl: {}, party_id: {}",
+                    dom.size(),
+                    mbyl,
+                    net.party_id()
+                );
 
-        // Output to test against
-        let should_be_output = dom.fft(&x);
-        log::info!("ABC0 on party {}", net.party_id());
-        fft_in_place_rearrange(&mut x);
-        let mut pcoeff: Vec<Vec<F>> = Vec::new();
-        for i in 0..mbyl {
-            pcoeff.push(x.iter().skip(i).step_by(mbyl).cloned().collect::<Vec<_>>());
-            pp.pack_from_public_in_place(&mut pcoeff[i]);
-        }
-        log::info!("ABC1 on party {}", net.party_id());
+                let rng = &mut ark_std::test_rng();
 
-        let pcoeff_share = pcoeff
-            .iter()
-            .map(|x| x[net.party_id() as usize])
-            .collect::<Vec<_>>();
+                let mut y_pub: Vec<G::ScalarField> = Vec::new();
+                let mut x_pub: Vec<G> = Vec::new();
 
-        log::info!("ABC2 on party {}", net.party_id());
-        // Rearranging x
+                for _ in 0..dom.size() {
+                    y_pub.push(G::ScalarField::rand(rng));
+                    x_pub.push(G::rand(rng));
+                }
 
-        let peval_share = d_fft(
-            pcoeff_share,
-            false,
-            1,
-            false,
-            dom,
-            pp,
-            net,
-            MultiplexedStreamID::Zero,
-        )
-        .await
-        .unwrap();
+                log::info!("About to begin packexp_from_public");
 
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-
-        log::info!("ABC3 on party {}", net.party_id());
-
-        // Send to king who reconstructs and checks the answer
-        net.send_to_king(&peval_share, MultiplexedStreamID::Zero)
-            .await
-            .unwrap()
-            .map(|peval_shares| {
-                let peval_shares = transpose(peval_shares);
-
-                let pevals: Vec<F> = peval_shares
-                    .into_iter()
-                    .flat_map(|x| pp.unpack(x))
-                    .rev()
+                let x_share: Vec<G> = x_pub
+                    .chunks(pp.l)
+                    .map(|s| packexp_from_public(s, &pp)[net.party_id() as usize])
                     .collect();
 
-                log::info!("ABC4 on party {}", net.party_id());
-                if net.is_king() {
-                    assert_eq!(should_be_output, pevals);
-                }
-                log::info!("ABC5 on party {}", net.party_id());
-            });
+                log::info!("About to begin pack_from_public");
+                let y_share: Vec<G::ScalarField> = y_pub
+                    .chunks(pp.l)
+                    .map(|s| pp.pack_from_public(s.to_vec())[net.party_id() as usize])
+                    .collect();
 
-        log::info!("ABC-FINAL on party {}", net.party_id());
+                let x_pub_aff: Vec<G::Affine> = x_pub.iter().map(|s| (*s).into()).collect();
+                let x_share_aff: Vec<G::Affine> = x_share.iter().map(|s| (*s).into()).collect();
+
+                // Will be comparing against this in the end
+                log::info!("About to begin G::msm");
+                let should_be_output = G::msm(x_pub_aff.as_slice(), y_pub.as_slice()).unwrap();
+                (x_share_aff, y_share, pp, net, should_be_output)
+            })
+            .await
+            .expect("Failed to spawn blocking task");
+
+        log::info!("About to begin d_msm");
+        let output = d_msm::<G, Net>(&x_share_aff, &y_share, &pp, &net, MultiplexedStreamID::One)
+            .await
+            .unwrap();
+
+        if net.is_king() {
+            log::info!("About to king assert");
+            assert_eq!(should_be_output, output);
+        }
+
+        log::info!("Party {} done", net.party_id());
     }
 
     pub fn setup_log() {
@@ -107,7 +95,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_dfft() -> Result<(), Box<dyn Error>> {
+    async fn test_dmsm() -> Result<(), Box<dyn Error>> {
         setup_log();
         test_gadget::simulate_test(
             5,
@@ -166,8 +154,8 @@ mod tests {
             });
 
             let pp = PackedSharingParams::<Fr>::new(2);
-            let dom = Radix2EvaluationDomain::<Fr>::new(1024).unwrap();
-            d_fft_test::<Fr, _>(&pp, &dom, &network).await;
+            let dom = Radix2EvaluationDomain::<Fr>::new(32768).unwrap();
+            d_msm_test::<ark_bls12_377::G1Projective, _>(pp, dom, network).await;
             on_end_tx.send(()).expect("Failed to send on_end signal");
         })
     }
