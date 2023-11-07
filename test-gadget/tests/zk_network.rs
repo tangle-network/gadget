@@ -10,94 +10,12 @@ mod tests {
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::EnvFilter;
 
-    use ark_bls12_377::Fr;
-    use ark_ff::{FftField, PrimeField};
-    use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
     use async_trait::async_trait;
-    use dist_primitives::{
-        channel::MpcSerNet,
-        dfft::{d_fft, fft_in_place_rearrange},
-        utils::pack::transpose,
-    };
     use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
-    use secret_sharing::pss::PackedSharingParams;
     use serde::{Deserialize, Serialize};
     use test_gadget::message::TestProtocolMessage;
     use test_gadget::test_network::InMemoryNetwork;
     use tokio::sync::Mutex;
-
-    pub async fn d_fft_test<F: FftField + PrimeField, Net: MpcNet>(
-        pp: &PackedSharingParams<F>,
-        dom: &Radix2EvaluationDomain<F>,
-        net: &Net,
-    ) {
-        log::info!("Starting d_fft_test on party {}", net.party_id());
-        let mbyl: usize = dom.size() / pp.l;
-        // We apply FFT on this vector
-        // let mut x = vec![F::ONE; cd.m];
-        let mut x: Vec<F> = Vec::new();
-        for i in 0..dom.size() {
-            x.push(F::from(i as u64));
-        }
-
-        // Output to test against
-        let should_be_output = dom.fft(&x);
-        log::info!("ABC0 on party {}", net.party_id());
-        fft_in_place_rearrange(&mut x);
-        let mut pcoeff: Vec<Vec<F>> = Vec::new();
-        for i in 0..mbyl {
-            pcoeff.push(x.iter().skip(i).step_by(mbyl).cloned().collect::<Vec<_>>());
-            pp.pack_from_public_in_place(&mut pcoeff[i]);
-        }
-        log::info!("ABC1 on party {}", net.party_id());
-
-        let pcoeff_share = pcoeff
-            .iter()
-            .map(|x| x[net.party_id() as usize])
-            .collect::<Vec<_>>();
-
-        log::info!("ABC2 on party {}", net.party_id());
-        // Rearranging x
-
-        let peval_share = d_fft(
-            pcoeff_share,
-            false,
-            1,
-            false,
-            dom,
-            pp,
-            net,
-            MultiplexedStreamID::One,
-        )
-        .await
-        .unwrap();
-
-        log::info!("ABC3 on party {}", net.party_id());
-
-        // Send to king who reconstructs and checks the answer
-        net.send_to_king(&peval_share, MultiplexedStreamID::One)
-            .await
-            .unwrap()
-            .map(|peval_shares| {
-                let peval_shares = transpose(peval_shares);
-
-                let pevals: Vec<F> = peval_shares
-                    .into_iter()
-                    .flat_map(|x| pp.unpack(x))
-                    .rev()
-                    .collect();
-
-                log::info!("ABC4 on party {}", net.party_id());
-                if net.is_king() {
-                    log::info!("Should be output: {:?}", &should_be_output[..10]);
-                    log::info!("Actual output: {:?}", &pevals[..10]);
-                    assert_eq!(should_be_output, pevals);
-                }
-                log::info!("ABC5 on party {}", net.party_id());
-            });
-
-        log::info!("ABC-FINAL on party {}", net.party_id());
-    }
 
     pub fn setup_log() {
         let _ = SubscriberBuilder::default()
@@ -107,12 +25,11 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_dfft() -> Result<(), Box<dyn Error>> {
+    async fn test_zk_network() -> Result<(), Box<dyn Error>> {
         setup_log();
         test_gadget::simulate_test(
             5,
             10,
-            // Give 10 minutes per test
             std::time::Duration::from_secs(60 * 10),
             vec![0],
             async_proto_generator,
@@ -170,9 +87,45 @@ mod tests {
                 }
             });
 
-            let pp = PackedSharingParams::<Fr>::new(2);
-            let dom = Radix2EvaluationDomain::<Fr>::new(1024).unwrap();
-            d_fft_test::<Fr, _>(&pp, &dom, &network).await;
+            for sid in [
+                MultiplexedStreamID::Zero,
+                MultiplexedStreamID::One,
+                MultiplexedStreamID::Two,
+            ] {
+                let message =
+                    Vec::from(format!("Hello, world from {}", params.test_bundle.party_id));
+                if let Some(messages) = network
+                    .client_send_or_king_receive(&message, sid)
+                    .await
+                    .expect("Failed to send")
+                {
+                    assert_eq!(messages.len(), params.test_bundle.n_peers);
+                    for (i, message) in messages.into_iter().enumerate() {
+                        assert_eq!(
+                            message.as_ref(),
+                            format!("Hello, world from {i}").as_bytes()
+                        );
+                    }
+                }
+
+                if network.is_king() {
+                    let send = (0..params.test_bundle.n_peers)
+                        .map(|_| b"Hello, world - King".to_vec().into())
+                        .collect::<Vec<bytes::Bytes>>();
+                    let bytes = network
+                        .client_receive_or_king_send(Some(send), sid)
+                        .await
+                        .expect("Failed to receive");
+                    assert_eq!(bytes.as_ref(), b"Hello, world - King");
+                } else {
+                    let bytes = network
+                        .client_receive_or_king_send(None, sid)
+                        .await
+                        .expect("Failed to receive");
+                    assert_eq!(bytes.as_ref(), b"Hello, world - King");
+                }
+            }
+
             on_end_tx.send(()).expect("Failed to send on_end signal");
         })
     }

@@ -4,7 +4,7 @@ use std::future::Future;
 use std::pin::Pin;
 
 pub struct GadgetManager<'a> {
-    gadget: Pin<Box<dyn Future<Output = Result<(), GadgetError>> + 'a>>,
+    gadget: Pin<Box<dyn Future<Output = Result<(), GadgetError>> + Send + 'a>>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -15,11 +15,11 @@ pub enum GadgetError {
 }
 
 #[async_trait]
-pub trait AbstractGadget: Send {
+pub trait AbstractGadget: Send + Sync {
     type FinalityNotification: Send;
     type BlockImportNotification: Send;
     type ProtocolMessage: Send;
-    type Error: Error;
+    type Error: Error + Send;
 
     async fn get_next_finality_notification(&self) -> Option<Self::FinalityNotification>;
     async fn get_next_block_import_notification(&self) -> Option<Self::BlockImportNotification>;

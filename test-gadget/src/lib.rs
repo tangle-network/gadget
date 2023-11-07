@@ -7,6 +7,8 @@ use futures::stream::FuturesUnordered;
 use futures::TryStreamExt;
 use gadget_core::gadget::manager::GadgetManager;
 use std::error::Error;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -49,7 +51,18 @@ pub async fn simulate_test<T: AsyncProtocolGenerator<TestBundle> + 'static + Clo
             async_proto_gen.clone(),
         );
 
-        gadget_futures.push(tokio::task::spawn(GadgetManager::new(gadget)));
+        gadget_futures.push(async move {
+            tokio::task::spawn(Box::pin(async move {
+                GadgetManager::new(gadget).await.map_err(|err| TestError {
+                    reason: format!("{err:?}"),
+                })
+            })
+                as Pin<Box<dyn Future<Output = Result<(), TestError>> + Send>>)
+            .await
+            .map_err(|err| TestError {
+                reason: format!("{err:?}"),
+            })?
+        });
     }
 
     let blockchain_future = blockchain::blockchain(block_duration, n_blocks_per_session, bc_tx);
@@ -81,8 +94,7 @@ pub async fn simulate_test<T: AsyncProtocolGenerator<TestBundle> + 'static + Clo
                 res0?;
             },
             res1 = gadgets_future => {
-                res1?.map_err(|err| TestError { reason: format!("{err:?}") })
-                    .map(|_| ())?;
+                res1?;
             },
             res2 = finished_future => {
                 res2?;
