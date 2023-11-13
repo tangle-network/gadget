@@ -25,6 +25,10 @@ mod tests {
     use test_gadget::test_network::InMemoryNetwork;
     use tokio::sync::Mutex;
 
+    const L: usize = 2;
+    const N: usize = L * 4;
+    const M: usize = L * 1024;
+
     pub async fn d_msm_test<G: CurveGroup, Net: MpcNet + 'static>(
         pp: PackedSharingParams<G::ScalarField>,
         dom: Radix2EvaluationDomain<G::ScalarField>,
@@ -99,7 +103,7 @@ mod tests {
     async fn test_dmsm() -> Result<(), Box<dyn Error>> {
         setup_log();
         test_gadget::simulate_test(
-            5,
+            N,
             10,
             // Give 10 minutes per test
             std::time::Duration::from_secs(60 * 10),
@@ -163,8 +167,8 @@ mod tests {
                 }
             });
 
-            let pp = PackedSharingParams::<Fr>::new(2);
-            let dom = Radix2EvaluationDomain::<Fr>::new(32768).unwrap();
+            let pp = PackedSharingParams::<Fr>::new(L);
+            let dom = Radix2EvaluationDomain::<Fr>::new(M).unwrap();
             d_msm_test::<ark_bls12_377::G1Projective, _>(pp, dom, network).await;
             on_end_tx.send(()).expect("Failed to send on_end signal");
         })
