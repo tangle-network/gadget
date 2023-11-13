@@ -25,6 +25,7 @@ pub struct TestProtocolRemote {
 const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 3;
 
 impl WorkManagerInterface for TestWorkManager {
+    // TODO: rename to retry_id or similar
     type SSID = u16;
     type Clock = u64;
     type ProtocolMessage = TestProtocolMessage;
@@ -115,7 +116,7 @@ impl ProtocolRemote<TestWorkManager> for TestProtocolRemote {
     }
 }
 
-pub struct TestAsyncProtocolParameters {
+pub struct TestAsyncProtocolParameters<B> {
     pub is_done: Arc<AtomicBool>,
     pub protocol_message_rx: tokio::sync::mpsc::UnboundedReceiver<
         <TestWorkManager as WorkManagerInterface>::ProtocolMessage,
@@ -126,13 +127,16 @@ pub struct TestAsyncProtocolParameters {
     pub associated_ssid: <TestWorkManager as WorkManagerInterface>::SSID,
     pub associated_session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
     pub associated_task_id: <TestWorkManager as WorkManagerInterface>::TaskID,
+    pub test_bundle: B,
 }
 
-pub trait AsyncProtocolGenerator:
-    Send + Sync + Fn(TestAsyncProtocolParameters) -> Pin<Box<dyn SendFuture<'static, ()>>>
+pub trait AsyncProtocolGenerator<B>:
+    Send + Sync + Fn(TestAsyncProtocolParameters<B>) -> Pin<Box<dyn SendFuture<'static, ()>>>
 {
 }
-impl<T: Send + Sync + Fn(TestAsyncProtocolParameters) -> Pin<Box<dyn SendFuture<'static, ()>>>>
-    AsyncProtocolGenerator for T
+impl<
+        B: Send + Sync,
+        T: Send + Sync + Fn(TestAsyncProtocolParameters<B>) -> Pin<Box<dyn SendFuture<'static, ()>>>,
+    > AsyncProtocolGenerator<B> for T
 {
 }

@@ -1,5 +1,5 @@
 use crate::gadget::network::Network;
-use crate::gadget::{WebbGadget, WebbGadgetModule};
+use crate::gadget::{WebbGadgetModule, WebbModule};
 use gadget_core::gadget::manager::{GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
 use gadget_core::job_manager::WorkManagerError;
@@ -35,9 +35,9 @@ pub async fn run<C: Client<B, BE>, B: Block, BE: Backend<B>, N: Network, M: Webb
     client: C,
 ) -> Result<(), Error> {
     let now = None;
-    let webb_gadget = WebbGadget::new(network, module, now);
+    let webb_module = WebbModule::new(network, module, now);
     // Plug the module into the substrate gadget to interface the WebbGadget with Substrate
-    let substrate_gadget = SubstrateGadget::new(client, webb_gadget);
+    let substrate_gadget = SubstrateGadget::new(client, webb_module);
 
     // Run the GadgetManager to execute the substrate gadget
     GadgetManager::new(substrate_gadget)

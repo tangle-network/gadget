@@ -18,7 +18,7 @@ pub mod network;
 pub mod work_manager;
 
 /// Used as a module to place inside the SubstrateGadget
-pub struct WebbGadget<B, C, BE, N, M> {
+pub struct WebbModule<B, C, BE, N, M> {
     #[allow(dead_code)]
     network: N,
     module: M,
@@ -32,7 +32,7 @@ const MAX_ACTIVE_TASKS: usize = 4;
 const MAX_PENDING_TASKS: usize = 4;
 
 impl<C: Client<B, BE>, B: Block, BE: Backend<B>, N: Network, M: WebbGadgetModule<B>>
-    WebbGadget<B, C, BE, N, M>
+    WebbModule<B, C, BE, N, M>
 {
     pub fn new(mut network: N, module: M, now: Option<u64>) -> Self {
         let clock = Arc::new(RwLock::new(now));
@@ -48,7 +48,7 @@ impl<C: Client<B, BE>, B: Block, BE: Backend<B>, N: Network, M: WebbGadgetModule
             PollMethod::Interval { millis: 200 },
         );
 
-        WebbGadget {
+        WebbModule {
             module,
             network,
             job_manager,
@@ -61,7 +61,7 @@ impl<C: Client<B, BE>, B: Block, BE: Backend<B>, N: Network, M: WebbGadgetModule
 
 #[async_trait]
 impl<C: Client<B, BE>, B: Block, BE: Backend<B>, N: Network, M: WebbGadgetModule<B>>
-    SubstrateGadgetModule for WebbGadget<B, C, BE, N, M>
+    SubstrateGadgetModule for WebbModule<B, C, BE, N, M>
 {
     type Error = Error;
     type ProtocolMessage = GadgetProtocolMessage;

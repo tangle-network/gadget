@@ -17,6 +17,9 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkad
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 
 mpc-net = { git = "https://github.com/webb-tools/zk-SaaS/" }
+dist-primitives = { git = "https://github.com/webb-tools/zk-SaaS/" }
+secret-sharing = { git = "https://github.com/webb-tools/zk-SaaS/" }
+
 tokio-rustls = "0.24.1"
 tokio = "1.32.0"
 bincode2 = "2"

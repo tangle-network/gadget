@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TestProtocolMessage {
     pub payload: Vec<u8>,
-    pub from: u32,
-    pub to: Option<u32>,
+    pub from: UserID,
+    pub to: Option<UserID>,
     pub associated_block_id: <TestWorkManager as WorkManagerInterface>::Clock,
     pub associated_session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
     pub associated_ssid: <TestWorkManager as WorkManagerInterface>::SSID,

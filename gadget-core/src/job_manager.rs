@@ -426,7 +426,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         for task in lock.enqueued_tasks.iter() {
             if should_deliver(task, &msg, message_task_hash) {
                 self.utility.debug(format!(
-                    "Message is for this ENQUEUED signing execution in session: {}",
+                    "Message is for this ENQUEUED execution in session: {}",
                     task.handle.session_id()
                 ));
                 if let Err(err) = task.handle.deliver_message(msg) {
@@ -443,7 +443,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         for task in lock.active_tasks.iter() {
             if should_deliver(task, &msg, message_task_hash) {
                 self.utility.debug(format!(
-                    "Message is for this signing CURRENT execution in session: {}",
+                    "Message is for this CURRENT execution in session: {}",
                     task.handle.session_id()
                 ));
                 if let Err(err) = task.handle.deliver_message(msg) {
@@ -533,7 +533,7 @@ impl<WM: WorkManagerInterface> Hash for Job<WM> {
 impl<WM: WorkManagerInterface> Drop for Job<WM> {
     fn drop(&mut self) {
         self.utility.debug(format!(
-            "Will remove job {:?} from currently_signing_proposals",
+            "Will remove job {:?} from JobManager",
             hex::encode(self.task_hash)
         ));
         let _ = self.handle.shutdown(ShutdownReason::DropCode);

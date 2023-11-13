@@ -18,3 +18,17 @@ async-trait = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+
+# zk deps
+mpc-net = { workspace = true }
+dist-primitives = { workspace = true }
+secret-sharing = { workspace = true }
+bytes = { version = "1.5.0", features = ["serde"]}
+ark-std = {version = "0.4.0", default-features = false, features = [ "print-trace", "std" ]}
+ark-ec = {version = "0.4.0", default-features = false}
+ark-bls12-377 = { version = "0.4.0", default-features = false, features = ["curve"] }
+ark-ff = {version = "0.4.0", default-features = false}
+ark-poly = {version = "0.4.0", default-features = false}
+bincode2 = "2.0.1"
+hex = "0.4.3"
+md5 = "0.7.0"
