@@ -25,6 +25,7 @@ pub struct TestProtocolRemote {
 const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 3;
 
 impl WorkManagerInterface for TestWorkManager {
+    // TODO: rename to retry_id or similar
     type SSID = u16;
     type Clock = u64;
     type ProtocolMessage = TestProtocolMessage;

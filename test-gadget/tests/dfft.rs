@@ -14,6 +14,7 @@ mod tests {
     use ark_ff::{FftField, PrimeField};
     use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
     use async_trait::async_trait;
+    use bytes::Bytes;
     use dist_primitives::{
         channel::MpcSerNet,
         dfft::{d_fft, fft_in_place_rearrange},
@@ -31,7 +32,6 @@ mod tests {
         dom: &Radix2EvaluationDomain<F>,
         net: &Net,
     ) {
-        log::info!("Starting d_fft_test on party {}", net.party_id());
         let mbyl: usize = dom.size() / pp.l;
         // We apply FFT on this vector
         // let mut x = vec![F::ONE; cd.m];
@@ -42,21 +42,19 @@ mod tests {
 
         // Output to test against
         let should_be_output = dom.fft(&x);
-        log::info!("ABC0 on party {}", net.party_id());
+
         fft_in_place_rearrange(&mut x);
         let mut pcoeff: Vec<Vec<F>> = Vec::new();
         for i in 0..mbyl {
             pcoeff.push(x.iter().skip(i).step_by(mbyl).cloned().collect::<Vec<_>>());
             pp.pack_from_public_in_place(&mut pcoeff[i]);
         }
-        log::info!("ABC1 on party {}", net.party_id());
 
         let pcoeff_share = pcoeff
             .iter()
             .map(|x| x[net.party_id() as usize])
             .collect::<Vec<_>>();
 
-        log::info!("ABC2 on party {}", net.party_id());
         // Rearranging x
 
         let peval_share = d_fft(
@@ -67,36 +65,32 @@ mod tests {
             dom,
             pp,
             net,
-            MultiplexedStreamID::Zero,
+            MultiplexedStreamID::One,
         )
         .await
         .unwrap();
 
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-
-        log::info!("ABC3 on party {}", net.party_id());
-
         // Send to king who reconstructs and checks the answer
-        net.send_to_king(&peval_share, MultiplexedStreamID::Zero)
+        let result = net
+            .send_to_king(&peval_share, MultiplexedStreamID::One)
             .await
-            .unwrap()
-            .map(|peval_shares| {
-                let peval_shares = transpose(peval_shares);
+            .unwrap();
 
-                let pevals: Vec<F> = peval_shares
-                    .into_iter()
-                    .flat_map(|x| pp.unpack(x))
-                    .rev()
-                    .collect();
+        if let Some(peval_shares) = result {
+            let peval_shares = transpose(peval_shares);
 
-                log::info!("ABC4 on party {}", net.party_id());
-                if net.is_king() {
-                    assert_eq!(should_be_output, pevals);
-                }
-                log::info!("ABC5 on party {}", net.party_id());
-            });
+            let pevals: Vec<F> = peval_shares
+                .into_iter()
+                .flat_map(|x| pp.unpack(x))
+                .collect();
 
-        log::info!("ABC-FINAL on party {}", net.party_id());
+            log::info!("Party {} about to validate", net.party_id());
+            if net.is_king() {
+                assert_eq!(should_be_output, pevals);
+            }
+        }
+
+        log::info!("Party {} done", net.party_id());
     }
 
     pub fn setup_log() {
@@ -137,12 +131,20 @@ mod tests {
             // For sending messages, the payload we send to the JobManager needs to be multiplexed with
             // stream IDs.
 
-            let mut txs = vec![];
-            let mut rxs = vec![];
-            for _ in 0..params.test_bundle.n_peers {
-                let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-                txs.push(tx);
-                rxs.push(Mutex::new(rx));
+            let mut txs = HashMap::new();
+            let mut rxs = HashMap::new();
+            for peer_id in 0..params.test_bundle.n_peers {
+                // Create 3 multiplexed channels
+                let mut txs_for_this_peer = vec![];
+                let mut rxs_for_this_peer = vec![];
+                for _ in 0..3 {
+                    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+                    txs_for_this_peer.push(tx);
+                    rxs_for_this_peer.push(Mutex::new(rx));
+                }
+
+                txs.insert(peer_id as u32, txs_for_this_peer);
+                rxs.insert(peer_id as u32, rxs_for_this_peer);
             }
 
             let network = ZkNetworkOverGadgetNetwork {
@@ -158,8 +160,19 @@ mod tests {
 
             tokio::task::spawn(async move {
                 while let Some(message) = params.protocol_message_rx.recv().await {
+                    println!(
+                        "Message RECV ({} -> {}): {}",
+                        message.from,
+                        message.to.expect("Should exist"),
+                        message.payload.debug()
+                    );
                     let deserialized: MpcNetMessage =
                         bincode2::deserialize(&message.payload).expect("Failed to deser message");
+                    assert_ne!(deserialized.source, network.party_id);
+                    assert_eq!(deserialized.source, message.from);
+                    assert_eq!(network.party_id, message.to.expect("Should exist"));
+
+                    let txs = &txs[&deserialized.source];
                     let tx = &txs[deserialized.sid as usize];
                     tx.send(deserialized).expect("Failed to send message");
                 }
@@ -174,7 +187,7 @@ mod tests {
 
     struct ZkNetworkOverGadgetNetwork {
         gadget_network: InMemoryNetwork,
-        rxs: Vec<Mutex<tokio::sync::mpsc::UnboundedReceiver<MpcNetMessage>>>,
+        rxs: HashMap<u32, Vec<Mutex<tokio::sync::mpsc::UnboundedReceiver<MpcNetMessage>>>>,
         n_peers: usize,
         party_id: u32,
         associated_block_id: u64,
@@ -204,74 +217,26 @@ mod tests {
             true
         }
 
-        async fn client_send_or_king_receive(
-            &self,
-            bytes: &[u8],
-            sid: MultiplexedStreamID,
-        ) -> Result<Option<Vec<bytes::Bytes>>, MpcNetError> {
-            if self.is_king() {
-                let count = self.n_parties() - 1;
-                let mut packets = HashMap::new();
-
-                for _ in 0..count {
-                    let payload = recv_bytes(sid, self).await;
-                    log::info!("King received packet from {from}", from = payload.source);
-                    let from = payload.source;
-                    packets.insert(from, payload.payload);
-                }
-
-                packets.insert(0, bytes.to_vec().into()); // Insert the king's value
-                log::info!("Received packets from keys: {:?}", packets.keys());
-                let mut packets_ordered = vec![];
-                for i in 0..self.n_parties() {
-                    let payload = packets.remove(&(i as u32)).expect("Missing packet");
-                    packets_ordered.push(payload);
-                }
-
-                log::info!("King done with receive, ret = {}", packets_ordered.len());
-                Ok(Some(packets_ordered))
-            } else {
-                send_bytes(sid, bytes.to_vec().into(), self, Some(0)).await;
-                Ok(None)
-            }
+        async fn recv_from(&self, id: u32, sid: MultiplexedStreamID) -> Result<Bytes, MpcNetError> {
+            Ok(recv_bytes(sid, id, self).await.payload)
         }
 
-        async fn client_receive_or_king_send(
+        async fn send_to(
             &self,
-            bytes: Option<Vec<bytes::Bytes>>,
+            id: u32,
+            bytes: Bytes,
             sid: MultiplexedStreamID,
-        ) -> Result<bytes::Bytes, MpcNetError> {
-            if self.is_king() {
-                let payloads = bytes.expect("Missing bytes");
-                let my_payload = payloads[self.party_id as usize].clone();
-                let m = my_payload.len();
-                // Send bytes to each party except us
-                for (i, payload) in payloads
-                    .into_iter()
-                    .enumerate()
-                    .take(self.n_peers)
-                    .filter(|r| r.0 != self.party_id as usize)
-                {
-                    assert_eq!(payload.len(), m);
-                    send_bytes(sid, payload, self, Some(i as u32)).await;
-                }
-
-                log::info!("King SEND | DONE");
-
-                // Return our own bytes
-                Ok(my_payload)
-            } else {
-                let payload = recv_bytes(sid, self).await;
-                Ok(payload.payload)
-            }
+        ) -> Result<(), MpcNetError> {
+            send_bytes(sid, bytes, self, id).await;
+            Ok(())
         }
     }
 
     async fn send_bytes(
         sid: MultiplexedStreamID,
-        payload: bytes::Bytes,
+        payload: Bytes,
         network: &ZkNetworkOverGadgetNetwork,
-        to: Option<u32>,
+        to: u32,
     ) {
         let mpc_net_payload = MpcNetMessage {
             sid,
@@ -281,40 +246,49 @@ mod tests {
 
         let serialized =
             bincode2::serialize(&mpc_net_payload).expect("Failed to serialize message");
+        println!(
+            "Message SEND ({} -> {}): {}",
+            network.party_id,
+            to,
+            serialized.debug()
+        );
 
         let gadget_protocol_message = TestProtocolMessage {
             payload: serialized,
             from: network.party_id,
-            to,
+            to: Some(to),
             associated_block_id: network.associated_block_id,
             associated_session_id: network.associated_session_id,
             associated_ssid: network.associated_ssid,
             associated_task_id: network.associated_task_id,
         };
 
-        if let Some(to) = to {
-            assert_ne!(to, network.party_id, "Cannot send to self");
-            network
-                .gadget_network
-                .send_to(gadget_protocol_message, to)
-                .expect("Failed to send");
-        } else {
-            network
-                .gadget_network
-                .broadcast(network.party_id, gadget_protocol_message)
-                .expect("Failed to broadcast");
-        }
+        assert_ne!(to, network.party_id, "Cannot send to self");
+        network
+            .gadget_network
+            .send_to(gadget_protocol_message, to)
+            .expect("Failed to send");
     }
 
     async fn recv_bytes(
         sid: MultiplexedStreamID,
+        from: u32,
         network: &ZkNetworkOverGadgetNetwork,
     ) -> MpcNetMessage {
-        let rx = &network.rxs[sid as usize];
+        let rx = &network.rxs.get(&from).expect("Should exist")[sid as usize];
         rx.lock()
             .await
             .recv()
             .await
             .expect("Failed to receive bytes")
     }
+
+    pub trait Debuggable: AsRef<[u8]> {
+        fn debug(&self) -> String {
+            let hash = md5::compute(self.as_ref()).0;
+            hex::encode(&hash)
+        }
+    }
+
+    impl<T: AsRef<[u8]>> Debuggable for T {}
 }

@@ -11,9 +11,10 @@ mod tests {
     use tracing_subscriber::EnvFilter;
 
     use async_trait::async_trait;
+    use bytes::Bytes;
     use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
     use serde::{Deserialize, Serialize};
-    use test_gadget::message::TestProtocolMessage;
+    use test_gadget::message::{TestProtocolMessage, UserID};
     use test_gadget::test_network::InMemoryNetwork;
     use tokio::sync::Mutex;
 
@@ -54,12 +55,20 @@ mod tests {
             // For sending messages, the payload we send to the JobManager needs to be multiplexed with
             // stream IDs.
 
-            let mut txs = vec![];
-            let mut rxs = vec![];
-            for _ in 0..params.test_bundle.n_peers {
-                let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-                txs.push(tx);
-                rxs.push(Mutex::new(rx));
+            let mut txs = HashMap::new();
+            let mut rxs = HashMap::new();
+            for peer_id in 0..params.test_bundle.n_peers {
+                // Create 3 multiplexed channels
+                let mut txs_for_this_peer = vec![];
+                let mut rxs_for_this_peer = vec![];
+                for _ in 0..3 {
+                    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+                    txs_for_this_peer.push(tx);
+                    rxs_for_this_peer.push(Mutex::new(rx));
+                }
+
+                txs.insert(peer_id as u32, txs_for_this_peer);
+                rxs.insert(peer_id as u32, rxs_for_this_peer);
             }
 
             let network = ZkNetworkOverGadgetNetwork {
@@ -77,48 +86,62 @@ mod tests {
                 while let Some(message) = params.protocol_message_rx.recv().await {
                     let deserialized: MpcNetMessage =
                         bincode2::deserialize(&message.payload).expect("Failed to deser message");
+                    let txs = &txs[&deserialized.source];
                     let tx = &txs[deserialized.sid as usize];
                     tx.send(deserialized).expect("Failed to send message");
                 }
             });
+
+            let expected_sum = (0..params.test_bundle.n_peers)
+                .map(|i| i as UserID)
+                .sum::<UserID>();
 
             for sid in [
                 MultiplexedStreamID::Zero,
                 MultiplexedStreamID::One,
                 MultiplexedStreamID::Two,
             ] {
-                let message =
-                    Vec::from(format!("Hello, world from {}", params.test_bundle.party_id));
-                if let Some(messages) = network
+                let message = bincode2::serialize(&params.test_bundle.party_id)
+                    .expect("Failed to serialize message");
+                let king_response = if let Some(messages) = network
                     .client_send_or_king_receive(&message, sid)
                     .await
                     .expect("Failed to send")
                 {
                     assert_eq!(messages.len(), params.test_bundle.n_peers);
-                    for (i, message) in messages.into_iter().enumerate() {
-                        assert_eq!(
-                            message.as_ref(),
-                            format!("Hello, world from {i}").as_bytes()
-                        );
+                    let mut sum = 0;
+                    for message in messages.into_iter() {
+                        let peer_id: UserID =
+                            bincode2::deserialize(&message).expect("Failed to deserialize message");
+                        sum += peer_id
                     }
-                }
+                    assert_eq!(
+                        sum, expected_sum,
+                        "Sum of peer IDs should be equal to sum of all peer IDs"
+                    );
 
-                if network.is_king() {
-                    let send = (0..params.test_bundle.n_peers)
-                        .map(|_| b"Hello, world - King".to_vec().into())
-                        .collect::<Vec<bytes::Bytes>>();
-                    let bytes = network
-                        .client_receive_or_king_send(Some(send), sid)
-                        .await
-                        .expect("Failed to receive");
-                    assert_eq!(bytes.as_ref(), b"Hello, world - King");
+                    let sum = Bytes::from(
+                        bincode2::serialize(&sum).expect("Failed to serialize message"),
+                    );
+                    Some(
+                        (0..params.test_bundle.n_peers)
+                            .map(|_| sum.clone())
+                            .collect::<Vec<_>>(),
+                    )
                 } else {
-                    let bytes = network
-                        .client_receive_or_king_send(None, sid)
-                        .await
-                        .expect("Failed to receive");
-                    assert_eq!(bytes.as_ref(), b"Hello, world - King");
-                }
+                    None
+                };
+
+                let sum = network
+                    .client_receive_or_king_send(king_response, sid)
+                    .await
+                    .expect("Failed to receive");
+                let sum: UserID =
+                    bincode2::deserialize(&sum).expect("Failed to deserialize message");
+                assert_eq!(
+                    sum, expected_sum,
+                    "Sum of peer IDs should be equal to sum of all peer IDs"
+                );
             }
 
             on_end_tx.send(()).expect("Failed to send on_end signal");
@@ -127,7 +150,7 @@ mod tests {
 
     struct ZkNetworkOverGadgetNetwork {
         gadget_network: InMemoryNetwork,
-        rxs: Vec<Mutex<tokio::sync::mpsc::UnboundedReceiver<MpcNetMessage>>>,
+        rxs: HashMap<u32, Vec<Mutex<tokio::sync::mpsc::UnboundedReceiver<MpcNetMessage>>>>,
         n_peers: usize,
         party_id: u32,
         associated_block_id: u64,
@@ -139,7 +162,7 @@ mod tests {
     #[derive(Serialize, Deserialize)]
     struct MpcNetMessage {
         sid: MultiplexedStreamID,
-        payload: bytes::Bytes,
+        payload: Bytes,
         source: u32,
     }
 
@@ -157,67 +180,24 @@ mod tests {
             true
         }
 
-        async fn client_send_or_king_receive(
-            &self,
-            bytes: &[u8],
-            sid: MultiplexedStreamID,
-        ) -> Result<Option<Vec<bytes::Bytes>>, MpcNetError> {
-            if self.is_king() {
-                let count = self.n_parties() - 1;
-                let mut packets = HashMap::new();
-
-                for _ in 0..count {
-                    let payload = recv_bytes(sid, self).await;
-                    log::info!("King received packet from {from}", from = payload.source);
-                    let from = payload.source;
-                    packets.insert(from, payload.payload);
-                }
-
-                packets.insert(0, bytes.to_vec().into()); // Insert the king's value
-
-                let mut packets_ordered = vec![];
-                for i in 0..self.n_parties() {
-                    let payload = packets.remove(&(i as u32)).expect("Missing packet");
-                    packets_ordered.push(payload);
-                }
-
-                Ok(Some(packets_ordered))
-            } else {
-                send_bytes(sid, bytes.to_vec().into(), self, Some(0)).await;
-                Ok(None)
-            }
+        async fn recv_from(&self, id: u32, sid: MultiplexedStreamID) -> Result<Bytes, MpcNetError> {
+            Ok(recv_bytes(sid, id, self).await.payload)
         }
 
-        async fn client_receive_or_king_send(
+        async fn send_to(
             &self,
-            bytes: Option<Vec<bytes::Bytes>>,
+            id: u32,
+            bytes: Bytes,
             sid: MultiplexedStreamID,
-        ) -> Result<bytes::Bytes, MpcNetError> {
-            if self.is_king() {
-                let payloads = bytes.expect("Missing bytes");
-                let my_payload = payloads[self.party_id as usize].clone();
-                // Send bytes to each party except us
-                for (i, payload) in payloads
-                    .into_iter()
-                    .enumerate()
-                    .take(self.n_peers)
-                    .filter(|r| r.0 != self.party_id as usize)
-                {
-                    send_bytes(sid, payload, self, Some(i as u32)).await;
-                }
-
-                // Return our own bytes
-                Ok(my_payload)
-            } else {
-                let payload = recv_bytes(sid, self).await;
-                Ok(payload.payload)
-            }
+        ) -> Result<(), MpcNetError> {
+            send_bytes(sid, bytes, self, Some(id)).await;
+            Ok(())
         }
     }
 
     async fn send_bytes(
         sid: MultiplexedStreamID,
-        payload: bytes::Bytes,
+        payload: Bytes,
         network: &ZkNetworkOverGadgetNetwork,
         to: Option<u32>,
     ) {
@@ -256,9 +236,10 @@ mod tests {
 
     async fn recv_bytes(
         sid: MultiplexedStreamID,
+        from: u32,
         network: &ZkNetworkOverGadgetNetwork,
     ) -> MpcNetMessage {
-        let rx = &network.rxs[sid as usize];
+        let rx = &network.rxs.get(&from).expect("Should exist")[sid as usize];
         rx.lock()
             .await
             .recv()

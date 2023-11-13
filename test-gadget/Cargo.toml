@@ -30,3 +30,5 @@ ark-bls12-377 = { version = "0.4.0", default-features = false, features = ["curv
 ark-ff = {version = "0.4.0", default-features = false}
 ark-poly = {version = "0.4.0", default-features = false}
 bincode2 = "2.0.1"
+hex = "0.4.3"
+md5 = "0.7.0"

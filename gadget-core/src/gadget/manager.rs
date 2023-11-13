@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use std::error::Error;
+use std::fmt::{Display, Formatter};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -13,6 +14,14 @@ pub enum GadgetError {
     BlockImportNotificationStreamEnded,
     ProtocolMessageStreamEnded,
 }
+
+impl Display for GadgetError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f)
+    }
+}
+
+impl std::error::Error for GadgetError {}
 
 #[async_trait]
 pub trait AbstractGadget: Send + Sync {

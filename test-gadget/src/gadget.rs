@@ -86,6 +86,7 @@ impl<B: Send + Sync + Clone + 'static> AbstractGadget for TestGadget<B> {
         let session_id = notification.session_id;
         *self.clock.write() = now;
 
+        // Determine if we need to run a task
         if self.run_test_at.contains(&now) {
             log::info!("Running test at block {now}");
             let task_hash = now.to_be_bytes();
