@@ -19,7 +19,7 @@ pub struct ZkGadgetConfig {
     client_only_king_public_identity_der: Option<Vec<u8>>,
 }
 
-pub async fn run<C: Client<B, BE>, B: Block, BE: Backend<B>>(
+pub async fn run<C: Client<B>, B: Block, BE: Backend<B>>(
     config: ZkGadgetConfig,
     client: C,
 ) -> Result<(), Error> {

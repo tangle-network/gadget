@@ -29,7 +29,7 @@ impl Display for Error {
 
 impl std::error::Error for Error {}
 
-pub async fn run<C: Client<B, BE>, B: Block, BE: Backend<B>, N: Network, M: WebbGadgetModule<B>>(
+pub async fn run<C: Client<B>, B: Block, N: Network, M: WebbGadgetModule<B>>(
     network: N,
     module: M,
     client: C,
