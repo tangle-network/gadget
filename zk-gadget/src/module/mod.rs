@@ -5,6 +5,8 @@ use webb_gadget::gadget::work_manager::WebbWorkManager;
 use webb_gadget::gadget::WebbGadgetModule;
 use webb_gadget::{BlockImportNotification, Error, FinalityNotification};
 
+pub mod proto_gen;
+
 pub struct ZkModule {}
 
 #[async_trait]
@@ -15,7 +17,9 @@ impl<B: Block> WebbGadgetModule<B> for ZkModule {
         _now: u64,
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<(), Error> {
-        todo!()
+        // TODO: call proto_gen::create_zk_async_protocol to generate a protocol, then
+        // push the returned remote and protocol to the job manager
+        Ok(())
     }
 
     async fn process_block_import_notification(
@@ -23,7 +27,7 @@ impl<B: Block> WebbGadgetModule<B> for ZkModule {
         _notification: BlockImportNotification<B>,
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<(), Error> {
-        todo!()
+        Ok(())
     }
 
     async fn process_error(

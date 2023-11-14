@@ -15,3 +15,6 @@ tokio = { workspace = true }
 futures-util = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 async-trait = { workspace = true }
+parking_lot = { workspace = true }
+log = { workspace = true }
+hex = { workspace = true }
