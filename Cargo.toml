@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
     "gadget-core",
     "webb-gadget",
@@ -16,6 +17,7 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 sc-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+parity-scale-codec = "3.6.5"
 
 mpc-net = { git = "https://github.com/webb-tools/zk-SaaS/" }
 dist-primitives = { git = "https://github.com/webb-tools/zk-SaaS/" }

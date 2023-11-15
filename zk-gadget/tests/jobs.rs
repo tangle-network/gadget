@@ -7,21 +7,26 @@ mod tests {
     use std::time::Duration;
 
     pub mod server {
+        use crate::tests::job_types::ZkJob;
         use parking_lot::Mutex;
+        use std::collections::HashMap;
         use std::sync::Arc;
+        use tokio::sync::RwLock;
         use tonic::{Request, Response, Status};
+
         tonic::include_proto!("test_blockchain_zk");
 
         #[derive(Default, Clone)]
         pub struct TestBlockchainServer {
             pub latest_header: Arc<Mutex<u64>>,
+            pub jobs: Arc<RwLock<HashMap<u64, ZkJob>>>,
         }
 
         #[tonic::async_trait]
         impl auth_server::Auth for TestBlockchainServer {
             async fn get_latest_header(
                 &self,
-                request: Request<GetLatestHeaderRequest>,
+                _request: Request<GetLatestHeaderRequest>,
             ) -> Result<Response<GetLatestHeaderResponse>, Status> {
                 let latest_block_number = *self.latest_header.lock();
                 let session_id = 0; // For now
@@ -30,6 +35,65 @@ mod tests {
                     session_id,
                 }))
             }
+
+            async fn get_job_circuit_properties(
+                &self,
+                request: Request<GetJobCircuitPropertiesRequest>,
+            ) -> Result<Response<GetJobCircuitPropertiesResponse>, Status> {
+                let lock = self.jobs.read().await;
+                let job = lock
+                    .get(&request.into_inner().job_id)
+                    .ok_or(Status::not_found("Job not found"))?;
+                Ok(Response::new(GetJobCircuitPropertiesResponse {
+                    job_id: job.circuit.job_id,
+                    pk: job.circuit.pk.clone(),
+                    wasm_uri: job.circuit.wasm_uri.clone(),
+                    r1cs_uri: job.circuit.r1cs_uri.clone(),
+                }))
+            }
+
+            async fn get_job_properties(
+                &self,
+                request: Request<GetJobPropertiesRequest>,
+            ) -> Result<Response<GetJobPropertiesResponse>, Status> {
+                let lock = self.jobs.read().await;
+                let job = lock
+                    .get(&request.into_inner().job_id)
+                    .ok_or(Status::not_found("Job not found"))?;
+                Ok(Response::new(GetJobPropertiesResponse {
+                    job_id: job.properties.job_id,
+                    circuit_id: job.properties.circuit_id,
+                    public_inputs: job.properties.public_inputs.clone(),
+                    pss: job.properties.pss,
+                    a_shares: job.properties.a_shares.clone(),
+                    ax_shares: job.properties.ax_shares.clone(),
+                    qap_shares: job.properties.qap_shares.clone(),
+                }))
+            }
+        }
+    }
+
+    pub mod job_types {
+        pub struct ZkJob {
+            pub circuit: JobCircuitProperties,
+            pub properties: JobProperties,
+        }
+
+        pub struct JobCircuitProperties {
+            pub job_id: u64,
+            pub pk: Vec<u8>,
+            pub wasm_uri: String,
+            pub r1cs_uri: String,
+        }
+
+        pub struct JobProperties {
+            pub job_id: u64,
+            pub circuit_id: u64,
+            pub public_inputs: Vec<u8>,
+            pub pss: u64,
+            pub a_shares: Vec<u8>,
+            pub ax_shares: Vec<u8>,
+            pub qap_shares: Vec<u8>,
         }
     }
 
@@ -125,17 +189,17 @@ mod tests {
             };
 
             let (tx, _rx) = sc_utils::mpsc::tracing_unbounded("mpsc_finality_notification", 999999);
-            let notification = FinalityNotification::<TestBlock>::from_summary(summary, tx);
+            FinalityNotification::<TestBlock>::from_summary(summary, tx)
         }
     }
 
     pub async fn start_blockchain(
         addr: SocketAddr,
         block_duration: Duration,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), String> {
         let zkp_service = server::TestBlockchainServer::default();
 
-        let zkp_server = server::auth_server::AuthServer::new(zkp_service)
+        let zkp_server = server::auth_server::AuthServer::new(zkp_service.clone())
             .max_decoding_message_size(1024 * 1024 * 1024) // To allow large messages
             .max_encoding_message_size(1024 * 1024 * 1024);
 
@@ -153,7 +217,7 @@ mod tests {
 
         tokio::select! {
             res0 = server => {
-                res0?;
+                res0.map_err(|err| err.to_string())?;
             },
             _ = ticker => {
                 Err("Ticker stopped")?;
@@ -163,27 +227,54 @@ mod tests {
         Ok(())
     }
 
+    fn generate_pub_key_and_priv_key_der<T: Into<String>>(subject_name: T) -> (Vec<u8>, Vec<u8>) {
+        let cert =
+            rcgen::generate_simple_self_signed([subject_name.into()]).expect("Should compile");
+        (
+            cert.serialize_der().expect("Should serialize"),
+            cert.serialize_private_key_der(),
+        )
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn test_zk_gadget() -> Result<(), Box<dyn Error>> {
         const BLOCK_DURATION: Duration = Duration::from_millis(10000);
         const N: usize = 5;
 
         let server_addr: SocketAddr = "127.0.0.1:50051".parse()?;
-        let client = client::BlockchainClient::new(server_addr).await?;
+        let king_bind_addr_orig: SocketAddr = "127.0.0.1:50052".parse()?;
+        let (king_public_identity_der, king_private_identity_der) =
+            generate_pub_key_and_priv_key_der(king_bind_addr_orig.ip().to_string());
         let blockchain_future = tokio::spawn(start_blockchain(server_addr, BLOCK_DURATION));
         tokio::time::sleep(Duration::from_millis(100)).await; // wait for the server to come up
 
         let zk_gadgets_futures = FuturesUnordered::new();
+
         for party_id in 0..N {
-            let test_config = zk_gadget::ZkGadgetConfig {
-                king_bind_addr: None,
-                client_only_king_addr: Some(server_addr),
-                id: party_id as _,
-                public_identity_der: vec![],
-                private_identity_der: vec![],
-                client_only_king_public_identity_der: None,
+            let client = client::BlockchainClient::new(server_addr).await?;
+            let test_config = if party_id == 0 {
+                zk_gadget::ZkGadgetConfig {
+                    king_bind_addr: Some(king_bind_addr_orig),
+                    client_only_king_addr: None,
+                    id: party_id as _,
+                    public_identity_der: king_public_identity_der.clone(),
+                    private_identity_der: king_private_identity_der.clone(),
+                    client_only_king_public_identity_der: None,
+                }
+            } else {
+                let (public_identity_der, private_identity_der) =
+                    generate_pub_key_and_priv_key_der("localhost");
+                zk_gadget::ZkGadgetConfig {
+                    king_bind_addr: None,
+                    client_only_king_addr: Some(king_bind_addr_orig),
+                    id: party_id as _,
+                    public_identity_der,
+                    private_identity_der,
+                    client_only_king_public_identity_der: Some(king_public_identity_der.clone()),
+                }
             };
-            let zk_gadget_future = zk_gadget::run(test_config, client.clone());
+
+            let zk_gadget_future = zk_gadget::run(test_config, client);
             zk_gadgets_futures.push(Box::pin(zk_gadget_future));
         }
 
@@ -191,7 +282,7 @@ mod tests {
 
         tokio::select! {
             res0 = blockchain_future => {
-                res0?;
+                res0??;
             },
             res1 = zk_gadget_future => {
                 res1?;

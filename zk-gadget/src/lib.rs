@@ -1,7 +1,7 @@
 use crate::module::ZkModule;
 use crate::network::{RegistantId, ZkNetworkService};
 use gadget_core::gadget::substrate::Client;
-use gadget_core::{Backend, Block};
+use gadget_core::Block;
 use mpc_net::prod::RustlsCertificate;
 use std::net::SocketAddr;
 use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
@@ -19,10 +19,7 @@ pub struct ZkGadgetConfig {
     pub client_only_king_public_identity_der: Option<Vec<u8>>,
 }
 
-pub async fn run<C: Client<B>, B: Block, BE: Backend<B>>(
-    config: ZkGadgetConfig,
-    client: C,
-) -> Result<(), Error> {
+pub async fn run<C: Client<B>, B: Block>(config: ZkGadgetConfig, client: C) -> Result<(), Error> {
     // Create the zk gadget module
     let network = create_zk_network(&config).await?;
 

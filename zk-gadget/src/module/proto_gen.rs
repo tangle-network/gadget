@@ -2,12 +2,11 @@ use gadget_core::job_manager::{SendFuture, ShutdownReason, WorkManagerInterface}
 use parking_lot::Mutex;
 use std::fmt::Debug;
 use std::pin::Pin;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
 
 pub struct ZkAsyncProtocolParameters<B> {
-    pub is_done: Arc<AtomicBool>,
     pub protocol_message_rx: tokio::sync::mpsc::UnboundedReceiver<
         <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
     >,
@@ -60,7 +59,6 @@ pub fn create_zk_async_protocol<B: Send + Sync + 'static, E: Debug + 'static>(
     let proto_hash_hex = hex::encode(task_id);
 
     let params = ZkAsyncProtocolParameters {
-        is_done: is_done.clone(),
         protocol_message_rx,
         associated_block_id: now,
         associated_ssid: ssid,
@@ -76,36 +74,41 @@ pub fn create_zk_async_protocol<B: Send + Sync + 'static, E: Debug + 'static>(
         associated_ssid: ssid,
         associated_session_id: session_id,
         to_async_protocol,
-        is_done,
+        is_done: is_done.clone(),
     };
 
     let async_protocol = proto_gen(params);
 
+    // This wrapped future enables proper functionality between the async protocol and the
+    // job manager
     let wrapped_future = Box::pin(async move {
         if let Err(err) = start_rx.await {
             log::error!("Failed to start protocol {proto_hash_hex}: {err:?}");
-        }
+        } else {
+            tokio::select! {
+                res0 = async_protocol => {
+                    if let Err(err) = res0 {
+                        log::error!("Protocol {proto_hash_hex} failed: {err:?}");
+                    } else {
+                        log::info!("Protocol {proto_hash_hex} finished");
+                    }
+                },
 
-        tokio::select! {
-            res0 = async_protocol => {
-                if let Err(err) = res0 {
-                    log::error!("Protocol {proto_hash_hex} failed: {err:?}");
-                } else {
-                    log::info!("Protocol {proto_hash_hex} finished");
-                }
-            },
-
-            res1 = shutdown_rx => {
-                match res1 {
-                    Ok(reason) => {
-                        log::info!("Protocol shutdown: {reason:?}");
-                    },
-                    Err(err) => {
-                        log::error!("Protocol shutdown failed: {err:?}");
-                    },
+                res1 = shutdown_rx => {
+                    match res1 {
+                        Ok(reason) => {
+                            log::info!("Protocol shutdown: {reason:?}");
+                        },
+                        Err(err) => {
+                            log::error!("Protocol shutdown failed: {err:?}");
+                        },
+                    }
                 }
             }
         }
+
+        // Mark the task as done
+        is_done.store(true, Ordering::SeqCst);
     });
 
     (remote, wrapped_future)

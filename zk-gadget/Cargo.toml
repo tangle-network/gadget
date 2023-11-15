@@ -26,6 +26,8 @@ sp-runtime = { workspace = true }
 sc-utils = { workspace = true }
 sc-client-api = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
+rcgen = "0.11.3"
+parity-scale-codec = { workspace = true }
 
 [build-dependencies]
 tonic-build = "0.10.2"
