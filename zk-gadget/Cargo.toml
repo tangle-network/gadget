@@ -18,3 +18,14 @@ async-trait = { workspace = true }
 parking_lot = { workspace = true }
 log = { workspace = true }
 hex = { workspace = true }
+
+[dev-dependencies]
+tonic = "0.10.2"
+prost = "0.12.1"
+sp-runtime = { workspace = true }
+sc-utils = { workspace = true }
+sc-client-api = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+
+[build-dependencies]
+tonic-build = "0.10.2"

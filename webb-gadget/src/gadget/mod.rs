@@ -31,9 +31,7 @@ pub struct WebbModule<B, C, N, M> {
 const MAX_ACTIVE_TASKS: usize = 4;
 const MAX_PENDING_TASKS: usize = 4;
 
-impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetModule<B>>
-    WebbModule<B, C, N, M>
-{
+impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetModule<B>> WebbModule<B, C, N, M> {
     pub fn new(mut network: N, module: M, now: Option<u64>) -> Self {
         let clock = Arc::new(RwLock::new(now));
         let clock_clone = clock.clone();
@@ -60,8 +58,8 @@ impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetModule<B>>
 }
 
 #[async_trait]
-impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetModule<B>>
-    SubstrateGadgetModule for WebbModule<B, C, N, M>
+impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetModule<B>> SubstrateGadgetModule
+    for WebbModule<B, C, N, M>
 {
     type Error = Error;
     type ProtocolMessage = GadgetProtocolMessage;

@@ -11,12 +11,12 @@ pub mod module;
 pub mod network;
 
 pub struct ZkGadgetConfig {
-    king_bind_addr: Option<SocketAddr>,
-    client_only_king_addr: Option<SocketAddr>,
-    id: RegistantId,
-    public_identity_der: Vec<u8>,
-    private_identity_der: Vec<u8>,
-    client_only_king_public_identity_der: Option<Vec<u8>>,
+    pub king_bind_addr: Option<SocketAddr>,
+    pub client_only_king_addr: Option<SocketAddr>,
+    pub id: RegistantId,
+    pub public_identity_der: Vec<u8>,
+    pub private_identity_der: Vec<u8>,
+    pub client_only_king_public_identity_der: Option<Vec<u8>>,
 }
 
 pub async fn run<C: Client<B>, B: Block, BE: Backend<B>>(

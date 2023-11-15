@@ -1,8 +1,6 @@
 use crate::gadget::manager::AbstractGadget;
 use async_trait::async_trait;
-use sc_client_api::{
-    BlockImportNotification, FinalityNotification,
-};
+use sc_client_api::{BlockImportNotification, FinalityNotification};
 use sp_runtime::traits::Block;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};

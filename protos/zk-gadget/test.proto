@@ -1,0 +1,39 @@
+syntax = "proto3";
+package test_blockchain_zk;
+
+message GetLatestHeaderRequest {}
+message GetLatestHeaderResponse {
+  uint64 latest_block_number = 1;
+  uint64 session_id = 2;
+}
+
+message GetJobCircuitPropertiesRequest {
+  uint64 job_id = 1;
+}
+
+message GetJobCircuitPropertiesResponse {
+  uint64 job_id = 1;
+  bytes pk = 2;
+  string wasm_uri = 3;
+  string r1cs_uri = 4;
+}
+
+message GetJobPropertiesRequest {
+  uint64 job_id = 1;
+}
+
+message GetJobPropertiesResponse {
+  uint64 job_id = 1;
+  uint64 circuit_id = 2;
+  bytes public_inputs = 3;
+  uint64 pss = 4;
+  bytes a_shares = 5;
+  bytes ax_shares = 6;
+  bytes qap_shares = 7;
+}
+
+service Auth {
+  rpc GetLatestHeader(GetLatestHeaderRequest) returns (GetLatestHeaderResponse) {}
+  rpc GetJobCircuitProperties(GetJobCircuitPropertiesRequest) returns (GetJobCircuitPropertiesResponse) {}
+  rpc GetJobProperties(GetJobPropertiesRequest) returns (GetJobPropertiesResponse) {}
+}
