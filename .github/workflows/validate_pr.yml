@@ -38,6 +38,9 @@ jobs:
           toolchain: stable
           components: clippy
 
+      - name: Install protobuf
+        run: sudo apt-get install protobuf-compiler
+
       - name: Run Clippy
         run: cargo clippy --tests -- -D warnings
 
@@ -52,6 +55,9 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
+      - name: Install protobuf
+        run: sudo apt-get install protobuf-compiler
 
       - name: Run Tests
         run: cargo test --features=substrate
