@@ -18,6 +18,7 @@ async-trait = { workspace = true }
 parking_lot = { workspace = true }
 log = { workspace = true }
 hex = { workspace = true }
+bytes = { workspace = true }
 
 [dev-dependencies]
 tonic = "0.10.2"
@@ -28,6 +29,7 @@ sc-client-api = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 rcgen = "0.11.3"
 parity-scale-codec = { workspace = true }
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 
 [build-dependencies]
 tonic-build = "0.10.2"

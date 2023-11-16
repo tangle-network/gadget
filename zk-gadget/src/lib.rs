@@ -22,8 +22,11 @@ pub struct ZkGadgetConfig {
 pub async fn run<C: Client<B>, B: Block>(config: ZkGadgetConfig, client: C) -> Result<(), Error> {
     // Create the zk gadget module
     let network = create_zk_network(&config).await?;
+    log::info!("Created zk network for party {}", config.id);
 
-    let zk_module = ZkModule {}; // TODO: proper implementation
+    let zk_module = ZkModule {
+        party_id: config.id,
+    }; // TODO: proper implementation
 
     // Plug the module into the webb gadget
     webb_gadget::run(network, zk_module, client).await

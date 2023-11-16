@@ -1,39 +1,44 @@
+use async_trait::async_trait;
+use bytes::Bytes;
 use futures_util::sink::SinkExt;
+use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::StreamExt;
+use gadget_core::job_manager::WorkManagerInterface;
 use mpc_net::multi::WrappedStream;
 use mpc_net::prod::{CertToDer, RustlsCertificate};
 use mpc_net::MpcNetError;
-use serde::de::DeserializeOwned;
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tokio_rustls::rustls::server::NoClientAuth;
 use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{rustls, TlsAcceptor, TlsStream};
 
 /// Type should correspond to the on-chain identifier of the registrant
-pub type RegistantId = u64;
+pub type RegistantId = UserID;
 
+#[derive(Clone)]
 pub enum ZkNetworkService {
     King {
-        listener: Option<tokio::net::TcpListener>,
+        listener: Arc<Mutex<Option<tokio::net::TcpListener>>>,
         registrants: Arc<Mutex<HashMap<RegistantId, Registrant>>>,
-        to_gadget: tokio::sync::mpsc::UnboundedSender<GadgetProtocolMessage>,
-        from_registry: Option<tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>>,
+        to_gadget: UnboundedSender<RegistryPacket>,
+        to_outbound_txs: Arc<RwLock<HashMap<RegistantId, UnboundedSender<RegistryPacket>>>>,
+        inbound_messages: Arc<Mutex<UnboundedReceiver<RegistryPacket>>>,
         identity: RustlsCertificate,
     },
     Client {
         king_registry_addr: SocketAddr,
         registrant_id: RegistantId,
-        connection: Option<TlsStream<TcpStream>>,
         cert_der: Vec<u8>,
-        to_gadget: tokio::sync::mpsc::UnboundedSender<GadgetProtocolMessage>,
-        from_registry: Option<tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>>,
+        local_to_outbound_tx: UnboundedSender<RegistryPacket>,
+        inbound_messages: Arc<Mutex<UnboundedReceiver<RegistryPacket>>>,
     },
 }
 
@@ -44,8 +49,9 @@ pub struct Registrant {
 }
 
 use crate::Error;
-use webb_gadget::gadget::message::GadgetProtocolMessage;
+use webb_gadget::gadget::message::{GadgetProtocolMessage, UserID};
 use webb_gadget::gadget::network::Network;
+use webb_gadget::gadget::work_manager::WebbWorkManager;
 
 pub fn create_server_tls_acceptor<T: CertToDer>(
     server_certificate: T,
@@ -69,15 +75,7 @@ impl ZkNetworkService {
         bind_addr: T,
         identity: RustlsCertificate,
     ) -> Result<Self, Error> {
-        let bind_addr: SocketAddr = bind_addr
-            .to_socket_addrs()
-            .map_err(|err| Error::RegistryCreateError {
-                err: err.to_string(),
-            })?
-            .next()
-            .ok_or(Error::RegistryCreateError {
-                err: "No address found".to_string(),
-            })?;
+        let bind_addr = to_addr(bind_addr)?;
 
         let listener = tokio::net::TcpListener::bind(bind_addr)
             .await
@@ -87,11 +85,12 @@ impl ZkNetworkService {
         let registrants = Arc::new(Mutex::new(HashMap::new()));
         let (to_gadget, from_registry) = tokio::sync::mpsc::unbounded_channel();
         Ok(ZkNetworkService::King {
-            listener: Some(listener),
+            listener: Arc::new(Mutex::new(Some(listener))),
+            to_outbound_txs: Arc::new(RwLock::new(HashMap::new())),
             registrants,
             to_gadget,
             identity,
-            from_registry: Some(from_registry),
+            inbound_messages: Arc::new(Mutex::new(from_registry)),
         })
     }
 
@@ -101,16 +100,7 @@ impl ZkNetworkService {
         client_identity: RustlsCertificate,
         king_certs: RootCertStore,
     ) -> Result<Self, Error> {
-        let king_registry_addr: SocketAddr = king_registry_addr
-            .to_socket_addrs()
-            .map_err(|err| Error::RegistryCreateError {
-                err: err.to_string(),
-            })?
-            .next()
-            .ok_or(Error::RegistryCreateError {
-                err: "No address found".to_string(),
-            })?;
-
+        let king_registry_addr = to_addr(king_registry_addr)?;
         let cert_der = client_identity.cert.0.clone();
 
         let connection = TcpStream::connect(king_registry_addr)
@@ -118,6 +108,11 @@ impl ZkNetworkService {
             .map_err(|err| Error::RegistryCreateError {
                 err: err.to_string(),
             })?;
+
+        log::info!(
+            "Party {registrant_id} connected to king registry at {}",
+            king_registry_addr
+        );
 
         // Upgrade to TLS
         let tls = mpc_net::prod::create_client_mutual_tls_connector(king_certs, client_identity)
@@ -127,7 +122,7 @@ impl ZkNetworkService {
 
         let connection = tls
             .connect(
-                tokio_rustls::rustls::ServerName::IpAddress(king_registry_addr.ip()),
+                rustls::ServerName::IpAddress(king_registry_addr.ip()),
                 connection,
             )
             .await
@@ -136,14 +131,18 @@ impl ZkNetworkService {
             })?;
 
         let (to_gadget, from_registry) = tokio::sync::mpsc::unbounded_channel();
+        let (local_to_outbound_tx, local_to_outbound_rx) = tokio::sync::mpsc::unbounded_channel();
 
-        let mut this = ZkNetworkService::Client {
+        let connection = TlsStream::Client(connection);
+
+        handle_single_connection(connection, local_to_outbound_rx, to_gadget);
+
+        let this = ZkNetworkService::Client {
             king_registry_addr,
+            local_to_outbound_tx,
             registrant_id,
             cert_der,
-            connection: Some(TlsStream::Client(connection)),
-            to_gadget,
-            from_registry: Some(from_registry),
+            inbound_messages: Arc::new(Mutex::new(from_registry)),
         };
 
         this.client_register().await?;
@@ -151,77 +150,7 @@ impl ZkNetworkService {
         Ok(this)
     }
 
-    pub async fn run(self) -> Result<(), Error> {
-        match self {
-            Self::King {
-                listener,
-                registrants,
-                to_gadget,
-                identity,
-                ..
-            } => {
-                let listener = listener.expect("Should exist");
-                let tls_acceptor = create_server_tls_acceptor(identity).map_err(|err| {
-                    Error::RegistryCreateError {
-                        err: format!("{err:?}"),
-                    }
-                })?;
-
-                while let Ok((stream, peer_addr)) = listener.accept().await {
-                    println!("[Registry] Accepted connection from {peer_addr}, upgrading to TLS");
-                    let stream = tls_acceptor.accept(stream).await.map_err(|err| {
-                        Error::RegistryCreateError {
-                            err: format!("{err:?}"),
-                        }
-                    })?;
-
-                    handle_stream_as_king(
-                        TlsStream::Server(stream),
-                        peer_addr,
-                        registrants.clone(),
-                        to_gadget.clone(),
-                    );
-                }
-
-                Err(Error::RegistryCreateError {
-                    err: "Listener closed".to_string(),
-                })
-            }
-            Self::Client {
-                connection,
-                to_gadget,
-                ..
-            } => {
-                let stream = connection.expect("Should exist");
-                let mut wrapped_stream = mpc_net::multi::wrap_stream(stream);
-                while let Some(Ok(message)) = wrapped_stream.next().await {
-                    match bincode2::deserialize::<RegistryPacket>(&message) {
-                        Ok(packet) => match packet {
-                            RegistryPacket::SubstrateGadgetMessage { payload } => {
-                                if let Err(err) = to_gadget.send(payload) {
-                                    eprintln!(
-                                        "[Registry] Failed to send message to gadget: {err:?}"
-                                    );
-                                }
-                            }
-                            _ => {
-                                println!("[Registry] Received invalid packet");
-                            }
-                        },
-                        Err(err) => {
-                            println!("[Registry] Received invalid packet: {err}");
-                        }
-                    }
-                }
-
-                Err(Error::RegistryListenError {
-                    err: "Connection closed".to_string(),
-                })
-            }
-        }
-    }
-
-    async fn client_register(&mut self) -> Result<(), Error> {
+    async fn client_register(&self) -> Result<(), Error> {
         match self {
             Self::King { .. } => Err(Error::RegistryCreateError {
                 err: "Cannot register as king".to_string(),
@@ -229,23 +158,25 @@ impl ZkNetworkService {
             Self::Client {
                 king_registry_addr: _,
                 registrant_id,
-                connection,
+                local_to_outbound_tx,
+                inbound_messages,
                 cert_der,
                 ..
             } => {
-                let conn = connection.as_mut().expect("Should exist");
-                let mut wrapped_stream = mpc_net::multi::wrap_stream(conn);
-
-                send_stream(
-                    &mut wrapped_stream,
-                    RegistryPacket::Register {
+                local_to_outbound_tx
+                    .send(RegistryPacket::Register {
                         id: *registrant_id,
                         cert_der: cert_der.clone(),
-                    },
-                )
-                .await?;
+                    })
+                    .map_err(|err| Error::RegistrySendError {
+                        err: err.to_string(),
+                    })?;
 
-                let response = recv_stream::<RegistryPacket, _>(&mut wrapped_stream).await?;
+                let response = inbound_messages.lock().await.recv().await.ok_or(
+                    Error::RegistryCreateError {
+                        err: "No response received".to_string(),
+                    },
+                )?;
 
                 if !matches!(
                     &response,
@@ -262,8 +193,57 @@ impl ZkNetworkService {
     }
 }
 
+fn to_addr<T: std::net::ToSocketAddrs>(addr: T) -> Result<SocketAddr, Error> {
+    addr.to_socket_addrs()
+        .map_err(|err| Error::RegistryCreateError {
+            err: err.to_string(),
+        })?
+        .next()
+        .ok_or(Error::RegistryCreateError {
+            err: "No address found".to_string(),
+        })
+}
+
+fn handle_single_connection(
+    connection: TlsStream<TcpStream>,
+    mut local_to_outbound_rx: UnboundedReceiver<RegistryPacket>,
+    inbound_to_local_tx: tokio::sync::mpsc::UnboundedSender<RegistryPacket>,
+) {
+    let (mut sink, mut stream) = mpc_net::multi::wrap_stream(connection).split();
+    // Now, take the sink and spawn a task to listen for messages that need to be sent outbound
+    tokio::task::spawn(async move {
+        while let Some(outbound_message) = local_to_outbound_rx.recv().await {
+            if let Err(err) = send_stream(&mut sink, outbound_message).await {
+                log::error!("[Registry] Failed to send message to king: {err:?}");
+            }
+        }
+    });
+
+    // Now, the stream will be used to receive messages from the king
+    tokio::task::spawn(async move {
+        loop {
+            match recv_stream(&mut stream).await {
+                Ok(message) => {
+                    if let Err(err) = inbound_to_local_tx.send(message) {
+                        log::error!("[Registry] Failed to send message to gadget: {err:?}");
+                        break;
+                    }
+                }
+                Err(Error::RegistryRecvError { err }) => {
+                    log::error!("[Registry] Failed to receive message from king: {err:?}");
+                    break;
+                }
+                Err(err) => {
+                    log::error!("[Registry] Failed to receive message from king: {err:?}");
+                    break;
+                }
+            }
+        }
+    });
+}
+
 #[derive(Serialize, Deserialize)]
-enum RegistryPacket {
+pub enum RegistryPacket {
     Register { id: RegistantId, cert_der: Vec<u8> },
     RegisterResponse { id: RegistantId, success: bool },
     // A message for the substrate gadget
@@ -274,39 +254,55 @@ fn handle_stream_as_king(
     stream: TlsStream<TcpStream>,
     peer_addr: SocketAddr,
     registrants: Arc<Mutex<HashMap<RegistantId, Registrant>>>,
-    to_gadget: tokio::sync::mpsc::UnboundedSender<GadgetProtocolMessage>,
+    to_outbound_txs: Arc<RwLock<HashMap<RegistantId, UnboundedSender<RegistryPacket>>>>,
+    to_gadget: UnboundedSender<RegistryPacket>,
 ) {
     tokio::task::spawn(async move {
-        let mut wrapped_stream = mpc_net::multi::wrap_stream(stream);
+        let wrapped_stream = mpc_net::multi::wrap_stream(stream);
+        let (mut sink, mut stream) = wrapped_stream.split();
+        let (to_outbound_tx, mut to_outbound_rx) = tokio::sync::mpsc::unbounded_channel();
         let mut peer_id = None;
-        while let Some(Ok(message)) = wrapped_stream.next().await {
+
+        // Spawn a task allowing the king to send messages to the peer from the gadget
+        tokio::task::spawn(async move {
+            while let Some(message) = to_outbound_rx.recv().await {
+                if let Err(err) = send_stream(&mut sink, message).await {
+                    log::error!("[Registry] Failed to send message to peer {peer_addr}: {err:?}");
+                    break;
+                }
+            }
+
+            log::error!("to_outbound_rx closed");
+        });
+
+        while let Some(Ok(message)) = stream.next().await {
             match bincode2::deserialize::<RegistryPacket>(&message) {
                 Ok(packet) => match packet {
                     RegistryPacket::Register { id, cert_der } => {
-                        println!("[Registry] Received registration for id {id}");
+                        log::info!("[Registry] Received registration for id {id}");
+                        to_outbound_txs.write().insert(id, to_outbound_tx.clone());
                         peer_id = Some(id);
                         let mut registrants = registrants.lock().await;
                         registrants.insert(id, Registrant { id, cert_der });
-                        if let Err(err) = send_stream(
-                            &mut wrapped_stream,
-                            RegistryPacket::RegisterResponse { id, success: true },
-                        )
-                        .await
+                        if let Err(err) = to_outbound_tx
+                            .send(RegistryPacket::RegisterResponse { id, success: true })
                         {
-                            eprintln!("[Registry] Failed to send registration response: {err:?}");
+                            log::error!("[Registry] Failed to send registration response: {err:?}");
                         }
                     }
                     RegistryPacket::SubstrateGadgetMessage { payload } => {
-                        if let Err(err) = to_gadget.send(payload) {
-                            eprintln!("[Registry] Failed to send message to gadget: {err:?}");
+                        if let Err(err) =
+                            to_gadget.send(RegistryPacket::SubstrateGadgetMessage { payload })
+                        {
+                            log::error!("[Registry] Failed to send message to gadget: {err:?}");
                         }
                     }
                     _ => {
-                        println!("[Registry] Received invalid packet");
+                        log::info!("[Registry] Received invalid packet");
                     }
                 },
                 Err(err) => {
-                    println!("[Registry] Received invalid packet: {err}");
+                    log::info!("[Registry] Received invalid packet: {err}");
                 }
             }
         }
@@ -317,13 +313,13 @@ fn handle_stream_as_king(
             registrants.remove(&id);
         }
 
-        eprintln!("[Registry] Connection closed to peer {peer_addr}")
+        log::error!("[Registry] Connection closed to peer {peer_addr}")
     });
 }
 
-async fn send_stream<T: Serialize, R: AsyncRead + AsyncWrite + Unpin>(
-    stream: &mut WrappedStream<R>,
-    payload: T,
+async fn send_stream<R: AsyncRead + AsyncWrite + Unpin>(
+    stream: &mut SplitSink<WrappedStream<R>, Bytes>,
+    payload: RegistryPacket,
 ) -> Result<(), Error> {
     let serialized = bincode2::serialize(&payload).map_err(|err| Error::RegistrySendError {
         err: err.to_string(),
@@ -337,9 +333,9 @@ async fn send_stream<T: Serialize, R: AsyncRead + AsyncWrite + Unpin>(
         })
 }
 
-async fn recv_stream<T: DeserializeOwned, R: AsyncRead + AsyncWrite + Unpin>(
-    stream: &mut WrappedStream<R>,
-) -> Result<T, Error> {
+async fn recv_stream<R: AsyncRead + AsyncWrite + Unpin>(
+    stream: &mut SplitStream<WrappedStream<R>>,
+) -> Result<RegistryPacket, Error> {
     let message = stream
         .next()
         .await
@@ -350,18 +346,141 @@ async fn recv_stream<T: DeserializeOwned, R: AsyncRead + AsyncWrite + Unpin>(
             err: err.to_string(),
         })?;
 
-    let deserialized = bincode2::deserialize(&message).map_err(|err| Error::RegistryRecvError {
-        err: err.to_string(),
-    })?;
+    let deserialized =
+        bincode2::deserialize(&message).map_err(|err| Error::RegistrySerializationError {
+            err: err.to_string(),
+        })?;
 
     Ok(deserialized)
 }
 
+#[async_trait]
 impl Network for ZkNetworkService {
-    fn take_message_receiver(&mut self) -> Option<UnboundedReceiver<GadgetProtocolMessage>> {
+    async fn next_message(
+        &self,
+    ) -> Option<<WebbWorkManager as WorkManagerInterface>::ProtocolMessage> {
         match self {
-            Self::King { from_registry, .. } => from_registry.take(),
-            Self::Client { from_registry, .. } => from_registry.take(),
+            Self::King {
+                inbound_messages, ..
+            }
+            | Self::Client {
+                inbound_messages, ..
+            } => loop {
+                match inbound_messages.lock().await.recv().await {
+                    Some(RegistryPacket::SubstrateGadgetMessage { payload }) => {
+                        return Some(payload)
+                    }
+                    Some(_packet) => {
+                        log::error!("[Registry] Received invalid packet");
+                    }
+                    None => {
+                        log::error!("[Registry] Inbound messages closed");
+                        return None;
+                    }
+                }
+            },
+        }
+    }
+
+    async fn send_message(
+        &self,
+        message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
+    ) -> Result<(), Error> {
+        if let Some(to) = message.to {
+            match self {
+                Self::Client {
+                    local_to_outbound_tx,
+                    ..
+                } => {
+                    if to != 0 {
+                        return Err(Error::RegistrySendError {
+                            err: "Cannot send message to non-king as client".to_string(),
+                        });
+                    }
+
+                    local_to_outbound_tx
+                        .send(RegistryPacket::SubstrateGadgetMessage { payload: message })
+                        .map_err(|err| Error::RegistrySendError {
+                            err: err.to_string(),
+                        })
+                }
+
+                Self::King {
+                    to_outbound_txs, ..
+                } => to_outbound_txs
+                    .read()
+                    .get(&to)
+                    .ok_or(Error::RegistrySendError {
+                        err: "No connection to registrant".to_string(),
+                    })?
+                    .send(RegistryPacket::SubstrateGadgetMessage { payload: message })
+                    .map_err(|err| Error::RegistrySendError {
+                        err: err.to_string(),
+                    }),
+            }
+        } else {
+            if let Self::King {
+                to_outbound_txs, ..
+            } = self
+            {
+                // Send to ALL peers
+                for (_, tx) in to_outbound_txs.read().iter() {
+                    tx.send(RegistryPacket::SubstrateGadgetMessage {
+                        payload: message.clone(),
+                    })
+                    .map_err(|err| Error::RegistrySendError {
+                        err: err.to_string(),
+                    })?;
+                }
+
+                Ok(())
+            } else {
+                Err(Error::RegistrySendError {
+                    err: "Cannot broadcast message as client".to_string(),
+                })
+            }
+        }
+    }
+
+    async fn run(&self) -> Result<(), Error> {
+        match self {
+            Self::King {
+                listener,
+                registrants,
+                to_gadget,
+                identity,
+                to_outbound_txs,
+                ..
+            } => {
+                let listener = listener.lock().await.take().expect("Should exist");
+                let tls_acceptor = create_server_tls_acceptor(identity.clone()).map_err(|err| {
+                    Error::RegistryCreateError {
+                        err: format!("{err:?}"),
+                    }
+                })?;
+
+                while let Ok((stream, peer_addr)) = listener.accept().await {
+                    log::info!("[Registry] Accepted connection from {peer_addr}, upgrading to TLS");
+                    let stream = tls_acceptor.accept(stream).await.map_err(|err| {
+                        Error::RegistryCreateError {
+                            err: format!("{err:?}"),
+                        }
+                    })?;
+
+                    handle_stream_as_king(
+                        TlsStream::Server(stream),
+                        peer_addr,
+                        registrants.clone(),
+                        to_outbound_txs.clone(),
+                        to_gadget.clone(),
+                    );
+                }
+
+                Err(Error::RegistryCreateError {
+                    err: "Listener closed".to_string(),
+                })
+            }
+            Self::Client { .. } => Ok(()),
         }
     }
 }

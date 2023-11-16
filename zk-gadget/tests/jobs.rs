@@ -5,6 +5,16 @@ mod tests {
     use std::error::Error;
     use std::net::SocketAddr;
     use std::time::Duration;
+    use tracing_subscriber::fmt::SubscriberBuilder;
+    use tracing_subscriber::util::SubscriberInitExt;
+    use tracing_subscriber::EnvFilter;
+
+    pub fn setup_log() {
+        let _ = SubscriberBuilder::default()
+            .with_env_filter(EnvFilter::from_default_env())
+            .finish()
+            .try_init();
+    }
 
     pub mod server {
         use crate::tests::job_types::ZkJob;
@@ -133,27 +143,36 @@ mod tests {
                 &self,
             ) -> Option<FinalityNotification<TestBlock>> {
                 loop {
-                    let request = tonic::Request::new(super::server::GetLatestHeaderRequest {});
-                    let response = self
-                        .client
-                        .lock()
-                        .await
-                        .get_latest_header(request)
-                        .await
-                        .ok()?
-                        .into_inner();
+                    let response = self.get_latest_finality_notification().await?;
                     let mut lock = self.latest_received_header.lock().await;
 
-                    if response.latest_block_number > *lock {
-                        *lock = response.latest_block_number;
-                        let finality_notification =
-                            block_number_to_finality_notification(response.latest_block_number);
-                        return Some(finality_notification);
+                    if response.header.number > *lock {
+                        *lock = response.header.number;
+                        return Some(response);
                     }
 
                     // Wait some time before trying again
+                    // TODO: Use gRPC streaming instead (lower priority)
                     tokio::time::sleep(Duration::from_millis(200)).await;
                 }
+            }
+
+            async fn get_latest_finality_notification(
+                &self,
+            ) -> Option<FinalityNotification<TestBlock>> {
+                let request = tonic::Request::new(super::server::GetLatestHeaderRequest {});
+                let response = self
+                    .client
+                    .lock()
+                    .await
+                    .get_latest_header(request)
+                    .await
+                    .ok()?
+                    .into_inner();
+
+                Some(block_number_to_finality_notification(
+                    response.latest_block_number,
+                ))
             }
 
             async fn get_next_block_import_notification(
@@ -238,8 +257,10 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_zk_gadget() -> Result<(), Box<dyn Error>> {
-        const BLOCK_DURATION: Duration = Duration::from_millis(10000);
+        const BLOCK_DURATION: Duration = Duration::from_millis(1000);
         const N: usize = 5;
+
+        setup_log();
 
         let server_addr: SocketAddr = "127.0.0.1:50051".parse()?;
         let king_bind_addr_orig: SocketAddr = "127.0.0.1:50052".parse()?;
