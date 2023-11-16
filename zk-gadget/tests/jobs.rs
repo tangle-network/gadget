@@ -5,7 +5,6 @@ mod tests {
     use futures_util::TryStreamExt;
     use gadget_core::job_manager::SendFuture;
     use mpc_net::{MpcNet, MultiplexedStreamID};
-    use std::collections::HashSet;
     use std::error::Error;
     use std::net::SocketAddr;
     use std::pin::Pin;
@@ -14,8 +13,6 @@ mod tests {
     use tracing_subscriber::fmt::SubscriberBuilder;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::EnvFilter;
-    use webb_gadget::gadget::message::{GadgetProtocolMessage, UserID};
-    use webb_gadget::gadget::network::Network;
     use zk_gadget::module::proto_gen::ZkAsyncProtocolParameters;
     use zk_gadget::network::ZkNetworkService;
 
@@ -358,10 +355,7 @@ mod tests {
         let done_rx_future = async move {
             let mut done_signals_received = 0;
             while done_signals_received < N {
-                done_rx
-                    .recv()
-                    .await
-                    .ok_or_else(|| "Did not receive done signal")?;
+                done_rx.recv().await.ok_or("Did not receive done signal")?;
                 log::info!("Received {}/{} done signals", done_signals_received, N);
                 done_signals_received += 1;
             }
@@ -391,11 +385,12 @@ mod tests {
     #[derive(Clone)]
     struct AdditionalParams {
         pub stop_tx: UnboundedSender<()>,
+        #[allow(dead_code)]
         pub client: BlockchainClient,
     }
 
     fn async_protocol_generator(
-        mut params: ZkAsyncProtocolParameters<AdditionalParams, ZkNetworkService>,
+        params: ZkAsyncProtocolParameters<AdditionalParams, ZkNetworkService>,
     ) -> Pin<Box<dyn SendFuture<'static, Result<(), webb_gadget::Error>>>> {
         Box::pin(async move {
             if params.party_id == 0 {
@@ -403,7 +398,7 @@ mod tests {
                 for party_id in 0..N {
                     let party_id = party_id as u32;
                     if party_id != params.party_id {
-                        let message = params
+                        let _message = params
                             .recv_from(party_id, MultiplexedStreamID::Zero)
                             .await
                             .expect("Should receive protocol message");
