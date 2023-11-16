@@ -22,6 +22,8 @@ pub enum Error {
     GadgetManagerError { err: GadgetError },
     InitError { err: String },
     WorkManagerError { err: WorkManagerError },
+    ProtocolRemoteError { err: String },
+    ClientError { err: String },
 }
 
 impl Display for Error {

@@ -382,6 +382,7 @@ impl Network for ZkNetworkService {
         }
     }
 
+    #[allow(clippy::collapsible_else_if)]
     async fn send_message(
         &self,
         message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,

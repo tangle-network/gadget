@@ -1,13 +1,23 @@
 #[cfg(test)]
 mod tests {
+    use crate::tests::client::BlockchainClient;
     use futures_util::stream::FuturesUnordered;
     use futures_util::TryStreamExt;
+    use gadget_core::job_manager::SendFuture;
+    use mpc_net::{MpcNet, MultiplexedStreamID};
+    use std::collections::HashSet;
     use std::error::Error;
     use std::net::SocketAddr;
+    use std::pin::Pin;
     use std::time::Duration;
+    use tokio::sync::mpsc::UnboundedSender;
     use tracing_subscriber::fmt::SubscriberBuilder;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::EnvFilter;
+    use webb_gadget::gadget::message::{GadgetProtocolMessage, UserID};
+    use webb_gadget::gadget::network::Network;
+    use zk_gadget::module::proto_gen::ZkAsyncProtocolParameters;
+    use zk_gadget::network::ZkNetworkService;
 
     pub fn setup_log() {
         let _ = SubscriberBuilder::default()
@@ -17,12 +27,12 @@ mod tests {
     }
 
     pub mod server {
-        use crate::tests::job_types::ZkJob;
         use parking_lot::Mutex;
         use std::collections::HashMap;
         use std::sync::Arc;
         use tokio::sync::RwLock;
         use tonic::{Request, Response, Status};
+        use zk_gadget::client_ext::job_types::ZkJob;
 
         tonic::include_proto!("test_blockchain_zk");
 
@@ -83,30 +93,6 @@ mod tests {
         }
     }
 
-    pub mod job_types {
-        pub struct ZkJob {
-            pub circuit: JobCircuitProperties,
-            pub properties: JobProperties,
-        }
-
-        pub struct JobCircuitProperties {
-            pub job_id: u64,
-            pub pk: Vec<u8>,
-            pub wasm_uri: String,
-            pub r1cs_uri: String,
-        }
-
-        pub struct JobProperties {
-            pub job_id: u64,
-            pub circuit_id: u64,
-            pub public_inputs: Vec<u8>,
-            pub pss: u64,
-            pub a_shares: Vec<u8>,
-            pub ax_shares: Vec<u8>,
-            pub qap_shares: Vec<u8>,
-        }
-    }
-
     pub mod client {
         use async_trait::async_trait;
         use gadget_core::gadget::substrate::Client;
@@ -116,14 +102,18 @@ mod tests {
         use sp_runtime::codec::Decode;
         use std::error::Error;
         use std::net::SocketAddr;
+        use std::sync::Arc;
         use std::time::Duration;
         use tokio::sync::Mutex;
         use uuid::Uuid;
         use webb_gadget::{BlockImportNotification, FinalityNotification};
+        use zk_gadget::client_ext::job_types::{JobCircuitProperties, JobProperties};
+        use zk_gadget::client_ext::ClientWithApi;
 
+        #[derive(Clone)]
         pub struct BlockchainClient {
-            client: Mutex<super::server::auth_client::AuthClient<tonic::transport::Channel>>,
-            latest_received_header: Mutex<u64>,
+            client: Arc<Mutex<super::server::auth_client::AuthClient<tonic::transport::Channel>>>,
+            latest_received_header: Arc<Mutex<u64>>,
         }
 
         impl BlockchainClient {
@@ -131,8 +121,8 @@ mod tests {
                 let addr = format!("http://{server_addr}");
                 let client = super::server::auth_client::AuthClient::connect(addr).await?;
                 Ok(Self {
-                    client: Mutex::new(client),
-                    latest_received_header: Mutex::new(0),
+                    client: Arc::new(Mutex::new(client)),
+                    latest_received_header: Arc::new(Mutex::new(0)),
                 })
             }
         }
@@ -152,7 +142,6 @@ mod tests {
                     }
 
                     // Wait some time before trying again
-                    // TODO: Use gRPC streaming instead (lower priority)
                     tokio::time::sleep(Duration::from_millis(200)).await;
                 }
             }
@@ -179,6 +168,60 @@ mod tests {
                 &self,
             ) -> Option<BlockImportNotification<TestBlock>> {
                 futures_util::future::pending().await
+            }
+        }
+
+        #[async_trait]
+        impl ClientWithApi<TestBlock> for BlockchainClient {
+            async fn get_job_circuit_properties(
+                &self,
+                job_id: u64,
+            ) -> Result<JobCircuitProperties, webb_gadget::Error> {
+                let response = self
+                    .client
+                    .lock()
+                    .await
+                    .get_job_circuit_properties(super::server::GetJobCircuitPropertiesRequest {
+                        job_id,
+                    })
+                    .await
+                    .map_err(|err| webb_gadget::Error::ClientError {
+                        err: err.to_string(),
+                    })?
+                    .into_inner();
+
+                Ok(JobCircuitProperties {
+                    job_id,
+                    pk: response.pk,
+                    wasm_uri: response.wasm_uri,
+                    r1cs_uri: response.r1cs_uri,
+                })
+            }
+
+            async fn get_job_properties(
+                &self,
+                job_id: u64,
+            ) -> Result<JobProperties, webb_gadget::Error> {
+                let response = self
+                    .client
+                    .lock()
+                    .await
+                    .get_job_properties(super::server::GetJobPropertiesRequest { job_id })
+                    .await
+                    .map_err(|err| webb_gadget::Error::ClientError {
+                        err: err.to_string(),
+                    })?
+                    .into_inner();
+
+                Ok(JobProperties {
+                    job_id,
+                    circuit_id: response.circuit_id,
+                    public_inputs: response.public_inputs,
+                    pss: response.pss,
+                    a_shares: response.a_shares,
+                    ax_shares: response.ax_shares,
+                    qap_shares: response.qap_shares,
+                })
             }
         }
 
@@ -217,6 +260,7 @@ mod tests {
         block_duration: Duration,
     ) -> Result<(), String> {
         let zkp_service = server::TestBlockchainServer::default();
+        // TODO: insert some jobs into the hashmap inside the zkp service
 
         let zkp_server = server::auth_server::AuthServer::new(zkp_service.clone())
             .max_decoding_message_size(1024 * 1024 * 1024) // To allow large messages
@@ -255,10 +299,11 @@ mod tests {
         )
     }
 
+    const N: usize = 5;
+
     #[tokio::test(flavor = "multi_thread")]
     async fn test_zk_gadget() -> Result<(), Box<dyn Error>> {
-        const BLOCK_DURATION: Duration = Duration::from_millis(1000);
-        const N: usize = 5;
+        const BLOCK_DURATION: Duration = Duration::from_millis(6000);
 
         setup_log();
 
@@ -269,10 +314,11 @@ mod tests {
         let blockchain_future = tokio::spawn(start_blockchain(server_addr, BLOCK_DURATION));
         tokio::time::sleep(Duration::from_millis(100)).await; // wait for the server to come up
 
+        let (done_tx, mut done_rx) = tokio::sync::mpsc::unbounded_channel();
         let zk_gadgets_futures = FuturesUnordered::new();
 
         for party_id in 0..N {
-            let client = client::BlockchainClient::new(server_addr).await?;
+            let client = BlockchainClient::new(server_addr).await?;
             let test_config = if party_id == 0 {
                 zk_gadget::ZkGadgetConfig {
                     king_bind_addr: Some(king_bind_addr_orig),
@@ -295,9 +341,35 @@ mod tests {
                 }
             };
 
-            let zk_gadget_future = zk_gadget::run(test_config, client);
+            let additional_parameters = AdditionalParams {
+                stop_tx: done_tx.clone(),
+                client: client.clone(),
+            };
+
+            let zk_gadget_future = zk_gadget::run(
+                test_config,
+                client,
+                additional_parameters,
+                async_protocol_generator,
+            );
             zk_gadgets_futures.push(Box::pin(zk_gadget_future));
         }
+
+        let done_rx_future = async move {
+            let mut done_signals_received = 0;
+            while done_signals_received < N {
+                done_rx
+                    .recv()
+                    .await
+                    .ok_or_else(|| "Did not receive done signal")?;
+                log::info!("Received {}/{} done signals", done_signals_received, N);
+                done_signals_received += 1;
+            }
+
+            log::info!("Received ALL done signals");
+
+            Ok::<_, String>(())
+        };
 
         let zk_gadget_future = zk_gadgets_futures.try_collect::<Vec<_>>();
 
@@ -307,9 +379,66 @@ mod tests {
             },
             res1 = zk_gadget_future => {
                 res1?;
+            },
+            res2 = done_rx_future => {
+                res2?;
             }
         }
 
         Ok(())
+    }
+
+    #[derive(Clone)]
+    struct AdditionalParams {
+        pub stop_tx: UnboundedSender<()>,
+        pub client: BlockchainClient,
+    }
+
+    fn async_protocol_generator(
+        mut params: ZkAsyncProtocolParameters<AdditionalParams, ZkNetworkService>,
+    ) -> Pin<Box<dyn SendFuture<'static, Result<(), webb_gadget::Error>>>> {
+        Box::pin(async move {
+            if params.party_id == 0 {
+                // Receive N-1 messages from the other parties
+                for party_id in 0..N {
+                    let party_id = party_id as u32;
+                    if party_id != params.party_id {
+                        let message = params
+                            .recv_from(party_id, MultiplexedStreamID::Zero)
+                            .await
+                            .expect("Should receive protocol message");
+                    }
+                }
+
+                for party_id in 0..N {
+                    let party_id = party_id as u32;
+                    if party_id != params.party_id {
+                        params
+                            .send_to(party_id, Default::default(), MultiplexedStreamID::Zero)
+                            .await
+                            .expect("Should send");
+                    }
+                }
+            } else {
+                params
+                    .send_to(0, Default::default(), MultiplexedStreamID::Zero)
+                    .await
+                    .expect("Should send");
+                let _message_from_king = params
+                    .recv_from(0, MultiplexedStreamID::Zero)
+                    .await
+                    .expect("Should receive protocol message");
+            }
+
+            // TODO: use the params.extra_parameters.client to get job metadata, **AFTER** the server is given some data
+            // to store inside its hashmap. By default, there is none. See previous TODO
+
+            params
+                .extra_parameters
+                .stop_tx
+                .send(())
+                .expect("Should send");
+            Ok(())
+        })
     }
 }

@@ -1,6 +1,7 @@
-use crate::module::ZkModule;
+use crate::client_ext::ClientWithApi;
+use crate::module::proto_gen::AsyncProtocolGenerator;
+use crate::module::{AdditionalProtocolParams, ZkModule};
 use crate::network::{RegistantId, ZkNetworkService};
-use gadget_core::gadget::substrate::Client;
 use gadget_core::Block;
 use mpc_net::prod::RustlsCertificate;
 use std::net::SocketAddr;
@@ -9,6 +10,8 @@ use webb_gadget::Error;
 
 pub mod module;
 pub mod network;
+
+pub mod client_ext;
 
 pub struct ZkGadgetConfig {
     pub king_bind_addr: Option<SocketAddr>,
@@ -19,14 +22,28 @@ pub struct ZkGadgetConfig {
     pub client_only_king_public_identity_der: Option<Vec<u8>>,
 }
 
-pub async fn run<C: Client<B>, B: Block>(config: ZkGadgetConfig, client: C) -> Result<(), Error> {
+pub async fn run<
+    C: ClientWithApi<B>,
+    B: Block,
+    T: AdditionalProtocolParams,
+    Gen: AsyncProtocolGenerator<T, Error, ZkNetworkService>,
+>(
+    config: ZkGadgetConfig,
+    client: C,
+    additional_protocol_params: T,
+    async_protocol_generator: Gen,
+) -> Result<(), Error> {
     // Create the zk gadget module
     let network = create_zk_network(&config).await?;
     log::info!("Created zk network for party {}", config.id);
 
     let zk_module = ZkModule {
         party_id: config.id,
-    }; // TODO: proper implementation
+        additional_protocol_params,
+        network: network.clone(),
+        client: client.clone(),
+        async_protocol_generator: Box::new(async_protocol_generator),
+    };
 
     // Plug the module into the webb gadget
     webb_gadget::run(network, zk_module, client).await
