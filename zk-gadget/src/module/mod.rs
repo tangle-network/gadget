@@ -9,13 +9,13 @@ use webb_gadget::{BlockImportNotification, Error, FinalityNotification};
 
 pub mod proto_gen;
 
-pub struct ZkModule<T, C> {
+pub struct ZkModule<T, C, B> {
     pub party_id: RegistantId,
     pub additional_protocol_params: T,
     pub client: C,
     pub network: ZkNetworkService,
     pub async_protocol_generator:
-        Box<dyn proto_gen::AsyncProtocolGenerator<T, Error, ZkNetworkService>>,
+        Box<dyn proto_gen::AsyncProtocolGenerator<T, Error, ZkNetworkService, C, B>>,
 }
 
 pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {}
@@ -23,7 +23,7 @@ impl<T: Send + Sync + Clone + 'static> AdditionalProtocolParams for T {}
 
 #[async_trait]
 impl<B: Block, T: AdditionalProtocolParams, C: ClientWithApi<B>> WebbGadgetModule<B>
-    for ZkModule<T, C>
+    for ZkModule<T, C, B>
 {
     async fn process_finality_notification(
         &self,
@@ -49,6 +49,7 @@ impl<B: Block, T: AdditionalProtocolParams, C: ClientWithApi<B>> WebbGadgetModul
             n_parties,
             self.additional_protocol_params.clone(),
             self.network.clone(),
+            self.client.clone(),
             &*self.async_protocol_generator,
         );
 

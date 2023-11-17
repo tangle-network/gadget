@@ -7,11 +7,11 @@ pub struct GadgetProtocolMessage {
     pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
     pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
     pub associated_ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
+    // A unique marker for the associated task this message belongs to
+    pub task_hash: <WebbWorkManager as WorkManagerInterface>::TaskID,
     pub from: UserID,
     // If None, this is a broadcasted message
     pub to: Option<UserID>,
-    // A unique marker for the associated task this message belongs to
-    pub task_hash: <WebbWorkManager as WorkManagerInterface>::TaskID,
     pub payload: Vec<u8>,
 }
 

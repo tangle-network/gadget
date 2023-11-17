@@ -15,7 +15,6 @@ zk-gadget = { path = "./zk-gadget" }
 sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 sc-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 parity-scale-codec = "3.6.5"
 

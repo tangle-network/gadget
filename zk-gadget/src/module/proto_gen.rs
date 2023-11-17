@@ -1,3 +1,4 @@
+use crate::client_ext::ClientWithApi;
 use crate::network::RegistantId;
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -5,8 +6,10 @@ use gadget_core::job_manager::{ProtocolRemote, SendFuture, ShutdownReason, WorkM
 use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use sp_runtime::traits::Block;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -14,7 +17,7 @@ use webb_gadget::gadget::message::GadgetProtocolMessage;
 use webb_gadget::gadget::network::Network;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
 
-pub struct ZkAsyncProtocolParameters<B, N> {
+pub struct ZkAsyncProtocolParameters<B, N, C, Bl> {
     pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
     pub associated_ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
     pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
@@ -23,7 +26,9 @@ pub struct ZkAsyncProtocolParameters<B, N> {
     pub party_id: RegistantId,
     pub n_parties: usize,
     pub network: N,
+    pub client: C,
     pub extra_parameters: B,
+    _pd: PhantomData<Bl>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -45,27 +50,37 @@ pub struct ZkProtocolRemote {
     pub is_done: Arc<AtomicBool>,
 }
 
-pub trait AsyncProtocolGenerator<B, E, N>:
+pub trait AsyncProtocolGenerator<B, E, N, C, Bl>:
     Send
     + Sync
     + 'static
-    + Fn(ZkAsyncProtocolParameters<B, N>) -> Pin<Box<dyn SendFuture<'static, Result<(), E>>>>
+    + Fn(ZkAsyncProtocolParameters<B, N, C, Bl>) -> Pin<Box<dyn SendFuture<'static, Result<(), E>>>>
 {
 }
 impl<
         B: Send + Sync,
         E: Debug,
         N: Network,
+        Bl: Block,
+        C: ClientWithApi<Bl>,
         T: Send
             + Sync
             + 'static
-            + Fn(ZkAsyncProtocolParameters<B, N>) -> Pin<Box<dyn SendFuture<'static, Result<(), E>>>>,
-    > AsyncProtocolGenerator<B, E, N> for T
+            + Fn(
+                ZkAsyncProtocolParameters<B, N, C, Bl>,
+            ) -> Pin<Box<dyn SendFuture<'static, Result<(), E>>>>,
+    > AsyncProtocolGenerator<B, E, N, C, Bl> for T
 {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn create_zk_async_protocol<B: Send + Sync + 'static, E: Debug + 'static, N: Network>(
+pub fn create_zk_async_protocol<
+    B: Send + Sync + 'static,
+    E: Debug + 'static,
+    N: Network,
+    C: ClientWithApi<Bl>,
+    Bl: Block,
+>(
     session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
     now: <WebbWorkManager as WorkManagerInterface>::Clock,
     ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
@@ -74,7 +89,8 @@ pub fn create_zk_async_protocol<B: Send + Sync + 'static, E: Debug + 'static, N:
     n_parties: usize,
     extra_parameters: B,
     network: N,
-    proto_gen: &dyn AsyncProtocolGenerator<B, E, N>,
+    client: C,
+    proto_gen: &dyn AsyncProtocolGenerator<B, E, N, C, Bl>,
 ) -> (ZkProtocolRemote, Pin<Box<dyn SendFuture<'static, ()>>>) {
     let is_done = Arc::new(AtomicBool::new(false));
     let (to_async_protocol, mut protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -120,6 +136,8 @@ pub fn create_zk_async_protocol<B: Send + Sync + 'static, E: Debug + 'static, N:
         associated_task_id: task_id,
         extra_parameters,
         network,
+        client,
+        _pd: PhantomData,
     };
 
     let remote = ZkProtocolRemote {
@@ -138,7 +156,7 @@ pub fn create_zk_async_protocol<B: Send + Sync + 'static, E: Debug + 'static, N:
     // job manager
     let wrapped_future = Box::pin(async move {
         if let Err(err) = start_rx.await {
-            log::error!("Failed to start protocol {proto_hash_hex}: {err:?}");
+            log::error!("Protocol {proto_hash_hex} failed to receive start signal: {err:?}");
         } else {
             tokio::select! {
                 res0 = async_protocol => {
@@ -152,10 +170,10 @@ pub fn create_zk_async_protocol<B: Send + Sync + 'static, E: Debug + 'static, N:
                 res1 = shutdown_rx => {
                     match res1 {
                         Ok(reason) => {
-                            log::info!("Protocol shutdown: {reason:?}");
+                            log::info!("Protocol {proto_hash_hex} shutdown: {reason:?}");
                         },
                         Err(err) => {
-                            log::error!("Protocol shutdown failed: {err:?}");
+                            log::error!("Protocol {proto_hash_hex} shutdown failed: {err:?}");
                         },
                     }
                 }
@@ -234,7 +252,9 @@ impl ProtocolRemote<WebbWorkManager> for ZkProtocolRemote {
 }
 
 #[async_trait]
-impl<B: Send + Sync, N: Network> MpcNet for ZkAsyncProtocolParameters<B, N> {
+impl<B: Send + Sync, N: Network, C: ClientWithApi<Bl>, Bl: Block> MpcNet
+    for ZkAsyncProtocolParameters<B, N, C, Bl>
+{
     fn n_parties(&self) -> usize {
         self.n_parties
     }

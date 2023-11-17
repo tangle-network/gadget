@@ -26,7 +26,7 @@ pub async fn run<
     C: ClientWithApi<B>,
     B: Block,
     T: AdditionalProtocolParams,
-    Gen: AsyncProtocolGenerator<T, Error, ZkNetworkService>,
+    Gen: AsyncProtocolGenerator<T, Error, ZkNetworkService, C, B>,
 >(
     config: ZkGadgetConfig,
     client: C,

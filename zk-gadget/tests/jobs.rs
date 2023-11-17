@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::tests::client::BlockchainClient;
+    use crate::tests::client::{BlockchainClient, TestBlock};
     use futures_util::stream::FuturesUnordered;
     use futures_util::TryStreamExt;
     use gadget_core::job_manager::SendFuture;
@@ -340,7 +340,6 @@ mod tests {
 
             let additional_parameters = AdditionalParams {
                 stop_tx: done_tx.clone(),
-                client: client.clone(),
             };
 
             let zk_gadget_future = zk_gadget::run(
@@ -385,12 +384,15 @@ mod tests {
     #[derive(Clone)]
     struct AdditionalParams {
         pub stop_tx: UnboundedSender<()>,
-        #[allow(dead_code)]
-        pub client: BlockchainClient,
     }
 
     fn async_protocol_generator(
-        params: ZkAsyncProtocolParameters<AdditionalParams, ZkNetworkService>,
+        params: ZkAsyncProtocolParameters<
+            AdditionalParams,
+            ZkNetworkService,
+            BlockchainClient,
+            TestBlock,
+        >,
     ) -> Pin<Box<dyn SendFuture<'static, Result<(), webb_gadget::Error>>>> {
         Box::pin(async move {
             if params.party_id == 0 {
@@ -425,7 +427,7 @@ mod tests {
                     .expect("Should receive protocol message");
             }
 
-            // TODO: use the params.extra_parameters.client to get job metadata, **AFTER** the server is given some data
+            // TODO: use the params.client to get job metadata, **AFTER** the server is given some data
             // to store inside its hashmap. By default, there is none. See previous TODO
 
             params
