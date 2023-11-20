@@ -4,7 +4,8 @@ members = [
     "gadget-core",
     "webb-gadget",
     "zk-gadget",
-    "test-gadget"
+    "test-gadget",
+    "playground"
 ]
 
 [workspace.dependencies]
@@ -21,6 +22,7 @@ parity-scale-codec = "3.6.5"
 mpc-net = { git = "https://github.com/webb-tools/zk-SaaS/" }
 dist-primitives = { git = "https://github.com/webb-tools/zk-SaaS/" }
 secret-sharing = { git = "https://github.com/webb-tools/zk-SaaS/" }
+groth16 = { git = "https://github.com/webb-tools/zk-SaaS/" }
 
 tokio-rustls = "0.24.1"
 tokio = "1.32.0"
@@ -34,3 +36,4 @@ futures = "0.3.28"
 hex = "0.4.3"
 uuid = "1.4.1"
 bytes = "1.5.0"
+serde_bytes = "0.11.12"

@@ -17,6 +17,7 @@ pub struct ZkGadgetConfig {
     pub king_bind_addr: Option<SocketAddr>,
     pub client_only_king_addr: Option<SocketAddr>,
     pub id: RegistantId,
+    pub n_parties: usize,
     pub public_identity_der: Vec<u8>,
     pub private_identity_der: Vec<u8>,
     pub client_only_king_public_identity_der: Option<Vec<u8>>,
@@ -39,6 +40,7 @@ pub async fn run<
 
     let zk_module = ZkModule {
         party_id: config.id,
+        n_parties: config.n_parties,
         additional_protocol_params,
         network: network.clone(),
         client: client.clone(),
