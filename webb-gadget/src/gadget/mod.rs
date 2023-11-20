@@ -6,38 +6,32 @@ use async_trait::async_trait;
 use gadget_core::gadget::substrate::{Client, SubstrateGadgetModule};
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager};
 use parking_lot::RwLock;
-use sc_client_api::{Backend, BlockImportNotification, FinalityNotification};
+use sc_client_api::{BlockImportNotification, FinalityNotification};
 use sp_runtime::traits::{Block, Header};
 use sp_runtime::SaturatedConversion;
 use std::marker::PhantomData;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub mod message;
 pub mod network;
 pub mod work_manager;
 
 /// Used as a module to place inside the SubstrateGadget
-pub struct WebbModule<B, C, BE, N, M> {
-    #[allow(dead_code)]
-    network: N,
+pub struct WebbModule<B, C, N, M> {
     module: M,
+    network: N,
     job_manager: ProtocolWorkManager<WebbWorkManager>,
-    from_network: Mutex<tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>>,
     clock: Arc<RwLock<Option<u64>>>,
-    _pd: PhantomData<(B, C, BE)>,
+    _pd: PhantomData<(B, C)>,
 }
 
 const MAX_ACTIVE_TASKS: usize = 4;
 const MAX_PENDING_TASKS: usize = 4;
 
-impl<C: Client<B, BE>, B: Block, BE: Backend<B>, N: Network, M: WebbGadgetModule<B>>
-    WebbModule<B, C, BE, N, M>
-{
-    pub fn new(mut network: N, module: M, now: Option<u64>) -> Self {
+impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetModule<B>> WebbModule<B, C, N, M> {
+    pub fn new(network: N, module: M, now: Option<u64>) -> Self {
         let clock = Arc::new(RwLock::new(now));
         let clock_clone = clock.clone();
-        let from_registry = network.take_message_receiver().expect("Should exist");
 
         let job_manager_zk = WebbWorkManager::new(move || *clock_clone.read());
 
@@ -50,27 +44,25 @@ impl<C: Client<B, BE>, B: Block, BE: Backend<B>, N: Network, M: WebbGadgetModule
 
         WebbModule {
             module,
-            network,
             job_manager,
+            network,
             clock,
-            from_network: Mutex::new(from_registry),
             _pd: Default::default(),
         }
     }
 }
 
 #[async_trait]
-impl<C: Client<B, BE>, B: Block, BE: Backend<B>, N: Network, M: WebbGadgetModule<B>>
-    SubstrateGadgetModule for WebbModule<B, C, BE, N, M>
+impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetModule<B>> SubstrateGadgetModule
+    for WebbModule<B, C, N, M>
 {
     type Error = Error;
     type ProtocolMessage = GadgetProtocolMessage;
     type Block = B;
-    type Backend = BE;
     type Client = C;
 
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage> {
-        self.from_network.lock().await.recv().await
+        self.network.next_message().await
     }
 
     async fn process_finality_notification(

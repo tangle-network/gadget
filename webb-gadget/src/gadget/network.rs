@@ -1,6 +1,16 @@
-use crate::gadget::message::GadgetProtocolMessage;
-use tokio::sync::mpsc::UnboundedReceiver;
+use crate::gadget::work_manager::WebbWorkManager;
+use crate::Error;
+use async_trait::async_trait;
+use gadget_core::job_manager::WorkManagerInterface;
 
-pub trait Network: Send + Sync {
-    fn take_message_receiver(&mut self) -> Option<UnboundedReceiver<GadgetProtocolMessage>>;
+#[async_trait]
+pub trait Network: Send + Sync + Clone {
+    async fn next_message(
+        &self,
+    ) -> Option<<WebbWorkManager as WorkManagerInterface>::ProtocolMessage>;
+    async fn send_message(
+        &self,
+        message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
+    ) -> Result<(), Error>;
+    async fn run(&self) -> Result<(), Error>;
 }

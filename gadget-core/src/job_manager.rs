@@ -506,6 +506,7 @@ pub enum WorkManagerError {
     DeliverMessageFailed { reason: String },
 }
 
+#[derive(Debug)]
 pub enum ShutdownReason {
     Stalled,
     DropCode,

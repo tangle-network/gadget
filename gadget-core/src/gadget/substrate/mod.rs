@@ -1,21 +1,13 @@
 use crate::gadget::manager::AbstractGadget;
 use async_trait::async_trait;
-use futures::stream::StreamExt;
-use sc_client_api::{
-    Backend, BlockImportNotification, BlockchainEvents, FinalityNotification,
-    FinalityNotifications, HeaderBackend, ImportNotifications,
-};
-use sp_api::ProvideRuntimeApi;
+use sc_client_api::{BlockImportNotification, FinalityNotification};
 use sp_runtime::traits::Block;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub struct SubstrateGadget<Module: SubstrateGadgetModule> {
     module: Module,
-    finality_notification_stream: Mutex<FinalityNotifications<Module::Block>>,
-    block_import_notification_stream: Mutex<ImportNotifications<Module::Block>>,
     client: Arc<Module::Client>,
 }
 
@@ -28,8 +20,7 @@ pub trait SubstrateGadgetModule: Send + Sync {
     type Error: Error + Send;
     type ProtocolMessage: Send;
     type Block: Block;
-    type Backend: Backend<Self::Block>;
-    type Client: Client<Self::Block, Self::Backend>;
+    type Client: Client<Self::Block>;
 
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage>;
     async fn process_finality_notification(
@@ -55,28 +46,20 @@ impl Display for SubstrateGadgetError {
 
 impl Error for SubstrateGadgetError {}
 
-pub trait Client<B, BE>:
-    BlockchainEvents<B> + HeaderBackend<B> + ProvideRuntimeApi<B> + Send
-where
-    B: Block,
-    BE: Backend<B>,
-{
+#[async_trait]
+pub trait Client<B: Block>: Send + Sync {
+    async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>>;
+    async fn get_latest_finality_notification(&self) -> Option<FinalityNotification<B>>;
+    async fn get_next_block_import_notification(&self) -> Option<BlockImportNotification<B>>;
 }
-
-impl<B: Block, BE: Backend<B>, T: Client<B, BE>> Client<B, BE> for T {}
 
 impl<Module> SubstrateGadget<Module>
 where
     Module: SubstrateGadgetModule,
 {
     pub fn new(client: Module::Client, module: Module) -> Self {
-        let finality_notification_stream = client.finality_notification_stream();
-        let block_import_notification_stream = client.import_notification_stream();
-
         Self {
             module,
-            finality_notification_stream: Mutex::new(finality_notification_stream),
-            block_import_notification_stream: Mutex::new(block_import_notification_stream),
             client: Arc::new(client),
         }
     }
@@ -97,15 +80,11 @@ where
     type Error = Module::Error;
 
     async fn get_next_finality_notification(&self) -> Option<Self::FinalityNotification> {
-        self.finality_notification_stream.lock().await.next().await
+        self.client.get_next_finality_notification().await
     }
 
     async fn get_next_block_import_notification(&self) -> Option<Self::BlockImportNotification> {
-        self.block_import_notification_stream
-            .lock()
-            .await
-            .next()
-            .await
+        self.client.get_next_block_import_notification().await
     }
 
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage> {

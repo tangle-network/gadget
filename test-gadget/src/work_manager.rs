@@ -22,7 +22,7 @@ pub struct TestProtocolRemote {
     pub is_done: Arc<AtomicBool>,
 }
 
-const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 3;
+const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 20;
 
 impl WorkManagerInterface for TestWorkManager {
     // TODO: rename to retry_id or similar
