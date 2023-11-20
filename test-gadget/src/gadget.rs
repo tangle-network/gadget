@@ -11,6 +11,7 @@ use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, SendError};
 
 /// An AbstractGadget endowed with a WorkerManager, a fake blockchain that delivers FinalityNotifications to the gadgets, and a TestProtocolMessage stream
 pub struct TestGadget<B> {
@@ -133,6 +134,7 @@ impl<B: Send + Sync + Clone + 'static> AbstractGadget for TestGadget<B> {
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn create_test_async_protocol<B: Send + Sync + 'static>(
     session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
     now: <TestWorkManager as WorkManagerInterface>::Clock,
@@ -140,7 +142,7 @@ fn create_test_async_protocol<B: Send + Sync + 'static>(
     task_id: <TestWorkManager as WorkManagerInterface>::TaskID,
     test_bundle: B,
     proto_gen: &dyn AsyncProtocolGenerator<B>,
-) -> (TestProtocolRemote, Pin<Box<dyn SendFuture<'static, ()>>>) {
+) -> (TestProtocolRemote, BuiltExecutableJobWrapper<Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn SendError>>>>>>) {
     let is_done = Arc::new(AtomicBool::new(false));
     let (to_async_protocol, protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
     let (start_tx, start_rx) = tokio::sync::oneshot::channel();
@@ -169,6 +171,8 @@ fn create_test_async_protocol<B: Send + Sync + 'static>(
     };
 
     let future = proto_gen(params);
+    let future = JobBuilder::default()
+        .build(future);
 
     (remote, future)
 }

@@ -8,11 +8,13 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use sp_runtime::traits::Block;
 use std::collections::HashMap;
+use std::error::Error;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use gadget_core::job::{BuiltExecutableJobWrapper, ExecutableJob, JobBuilder, SendError};
 use webb_gadget::gadget::message::GadgetProtocolMessage;
 use webb_gadget::gadget::network::Network;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
@@ -54,7 +56,7 @@ pub trait AsyncProtocolGenerator<B, E, N, C, Bl>:
     Send
     + Sync
     + 'static
-    + Fn(ZkAsyncProtocolParameters<B, N, C, Bl>) -> Pin<Box<dyn SendFuture<'static, Result<(), E>>>>
+    + Fn(ZkAsyncProtocolParameters<B, N, C, Bl>) -> BuiltExecutableJobWrapper<Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn SendError>>>>>>
 {
 }
 impl<
@@ -68,7 +70,7 @@ impl<
             + 'static
             + Fn(
                 ZkAsyncProtocolParameters<B, N, C, Bl>,
-            ) -> Pin<Box<dyn SendFuture<'static, Result<(), E>>>>,
+            ) -> BuiltExecutableJobWrapper<Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn SendError>>>>>>,
     > AsyncProtocolGenerator<B, E, N, C, Bl> for T
 {
 }
@@ -91,7 +93,7 @@ pub fn create_zk_async_protocol<
     network: N,
     client: C,
     proto_gen: &dyn AsyncProtocolGenerator<B, E, N, C, Bl>,
-) -> (ZkProtocolRemote, Pin<Box<dyn SendFuture<'static, ()>>>) {
+) -> (ZkProtocolRemote, BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), Box<dyn SendError>>>>) {
     let is_done = Arc::new(AtomicBool::new(false));
     let (to_async_protocol, mut protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
     let (start_tx, start_rx) = tokio::sync::oneshot::channel();
@@ -150,11 +152,13 @@ pub fn create_zk_async_protocol<
         is_done: is_done.clone(),
     };
 
-    let async_protocol = proto_gen(params);
+    let mut async_protocol = proto_gen(params);
 
     // This wrapped future enables proper functionality between the async protocol and the
     // job manager
-    let wrapped_future = Box::pin(async move {
+    let wrapped_future = async move {
+        let async_protocol = async_protocol.execute();
+
         if let Err(err) = start_rx.await {
             log::error!("Protocol {proto_hash_hex} failed to receive start signal: {err:?}");
         } else {
@@ -182,7 +186,10 @@ pub fn create_zk_async_protocol<
 
         // Mark the task as done
         is_done.store(true, Ordering::SeqCst);
-    });
+    };
+
+    let wrapped_future = JobBuilder::default()
+        .build(wrapped_future);
 
     (remote, wrapped_future)
 }

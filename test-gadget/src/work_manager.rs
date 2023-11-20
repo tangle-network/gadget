@@ -5,6 +5,7 @@ use parking_lot::{Mutex, RwLock};
 use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use gadget_core::job::SendError;
 
 pub struct TestWorkManager {
     pub clock: Arc<RwLock<u64>>,
@@ -131,12 +132,13 @@ pub struct TestAsyncProtocolParameters<B> {
 }
 
 pub trait AsyncProtocolGenerator<B>:
-    Send + Sync + Fn(TestAsyncProtocolParameters<B>) -> Pin<Box<dyn SendFuture<'static, ()>>>
+    Send + Sync + Fn(TestAsyncProtocolParameters<B>) -> Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn SendError>>>>>
 {
 }
+
 impl<
         B: Send + Sync,
-        T: Send + Sync + Fn(TestAsyncProtocolParameters<B>) -> Pin<Box<dyn SendFuture<'static, ()>>>,
+        T: Send + Sync + Fn(TestAsyncProtocolParameters<B>) -> Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn SendError>>>>>,
     > AsyncProtocolGenerator<B> for T
 {
 }

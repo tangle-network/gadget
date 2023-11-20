@@ -10,6 +10,7 @@ mod tests {
     use tracing_subscriber::fmt::SubscriberBuilder;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::EnvFilter;
+    use gadget_core::job::SendError;
 
     pub fn setup_log() {
         let _ = SubscriberBuilder::default()
@@ -35,7 +36,7 @@ mod tests {
 
     fn async_proto_generator(
         mut params: TestAsyncProtocolParameters<TestBundle>,
-    ) -> Pin<Box<dyn SendFuture<'static, ()>>> {
+    ) -> Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn Error>>>>> {
         let n_peers = params.test_bundle.n_peers;
         let party_id = params.test_bundle.party_id;
         Box::pin(async move {
@@ -79,6 +80,7 @@ mod tests {
                 .count_finished_tx
                 .send(())
                 .expect("Didn't send on_finish signal");
+            Ok::<_, Box<dyn SendError>>(())
         })
     }
 }

@@ -40,7 +40,7 @@ mod tests {
 
     fn async_proto_generator(
         mut params: TestAsyncProtocolParameters<TestBundle>,
-    ) -> Pin<Box<dyn SendFuture<'static, ()>>> {
+    ) -> Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn Error>>>>> {
         Box::pin(async move {
             params
                 .start_rx
@@ -85,10 +85,10 @@ mod tests {
             tokio::task::spawn(async move {
                 while let Some(message) = params.protocol_message_rx.recv().await {
                     let deserialized: MpcNetMessage =
-                        bincode2::deserialize(&message.payload).expect("Failed to deser message");
+                        bincode2::deserialize(&message.payload)?;
                     let txs = &txs[&deserialized.source];
                     let tx = &txs[deserialized.sid as usize];
-                    tx.send(deserialized).expect("Failed to send message");
+                    tx.send(deserialized)?;
                 }
             });
 
@@ -145,6 +145,7 @@ mod tests {
             }
 
             on_end_tx.send(()).expect("Failed to send on_end signal");
+            Ok(())
         })
     }
 

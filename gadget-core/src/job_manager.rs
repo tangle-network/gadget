@@ -1,3 +1,4 @@
+use crate::job::ExecutableJob;
 use parking_lot::RwLock;
 use std::fmt::{Debug, Display};
 use std::future::Future;
@@ -5,10 +6,8 @@ use std::ops::{Add, Sub};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     hash::{Hash, Hasher},
-    pin::Pin,
     sync::Arc,
 };
-use sync_wrapper::SyncWrapper;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum PollMethod {
@@ -157,10 +156,9 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
 
         if let PollMethod::Interval { millis } = poll_method {
             let this_worker = this.clone();
-            let handler = async move {
-                let job_receiver_worker = this_worker.clone();
-                let logger = job_receiver_worker.utility.clone();
+            let logger = this_worker.utility.clone();
 
+            let handler = async move {
                 let periodic_poller = async move {
                     let mut interval =
                         tokio::time::interval(std::time::Duration::from_millis(millis));
@@ -186,18 +184,18 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
     }
 
     /// Pushes the task, but does not necessarily start it
-    pub fn push_task(
+    pub fn push_task<T: ExecutableJob>(
         &self,
         task_hash: WM::TaskID,
         force_start: bool,
         handle: Arc<dyn ProtocolRemote<WM>>,
-        task: Pin<Box<dyn SendFuture<'static, ()>>>,
+        task: T,
     ) -> Result<(), WorkManagerError> {
         let mut lock = self.inner.write();
         // set as primary, that way on drop, the async protocol ends
         handle.set_as_primary();
         let job = Job {
-            task: Arc::new(RwLock::new(Some(task.into()))),
+            task: Arc::new(parking_lot::Mutex::new(Some(Box::new(task)))),
             handle,
             task_hash,
             utility: self.utility.clone(),
@@ -394,11 +392,8 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         // Put the job inside here, that way the drop code does not get called right away,
         // killing the process
         lock.active_tasks.insert(job);
-        // run the task
-        let task = async move {
-            let task = task.write().take().expect("Should not happen");
-            task.into_inner().await
-        };
+        let mut task = task.lock().take().expect("Should not happen");
+        let task = async move { task.execute().await };
 
         // Spawn the task. When it finishes, it will clean itself up
         tokio::task::spawn(task);
@@ -485,7 +480,7 @@ pub struct Job<WM: WorkManagerInterface> {
     task_hash: WM::TaskID,
     utility: Arc<WM>,
     handle: Arc<dyn ProtocolRemote<WM>>,
-    task: Arc<RwLock<Option<SyncFuture<()>>>>,
+    task: Arc<parking_lot::Mutex<Option<Box<dyn ExecutableJob>>>>,
 }
 
 impl<WM: WorkManagerInterface> Job<WM> {
@@ -514,8 +509,6 @@ pub enum ShutdownReason {
 
 pub trait SendFuture<'a, T>: Send + Future<Output = T> + 'a {}
 impl<'a, F: Send + Future<Output = T> + 'a, T> SendFuture<'a, T> for F {}
-
-pub type SyncFuture<T> = SyncWrapper<Pin<Box<dyn SendFuture<'static, T>>>>;
 
 impl<WM: WorkManagerInterface> PartialEq for Job<WM> {
     fn eq(&self, other: &Self) -> bool {
@@ -557,8 +550,8 @@ fn should_deliver<WM: WorkManagerInterface>(
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
+    use crate::job::{BuiltExecutableJobWrapper, JobBuilder, SendError};
     use parking_lot::Mutex;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
@@ -654,7 +647,7 @@ mod tests {
         started_at: u64,
     ) -> (
         Arc<TestProtocolRemote>,
-        Pin<Box<dyn SendFuture<'static, ()>>>,
+        BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), Box<dyn SendError>>>>,
         UnboundedReceiver<TestMessage>,
     ) {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
@@ -662,11 +655,12 @@ mod tests {
         let is_done = Arc::new(AtomicBool::new(false));
         let remote =
             TestProtocolRemote::new(session_id, ssid, started_at, tx, start_tx, is_done.clone());
-        let task = async move {
+        let protocol = async move {
             start_rx.await.unwrap();
             is_done.store(true, Ordering::SeqCst);
+            Ok(())
         };
-        let task = Box::pin(task);
+        let task = JobBuilder::new().build(protocol);
         (remote, task, rx)
     }
 

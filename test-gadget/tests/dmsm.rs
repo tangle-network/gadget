@@ -115,7 +115,7 @@ mod tests {
 
     fn async_proto_generator(
         mut params: TestAsyncProtocolParameters<TestBundle>,
-    ) -> Pin<Box<dyn SendFuture<'static, ()>>> {
+    ) -> Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn Error>>>>> {
         Box::pin(async move {
             params
                 .start_rx
@@ -171,6 +171,7 @@ mod tests {
             let dom = Radix2EvaluationDomain::<Fr>::new(M).unwrap();
             d_msm_test::<ark_bls12_377::G1Projective, _>(pp, dom, network).await;
             on_end_tx.send(()).expect("Failed to send on_end signal");
+            Ok(())
         })
     }
 

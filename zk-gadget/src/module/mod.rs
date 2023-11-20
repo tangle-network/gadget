@@ -2,7 +2,7 @@ use crate::client_ext::ClientWithApi;
 use crate::network::{RegistantId, ZkNetworkService};
 use async_trait::async_trait;
 use gadget_core::job_manager::ProtocolWorkManager;
-use gadget_core::Block;
+use sp_runtime::traits::Block;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
 use webb_gadget::gadget::WebbGadgetModule;
 use webb_gadget::{BlockImportNotification, Error, FinalityNotification};

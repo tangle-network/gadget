@@ -13,6 +13,7 @@ mod tests {
     use tracing_subscriber::fmt::SubscriberBuilder;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::EnvFilter;
+    use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder};
     use zk_gadget::module::proto_gen::ZkAsyncProtocolParameters;
     use zk_gadget::network::ZkNetworkService;
 
@@ -393,8 +394,8 @@ mod tests {
             BlockchainClient,
             TestBlock,
         >,
-    ) -> Pin<Box<dyn SendFuture<'static, Result<(), webb_gadget::Error>>>> {
-        Box::pin(async move {
+    ) -> BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), webb_gadget::Error>>> {
+        JobBuilder::default().build(async move {
             if params.party_id == 0 {
                 // Receive N-1 messages from the other parties
                 for party_id in 0..N {
