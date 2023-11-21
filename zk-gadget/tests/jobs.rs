@@ -3,17 +3,16 @@ mod tests {
     use crate::tests::client::{BlockchainClient, TestBlock};
     use futures_util::stream::FuturesUnordered;
     use futures_util::TryStreamExt;
+    use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
     use gadget_core::job_manager::SendFuture;
     use mpc_net::{MpcNet, MultiplexedStreamID};
     use std::error::Error;
     use std::net::SocketAddr;
-    use std::pin::Pin;
     use std::time::Duration;
     use tokio::sync::mpsc::UnboundedSender;
     use tracing_subscriber::fmt::SubscriberBuilder;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::EnvFilter;
-    use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder};
     use zk_gadget::module::proto_gen::ZkAsyncProtocolParameters;
     use zk_gadget::network::ZkNetworkService;
 
@@ -53,41 +52,6 @@ mod tests {
                     session_id,
                 }))
             }
-
-            async fn get_job_circuit_properties(
-                &self,
-                request: Request<GetJobCircuitPropertiesRequest>,
-            ) -> Result<Response<GetJobCircuitPropertiesResponse>, Status> {
-                let lock = self.jobs.read().await;
-                let job = lock
-                    .get(&request.into_inner().job_id)
-                    .ok_or(Status::not_found("Job not found"))?;
-                Ok(Response::new(GetJobCircuitPropertiesResponse {
-                    job_id: job.circuit.job_id,
-                    pk: job.circuit.pk.clone(),
-                    wasm_uri: job.circuit.wasm_uri.clone(),
-                    r1cs_uri: job.circuit.r1cs_uri.clone(),
-                }))
-            }
-
-            async fn get_job_properties(
-                &self,
-                request: Request<GetJobPropertiesRequest>,
-            ) -> Result<Response<GetJobPropertiesResponse>, Status> {
-                let lock = self.jobs.read().await;
-                let job = lock
-                    .get(&request.into_inner().job_id)
-                    .ok_or(Status::not_found("Job not found"))?;
-                Ok(Response::new(GetJobPropertiesResponse {
-                    job_id: job.properties.job_id,
-                    circuit_id: job.properties.circuit_id,
-                    public_inputs: job.properties.public_inputs.clone(),
-                    pss: job.properties.pss,
-                    a_shares: job.properties.a_shares.clone(),
-                    ax_shares: job.properties.ax_shares.clone(),
-                    qap_shares: job.properties.qap_shares.clone(),
-                }))
-            }
         }
     }
 
@@ -105,7 +69,7 @@ mod tests {
         use tokio::sync::Mutex;
         use uuid::Uuid;
         use webb_gadget::{BlockImportNotification, FinalityNotification};
-        use zk_gadget::client_ext::job_types::{JobCircuitProperties, JobProperties};
+        use zk_gadget::client_ext::job_types::{CircuitProperties, JobProperties};
         use zk_gadget::client_ext::ClientWithApi;
 
         #[derive(Clone)]
@@ -173,53 +137,28 @@ mod tests {
         impl ClientWithApi<TestBlock> for BlockchainClient {
             async fn get_job_circuit_properties(
                 &self,
-                job_id: u64,
-            ) -> Result<JobCircuitProperties, webb_gadget::Error> {
-                let response = self
-                    .client
-                    .lock()
-                    .await
-                    .get_job_circuit_properties(super::server::GetJobCircuitPropertiesRequest {
-                        job_id,
-                    })
-                    .await
-                    .map_err(|err| webb_gadget::Error::ClientError {
-                        err: err.to_string(),
-                    })?
-                    .into_inner();
-
-                Ok(JobCircuitProperties {
-                    job_id,
-                    pk: response.pk,
-                    wasm_uri: response.wasm_uri,
-                    r1cs_uri: response.r1cs_uri,
-                })
+                _circuit_id: u64,
+            ) -> Result<Option<CircuitProperties>, webb_gadget::Error> {
+                unimplemented!()
             }
 
             async fn get_job_properties(
                 &self,
-                job_id: u64,
-            ) -> Result<JobProperties, webb_gadget::Error> {
-                let response = self
-                    .client
-                    .lock()
-                    .await
-                    .get_job_properties(super::server::GetJobPropertiesRequest { job_id })
-                    .await
-                    .map_err(|err| webb_gadget::Error::ClientError {
-                        err: err.to_string(),
-                    })?
-                    .into_inner();
+                _job_id: u64,
+            ) -> Result<Option<JobProperties>, webb_gadget::Error> {
+                unimplemented!()
+            }
 
-                Ok(JobProperties {
-                    job_id,
-                    circuit_id: response.circuit_id,
-                    public_inputs: response.public_inputs,
-                    pss: response.pss,
-                    a_shares: response.a_shares,
-                    ax_shares: response.ax_shares,
-                    qap_shares: response.qap_shares,
-                })
+            async fn get_next_job(&self) -> Result<Option<JobProperties>, webb_gadget::Error> {
+                Ok(Some(JobProperties {
+                    job_id: 0,
+                    circuit_id: 0,
+                    public_inputs: vec![],
+                    pss_l: 0,
+                    a_shares: vec![],
+                    ax_shares: vec![],
+                    qap_shares: vec![],
+                }))
             }
         }
 
@@ -322,6 +261,7 @@ mod tests {
                     king_bind_addr: Some(king_bind_addr_orig),
                     client_only_king_addr: None,
                     id: party_id as _,
+                    n_parties: N,
                     public_identity_der: king_public_identity_der.clone(),
                     private_identity_der: king_private_identity_der.clone(),
                     client_only_king_public_identity_der: None,
@@ -333,6 +273,7 @@ mod tests {
                     king_bind_addr: None,
                     client_only_king_addr: Some(king_bind_addr_orig),
                     id: party_id as _,
+                    n_parties: N,
                     public_identity_der,
                     private_identity_der,
                     client_only_king_public_identity_der: Some(king_public_identity_der.clone()),
@@ -394,7 +335,7 @@ mod tests {
             BlockchainClient,
             TestBlock,
         >,
-    ) -> BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), webb_gadget::Error>>> {
+    ) -> BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), JobError>>> {
         JobBuilder::default().build(async move {
             if params.party_id == 0 {
                 // Receive N-1 messages from the other parties
@@ -427,9 +368,6 @@ mod tests {
                     .await
                     .expect("Should receive protocol message");
             }
-
-            // TODO: use the params.client to get job metadata, **AFTER** the server is given some data
-            // to store inside its hashmap. By default, there is none. See previous TODO
 
             params
                 .extra_parameters

@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     net::SocketAddr,
     path::PathBuf,
-    pin::Pin,
     str::FromStr,
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -23,6 +22,7 @@ use ark_std::{cfg_iter, start_timer};
 use ark_std::{end_timer, Zero};
 use clap::Parser;
 use futures::{future, TryFutureExt};
+use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::{gadget::substrate::Client, job_manager::SendFuture};
 use groth16::proving_key::PackedProvingKeyShare;
 use mpc_net::prod::CertToDer;
@@ -208,8 +208,8 @@ fn async_protocol_generator(
         BlockchainClient,
         TestBlock,
     >,
-) -> Pin<Box<dyn SendFuture<'static, Result<(), webb_gadget::Error>>>> {
-    Box::pin(async move {
+) -> BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), JobError>>> {
+    JobBuilder::default().build(async move {
         let _permit = match params.client.state.processing_semophore.try_acquire() {
             Ok(permit) => permit,
             Err(tokio::sync::TryAcquireError::NoPermits) => {
@@ -221,31 +221,23 @@ fn async_protocol_generator(
         let jobs = params.client.state.jobs.lock().await;
         let circuits = params.client.state.circuits.lock().await;
         let Some(job) = jobs.get(&params.associated_task_id).cloned() else {
-            return Err(webb_gadget::Error::ClientError {
-                err: format!(
-                    "Job with id {} not found",
-                    hex::encode(params.associated_task_id)
-                ),
-            });
+            return Err(JobError::from(format!(
+                "Job with id {} not found",
+                hex::encode(params.associated_task_id)
+            )));
         };
         let Some(circuit) = circuits.get(&job.circuit_id).cloned() else {
-            return Err(webb_gadget::Error::ClientError {
-                err: format!("Circuit with id {} not found", job.circuit_id),
-            });
+            return Err(JobError::from(format!("Circuit with id {} not found", job.circuit_id)));
         };
 
         drop(jobs);
         drop(circuits);
 
         let proving_key = tokio::fs::read(&circuit.pk_uri)
-            .map_err(|e| webb_gadget::Error::ClientError {
-                err: format!("Failed to read proving key: {e}"),
-            })
+            .map_err(|e| JobError::from(format!("Failed to read proving key: {e}")))
             .await?;
         let pk = ProvingKey::deserialize_compressed(proving_key.as_slice()).map_err(|e| {
-            webb_gadget::Error::ClientError {
-                err: format!("Failed to deserialize proving key: {e}"),
-            }
+            JobError::from(format!("Failed to deserialize proving key: {e}"))
         })?;
 
         let pp = PackedSharingParams::new(job.pss_l);
@@ -258,19 +250,9 @@ fn async_protocol_generator(
         let our_qap_share = job
             .qap_shares
             .get(params.party_id as usize)
-            .ok_or_else(|| webb_gadget::Error::ClientError {
-                err: format!("QAP Shares for party {} not found", params.party_id),
-            })?;
-        let our_a_share = job.a_shares.get(params.party_id as usize).ok_or_else(|| {
-            webb_gadget::Error::ClientError {
-                err: format!("a Shares for party {} not found", params.party_id),
-            }
-        })?;
-        let our_ax_share = job.ax_shares.get(params.party_id as usize).ok_or_else(|| {
-            webb_gadget::Error::ClientError {
-                err: format!("ax Shares for party {} not found", params.party_id),
-            }
-        })?;
+            .ok_or_else(|| JobError::from(format!("QAP Shares for party {} not found", params.party_id)))?;
+        let our_a_share = job.a_shares.get(params.party_id as usize).ok_or_else(|| JobError::from(format!("a Shares for party {} not found", params.party_id)))?;
+        let our_ax_share = job.ax_shares.get(params.party_id as usize).ok_or_else(|| JobError::from(format!("ax Shares for party {} not found", params.party_id)))?;
         let m = circuit.num_inputs + circuit.num_constraints;
         let domain = Radix2EvaluationDomain::new(m)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)
@@ -293,11 +275,7 @@ fn async_protocol_generator(
             domain,
         };
 
-        let crs_share = crs_shares.get(params.party_id as usize).ok_or_else(|| {
-            webb_gadget::Error::ClientError {
-                err: format!("CRS Shares for party {} not found", params.party_id),
-            }
-        })?;
+        let crs_share = crs_shares.get(params.party_id as usize).ok_or_else(|| JobError::from(format!("CRS Shares for party {} not found", params.party_id)))?;
         let a_share = cfg_iter!(our_a_share)
             .map(|f| F::deserialize_compressed(f.as_slice()))
             .collect::<Result<Vec<_>, _>>()

@@ -18,6 +18,7 @@ mod tests {
     use ark_std::UniformRand;
     use async_trait::async_trait;
     use bytes::Bytes;
+    use gadget_core::job::JobError;
     use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
     use secret_sharing::pss::PackedSharingParams;
     use serde::{Deserialize, Serialize};
@@ -115,7 +116,7 @@ mod tests {
 
     fn async_proto_generator(
         mut params: TestAsyncProtocolParameters<TestBundle>,
-    ) -> Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn Error>>>>> {
+    ) -> Pin<Box<dyn SendFuture<'static, Result<(), JobError>>>> {
         Box::pin(async move {
             params
                 .start_rx

@@ -2,19 +2,19 @@ use crate::client_ext::ClientWithApi;
 use crate::network::RegistantId;
 use async_trait::async_trait;
 use bytes::Bytes;
+use gadget_core::job::{
+    BuiltExecutableJobWrapper, ExecutableJob, JobBuilder, JobError, ProceedWithExecution,
+};
 use gadget_core::job_manager::{ProtocolRemote, SendFuture, ShutdownReason, WorkManagerInterface};
 use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use sp_runtime::traits::Block;
 use std::collections::HashMap;
-use std::error::Error;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use gadget_core::job::{BuiltExecutableJobWrapper, ExecutableJob, JobBuilder, SendError};
 use webb_gadget::gadget::message::GadgetProtocolMessage;
 use webb_gadget::gadget::network::Network;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
@@ -52,11 +52,10 @@ pub struct ZkProtocolRemote {
     pub is_done: Arc<AtomicBool>,
 }
 
-pub trait AsyncProtocolGenerator<B, E, N, C, Bl>:
-    Send
-    + Sync
-    + 'static
-    + Fn(ZkAsyncProtocolParameters<B, N, C, Bl>) -> BuiltExecutableJobWrapper<Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn SendError>>>>>>
+pub trait AsyncProtocolGenerator<B, E, N, C, Bl, F>:
+    Send + Sync + 'static + Fn(ZkAsyncProtocolParameters<B, N, C, Bl>) -> BuiltExecutableJobWrapper<F>
+where
+    F: SendFuture<'static, Result<(), JobError>>,
 {
 }
 impl<
@@ -65,13 +64,12 @@ impl<
         N: Network,
         Bl: Block,
         C: ClientWithApi<Bl>,
+        F: SendFuture<'static, Result<(), JobError>>,
         T: Send
             + Sync
             + 'static
-            + Fn(
-                ZkAsyncProtocolParameters<B, N, C, Bl>,
-            ) -> BuiltExecutableJobWrapper<Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn SendError>>>>>>,
-    > AsyncProtocolGenerator<B, E, N, C, Bl> for T
+            + Fn(ZkAsyncProtocolParameters<B, N, C, Bl>) -> BuiltExecutableJobWrapper<F>,
+    > AsyncProtocolGenerator<B, E, N, C, Bl, F> for T
 {
 }
 
@@ -82,6 +80,7 @@ pub fn create_zk_async_protocol<
     N: Network,
     C: ClientWithApi<Bl>,
     Bl: Block,
+    F: SendFuture<'static, Result<(), JobError>>,
 >(
     session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
     now: <WebbWorkManager as WorkManagerInterface>::Clock,
@@ -92,14 +91,18 @@ pub fn create_zk_async_protocol<
     extra_parameters: B,
     network: N,
     client: C,
-    proto_gen: &dyn AsyncProtocolGenerator<B, E, N, C, Bl>,
-) -> (ZkProtocolRemote, BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), Box<dyn SendError>>>>) {
+    proto_gen: &dyn AsyncProtocolGenerator<B, E, N, C, Bl, F>,
+) -> (
+    ZkProtocolRemote,
+    BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), JobError>>>,
+) {
     let is_done = Arc::new(AtomicBool::new(false));
     let (to_async_protocol, mut protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
     let (start_tx, start_rx) = tokio::sync::oneshot::channel();
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
 
     let proto_hash_hex = hex::encode(task_id);
+    let proto_hash_hex_clone = proto_hash_hex.clone();
 
     let mut txs = HashMap::new();
     let mut rxs = HashMap::new();
@@ -154,41 +157,56 @@ pub fn create_zk_async_protocol<
 
     let mut async_protocol = proto_gen(params);
 
+    let pre_hook = async move {
+        match start_rx.await {
+            Ok(_) => Ok(ProceedWithExecution::True),
+            Err(err) => {
+                log::error!(
+                    "Protocol {proto_hash_hex_clone} failed to receive start signal: {err:?}"
+                );
+                Ok(ProceedWithExecution::False)
+            }
+        }
+    };
+
+    let post_hook = async move {
+        // Mark the task as done
+        is_done.store(true, Ordering::SeqCst);
+        Ok(())
+    };
+
     // This wrapped future enables proper functionality between the async protocol and the
     // job manager
     let wrapped_future = async move {
-        let async_protocol = async_protocol.execute();
+        tokio::select! {
+            res0 = async_protocol.execute() => {
+                if let Err(err) = res0 {
+                    log::error!("Protocol {proto_hash_hex} failed: {err:?}");
+                    Err(JobError::from(err.to_string()))
+                } else {
+                    log::info!("Protocol {proto_hash_hex} finished");
+                    Ok(())
+                }
+            },
 
-        if let Err(err) = start_rx.await {
-            log::error!("Protocol {proto_hash_hex} failed to receive start signal: {err:?}");
-        } else {
-            tokio::select! {
-                res0 = async_protocol => {
-                    if let Err(err) = res0 {
-                        log::error!("Protocol {proto_hash_hex} failed: {err:?}");
-                    } else {
-                        log::info!("Protocol {proto_hash_hex} finished");
-                    }
-                },
-
-                res1 = shutdown_rx => {
-                    match res1 {
-                        Ok(reason) => {
-                            log::info!("Protocol {proto_hash_hex} shutdown: {reason:?}");
-                        },
-                        Err(err) => {
-                            log::error!("Protocol {proto_hash_hex} shutdown failed: {err:?}");
-                        },
-                    }
+            res1 = shutdown_rx => {
+                match res1 {
+                    Ok(reason) => {
+                        log::info!("Protocol {proto_hash_hex} shutdown: {reason:?}");
+                        Ok(())
+                    },
+                    Err(err) => {
+                        log::error!("Protocol {proto_hash_hex} shutdown failed: {err:?}");
+                        Err(JobError::from(err.to_string()))
+                    },
                 }
             }
         }
-
-        // Mark the task as done
-        is_done.store(true, Ordering::SeqCst);
     };
 
     let wrapped_future = JobBuilder::default()
+        .pre(pre_hook)
+        .post(post_hook)
         .build(wrapped_future);
 
     (remote, wrapped_future)

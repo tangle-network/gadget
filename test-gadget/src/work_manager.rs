@@ -1,11 +1,11 @@
 use crate::error::TestError;
 use crate::message::TestProtocolMessage;
+use gadget_core::job::JobError;
 use gadget_core::job_manager::{ProtocolRemote, SendFuture, ShutdownReason, WorkManagerInterface};
 use parking_lot::{Mutex, RwLock};
 use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use gadget_core::job::SendError;
 
 pub struct TestWorkManager {
     pub clock: Arc<RwLock<u64>>,
@@ -132,13 +132,19 @@ pub struct TestAsyncProtocolParameters<B> {
 }
 
 pub trait AsyncProtocolGenerator<B>:
-    Send + Sync + Fn(TestAsyncProtocolParameters<B>) -> Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn SendError>>>>>
+    Send
+    + Sync
+    + Fn(TestAsyncProtocolParameters<B>) -> Pin<Box<dyn SendFuture<'static, Result<(), JobError>>>>
 {
 }
 
 impl<
         B: Send + Sync,
-        T: Send + Sync + Fn(TestAsyncProtocolParameters<B>) -> Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn SendError>>>>>,
+        T: Send
+            + Sync
+            + Fn(
+                TestAsyncProtocolParameters<B>,
+            ) -> Pin<Box<dyn SendFuture<'static, Result<(), JobError>>>>,
     > AsyncProtocolGenerator<B> for T
 {
 }

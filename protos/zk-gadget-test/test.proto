@@ -1,0 +1,12 @@
+syntax = "proto3";
+package test_blockchain_zk;
+
+message GetLatestHeaderRequest {}
+message GetLatestHeaderResponse {
+  uint64 latest_block_number = 1;
+  uint64 session_id = 2;
+}
+
+service Auth {
+  rpc GetLatestHeader(GetLatestHeaderRequest) returns (GetLatestHeaderResponse) {}
+}

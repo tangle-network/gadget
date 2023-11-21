@@ -1,6 +1,7 @@
 use crate::job_manager::SendFuture;
 use async_trait::async_trait;
 use std::error::Error;
+use std::fmt::Display;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -10,18 +11,37 @@ pub enum ProceedWithExecution {
     False,
 }
 
-pub trait SendError: Error + Send + 'static {}
-impl<T: Error + Send + 'static> SendError for T {}
+#[derive(Debug)]
+pub struct JobError {
+    pub reason: String,
+}
+
+impl<T: Into<String>> From<T> for JobError {
+    fn from(value: T) -> Self {
+        Self {
+            reason: value.into(),
+        }
+    }
+}
+
+impl Display for JobError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{reason}", reason = self.reason)
+    }
+}
+
+impl Error for JobError {}
 
 #[async_trait]
-pub trait ExecutableJob: SendFuture<'static, Result<(), Box<dyn SendError>>> + Unpin {
-    async fn pre_job_hook(&mut self) -> Result<ProceedWithExecution, Box<dyn SendError>>;
-    async fn post_job_hook(&mut self) -> Result<(), Box<dyn SendError>>;
-    async fn execute(&mut self) -> Result<(), Box<dyn SendError>> {
+pub trait ExecutableJob: SendFuture<'static, Result<(), JobError>> + Unpin {
+    async fn pre_job_hook(&mut self) -> Result<ProceedWithExecution, JobError>;
+    async fn post_job_hook(&mut self) -> Result<(), JobError>;
+    async fn execute(&mut self) -> Result<(), JobError> {
         match self.pre_job_hook().await? {
             ProceedWithExecution::True => {
-                (&mut self).await?;
-                self.post_job_hook().await
+                let result = (&mut self).await;
+                let post_result = self.post_job_hook().await;
+                result.and(post_result)
             }
             ProceedWithExecution::False => Ok(()),
         }
@@ -38,24 +58,24 @@ pub struct ExecutableJobWrapper<Pre: ?Sized, Protocol, Post: ?Sized> {
 impl<Pre: ?Sized, Protocol, Post: ?Sized> ExecutableJob
     for ExecutableJobWrapper<Pre, Protocol, Post>
 where
-    Pre: Future<Output = Result<ProceedWithExecution, Box<dyn SendError>>> + Send + 'static,
-    Protocol: SendFuture<'static, Result<(), Box<dyn SendError>>>,
-    Post: Future<Output = Result<(), Box<dyn SendError>>> + Send + 'static,
+    Pre: Future<Output = Result<ProceedWithExecution, JobError>> + Send + 'static,
+    Protocol: SendFuture<'static, Result<(), JobError>>,
+    Post: Future<Output = Result<(), JobError>> + Send + 'static,
 {
-    async fn pre_job_hook(&mut self) -> Result<ProceedWithExecution, Box<dyn SendError>> {
+    async fn pre_job_hook(&mut self) -> Result<ProceedWithExecution, JobError> {
         self.pre.as_mut().await
     }
 
-    async fn post_job_hook(&mut self) -> Result<(), Box<dyn SendError>> {
+    async fn post_job_hook(&mut self) -> Result<(), JobError> {
         self.post.as_mut().await
     }
 }
 
 impl<Pre, Protocol, Post> ExecutableJobWrapper<Pre, Protocol, Post>
 where
-    Pre: Future<Output = Result<ProceedWithExecution, Box<dyn SendError>>>,
-    Protocol: SendFuture<'static, Result<(), Box<dyn SendError>>>,
-    Post: Future<Output = Result<(), Box<dyn SendError>>>,
+    Pre: Future<Output = Result<ProceedWithExecution, JobError>>,
+    Protocol: SendFuture<'static, Result<(), JobError>>,
+    Post: Future<Output = Result<(), JobError>>,
 {
     pub fn new(pre: Pre, protocol: Protocol, post: Post) -> Self {
         Self {
@@ -68,7 +88,7 @@ where
 
 impl<Pre: ?Sized, Protocol, Post: ?Sized> Future for ExecutableJobWrapper<Pre, Protocol, Post>
 where
-    Protocol: SendFuture<'static, Result<(), Box<dyn SendError>>>,
+    Protocol: SendFuture<'static, Result<(), JobError>>,
 {
     type Output = <Protocol as Future>::Output;
 
@@ -79,18 +99,16 @@ where
 
 #[derive(Default)]
 pub struct JobBuilder {
-    pre: Option<
-        Pin<Box<PreJobHook>>,
-    >,
+    pre: Option<Pin<Box<PreJobHook>>>,
     post: Option<Pin<Box<PostJobHook>>>,
 }
 
-pub type PreJobHook = dyn SendFuture<'static, Result<ProceedWithExecution, Box<dyn SendError>>>;
-pub type PostJobHook = dyn SendFuture<'static, Result<(), Box<dyn SendError>>>;
+pub type PreJobHook = dyn SendFuture<'static, Result<ProceedWithExecution, JobError>>;
+pub type PostJobHook = dyn SendFuture<'static, Result<(), JobError>>;
 
 pub struct DefaultPreJobHook;
 impl Future for DefaultPreJobHook {
-    type Output = Result<ProceedWithExecution, Box<dyn SendError>>;
+    type Output = Result<ProceedWithExecution, JobError>;
 
     fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         Poll::Ready(Ok(ProceedWithExecution::True))
@@ -99,7 +117,7 @@ impl Future for DefaultPreJobHook {
 
 pub struct DefaultPostJobHook;
 impl Future for DefaultPostJobHook {
-    type Output = Result<(), Box<dyn SendError>>;
+    type Output = Result<(), JobError>;
 
     fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         Poll::Ready(Ok(()))
@@ -107,9 +125,9 @@ impl Future for DefaultPostJobHook {
 }
 
 pub type BuiltExecutableJobWrapper<Protocol> = ExecutableJobWrapper<
-    dyn SendFuture<'static, Result<ProceedWithExecution, Box<dyn SendError>>>,
+    dyn SendFuture<'static, Result<ProceedWithExecution, JobError>>,
     Protocol,
-    dyn SendFuture<'static, Result<(), Box<dyn SendError>>>,
+    dyn SendFuture<'static, Result<(), JobError>>,
 >;
 
 impl JobBuilder {
@@ -119,7 +137,7 @@ impl JobBuilder {
 
     pub fn pre<Pre>(mut self, pre: Pre) -> Self
     where
-        Pre: SendFuture<'static, Result<ProceedWithExecution, Box<dyn SendError>>>,
+        Pre: SendFuture<'static, Result<ProceedWithExecution, JobError>>,
     {
         self.pre = Some(Box::pin(pre));
         self
@@ -127,7 +145,7 @@ impl JobBuilder {
 
     pub fn post<Post>(mut self, post: Post) -> Self
     where
-        Post: SendFuture<'static, Result<(), Box<dyn SendError>>>,
+        Post: SendFuture<'static, Result<(), JobError>>,
     {
         self.post = Some(Box::pin(post));
         self
@@ -135,7 +153,7 @@ impl JobBuilder {
 
     pub fn build<Protocol>(self, protocol: Protocol) -> BuiltExecutableJobWrapper<Protocol>
     where
-        Protocol: SendFuture<'static, Result<(), Box<dyn SendError>>>,
+        Protocol: SendFuture<'static, Result<(), JobError>>,
     {
         let pre = if let Some(pre) = self.pre {
             pre

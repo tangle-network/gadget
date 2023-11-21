@@ -5,13 +5,13 @@ use crate::work_manager::{
 };
 use async_trait::async_trait;
 use gadget_core::gadget::manager::AbstractGadget;
+use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, SendFuture, WorkManagerInterface};
 use parking_lot::RwLock;
 use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, SendError};
 
 /// An AbstractGadget endowed with a WorkerManager, a fake blockchain that delivers FinalityNotifications to the gadgets, and a TestProtocolMessage stream
 pub struct TestGadget<B> {
@@ -142,7 +142,10 @@ fn create_test_async_protocol<B: Send + Sync + 'static>(
     task_id: <TestWorkManager as WorkManagerInterface>::TaskID,
     test_bundle: B,
     proto_gen: &dyn AsyncProtocolGenerator<B>,
-) -> (TestProtocolRemote, BuiltExecutableJobWrapper<Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn SendError>>>>>>) {
+) -> (
+    TestProtocolRemote,
+    BuiltExecutableJobWrapper<Pin<Box<dyn SendFuture<'static, Result<(), JobError>>>>>,
+) {
     let is_done = Arc::new(AtomicBool::new(false));
     let (to_async_protocol, protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
     let (start_tx, start_rx) = tokio::sync::oneshot::channel();
@@ -171,8 +174,7 @@ fn create_test_async_protocol<B: Send + Sync + 'static>(
     };
 
     let future = proto_gen(params);
-    let future = JobBuilder::default()
-        .build(future);
+    let future = JobBuilder::default().build(future);
 
     (remote, future)
 }

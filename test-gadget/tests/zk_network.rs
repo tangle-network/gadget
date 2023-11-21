@@ -12,6 +12,7 @@ mod tests {
 
     use async_trait::async_trait;
     use bytes::Bytes;
+    use gadget_core::job::JobError;
     use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
     use serde::{Deserialize, Serialize};
     use test_gadget::message::{TestProtocolMessage, UserID};
@@ -40,7 +41,7 @@ mod tests {
 
     fn async_proto_generator(
         mut params: TestAsyncProtocolParameters<TestBundle>,
-    ) -> Pin<Box<dyn SendFuture<'static, Result<(), Box<dyn Error>>>>> {
+    ) -> Pin<Box<dyn SendFuture<'static, Result<(), JobError>>>> {
         Box::pin(async move {
             params
                 .start_rx
@@ -85,10 +86,10 @@ mod tests {
             tokio::task::spawn(async move {
                 while let Some(message) = params.protocol_message_rx.recv().await {
                     let deserialized: MpcNetMessage =
-                        bincode2::deserialize(&message.payload)?;
+                        bincode2::deserialize(&message.payload).expect("Failed to deser message");
                     let txs = &txs[&deserialized.source];
                     let tx = &txs[deserialized.sid as usize];
-                    tx.send(deserialized)?;
+                    tx.send(deserialized).expect("Failed to send");
                 }
             });
 

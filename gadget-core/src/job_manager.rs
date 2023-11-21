@@ -551,7 +551,7 @@ fn should_deliver<WM: WorkManagerInterface>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::job::{BuiltExecutableJobWrapper, JobBuilder, SendError};
+    use crate::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
     use parking_lot::Mutex;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
@@ -647,7 +647,7 @@ mod tests {
         started_at: u64,
     ) -> (
         Arc<TestProtocolRemote>,
-        BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), Box<dyn SendError>>>>,
+        BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), JobError>>>,
         UnboundedReceiver<TestMessage>,
     ) {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
