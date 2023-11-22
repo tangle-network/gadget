@@ -5,10 +5,9 @@ use crate::work_manager::{
 };
 use async_trait::async_trait;
 use gadget_core::gadget::manager::AbstractGadget;
-use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
-use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, SendFuture, WorkManagerInterface};
+use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder};
+use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerInterface};
 use parking_lot::RwLock;
-use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -142,10 +141,7 @@ fn create_test_async_protocol<B: Send + Sync + 'static>(
     task_id: <TestWorkManager as WorkManagerInterface>::TaskID,
     test_bundle: B,
     proto_gen: &dyn AsyncProtocolGenerator<B>,
-) -> (
-    TestProtocolRemote,
-    BuiltExecutableJobWrapper<Pin<Box<dyn SendFuture<'static, Result<(), JobError>>>>>,
-) {
+) -> (TestProtocolRemote, BuiltExecutableJobWrapper) {
     let is_done = Arc::new(AtomicBool::new(false));
     let (to_async_protocol, protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
     let (start_tx, start_rx) = tokio::sync::oneshot::channel();

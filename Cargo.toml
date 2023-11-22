@@ -12,6 +12,7 @@ members = [
 gadget-core = { path = "./gadget-core" }
 webb-gadget = { path = "./webb-gadget" }
 zk-gadget = { path = "./zk-gadget" }
+zk-playground = { path = "./playground" }
 
 sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }

@@ -5,7 +5,7 @@ use bytes::Bytes;
 use gadget_core::job::{
     BuiltExecutableJobWrapper, ExecutableJob, JobBuilder, JobError, ProceedWithExecution,
 };
-use gadget_core::job_manager::{ProtocolRemote, SendFuture, ShutdownReason, WorkManagerInterface};
+use gadget_core::job_manager::{ProtocolRemote, ShutdownReason, WorkManagerInterface};
 use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -52,10 +52,8 @@ pub struct ZkProtocolRemote {
     pub is_done: Arc<AtomicBool>,
 }
 
-pub trait AsyncProtocolGenerator<B, E, N, C, Bl, F>:
-    Send + Sync + 'static + Fn(ZkAsyncProtocolParameters<B, N, C, Bl>) -> BuiltExecutableJobWrapper<F>
-where
-    F: SendFuture<'static, Result<(), JobError>>,
+pub trait AsyncProtocolGenerator<B, E, N, C, Bl>:
+    Send + Sync + 'static + Fn(ZkAsyncProtocolParameters<B, N, C, Bl>) -> BuiltExecutableJobWrapper
 {
 }
 impl<
@@ -64,12 +62,11 @@ impl<
         N: Network,
         Bl: Block,
         C: ClientWithApi<Bl>,
-        F: SendFuture<'static, Result<(), JobError>>,
         T: Send
             + Sync
             + 'static
-            + Fn(ZkAsyncProtocolParameters<B, N, C, Bl>) -> BuiltExecutableJobWrapper<F>,
-    > AsyncProtocolGenerator<B, E, N, C, Bl, F> for T
+            + Fn(ZkAsyncProtocolParameters<B, N, C, Bl>) -> BuiltExecutableJobWrapper,
+    > AsyncProtocolGenerator<B, E, N, C, Bl> for T
 {
 }
 
@@ -80,7 +77,6 @@ pub fn create_zk_async_protocol<
     N: Network,
     C: ClientWithApi<Bl>,
     Bl: Block,
-    F: SendFuture<'static, Result<(), JobError>>,
 >(
     session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
     now: <WebbWorkManager as WorkManagerInterface>::Clock,
@@ -91,11 +87,8 @@ pub fn create_zk_async_protocol<
     extra_parameters: B,
     network: N,
     client: C,
-    proto_gen: &dyn AsyncProtocolGenerator<B, E, N, C, Bl, F>,
-) -> (
-    ZkProtocolRemote,
-    BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), JobError>>>,
-) {
+    proto_gen: &dyn AsyncProtocolGenerator<B, E, N, C, Bl>,
+) -> (ZkProtocolRemote, BuiltExecutableJobWrapper) {
     let is_done = Arc::new(AtomicBool::new(false));
     let (to_async_protocol, mut protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
     let (start_tx, start_rx) = tokio::sync::oneshot::channel();
