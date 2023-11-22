@@ -19,7 +19,7 @@ jobs:
         run: sudo apt-get install protobuf-compiler
 
       - name: Run system
-        run: ./playground/run.sh --create-certs
+        run: bash ./playground/run.sh --create-certs
   formatting:
     name: Rustfmt
     runs-on: ubuntu-latest
