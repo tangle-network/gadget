@@ -5,8 +5,6 @@ trap "kill 0" EXIT
 
 echo "Server addr: $SERVER_IP:$SERVER_PORT"
 
-cargo build --release --example zknode
-
 # Retry loop
 while ! nc -z -w 5 $SERVER_IP $SERVER_PORT; do
   echo "Waiting for server $SERVER_IP:$SERVER_PORT ... "
