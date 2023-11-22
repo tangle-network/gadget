@@ -43,6 +43,7 @@ pub async fn run<
 
     let zk_module = ZkModule {
         party_id: config.id,
+        // TODO: The below should be inside job metadata, but NOT determined at runtime
         n_parties: config.n_parties,
         additional_protocol_params,
         network: network.clone(),

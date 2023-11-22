@@ -27,7 +27,6 @@ use gadget_core::{gadget::substrate::Client, job_manager::SendFuture};
 use groth16::proving_key::PackedProvingKeyShare;
 use mpc_net::prod::CertToDer;
 use mpc_net::MultiplexedStreamID;
-use rustls::RootCertStore;
 use sc_client_api::FinalizeSummary;
 use sc_utils::mpsc::{TracingUnboundedReceiver, TracingUnboundedSender};
 use secret_sharing::pss::PackedSharingParams;
@@ -65,6 +64,8 @@ struct Args {
     /// The Id of the node, also acts as the party index
     #[arg(long)]
     i: usize,
+    #[arg(long)]
+    n: usize,
     /// King's IP address
     #[arg(long)]
     king_ip: SocketAddr,
@@ -74,7 +75,9 @@ struct Args {
     /// All the nodes' public identity DER (including the current node)
     /// it must be in the same order as the nodes' Ids
     #[arg(long)]
-    certs: Vec<PathBuf>,
+    public_identity_der: PathBuf,
+    #[arg(long)]
+    client_only_king_public_identity_der: Option<PathBuf>,
     /// Watch directory for new jobs
     #[arg(long)]
     watch_dir: PathBuf,
@@ -84,10 +87,7 @@ struct Args {
 async fn main() -> anyhow::Result<()> {
     setup_log();
     let args = Args::parse();
-    assert!(
-        args.i < args.certs.len(),
-        "i must be less than n (certs.len())"
-    );
+    assert!(args.i < args.n, "i must be less than n");
 
     tracing::info!(node = args.name, "Starting zknode");
 
@@ -97,61 +97,39 @@ async fn main() -> anyhow::Result<()> {
         processing_semophore: Arc::new(Semaphore::new(1)),
         watch_dir: args.watch_dir,
     };
+
     let client = BlockchainClient::new(state.clone());
     let (done_tx, mut done_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
 
-    let mut cert_store = RootCertStore::empty();
-    // add all certs except our own
-    let iter = args.certs.iter().enumerate().filter(|(i, _)| *i != args.i);
-    for (_, cert_path) in iter {
-        let cert = rustls::Certificate(std::fs::read(cert_path)?);
-        cert_store.add(&cert)?;
-    }
+    let (public_identity_der, private_identity_der) = {
+        let public_identity_der_path = args.public_identity_der;
+        let private_identity_der_path = args.private_identity_der;
+        (
+            std::fs::read(public_identity_der_path)?,
+            std::fs::read(private_identity_der_path)?,
+        )
+    };
 
     let gadget_config = if args.i == 0 {
-        let (king_public_identity_der, king_private_identity_der) = {
-            let king_public_identity_der_path = args
-                .certs
-                .get(args.i)
-                .expect("King's public identity DER path is required");
-            let king_private_identity_der_path = args.private_identity_der;
-            (
-                std::fs::read(king_public_identity_der_path)?,
-                std::fs::read(king_private_identity_der_path)?,
-            )
-        };
         zk_gadget::ZkGadgetConfig {
             king_bind_addr: Some(args.king_ip),
             client_only_king_addr: None,
             id: args.i as _,
-            n_parties: args.certs.len(),
-            public_identity_der: king_public_identity_der.clone(),
-            private_identity_der: king_private_identity_der.clone(),
+            n_parties: args.n,
+            public_identity_der,
+            private_identity_der,
             client_only_king_public_identity_der: None,
         }
     } else {
         let king_public_identity_der_path = args
-            .certs
-            .get(0)
+            .client_only_king_public_identity_der
             .expect("King's public identity DER path is required");
         let king_public_identity_der = std::fs::read(king_public_identity_der_path)?;
-        // read our identity
-        let (public_identity_der, private_identity_der) = {
-            let public_identity_der_path = args
-                .certs
-                .get(args.i)
-                .expect("Public identity DER path is required");
-            let private_identity_der_path = args.private_identity_der;
-            (
-                std::fs::read(public_identity_der_path)?,
-                std::fs::read(private_identity_der_path)?,
-            )
-        };
         zk_gadget::ZkGadgetConfig {
             king_bind_addr: None,
             client_only_king_addr: Some(args.king_ip),
             id: args.i as _,
-            n_parties: args.certs.len(),
+            n_parties: args.n,
             public_identity_der,
             private_identity_der,
             client_only_king_public_identity_der: Some(king_public_identity_der.clone()),
@@ -209,7 +187,19 @@ fn async_protocol_generator(
         TestBlock,
     >,
 ) -> BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), JobError>>> {
-    JobBuilder::default().build(async move {
+    let stop_tx = params.extra_parameters.stop_tx.clone();
+    let party_id = params.party_id;
+    JobBuilder::default()
+        .post(async move {
+            if party_id == 0 {
+                // If we are the king, wait a little bit for the other nodes to safely shutdown
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+            }
+
+            stop_tx.send(()).expect("Failed to send stop signal");
+            Ok(())
+        })
+        .build(async move {
         let _permit = match params.client.state.processing_semophore.try_acquire() {
             Ok(permit) => permit,
             Err(tokio::sync::TryAcquireError::NoPermits) => {

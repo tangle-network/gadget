@@ -1,0 +1,1 @@
+{"circuit_id":1,"pk_uri":"/Users/nologik/commonwealth/gadget/target/zk/proving_key.bin","wasm_uri":"/Users/nologik/commonwealth/gadget/fixtures/sha256/circom.wasm","r1cs_uri":"/Users/nologik/commonwealth/gadget/fixtures/sha256/circom.r1cs","num_inputs":2,"num_constraints":30134}

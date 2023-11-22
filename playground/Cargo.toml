@@ -6,7 +6,7 @@ license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
 [[example]]
-name = "client"
+name = "zk-test-client"
 path = "examples/client.rs"
 
 [[example]]

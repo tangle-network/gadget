@@ -251,13 +251,23 @@ pub enum RegistryPacket {
 }
 
 fn handle_stream_as_king(
-    stream: TlsStream<TcpStream>,
+    tls_acceptor: TlsAcceptor,
+    stream: TcpStream,
     peer_addr: SocketAddr,
     registrants: Arc<Mutex<HashMap<RegistantId, Registrant>>>,
     to_outbound_txs: Arc<RwLock<HashMap<RegistantId, UnboundedSender<RegistryPacket>>>>,
     to_gadget: UnboundedSender<RegistryPacket>,
 ) {
     tokio::task::spawn(async move {
+        let stream = match tls_acceptor.accept(stream).await {
+            Ok(stream) => stream,
+            Err(err) => {
+                log::error!("[Registry] Failed to upgrade connection from {peer_addr}: {err:?}");
+                return;
+            }
+        };
+
+        let stream = TlsStream::Server(stream);
         let wrapped_stream = mpc_net::multi::wrap_stream(stream);
         let (mut sink, mut stream) = wrapped_stream.split();
         let (to_outbound_tx, mut to_outbound_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -272,7 +282,7 @@ fn handle_stream_as_king(
                 }
             }
 
-            log::error!("to_outbound_rx closed");
+            log::warn!("to_outbound_rx closed");
         });
 
         while let Some(Ok(message)) = stream.next().await {
@@ -313,7 +323,7 @@ fn handle_stream_as_king(
             registrants.remove(&id);
         }
 
-        log::error!("[Registry] Connection closed to peer {peer_addr}")
+        log::warn!("[Registry] Connection closed to peer {peer_addr}")
     });
 }
 
@@ -462,14 +472,9 @@ impl Network for ZkNetworkService {
 
                 while let Ok((stream, peer_addr)) = listener.accept().await {
                     log::info!("[Registry] Accepted connection from {peer_addr}, upgrading to TLS");
-                    let stream = tls_acceptor.accept(stream).await.map_err(|err| {
-                        Error::RegistryCreateError {
-                            err: format!("{err:?}"),
-                        }
-                    })?;
-
                     handle_stream_as_king(
-                        TlsStream::Server(stream),
+                        tls_acceptor.clone(),
+                        stream,
                         peer_addr,
                         registrants.clone(),
                         to_outbound_txs.clone(),
