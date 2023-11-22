@@ -1,30 +1,35 @@
 use crate::client_ext::ClientWithApi;
 use crate::network::{RegistantId, ZkNetworkService};
 use async_trait::async_trait;
-use gadget_core::job_manager::ProtocolWorkManager;
-use gadget_core::Block;
+use gadget_core::job::JobError;
+use gadget_core::job_manager::{ProtocolWorkManager, SendFuture};
+use sp_runtime::traits::Block;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
 use webb_gadget::gadget::WebbGadgetModule;
 use webb_gadget::{BlockImportNotification, Error, FinalityNotification};
 
 pub mod proto_gen;
 
-pub struct ZkModule<T, C, B> {
+pub struct ZkModule<T, C, B, F: SendFuture<'static, Result<(), JobError>>> {
     pub party_id: RegistantId,
     pub n_parties: usize,
     pub additional_protocol_params: T,
     pub client: C,
     pub network: ZkNetworkService,
     pub async_protocol_generator:
-        Box<dyn proto_gen::AsyncProtocolGenerator<T, Error, ZkNetworkService, C, B>>,
+        Box<dyn proto_gen::AsyncProtocolGenerator<T, Error, ZkNetworkService, C, B, F>>,
 }
 
 pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {}
 impl<T: Send + Sync + Clone + 'static> AdditionalProtocolParams for T {}
 
 #[async_trait]
-impl<B: Block, T: AdditionalProtocolParams, C: ClientWithApi<B>> WebbGadgetModule<B>
-    for ZkModule<T, C, B>
+impl<
+        B: Block,
+        T: AdditionalProtocolParams,
+        C: ClientWithApi<B>,
+        F: SendFuture<'static, Result<(), JobError>>,
+    > WebbGadgetModule<B> for ZkModule<T, C, B, F>
 {
     async fn process_finality_notification(
         &self,

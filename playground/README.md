@@ -6,7 +6,7 @@
 ```
 2. Generate the shares by running the client:
 ```sh
-cargo run --release --bin client -- --circuit-id 1 --job-id 1 --wasm ./fixtures/sha256/circom.wasm --r1cs ./fixtures/sha256/circom.r1cs --input ./fixtures/sha256/input.json --public-inputs ./fixtures/sha256/public_inputs.json --output-dir ./target/zk --generate-proving-key
+cargo run --release --example zk-test-client -- --circuit-id 1 --job-id 1 --wasm ./fixtures/sha256/circom.wasm --r1cs ./fixtures/sha256/circom.r1cs --input ./fixtures/sha256/input.json --public-inputs ./fixtures/sha256/public_inputs.json --output-dir ./target/zk --generate-proving-key
 ```
 You can change the `--circuit-id` and `--job-id` to any number you want. The `--output-dir` is where the shares will be generated. You can change the `--wasm`, `--r1cs`, `--input` and `--public-inputs` to any circuit you want to run.
 Note: `--generate-proving-key` will generate the proving key. If you already have the proving key, you can omit this flag.
@@ -17,15 +17,8 @@ You will need 8 terminals to run the zknode(s). In each terminal, run:
 **King**
 
 ```sh
-RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
-    --certs certs/0/cert.der \
-    --certs certs/1/cert.der \
-    --certs certs/2/cert.der \
-    --certs certs/3/cert.der \
-    --certs certs/4/cert.der \
-    --certs certs/5/cert.der \
-    --certs certs/6/cert.der \
-    --certs certs/7/cert.der \
+RUST_LOG=debug cargo run --release --example zknode -- --king-ip 127.0.0.1:5555 \
+    --public_identity_der certs/0/cert.der \
     --watch-dir target/zk \
     --name king --i 0 \
     --private-identity-der certs/0/key.der
@@ -34,15 +27,9 @@ RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
 **Node 1**
 
 ```sh
-RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
-    --certs certs/0/cert.der \
-    --certs certs/1/cert.der \
-    --certs certs/2/cert.der \
-    --certs certs/3/cert.der \
-    --certs certs/4/cert.der \
-    --certs certs/5/cert.der \
-    --certs certs/6/cert.der \
-    --certs certs/7/cert.der \
+RUST_LOG=debug cargo run --release --example zknode -- --king-ip 127.0.0.1:5555 \
+    --public_identity_der certs/1/cert.der \
+    --client_only_king_public_identity_der certs/0/cert.der \
     --watch-dir target/zk \
     --name node1 --i 1 \
     --private-identity-der certs/1/key.der
@@ -50,15 +37,9 @@ RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
 
 **Node 2**
 ```sh
-RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
-    --certs certs/0/cert.der \
-    --certs certs/1/cert.der \
-    --certs certs/2/cert.der \
-    --certs certs/3/cert.der \
-    --certs certs/4/cert.der \
-    --certs certs/5/cert.der \
-    --certs certs/6/cert.der \
-    --certs certs/7/cert.der \
+RUST_LOG=debug cargo run --release --example zknode -- --king-ip 127.0.0.1:5555 \
+    --public_identity_der certs/2/cert.der \
+    --client_only_king_public_identity_der certs/0/cert.der \
     --watch-dir target/zk \
     --name node2 --i 2 \
     --private-identity-der certs/2/key.der
@@ -66,15 +47,9 @@ RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
 
 **Node 3**
 ```sh
-RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
-    --certs certs/0/cert.der \
-    --certs certs/1/cert.der \
-    --certs certs/2/cert.der \
-    --certs certs/3/cert.der \
-    --certs certs/4/cert.der \
-    --certs certs/5/cert.der \
-    --certs certs/6/cert.der \
-    --certs certs/7/cert.der \
+RUST_LOG=debug cargo run --release --example zknode -- --king-ip 127.0.0.1:5555 \
+    --public_identity_der certs/3/cert.der \
+    --client_only_king_public_identity_der certs/0/cert.der \
     --watch-dir target/zk \
     --name node3 --i 3 \
     --private-identity-der certs/3/key.der
@@ -83,15 +58,9 @@ RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
 
 **Node 4**
 ```sh
-RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
-    --certs certs/0/cert.der \
-    --certs certs/1/cert.der \
-    --certs certs/2/cert.der \
-    --certs certs/3/cert.der \
-    --certs certs/4/cert.der \
-    --certs certs/5/cert.der \
-    --certs certs/6/cert.der \
-    --certs certs/7/cert.der \
+RUST_LOG=debug cargo run --release --example zknode -- --king-ip 127.0.0.1:5555 \
+    --public_identity_der certs/4/cert.der \
+    --client_only_king_public_identity_der certs/0/cert.der \
     --watch-dir target/zk \
     --name node4 --i 4 \
     --private-identity-der certs/4/key.der
@@ -99,15 +68,9 @@ RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
 
 **Node 5**
 ```sh
-RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
-    --certs certs/0/cert.der \
-    --certs certs/1/cert.der \
-    --certs certs/2/cert.der \
-    --certs certs/3/cert.der \
-    --certs certs/4/cert.der \
-    --certs certs/5/cert.der \
-    --certs certs/6/cert.der \
-    --certs certs/7/cert.der \
+RUST_LOG=debug cargo run --release --example zknode -- --king-ip 127.0.0.1:5555 \
+    --public_identity_der certs/5/cert.der \
+    --client_only_king_public_identity_der certs/0/cert.der \
     --watch-dir target/zk \
     --name node5 --i 5 \
     --private-identity-der certs/5/key.der
@@ -115,15 +78,9 @@ RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
 
 **Node 6**
 ```sh
-RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
-    --certs certs/0/cert.der \
-    --certs certs/1/cert.der \
-    --certs certs/2/cert.der \
-    --certs certs/3/cert.der \
-    --certs certs/4/cert.der \
-    --certs certs/5/cert.der \
-    --certs certs/6/cert.der \
-    --certs certs/7/cert.der \
+RUST_LOG=debug cargo run --release --example zknode -- --king-ip 127.0.0.1:5555 \
+    --public_identity_der certs/6/cert.der \
+    --client_only_king_public_identity_der certs/0/cert.der \
     --watch-dir target/zk \
     --name node6 --i 6 \
     --private-identity-der certs/6/key.der
@@ -131,15 +88,9 @@ RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
 
 **Node 7**
 ```sh
-RUST_LOG=debug cargo run --release --bin zknode -- --king-ip 127.0.0.1:5555 \
-    --certs certs/0/cert.der \
-    --certs certs/1/cert.der \
-    --certs certs/2/cert.der \
-    --certs certs/3/cert.der \
-    --certs certs/4/cert.der \
-    --certs certs/5/cert.der \
-    --certs certs/6/cert.der \
-    --certs certs/7/cert.der \
+RUST_LOG=debug cargo run --release --example zknode -- --king-ip 127.0.0.1:5555 \
+    --public_identity_der certs/7/cert.der \
+    --client_only_king_public_identity_der certs/0/cert.der \
     --watch-dir target/zk \
     --name node7 --i 7 \
     --private-identity-der certs/7/key.der

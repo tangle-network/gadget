@@ -13,7 +13,6 @@ substrate = [
 ]
 
 [dependencies]
-sync_wrapper = "0.1.2"
 parking_lot = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "macros", "rt"] }
 hex = "0.4.3"
@@ -24,3 +23,4 @@ sc-client-api = { optional = true, workspace = true, default-features = false }
 futures = { optional = true, workspace = true }
 
 [dev-dependencies]
+tokio = { workspace = true, features = ["macros"]}

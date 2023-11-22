@@ -20,6 +20,7 @@ mod tests {
         dfft::{d_fft, fft_in_place_rearrange},
         utils::pack::transpose,
     };
+    use gadget_core::job::JobError;
     use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
     use secret_sharing::pss::PackedSharingParams;
     use serde::{Deserialize, Serialize};
@@ -120,7 +121,7 @@ mod tests {
 
     fn async_proto_generator(
         mut params: TestAsyncProtocolParameters<TestBundle>,
-    ) -> Pin<Box<dyn SendFuture<'static, ()>>> {
+    ) -> Pin<Box<dyn SendFuture<'static, Result<(), JobError>>>> {
         Box::pin(async move {
             params
                 .start_rx
@@ -186,6 +187,7 @@ mod tests {
             let dom = Radix2EvaluationDomain::<Fr>::new(M).unwrap();
             d_fft_test::<Fr, _>(&pp, &dom, &network).await;
             on_end_tx.send(()).expect("Failed to send on_end signal");
+            Ok(())
         })
     }
 

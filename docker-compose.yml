@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  king:
+    build:
+      context: .
+      dockerfile: ./docker/server/Dockerfile
+    environment:
+      - BIND_ADDRESS=0.0.0.0:5555
+    ports:
+      - 5555:5555
+    networks:
+      zk_network:
+        ipv4_address: 172.40.0.10
+
+  clients:
+    build:
+      context: .
+      dockerfile: ./docker/client/Dockerfile
+    environment:
+      - SERVER_IP=172.40.0.10
+      - SERVER_PORT=5555
+    networks:
+      - zk_network
+
+networks:
+  zk_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.40.0.0/16

@@ -5,17 +5,17 @@ authors = ["Shady Khalifa <dev+github@shadykhalifa.me>"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
-[[bin]]
-name = "client"
-path = "./client.rs"
+[[example]]
+name = "zk-test-client"
+path = "examples/client.rs"
 
-[[bin]]
+[[example]]
 name = "zknode"
-path = "./node.rs"
+path = "examples/node.rs"
 
-[[bin]]
+[[example]]
 name = "certgen"
-path = "./certgen.rs"
+path = "examples/certgen.rs"
 
 [features]
 default = ["parallel"]

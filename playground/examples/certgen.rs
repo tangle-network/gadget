@@ -27,6 +27,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .push(DnType::CommonName, "Master Cert");
     params.subject_alt_names = vec![
         SanType::IpAddress("127.0.0.1".parse()?),
+        SanType::IpAddress("0.0.0.0".parse()?),
+        SanType::IpAddress("172.40.0.10".parse()?), // For docker container
         SanType::DnsName("localhost".to_string()),
     ];
 

@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     net::SocketAddr,
     path::PathBuf,
-    pin::Pin,
     str::FromStr,
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -23,11 +22,11 @@ use ark_std::{cfg_iter, start_timer};
 use ark_std::{end_timer, Zero};
 use clap::Parser;
 use futures::{future, TryFutureExt};
+use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::{gadget::substrate::Client, job_manager::SendFuture};
 use groth16::proving_key::PackedProvingKeyShare;
 use mpc_net::prod::CertToDer;
 use mpc_net::MultiplexedStreamID;
-use rustls::RootCertStore;
 use sc_client_api::FinalizeSummary;
 use sc_utils::mpsc::{TracingUnboundedReceiver, TracingUnboundedSender};
 use secret_sharing::pss::PackedSharingParams;
@@ -65,6 +64,8 @@ struct Args {
     /// The Id of the node, also acts as the party index
     #[arg(long)]
     i: usize,
+    #[arg(long)]
+    n: usize,
     /// King's IP address
     #[arg(long)]
     king_ip: SocketAddr,
@@ -74,7 +75,9 @@ struct Args {
     /// All the nodes' public identity DER (including the current node)
     /// it must be in the same order as the nodes' Ids
     #[arg(long)]
-    certs: Vec<PathBuf>,
+    public_identity_der: PathBuf,
+    #[arg(long)]
+    client_only_king_public_identity_der: Option<PathBuf>,
     /// Watch directory for new jobs
     #[arg(long)]
     watch_dir: PathBuf,
@@ -84,10 +87,7 @@ struct Args {
 async fn main() -> anyhow::Result<()> {
     setup_log();
     let args = Args::parse();
-    assert!(
-        args.i < args.certs.len(),
-        "i must be less than n (certs.len())"
-    );
+    assert!(args.i < args.n, "i must be less than n");
 
     tracing::info!(node = args.name, "Starting zknode");
 
@@ -97,61 +97,39 @@ async fn main() -> anyhow::Result<()> {
         processing_semophore: Arc::new(Semaphore::new(1)),
         watch_dir: args.watch_dir,
     };
+
     let client = BlockchainClient::new(state.clone());
     let (done_tx, mut done_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
 
-    let mut cert_store = RootCertStore::empty();
-    // add all certs except our own
-    let iter = args.certs.iter().enumerate().filter(|(i, _)| *i != args.i);
-    for (_, cert_path) in iter {
-        let cert = rustls::Certificate(std::fs::read(cert_path)?);
-        cert_store.add(&cert)?;
-    }
+    let (public_identity_der, private_identity_der) = {
+        let public_identity_der_path = args.public_identity_der;
+        let private_identity_der_path = args.private_identity_der;
+        (
+            std::fs::read(public_identity_der_path)?,
+            std::fs::read(private_identity_der_path)?,
+        )
+    };
 
     let gadget_config = if args.i == 0 {
-        let (king_public_identity_der, king_private_identity_der) = {
-            let king_public_identity_der_path = args
-                .certs
-                .get(args.i)
-                .expect("King's public identity DER path is required");
-            let king_private_identity_der_path = args.private_identity_der;
-            (
-                std::fs::read(king_public_identity_der_path)?,
-                std::fs::read(king_private_identity_der_path)?,
-            )
-        };
         zk_gadget::ZkGadgetConfig {
             king_bind_addr: Some(args.king_ip),
             client_only_king_addr: None,
             id: args.i as _,
-            n_parties: args.certs.len(),
-            public_identity_der: king_public_identity_der.clone(),
-            private_identity_der: king_private_identity_der.clone(),
+            n_parties: args.n,
+            public_identity_der,
+            private_identity_der,
             client_only_king_public_identity_der: None,
         }
     } else {
         let king_public_identity_der_path = args
-            .certs
-            .get(0)
+            .client_only_king_public_identity_der
             .expect("King's public identity DER path is required");
         let king_public_identity_der = std::fs::read(king_public_identity_der_path)?;
-        // read our identity
-        let (public_identity_der, private_identity_der) = {
-            let public_identity_der_path = args
-                .certs
-                .get(args.i)
-                .expect("Public identity DER path is required");
-            let private_identity_der_path = args.private_identity_der;
-            (
-                std::fs::read(public_identity_der_path)?,
-                std::fs::read(private_identity_der_path)?,
-            )
-        };
         zk_gadget::ZkGadgetConfig {
             king_bind_addr: None,
             client_only_king_addr: Some(args.king_ip),
             id: args.i as _,
-            n_parties: args.certs.len(),
+            n_parties: args.n,
             public_identity_der,
             private_identity_der,
             client_only_king_public_identity_der: Some(king_public_identity_der.clone()),
@@ -208,8 +186,20 @@ fn async_protocol_generator(
         BlockchainClient,
         TestBlock,
     >,
-) -> Pin<Box<dyn SendFuture<'static, Result<(), webb_gadget::Error>>>> {
-    Box::pin(async move {
+) -> BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), JobError>>> {
+    let stop_tx = params.extra_parameters.stop_tx.clone();
+    let party_id = params.party_id;
+    JobBuilder::default()
+        .post(async move {
+            if party_id == 0 {
+                // If we are the king, wait a little bit for the other nodes to safely shutdown
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+            }
+
+            stop_tx.send(()).expect("Failed to send stop signal");
+            Ok(())
+        })
+        .build(async move {
         let _permit = match params.client.state.processing_semophore.try_acquire() {
             Ok(permit) => permit,
             Err(tokio::sync::TryAcquireError::NoPermits) => {
@@ -221,31 +211,23 @@ fn async_protocol_generator(
         let jobs = params.client.state.jobs.lock().await;
         let circuits = params.client.state.circuits.lock().await;
         let Some(job) = jobs.get(&params.associated_task_id).cloned() else {
-            return Err(webb_gadget::Error::ClientError {
-                err: format!(
-                    "Job with id {} not found",
-                    hex::encode(params.associated_task_id)
-                ),
-            });
+            return Err(JobError::from(format!(
+                "Job with id {} not found",
+                hex::encode(params.associated_task_id)
+            )));
         };
         let Some(circuit) = circuits.get(&job.circuit_id).cloned() else {
-            return Err(webb_gadget::Error::ClientError {
-                err: format!("Circuit with id {} not found", job.circuit_id),
-            });
+            return Err(JobError::from(format!("Circuit with id {} not found", job.circuit_id)));
         };
 
         drop(jobs);
         drop(circuits);
 
         let proving_key = tokio::fs::read(&circuit.pk_uri)
-            .map_err(|e| webb_gadget::Error::ClientError {
-                err: format!("Failed to read proving key: {e}"),
-            })
+            .map_err(|e| JobError::from(format!("Failed to read proving key: {e}")))
             .await?;
         let pk = ProvingKey::deserialize_compressed(proving_key.as_slice()).map_err(|e| {
-            webb_gadget::Error::ClientError {
-                err: format!("Failed to deserialize proving key: {e}"),
-            }
+            JobError::from(format!("Failed to deserialize proving key: {e}"))
         })?;
 
         let pp = PackedSharingParams::new(job.pss_l);
@@ -258,19 +240,9 @@ fn async_protocol_generator(
         let our_qap_share = job
             .qap_shares
             .get(params.party_id as usize)
-            .ok_or_else(|| webb_gadget::Error::ClientError {
-                err: format!("QAP Shares for party {} not found", params.party_id),
-            })?;
-        let our_a_share = job.a_shares.get(params.party_id as usize).ok_or_else(|| {
-            webb_gadget::Error::ClientError {
-                err: format!("a Shares for party {} not found", params.party_id),
-            }
-        })?;
-        let our_ax_share = job.ax_shares.get(params.party_id as usize).ok_or_else(|| {
-            webb_gadget::Error::ClientError {
-                err: format!("ax Shares for party {} not found", params.party_id),
-            }
-        })?;
+            .ok_or_else(|| JobError::from(format!("QAP Shares for party {} not found", params.party_id)))?;
+        let our_a_share = job.a_shares.get(params.party_id as usize).ok_or_else(|| JobError::from(format!("a Shares for party {} not found", params.party_id)))?;
+        let our_ax_share = job.ax_shares.get(params.party_id as usize).ok_or_else(|| JobError::from(format!("ax Shares for party {} not found", params.party_id)))?;
         let m = circuit.num_inputs + circuit.num_constraints;
         let domain = Radix2EvaluationDomain::new(m)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)
@@ -293,11 +265,7 @@ fn async_protocol_generator(
             domain,
         };
 
-        let crs_share = crs_shares.get(params.party_id as usize).ok_or_else(|| {
-            webb_gadget::Error::ClientError {
-                err: format!("CRS Shares for party {} not found", params.party_id),
-            }
-        })?;
+        let crs_share = crs_shares.get(params.party_id as usize).ok_or_else(|| JobError::from(format!("CRS Shares for party {} not found", params.party_id)))?;
         let a_share = cfg_iter!(our_a_share)
             .map(|f| F::deserialize_compressed(f.as_slice()))
             .collect::<Result<Vec<_>, _>>()

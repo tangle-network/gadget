@@ -12,6 +12,7 @@ mod tests {
 
     use async_trait::async_trait;
     use bytes::Bytes;
+    use gadget_core::job::JobError;
     use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
     use serde::{Deserialize, Serialize};
     use test_gadget::message::{TestProtocolMessage, UserID};
@@ -40,7 +41,7 @@ mod tests {
 
     fn async_proto_generator(
         mut params: TestAsyncProtocolParameters<TestBundle>,
-    ) -> Pin<Box<dyn SendFuture<'static, ()>>> {
+    ) -> Pin<Box<dyn SendFuture<'static, Result<(), JobError>>>> {
         Box::pin(async move {
             params
                 .start_rx
@@ -88,7 +89,7 @@ mod tests {
                         bincode2::deserialize(&message.payload).expect("Failed to deser message");
                     let txs = &txs[&deserialized.source];
                     let tx = &txs[deserialized.sid as usize];
-                    tx.send(deserialized).expect("Failed to send message");
+                    tx.send(deserialized).expect("Failed to send");
                 }
             });
 
@@ -145,6 +146,7 @@ mod tests {
             }
 
             on_end_tx.send(()).expect("Failed to send on_end signal");
+            Ok(())
         })
     }
 

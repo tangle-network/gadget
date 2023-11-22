@@ -2,8 +2,10 @@ use crate::client_ext::ClientWithApi;
 use crate::module::proto_gen::AsyncProtocolGenerator;
 use crate::module::{AdditionalProtocolParams, ZkModule};
 use crate::network::{RegistantId, ZkNetworkService};
-use gadget_core::Block;
+use gadget_core::job::JobError;
+use gadget_core::job_manager::SendFuture;
 use mpc_net::prod::RustlsCertificate;
+use sp_runtime::traits::Block;
 use std::net::SocketAddr;
 use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
 use webb_gadget::Error;
@@ -27,7 +29,8 @@ pub async fn run<
     C: ClientWithApi<B>,
     B: Block,
     T: AdditionalProtocolParams,
-    Gen: AsyncProtocolGenerator<T, Error, ZkNetworkService, C, B>,
+    F: SendFuture<'static, Result<(), JobError>>,
+    Gen: AsyncProtocolGenerator<T, Error, ZkNetworkService, C, B, F>,
 >(
     config: ZkGadgetConfig,
     client: C,
@@ -40,6 +43,7 @@ pub async fn run<
 
     let zk_module = ZkModule {
         party_id: config.id,
+        // TODO: The below should be inside job metadata, but NOT determined at runtime
         n_parties: config.n_parties,
         additional_protocol_params,
         network: network.clone(),

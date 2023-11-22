@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use gadget_core::job::JobError;
     use gadget_core::job_manager::SendFuture;
     use std::error::Error;
     use std::pin::Pin;
@@ -35,7 +36,7 @@ mod tests {
 
     fn async_proto_generator(
         mut params: TestAsyncProtocolParameters<TestBundle>,
-    ) -> Pin<Box<dyn SendFuture<'static, ()>>> {
+    ) -> Pin<Box<dyn SendFuture<'static, Result<(), JobError>>>> {
         let n_peers = params.test_bundle.n_peers;
         let party_id = params.test_bundle.party_id;
         Box::pin(async move {
@@ -79,6 +80,7 @@ mod tests {
                 .count_finished_tx
                 .send(())
                 .expect("Didn't send on_finish signal");
+            Ok::<_, JobError>(())
         })
     }
 }
