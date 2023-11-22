@@ -9,23 +9,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  docker:
+  integration-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Git LFS pull
-        run: git lfs pull
-
       - name: Install protobuf
         run: sudo apt-get install protobuf-compiler
 
-      - name: Generate certs
-        run: ./playground/generate_certs.sh
-
-      - name: Run Docker Compose
-        run: docker-compose up --abort-on-container-exit
+      - name: Run system
+        run: ./playground/run.sh --create-certs
   formatting:
     name: Rustfmt
     runs-on: ubuntu-latest
