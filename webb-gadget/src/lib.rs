@@ -12,6 +12,8 @@ use std::fmt::{Debug, Display, Formatter};
 
 pub mod gadget;
 
+pub mod helpers;
+
 #[derive(Debug)]
 pub enum Error {
     RegistryCreateError { err: String },

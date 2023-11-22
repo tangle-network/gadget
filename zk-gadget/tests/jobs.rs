@@ -3,8 +3,7 @@ mod tests {
     use crate::tests::client::{BlockchainClient, TestBlock};
     use futures_util::stream::FuturesUnordered;
     use futures_util::TryStreamExt;
-    use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
-    use gadget_core::job_manager::SendFuture;
+    use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder};
     use mpc_net::{MpcNet, MultiplexedStreamID};
     use std::error::Error;
     use std::net::SocketAddr;
@@ -335,7 +334,7 @@ mod tests {
             BlockchainClient,
             TestBlock,
         >,
-    ) -> BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), JobError>>> {
+    ) -> BuiltExecutableJobWrapper {
         JobBuilder::default().build(async move {
             if params.party_id == 0 {
                 // Receive N-1 messages from the other parties

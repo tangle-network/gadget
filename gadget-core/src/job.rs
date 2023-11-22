@@ -33,13 +33,15 @@ impl Display for JobError {
 impl Error for JobError {}
 
 #[async_trait]
-pub trait ExecutableJob: SendFuture<'static, Result<(), JobError>> + Unpin {
+pub trait ExecutableJob: Send + 'static {
     async fn pre_job_hook(&mut self) -> Result<ProceedWithExecution, JobError>;
+    async fn job(&mut self) -> Result<(), JobError>;
     async fn post_job_hook(&mut self) -> Result<(), JobError>;
+
     async fn execute(&mut self) -> Result<(), JobError> {
         match self.pre_job_hook().await? {
             ProceedWithExecution::True => {
-                let result = (&mut self).await;
+                let result = self.job().await;
                 let post_result = self.post_job_hook().await;
                 result.and(post_result)
             }
@@ -48,22 +50,26 @@ pub trait ExecutableJob: SendFuture<'static, Result<(), JobError>> + Unpin {
     }
 }
 
-pub struct ExecutableJobWrapper<Pre: ?Sized, Protocol, Post: ?Sized> {
+pub struct ExecutableJobWrapper<Pre: ?Sized, Protocol: ?Sized, Post: ?Sized> {
     pre: Pin<Box<Pre>>,
     protocol: Pin<Box<Protocol>>,
     post: Pin<Box<Post>>,
 }
 
 #[async_trait]
-impl<Pre: ?Sized, Protocol, Post: ?Sized> ExecutableJob
+impl<Pre: ?Sized, Protocol: ?Sized, Post: ?Sized> ExecutableJob
     for ExecutableJobWrapper<Pre, Protocol, Post>
 where
-    Pre: Future<Output = Result<ProceedWithExecution, JobError>> + Send + 'static,
+    Pre: SendFuture<'static, Result<ProceedWithExecution, JobError>>,
     Protocol: SendFuture<'static, Result<(), JobError>>,
-    Post: Future<Output = Result<(), JobError>> + Send + 'static,
+    Post: SendFuture<'static, Result<(), JobError>>,
 {
     async fn pre_job_hook(&mut self) -> Result<ProceedWithExecution, JobError> {
         self.pre.as_mut().await
+    }
+
+    async fn job(&mut self) -> Result<(), JobError> {
+        self.protocol.as_mut().await
     }
 
     async fn post_job_hook(&mut self) -> Result<(), JobError> {
@@ -73,9 +79,9 @@ where
 
 impl<Pre, Protocol, Post> ExecutableJobWrapper<Pre, Protocol, Post>
 where
-    Pre: Future<Output = Result<ProceedWithExecution, JobError>>,
+    Pre: SendFuture<'static, Result<ProceedWithExecution, JobError>>,
     Protocol: SendFuture<'static, Result<(), JobError>>,
-    Post: Future<Output = Result<(), JobError>>,
+    Post: SendFuture<'static, Result<(), JobError>>,
 {
     pub fn new(pre: Pre, protocol: Protocol, post: Post) -> Self {
         Self {
@@ -83,17 +89,6 @@ where
             protocol: Box::pin(protocol),
             post: Box::pin(post),
         }
-    }
-}
-
-impl<Pre: ?Sized, Protocol, Post: ?Sized> Future for ExecutableJobWrapper<Pre, Protocol, Post>
-where
-    Protocol: SendFuture<'static, Result<(), JobError>>,
-{
-    type Output = <Protocol as Future>::Output;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.protocol.as_mut().poll(cx)
     }
 }
 
@@ -124,9 +119,9 @@ impl Future for DefaultPostJobHook {
     }
 }
 
-pub type BuiltExecutableJobWrapper<Protocol> = ExecutableJobWrapper<
+pub type BuiltExecutableJobWrapper = ExecutableJobWrapper<
     dyn SendFuture<'static, Result<ProceedWithExecution, JobError>>,
-    Protocol,
+    dyn SendFuture<'static, Result<(), JobError>>,
     dyn SendFuture<'static, Result<(), JobError>>,
 >;
 
@@ -151,7 +146,7 @@ impl JobBuilder {
         self
     }
 
-    pub fn build<Protocol>(self, protocol: Protocol) -> BuiltExecutableJobWrapper<Protocol>
+    pub fn build<Protocol>(self, protocol: Protocol) -> BuiltExecutableJobWrapper
     where
         Protocol: SendFuture<'static, Result<(), JobError>>,
     {

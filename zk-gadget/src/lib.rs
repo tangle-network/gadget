@@ -2,8 +2,6 @@ use crate::client_ext::ClientWithApi;
 use crate::module::proto_gen::AsyncProtocolGenerator;
 use crate::module::{AdditionalProtocolParams, ZkModule};
 use crate::network::{RegistantId, ZkNetworkService};
-use gadget_core::job::JobError;
-use gadget_core::job_manager::SendFuture;
 use mpc_net::prod::RustlsCertificate;
 use sp_runtime::traits::Block;
 use std::net::SocketAddr;
@@ -29,8 +27,7 @@ pub async fn run<
     C: ClientWithApi<B>,
     B: Block,
     T: AdditionalProtocolParams,
-    F: SendFuture<'static, Result<(), JobError>>,
-    Gen: AsyncProtocolGenerator<T, Error, ZkNetworkService, C, B, F>,
+    Gen: AsyncProtocolGenerator<T, Error, ZkNetworkService, C, B>,
 >(
     config: ZkGadgetConfig,
     client: C,

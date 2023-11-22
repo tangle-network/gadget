@@ -22,8 +22,8 @@ use ark_std::{cfg_iter, start_timer};
 use ark_std::{end_timer, Zero};
 use clap::Parser;
 use futures::{future, TryFutureExt};
+use gadget_core::gadget::substrate::Client;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
-use gadget_core::{gadget::substrate::Client, job_manager::SendFuture};
 use groth16::proving_key::PackedProvingKeyShare;
 use mpc_net::prod::CertToDer;
 use mpc_net::MultiplexedStreamID;
@@ -186,7 +186,7 @@ fn async_protocol_generator(
         BlockchainClient,
         TestBlock,
     >,
-) -> BuiltExecutableJobWrapper<impl SendFuture<'static, Result<(), JobError>>> {
+) -> BuiltExecutableJobWrapper {
     let stop_tx = params.extra_parameters.stop_tx.clone();
     let party_id = params.party_id;
     JobBuilder::default()
