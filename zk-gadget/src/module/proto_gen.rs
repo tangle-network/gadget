@@ -2,9 +2,7 @@ use crate::client_ext::ClientWithApi;
 use crate::network::RegistantId;
 use async_trait::async_trait;
 use bytes::Bytes;
-use gadget_core::job::{
-    BuiltExecutableJobWrapper, ExecutableJob, JobBuilder, JobError, ProceedWithExecution,
-};
+use gadget_core::job::BuiltExecutableJobWrapper;
 use gadget_core::job_manager::{ProtocolRemote, ShutdownReason, WorkManagerInterface};
 use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
 use parking_lot::Mutex;
@@ -95,7 +93,6 @@ pub fn create_zk_async_protocol<
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
 
     let proto_hash_hex = hex::encode(task_id);
-    let proto_hash_hex_clone = proto_hash_hex.clone();
 
     let mut txs = HashMap::new();
     let mut rxs = HashMap::new();
@@ -116,12 +113,34 @@ pub fn create_zk_async_protocol<
     tokio::task::spawn(async move {
         while let Some(message) = protocol_message_rx.recv().await {
             let message: GadgetProtocolMessage = message;
-            let deserialized: MpcNetMessage =
-                bincode2::deserialize(&message.payload).expect("Failed to deser message");
-            let txs = &txs[&deserialized.source];
-            let tx = &txs[deserialized.sid as usize];
-            tx.send(deserialized).expect("Failed to send message");
+            match bincode2::deserialize::<MpcNetMessage>(&message.payload) {
+                Ok(deserialized) => {
+                    let (source, sid) = (deserialized.source, deserialized.sid);
+                    if let Some(txs) = txs.get(&source) {
+                        if let Some(tx) = txs.get(sid as usize) {
+                            if let Err(err) = tx.send(deserialized) {
+                                log::warn!(
+                                    "Failed to forward message from {source} to stream {sid:?} because {err:?}",
+                                );
+                            }
+                        } else {
+                            log::warn!(
+                                "Failed to forward message from {source} to stream {sid:?} because the tx handle was not found",
+                            );
+                        }
+                    } else {
+                        log::warn!(
+                            "Failed to forward message from {source} to stream {sid:?} because the tx handle was not found",
+                        );
+                    }
+                }
+                Err(err) => {
+                    log::warn!("Failed to deserialize protocol message: {err:?}");
+                }
+            }
         }
+
+        log::warn!("Async protocol message_rx died")
     });
 
     let params = ZkAsyncProtocolParameters {
@@ -148,61 +167,17 @@ pub fn create_zk_async_protocol<
         is_done: is_done.clone(),
     };
 
-    let mut async_protocol = proto_gen(params);
+    let async_protocol = proto_gen(params);
 
-    let pre_hook = async move {
-        match start_rx.await {
-            Ok(_) => Ok(ProceedWithExecution::True),
-            Err(err) => {
-                log::error!(
-                    "Protocol {proto_hash_hex_clone} failed to receive start signal: {err:?}"
-                );
-                Ok(ProceedWithExecution::False)
-            }
-        }
-    };
+    let job_manager_compatible_protocol = webb_gadget::helpers::create_job_manager_compatible_job(
+        proto_hash_hex,
+        is_done,
+        start_rx,
+        shutdown_rx,
+        async_protocol,
+    );
 
-    let post_hook = async move {
-        // Mark the task as done
-        is_done.store(true, Ordering::SeqCst);
-        Ok(())
-    };
-
-    // This wrapped future enables proper functionality between the async protocol and the
-    // job manager
-    let wrapped_future = async move {
-        tokio::select! {
-            res0 = async_protocol.execute() => {
-                if let Err(err) = res0 {
-                    log::error!("Protocol {proto_hash_hex} failed: {err:?}");
-                    Err(JobError::from(err.to_string()))
-                } else {
-                    log::info!("Protocol {proto_hash_hex} finished");
-                    Ok(())
-                }
-            },
-
-            res1 = shutdown_rx => {
-                match res1 {
-                    Ok(reason) => {
-                        log::info!("Protocol {proto_hash_hex} shutdown: {reason:?}");
-                        Ok(())
-                    },
-                    Err(err) => {
-                        log::error!("Protocol {proto_hash_hex} shutdown failed: {err:?}");
-                        Err(JobError::from(err.to_string()))
-                    },
-                }
-            }
-        }
-    };
-
-    let wrapped_future = JobBuilder::default()
-        .pre(pre_hook)
-        .post(post_hook)
-        .build(wrapped_future);
-
-    (remote, wrapped_future)
+    (remote, job_manager_compatible_protocol)
 }
 
 impl ProtocolRemote<WebbWorkManager> for ZkProtocolRemote {
