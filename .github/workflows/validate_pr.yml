@@ -10,6 +10,7 @@ concurrency:
 
 jobs:
   integration-tests:
+    name: Integration Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -18,8 +19,8 @@ jobs:
       - name: Install protobuf
         run: sudo apt-get install protobuf-compiler
 
-      - name: Run system
-        run: bash ./playground/run.sh --create-certs
+      - name: Run ZK MVP
+        run: docker-compose up --abort-on-container-exit
   formatting:
     name: Rustfmt
     runs-on: ubuntu-latest
