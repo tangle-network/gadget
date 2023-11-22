@@ -23,7 +23,7 @@ PROCS=()
 SERVER_IP=127.0.0.1
 SERVER_PORT=5555
 n=8
-for i in {0..7}
+for i in $(seq 0 $(($n - 1)))
   do
     # if i is zero, run the king
     if [ "$i" -eq "0" ]; then
