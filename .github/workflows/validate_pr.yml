@@ -19,6 +19,9 @@ jobs:
       - name: Install protobuf
         run: sudo apt-get install protobuf-compiler
 
+      - name: Generate certs
+        run: bash ./playground/generate_certs.sh
+
       - name: Run ZK MVP
         run: docker-compose up --abort-on-container-exit
   formatting:
