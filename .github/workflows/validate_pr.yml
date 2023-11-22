@@ -18,6 +18,9 @@ jobs:
       - name: Git LFS pull
         run: git lfs pull
 
+      - name: Install protobuf
+        run: sudo apt-get install protobuf-compiler
+
       - name: Generate certs
         run: ./playground/generate_certs.sh
 
