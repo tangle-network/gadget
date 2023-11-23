@@ -22,3 +22,4 @@ auto_impl = "1.1.0"
 sc-client-api = { workspace = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }
+hex = { workspace = true }

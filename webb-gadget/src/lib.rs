@@ -13,6 +13,7 @@ use std::fmt::{Debug, Display, Formatter};
 pub mod gadget;
 
 pub mod helpers;
+pub mod protocol;
 
 #[derive(Debug)]
 pub enum Error {

@@ -1,28 +1,28 @@
 use crate::client_ext::ClientWithApi;
+use crate::module::AdditionalProtocolParams;
 use crate::network::RegistantId;
 use async_trait::async_trait;
 use bytes::Bytes;
-use gadget_core::job::BuiltExecutableJobWrapper;
-use gadget_core::job_manager::{ProtocolRemote, ShutdownReason, WorkManagerInterface};
+use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
+use gadget_core::job_manager::WorkManagerInterface;
 use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
-use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use sp_runtime::traits::Block;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use tokio::sync::mpsc::UnboundedReceiver;
 use webb_gadget::gadget::message::GadgetProtocolMessage;
 use webb_gadget::gadget::network::Network;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
+use webb_gadget::protocol::AsyncProtocol;
 
 pub struct ZkAsyncProtocolParameters<B, N, C, Bl> {
     pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
     pub associated_ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
     pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
     pub associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-    rxs: HashMap<u32, Vec<tokio::sync::Mutex<tokio::sync::mpsc::UnboundedReceiver<MpcNetMessage>>>>,
+    rxs: HashMap<u32, Vec<tokio::sync::Mutex<UnboundedReceiver<MpcNetMessage>>>>,
     pub party_id: RegistantId,
     pub n_parties: usize,
     pub network: N,
@@ -36,18 +36,6 @@ struct MpcNetMessage {
     sid: MultiplexedStreamID,
     payload: Bytes,
     source: u32,
-}
-
-pub struct ZkProtocolRemote {
-    pub start_tx: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
-    pub shutdown_tx: Mutex<Option<tokio::sync::oneshot::Sender<ShutdownReason>>>,
-    pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-    pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-    pub associated_ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
-    pub to_async_protocol: tokio::sync::mpsc::UnboundedSender<
-        <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
-    >,
-    pub is_done: Arc<AtomicBool>,
 }
 
 pub trait AsyncProtocolGenerator<B, E, N, C, Bl>:
@@ -68,179 +56,91 @@ impl<
 {
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn create_zk_async_protocol<
-    B: Send + Sync + 'static,
-    E: Debug + 'static,
-    N: Network,
-    C: ClientWithApi<Bl>,
-    Bl: Block,
->(
-    session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-    now: <WebbWorkManager as WorkManagerInterface>::Clock,
-    ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
-    task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-    party_id: RegistantId,
-    n_parties: usize,
-    extra_parameters: B,
-    network: N,
-    client: C,
-    proto_gen: &dyn AsyncProtocolGenerator<B, E, N, C, Bl>,
-) -> (ZkProtocolRemote, BuiltExecutableJobWrapper) {
-    let is_done = Arc::new(AtomicBool::new(false));
-    let (to_async_protocol, mut protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
-    let (start_tx, start_rx) = tokio::sync::oneshot::channel();
-    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+pub struct ZkProtocol<B, E, N, C, Bl> {
+    pub party_id: RegistantId,
+    pub n_parties: usize,
+    pub extra_parameters: B,
+    pub network: N,
+    pub client: C,
+    pub proto_gen: Box<dyn AsyncProtocolGenerator<B, E, N, C, Bl>>,
+}
 
-    let proto_hash_hex = hex::encode(task_id);
+#[async_trait]
+impl<B: AdditionalProtocolParams, E, N: Network, C: ClientWithApi<Bl>, Bl: Block> AsyncProtocol
+    for ZkProtocol<B, E, N, C, Bl>
+{
+    async fn generate_protocol_from(
+        &self,
+        associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
+        associated_ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
+        associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+        mut protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+    ) -> Result<BuiltExecutableJobWrapper, JobError> {
+        let mut txs = HashMap::new();
+        let mut rxs = HashMap::new();
+        for peer_id in 0..self.n_parties {
+            // Create 3 multiplexed channels
+            let mut txs_for_this_peer = vec![];
+            let mut rxs_for_this_peer = vec![];
+            for _ in 0..3 {
+                let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+                txs_for_this_peer.push(tx);
+                rxs_for_this_peer.push(tokio::sync::Mutex::new(rx));
+            }
 
-    let mut txs = HashMap::new();
-    let mut rxs = HashMap::new();
-    for peer_id in 0..n_parties {
-        // Create 3 multiplexed channels
-        let mut txs_for_this_peer = vec![];
-        let mut rxs_for_this_peer = vec![];
-        for _ in 0..3 {
-            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-            txs_for_this_peer.push(tx);
-            rxs_for_this_peer.push(tokio::sync::Mutex::new(rx));
+            txs.insert(peer_id as u32, txs_for_this_peer);
+            rxs.insert(peer_id as u32, rxs_for_this_peer);
         }
 
-        txs.insert(peer_id as u32, txs_for_this_peer);
-        rxs.insert(peer_id as u32, rxs_for_this_peer);
-    }
-
-    tokio::task::spawn(async move {
-        while let Some(message) = protocol_message_rx.recv().await {
-            let message: GadgetProtocolMessage = message;
-            match bincode2::deserialize::<MpcNetMessage>(&message.payload) {
-                Ok(deserialized) => {
-                    let (source, sid) = (deserialized.source, deserialized.sid);
-                    if let Some(txs) = txs.get(&source) {
-                        if let Some(tx) = txs.get(sid as usize) {
-                            if let Err(err) = tx.send(deserialized) {
-                                log::warn!(
+        tokio::task::spawn(async move {
+            while let Some(message) = protocol_message_rx.recv().await {
+                let message: GadgetProtocolMessage = message;
+                match bincode2::deserialize::<MpcNetMessage>(&message.payload) {
+                    Ok(deserialized) => {
+                        let (source, sid) = (deserialized.source, deserialized.sid);
+                        if let Some(txs) = txs.get(&source) {
+                            if let Some(tx) = txs.get(sid as usize) {
+                                if let Err(err) = tx.send(deserialized) {
+                                    log::warn!(
                                     "Failed to forward message from {source} to stream {sid:?} because {err:?}",
                                 );
+                                }
+                            } else {
+                                log::warn!(
+                                "Failed to forward message from {source} to stream {sid:?} because the tx handle was not found",
+                            );
                             }
                         } else {
                             log::warn!(
-                                "Failed to forward message from {source} to stream {sid:?} because the tx handle was not found",
-                            );
-                        }
-                    } else {
-                        log::warn!(
                             "Failed to forward message from {source} to stream {sid:?} because the tx handle was not found",
                         );
+                        }
+                    }
+                    Err(err) => {
+                        log::warn!("Failed to deserialize protocol message: {err:?}");
                     }
                 }
-                Err(err) => {
-                    log::warn!("Failed to deserialize protocol message: {err:?}");
-                }
             }
-        }
 
-        log::warn!("Async protocol message_rx died")
-    });
+            log::warn!("Async protocol message_rx died")
+        });
 
-    let params = ZkAsyncProtocolParameters {
-        rxs,
-        associated_block_id: now,
-        party_id,
-        n_parties,
-        associated_ssid: ssid,
-        associated_session_id: session_id,
-        associated_task_id: task_id,
-        extra_parameters,
-        network,
-        client,
-        _pd: PhantomData,
-    };
+        let params = ZkAsyncProtocolParameters {
+            associated_block_id,
+            associated_ssid,
+            associated_session_id,
+            associated_task_id,
+            rxs,
+            party_id: self.party_id,
+            n_parties: self.n_parties,
+            network: self.network.clone(),
+            client: self.client.clone(),
+            extra_parameters: self.extra_parameters.clone(),
+            _pd: Default::default(),
+        };
 
-    let remote = ZkProtocolRemote {
-        start_tx: Mutex::new(Some(start_tx)),
-        shutdown_tx: Mutex::new(Some(shutdown_tx)),
-        associated_block_id: now,
-        associated_ssid: ssid,
-        associated_session_id: session_id,
-        to_async_protocol,
-        is_done: is_done.clone(),
-    };
-
-    let async_protocol = proto_gen(params);
-
-    let job_manager_compatible_protocol = webb_gadget::helpers::create_job_manager_compatible_job(
-        proto_hash_hex,
-        is_done,
-        start_rx,
-        shutdown_rx,
-        async_protocol,
-    );
-
-    (remote, job_manager_compatible_protocol)
-}
-
-impl ProtocolRemote<WebbWorkManager> for ZkProtocolRemote {
-    fn start(&self) -> Result<(), <WebbWorkManager as WorkManagerInterface>::Error> {
-        self.start_tx
-            .lock()
-            .take()
-            .ok_or_else(|| webb_gadget::Error::ProtocolRemoteError {
-                err: "Protocol already started".to_string(),
-            })?
-            .send(())
-            .map_err(|_err| webb_gadget::Error::ProtocolRemoteError {
-                err: "Unable to start protocol".to_string(),
-            })
-    }
-
-    fn session_id(&self) -> <WebbWorkManager as WorkManagerInterface>::SessionID {
-        self.associated_session_id
-    }
-
-    fn set_as_primary(&self) {}
-
-    fn started_at(&self) -> <WebbWorkManager as WorkManagerInterface>::Clock {
-        self.associated_block_id
-    }
-
-    fn shutdown(
-        &self,
-        reason: ShutdownReason,
-    ) -> Result<(), <WebbWorkManager as WorkManagerInterface>::Error> {
-        self.shutdown_tx
-            .lock()
-            .take()
-            .ok_or_else(|| webb_gadget::Error::ProtocolRemoteError {
-                err: "Protocol already shutdown".to_string(),
-            })?
-            .send(reason)
-            .map_err(|reason| webb_gadget::Error::ProtocolRemoteError {
-                err: format!("Unable to shutdown protocol with status {reason:?}"),
-            })
-    }
-
-    fn is_done(&self) -> bool {
-        self.is_done.load(Ordering::SeqCst)
-    }
-
-    fn deliver_message(
-        &self,
-        message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), <WebbWorkManager as WorkManagerInterface>::Error> {
-        self.to_async_protocol.send(message).map_err(|err| {
-            webb_gadget::Error::ProtocolRemoteError {
-                err: err.to_string(),
-            }
-        })
-    }
-
-    fn has_started(&self) -> bool {
-        self.start_tx.lock().is_none()
-    }
-
-    fn ssid(&self) -> <WebbWorkManager as WorkManagerInterface>::SSID {
-        self.associated_ssid
+        Ok((self.proto_gen)(params))
     }
 }
 
