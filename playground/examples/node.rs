@@ -42,8 +42,8 @@ use zk_gadget::{
         job_types::{CircuitProperties, JobProperties},
         ClientWithApi,
     },
-    module::proto_gen::ZkAsyncProtocolParameters,
     network::ZkNetworkService,
+    protocol::proto_gen::ZkAsyncProtocolParameters,
 };
 
 #[cfg(feature = "parallel")]

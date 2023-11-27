@@ -18,7 +18,6 @@ serde_bytes = { workspace = true }
 async-trait = { workspace = true }
 parking_lot = { workspace = true }
 log = { workspace = true }
-hex = { workspace = true }
 bytes = { workspace = true, features = ["serde"] }
 sp-runtime = { workspace = true }
 

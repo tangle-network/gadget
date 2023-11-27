@@ -1,15 +1,15 @@
 use crate::client_ext::ClientWithApi;
-use crate::module::proto_gen::AsyncProtocolGenerator;
-use crate::module::{AdditionalProtocolParams, ZkModule};
 use crate::network::{RegistantId, ZkNetworkService};
+use crate::protocol::proto_gen::{AsyncProtocolGenerator, ZkProtocolGenerator};
+use crate::protocol::{AdditionalProtocolParams, ZkProtocol};
 use mpc_net::prod::RustlsCertificate;
 use sp_runtime::traits::Block;
 use std::net::SocketAddr;
 use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
 use webb_gadget::Error;
 
-pub mod module;
 pub mod network;
+pub mod protocol;
 
 pub mod client_ext;
 
@@ -31,25 +31,32 @@ pub async fn run<
 >(
     config: ZkGadgetConfig,
     client: C,
-    additional_protocol_params: T,
-    async_protocol_generator: Gen,
+    extra_parameters: T,
+    proto_gen: Gen,
 ) -> Result<(), Error> {
     // Create the zk gadget module
     let network = create_zk_network(&config).await?;
     log::info!("Created zk network for party {}", config.id);
 
-    let zk_module = ZkModule {
+    let protocol = ZkProtocolGenerator {
         party_id: config.id,
         // TODO: The below should be inside job metadata, but NOT determined at runtime
         n_parties: config.n_parties,
-        additional_protocol_params,
+        extra_parameters,
         network: network.clone(),
         client: client.clone(),
-        async_protocol_generator: Box::new(async_protocol_generator),
+        proto_gen: Box::new(proto_gen),
+    };
+
+    let zk_protocol = ZkProtocol {
+        party_id: config.id,
+        client: client.clone(),
+        protocol,
+        _pd: std::marker::PhantomData,
     };
 
     // Plug the module into the webb gadget
-    webb_gadget::run(network, zk_module, client).await
+    webb_gadget::run_protocol(network, zk_protocol, client).await
 }
 
 async fn create_zk_network(config: &ZkGadgetConfig) -> Result<ZkNetworkService, Error> {
