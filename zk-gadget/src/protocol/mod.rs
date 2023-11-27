@@ -3,15 +3,14 @@ use crate::network::RegistantId;
 use async_trait::async_trait;
 use gadget_core::job_manager::ProtocolWorkManager;
 use sp_runtime::traits::Block;
-use std::sync::Arc;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
-use webb_gadget::gadget::WebbGadgetModule;
+use webb_gadget::gadget::{Job, WebbGadgetProtocol};
 use webb_gadget::protocol::AsyncProtocol;
 use webb_gadget::{BlockImportNotification, Error, FinalityNotification};
 
 pub mod proto_gen;
 
-pub struct ZkModule<M, B, C> {
+pub struct ZkProtocol<M, B, C> {
     pub party_id: RegistantId,
     pub protocol: M,
     pub client: C,
@@ -22,15 +21,15 @@ pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {}
 impl<T: Send + Sync + Clone + 'static> AdditionalProtocolParams for T {}
 
 #[async_trait]
-impl<M: AsyncProtocol + Send + Sync, B: Block, C: ClientWithApi<B>> WebbGadgetModule<B>
-    for ZkModule<M, B, C>
+impl<M: AsyncProtocol + Send + Sync, B: Block, C: ClientWithApi<B>> WebbGadgetProtocol<B>
+    for ZkProtocol<M, B, C>
 {
-    async fn process_finality_notification(
+    async fn get_next_job(
         &self,
-        _notification: FinalityNotification<B>,
+        _notification: &FinalityNotification<B>,
         now: u64,
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<Job>, Error> {
         log::info!(
             "Party {} received a finality notification at {now}",
             self.party_id
@@ -46,13 +45,12 @@ impl<M: AsyncProtocol + Send + Sync, B: Block, C: ClientWithApi<B>> WebbGadgetMo
                 .await
                 .map_err(|err| Error::ClientError { err: err.reason })?;
 
-            if let Err(err) = _job_manager.push_task(task_id, false, Arc::new(remote), protocol) {
-                log::error!("Failed to push task to job manager: {err:?}");
-            }
+            return Ok(Some((remote, protocol)));
         } else {
             log::debug!("No Jobs found at #{now}");
         }
-        Ok(())
+
+        Ok(None)
     }
 
     async fn process_block_import_notification(

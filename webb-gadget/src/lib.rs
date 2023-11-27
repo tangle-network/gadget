@@ -1,5 +1,5 @@
 use crate::gadget::network::Network;
-use crate::gadget::{WebbGadgetModule, WebbModule};
+use crate::gadget::{WebbGadgetProtocol, WebbModule};
 use futures_util::future::TryFutureExt;
 use gadget_core::gadget::manager::{GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
@@ -37,9 +37,9 @@ impl Display for Error {
 
 impl std::error::Error for Error {}
 
-pub async fn run<C: Client<B>, B: Block, N: Network, M: WebbGadgetModule<B>>(
+pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: WebbGadgetProtocol<B>>(
     network: N,
-    module: M,
+    protocol: P,
     client: C,
 ) -> Result<(), Error> {
     // Before running, wait for the first finality notification we receive
@@ -52,7 +52,8 @@ pub async fn run<C: Client<B>, B: Block, N: Network, M: WebbGadgetModule<B>>(
         .header
         .number())
     .saturated_into();
-    let webb_module = WebbModule::new(network.clone(), module, Some(now));
+
+    let webb_module = WebbModule::new(network.clone(), protocol, Some(now));
     // Plug the module into the substrate gadget to interface the WebbGadget with Substrate
     let substrate_gadget = SubstrateGadget::new(client, webb_module);
 

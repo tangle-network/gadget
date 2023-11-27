@@ -1,6 +1,6 @@
 use crate::client_ext::ClientWithApi;
-use crate::module::AdditionalProtocolParams;
 use crate::network::RegistantId;
+use crate::protocol::AdditionalProtocolParams;
 use async_trait::async_trait;
 use bytes::Bytes;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
@@ -56,7 +56,7 @@ impl<
 {
 }
 
-pub struct ZkProtocol<B, E, N, C, Bl> {
+pub struct ZkProtocolGenerator<B, E, N, C, Bl> {
     pub party_id: RegistantId,
     pub n_parties: usize,
     pub extra_parameters: B,
@@ -67,7 +67,7 @@ pub struct ZkProtocol<B, E, N, C, Bl> {
 
 #[async_trait]
 impl<B: AdditionalProtocolParams, E, N: Network, C: ClientWithApi<Bl>, Bl: Block> AsyncProtocol
-    for ZkProtocol<B, E, N, C, Bl>
+    for ZkProtocolGenerator<B, E, N, C, Bl>
 {
     async fn generate_protocol_from(
         &self,

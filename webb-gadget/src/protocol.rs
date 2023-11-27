@@ -14,6 +14,7 @@ pub struct AsyncProtocolRemote {
     pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
     pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
     pub associated_ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
+    pub associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
     pub to_async_protocol: tokio::sync::mpsc::UnboundedSender<
         <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
     >,
@@ -53,6 +54,7 @@ pub trait AsyncProtocol {
             shutdown_tx: Mutex::new(Some(shutdown_tx)),
             associated_block_id: now,
             associated_ssid: ssid,
+            associated_task_id: task_id,
             associated_session_id: session_id,
             to_async_protocol,
             is_done: is_done.clone(),

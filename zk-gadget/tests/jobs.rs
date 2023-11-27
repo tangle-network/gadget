@@ -12,8 +12,8 @@ mod tests {
     use tracing_subscriber::fmt::SubscriberBuilder;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::EnvFilter;
-    use zk_gadget::module::proto_gen::ZkAsyncProtocolParameters;
     use zk_gadget::network::ZkNetworkService;
+    use zk_gadget::protocol::proto_gen::ZkAsyncProtocolParameters;
 
     pub fn setup_log() {
         let _ = SubscriberBuilder::default()
