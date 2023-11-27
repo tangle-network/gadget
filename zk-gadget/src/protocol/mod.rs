@@ -28,7 +28,7 @@ impl<M: AsyncProtocol + Send + Sync, B: Block, C: ClientWithApi<B>> WebbGadgetPr
         &self,
         _notification: &FinalityNotification<B>,
         now: u64,
-        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
+        job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Job>, Error> {
         log::info!(
             "Party {} received a finality notification at {now}",
@@ -39,6 +39,11 @@ impl<M: AsyncProtocol + Send + Sync, B: Block, C: ClientWithApi<B>> WebbGadgetPr
             log::debug!("Found a job {} at {now}", job.job_id);
             let mut task_id = [0u8; 32];
             task_id[..8].copy_from_slice(&job.job_id.to_be_bytes()[..]);
+
+            if job_manager.job_exists(&task_id) {
+                return Ok(None);
+            }
+
             let (remote, protocol) = self
                 .protocol
                 .create(now / 6000, now, 0, task_id)
