@@ -3,12 +3,15 @@ use crate::gadget::{WebbGadgetProtocol, WebbModule};
 use futures_util::future::TryFutureExt;
 use gadget_core::gadget::manager::{GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
-use gadget_core::job_manager::WorkManagerError;
+use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
 pub use sc_client_api::BlockImportNotification;
 pub use sc_client_api::{Backend, FinalityNotification};
 pub use sp_runtime::traits::{Block, Header};
 use sp_runtime::SaturatedConversion;
 use std::fmt::{Debug, Display, Formatter};
+use std::sync::Arc;
+use parking_lot::RwLock;
+use crate::gadget::work_manager::WebbWorkManager;
 
 pub mod gadget;
 
@@ -36,26 +39,13 @@ impl Display for Error {
 }
 
 impl std::error::Error for Error {}
-
-pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: WebbGadgetProtocol<B>>(
+pub async fn run_protocol_with_wm<C: Client<B>, B: Block, N: Network, P: WebbGadgetProtocol<B>>(
     network: N,
     protocol: P,
     client: C,
+    work_manager: ProtocolWorkManager<WebbWorkManager>
 ) -> Result<(), Error> {
-    // Before running, wait for the first finality notification we receive
-    let now: u64 = (*client
-        .get_latest_finality_notification()
-        .await
-        .ok_or_else(|| Error::InitError {
-            err: "No finality notification received".to_string(),
-        })?
-        .header
-        .number())
-    .saturated_into();
-
-    let work_manager_config = protocol.get_work_manager_config();
-
-    let webb_module = WebbModule::new(network.clone(), protocol, Some(now), work_manager_config);
+    let webb_module = WebbModule::new(network.clone(), protocol, work_manager);
     // Plug the module into the substrate gadget to interface the WebbGadget with Substrate
     let substrate_gadget = SubstrateGadget::new(client, webb_module);
 
@@ -65,4 +55,46 @@ pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: WebbGadgetProto
 
     // Run both the network and the gadget together
     tokio::try_join!(network_future, gadget_future).map(|_| ())
+}
+
+pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: WebbGadgetProtocol<B>>(
+    network: N,
+    protocol: P,
+    client: C,
+) -> Result<(), Error> {
+    let wm = create_work_manager(&client, &protocol).await?;
+    run_protocol_with_wm(network, protocol, client, wm).await
+}
+
+pub async fn create_work_manager<C: Client<B>, B: Block, P: WebbGadgetProtocol<B>>(client: &C, protocol: &P) -> Result<ProtocolWorkManager<WebbWorkManager>, Error> {
+    // Before running, wait for the first finality notification we receive
+    let now: u64 = (*client
+        .get_latest_finality_notification()
+        .await
+        .ok_or_else(|| Error::InitError {
+            err: "No finality notification received".to_string(),
+        })?
+        .header
+        .number())
+        .saturated_into();
+
+    let work_manager_config = protocol.get_work_manager_config();
+
+    let clock = Arc::new(RwLock::new(Some(now)));
+
+    let job_manager_zk = WebbWorkManager {
+        clock,
+    };
+
+    let poll_method = match work_manager_config.interval {
+        Some(interval) => PollMethod::Interval { millis: interval.as_millis() as u64 },
+        None => PollMethod::Manual,
+    };
+
+    Ok(ProtocolWorkManager::new(
+        job_manager_zk,
+        work_manager_config.max_active_tasks,
+        work_manager_config.max_pending_tasks,
+        poll_method,
+    ))
 }

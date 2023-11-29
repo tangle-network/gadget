@@ -137,7 +137,7 @@ impl<B: Send + Sync + Clone + 'static> AbstractGadget for TestGadget<B> {
 fn create_test_async_protocol<B: Send + Sync + 'static>(
     session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
     now: <TestWorkManager as WorkManagerInterface>::Clock,
-    ssid: <TestWorkManager as WorkManagerInterface>::SSID,
+    ssid: <TestWorkManager as WorkManagerInterface>::RetryID,
     task_id: <TestWorkManager as WorkManagerInterface>::TaskID,
     test_bundle: B,
     proto_gen: &dyn AsyncProtocolGenerator<B>,

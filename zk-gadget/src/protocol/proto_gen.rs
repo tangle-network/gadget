@@ -19,7 +19,7 @@ use webb_gadget::protocol::AsyncProtocol;
 
 pub struct ZkAsyncProtocolParameters<B, N, C, Bl> {
     pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-    pub associated_ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
+    pub associated_ssid: <WebbWorkManager as WorkManagerInterface>::RetryID,
     pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
     pub associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
     rxs: HashMap<u32, Vec<tokio::sync::Mutex<UnboundedReceiver<MpcNetMessage>>>>,
@@ -72,7 +72,7 @@ impl<B: AdditionalProtocolParams, E, N: Network, C: ClientWithApi<Bl>, Bl: Block
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-        associated_ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
+        associated_ssid: <WebbWorkManager as WorkManagerInterface>::RetryID,
         associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
         associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
         mut protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,

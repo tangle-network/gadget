@@ -3,14 +3,15 @@ use async_trait::async_trait;
 use gadget_core::job_manager::ProtocolWorkManager;
 use std::error::Error;
 use sc_client_api::Backend;
+use tangle_primitives::jobs::JobType;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
 use webb_gadget::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
 use webb_gadget::{Block, BlockImportNotification, FinalityNotification};
-use crate::client::ClientWithApi;
-use crate::protocols::managers::keygen::KeygenManager;
+use crate::client::{AccountId, ClientWithApi, MpEcdsaClient};
 
 pub struct MpEcdsaKeygenProtocol<B, BE, C> {
-    keygen_manager: KeygenManager<B, BE, C>
+    client: MpEcdsaClient<B, BE, C>,
+    account_id: AccountId,
 }
 
 pub async fn create_protocol(
@@ -21,15 +22,27 @@ pub async fn create_protocol(
 
 #[async_trait]
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> WebbGadgetProtocol<B> for MpEcdsaKeygenProtocol<B, BE, C> {
-    async fn get_next_job(
+    async fn get_next_jobs(
         &self,
-        notification: &FinalityNotification<B>,
+        _notification: &FinalityNotification<B>,
         _now: u64,
-        job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) -> Result<Option<Job>, webb_gadget::Error> {
-        // Let the KeygenManager decide what to do next. The KeygenManager will return a job if it
-        // wants to do something, or None if it doesn't want to do anything.
-        Ok(self.keygen_manager.on_block_finalized(&notification.header, job_manager).await)
+        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
+    ) -> Result<Option<Vec<Job>>, webb_gadget::Error> {
+        let jobs = self.client.query_jobs_by_validator(self.account_id).await?
+            .into_iter()
+            .filter(|r| matches!(r.job_type, JobType::DKG(..)));
+
+        let mut ret = vec![];
+
+        for job in jobs {
+            let participants = job.job_type.get_participants().expect("Should exist for DKG");
+            if participants.contains(&self.account_id) {
+                // Create a job, push to ret
+
+            }
+        }
+
+        Ok(Some(ret))
     }
 
     async fn process_block_import_notification(

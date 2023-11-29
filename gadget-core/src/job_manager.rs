@@ -24,7 +24,7 @@ pub enum DeliveryType {
 }
 pub struct ProtocolWorkManager<WM: WorkManagerInterface> {
     inner: Arc<RwLock<WorkManagerInner<WM>>>,
-    utility: Arc<WM>,
+    pub utility: Arc<WM>,
     // for now, use a hard-coded value for the number of tasks
     max_tasks: Arc<usize>,
     max_enqueued_tasks: Arc<usize>,
@@ -47,13 +47,14 @@ pub struct WorkManagerInner<WM: WorkManagerInterface> {
     pub active_tasks: HashSet<Job<WM>>,
     pub enqueued_tasks: VecDeque<Job<WM>>,
     // task hash => SSID => enqueued messages
-    pub enqueued_messages: EnqueuedMessage<WM::TaskID, WM::SSID, WM::ProtocolMessage>,
+    pub enqueued_messages: EnqueuedMessage<WM::TaskID, WM::RetryID, WM::ProtocolMessage>,
 }
 
 pub type EnqueuedMessage<A, B, C> = HashMap<A, HashMap<B, VecDeque<C>>>;
 
 pub trait WorkManagerInterface: Send + Sync + 'static + Sized {
-    type SSID: Copy + Hash + Eq + PartialEq + Send + Sync + 'static;
+    type RetryID: Copy + Hash + Eq + PartialEq + Send + Sync + 'static;
+    type UserID: Copy + Hash + Eq + PartialEq + Send + Sync + 'static;
     type Clock: Copy
         + Debug
         + Default
@@ -99,8 +100,10 @@ fn saturating_sub<T: Sub<Output = T> + Ord + Default>(a: T, b: T) -> T {
 pub trait ProtocolMessageMetadata<WM: WorkManagerInterface> {
     fn associated_block_id(&self) -> WM::Clock;
     fn associated_session_id(&self) -> WM::SessionID;
-    fn associated_ssid(&self) -> WM::SSID;
+    fn associated_retry_id(&self) -> WM::RetryID;
     fn associated_task(&self) -> WM::TaskID;
+    fn associated_sender_user_id(&self) -> WM::UserID;
+    fn associated_recipient_user_id(&self) -> Option<WM::UserID>;
 }
 
 /// The [`ProtocolRemote`] is the interface between the [`ProtocolWorkManager`] and the async protocol.
@@ -108,13 +111,12 @@ pub trait ProtocolMessageMetadata<WM: WorkManagerInterface> {
 pub trait ProtocolRemote<WM: WorkManagerInterface>: Send + Sync + 'static {
     fn start(&self) -> Result<(), WM::Error>;
     fn session_id(&self) -> WM::SessionID;
-    fn set_as_primary(&self);
     fn started_at(&self) -> WM::Clock;
     fn shutdown(&self, reason: ShutdownReason) -> Result<(), WM::Error>;
     fn is_done(&self) -> bool;
     fn deliver_message(&self, message: WM::ProtocolMessage) -> Result<(), WM::Error>;
     fn has_started(&self) -> bool;
-    fn ssid(&self) -> WM::SSID;
+    fn ssid(&self) -> WM::RetryID;
 
     fn has_stalled(&self, now: WM::Clock) -> bool {
         now >= self.started_at() + WM::acceptable_block_tolerance()
@@ -192,8 +194,6 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         task: T,
     ) -> Result<(), WorkManagerError> {
         let mut lock = self.inner.write();
-        // set as primary, that way on drop, the async protocol ends
-        handle.set_as_primary();
         let job = Job {
             task: Arc::new(parking_lot::Mutex::new(Some(Box::new(task)))),
             handle,
@@ -414,6 +414,16 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
             "Delivered message is intended for session_id = {}",
             msg.associated_session_id()
         ));
+
+        if let Some(recv) = msg.associated_recipient_user_id() {
+            if recv == msg.associated_sender_user_id() {
+                self.utility.warn("Message sent to self, which is not allowed".to_string());
+                return Err(WorkManagerError::DeliverMessageFailed {
+                    reason: "Message sent to self, which is not allowed".to_string(),
+                })
+            }
+        }
+
         let message_task_hash = msg.associated_task();
         let mut lock = self.inner.write();
 
@@ -468,7 +478,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         lock.enqueued_messages
             .entry(message_task_hash)
             .or_default()
-            .entry(msg.associated_ssid())
+            .entry(msg.associated_retry_id())
             .or_default()
             .push_back(msg);
 
@@ -545,7 +555,7 @@ fn should_deliver<WM: WorkManagerInterface>(
 ) -> bool {
     task.handle.session_id() == msg.associated_session_id()
         && task.task_hash == message_task_hash
-        && task.handle.ssid() == msg.associated_ssid()
+        && task.handle.ssid() == msg.associated_retry_id()
         && WM::associated_block_id_acceptable(
             task.handle.started_at(), // use to be associated_block_id
             msg.associated_block_id(),
@@ -571,6 +581,8 @@ mod tests {
         associated_session_id: u32,
         associated_ssid: u32,
         associated_task: [u8; 32],
+        associated_sender: u64,
+        associated_recipient: Option<u64>,
     }
 
     impl ProtocolMessageMetadata<TestWorkManager> for TestMessage {
@@ -580,28 +592,39 @@ mod tests {
         fn associated_session_id(&self) -> u32 {
             self.associated_session_id
         }
-        fn associated_ssid(&self) -> u32 {
+        fn associated_retry_id(&self) -> u32 {
             self.associated_ssid
         }
         fn associated_task(&self) -> [u8; 32] {
             self.associated_task
         }
+
+        fn associated_sender_user_id(&self) -> <TestWorkManager as WorkManagerInterface>::UserID {
+            self.associated_sender
+        }
+
+        fn associated_recipient_user_id(&self) -> Option<<TestWorkManager as WorkManagerInterface>::UserID> {
+            self.associated_recipient
+        }
     }
 
     impl WorkManagerInterface for TestWorkManager {
-        type SSID = u32;
+        type RetryID = u32;
+        type UserID = u64;
         type Clock = u64;
         type ProtocolMessage = TestMessage;
         type Error = ();
         type SessionID = u32;
         type TaskID = [u8; 32];
 
-        fn debug(&self, _input: String) {}
+        fn debug(&self, input: String) {
+            log::debug!("{input}")
+        }
         fn error(&self, input: String) {
-            println!("ERROR: {input}")
+            log::error!("{input}")
         }
         fn warn(&self, input: String) {
-            println!("WARN: {input}")
+            log::warn!("{input}")
         }
         fn clock(&self) -> Self::Clock {
             0
@@ -677,7 +700,6 @@ mod tests {
         fn session_id(&self) -> u32 {
             self.session_id
         }
-        fn set_as_primary(&self) {}
         fn has_stalled(&self, now: u64) -> bool {
             now > self.started_at
         }
@@ -727,12 +749,35 @@ mod tests {
             associated_session_id: 0,
             associated_ssid: 0,
             associated_task: [0; 32],
+            associated_recipient: None,
+            associated_sender: 0,
         };
         assert_ne!(
             DeliveryType::EnqueuedMessage,
             work_manager.deliver_message(message).unwrap()
         );
         let _ = rx.recv().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_deliver_self_ref_message() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+        let (remote, task, _rx) = generate_async_protocol(0, 0, 0);
+
+        work_manager
+            .push_task(Default::default(), true, remote.clone(), task)
+            .unwrap();
+
+        let message = TestMessage {
+            message: "test".to_string(),
+            associated_block_id: 0,
+            associated_session_id: 0,
+            associated_ssid: 0,
+            associated_task: [0; 32],
+            associated_recipient: Some(0),
+            associated_sender: 0,
+        };
+        assert!(work_manager.deliver_message(message).is_err());
     }
 
     #[tokio::test]
@@ -793,6 +838,8 @@ mod tests {
             associated_session_id: 1,
             associated_ssid: 1,
             associated_task: [0; 32],
+            associated_recipient: None,
+            associated_sender: 0,
         };
         assert_ne!(
             DeliveryType::EnqueuedMessage,
@@ -1024,6 +1071,8 @@ mod tests {
             associated_session_id: 1,
             associated_ssid: 1,
             associated_task: [0; 32],
+            associated_sender: 0,
+            associated_recipient: None,
         };
 
         // Deliver a message to a non-existent job
@@ -1048,6 +1097,8 @@ mod tests {
             associated_session_id: 1,
             associated_ssid: 1,
             associated_task: [0; 32],
+            associated_sender: 0,
+            associated_recipient: None,
         };
 
         // Try to deliver a message with an outdated block ID
@@ -1084,6 +1135,8 @@ mod tests {
             associated_session_id: 1,
             associated_ssid: 1,
             associated_task: [0; 32],
+            associated_sender: 0,
+            associated_recipient: None,
         };
 
         for _ in 0..10 {
@@ -1145,6 +1198,8 @@ mod tests {
             associated_session_id: 1,
             associated_ssid: 1,
             associated_task: [0; 32],
+            associated_sender: 0,
+            associated_recipient: None,
         };
 
         work_manager.push_task([0; 32], true, remote, task).unwrap();
@@ -1164,6 +1219,8 @@ mod tests {
             associated_session_id: 1,
             associated_ssid: 1,
             associated_task: [1; 32], // incorrect task hash, not 0;32 as below
+            associated_sender: 0,
+            associated_recipient: None,
         };
 
         work_manager.push_task([0; 32], true, remote, task).unwrap();
@@ -1182,16 +1239,25 @@ mod tests {
         fn associated_session_id(&self) -> u64 {
             0u64
         }
-        fn associated_ssid(&self) -> u64 {
+        fn associated_retry_id(&self) -> u64 {
             0u64
         }
         fn associated_task(&self) -> [u8; 32] {
             [0; 32]
         }
+
+        fn associated_sender_user_id(&self) -> <DummyRangeChecker<N> as WorkManagerInterface>::UserID {
+            0
+        }
+
+        fn associated_recipient_user_id(&self) -> Option<<DummyRangeChecker<N> as WorkManagerInterface>::UserID> {
+            None
+        }
     }
 
     impl<const N: u64> WorkManagerInterface for DummyRangeChecker<N> {
-        type SSID = u64;
+        type RetryID = u64;
+        type UserID = u64;
         type Clock = u64;
         type ProtocolMessage = DummyProtocolMessage;
         type Error = ();

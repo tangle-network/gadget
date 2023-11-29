@@ -15,9 +15,8 @@ webb-gadget = { path = "./webb-gadget" }
 zk-gadget = { path = "./zk-gadget" }
 zk-playground = { path = "./playground" }
 mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
-
-dkg-runtime-primitives = { git = "https://github.com/webb-tools/dkg-substrate" }
-dkg-primitives = { git = "https://github.com/webb-tools/dkg-substrate" }
+pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle" }
+tangle-primitives = { git = "https://github.com/webb-tools/tangle" }
 
 sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }

@@ -40,24 +40,8 @@ pub struct WorkManagerConfig {
 }
 
 impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> WebbModule<B, C, N, M> {
-    pub fn new(network: N, module: M, now: Option<u64>, polling_config: WorkManagerConfig) -> Self {
-        let clock = Arc::new(RwLock::new(now));
-        let clock_clone = clock.clone();
-
-        let job_manager_zk = WebbWorkManager::new(move || *clock_clone.read());
-
-        let poll_method = match polling_config.interval {
-            Some(interval) => PollMethod::Interval { millis: interval.as_millis() as u64 },
-            None => PollMethod::Manual,
-        };
-
-        let job_manager = ProtocolWorkManager::new(
-            job_manager_zk,
-            polling_config.max_active_tasks,
-            polling_config.max_pending_tasks,
-            poll_method,
-        );
-
+    pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<WebbWorkManager>) -> Self {
+        let clock = job_manager.utility.clock.clone();
         WebbModule {
             protocol: module,
             job_manager,
@@ -88,23 +72,25 @@ impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> SubstrateGadg
         let now: u64 = (*notification.header.number()).saturated_into();
         *self.clock.write() = Some(now);
 
-        while let Some(job) = self
+        if let Some(jobs) = self
             .protocol
-            .get_next_job(&notification, now, &self.job_manager)
+            .get_next_jobs(&notification, now, &self.job_manager)
             .await?
         {
-            let (remote, protocol) = job;
-            let task_id = remote.associated_task_id;
+            for job in jobs {
+                let (remote, protocol) = job;
+                let task_id = remote.associated_task_id;
 
-            if let Err(err) = self
-                .job_manager
-                .push_task(task_id, false, Arc::new(remote), protocol)
-            {
-                log::error!("Failed to push task to job manager: {err:?}");
-            } else {
-                // Maybe poll if polling is manual mode
-                if self.job_manager.poll_method() == PollMethod::Manual {
-                    self.job_manager.poll();
+                if let Err(err) = self
+                    .job_manager
+                    .push_task(task_id, false, Arc::new(remote), protocol)
+                {
+                    log::error!("Failed to push task to job manager: {err:?}");
+                } else {
+                    // Maybe poll if polling is manual mode
+                    if self.job_manager.poll_method() == PollMethod::Manual {
+                        self.job_manager.poll();
+                    }
                 }
             }
         }
@@ -140,12 +126,12 @@ pub type Job = (AsyncProtocolRemote, BuiltExecutableJobWrapper);
 
 #[async_trait]
 pub trait WebbGadgetProtocol<B: Block>: Send + Sync {
-    async fn get_next_job(
+    async fn get_next_jobs(
         &self,
         notification: &FinalityNotification<B>,
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) -> Result<Option<Job>, Error>;
+    ) -> Result<Option<Vec<Job>>, Error>;
     async fn process_block_import_notification(
         &self,
         notification: BlockImportNotification<B>,

@@ -16,8 +16,6 @@
 
 use sp_application_crypto::sp_core::{ecdsa, keccak_256, Pair};
 
-use dkg_runtime_primitives::crypto;
-
 /// Set of test accounts using [`crypto`] types.
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::IntoEnumIterator)]

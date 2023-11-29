@@ -24,12 +24,12 @@ impl<T: Send + Sync + Clone + 'static> AdditionalProtocolParams for T {}
 impl<M: AsyncProtocol + Send + Sync, B: Block, C: ClientWithApi<B>> WebbGadgetProtocol<B>
     for ZkProtocol<M, B, C>
 {
-    async fn get_next_job(
+    async fn get_next_jobs(
         &self,
         _notification: &FinalityNotification<B>,
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) -> Result<Option<Job>, Error> {
+    ) -> Result<Option<Vec<Job>>, Error> {
         log::info!(
             "Party {} received a finality notification at {now}",
             self.party_id
@@ -50,7 +50,7 @@ impl<M: AsyncProtocol + Send + Sync, B: Block, C: ClientWithApi<B>> WebbGadgetPr
                 .await
                 .map_err(|err| Error::ClientError { err: err.reason })?;
 
-            return Ok(Some((remote, protocol)));
+            return Ok(Some(vec![(remote, protocol)]));
         } else {
             log::debug!("No Jobs found at #{now}");
         }

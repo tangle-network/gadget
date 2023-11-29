@@ -16,6 +16,7 @@ substrate = [
 parking_lot = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "macros", "rt"] }
 hex = "0.4.3"
+log = { workspace = true }
 async-trait = "0.1.73"
 
 sp-runtime = { optional = true, workspace = true, default-features = false }

@@ -1,5 +1,5 @@
 use crate::error::TestError;
-use crate::message::TestProtocolMessage;
+use crate::message::{TestProtocolMessage, UserID};
 use gadget_core::job::JobError;
 use gadget_core::job_manager::{ProtocolRemote, SendFuture, ShutdownReason, WorkManagerInterface};
 use parking_lot::{Mutex, RwLock};
@@ -16,7 +16,7 @@ pub struct TestProtocolRemote {
     pub shutdown_tx: Mutex<Option<tokio::sync::oneshot::Sender<ShutdownReason>>>,
     pub associated_session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
     pub associated_block_id: <TestWorkManager as WorkManagerInterface>::Clock,
-    pub associated_ssid: <TestWorkManager as WorkManagerInterface>::SSID,
+    pub associated_ssid: <TestWorkManager as WorkManagerInterface>::RetryID,
     pub to_async_protocol: tokio::sync::mpsc::UnboundedSender<
         <TestWorkManager as WorkManagerInterface>::ProtocolMessage,
     >,
@@ -26,8 +26,8 @@ pub struct TestProtocolRemote {
 const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 20;
 
 impl WorkManagerInterface for TestWorkManager {
-    // TODO: rename to retry_id or similar
-    type SSID = u16;
+    type RetryID = u16;
+    type UserID = UserID;
     type Clock = u64;
     type ProtocolMessage = TestProtocolMessage;
     type Error = TestError;
@@ -73,8 +73,6 @@ impl ProtocolRemote<TestWorkManager> for TestProtocolRemote {
         self.associated_session_id
     }
 
-    fn set_as_primary(&self) {}
-
     fn started_at(&self) -> <TestWorkManager as WorkManagerInterface>::Clock {
         self.associated_block_id
     }
@@ -112,7 +110,7 @@ impl ProtocolRemote<TestWorkManager> for TestProtocolRemote {
         self.start_tx.lock().is_none()
     }
 
-    fn ssid(&self) -> <TestWorkManager as WorkManagerInterface>::SSID {
+    fn ssid(&self) -> <TestWorkManager as WorkManagerInterface>::RetryID {
         self.associated_ssid
     }
 }
@@ -125,7 +123,7 @@ pub struct TestAsyncProtocolParameters<B> {
     pub start_rx: Option<tokio::sync::oneshot::Receiver<()>>,
     pub shutdown_rx: Option<tokio::sync::oneshot::Receiver<ShutdownReason>>,
     pub associated_block_id: <TestWorkManager as WorkManagerInterface>::Clock,
-    pub associated_ssid: <TestWorkManager as WorkManagerInterface>::SSID,
+    pub associated_ssid: <TestWorkManager as WorkManagerInterface>::RetryID,
     pub associated_session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
     pub associated_task_id: <TestWorkManager as WorkManagerInterface>::TaskID,
     pub test_bundle: B,

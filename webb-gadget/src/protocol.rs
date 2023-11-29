@@ -13,7 +13,7 @@ pub struct AsyncProtocolRemote {
     pub shutdown_tx: Mutex<Option<tokio::sync::oneshot::Sender<ShutdownReason>>>,
     pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
     pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-    pub associated_ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
+    pub associated_ssid: <WebbWorkManager as WorkManagerInterface>::RetryID,
     pub associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
     pub to_async_protocol: tokio::sync::mpsc::UnboundedSender<
         <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
@@ -26,7 +26,7 @@ pub trait AsyncProtocol {
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-        associated_ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
+        associated_ssid: <WebbWorkManager as WorkManagerInterface>::RetryID,
         associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
         associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
         protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
@@ -36,7 +36,7 @@ pub trait AsyncProtocol {
         &self,
         session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
         now: <WebbWorkManager as WorkManagerInterface>::Clock,
-        ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
+        ssid: <WebbWorkManager as WorkManagerInterface>::RetryID,
         task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
     ) -> Result<(AsyncProtocolRemote, BuiltExecutableJobWrapper), JobError> {
         let is_done = Arc::new(AtomicBool::new(false));
@@ -90,8 +90,6 @@ impl ProtocolRemote<WebbWorkManager> for AsyncProtocolRemote {
         self.associated_session_id
     }
 
-    fn set_as_primary(&self) {}
-
     fn started_at(&self) -> <WebbWorkManager as WorkManagerInterface>::Clock {
         self.associated_block_id
     }
@@ -131,7 +129,7 @@ impl ProtocolRemote<WebbWorkManager> for AsyncProtocolRemote {
         self.start_tx.lock().is_none()
     }
 
-    fn ssid(&self) -> <WebbWorkManager as WorkManagerInterface>::SSID {
+    fn ssid(&self) -> <WebbWorkManager as WorkManagerInterface>::RetryID {
         self.associated_ssid
     }
 }

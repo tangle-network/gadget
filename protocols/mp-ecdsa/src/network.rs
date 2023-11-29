@@ -1,6 +1,7 @@
 use crate::MpEcdsaProtocolConfig;
 use gadget_core::job_manager::WorkManagerInterface;
 use std::error::Error;
+use async_trait::async_trait;
 use webb_gadget::gadget::network::Network;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
 
@@ -19,6 +20,7 @@ pub async fn create_network(
     Ok(gossip_network)
 }
 
+#[async_trait]
 impl Network for GossipNetwork {
     async fn next_message(
         &self,

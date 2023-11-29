@@ -1,33 +1,17 @@
-use crate::gadget::message::GadgetProtocolMessage;
+use crate::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_core::job_manager::WorkManagerInterface;
 use std::sync::Arc;
+use parking_lot::RwLock;
 
 pub struct WebbWorkManager {
-    pub(crate) clock: Arc<
-        dyn Fn() -> Option<<WebbWorkManager as WorkManagerInterface>::Clock>
-            + Send
-            + Sync
-            + 'static,
-    >,
-}
-
-impl WebbWorkManager {
-    pub fn new(
-        clock: impl Fn() -> Option<<WebbWorkManager as WorkManagerInterface>::Clock>
-            + Send
-            + Sync
-            + 'static,
-    ) -> Self {
-        Self {
-            clock: Arc::new(clock),
-        }
-    }
+    pub(crate) clock: Arc<RwLock<Option<<WebbWorkManager as WorkManagerInterface>::Clock>>>,
 }
 
 const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 5;
 
 impl WorkManagerInterface for WebbWorkManager {
-    type SSID = u16;
+    type RetryID = u16;
+    type UserID = UserID;
     type Clock = u64;
     type ProtocolMessage = GadgetProtocolMessage;
     type Error = crate::Error;
@@ -47,7 +31,7 @@ impl WorkManagerInterface for WebbWorkManager {
     }
 
     fn clock(&self) -> Self::Clock {
-        (self.clock)().expect("No finality notification received")
+        self.clock.read().expect("No finality notification received")
     }
 
     fn acceptable_block_tolerance() -> Self::Clock {

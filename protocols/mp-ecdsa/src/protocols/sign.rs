@@ -16,7 +16,7 @@ pub async fn create_protocol(
 
 #[async_trait]
 impl<B: Block> WebbGadgetProtocol<B> for MpEcdsaSigningProtocol {
-    async fn get_next_job(
+    async fn get_next_jobs(
         &self,
         notification: &FinalityNotification<B>,
         now: u64,

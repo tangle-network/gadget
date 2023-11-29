@@ -12,8 +12,8 @@ gadget-core = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }
-dkg-runtime-primitives = { workspace = true }
-dkg-primitives = { workspace = true }
+pallet-jobs-rpc-runtime-api = { workspace = true }
+tangle-primitives = { workspace = true }
 sc-client-api = { workspace = true }
 sp-api = { workspace = true }
 sp-runtime = { workspace = true }
