@@ -474,6 +474,10 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
 
         Ok(DeliveryType::EnqueuedMessage)
     }
+
+    pub fn poll_method(&self) -> PollMethod {
+        *self.poll_method
+    }
 }
 
 pub struct Job<WM: WorkManagerInterface> {

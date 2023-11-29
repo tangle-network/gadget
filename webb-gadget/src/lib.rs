@@ -6,7 +6,7 @@ use gadget_core::gadget::substrate::{Client, SubstrateGadget};
 use gadget_core::job_manager::WorkManagerError;
 pub use sc_client_api::BlockImportNotification;
 pub use sc_client_api::{Backend, FinalityNotification};
-use sp_runtime::traits::{Block, Header};
+pub use sp_runtime::traits::{Block, Header};
 use sp_runtime::SaturatedConversion;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -53,7 +53,9 @@ pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: WebbGadgetProto
         .number())
     .saturated_into();
 
-    let webb_module = WebbModule::new(network.clone(), protocol, Some(now));
+    let work_manager_config = protocol.get_work_manager_config();
+
+    let webb_module = WebbModule::new(network.clone(), protocol, Some(now), work_manager_config);
     // Plug the module into the substrate gadget to interface the WebbGadget with Substrate
     let substrate_gadget = SubstrateGadget::new(client, webb_module);
 

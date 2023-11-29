@@ -1,0 +1,25 @@
+[package]
+name = "mp-ecdsa-protocol"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+webb-gadget = { workspace = true }
+gadget-core = { workspace = true }
+async-trait = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+dkg-runtime-primitives = { workspace = true }
+dkg-primitives = { workspace = true }
+sc-client-api = { workspace = true }
+sp-api = { workspace = true }
+sp-runtime = { workspace = true }
+sp-keystore = { workspace = true }
+sc-keystore = { workspace = true }
+itertools = { workspace = true }
+sp-application-crypto = { workspace = true }
+parity-scale-codec = { workspace = true }
+strum = { workspace = true }

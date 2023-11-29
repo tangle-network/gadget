@@ -5,7 +5,8 @@ members = [
     "webb-gadget",
     "zk-gadget",
     "test-gadget",
-    "playground"
+    "playground",
+    "protocols/mp-ecdsa"
 ]
 
 [workspace.dependencies]
@@ -13,11 +14,19 @@ gadget-core = { path = "./gadget-core" }
 webb-gadget = { path = "./webb-gadget" }
 zk-gadget = { path = "./zk-gadget" }
 zk-playground = { path = "./playground" }
+mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
+
+dkg-runtime-primitives = { git = "https://github.com/webb-tools/dkg-substrate" }
+dkg-primitives = { git = "https://github.com/webb-tools/dkg-substrate" }
 
 sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 sc-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+sp-application-crypto = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 parity-scale-codec = "3.6.5"
 
 mpc-net = { git = "https://github.com/webb-tools/zk-SaaS/" }
@@ -38,3 +47,5 @@ hex = "0.4.3"
 uuid = "1.4.1"
 bytes = "1.5.0"
 serde_bytes = "0.11.12"
+itertools = "0.12.0"
+strum = "0.25.0"

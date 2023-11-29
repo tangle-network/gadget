@@ -13,6 +13,7 @@ use sp_runtime::traits::{Block, Header};
 use sp_runtime::SaturatedConversion;
 use std::marker::PhantomData;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub mod message;
 pub mod network;
@@ -27,21 +28,34 @@ pub struct WebbModule<B, C, N, M> {
     _pd: PhantomData<(B, C)>,
 }
 
-const MAX_ACTIVE_TASKS: usize = 4;
-const MAX_PENDING_TASKS: usize = 4;
+const DEFAULT_MAX_ACTIVE_TASKS: usize = 4;
+const DEFAULT_MAX_PENDING_TASKS: usize = 4;
+const DEFAULT_POLL_INTERVAL: Option<Duration> = Some(Duration::from_millis(200));
+
+#[derive(Debug)]
+pub struct WorkManagerConfig {
+    pub interval: Option<Duration>,
+    pub max_active_tasks: usize,
+    pub max_pending_tasks: usize,
+}
 
 impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> WebbModule<B, C, N, M> {
-    pub fn new(network: N, module: M, now: Option<u64>) -> Self {
+    pub fn new(network: N, module: M, now: Option<u64>, polling_config: WorkManagerConfig) -> Self {
         let clock = Arc::new(RwLock::new(now));
         let clock_clone = clock.clone();
 
         let job_manager_zk = WebbWorkManager::new(move || *clock_clone.read());
 
+        let poll_method = match polling_config.interval {
+            Some(interval) => PollMethod::Interval { millis: interval.as_millis() as u64 },
+            None => PollMethod::Manual,
+        };
+
         let job_manager = ProtocolWorkManager::new(
             job_manager_zk,
-            MAX_ACTIVE_TASKS,
-            MAX_PENDING_TASKS,
-            PollMethod::Interval { millis: 200 },
+            polling_config.max_active_tasks,
+            polling_config.max_pending_tasks,
+            poll_method,
         );
 
         WebbModule {
@@ -87,6 +101,11 @@ impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> SubstrateGadg
                 .push_task(task_id, false, Arc::new(remote), protocol)
             {
                 log::error!("Failed to push task to job manager: {err:?}");
+            } else {
+                // Maybe poll if polling is manual mode
+                if self.job_manager.poll_method() == PollMethod::Manual {
+                    self.job_manager.poll();
+                }
             }
         }
 
@@ -133,4 +152,11 @@ pub trait WebbGadgetProtocol<B: Block>: Send + Sync {
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<(), Error>;
     async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WebbWorkManager>);
+    fn get_work_manager_config(&self) -> WorkManagerConfig {
+        WorkManagerConfig {
+            interval: DEFAULT_POLL_INTERVAL,
+            max_active_tasks: DEFAULT_MAX_ACTIVE_TASKS,
+            max_pending_tasks: DEFAULT_MAX_PENDING_TASKS,
+        }
+    }
 }
