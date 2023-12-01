@@ -1,17 +1,17 @@
 use crate::gadget::network::Network;
+use crate::gadget::work_manager::WebbWorkManager;
 use crate::gadget::{WebbGadgetProtocol, WebbModule};
 use futures_util::future::TryFutureExt;
 use gadget_core::gadget::manager::{GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
+use parking_lot::RwLock;
 pub use sc_client_api::BlockImportNotification;
 pub use sc_client_api::{Backend, FinalityNotification};
 pub use sp_runtime::traits::{Block, Header};
 use sp_runtime::SaturatedConversion;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
-use parking_lot::RwLock;
-use crate::gadget::work_manager::WebbWorkManager;
 
 pub mod gadget;
 
@@ -43,7 +43,7 @@ pub async fn run_protocol_with_wm<C: Client<B>, B: Block, N: Network, P: WebbGad
     network: N,
     protocol: P,
     client: C,
-    work_manager: ProtocolWorkManager<WebbWorkManager>
+    work_manager: ProtocolWorkManager<WebbWorkManager>,
 ) -> Result<(), Error> {
     let webb_module = WebbModule::new(network.clone(), protocol, work_manager);
     // Plug the module into the substrate gadget to interface the WebbGadget with Substrate
@@ -66,7 +66,10 @@ pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: WebbGadgetProto
     run_protocol_with_wm(network, protocol, client, wm).await
 }
 
-pub async fn create_work_manager<C: Client<B>, B: Block, P: WebbGadgetProtocol<B>>(client: &C, protocol: &P) -> Result<ProtocolWorkManager<WebbWorkManager>, Error> {
+pub async fn create_work_manager<C: Client<B>, B: Block, P: WebbGadgetProtocol<B>>(
+    client: &C,
+    protocol: &P,
+) -> Result<ProtocolWorkManager<WebbWorkManager>, Error> {
     // Before running, wait for the first finality notification we receive
     let now: u64 = (*client
         .get_latest_finality_notification()
@@ -76,18 +79,18 @@ pub async fn create_work_manager<C: Client<B>, B: Block, P: WebbGadgetProtocol<B
         })?
         .header
         .number())
-        .saturated_into();
+    .saturated_into();
 
     let work_manager_config = protocol.get_work_manager_config();
 
     let clock = Arc::new(RwLock::new(Some(now)));
 
-    let job_manager_zk = WebbWorkManager {
-        clock,
-    };
+    let job_manager_zk = WebbWorkManager { clock };
 
     let poll_method = match work_manager_config.interval {
-        Some(interval) => PollMethod::Interval { millis: interval.as_millis() as u64 },
+        Some(interval) => PollMethod::Interval {
+            millis: interval.as_millis() as u64,
+        },
         None => PollMethod::Manual,
     };
 

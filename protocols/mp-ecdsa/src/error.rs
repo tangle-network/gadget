@@ -5,7 +5,7 @@ pub enum Error {
     Keystore(String),
     Signature(String),
     InvalidKeygenPartyId,
-    InvalidSigningSet
+    InvalidSigningSet,
 }
 
 impl Display for Error {

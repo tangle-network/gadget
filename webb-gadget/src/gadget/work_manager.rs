@@ -1,7 +1,7 @@
 use crate::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_core::job_manager::WorkManagerInterface;
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 pub struct WebbWorkManager {
     pub(crate) clock: Arc<RwLock<Option<<WebbWorkManager as WorkManagerInterface>::Clock>>>,
@@ -31,7 +31,9 @@ impl WorkManagerInterface for WebbWorkManager {
     }
 
     fn clock(&self) -> Self::Clock {
-        self.clock.read().expect("No finality notification received")
+        self.clock
+            .read()
+            .expect("No finality notification received")
     }
 
     fn acceptable_block_tolerance() -> Self::Clock {

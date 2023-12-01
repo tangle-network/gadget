@@ -1,22 +1,28 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
+use crate::util::DebugLogger;
 use std::error::Error;
+use std::net::SocketAddr;
 
 pub mod client;
+pub mod constants;
+pub mod error;
+pub mod keystore;
 pub mod network;
 pub mod protocols;
 pub mod util;
-pub mod constants;
-pub mod keystore;
-pub mod keyring;
-pub mod indexing;
-pub mod error;
 
 pub struct MpEcdsaProtocolConfig {
-    pub gossip_bootnode: String,
+    // Set to some if a peer connection to the target bootnode
+    pub gossip_bootnode: Option<SocketAddr>,
+    // Set to some if the bootnode
+    pub gossip_bind_addr: Option<SocketAddr>,
 }
 
 pub async fn run_keygen(config: &MpEcdsaProtocolConfig) -> Result<(), Box<dyn Error>> {
+    let debug_logger = DebugLogger;
     let client = client::create_client(config).await?;
-    let network = network::create_network(config).await?;
+    let network = network::create_network(debug_logger.clone(), config).await?;
     let protocol = protocols::keygen::create_protocol(config).await?;
 
     webb_gadget::run_protocol(network, protocol, client).await?;

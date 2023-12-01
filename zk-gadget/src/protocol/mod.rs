@@ -10,9 +10,10 @@ use webb_gadget::{BlockImportNotification, Error, FinalityNotification};
 
 pub mod proto_gen;
 
-pub struct ZkProtocol<M, B, C> {
+pub struct ZkProtocol<M: AsyncProtocol, B, C> {
     pub party_id: RegistantId,
     pub protocol: M,
+    pub additional_params: <M as AsyncProtocol>::AdditionalParams,
     pub client: C,
     pub _pd: std::marker::PhantomData<B>,
 }
@@ -46,7 +47,7 @@ impl<M: AsyncProtocol + Send + Sync, B: Block, C: ClientWithApi<B>> WebbGadgetPr
 
             let (remote, protocol) = self
                 .protocol
-                .create(now / 6000, now, 0, task_id)
+                .create(now / 6000, now, 0, task_id, self.additional_params.clone())
                 .await
                 .map_err(|err| Error::ClientError { err: err.reason })?;
 

@@ -1,5 +1,6 @@
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WebbWorkManager;
+use crate::gadget::Job;
 use async_trait::async_trait;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolRemote, ShutdownReason, WorkManagerInterface};
@@ -13,7 +14,7 @@ pub struct AsyncProtocolRemote {
     pub shutdown_tx: Mutex<Option<tokio::sync::oneshot::Sender<ShutdownReason>>>,
     pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
     pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-    pub associated_ssid: <WebbWorkManager as WorkManagerInterface>::RetryID,
+    pub associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
     pub associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
     pub to_async_protocol: tokio::sync::mpsc::UnboundedSender<
         <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
@@ -23,22 +24,25 @@ pub struct AsyncProtocolRemote {
 
 #[async_trait]
 pub trait AsyncProtocol {
+    type AdditionalParams: Send + Sync + 'static + Clone;
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-        associated_ssid: <WebbWorkManager as WorkManagerInterface>::RetryID,
+        associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
         associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
         associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
         protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+        additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError>;
 
     async fn create(
         &self,
         session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
         now: <WebbWorkManager as WorkManagerInterface>::Clock,
-        ssid: <WebbWorkManager as WorkManagerInterface>::RetryID,
+        retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
         task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-    ) -> Result<(AsyncProtocolRemote, BuiltExecutableJobWrapper), JobError> {
+        additional_params: Self::AdditionalParams,
+    ) -> Result<Job, JobError> {
         let is_done = Arc::new(AtomicBool::new(false));
         let (to_async_protocol, protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
         let (start_tx, start_rx) = tokio::sync::oneshot::channel();
@@ -46,14 +50,21 @@ pub trait AsyncProtocol {
 
         let proto_hash_hex = hex::encode(task_id);
         let async_protocol = self
-            .generate_protocol_from(now, ssid, session_id, task_id, protocol_message_rx)
+            .generate_protocol_from(
+                now,
+                retry_id,
+                session_id,
+                task_id,
+                protocol_message_rx,
+                additional_params,
+            )
             .await?;
 
         let remote = AsyncProtocolRemote {
             start_tx: Mutex::new(Some(start_tx)),
             shutdown_tx: Mutex::new(Some(shutdown_tx)),
             associated_block_id: now,
-            associated_ssid: ssid,
+            associated_retry_id: retry_id,
             associated_task_id: task_id,
             associated_session_id: session_id,
             to_async_protocol,
@@ -129,7 +140,7 @@ impl ProtocolRemote<WebbWorkManager> for AsyncProtocolRemote {
         self.start_tx.lock().is_none()
     }
 
-    fn ssid(&self) -> <WebbWorkManager as WorkManagerInterface>::RetryID {
-        self.associated_ssid
+    fn retry_id(&self) -> <WebbWorkManager as WorkManagerInterface>::RetryID {
+        self.associated_retry_id
     }
 }

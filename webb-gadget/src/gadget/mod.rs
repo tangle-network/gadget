@@ -81,9 +81,9 @@ impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> SubstrateGadg
                 let (remote, protocol) = job;
                 let task_id = remote.associated_task_id;
 
-                if let Err(err) = self
-                    .job_manager
-                    .push_task(task_id, false, Arc::new(remote), protocol)
+                if let Err(err) =
+                    self.job_manager
+                        .push_task(task_id, false, Arc::new(remote), protocol)
                 {
                     log::error!("Failed to push task to job manager: {err:?}");
                 } else {

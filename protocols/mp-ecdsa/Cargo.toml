@@ -5,6 +5,18 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["std"]
+std = [
+    "pallet-jobs-rpc-runtime-api/std",
+    "tangle-primitives/std",
+    "sp-api/std",
+    "sp-runtime/std",
+    "sp-application-crypto/std",
+    "parity-scale-codec/std",
+    "sp-consensus-aura/std",
+]
+
 [dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 webb-gadget = { workspace = true }
@@ -12,14 +24,19 @@ gadget-core = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }
-pallet-jobs-rpc-runtime-api = { workspace = true }
-tangle-primitives = { workspace = true }
-sc-client-api = { workspace = true }
-sp-api = { workspace = true }
-sp-runtime = { workspace = true }
-sp-keystore = { workspace = true }
-sc-keystore = { workspace = true }
+multi-party-ecdsa = { workspace = true }
+round-based = { workspace = true }
+curv = { workspace = true }
 itertools = { workspace = true }
-sp-application-crypto = { workspace = true }
-parity-scale-codec = { workspace = true }
 strum = { workspace = true }
+bincode2 = { workspace = true }
+libp2p = { workspace = true, features = [ "tokio", "gossipsub", "mdns", "noise", "macros", "tcp", "yamux"] }
+
+pallet-jobs-rpc-runtime-api = { workspace = true, default-features = false }
+tangle-primitives = { workspace = true, default-features = false }
+sc-client-api = { workspace = true, default-features = false }
+sp-api = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, default-features = false }
+sp-application-crypto = { workspace = true, default-features = false }
+sp-consensus-aura = { workspace = true }
+parity-scale-codec = { workspace = true, default-features = false }

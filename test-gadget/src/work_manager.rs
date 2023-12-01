@@ -16,7 +16,7 @@ pub struct TestProtocolRemote {
     pub shutdown_tx: Mutex<Option<tokio::sync::oneshot::Sender<ShutdownReason>>>,
     pub associated_session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
     pub associated_block_id: <TestWorkManager as WorkManagerInterface>::Clock,
-    pub associated_ssid: <TestWorkManager as WorkManagerInterface>::RetryID,
+    pub associated_retry_id: <TestWorkManager as WorkManagerInterface>::RetryID,
     pub to_async_protocol: tokio::sync::mpsc::UnboundedSender<
         <TestWorkManager as WorkManagerInterface>::ProtocolMessage,
     >,
@@ -110,8 +110,8 @@ impl ProtocolRemote<TestWorkManager> for TestProtocolRemote {
         self.start_tx.lock().is_none()
     }
 
-    fn ssid(&self) -> <TestWorkManager as WorkManagerInterface>::RetryID {
-        self.associated_ssid
+    fn retry_id(&self) -> <TestWorkManager as WorkManagerInterface>::RetryID {
+        self.associated_retry_id
     }
 }
 
@@ -123,7 +123,7 @@ pub struct TestAsyncProtocolParameters<B> {
     pub start_rx: Option<tokio::sync::oneshot::Receiver<()>>,
     pub shutdown_rx: Option<tokio::sync::oneshot::Receiver<ShutdownReason>>,
     pub associated_block_id: <TestWorkManager as WorkManagerInterface>::Clock,
-    pub associated_ssid: <TestWorkManager as WorkManagerInterface>::RetryID,
+    pub associated_retry_id: <TestWorkManager as WorkManagerInterface>::RetryID,
     pub associated_session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
     pub associated_task_id: <TestWorkManager as WorkManagerInterface>::TaskID,
     pub test_bundle: B,

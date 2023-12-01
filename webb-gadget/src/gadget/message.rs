@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct GadgetProtocolMessage {
     pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
     pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-    pub associated_ssid: <WebbWorkManager as WorkManagerInterface>::RetryID,
+    pub associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
     // A unique marker for the associated task this message belongs to
     pub task_hash: <WebbWorkManager as WorkManagerInterface>::TaskID,
     pub from: UserID,
@@ -27,7 +27,7 @@ impl ProtocolMessageMetadata<WebbWorkManager> for GadgetProtocolMessage {
     }
 
     fn associated_retry_id(&self) -> <WebbWorkManager as WorkManagerInterface>::RetryID {
-        self.associated_ssid
+        self.associated_retry_id
     }
 
     fn associated_task(&self) -> <WebbWorkManager as WorkManagerInterface>::TaskID {
@@ -38,7 +38,9 @@ impl ProtocolMessageMetadata<WebbWorkManager> for GadgetProtocolMessage {
         self.from
     }
 
-    fn associated_recipient_user_id(&self) -> Option<<WebbWorkManager as WorkManagerInterface>::UserID> {
+    fn associated_recipient_user_id(
+        &self,
+    ) -> Option<<WebbWorkManager as WorkManagerInterface>::UserID> {
         self.to
     }
 }

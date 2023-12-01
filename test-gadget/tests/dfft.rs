@@ -159,7 +159,7 @@ mod tests {
                 party_id: params.test_bundle.party_id,
                 associated_block_id: params.associated_block_id,
                 associated_session_id: params.associated_session_id,
-                associated_ssid: params.associated_ssid,
+                associated_retry_id: params.associated_retry_id,
                 associated_task_id: params.associated_task_id,
             };
 
@@ -198,7 +198,7 @@ mod tests {
         party_id: u32,
         associated_block_id: u64,
         associated_session_id: u64,
-        associated_ssid: u16,
+        associated_retry_id: u16,
         associated_task_id: [u8; 8],
     }
 
@@ -265,7 +265,7 @@ mod tests {
             to: Some(to),
             associated_block_id: network.associated_block_id,
             associated_session_id: network.associated_session_id,
-            associated_ssid: network.associated_ssid,
+            associated_retry_id: network.associated_retry_id,
             associated_task_id: network.associated_task_id,
         };
 

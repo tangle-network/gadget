@@ -116,7 +116,7 @@ pub trait ProtocolRemote<WM: WorkManagerInterface>: Send + Sync + 'static {
     fn is_done(&self) -> bool;
     fn deliver_message(&self, message: WM::ProtocolMessage) -> Result<(), WM::Error>;
     fn has_started(&self) -> bool;
-    fn ssid(&self) -> WM::RetryID;
+    fn retry_id(&self) -> WM::RetryID;
 
     fn has_stalled(&self, now: WM::Clock) -> bool {
         now >= self.started_at() + WM::acceptable_block_tolerance()
@@ -306,7 +306,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         // Next, remove any outdated enqueued messages to prevent RAM bloat
         let mut to_remove = vec![];
         for (hash, queue) in lock.enqueued_messages.iter_mut() {
-            for (ssid, queue) in queue.iter_mut() {
+            for (retry_id, queue) in queue.iter_mut() {
                 let before = queue.len();
                 // Only keep the messages that are not outdated
                 queue.retain(|msg| {
@@ -323,17 +323,17 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
                 }
 
                 if queue.is_empty() {
-                    to_remove.push((*hash, *ssid));
+                    to_remove.push((*hash, *retry_id));
                 }
             }
         }
 
         // Next, to prevent the existence of piling-up empty *inner* queues, remove them
-        for (hash, ssid) in to_remove {
+        for (hash, retry_id) in to_remove {
             lock.enqueued_messages
                 .get_mut(&hash)
                 .expect("Should be available")
-                .remove(&ssid);
+                .remove(&retry_id);
         }
 
         // Finally, remove any empty outer maps
@@ -359,8 +359,8 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         } else {
             // deliver all the enqueued messages to the protocol now
             if let Some(mut enqueued_messages_map) = lock.enqueued_messages.remove(&job.task_hash) {
-                let job_ssid = job.handle.ssid();
-                if let Some(mut enqueued_messages) = enqueued_messages_map.remove(&job_ssid) {
+                let job_retry_id = job.handle.retry_id();
+                if let Some(mut enqueued_messages) = enqueued_messages_map.remove(&job_retry_id) {
                     self.utility.debug(format!(
                         "Will now deliver {} enqueued message(s) to the async protocol for {:?}",
                         enqueued_messages.len(),
@@ -417,10 +417,11 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
 
         if let Some(recv) = msg.associated_recipient_user_id() {
             if recv == msg.associated_sender_user_id() {
-                self.utility.warn("Message sent to self, which is not allowed".to_string());
+                self.utility
+                    .warn("Message sent to self, which is not allowed".to_string());
                 return Err(WorkManagerError::DeliverMessageFailed {
                     reason: "Message sent to self, which is not allowed".to_string(),
-                })
+                });
             }
         }
 
@@ -555,7 +556,7 @@ fn should_deliver<WM: WorkManagerInterface>(
 ) -> bool {
     task.handle.session_id() == msg.associated_session_id()
         && task.task_hash == message_task_hash
-        && task.handle.ssid() == msg.associated_retry_id()
+        && task.handle.retry_id() == msg.associated_retry_id()
         && WM::associated_block_id_acceptable(
             task.handle.started_at(), // use to be associated_block_id
             msg.associated_block_id(),
@@ -579,7 +580,7 @@ mod tests {
         message: String,
         associated_block_id: u64,
         associated_session_id: u32,
-        associated_ssid: u32,
+        associated_retry_id: u32,
         associated_task: [u8; 32],
         associated_sender: u64,
         associated_recipient: Option<u64>,
@@ -593,7 +594,7 @@ mod tests {
             self.associated_session_id
         }
         fn associated_retry_id(&self) -> u32 {
-            self.associated_ssid
+            self.associated_retry_id
         }
         fn associated_task(&self) -> [u8; 32] {
             self.associated_task
@@ -603,7 +604,9 @@ mod tests {
             self.associated_sender
         }
 
-        fn associated_recipient_user_id(&self) -> Option<<TestWorkManager as WorkManagerInterface>::UserID> {
+        fn associated_recipient_user_id(
+            &self,
+        ) -> Option<<TestWorkManager as WorkManagerInterface>::UserID> {
             self.associated_recipient
         }
     }
@@ -638,7 +641,7 @@ mod tests {
     #[derive(Clone)]
     pub struct TestProtocolRemote {
         session_id: u32,
-        ssid: u32,
+        retry_id: u32,
         started_at: u64,
         delivered_messages: UnboundedSender<TestMessage>,
         start_tx: Arc<Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
@@ -649,7 +652,7 @@ mod tests {
     impl TestProtocolRemote {
         pub fn new(
             session_id: u32,
-            ssid: u32,
+            retry_id: u32,
             started_at: u64,
             task_tx: UnboundedSender<TestMessage>,
             start_tx: tokio::sync::oneshot::Sender<()>,
@@ -657,7 +660,7 @@ mod tests {
         ) -> Arc<Self> {
             Arc::new(Self {
                 session_id,
-                ssid,
+                retry_id,
                 started_at,
                 delivered_messages: task_tx,
                 start_tx: Arc::new(Mutex::new(Some(start_tx))),
@@ -670,7 +673,7 @@ mod tests {
     #[allow(clippy::type_complexity)]
     pub fn generate_async_protocol(
         session_id: u32,
-        ssid: u32,
+        retry_id: u32,
         started_at: u64,
     ) -> (
         Arc<TestProtocolRemote>,
@@ -680,8 +683,14 @@ mod tests {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         let (start_tx, start_rx) = tokio::sync::oneshot::channel();
         let is_done = Arc::new(AtomicBool::new(false));
-        let remote =
-            TestProtocolRemote::new(session_id, ssid, started_at, tx, start_tx, is_done.clone());
+        let remote = TestProtocolRemote::new(
+            session_id,
+            retry_id,
+            started_at,
+            tx,
+            start_tx,
+            is_done.clone(),
+        );
         let protocol = async move {
             start_rx.await.unwrap();
             is_done.store(true, Ordering::SeqCst);
@@ -721,8 +730,8 @@ mod tests {
         fn is_active(&self) -> bool {
             self.has_started() && !self.is_done()
         }
-        fn ssid(&self) -> u32 {
-            self.ssid
+        fn retry_id(&self) -> u32 {
+            self.retry_id
         }
     }
 
@@ -747,7 +756,7 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 0,
-            associated_ssid: 0,
+            associated_retry_id: 0,
             associated_task: [0; 32],
             associated_recipient: None,
             associated_sender: 0,
@@ -772,7 +781,7 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 0,
-            associated_ssid: 0,
+            associated_retry_id: 0,
             associated_task: [0; 32],
             associated_recipient: Some(0),
             associated_sender: 0,
@@ -836,7 +845,7 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 1,
-            associated_ssid: 1,
+            associated_retry_id: 1,
             associated_task: [0; 32],
             associated_recipient: None,
             associated_sender: 0,
@@ -1069,7 +1078,7 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 1,
-            associated_ssid: 1,
+            associated_retry_id: 1,
             associated_task: [0; 32],
             associated_sender: 0,
             associated_recipient: None,
@@ -1095,7 +1104,7 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 10, // Outdated block ID
             associated_session_id: 1,
-            associated_ssid: 1,
+            associated_retry_id: 1,
             associated_task: [0; 32],
             associated_sender: 0,
             associated_recipient: None,
@@ -1133,7 +1142,7 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 1,
-            associated_ssid: 1,
+            associated_retry_id: 1,
             associated_task: [0; 32],
             associated_sender: 0,
             associated_recipient: None,
@@ -1196,7 +1205,7 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 1,
-            associated_ssid: 1,
+            associated_retry_id: 1,
             associated_task: [0; 32],
             associated_sender: 0,
             associated_recipient: None,
@@ -1217,7 +1226,7 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 1,
-            associated_ssid: 1,
+            associated_retry_id: 1,
             associated_task: [1; 32], // incorrect task hash, not 0;32 as below
             associated_sender: 0,
             associated_recipient: None,
@@ -1246,11 +1255,15 @@ mod tests {
             [0; 32]
         }
 
-        fn associated_sender_user_id(&self) -> <DummyRangeChecker<N> as WorkManagerInterface>::UserID {
+        fn associated_sender_user_id(
+            &self,
+        ) -> <DummyRangeChecker<N> as WorkManagerInterface>::UserID {
             0
         }
 
-        fn associated_recipient_user_id(&self) -> Option<<DummyRangeChecker<N> as WorkManagerInterface>::UserID> {
+        fn associated_recipient_user_id(
+            &self,
+        ) -> Option<<DummyRangeChecker<N> as WorkManagerInterface>::UserID> {
             None
         }
     }

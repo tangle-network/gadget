@@ -50,6 +50,7 @@ pub async fn run<
 
     let zk_protocol = ZkProtocol {
         party_id: config.id,
+        additional_params: (),
         client: client.clone(),
         protocol,
         _pd: std::marker::PhantomData,
