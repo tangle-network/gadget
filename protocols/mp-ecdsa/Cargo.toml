@@ -11,10 +11,13 @@ std = [
     "pallet-jobs-rpc-runtime-api/std",
     "tangle-primitives/std",
     "sp-api/std",
+    "sp-core/std",
     "sp-runtime/std",
     "sp-application-crypto/std",
     "parity-scale-codec/std",
     "sp-consensus-aura/std",
+    "sp-timestamp/std",
+    "sp-block-builder/std",
 ]
 
 [dependencies]
@@ -27,16 +30,51 @@ parking_lot = { workspace = true }
 multi-party-ecdsa = { workspace = true }
 round-based = { workspace = true }
 curv = { workspace = true }
+futures = { workspace = true }
 itertools = { workspace = true }
 strum = { workspace = true }
 bincode2 = { workspace = true }
-libp2p = { workspace = true, features = [ "tokio", "gossipsub", "mdns", "noise", "macros", "tcp", "yamux"] }
+clap = { workspace = true }
+hex-literal = { workspace = true }
+rand = { workspace = true }
+jsonrpsee = { workspace = true, features = ["server"] }
+libp2p = { workspace = true }
 
-pallet-jobs-rpc-runtime-api = { workspace = true, default-features = false }
-tangle-primitives = { workspace = true, default-features = false }
-sc-client-api = { workspace = true, default-features = false }
-sp-api = { workspace = true, default-features = false }
-sp-runtime = { workspace = true, default-features = false }
-sp-application-crypto = { workspace = true, default-features = false }
+pallet-jobs-rpc-runtime-api = { workspace = true }
+tangle-primitives = { workspace = true }
+tangle-testnet-runtime = { workspace = true }
+tangle-mainnet-runtime = { workspace = true }
+
+sp-core = { workspace = true }
+sp-api = { workspace = true }
+sp-runtime = { workspace = true }
+sp-application-crypto = { workspace = true }
 sp-consensus-aura = { workspace = true }
-parity-scale-codec = { workspace = true, default-features = false }
+sp-keyring = { workspace = true }
+sp-timestamp = { workspace = true }
+sp-blockchain = { workspace = true }
+sp-block-builder = { workspace = true }
+
+sc-client-api = { workspace = true }
+sc-consensus-aura = { workspace = true }
+sc-consensus-grandpa = { workspace = true }
+sc-executor = { workspace = true }
+sc-network = { workspace = true }
+sc-service = { workspace = true }
+sc-telemetry = { workspace = true }
+sc-transaction-pool-api = { workspace = true }
+sc-cli = { workspace = true }
+sc-consensus = { workspace = true }
+sc-transaction-pool = { workspace = true }
+sc-basic-authorship = { workspace = true }
+sc-offchain = { workspace = true }
+sc-rpc-api = { workspace = true }
+
+
+parity-scale-codec = { workspace = true }
+substrate-frame-rpc-system = { workspace = true }
+pallet-transaction-payment-rpc = { workspace = true }
+pallet-im-online = { workspace = true }
+
+[build-dependencies]
+substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }

@@ -170,7 +170,7 @@ fn create_test_async_protocol<B: Send + Sync + 'static>(
     };
 
     let future = proto_gen(params);
-    let future = JobBuilder::default().build(future);
+    let future = JobBuilder::default().protocol(future).build();
 
     (remote, future)
 }

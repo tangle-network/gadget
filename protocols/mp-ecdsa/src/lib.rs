@@ -11,6 +11,7 @@ pub mod keystore;
 pub mod network;
 pub mod protocols;
 pub mod util;
+pub mod application;
 
 pub struct MpEcdsaProtocolConfig {
     // Set to some if a peer connection to the target bootnode

@@ -95,6 +95,7 @@ where
 #[derive(Default)]
 pub struct JobBuilder {
     pre: Option<Pin<Box<PreJobHook>>>,
+    protocol: Option<Pin<Box<dyn SendFuture<'static, Result<(), JobError>>>>>,
     post: Option<Pin<Box<PostJobHook>>>,
 }
 
@@ -138,6 +139,14 @@ impl JobBuilder {
         self
     }
 
+    pub fn protocol<Protocol>(mut self, protocol: Protocol) -> Self
+    where
+        Protocol: SendFuture<'static, Result<(), JobError>>,
+    {
+        self.protocol = Some(Box::pin(protocol));
+        self
+    }
+
     pub fn post<Post>(mut self, post: Post) -> Self
     where
         Post: SendFuture<'static, Result<(), JobError>>,
@@ -146,10 +155,7 @@ impl JobBuilder {
         self
     }
 
-    pub fn build<Protocol>(self, protocol: Protocol) -> BuiltExecutableJobWrapper
-    where
-        Protocol: SendFuture<'static, Result<(), JobError>>,
-    {
+    pub fn build(self) -> BuiltExecutableJobWrapper {
         let pre = if let Some(pre) = self.pre {
             pre
         } else {
@@ -162,9 +168,11 @@ impl JobBuilder {
             Box::pin(DefaultPostJobHook)
         };
 
+        let protocol = Box::pin(self.protocol.expect("Must specify protocol"));
+
         ExecutableJobWrapper {
             pre,
-            protocol: Box::pin(protocol),
+            protocol,
             post,
         }
     }
@@ -235,21 +243,20 @@ mod tests {
         let counter_clone2 = counter.clone();
         let counter_final = counter.clone();
 
-        let protocol = async move {
-            counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(())
-        };
-
         let mut job = super::JobBuilder::new()
             .pre(async move {
                 counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 Ok(super::ProceedWithExecution::True)
             })
+            .protocol(async move {
+                counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            })
             .post(async move {
                 counter_clone2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 Ok(())
             })
-            .build(protocol);
+            .build();
 
         job.execute().await.unwrap();
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 3);
@@ -262,17 +269,16 @@ mod tests {
         let counter_clone2 = counter.clone();
         let counter_final = counter.clone();
 
-        let protocol = async move {
-            counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(())
-        };
-
         let mut job = super::JobBuilder::default()
+            .protocol(async move {
+                counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            })
             .post(async move {
                 counter_clone2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 Ok(())
             })
-            .build(protocol);
+            .build();
 
         job.execute().await.unwrap();
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 2);
@@ -284,17 +290,16 @@ mod tests {
         let counter_clone = counter.clone();
         let counter_final = counter.clone();
 
-        let protocol = async move {
-            counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(())
-        };
-
         let mut job = super::JobBuilder::default()
             .pre(async move {
                 counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 Ok(super::ProceedWithExecution::True)
             })
-            .build(protocol);
+            .protocol(async move {
+                counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            })
+            .build();
 
         job.execute().await.unwrap();
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 2);
@@ -306,12 +311,12 @@ mod tests {
         let counter_clone = counter.clone();
         let counter_final = counter.clone();
 
-        let protocol = async move {
-            counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(())
-        };
-
-        let mut job = super::JobBuilder::default().build(protocol);
+        let mut job = super::JobBuilder::default()
+            .protocol(async move {
+                counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            })
+            .build();
 
         job.execute().await.unwrap();
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 1);
