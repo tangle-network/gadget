@@ -14,23 +14,23 @@
 //
 
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
-use tangle_testnet_runtime::{self, opaque::Block, RuntimeApi};
+use crate::application::relayer_config::WebbRelayerCmd;
+use crate::util::DebugLogger;
 use futures::FutureExt;
+use gadget_core::job_manager::SendFuture;
 use sc_client_api::{Backend, BlockBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_grandpa::SharedVoterState;
 pub use sc_executor::NativeElseWasmExecutor;
+use sc_network::config::NonDefaultSetConfig;
 use sc_network::{NetworkStateInfo, ProtocolName};
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
-use std::{sync::Arc, time::Duration};
 use std::pin::Pin;
-use sc_network::config::NonDefaultSetConfig;
-use gadget_core::job_manager::SendFuture;
-use crate::application::relayer_config::WebbRelayerCmd;
-use crate::util::DebugLogger;
+use std::{sync::Arc, time::Duration};
+use tangle_testnet_runtime::{self, opaque::Block, RuntimeApi};
 
 // Our native executor instance.
 pub struct ExecutorDispatch;
@@ -53,7 +53,7 @@ impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
 }
 
 pub(crate) type FullClient =
-sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
+    sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
@@ -102,7 +102,9 @@ pub fn new_partial(
     let client = Arc::new(client);
 
     let telemetry = telemetry.map(|(worker, telemetry)| {
-        task_manager.spawn_handle().spawn("telemetry", None, worker.run());
+        task_manager
+            .spawn_handle()
+            .spawn("telemetry", None, worker.run());
         telemetry
     });
 
@@ -117,7 +119,7 @@ pub fn new_partial(
     );
 
     #[allow(clippy::redundant_clone)]
-        let (grandpa_block_import, grandpa_link) = sc_consensus_grandpa::block_import(
+    let (grandpa_block_import, grandpa_link) = sc_consensus_grandpa::block_import(
         client.clone(),
         &(client.clone() as Arc<_>),
         select_chain.clone(),
@@ -126,8 +128,8 @@ pub fn new_partial(
 
     let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
-    let import_queue =
-        sc_consensus_aura::import_queue::<AuraPair, _, _, _, _, _>(ImportQueueParams {
+    let import_queue = sc_consensus_aura::import_queue::<AuraPair, _, _, _, _, _>(
+        ImportQueueParams {
             block_import: grandpa_block_import.clone(),
             justification_import: Some(Box::new(grandpa_block_import.clone())),
             client: client.clone(),
@@ -147,7 +149,8 @@ pub fn new_partial(
             check_for_equivocation: Default::default(),
             telemetry: telemetry.as_ref().map(|x| x.handle()),
             compatibility_mode: Default::default(),
-        })?;
+        },
+    )?;
 
     Ok(sc_service::PartialComponents {
         client,
@@ -173,7 +176,10 @@ pub trait ProtocolFromConfig {
 
 /// Builds a new service for a full client.
 pub fn new_full<T: ProtocolFromConfig>(
-    RunFullParams { config, debug_output }: RunFullParams,
+    RunFullParams {
+        config,
+        debug_output,
+    }: RunFullParams,
 ) -> Result<TaskManager, ServiceError> {
     let sc_service::PartialComponents {
         client,
@@ -189,7 +195,11 @@ pub fn new_full<T: ProtocolFromConfig>(
     let mut net_config = sc_network::config::FullNetworkConfiguration::new(&config.network);
 
     let grandpa_protocol_name = sc_consensus_grandpa::protocol_standard_name(
-        &client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
+        &client
+            .block_hash(0)
+            .ok()
+            .flatten()
+            .expect("Genesis block exists; qed"),
         &config.chain_spec,
     );
 
@@ -197,7 +207,10 @@ pub fn new_full<T: ProtocolFromConfig>(
         grandpa_protocol_name.clone(),
     ));
 
-    net_config.add_notification_protocol(NonDefaultSetConfig::new(ProtocolName::Static("mp-ecdsa-network"), 9999));
+    net_config.add_notification_protocol(NonDefaultSetConfig::new(
+        ProtocolName::Static("mp-ecdsa-network"),
+        9999,
+    ));
 
     let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
         backend.clone(),
@@ -240,8 +253,8 @@ pub fn new_full<T: ProtocolFromConfig>(
                 enable_http_requests: true,
                 custom_extensions: move |_| vec![],
             })
-                .run(client.clone(), task_manager.spawn_handle())
-                .boxed(),
+            .run(client.clone(), task_manager.spawn_handle())
+            .boxed(),
         );
     }
 
@@ -265,11 +278,9 @@ pub fn new_full<T: ProtocolFromConfig>(
         let protocol = T::generate(); // TODO: pass client, backend, keystore, network, debug logger, etc
 
         // Start the DKG gadget.
-        task_manager.spawn_essential_handle().spawn_blocking(
-            T::name(),
-            None,
-            protocol,
-        );
+        task_manager
+            .spawn_essential_handle()
+            .spawn_blocking(T::name(), None, protocol);
     }
 
     let rpc_extensions_builder = {
@@ -277,8 +288,11 @@ pub fn new_full<T: ProtocolFromConfig>(
         let pool = transaction_pool.clone();
 
         Box::new(move |deny_unsafe, _| {
-            let deps =
-                super::rpc::FullDeps { client: client.clone(), pool: pool.clone(), deny_unsafe };
+            let deps = super::rpc::FullDeps {
+                client: client.clone(),
+                pool: pool.clone(),
+                deny_unsafe,
+            };
             super::rpc::create_full(deps).map_err(Into::into)
         })
     };
@@ -348,7 +362,11 @@ pub fn new_full<T: ProtocolFromConfig>(
 
     // if the node isn't actively participating in consensus then it doesn't
     // need a keystore, regardless of which protocol we use below.
-    let keystore = if role.is_authority() { Some(keystore_container.keystore()) } else { None };
+    let keystore = if role.is_authority() {
+        Some(keystore_container.keystore())
+    } else {
+        None
+    };
 
     let grandpa_config = sc_consensus_grandpa::Config {
         // FIXME #1578 make this available through chainspec

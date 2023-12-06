@@ -1,9 +1,8 @@
-#![cfg_attr(not(feature = "std"), no_std)]
-
 use crate::util::DebugLogger;
 use std::error::Error;
 use std::net::SocketAddr;
 
+pub mod application;
 pub mod client;
 pub mod constants;
 pub mod error;
@@ -11,7 +10,6 @@ pub mod keystore;
 pub mod network;
 pub mod protocols;
 pub mod util;
-pub mod application;
 
 pub struct MpEcdsaProtocolConfig {
     // Set to some if a peer connection to the target bootnode

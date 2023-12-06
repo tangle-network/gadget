@@ -19,8 +19,8 @@ hex = "0.4.3"
 log = { workspace = true }
 async-trait = "0.1.73"
 
-sp-runtime = { optional = true, workspace = true, default-features = false }
-sc-client-api = { optional = true, workspace = true, default-features = false }
+sp-runtime = { optional = true, workspace = true }
+sc-client-api = { optional = true, workspace = true }
 futures = { optional = true, workspace = true }
 
 [dev-dependencies]

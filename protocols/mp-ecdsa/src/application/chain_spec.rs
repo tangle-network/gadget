@@ -46,10 +46,10 @@ const CHAIN_ID_ATHENA: [u8; 6] = hex_literal::hex!("01000000138a");
 const CHAIN_ID_DEMETER: [u8; 6] = hex_literal::hex!("01000000138b");
 
 const RESOURCE_ID_HERMES_ATHENA: ResourceId = ResourceId(hex_literal::hex!(
-	"0000000000000000e69a847cd5bc0c9480ada0b339d7f0a8cac2b6670000138a"
+    "0000000000000000e69a847cd5bc0c9480ada0b339d7f0a8cac2b6670000138a"
 ));
 const RESOURCE_ID_ATHENA_HERMES: ResourceId = ResourceId(hex_literal::hex!(
-	"000000000000d30c8839c1145609e564b986f667b273ddcb8496010000001389"
+    "000000000000d30c8839c1145609e564b986f667b273ddcb8496010000001389"
 ));
 
 /// The default value for keygen threshold
@@ -72,8 +72,8 @@ type AccountPublic = <Signature as Verify>::Signer;
 
 /// Generate an account ID from seed.
 pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-    where
-        AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+where
+    AccountPublic: From<<TPublic::Pair as Pair>::Public>,
 {
     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
@@ -103,7 +103,12 @@ fn dkg_session_keys(
     im_online: ImOnlineId,
     dkg: DKGId,
 ) -> tangle_testnet_runtime::opaque::SessionKeys {
-    tangle_testnet_runtime::opaque::SessionKeys { grandpa, aura, dkg, im_online }
+    tangle_testnet_runtime::opaque::SessionKeys {
+        grandpa,
+        aura,
+        dkg,
+        im_online,
+    }
 }
 
 pub fn local_testnet_config(chain_id: u64) -> Result<ChainSpec, String> {
@@ -235,7 +240,10 @@ pub fn tangle_testnet_config(chain_id: u64) -> Result<ChainSpec, String> {
                 ],
                 vec![],
                 vec![],
-                get_standalone_initial_authorities().iter().map(|a| a.0.clone()).collect(),
+                get_standalone_initial_authorities()
+                    .iter()
+                    .map(|a| a.0.clone())
+                    .collect(),
                 chain_id,
                 DEFAULT_DKG_KEYGEN_THRESHOLD,
                 DEFAULT_DKG_SIGNATURE_THRESHOLD,
@@ -297,7 +305,12 @@ fn testnet_genesis(
                 .choose_multiple(&mut rng, count)
                 .map(|choice| choice.0.clone())
                 .collect::<Vec<_>>();
-            (x.clone(), x.clone(), STASH, StakerStatus::Nominator(nominations))
+            (
+                x.clone(),
+                x.clone(),
+                STASH,
+                StakerStatus::Nominator(nominations),
+            )
         }))
         .collect::<Vec<_>>();
 
@@ -308,14 +321,21 @@ fn testnet_genesis(
             code: wasm_binary.to_vec(),
             ..Default::default()
         },
-        sudo: SudoConfig { key: Some(root_key) },
+        sudo: SudoConfig {
+            key: Some(root_key),
+        },
         balances: BalancesConfig {
             // Configure endowed accounts with initial balance of 1 << 60.
             balances: endowed_accounts
                 .iter()
                 .cloned()
                 .map(|k| (k, ENDOWMENT))
-                .chain(genesis_substrate_distribution.iter().cloned().map(|(k, v)| (k, v)))
+                .chain(
+                    genesis_substrate_distribution
+                        .iter()
+                        .cloned()
+                        .map(|(k, v)| (k, v)),
+                )
                 .collect(),
         },
         vesting: Default::default(),
@@ -354,26 +374,45 @@ fn testnet_genesis(
         aura: Default::default(),
         grandpa: Default::default(),
         dkg: DKGConfig {
-            authorities: initial_authorities.iter().map(|(.., x)| x.clone()).collect::<_>(),
+            authorities: initial_authorities
+                .iter()
+                .map(|(.., x)| x.clone())
+                .collect::<_>(),
             keygen_threshold: dkg_keygen_threshold,
             signature_threshold: dkg_signature_threshold,
-            authority_ids: initial_authorities.iter().map(|(x, ..)| x.clone()).collect::<_>(),
+            authority_ids: initial_authorities
+                .iter()
+                .map(|(x, ..)| x.clone())
+                .collect::<_>(),
         },
-        dkg_proposals: DKGProposalsConfig { initial_chain_ids, initial_r_ids, initial_proposers },
+        dkg_proposals: DKGProposalsConfig {
+            initial_chain_ids,
+            initial_r_ids,
+            initial_proposers,
+        },
         bridge_registry: Default::default(),
         im_online: ImOnlineConfig { keys: vec![] },
         eth_2_client: Eth2ClientConfig {
             // Vec<(TypedChainId, [u8; 32], ForkVersion, u64)>
             networks: vec![
-                (webb_proposals::TypedChainId::Evm(1), NetworkConfig::new(&Network::Mainnet)),
-                (webb_proposals::TypedChainId::Evm(5), NetworkConfig::new(&Network::Goerli)),
+                (
+                    webb_proposals::TypedChainId::Evm(1),
+                    NetworkConfig::new(&Network::Mainnet),
+                ),
+                (
+                    webb_proposals::TypedChainId::Evm(5),
+                    NetworkConfig::new(&Network::Goerli),
+                ),
             ],
             phantom: PhantomData,
         },
         nomination_pools: Default::default(),
         transaction_payment: Default::default(),
         // EVM compatibility
-        evm_chain_id: EVMChainIdConfig { chain_id, ..Default::default() },
+        evm_chain_id: EVMChainIdConfig {
+            chain_id,
+            ..Default::default()
+        },
         evm: EVMConfig {
             accounts: {
                 let mut map = BTreeMap::new();

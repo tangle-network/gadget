@@ -1,33 +1,40 @@
-use std::collections::HashMap;
-use crate::MpEcdsaProtocolConfig;
-use async_trait::async_trait;
-use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use std::error::Error;
-use std::sync::Arc;
-use curv::arithmetic::Converter;
-use curv::BigInt;
-use curv::elliptic::curves::Secp256k1;
-use multi_party_ecdsa::gg_2020::state_machine::keygen::{Keygen, LocalKey};
-use multi_party_ecdsa::gg_2020::state_machine::sign::{CompletedOfflineStage, OfflineStage, SignManual};
-use round_based::async_runtime::watcher::StderrWatcher;
-use sc_client_api::Backend;
-use sp_core::keccak_256;
-use tangle_primitives::jobs::{JobId, JobType};
-use tokio::sync::mpsc::UnboundedReceiver;
-use tokio::sync::RwLock;
-use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
-use webb_gadget::gadget::work_manager::WebbWorkManager;
-use webb_gadget::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
-use webb_gadget::{Block, BlockImportNotification, FinalityNotification};
-use webb_gadget::gadget::message::GadgetProtocolMessage;
-use webb_gadget::protocol::AsyncProtocol;
 use crate::client::{AccountId, ClientWithApi, MpEcdsaClient};
 use crate::keystore::KeystoreBackend;
 use crate::network::GossipNetwork;
 use crate::protocols::keygen::MpEcdsaKeygenProtocol;
 use crate::protocols::state_machine::{CurrentRoundBlame, StateMachineWrapper};
 use crate::protocols::util;
+use crate::protocols::util::VotingMessage;
 use crate::util::DebugLogger;
+use crate::MpEcdsaProtocolConfig;
+use async_trait::async_trait;
+use curv::arithmetic::Converter;
+use curv::elliptic::curves::Secp256k1;
+use curv::BigInt;
+use futures::StreamExt;
+use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
+use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use itertools::Itertools;
+use multi_party_ecdsa::gg_2020::party_i::verify;
+use multi_party_ecdsa::gg_2020::state_machine::keygen::{Keygen, LocalKey};
+use multi_party_ecdsa::gg_2020::state_machine::sign::{
+    CompletedOfflineStage, OfflineStage, PartialSignature, SignManual,
+};
+use round_based::async_runtime::watcher::StderrWatcher;
+use sc_client_api::Backend;
+use sp_core::ecdsa::Signature;
+use sp_core::keccak_256;
+use std::collections::HashMap;
+use std::error::Error;
+use std::sync::Arc;
+use tangle_primitives::jobs::{JobId, JobType};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::RwLock;
+use webb_gadget::gadget::message::{GadgetProtocolMessage, UserID};
+use webb_gadget::gadget::work_manager::WebbWorkManager;
+use webb_gadget::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
+use webb_gadget::protocol::AsyncProtocol;
+use webb_gadget::{Block, BlockImportNotification, FinalityNotification};
 
 pub struct MpEcdsaSigningProtocol<B, BE, KBE, C> {
     client: MpEcdsaClient<B, BE, KBE, C>,
@@ -52,7 +59,7 @@ pub async fn create_protocol(
 
 #[async_trait]
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, KBE: KeystoreBackend> WebbGadgetProtocol<B>
-for MpEcdsaSigningProtocol<B, BE, KBE, C>
+    for MpEcdsaSigningProtocol<B, BE, KBE, C>
 {
     async fn get_next_jobs(
         &self,
@@ -70,23 +77,29 @@ for MpEcdsaSigningProtocol<B, BE, KBE, C>
         let mut ret = vec![];
 
         for job in jobs {
-            let participants = job
-                .participants
-                .expect("Should exist for DKG");
+            let participants = job.participants.expect("Should exist for stage 2 signing");
             if participants.contains(&self.account_id) {
                 let task_id = job.job_id.to_be_bytes();
                 let task_id = keccak_256(&task_id);
                 let session_id = 0; // We are not interested in sessions for the ECDSA protocol
                 let retry_id = 0; // TODO: query the job manager for the retry id
 
-                let additional_params = MpEcdsaKeygenExtraParams {
+                let key = job.key.expect("Should exist for stage 2 signing");
+                // TODO for keygen: use bincode2 for serialization
+                let deserialized_key: LocalKey<Secp256k1> =
+                    bincode2::deserialize(&key).expect("Should deserialize");
+                let additional_params = MpEcdsaSigningExtraParams {
                     i: participants
                         .iter()
                         .position(|p| p == &self.account_id)
                         .expect("Should exist") as u16,
                     t: job.threshold.expect("T should exist for DKG") as u16,
-                    n: participants.len() as u16,
+                    signers: (0..participants.len())
+                        .into_iter()
+                        .map(|r| r as u16)
+                        .collect(),
                     job_id: job.job_id,
+                    key: deserialized_key,
                 };
 
                 let job = self
@@ -127,9 +140,10 @@ for MpEcdsaSigningProtocol<B, BE, KBE, C>
 
 struct MpEcdsaSigningExtraParams {
     i: u16,
+    t: u16,
     signers: Vec<u16>,
     job_id: JobId,
-    key: LocalKey<Secp256k1>
+    key: LocalKey<Secp256k1>,
 }
 
 #[async_trait]
@@ -150,24 +164,11 @@ impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaSigningProtocol<B,
         let debug_logger_proto = debug_logger_post.clone();
 
         Ok(JobBuilder::new()
-            .post(async move {
-                // Check to see if there is any blame at the end of the protocol
-                if let Some(blame) = blame.write().await.remove(&associated_task_id) {
-                    let blame = blame.borrow();
-                    if !blame.blamed_parties.is_empty() {
-                        debug_logger_post.error(format!("Blame: {blame:?}"));
-                        return Err(JobError {
-                            reason: format!("Blame: {blame:?}"),
-                        });
-                    }
-                }
-
-                Ok(())
-            })
-            .build(async move {
-                let (i, signers, key) = (
+            .protocol(async move {
+                let (i, signers, t, key) = (
                     additional_params.i,
                     additional_params.signers,
+                    additional_params.t,
                     additional_params.key,
                 );
 
@@ -182,26 +183,30 @@ impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaSigningProtocol<B,
                     .await
                     .insert(associated_task_id, current_round_blame_rx);
 
-                let (tx_to_outbound, rx_async_proto) =
-                    util::create_job_manager_to_async_protocol_channel::<OfflineStage, _>(
-                        protocol_message_rx,
-                        associated_block_id,
-                        associated_retry_id,
-                        associated_session_id,
-                        associated_task_id,
-                        self.network.clone(),
-                    );
+                let (
+                    tx_to_outbound_offline,
+                    rx_async_proto_offline,
+                    tx_to_outbound_voting,
+                    rx_async_proto_voting,
+                ) = util::create_job_manager_to_async_protocol_channel_signing::<OfflineStage, _>(
+                    protocol_message_rx,
+                    associated_block_id,
+                    associated_retry_id,
+                    associated_session_id,
+                    associated_task_id,
+                    self.network.clone(),
+                );
 
                 let state_machine_wrapper =
                     StateMachineWrapper::new(signing, current_round_blame_tx, self.logger.clone());
                 let completed_offline_stage = round_based::AsyncProtocol::new(
                     state_machine_wrapper,
-                    rx_async_proto,
-                    tx_to_outbound,
+                    rx_async_proto_offline,
+                    tx_to_outbound_offline,
                 )
-                    .set_watcher(StderrWatcher)
-                    .run()
-                    .await?;
+                .set_watcher(StderrWatcher)
+                .run()
+                .await?;
 
                 debug_logger_proto.info(format!(
                     "*** Completed offline stage: {completed_offline_stage:?}"
@@ -210,8 +215,35 @@ impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaSigningProtocol<B,
                 // We will sign over the unique task ID
                 let message = BigInt::from_bytes(&associated_task_id);
 
-                voting_stage(offline_i, message, completed_offline_stage).await
-            }))
+                // Conclude with the voting stage
+                let signature = voting_stage(
+                    offline_i,
+                    t,
+                    message,
+                    completed_offline_stage,
+                    rx_async_proto_voting,
+                    tx_to_outbound_voting,
+                    &debug_logger_proto,
+                )
+                .await?;
+                // TODO: store the signature appropriately
+                Ok(())
+            })
+            .post(async move {
+                // Check to see if there is any blame at the end of the protocol
+                if let Some(blame) = blame.write().await.remove(&associated_task_id) {
+                    let blame = blame.borrow();
+                    if !blame.blamed_parties.is_empty() {
+                        debug_logger_post.error(format!("Blame: {blame:?}"));
+                        return Err(JobError {
+                            reason: format!("Blame: {blame:?}"),
+                        });
+                    }
+                }
+
+                Ok(())
+            })
+            .build())
     }
 }
 
@@ -221,34 +253,84 @@ fn get_offline_i(i: u16, signers: &[u16]) -> u16 {
     (signers.iter().position(|s| s == &i).expect("Should exist") + 1) as u16
 }
 
-async fn voting_stage(offline_i: u16, message: BigInt, completed_offline_stage: CompletedOfflineStage) -> Result<(), JobError> {
-    let (signing, partial_signature) = SignManual::new(message, completed_offline_stage)
-        .map_err(|err| JobError { reason: format!("Failed to create voting stage: {err:?}") })?;
+async fn voting_stage(
+    offline_i: u16,
+    threshold: u16,
+    message: BigInt,
+    completed_offline_stage: CompletedOfflineStage,
+    mut msg_rx: UnboundedReceiver<VotingMessage>,
+    msg_tx: UnboundedSender<VotingMessage>,
+    debug_logger: &DebugLogger,
+) -> Result<Signature, JobError> {
+    let offline_stage_pub_key = completed_offline_stage.public_key().clone();
+    let (signing, partial_signature) =
+        SignManual::new(message, completed_offline_stage).map_err(|err| JobError {
+            reason: format!("Failed to create voting stage: {err:?}"),
+        })?;
 
-    let partial_sig_bytes = bincode2::serialize(&partial_signature)
-        .map_err(|err| JobError { reason: format!("Failed to serialize partial signature: {err:?}") })?;
+    let partial_sig_bytes = bincode2::serialize(&partial_signature).map_err(|err| JobError {
+        reason: format!("Failed to serialize partial signature: {err:?}"),
+    })?;
 
-    // TODO: multiplex the stream for signing and voting messages
-    let payload = DKGVoteMessage {
-        party_ind: *offline_i.as_ref(),
-        // use the hash of proposal as "round key" ONLY for purposes of ensuring
-        // uniqueness We only want voting to happen amongst voters under the SAME
-        // proposal, not different proposals This is now especially necessary since we
-        // are allowing for parallelism now
-        round_key: Vec::from(&hash_of_proposal as &[u8]),
-        partial_signature: partial_sig_bytes,
-        unsigned_proposal_hash,
+    let payload = VotingMessage {
+        from: offline_i as UserID,
+        to: None, // Broadcast to everyone
+        payload: partial_sig_bytes,
     };
-}
 
-enum SigningMessage {
-    Signing { },
-    Voting(VotingMessage)
-}
+    msg_tx.send(payload).map_err(|err| JobError {
+        reason: format!("Failed to send partial signature: {err:?}"),
+    })?;
 
-struct VotingMessage {
-    party_ind: u16,
-    round_key: Vec<u8>,
-    partial_signature: Vec<u8>,
-    unsigned_proposal_hash: Vec<u8>,
+    let mut sigs = HashMap::with_capacity(threshold as _);
+
+    while let Some(vote_message) = msg_rx.next().await {
+        let vote_message: VotingMessage = vote_message;
+        if sigs.contains_key(&vote_message.from) {
+            debug_logger.warn(format!(
+                "Received duplicate signature from {}",
+                vote_message.from
+            ));
+            continue;
+        }
+
+        if let Ok(p_sig) = bincode2::deserialize::<PartialSignature>(&vote_message.payload) {
+            sigs.insert(vote_message.from, p_sig);
+
+            if sigs.len() == threshold as usize {
+                break;
+            }
+        } else {
+            debug_logger.warn(format!(
+                "Received invalid signature bytes from {}",
+                vote_message.from
+            ));
+        }
+    }
+
+    if sigs.len() != threshold as usize {
+        return Err(JobError {
+            reason: format!(
+                "Failed to collect enough signatures: {}/{}",
+                sigs.len(),
+                threshold
+            ),
+        });
+    }
+
+    // Aggregate and complete the signature
+    let sigs: Vec<PartialSignature> = sigs.into_values().collect();
+    let signature = signing.complete(&sigs).map_err(|err| JobError {
+        reason: format!("Failed to complete signature: {err:?}"),
+    })?;
+
+    // Verify the signature
+    verify(&signature, &offline_stage_pub_key, &message).map_err(|err| JobError {
+        reason: format!("Failed to verify signature: {err:?}"),
+    })?;
+
+    // Convert the signature to a substrate-compatible format
+    crate::util::convert_signature(&signature).ok_or_else(|| JobError {
+        reason: "Failed to convert signature to Substrate-compatible format".to_string(),
+    })
 }

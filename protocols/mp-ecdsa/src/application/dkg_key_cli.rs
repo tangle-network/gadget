@@ -21,8 +21,8 @@ impl DKGKeySubcommand {
 /// Prints all the information sotred int the DKG LocalKey.
 #[derive(Debug, clap::Parser)]
 #[clap(
-name = "inspect-dkg-key",
-about = "Load an encrypted DKG key from a file and the secret used to encrypt it from the secret-file"
+    name = "inspect-dkg-key",
+    about = "Load an encrypted DKG key from a file and the secret used to encrypt it from the secret-file"
 )]
 pub struct InspectKeyCmd {
     /// The path to the local key file.
@@ -36,6 +36,9 @@ pub struct InspectKeyCmd {
 impl InspectKeyCmd {
     /// run the key subcommands
     pub fn run(&self) -> Result<(), Error> {
-        Err(Error::Io(std::io::Error::new(std::io::ErrorKind::Other, "not implemented")))
+        Err(Error::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "not implemented",
+        )))
     }
 }

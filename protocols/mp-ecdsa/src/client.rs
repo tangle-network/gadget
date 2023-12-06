@@ -47,7 +47,9 @@ where
 {
 }
 
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> MpEcdsaClient<B, BE, C> {
+impl<B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>>
+    MpEcdsaClient<B, BE, KBE, C>
+{
     pub async fn query_jobs_by_validator(
         &self,
         validator: AccountId,

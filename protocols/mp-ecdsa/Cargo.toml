@@ -5,21 +5,6 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-default = ["std"]
-std = [
-    "pallet-jobs-rpc-runtime-api/std",
-    "tangle-primitives/std",
-    "sp-api/std",
-    "sp-core/std",
-    "sp-runtime/std",
-    "sp-application-crypto/std",
-    "parity-scale-codec/std",
-    "sp-consensus-aura/std",
-    "sp-timestamp/std",
-    "sp-block-builder/std",
-]
-
 [dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 webb-gadget = { workspace = true }
@@ -38,7 +23,6 @@ clap = { workspace = true }
 hex-literal = { workspace = true }
 rand = { workspace = true }
 jsonrpsee = { workspace = true, features = ["server"] }
-libp2p = { workspace = true }
 
 pallet-jobs-rpc-runtime-api = { workspace = true }
 tangle-primitives = { workspace = true }
@@ -75,6 +59,7 @@ parity-scale-codec = { workspace = true }
 substrate-frame-rpc-system = { workspace = true }
 pallet-transaction-payment-rpc = { workspace = true }
 pallet-im-online = { workspace = true }
+serde = { version = "1.0.193", features = ["derive"] }
 
 [build-dependencies]
-substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
+substrate-build-script-utils = { git = "https://github.com/paritytech/substrate/", branch = "polkadot-v1.0.0" }

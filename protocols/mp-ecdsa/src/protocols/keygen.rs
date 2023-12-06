@@ -144,21 +144,7 @@ impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaKeygenProtocol<B, 
         let blame = self.round_blames.clone();
 
         Ok(JobBuilder::new()
-            .post(async move {
-                // Check to see if there is any blame at the end of the protocol
-                if let Some(blame) = blame.write().await.remove(&associated_task_id) {
-                    let blame = blame.borrow();
-                    if !blame.blamed_parties.is_empty() {
-                        log::error!(target: "mp-ecdsa", "Blame: {blame:?}");
-                        return Err(JobError {
-                            reason: format!("Blame: {blame:?}"),
-                        });
-                    }
-                }
-
-                Ok(())
-            })
-            .build(async move {
+            .protocol(async move {
                 let (i, t, n) = (
                     additional_params.i,
                     additional_params.t,
@@ -196,6 +182,21 @@ impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaKeygenProtocol<B, 
 
                 key_store.set(additional_params.job_id, local_key).await?;
                 Ok(())
-            }))
+            })
+            .post(async move {
+                // Check to see if there is any blame at the end of the protocol
+                if let Some(blame) = blame.write().await.remove(&associated_task_id) {
+                    let blame = blame.borrow();
+                    if !blame.blamed_parties.is_empty() {
+                        log::error!(target: "mp-ecdsa", "Blame: {blame:?}");
+                        return Err(JobError {
+                            reason: format!("Blame: {blame:?}"),
+                        });
+                    }
+                }
+
+                Ok(())
+            })
+            .build())
     }
 }
