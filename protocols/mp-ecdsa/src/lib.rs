@@ -16,7 +16,6 @@ pub mod client;
 pub mod constants;
 pub mod error;
 pub mod keystore;
-pub mod network;
 pub mod protocols;
 pub mod util;
 
