@@ -20,7 +20,7 @@ impl<BE: KeystoreBackend> ECDSAKeyStore<BE> {
 
     pub async fn get(
         &self,
-        job_id: JobId,
+        job_id: &JobId,
     ) -> Result<Option<LocalKey<Secp256k1>>, crate::error::Error> {
         self.backend.get(job_id).await
     }
@@ -36,7 +36,8 @@ impl<BE: KeystoreBackend> ECDSAKeyStore<BE> {
 
 #[async_trait]
 pub trait KeystoreBackend: Clone + Send + Sync {
-    async fn get(&self, job_id: JobId) -> Result<Option<LocalKey<Secp256k1>>, crate::error::Error>;
+    async fn get(&self, job_id: &JobId)
+        -> Result<Option<LocalKey<Secp256k1>>, crate::error::Error>;
     async fn set(&self, job_id: JobId, key: LocalKey<Secp256k1>)
         -> Result<(), crate::error::Error>;
 }
@@ -56,8 +57,11 @@ impl InMemoryBackend {
 
 #[async_trait]
 impl KeystoreBackend for InMemoryBackend {
-    async fn get(&self, job_id: JobId) -> Result<Option<LocalKey<Secp256k1>>, crate::error::Error> {
-        Ok(self.map.read().get(&job_id).cloned())
+    async fn get(
+        &self,
+        job_id: &JobId,
+    ) -> Result<Option<LocalKey<Secp256k1>>, crate::error::Error> {
+        Ok(self.map.read().get(job_id).cloned())
     }
 
     async fn set(

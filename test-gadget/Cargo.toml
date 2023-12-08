@@ -24,11 +24,11 @@ mpc-net = { workspace = true }
 dist-primitives = { workspace = true }
 secret-sharing = { workspace = true }
 bytes = { version = "1.5.0", features = ["serde"]}
-ark-std = {version = "0.4.0", features = [ "print-trace", "std" ]}
-ark-ec = {version = "0.4.0"}
-ark-bls12-377 = { version = "0.4.0", features = ["curve"] }
-ark-ff = {version = "0.4.0"}
-ark-poly = {version = "0.4.0"}
+ark-std = { version = "*", features = [ "print-trace", "std" ]}
+ark-ec = { version = "*"}
+ark-bls12-377 = { version = "*", features = ["curve"] }
+ark-ff = { version = "*"}
+ark-poly = { version = "*"}
 bincode2 = "2.0.1"
 hex = "0.4.3"
 md5 = "0.7.0"

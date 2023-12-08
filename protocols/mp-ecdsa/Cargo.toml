@@ -62,4 +62,4 @@ pallet-im-online = { workspace = true }
 serde = { version = "1.0.193", features = ["derive"] }
 
 [build-dependencies]
-substrate-build-script-utils = { git = "https://github.com/paritytech/substrate/", branch = "polkadot-v1.0.0" }
+substrate-build-script-utils = { workspace = true }

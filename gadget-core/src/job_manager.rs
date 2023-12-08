@@ -48,6 +48,7 @@ pub struct WorkManagerInner<WM: WorkManagerInterface> {
     pub enqueued_tasks: VecDeque<Job<WM>>,
     // task hash => SSID => enqueued messages
     pub enqueued_messages: EnqueuedMessage<WM::TaskID, WM::RetryID, WM::ProtocolMessage>,
+    pub retry_id_tracker: HashMap<WM::TaskID, WM::RetryID>,
 }
 
 pub type EnqueuedMessage<A, B, C> = HashMap<A, HashMap<B, VecDeque<C>>>;
@@ -149,6 +150,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
                 active_tasks: HashSet::new(),
                 enqueued_tasks: VecDeque::new(),
                 enqueued_messages: HashMap::new(),
+                retry_id_tracker: HashMap::new(),
             })),
             utility: Arc::new(utility),
             max_tasks: Arc::new(max_tasks),
@@ -391,13 +393,32 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         let task = job.task.clone();
         // Put the job inside here, that way the drop code does not get called right away,
         // killing the process
+        let task_hash = job.task_hash;
+        *lock
+            .retry_id_tracker
+            .entry(task_hash)
+            .or_insert(job.handle.retry_id()) = job.handle.retry_id();
         lock.active_tasks.insert(job);
+
         let mut task = task.lock().take().expect("Should not happen");
-        let task = async move { task.execute().await };
+        let on_task_finish_handle = self.inner.clone();
+        let task = async move {
+            if task.execute().await.is_ok() {
+                on_task_finish_handle
+                    .write()
+                    .retry_id_tracker
+                    .remove(&task_hash);
+            }
+        };
 
         // Spawn the task. When it finishes, it will clean itself up
         tokio::task::spawn(task);
         Ok(())
+    }
+
+    pub fn latest_retry_id(&self, task_hash: &WM::TaskID) -> Option<WM::RetryID> {
+        let lock = self.inner.read();
+        lock.retry_id_tracker.get(task_hash).copied()
     }
 
     pub fn job_exists(&self, job: &WM::TaskID) -> bool {
@@ -566,7 +587,7 @@ fn should_deliver<WM: WorkManagerInterface>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::job::{BuiltExecutableJobWrapper, JobBuilder};
+    use crate::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
     use parking_lot::Mutex;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
@@ -696,7 +717,39 @@ mod tests {
             is_done.store(true, Ordering::SeqCst);
             Ok(())
         };
-        let task = JobBuilder::new().build(protocol);
+        let task = JobBuilder::new().protocol(protocol).build();
+        (remote, task, rx)
+    }
+
+    #[allow(clippy::type_complexity)]
+    pub fn generate_async_protocol_error(
+        session_id: u32,
+        retry_id: u32,
+        started_at: u64,
+    ) -> (
+        Arc<TestProtocolRemote>,
+        BuiltExecutableJobWrapper,
+        UnboundedReceiver<TestMessage>,
+    ) {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (start_tx, start_rx) = tokio::sync::oneshot::channel();
+        let is_done = Arc::new(AtomicBool::new(false));
+        let remote = TestProtocolRemote::new(
+            session_id,
+            retry_id,
+            started_at,
+            tx,
+            start_tx,
+            is_done.clone(),
+        );
+        let protocol = async move {
+            start_rx.await.unwrap();
+            is_done.store(true, Ordering::SeqCst);
+            Err(JobError {
+                reason: "Intentional error".to_string(),
+            })
+        };
+        let task = JobBuilder::new().protocol(protocol).build();
         (remote, task, rx)
     }
 
@@ -1236,6 +1289,40 @@ mod tests {
 
         let delivery_type = work_manager.deliver_message(msg).unwrap(); // incorrect task hash
         assert_eq!(delivery_type, DeliveryType::EnqueuedMessage); // message should be enqueued because the task hash is incorrect
+    }
+
+    #[tokio::test]
+    async fn test_retry_id() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 0, PollMethod::Manual);
+        let (remote, task, _rx) = generate_async_protocol_error(1, 0, 0);
+        assert!(work_manager.latest_retry_id(&[0; 32]).is_none());
+        work_manager.push_task([0; 32], true, remote, task).unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert_eq!(
+            work_manager
+                .latest_retry_id(&[0; 32])
+                .expect("Should exist"),
+            0
+        );
+
+        // Simulate a retry
+        let (remote, task, _rx) = generate_async_protocol_error(1, 1, 0);
+        work_manager.push_task([0; 32], true, remote, task).unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        assert_eq!(
+            work_manager
+                .latest_retry_id(&[0; 32])
+                .expect("Should exist"),
+            1
+        );
+
+        // Simulate that the protocol works on the third attempt
+        let (remote, task, _rx) = generate_async_protocol(1, 2, 0);
+        work_manager.push_task([0; 32], true, remote, task).unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        // Since the protocol was a success, the retry id should be cleared
+        assert!(work_manager.latest_retry_id(&[0; 32]).is_none());
     }
 
     struct DummyRangeChecker<const N: u64>;

@@ -1,7 +1,9 @@
+use crate::client::AccountId;
 use crate::util::DebugLogger;
 use std::error::Error;
 use std::net::SocketAddr;
 
+#[cfg(feature = "application")]
 pub mod application;
 pub mod client;
 pub mod constants;
@@ -16,10 +18,13 @@ pub struct MpEcdsaProtocolConfig {
     pub gossip_bootnode: Option<SocketAddr>,
     // Set to some if the bootnode
     pub gossip_bind_addr: Option<SocketAddr>,
+    pub account_id: AccountId,
 }
 
 pub async fn run_keygen(config: &MpEcdsaProtocolConfig) -> Result<(), Box<dyn Error>> {
-    let debug_logger = DebugLogger;
+    let debug_logger = DebugLogger {
+        peer_id: config.account_id.to_string(),
+    };
     let client = client::create_client(config).await?;
     let network = network::create_network(debug_logger.clone(), config).await?;
     let protocol = protocols::keygen::create_protocol(config).await?;

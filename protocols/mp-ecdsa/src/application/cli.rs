@@ -1,4 +1,4 @@
-// Copyright 2023 Webb Technologies Inc.
+// Copyright 2022 Webb Technologies Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,32 +11,43 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
-
+#![allow(clippy::all, deprecated)]
 use sc_cli::RunCmd;
 
 #[derive(Debug, clap::Parser)]
 pub struct Cli {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub subcommand: Option<Subcommand>,
-    #[clap(flatten)]
+
+    #[allow(missing_docs)]
+    #[command(flatten)]
     pub run: RunCmd,
+
     #[arg(long, short = 'o')]
     pub output_path: Option<std::path::PathBuf>,
+
+    #[cfg(feature = "relayer")]
     #[clap(flatten)]
-    pub relayer_cmd: crate::application::relayer_config::WebbRelayerCmd,
+    pub relayer_cmd: webb_relayer_gadget_cli::WebbRelayerCmd,
+
+    #[cfg(feature = "light-client")]
+    #[clap(flatten)]
+    pub light_client_relayer_cmd:
+        pallet_eth2_light_client_relayer_gadget_cli::LightClientRelayerCmd,
+
+    #[clap(short, long)]
+    pub auto_insert_keys: bool,
 }
 
 #[derive(Debug, clap::Subcommand)]
-#[allow(clippy::large_enum_variant)]
 pub enum Subcommand {
     /// Key management cli utilities
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Key(sc_cli::KeySubcommand),
 
     /// DKG key management cli utilities
-    #[clap(subcommand)]
-    DKGKey(crate::application::dkg_key_cli::DKGKeySubcommand),
+    #[command(subcommand)]
+    DKGKey(super::dkg_key_cli::DKGKeySubcommand),
 
     /// Build a chain specification.
     BuildSpec(sc_cli::BuildSpecCmd),

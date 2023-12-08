@@ -1,7 +1,6 @@
 use crate::client::{AccountId, ClientWithApi, MpEcdsaClient};
 use crate::keystore::KeystoreBackend;
 use crate::network::GossipNetwork;
-use crate::protocols::keygen::MpEcdsaKeygenProtocol;
 use crate::protocols::state_machine::{CurrentRoundBlame, StateMachineWrapper};
 use crate::protocols::util;
 use crate::protocols::util::VotingMessage;
@@ -16,12 +15,16 @@ use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
 use multi_party_ecdsa::gg_2020::party_i::verify;
-use multi_party_ecdsa::gg_2020::state_machine::keygen::{Keygen, LocalKey};
+use multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
 use multi_party_ecdsa::gg_2020::state_machine::sign::{
     CompletedOfflineStage, OfflineStage, PartialSignature, SignManual,
 };
+use pallet_jobs_rpc_runtime_api::JobsApi;
+use parity_scale_codec::Encode;
+use parking_lot::Mutex;
 use round_based::async_runtime::watcher::StderrWatcher;
 use sc_client_api::Backend;
+use sp_api::ProvideRuntimeApi;
 use sp_core::ecdsa::Signature;
 use sp_core::keccak_256;
 use std::collections::HashMap;
@@ -36,7 +39,7 @@ use webb_gadget::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
 use webb_gadget::protocol::AsyncProtocol;
 use webb_gadget::{Block, BlockImportNotification, FinalityNotification};
 
-pub struct MpEcdsaSigningProtocol<B, BE, KBE, C> {
+pub struct MpEcdsaSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C> {
     client: MpEcdsaClient<B, BE, KBE, C>,
     network: GossipNetwork,
     round_blames: Arc<
@@ -51,21 +54,39 @@ pub struct MpEcdsaSigningProtocol<B, BE, KBE, C> {
     account_id: AccountId,
 }
 
-pub async fn create_protocol(
-    _config: &MpEcdsaProtocolConfig,
-) -> Result<MpEcdsaSigningProtocol, Box<dyn Error>> {
-    Ok(MpEcdsaSigningProtocol {})
+pub async fn create_protocol<B, BE, KBE, C>(
+    config: &MpEcdsaProtocolConfig,
+    logger: DebugLogger,
+    client: C,
+    network: GossipNetwork,
+) -> Result<MpEcdsaSigningProtocol<B, BE, KBE, C>, Box<dyn Error>>
+where
+    B: Block,
+    BE: Backend<B>,
+    C: ClientWithApi<B, BE>,
+    KBE: KeystoreBackend,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
+    Ok(MpEcdsaSigningProtocol {
+        client,
+        network,
+        round_blames: Arc::new(Default::default()),
+        logger,
+        account_id: config.account_id,
+    })
 }
 
 #[async_trait]
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, KBE: KeystoreBackend> WebbGadgetProtocol<B>
     for MpEcdsaSigningProtocol<B, BE, KBE, C>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     async fn get_next_jobs(
         &self,
         _notification: &FinalityNotification<B>,
         now: u64,
-        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
+        job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, webb_gadget::Error> {
         let jobs = self
             .client
@@ -82,31 +103,39 @@ impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, KBE: KeystoreBackend> We
                 let task_id = job.job_id.to_be_bytes();
                 let task_id = keccak_256(&task_id);
                 let session_id = 0; // We are not interested in sessions for the ECDSA protocol
-                let retry_id = 0; // TODO: query the job manager for the retry id
+                                    // For the retry ID, get the latest retry and increment by 1 to set the next retry ID
+                                    // If no retry ID exists, it means the job is new, thus, set the retry_id to 0
+                let retry_id = job_manager
+                    .latest_retry_id(&task_id)
+                    .map(|r| r + 1)
+                    .unwrap_or(0);
 
-                let key = job.key.expect("Should exist for stage 2 signing");
-                // TODO for keygen: use bincode2 for serialization
-                let deserialized_key: LocalKey<Secp256k1> =
-                    bincode2::deserialize(&key).expect("Should deserialize");
-                let additional_params = MpEcdsaSigningExtraParams {
-                    i: participants
-                        .iter()
-                        .position(|p| p == &self.account_id)
-                        .expect("Should exist") as u16,
-                    t: job.threshold.expect("T should exist for DKG") as u16,
-                    signers: (0..participants.len())
-                        .into_iter()
-                        .map(|r| r as u16)
-                        .collect(),
-                    job_id: job.job_id,
-                    key: deserialized_key,
-                };
+                if let Some(key) = self.client.key_store.get(&job.job_id).await? {
+                    let additional_params = MpEcdsaSigningExtraParams {
+                        i: participants
+                            .iter()
+                            .position(|p| p == &self.account_id)
+                            .expect("Should exist") as u16,
+                        t: job.threshold.expect("T should exist for stage 2 signing") as u16,
+                        signers: (0..participants.len())
+                            .into_iter()
+                            .map(|r| r as u16)
+                            .collect(),
+                        job_id: job.job_id,
+                        key,
+                    };
 
-                let job = self
-                    .create(session_id, now, retry_id, task_id, additional_params)
-                    .await?;
+                    let job = self
+                        .create(session_id, now, retry_id, task_id, additional_params)
+                        .await?;
 
-                ret.push(job);
+                    ret.push(job);
+                } else {
+                    self.logger.warn(format!(
+                        "No key found for job ID: {job_id:?}",
+                        job_id = job.job_id
+                    ));
+                }
             }
         }
 
@@ -147,7 +176,9 @@ struct MpEcdsaSigningExtraParams {
 }
 
 #[async_trait]
-impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaSigningProtocol<B, BE, KBE, C> {
+impl<B: Block, BE, KBE: KeystoreBackend, C> AsyncProtocol
+    for MpEcdsaSigningProtocol<B, BE, KBE, C>
+{
     type AdditionalParams = MpEcdsaSigningExtraParams;
     async fn generate_protocol_from(
         &self,
@@ -158,10 +189,12 @@ impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaSigningProtocol<B,
         protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
-        let key_store = self.client.key_store.clone();
         let blame = self.round_blames.clone();
         let debug_logger_post = self.logger.clone();
         let debug_logger_proto = debug_logger_post.clone();
+        let protocol_output = Arc::new(Mutex::new(None));
+        let protocol_output_clone = protocol_output.clone();
+        let client = self.client.clone();
 
         Ok(JobBuilder::new()
             .protocol(async move {
@@ -226,7 +259,7 @@ impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaSigningProtocol<B,
                     &debug_logger_proto,
                 )
                 .await?;
-                // TODO: store the signature appropriately
+                *protocol_output.lock() = Some(signature);
                 Ok(())
             })
             .post(async move {
@@ -236,9 +269,17 @@ impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaSigningProtocol<B,
                     if !blame.blamed_parties.is_empty() {
                         debug_logger_post.error(format!("Blame: {blame:?}"));
                         return Err(JobError {
-                            reason: format!("Blame: {blame:?}"),
+                            reason: format!("Signing blame: {blame:?}"),
                         });
                     }
+                }
+
+                // Submit the protocol output to the blockchain
+                if let Some(signature) = protocol_output_clone.lock().take() {
+                    let serialized = signature.encode();
+                    client
+                        .submit_job_result(additional_params.job_id, serialized)
+                        .await?;
                 }
 
                 Ok(())

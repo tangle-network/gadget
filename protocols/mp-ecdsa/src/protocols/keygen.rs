@@ -9,8 +9,11 @@ use async_trait::async_trait;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use multi_party_ecdsa::gg_2020::state_machine::keygen::Keygen;
+use pallet_jobs_rpc_runtime_api::JobsApi;
+use parking_lot::Mutex;
 use round_based::async_runtime::watcher::StderrWatcher;
 use sc_client_api::Backend;
+use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
 use std::collections::HashMap;
 use std::error::Error;
@@ -24,7 +27,7 @@ use webb_gadget::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
 use webb_gadget::protocol::AsyncProtocol;
 use webb_gadget::{Block, BlockImportNotification, FinalityNotification};
 
-pub struct MpEcdsaKeygenProtocol<B, BE, KBE, C> {
+pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C> {
     client: MpEcdsaClient<B, BE, KBE, C>,
     network: GossipNetwork,
     round_blames: Arc<
@@ -39,15 +42,33 @@ pub struct MpEcdsaKeygenProtocol<B, BE, KBE, C> {
     account_id: AccountId,
 }
 
-pub async fn create_protocol(
-    _config: &MpEcdsaProtocolConfig,
-) -> Result<MpEcdsaKeygenProtocol, Box<dyn Error>> {
-    Ok(MpEcdsaKeygenProtocol {})
+pub async fn create_protocol<B, BE, KBE, C>(
+    config: &MpEcdsaProtocolConfig,
+    client: MpEcdsaClient<B, BE, KBE, C>,
+    network: GossipNetwork,
+    logger: DebugLogger,
+) -> Result<MpEcdsaKeygenProtocol<B, BE, KBE, C>, Box<dyn Error>>
+where
+    B: Block,
+    BE: Backend<B>,
+    C: ClientWithApi<B, BE>,
+    KBE: KeystoreBackend,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
+    Ok(MpEcdsaKeygenProtocol {
+        client,
+        network,
+        round_blames: Arc::new(RwLock::new(HashMap::new())),
+        logger,
+        account_id: config.account_id,
+    })
 }
 
 #[async_trait]
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, KBE: KeystoreBackend> WebbGadgetProtocol<B>
     for MpEcdsaKeygenProtocol<B, BE, KBE, C>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     async fn get_next_jobs(
         &self,
@@ -129,7 +150,9 @@ struct MpEcdsaKeygenExtraParams {
 }
 
 #[async_trait]
-impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaKeygenProtocol<B, BE, KBE, C> {
+impl<B: Block, BE: Backend<B>, KBE: KeystoreBackend, C> AsyncProtocol
+    for MpEcdsaKeygenProtocol<B, BE, KBE, C>
+{
     type AdditionalParams = MpEcdsaKeygenExtraParams;
     async fn generate_protocol_from(
         &self,
@@ -142,6 +165,9 @@ impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaKeygenProtocol<B, 
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let key_store = self.client.key_store.clone();
         let blame = self.round_blames.clone();
+        let protocol_output = Arc::new(Mutex::new(None));
+        let protocol_output_clone = protocol_output.clone();
+        let client = self.client.clone();
 
         Ok(JobBuilder::new()
             .protocol(async move {
@@ -180,7 +206,7 @@ impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaKeygenProtocol<B, 
                 .run()
                 .await?;
 
-                key_store.set(additional_params.job_id, local_key).await?;
+                *protocol_output.lock() = Some(local_key);
                 Ok(())
             })
             .post(async move {
@@ -190,9 +216,21 @@ impl<B, BE, KBE: KeystoreBackend, C> AsyncProtocol for MpEcdsaKeygenProtocol<B, 
                     if !blame.blamed_parties.is_empty() {
                         log::error!(target: "mp-ecdsa", "Blame: {blame:?}");
                         return Err(JobError {
-                            reason: format!("Blame: {blame:?}"),
+                            reason: format!("Keygen blame: {blame:?}"),
                         });
                     }
+                }
+
+                // Store the keys locally, as well as submitting them to the blockchain
+                if let Some(local_key) = protocol_output_clone.lock().take() {
+                    // Serialize via sp encode. Later, in the signing gadget, we will retrieve these serialized
+                    // bytes and deserialize them into the LocalKey<Secp256k1> type.
+                    let serialized = local_key.public_key().to_bytes(true).to_vec();
+                    // Store for use later in the signing protocol
+                    key_store.set(additional_params.job_id, local_key).await?;
+                    client
+                        .submit_job_result(additional_params.job_id, serialized)
+                        .await?;
                 }
 
                 Ok(())
