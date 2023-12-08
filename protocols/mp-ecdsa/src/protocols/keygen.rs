@@ -17,7 +17,7 @@ use sp_application_crypto::sp_core::keccak_256;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
-use tangle_primitives::jobs::{JobId, JobType};
+use tangle_primitives::jobs::{DKGResult, JobId, JobKey, JobResult, JobType};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::RwLock;
 use webb_gadget::gadget::message::GadgetProtocolMessage;
@@ -108,6 +108,7 @@ where
                     t: job.threshold.expect("T should exist for DKG") as u16,
                     n: participants.len() as u16,
                     job_id: job.job_id,
+                    job_key: job.job_type.get_job_key(),
                 };
 
                 let job = self
@@ -151,6 +152,7 @@ struct MpEcdsaKeygenExtraParams {
     t: u16,
     n: u16,
     job_id: JobId,
+    job_key: JobKey,
 }
 
 #[async_trait]
@@ -175,13 +177,14 @@ where
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
 
+        let (i, t, n) = (
+            additional_params.i,
+            additional_params.t,
+            additional_params.n,
+        );
+
         Ok(JobBuilder::new()
             .protocol(async move {
-                let (i, t, n) = (
-                    additional_params.i,
-                    additional_params.t,
-                    additional_params.n,
-                );
                 let keygen = Keygen::new(i, t, n).map_err(|err| JobError {
                     reason: format!("Keygen setup error: {err:?}"),
                 })?;
@@ -245,8 +248,20 @@ where
                             reason: format!("Failed to store key: {err:?}"),
                         })?;
 
+                    // TODO: Proper participant list (see how the DKG handled this phase)
+                    let job_result = JobResult::DKG(DKGResult {
+                        key: serialized,
+                        participants: vec![],
+                        keys_and_signatures: vec![],
+                        threshold: t as u8,
+                    });
+
                     client
-                        .submit_job_result(additional_params.job_id, serialized)
+                        .submit_job_result(
+                            additional_params.job_key,
+                            additional_params.job_id,
+                            job_result,
+                        )
                         .await
                         .map_err(|err| JobError {
                             reason: format!("Failed to submit job result: {err:?}"),

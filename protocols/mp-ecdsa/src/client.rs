@@ -11,7 +11,7 @@ use sp_api::BlockT as Block;
 use sp_api::ProvideRuntimeApi;
 use std::error::Error;
 use std::sync::Arc;
-use tangle_primitives::jobs::JobId;
+use tangle_primitives::jobs::{JobId, JobKey, JobResult};
 
 pub struct MpEcdsaClient<B: Block, BE, KBE: KeystoreBackend, C> {
     client: Arc<C>,
@@ -104,14 +104,16 @@ where
         })
     }
 
-    // TODO: Make this use the proper API
     pub async fn submit_job_result(
         &self,
+        job_key: JobKey,
         job_id: JobId,
-        result: Vec<u8>,
+        result: JobResult,
     ) -> Result<(), webb_gadget::Error> {
         exec_client_function(&self.client, move |client| {
-            client.runtime_api().submit_job_result(job_id, result)
+            client
+                .runtime_api()
+                .submit_job_result(job_key, job_id, result)
         })
         .await
         .map_err(|err| webb_gadget::Error::ClientError {

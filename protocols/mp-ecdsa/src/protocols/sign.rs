@@ -27,7 +27,7 @@ use sp_core::keccak_256;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
-use tangle_primitives::jobs::{JobId, JobType};
+use tangle_primitives::jobs::{DKGSignatureResult, JobId, JobKey, JobResult, JobType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 use webb_gadget::gadget::message::{GadgetProtocolMessage, UserID};
@@ -118,6 +118,12 @@ where
                         err: err.to_string(),
                     })?
                 {
+                    let input_data_to_sign = if let JobType::DKGSignature(sig) = &job.job_type {
+                        sig.submission.clone()
+                    } else {
+                        panic!("Should be DKGSignature");
+                    };
+
                     let additional_params = MpEcdsaSigningExtraParams {
                         i: participants
                             .iter()
@@ -129,7 +135,9 @@ where
                             .map(|r| r as u16)
                             .collect(),
                         job_id: job.job_id,
+                        job_key: job.job_type.get_job_key(),
                         key,
+                        input_data_to_sign,
                     };
 
                     let job = self
@@ -179,7 +187,9 @@ struct MpEcdsaSigningExtraParams {
     t: u16,
     signers: Vec<u16>,
     job_id: JobId,
+    job_key: JobKey,
     key: LocalKey<Secp256k1>,
+    input_data_to_sign: Vec<u8>,
 }
 
 #[async_trait]
@@ -205,15 +215,16 @@ where
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
 
+        let (i, signers, t, key, input_data_to_sign) = (
+            additional_params.i,
+            additional_params.signers,
+            additional_params.t,
+            additional_params.key,
+            additional_params.input_data_to_sign.clone(),
+        );
+
         Ok(JobBuilder::new()
             .protocol(async move {
-                let (i, signers, t, key) = (
-                    additional_params.i,
-                    additional_params.signers,
-                    additional_params.t,
-                    additional_params.key,
-                );
-
                 let offline_i = get_offline_i(i, &signers);
 
                 let signing =
@@ -262,7 +273,7 @@ where
                 ));
 
                 // We will sign over the unique task ID
-                let message = BigInt::from_bytes(&associated_task_id);
+                let message = BigInt::from_bytes(&input_data_to_sign);
 
                 // Conclude with the voting stage
                 let signature = voting_stage(
@@ -292,9 +303,19 @@ where
 
                 // Submit the protocol output to the blockchain
                 if let Some(signature) = protocol_output_clone.lock().take() {
-                    let serialized = signature.encode();
+                    let signature: Vec<u8> = signature.encode();
+                    let job_result = JobResult::DKGSignature(DKGSignatureResult {
+                        data: additional_params.input_data_to_sign,
+                        signature,
+                        signing_key: key.public_key().to_bytes(true).to_vec(),
+                    });
+
                     client
-                        .submit_job_result(additional_params.job_id, serialized)
+                        .submit_job_result(
+                            additional_params.job_key,
+                            additional_params.job_id,
+                            job_result,
+                        )
                         .await
                         .map_err(|err| JobError {
                             reason: format!("Failed to submit job result: {err:?}"),
