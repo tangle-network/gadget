@@ -74,7 +74,7 @@ where
         &self,
         _notification: &FinalityNotification<B>,
         now: u64,
-        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
+        job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, webb_gadget::Error> {
         let jobs = self
             .client
@@ -94,7 +94,10 @@ where
                 let task_id = job.job_id.to_be_bytes();
                 let task_id = keccak_256(&task_id);
                 let session_id = 0; // We are not interested in sessions for the ECDSA protocol
-                let retry_id = 0; // TODO: query the job manager for the retry id
+                let retry_id = job_manager
+                    .latest_retry_id(&task_id)
+                    .map(|r| r + 1)
+                    .unwrap_or(0);
 
                 let additional_params = MpEcdsaKeygenExtraParams {
                     i: participants
