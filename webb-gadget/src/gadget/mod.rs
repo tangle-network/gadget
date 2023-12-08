@@ -86,13 +86,14 @@ impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> SubstrateGadg
                         .push_task(task_id, false, Arc::new(remote), protocol)
                 {
                     log::error!("Failed to push task to job manager: {err:?}");
-                } else {
-                    // Maybe poll if polling is manual mode
-                    if self.job_manager.poll_method() == PollMethod::Manual {
-                        self.job_manager.poll();
-                    }
                 }
             }
+        }
+
+        // Poll jobs on each finality notification if we're using manual polling.
+        // This helps synchronize the actions of nodes in the network
+        if self.job_manager.poll_method() == PollMethod::Manual {
+            self.job_manager.poll();
         }
 
         Ok(())

@@ -1,6 +1,5 @@
 use crate::client::{AccountId, ClientWithApi, MpEcdsaClient};
 use crate::keystore::KeystoreBackend;
-use crate::network::GossipNetwork;
 use crate::protocols::state_machine::{CurrentRoundBlame, StateMachineWrapper};
 use crate::protocols::util;
 use crate::util::DebugLogger;
@@ -22,14 +21,15 @@ use tangle_primitives::jobs::{JobId, JobType};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::RwLock;
 use webb_gadget::gadget::message::GadgetProtocolMessage;
+use webb_gadget::gadget::network::Network;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
 use webb_gadget::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
 use webb_gadget::protocol::AsyncProtocol;
 use webb_gadget::{Block, BlockImportNotification, FinalityNotification};
 
-pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C> {
+pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
     client: MpEcdsaClient<B, BE, KBE, C>,
-    network: GossipNetwork,
+    network: N,
     round_blames: Arc<
         RwLock<
             HashMap<
@@ -42,17 +42,18 @@ pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C> {
     account_id: AccountId,
 }
 
-pub async fn create_protocol<B, BE, KBE, C>(
+pub async fn create_protocol<B, BE, KBE, C, N>(
     config: &MpEcdsaProtocolConfig,
     client: MpEcdsaClient<B, BE, KBE, C>,
-    network: GossipNetwork,
+    network: N,
     logger: DebugLogger,
-) -> Result<MpEcdsaKeygenProtocol<B, BE, KBE, C>, Box<dyn Error>>
+) -> Result<MpEcdsaKeygenProtocol<B, BE, KBE, C, N>, Box<dyn Error>>
 where
     B: Block,
     BE: Backend<B>,
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
+    N: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     Ok(MpEcdsaKeygenProtocol {
@@ -65,20 +66,20 @@ where
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, KBE: KeystoreBackend> WebbGadgetProtocol<B>
-    for MpEcdsaKeygenProtocol<B, BE, KBE, C>
+impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, KBE: KeystoreBackend, N: Network>
+    WebbGadgetProtocol<B> for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     async fn get_next_jobs(
         &self,
-        _notification: &FinalityNotification<B>,
+        notification: &FinalityNotification<B>,
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, webb_gadget::Error> {
         let jobs = self
             .client
-            .query_jobs_by_validator(self.account_id)
+            .query_jobs_by_validator(notification.hash, self.account_id)
             .await?
             .into_iter()
             .filter(|r| matches!(r.job_type, JobType::DKG(..)));
@@ -153,8 +154,10 @@ struct MpEcdsaKeygenExtraParams {
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, KBE: KeystoreBackend, C> AsyncProtocol
-    for MpEcdsaKeygenProtocol<B, BE, KBE, C>
+impl<B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>, N: Network>
+    AsyncProtocol for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     type AdditionalParams = MpEcdsaKeygenExtraParams;
     async fn generate_protocol_from(
@@ -179,7 +182,9 @@ impl<B: Block, BE: Backend<B>, KBE: KeystoreBackend, C> AsyncProtocol
                     additional_params.t,
                     additional_params.n,
                 );
-                let keygen = Keygen::new(i, t, n)?;
+                let keygen = Keygen::new(i, t, n).map_err(|err| JobError {
+                    reason: format!("Keygen setup error: {err:?}"),
+                })?;
                 let (current_round_blame_tx, current_round_blame_rx) =
                     tokio::sync::watch::channel(CurrentRoundBlame::default());
 
@@ -207,7 +212,10 @@ impl<B: Block, BE: Backend<B>, KBE: KeystoreBackend, C> AsyncProtocol
                 )
                 .set_watcher(StderrWatcher)
                 .run()
-                .await?;
+                .await
+                .map_err(|err| JobError {
+                    reason: format!("Keygen protocol error: {err:?}"),
+                })?;
 
                 *protocol_output.lock() = Some(local_key);
                 Ok(())
@@ -230,10 +238,19 @@ impl<B: Block, BE: Backend<B>, KBE: KeystoreBackend, C> AsyncProtocol
                     // bytes and deserialize them into the LocalKey<Secp256k1> type.
                     let serialized = local_key.public_key().to_bytes(true).to_vec();
                     // Store for use later in the signing protocol
-                    key_store.set(additional_params.job_id, local_key).await?;
+                    key_store
+                        .set(additional_params.job_id, local_key)
+                        .await
+                        .map_err(|err| JobError {
+                            reason: format!("Failed to store key: {err:?}"),
+                        })?;
+
                     client
                         .submit_job_result(additional_params.job_id, serialized)
-                        .await?;
+                        .await
+                        .map_err(|err| JobError {
+                            reason: format!("Failed to submit job result: {err:?}"),
+                        })?;
                 }
 
                 Ok(())

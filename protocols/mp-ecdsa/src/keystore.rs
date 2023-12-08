@@ -13,7 +13,7 @@ pub struct ECDSAKeyStore<BE: KeystoreBackend> {
 
 impl<BE: KeystoreBackend> ECDSAKeyStore<BE> {
     pub fn in_memory() -> ECDSAKeyStore<InMemoryBackend> {
-        Self {
+        ECDSAKeyStore {
             backend: InMemoryBackend::new(),
         }
     }

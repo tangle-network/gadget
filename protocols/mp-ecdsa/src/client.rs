@@ -1,14 +1,17 @@
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use crate::util::DebugLogger;
 use crate::MpEcdsaProtocolConfig;
-use gadget_core::job_manager::WorkManagerInterface;
+use async_trait::async_trait;
+use gadget_core::gadget::substrate::Client;
 use pallet_jobs_rpc_runtime_api::{JobsApi, RpcResponseJobsData};
-use sc_client_api::{Backend, BlockchainEvents, HeaderBackend};
+use sc_client_api::{
+    Backend, BlockImportNotification, BlockchainEvents, FinalityNotification, HeaderBackend,
+};
 use sp_api::BlockT as Block;
 use sp_api::ProvideRuntimeApi;
 use std::error::Error;
 use std::sync::Arc;
-use webb_gadget::gadget::work_manager::WebbWorkManager;
+use tangle_primitives::jobs::JobId;
 
 pub struct MpEcdsaClient<B: Block, BE, KBE: KeystoreBackend, C> {
     client: Arc<C>,
@@ -16,6 +19,18 @@ pub struct MpEcdsaClient<B: Block, BE, KBE: KeystoreBackend, C> {
     logger: DebugLogger,
     account_id: AccountId,
     _block: std::marker::PhantomData<(BE, B)>,
+}
+
+impl<B: Block, BE, KBE: KeystoreBackend, C> Clone for MpEcdsaClient<B, BE, KBE, C> {
+    fn clone(&self) -> Self {
+        Self {
+            client: self.client.clone(),
+            key_store: self.key_store.clone(),
+            logger: self.logger.clone(),
+            account_id: self.account_id.clone(),
+            _block: self._block,
+        }
+    }
 }
 
 pub async fn create_client<
@@ -44,7 +59,7 @@ where
 pub type AccountId = u64;
 
 pub trait ClientWithApi<B, BE>:
-    BlockchainEvents<B> + HeaderBackend<B> + ProvideRuntimeApi<B> + Send + Sync
+    BlockchainEvents<B> + HeaderBackend<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + 'static
 where
     B: Block,
     BE: Backend<B>,
@@ -56,7 +71,13 @@ impl<B, BE, T> ClientWithApi<B, BE> for T
 where
     B: Block,
     BE: Backend<B>,
-    T: BlockchainEvents<B> + HeaderBackend<B> + ProvideRuntimeApi<B> + Send + Sync,
+    T: BlockchainEvents<B>
+        + HeaderBackend<B>
+        + ProvideRuntimeApi<B>
+        + Send
+        + Sync
+        + Client<B>
+        + 'static,
     <T as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
 }
@@ -68,10 +89,11 @@ where
 {
     pub async fn query_jobs_by_validator(
         &self,
+        at: <B as Block>::Hash,
         validator: AccountId,
     ) -> Result<Vec<RpcResponseJobsData<AccountId>>, webb_gadget::Error> {
-        exec_client_function(&self.client, |client| {
-            client.runtime_api().query_jobs_by_validator(validator)
+        exec_client_function(&self.client, move |client| {
+            client.runtime_api().query_jobs_by_validator(at, validator)
         })
         .await
         .map_err(|err| webb_gadget::Error::ClientError {
@@ -85,10 +107,10 @@ where
     // TODO: Make this use the proper API
     pub async fn submit_job_result(
         &self,
-        job_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+        job_id: JobId,
         result: Vec<u8>,
     ) -> Result<(), webb_gadget::Error> {
-        exec_client_function(&self.client, |client| {
+        exec_client_function(&self.client, move |client| {
             client.runtime_api().submit_job_result(job_id, result)
         })
         .await
@@ -98,10 +120,32 @@ where
     }
 }
 
+#[async_trait]
+impl<B, BE, KBE, C> Client<B> for MpEcdsaClient<B, BE, KBE, C>
+where
+    B: Block,
+    BE: Backend<B>,
+    C: ClientWithApi<B, BE>,
+    KBE: KeystoreBackend,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
+    async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>> {
+        self.client.get_next_finality_notification().await
+    }
+
+    async fn get_latest_finality_notification(&self) -> Option<FinalityNotification<B>> {
+        self.client.get_latest_finality_notification().await
+    }
+
+    async fn get_next_block_import_notification(&self) -> Option<BlockImportNotification<B>> {
+        self.client.get_next_block_import_notification().await
+    }
+}
+
 async fn exec_client_function<C, F, T>(client: &Arc<C>, function: F) -> T
 where
     for<'a> F: FnOnce(&'a C) -> T,
-    C: Send + 'static,
+    C: Send + Sync + 'static,
     T: Send + 'static,
     F: Send + 'static,
 {

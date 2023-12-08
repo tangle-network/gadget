@@ -1,5 +1,6 @@
 use crate::gadget::manager::AbstractGadget;
 use async_trait::async_trait;
+use auto_impl::auto_impl;
 use sc_client_api::{BlockImportNotification, FinalityNotification};
 use sp_runtime::traits::Block;
 use std::error::Error;
@@ -47,6 +48,7 @@ impl Display for SubstrateGadgetError {
 impl Error for SubstrateGadgetError {}
 
 #[async_trait]
+#[auto_impl(Arc)]
 pub trait Client<B: Block>: Send + Sync {
     async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>>;
     async fn get_latest_finality_notification(&self) -> Option<FinalityNotification<B>>;

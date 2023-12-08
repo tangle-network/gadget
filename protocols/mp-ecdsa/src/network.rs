@@ -35,7 +35,9 @@ impl Network for GossipNetwork {
     ) -> Result<(), webb_gadget::Error> {
         self.tx_to_network
             .send(message)
-            .map_err(|err| webb_gadget::Error::ClientError { err: err.into() })
+            .map_err(|err| webb_gadget::Error::ClientError {
+                err: err.to_string(),
+            })
     }
 
     async fn run(&self) -> Result<(), webb_gadget::Error> {

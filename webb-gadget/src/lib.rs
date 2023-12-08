@@ -4,6 +4,7 @@ use crate::gadget::{WebbGadgetProtocol, WebbModule};
 use futures_util::future::TryFutureExt;
 use gadget_core::gadget::manager::{GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
+use gadget_core::job::JobError;
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
 use parking_lot::RwLock;
 pub use sc_client_api::BlockImportNotification;
@@ -30,6 +31,7 @@ pub enum Error {
     WorkManagerError { err: WorkManagerError },
     ProtocolRemoteError { err: String },
     ClientError { err: String },
+    JobError { err: JobError },
 }
 
 impl Display for Error {
@@ -39,6 +41,13 @@ impl Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+impl From<JobError> for Error {
+    fn from(err: JobError) -> Self {
+        Error::JobError { err }
+    }
+}
+
 pub async fn run_protocol_with_wm<C: Client<B>, B: Block, N: Network, P: WebbGadgetProtocol<B>>(
     network: N,
     protocol: P,

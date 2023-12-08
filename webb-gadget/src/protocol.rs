@@ -24,7 +24,7 @@ pub struct AsyncProtocolRemote {
 
 #[async_trait]
 pub trait AsyncProtocol {
-    type AdditionalParams: Send + Sync + 'static + Clone;
+    type AdditionalParams: Send + Sync + 'static;
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,

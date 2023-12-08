@@ -1,6 +1,5 @@
 use crate::client::{AccountId, ClientWithApi, MpEcdsaClient};
 use crate::keystore::KeystoreBackend;
-use crate::network::GossipNetwork;
 use crate::protocols::state_machine::{CurrentRoundBlame, StateMachineWrapper};
 use crate::protocols::util;
 use crate::protocols::util::VotingMessage;
@@ -10,10 +9,8 @@ use async_trait::async_trait;
 use curv::arithmetic::Converter;
 use curv::elliptic::curves::Secp256k1;
 use curv::BigInt;
-use futures::StreamExt;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use itertools::Itertools;
 use multi_party_ecdsa::gg_2020::party_i::verify;
 use multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
 use multi_party_ecdsa::gg_2020::state_machine::sign::{
@@ -34,14 +31,15 @@ use tangle_primitives::jobs::{JobId, JobType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 use webb_gadget::gadget::message::{GadgetProtocolMessage, UserID};
+use webb_gadget::gadget::network::Network;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
 use webb_gadget::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
 use webb_gadget::protocol::AsyncProtocol;
 use webb_gadget::{Block, BlockImportNotification, FinalityNotification};
 
-pub struct MpEcdsaSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C> {
+pub struct MpEcdsaSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
     client: MpEcdsaClient<B, BE, KBE, C>,
-    network: GossipNetwork,
+    network: N,
     round_blames: Arc<
         RwLock<
             HashMap<
@@ -54,17 +52,18 @@ pub struct MpEcdsaSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C> {
     account_id: AccountId,
 }
 
-pub async fn create_protocol<B, BE, KBE, C>(
+pub async fn create_protocol<B, BE, KBE, C, N>(
     config: &MpEcdsaProtocolConfig,
     logger: DebugLogger,
-    client: C,
-    network: GossipNetwork,
-) -> Result<MpEcdsaSigningProtocol<B, BE, KBE, C>, Box<dyn Error>>
+    client: MpEcdsaClient<B, BE, KBE, C>,
+    network: N,
+) -> Result<MpEcdsaSigningProtocol<B, BE, KBE, C, N>, Box<dyn Error>>
 where
     B: Block,
     BE: Backend<B>,
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
+    N: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     Ok(MpEcdsaSigningProtocol {
@@ -77,20 +76,20 @@ where
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, KBE: KeystoreBackend> WebbGadgetProtocol<B>
-    for MpEcdsaSigningProtocol<B, BE, KBE, C>
+impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, KBE: KeystoreBackend, N: Network>
+    WebbGadgetProtocol<B> for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     async fn get_next_jobs(
         &self,
-        _notification: &FinalityNotification<B>,
+        notification: &FinalityNotification<B>,
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, webb_gadget::Error> {
         let jobs = self
             .client
-            .query_jobs_by_validator(self.account_id)
+            .query_jobs_by_validator(notification.hash, self.account_id)
             .await?
             .into_iter()
             .filter(|r| matches!(r.job_type, JobType::DKGSignature(..)));
@@ -110,7 +109,15 @@ where
                     .map(|r| r + 1)
                     .unwrap_or(0);
 
-                if let Some(key) = self.client.key_store.get(&job.job_id).await? {
+                if let Some(key) = self
+                    .client
+                    .key_store
+                    .get(&job.job_id)
+                    .await
+                    .map_err(|err| webb_gadget::Error::ClientError {
+                        err: err.to_string(),
+                    })?
+                {
                     let additional_params = MpEcdsaSigningExtraParams {
                         i: participants
                             .iter()
@@ -161,8 +168,8 @@ where
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         WorkManagerConfig {
             interval: None, // Manual polling
-            max_active_tasks: 1,
-            max_pending_tasks: 1,
+            max_active_tasks: 8,
+            max_pending_tasks: 8,
         }
     }
 }
@@ -176,8 +183,10 @@ struct MpEcdsaSigningExtraParams {
 }
 
 #[async_trait]
-impl<B: Block, BE, KBE: KeystoreBackend, C> AsyncProtocol
-    for MpEcdsaSigningProtocol<B, BE, KBE, C>
+impl<B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>, N: Network>
+    AsyncProtocol for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     type AdditionalParams = MpEcdsaSigningExtraParams;
     async fn generate_protocol_from(
@@ -207,7 +216,10 @@ impl<B: Block, BE, KBE: KeystoreBackend, C> AsyncProtocol
 
                 let offline_i = get_offline_i(i, &signers);
 
-                let signing = OfflineStage::new(offline_i, signers, key)?;
+                let signing =
+                    OfflineStage::new(offline_i, signers, key).map_err(|err| JobError {
+                        reason: format!("Failed to create offline stage: {err:?}"),
+                    })?;
                 let (current_round_blame_tx, current_round_blame_rx) =
                     tokio::sync::watch::channel(CurrentRoundBlame::default());
 
@@ -221,7 +233,7 @@ impl<B: Block, BE, KBE: KeystoreBackend, C> AsyncProtocol
                     rx_async_proto_offline,
                     tx_to_outbound_voting,
                     rx_async_proto_voting,
-                ) = util::create_job_manager_to_async_protocol_channel_signing::<OfflineStage, _>(
+                ) = util::create_job_manager_to_async_protocol_channel_signing(
                     protocol_message_rx,
                     associated_block_id,
                     associated_retry_id,
@@ -239,10 +251,14 @@ impl<B: Block, BE, KBE: KeystoreBackend, C> AsyncProtocol
                 )
                 .set_watcher(StderrWatcher)
                 .run()
-                .await?;
+                .await
+                .map_err(|err| JobError {
+                    reason: format!("Keygen protocol error: {err:?}"),
+                })?;
 
                 debug_logger_proto.info(format!(
-                    "*** Completed offline stage: {completed_offline_stage:?}"
+                    "*** Completed offline stage: {:?}",
+                    completed_offline_stage.public_key()
                 ));
 
                 // We will sign over the unique task ID
@@ -279,7 +295,10 @@ impl<B: Block, BE, KBE: KeystoreBackend, C> AsyncProtocol
                     let serialized = signature.encode();
                     client
                         .submit_job_result(additional_params.job_id, serialized)
-                        .await?;
+                        .await
+                        .map_err(|err| JobError {
+                            reason: format!("Failed to submit job result: {err:?}"),
+                        })?;
                 }
 
                 Ok(())
@@ -304,8 +323,8 @@ async fn voting_stage(
     debug_logger: &DebugLogger,
 ) -> Result<Signature, JobError> {
     let offline_stage_pub_key = completed_offline_stage.public_key().clone();
-    let (signing, partial_signature) =
-        SignManual::new(message, completed_offline_stage).map_err(|err| JobError {
+    let (signing, partial_signature) = SignManual::new(message.clone(), completed_offline_stage)
+        .map_err(|err| JobError {
             reason: format!("Failed to create voting stage: {err:?}"),
         })?;
 
@@ -325,7 +344,7 @@ async fn voting_stage(
 
     let mut sigs = HashMap::with_capacity(threshold as _);
 
-    while let Some(vote_message) = msg_rx.next().await {
+    while let Some(vote_message) = msg_rx.recv().await {
         let vote_message: VotingMessage = vote_message;
         if sigs.contains_key(&vote_message.from) {
             debug_logger.warn(format!(

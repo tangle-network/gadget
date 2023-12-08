@@ -40,8 +40,7 @@ where
     type MessageBody = T::MessageBody;
 
     fn handle_incoming(&mut self, msg: Msg<Self::MessageBody>) -> Result<(), Self::Err> {
-        let (round, sender, _receiver) =
-            (msg.body.round_id() as _, msg.sender as _, msg.receiver as _);
+        let (round, sender, _receiver) = (msg.body.round_id(), msg.sender, msg.receiver);
 
         self.logger.trace(format!(
             "Handling incoming message round={}, sender={}",
