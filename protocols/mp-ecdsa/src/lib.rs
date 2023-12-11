@@ -6,7 +6,6 @@ use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::Block;
 use std::error::Error;
-use std::net::SocketAddr;
 use std::sync::Arc;
 use webb_gadget::gadget::network::Network;
 
@@ -16,14 +15,11 @@ pub mod client;
 pub mod constants;
 pub mod error;
 pub mod keystore;
+pub mod network;
 pub mod protocols;
 pub mod util;
 
 pub struct MpEcdsaProtocolConfig {
-    // Set to some if a peer connection to the target bootnode
-    pub gossip_bootnode: Option<SocketAddr>,
-    // Set to some if the bootnode
-    pub gossip_bind_addr: Option<SocketAddr>,
     pub account_id: AccountId,
 }
 
@@ -75,12 +71,13 @@ where
     Ok(())
 }
 
-pub async fn run<B, BE, KBE, C, N>(
+pub async fn run<B, BE, KBE, C, N, N2>(
     config: MpEcdsaProtocolConfig,
     client: C,
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
-    network: N,
+    network_keygen: N,
+    network_signing: N2,
 ) -> Result<(), Box<dyn Error>>
 where
     B: Block,
@@ -88,6 +85,7 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
+    N2: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     let client = Arc::new(client);
@@ -96,9 +94,9 @@ where
         client.clone(),
         logger.clone(),
         keystore.clone(),
-        network.clone(),
+        network_keygen,
     );
-    let sign_future = run_sign(&config, client, logger, keystore, network);
+    let sign_future = run_sign(&config, client, logger, keystore, network_signing);
 
     tokio::select! {
         res0 = keygen_future => res0,

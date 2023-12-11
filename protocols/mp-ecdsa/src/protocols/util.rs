@@ -1,5 +1,6 @@
 use futures::StreamExt;
 use gadget_core::job_manager::WorkManagerInterface;
+use multi_party_ecdsa::gg_2020::state_machine::keygen::Keygen;
 use multi_party_ecdsa::gg_2020::state_machine::sign::{OfflineProtocolMessage, OfflineStage};
 use round_based::{Msg, StateMachine};
 use serde::de::DeserializeOwned;
@@ -65,6 +66,19 @@ where
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub enum KeygenMessage {
+    Keygen(Msg<<Keygen as StateMachine>::MessageBody>),
+    PublicKeyGossip(PublicKeyGossipMessage),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PublicKeyGossipMessage {
+    pub from: UserID,
+    pub to: Option<UserID>,
+    pub signature: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum SigningMessage {
     Offline(Msg<<OfflineStage as StateMachine>::MessageBody>),
     Voting(VotingMessage),
@@ -127,6 +141,7 @@ pub fn create_job_manager_to_async_protocol_channel_signing<N: Network>(
             while let Some(msg) = rx_to_outbound_offline.next().await {
                 let from = msg.sender as UserID;
                 let to = msg.receiver.map(|r| r as UserID);
+                // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
                 let msg = SigningMessage::Offline(msg);
                 let msg = GadgetProtocolMessage {
                     associated_block_id,

@@ -1,8 +1,9 @@
 use crate::gadget::work_manager::WebbWorkManager;
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::{Deserialize, Serialize};
+use sp_core::{Decode, Encode};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Encode, Decode, Debug)]
 pub struct GadgetProtocolMessage {
     pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
     pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
@@ -13,6 +14,10 @@ pub struct GadgetProtocolMessage {
     // If None, this is a broadcasted message
     pub to: Option<UserID>,
     pub payload: Vec<u8>,
+    // Some protocols need this additional data
+    pub from_account_id: Option<sp_core::ecdsa::Public>,
+    // Some protocol need this additional data
+    pub to_account_id: Option<sp_core::ecdsa::Public>,
 }
 
 pub type UserID = u32;
@@ -42,5 +47,13 @@ impl ProtocolMessageMetadata<WebbWorkManager> for GadgetProtocolMessage {
         &self,
     ) -> Option<<WebbWorkManager as WorkManagerInterface>::UserID> {
         self.to
+    }
+}
+
+impl GadgetProtocolMessage {
+    /// Returns a hash of the message
+    pub fn hash(&self) -> Vec<u8> {
+        let serialized = bincode2::serialize(&self).expect("Should serialize");
+        sp_core::keccak_256(&serialized).to_vec()
     }
 }

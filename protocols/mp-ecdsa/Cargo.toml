@@ -26,6 +26,7 @@ clap = { workspace = true }
 hex-literal = { workspace = true }
 rand = { workspace = true }
 jsonrpsee = { workspace = true, features = ["server"] }
+linked-hash-map = { workspace = true }
 
 pallet-jobs-rpc-runtime-api = { workspace = true }
 tangle-primitives = { workspace = true }
@@ -47,6 +48,8 @@ sc-consensus-aura = { workspace = true }
 sc-consensus-grandpa = { workspace = true }
 sc-executor = { workspace = true }
 sc-network = { workspace = true }
+sc-network-common = { workspace = true }
+sc-network-sync = { workspace = true }
 sc-service = { workspace = true }
 sc-telemetry = { workspace = true }
 sc-transaction-pool-api = { workspace = true }

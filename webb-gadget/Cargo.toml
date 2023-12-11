@@ -23,3 +23,5 @@ sc-client-api = { workspace = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 hex = { workspace = true }
+bincode2 = { workspace = true }
+parity-scale-codec = { workspace = true }

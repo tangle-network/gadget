@@ -56,7 +56,7 @@ where
     })
 }
 
-pub type AccountId = u64;
+pub type AccountId = sp_core::ecdsa::Public;
 
 pub trait ClientWithApi<B, BE>:
     BlockchainEvents<B> + HeaderBackend<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + 'static

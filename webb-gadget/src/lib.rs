@@ -32,6 +32,7 @@ pub enum Error {
     ProtocolRemoteError { err: String },
     ClientError { err: String },
     JobError { err: JobError },
+    NetworkError { err: String },
 }
 
 impl Display for Error {

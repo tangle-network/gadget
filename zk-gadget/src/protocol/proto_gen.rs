@@ -206,6 +206,8 @@ impl<B: Send + Sync, N: Network, C: ClientWithApi<Bl>, Bl: Block> MpcNet
                 to: Some(id),
                 task_hash: self.associated_task_id,
                 payload: bincode2::serialize(&inner_payload).expect("Failed to serialize message"),
+                from_account_id: None,
+                to_account_id: None,
             })
             .await
             .map_err(|err| MpcNetError::Protocol {

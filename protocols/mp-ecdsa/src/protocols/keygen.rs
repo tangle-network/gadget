@@ -2,22 +2,25 @@ use crate::client::{AccountId, ClientWithApi, MpEcdsaClient};
 use crate::keystore::KeystoreBackend;
 use crate::protocols::state_machine::{CurrentRoundBlame, StateMachineWrapper};
 use crate::protocols::util;
+use crate::protocols::util::PublicKeyGossipMessage;
 use crate::util::DebugLogger;
 use crate::MpEcdsaProtocolConfig;
 use async_trait::async_trait;
+use curv::elliptic::curves::Secp256k1;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use multi_party_ecdsa::gg_2020::state_machine::keygen::Keygen;
+use itertools::Itertools;
+use multi_party_ecdsa::gg_2020::state_machine::keygen::{Keygen, LocalKey};
 use pallet_jobs_rpc_runtime_api::JobsApi;
 use parking_lot::Mutex;
 use round_based::async_runtime::watcher::StderrWatcher;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGResult, JobId, JobKey, JobResult, JobType};
+use tangle_primitives::jobs::{DKGResult, JobId, JobKey, JobResult, JobType, KeysAndSignatures};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::RwLock;
 use webb_gadget::gadget::message::GadgetProtocolMessage;
@@ -176,6 +179,8 @@ where
         let protocol_output = Arc::new(Mutex::new(None));
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
+        let network = self.network.clone();
+        let logger = self.logger.clone();
 
         let (i, t, n) = (
             additional_params.i,
@@ -228,7 +233,7 @@ where
                 if let Some(blame) = blame.write().await.remove(&associated_task_id) {
                     let blame = blame.borrow();
                     if !blame.blamed_parties.is_empty() {
-                        log::error!(target: "mp-ecdsa", "Blame: {blame:?}");
+                        logger.error(format!("Blame: {blame:?}"));
                         return Err(JobError {
                             reason: format!("Keygen blame: {blame:?}"),
                         });
@@ -239,7 +244,6 @@ where
                 if let Some(local_key) = protocol_output_clone.lock().take() {
                     // Serialize via sp encode. Later, in the signing gadget, we will retrieve these serialized
                     // bytes and deserialize them into the LocalKey<Secp256k1> type.
-                    let serialized = local_key.public_key().to_bytes(true).to_vec();
                     // Store for use later in the signing protocol
                     key_store
                         .set(additional_params.job_id, local_key)
@@ -248,13 +252,11 @@ where
                             reason: format!("Failed to store key: {err:?}"),
                         })?;
 
-                    // TODO: Proper participant list (see how the DKG handled this phase)
-                    let job_result = JobResult::DKG(DKGResult {
-                        key: serialized,
-                        participants: vec![],
-                        keys_and_signatures: vec![],
-                        threshold: t as u8,
-                    });
+                    // TODO: Proper participant list
+                    let participants = vec![];
+                    let job_result =
+                        handle_public_key_gossip(&logger, &local_key, t, i, participants, network)
+                            .await?;
 
                     client
                         .submit_job_result(
@@ -272,4 +274,46 @@ where
             })
             .build())
     }
+}
+
+async fn handle_public_key_gossip<N: Network>(
+    logger: &DebugLogger,
+    local_key: &LocalKey<Secp256k1>,
+    threshold: u16,
+    i: u16,
+    participants: Vec<sp_core::ecdsa::Public>,
+    network: N,
+) -> Result<JobResult, JobError> {
+    let serialized_public_key = local_key.public_key().to_bytes(true).to_vec();
+    // Sign the public key with our public key
+    let signature = vec![];
+    let mut received_keys = BTreeMap::new();
+    received_keys.insert(i, (serialized_public_key.clone(), signature));
+
+    // TODO: Gossip the public key
+
+    for _ in 0..threshold {
+        // TODO: multiplex the network again for keygen
+        let message: PublicKeyGossipMessage = receive_message().await?;
+        let from = message.from;
+        if received_keys.contains_key(&(from as u16)) {
+            logger.warn("Received duplicate key");
+            continue;
+        }
+
+        received_keys.insert(
+            from as u16,
+            (serialized_public_key.clone(), message.signature),
+        );
+    }
+
+    // Order and collect the map to ensure symmetric submission to blockchain
+    let keys_and_signatures = received_keys.into_iter().sorted().collect();
+
+    Ok(JobResult::DKG(DKGResult {
+        key: serialized_public_key,
+        participants,
+        keys_and_signatures,
+        threshold: threshold as _,
+    }))
 }

@@ -24,6 +24,8 @@ impl<T: Send + Sync + Clone + 'static> AdditionalProtocolParams for T {}
 #[async_trait]
 impl<M: AsyncProtocol + Send + Sync, B: Block, C: ClientWithApi<B>> WebbGadgetProtocol<B>
     for ZkProtocol<M, B, C>
+where
+    <M as AsyncProtocol>::AdditionalParams: Clone,
 {
     async fn get_next_jobs(
         &self,

@@ -35,7 +35,7 @@ impl<BE: KeystoreBackend> ECDSAKeyStore<BE> {
 }
 
 #[async_trait]
-pub trait KeystoreBackend: Clone + Send + Sync {
+pub trait KeystoreBackend: Clone + Send + Sync + 'static {
     async fn get(&self, job_id: &JobId)
         -> Result<Option<LocalKey<Secp256k1>>, crate::error::Error>;
     async fn set(&self, job_id: JobId, key: LocalKey<Secp256k1>)

@@ -72,13 +72,13 @@ impl SubstrateCli for Cli {
 
     fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
         Ok(match id {
-            "" | "local" => Box::new(chainspec::testnet::local_testnet_config(4006)?),
+            "" | "local" => Box::new(super::chain_spec::testnet::local_testnet_config(4006)?),
             // generates the spec for testnet
-            "testnet" => Box::new(chainspec::testnet::tangle_testnet_config(4006)?),
+            "testnet" => Box::new(super::chain_spec::testnet::tangle_testnet_config(4006)?),
             // generates the spec for mainnet
-            "mainnet-local" => Box::new(chainspec::mainnet::local_testnet_config(4006)?),
-            "mainnet" => Box::new(chainspec::mainnet::tangle_mainnet_config(4006)?),
-            "tangle-testnet" => Box::new(chainspec::testnet::ChainSpec::from_json_bytes(
+            "mainnet-local" => Box::new(super::chain_spec::mainnet::local_testnet_config(4006)?),
+            "mainnet" => Box::new(super::chain_spec::mainnet::tangle_mainnet_config(4006)?),
+            "tangle-testnet" => Box::new(super::chain_spec::testnet::ChainSpec::from_json_bytes(
                 &include_bytes!("../../chainspecs/testnet/tangle-standalone.json")[..],
             )?),
             path => Box::new(chainspec::testnet::ChainSpec::from_json_file(
@@ -295,10 +295,6 @@ pub fn run() -> sc_cli::Result<()> {
                     rpc_config,
                     eth_config: cli.eth,
                     debug_output: cli.output_path,
-                    #[cfg(feature = "relayer")]
-                    relayer_cmd: cli.relayer_cmd,
-                    #[cfg(feature = "light-client")]
-                    light_client_relayer_cmd: cli.light_client_relayer_cmd,
                     auto_insert_keys: cli.auto_insert_keys,
                 })
                 .map_err(Into::into)
