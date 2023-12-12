@@ -74,6 +74,7 @@ use webb_gadget::gadget::work_manager::WebbWorkManager;
 use webb_gadget::Error;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct NetworkGossipEngineBuilder<KBE: KeystoreBackend> {
     protocol_name: ProtocolName,
     keystore: ECDSAKeyStore<KBE>,
@@ -124,7 +125,7 @@ impl<KBE: KeystoreBackend> NetworkGossipEngineBuilder<KBE> {
     /// The returned values are:
     /// - a [`GossipHandler`] that is a simple background task that should run indefinitely, and
     /// - a [`GossipHandlerController`] that can be used to control that background task.
-    pub(crate) fn build<B: Block>(
+    pub fn build<B: Block>(
         self,
         service: Arc<NetworkService<B, B::Hash>>,
         sync_service: Arc<SyncingService<B>>,
@@ -190,6 +191,7 @@ mod rep {
 
 /// Controls the behaviour of a [`GossipHandler`] it is connected to.
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct GossipHandlerController {
     local_peer_id: PeerId,
     protocol_name: ProtocolName,
@@ -234,7 +236,7 @@ impl Network for GossipHandlerController {
     ) -> Result<(), Error> {
         // Make sure that we programmed-in the account IDs
         let _ = message.from_account_id.ok_or_else(|| Error::NetworkError {
-            err: format!("Improperly constructed message due to no associated account IDs"),
+            err: "Improperly constructed message due to no associated account IDs".to_string(),
         })?;
 
         if let Some(to) = message.to_account_id.as_ref() {
@@ -325,7 +327,7 @@ pub struct GossipHandler<B: Block + 'static, KBE: KeystoreBackend> {
 impl<B: Block + 'static, KBE: KeystoreBackend> Clone for GossipHandler<B, KBE> {
     fn clone(&self) -> Self {
         Self {
-            account_id: self.account_id.clone(),
+            account_id: self.account_id,
             protocol_name: self.protocol_name.clone(),
             keystore: self.keystore.clone(),
             to_receiver: self.to_receiver.clone(),
@@ -388,18 +390,18 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                         if let GossipNetworkMessage::Protocol(protocol_message) = message {
                             self0.send_signed_dkg_message(recipient, protocol_message)
                         } else {
-                            self0.logger.error(format!(
-                                "Received a non-protocol message from the controller"
-                            ));
+                            self0.logger.error(
+                                "Received a non-protocol message from the controller".to_string(),
+                            );
                         }
                     }
                     ToHandler::Gossip(v) => {
                         if let GossipNetworkMessage::Protocol(protocol_message) = v {
                             self0.gossip_dkg_signed_message(protocol_message);
                         } else {
-                            self0.logger.error(format!(
-                                "Received a non-protocol message from the controller"
-                            ));
+                            self0.logger.error(
+                                "Received a non-protocol message from the controller".to_string(),
+                            );
                         }
                     }
                 }
@@ -575,7 +577,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
         ));
         let mut lock = self.peers.write();
         if let Some(peer) = lock.get_mut(&who) {
-            peer.authority_id = Some(message.account_id.clone());
+            peer.authority_id = Some(message.account_id);
         } else {
             self.logger.warn(format!(
                 "Peer {who} is not connected, but sent us a handshake message!!"

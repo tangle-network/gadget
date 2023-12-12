@@ -23,22 +23,21 @@ itertools = { workspace = true }
 bincode2 = { workspace = true }
 linked-hash-map = { workspace = true }
 
-pallet-jobs-rpc-runtime-api = { workspace = true, default-features = false }
-tangle-primitives = { workspace = true, default-features = false }
+pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
+tangle-primitives = { workspace = true, features = ["std"] }
 
-sp-core = { workspace = true, default-features = false }
-sp-api = { workspace = true, default-features = false }
-sp-runtime = { workspace = true, default-features = false }
-sp-application-crypto = { workspace = true, default-features = false }
-sp-consensus-aura = { workspace = true, default-features = false }
+sp-core = { workspace = true, features = ["std"] }
+sp-api = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+sp-application-crypto = { workspace = true, features = ["std"] }
+sp-consensus-aura = { workspace = true, features = ["std"] }
 
-sc-client-api = { workspace = true, default-features = false }
-sc-network = { workspace = true, default-features = false }
-sc-network-common = { workspace = true, default-features = false }
-sc-network-sync = { workspace = true, default-features = false }
+sc-client-api = { workspace = true }
+sc-network = { workspace = true }
+sc-network-common = { workspace = true }
+sc-network-sync = { workspace = true }
 
-
-parity-scale-codec = { workspace = true, default-features = false }
+parity-scale-codec = { workspace = true }
 serde = { version = "1.0.193", features = ["derive"] }
 
 [build-dependencies]

@@ -27,7 +27,7 @@ impl<B: Block, BE, KBE: KeystoreBackend, C> Clone for MpEcdsaClient<B, BE, KBE, 
             client: self.client.clone(),
             key_store: self.key_store.clone(),
             logger: self.logger.clone(),
-            account_id: self.account_id.clone(),
+            account_id: self.account_id,
             _block: self._block,
         }
     }

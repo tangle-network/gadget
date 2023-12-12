@@ -24,10 +24,10 @@ impl From<JobError> for Error {
     }
 }
 
-impl Into<JobError> for Error {
-    fn into(self) -> JobError {
+impl From<Error> for JobError {
+    fn from(val: Error) -> Self {
         JobError {
-            reason: self.to_string(),
+            reason: val.to_string(),
         }
     }
 }

@@ -47,7 +47,7 @@ where
             round, sender
         ));
 
-        if round < self.current_round().into() {
+        if round < self.current_round() {
             self.logger
                 .trace(format!("Message for round={round} is outdated, ignoring",));
             return Ok(());

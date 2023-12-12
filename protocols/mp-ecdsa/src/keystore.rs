@@ -47,6 +47,12 @@ pub struct InMemoryBackend {
     map: Arc<RwLock<HashMap<JobId, LocalKey<Secp256k1>>>>,
 }
 
+impl Default for InMemoryBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemoryBackend {
     pub fn new() -> Self {
         Self {

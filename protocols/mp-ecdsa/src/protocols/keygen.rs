@@ -17,12 +17,12 @@ use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
+use sp_application_crypto::RuntimePublic;
+use sp_core::crypto::KeyTypeId;
 use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::sync::Arc;
-use sp_application_crypto::RuntimePublic;
-use sp_core::crypto::KeyTypeId;
-use tangle_primitives::jobs::{DKGResult, JobId, JobKey, JobResult, JobType};
+use tangle_primitives::jobs::{DKGResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 use webb_gadget::gadget::message::GadgetProtocolMessage;
@@ -67,14 +67,19 @@ where
         network,
         round_blames: Arc::new(RwLock::new(HashMap::new())),
         logger,
-        id: config.id.clone(),
+        id: config.id,
         account_id: config.account_id,
     })
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, KBE: KeystoreBackend, N: Network>
-    WebbGadgetProtocol<B> for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
+impl<
+        B: Block,
+        BE: Backend<B> + 'static,
+        C: ClientWithApi<B, BE>,
+        KBE: KeystoreBackend,
+        N: Network,
+    > WebbGadgetProtocol<B> for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -89,7 +94,7 @@ where
             .query_jobs_by_validator(notification.hash, self.account_id)
             .await?
             .into_iter()
-            .filter(|r| matches!(r.job_type, JobType::DKG(..)));
+            .filter(|r| matches!(r.job_type, JobType::DKGTSSPhaseOne(..)));
 
         let mut ret = vec![];
 
@@ -164,8 +169,13 @@ pub struct MpEcdsaKeygenExtraParams {
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B> + 'static, KBE: KeystoreBackend, C: ClientWithApi<B, BE>, N: Network>
-    AsyncProtocol for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
+impl<
+        B: Block,
+        BE: Backend<B> + 'static,
+        KBE: KeystoreBackend,
+        C: ClientWithApi<B, BE>,
+        N: Network,
+    > AsyncProtocol for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -184,7 +194,7 @@ where
         let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
-        let id = self.id.clone();
+        let id = self.id;
         let logger = self.logger.clone();
         let logger_clone = logger.clone();
         let round_blames = self.round_blames.clone();
@@ -305,17 +315,18 @@ async fn handle_public_key_gossip(
 ) -> Result<JobResult, JobError> {
     let serialized_public_key = local_key.public_key().to_bytes(true).to_vec();
     // Sign the public key with our public key
-    let signature = my_id.sign(KeyTypeId::default(), &serialized_public_key)
+    let signature = my_id
+        .sign(KeyTypeId::default(), &serialized_public_key)
         .ok_or_else(|| JobError {
-            reason: format!("Failed to sign public key"),
+            reason: "Failed to sign public key".to_string(),
         })?
         .0
         .to_vec();
 
     let mut received_keys = BTreeMap::new();
-    received_keys.insert(i, (serialized_public_key.clone(), signature.clone()));
+    received_keys.insert(i, signature.clone());
     let mut received_participants = BTreeMap::new();
-    received_participants.insert(i, my_id.clone());
+    received_participants.insert(i, my_id);
 
     broadcast_tx_to_outbound
         .send(PublicKeyGossipMessage {
@@ -334,7 +345,7 @@ async fn handle_public_key_gossip(
                 .recv()
                 .await
                 .ok_or_else(|| JobError {
-                    reason: format!("Failed to receive public key"),
+                    reason: "Failed to receive public key".to_string(),
                 })?;
 
         let from = message.from;
@@ -343,16 +354,13 @@ async fn handle_public_key_gossip(
             continue;
         }
 
-        received_keys.insert(
-            from as u16,
-            (serialized_public_key.clone(), message.signature),
-        );
+        received_keys.insert(from as u16, message.signature);
 
         received_participants.insert(from as u16, message.id);
     }
 
     // Order and collect the map to ensure symmetric submission to blockchain
-    let keys_and_signatures = received_keys
+    let signatures = received_keys
         .into_iter()
         .sorted_by_key(|x| x.0)
         .map(|r| r.1)
@@ -361,13 +369,14 @@ async fn handle_public_key_gossip(
     let participants = received_participants
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1)
+        .map(|r| r.1 .0.to_vec())
         .collect();
 
-    Ok(JobResult::DKG(DKGResult {
+    Ok(JobResult::DKGPhaseOne(DKGResult {
+        key_type: DkgKeyType::Ecdsa,
         key: serialized_public_key,
         participants,
-        keys_and_signatures,
         threshold: threshold as _,
+        signatures,
     }))
 }

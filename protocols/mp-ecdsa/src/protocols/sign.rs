@@ -27,7 +27,7 @@ use sp_core::keccak_256;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGSignatureResult, JobId, JobKey, JobResult, JobType};
+use tangle_primitives::jobs::{DKGSignatureResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 use webb_gadget::gadget::message::{GadgetProtocolMessage, UserID};
@@ -76,8 +76,13 @@ where
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, KBE: KeystoreBackend, N: Network>
-    WebbGadgetProtocol<B> for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
+impl<
+        B: Block,
+        BE: Backend<B> + 'static,
+        C: ClientWithApi<B, BE>,
+        KBE: KeystoreBackend,
+        N: Network,
+    > WebbGadgetProtocol<B> for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -92,7 +97,7 @@ where
             .query_jobs_by_validator(notification.hash, self.account_id)
             .await?
             .into_iter()
-            .filter(|r| matches!(r.job_type, JobType::DKGSignature(..)));
+            .filter(|r| matches!(r.job_type, JobType::DKGTSSPhaseTwo(..)));
 
         let mut ret = vec![];
 
@@ -118,7 +123,7 @@ where
                         err: err.to_string(),
                     })?
                 {
-                    let input_data_to_sign = if let JobType::DKGSignature(sig) = &job.job_type {
+                    let input_data_to_sign = if let JobType::DKGTSSPhaseTwo(sig) = &job.job_type {
                         sig.submission.clone()
                     } else {
                         panic!("Should be DKGSignature");
@@ -130,10 +135,7 @@ where
                             .position(|p| p == &self.account_id)
                             .expect("Should exist") as u16,
                         t: job.threshold.expect("T should exist for stage 2 signing") as u16,
-                        signers: (0..participants.len())
-                            .into_iter()
-                            .map(|r| r as u16)
-                            .collect(),
+                        signers: (0..participants.len()).map(|r| r as u16).collect(),
                         job_id: job.job_id,
                         job_key: job.job_type.get_job_key(),
                         key,
@@ -193,8 +195,13 @@ pub struct MpEcdsaSigningExtraParams {
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B> + 'static, KBE: KeystoreBackend, C: ClientWithApi<B, BE>, N: Network>
-    AsyncProtocol for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
+impl<
+        B: Block,
+        BE: Backend<B> + 'static,
+        KBE: KeystoreBackend,
+        C: ClientWithApi<B, BE>,
+        N: Network,
+    > AsyncProtocol for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -261,8 +268,11 @@ where
                     network,
                 );
 
-                let state_machine_wrapper =
-                    StateMachineWrapper::new(signing, current_round_blame_tx, debug_logger_proto.clone());
+                let state_machine_wrapper = StateMachineWrapper::new(
+                    signing,
+                    current_round_blame_tx,
+                    debug_logger_proto.clone(),
+                );
                 let completed_offline_stage = round_based::AsyncProtocol::new(
                     state_machine_wrapper,
                     rx_async_proto_offline,
@@ -312,7 +322,8 @@ where
                 // Submit the protocol output to the blockchain
                 if let Some(signature) = protocol_output_clone.lock().await.take() {
                     let signature: Vec<u8> = signature.encode();
-                    let job_result = JobResult::DKGSignature(DKGSignatureResult {
+                    let job_result = JobResult::DKGPhaseTwo(DKGSignatureResult {
+                        key_type: DkgKeyType::Ecdsa,
                         data: additional_params.input_data_to_sign,
                         signature,
                         signing_key: key_clone.public_key().to_bytes(true).to_vec(),

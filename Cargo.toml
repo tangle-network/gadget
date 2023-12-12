@@ -5,7 +5,7 @@ members = [
     "webb-gadget",
     "zk-gadget",
     "test-gadget",
-    "protocols/mp-ecdsa"
+    "protocols/mp-ecdsa",
 ]
 
 [workspace.dependencies]
@@ -14,10 +14,10 @@ webb-gadget = { path = "./webb-gadget" }
 zk-gadget = { path = "./zk-gadget" }
 mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
 
-pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle", branch = "drew/update-v1.1.0" }
-tangle-primitives = { git = "https://github.com/webb-tools/tangle", branch = "drew/update-v1.1.0" }
-tangle-testnet-runtime = { git = "https://github.com/webb-tools/tangle", branch = "drew/update-v1.1.0" }
-tangle-mainnet-runtime = { git = "https://github.com/webb-tools/tangle", branch = "drew/update-v1.1.0" }
+pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle" }
+tangle-primitives = { git = "https://github.com/webb-tools/tangle" }
+tangle-testnet-runtime = { git = "https://github.com/webb-tools/tangle" }
+tangle-mainnet-runtime = { git = "https://github.com/webb-tools/tangle" }
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }

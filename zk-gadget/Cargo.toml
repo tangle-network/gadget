@@ -20,6 +20,7 @@ parking_lot = { workspace = true }
 log = { workspace = true }
 bytes = { workspace = true, features = ["serde"] }
 sp-runtime = { workspace = true }
+fflonk = { git = "https://github.com/w3f/fflonk", features = ["std"]}
 
 [dev-dependencies]
 tonic = "0.10.2"

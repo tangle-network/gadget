@@ -335,45 +335,47 @@ mod tests {
             TestBlock,
         >,
     ) -> BuiltExecutableJobWrapper {
-        JobBuilder::default().build(async move {
-            if params.party_id == 0 {
-                // Receive N-1 messages from the other parties
-                for party_id in 0..N {
-                    let party_id = party_id as u32;
-                    if party_id != params.party_id {
-                        let _message = params
-                            .recv_from(party_id, MultiplexedStreamID::Zero)
-                            .await
-                            .expect("Should receive protocol message");
+        JobBuilder::default()
+            .protocol(async move {
+                if params.party_id == 0 {
+                    // Receive N-1 messages from the other parties
+                    for party_id in 0..N {
+                        let party_id = party_id as u32;
+                        if party_id != params.party_id {
+                            let _message = params
+                                .recv_from(party_id, MultiplexedStreamID::Zero)
+                                .await
+                                .expect("Should receive protocol message");
+                        }
                     }
+
+                    for party_id in 0..N {
+                        let party_id = party_id as u32;
+                        if party_id != params.party_id {
+                            params
+                                .send_to(party_id, Default::default(), MultiplexedStreamID::Zero)
+                                .await
+                                .expect("Should send");
+                        }
+                    }
+                } else {
+                    params
+                        .send_to(0, Default::default(), MultiplexedStreamID::Zero)
+                        .await
+                        .expect("Should send");
+                    let _message_from_king = params
+                        .recv_from(0, MultiplexedStreamID::Zero)
+                        .await
+                        .expect("Should receive protocol message");
                 }
 
-                for party_id in 0..N {
-                    let party_id = party_id as u32;
-                    if party_id != params.party_id {
-                        params
-                            .send_to(party_id, Default::default(), MultiplexedStreamID::Zero)
-                            .await
-                            .expect("Should send");
-                    }
-                }
-            } else {
                 params
-                    .send_to(0, Default::default(), MultiplexedStreamID::Zero)
-                    .await
+                    .extra_parameters
+                    .stop_tx
+                    .send(())
                     .expect("Should send");
-                let _message_from_king = params
-                    .recv_from(0, MultiplexedStreamID::Zero)
-                    .await
-                    .expect("Should receive protocol message");
-            }
-
-            params
-                .extra_parameters
-                .stop_tx
-                .send(())
-                .expect("Should send");
-            Ok(())
-        })
+                Ok(())
+            })
+            .build()
     }
 }

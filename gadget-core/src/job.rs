@@ -95,12 +95,13 @@ where
 #[derive(Default)]
 pub struct JobBuilder {
     pre: Option<Pin<Box<PreJobHook>>>,
-    protocol: Option<Pin<Box<dyn SendFuture<'static, Result<(), JobError>>>>>,
+    protocol: Option<Pin<Box<ProtocolJobHook>>>,
     post: Option<Pin<Box<PostJobHook>>>,
 }
 
 pub type PreJobHook = dyn SendFuture<'static, Result<ProceedWithExecution, JobError>>;
 pub type PostJobHook = dyn SendFuture<'static, Result<(), JobError>>;
+pub type ProtocolJobHook = dyn SendFuture<'static, Result<(), JobError>>;
 
 pub struct DefaultPreJobHook;
 impl Future for DefaultPreJobHook {
