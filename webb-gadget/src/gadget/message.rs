@@ -1,9 +1,8 @@
 use crate::gadget::work_manager::WebbWorkManager;
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::{Deserialize, Serialize};
-use sp_core::{Decode, Encode};
 
-#[derive(Serialize, Deserialize, Clone, Encode, Decode, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GadgetProtocolMessage {
     pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
     pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,

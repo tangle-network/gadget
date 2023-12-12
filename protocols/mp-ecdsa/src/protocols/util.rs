@@ -1,8 +1,8 @@
+//! When delivering messages to an async protocol, we want o make sure we don't mix up voting and public key gossip messages
+//! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
 use futures::StreamExt;
 use gadget_core::job_manager::WorkManagerInterface;
-use multi_party_ecdsa::gg_2020::state_machine::keygen::Keygen;
-use multi_party_ecdsa::gg_2020::state_machine::sign::{OfflineProtocolMessage, OfflineStage};
-use round_based::{Msg, StateMachine};
+use round_based::Msg;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -10,78 +10,10 @@ use webb_gadget::gadget::message::{GadgetProtocolMessage, UserID};
 use webb_gadget::gadget::network::Network;
 use webb_gadget::gadget::work_manager::WebbWorkManager;
 
-pub fn create_job_manager_to_async_protocol_channel<SM: StateMachine, N: Network>(
-    mut rx_gadget: UnboundedReceiver<GadgetProtocolMessage>,
-    associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-    associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
-    associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-    associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-    network: N,
-) -> (
-    futures::channel::mpsc::UnboundedSender<Msg<SM::MessageBody>>,
-    futures::channel::mpsc::UnboundedReceiver<std::io::Result<Msg<SM::MessageBody>>>,
-)
-where
-    <SM as StateMachine>::MessageBody: Send + Serialize + DeserializeOwned,
-{
-    let (tx_to_async_proto, rx_for_async_proto) = futures::channel::mpsc::unbounded();
-    // Take the messages from the gadget and send them to the async protocol
-    tokio::task::spawn(async move {
-        while let Some(msg) = rx_gadget.recv().await {
-            match bincode2::deserialize::<Msg<SM::MessageBody>>(&msg.payload) {
-                Ok(msg) => {
-                    if tx_to_async_proto.unbounded_send(Ok(msg)).is_err() {
-                        log::error!("Failed to send message to protocol");
-                    }
-                }
-                Err(err) => {
-                    log::error!("Failed to deserialize message: {err:?}");
-                }
-            }
-        }
-    });
-
-    let (tx_to_outbound, mut rx_to_outbound) =
-        futures::channel::mpsc::unbounded::<Msg<SM::MessageBody>>();
-    // Take the messages the async protocol sends to the outbound channel and send them to the gadget
-    tokio::task::spawn(async move {
-        while let Some(msg) = rx_to_outbound.next().await {
-            let msg = GadgetProtocolMessage {
-                associated_block_id,
-                associated_session_id,
-                associated_retry_id,
-                task_hash: associated_task_id,
-                from: msg.sender as UserID,
-                to: msg.receiver.map(|r| r as UserID),
-                payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
-            };
-
-            if network.send_message(msg).await.is_err() {
-                log::error!("Failed to send message to outbound");
-            }
-        }
-    });
-
-    (tx_to_outbound, rx_for_async_proto)
-}
-
 #[derive(Serialize, Deserialize, Debug)]
-pub enum KeygenMessage {
-    Keygen(Msg<<Keygen as StateMachine>::MessageBody>),
-    PublicKeyGossip(PublicKeyGossipMessage),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct PublicKeyGossipMessage {
-    pub from: UserID,
-    pub to: Option<UserID>,
-    pub signature: Vec<u8>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum SigningMessage {
-    Offline(Msg<<OfflineStage as StateMachine>::MessageBody>),
-    Voting(VotingMessage),
+pub enum SplitChannelMessage<C1, C2> {
+    Channel1(C1),
+    Channel2(C2),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -91,7 +23,19 @@ pub struct VotingMessage {
     pub payload: Vec<u8>,
 }
 
-pub fn create_job_manager_to_async_protocol_channel_signing<N: Network>(
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PublicKeyGossipMessage {
+    pub from: UserID,
+    pub to: Option<UserID>,
+    pub signature: Vec<u8>,
+    pub id: sp_core::ecdsa::Public,
+}
+
+pub fn create_job_manager_to_async_protocol_channel_split<
+    N: Network + 'static,
+    C1: Serialize + DeserializeOwned + HasSenderAndReceiver + Send + 'static,
+    C2: Serialize + DeserializeOwned + HasSenderAndReceiver + Send + 'static,
+>(
     mut rx_gadget: UnboundedReceiver<GadgetProtocolMessage>,
     associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
@@ -99,27 +43,25 @@ pub fn create_job_manager_to_async_protocol_channel_signing<N: Network>(
     associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
     network: N,
 ) -> (
-    futures::channel::mpsc::UnboundedSender<Msg<OfflineProtocolMessage>>,
-    futures::channel::mpsc::UnboundedReceiver<std::io::Result<Msg<OfflineProtocolMessage>>>,
-    UnboundedSender<VotingMessage>,
-    UnboundedReceiver<VotingMessage>,
+    futures::channel::mpsc::UnboundedSender<C1>,
+    futures::channel::mpsc::UnboundedReceiver<std::io::Result<C1>>,
+    UnboundedSender<C2>,
+    UnboundedReceiver<C2>,
 ) {
-    let (tx_to_async_proto_offline, rx_for_async_proto_offline) =
-        futures::channel::mpsc::unbounded();
-    let (tx_to_async_proto_voting, rx_for_async_proto_voting) =
-        tokio::sync::mpsc::unbounded_channel();
+    let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
+    let (tx_to_async_proto_2, rx_for_async_proto_2) = tokio::sync::mpsc::unbounded_channel();
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
         while let Some(msg) = rx_gadget.recv().await {
-            match bincode2::deserialize::<SigningMessage>(&msg.payload) {
+            match bincode2::deserialize::<SplitChannelMessage<C1, C2>>(&msg.payload) {
                 Ok(msg) => match msg {
-                    SigningMessage::Offline(msg) => {
-                        if tx_to_async_proto_offline.unbounded_send(Ok(msg)).is_err() {
+                    SplitChannelMessage::Channel1(msg) => {
+                        if tx_to_async_proto_1.unbounded_send(Ok(msg)).is_err() {
                             log::error!("Failed to send message to protocol");
                         }
                     }
-                    SigningMessage::Voting(msg) => {
-                        if tx_to_async_proto_voting.send(msg).is_err() {
+                    SplitChannelMessage::Channel2(msg) => {
+                        if tx_to_async_proto_2.send(msg).is_err() {
                             log::error!("Failed to send message to protocol");
                         }
                     }
@@ -131,18 +73,16 @@ pub fn create_job_manager_to_async_protocol_channel_signing<N: Network>(
         }
     });
 
-    let (tx_to_outbound_offline, mut rx_to_outbound_offline) =
-        futures::channel::mpsc::unbounded::<Msg<OfflineProtocolMessage>>();
-    let (tx_to_outbound_voting, mut rx_to_outbound_voting) =
-        tokio::sync::mpsc::unbounded_channel::<VotingMessage>();
+    let (tx_to_outbound_1, mut rx_to_outbound_1) = futures::channel::mpsc::unbounded::<C1>();
+    let (tx_to_outbound_2, mut rx_to_outbound_2) = tokio::sync::mpsc::unbounded_channel::<C2>();
+    let network_clone = network.clone();
     // Take the messages the async protocol sends to the outbound channel and send them to the gadget
     tokio::task::spawn(async move {
         let offline_task = async move {
-            while let Some(msg) = rx_to_outbound_offline.next().await {
-                let from = msg.sender as UserID;
-                let to = msg.receiver.map(|r| r as UserID);
-                // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
-                let msg = SigningMessage::Offline(msg);
+            while let Some(msg) = rx_to_outbound_1.next().await {
+                let from = msg.sender();
+                let to = msg.receiver();
+                let msg = SplitChannelMessage::<C1, C2>::Channel1(msg);
                 let msg = GadgetProtocolMessage {
                     associated_block_id,
                     associated_session_id,
@@ -151,6 +91,8 @@ pub fn create_job_manager_to_async_protocol_channel_signing<N: Network>(
                     from,
                     to,
                     payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
+                    from_account_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
+                    to_account_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
                 };
 
                 if network.send_message(msg).await.is_err() {
@@ -160,10 +102,10 @@ pub fn create_job_manager_to_async_protocol_channel_signing<N: Network>(
         };
 
         let voting_task = async move {
-            while let Some(msg) = rx_to_outbound_voting.recv().await {
-                let from = msg.from;
-                let to = msg.to;
-                let msg = SigningMessage::Voting(msg);
+            while let Some(msg) = rx_to_outbound_2.recv().await {
+                let from = msg.sender();
+                let to = msg.receiver();
+                let msg = SplitChannelMessage::<C1, C2>::Channel2(msg);
                 let msg = GadgetProtocolMessage {
                     associated_block_id,
                     associated_session_id,
@@ -172,9 +114,11 @@ pub fn create_job_manager_to_async_protocol_channel_signing<N: Network>(
                     from,
                     to,
                     payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
+                    from_account_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
+                    to_account_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
                 };
 
-                if network.send_message(msg).await.is_err() {
+                if network_clone.send_message(msg).await.is_err() {
                     log::error!("Failed to send message to outbound");
                 }
             }
@@ -184,9 +128,44 @@ pub fn create_job_manager_to_async_protocol_channel_signing<N: Network>(
     });
 
     (
-        tx_to_outbound_offline,
-        rx_for_async_proto_offline,
-        tx_to_outbound_voting,
-        rx_for_async_proto_voting,
+        tx_to_outbound_1,
+        rx_for_async_proto_1,
+        tx_to_outbound_2,
+        rx_for_async_proto_2,
     )
+}
+
+pub trait HasSenderAndReceiver {
+    fn sender(&self) -> UserID;
+    fn receiver(&self) -> Option<UserID>;
+}
+
+impl<T> HasSenderAndReceiver for Msg<T> {
+    fn sender(&self) -> UserID {
+        self.sender as UserID
+    }
+
+    fn receiver(&self) -> Option<UserID> {
+        self.receiver.map(|r| r as UserID)
+    }
+}
+
+impl HasSenderAndReceiver for VotingMessage {
+    fn sender(&self) -> UserID {
+        self.from
+    }
+
+    fn receiver(&self) -> Option<UserID> {
+        self.to
+    }
+}
+
+impl HasSenderAndReceiver for PublicKeyGossipMessage {
+    fn sender(&self) -> UserID {
+        self.from
+    }
+
+    fn receiver(&self) -> Option<UserID> {
+        self.to
+    }
 }

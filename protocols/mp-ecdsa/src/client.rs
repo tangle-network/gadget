@@ -104,21 +104,14 @@ where
         })
     }
 
+    // TODO: Proper implementation
     pub async fn submit_job_result(
         &self,
-        job_key: JobKey,
-        job_id: JobId,
-        result: JobResult,
+        _job_key: JobKey,
+        _job_id: JobId,
+        _result: JobResult,
     ) -> Result<(), webb_gadget::Error> {
-        exec_client_function(&self.client, move |client| {
-            client
-                .runtime_api()
-                .submit_job_result(job_key, job_id, result)
-        })
-        .await
-        .map_err(|err| webb_gadget::Error::ClientError {
-            err: format!("Failed to submit job result: {err:?}"),
-        })
+        Ok(())
     }
 }
 

@@ -9,8 +9,6 @@ use std::error::Error;
 use std::sync::Arc;
 use webb_gadget::gadget::network::Network;
 
-#[cfg(feature = "application")]
-pub mod application;
 pub mod client;
 pub mod constants;
 pub mod error;
@@ -21,6 +19,7 @@ pub mod util;
 
 pub struct MpEcdsaProtocolConfig {
     pub account_id: AccountId,
+    pub id: sp_core::ecdsa::Public,
 }
 
 pub async fn run_keygen<B, BE, KBE, C, N>(
@@ -32,7 +31,7 @@ pub async fn run_keygen<B, BE, KBE, C, N>(
 ) -> Result<(), Box<dyn Error>>
 where
     B: Block,
-    BE: Backend<B>,
+    BE: Backend<B> + 'static,
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
@@ -56,7 +55,7 @@ pub async fn run_sign<B, BE, KBE, C, N>(
 ) -> Result<(), Box<dyn Error>>
 where
     B: Block,
-    BE: Backend<B>,
+    BE: Backend<B> + 'static,
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
@@ -81,7 +80,7 @@ pub async fn run<B, BE, KBE, C, N, N2>(
 ) -> Result<(), Box<dyn Error>>
 where
     B: Block,
-    BE: Backend<B>,
+    BE: Backend<B> + 'static,
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,

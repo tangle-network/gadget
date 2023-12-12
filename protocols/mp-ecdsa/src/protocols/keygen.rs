@@ -12,16 +12,18 @@ use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
 use multi_party_ecdsa::gg_2020::state_machine::keygen::{Keygen, LocalKey};
 use pallet_jobs_rpc_runtime_api::JobsApi;
-use parking_lot::Mutex;
 use round_based::async_runtime::watcher::StderrWatcher;
+use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
 use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGResult, JobId, JobKey, JobResult, JobType, KeysAndSignatures};
-use tokio::sync::mpsc::UnboundedReceiver;
+use sp_application_crypto::RuntimePublic;
+use sp_core::crypto::KeyTypeId;
+use tangle_primitives::jobs::{DKGResult, JobId, JobKey, JobResult, JobType};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 use webb_gadget::gadget::message::GadgetProtocolMessage;
 use webb_gadget::gadget::network::Network;
@@ -42,6 +44,7 @@ pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
         >,
     >,
     logger: DebugLogger,
+    id: sp_core::ecdsa::Public,
     account_id: AccountId,
 }
 
@@ -64,12 +67,13 @@ where
         network,
         round_blames: Arc::new(RwLock::new(HashMap::new())),
         logger,
+        id: config.id.clone(),
         account_id: config.account_id,
     })
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, KBE: KeystoreBackend, N: Network>
+impl<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, KBE: KeystoreBackend, N: Network>
     WebbGadgetProtocol<B> for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
@@ -92,6 +96,7 @@ where
         for job in jobs {
             let participants = job
                 .job_type
+                .clone()
                 .get_participants()
                 .expect("Should exist for DKG");
             if participants.contains(&self.account_id) {
@@ -150,7 +155,7 @@ where
     }
 }
 
-struct MpEcdsaKeygenExtraParams {
+pub struct MpEcdsaKeygenExtraParams {
     i: u16,
     t: u16,
     n: u16,
@@ -159,7 +164,7 @@ struct MpEcdsaKeygenExtraParams {
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>, N: Network>
+impl<B: Block, BE: Backend<B> + 'static, KBE: KeystoreBackend, C: ClientWithApi<B, BE>, N: Network>
     AsyncProtocol for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
@@ -176,11 +181,14 @@ where
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let key_store = self.client.key_store.clone();
         let blame = self.round_blames.clone();
-        let protocol_output = Arc::new(Mutex::new(None));
+        let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
-        let network = self.network.clone();
+        let id = self.id.clone();
         let logger = self.logger.clone();
+        let logger_clone = logger.clone();
+        let round_blames = self.round_blames.clone();
+        let network = self.network.clone();
 
         let (i, t, n) = (
             additional_params.i,
@@ -196,27 +204,35 @@ where
                 let (current_round_blame_tx, current_round_blame_rx) =
                     tokio::sync::watch::channel(CurrentRoundBlame::default());
 
-                self.round_blames
+                round_blames
                     .write()
                     .await
                     .insert(associated_task_id, current_round_blame_rx);
 
-                let (tx_to_outbound, rx_async_proto) =
-                    util::create_job_manager_to_async_protocol_channel::<Keygen, _>(
-                        protocol_message_rx,
-                        associated_block_id,
-                        associated_retry_id,
-                        associated_session_id,
-                        associated_task_id,
-                        self.network.clone(),
-                    );
+                let (
+                    keygen_tx_to_outbound,
+                    keygen_rx_async_proto,
+                    broadcast_tx_to_outbound,
+                    broadcast_rx_from_gadget,
+                ) = util::create_job_manager_to_async_protocol_channel_split::<
+                    _,
+                    Msg<<Keygen as StateMachine>::MessageBody>,
+                    PublicKeyGossipMessage,
+                >(
+                    protocol_message_rx,
+                    associated_block_id,
+                    associated_retry_id,
+                    associated_session_id,
+                    associated_task_id,
+                    network,
+                );
 
                 let state_machine_wrapper =
-                    StateMachineWrapper::new(keygen, current_round_blame_tx, self.logger.clone());
+                    StateMachineWrapper::new(keygen, current_round_blame_tx, logger.clone());
                 let local_key = round_based::AsyncProtocol::new(
                     state_machine_wrapper,
-                    rx_async_proto,
-                    tx_to_outbound,
+                    keygen_rx_async_proto,
+                    keygen_tx_to_outbound,
                 )
                 .set_watcher(StderrWatcher)
                 .run()
@@ -225,7 +241,18 @@ where
                     reason: format!("Keygen protocol error: {err:?}"),
                 })?;
 
-                *protocol_output.lock() = Some(local_key);
+                let job_result = handle_public_key_gossip(
+                    &logger,
+                    &local_key,
+                    t,
+                    i,
+                    id,
+                    broadcast_tx_to_outbound,
+                    broadcast_rx_from_gadget,
+                )
+                .await?;
+
+                *protocol_output.lock().await = Some((local_key, job_result));
                 Ok(())
             })
             .post(async move {
@@ -233,7 +260,7 @@ where
                 if let Some(blame) = blame.write().await.remove(&associated_task_id) {
                     let blame = blame.borrow();
                     if !blame.blamed_parties.is_empty() {
-                        logger.error(format!("Blame: {blame:?}"));
+                        logger_clone.error(format!("Blame: {blame:?}"));
                         return Err(JobError {
                             reason: format!("Keygen blame: {blame:?}"),
                         });
@@ -241,22 +268,13 @@ where
                 }
 
                 // Store the keys locally, as well as submitting them to the blockchain
-                if let Some(local_key) = protocol_output_clone.lock().take() {
-                    // Serialize via sp encode. Later, in the signing gadget, we will retrieve these serialized
-                    // bytes and deserialize them into the LocalKey<Secp256k1> type.
-                    // Store for use later in the signing protocol
+                if let Some((local_key, job_result)) = protocol_output_clone.lock().await.take() {
                     key_store
                         .set(additional_params.job_id, local_key)
                         .await
                         .map_err(|err| JobError {
                             reason: format!("Failed to store key: {err:?}"),
                         })?;
-
-                    // TODO: Proper participant list
-                    let participants = vec![];
-                    let job_result =
-                        handle_public_key_gossip(&logger, &local_key, t, i, participants, network)
-                            .await?;
 
                     client
                         .submit_job_result(
@@ -276,25 +294,49 @@ where
     }
 }
 
-async fn handle_public_key_gossip<N: Network>(
+async fn handle_public_key_gossip(
     logger: &DebugLogger,
     local_key: &LocalKey<Secp256k1>,
     threshold: u16,
     i: u16,
-    participants: Vec<sp_core::ecdsa::Public>,
-    network: N,
+    my_id: sp_core::ecdsa::Public,
+    broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
+    mut broadcast_rx_from_gadget: UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<JobResult, JobError> {
     let serialized_public_key = local_key.public_key().to_bytes(true).to_vec();
     // Sign the public key with our public key
-    let signature = vec![];
-    let mut received_keys = BTreeMap::new();
-    received_keys.insert(i, (serialized_public_key.clone(), signature));
+    let signature = my_id.sign(KeyTypeId::default(), &serialized_public_key)
+        .ok_or_else(|| JobError {
+            reason: format!("Failed to sign public key"),
+        })?
+        .0
+        .to_vec();
 
-    // TODO: Gossip the public key
+    let mut received_keys = BTreeMap::new();
+    received_keys.insert(i, (serialized_public_key.clone(), signature.clone()));
+    let mut received_participants = BTreeMap::new();
+    received_participants.insert(i, my_id.clone());
+
+    broadcast_tx_to_outbound
+        .send(PublicKeyGossipMessage {
+            from: i as _,
+            to: None,
+            signature,
+            id: my_id,
+        })
+        .map_err(|err| JobError {
+            reason: format!("Failed to send public key: {err:?}"),
+        })?;
 
     for _ in 0..threshold {
-        // TODO: multiplex the network again for keygen
-        let message: PublicKeyGossipMessage = receive_message().await?;
+        let message: PublicKeyGossipMessage =
+            broadcast_rx_from_gadget
+                .recv()
+                .await
+                .ok_or_else(|| JobError {
+                    reason: format!("Failed to receive public key"),
+                })?;
+
         let from = message.from;
         if received_keys.contains_key(&(from as u16)) {
             logger.warn("Received duplicate key");
@@ -305,10 +347,22 @@ async fn handle_public_key_gossip<N: Network>(
             from as u16,
             (serialized_public_key.clone(), message.signature),
         );
+
+        received_participants.insert(from as u16, message.id);
     }
 
     // Order and collect the map to ensure symmetric submission to blockchain
-    let keys_and_signatures = received_keys.into_iter().sorted().collect();
+    let keys_and_signatures = received_keys
+        .into_iter()
+        .sorted_by_key(|x| x.0)
+        .map(|r| r.1)
+        .collect();
+
+    let participants = received_participants
+        .into_iter()
+        .sorted_by_key(|x| x.0)
+        .map(|r| r.1)
+        .collect();
 
     Ok(JobResult::DKG(DKGResult {
         key: serialized_public_key,

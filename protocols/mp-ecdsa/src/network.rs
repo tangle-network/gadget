@@ -304,7 +304,7 @@ pub struct GossipHandler<B: Block + 'static, KBE: KeystoreBackend> {
     /// these peers using the message hash while the message is
     /// received. This prevents that we receive the same message
     /// multiple times concurrently.
-    pending_messages_peers: Arc<RwLock<LruHashMap<B::Hash, HashSet<PeerId>>>>,
+    pending_messages_peers: Arc<RwLock<LruHashMap<Vec<u8>, HashSet<PeerId>>>>,
     /// Network service to use to send messages and manage peers.
     service: Arc<NetworkService<B, B::Hash>>,
     sync_service: Arc<SyncingService<B>>,
@@ -460,10 +460,13 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                 }
             }
             SyncEvent::PeerDisconnected(remote) => {
-                self.service.remove_peers_from_reserved_set(
+                if let Err(err) = self.service.remove_peers_from_reserved_set(
                     self.protocol_name.clone(),
                     iter::once(remote).collect(),
-                );
+                ) {
+                    self.logger
+                        .error(format!("Remove reserved peer failed: {err}"));
+                }
             }
         }
     }
@@ -596,8 +599,8 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
         }
 
         if let Some(ref mut peer) = self.peers.write().get_mut(&who) {
-            let message_hash = message.message_hash::<B>();
-            peer.known_messages.insert(message_hash);
+            let message_hash = message.hash();
+            peer.known_messages.insert(message_hash.clone());
             let mut pending_messages_peers = self.pending_messages_peers.write();
             let send_the_message = |message: GadgetProtocolMessage| {
                 if let Err(e) = self
@@ -613,7 +616,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                     );
                 }
             };
-            match pending_messages_peers.inner.entry(message_hash) {
+            match pending_messages_peers.inner.entry(message_hash.clone()) {
                 linked_hash_map::Entry::Vacant(entry) => {
                     self.logger.debug(format!("NEW DKG MESSAGE FROM {who}"));
                     if let Some(_metrics) = self.metrics.as_ref() {

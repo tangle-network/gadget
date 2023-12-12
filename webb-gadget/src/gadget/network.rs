@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use gadget_core::job_manager::WorkManagerInterface;
 
 #[async_trait]
-pub trait Network: Send + Sync + Clone {
+pub trait Network: Send + Sync + Clone + 'static {
     async fn next_message(
         &self,
     ) -> Option<<WebbWorkManager as WorkManagerInterface>::ProtocolMessage>;

@@ -18,8 +18,8 @@ use multi_party_ecdsa::gg_2020::state_machine::sign::{
 };
 use pallet_jobs_rpc_runtime_api::JobsApi;
 use parity_scale_codec::Encode;
-use parking_lot::Mutex;
 use round_based::async_runtime::watcher::StderrWatcher;
+use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_core::ecdsa::Signature;
@@ -76,7 +76,7 @@ where
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, KBE: KeystoreBackend, N: Network>
+impl<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, KBE: KeystoreBackend, N: Network>
     WebbGadgetProtocol<B> for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
@@ -182,7 +182,7 @@ where
     }
 }
 
-struct MpEcdsaSigningExtraParams {
+pub struct MpEcdsaSigningExtraParams {
     i: u16,
     t: u16,
     signers: Vec<u16>,
@@ -193,7 +193,7 @@ struct MpEcdsaSigningExtraParams {
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>, N: Network>
+impl<B: Block, BE: Backend<B> + 'static, KBE: KeystoreBackend, C: ClientWithApi<B, BE>, N: Network>
     AsyncProtocol for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
@@ -211,9 +211,11 @@ where
         let blame = self.round_blames.clone();
         let debug_logger_post = self.logger.clone();
         let debug_logger_proto = debug_logger_post.clone();
-        let protocol_output = Arc::new(Mutex::new(None));
+        let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
+        let round_blames = self.round_blames.clone();
+        let network = self.network.clone();
 
         let (i, signers, t, key, input_data_to_sign) = (
             additional_params.i,
@@ -222,6 +224,8 @@ where
             additional_params.key,
             additional_params.input_data_to_sign.clone(),
         );
+
+        let key_clone = key.clone();
 
         Ok(JobBuilder::new()
             .protocol(async move {
@@ -234,7 +238,7 @@ where
                 let (current_round_blame_tx, current_round_blame_rx) =
                     tokio::sync::watch::channel(CurrentRoundBlame::default());
 
-                self.round_blames
+                round_blames
                     .write()
                     .await
                     .insert(associated_task_id, current_round_blame_rx);
@@ -244,17 +248,21 @@ where
                     rx_async_proto_offline,
                     tx_to_outbound_voting,
                     rx_async_proto_voting,
-                ) = util::create_job_manager_to_async_protocol_channel_signing(
+                ) = util::create_job_manager_to_async_protocol_channel_split::<
+                    _,
+                    Msg<<OfflineStage as StateMachine>::MessageBody>,
+                    VotingMessage,
+                >(
                     protocol_message_rx,
                     associated_block_id,
                     associated_retry_id,
                     associated_session_id,
                     associated_task_id,
-                    self.network.clone(),
+                    network,
                 );
 
                 let state_machine_wrapper =
-                    StateMachineWrapper::new(signing, current_round_blame_tx, self.logger.clone());
+                    StateMachineWrapper::new(signing, current_round_blame_tx, debug_logger_proto.clone());
                 let completed_offline_stage = round_based::AsyncProtocol::new(
                     state_machine_wrapper,
                     rx_async_proto_offline,
@@ -286,7 +294,7 @@ where
                     &debug_logger_proto,
                 )
                 .await?;
-                *protocol_output.lock() = Some(signature);
+                *protocol_output.lock().await = Some(signature);
                 Ok(())
             })
             .post(async move {
@@ -302,12 +310,12 @@ where
                 }
 
                 // Submit the protocol output to the blockchain
-                if let Some(signature) = protocol_output_clone.lock().take() {
+                if let Some(signature) = protocol_output_clone.lock().await.take() {
                     let signature: Vec<u8> = signature.encode();
                     let job_result = JobResult::DKGSignature(DKGSignatureResult {
                         data: additional_params.input_data_to_sign,
                         signature,
-                        signing_key: key.public_key().to_bytes(true).to_vec(),
+                        signing_key: key_clone.public_key().to_bytes(true).to_vec(),
                     });
 
                     client

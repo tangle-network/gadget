@@ -24,18 +24,12 @@ parallel = ["ark-std/parallel", "groth16/parallel", "rayon"]
 [dependencies]
 clap = { version = "4.4", features = ["derive", "wrap_help"] }
 anyhow = "1"
-sync_wrapper = "0.1.2"
-parking_lot = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "macros", "rt"] }
 hex = "0.4.3"
-serde = { workspace = true, features = ["derive"] }
 serde_bytes = { workspace = true }
 serde_json = "1"
 async-trait = "0.1.73"
 rcgen = "0.11.3"
-rustls = "0.21.7"
-tokio-rustls = "0.24.1"
-rustls-pemfile = "1.0.3"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 rayon = { version = "1.8.0", optional = true }
@@ -45,7 +39,6 @@ sc-utils = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 sp-runtime = { workspace = true }
 sc-client-api = { workspace = true }
-parity-scale-codec = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 
 zk-gadget = { workspace = true }
