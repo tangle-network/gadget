@@ -177,9 +177,9 @@ where
 
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         WorkManagerConfig {
-            interval: None, // Manual polling
-            max_active_tasks: 8,
-            max_pending_tasks: 8,
+            interval: Some(crate::constants::signing_worker::JOB_POLL_INTERVAL),
+            max_active_tasks: crate::constants::signing_worker::MAX_RUNNING_TASKS,
+            max_pending_tasks: crate::constants::signing_worker::MAX_ENQUEUED_TASKS,
         }
     }
 }

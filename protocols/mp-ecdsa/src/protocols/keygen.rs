@@ -154,8 +154,8 @@ where
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         WorkManagerConfig {
             interval: None, // Manual polling
-            max_active_tasks: 1,
-            max_pending_tasks: 1,
+            max_active_tasks: crate::constants::keygen_worker::MAX_RUNNING_TASKS,
+            max_pending_tasks: crate::constants::keygen_worker::MAX_ENQUEUED_TASKS,
         }
     }
 }

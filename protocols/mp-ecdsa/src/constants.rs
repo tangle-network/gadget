@@ -2,26 +2,13 @@
 
 // ================= Common ======================== //
 pub const DKG_KEYGEN_PROTOCOL_NAME: &str = "/webb-tools/dkg/keygen/1";
-
 pub const DKG_SIGNING_PROTOCOL_NAME: &str = "/webb-tools/dkg/signing/1";
 
-// ================= Worker ========================== //
-pub mod worker {
-    pub const ENGINE_ID: sp_runtime::ConsensusEngineId = *b"WDKG";
+// ============= Signing Worker ======================= //
 
-    pub const STORAGE_SET_RETRY_NUM: usize = 5;
+pub mod signing_worker {
+    use std::time::Duration;
 
-    pub const MAX_SUBMISSION_DELAY: u32 = 3;
-
-    pub const MAX_KEYGEN_RETRIES: usize = 5;
-
-    /// How many blocks to keep the proposal hash in out local cache.
-    pub const PROPOSAL_HASH_LIFETIME: u32 = 10;
-}
-
-// ============= Signing Manager ======================= //
-
-pub mod signing_manager {
     // the maximum number of tasks that the work manager tries to assign
     pub const MAX_RUNNING_TASKS: usize = 1;
 
@@ -30,11 +17,7 @@ pub mod signing_manager {
     pub const MAX_ENQUEUED_TASKS: usize = 20;
 
     // How often to poll the jobs to check completion status
-    pub const JOB_POLL_INTERVAL_IN_MILLISECONDS: u64 = 500;
-
-    // Max potential number of signing sets to generate for every proposal (equal to the number of
-    // retries)
-    pub const MAX_POTENTIAL_RETRIES_PER_UNSIGNED_PROPOSAL: u16 = u16::MAX - 1;
+    pub const JOB_POLL_INTERVAL: Duration = Duration::from_millis(500);
 }
 
 // ============= Networking ======================= //
@@ -52,9 +35,9 @@ pub mod network {
     pub const MAX_DUPLICATED_MESSAGES_PER_PEER: usize = 8;
 }
 
-// ============= Keygen Manager ======================= //
+// ============= Keygen Worker ======================= //
 
-pub mod keygen_manager {
+pub mod keygen_worker {
     /// only 1 task at a time may run for keygen
     pub const MAX_RUNNING_TASKS: usize = 1;
     /// There should never be any job enqueueing for keygen
