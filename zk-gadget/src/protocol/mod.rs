@@ -1,18 +1,19 @@
 use crate::client_ext::ClientWithApi;
 use crate::network::RegistantId;
 use async_trait::async_trait;
+use gadget_common::gadget::work_manager::WebbWorkManager;
+use gadget_common::gadget::{Job, WebbGadgetProtocol};
+use gadget_common::protocol::AsyncProtocol;
+use gadget_common::{BlockImportNotification, Error, FinalityNotification};
 use gadget_core::job_manager::ProtocolWorkManager;
 use sp_runtime::traits::Block;
-use webb_gadget::gadget::work_manager::WebbWorkManager;
-use webb_gadget::gadget::{Job, WebbGadgetProtocol};
-use webb_gadget::protocol::AsyncProtocol;
-use webb_gadget::{BlockImportNotification, Error, FinalityNotification};
 
 pub mod proto_gen;
 
-pub struct ZkProtocol<M, B, C> {
+pub struct ZkProtocol<M: AsyncProtocol, B, C> {
     pub party_id: RegistantId,
     pub protocol: M,
+    pub additional_params: <M as AsyncProtocol>::AdditionalParams,
     pub client: C,
     pub _pd: std::marker::PhantomData<B>,
 }
@@ -23,13 +24,15 @@ impl<T: Send + Sync + Clone + 'static> AdditionalProtocolParams for T {}
 #[async_trait]
 impl<M: AsyncProtocol + Send + Sync, B: Block, C: ClientWithApi<B>> WebbGadgetProtocol<B>
     for ZkProtocol<M, B, C>
+where
+    <M as AsyncProtocol>::AdditionalParams: Clone,
 {
-    async fn get_next_job(
+    async fn get_next_jobs(
         &self,
         _notification: &FinalityNotification<B>,
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) -> Result<Option<Job>, Error> {
+    ) -> Result<Option<Vec<Job>>, Error> {
         log::info!(
             "Party {} received a finality notification at {now}",
             self.party_id
@@ -46,11 +49,11 @@ impl<M: AsyncProtocol + Send + Sync, B: Block, C: ClientWithApi<B>> WebbGadgetPr
 
             let (remote, protocol) = self
                 .protocol
-                .create(now / 6000, now, 0, task_id)
+                .create(now / 6000, now, 0, task_id, self.additional_params.clone())
                 .await
                 .map_err(|err| Error::ClientError { err: err.reason })?;
 
-            return Ok(Some((remote, protocol)));
+            return Ok(Some(vec![(remote, protocol)]));
         } else {
             log::debug!("No Jobs found at #{now}");
         }

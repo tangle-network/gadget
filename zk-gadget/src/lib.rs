@@ -2,11 +2,11 @@ use crate::client_ext::ClientWithApi;
 use crate::network::{RegistantId, ZkNetworkService};
 use crate::protocol::proto_gen::{AsyncProtocolGenerator, ZkProtocolGenerator};
 use crate::protocol::{AdditionalProtocolParams, ZkProtocol};
+use gadget_common::Error;
 use mpc_net::prod::RustlsCertificate;
 use sp_runtime::traits::Block;
 use std::net::SocketAddr;
 use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
-use webb_gadget::Error;
 
 pub mod network;
 pub mod protocol;
@@ -50,13 +50,14 @@ pub async fn run<
 
     let zk_protocol = ZkProtocol {
         party_id: config.id,
+        additional_params: (),
         client: client.clone(),
         protocol,
         _pd: std::marker::PhantomData,
     };
 
     // Plug the module into the webb gadget
-    webb_gadget::run_protocol(network, zk_protocol, client).await
+    gadget_common::run_protocol(network, zk_protocol, client).await
 }
 
 async fn create_zk_network(config: &ZkGadgetConfig) -> Result<ZkNetworkService, Error> {

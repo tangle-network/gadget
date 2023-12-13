@@ -24,7 +24,7 @@ pub enum DeliveryType {
 }
 pub struct ProtocolWorkManager<WM: WorkManagerInterface> {
     inner: Arc<RwLock<WorkManagerInner<WM>>>,
-    utility: Arc<WM>,
+    pub utility: Arc<WM>,
     // for now, use a hard-coded value for the number of tasks
     max_tasks: Arc<usize>,
     max_enqueued_tasks: Arc<usize>,
@@ -47,13 +47,15 @@ pub struct WorkManagerInner<WM: WorkManagerInterface> {
     pub active_tasks: HashSet<Job<WM>>,
     pub enqueued_tasks: VecDeque<Job<WM>>,
     // task hash => SSID => enqueued messages
-    pub enqueued_messages: EnqueuedMessage<WM::TaskID, WM::SSID, WM::ProtocolMessage>,
+    pub enqueued_messages: EnqueuedMessage<WM::TaskID, WM::RetryID, WM::ProtocolMessage>,
+    pub retry_id_tracker: HashMap<WM::TaskID, WM::RetryID>,
 }
 
 pub type EnqueuedMessage<A, B, C> = HashMap<A, HashMap<B, VecDeque<C>>>;
 
 pub trait WorkManagerInterface: Send + Sync + 'static + Sized {
-    type SSID: Copy + Hash + Eq + PartialEq + Send + Sync + 'static;
+    type RetryID: Copy + Hash + Eq + PartialEq + Send + Sync + 'static;
+    type UserID: Copy + Hash + Eq + PartialEq + Send + Sync + 'static;
     type Clock: Copy
         + Debug
         + Default
@@ -99,8 +101,10 @@ fn saturating_sub<T: Sub<Output = T> + Ord + Default>(a: T, b: T) -> T {
 pub trait ProtocolMessageMetadata<WM: WorkManagerInterface> {
     fn associated_block_id(&self) -> WM::Clock;
     fn associated_session_id(&self) -> WM::SessionID;
-    fn associated_ssid(&self) -> WM::SSID;
+    fn associated_retry_id(&self) -> WM::RetryID;
     fn associated_task(&self) -> WM::TaskID;
+    fn associated_sender_user_id(&self) -> WM::UserID;
+    fn associated_recipient_user_id(&self) -> Option<WM::UserID>;
 }
 
 /// The [`ProtocolRemote`] is the interface between the [`ProtocolWorkManager`] and the async protocol.
@@ -108,13 +112,12 @@ pub trait ProtocolMessageMetadata<WM: WorkManagerInterface> {
 pub trait ProtocolRemote<WM: WorkManagerInterface>: Send + Sync + 'static {
     fn start(&self) -> Result<(), WM::Error>;
     fn session_id(&self) -> WM::SessionID;
-    fn set_as_primary(&self);
     fn started_at(&self) -> WM::Clock;
     fn shutdown(&self, reason: ShutdownReason) -> Result<(), WM::Error>;
     fn is_done(&self) -> bool;
     fn deliver_message(&self, message: WM::ProtocolMessage) -> Result<(), WM::Error>;
     fn has_started(&self) -> bool;
-    fn ssid(&self) -> WM::SSID;
+    fn retry_id(&self) -> WM::RetryID;
 
     fn has_stalled(&self, now: WM::Clock) -> bool {
         now >= self.started_at() + WM::acceptable_block_tolerance()
@@ -147,6 +150,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
                 active_tasks: HashSet::new(),
                 enqueued_tasks: VecDeque::new(),
                 enqueued_messages: HashMap::new(),
+                retry_id_tracker: HashMap::new(),
             })),
             utility: Arc::new(utility),
             max_tasks: Arc::new(max_tasks),
@@ -192,8 +196,6 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         task: T,
     ) -> Result<(), WorkManagerError> {
         let mut lock = self.inner.write();
-        // set as primary, that way on drop, the async protocol ends
-        handle.set_as_primary();
         let job = Job {
             task: Arc::new(parking_lot::Mutex::new(Some(Box::new(task)))),
             handle,
@@ -306,7 +308,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         // Next, remove any outdated enqueued messages to prevent RAM bloat
         let mut to_remove = vec![];
         for (hash, queue) in lock.enqueued_messages.iter_mut() {
-            for (ssid, queue) in queue.iter_mut() {
+            for (retry_id, queue) in queue.iter_mut() {
                 let before = queue.len();
                 // Only keep the messages that are not outdated
                 queue.retain(|msg| {
@@ -323,17 +325,17 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
                 }
 
                 if queue.is_empty() {
-                    to_remove.push((*hash, *ssid));
+                    to_remove.push((*hash, *retry_id));
                 }
             }
         }
 
         // Next, to prevent the existence of piling-up empty *inner* queues, remove them
-        for (hash, ssid) in to_remove {
+        for (hash, retry_id) in to_remove {
             lock.enqueued_messages
                 .get_mut(&hash)
                 .expect("Should be available")
-                .remove(&ssid);
+                .remove(&retry_id);
         }
 
         // Finally, remove any empty outer maps
@@ -359,8 +361,8 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         } else {
             // deliver all the enqueued messages to the protocol now
             if let Some(mut enqueued_messages_map) = lock.enqueued_messages.remove(&job.task_hash) {
-                let job_ssid = job.handle.ssid();
-                if let Some(mut enqueued_messages) = enqueued_messages_map.remove(&job_ssid) {
+                let job_retry_id = job.handle.retry_id();
+                if let Some(mut enqueued_messages) = enqueued_messages_map.remove(&job_retry_id) {
                     self.utility.debug(format!(
                         "Will now deliver {} enqueued message(s) to the async protocol for {:?}",
                         enqueued_messages.len(),
@@ -391,13 +393,32 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         let task = job.task.clone();
         // Put the job inside here, that way the drop code does not get called right away,
         // killing the process
+        let task_hash = job.task_hash;
+        *lock
+            .retry_id_tracker
+            .entry(task_hash)
+            .or_insert(job.handle.retry_id()) = job.handle.retry_id();
         lock.active_tasks.insert(job);
+
         let mut task = task.lock().take().expect("Should not happen");
-        let task = async move { task.execute().await };
+        let on_task_finish_handle = self.inner.clone();
+        let task = async move {
+            if task.execute().await.is_ok() {
+                on_task_finish_handle
+                    .write()
+                    .retry_id_tracker
+                    .remove(&task_hash);
+            }
+        };
 
         // Spawn the task. When it finishes, it will clean itself up
         tokio::task::spawn(task);
         Ok(())
+    }
+
+    pub fn latest_retry_id(&self, task_hash: &WM::TaskID) -> Option<WM::RetryID> {
+        let lock = self.inner.read();
+        lock.retry_id_tracker.get(task_hash).copied()
     }
 
     pub fn job_exists(&self, job: &WM::TaskID) -> bool {
@@ -414,6 +435,17 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
             "Delivered message is intended for session_id = {}",
             msg.associated_session_id()
         ));
+
+        if let Some(recv) = msg.associated_recipient_user_id() {
+            if recv == msg.associated_sender_user_id() {
+                self.utility
+                    .warn("Message sent to self, which is not allowed".to_string());
+                return Err(WorkManagerError::DeliverMessageFailed {
+                    reason: "Message sent to self, which is not allowed".to_string(),
+                });
+            }
+        }
+
         let message_task_hash = msg.associated_task();
         let mut lock = self.inner.write();
 
@@ -468,11 +500,15 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         lock.enqueued_messages
             .entry(message_task_hash)
             .or_default()
-            .entry(msg.associated_ssid())
+            .entry(msg.associated_retry_id())
             .or_default()
             .push_back(msg);
 
         Ok(DeliveryType::EnqueuedMessage)
+    }
+
+    pub fn poll_method(&self) -> PollMethod {
+        *self.poll_method
     }
 }
 
@@ -541,7 +577,7 @@ fn should_deliver<WM: WorkManagerInterface>(
 ) -> bool {
     task.handle.session_id() == msg.associated_session_id()
         && task.task_hash == message_task_hash
-        && task.handle.ssid() == msg.associated_ssid()
+        && task.handle.retry_id() == msg.associated_retry_id()
         && WM::associated_block_id_acceptable(
             task.handle.started_at(), // use to be associated_block_id
             msg.associated_block_id(),
@@ -551,7 +587,7 @@ fn should_deliver<WM: WorkManagerInterface>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::job::{BuiltExecutableJobWrapper, JobBuilder};
+    use crate::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
     use parking_lot::Mutex;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
@@ -565,8 +601,10 @@ mod tests {
         message: String,
         associated_block_id: u64,
         associated_session_id: u32,
-        associated_ssid: u32,
+        associated_retry_id: u32,
         associated_task: [u8; 32],
+        associated_sender: u64,
+        associated_recipient: Option<u64>,
     }
 
     impl ProtocolMessageMetadata<TestWorkManager> for TestMessage {
@@ -576,28 +614,41 @@ mod tests {
         fn associated_session_id(&self) -> u32 {
             self.associated_session_id
         }
-        fn associated_ssid(&self) -> u32 {
-            self.associated_ssid
+        fn associated_retry_id(&self) -> u32 {
+            self.associated_retry_id
         }
         fn associated_task(&self) -> [u8; 32] {
             self.associated_task
         }
+
+        fn associated_sender_user_id(&self) -> <TestWorkManager as WorkManagerInterface>::UserID {
+            self.associated_sender
+        }
+
+        fn associated_recipient_user_id(
+            &self,
+        ) -> Option<<TestWorkManager as WorkManagerInterface>::UserID> {
+            self.associated_recipient
+        }
     }
 
     impl WorkManagerInterface for TestWorkManager {
-        type SSID = u32;
+        type RetryID = u32;
+        type UserID = u64;
         type Clock = u64;
         type ProtocolMessage = TestMessage;
         type Error = ();
         type SessionID = u32;
         type TaskID = [u8; 32];
 
-        fn debug(&self, _input: String) {}
+        fn debug(&self, input: String) {
+            log::debug!("{input}")
+        }
         fn error(&self, input: String) {
-            println!("ERROR: {input}")
+            log::error!("{input}")
         }
         fn warn(&self, input: String) {
-            println!("WARN: {input}")
+            log::warn!("{input}")
         }
         fn clock(&self) -> Self::Clock {
             0
@@ -611,7 +662,7 @@ mod tests {
     #[derive(Clone)]
     pub struct TestProtocolRemote {
         session_id: u32,
-        ssid: u32,
+        retry_id: u32,
         started_at: u64,
         delivered_messages: UnboundedSender<TestMessage>,
         start_tx: Arc<Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
@@ -622,7 +673,7 @@ mod tests {
     impl TestProtocolRemote {
         pub fn new(
             session_id: u32,
-            ssid: u32,
+            retry_id: u32,
             started_at: u64,
             task_tx: UnboundedSender<TestMessage>,
             start_tx: tokio::sync::oneshot::Sender<()>,
@@ -630,7 +681,7 @@ mod tests {
         ) -> Arc<Self> {
             Arc::new(Self {
                 session_id,
-                ssid,
+                retry_id,
                 started_at,
                 delivered_messages: task_tx,
                 start_tx: Arc::new(Mutex::new(Some(start_tx))),
@@ -643,7 +694,7 @@ mod tests {
     #[allow(clippy::type_complexity)]
     pub fn generate_async_protocol(
         session_id: u32,
-        ssid: u32,
+        retry_id: u32,
         started_at: u64,
     ) -> (
         Arc<TestProtocolRemote>,
@@ -653,14 +704,52 @@ mod tests {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         let (start_tx, start_rx) = tokio::sync::oneshot::channel();
         let is_done = Arc::new(AtomicBool::new(false));
-        let remote =
-            TestProtocolRemote::new(session_id, ssid, started_at, tx, start_tx, is_done.clone());
+        let remote = TestProtocolRemote::new(
+            session_id,
+            retry_id,
+            started_at,
+            tx,
+            start_tx,
+            is_done.clone(),
+        );
         let protocol = async move {
             start_rx.await.unwrap();
             is_done.store(true, Ordering::SeqCst);
             Ok(())
         };
-        let task = JobBuilder::new().build(protocol);
+        let task = JobBuilder::new().protocol(protocol).build();
+        (remote, task, rx)
+    }
+
+    #[allow(clippy::type_complexity)]
+    pub fn generate_async_protocol_error(
+        session_id: u32,
+        retry_id: u32,
+        started_at: u64,
+    ) -> (
+        Arc<TestProtocolRemote>,
+        BuiltExecutableJobWrapper,
+        UnboundedReceiver<TestMessage>,
+    ) {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (start_tx, start_rx) = tokio::sync::oneshot::channel();
+        let is_done = Arc::new(AtomicBool::new(false));
+        let remote = TestProtocolRemote::new(
+            session_id,
+            retry_id,
+            started_at,
+            tx,
+            start_tx,
+            is_done.clone(),
+        );
+        let protocol = async move {
+            start_rx.await.unwrap();
+            is_done.store(true, Ordering::SeqCst);
+            Err(JobError {
+                reason: "Intentional error".to_string(),
+            })
+        };
+        let task = JobBuilder::new().protocol(protocol).build();
         (remote, task, rx)
     }
 
@@ -673,7 +762,6 @@ mod tests {
         fn session_id(&self) -> u32 {
             self.session_id
         }
-        fn set_as_primary(&self) {}
         fn has_stalled(&self, now: u64) -> bool {
             now > self.started_at
         }
@@ -695,8 +783,8 @@ mod tests {
         fn is_active(&self) -> bool {
             self.has_started() && !self.is_done()
         }
-        fn ssid(&self) -> u32 {
-            self.ssid
+        fn retry_id(&self) -> u32 {
+            self.retry_id
         }
     }
 
@@ -721,14 +809,37 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 0,
-            associated_ssid: 0,
+            associated_retry_id: 0,
             associated_task: [0; 32],
+            associated_recipient: None,
+            associated_sender: 0,
         };
         assert_ne!(
             DeliveryType::EnqueuedMessage,
             work_manager.deliver_message(message).unwrap()
         );
         let _ = rx.recv().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_deliver_self_ref_message() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
+        let (remote, task, _rx) = generate_async_protocol(0, 0, 0);
+
+        work_manager
+            .push_task(Default::default(), true, remote.clone(), task)
+            .unwrap();
+
+        let message = TestMessage {
+            message: "test".to_string(),
+            associated_block_id: 0,
+            associated_session_id: 0,
+            associated_retry_id: 0,
+            associated_task: [0; 32],
+            associated_recipient: Some(0),
+            associated_sender: 0,
+        };
+        assert!(work_manager.deliver_message(message).is_err());
     }
 
     #[tokio::test]
@@ -787,8 +898,10 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 1,
-            associated_ssid: 1,
+            associated_retry_id: 1,
             associated_task: [0; 32],
+            associated_recipient: None,
+            associated_sender: 0,
         };
         assert_ne!(
             DeliveryType::EnqueuedMessage,
@@ -1018,8 +1131,10 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 1,
-            associated_ssid: 1,
+            associated_retry_id: 1,
             associated_task: [0; 32],
+            associated_sender: 0,
+            associated_recipient: None,
         };
 
         // Deliver a message to a non-existent job
@@ -1042,8 +1157,10 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 10, // Outdated block ID
             associated_session_id: 1,
-            associated_ssid: 1,
+            associated_retry_id: 1,
             associated_task: [0; 32],
+            associated_sender: 0,
+            associated_recipient: None,
         };
 
         // Try to deliver a message with an outdated block ID
@@ -1078,8 +1195,10 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 1,
-            associated_ssid: 1,
+            associated_retry_id: 1,
             associated_task: [0; 32],
+            associated_sender: 0,
+            associated_recipient: None,
         };
 
         for _ in 0..10 {
@@ -1139,8 +1258,10 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 1,
-            associated_ssid: 1,
+            associated_retry_id: 1,
             associated_task: [0; 32],
+            associated_sender: 0,
+            associated_recipient: None,
         };
 
         work_manager.push_task([0; 32], true, remote, task).unwrap();
@@ -1158,14 +1279,50 @@ mod tests {
             message: "test".to_string(),
             associated_block_id: 0,
             associated_session_id: 1,
-            associated_ssid: 1,
+            associated_retry_id: 1,
             associated_task: [1; 32], // incorrect task hash, not 0;32 as below
+            associated_sender: 0,
+            associated_recipient: None,
         };
 
         work_manager.push_task([0; 32], true, remote, task).unwrap();
 
         let delivery_type = work_manager.deliver_message(msg).unwrap(); // incorrect task hash
         assert_eq!(delivery_type, DeliveryType::EnqueuedMessage); // message should be enqueued because the task hash is incorrect
+    }
+
+    #[tokio::test]
+    async fn test_retry_id() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 0, PollMethod::Manual);
+        let (remote, task, _rx) = generate_async_protocol_error(1, 0, 0);
+        assert!(work_manager.latest_retry_id(&[0; 32]).is_none());
+        work_manager.push_task([0; 32], true, remote, task).unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert_eq!(
+            work_manager
+                .latest_retry_id(&[0; 32])
+                .expect("Should exist"),
+            0
+        );
+
+        // Simulate a retry
+        let (remote, task, _rx) = generate_async_protocol_error(1, 1, 0);
+        work_manager.push_task([0; 32], true, remote, task).unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        assert_eq!(
+            work_manager
+                .latest_retry_id(&[0; 32])
+                .expect("Should exist"),
+            1
+        );
+
+        // Simulate that the protocol works on the third attempt
+        let (remote, task, _rx) = generate_async_protocol(1, 2, 0);
+        work_manager.push_task([0; 32], true, remote, task).unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        // Since the protocol was a success, the retry id should be cleared
+        assert!(work_manager.latest_retry_id(&[0; 32]).is_none());
     }
 
     struct DummyRangeChecker<const N: u64>;
@@ -1178,16 +1335,29 @@ mod tests {
         fn associated_session_id(&self) -> u64 {
             0u64
         }
-        fn associated_ssid(&self) -> u64 {
+        fn associated_retry_id(&self) -> u64 {
             0u64
         }
         fn associated_task(&self) -> [u8; 32] {
             [0; 32]
         }
+
+        fn associated_sender_user_id(
+            &self,
+        ) -> <DummyRangeChecker<N> as WorkManagerInterface>::UserID {
+            0
+        }
+
+        fn associated_recipient_user_id(
+            &self,
+        ) -> Option<<DummyRangeChecker<N> as WorkManagerInterface>::UserID> {
+            None
+        }
     }
 
     impl<const N: u64> WorkManagerInterface for DummyRangeChecker<N> {
-        type SSID = u64;
+        type RetryID = u64;
+        type UserID = u64;
         type Clock = u64;
         type ProtocolMessage = DummyProtocolMessage;
         type Error = ();

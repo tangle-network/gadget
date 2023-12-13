@@ -58,7 +58,7 @@ mod tests {
                         to: None,
                         associated_block_id: params.associated_block_id,
                         associated_session_id: params.associated_session_id,
-                        associated_ssid: params.associated_ssid,
+                        associated_retry_id: params.associated_retry_id,
                         associated_task_id: params.associated_task_id,
                     },
                 )

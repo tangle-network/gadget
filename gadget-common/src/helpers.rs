@@ -62,6 +62,7 @@ pub fn create_job_manager_compatible_job<T: Display + Send + Clone + 'static>(
 
     JobBuilder::default()
         .pre(pre_hook)
+        .protocol(wrapped_future)
         .post(post_hook)
-        .build(wrapped_future)
+        .build()
 }

@@ -90,11 +90,11 @@ impl<B: Send + Sync + Clone + 'static> AbstractGadget for TestGadget<B> {
         if self.run_test_at.contains(&now) {
             log::info!("Running test at block {now}");
             let task_hash = now.to_be_bytes();
-            let ssid = 0; // Assume SSID = 0 for now
+            let retry_id = 0; // Assume SSID = 0 for now
             let (remote, task) = create_test_async_protocol(
                 session_id,
                 now,
-                ssid,
+                retry_id,
                 task_hash,
                 self.test_bundle.clone(),
                 &*self.async_protocol_generator,
@@ -137,7 +137,7 @@ impl<B: Send + Sync + Clone + 'static> AbstractGadget for TestGadget<B> {
 fn create_test_async_protocol<B: Send + Sync + 'static>(
     session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
     now: <TestWorkManager as WorkManagerInterface>::Clock,
-    ssid: <TestWorkManager as WorkManagerInterface>::SSID,
+    retry_id: <TestWorkManager as WorkManagerInterface>::RetryID,
     task_id: <TestWorkManager as WorkManagerInterface>::TaskID,
     test_bundle: B,
     proto_gen: &dyn AsyncProtocolGenerator<B>,
@@ -153,7 +153,7 @@ fn create_test_async_protocol<B: Send + Sync + 'static>(
         start_rx: Some(start_rx),
         shutdown_rx: Some(shutdown_rx),
         associated_block_id: now,
-        associated_ssid: ssid,
+        associated_retry_id: retry_id,
         associated_session_id: session_id,
         associated_task_id: task_id,
         test_bundle,
@@ -163,14 +163,14 @@ fn create_test_async_protocol<B: Send + Sync + 'static>(
         start_tx: parking_lot::Mutex::new(Some(start_tx)),
         shutdown_tx: parking_lot::Mutex::new(Some(shutdown_tx)),
         associated_block_id: now,
-        associated_ssid: ssid,
+        associated_retry_id: retry_id,
         associated_session_id: session_id,
         to_async_protocol,
         is_done,
     };
 
     let future = proto_gen(params);
-    let future = JobBuilder::default().build(future);
+    let future = JobBuilder::default().protocol(future).build();
 
     (remote, future)
 }

@@ -1,0 +1,44 @@
+[package]
+name = "mp-ecdsa-protocol"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+application = []
+
+[dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+gadget-common = { workspace = true }
+gadget-core = { workspace = true }
+async-trait = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+multi-party-ecdsa = { workspace = true }
+round-based = { workspace = true }
+curv = { workspace = true }
+futures = { workspace = true }
+itertools = { workspace = true }
+bincode2 = { workspace = true }
+linked-hash-map = { workspace = true }
+
+pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
+tangle-primitives = { workspace = true, features = ["std"] }
+
+sp-core = { workspace = true, features = ["std"] }
+sp-api = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+sp-application-crypto = { workspace = true, features = ["std"] }
+sp-consensus-aura = { workspace = true, features = ["std"] }
+
+sc-client-api = { workspace = true }
+sc-network = { workspace = true }
+sc-network-common = { workspace = true }
+sc-network-sync = { workspace = true }
+
+parity-scale-codec = { workspace = true }
+serde = { version = "1.0.193", features = ["derive"] }
+
+[build-dependencies]
+substrate-build-script-utils = { workspace = true }

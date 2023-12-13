@@ -49,9 +49,9 @@ pub struct Registrant {
 }
 
 use crate::Error;
-use webb_gadget::gadget::message::{GadgetProtocolMessage, UserID};
-use webb_gadget::gadget::network::Network;
-use webb_gadget::gadget::work_manager::WebbWorkManager;
+use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
+use gadget_common::gadget::network::Network;
+use gadget_common::gadget::work_manager::WebbWorkManager;
 
 pub fn create_server_tls_acceptor<T: CertToDer>(
     server_certificate: T,

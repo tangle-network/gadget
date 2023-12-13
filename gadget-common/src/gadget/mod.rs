@@ -13,6 +13,7 @@ use sp_runtime::traits::{Block, Header};
 use sp_runtime::SaturatedConversion;
 use std::marker::PhantomData;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub mod message;
 pub mod network;
@@ -27,23 +28,20 @@ pub struct WebbModule<B, C, N, M> {
     _pd: PhantomData<(B, C)>,
 }
 
-const MAX_ACTIVE_TASKS: usize = 4;
-const MAX_PENDING_TASKS: usize = 4;
+const DEFAULT_MAX_ACTIVE_TASKS: usize = 4;
+const DEFAULT_MAX_PENDING_TASKS: usize = 4;
+const DEFAULT_POLL_INTERVAL: Option<Duration> = Some(Duration::from_millis(200));
+
+#[derive(Debug)]
+pub struct WorkManagerConfig {
+    pub interval: Option<Duration>,
+    pub max_active_tasks: usize,
+    pub max_pending_tasks: usize,
+}
 
 impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> WebbModule<B, C, N, M> {
-    pub fn new(network: N, module: M, now: Option<u64>) -> Self {
-        let clock = Arc::new(RwLock::new(now));
-        let clock_clone = clock.clone();
-
-        let job_manager_zk = WebbWorkManager::new(move || *clock_clone.read());
-
-        let job_manager = ProtocolWorkManager::new(
-            job_manager_zk,
-            MAX_ACTIVE_TASKS,
-            MAX_PENDING_TASKS,
-            PollMethod::Interval { millis: 200 },
-        );
-
+    pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<WebbWorkManager>) -> Self {
+        let clock = job_manager.utility.clock.clone();
         WebbModule {
             protocol: module,
             job_manager,
@@ -74,20 +72,28 @@ impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> SubstrateGadg
         let now: u64 = (*notification.header.number()).saturated_into();
         *self.clock.write() = Some(now);
 
-        while let Some(job) = self
+        if let Some(jobs) = self
             .protocol
-            .get_next_job(&notification, now, &self.job_manager)
+            .get_next_jobs(&notification, now, &self.job_manager)
             .await?
         {
-            let (remote, protocol) = job;
-            let task_id = remote.associated_task_id;
+            for job in jobs {
+                let (remote, protocol) = job;
+                let task_id = remote.associated_task_id;
 
-            if let Err(err) = self
-                .job_manager
-                .push_task(task_id, false, Arc::new(remote), protocol)
-            {
-                log::error!("Failed to push task to job manager: {err:?}");
+                if let Err(err) =
+                    self.job_manager
+                        .push_task(task_id, false, Arc::new(remote), protocol)
+                {
+                    log::error!("Failed to push task to job manager: {err:?}");
+                }
             }
+        }
+
+        // Poll jobs on each finality notification if we're using manual polling.
+        // This helps synchronize the actions of nodes in the network
+        if self.job_manager.poll_method() == PollMethod::Manual {
+            self.job_manager.poll();
         }
 
         Ok(())
@@ -121,16 +127,23 @@ pub type Job = (AsyncProtocolRemote, BuiltExecutableJobWrapper);
 
 #[async_trait]
 pub trait WebbGadgetProtocol<B: Block>: Send + Sync {
-    async fn get_next_job(
+    async fn get_next_jobs(
         &self,
         notification: &FinalityNotification<B>,
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) -> Result<Option<Job>, Error>;
+    ) -> Result<Option<Vec<Job>>, Error>;
     async fn process_block_import_notification(
         &self,
         notification: BlockImportNotification<B>,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<(), Error>;
     async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WebbWorkManager>);
+    fn get_work_manager_config(&self) -> WorkManagerConfig {
+        WorkManagerConfig {
+            interval: DEFAULT_POLL_INTERVAL,
+            max_active_tasks: DEFAULT_MAX_ACTIVE_TASKS,
+            max_pending_tasks: DEFAULT_MAX_PENDING_TASKS,
+        }
+    }
 }

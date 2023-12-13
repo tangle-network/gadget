@@ -9,7 +9,7 @@ pub struct TestProtocolMessage {
     pub to: Option<UserID>,
     pub associated_block_id: <TestWorkManager as WorkManagerInterface>::Clock,
     pub associated_session_id: <TestWorkManager as WorkManagerInterface>::SessionID,
-    pub associated_ssid: <TestWorkManager as WorkManagerInterface>::SSID,
+    pub associated_retry_id: <TestWorkManager as WorkManagerInterface>::RetryID,
     pub associated_task_id: <TestWorkManager as WorkManagerInterface>::TaskID,
 }
 
@@ -24,11 +24,21 @@ impl ProtocolMessageMetadata<TestWorkManager> for TestProtocolMessage {
         self.associated_session_id
     }
 
-    fn associated_ssid(&self) -> <TestWorkManager as WorkManagerInterface>::SSID {
-        self.associated_ssid
+    fn associated_retry_id(&self) -> <TestWorkManager as WorkManagerInterface>::RetryID {
+        self.associated_retry_id
     }
 
     fn associated_task(&self) -> <TestWorkManager as WorkManagerInterface>::TaskID {
         self.associated_task_id
+    }
+
+    fn associated_sender_user_id(&self) -> <TestWorkManager as WorkManagerInterface>::UserID {
+        self.from
+    }
+
+    fn associated_recipient_user_id(
+        &self,
+    ) -> Option<<TestWorkManager as WorkManagerInterface>::UserID> {
+        self.to
     }
 }

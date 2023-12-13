@@ -56,6 +56,7 @@ mod tests {
 
     pub mod client {
         use async_trait::async_trait;
+        use gadget_common::{BlockImportNotification, FinalityNotification};
         use gadget_core::gadget::substrate::Client;
         use sc_client_api::FinalizeSummary;
         use serde::Serialize;
@@ -67,7 +68,6 @@ mod tests {
         use std::time::Duration;
         use tokio::sync::Mutex;
         use uuid::Uuid;
-        use webb_gadget::{BlockImportNotification, FinalityNotification};
         use zk_gadget::client_ext::job_types::{CircuitProperties, JobProperties};
         use zk_gadget::client_ext::ClientWithApi;
 
@@ -137,18 +137,18 @@ mod tests {
             async fn get_job_circuit_properties(
                 &self,
                 _circuit_id: u64,
-            ) -> Result<Option<CircuitProperties>, webb_gadget::Error> {
+            ) -> Result<Option<CircuitProperties>, gadget_common::Error> {
                 unimplemented!()
             }
 
             async fn get_job_properties(
                 &self,
                 _job_id: u64,
-            ) -> Result<Option<JobProperties>, webb_gadget::Error> {
+            ) -> Result<Option<JobProperties>, gadget_common::Error> {
                 unimplemented!()
             }
 
-            async fn get_next_job(&self) -> Result<Option<JobProperties>, webb_gadget::Error> {
+            async fn get_next_job(&self) -> Result<Option<JobProperties>, gadget_common::Error> {
                 Ok(Some(JobProperties {
                     job_id: 0,
                     circuit_id: 0,
@@ -335,45 +335,47 @@ mod tests {
             TestBlock,
         >,
     ) -> BuiltExecutableJobWrapper {
-        JobBuilder::default().build(async move {
-            if params.party_id == 0 {
-                // Receive N-1 messages from the other parties
-                for party_id in 0..N {
-                    let party_id = party_id as u32;
-                    if party_id != params.party_id {
-                        let _message = params
-                            .recv_from(party_id, MultiplexedStreamID::Zero)
-                            .await
-                            .expect("Should receive protocol message");
+        JobBuilder::default()
+            .protocol(async move {
+                if params.party_id == 0 {
+                    // Receive N-1 messages from the other parties
+                    for party_id in 0..N {
+                        let party_id = party_id as u32;
+                        if party_id != params.party_id {
+                            let _message = params
+                                .recv_from(party_id, MultiplexedStreamID::Zero)
+                                .await
+                                .expect("Should receive protocol message");
+                        }
                     }
+
+                    for party_id in 0..N {
+                        let party_id = party_id as u32;
+                        if party_id != params.party_id {
+                            params
+                                .send_to(party_id, Default::default(), MultiplexedStreamID::Zero)
+                                .await
+                                .expect("Should send");
+                        }
+                    }
+                } else {
+                    params
+                        .send_to(0, Default::default(), MultiplexedStreamID::Zero)
+                        .await
+                        .expect("Should send");
+                    let _message_from_king = params
+                        .recv_from(0, MultiplexedStreamID::Zero)
+                        .await
+                        .expect("Should receive protocol message");
                 }
 
-                for party_id in 0..N {
-                    let party_id = party_id as u32;
-                    if party_id != params.party_id {
-                        params
-                            .send_to(party_id, Default::default(), MultiplexedStreamID::Zero)
-                            .await
-                            .expect("Should send");
-                    }
-                }
-            } else {
                 params
-                    .send_to(0, Default::default(), MultiplexedStreamID::Zero)
-                    .await
+                    .extra_parameters
+                    .stop_tx
+                    .send(())
                     .expect("Should send");
-                let _message_from_king = params
-                    .recv_from(0, MultiplexedStreamID::Zero)
-                    .await
-                    .expect("Should receive protocol message");
-            }
-
-            params
-                .extra_parameters
-                .stop_tx
-                .send(())
-                .expect("Should send");
-            Ok(())
-        })
+                Ok(())
+            })
+            .build()
     }
 }

@@ -3,6 +3,10 @@ use crate::network::RegistantId;
 use crate::protocol::AdditionalProtocolParams;
 use async_trait::async_trait;
 use bytes::Bytes;
+use gadget_common::gadget::message::GadgetProtocolMessage;
+use gadget_common::gadget::network::Network;
+use gadget_common::gadget::work_manager::WebbWorkManager;
+use gadget_common::protocol::AsyncProtocol;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::WorkManagerInterface;
 use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
@@ -12,14 +16,10 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use tokio::sync::mpsc::UnboundedReceiver;
-use webb_gadget::gadget::message::GadgetProtocolMessage;
-use webb_gadget::gadget::network::Network;
-use webb_gadget::gadget::work_manager::WebbWorkManager;
-use webb_gadget::protocol::AsyncProtocol;
 
 pub struct ZkAsyncProtocolParameters<B, N, C, Bl> {
     pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-    pub associated_ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
+    pub associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
     pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
     pub associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
     rxs: HashMap<u32, Vec<tokio::sync::Mutex<UnboundedReceiver<MpcNetMessage>>>>,
@@ -69,13 +69,15 @@ pub struct ZkProtocolGenerator<B, E, N, C, Bl> {
 impl<B: AdditionalProtocolParams, E, N: Network, C: ClientWithApi<Bl>, Bl: Block> AsyncProtocol
     for ZkProtocolGenerator<B, E, N, C, Bl>
 {
+    type AdditionalParams = ();
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-        associated_ssid: <WebbWorkManager as WorkManagerInterface>::SSID,
+        associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
         associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
         associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
         mut protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+        _additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let mut txs = HashMap::new();
         let mut rxs = HashMap::new();
@@ -128,7 +130,7 @@ impl<B: AdditionalProtocolParams, E, N: Network, C: ClientWithApi<Bl>, Bl: Block
 
         let params = ZkAsyncProtocolParameters {
             associated_block_id,
-            associated_ssid,
+            associated_retry_id,
             associated_session_id,
             associated_task_id,
             rxs,
@@ -199,11 +201,13 @@ impl<B: Send + Sync, N: Network, C: ClientWithApi<Bl>, Bl: Block> MpcNet
             .send_message(GadgetProtocolMessage {
                 associated_block_id: self.associated_block_id,
                 associated_session_id: self.associated_session_id,
-                associated_ssid: self.associated_ssid,
+                associated_retry_id: self.associated_retry_id,
                 from: self.party_id,
                 to: Some(id),
                 task_hash: self.associated_task_id,
                 payload: bincode2::serialize(&inner_payload).expect("Failed to serialize message"),
+                from_account_id: None,
+                to_account_id: None,
             })
             .await
             .map_err(|err| MpcNetError::Protocol {
