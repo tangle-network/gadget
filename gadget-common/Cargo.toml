@@ -6,6 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
+default = [
+    "std"
+]
+
+std = [
+    "sp-api/std",
+    "tangle-primitives/std",
+    "pallet-jobs-rpc-runtime-api/std"
+]
 
 [dependencies]
 gadget-core = { workspace = true, features = ["substrate"] }
@@ -21,6 +30,6 @@ sp-runtime = { workspace = true }
 hex = { workspace = true }
 bincode2 = { workspace = true }
 
-sp-api = { workspace = true, default-features = false, features = ["std"] }
-tangle-primitives = { workspace = true, default-features = false, features = ["std"] }
-pallet-jobs-rpc-runtime-api = { workspace = true, default-features = false, features = ["std"] }
+sp-api = { workspace = true, default-features = false }
+tangle-primitives = { workspace = true, default-features = false }
+pallet-jobs-rpc-runtime-api = { workspace = true, default-features = false }
