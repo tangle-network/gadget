@@ -1,8 +1,12 @@
 use curv::arithmetic::Converter;
+use gadget_common::debug_logger::DebugLogger;
 use multi_party_ecdsa::gg_2020::party_i::SignatureRecid;
 use sp_core::ecdsa::Signature;
 
-pub fn convert_signature(sig_recid: &SignatureRecid) -> Option<Signature> {
+pub fn convert_signature(
+    debug_logger: &DebugLogger,
+    sig_recid: &SignatureRecid,
+) -> Option<Signature> {
     let r = sig_recid.r.to_bigint().to_bytes();
     let s = sig_recid.s.to_bigint().to_bytes();
     let v = sig_recid.recid + 27u8;
@@ -22,7 +26,10 @@ pub fn convert_signature(sig_recid: &SignatureRecid) -> Option<Signature> {
     sig_vec.extend([v]);
 
     if 65 != sig_vec.len() {
-        log::warn!(target: "dkg_gadget", "🕸️  Invalid signature len: {}, expected 65", sig_vec.len());
+        debug_logger.warn(format!(
+            "Invalid signature len: {}, expected 65",
+            sig_vec.len()
+        ));
         return None;
     }
 

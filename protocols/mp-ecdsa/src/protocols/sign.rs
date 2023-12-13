@@ -430,7 +430,7 @@ async fn voting_stage(
     })?;
 
     // Convert the signature to a substrate-compatible format
-    crate::util::convert_signature(&signature).ok_or_else(|| JobError {
+    crate::util::convert_signature(debug_logger, &signature).ok_or_else(|| JobError {
         reason: "Failed to convert signature to Substrate-compatible format".to_string(),
     })
 }
