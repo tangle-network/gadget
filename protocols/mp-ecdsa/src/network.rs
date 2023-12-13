@@ -40,12 +40,16 @@
 //! engine, and it is verified then it will be added to the Engine's internal stream of DKG
 //! messages, later the DKG Gadget will read this stream and process the DKG message.
 
-use crate::client::AccountId;
 pub use crate::constants::network::*;
-use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
-use crate::util::DebugLogger;
 use async_trait::async_trait;
 use futures::StreamExt;
+use gadget_common::client::AccountId;
+use gadget_common::debug_logger::DebugLogger;
+use gadget_common::gadget::message::GadgetProtocolMessage;
+use gadget_common::gadget::network::Network;
+use gadget_common::gadget::work_manager::WebbWorkManager;
+use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
+use gadget_common::Error;
 use gadget_core::job_manager::WorkManagerInterface;
 use linked_hash_map::LinkedHashMap;
 use parking_lot::{Mutex, RwLock};
@@ -68,10 +72,6 @@ use std::{
     },
 };
 use tokio::sync::mpsc::UnboundedReceiver;
-use webb_gadget::gadget::message::GadgetProtocolMessage;
-use webb_gadget::gadget::network::Network;
-use webb_gadget::gadget::work_manager::WebbWorkManager;
-use webb_gadget::Error;
 
 #[derive(Clone)]
 #[allow(dead_code)]

@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "gadget-core",
-    "webb-gadget",
+    "gadget-common",
     "zk-gadget",
     "test-gadget",
     "protocols/mp-ecdsa",
@@ -10,7 +10,7 @@ members = [
 
 [workspace.dependencies]
 gadget-core = { path = "./gadget-core" }
-webb-gadget = { path = "./webb-gadget" }
+gadget-common = { path = "./gadget-common" }
 zk-gadget = { path = "./zk-gadget" }
 mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
 

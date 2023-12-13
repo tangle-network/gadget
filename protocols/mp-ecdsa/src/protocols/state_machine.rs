@@ -1,4 +1,4 @@
-use crate::util::DebugLogger;
+use gadget_common::debug_logger::DebugLogger;
 use multi_party_ecdsa::gg_2020::state_machine::traits::RoundBlame;
 use multi_party_ecdsa::MessageRoundID;
 use round_based::{Msg, StateMachine};

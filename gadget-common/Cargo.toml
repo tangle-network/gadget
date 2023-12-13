@@ -1,5 +1,5 @@
 [package]
-name = "webb-gadget"
+name = "gadget-common"
 version = "0.1.0"
 edition = "2021"
 
@@ -20,3 +20,7 @@ sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 hex = { workspace = true }
 bincode2 = { workspace = true }
+
+sp-api = { workspace = true, default-features = false, features = ["std"] }
+tangle-primitives = { workspace = true, default-features = false, features = ["std"] }
+pallet-jobs-rpc-runtime-api = { workspace = true, default-features = false, features = ["std"] }

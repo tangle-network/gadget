@@ -3,6 +3,10 @@ use crate::network::RegistantId;
 use crate::protocol::AdditionalProtocolParams;
 use async_trait::async_trait;
 use bytes::Bytes;
+use gadget_common::gadget::message::GadgetProtocolMessage;
+use gadget_common::gadget::network::Network;
+use gadget_common::gadget::work_manager::WebbWorkManager;
+use gadget_common::protocol::AsyncProtocol;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::WorkManagerInterface;
 use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
@@ -12,10 +16,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use tokio::sync::mpsc::UnboundedReceiver;
-use webb_gadget::gadget::message::GadgetProtocolMessage;
-use webb_gadget::gadget::network::Network;
-use webb_gadget::gadget::work_manager::WebbWorkManager;
-use webb_gadget::protocol::AsyncProtocol;
 
 pub struct ZkAsyncProtocolParameters<B, N, C, Bl> {
     pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,

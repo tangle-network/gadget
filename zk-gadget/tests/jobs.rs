@@ -56,6 +56,7 @@ mod tests {
 
     pub mod client {
         use async_trait::async_trait;
+        use gadget_common::{BlockImportNotification, FinalityNotification};
         use gadget_core::gadget::substrate::Client;
         use sc_client_api::FinalizeSummary;
         use serde::Serialize;
@@ -67,7 +68,6 @@ mod tests {
         use std::time::Duration;
         use tokio::sync::Mutex;
         use uuid::Uuid;
-        use webb_gadget::{BlockImportNotification, FinalityNotification};
         use zk_gadget::client_ext::job_types::{CircuitProperties, JobProperties};
         use zk_gadget::client_ext::ClientWithApi;
 
@@ -137,18 +137,18 @@ mod tests {
             async fn get_job_circuit_properties(
                 &self,
                 _circuit_id: u64,
-            ) -> Result<Option<CircuitProperties>, webb_gadget::Error> {
+            ) -> Result<Option<CircuitProperties>, gadget_common::Error> {
                 unimplemented!()
             }
 
             async fn get_job_properties(
                 &self,
                 _job_id: u64,
-            ) -> Result<Option<JobProperties>, webb_gadget::Error> {
+            ) -> Result<Option<JobProperties>, gadget_common::Error> {
                 unimplemented!()
             }
 
-            async fn get_next_job(&self) -> Result<Option<JobProperties>, webb_gadget::Error> {
+            async fn get_next_job(&self) -> Result<Option<JobProperties>, gadget_common::Error> {
                 Ok(Some(JobProperties {
                     job_id: 0,
                     circuit_id: 0,

@@ -14,9 +14,11 @@ use sp_runtime::SaturatedConversion;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
+pub mod client;
+pub mod debug_logger;
 pub mod gadget;
-
 pub mod helpers;
+pub mod keystore;
 pub mod protocol;
 
 #[derive(Debug)]
@@ -33,6 +35,7 @@ pub enum Error {
     ClientError { err: String },
     JobError { err: JobError },
     NetworkError { err: String },
+    KeystoreError { err: String },
 }
 
 impl Display for Error {

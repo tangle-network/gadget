@@ -10,7 +10,7 @@ application = []
 
 [dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-webb-gadget = { workspace = true }
+gadget-common = { workspace = true }
 gadget-core = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }

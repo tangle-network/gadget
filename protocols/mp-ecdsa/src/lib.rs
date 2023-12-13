@@ -1,18 +1,16 @@
-use crate::client::{AccountId, ClientWithApi};
-use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
-use crate::util::DebugLogger;
+use gadget_common::client::{AccountId, ClientWithApi};
+use gadget_common::debug_logger::DebugLogger;
+use gadget_common::gadget::network::Network;
+use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use pallet_jobs_rpc_runtime_api::JobsApi;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::Block;
 use std::error::Error;
 use std::sync::Arc;
-use webb_gadget::gadget::network::Network;
 
-pub mod client;
 pub mod constants;
 pub mod error;
-pub mod keystore;
 pub mod network;
 pub mod protocols;
 pub mod util;
@@ -38,11 +36,12 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     let client =
-        client::create_client(config, client_inner.clone(), logger.clone(), keystore).await?;
+        gadget_common::client::create_client(client_inner.clone(), logger.clone(), keystore)
+            .await?;
     let protocol =
         protocols::keygen::create_protocol(config, client, network.clone(), logger).await?;
 
-    webb_gadget::run_protocol(network, protocol, client_inner).await?;
+    gadget_common::run_protocol(network, protocol, client_inner).await?;
     Ok(())
 }
 
@@ -62,11 +61,12 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     let client =
-        client::create_client(config, client_inner.clone(), logger.clone(), keystore).await?;
+        gadget_common::client::create_client(client_inner.clone(), logger.clone(), keystore)
+            .await?;
     let protocol =
         protocols::sign::create_protocol(config, logger, client, network.clone()).await?;
 
-    webb_gadget::run_protocol(network, protocol, client_inner).await?;
+    gadget_common::run_protocol(network, protocol, client_inner).await?;
     Ok(())
 }
 

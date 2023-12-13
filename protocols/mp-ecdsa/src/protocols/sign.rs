@@ -1,14 +1,20 @@
-use crate::client::{AccountId, ClientWithApi, MpEcdsaClient};
-use crate::keystore::KeystoreBackend;
 use crate::protocols::state_machine::{CurrentRoundBlame, StateMachineWrapper};
 use crate::protocols::util;
 use crate::protocols::util::VotingMessage;
-use crate::util::DebugLogger;
 use crate::MpEcdsaProtocolConfig;
 use async_trait::async_trait;
 use curv::arithmetic::Converter;
 use curv::elliptic::curves::Secp256k1;
 use curv::BigInt;
+use gadget_common::client::{AccountId, ClientWithApi, MpEcdsaClient};
+use gadget_common::debug_logger::DebugLogger;
+use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
+use gadget_common::gadget::network::Network;
+use gadget_common::gadget::work_manager::WebbWorkManager;
+use gadget_common::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
+use gadget_common::keystore::KeystoreBackend;
+use gadget_common::protocol::AsyncProtocol;
+use gadget_common::{Block, BlockImportNotification, FinalityNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use multi_party_ecdsa::gg_2020::party_i::verify;
@@ -30,12 +36,6 @@ use std::sync::Arc;
 use tangle_primitives::jobs::{DKGSignatureResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
-use webb_gadget::gadget::message::{GadgetProtocolMessage, UserID};
-use webb_gadget::gadget::network::Network;
-use webb_gadget::gadget::work_manager::WebbWorkManager;
-use webb_gadget::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
-use webb_gadget::protocol::AsyncProtocol;
-use webb_gadget::{Block, BlockImportNotification, FinalityNotification};
 
 pub struct MpEcdsaSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
     client: MpEcdsaClient<B, BE, KBE, C>,
@@ -91,7 +91,7 @@ where
         notification: &FinalityNotification<B>,
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) -> Result<Option<Vec<Job>>, webb_gadget::Error> {
+    ) -> Result<Option<Vec<Job>>, gadget_common::Error> {
         let jobs = self
             .client
             .query_jobs_by_validator(notification.hash, self.account_id)
@@ -119,7 +119,7 @@ where
                     .key_store
                     .get(&job.job_id)
                     .await
-                    .map_err(|err| webb_gadget::Error::ClientError {
+                    .map_err(|err| gadget_common::Error::ClientError {
                         err: err.to_string(),
                     })?
                 {
@@ -163,13 +163,13 @@ where
         &self,
         _notification: BlockImportNotification<B>,
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) -> Result<(), webb_gadget::Error> {
+    ) -> Result<(), gadget_common::Error> {
         Ok(())
     }
 
     async fn process_error(
         &self,
-        error: webb_gadget::Error,
+        error: gadget_common::Error,
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) {
         log::error!(target: "mp-ecdsa", "Error: {error:?}");

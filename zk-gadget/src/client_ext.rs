@@ -9,14 +9,14 @@ pub trait ClientWithApi<B: Block>: Client<B> + Clone {
     async fn get_job_circuit_properties(
         &self,
         circuit_id: u64,
-    ) -> Result<Option<CircuitProperties>, webb_gadget::Error>;
+    ) -> Result<Option<CircuitProperties>, gadget_common::Error>;
 
     async fn get_job_properties(
         &self,
         job_id: u64,
-    ) -> Result<Option<JobProperties>, webb_gadget::Error>;
+    ) -> Result<Option<JobProperties>, gadget_common::Error>;
 
-    async fn get_next_job(&self) -> Result<Option<JobProperties>, webb_gadget::Error>;
+    async fn get_next_job(&self) -> Result<Option<JobProperties>, gadget_common::Error>;
 }
 
 pub mod job_types {

@@ -1,6 +1,5 @@
+use crate::debug_logger::DebugLogger;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
-use crate::util::DebugLogger;
-use crate::MpEcdsaProtocolConfig;
 use async_trait::async_trait;
 use gadget_core::gadget::substrate::Client;
 use pallet_jobs_rpc_runtime_api::{JobsApi, RpcResponseJobsData};
@@ -15,9 +14,8 @@ use tangle_primitives::jobs::{JobId, JobKey, JobResult};
 
 pub struct MpEcdsaClient<B: Block, BE, KBE: KeystoreBackend, C> {
     client: Arc<C>,
-    pub(crate) key_store: ECDSAKeyStore<KBE>,
+    pub key_store: ECDSAKeyStore<KBE>,
     logger: DebugLogger,
-    account_id: AccountId,
     _block: std::marker::PhantomData<(BE, B)>,
 }
 
@@ -27,7 +25,6 @@ impl<B: Block, BE, KBE: KeystoreBackend, C> Clone for MpEcdsaClient<B, BE, KBE, 
             client: self.client.clone(),
             key_store: self.key_store.clone(),
             logger: self.logger.clone(),
-            account_id: self.account_id,
             _block: self._block,
         }
     }
@@ -39,7 +36,6 @@ pub async fn create_client<
     KBE: KeystoreBackend,
     C: ClientWithApi<B, BE>,
 >(
-    config: &MpEcdsaProtocolConfig,
     client: Arc<C>,
     logger: DebugLogger,
     key_store: ECDSAKeyStore<KBE>,
@@ -51,7 +47,6 @@ where
         client,
         key_store,
         logger,
-        account_id: config.account_id,
         _block: std::marker::PhantomData,
     })
 }
@@ -91,15 +86,15 @@ where
         &self,
         at: <B as Block>::Hash,
         validator: AccountId,
-    ) -> Result<Vec<RpcResponseJobsData<AccountId>>, webb_gadget::Error> {
+    ) -> Result<Vec<RpcResponseJobsData<AccountId>>, crate::Error> {
         exec_client_function(&self.client, move |client| {
             client.runtime_api().query_jobs_by_validator(at, validator)
         })
         .await
-        .map_err(|err| webb_gadget::Error::ClientError {
+        .map_err(|err| crate::Error::ClientError {
             err: format!("Failed to query jobs by validator: {err:?}"),
         })?
-        .map_err(|err| webb_gadget::Error::ClientError {
+        .map_err(|err| crate::Error::ClientError {
             err: format!("Failed to query jobs by validator: {err:?}"),
         })
     }
@@ -110,7 +105,7 @@ where
         _job_key: JobKey,
         _job_id: JobId,
         _result: JobResult,
-    ) -> Result<(), webb_gadget::Error> {
+    ) -> Result<(), crate::Error> {
         Ok(())
     }
 }

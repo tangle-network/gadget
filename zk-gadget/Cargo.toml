@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 tokio-rustls = { workspace = true }
 mpc-net = { workspace = true }
-webb-gadget = { workspace = true }
+gadget-common = { workspace = true }
 gadget-core = { workspace = true }
 bincode2 = { workspace = true }
 tokio = { workspace = true }

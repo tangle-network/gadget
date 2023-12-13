@@ -1,12 +1,12 @@
 use crate::client_ext::ClientWithApi;
 use crate::network::RegistantId;
 use async_trait::async_trait;
+use gadget_common::gadget::work_manager::WebbWorkManager;
+use gadget_common::gadget::{Job, WebbGadgetProtocol};
+use gadget_common::protocol::AsyncProtocol;
+use gadget_common::{BlockImportNotification, Error, FinalityNotification};
 use gadget_core::job_manager::ProtocolWorkManager;
 use sp_runtime::traits::Block;
-use webb_gadget::gadget::work_manager::WebbWorkManager;
-use webb_gadget::gadget::{Job, WebbGadgetProtocol};
-use webb_gadget::protocol::AsyncProtocol;
-use webb_gadget::{BlockImportNotification, Error, FinalityNotification};
 
 pub mod proto_gen;
 
