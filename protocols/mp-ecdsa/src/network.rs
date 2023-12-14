@@ -235,11 +235,11 @@ impl Network for GossipHandlerController {
         message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
         // Make sure that we programmed-in the account IDs
-        let _ = message.from_account_id.ok_or_else(|| Error::NetworkError {
+        let _ = message.from_network_id.ok_or_else(|| Error::NetworkError {
             err: "Improperly constructed message due to no associated account IDs".to_string(),
         })?;
 
-        if let Some(to) = message.to_account_id.as_ref() {
+        if let Some(to) = message.to_network_id.as_ref() {
             let id = self
                 .authority_id_to_peer_id
                 .read()
@@ -695,7 +695,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
 
     fn gossip_dkg_signed_message(&self, message: GadgetProtocolMessage) {
         // Check if the message has a recipient
-        let maybe_peer_id = match &message.to_account_id {
+        let maybe_peer_id = match &message.to_network_id {
             Some(recipient_id) => self
                 .authority_id_to_peer_id
                 .read()

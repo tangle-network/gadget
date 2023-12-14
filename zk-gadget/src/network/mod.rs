@@ -21,7 +21,9 @@ use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{rustls, TlsAcceptor, TlsStream};
 
 /// Type should correspond to the on-chain identifier of the registrant
-pub type RegistantId = UserID;
+pub type RegistantId = sp_core::ecdsa::Public;
+
+// TODO: ZK setup related hashmaps need cleanups for tasks that the local node never participates in
 
 #[derive(Clone)]
 pub enum ZkNetworkService {
@@ -31,15 +33,30 @@ pub enum ZkNetworkService {
         to_gadget: UnboundedSender<RegistryPacket>,
         to_outbound_txs: Arc<RwLock<HashMap<RegistantId, UnboundedSender<RegistryPacket>>>>,
         inbound_messages: Arc<Mutex<UnboundedReceiver<RegistryPacket>>>,
+        zk_setup: Arc<tokio::sync::RwLock<HashMap<[u8; 32], Arc<Mutex<KingRegistryResult>>>>>,
         identity: RustlsCertificate,
+        registry_id: RegistantId,
     },
     Client {
         king_registry_addr: SocketAddr,
-        registrant_id: RegistantId,
+        king_registry_id: Option<RegistantId>,
+        registry_id: RegistantId,
         cert_der: Vec<u8>,
         local_to_outbound_tx: UnboundedSender<RegistryPacket>,
         inbound_messages: Arc<Mutex<UnboundedReceiver<RegistryPacket>>>,
+        // A mapping of task IDs and associated list of registry IDs
+        registry_map: Arc<Mutex<HashMap<[u8; 32], ClientRegistryResult>>>,
     },
+}
+
+struct ClientRegistryResult {
+    tx: Option<tokio::sync::oneshot::Sender<HashMap<u32, RegistantId>>>,
+    rx: Option<tokio::sync::oneshot::Receiver<HashMap<u32, RegistantId>>>,
+}
+
+struct KingRegistryResult {
+    tx: Option<UnboundedSender<ZkSetupPacket>>,
+    rx: Option<UnboundedReceiver<ZkSetupPacket>>,
 }
 
 #[allow(dead_code)]
@@ -49,7 +66,7 @@ pub struct Registrant {
 }
 
 use crate::Error;
-use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
+use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
 
@@ -72,6 +89,7 @@ pub fn create_server_tls_acceptor<T: CertToDer>(
 
 impl ZkNetworkService {
     pub async fn new_king<T: std::net::ToSocketAddrs>(
+        registry_id: RegistantId,
         bind_addr: T,
         identity: RustlsCertificate,
     ) -> Result<Self, Error> {
@@ -87,6 +105,8 @@ impl ZkNetworkService {
         Ok(ZkNetworkService::King {
             listener: Arc::new(Mutex::new(Some(listener))),
             to_outbound_txs: Arc::new(RwLock::new(HashMap::new())),
+            zk_setup: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            registry_id,
             registrants,
             to_gadget,
             identity,
@@ -137,12 +157,14 @@ impl ZkNetworkService {
 
         handle_single_connection(connection, local_to_outbound_rx, to_gadget);
 
-        let this = ZkNetworkService::Client {
+        let mut this = ZkNetworkService::Client {
             king_registry_addr,
             local_to_outbound_tx,
-            registrant_id,
+            king_registry_id: None,
+            registry_id: registrant_id,
             cert_der,
             inbound_messages: Arc::new(Mutex::new(from_registry)),
+            registry_map: Arc::new(Default::default()),
         };
 
         this.client_register().await?;
@@ -150,17 +172,18 @@ impl ZkNetworkService {
         Ok(this)
     }
 
-    async fn client_register(&self) -> Result<(), Error> {
+    async fn client_register(&mut self) -> Result<(), Error> {
         match self {
             Self::King { .. } => Err(Error::RegistryCreateError {
                 err: "Cannot register as king".to_string(),
             }),
             Self::Client {
                 king_registry_addr: _,
-                registrant_id,
+                registry_id: registrant_id,
                 local_to_outbound_tx,
                 inbound_messages,
                 cert_der,
+                king_registry_id,
                 ..
             } => {
                 local_to_outbound_tx
@@ -178,18 +201,190 @@ impl ZkNetworkService {
                     },
                 )?;
 
-                if !matches!(
-                    &response,
-                    &RegistryPacket::RegisterResponse { success: true, .. }
-                ) {
-                    return Err(Error::RegistryCreateError {
-                        err: "Unexpected response".to_string(),
-                    });
+                match response {
+                    RegistryPacket::RegisterResponse {
+                        id: _,
+                        success,
+                        king_registry_id: king_id,
+                    } => {
+                        if !success {
+                            return Err(Error::RegistryCreateError {
+                                err: "Registration failed".to_string(),
+                            });
+                        }
+
+                        *king_registry_id = Some(king_id);
+                    }
+                    _ => {
+                        return Err(Error::RegistryCreateError {
+                            err: "Unexpected response".to_string(),
+                        });
+                    }
                 }
 
                 Ok(())
             }
         }
+    }
+
+    async fn handle_zk_setup_packet(&self, packet: ZkSetupPacket) {
+        match self {
+            Self::King { zk_setup, .. } => {
+                if let ZkSetupPacket::ClientToKing { job_id, .. } = &packet {
+                    let mut lock = zk_setup.write().await;
+                    if let Some(handle) = lock.get_mut(job_id) {
+                        if let Some(handle) = handle.lock().await.tx.take() {
+                            if let Err(err) = handle.send(packet) {
+                                log::error!(
+                                    "Failed to send ZkSetupPacket to local king listener: {err:?}"
+                                );
+                            }
+                        } else {
+                            log::error!("King received ZkSetupPacket for job_id that already submitted a result");
+                        }
+                    } else {
+                        // Insert handle that way a local user can wait for the result
+                        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+                        let job_id = *job_id;
+                        tx.send(packet).expect("Should send");
+
+                        let king_handle = KingRegistryResult {
+                            tx: Some(tx),
+                            rx: Some(rx),
+                        };
+
+                        lock.insert(job_id, Arc::new(Mutex::new(king_handle)));
+                    }
+                } else {
+                    log::error!("King received invalid ZkSetupPacket");
+                }
+            }
+
+            Self::Client { registry_map, .. } => {
+                if let ZkSetupPacket::KingToClient { job_id, party_ids } = packet {
+                    let mut lock = registry_map.lock().await;
+                    if let Some(handle) = lock.get_mut(&job_id) {
+                        if let Some(handle) = handle.tx.take() {
+                            if let Err(err) = handle.send(party_ids) {
+                                log::error!(
+                                    "Failed to send ZkSetupPacket to local king listener: {err:?}"
+                                );
+                            }
+                        } else {
+                            log::error!("Client received ZkSetupPacket for job_id that already submitted a result");
+                        }
+                    } else {
+                        // Insert handle that way a local user can wait for the result
+                        let (tx, rx) = tokio::sync::oneshot::channel();
+                        tx.send(party_ids).expect("Should send");
+
+                        let client_handle = ClientRegistryResult {
+                            tx: None,
+                            rx: Some(rx),
+                        };
+
+                        lock.insert(job_id, client_handle);
+                    }
+                } else {
+                    log::error!("Client received invalid ZkSetupPacket");
+                }
+            }
+        }
+    }
+
+    pub fn my_id(&self) -> RegistantId {
+        match self {
+            Self::King { registry_id, .. } | Self::Client { registry_id, .. } => {
+                registry_id.clone()
+            }
+        }
+    }
+
+    pub async fn king_only_next_zk_setup_packet(&self, job_id: &[u8; 32]) -> Option<ZkSetupPacket> {
+        match self {
+            Self::King { zk_setup, .. } => {
+                let mut lock = zk_setup.write().await;
+                if let Some(handle) = lock.get(job_id).cloned() {
+                    // Drop the lock to not block the hashmap
+                    drop(lock);
+                    if let Some(mut handle) = handle.lock().await.rx.take() {
+                        handle.recv().await
+                    } else {
+                        None
+                    }
+                } else {
+                    // Insert a handle locally to allow delivery of messages
+                    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+                    let king_handle = Arc::new(Mutex::new(KingRegistryResult {
+                        tx: Some(tx),
+                        rx: Some(rx),
+                    }));
+
+                    lock.insert(*job_id, king_handle.clone());
+                    drop(lock);
+
+                    let mut handle_lock = king_handle.lock().await;
+                    handle_lock.rx.as_mut().expect("Should exist").recv().await
+                }
+            }
+
+            Self::Client { .. } => None,
+        }
+    }
+
+    pub async fn king_only_clear_zk_setup_map_for(&self, job_id: &[u8; 32]) {
+        match self {
+            Self::King { zk_setup, .. } => {
+                zk_setup.write().await.remove(job_id);
+            }
+
+            Self::Client { .. } => {}
+        }
+    }
+
+    pub async fn client_only_get_zk_setup_result(
+        &self,
+        job_id: &[u8; 32],
+    ) -> Result<HashMap<u32, RegistantId>, crate::Error> {
+        match self {
+            Self::King { .. } => Err(Error::RegistryRecvError {
+                err: "Cannot get zk setup result as king".to_string(),
+            }),
+            Self::Client { registry_map, .. } => {
+                let mut lock = registry_map.lock().await;
+                if let Some(handle) = lock.get_mut(job_id) {
+                    if let Some(handle) = handle.rx.take() {
+                        // Drop to not block the hashmap
+                        drop(lock);
+                        handle.await.map_err(|err| Error::RegistryRecvError {
+                            err: format!("Failed to get zk setup result: {:?}", err),
+                        })
+                    } else {
+                        Err(Error::RegistryRecvError {
+                            err: "Already received zk setup result".to_string(),
+                        })
+                    }
+                } else {
+                    // Insert handle that way a packet that receives the setup packet can send the result here
+                    let (tx, rx) = tokio::sync::oneshot::channel();
+                    let client_handle = ClientRegistryResult {
+                        tx: Some(tx),
+                        rx: None,
+                    };
+
+                    lock.insert(*job_id, client_handle);
+                    drop(lock);
+
+                    rx.await.map_err(|err| Error::RegistryRecvError {
+                        err: format!("Failed to get zk setup result: {:?}", err),
+                    })
+                }
+            }
+        }
+    }
+
+    pub fn is_king(&self) -> bool {
+        matches! {self, Self::King { .. }}
     }
 }
 
@@ -244,10 +439,35 @@ fn handle_single_connection(
 
 #[derive(Serialize, Deserialize)]
 pub enum RegistryPacket {
-    Register { id: RegistantId, cert_der: Vec<u8> },
-    RegisterResponse { id: RegistantId, success: bool },
+    Register {
+        id: RegistantId,
+        cert_der: Vec<u8>,
+    },
+    RegisterResponse {
+        id: RegistantId,
+        success: bool,
+        king_registry_id: RegistantId,
+    },
     // A message for the substrate gadget
-    SubstrateGadgetMessage { payload: GadgetProtocolMessage },
+    SubstrateGadgetMessage {
+        payload: GadgetProtocolMessage,
+    },
+    ZkSetup {
+        payload: ZkSetupPacket,
+    },
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum ZkSetupPacket {
+    ClientToKing {
+        job_id: [u8; 32],
+        party_id: u32,
+        registry_id: RegistantId,
+    },
+    KingToClient {
+        job_id: [u8; 32],
+        party_ids: HashMap<u32, RegistantId>,
+    },
 }
 
 fn handle_stream_as_king(
@@ -257,6 +477,7 @@ fn handle_stream_as_king(
     registrants: Arc<Mutex<HashMap<RegistantId, Registrant>>>,
     to_outbound_txs: Arc<RwLock<HashMap<RegistantId, UnboundedSender<RegistryPacket>>>>,
     to_gadget: UnboundedSender<RegistryPacket>,
+    king_registry_id: RegistantId,
 ) {
     tokio::task::spawn(async move {
         let stream = match tls_acceptor.accept(stream).await {
@@ -294,9 +515,11 @@ fn handle_stream_as_king(
                         peer_id = Some(id);
                         let mut registrants = registrants.lock().await;
                         registrants.insert(id, Registrant { id, cert_der });
-                        if let Err(err) = to_outbound_tx
-                            .send(RegistryPacket::RegisterResponse { id, success: true })
-                        {
+                        if let Err(err) = to_outbound_tx.send(RegistryPacket::RegisterResponse {
+                            id,
+                            success: true,
+                            king_registry_id,
+                        }) {
                             log::error!("[Registry] Failed to send registration response: {err:?}");
                         }
                     }
@@ -380,6 +603,9 @@ impl Network for ZkNetworkService {
                     Some(RegistryPacket::SubstrateGadgetMessage { payload }) => {
                         return Some(payload)
                     }
+                    Some(RegistryPacket::ZkSetup { payload }) => {
+                        self.handle_zk_setup_packet(payload).await
+                    }
                     Some(_packet) => {
                         log::error!("[Registry] Received invalid packet");
                     }
@@ -397,13 +623,20 @@ impl Network for ZkNetworkService {
         &self,
         message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
-        if let Some(to) = message.to {
+        if message.from_network_id.is_none() {
+            return Err(Error::RegistrySendError {
+                err: "No from_network_id in message".to_string(),
+            });
+        }
+
+        if let Some(to) = message.to_network_id {
             match self {
                 Self::Client {
                     local_to_outbound_tx,
+                    king_registry_id,
                     ..
                 } => {
-                    if to != 0 {
+                    if to != king_registry_id.clone().expect("Should exist") {
                         return Err(Error::RegistrySendError {
                             err: "Cannot send message to non-king as client".to_string(),
                         });
@@ -461,6 +694,7 @@ impl Network for ZkNetworkService {
                 to_gadget,
                 identity,
                 to_outbound_txs,
+                registry_id,
                 ..
             } => {
                 let listener = listener.lock().await.take().expect("Should exist");
@@ -479,6 +713,7 @@ impl Network for ZkNetworkService {
                         registrants.clone(),
                         to_outbound_txs.clone(),
                         to_gadget.clone(),
+                        registry_id.clone(),
                     );
                 }
 

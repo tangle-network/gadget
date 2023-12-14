@@ -9,14 +9,14 @@ pub struct GadgetProtocolMessage {
     pub associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
     // A unique marker for the associated task this message belongs to
     pub task_hash: <WebbWorkManager as WorkManagerInterface>::TaskID,
+    // An ID specific to the async protocol, not the networking layer
     pub from: UserID,
     // If None, this is a broadcasted message
     pub to: Option<UserID>,
     pub payload: Vec<u8>,
-    // Some protocols need this additional data
-    pub from_account_id: Option<sp_core::ecdsa::Public>,
-    // Some protocol need this additional data
-    pub to_account_id: Option<sp_core::ecdsa::Public>,
+    // Some underlying networks require a network ID for transmission, since the "from" and "to" values may be meaningless to the networking layer looking to route messages
+    pub from_network_id: Option<sp_core::ecdsa::Public>,
+    pub to_network_id: Option<sp_core::ecdsa::Public>,
 }
 
 pub type UserID = u32;

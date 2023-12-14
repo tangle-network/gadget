@@ -91,8 +91,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     from,
                     to,
                     payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
-                    from_account_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
-                    to_account_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
+                    from_network_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
+                    to_network_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
                 };
 
                 if network.send_message(msg).await.is_err() {
@@ -114,8 +114,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     from,
                     to,
                     payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
-                    from_account_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
-                    to_account_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
+                    from_network_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
+                    to_network_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
                 };
 
                 if network_clone.send_message(msg).await.is_err() {

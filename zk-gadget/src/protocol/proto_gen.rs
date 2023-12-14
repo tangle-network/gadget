@@ -1,19 +1,16 @@
 use crate::client_ext::ClientWithApi;
 use crate::network::RegistantId;
-use crate::protocol::AdditionalProtocolParams;
 use async_trait::async_trait;
 use bytes::Bytes;
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::protocol::AsyncProtocol;
-use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::WorkManagerInterface;
 use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
 use serde::{Deserialize, Serialize};
+use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::Block;
 use std::collections::HashMap;
-use std::fmt::Debug;
 use std::marker::PhantomData;
 use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -22,133 +19,31 @@ pub struct ZkAsyncProtocolParameters<B, N, C, Bl> {
     pub associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
     pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
     pub associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-    rxs: HashMap<u32, Vec<tokio::sync::Mutex<UnboundedReceiver<MpcNetMessage>>>>,
-    pub party_id: RegistantId,
+    pub(crate) rxs: HashMap<u32, Vec<tokio::sync::Mutex<UnboundedReceiver<MpcNetMessage>>>>,
+    pub party_id: u32,
     pub n_parties: usize,
     pub network: N,
     pub client: C,
     pub extra_parameters: B,
-    _pd: PhantomData<Bl>,
+    pub my_network_id: RegistantId,
+    // Mapping from party_id to network_id, needed for routing messages
+    pub other_network_ids: HashMap<u32, RegistantId>,
+    pub(crate) _pd: PhantomData<Bl>,
 }
 
 #[derive(Serialize, Deserialize)]
-struct MpcNetMessage {
-    sid: MultiplexedStreamID,
+pub(crate) struct MpcNetMessage {
+    pub(crate) sid: MultiplexedStreamID,
     payload: Bytes,
-    source: u32,
-}
-
-pub trait AsyncProtocolGenerator<B, E, N, C, Bl>:
-    Send + Sync + 'static + Fn(ZkAsyncProtocolParameters<B, N, C, Bl>) -> BuiltExecutableJobWrapper
-{
-}
-impl<
-        B: Send + Sync,
-        E: Debug,
-        N: Network,
-        Bl: Block,
-        C: ClientWithApi<Bl>,
-        T: Send
-            + Sync
-            + 'static
-            + Fn(ZkAsyncProtocolParameters<B, N, C, Bl>) -> BuiltExecutableJobWrapper,
-    > AsyncProtocolGenerator<B, E, N, C, Bl> for T
-{
-}
-
-pub struct ZkProtocolGenerator<B, E, N, C, Bl> {
-    pub party_id: RegistantId,
-    pub n_parties: usize,
-    pub extra_parameters: B,
-    pub network: N,
-    pub client: C,
-    pub proto_gen: Box<dyn AsyncProtocolGenerator<B, E, N, C, Bl>>,
-}
-
-#[async_trait]
-impl<B: AdditionalProtocolParams, E, N: Network, C: ClientWithApi<Bl>, Bl: Block> AsyncProtocol
-    for ZkProtocolGenerator<B, E, N, C, Bl>
-{
-    type AdditionalParams = ();
-    async fn generate_protocol_from(
-        &self,
-        associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-        mut protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
-        _additional_params: Self::AdditionalParams,
-    ) -> Result<BuiltExecutableJobWrapper, JobError> {
-        let mut txs = HashMap::new();
-        let mut rxs = HashMap::new();
-        for peer_id in 0..self.n_parties {
-            // Create 3 multiplexed channels
-            let mut txs_for_this_peer = vec![];
-            let mut rxs_for_this_peer = vec![];
-            for _ in 0..3 {
-                let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-                txs_for_this_peer.push(tx);
-                rxs_for_this_peer.push(tokio::sync::Mutex::new(rx));
-            }
-
-            txs.insert(peer_id as u32, txs_for_this_peer);
-            rxs.insert(peer_id as u32, rxs_for_this_peer);
-        }
-
-        tokio::task::spawn(async move {
-            while let Some(message) = protocol_message_rx.recv().await {
-                let message: GadgetProtocolMessage = message;
-                match bincode2::deserialize::<MpcNetMessage>(&message.payload) {
-                    Ok(deserialized) => {
-                        let (source, sid) = (deserialized.source, deserialized.sid);
-                        if let Some(txs) = txs.get(&source) {
-                            if let Some(tx) = txs.get(sid as usize) {
-                                if let Err(err) = tx.send(deserialized) {
-                                    log::warn!(
-                                    "Failed to forward message from {source} to stream {sid:?} because {err:?}",
-                                );
-                                }
-                            } else {
-                                log::warn!(
-                                "Failed to forward message from {source} to stream {sid:?} because the tx handle was not found",
-                            );
-                            }
-                        } else {
-                            log::warn!(
-                            "Failed to forward message from {source} to stream {sid:?} because the tx handle was not found",
-                        );
-                        }
-                    }
-                    Err(err) => {
-                        log::warn!("Failed to deserialize protocol message: {err:?}");
-                    }
-                }
-            }
-
-            log::warn!("Async protocol message_rx died")
-        });
-
-        let params = ZkAsyncProtocolParameters {
-            associated_block_id,
-            associated_retry_id,
-            associated_session_id,
-            associated_task_id,
-            rxs,
-            party_id: self.party_id,
-            n_parties: self.n_parties,
-            network: self.network.clone(),
-            client: self.client.clone(),
-            extra_parameters: self.extra_parameters.clone(),
-            _pd: Default::default(),
-        };
-
-        Ok((self.proto_gen)(params))
-    }
+    pub(crate) source: u32,
 }
 
 #[async_trait]
 impl<B: Send + Sync, N: Network, C: ClientWithApi<Bl>, Bl: Block> MpcNet
     for ZkAsyncProtocolParameters<B, N, C, Bl>
+where
+    <C as ProvideRuntimeApi<Bl>>::Api:
+        pallet_jobs_rpc_runtime_api::JobsApi<Bl, sp_core::ecdsa::Public>,
 {
     fn n_parties(&self) -> usize {
         self.n_parties
@@ -197,6 +92,15 @@ impl<B: Send + Sync, N: Network, C: ClientWithApi<Bl>, Bl: Block> MpcNet
             source: self.party_id,
         };
 
+        let to_network_id =
+            self.other_network_ids
+                .get(&id)
+                .copied()
+                .ok_or_else(|| MpcNetError::Protocol {
+                    err: format!("There is no network id for party {id}"),
+                    party: self.party_id,
+                })?;
+
         self.network
             .send_message(GadgetProtocolMessage {
                 associated_block_id: self.associated_block_id,
@@ -206,8 +110,8 @@ impl<B: Send + Sync, N: Network, C: ClientWithApi<Bl>, Bl: Block> MpcNet
                 to: Some(id),
                 task_hash: self.associated_task_id,
                 payload: bincode2::serialize(&inner_payload).expect("Failed to serialize message"),
-                from_account_id: None,
-                to_account_id: None,
+                from_network_id: Some(self.my_network_id),
+                to_network_id: Some(to_network_id),
             })
             .await
             .map_err(|err| MpcNetError::Protocol {
