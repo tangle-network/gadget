@@ -40,5 +40,3 @@ sc-network-sync = { workspace = true }
 parity-scale-codec = { workspace = true }
 serde = { version = "1.0.193", features = ["derive"] }
 
-[build-dependencies]
-substrate-build-script-utils = { workspace = true }

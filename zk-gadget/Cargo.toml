@@ -20,11 +20,9 @@ parking_lot = { workspace = true }
 log = { workspace = true }
 bytes = { workspace = true, features = ["serde"] }
 sp-runtime = { workspace = true }
-fflonk = { git = "https://github.com/w3f/fflonk", features = ["std"]}
+fflonk = { git = "https://github.com/w3f/fflonk", features = ["std"] }
 
 [dev-dependencies]
-tonic = "0.10.2"
-prost = "0.12.1"
 sp-runtime = { workspace = true }
 sc-utils = { workspace = true }
 sc-client-api = { workspace = true }
@@ -32,6 +30,3 @@ uuid = { workspace = true, features = ["v4"] }
 rcgen = "0.11.3"
 parity-scale-codec = { workspace = true, features = ["derive"] }
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
-
-[build-dependencies]
-tonic-build = "0.10.2"
