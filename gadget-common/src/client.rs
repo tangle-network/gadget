@@ -19,6 +19,31 @@ pub struct MpEcdsaClient<B: Block, BE, KBE: KeystoreBackend, C> {
     _block: std::marker::PhantomData<(BE, B)>,
 }
 
+impl<B: Block, BE, KBE, C> MpEcdsaClient<B, BE, KBE, C>
+where
+    B: Block,
+    BE: Backend<B>,
+    C: ClientWithApi<B, BE>,
+    KBE: KeystoreBackend,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
+    pub async fn new(
+        client: Arc<C>,
+        logger: DebugLogger,
+        key_store: ECDSAKeyStore<KBE>,
+    ) -> Result<MpEcdsaClient<B, BE, KBE, C>, Box<dyn Error>>
+    where
+        <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    {
+        Ok(Self {
+            client,
+            key_store,
+            logger,
+            _block: std::marker::PhantomData,
+        })
+    }
+}
+
 impl<B: Block, BE, KBE: KeystoreBackend, C> Clone for MpEcdsaClient<B, BE, KBE, C> {
     fn clone(&self) -> Self {
         Self {
@@ -28,27 +53,6 @@ impl<B: Block, BE, KBE: KeystoreBackend, C> Clone for MpEcdsaClient<B, BE, KBE, 
             _block: self._block,
         }
     }
-}
-
-pub async fn create_client<
-    B: Block,
-    BE: Backend<B>,
-    KBE: KeystoreBackend,
-    C: ClientWithApi<B, BE>,
->(
-    client: Arc<C>,
-    logger: DebugLogger,
-    key_store: ECDSAKeyStore<KBE>,
-) -> Result<MpEcdsaClient<B, BE, KBE, C>, Box<dyn Error>>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
-{
-    Ok(MpEcdsaClient {
-        client,
-        key_store,
-        logger,
-        _block: std::marker::PhantomData,
-    })
 }
 
 pub type AccountId = sp_core::ecdsa::Public;

@@ -1,11 +1,17 @@
 use async_trait::async_trait;
 use gadget_core::gadget::substrate::Client;
+use pallet_jobs_rpc_runtime_api::JobsApi;
+use sp_api::ProvideRuntimeApi;
+use sp_core::ecdsa;
 use sp_runtime::traits::Block;
 
 use self::job_types::{CircuitProperties, JobProperties};
 
 #[async_trait]
-pub trait ClientWithApi<B: Block>: Client<B> + Clone {
+pub trait ClientWithApi<B: Block>: Client<B> + ProvideRuntimeApi<B> + Clone
+where
+    <Self as ProvideRuntimeApi<B>>::Api: JobsApi<B, ecdsa::Public>,
+{
     async fn get_job_circuit_properties(
         &self,
         circuit_id: u64,

@@ -2,10 +2,16 @@ use crate::client_ext::ClientWithApi;
 use crate::network::{RegistantId, ZkNetworkService};
 use crate::protocol::proto_gen::{AsyncProtocolGenerator, ZkProtocolGenerator};
 use crate::protocol::{AdditionalProtocolParams, ZkProtocol};
+use gadget_common::gadget::network::Network;
 use gadget_common::Error;
 use mpc_net::prod::RustlsCertificate;
+use pallet_jobs_rpc_runtime_api::JobsApi;
+use sc_client_api::Backend;
+use sp_api::ProvideRuntimeApi;
+use sp_core::ecdsa;
 use sp_runtime::traits::Block;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
 
 pub mod network;
@@ -23,7 +29,18 @@ pub struct ZkGadgetConfig {
     pub client_only_king_public_identity_der: Option<Vec<u8>>,
 }
 
-pub async fn run<
+pub struct ZkSaaSConfig {}
+
+pub async fn run<B, C>(config: ZkSaaSConfig, client: C) -> Result<(), Error>
+where
+    B: Block,
+    C: ClientWithApi<B>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, ecdsa::Public>,
+{
+    let client = Arc::new(client);
+}
+
+pub async fn run_zk_saas<
     C: ClientWithApi<B>,
     B: Block,
     T: AdditionalProtocolParams,
@@ -60,7 +77,7 @@ pub async fn run<
     gadget_common::run_protocol(network, zk_protocol, client).await
 }
 
-async fn create_zk_network(config: &ZkGadgetConfig) -> Result<ZkNetworkService, Error> {
+pub async fn create_zk_network(config: &ZkGadgetConfig) -> Result<ZkNetworkService, Error> {
     let our_identity = RustlsCertificate {
         cert: Certificate(config.public_identity_der.clone()),
         private_key: PrivateKey(config.private_identity_der.clone()),

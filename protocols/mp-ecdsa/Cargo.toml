@@ -5,9 +5,6 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-application = []
-
 [dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 gadget-common = { workspace = true }
@@ -38,5 +35,9 @@ sc-network-common = { workspace = true }
 sc-network-sync = { workspace = true }
 
 parity-scale-codec = { workspace = true }
-serde = { version = "1.0.193", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+
+[features]
+default = ["std"]
+std = []
 

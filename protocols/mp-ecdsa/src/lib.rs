@@ -36,7 +36,7 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     let client =
-        gadget_common::client::create_client(client_inner.clone(), logger.clone(), keystore)
+        gadget_common::client::MpEcdsaClient::new(client_inner.clone(), logger.clone(), keystore)
             .await?;
     let protocol =
         protocols::keygen::create_protocol(config, client, network.clone(), logger).await?;
@@ -61,7 +61,7 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     let client =
-        gadget_common::client::create_client(client_inner.clone(), logger.clone(), keystore)
+        gadget_common::client::MpEcdsaClient::new(client_inner.clone(), logger.clone(), keystore)
             .await?;
     let protocol =
         protocols::sign::create_protocol(config, logger, client, network.clone()).await?;
