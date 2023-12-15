@@ -1,4 +1,4 @@
-use crate::client_ext::ClientWithApi;
+use crate::client_ext::{AccountId, ClientWithApi};
 use crate::network::{RegistantId, ZkNetworkService, ZkSetupPacket};
 use crate::protocol::proto_gen::ZkAsyncProtocolParameters;
 use async_trait::async_trait;
@@ -9,65 +9,98 @@ use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{BlockImportNotification, Error, FinalityNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use pallet_jobs_rpc_runtime_api::JobsApi;
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::Block;
 use std::collections::HashMap;
+use tangle_primitives::jobs::{JobId, JobKey, JobType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 pub mod proto_gen;
 
 pub struct ZkProtocol<B, C, V> {
     pub client: C,
+    pub account_id: AccountId,
     pub additional_params: V,
     pub network: ZkNetworkService,
     pub _pd: std::marker::PhantomData<B>,
 }
 
-pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {}
-impl<T: Send + Sync + Clone + 'static> AdditionalProtocolParams for T {}
+pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {
+    fn n_parties(&self) -> usize;
+    fn party_id(&self) -> u32;
+}
 
 #[async_trait]
-impl<B: Block, C: ClientWithApi<B>, V: AdditionalProtocolParams> WebbGadgetProtocol<B>
-    for ZkProtocol<B, C, V>
+impl<B: Block, C: ClientWithApi<B>> WebbGadgetProtocol<B>
+    for ZkProtocol<B, C, ZkJobAdditionalParams>
 where
-    <C as ProvideRuntimeApi<B>>::Api:
-        pallet_jobs_rpc_runtime_api::JobsApi<B, sp_core::ecdsa::Public>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     async fn get_next_jobs(
         &self,
-        _notification: &FinalityNotification<B>,
+        notification: &FinalityNotification<B>,
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, Error> {
         log::info!("Received a finality notification at {now}",);
 
-        if let Some(job) = self.client.get_next_job().await? {
-            log::debug!("Found a job {} at {now}", job.job_id);
-            let mut task_id = [0u8; 32];
-            task_id[..8].copy_from_slice(&job.job_id.to_be_bytes()[..]);
+        let jobs = self
+            .client
+            .runtime_api()
+            .query_jobs_by_validator(notification.hash, self.account_id)
+            .map_err(|err| crate::Error::ClientError {
+                err: format!("Failed to query jobs by validator: {err:?}"),
+            })?
+            .map_err(|err| crate::Error::ClientError {
+                err: format!("Failed to query jobs by validator: {err:?}"),
+            })?
+            .into_iter()
+            .filter(|r| matches!(r.job_type, JobType::ZkSaaSPhaseTwo(..)));
 
-            if job_manager.job_exists(&task_id) {
-                return Ok(None);
+        let mut ret = vec![];
+
+        for job in jobs {
+            let participants = job.participants.expect("Should exist for stage 2 signing");
+            if participants.contains(&self.account_id) {
+                let task_id = job.job_id.to_be_bytes();
+                let task_id = sp_core::keccak_256(&task_id);
+
+                if job_manager.job_exists(&task_id) {
+                    continue;
+                }
+                let session_id = 0;
+                let retry_id = job_manager
+                    .latest_retry_id(&task_id)
+                    .map(|r| r + 1)
+                    .unwrap_or(0);
+
+                let job_specific_params = ZkJobAdditionalParams {
+                    n_parties: participants.len(),
+                    party_id: participants
+                        .iter()
+                        .position(|p| p == &self.account_id)
+                        .expect("Should exist") as _,
+                    job_id: job.job_id,
+                    job_key: JobKey::ZkSaaSProve,
+                    // TODO: add phase one job data here
+                };
+
+                let job = self
+                    .create(
+                        session_id,
+                        now,
+                        retry_id,
+                        task_id,
+                        self.additional_params.clone(),
+                    )
+                    .await?;
+
+                ret.push(job);
             }
-
-            let job_specific_params = ZkJobAdditionalParams {
-                n_parties: 0, // TODO get from job
-                party_id: 0,  // TODO get from job
-            };
-            let session_id = 0;
-            let retry_id = job_manager.latest_retry_id(&task_id).unwrap_or(0);
-
-            let (remote, protocol) = self
-                .create(session_id, now, retry_id, task_id, job_specific_params)
-                .await
-                .map_err(|err| Error::ClientError { err: err.reason })?;
-
-            return Ok(Some(vec![(remote, protocol)]));
-        } else {
-            log::debug!("No Jobs found at #{now}");
         }
 
-        Ok(None)
+        Ok(Some(ret))
     }
 
     async fn process_block_import_notification(
@@ -87,9 +120,21 @@ where
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct ZkJobAdditionalParams {
     n_parties: usize,
     party_id: u32,
+    job_id: JobId,
+    job_key: JobKey,
+}
+
+impl AdditionalProtocolParams for ZkJobAdditionalParams {
+    fn n_parties(&self) -> usize {
+        self.n_parties
+    }
+    fn party_id(&self) -> u32 {
+        self.party_id
+    }
 }
 
 #[async_trait]
@@ -112,7 +157,7 @@ where
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let mut txs = HashMap::new();
         let mut rxs = HashMap::new();
-        for peer_id in 0..additional_params.n_parties {
+        for peer_id in 0..additional_params.n_parties() {
             // Create 3 multiplexed channels
             let mut txs_for_this_peer = vec![];
             let mut rxs_for_this_peer = vec![];
@@ -160,7 +205,7 @@ where
         });
 
         let other_network_ids = zk_setup_phase(
-            additional_params.n_parties,
+            additional_params.n_parties(),
             &associated_task_id,
             &self.network,
         )
@@ -172,8 +217,8 @@ where
             associated_session_id,
             associated_task_id,
             rxs,
-            party_id: additional_params.party_id,
-            n_parties: additional_params.n_parties,
+            party_id: additional_params.party_id(),
+            n_parties: additional_params.n_parties(),
             my_network_id: self.network.my_id(),
             other_network_ids,
             network: self.network.clone(),
