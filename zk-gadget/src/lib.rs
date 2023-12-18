@@ -16,6 +16,9 @@ pub mod protocol;
 
 pub mod client_ext;
 
+#[cfg(test)]
+mod mock;
+
 pub struct ZkGadgetConfig {
     pub king_bind_addr: Option<SocketAddr>,
     pub client_only_king_addr: Option<SocketAddr>,
@@ -31,7 +34,7 @@ pub async fn run<C: ClientWithApi<B> + 'static, B: Block>(
     client: C,
 ) -> Result<(), Error>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, ecdsa::Public>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     // Create the zk gadget module
     let network = create_zk_network(&config).await?;
@@ -39,9 +42,9 @@ where
 
     let zk_protocol = ZkProtocol {
         client: client.clone(),
-        _pd: std::marker::PhantomData,
         account_id: config.account_id,
         network: network.clone(),
+        _pd: std::marker::PhantomData,
     };
 
     // Plug the module into the webb gadget

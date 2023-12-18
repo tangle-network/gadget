@@ -51,8 +51,8 @@ mod tests {
         fft_in_place_rearrange(&mut x);
         let mut pcoeff: Vec<Vec<F>> = Vec::new();
         for i in 0..mbyl {
-            pcoeff.push(x.iter().skip(i).step_by(mbyl).cloned().collect::<Vec<_>>());
-            pp.pack_from_public_in_place(&mut pcoeff[i]);
+            let v = x.iter().skip(i).step_by(mbyl).cloned().collect::<Vec<_>>();
+            pcoeff.push(pp.det_pack(v));
         }
 
         let pcoeff_share = pcoeff

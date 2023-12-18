@@ -1,9 +1,9 @@
 use gadget_core::gadget::substrate::Client;
 use pallet_jobs_rpc_runtime_api::JobsApi;
 use sp_api::ProvideRuntimeApi;
-use sp_runtime::traits::Block;
+use sp_runtime::{traits::Block, AccountId32};
 
-pub type AccountId = sp_core::ecdsa::Public;
+pub type AccountId = AccountId32;
 
 pub trait ClientWithApi<B: Block>: Client<B> + ProvideRuntimeApi<B> + Clone
 where

@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use dist_primitives::dmsm::d_msm;
-    use dist_primitives::dmsm::packexp_from_public;
     use gadget_core::job_manager::SendFuture;
     use std::collections::HashMap;
     use std::error::Error;
@@ -60,13 +59,13 @@ mod tests {
 
                 let x_share: Vec<G> = x_pub
                     .chunks(pp.l)
-                    .map(|s| packexp_from_public(s, &pp)[net.party_id() as usize])
+                    .map(|s| pp.det_pack(s.to_vec())[net.party_id() as usize])
                     .collect();
 
                 log::info!("About to begin pack_from_public");
                 let y_share: Vec<G::ScalarField> = y_pub
                     .chunks(pp.l)
-                    .map(|s| pp.pack_from_public(s.to_vec())[net.party_id() as usize])
+                    .map(|s| pp.det_pack(s.to_vec())[net.party_id() as usize])
                     .collect();
 
                 let x_pub_aff: Vec<G::Affine> = x_pub.iter().map(|s| (*s).into()).collect();

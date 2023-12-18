@@ -1,4 +1,4 @@
-use crate::client_ext::ClientWithApi;
+use crate::client_ext::{AccountId, ClientWithApi};
 use crate::network::RegistantId;
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -42,8 +42,7 @@ pub(crate) struct MpcNetMessage {
 impl<B: Send + Sync, N: Network, C: ClientWithApi<Bl>, Bl: Block> MpcNet
     for ZkAsyncProtocolParameters<B, N, C, Bl>
 where
-    <C as ProvideRuntimeApi<Bl>>::Api:
-        pallet_jobs_rpc_runtime_api::JobsApi<Bl, sp_core::ecdsa::Public>,
+    <C as ProvideRuntimeApi<Bl>>::Api: pallet_jobs_rpc_runtime_api::JobsApi<Bl, AccountId>,
 {
     fn n_parties(&self) -> usize {
         self.n_parties

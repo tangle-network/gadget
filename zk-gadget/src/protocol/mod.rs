@@ -65,7 +65,7 @@ where
         let jobs = self
             .client
             .runtime_api()
-            .query_jobs_by_validator(notification.hash, self.account_id)
+            .query_jobs_by_validator(notification.hash, self.account_id.clone())
             .map_err(|err| crate::Error::ClientError {
                 err: format!("Failed to query jobs by validator: {err:?}"),
             })?
@@ -190,8 +190,7 @@ impl AdditionalProtocolParams for ZkJobAdditionalParams {
 #[async_trait]
 impl<B: Block, C: ClientWithApi<B> + 'static> AsyncProtocol for ZkProtocol<B, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api:
-        pallet_jobs_rpc_runtime_api::JobsApi<B, sp_core::ecdsa::Public>,
+    <C as ProvideRuntimeApi<B>>::Api: pallet_jobs_rpc_runtime_api::JobsApi<B, AccountId>,
 {
     type AdditionalParams = ZkJobAdditionalParams;
 
@@ -212,7 +211,7 @@ where
         )
         .await?;
 
-        let params = ZkAsyncProtocolParameters::<ZkJobAdditionalParams, _, _, B> {
+        let params = ZkAsyncProtocolParameters::<_, _, _, B> {
             associated_block_id,
             associated_retry_id,
             associated_session_id,

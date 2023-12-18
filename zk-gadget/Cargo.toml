@@ -45,9 +45,27 @@ ark-circom = { workspace = true }
 ark-bn254 = { workspace = true, default-features = false, features = ["curve"] }
 
 [dev-dependencies]
+scale-info = { workspace = true }
 sp-runtime = { workspace = true }
+sp-application-crypto = { workspace = true }
+sp-std = { workspace = true }
+sp-io = { workspace = true }
+sp-keystore = { workspace = true }
+sp-version = { workspace = true }
+sp-externalities = { workspace = true }
 sc-utils = { workspace = true }
 sc-client-api = { workspace = true }
+tangle-primitives = { workspace = true, features = ["std", "verifying"] }
+hex = { workspace = true }
+hex-literal = { workspace = true }
+libsecp256k1 = { workspace = true }
+pallet-balances = { workspace = true, features = ["std"] }
+pallet-timestamp = { workspace = true, features = ["std"] }
+pallet-jobs = { workspace = true, features = ["std"] }
+pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
+frame-support = { workspace = true, features = ["std"] }
+frame-executive = { workspace = true, features = ["std"] }
+frame-system = { workspace = true, features = ["std"] }
 uuid = { workspace = true, features = ["v4"] }
 rcgen = "0.12"
 parity-scale-codec = { workspace = true, features = ["derive"] }
