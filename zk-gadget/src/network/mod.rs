@@ -49,12 +49,12 @@ pub enum ZkNetworkService {
     },
 }
 
-struct ClientRegistryResult {
+pub struct ClientRegistryResult {
     tx: Option<tokio::sync::oneshot::Sender<HashMap<u32, RegistantId>>>,
     rx: Option<tokio::sync::oneshot::Receiver<HashMap<u32, RegistantId>>>,
 }
 
-struct KingRegistryResult {
+pub struct KingRegistryResult {
     tx: Option<UnboundedSender<ZkSetupPacket>>,
     rx: Option<UnboundedReceiver<ZkSetupPacket>>,
 }

@@ -1,6 +1,7 @@
 use crate::client_ext::ClientWithApi;
 use crate::network::ZkNetworkService;
-use crate::protocol::{AdditionalProtocolParams, ZkProtocol};
+use crate::protocol::ZkProtocol;
+use client_ext::AccountId;
 use gadget_common::Error;
 use mpc_net::prod::RustlsCertificate;
 use pallet_jobs_rpc_runtime_api::JobsApi;
@@ -8,7 +9,6 @@ use sp_api::ProvideRuntimeApi;
 use sp_core::ecdsa;
 use sp_runtime::traits::Block;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
 
 pub mod network;
@@ -23,23 +23,12 @@ pub struct ZkGadgetConfig {
     pub public_identity_der: Vec<u8>,
     pub private_identity_der: Vec<u8>,
     pub client_only_king_public_identity_der: Option<Vec<u8>>,
+    pub account_id: AccountId,
 }
 
-pub struct ZkSaaSConfig {}
-
-pub async fn run<B, C>(config: ZkSaaSConfig, client: C) -> Result<(), Error>
-where
-    B: Block,
-    C: ClientWithApi<B>,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, ecdsa::Public>,
-{
-    let client = Arc::new(client);
-}
-
-pub async fn run_zk_saas<C: ClientWithApi<B>, B: Block, T: AdditionalProtocolParams>(
+pub async fn run<C: ClientWithApi<B> + 'static, B: Block>(
     config: ZkGadgetConfig,
     client: C,
-    extra_parameters: T,
 ) -> Result<(), Error>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, ecdsa::Public>,
@@ -49,9 +38,9 @@ where
     log::info!("Created zk network for party {}", config.network_id);
 
     let zk_protocol = ZkProtocol {
-        additional_params: extra_parameters,
         client: client.clone(),
         _pd: std::marker::PhantomData,
+        account_id: config.account_id,
         network: network.clone(),
     };
 
@@ -64,6 +53,7 @@ pub async fn create_zk_network(config: &ZkGadgetConfig) -> Result<ZkNetworkServi
         cert: Certificate(config.public_identity_der.clone()),
         private_key: PrivateKey(config.private_identity_der.clone()),
     };
+
     if let Some(addr) = &config.king_bind_addr {
         ZkNetworkService::new_king(config.network_id, *addr, our_identity).await
     } else {

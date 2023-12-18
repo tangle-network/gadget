@@ -2,7 +2,7 @@ use crate::debug_logger::DebugLogger;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use async_trait::async_trait;
 use gadget_core::gadget::substrate::Client;
-use pallet_jobs_rpc_runtime_api::{JobsApi, RpcResponseJobsData};
+use pallet_jobs_rpc_runtime_api::JobsApi;
 use sc_client_api::{
     Backend, BlockImportNotification, BlockchainEvents, FinalityNotification, HeaderBackend,
 };
@@ -10,7 +10,7 @@ use sp_api::BlockT as Block;
 use sp_api::ProvideRuntimeApi;
 use std::error::Error;
 use std::sync::Arc;
-use tangle_primitives::jobs::{JobId, JobKey, JobResult};
+use tangle_primitives::jobs::{JobId, JobKey, JobResult, RpcResponseJobsData};
 
 pub struct MpEcdsaClient<B: Block, BE, KBE: KeystoreBackend, C> {
     client: Arc<C>,

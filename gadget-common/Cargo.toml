@@ -6,15 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = [
-    "std"
-]
-
-std = [
-    "sp-api/std",
-    "tangle-primitives/std",
-    "pallet-jobs-rpc-runtime-api/std"
-]
+default = ["std"]
+std = []
 
 [dependencies]
 gadget-core = { workspace = true, features = ["substrate"] }
