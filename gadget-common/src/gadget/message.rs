@@ -1,3 +1,4 @@
+use crate::client::AccountId;
 use crate::gadget::work_manager::WebbWorkManager;
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::{Deserialize, Serialize};
@@ -14,9 +15,9 @@ pub struct GadgetProtocolMessage {
     pub to: Option<UserID>,
     pub payload: Vec<u8>,
     // Some protocols need this additional data
-    pub from_account_id: Option<sp_core::ecdsa::Public>,
+    pub from_account_id: Option<AccountId>,
     // Some protocol need this additional data
-    pub to_account_id: Option<sp_core::ecdsa::Public>,
+    pub to_account_id: Option<AccountId>,
 }
 
 pub type UserID = u32;

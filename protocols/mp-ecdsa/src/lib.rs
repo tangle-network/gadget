@@ -11,13 +11,13 @@ use std::sync::Arc;
 
 pub mod constants;
 pub mod error;
+pub mod mock;
 pub mod network;
 pub mod protocols;
 pub mod util;
 
 pub struct MpEcdsaProtocolConfig {
     pub account_id: AccountId,
-    pub id: sp_core::ecdsa::Public,
 }
 
 pub async fn run_keygen<B, BE, KBE, C, N>(
@@ -33,7 +33,7 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
 {
     let client =
         gadget_common::client::create_client(client_inner.clone(), logger.clone(), keystore)
@@ -58,7 +58,7 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
 {
     let client =
         gadget_common::client::create_client(client_inner.clone(), logger.clone(), keystore)
@@ -85,7 +85,7 @@ where
     KBE: KeystoreBackend,
     N: Network,
     N2: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
 {
     let client = Arc::new(client);
     let keygen_future = run_keygen(

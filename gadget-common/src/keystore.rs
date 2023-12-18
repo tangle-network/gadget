@@ -11,13 +11,15 @@ pub struct ECDSAKeyStore<BE: KeystoreBackend> {
     backend: BE,
 }
 
-impl<BE: KeystoreBackend> ECDSAKeyStore<BE> {
-    pub fn in_memory() -> ECDSAKeyStore<InMemoryBackend> {
+impl ECDSAKeyStore<InMemoryBackend> {
+    pub fn in_memory() -> Self {
         ECDSAKeyStore {
             backend: InMemoryBackend::new(),
         }
     }
+}
 
+impl<BE: KeystoreBackend> ECDSAKeyStore<BE> {
     pub async fn get<T: DeserializeOwned>(
         &self,
         job_id: &JobId,

@@ -1,3 +1,4 @@
+use crate::client::AccountId;
 use crate::gadget::network::Network;
 use crate::gadget::work_manager::WebbWorkManager;
 use crate::gadget::{WebbGadgetProtocol, WebbModule};
@@ -36,6 +37,8 @@ pub enum Error {
     JobError { err: JobError },
     NetworkError { err: String },
     KeystoreError { err: String },
+    MissingNetworkId,
+    PeerNotFound { id: AccountId },
 }
 
 impl Display for Error {

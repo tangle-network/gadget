@@ -4,6 +4,7 @@ use crate::protocols::util::PublicKeyGossipMessage;
 use crate::MpEcdsaProtocolConfig;
 use async_trait::async_trait;
 use curv::elliptic::curves::Secp256k1;
+use frame_support::Hashable;
 use gadget_common::client::{AccountId, ClientWithApi, MpEcdsaClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::GadgetProtocolMessage;
@@ -44,7 +45,6 @@ pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
         >,
     >,
     logger: DebugLogger,
-    id: sp_core::ecdsa::Public,
     account_id: AccountId,
 }
 
@@ -60,15 +60,14 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
 {
     Ok(MpEcdsaKeygenProtocol {
         client,
         network,
         round_blames: Arc::new(RwLock::new(HashMap::new())),
         logger,
-        id: config.id,
-        account_id: config.account_id,
+        account_id: config.account_id.clone(),
     })
 }
 
@@ -81,7 +80,7 @@ impl<
         N: Network,
     > WebbGadgetProtocol<B> for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
 {
     async fn get_next_jobs(
         &self,
@@ -177,7 +176,7 @@ impl<
         N: Network,
     > AsyncProtocol for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
 {
     type AdditionalParams = MpEcdsaKeygenExtraParams;
     async fn generate_protocol_from(
@@ -194,7 +193,7 @@ where
         let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
-        let id = self.id;
+        let id = self.account_id;
         let logger = self.logger.clone();
         let logger_clone = logger.clone();
         let round_blames = self.round_blames.clone();
@@ -309,7 +308,7 @@ async fn handle_public_key_gossip(
     local_key: &LocalKey<Secp256k1>,
     threshold: u16,
     i: u16,
-    my_id: sp_core::ecdsa::Public,
+    my_id: AccountId,
     broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<JobResult, JobError> {
@@ -369,7 +368,7 @@ async fn handle_public_key_gossip(
     let participants = received_participants
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1 .0.to_vec())
+        .map(|r| r.1.identity())
         .collect();
 
     Ok(JobResult::DKGPhaseOne(DKGResult {

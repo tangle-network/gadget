@@ -1,6 +1,7 @@
 //! When delivering messages to an async protocol, we want o make sure we don't mix up voting and public key gossip messages
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
 use futures::StreamExt;
+use gadget_common::client::AccountId;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
@@ -28,7 +29,7 @@ pub struct PublicKeyGossipMessage {
     pub from: UserID,
     pub to: Option<UserID>,
     pub signature: Vec<u8>,
-    pub id: sp_core::ecdsa::Public,
+    pub id: AccountId,
 }
 
 pub fn create_job_manager_to_async_protocol_channel_split<

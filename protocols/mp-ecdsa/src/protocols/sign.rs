@@ -64,14 +64,14 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
 {
     Ok(MpEcdsaSigningProtocol {
         client,
         network,
         round_blames: Arc::new(Default::default()),
         logger,
-        account_id: config.account_id,
+        account_id: config.account_id.clone(),
     })
 }
 
@@ -84,7 +84,7 @@ impl<
         N: Network,
     > WebbGadgetProtocol<B> for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
 {
     async fn get_next_jobs(
         &self,
@@ -203,7 +203,7 @@ impl<
         N: Network,
     > AsyncProtocol for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
 {
     type AdditionalParams = MpEcdsaSigningExtraParams;
     async fn generate_protocol_from(
