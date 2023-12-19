@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use futures_util::TryFutureExt;
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::gadget::{Job, WebbGadgetProtocol};
+use gadget_common::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{BlockImportNotification, Error, FinalityNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
@@ -50,9 +50,11 @@ pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {
 }
 
 #[async_trait]
-impl<B: Block, C: ClientWithApi<B> + 'static> WebbGadgetProtocol<B> for ZkProtocol<B, C>
+impl<B, C> WebbGadgetProtocol<B> for ZkProtocol<B, C>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    B: Block,
+    C: ClientWithApi<B> + 'static,
 {
     async fn get_next_jobs(
         &self,
@@ -60,7 +62,7 @@ where
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, Error> {
-        log::info!("Received a finality notification at {now}",);
+        log::debug!("Received a finality notification at {now}",);
 
         let jobs = self
             .client
@@ -165,6 +167,10 @@ where
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) {
         log::error!("Received an error: {error:?}");
+    }
+
+    fn get_work_manager_config(&self) -> WorkManagerConfig {
+        WorkManagerConfig::manual()
     }
 }
 

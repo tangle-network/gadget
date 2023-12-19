@@ -14,48 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::net::SocketAddr;
+
 use frame_support::{
-    construct_runtime,
-    pallet_prelude::*,
-    parameter_types,
+    construct_runtime, parameter_types,
     traits::{ConstU128, ConstU32, ConstU64, Everything},
     PalletId,
 };
 use frame_system::EnsureSigned;
 use gadget_core::gadget::substrate::Client;
 use sc_client_api::{BlockImportNotification, FinalityNotification, FinalizeSummary};
-use sc_utils::mpsc::{TracingUnboundedReceiver, TracingUnboundedSender};
 use sp_api::{ApiRef, ProvideRuntimeApi};
-use sp_application_crypto::RuntimePublic;
 use sp_core::H256;
-use sp_runtime::create_runtime_str;
-use sp_runtime::{
-    traits::Block as BlockT, traits::IdentityLookup, AccountId32, BuildStorage, DispatchResult,
-};
-use sp_version::RuntimeVersion;
+use sp_runtime::{traits::IdentityLookup, AccountId32, BuildStorage, DispatchResult};
 pub type Balance = u128;
 pub type BlockNumber = u64;
 
 use sp_core::ecdsa;
-use sp_io::crypto::ecdsa_generate;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
 use tangle_primitives::{
     jobs::{
-        DkgKeyType, JobId, JobKey, JobSubmission, JobType, JobWithResult, ReportValidatorOffence,
+        JobId, JobKey, JobSubmission, JobType, JobWithResult, ReportValidatorOffence,
         RpcResponseJobsData, RpcResponsePhaseOneResult, ValidatorOffenceType,
     },
-    roles::{RoleTypeMetadata, TssRoleMetadata},
+    roles::{RoleTypeMetadata, ZkSaasRoleMetadata},
     traits::{
         jobs::{JobToFee, MPCHandler},
         roles::RolesHandler,
     },
 };
-
-use crate::client_ext::ClientWithApi;
-
-/// Key type for DKG keys
-pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"wdkg");
 
 type Block = frame_system::mocking::MockBlock<Runtime>;
 
@@ -178,10 +166,7 @@ impl RolesHandler<AccountId32> for MockRolesHandler {
         if address == mock_err_account {
             None
         } else {
-            Some(RoleTypeMetadata::Tss(TssRoleMetadata {
-                key_type: DkgKeyType::Ecdsa,
-                authority_key: mock_pub_key().to_raw_vec(),
-            }))
+            Some(RoleTypeMetadata::ZkSaas(ZkSaasRoleMetadata::default()))
         }
     }
 }
@@ -252,7 +237,7 @@ impl Client<Block> for Runtime {
     }
 
     async fn get_next_block_import_notification(&self) -> Option<BlockImportNotification<Block>> {
-        None
+        futures::future::pending().await
     }
 }
 
@@ -264,52 +249,92 @@ impl ProvideRuntimeApi<Block> for Runtime {
 }
 
 sp_api::mock_impl_runtime_apis! {
-    impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId32> for Runtime {
-        fn query_jobs_by_validator(validator: AccountId32) -> Result<Vec<RpcResponseJobsData<AccountId32>>, String> { todo!() }
-        fn query_job_by_id(job_key: JobKey, job_id: JobId) -> Option<RpcResponseJobsData<AccountId32>> { todo!() }
-        fn query_phase_one_by_id(job_key: JobKey, job_id: JobId) -> Option<RpcResponsePhaseOneResult<AccountId32>> { todo!() }
-        fn query_next_job_id() -> JobId { todo!() }
+  impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId32> for Runtime {
+    fn query_jobs_by_validator(
+        validator: AccountId32,
+    ) -> Result<Vec<RpcResponseJobsData<AccountId32>>, String> {
+        Jobs::query_jobs_by_validator(validator)
     }
-}
 
-pub struct ExtBuilder;
+    fn query_job_by_id(job_key: JobKey, job_id: JobId) -> Option<RpcResponseJobsData<AccountId32>> {
+        Jobs::submitted_jobs(job_key, job_id).map(|job| {
+            if !job.job_type.is_phase_one() {
+                let result = Jobs::known_results(
+                    job.job_type.get_previous_phase_job_key().unwrap(),
+                    job.job_type.clone().get_phase_one_id().unwrap(),
+                )
+                .unwrap();
 
-impl Default for ExtBuilder {
-    fn default() -> Self {
-        ExtBuilder
+                RpcResponseJobsData {
+                    job_id,
+                    job_type: job.job_type,
+                    participants: result.participants(),
+                    threshold: result.threshold(),
+                    key: Some(result.result),
+                }
+            } else {
+                RpcResponseJobsData {
+                    job_id,
+                    job_type: job.job_type,
+                    participants: None,
+                    threshold: None,
+                    key: None,
+                }
+            }
+        })
     }
+
+    fn query_phase_one_by_id(
+        job_key: JobKey,
+        job_id: JobId,
+    ) -> Option<RpcResponsePhaseOneResult<AccountId32>> {
+        Jobs::known_results(job_key, job_id).map(|result| RpcResponsePhaseOneResult {
+            owner: result.owner,
+            result: result.result,
+            permitted_caller: result.permitted_caller,
+            key_type: result.key_type,
+            job_type: result.job_type,
+        })
+    }
+
+    fn query_next_job_id() -> JobId {
+        Jobs::next_job_id()
+    }
+  }
 }
 
 pub fn to_account_id32(id: u8) -> AccountId32 {
     AccountId32::new([id; 32])
 }
 
+pub fn alloc_available_ip_addr() -> SocketAddr {
+    // use port 0 to let the OS allocate a port
+    SocketAddr::new([127, 0, 0, 1].into(), 0)
+}
+
 sp_externalities::decl_extension! {
-    pub struct TracingUnboundedReceiverExt(TracingUnboundedReceiver<<Block as BlockT>::Hash>);
+    pub struct TracingSubscriberGuardExt(tracing::subscriber::DefaultGuard);
 }
 
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
-pub fn new_test_ext() -> sp_io::TestExternalities {
+pub fn new_test_ext() -> (sp_io::TestExternalities, tokio::runtime::Runtime) {
+    let subscriber = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_test_writer()
+        .finish();
+    let guard = tracing::subscriber::set_default(subscriber);
     let mut t = frame_system::GenesisConfig::<Runtime>::default()
         .build_storage()
         .unwrap();
 
+    let accounts = (1..=8).map(to_account_id32).collect::<Vec<_>>();
+
     pallet_balances::GenesisConfig::<Runtime> {
-        balances: [
-            (to_account_id32(1), 100u128),
-            (to_account_id32(2), 100u128),
-            (to_account_id32(3), 100u128),
-            (to_account_id32(4), 100u128),
-            (to_account_id32(5), 100u128),
-            (to_account_id32(6), 100u128),
-            (to_account_id32(7), 100u128),
-            (to_account_id32(8), 100u128),
-            (to_account_id32(9), 100u128),
-            (to_account_id32(10), 100u128),
-            (to_account_id32(20), 100u128),
-        ]
-        .to_vec(),
+        balances: accounts
+            .iter()
+            .map(|account| (account.clone(), 1000u128))
+            .collect::<Vec<_>>(),
     }
     .assimilate_storage(&mut t)
     .unwrap();
@@ -318,21 +343,43 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     // set to block 1 to test events
     ext.execute_with(|| System::set_block_number(1));
     ext.register_extension(KeystoreExt(Arc::new(MemoryKeystore::new()) as KeystorePtr));
+    // we need to run the runtime on a single thread
+    // since test externalities are not shared across threads.
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
 
     let mock_client = Runtime;
-    let config = crate::ZkGadgetConfig {
-        king_bind_addr: todo!(),
-        client_only_king_addr: todo!(),
-        network_id: todo!(),
-        public_identity_der: todo!(),
-        private_identity_der: todo!(),
-        client_only_king_public_identity_der: todo!(),
-        account_id: todo!(),
-    };
-    crate::run(config, mock_client);
-    ext
-}
+    let king_addr = alloc_available_ip_addr();
+    let king_cert = rcgen::generate_simple_self_signed(vec![king_addr.ip().to_string()]).unwrap();
+    for (i, acc) in accounts.into_iter().enumerate() {
+        let client_cert =
+            rcgen::generate_simple_self_signed(vec![king_addr.ip().to_string()]).unwrap();
+        let config = crate::ZkGadgetConfig {
+            king_bind_addr: if i == 0 { Some(king_addr) } else { None },
+            client_only_king_addr: if i == 0 { None } else { Some(king_addr) },
+            network_id: ecdsa::Public([i as u8; 33]),
+            public_identity_der: if i == 0 {
+                king_cert.serialize_der().unwrap()
+            } else {
+                client_cert.serialize_der().unwrap()
+            },
+            private_identity_der: if i == 0 {
+                king_cert.serialize_private_key_der()
+            } else {
+                client_cert.serialize_private_key_der()
+            },
+            client_only_king_public_identity_der: if i == 0 {
+                None
+            } else {
+                king_cert.serialize_der().ok()
+            },
+            account_id: acc,
+        };
+        runtime.spawn(crate::run(config, mock_client));
+    }
 
-fn mock_pub_key() -> ecdsa::Public {
-    ecdsa_generate(KEY_TYPE, None)
+    ext.register_extension(TracingSubscriberGuardExt(guard));
+    (ext, runtime)
 }

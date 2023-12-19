@@ -28,15 +28,47 @@ pub struct WebbModule<B, C, N, M> {
     _pd: PhantomData<(B, C)>,
 }
 
-const DEFAULT_MAX_ACTIVE_TASKS: usize = 4;
-const DEFAULT_MAX_PENDING_TASKS: usize = 4;
-const DEFAULT_POLL_INTERVAL: Option<Duration> = Some(Duration::from_millis(200));
+pub const DEFAULT_MAX_ACTIVE_TASKS: usize = 4;
+pub const DEFAULT_MAX_PENDING_TASKS: usize = 4;
+pub const DEFAULT_POLL_INTERVAL: Option<Duration> = Some(Duration::from_millis(200));
 
 #[derive(Debug)]
 pub struct WorkManagerConfig {
     pub interval: Option<Duration>,
     pub max_active_tasks: usize,
     pub max_pending_tasks: usize,
+}
+
+impl Default for WorkManagerConfig {
+    fn default() -> Self {
+        Self {
+            interval: DEFAULT_POLL_INTERVAL,
+            max_active_tasks: DEFAULT_MAX_ACTIVE_TASKS,
+            max_pending_tasks: DEFAULT_MAX_PENDING_TASKS,
+        }
+    }
+}
+
+impl WorkManagerConfig {
+    pub fn new(
+        interval: Option<Duration>,
+        max_active_tasks: usize,
+        max_pending_tasks: usize,
+    ) -> Self {
+        Self {
+            interval,
+            max_active_tasks,
+            max_pending_tasks,
+        }
+    }
+
+    pub fn manual() -> Self {
+        Self {
+            interval: None,
+            max_active_tasks: DEFAULT_MAX_ACTIVE_TASKS,
+            max_pending_tasks: DEFAULT_MAX_PENDING_TASKS,
+        }
+    }
 }
 
 impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> WebbModule<B, C, N, M> {
@@ -139,11 +171,5 @@ pub trait WebbGadgetProtocol<B: Block>: Send + Sync {
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<(), Error>;
     async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WebbWorkManager>);
-    fn get_work_manager_config(&self) -> WorkManagerConfig {
-        WorkManagerConfig {
-            interval: DEFAULT_POLL_INTERVAL,
-            max_active_tasks: DEFAULT_MAX_ACTIVE_TASKS,
-            max_pending_tasks: DEFAULT_MAX_PENDING_TASKS,
-        }
-    }
+    fn get_work_manager_config(&self) -> WorkManagerConfig;
 }

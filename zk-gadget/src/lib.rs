@@ -18,6 +18,8 @@ pub mod client_ext;
 
 #[cfg(test)]
 mod mock;
+#[cfg(test)]
+mod tests;
 
 pub struct ZkGadgetConfig {
     pub king_bind_addr: Option<SocketAddr>,

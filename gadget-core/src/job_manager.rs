@@ -9,7 +9,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PollMethod {
     Interval { millis: u64 },
     Manual,
@@ -161,7 +161,9 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         if let PollMethod::Interval { millis } = poll_method {
             let this_worker = this.clone();
             let logger = this_worker.utility.clone();
-
+            logger.debug(format!(
+                "[worker] Starting periodic poller with interval {millis}"
+            ));
             let handler = async move {
                 let periodic_poller = async move {
                     let mut interval =

@@ -294,9 +294,7 @@ impl ZkNetworkService {
 
     pub fn my_id(&self) -> RegistantId {
         match self {
-            Self::King { registry_id, .. } | Self::Client { registry_id, .. } => {
-                registry_id.clone()
-            }
+            Self::King { registry_id, .. } | Self::Client { registry_id, .. } => *registry_id,
         }
     }
 
@@ -636,7 +634,7 @@ impl Network for ZkNetworkService {
                     king_registry_id,
                     ..
                 } => {
-                    if to != king_registry_id.clone().expect("Should exist") {
+                    if to != king_registry_id.expect("Should exist") {
                         return Err(Error::RegistrySendError {
                             err: "Cannot send message to non-king as client".to_string(),
                         });
@@ -713,7 +711,7 @@ impl Network for ZkNetworkService {
                         registrants.clone(),
                         to_outbound_txs.clone(),
                         to_gadget.clone(),
-                        registry_id.clone(),
+                        *registry_id,
                     );
                 }
 

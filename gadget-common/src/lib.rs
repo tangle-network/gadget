@@ -94,12 +94,11 @@ pub async fn create_work_manager<C: Client<B>, B: Block, P: WebbGadgetProtocol<B
         .number())
     .saturated_into();
 
-    let work_manager_config = protocol.get_work_manager_config();
-
     let clock = Arc::new(RwLock::new(Some(now)));
 
     let job_manager_zk = WebbWorkManager { clock };
 
+    let work_manager_config = protocol.get_work_manager_config();
     let poll_method = match work_manager_config.interval {
         Some(interval) => PollMethod::Interval {
             millis: interval.as_millis() as u64,
