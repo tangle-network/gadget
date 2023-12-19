@@ -23,6 +23,7 @@ use frame_support::{
 };
 use frame_system::EnsureSigned;
 use gadget_core::gadget::substrate::Client;
+use parking_lot::Mutex;
 use sc_client_api::{BlockImportNotification, FinalityNotification, FinalizeSummary};
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_core::H256;
@@ -31,7 +32,6 @@ pub type Balance = u128;
 pub type BlockNumber = u64;
 
 use sp_core::ecdsa;
-use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
 use tangle_primitives::{
     jobs::{
@@ -216,8 +216,14 @@ construct_runtime!(
     }
 );
 
+#[derive(Clone, Debug)]
+pub struct MockClient {
+    runtime: Runtime,
+    externalities: SharedTestExternalities,
+}
+
 #[async_trait::async_trait]
-impl Client<Block> for Runtime {
+impl Client<Block> for MockClient {
     async fn get_next_finality_notification(&self) -> Option<FinalityNotification<Block>> {
         self.get_latest_finality_notification().await
     }
@@ -226,7 +232,10 @@ impl Client<Block> for Runtime {
         let (tx, rx) = sc_utils::mpsc::tracing_unbounded("mpsc_finality_notification", 999999);
         // forget rx so that it doesn't get dropped
         core::mem::forget(rx);
-        let header = System::finalize();
+        let header = self
+            .externalities
+            .lock()
+            .execute_with(|| System::finalize());
         let summary = FinalizeSummary::<Block> {
             finalized: vec![header.hash()],
             header,
@@ -241,10 +250,10 @@ impl Client<Block> for Runtime {
     }
 }
 
-impl ProvideRuntimeApi<Block> for Runtime {
-    type Api = Self;
+impl ProvideRuntimeApi<Block> for MockClient {
+    type Api = Runtime;
     fn runtime_api(&self) -> ApiRef<Self::Api> {
-        ApiRef::from(*self)
+        ApiRef::from(self.runtime)
     }
 }
 
@@ -316,9 +325,11 @@ sp_externalities::decl_extension! {
     pub struct TracingSubscriberGuardExt(tracing::subscriber::DefaultGuard);
 }
 
+pub type SharedTestExternalities = Arc<Mutex<sp_io::TestExternalities>>;
+
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
-pub fn new_test_ext() -> (sp_io::TestExternalities, tokio::runtime::Runtime) {
+pub fn new_test_ext() -> (SharedTestExternalities, tokio::runtime::Runtime) {
     let subscriber = tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_test_writer()
@@ -339,18 +350,20 @@ pub fn new_test_ext() -> (sp_io::TestExternalities, tokio::runtime::Runtime) {
     .assimilate_storage(&mut t)
     .unwrap();
 
-    let mut ext = sp_io::TestExternalities::new(t);
-    // set to block 1 to test events
-    ext.execute_with(|| System::set_block_number(1));
-    ext.register_extension(KeystoreExt(Arc::new(MemoryKeystore::new()) as KeystorePtr));
+    let ext = Arc::new(Mutex::new(sp_io::TestExternalities::new(t)));
+
     // we need to run the runtime on a single thread
     // since test externalities are not shared across threads.
-    let runtime = tokio::runtime::Builder::new_current_thread()
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(8)
         .enable_all()
         .build()
         .unwrap();
 
-    let mock_client = Runtime;
+    let mock_client = MockClient {
+        runtime: Runtime,
+        externalities: ext.clone(),
+    };
     let king_addr = alloc_available_ip_addr();
     let king_cert = rcgen::generate_simple_self_signed(vec![king_addr.ip().to_string()]).unwrap();
     for (i, acc) in accounts.into_iter().enumerate() {
@@ -377,9 +390,10 @@ pub fn new_test_ext() -> (sp_io::TestExternalities, tokio::runtime::Runtime) {
             },
             account_id: acc,
         };
-        runtime.spawn(crate::run(config, mock_client));
+        runtime.spawn(crate::run(config, mock_client.clone()));
     }
 
-    ext.register_extension(TracingSubscriberGuardExt(guard));
+    ext.lock()
+        .register_extension(TracingSubscriberGuardExt(guard));
     (ext, runtime)
 }
