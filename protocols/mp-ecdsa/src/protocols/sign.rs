@@ -71,7 +71,7 @@ where
         network,
         round_blames: Arc::new(Default::default()),
         logger,
-        account_id: config.account_id.clone(),
+        account_id: config.account_id,
     })
 }
 

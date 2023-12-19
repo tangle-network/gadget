@@ -43,6 +43,7 @@ sc-network = { workspace = true }
 sc-network-common = { workspace = true }
 sc-network-sync = { workspace = true }
 sc-utils = { workspace = true }
+sc-rpc-spec-v2 = { workspace = true }
 
 frame-system = { workspace = true  }
 frame-support = { workspace = true  }

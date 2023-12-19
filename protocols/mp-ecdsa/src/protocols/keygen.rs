@@ -67,7 +67,7 @@ where
         network,
         round_blames: Arc::new(RwLock::new(HashMap::new())),
         logger,
-        account_id: config.account_id.clone(),
+        account_id: config.account_id,
     })
 }
 

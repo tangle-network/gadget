@@ -3,9 +3,7 @@ use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use async_trait::async_trait;
 use gadget_core::gadget::substrate::Client;
 use pallet_jobs_rpc_runtime_api::{JobsApi, RpcResponseJobsData};
-use sc_client_api::{
-    Backend, BlockImportNotification, BlockchainEvents, FinalityNotification, HeaderBackend,
-};
+use sc_client_api::{Backend, BlockImportNotification, BlockchainEvents, FinalityNotification};
 use sp_api::BlockT as Block;
 use sp_api::ProvideRuntimeApi;
 use std::error::Error;
@@ -54,7 +52,7 @@ where
 pub type AccountId = sp_core::ecdsa::Public;
 
 pub trait ClientWithApi<B, BE>:
-    BlockchainEvents<B> + HeaderBackend<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + 'static
+    BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + 'static
 where
     B: Block,
     BE: Backend<B>,
@@ -66,13 +64,7 @@ impl<B, BE, T> ClientWithApi<B, BE> for T
 where
     B: Block,
     BE: Backend<B>,
-    T: BlockchainEvents<B>
-        + HeaderBackend<B>
-        + ProvideRuntimeApi<B>
-        + Send
-        + Sync
-        + Client<B>
-        + 'static,
+    T: BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + 'static,
     <T as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
 }

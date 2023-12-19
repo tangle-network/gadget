@@ -23,17 +23,18 @@ use frame_support::{
 use frame_system::EnsureSigned;
 use gadget_common::client::AccountId;
 use gadget_core::gadget::substrate::Client;
-use sc_client_api::blockchain::{BlockStatus, Info};
 use sc_client_api::{
-    BlockchainEvents, FinalityNotification, FinalityNotifications, FinalizeSummary, HeaderBackend,
+    BlockchainEvents, FinalityNotification, FinalityNotifications, FinalizeSummary,
     ImportNotifications, StorageEventStream, StorageKey,
 };
-use sc_utils::mpsc::TracingUnboundedReceiver;
+use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver};
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_application_crypto::RuntimePublic;
 use sp_core::{Pair as PairT, H256};
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
+use std::time::Duration;
+
 pub type Balance = u128;
 pub type BlockNumber = u64;
 
@@ -48,7 +49,6 @@ use sp_core::ecdsa;
 use sp_core::ecdsa::Pair;
 use sp_io::crypto::ecdsa_generate;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
-use sp_runtime::traits::NumberFor;
 use sp_std::sync::Arc;
 use tangle_primitives::{
     jobs::{
@@ -267,57 +267,57 @@ impl ProvideRuntimeApi<Block> for Runtime {
     }
 }
 
-impl<B: BlockT> BlockchainEvents<B> for Runtime {
-    fn import_notification_stream(&self) -> ImportNotifications<B> {
-        todo!()
+// Give 20s per block to give plenty of time for each test to complete any async protocols
+const BLOCK_DURATION: Duration = Duration::from_millis(20000);
+
+impl BlockchainEvents<Block> for Runtime {
+    fn import_notification_stream(&self) -> ImportNotifications<Block> {
+        let (sink, stream) = tracing_unbounded("import_notification_stream", 1024);
+        // We are not interested in block import notifications for tests
+        std::mem::forget(sink);
+        stream
     }
 
-    fn every_import_notification_stream(&self) -> ImportNotifications<B> {
-        todo!()
+    fn every_import_notification_stream(&self) -> ImportNotifications<Block> {
+        unimplemented!()
     }
 
-    fn finality_notification_stream(&self) -> FinalityNotifications<B> {
-        todo!()
+    fn finality_notification_stream(&self) -> FinalityNotifications<Block> {
+        let (sink, stream) =
+            tracing_unbounded::<FinalityNotification<Block>>("finality_notification_stream", 1024);
+        let (faux_sink, faux_stream) = tracing_unbounded("faux_sink", 1024);
+        std::mem::forget(faux_stream);
+
+        tokio::task::spawn(async move {
+            loop {
+                let header = System::finalize();
+                let summary = FinalizeSummary::<Block> {
+                    finalized: vec![header.hash()],
+                    header,
+                    stale_heads: vec![],
+                };
+                let notification = FinalityNotification::from_summary(summary, faux_sink.clone());
+                sink.unbounded_send(notification).expect("Should send");
+                tokio::time::sleep(BLOCK_DURATION).await;
+            }
+        });
+        stream
     }
 
     fn storage_changes_notification_stream(
         &self,
-        filter_keys: Option<&[StorageKey]>,
-        child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
-    ) -> sc_client_api::blockchain::Result<StorageEventStream<B::Hash>> {
-        todo!()
-    }
-}
-
-impl<B: BlockT> HeaderBackend<B> for Runtime {
-    fn header(&self, hash: B::Hash) -> sc_client_api::blockchain::Result<Option<B::Header>> {
-        todo!()
-    }
-
-    fn info(&self) -> Info<B> {
-        todo!()
-    }
-
-    fn status(&self, hash: B::Hash) -> sc_client_api::blockchain::Result<BlockStatus> {
-        todo!()
-    }
-
-    fn number(
-        &self,
-        hash: B::Hash,
-    ) -> sc_client_api::blockchain::Result<Option<<<B as BlockT>::Header as sp_api::HeaderT>::Number>>
-    {
-        todo!()
-    }
-
-    fn hash(&self, number: NumberFor<B>) -> sc_client_api::blockchain::Result<Option<B::Hash>> {
-        todo!()
+        _filter_keys: Option<&[StorageKey]>,
+        _child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
+    ) -> sc_client_api::blockchain::Result<StorageEventStream<<Block as BlockT>::Hash>> {
+        unimplemented!()
     }
 }
 
 sp_api::mock_impl_runtime_apis! {
     impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId> for Runtime {
-        fn query_jobs_by_validator(validator: AccountId) -> Result<Vec<RpcResponseJobsData<AccountId>>, String> { todo!() }
+        fn query_jobs_by_validator(validator: AccountId) -> Result<Vec<RpcResponseJobsData<AccountId>>, String> {
+            Jobs::query_jobs_by_validator(validator)
+        }
     }
 }
 
@@ -364,8 +364,8 @@ impl MockNetwork {
 
         for id in ids {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-            peers_tx.insert(id.clone(), tx);
-            peers_rx.insert(id.clone(), tokio::sync::Mutex::new(rx));
+            peers_tx.insert(*id, tx);
+            peers_rx.insert(*id, tokio::sync::Mutex::new(rx));
         }
 
         let peers_tx = Arc::new(peers_tx);
@@ -375,7 +375,7 @@ impl MockNetwork {
             let network = Self {
                 peers_tx: peers_tx.clone(),
                 peers_rx: peers_rx.clone(),
-                my_id: id.clone(),
+                my_id: *id,
             };
             networks.push(network);
         }
@@ -396,9 +396,7 @@ impl Network for MockNetwork {
         &self,
         message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
-        let _check_message_has_ids = message
-            .from_account_id
-            .ok_or_else(|| Error::MissingNetworkId)?;
+        let _check_message_has_ids = message.from_account_id.ok_or(Error::MissingNetworkId)?;
         if let Some(peer_id) = message.to_account_id {
             let tx = self
                 .peers_tx
@@ -427,9 +425,16 @@ impl Network for MockNetwork {
     }
 }
 
+pub type MockBackend = sc_client_api::in_mem::Backend<Block>;
+
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
-pub fn new_test_ext<const N: usize>() -> sp_io::TestExternalities {
+pub fn new_test_ext<const N: usize>() -> (sp_io::TestExternalities, tokio::runtime::Runtime) {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
     let mut t = frame_system::GenesisConfig::<Runtime>::default()
         .build_storage()
         .unwrap();
@@ -456,7 +461,7 @@ pub fn new_test_ext<const N: usize>() -> sp_io::TestExternalities {
     ext.execute_with(|| System::set_block_number(1));
     ext.register_extension(KeystoreExt(Arc::new(MemoryKeystore::new()) as KeystorePtr));
 
-    let mock_client = Runtime;
+    let mock_client = mock_wrapper_client::MockClient::new(Runtime);
 
     for (idx, ((identity, keygen_network), signing_network)) in identities
         .into_iter()
@@ -464,6 +469,8 @@ pub fn new_test_ext<const N: usize>() -> sp_io::TestExternalities {
         .zip(signing_networks)
         .enumerate()
     {
+        let mock_client = mock_client.clone();
+
         let protocol_config = MpEcdsaProtocolConfig {
             account_id: identity.public(),
         };
@@ -475,9 +482,9 @@ pub fn new_test_ext<const N: usize>() -> sp_io::TestExternalities {
         let ecdsa_keystore = ECDSAKeyStore::in_memory();
 
         let task = async move {
-            if let Err(err) = crate::run::<_, sc_client_api::in_mem::Backend<Block>, _, _, _, _>(
+            if let Err(err) = crate::run::<_, MockBackend, _, _, _, _>(
                 protocol_config,
-                mock_client.clone(),
+                mock_client,
                 logger,
                 ecdsa_keystore,
                 keygen_network,
@@ -489,12 +496,95 @@ pub fn new_test_ext<const N: usize>() -> sp_io::TestExternalities {
             }
         };
 
-        tokio::task::spawn(task);
+        runtime.spawn(task);
     }
 
-    ext
+    (ext, runtime)
 }
 
 fn mock_pub_key() -> ecdsa::Public {
     ecdsa_generate(KEY_TYPE, None)
+}
+
+pub mod mock_wrapper_client {
+    use async_trait::async_trait;
+    use futures::StreamExt;
+    use gadget_core::gadget::substrate::Client;
+    use sc_client_api::{
+        BlockchainEvents, FinalityNotification, FinalityNotifications, ImportNotifications,
+        StorageEventStream, StorageKey,
+    };
+    use sp_api::{ApiRef, ProvideRuntimeApi};
+    use sp_runtime::traits::Block;
+    use std::sync::Arc;
+
+    #[derive(Clone)]
+    pub struct MockClient<R: BlockchainEvents<B>, B: Block> {
+        runtime: Arc<R>,
+        finality_notification_stream: Arc<tokio::sync::Mutex<FinalityNotifications<B>>>,
+        latest_finality_notification: Arc<tokio::sync::Mutex<Option<FinalityNotification<B>>>>,
+    }
+
+    impl<R: BlockchainEvents<B>, B: Block> MockClient<R, B> {
+        pub fn new(runtime: R) -> Self {
+            let runtime = Arc::new(runtime);
+            let finality_notification_stream = Arc::new(tokio::sync::Mutex::new(
+                runtime.finality_notification_stream(),
+            ));
+            Self {
+                runtime,
+                finality_notification_stream,
+                latest_finality_notification: tokio::sync::Mutex::new(None).into(),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl<R: BlockchainEvents<B> + Send + Sync, B: Block> Client<B> for MockClient<R, B> {
+        async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>> {
+            let next = self.finality_notification_stream.lock().await.next().await;
+            *self.latest_finality_notification.lock().await = next.clone();
+            next
+        }
+
+        async fn get_latest_finality_notification(&self) -> Option<FinalityNotification<B>> {
+            self.latest_finality_notification.lock().await.clone()
+        }
+    }
+
+    impl<R: BlockchainEvents<super::Block>> BlockchainEvents<super::Block>
+        for MockClient<R, super::Block>
+    {
+        fn import_notification_stream(&self) -> ImportNotifications<super::Block> {
+            self.runtime.import_notification_stream()
+        }
+
+        fn every_import_notification_stream(&self) -> ImportNotifications<super::Block> {
+            self.runtime.every_import_notification_stream()
+        }
+
+        fn finality_notification_stream(&self) -> FinalityNotifications<super::Block> {
+            self.runtime.finality_notification_stream()
+        }
+
+        fn storage_changes_notification_stream(
+            &self,
+            filter_keys: Option<&[StorageKey]>,
+            child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
+        ) -> sc_client_api::blockchain::Result<StorageEventStream<<super::Block as Block>::Hash>>
+        {
+            self.runtime
+                .storage_changes_notification_stream(filter_keys, child_filter_keys)
+        }
+    }
+
+    impl<R: ProvideRuntimeApi<B> + BlockchainEvents<B>, B: Block> ProvideRuntimeApi<B>
+        for MockClient<R, B>
+    {
+        type Api = R::Api;
+
+        fn runtime_api(&self) -> ApiRef<Self::Api> {
+            self.runtime.runtime_api()
+        }
+    }
 }

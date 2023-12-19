@@ -563,7 +563,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
     /// Creates and sends handshake message to the peer.
     async fn send_handshake_message(&self, to_who: PeerId) {
         let handshake_message = GossipNetworkMessage::Handshake(HandshakeMessage {
-            account_id: self.account_id.clone(),
+            account_id: self.account_id,
         });
         let msg = bincode2::serialize(&handshake_message).expect("Failed to serialize message");
         self.service
@@ -577,7 +577,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
         ));
         let mut lock = self.peers.write();
         if let Some(peer) = lock.get_mut(&who) {
-            peer.authority_id = Some(message.account_id.clone());
+            peer.authority_id = Some(message.account_id);
         } else {
             self.logger.warn(format!(
                 "Peer {who} is not connected, but sent us a handshake message!!"
@@ -585,7 +585,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
         }
         self.authority_id_to_peer_id
             .write()
-            .insert(message.account_id.clone(), who);
+            .insert(message.account_id, who);
     }
 
     /// Called when peer sends us new signed DKG message.
