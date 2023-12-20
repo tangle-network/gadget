@@ -1,9 +1,11 @@
+use std::time::Duration;
+
 use crate::mock::*;
 
-#[test]
-fn gadget_starts() {
-    let (ext, runtime) = new_test_ext();
-    ext.lock().execute_with(|| {
+#[tokio::test(flavor = "current_thread")]
+async fn gadget_starts() {
+    new_test_ext().execute_with(|| {
         assert_eq!(1, 1);
     });
+    tokio::time::sleep(Duration::from_millis(2000)).await;
 }
