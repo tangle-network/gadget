@@ -14,6 +14,7 @@ pub use sp_runtime::traits::{Block, Header};
 use sp_runtime::SaturatedConversion;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
+use tokio::task::JoinError;
 
 pub mod client;
 pub mod debug_logger;
@@ -39,6 +40,7 @@ pub enum Error {
     KeystoreError { err: String },
     MissingNetworkId,
     PeerNotFound { id: AccountId },
+    JoinError { err: JoinError },
 }
 
 impl Display for Error {

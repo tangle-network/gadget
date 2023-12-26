@@ -6,6 +6,7 @@ members = [
     "zk-gadget",
     "test-gadget",
     "protocols/mp-ecdsa",
+    "test-utils"
 ]
 
 [workspace.dependencies]
@@ -13,6 +14,7 @@ gadget-core = { path = "./gadget-core" }
 gadget-common = { path = "./gadget-common" }
 zk-gadget = { path = "./zk-gadget" }
 mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
+test-utils = { path = "./test-utils" }
 
 pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle" }
 pallet-jobs = { git = "https://github.com/webb-tools/tangle" }

@@ -2,12 +2,12 @@ use crate::debug_logger::DebugLogger;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use async_trait::async_trait;
 use gadget_core::gadget::substrate::Client;
-use pallet_jobs_rpc_runtime_api::{JobsApi, RpcResponseJobsData};
+use pallet_jobs_rpc_runtime_api::JobsApi;
 use sc_client_api::{Backend, BlockImportNotification, BlockchainEvents, FinalityNotification};
 use sp_api::BlockT as Block;
 use sp_api::ProvideRuntimeApi;
-use std::error::Error;
 use std::sync::Arc;
+use tangle_primitives::jobs::RpcResponseJobsData;
 use tangle_primitives::jobs::{JobId, JobKey, JobResult};
 
 pub struct MpEcdsaClient<B: Block, BE, KBE: KeystoreBackend, C> {
@@ -37,16 +37,16 @@ pub async fn create_client<
     client: Arc<C>,
     logger: DebugLogger,
     key_store: ECDSAKeyStore<KBE>,
-) -> Result<MpEcdsaClient<B, BE, KBE, C>, Box<dyn Error>>
+) -> MpEcdsaClient<B, BE, KBE, C>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    Ok(MpEcdsaClient {
+    MpEcdsaClient {
         client,
         key_store,
         logger,
         _block: std::marker::PhantomData,
-    })
+    }
 }
 
 pub type AccountId = sp_core::ecdsa::Public;

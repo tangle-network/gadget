@@ -55,5 +55,7 @@ pallet-timestamp = { workspace = true }
 
 serde = { version = "1.0.193", features = ["derive"] }
 
-[build-dependencies]
-substrate-build-script-utils = { workspace = true }
+test-utils = { workspace = true }
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }

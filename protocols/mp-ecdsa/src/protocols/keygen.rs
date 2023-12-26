@@ -27,7 +27,6 @@ use sp_application_crypto::sp_core::keccak_256;
 use sp_application_crypto::RuntimePublic;
 use sp_core::crypto::KeyTypeId;
 use std::collections::{BTreeMap, HashMap};
-use std::error::Error;
 use std::sync::Arc;
 use tangle_primitives::jobs::{DKGResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -53,22 +52,22 @@ pub async fn create_protocol<B, BE, KBE, C, N>(
     client: MpEcdsaClient<B, BE, KBE, C>,
     network: N,
     logger: DebugLogger,
-) -> Result<MpEcdsaKeygenProtocol<B, BE, KBE, C, N>, Box<dyn Error>>
+) -> MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
     B: Block,
     BE: Backend<B>,
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    Ok(MpEcdsaKeygenProtocol {
+    MpEcdsaKeygenProtocol {
         client,
         network,
         round_blames: Arc::new(RwLock::new(HashMap::new())),
         logger,
         account_id: config.account_id,
-    })
+    }
 }
 
 #[async_trait]
@@ -80,7 +79,7 @@ impl<
         N: Network,
     > WebbGadgetProtocol<B> for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     async fn get_next_jobs(
         &self,
@@ -88,6 +87,7 @@ where
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, gadget_common::Error> {
+        self.logger.info(format!("At finality notification {now}"));
         let jobs = self
             .client
             .query_jobs_by_validator(notification.hash, self.account_id)

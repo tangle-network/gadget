@@ -31,7 +31,6 @@ use sp_api::ProvideRuntimeApi;
 use sp_core::ecdsa::Signature;
 use sp_core::keccak_256;
 use std::collections::HashMap;
-use std::error::Error;
 use std::sync::Arc;
 use tangle_primitives::jobs::{DKGSignatureResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -57,7 +56,7 @@ pub async fn create_protocol<B, BE, KBE, C, N>(
     logger: DebugLogger,
     client: MpEcdsaClient<B, BE, KBE, C>,
     network: N,
-) -> Result<MpEcdsaSigningProtocol<B, BE, KBE, C, N>, Box<dyn Error>>
+) -> MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
     B: Block,
     BE: Backend<B>,
@@ -66,13 +65,13 @@ where
     N: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
 {
-    Ok(MpEcdsaSigningProtocol {
+    MpEcdsaSigningProtocol {
         client,
         network,
         round_blames: Arc::new(Default::default()),
         logger,
         account_id: config.account_id,
-    })
+    }
 }
 
 #[async_trait]

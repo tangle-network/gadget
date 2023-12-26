@@ -15,6 +15,7 @@
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
 use async_trait::async_trait;
+use frame_support::traits::Hooks;
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{ConstU128, ConstU32, ConstU64, Everything},
@@ -22,15 +23,11 @@ use frame_support::{
 };
 use frame_system::EnsureSigned;
 use gadget_common::client::AccountId;
-use gadget_core::gadget::substrate::Client;
-use sc_client_api::{
-    BlockchainEvents, FinalityNotification, FinalityNotifications, FinalizeSummary,
-    ImportNotifications, StorageEventStream, StorageKey,
-};
-use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver};
+use sc_client_api::{FinalityNotification, FinalizeSummary};
+use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_application_crypto::RuntimePublic;
-use sp_core::{Pair as PairT, H256};
+use sp_core::H256;
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -46,7 +43,6 @@ use gadget_common::keystore::ECDSAKeyStore;
 use gadget_common::Error;
 use gadget_core::job_manager::WorkManagerInterface;
 use sp_core::ecdsa;
-use sp_core::ecdsa::Pair;
 use sp_io::crypto::ecdsa_generate;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
@@ -61,6 +57,7 @@ use tangle_primitives::{
         roles::RolesHandler,
     },
 };
+use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 /// Key type for DKG keys
@@ -95,18 +92,18 @@ impl frame_system::Config for Runtime {
 }
 
 impl pallet_balances::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
     type Balance = Balance;
     type DustRemoval = ();
-    type RuntimeEvent = RuntimeEvent;
     type ExistentialDeposit = ConstU128<1>;
     type AccountStore = System;
+    type ReserveIdentifier = ();
+    type RuntimeHoldReason = RuntimeHoldReason;
+    type FreezeIdentifier = ();
     type MaxLocks = ();
     type MaxReserves = ConstU32<50>;
-    type ReserveIdentifier = ();
-    type WeightInfo = ();
-    type RuntimeHoldReason = RuntimeHoldReason;
     type MaxHolds = ();
-    type FreezeIdentifier = ();
     type MaxFreezes = ();
 }
 
@@ -165,13 +162,7 @@ pub struct MockRolesHandler;
 
 impl RolesHandler<AccountId> for MockRolesHandler {
     fn is_validator(address: AccountId, _role_type: JobKey) -> bool {
-        let validators = (0..8)
-            .map(|i| {
-                Pair::from_seed_slice(&id_to_seed(i))
-                    .expect("Should exist")
-                    .public()
-            })
-            .collect::<Vec<_>>();
+        let validators = (0..8).map(|i| id_to_public(i)).collect::<Vec<_>>();
         validators.contains(&address)
     }
 
@@ -180,9 +171,7 @@ impl RolesHandler<AccountId> for MockRolesHandler {
     }
 
     fn get_validator_metadata(address: AccountId, _job_key: JobKey) -> Option<RoleTypeMetadata> {
-        let mock_err_account = Pair::from_seed_slice(&id_to_seed(100))
-            .expect("Should exist")
-            .public();
+        let mock_err_account = id_to_public(100);
         if address == mock_err_account {
             None
         } else {
@@ -220,11 +209,11 @@ parameter_types! {
 
 impl pallet_jobs::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type ForceOrigin = EnsureSigned<AccountId>;
     type Currency = Balances;
     type JobToFee = MockJobToFeeHandler;
     type RolesHandler = MockRolesHandler;
     type MPCHandler = MockMPCHandler;
+    type ForceOrigin = EnsureSigned<AccountId>;
     type PalletId = JobsPalletId;
     type WeightInfo = ();
 }
@@ -239,84 +228,21 @@ construct_runtime!(
     }
 );
 
-#[async_trait::async_trait]
-impl Client<Block> for Runtime {
-    async fn get_next_finality_notification(&self) -> Option<FinalityNotification<Block>> {
-        self.get_latest_finality_notification().await
-    }
-
-    async fn get_latest_finality_notification(&self) -> Option<FinalityNotification<Block>> {
-        let (tx, rx) = sc_utils::mpsc::tracing_unbounded("mpsc_finality_notification", 999999);
-        // forget rx so that it doesn't get dropped
-        core::mem::forget(rx);
-        let header = System::finalize();
-        let summary = FinalizeSummary::<Block> {
-            finalized: vec![header.hash()],
-            header,
-            stale_heads: vec![],
-        };
-        let notification = FinalityNotification::from_summary(summary, tx.clone());
-        Some(notification)
-    }
-}
-
-impl ProvideRuntimeApi<Block> for Runtime {
-    type Api = Self;
-    fn runtime_api(&self) -> ApiRef<Self::Api> {
-        ApiRef::from(*self)
-    }
-}
-
-// Give 20s per block to give plenty of time for each test to complete any async protocols
-const BLOCK_DURATION: Duration = Duration::from_millis(20000);
-
-impl BlockchainEvents<Block> for Runtime {
-    fn import_notification_stream(&self) -> ImportNotifications<Block> {
-        let (sink, stream) = tracing_unbounded("import_notification_stream", 1024);
-        // We are not interested in block import notifications for tests
-        std::mem::forget(sink);
-        stream
-    }
-
-    fn every_import_notification_stream(&self) -> ImportNotifications<Block> {
-        unimplemented!()
-    }
-
-    fn finality_notification_stream(&self) -> FinalityNotifications<Block> {
-        let (sink, stream) =
-            tracing_unbounded::<FinalityNotification<Block>>("finality_notification_stream", 1024);
-        let (faux_sink, faux_stream) = tracing_unbounded("faux_sink", 1024);
-        std::mem::forget(faux_stream);
-
-        tokio::task::spawn(async move {
-            loop {
-                let header = System::finalize();
-                let summary = FinalizeSummary::<Block> {
-                    finalized: vec![header.hash()],
-                    header,
-                    stale_heads: vec![],
-                };
-                let notification = FinalityNotification::from_summary(summary, faux_sink.clone());
-                sink.unbounded_send(notification).expect("Should send");
-                tokio::time::sleep(BLOCK_DURATION).await;
-            }
-        });
-        stream
-    }
-
-    fn storage_changes_notification_stream(
-        &self,
-        _filter_keys: Option<&[StorageKey]>,
-        _child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
-    ) -> sc_client_api::blockchain::Result<StorageEventStream<<Block as BlockT>::Hash>> {
-        unimplemented!()
-    }
-}
-
 sp_api::mock_impl_runtime_apis! {
     impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId> for Runtime {
         fn query_jobs_by_validator(validator: AccountId) -> Result<Vec<RpcResponseJobsData<AccountId>>, String> {
-            Jobs::query_jobs_by_validator(validator)
+            log::info!(target: "gadget", "Querying jobs by validator: {validator}");
+            let result = Arc::new(parking_lot::Mutex::new(None));
+            let result_clone = result.clone();
+            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
+                let res = Jobs::query_jobs_by_validator(validator);
+                log::info!(target: "gadget", "QueryJobsByValidator Result: {res:?}");
+                result.lock().replace(res);
+            });
+
+            let result = result_clone.lock().take().unwrap();
+            log::info!(target: "gadget", "QueryJobsByValidator Result: {result:?}");
+            result
         }
     }
 }
@@ -329,8 +255,17 @@ impl Default for ExtBuilder {
     }
 }
 
-pub fn id_to_seed(id: u8) -> [u8; 32] {
-    [id; 32]
+impl ProvideRuntimeApi<crate::mock::Block> for Runtime {
+    type Api = Self;
+    fn runtime_api(&self) -> ApiRef<Self::Api> {
+        ApiRef::from(*self)
+    }
+}
+
+pub fn id_to_public(id: u8) -> ecdsa::Public {
+    let mut raw = [id; 33];
+    raw[0] = 0;
+    ecdsa::Public(raw)
 }
 
 sp_externalities::decl_extension! {
@@ -427,30 +362,25 @@ impl Network for MockNetwork {
 
 pub type MockBackend = sc_client_api::in_mem::Backend<Block>;
 
+static TEST_EXTERNALITIES: parking_lot::Mutex<Option<MultiThreadedTestExternalities>> =
+    parking_lot::Mutex::new(None);
+
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
-pub fn new_test_ext<const N: usize>() -> (sp_io::TestExternalities, tokio::runtime::Runtime) {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-
+pub fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
     let mut t = frame_system::GenesisConfig::<Runtime>::default()
         .build_storage()
         .unwrap();
 
-    let identities = (0..N)
-        .map(|i| Pair::from_seed_slice(&id_to_seed(i as u8)).expect("Should create keypair"))
-        .collect::<Vec<_>>();
+    let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
 
     let balances = identities
         .iter()
-        .map(|pair| (pair.public(), 100u128))
+        .map(|public| (public.clone(), 100u128))
         .collect::<Vec<_>>();
 
-    let public_identities = identities.iter().map(|i| i.public()).collect::<Vec<_>>();
-    let keygen_networks = MockNetwork::setup(&public_identities);
-    let signing_networks = MockNetwork::setup(&public_identities);
+    let keygen_networks = MockNetwork::setup(&identities);
+    let signing_networks = MockNetwork::setup(&identities);
 
     pallet_balances::GenesisConfig::<Runtime> { balances }
         .assimilate_storage(&mut t)
@@ -458,22 +388,76 @@ pub fn new_test_ext<const N: usize>() -> (sp_io::TestExternalities, tokio::runti
 
     let mut ext = sp_io::TestExternalities::new(t);
     // set to block 1 to test events
+    // TODO: Make the below actually work, since we are using a spawned iterator
     ext.execute_with(|| System::set_block_number(1));
+    ext.execute_with(|| System::on_finalize(1));
+    ext.execute_with(|| Jobs::on_finalize(1));
+    ext.execute_with(|| Balances::on_finalize(1));
+
     ext.register_extension(KeystoreExt(Arc::new(MemoryKeystore::new()) as KeystorePtr));
 
-    let mock_client = mock_wrapper_client::MockClient::new(Runtime);
+    let ext = MultiThreadedTestExternalities::new(ext);
+    assert!(TEST_EXTERNALITIES.lock().replace(ext.clone()).is_none(), "Make sure to run tests serially with -- --test-threads=1 or with nextest to ensure separate program spaces per test");
 
-    for (idx, ((identity, keygen_network), signing_network)) in identities
+    let finality_notification_txs = Arc::new(parking_lot::Mutex::new(Vec::<
+        TracingUnboundedSender<FinalityNotification<Block>>,
+    >::new()));
+    let sinks = finality_notification_txs.clone();
+    let externalities = ext.clone();
+
+    // Spawn a thread that sends a finality notification whenever it detects a change in block number
+    std::thread::spawn(move || {
+        let mut prev: Option<u64> = None;
+        let current = Arc::new(parking_lot::Mutex::new(None));
+        loop {
+            let current_clone = current.clone();
+            externalities.execute_with(move || {
+                let number = System::block_number();
+                System::finalize();
+                System::set_block_number(number + 1);
+                current_clone.lock().replace(number);
+            });
+            let number = current.lock().expect("Should exist");
+            // log::info!(target: "gadget", "Current block number: {number}");
+            if prev.is_none() || prev.unwrap() != number {
+                prev = Some(number);
+
+                let lock = sinks.lock();
+                for sink in lock.iter() {
+                    let (faux_sink, faux_stream) = tracing_unbounded("faux_sink", 1024);
+                    std::mem::forget(faux_stream);
+
+                    let header = <Block as BlockT>::Header::new_from_number(number);
+                    let summary = FinalizeSummary::<Block> {
+                        finalized: vec![header.hash()],
+                        header,
+                        stale_heads: vec![],
+                    };
+                    log::info!(target: "gadget", "Creating finality notification {}", summary.header.number);
+
+                    let notification = FinalityNotification::from_summary(summary, faux_sink);
+                    if sink.unbounded_send(notification).is_err() {
+                        log::warn!(target: "gadget", "Will not deliver FinalityNotification because the receiver is gone");
+                    }
+                }
+            }
+
+            std::thread::sleep(Duration::from_millis(2000));
+        }
+    });
+
+    for (idx, ((account_id, keygen_network), signing_network)) in identities
         .into_iter()
         .zip(keygen_networks)
         .zip(signing_networks)
         .enumerate()
     {
-        let mock_client = mock_client.clone();
+        let mock_client_keygen =
+            mock_wrapper_client::MockClient::new(Runtime, finality_notification_txs.clone());
+        let mock_client_signing =
+            mock_wrapper_client::MockClient::new(Runtime, finality_notification_txs.clone());
 
-        let protocol_config = MpEcdsaProtocolConfig {
-            account_id: identity.public(),
-        };
+        let protocol_config = MpEcdsaProtocolConfig { account_id };
 
         let logger = DebugLogger {
             peer_id: format!("Peer {idx}"),
@@ -481,10 +465,12 @@ pub fn new_test_ext<const N: usize>() -> (sp_io::TestExternalities, tokio::runti
 
         let ecdsa_keystore = ECDSAKeyStore::in_memory();
 
+        logger.trace("Starting protocol");
         let task = async move {
             if let Err(err) = crate::run::<_, MockBackend, _, _, _, _>(
                 protocol_config,
-                mock_client,
+                mock_client_keygen,
+                mock_client_signing,
                 logger,
                 ecdsa_keystore,
                 keygen_network,
@@ -496,10 +482,10 @@ pub fn new_test_ext<const N: usize>() -> (sp_io::TestExternalities, tokio::runti
             }
         };
 
-        runtime.spawn(task);
+        tokio::task::spawn(task);
     }
 
-    (ext, runtime)
+    ext
 }
 
 fn mock_pub_key() -> ecdsa::Public {
@@ -514,77 +500,103 @@ pub mod mock_wrapper_client {
         BlockchainEvents, FinalityNotification, FinalityNotifications, ImportNotifications,
         StorageEventStream, StorageKey,
     };
-    use sp_api::{ApiRef, ProvideRuntimeApi};
+    use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedSender};
+    use sp_api::{ApiRef, BlockT, ProvideRuntimeApi};
     use sp_runtime::traits::Block;
     use std::sync::Arc;
 
     #[derive(Clone)]
-    pub struct MockClient<R: BlockchainEvents<B>, B: Block> {
+    pub struct MockClient<R, B: Block> {
         runtime: Arc<R>,
-        finality_notification_stream: Arc<tokio::sync::Mutex<FinalityNotifications<B>>>,
+        finality_notification_stream: Arc<tokio::sync::Mutex<Option<FinalityNotifications<B>>>>,
         latest_finality_notification: Arc<tokio::sync::Mutex<Option<FinalityNotification<B>>>>,
+        finality_notification_txs:
+            Arc<parking_lot::Mutex<Vec<TracingUnboundedSender<FinalityNotification<B>>>>>,
     }
 
-    impl<R: BlockchainEvents<B>, B: Block> MockClient<R, B> {
-        pub fn new(runtime: R) -> Self {
+    impl<R, B: Block> MockClient<R, B> {
+        pub fn new(
+            runtime: R,
+            finality_notification_txs: Arc<
+                parking_lot::Mutex<Vec<TracingUnboundedSender<FinalityNotification<B>>>>,
+            >,
+        ) -> Self {
             let runtime = Arc::new(runtime);
-            let finality_notification_stream = Arc::new(tokio::sync::Mutex::new(
-                runtime.finality_notification_stream(),
-            ));
+            let finality_notification_stream = Arc::new(tokio::sync::Mutex::new(None));
+
             Self {
                 runtime,
                 finality_notification_stream,
                 latest_finality_notification: tokio::sync::Mutex::new(None).into(),
+                finality_notification_txs,
             }
         }
     }
 
     #[async_trait]
-    impl<R: BlockchainEvents<B> + Send + Sync, B: Block> Client<B> for MockClient<R, B> {
-        async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>> {
-            let next = self.finality_notification_stream.lock().await.next().await;
+    impl<R: Send + Sync> Client<crate::mock::Block> for MockClient<R, crate::mock::Block> {
+        async fn get_next_finality_notification(
+            &self,
+        ) -> Option<FinalityNotification<crate::mock::Block>> {
+            let mut lock = self.finality_notification_stream.lock().await;
+            if lock.is_none() {
+                let stream = self.finality_notification_stream();
+                *lock = Some(stream);
+            }
+            let next = lock.as_mut()?.next().await;
             *self.latest_finality_notification.lock().await = next.clone();
             next
         }
 
-        async fn get_latest_finality_notification(&self) -> Option<FinalityNotification<B>> {
-            self.latest_finality_notification.lock().await.clone()
+        async fn get_latest_finality_notification(
+            &self,
+        ) -> Option<FinalityNotification<crate::mock::Block>> {
+            let lock = self.latest_finality_notification.lock().await;
+            if let Some(latest) = lock.clone() {
+                Some(latest)
+            } else {
+                drop(lock);
+                self.get_next_finality_notification().await
+            }
         }
     }
 
-    impl<R: BlockchainEvents<super::Block>> BlockchainEvents<super::Block>
-        for MockClient<R, super::Block>
-    {
-        fn import_notification_stream(&self) -> ImportNotifications<super::Block> {
-            self.runtime.import_notification_stream()
+    impl<R: ProvideRuntimeApi<B>, B: Block> ProvideRuntimeApi<B> for MockClient<R, B> {
+        type Api = R::Api;
+        fn runtime_api(&self) -> ApiRef<Self::Api> {
+            ApiRef::from(self.runtime.runtime_api())
+        }
+    }
+
+    impl<R> BlockchainEvents<crate::mock::Block> for MockClient<R, crate::mock::Block> {
+        fn import_notification_stream(&self) -> ImportNotifications<crate::mock::Block> {
+            let (sink, stream) = tracing_unbounded("import_notification_stream", 1024);
+            // We are not interested in block import notifications for tests
+            std::mem::forget(sink);
+            stream
         }
 
-        fn every_import_notification_stream(&self) -> ImportNotifications<super::Block> {
-            self.runtime.every_import_notification_stream()
+        fn every_import_notification_stream(&self) -> ImportNotifications<crate::mock::Block> {
+            unimplemented!()
         }
 
-        fn finality_notification_stream(&self) -> FinalityNotifications<super::Block> {
-            self.runtime.finality_notification_stream()
+        fn finality_notification_stream(&self) -> FinalityNotifications<crate::mock::Block> {
+            let (sink, stream) = tracing_unbounded::<FinalityNotification<crate::mock::Block>>(
+                "finality_notification_stream",
+                1024,
+            );
+            self.finality_notification_txs.lock().push(sink);
+            stream
         }
 
         fn storage_changes_notification_stream(
             &self,
-            filter_keys: Option<&[StorageKey]>,
-            child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
-        ) -> sc_client_api::blockchain::Result<StorageEventStream<<super::Block as Block>::Hash>>
-        {
-            self.runtime
-                .storage_changes_notification_stream(filter_keys, child_filter_keys)
-        }
-    }
-
-    impl<R: ProvideRuntimeApi<B> + BlockchainEvents<B>, B: Block> ProvideRuntimeApi<B>
-        for MockClient<R, B>
-    {
-        type Api = R::Api;
-
-        fn runtime_api(&self) -> ApiRef<Self::Api> {
-            self.runtime.runtime_api()
+            _filter_keys: Option<&[StorageKey]>,
+            _child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
+        ) -> sc_client_api::blockchain::Result<
+            StorageEventStream<<crate::mock::Block as BlockT>::Hash>,
+        > {
+            unimplemented!()
         }
     }
 }
