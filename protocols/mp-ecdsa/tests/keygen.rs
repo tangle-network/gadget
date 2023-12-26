@@ -1,8 +1,11 @@
 #[cfg(test)]
 mod tests {
-    use mp_ecdsa_protocol::mock::{id_to_public, new_test_ext, Jobs, RuntimeOrigin};
+    use mp_ecdsa_protocol::mock::{id_to_public, new_test_ext, Jobs, Runtime, RuntimeOrigin};
+    use pallet_jobs::SubmittedJobs;
     use std::time::Duration;
-    use tangle_primitives::jobs::{DKGTSSPhaseOneJobType, DkgKeyType, JobSubmission, JobType};
+    use tangle_primitives::jobs::{
+        DKGTSSPhaseOneJobType, DkgKeyType, JobKey, JobSubmission, JobType,
+    };
     use tracing_subscriber::fmt::SubscriberBuilder;
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::EnvFilter;
@@ -56,6 +59,16 @@ mod tests {
                 );
                 log::info!(target: "gadget", "******* Submitted Job");
 
+                let jobs_res = SubmittedJobs::<Runtime>::get(JobKey::DKG, 0).expect("Should exist");
+
+                assert_eq!(
+                    jobs_res
+                        .job_type
+                        .get_participants()
+                        .expect("Should exist")
+                        .len(),
+                    N
+                );
                 let jobs_res = Jobs::query_jobs_by_validator(identities[0].clone());
                 log::info!(target: "gadget", "******* Queried Jobs: {jobs_res:?}");
                 assert_eq!(jobs_res.expect("Should exist").len(), 1);
