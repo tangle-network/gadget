@@ -77,7 +77,7 @@ impl<T, R> TrackedCallbackChannelPayload<T, R> {
     }
 }
 
-impl<T: Send + Sync, R: Send + Sync> TrackedCallbackChannel<T, R> {
+impl<T: Send, R: Send> TrackedCallbackChannel<T, R> {
     pub fn new(buffer: usize) -> (Self, CallbackReceiver<T, R>) {
         let (to_channel, from_channel) = tokio::sync::mpsc::channel(buffer);
         (

@@ -1,9 +1,9 @@
 use crate::sync::tracked_callback_channel::TrackedCallbackChannel;
-use parity_scale_codec::{Decode, Encode};
 use sp_io::TestExternalities;
+use std::any::Any;
 
 pub struct MultiThreadedTestExternalities {
-    pub tx: TrackedCallbackChannel<InputFunction, Vec<u8>>,
+    pub tx: TrackedCallbackChannel<InputFunction, Box<dyn Any + Send>>,
 }
 
 impl Clone for MultiThreadedTestExternalities {
@@ -14,7 +14,7 @@ impl Clone for MultiThreadedTestExternalities {
     }
 }
 
-pub type InputFunction = Box<dyn FnOnce() -> Vec<u8> + 'static + Send + Sync>;
+pub type InputFunction = Box<dyn FnOnce() -> Box<dyn Any + Send> + 'static + Send>;
 
 impl MultiThreadedTestExternalities {
     pub fn new(mut test_externalities: TestExternalities) -> Self {
@@ -35,42 +35,36 @@ impl MultiThreadedTestExternalities {
         Self { tx }
     }
 
-    pub fn execute_with<
-        T: FnOnce() -> R + Send + Sync + 'static,
-        R: Encode + Decode + Send + Sync + 'static,
-    >(
+    pub fn execute_with<T: FnOnce() -> R + Send + 'static, R: Send + 'static>(
         &self,
         function: T,
     ) -> R {
         let wrapped_function = move || {
             let out = function();
-            out.encode()
+            Box::new(out) as Box<dyn Any + Send>
         };
         let response = self
             .tx
             .blocking_send(Box::new(wrapped_function))
-            .expect("Failed to receive response");
+            .expect("Failed to receive response") as Box<dyn Any>;
 
-        R::decode(&mut &response[..]).expect("Should decode")
+        *response.downcast::<R>().expect("Should downcast")
     }
 
-    pub async fn execute_with_async<
-        T: FnOnce() -> R + Send + Sync + 'static,
-        R: Encode + Decode + Send + Sync + 'static,
-    >(
+    pub async fn execute_with_async<T: FnOnce() -> R + Send + 'static, R: Send + 'static>(
         &self,
         function: T,
     ) -> R {
         let wrapped_function = move || {
             let out = function();
-            out.encode()
+            Box::new(out) as Box<dyn Any + Send>
         };
         let response = self
             .tx
             .send(Box::new(wrapped_function))
             .await
-            .expect("Failed to receive response");
+            .expect("Failed to receive response") as Box<dyn Any>;
 
-        R::decode(&mut &response[..]).expect("Should decode")
+        *response.downcast::<R>().expect("Should downcast")
     }
 }
