@@ -1,8 +1,9 @@
 use crate::sync::tracked_callback_channel::TrackedCallbackChannel;
+use parity_scale_codec::{Decode, Encode};
 use sp_io::TestExternalities;
 
 pub struct MultiThreadedTestExternalities {
-    pub tx: TrackedCallbackChannel<InputFunction, ()>,
+    pub tx: TrackedCallbackChannel<InputFunction, Vec<u8>>,
 }
 
 impl Clone for MultiThreadedTestExternalities {
@@ -13,18 +14,18 @@ impl Clone for MultiThreadedTestExternalities {
     }
 }
 
-pub type InputFunction = Box<dyn FnOnce() + 'static + Send + Sync>;
+pub type InputFunction = Box<dyn FnOnce() -> Vec<u8> + 'static + Send + Sync>;
 
 impl MultiThreadedTestExternalities {
     pub fn new(mut test_externalities: TestExternalities) -> Self {
-        let (tx, mut rx) = TrackedCallbackChannel::<InputFunction, ()>::new(1024);
+        let (tx, mut rx) = TrackedCallbackChannel::new(1024);
         let tx_clone = tx.clone();
 
         std::thread::spawn(move || {
-            while let Some(resp) = rx.blocking_recv() {
-                let response = resp.new(());
-                let function = resp.payload;
-                test_externalities.execute_with(function);
+            while let Some(mut resp) = rx.blocking_recv() {
+                let payload: InputFunction = resp.payload();
+                let res = test_externalities.execute_with(move || payload());
+                let response = resp.new(res);
                 tx_clone
                     .try_reply(response)
                     .expect("Failed to send response");
@@ -34,31 +35,42 @@ impl MultiThreadedTestExternalities {
         Self { tx }
     }
 
-    pub fn execute_with<T: FnOnce() -> R + Send + Sync + 'static, R: Send + Sync + 'static>(
+    pub fn execute_with<
+        T: FnOnce() -> R + Send + Sync + 'static,
+        R: Encode + Decode + Send + Sync + 'static,
+    >(
         &self,
         function: T,
-    ) {
+    ) -> R {
         let wrapped_function = move || {
-            let _ = function();
+            let out = function();
+            out.encode()
         };
-        self.tx
+        let response = self
+            .tx
             .blocking_send(Box::new(wrapped_function))
-            .expect("Failed to receive response")
+            .expect("Failed to receive response");
+
+        R::decode(&mut &response[..]).expect("Should decode")
     }
 
     pub async fn execute_with_async<
         T: FnOnce() -> R + Send + Sync + 'static,
-        R: Send + Sync + 'static,
+        R: Encode + Decode + Send + Sync + 'static,
     >(
         &self,
         function: T,
-    ) {
+    ) -> R {
         let wrapped_function = move || {
-            let _ = function();
+            let out = function();
+            out.encode()
         };
-        self.tx
+        let response = self
+            .tx
             .send(Box::new(wrapped_function))
             .await
-            .expect("Failed to receive response")
+            .expect("Failed to receive response");
+
+        R::decode(&mut &response[..]).expect("Should decode")
     }
 }

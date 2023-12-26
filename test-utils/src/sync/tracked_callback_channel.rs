@@ -22,7 +22,7 @@ impl<T, R> Clone for TrackedCallbackChannel<T, R> {
 }
 
 pub enum TrackedCallbackError<T> {
-    SendError(T),
+    SendError(Option<T>),
     RecvError,
     InternalError(&'static str),
 }
@@ -55,7 +55,7 @@ struct TrackedCallbackChannelInner<T, R> {
 
 pub struct TrackedCallbackChannelPayload<T, R> {
     id: u64,
-    pub payload: T,
+    payload: Option<T>,
     _pd: PhantomData<R>,
 }
 
@@ -63,9 +63,13 @@ impl<T, R> TrackedCallbackChannelPayload<T, R> {
     pub fn new(&self, payload: R) -> TrackedCallbackChannelPayload<R, T> {
         TrackedCallbackChannelPayload {
             id: self.id,
-            payload,
+            payload: Some(payload),
             _pd: Default::default(),
         }
+    }
+
+    pub fn payload(&mut self) -> T {
+        self.payload.take().expect("Can only call once")
     }
 
     pub fn expects_response(&self) -> bool {
@@ -129,7 +133,7 @@ impl<T: Send + Sync, R: Send + Sync> TrackedCallbackChannel<T, R> {
         (
             TrackedCallbackChannelPayload {
                 id,
-                payload,
+                payload: Some(payload),
                 _pd: Default::default(),
             },
             rx,
@@ -141,7 +145,7 @@ impl<T: Send + Sync, R: Send + Sync> TrackedCallbackChannel<T, R> {
             .to_channel
             .send(TrackedCallbackChannelPayload {
                 id: NO_RESPONSE,
-                payload,
+                payload: Some(payload),
                 _pd: Default::default(),
             })
             .await
@@ -150,7 +154,7 @@ impl<T: Send + Sync, R: Send + Sync> TrackedCallbackChannel<T, R> {
 
     pub fn try_reply(
         &self,
-        payload: TrackedCallbackChannelPayload<R, T>,
+        mut payload: TrackedCallbackChannelPayload<R, T>,
     ) -> Result<(), TrackedCallbackError<R>> {
         let sender =
             {
@@ -160,8 +164,8 @@ impl<T: Send + Sync, R: Send + Sync> TrackedCallbackChannel<T, R> {
             };
 
         sender
-            .send(payload.payload)
-            .map_err(|err| TrackedCallbackError::SendError(err))
+            .send(payload.payload())
+            .map_err(|err| TrackedCallbackError::SendError(Some(err)))
     }
 }
 
@@ -196,9 +200,9 @@ mod tests {
         const COUNT: u32 = 10000;
 
         let server = async move {
-            while let Some(val) = rx.next().await {
+            while let Some(mut val) = rx.next().await {
                 assert!(val.expects_response());
-                let input = val.payload;
+                let input = val.payload();
                 tx0.try_reply(val.new((input + 1) as u64)).unwrap();
 
                 if input == COUNT {
@@ -227,9 +231,9 @@ mod tests {
         const COUNT: u32 = 10000;
 
         let server = async move {
-            while let Some(val) = rx.next().await {
+            while let Some(mut val) = rx.next().await {
                 assert!(!val.expects_response());
-                let input = val.payload;
+                let input = val.payload();
                 assert!(tx0.try_reply(val.new((input + 1) as u64)).is_err());
 
                 if input == COUNT {
@@ -253,7 +257,7 @@ mod tests {
     #[test]
     fn test_error() {
         // to please codecov
-        let err0 = TrackedCallbackError::SendError(0u8);
+        let err0 = TrackedCallbackError::SendError(Some(0u8));
         let err1 = TrackedCallbackError::<u8>::RecvError;
         let err2 = TrackedCallbackError::<u8>::InternalError("other");
         let _data = format!("{err0:?} {err1:?} {err2:?}");

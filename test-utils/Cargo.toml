@@ -9,5 +9,5 @@ edition = "2021"
 parking_lot = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt-multi-thread", "macros"] }
-
+parity-scale-codec = { workspace = true }
 sp-io = { workspace = true }

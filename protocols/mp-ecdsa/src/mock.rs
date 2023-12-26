@@ -232,16 +232,12 @@ sp_api::mock_impl_runtime_apis! {
     impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId> for Runtime {
         fn query_jobs_by_validator(validator: AccountId) -> Result<Vec<RpcResponseJobsData<AccountId>>, String> {
             log::info!(target: "gadget", "Querying jobs by validator: {validator}");
-            let result = Arc::new(parking_lot::Mutex::new(None));
-            let result_clone = result.clone();
-            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
+            let result = TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
                 let res = Jobs::query_jobs_by_validator(validator);
                 log::info!(target: "gadget", "QueryJobsByValidator Result: {res:?}");
-                result.lock().replace(res);
+                res
             });
-
-            let result = result_clone.lock().take().unwrap();
-            log::info!(target: "gadget", "QueryJobsByValidator Result: {result:?}");
+            log::info!(target: "gadget", "QueryJobsByValidator Result-outer: {result:?}");
             result
         }
     }
@@ -418,16 +414,13 @@ pub fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
     // Spawn a thread that sends a finality notification whenever it detects a change in block number
     std::thread::spawn(move || {
         let mut prev: Option<u64> = None;
-        let current = Arc::new(parking_lot::Mutex::new(None));
         loop {
-            let current_clone = current.clone();
-            externalities.execute_with(move || {
+            let number = externalities.execute_with(move || {
                 let number = System::block_number();
                 System::finalize();
                 advance_to_block(number + 1);
-                current_clone.lock().replace(number + 1);
+                number + 1
             });
-            let number = current.lock().expect("Should exist");
             // log::info!(target: "gadget", "Current block number: {number}");
             if prev.is_none() || prev.unwrap() != number {
                 prev = Some(number);
