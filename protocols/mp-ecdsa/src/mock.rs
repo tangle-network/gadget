@@ -365,6 +365,18 @@ pub type MockBackend = sc_client_api::in_mem::Backend<Block>;
 static TEST_EXTERNALITIES: parking_lot::Mutex<Option<MultiThreadedTestExternalities>> =
     parking_lot::Mutex::new(None);
 
+fn advance_to_block(block_number: u64) {
+    while System::block_number() < block_number {
+        System::on_finalize(System::block_number());
+        Jobs::on_finalize(System::block_number());
+        Balances::on_finalize(System::block_number());
+        System::set_block_number(System::block_number() + 1);
+        System::on_initialize(System::block_number());
+        Jobs::on_initialize(System::block_number());
+        Balances::on_initialize(System::block_number());
+    }
+}
+
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
 pub fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
@@ -414,8 +426,8 @@ pub fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
             externalities.execute_with(move || {
                 let number = System::block_number();
                 System::finalize();
-                System::set_block_number(number + 1);
-                current_clone.lock().replace(number);
+                advance_to_block(number + 1);
+                current_clone.lock().replace(number + 1);
             });
             let number = current.lock().expect("Should exist");
             // log::info!(target: "gadget", "Current block number: {number}");

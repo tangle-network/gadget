@@ -1,9 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use frame_support::traits::Hooks;
-    use mp_ecdsa_protocol::mock::{
-        id_to_public, new_test_ext, Balances, Jobs, RuntimeOrigin, System,
-    };
+    use mp_ecdsa_protocol::mock::{id_to_public, new_test_ext, Jobs, RuntimeOrigin};
     use std::time::Duration;
     use tangle_primitives::jobs::{DKGTSSPhaseOneJobType, DkgKeyType, JobSubmission, JobType};
     use tracing_subscriber::fmt::SubscriberBuilder;
@@ -23,18 +20,6 @@ mod tests {
         new_test_ext::<1>().execute_with(|| {
             assert_eq!(1, 1);
         })
-    }
-
-    fn advance_to_block(block_number: u64) {
-        while System::block_number() < block_number {
-            System::on_finalize(System::block_number());
-            Jobs::on_finalize(System::block_number());
-            Balances::on_finalize(System::block_number());
-            System::set_block_number(System::block_number() + 1);
-            System::on_initialize(System::block_number());
-            Jobs::on_initialize(System::block_number());
-            Balances::on_initialize(System::block_number());
-        }
     }
 
     #[tokio::test(flavor = "multi_thread")]
