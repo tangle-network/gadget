@@ -28,6 +28,11 @@ mod tests {
         const N: usize = 3;
         const T: usize = N - 1;
 
+        std::panic::set_hook(Box::new(|info| {
+            log::info!(target: "gadget", "Panic occurred: {info:?}");
+            std::process::exit(1);
+        }));
+
         new_test_ext::<N>()
             .execute_with_async(|| {
                 assert_eq!(1, 1);
@@ -49,8 +54,13 @@ mod tests {
                     Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), submission)
                         .is_ok()
                 );
-                //advance_to_block(4);
                 log::info!(target: "gadget", "******* Submitted Job");
+
+                let jobs_res = Jobs::query_jobs_by_validator(identities[0].clone());
+                log::info!(target: "gadget", "******* Queried Jobs: {jobs_res:?}");
+                assert_eq!(jobs_res.expect("Should exist").len(), 1);
+                //advance_to_block(4);
+                log::info!(target: "gadget", "******* Finished initial test block");
             })
             .await;
 

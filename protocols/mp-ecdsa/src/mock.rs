@@ -399,8 +399,6 @@ pub fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
         .unwrap();
 
     let mut ext = sp_io::TestExternalities::new(t);
-    // set to block 1 to test events
-    // TODO: Make the below actually work, since we are using a spawned iterator
     ext.execute_with(|| System::set_block_number(1));
     ext.execute_with(|| System::on_finalize(1));
     ext.execute_with(|| Jobs::on_finalize(1));
