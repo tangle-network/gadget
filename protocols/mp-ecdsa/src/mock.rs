@@ -61,7 +61,7 @@ use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 /// Key type for DKG keys
-pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"wdkg");
+pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"role");
 
 type Block = frame_system::mocking::MockBlock<Runtime>;
 
