@@ -25,7 +25,7 @@ mod tests {
         })
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_externalities_keygen() {
         setup_log();
         const N: usize = 3;
@@ -78,6 +78,7 @@ mod tests {
             })
             .await;
 
+        // TODO: loop and sleep until we get the public key on-chain
         loop {
             tokio::time::sleep(Duration::from_millis(10)).await;
             tokio::task::yield_now().await;

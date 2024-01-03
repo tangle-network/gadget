@@ -443,11 +443,6 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         &self,
         msg: WM::ProtocolMessage,
     ) -> Result<DeliveryType, WorkManagerError> {
-        self.utility.debug(format!(
-            "Delivered message is intended for session_id = {}",
-            msg.associated_session_id()
-        ));
-
         if let Some(recv) = msg.associated_recipient_user_id() {
             if recv == msg.associated_sender_user_id() {
                 self.utility

@@ -143,7 +143,7 @@ where
                             .position(|p| p == &self.account_id)
                             .expect("Should exist") as u16,
                         t: job.threshold.expect("T should exist for stage 2 signing") as u16,
-                        signers: (0..participants.len()).map(|r| r as u16).collect(),
+                        signers: (0..participants.len()).map(|r| (r + 1) as u16).collect(),
                         job_id: job.job_id,
                         job_key: job.job_type.get_job_key(),
                         key,
@@ -251,8 +251,7 @@ where
 
         Ok(JobBuilder::new()
             .protocol(async move {
-                // TODO: ensure this is the valid offline i
-                let offline_i = get_offline_i(i, &signers);
+                let offline_i = i + 1;
 
                 let signing =
                     OfflineStage::new(offline_i, signers, key).map_err(|err| JobError {
@@ -363,12 +362,6 @@ where
             })
             .build())
     }
-}
-
-/// Finds our index inside the list of signers, then adds 1 since the Offline state machine
-/// expects the index to start from 1.
-fn get_offline_i(i: u16, signers: &[u16]) -> u16 {
-    (signers.iter().position(|s| s == &i).expect("Should exist") + 1) as u16
 }
 
 async fn voting_stage(

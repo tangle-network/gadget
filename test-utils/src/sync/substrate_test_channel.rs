@@ -24,7 +24,7 @@ impl MultiThreadedTestExternalities {
         std::thread::spawn(move || {
             while let Some(mut resp) = rx.blocking_recv() {
                 let payload: InputFunction = resp.payload();
-                let res = test_externalities.execute_with(move || payload());
+                let res = test_externalities.execute_with(payload);
                 let response = resp.new(res);
                 if let Err(err) = tx_clone.try_reply(response) {
                     log::warn!(target: "gadget", "Failed to reply to callback: {err:?}");

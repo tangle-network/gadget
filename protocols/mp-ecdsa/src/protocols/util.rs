@@ -58,7 +58,6 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
         while let Some(msg) = rx_gadget.recv().await {
-            log::info!(target: "gadget", "[Util] Received message from gadget");
             match bincode2::deserialize::<SplitChannelMessage<C1, C2>>(&msg.payload) {
                 Ok(msg) => match msg {
                     SplitChannelMessage::Channel1(msg) => {
@@ -87,7 +86,6 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     tokio::task::spawn(async move {
         let offline_task = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
-                log::info!(target: "gadget", "Sending message to outbound from async proto");
                 let from = msg.sender();
                 let to = msg.receiver();
                 let (to_account_id, from_account_id) =

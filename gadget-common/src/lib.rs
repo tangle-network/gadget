@@ -58,12 +58,7 @@ impl From<JobError> for Error {
     }
 }
 
-pub async fn run_protocol_with_wm<
-    C: Client<B> + 'static,
-    B: Block,
-    N: Network,
-    P: WebbGadgetProtocol<B> + 'static,
->(
+pub async fn run_protocol_with_wm<C: Client<B>, B: Block, N: Network, P: WebbGadgetProtocol<B>>(
     network: N,
     protocol: P,
     client: C,
@@ -72,25 +67,15 @@ pub async fn run_protocol_with_wm<
     let webb_module = WebbModule::new(network.clone(), protocol, work_manager);
     // Plug the module into the substrate gadget to interface the WebbGadget with Substrate
     let substrate_gadget = SubstrateGadget::new(client, webb_module);
-    let network_future = tokio::task::spawn(async move { network.run().await });
-    let gadget_future = tokio::task::spawn(async move {
-        GadgetManager::new(substrate_gadget)
-            .await
-            .map_err(|err| Error::GadgetManagerError { err })
-    });
+    let network_future = network.run();
+    let gadget_future =
+        GadgetManager::new(substrate_gadget).map_err(|err| Error::GadgetManagerError { err });
 
     // Run both the network and the gadget together
-    tokio::try_join!(network_future, gadget_future)
-        .map(|_| ())
-        .map_err(|err| Error::JoinError { err })
+    tokio::try_join!(network_future, gadget_future).map(|_| ())
 }
 
-pub async fn run_protocol<
-    C: Client<B> + 'static,
-    B: Block,
-    N: Network,
-    P: WebbGadgetProtocol<B> + 'static,
->(
+pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: WebbGadgetProtocol<B>>(
     network: N,
     protocol: P,
     client: C,

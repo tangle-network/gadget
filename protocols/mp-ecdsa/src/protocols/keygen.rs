@@ -25,8 +25,6 @@ use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
-use sp_application_crypto::RuntimePublic;
-use sp_core::crypto::KeyTypeId;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tangle_primitives::jobs::{
@@ -87,7 +85,7 @@ where
 {
     async fn get_next_jobs(
         &self,
-        notification: &FinalityNotification<B>,
+        _notification: &FinalityNotification<B>,
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, gadget_common::Error> {
@@ -302,7 +300,7 @@ where
                     &logger,
                     &local_key,
                     t,
-                    i,
+                    protocol_i,
                     id,
                     broadcast_tx_to_outbound,
                     broadcast_rx_from_gadget,
@@ -362,15 +360,8 @@ async fn handle_public_key_gossip(
     mut broadcast_rx_from_gadget: UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<JobResult, JobError> {
     let serialized_public_key = local_key.public_key().to_bytes(true).to_vec();
-    // Sign the public key with our public key
-    // TODO: Either run inside externalities environment, or, use the DKG method
-    let signature = my_id
-        .sign(KeyTypeId::default(), &serialized_public_key)
-        .ok_or_else(|| JobError {
-            reason: "Failed to sign public key".to_string(),
-        })?
-        .0
-        .to_vec();
+    // Note: the signature is also empty in the DKG implementation
+    let signature = vec![];
 
     let mut received_keys = BTreeMap::new();
     received_keys.insert(i, signature.clone());
@@ -388,23 +379,26 @@ async fn handle_public_key_gossip(
             reason: format!("Failed to send public key: {err:?}"),
         })?;
 
-    for _ in 0..threshold {
-        let message: PublicKeyGossipMessage =
-            broadcast_rx_from_gadget
-                .recv()
-                .await
-                .ok_or_else(|| JobError {
-                    reason: "Failed to receive public key".to_string(),
-                })?;
+    for idx in 0..threshold {
+        let message = broadcast_rx_from_gadget
+            .recv()
+            .await
+            .ok_or_else(|| JobError {
+                reason: "Failed to receive public key".to_string(),
+            })?;
 
         let from = message.from;
+        logger.debug(format!(
+            "Received public key from {from} | {}/{threshold} received",
+            idx + 1
+        ));
+
         if received_keys.contains_key(&(from as u16)) {
             logger.warn("Received duplicate key");
             continue;
         }
 
         received_keys.insert(from as u16, message.signature);
-
         received_participants.insert(from as u16, message.id);
     }
 
@@ -428,4 +422,24 @@ async fn handle_public_key_gossip(
         threshold: threshold as _,
         signatures,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use multi_party_ecdsa::gg_2020::state_machine::keygen::Keygen;
+    use round_based::dev::AsyncSimulation;
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_async_protocol_only() {
+        let results = AsyncSimulation::<Keygen>::new()
+            .add_party(Keygen::new(1, 2, 3).unwrap())
+            .add_party(Keygen::new(2, 2, 3).unwrap())
+            .add_party(Keygen::new(3, 2, 3).unwrap())
+            .run()
+            .await;
+
+        for result in results {
+            assert!(result.is_ok());
+        }
+    }
 }

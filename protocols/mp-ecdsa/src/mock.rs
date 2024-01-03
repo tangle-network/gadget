@@ -163,7 +163,7 @@ pub struct MockRolesHandler;
 
 impl RolesHandler<AccountId> for MockRolesHandler {
     fn is_validator(address: AccountId, _role_type: JobKey) -> bool {
-        let validators = (0..8).map(|i| id_to_public(i)).collect::<Vec<_>>();
+        let validators = (0..8).map(id_to_public).collect::<Vec<_>>();
         validators.contains(&address)
     }
 
@@ -232,14 +232,9 @@ construct_runtime!(
 sp_api::mock_impl_runtime_apis! {
     impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId> for Runtime {
         fn query_jobs_by_validator(validator: AccountId) -> Result<Vec<RpcResponseJobsData<AccountId>>, String> {
-            log::info!(target: "gadget", "Querying jobs by validator: {validator}");
-            let result = TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                let res = Jobs::query_jobs_by_validator(validator);
-                log::info!(target: "gadget", "QueryJobsByValidator Result: {res:?}");
-                res
-            });
-            log::info!(target: "gadget", "QueryJobsByValidator Result-outer: {result:?}");
-            result
+            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
+                Jobs::query_jobs_by_validator(validator)
+            })
         }
     }
 }
@@ -320,23 +315,18 @@ impl Network for MockNetwork {
     async fn next_message(
         &self,
     ) -> Option<<WebbWorkManager as WorkManagerInterface>::ProtocolMessage> {
-        log::info!(target: "gadget", "Waiting for message");
-        let msg = self
-            .peers_rx
+        self.peers_rx
             .get(&self.my_id)?
             .lock_timeout(Duration::from_millis(500))
             .await
             .recv()
-            .await;
-        log::info!(target: "gadget", "Received message");
-        msg
+            .await
     }
 
     async fn send_message(
         &self,
         message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
-        log::info!(target: "gadget", "Sending message");
         let _check_message_has_ids = message.from_account_id.ok_or(Error::MissingNetworkId)?;
         if let Some(peer_id) = message.to_account_id {
             let tx = self
@@ -357,8 +347,6 @@ impl Network for MockNetwork {
                 }
             }
         }
-
-        log::info!(target: "gadget", "Sent message");
         Ok(())
     }
 
@@ -395,7 +383,7 @@ pub async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
 
     let balances = identities
         .iter()
-        .map(|public| (public.clone(), 100u128))
+        .map(|public| (*public, 100u128))
         .collect::<Vec<_>>();
 
     let keygen_networks = MockNetwork::setup(&identities);
@@ -591,7 +579,7 @@ pub mod mock_wrapper_client {
     impl<R: ProvideRuntimeApi<B>, B: Block> ProvideRuntimeApi<B> for MockClient<R, B> {
         type Api = R::Api;
         fn runtime_api(&self) -> ApiRef<Self::Api> {
-            ApiRef::from(self.runtime.runtime_api())
+            self.runtime.runtime_api()
         }
     }
 
