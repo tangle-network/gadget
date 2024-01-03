@@ -47,6 +47,7 @@ use sp_core::ecdsa;
 use sp_io::crypto::ecdsa_generate;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
+use tangle_primitives::jobs::{DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType};
 use tangle_primitives::{
     jobs::{
         DkgKeyType, JobKey, JobSubmission, JobType, JobWithResult, ReportValidatorOffence,
@@ -467,6 +468,7 @@ pub async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
             peer_id: format!("Peer {idx}"),
         };
 
+        // Both the keygen and signing will share a keystore
         let ecdsa_keystore = ECDSAKeyStore::in_memory();
 
         logger.trace("Starting protocol");
@@ -609,5 +611,37 @@ pub mod mock_wrapper_client {
         ) -> sc_client_api::blockchain::Result<StorageEventStream<<B as BlockT>::Hash>> {
             unimplemented!()
         }
+    }
+}
+
+pub fn get_test_jobs(now: u64, n: u8, t: u8) -> Vec<RpcResponseJobsData<AccountId>> {
+    if now == 3 {
+        let identities = (0..n).map(id_to_public).collect::<Vec<_>>();
+        vec![RpcResponseJobsData {
+            job_id: 0,
+            job_type: JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
+                participants: identities.clone(),
+                threshold: t,
+                permitted_caller: None,
+                key_type: DkgKeyType::Ecdsa,
+            }),
+            participants: Some(identities.clone()),
+            threshold: Some(t),
+            key: None,
+        }]
+    } else if now == 30 {
+        let identities = (0..n).map(id_to_public).collect::<Vec<_>>();
+        vec![RpcResponseJobsData {
+            job_id: 1,
+            job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
+                phase_one_id: 0, // Reference the last job at block 3
+                submission: Vec::from("Hello, world!"),
+            }),
+            participants: Some(identities),
+            threshold: Some(t),
+            key: None,
+        }]
+    } else {
+        vec![]
     }
 }

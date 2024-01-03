@@ -1,4 +1,3 @@
-use crate::mock::id_to_public;
 use crate::protocols::state_machine::{CurrentRoundBlame, StateMachineWrapper};
 use crate::protocols::util;
 use crate::protocols::util::PublicKeyGossipMessage;
@@ -27,10 +26,7 @@ use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use tangle_primitives::jobs::{
-    DKGResult, DKGTSSPhaseOneJobType, DkgKeyType, JobId, JobKey, JobResult, JobType,
-    RpcResponseJobsData,
-};
+use tangle_primitives::jobs::{DKGResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 
@@ -93,73 +89,58 @@ where
         /*let jobs = self
         .client
         .query_jobs_by_validator(notification.hash, self.account_id)
-        .await?
-        .into_iter()
-        .filter(|r| matches!(r.job_type, JobType::DKGTSSPhaseOne(..)));*/
+        .await?*/
 
-        const N: usize = 3;
-        const T: usize = N - 1;
-        let jobs = if now == 3 {
-            let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
-            vec![RpcResponseJobsData {
-                job_id: 0,
-                job_type: JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
-                    participants: identities.clone(),
-                    threshold: T as u8,
-                    permitted_caller: None,
-                    key_type: DkgKeyType::Ecdsa,
-                }),
-                participants: Some(identities.clone()),
-                threshold: Some(T as u8),
-                key: None,
-            }]
-        } else {
-            vec![]
-        };
+        const N: u8 = 3;
+        const T: u8 = N - 1;
+        let jobs = crate::mock::get_test_jobs(now, N, T);
 
         let mut ret = vec![];
 
         for job in jobs {
-            let participants = job
-                .job_type
-                .clone()
-                .get_participants()
-                .expect("Should exist for DKG");
-            if participants.contains(&self.account_id) {
-                let task_id = job.job_id.to_be_bytes();
-                let task_id = keccak_256(&task_id);
-                let session_id = 0; // We are not interested in sessions for the ECDSA protocol
-                let retry_id = job_manager
-                    .latest_retry_id(&task_id)
-                    .map(|r| r + 1)
-                    .unwrap_or(0);
+            let job_key = job.job_type.get_job_key();
+            let job_id = job.job_id;
 
-                let user_id_to_account_id_mapping = Arc::new(
-                    participants
-                        .clone()
-                        .into_iter()
-                        .enumerate()
-                        .map(|r| ((r.0 + 1) as UserID, r.1))
-                        .collect(),
-                );
+            if let JobType::DKGTSSPhaseOne(p1_job) = job.job_type {
+                let participants = p1_job.participants;
+                let threshold = p1_job.threshold;
+                if participants.contains(&self.account_id) {
+                    let task_id = job.job_id.to_be_bytes();
+                    let task_id = keccak_256(&task_id);
+                    let session_id = 0; // We are not interested in sessions for the ECDSA protocol
+                    let retry_id = job_manager
+                        .latest_retry_id(&task_id)
+                        .map(|r| r + 1)
+                        .unwrap_or(0);
 
-                let additional_params = MpEcdsaKeygenExtraParams {
-                    i: participants
-                        .iter()
-                        .position(|p| p == &self.account_id)
-                        .expect("Should exist") as u16,
-                    t: job.threshold.expect("T should exist for DKG") as u16,
-                    n: participants.len() as u16,
-                    job_id: job.job_id,
-                    job_key: job.job_type.get_job_key(),
-                    user_id_to_account_id_mapping,
-                };
+                    let user_id_to_account_id_mapping = Arc::new(
+                        participants
+                            .clone()
+                            .into_iter()
+                            .enumerate()
+                            .map(|r| ((r.0 + 1) as UserID, r.1))
+                            .collect(),
+                    );
 
-                let job = self
-                    .create(session_id, now, retry_id, task_id, additional_params)
-                    .await?;
+                    let additional_params = MpEcdsaKeygenExtraParams {
+                        i: participants
+                            .iter()
+                            .position(|p| p == &self.account_id)
+                            .expect("Should exist") as u16
+                            + 1,
+                        t: threshold as u16,
+                        n: participants.len() as u16,
+                        job_id,
+                        job_key,
+                        user_id_to_account_id_mapping,
+                    };
 
-                ret.push(job);
+                    let job = self
+                        .create(session_id, now, retry_id, task_id, additional_params)
+                        .await?;
+
+                    ret.push(job);
+                }
             }
         }
 
@@ -245,11 +226,10 @@ where
 
         Ok(JobBuilder::new()
             .protocol(async move {
-                let protocol_i = i + 1;
                 logger.info(format!(
-                    "Starting Keygen Protocol with params: i={protocol_i}, t={t}, n={n}"
+                    "Starting Keygen Protocol with params: i={i}, t={t}, n={n}"
                 ));
-                let keygen = Keygen::new(protocol_i, t, n).map_err(|err| JobError {
+                let keygen = Keygen::new(i, t, n).map_err(|err| JobError {
                     reason: format!("Keygen setup error: {err:?}"),
                 })?;
                 let (current_round_blame_tx, current_round_blame_rx) =
@@ -300,7 +280,7 @@ where
                     &logger,
                     &local_key,
                     t,
-                    protocol_i,
+                    i,
                     id,
                     broadcast_tx_to_outbound,
                     broadcast_rx_from_gadget,
