@@ -2,6 +2,7 @@ use crate::client_ext::ClientWithApi;
 use crate::network::{RegistantId, ZkNetworkService};
 use crate::protocol::proto_gen::{AsyncProtocolGenerator, ZkProtocolGenerator};
 use crate::protocol::{AdditionalProtocolParams, ZkProtocol};
+use gadget_common::debug_logger::DebugLogger;
 use gadget_common::Error;
 use mpc_net::prod::RustlsCertificate;
 use sp_runtime::traits::Block;
@@ -32,6 +33,7 @@ pub async fn run<
     config: ZkGadgetConfig,
     client: C,
     extra_parameters: T,
+    logger: DebugLogger,
     proto_gen: Gen,
 ) -> Result<(), Error> {
     // Create the zk gadget module
@@ -52,6 +54,7 @@ pub async fn run<
         party_id: config.id,
         additional_params: (),
         client: client.clone(),
+        logger,
         protocol,
         _pd: std::marker::PhantomData,
     };

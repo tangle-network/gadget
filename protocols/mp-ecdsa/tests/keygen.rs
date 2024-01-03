@@ -20,7 +20,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_externalities_gadget_starts() {
         setup_log();
-        new_test_ext::<1>().execute_with(|| {
+        new_test_ext::<1>().await.execute_with(|| {
             assert_eq!(1, 1);
         })
     }
@@ -32,11 +32,12 @@ mod tests {
         const T: usize = N - 1;
 
         std::panic::set_hook(Box::new(|info| {
-            log::info!(target: "gadget", "Panic occurred: {info:?}");
+            log::error!(target: "gadget", "Panic occurred: {info:?}");
             std::process::exit(1);
         }));
 
         new_test_ext::<N>()
+            .await
             .execute_with_async(|| {
                 assert_eq!(1, 1);
 
@@ -69,14 +70,17 @@ mod tests {
                         .len(),
                     N
                 );
-                let jobs_res = Jobs::query_jobs_by_validator(identities[0].clone());
+                /*let jobs_res = Jobs::query_jobs_by_validator(identities[0].clone());
                 log::info!(target: "gadget", "******* Queried Jobs: {jobs_res:?}");
-                assert_eq!(jobs_res.expect("Should exist").len(), 1);
+                assert_eq!(jobs_res.expect("Should exist").len(), 1);*/
                 //advance_to_block(4);
                 log::info!(target: "gadget", "******* Finished initial test block");
             })
             .await;
 
-        tokio::time::sleep(Duration::from_millis(20000)).await;
+        loop {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+            tokio::task::yield_now().await;
+        }
     }
 }

@@ -128,6 +128,15 @@ where
                         panic!("Should be DKGSignature");
                     };
 
+                    let user_id_to_account_id_mapping = Arc::new(
+                        participants
+                            .clone()
+                            .into_iter()
+                            .enumerate()
+                            .map(|r| ((r.0 + 1) as UserID, r.1))
+                            .collect(),
+                    );
+
                     let additional_params = MpEcdsaSigningExtraParams {
                         i: participants
                             .iter()
@@ -139,6 +148,7 @@ where
                         job_key: job.job_type.get_job_key(),
                         key,
                         input_data_to_sign,
+                        user_id_to_account_id_mapping,
                     };
 
                     let job = self
@@ -174,6 +184,10 @@ where
         log::error!(target: "mp-ecdsa", "Error: {error:?}");
     }
 
+    fn logger(&self) -> &DebugLogger {
+        &self.logger
+    }
+
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         WorkManagerConfig {
             interval: Some(crate::constants::signing_worker::JOB_POLL_INTERVAL),
@@ -191,6 +205,7 @@ pub struct MpEcdsaSigningExtraParams {
     job_key: JobKey,
     key: LocalKey<Secp256k1>,
     input_data_to_sign: Vec<u8>,
+    user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
 }
 
 #[async_trait]
@@ -223,18 +238,20 @@ where
         let round_blames = self.round_blames.clone();
         let network = self.network.clone();
 
-        let (i, signers, t, key, input_data_to_sign) = (
+        let (i, signers, t, key, input_data_to_sign, mapping) = (
             additional_params.i,
             additional_params.signers,
             additional_params.t,
             additional_params.key,
             additional_params.input_data_to_sign.clone(),
+            additional_params.user_id_to_account_id_mapping.clone(),
         );
 
         let key_clone = key.clone();
 
         Ok(JobBuilder::new()
             .protocol(async move {
+                // TODO: ensure this is the valid offline i
                 let offline_i = get_offline_i(i, &signers);
 
                 let signing =
@@ -264,6 +281,7 @@ where
                     associated_retry_id,
                     associated_session_id,
                     associated_task_id,
+                    mapping,
                     network,
                 );
 
@@ -309,6 +327,7 @@ where
             .post(async move {
                 // Check to see if there is any blame at the end of the protocol
                 if let Some(blame) = blame.write().await.remove(&associated_task_id) {
+                    // TODO: consider that this blame is offset by +1
                     let blame = blame.borrow();
                     if !blame.blamed_parties.is_empty() {
                         debug_logger_post.error(format!("Blame: {blame:?}"));

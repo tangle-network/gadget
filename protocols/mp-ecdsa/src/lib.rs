@@ -96,18 +96,29 @@ where
     N2: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    let keygen_future = run_keygen(
-        &config,
-        client_keygen,
-        logger.clone(),
-        keystore.clone(),
-        network_keygen,
-    );
+    let config_clone = config.clone();
+    let logger_clone = logger.clone();
+    let keystore_clone = keystore.clone();
 
-    let sign_future = run_sign(&config, client_signing, logger, keystore, network_signing);
+    let keygen_future = tokio::task::spawn(async move {
+        run_keygen(&config, client_keygen, logger, keystore, network_keygen).await
+    });
 
-    tokio::select! {
+    let sign_future = tokio::task::spawn(async move {
+        run_sign(
+            &config_clone,
+            client_signing,
+            logger_clone,
+            keystore_clone,
+            network_signing,
+        )
+        .await
+    });
+
+    let res = tokio::select! {
         res0 = keygen_future => res0,
         res1 = sign_future => res1,
-    }
+    };
+
+    res.map_err(|err| gadget_common::Error::JoinError { err })?
 }

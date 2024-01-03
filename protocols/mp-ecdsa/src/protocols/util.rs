@@ -9,6 +9,8 @@ use gadget_core::job_manager::WorkManagerInterface;
 use round_based::Msg;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -42,6 +44,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+    user_id_mapping: Arc<HashMap<UserID, AccountId>>,
     network: N,
 ) -> (
     futures::channel::mpsc::UnboundedSender<C1>,
@@ -51,9 +54,11 @@ pub fn create_job_manager_to_async_protocol_channel_split<
 ) {
     let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
     let (tx_to_async_proto_2, rx_for_async_proto_2) = tokio::sync::mpsc::unbounded_channel();
+
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
         while let Some(msg) = rx_gadget.recv().await {
+            log::info!(target: "gadget", "[Util] Received message from gadget");
             match bincode2::deserialize::<SplitChannelMessage<C1, C2>>(&msg.payload) {
                 Ok(msg) => match msg {
                     SplitChannelMessage::Channel1(msg) => {
@@ -77,12 +82,16 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     let (tx_to_outbound_1, mut rx_to_outbound_1) = futures::channel::mpsc::unbounded::<C1>();
     let (tx_to_outbound_2, mut rx_to_outbound_2) = tokio::sync::mpsc::unbounded_channel::<C2>();
     let network_clone = network.clone();
+    let user_id_mapping_clone = user_id_mapping.clone();
     // Take the messages the async protocol sends to the outbound channel and send them to the gadget
     tokio::task::spawn(async move {
         let offline_task = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
+                log::info!(target: "gadget", "Sending message to outbound from async proto");
                 let from = msg.sender();
                 let to = msg.receiver();
+                let (to_account_id, from_account_id) =
+                    get_to_and_from_account_id(&user_id_mapping_clone, from, to);
                 let msg = SplitChannelMessage::<C1, C2>::Channel1(msg);
                 let msg = GadgetProtocolMessage {
                     associated_block_id,
@@ -92,8 +101,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     from,
                     to,
                     payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
-                    from_account_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
-                    to_account_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
+                    from_account_id,
+                    to_account_id,
                 };
 
                 if network.send_message(msg).await.is_err() {
@@ -106,6 +115,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
             while let Some(msg) = rx_to_outbound_2.recv().await {
                 let from = msg.sender();
                 let to = msg.receiver();
+                let (to_account_id, from_account_id) =
+                    get_to_and_from_account_id(&user_id_mapping, from, to);
                 let msg = SplitChannelMessage::<C1, C2>::Channel2(msg);
                 let msg = GadgetProtocolMessage {
                     associated_block_id,
@@ -115,8 +126,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     from,
                     to,
                     payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
-                    from_account_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
-                    to_account_id: None, // TODO: Mapping of [task_hash] => UserID => AccountID for mapping userIDs to accountIDs
+                    from_account_id,
+                    to_account_id,
                 };
 
                 if network_clone.send_message(msg).await.is_err() {
@@ -134,6 +145,21 @@ pub fn create_job_manager_to_async_protocol_channel_split<
         tx_to_outbound_2,
         rx_for_async_proto_2,
     )
+}
+
+fn get_to_and_from_account_id(
+    mapping: &HashMap<UserID, AccountId>,
+    from: UserID,
+    to: Option<UserID>,
+) -> (Option<AccountId>, Option<AccountId>) {
+    let from_account_id = mapping.get(&from).cloned();
+    let to_account_id = if let Some(to) = to {
+        mapping.get(&to).cloned()
+    } else {
+        None
+    };
+
+    (to_account_id, from_account_id)
 }
 
 pub trait HasSenderAndReceiver {

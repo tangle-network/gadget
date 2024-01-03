@@ -96,10 +96,13 @@ where
             self.current_round(),
             self.round_blame(),
         ));
+        let now = std::time::Instant::now();
         let result = self.sm.proceed();
 
+        let elapsed = now.elapsed();
         self.logger.trace(format!(
-            "Proceeded through SM. New current round ({:?}), waiting for msgs from parties: ({:?})",
+            "Proceeded through SM in {}ms. New current round ({:?}), waiting for msgs from parties: ({:?})",
+            elapsed.as_millis(),
             self.current_round(),
             self.round_blame(),
         ));

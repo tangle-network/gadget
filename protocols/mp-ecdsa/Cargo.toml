@@ -9,7 +9,7 @@ edition = "2021"
 application = []
 
 [dependencies]
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
 gadget-common = { workspace = true }
 gadget-core = { workspace = true }
 async-trait = { workspace = true }

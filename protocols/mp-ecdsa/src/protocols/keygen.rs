@@ -1,3 +1,4 @@
+use crate::mock::id_to_public;
 use crate::protocols::state_machine::{CurrentRoundBlame, StateMachineWrapper};
 use crate::protocols::util;
 use crate::protocols::util::PublicKeyGossipMessage;
@@ -7,7 +8,7 @@ use curv::elliptic::curves::Secp256k1;
 use frame_support::Hashable;
 use gadget_common::client::{AccountId, ClientWithApi, MpEcdsaClient};
 use gadget_common::debug_logger::DebugLogger;
-use gadget_common::gadget::message::GadgetProtocolMessage;
+use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
 use gadget_common::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
@@ -28,7 +29,10 @@ use sp_application_crypto::RuntimePublic;
 use sp_core::crypto::KeyTypeId;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
+use tangle_primitives::jobs::{
+    DKGResult, DKGTSSPhaseOneJobType, DkgKeyType, JobId, JobKey, JobResult, JobType,
+    RpcResponseJobsData,
+};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 
@@ -88,12 +92,32 @@ where
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, gadget_common::Error> {
         self.logger.info(format!("At finality notification {now}"));
-        let jobs = self
-            .client
-            .query_jobs_by_validator(notification.hash, self.account_id)
-            .await?
-            .into_iter()
-            .filter(|r| matches!(r.job_type, JobType::DKGTSSPhaseOne(..)));
+        /*let jobs = self
+        .client
+        .query_jobs_by_validator(notification.hash, self.account_id)
+        .await?
+        .into_iter()
+        .filter(|r| matches!(r.job_type, JobType::DKGTSSPhaseOne(..)));*/
+
+        const N: usize = 3;
+        const T: usize = N - 1;
+        let jobs = if now == 3 {
+            let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
+            vec![RpcResponseJobsData {
+                job_id: 0,
+                job_type: JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
+                    participants: identities.clone(),
+                    threshold: T as u8,
+                    permitted_caller: None,
+                    key_type: DkgKeyType::Ecdsa,
+                }),
+                participants: Some(identities.clone()),
+                threshold: Some(T as u8),
+                key: None,
+            }]
+        } else {
+            vec![]
+        };
 
         let mut ret = vec![];
 
@@ -112,6 +136,15 @@ where
                     .map(|r| r + 1)
                     .unwrap_or(0);
 
+                let user_id_to_account_id_mapping = Arc::new(
+                    participants
+                        .clone()
+                        .into_iter()
+                        .enumerate()
+                        .map(|r| ((r.0 + 1) as UserID, r.1))
+                        .collect(),
+                );
+
                 let additional_params = MpEcdsaKeygenExtraParams {
                     i: participants
                         .iter()
@@ -121,6 +154,7 @@ where
                     n: participants.len() as u16,
                     job_id: job.job_id,
                     job_key: job.job_type.get_job_key(),
+                    user_id_to_account_id_mapping,
                 };
 
                 let job = self
@@ -150,6 +184,10 @@ where
         log::error!(target: "mp-ecdsa", "Error: {error:?}");
     }
 
+    fn logger(&self) -> &DebugLogger {
+        &self.logger
+    }
+
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         WorkManagerConfig {
             interval: None, // Manual polling
@@ -165,6 +203,7 @@ pub struct MpEcdsaKeygenExtraParams {
     n: u16,
     job_id: JobId,
     job_key: JobKey,
+    user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
 }
 
 #[async_trait]
@@ -176,7 +215,7 @@ impl<
         N: Network,
     > AsyncProtocol for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     type AdditionalParams = MpEcdsaKeygenExtraParams;
     async fn generate_protocol_from(
@@ -199,15 +238,20 @@ where
         let round_blames = self.round_blames.clone();
         let network = self.network.clone();
 
-        let (i, t, n) = (
+        let (i, t, n, mapping) = (
             additional_params.i,
             additional_params.t,
             additional_params.n,
+            additional_params.user_id_to_account_id_mapping,
         );
 
         Ok(JobBuilder::new()
             .protocol(async move {
-                let keygen = Keygen::new(i, t, n).map_err(|err| JobError {
+                let protocol_i = i + 1;
+                logger.info(format!(
+                    "Starting Keygen Protocol with params: i={protocol_i}, t={t}, n={n}"
+                ));
+                let keygen = Keygen::new(protocol_i, t, n).map_err(|err| JobError {
                     reason: format!("Keygen setup error: {err:?}"),
                 })?;
                 let (current_round_blame_tx, current_round_blame_rx) =
@@ -233,11 +277,13 @@ where
                     associated_retry_id,
                     associated_session_id,
                     associated_task_id,
+                    mapping,
                     network,
                 );
 
                 let state_machine_wrapper =
                     StateMachineWrapper::new(keygen, current_round_blame_tx, logger.clone());
+                logger.debug("Beginning AsyncProtocol - KeyGen");
                 let local_key = round_based::AsyncProtocol::new(
                     state_machine_wrapper,
                     keygen_rx_async_proto,
@@ -249,6 +295,8 @@ where
                 .map_err(|err| JobError {
                     reason: format!("Keygen protocol error: {err:?}"),
                 })?;
+
+                logger.debug("Finished AsyncProtocol - KeyGen");
 
                 let job_result = handle_public_key_gossip(
                     &logger,
@@ -268,6 +316,7 @@ where
                 // Check to see if there is any blame at the end of the protocol
                 if let Some(blame) = blame.write().await.remove(&associated_task_id) {
                     let blame = blame.borrow();
+                    // TODO: consider the fact that ids from the async protocol are offset by +1
                     if !blame.blamed_parties.is_empty() {
                         logger_clone.error(format!("Blame: {blame:?}"));
                         return Err(JobError {
@@ -314,6 +363,7 @@ async fn handle_public_key_gossip(
 ) -> Result<JobResult, JobError> {
     let serialized_public_key = local_key.public_key().to_bytes(true).to_vec();
     // Sign the public key with our public key
+    // TODO: Either run inside externalities environment, or, use the DKG method
     let signature = my_id
         .sign(KeyTypeId::default(), &serialized_public_key)
         .ok_or_else(|| JobError {

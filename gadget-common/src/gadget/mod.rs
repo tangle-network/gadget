@@ -1,3 +1,4 @@
+use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::network::Network;
 use crate::gadget::work_manager::WebbWorkManager;
@@ -139,6 +140,7 @@ pub trait WebbGadgetProtocol<B: Block>: Send + Sync {
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<(), Error>;
     async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WebbWorkManager>);
+    fn logger(&self) -> &DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         WorkManagerConfig {
             interval: DEFAULT_POLL_INTERVAL,

@@ -26,9 +26,9 @@ impl MultiThreadedTestExternalities {
                 let payload: InputFunction = resp.payload();
                 let res = test_externalities.execute_with(move || payload());
                 let response = resp.new(res);
-                tx_clone
-                    .try_reply(response)
-                    .expect("Failed to send response");
+                if let Err(err) = tx_clone.try_reply(response) {
+                    log::warn!(target: "gadget", "Failed to reply to callback: {err:?}");
+                }
             }
         });
 

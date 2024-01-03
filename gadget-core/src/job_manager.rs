@@ -401,9 +401,21 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         lock.active_tasks.insert(job);
 
         let mut task = task.lock().take().expect("Should not happen");
+        let logger = self.utility.clone();
         let on_task_finish_handle = self.inner.clone();
         let task = async move {
-            if task.execute().await.is_ok() {
+            let result = task.execute().await;
+            if let Err(err) = result {
+                logger.error(format!(
+                    "[worker] Job {:?} finished with error: {err:?}",
+                    hex::encode(task_hash)
+                ));
+            } else {
+                logger.debug(format!(
+                    "[worker] Job {:?} finished successfully",
+                    hex::encode(task_hash)
+                ));
+
                 on_task_finish_handle
                     .write()
                     .retry_id_tracker

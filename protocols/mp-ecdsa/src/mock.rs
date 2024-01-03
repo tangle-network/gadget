@@ -27,7 +27,7 @@ use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_application_crypto::RuntimePublic;
-use sp_core::H256;
+use sp_core::{Pair, H256};
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -40,6 +40,7 @@ use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
 use gadget_common::keystore::ECDSAKeyStore;
+use gadget_common::locks::TokioMutexExt;
 use gadget_common::Error;
 use gadget_core::job_manager::WorkManagerInterface;
 use sp_core::ecdsa;
@@ -259,9 +260,8 @@ impl ProvideRuntimeApi<crate::mock::Block> for Runtime {
 }
 
 pub fn id_to_public(id: u8) -> ecdsa::Public {
-    let mut raw = [id; 33];
-    raw[0] = 0;
-    ecdsa::Public(raw)
+    let pair = ecdsa::Pair::from_string(&format!("//{id}//password"), None).unwrap();
+    pair.public()
 }
 
 sp_externalities::decl_extension! {
@@ -320,13 +320,23 @@ impl Network for MockNetwork {
     async fn next_message(
         &self,
     ) -> Option<<WebbWorkManager as WorkManagerInterface>::ProtocolMessage> {
-        self.peers_rx.get(&self.my_id)?.lock().await.recv().await
+        log::info!(target: "gadget", "Waiting for message");
+        let msg = self
+            .peers_rx
+            .get(&self.my_id)?
+            .lock_timeout(Duration::from_millis(500))
+            .await
+            .recv()
+            .await;
+        log::info!(target: "gadget", "Received message");
+        msg
     }
 
     async fn send_message(
         &self,
         message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
+        log::info!(target: "gadget", "Sending message");
         let _check_message_has_ids = message.from_account_id.ok_or(Error::MissingNetworkId)?;
         if let Some(peer_id) = message.to_account_id {
             let tx = self
@@ -348,6 +358,7 @@ impl Network for MockNetwork {
             }
         }
 
+        log::info!(target: "gadget", "Sent message");
         Ok(())
     }
 
@@ -375,7 +386,7 @@ fn advance_to_block(block_number: u64) {
 
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
-pub fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
+pub async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
     let mut t = frame_system::GenesisConfig::<Runtime>::default()
         .build_storage()
         .unwrap();
@@ -395,10 +406,10 @@ pub fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
         .unwrap();
 
     let mut ext = sp_io::TestExternalities::new(t);
-    ext.execute_with(|| System::set_block_number(1));
+    /*ext.execute_with(|| System::set_block_number(1));
     ext.execute_with(|| System::on_finalize(1));
     ext.execute_with(|| Jobs::on_finalize(1));
-    ext.execute_with(|| Balances::on_finalize(1));
+    ext.execute_with(|| Balances::on_finalize(1));*/
 
     ext.register_extension(KeystoreExt(Arc::new(MemoryKeystore::new()) as KeystorePtr));
 
@@ -412,18 +423,21 @@ pub fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
     let externalities = ext.clone();
 
     // Spawn a thread that sends a finality notification whenever it detects a change in block number
-    std::thread::spawn(move || {
+    tokio::task::spawn(async move {
         let mut prev: Option<u64> = None;
         loop {
-            let number = externalities.execute_with(move || {
-                let number = System::block_number();
-                System::finalize();
-                advance_to_block(number + 1);
-                number + 1
-            });
+            let number = externalities
+                .execute_with_async(move || {
+                    let number = System::block_number();
+                    System::finalize();
+                    advance_to_block(number + 1);
+                    number + 1
+                })
+                .await;
             // log::info!(target: "gadget", "Current block number: {number}");
             if prev.is_none() || prev.unwrap() != number {
                 prev = Some(number);
+                log::info!(target: "gadget", "Creating finality notification {number}");
 
                 let lock = sinks.lock();
                 for sink in lock.iter() {
@@ -436,7 +450,6 @@ pub fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
                         header,
                         stale_heads: vec![],
                     };
-                    log::info!(target: "gadget", "Creating finality notification {}", summary.header.number);
 
                     let notification = FinalityNotification::from_summary(summary, faux_sink);
                     if sink.unbounded_send(notification).is_err() {
@@ -445,7 +458,7 @@ pub fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
                 }
             }
 
-            std::thread::sleep(Duration::from_millis(2000));
+            tokio::time::sleep(Duration::from_millis(2000)).await;
         }
     });
 
@@ -456,9 +469,9 @@ pub fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
         .enumerate()
     {
         let mock_client_keygen =
-            mock_wrapper_client::MockClient::new(Runtime, finality_notification_txs.clone());
+            mock_wrapper_client::MockClient::new(Runtime, finality_notification_txs.clone()).await;
         let mock_client_signing =
-            mock_wrapper_client::MockClient::new(Runtime, finality_notification_txs.clone());
+            mock_wrapper_client::MockClient::new(Runtime, finality_notification_txs.clone()).await;
 
         let protocol_config = MpEcdsaProtocolConfig { account_id };
 
@@ -481,7 +494,7 @@ pub fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
             )
             .await
             {
-                log::error!("Error running protocol: {err:?}");
+                log::error!("Error running test protocol: {err:?}");
             }
         };
 
@@ -498,6 +511,8 @@ fn mock_pub_key() -> ecdsa::Public {
 pub mod mock_wrapper_client {
     use async_trait::async_trait;
     use futures::StreamExt;
+    use gadget_common::locks::TokioMutexExt;
+    use gadget_common::Header;
     use gadget_core::gadget::substrate::Client;
     use sc_client_api::{
         BlockchainEvents, FinalityNotification, FinalityNotifications, ImportNotifications,
@@ -507,6 +522,7 @@ pub mod mock_wrapper_client {
     use sp_api::{ApiRef, BlockT, ProvideRuntimeApi};
     use sp_runtime::traits::Block;
     use std::sync::Arc;
+    use std::time::Duration;
 
     #[derive(Clone)]
     pub struct MockClient<R, B: Block> {
@@ -518,7 +534,7 @@ pub mod mock_wrapper_client {
     }
 
     impl<R, B: Block> MockClient<R, B> {
-        pub fn new(
+        pub async fn new(
             runtime: R,
             finality_notification_txs: Arc<
                 parking_lot::Mutex<Vec<TracingUnboundedSender<FinalityNotification<B>>>>,
@@ -527,34 +543,42 @@ pub mod mock_wrapper_client {
             let runtime = Arc::new(runtime);
             let finality_notification_stream = Arc::new(tokio::sync::Mutex::new(None));
 
-            Self {
+            let this = Self {
                 runtime,
                 finality_notification_stream,
                 latest_finality_notification: tokio::sync::Mutex::new(None).into(),
                 finality_notification_txs,
-            }
+            };
+
+            *this
+                .finality_notification_stream
+                .lock_timeout(Duration::from_millis(500))
+                .await = Some(this.finality_notification_stream());
+            this
         }
     }
 
     #[async_trait]
-    impl<R: Send + Sync> Client<crate::mock::Block> for MockClient<R, crate::mock::Block> {
-        async fn get_next_finality_notification(
-            &self,
-        ) -> Option<FinalityNotification<crate::mock::Block>> {
-            let mut lock = self.finality_notification_stream.lock().await;
-            if lock.is_none() {
-                let stream = self.finality_notification_stream();
-                *lock = Some(stream);
-            }
-            let next = lock.as_mut()?.next().await;
-            *self.latest_finality_notification.lock().await = next.clone();
+    impl<R: Send + Sync, B: Block> Client<B> for MockClient<R, B> {
+        async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>> {
+            let mut lock = self
+                .finality_notification_stream
+                .lock_timeout(Duration::from_millis(500))
+                .await;
+            let next = lock.as_mut().expect("Should exist").next().await;
+            log::trace!(target: "gadget", "Latest Finality Notification: {:?}", next.as_ref().map(|r| r.header.number()));
+            *self
+                .latest_finality_notification
+                .lock_timeout(Duration::from_millis(500))
+                .await = next.clone();
             next
         }
 
-        async fn get_latest_finality_notification(
-            &self,
-        ) -> Option<FinalityNotification<crate::mock::Block>> {
-            let lock = self.latest_finality_notification.lock().await;
+        async fn get_latest_finality_notification(&self) -> Option<FinalityNotification<B>> {
+            let lock = self
+                .latest_finality_notification
+                .lock_timeout(Duration::from_millis(500))
+                .await;
             if let Some(latest) = lock.clone() {
                 Some(latest)
             } else {
@@ -571,23 +595,21 @@ pub mod mock_wrapper_client {
         }
     }
 
-    impl<R> BlockchainEvents<crate::mock::Block> for MockClient<R, crate::mock::Block> {
-        fn import_notification_stream(&self) -> ImportNotifications<crate::mock::Block> {
+    impl<R, B: Block> BlockchainEvents<B> for MockClient<R, B> {
+        fn import_notification_stream(&self) -> ImportNotifications<B> {
             let (sink, stream) = tracing_unbounded("import_notification_stream", 1024);
             // We are not interested in block import notifications for tests
             std::mem::forget(sink);
             stream
         }
 
-        fn every_import_notification_stream(&self) -> ImportNotifications<crate::mock::Block> {
+        fn every_import_notification_stream(&self) -> ImportNotifications<B> {
             unimplemented!()
         }
 
-        fn finality_notification_stream(&self) -> FinalityNotifications<crate::mock::Block> {
-            let (sink, stream) = tracing_unbounded::<FinalityNotification<crate::mock::Block>>(
-                "finality_notification_stream",
-                1024,
-            );
+        fn finality_notification_stream(&self) -> FinalityNotifications<B> {
+            let (sink, stream) =
+                tracing_unbounded::<FinalityNotification<B>>("finality_notification_stream", 1024);
             self.finality_notification_txs.lock().push(sink);
             stream
         }
@@ -596,9 +618,7 @@ pub mod mock_wrapper_client {
             &self,
             _filter_keys: Option<&[StorageKey]>,
             _child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
-        ) -> sc_client_api::blockchain::Result<
-            StorageEventStream<<crate::mock::Block as BlockT>::Hash>,
-        > {
+        ) -> sc_client_api::blockchain::Result<StorageEventStream<<B as BlockT>::Hash>> {
             unimplemented!()
         }
     }

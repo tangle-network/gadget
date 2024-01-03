@@ -10,3 +10,4 @@ parking_lot = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt-multi-thread", "macros"] }
 sp-io = { workspace = true }
+log = { workspace = true }
