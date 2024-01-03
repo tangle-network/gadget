@@ -25,7 +25,7 @@ mod tests {
         })
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
     async fn test_externalities_keygen() {
         setup_log();
         const N: usize = 3;
