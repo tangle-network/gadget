@@ -62,17 +62,17 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                 Ok(msg) => match msg {
                     SplitChannelMessage::Channel1(msg) => {
                         if tx_to_async_proto_1.unbounded_send(Ok(msg)).is_err() {
-                            log::error!("Failed to send message to protocol");
+                            log::error!(target: "gadget", "Failed to send message to protocol");
                         }
                     }
                     SplitChannelMessage::Channel2(msg) => {
                         if tx_to_async_proto_2.send(msg).is_err() {
-                            log::error!("Failed to send message to protocol");
+                            log::error!(target: "gadget", "Failed to send message to protocol");
                         }
                     }
                 },
                 Err(err) => {
-                    log::error!("Failed to deserialize message: {err:?}");
+                    log::error!(target: "gadget", "Failed to deserialize message: {err:?}");
                 }
             }
         }
@@ -103,8 +103,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     to_account_id,
                 };
 
-                if network.send_message(msg).await.is_err() {
-                    log::error!("Failed to send message to outbound");
+                if let Err(err) = network.send_message(msg).await {
+                    log::error!(target:"gadget", "Failed to send message to outbound: {err:?}");
                 }
             }
         };
@@ -128,8 +128,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     to_account_id,
                 };
 
-                if network_clone.send_message(msg).await.is_err() {
-                    log::error!("Failed to send message to outbound");
+                if let Err(err) = network_clone.send_message(msg).await {
+                    log::error!(target:"gadget", "Failed to send message to outbound: {err:?}");
                 }
             }
         };

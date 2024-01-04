@@ -6,13 +6,13 @@ use async_trait::async_trait;
 use curv::arithmetic::Converter;
 use curv::elliptic::curves::Secp256k1;
 use curv::BigInt;
-use gadget_common::client::{AccountId, ClientWithApi, MpEcdsaClient};
+use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
 use gadget_common::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
-use gadget_common::keystore::KeystoreBackend;
+use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification, FinalityNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
@@ -32,12 +32,16 @@ use sp_core::ecdsa::Signature;
 use sp_core::keccak_256;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGSignatureResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
+use tangle_primitives::jobs::{
+    DKGTSSSignatureResult, DigitalSignatureType, JobId, JobResult, JobType,
+};
+use tangle_primitives::roles::RoleType;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 
 pub struct MpEcdsaSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
-    client: MpEcdsaClient<B, BE, KBE, C>,
+    client: JobsClient<B, BE, C>,
+    key_store: ECDSAKeyStore<KBE>,
     network: N,
     round_blames: Arc<
         RwLock<
@@ -54,8 +58,9 @@ pub struct MpEcdsaSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
 pub async fn create_protocol<B, BE, KBE, C, N>(
     config: &MpEcdsaProtocolConfig,
     logger: DebugLogger,
-    client: MpEcdsaClient<B, BE, KBE, C>,
+    client: JobsClient<B, BE, C>,
     network: N,
+    key_store: ECDSAKeyStore<KBE>,
 ) -> MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
     B: Block,
@@ -63,11 +68,12 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, gadget_common::client::AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     MpEcdsaSigningProtocol {
         client,
         network,
+        key_store,
         round_blames: Arc::new(Default::default()),
         logger,
         account_id: config.account_id,
@@ -91,23 +97,21 @@ where
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, gadget_common::Error> {
-        /*let jobs = self
-        .client
-        .query_jobs_by_validator(notification.hash, self.account_id)
-        .await?;*/
-
-        let jobs = crate::mock::get_test_jobs(now, 3, 2);
+        let jobs = self
+            .client
+            .query_jobs_by_validator(notification.hash, self.account_id)
+            .await?;
 
         let mut ret = vec![];
 
         for job in jobs {
             let job_id = job.job_id;
-            let job_key = job.job_type.get_job_key();
             let participants = job.participants.clone();
-
+            let role_type = job.job_type.get_role_type();
             if let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type {
                 let input_data_to_sign = p2_job.submission;
                 let previous_job_id = p2_job.phase_one_id;
+
                 let participants = participants.expect("Should exist for stage 2 signing");
                 let threshold = job.threshold.expect("T should exist for stage 2 signing") as u16;
 
@@ -123,13 +127,11 @@ where
                         .unwrap_or(0);
 
                     if let Some(key) =
-                        self.client
-                            .key_store
-                            .get(&previous_job_id)
-                            .await
-                            .map_err(|err| gadget_common::Error::ClientError {
+                        self.key_store.get(&previous_job_id).await.map_err(|err| {
+                            gadget_common::Error::ClientError {
                                 err: err.to_string(),
-                            })?
+                            }
+                        })?
                     {
                         let user_id_to_account_id_mapping = Arc::new(
                             participants
@@ -149,7 +151,7 @@ where
                             t: threshold,
                             signers: (0..participants.len()).map(|r| (r + 1) as u16).collect(),
                             job_id,
-                            job_key,
+                            role_type,
                             key,
                             input_data_to_sign,
                             user_id_to_account_id_mapping,
@@ -207,7 +209,7 @@ pub struct MpEcdsaSigningExtraParams {
     t: u16,
     signers: Vec<u16>,
     job_id: JobId,
-    job_key: JobKey,
+    role_type: RoleType,
     key: LocalKey<Secp256k1>,
     input_data_to_sign: Vec<u8>,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
@@ -341,8 +343,9 @@ where
                 // Submit the protocol output to the blockchain
                 if let Some(signature) = protocol_output_clone.lock().await.take() {
                     let signature: Vec<u8> = signature.encode();
-                    let job_result = JobResult::DKGPhaseTwo(DKGSignatureResult {
-                        key_type: DkgKeyType::Ecdsa,
+
+                    let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
+                        signature_type: DigitalSignatureType::Ecdsa,
                         data: additional_params.input_data_to_sign,
                         signature,
                         signing_key: public_key_bytes,
@@ -350,7 +353,7 @@ where
 
                     client
                         .submit_job_result(
-                            additional_params.job_key,
+                            additional_params.role_type,
                             additional_params.job_id,
                             job_result,
                         )

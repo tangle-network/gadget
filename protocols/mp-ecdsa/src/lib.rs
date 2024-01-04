@@ -1,4 +1,4 @@
-use gadget_common::client::{AccountId, ClientWithApi};
+use gadget_common::client::{AccountId, ClientWithApi, PalletSubmitter};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::network::Network;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
@@ -26,6 +26,7 @@ pub async fn run_keygen<B, BE, KBE, C, N>(
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
     network: N,
+    pallet_tx: Arc<dyn PalletSubmitter>,
 ) -> Result<(), gadget_common::Error>
 where
     B: Block,
@@ -39,9 +40,16 @@ where
 
     let client_inner = Arc::new(client_inner);
     let client =
-        gadget_common::client::create_client(client_inner.clone(), logger.clone(), keystore).await;
-    let protocol =
-        protocols::keygen::create_protocol(config, client, network.clone(), logger.clone()).await;
+        gadget_common::client::create_client(client_inner.clone(), logger.clone(), pallet_tx)
+            .await?;
+    let protocol = protocols::keygen::create_protocol(
+        config,
+        client,
+        network.clone(),
+        logger.clone(),
+        keystore,
+    )
+    .await;
 
     logger.info("Done creating keygen protocol");
 
@@ -55,6 +63,7 @@ pub async fn run_sign<B, BE, KBE, C, N>(
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
     network: N,
+    pallet_tx: Arc<dyn PalletSubmitter>,
 ) -> Result<(), gadget_common::Error>
 where
     B: Block,
@@ -68,9 +77,11 @@ where
 
     let client_inner = Arc::new(client_inner);
     let client =
-        gadget_common::client::create_client(client_inner.clone(), logger.clone(), keystore).await;
+        gadget_common::client::create_client(client_inner.clone(), logger.clone(), pallet_tx)
+            .await?;
     let protocol =
-        protocols::sign::create_protocol(config, logger.clone(), client, network.clone()).await;
+        protocols::sign::create_protocol(config, logger.clone(), client, network.clone(), keystore)
+            .await;
 
     logger.info("Done creating sign protocol");
 
@@ -78,7 +89,8 @@ where
     Ok(())
 }
 
-pub async fn run<B, BE, KBE, C, N, N2>(
+#[allow(clippy::too_many_arguments)]
+pub async fn run<B, BE, KBE, C, N, N2, Tx>(
     config: MpEcdsaProtocolConfig,
     client_keygen: C,
     client_signing: C,
@@ -86,6 +98,7 @@ pub async fn run<B, BE, KBE, C, N, N2>(
     keystore: ECDSAKeyStore<KBE>,
     network_keygen: N,
     network_signing: N2,
+    pallet_tx: Tx,
 ) -> Result<(), gadget_common::Error>
 where
     B: Block,
@@ -94,17 +107,27 @@ where
     KBE: KeystoreBackend,
     N: Network,
     N2: Network,
+    Tx: PalletSubmitter,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
+    let pallet_tx = Arc::new(pallet_tx) as Arc<dyn PalletSubmitter>;
     let keygen_future = run_keygen(
         &config,
         client_keygen,
         logger.clone(),
         keystore.clone(),
         network_keygen,
+        pallet_tx.clone(),
     );
 
-    let sign_future = run_sign(&config, client_signing, logger, keystore, network_signing);
+    let sign_future = run_sign(
+        &config,
+        client_signing,
+        logger,
+        keystore,
+        network_signing,
+        pallet_tx,
+    );
 
     tokio::select! {
         res0 = keygen_future => res0,

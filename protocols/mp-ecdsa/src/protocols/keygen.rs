@@ -5,13 +5,13 @@ use crate::MpEcdsaProtocolConfig;
 use async_trait::async_trait;
 use curv::elliptic::curves::Secp256k1;
 use frame_support::Hashable;
-use gadget_common::client::{AccountId, ClientWithApi, MpEcdsaClient};
+use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
 use gadget_common::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
-use gadget_common::keystore::KeystoreBackend;
+use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification, FinalityNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
@@ -26,12 +26,16 @@ use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
+use tangle_primitives::jobs::{
+    DKGTSSKeySubmissionResult, DigitalSignatureType, JobId, JobResult, JobType,
+};
+use tangle_primitives::roles::RoleType;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 
 pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
-    client: MpEcdsaClient<B, BE, KBE, C>,
+    client: JobsClient<B, BE, C>,
+    key_store: ECDSAKeyStore<KBE>,
     network: N,
     round_blames: Arc<
         RwLock<
@@ -47,9 +51,10 @@ pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
 
 pub async fn create_protocol<B, BE, KBE, C, N>(
     config: &MpEcdsaProtocolConfig,
-    client: MpEcdsaClient<B, BE, KBE, C>,
+    client: JobsClient<B, BE, C>,
     network: N,
     logger: DebugLogger,
+    key_store: ECDSAKeyStore<KBE>,
 ) -> MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
     B: Block,
@@ -62,6 +67,7 @@ where
     MpEcdsaKeygenProtocol {
         client,
         network,
+        key_store,
         round_blames: Arc::new(RwLock::new(HashMap::new())),
         logger,
         account_id: config.account_id,
@@ -81,28 +87,25 @@ where
 {
     async fn get_next_jobs(
         &self,
-        _notification: &FinalityNotification<B>,
+        notification: &FinalityNotification<B>,
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, gadget_common::Error> {
         self.logger.info(format!("At finality notification {now}"));
-        /*let jobs = self
-        .client
-        .query_jobs_by_validator(notification.hash, self.account_id)
-        .await?*/
-
-        const N: u8 = 3;
-        const T: u8 = N - 1;
-        let jobs = crate::mock::get_test_jobs(now, N, T);
+        let jobs = self
+            .client
+            .query_jobs_by_validator(notification.hash, self.account_id)
+            .await?;
 
         let mut ret = vec![];
 
         for job in jobs {
-            let job_key = job.job_type.get_job_key();
             let job_id = job.job_id;
+            let role_type = job.job_type.get_role_type();
 
             if let JobType::DKGTSSPhaseOne(p1_job) = job.job_type {
                 let participants = p1_job.participants;
+
                 let threshold = p1_job.threshold;
                 if participants.contains(&self.account_id) {
                     let task_id = job.job_id.to_be_bytes();
@@ -130,8 +133,8 @@ where
                             + 1,
                         t: threshold as u16,
                         n: participants.len() as u16,
+                        role_type,
                         job_id,
-                        job_key,
                         user_id_to_account_id_mapping,
                     };
 
@@ -181,7 +184,7 @@ pub struct MpEcdsaKeygenExtraParams {
     t: u16,
     n: u16,
     job_id: JobId,
-    job_key: JobKey,
+    role_type: RoleType,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
 }
 
@@ -206,7 +209,7 @@ where
         protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
-        let key_store = self.client.key_store.clone();
+        let key_store = self.key_store.clone();
         let blame = self.round_blames.clone();
         let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
         let protocol_output_clone = protocol_output.clone();
@@ -314,7 +317,7 @@ where
 
                     client
                         .submit_job_result(
-                            additional_params.job_key,
+                            additional_params.role_type,
                             additional_params.job_id,
                             job_result,
                         )
@@ -395,12 +398,12 @@ async fn handle_public_key_gossip(
         .map(|r| r.1.identity())
         .collect();
 
-    Ok(JobResult::DKGPhaseOne(DKGResult {
-        key_type: DkgKeyType::Ecdsa,
+    Ok(JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
+        signature_type: DigitalSignatureType::Ecdsa,
         key: serialized_public_key,
         participants,
-        threshold: threshold as _,
         signatures,
+        threshold: threshold as _,
     }))
 }
 

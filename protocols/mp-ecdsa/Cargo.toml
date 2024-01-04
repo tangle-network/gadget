@@ -20,6 +20,7 @@ itertools = { workspace = true }
 bincode2 = { workspace = true }
 linked-hash-map = { workspace = true }
 k256 = { workspace = true }
+anyhow = { workspace = true }
 
 pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
 pallet-jobs = { workspace = true, features = ["std"] }

@@ -35,6 +35,7 @@ use std::time::Duration;
 pub type Balance = u128;
 pub type BlockNumber = u64;
 
+use crate::mock::mock_wrapper_client::TestExternalitiesPalletSubmitter;
 use crate::MpEcdsaProtocolConfig;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::network::Network;
@@ -47,17 +48,15 @@ use sp_core::ecdsa;
 use sp_io::crypto::ecdsa_generate;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
-use tangle_primitives::jobs::{DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType};
+use tangle_primitives::jobs::traits::{JobToFee, MPCHandler};
+use tangle_primitives::roles::traits::RolesHandler;
+use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tangle_primitives::{
     jobs::{
-        DkgKeyType, JobKey, JobSubmission, JobType, JobWithResult, ReportValidatorOffence,
-        RpcResponseJobsData, ValidatorOffenceType,
+        JobSubmission, JobType, JobWithResult, ReportValidatorOffence, RpcResponseJobsData,
+        ValidatorOffenceType,
     },
     roles::{RoleTypeMetadata, TssRoleMetadata},
-    traits::{
-        jobs::{JobToFee, MPCHandler},
-        roles::RolesHandler,
-    },
 };
 use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -163,7 +162,7 @@ impl JobToFee<AccountId, BlockNumber> for MockJobToFeeHandler {
 pub struct MockRolesHandler;
 
 impl RolesHandler<AccountId> for MockRolesHandler {
-    fn is_validator(address: AccountId, _role_type: JobKey) -> bool {
+    fn is_validator(address: AccountId, _role_type: RoleType) -> bool {
         let validators = (0..8).map(id_to_public).collect::<Vec<_>>();
         validators.contains(&address)
     }
@@ -172,14 +171,14 @@ impl RolesHandler<AccountId> for MockRolesHandler {
         Ok(())
     }
 
-    fn get_validator_metadata(address: AccountId, _job_key: JobKey) -> Option<RoleTypeMetadata> {
+    fn get_validator_metadata(address: AccountId, _job_key: RoleType) -> Option<RoleTypeMetadata> {
         let mock_err_account = id_to_public(100);
         if address == mock_err_account {
             None
         } else {
             Some(RoleTypeMetadata::Tss(TssRoleMetadata {
-                key_type: DkgKeyType::Ecdsa,
-                authority_key: mock_pub_key().to_raw_vec(),
+                role_type: ThresholdSignatureRoleType::TssGG20,
+                authority_key: RuntimePublic::to_raw_vec(&mock_pub_key()),
             }))
         }
     }
@@ -232,7 +231,7 @@ construct_runtime!(
 
 sp_api::mock_impl_runtime_apis! {
     impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId> for Runtime {
-        fn query_jobs_by_validator(validator: AccountId) -> Result<Vec<RpcResponseJobsData<AccountId>>, String> {
+        fn query_jobs_by_validator(&self, validator: AccountId) -> Option<Vec<RpcResponseJobsData<AccountId>>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
                 Jobs::query_jobs_by_validator(validator)
             })
@@ -248,16 +247,19 @@ impl Default for ExtBuilder {
     }
 }
 
-impl ProvideRuntimeApi<crate::mock::Block> for Runtime {
+impl ProvideRuntimeApi<Block> for Runtime {
     type Api = Self;
     fn runtime_api(&self) -> ApiRef<Self::Api> {
         ApiRef::from(*self)
     }
 }
 
+pub fn id_to_pair(id: u8) -> ecdsa::Pair {
+    ecdsa::Pair::from_string(&format!("//{id}//password"), None).unwrap()
+}
+
 pub fn id_to_public(id: u8) -> ecdsa::Public {
-    let pair = ecdsa::Pair::from_string(&format!("//{id}//password"), None).unwrap();
-    pair.public()
+    id_to_pair(id).public()
 }
 
 sp_externalities::decl_extension! {
@@ -361,7 +363,7 @@ pub type MockBackend = sc_client_api::in_mem::Backend<Block>;
 static TEST_EXTERNALITIES: parking_lot::Mutex<Option<MultiThreadedTestExternalities>> =
     parking_lot::Mutex::new(None);
 
-fn advance_to_block(block_number: u64) {
+pub fn advance_to_block(block_number: u64) {
     while System::block_number() < block_number {
         System::on_finalize(System::block_number());
         Jobs::on_finalize(System::block_number());
@@ -380,7 +382,8 @@ pub async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
         .build_storage()
         .unwrap();
 
-    let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
+    let pairs = (0..N).map(|i| id_to_pair(i as u8)).collect::<Vec<_>>();
+    let identities = pairs.iter().map(|pair| pair.public()).collect::<Vec<_>>();
 
     let balances = identities
         .iter()
@@ -447,11 +450,11 @@ pub async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
                 }
             }
 
-            tokio::time::sleep(Duration::from_millis(2000)).await;
+            tokio::time::sleep(Duration::from_millis(6000)).await;
         }
     });
 
-    for (idx, ((account_id, keygen_network), signing_network)) in identities
+    for (idx, ((identity_pair, keygen_network), signing_network)) in pairs
         .into_iter()
         .zip(keygen_networks)
         .zip(signing_networks)
@@ -462,29 +465,35 @@ pub async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
         let mock_client_signing =
             mock_wrapper_client::MockClient::new(Runtime, finality_notification_txs.clone()).await;
 
+        let account_id = identity_pair.public();
         let protocol_config = MpEcdsaProtocolConfig { account_id };
 
         let logger = DebugLogger {
             peer_id: format!("Peer {idx}"),
         };
 
-        // Both the keygen and signing will share a keystore
-        let ecdsa_keystore = ECDSAKeyStore::in_memory();
+        let pallet_tx = TestExternalitiesPalletSubmitter {
+            id: account_id,
+            ext: ext.clone(),
+        };
 
+        // Both the keygen and signing will share a keystore
+        let ecdsa_keystore = ECDSAKeyStore::in_memory(identity_pair);
         logger.trace("Starting protocol");
         let task = async move {
-            if let Err(err) = crate::run::<_, MockBackend, _, _, _, _>(
+            if let Err(err) = crate::run::<_, MockBackend, _, _, _, _, _>(
                 protocol_config,
                 mock_client_keygen,
                 mock_client_signing,
-                logger,
+                logger.clone(),
                 ecdsa_keystore,
                 keygen_network,
                 signing_network,
+                pallet_tx,
             )
             .await
             {
-                log::error!("Error running test protocol: {err:?}");
+                logger.error(format!("Error running test protocol: {err:?}"));
             }
         };
 
@@ -499,8 +508,10 @@ fn mock_pub_key() -> ecdsa::Public {
 }
 
 pub mod mock_wrapper_client {
+    use crate::mock::RuntimeOrigin;
     use async_trait::async_trait;
     use futures::StreamExt;
+    use gadget_common::client::{AccountId, PalletSubmitter};
     use gadget_common::locks::TokioMutexExt;
     use gadget_common::Header;
     use gadget_core::gadget::substrate::Client;
@@ -513,6 +524,9 @@ pub mod mock_wrapper_client {
     use sp_runtime::traits::Block;
     use std::sync::Arc;
     use std::time::Duration;
+    use tangle_primitives::jobs::{JobId, JobResult};
+    use tangle_primitives::roles::RoleType;
+    use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
 
     #[derive(Clone)]
     pub struct MockClient<R, B: Block> {
@@ -612,36 +626,39 @@ pub mod mock_wrapper_client {
             unimplemented!()
         }
     }
-}
 
-pub fn get_test_jobs(now: u64, n: u8, t: u8) -> Vec<RpcResponseJobsData<AccountId>> {
-    if now == 3 {
-        let identities = (0..n).map(id_to_public).collect::<Vec<_>>();
-        vec![RpcResponseJobsData {
-            job_id: 0,
-            job_type: JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
-                participants: identities.clone(),
-                threshold: t,
-                permitted_caller: None,
-                key_type: DkgKeyType::Ecdsa,
-            }),
-            participants: Some(identities.clone()),
-            threshold: Some(t),
-            key: None,
-        }]
-    } else if now == 30 {
-        let identities = (0..n).map(id_to_public).collect::<Vec<_>>();
-        vec![RpcResponseJobsData {
-            job_id: 1,
-            job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
-                phase_one_id: 0, // Reference the last job at block 3
-                submission: Vec::from("Hello, world!"),
-            }),
-            participants: Some(identities),
-            threshold: Some(t),
-            key: None,
-        }]
-    } else {
-        vec![]
+    pub struct TestExternalitiesPalletSubmitter {
+        pub ext: MultiThreadedTestExternalities,
+        pub id: AccountId,
+    }
+
+    #[async_trait]
+    impl PalletSubmitter for TestExternalitiesPalletSubmitter {
+        async fn submit_job_result(
+            &self,
+            role_type: RoleType,
+            job_id: JobId,
+            result: JobResult,
+        ) -> Result<(), gadget_common::Error> {
+            let id = self.id;
+            self.ext
+                .execute_with_async(move || {
+                    let origin = RuntimeOrigin::signed(id);
+                    if let Err(err) =
+                        crate::mock::Jobs::submit_job_result(origin, role_type, job_id, result)
+                    {
+                        let err = format!("Pallet tx error: {err:?}");
+                        if err.contains("JobNotFound") {
+                            // Job has already been submitted (assumption only for tests)
+                            Ok(())
+                        } else {
+                            Err(gadget_common::Error::ClientError { err })
+                        }
+                    } else {
+                        Ok(())
+                    }
+                })
+                .await
+        }
     }
 }

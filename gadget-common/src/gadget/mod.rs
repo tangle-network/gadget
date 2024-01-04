@@ -81,12 +81,16 @@ impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> SubstrateGadg
             for job in jobs {
                 let (remote, protocol) = job;
                 let task_id = remote.associated_task_id;
+                if self.job_manager.job_exists(&task_id) {
+                    // log::warn!(target: "gadget", "The job requested for initialization is already running or enqueued, skipping submission");
+                    continue;
+                }
 
                 if let Err(err) =
                     self.job_manager
                         .push_task(task_id, false, Arc::new(remote), protocol)
                 {
-                    log::error!("Failed to push task to job manager: {err:?}");
+                    log::error!(target: "gadget", "Failed to push task to job manager: {err:?}");
                 }
             }
         }

@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use parking_lot::RwLock;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use sp_core::ecdsa::Pair;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::JobId;
@@ -9,13 +10,21 @@ use tangle_primitives::jobs::JobId;
 #[derive(Clone)]
 pub struct ECDSAKeyStore<BE: KeystoreBackend> {
     backend: BE,
+    pair: Pair,
 }
 
 impl ECDSAKeyStore<InMemoryBackend> {
-    pub fn in_memory() -> Self {
+    pub fn in_memory(pair: Pair) -> Self {
         ECDSAKeyStore {
             backend: InMemoryBackend::new(),
+            pair,
         }
+    }
+}
+
+impl<BE: KeystoreBackend> ECDSAKeyStore<BE> {
+    pub fn pair(&self) -> &Pair {
+        &self.pair
     }
 }
 

@@ -20,6 +20,7 @@ std = [
 gadget-core = { workspace = true, features = ["substrate"] }
 tokio = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+auto_impl = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }
@@ -29,6 +30,8 @@ sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 hex = { workspace = true }
 bincode2 = { workspace = true }
+subxt = { workspace = true, features = ["substrate-compat"] }
+anyhow = { workspace = true }
 
 sp-api = { workspace = true, default-features = false }
 tangle-primitives = { workspace = true, default-features = false }
