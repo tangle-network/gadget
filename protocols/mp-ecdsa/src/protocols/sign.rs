@@ -33,7 +33,11 @@ use sp_core::keccak_256;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGSignatureResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
+use tangle_primitives::jobs::DigitalSignatureType;
+use tangle_primitives::{
+    jobs::{DKGTSSSignatureResult, JobId, JobResult, JobType},
+    roles::RoleType,
+};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 
@@ -137,7 +141,7 @@ where
                         t: job.threshold.expect("T should exist for stage 2 signing") as u16,
                         signers: (0..participants.len()).map(|r| r as u16).collect(),
                         job_id: job.job_id,
-                        job_key: job.job_type.get_job_key(),
+                        role_type: job.job_type.get_role_type(),
                         key,
                         input_data_to_sign,
                     };
@@ -189,7 +193,7 @@ pub struct MpEcdsaSigningExtraParams {
     t: u16,
     signers: Vec<u16>,
     job_id: JobId,
-    job_key: JobKey,
+    role_type: RoleType,
     key: LocalKey<Secp256k1>,
     input_data_to_sign: Vec<u8>,
 }
@@ -322,8 +326,8 @@ where
                 // Submit the protocol output to the blockchain
                 if let Some(signature) = protocol_output_clone.lock().await.take() {
                     let signature: Vec<u8> = signature.encode();
-                    let job_result = JobResult::DKGPhaseTwo(DKGSignatureResult {
-                        key_type: DkgKeyType::Ecdsa,
+                    let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
+                        signature_type: DigitalSignatureType::Ecdsa,
                         data: additional_params.input_data_to_sign,
                         signature,
                         signing_key: key_clone.public_key().to_bytes(true).to_vec(),
@@ -331,7 +335,7 @@ where
 
                     client
                         .submit_job_result(
-                            additional_params.job_key,
+                            additional_params.role_type,
                             additional_params.job_id,
                             job_result,
                         )

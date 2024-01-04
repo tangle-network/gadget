@@ -28,7 +28,11 @@ use sp_core::crypto::KeyTypeId;
 use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
+use tangle_primitives::jobs::{DKGTSSKeySubmissionResult, DigitalSignatureType};
+use tangle_primitives::{
+    jobs::{JobId, JobResult, JobType},
+    roles::RoleType,
+};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 
@@ -121,7 +125,7 @@ where
                     t: job.threshold.expect("T should exist for DKG") as u16,
                     n: participants.len() as u16,
                     job_id: job.job_id,
-                    job_key: job.job_type.get_job_key(),
+                    role_type: job.job_type.get_role_type(),
                 };
 
                 let job = self
@@ -165,7 +169,7 @@ pub struct MpEcdsaKeygenExtraParams {
     t: u16,
     n: u16,
     job_id: JobId,
-    job_key: JobKey,
+    role_type: RoleType,
 }
 
 #[async_trait]
@@ -288,7 +292,7 @@ where
 
                     client
                         .submit_job_result(
-                            additional_params.job_key,
+                            additional_params.role_type,
                             additional_params.job_id,
                             job_result,
                         )
@@ -372,8 +376,8 @@ async fn handle_public_key_gossip(
         .map(|r| r.1 .0.to_vec())
         .collect();
 
-    Ok(JobResult::DKGPhaseOne(DKGResult {
-        key_type: DkgKeyType::Ecdsa,
+    Ok(JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
+        signature_type: DigitalSignatureType::Ecdsa,
         key: serialized_public_key,
         participants,
         threshold: threshold as _,
