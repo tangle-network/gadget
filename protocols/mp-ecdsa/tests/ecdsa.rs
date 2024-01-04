@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests {
+    use futures::stream::FuturesUnordered;
+    use futures::StreamExt;
     use mp_ecdsa_protocol::mock::{id_to_public, new_test_ext, Jobs, Runtime, RuntimeOrigin};
     use pallet_jobs::{SubmittedJobs, SubmittedJobsRole};
     use std::time::Duration;
@@ -12,11 +14,66 @@ mod tests {
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::EnvFilter;
 
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_gadget_starts() {
+        setup_log();
+        new_test_ext::<1>().await.execute_with(|| {
+            assert_eq!(1, 1);
+        })
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_keygen() {
+        setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+
+        let ext = new_test_ext::<N>().await;
+        assert_eq!(wait_for_keygen::<N, T>(&ext).await, 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_signing() {
+        setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+
+        let ext = new_test_ext::<N>().await;
+        let keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
+        assert_eq!(wait_for_signing::<N>(&ext, keygen_job_id).await, 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_parallel_jobs() {
+        setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+        const TEST_COUNT: usize = 2;
+
+        let ext = new_test_ext::<N>().await;
+        let futures = FuturesUnordered::new();
+
+        for _ in 0..TEST_COUNT {
+            let ext = ext.clone();
+            futures.push(Box::pin(async move {
+                let keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
+                wait_for_signing::<N>(&ext, keygen_job_id).await;
+            }));
+        }
+
+        futures.collect::<()>().await;
+    }
+
     pub fn setup_log() {
         let _ = SubscriberBuilder::default()
             .with_env_filter(EnvFilter::from_default_env())
             .finish()
             .try_init();
+
+        std::panic::set_hook(Box::new(|info| {
+            log::error!(target: "gadget", "Panic occurred: {info:?}");
+            std::process::exit(1);
+        }));
     }
 
     fn remove_job(role_type: RoleType, job_id: JobId) {
@@ -65,17 +122,12 @@ mod tests {
                     }),
                 };
 
-                // Should succeed
                 assert!(
                     Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), submission)
                         .is_ok()
                 );
-                log::info!(target: "gadget", "******* Submitted Keygen Job {job_id}");
 
-                let jobs_res = Jobs::query_jobs_by_validator(identities[0].clone());
-                log::info!(target: "gadget", "******* Queried Jobs: {jobs_res:?}");
-                assert_eq!(jobs_res.expect("Should exist").len(), 1);
-                log::info!(target: "gadget", "******* Finished initial test block");
+                log::info!(target: "gadget", "******* Submitted Keygen Job {job_id}");
                 job_id
             })
             .await;
@@ -89,44 +141,10 @@ mod tests {
         job_id
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_externalities_gadget_starts() {
-        setup_log();
-        new_test_ext::<1>().await.execute_with(|| {
-            assert_eq!(1, 1);
-        })
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_externalities_keygen() {
-        setup_log();
-        const N: usize = 3;
-        const T: usize = N - 1;
-
-        std::panic::set_hook(Box::new(|info| {
-            log::error!(target: "gadget", "Panic occurred: {info:?}");
-            std::process::exit(1);
-        }));
-
-        let ext = new_test_ext::<N>().await;
-        assert_eq!(wait_for_keygen::<N, T>(&ext).await, 0);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_externalities_signing() {
-        setup_log();
-        const N: usize = 3;
-        const T: usize = N - 1;
-
-        std::panic::set_hook(Box::new(|info| {
-            log::error!(target: "gadget", "Panic occurred: {info:?}");
-            std::process::exit(1);
-        }));
-
-        let ext = new_test_ext::<N>().await;
-        let keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
-
-        // Trigger a signing job by submitting a phase two job
+    async fn wait_for_signing<const N: usize>(
+        ext: &MultiThreadedTestExternalities,
+        keygen_job_id: JobId,
+    ) -> JobId {
         let job_id = ext
             .execute_with_async(move || {
                 let job_id = Jobs::next_job_id();
@@ -144,6 +162,7 @@ mod tests {
                     Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), submission)
                         .is_ok()
                 );
+
                 log::info!(target: "gadget", "******* Submitted Signing Job {job_id}");
                 job_id
             })
@@ -155,5 +174,6 @@ mod tests {
             job_id,
         )
         .await;
+        job_id
     }
 }
