@@ -122,10 +122,7 @@ mod tests {
                     }),
                 };
 
-                assert!(
-                    Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), submission)
-                        .is_ok()
-                );
+                assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission).is_ok());
 
                 log::info!(target: "gadget", "******* Submitted Keygen Job {job_id}");
                 job_id
@@ -158,10 +155,7 @@ mod tests {
                     }),
                 };
 
-                assert!(
-                    Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), submission)
-                        .is_ok()
-                );
+                assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission).is_ok());
 
                 log::info!(target: "gadget", "******* Submitted Signing Job {job_id}");
                 job_id
@@ -169,7 +163,7 @@ mod tests {
             .await;
 
         wait_for_job_completion(
-            &ext,
+            ext,
             RoleType::Tss(ThresholdSignatureRoleType::TssGG20),
             job_id,
         )
