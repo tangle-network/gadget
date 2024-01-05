@@ -46,7 +46,7 @@ jobs:
 
   testing:
     name: Cargo Test
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
@@ -57,7 +57,7 @@ jobs:
           toolchain: stable
 
       - name: Install protobuf
-        run: brew install protobuf
+        run: sudo apt-get install protobuf-compiler
 
       - name: Install cargo-nextest
         uses: baptiste0928/cargo-install@v1
