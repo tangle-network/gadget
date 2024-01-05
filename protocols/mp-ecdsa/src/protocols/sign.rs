@@ -6,13 +6,13 @@ use async_trait::async_trait;
 use curv::arithmetic::Converter;
 use curv::elliptic::curves::Secp256k1;
 use curv::BigInt;
-use gadget_common::client::{AccountId, ClientWithApi, MpEcdsaClient};
+use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
 use gadget_common::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
-use gadget_common::keystore::KeystoreBackend;
+use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification, FinalityNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
@@ -31,14 +31,17 @@ use sp_api::ProvideRuntimeApi;
 use sp_core::ecdsa::Signature;
 use sp_core::keccak_256;
 use std::collections::HashMap;
-use std::error::Error;
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGSignatureResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
+use tangle_primitives::jobs::{
+    DKGTSSSignatureResult, DigitalSignatureType, JobId, JobResult, JobType,
+};
+use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 
 pub struct MpEcdsaSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
-    client: MpEcdsaClient<B, BE, KBE, C>,
+    client: JobsClient<B, BE, C>,
+    key_store: ECDSAKeyStore<KBE>,
     network: N,
     round_blames: Arc<
         RwLock<
@@ -55,9 +58,10 @@ pub struct MpEcdsaSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
 pub async fn create_protocol<B, BE, KBE, C, N>(
     config: &MpEcdsaProtocolConfig,
     logger: DebugLogger,
-    client: MpEcdsaClient<B, BE, KBE, C>,
+    client: JobsClient<B, BE, C>,
     network: N,
-) -> Result<MpEcdsaSigningProtocol<B, BE, KBE, C, N>, Box<dyn Error>>
+    key_store: ECDSAKeyStore<KBE>,
+) -> MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
     B: Block,
     BE: Backend<B>,
@@ -66,13 +70,14 @@ where
     N: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    Ok(MpEcdsaSigningProtocol {
+    MpEcdsaSigningProtocol {
         client,
         network,
+        key_store,
         round_blames: Arc::new(Default::default()),
         logger,
         account_id: config.account_id,
-    })
+    }
 }
 
 #[async_trait]
@@ -95,63 +100,78 @@ where
         let jobs = self
             .client
             .query_jobs_by_validator(notification.hash, self.account_id)
-            .await?
-            .into_iter()
-            .filter(|r| matches!(r.job_type, JobType::DKGTSSPhaseTwo(..)));
+            .await?;
 
         let mut ret = vec![];
 
         for job in jobs {
-            let participants = job.participants.expect("Should exist for stage 2 signing");
-            if participants.contains(&self.account_id) {
-                let task_id = job.job_id.to_be_bytes();
-                let task_id = keccak_256(&task_id);
-                let session_id = 0; // We are not interested in sessions for the ECDSA protocol
-                                    // For the retry ID, get the latest retry and increment by 1 to set the next retry ID
-                                    // If no retry ID exists, it means the job is new, thus, set the retry_id to 0
-                let retry_id = job_manager
-                    .latest_retry_id(&task_id)
-                    .map(|r| r + 1)
-                    .unwrap_or(0);
+            let job_id = job.job_id;
+            let participants = job.participants.clone();
+            let role_type = job.job_type.get_role_type();
 
-                if let Some(key) = self
-                    .client
-                    .key_store
-                    .get(&job.job_id)
-                    .await
-                    .map_err(|err| gadget_common::Error::ClientError {
-                        err: err.to_string(),
-                    })?
-                {
-                    let input_data_to_sign = if let JobType::DKGTSSPhaseTwo(sig) = &job.job_type {
-                        sig.submission.clone()
+            if let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type {
+                if p2_job.role_type != ThresholdSignatureRoleType::TssGG20 {
+                    continue;
+                }
+                let input_data_to_sign = p2_job.submission;
+                let previous_job_id = p2_job.phase_one_id;
+
+                let participants = participants.expect("Should exist for stage 2 signing");
+                let threshold = job.threshold.expect("T should exist for stage 2 signing") as u16;
+
+                if participants.contains(&self.account_id) {
+                    let task_id = job_id.to_be_bytes();
+                    let task_id = keccak_256(&task_id);
+                    let session_id = 0; // We are not interested in sessions for the ECDSA protocol
+                                        // For the retry ID, get the latest retry and increment by 1 to set the next retry ID
+                                        // If no retry ID exists, it means the job is new, thus, set the retry_id to 0
+                    let retry_id = job_manager
+                        .latest_retry_id(&task_id)
+                        .map(|r| r + 1)
+                        .unwrap_or(0);
+
+                    if let Some(key) =
+                        self.key_store.get(&previous_job_id).await.map_err(|err| {
+                            gadget_common::Error::ClientError {
+                                err: err.to_string(),
+                            }
+                        })?
+                    {
+                        let user_id_to_account_id_mapping = Arc::new(
+                            participants
+                                .clone()
+                                .into_iter()
+                                .enumerate()
+                                .map(|r| ((r.0 + 1) as UserID, r.1))
+                                .collect(),
+                        );
+
+                        let additional_params = MpEcdsaSigningExtraParams {
+                            i: participants
+                                .iter()
+                                .position(|p| p == &self.account_id)
+                                .expect("Should exist") as u16
+                                + 1,
+                            t: threshold,
+                            signers: (0..participants.len()).map(|r| (r + 1) as u16).collect(),
+                            job_id,
+                            role_type,
+                            key,
+                            input_data_to_sign,
+                            user_id_to_account_id_mapping,
+                        };
+
+                        let job = self
+                            .create(session_id, now, retry_id, task_id, additional_params)
+                            .await?;
+
+                        ret.push(job);
                     } else {
-                        panic!("Should be DKGSignature");
-                    };
-
-                    let additional_params = MpEcdsaSigningExtraParams {
-                        i: participants
-                            .iter()
-                            .position(|p| p == &self.account_id)
-                            .expect("Should exist") as u16,
-                        t: job.threshold.expect("T should exist for stage 2 signing") as u16,
-                        signers: (0..participants.len()).map(|r| r as u16).collect(),
-                        job_id: job.job_id,
-                        job_key: job.job_type.get_job_key(),
-                        key,
-                        input_data_to_sign,
-                    };
-
-                    let job = self
-                        .create(session_id, now, retry_id, task_id, additional_params)
-                        .await?;
-
-                    ret.push(job);
-                } else {
-                    self.logger.warn(format!(
-                        "No key found for job ID: {job_id:?}",
-                        job_id = job.job_id
-                    ));
+                        self.logger.warn(format!(
+                            "No key found for job ID: {job_id:?}",
+                            job_id = job.job_id
+                        ));
+                    }
                 }
             }
         }
@@ -175,6 +195,10 @@ where
         log::error!(target: "mp-ecdsa", "Error: {error:?}");
     }
 
+    fn logger(&self) -> &DebugLogger {
+        &self.logger
+    }
+
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         WorkManagerConfig {
             interval: Some(crate::constants::signing_worker::JOB_POLL_INTERVAL),
@@ -189,9 +213,10 @@ pub struct MpEcdsaSigningExtraParams {
     t: u16,
     signers: Vec<u16>,
     job_id: JobId,
-    job_key: JobKey,
+    role_type: RoleType,
     key: LocalKey<Secp256k1>,
     input_data_to_sign: Vec<u8>,
+    user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
 }
 
 #[async_trait]
@@ -224,24 +249,22 @@ where
         let round_blames = self.round_blames.clone();
         let network = self.network.clone();
 
-        let (i, signers, t, key, input_data_to_sign) = (
+        let (i, signers, t, key, input_data_to_sign, mapping) = (
             additional_params.i,
             additional_params.signers,
             additional_params.t,
             additional_params.key,
             additional_params.input_data_to_sign.clone(),
+            additional_params.user_id_to_account_id_mapping.clone(),
         );
 
-        let key_clone = key.clone();
+        let public_key_bytes = key.public_key().to_bytes(true).to_vec();
 
         Ok(JobBuilder::new()
             .protocol(async move {
-                let offline_i = get_offline_i(i, &signers);
-
-                let signing =
-                    OfflineStage::new(offline_i, signers, key).map_err(|err| JobError {
-                        reason: format!("Failed to create offline stage: {err:?}"),
-                    })?;
+                let signing = OfflineStage::new(i, signers, key).map_err(|err| JobError {
+                    reason: format!("Failed to create offline stage: {err:?}"),
+                })?;
                 let (current_round_blame_tx, current_round_blame_rx) =
                     tokio::sync::watch::channel(CurrentRoundBlame::default());
 
@@ -265,6 +288,7 @@ where
                     associated_retry_id,
                     associated_session_id,
                     associated_task_id,
+                    mapping,
                     network,
                 );
 
@@ -295,7 +319,7 @@ where
 
                 // Conclude with the voting stage
                 let signature = voting_stage(
-                    offline_i,
+                    i,
                     t,
                     message,
                     completed_offline_stage,
@@ -310,6 +334,7 @@ where
             .post(async move {
                 // Check to see if there is any blame at the end of the protocol
                 if let Some(blame) = blame.write().await.remove(&associated_task_id) {
+                    // TODO: consider that this blame is offset by +1
                     let blame = blame.borrow();
                     if !blame.blamed_parties.is_empty() {
                         debug_logger_post.error(format!("Blame: {blame:?}"));
@@ -322,16 +347,17 @@ where
                 // Submit the protocol output to the blockchain
                 if let Some(signature) = protocol_output_clone.lock().await.take() {
                     let signature: Vec<u8> = signature.encode();
-                    let job_result = JobResult::DKGPhaseTwo(DKGSignatureResult {
-                        key_type: DkgKeyType::Ecdsa,
+
+                    let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
+                        signature_type: DigitalSignatureType::Ecdsa,
                         data: additional_params.input_data_to_sign,
                         signature,
-                        signing_key: key_clone.public_key().to_bytes(true).to_vec(),
+                        signing_key: public_key_bytes,
                     });
 
                     client
                         .submit_job_result(
-                            additional_params.job_key,
+                            additional_params.role_type,
                             additional_params.job_id,
                             job_result,
                         )
@@ -345,12 +371,6 @@ where
             })
             .build())
     }
-}
-
-/// Finds our index inside the list of signers, then adds 1 since the Offline state machine
-/// expects the index to start from 1.
-fn get_offline_i(i: u16, signers: &[u16]) -> u16 {
-    (signers.iter().position(|s| s == &i).expect("Should exist") + 1) as u16
 }
 
 async fn voting_stage(

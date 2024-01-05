@@ -48,7 +48,6 @@ pub trait AsyncProtocol {
         let (start_tx, start_rx) = tokio::sync::oneshot::channel();
         let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
 
-        let proto_hash_hex = hex::encode(task_id);
         let async_protocol = self
             .generate_protocol_from(
                 now,
@@ -72,7 +71,6 @@ pub trait AsyncProtocol {
         };
 
         let job_manager_compatible_protocol = crate::helpers::create_job_manager_compatible_job(
-            proto_hash_hex,
             is_done,
             start_rx,
             shutdown_rx,

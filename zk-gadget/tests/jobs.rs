@@ -3,6 +3,7 @@ mod tests {
     use crate::tests::client::{BlockchainClient, TestBlock};
     use futures_util::stream::FuturesUnordered;
     use futures_util::TryStreamExt;
+    use gadget_common::debug_logger::DebugLogger;
     use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder};
     use mpc_net::{MpcNet, MultiplexedStreamID};
     use std::error::Error;
@@ -102,6 +103,7 @@ mod tests {
                         return Some(response);
                     }
 
+                    drop(lock);
                     // Wait some time before trying again
                     tokio::time::sleep(Duration::from_millis(200)).await;
                 }
@@ -283,10 +285,15 @@ mod tests {
                 stop_tx: done_tx.clone(),
             };
 
+            let logger = DebugLogger {
+                peer_id: test_config.id.to_string(),
+            };
+
             let zk_gadget_future = zk_gadget::run(
                 test_config,
                 client,
                 additional_parameters,
+                logger,
                 async_protocol_generator,
             );
             zk_gadgets_futures.push(Box::pin(zk_gadget_future));

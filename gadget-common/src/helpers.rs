@@ -2,26 +2,20 @@ use gadget_core::job::ExecutableJob;
 use gadget_core::job::JobError;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, ProceedWithExecution};
 use gadget_core::job_manager::ShutdownReason;
-use std::fmt::Display;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 /// Wraps an async protocol with logic that makes it compatible with the job manager
-pub fn create_job_manager_compatible_job<T: Display + Send + Clone + 'static>(
-    task_name: T,
+pub fn create_job_manager_compatible_job(
     is_done: Arc<AtomicBool>,
     start_rx: tokio::sync::oneshot::Receiver<()>,
     shutdown_rx: tokio::sync::oneshot::Receiver<ShutdownReason>,
     mut async_protocol: BuiltExecutableJobWrapper,
 ) -> BuiltExecutableJobWrapper {
-    let task_name_cloned = task_name.clone();
     let pre_hook = async move {
         match start_rx.await {
             Ok(_) => Ok(ProceedWithExecution::True),
-            Err(err) => {
-                log::error!("Protocol {task_name_cloned} failed to receive start signal: {err:?}");
-                Ok(ProceedWithExecution::False)
-            }
+            Err(err) => Err(JobError::from(format!("Failed to start job: {err:?}"))),
         }
     };
 
@@ -35,24 +29,20 @@ pub fn create_job_manager_compatible_job<T: Display + Send + Clone + 'static>(
     // job manager
     let wrapped_future = async move {
         tokio::select! {
-            res0 = async_protocol.execute() => {
-                if let Err(err) = res0 {
-                    log::error!("Protocol {task_name} failed: {err:?}");
-                    Err(JobError::from(err.to_string()))
-                } else {
-                    log::info!("Protocol {task_name} finished");
-                    Ok(())
-                }
-            },
-
+            res0 = async_protocol.execute() => res0,
             res1 = shutdown_rx => {
                 match res1 {
                     Ok(reason) => {
-                        log::info!("Protocol {task_name} shutdown: {reason:?}");
-                        Ok(())
+                        match reason {
+                            ShutdownReason::DropCode => {
+                                Ok(())
+                            },
+                            ShutdownReason::Stalled => {
+                                Err(JobError::from("Stalled".to_string()))
+                            },
+                        }
                     },
                     Err(err) => {
-                        log::error!("Protocol {task_name} shutdown failed: {err:?}");
                         Err(JobError::from(err.to_string()))
                     },
                 }

@@ -37,32 +37,37 @@ pub trait ExecutableJob: Send + 'static {
     async fn pre_job_hook(&mut self) -> Result<ProceedWithExecution, JobError>;
     async fn job(&mut self) -> Result<(), JobError>;
     async fn post_job_hook(&mut self) -> Result<(), JobError>;
+    async fn catch(&mut self);
 
     async fn execute(&mut self) -> Result<(), JobError> {
         match self.pre_job_hook().await? {
-            ProceedWithExecution::True => {
-                let result = self.job().await;
-                let post_result = self.post_job_hook().await;
-                result.and(post_result)
-            }
+            ProceedWithExecution::True => match self.job().await {
+                Ok(_) => self.post_job_hook().await,
+                Err(err) => {
+                    self.catch().await;
+                    Err(err)
+                }
+            },
             ProceedWithExecution::False => Ok(()),
         }
     }
 }
 
-pub struct ExecutableJobWrapper<Pre: ?Sized, Protocol: ?Sized, Post: ?Sized> {
+pub struct ExecutableJobWrapper<Pre: ?Sized, Protocol: ?Sized, Post: ?Sized, Catch: ?Sized> {
     pre: Pin<Box<Pre>>,
     protocol: Pin<Box<Protocol>>,
     post: Pin<Box<Post>>,
+    catch: Pin<Box<Catch>>,
 }
 
 #[async_trait]
-impl<Pre: ?Sized, Protocol: ?Sized, Post: ?Sized> ExecutableJob
-    for ExecutableJobWrapper<Pre, Protocol, Post>
+impl<Pre: ?Sized, Protocol: ?Sized, Post: ?Sized, Catch: ?Sized> ExecutableJob
+    for ExecutableJobWrapper<Pre, Protocol, Post, Catch>
 where
     Pre: SendFuture<'static, Result<ProceedWithExecution, JobError>>,
     Protocol: SendFuture<'static, Result<(), JobError>>,
     Post: SendFuture<'static, Result<(), JobError>>,
+    Catch: SendFuture<'static, ()>,
 {
     async fn pre_job_hook(&mut self) -> Result<ProceedWithExecution, JobError> {
         self.pre.as_mut().await
@@ -75,19 +80,25 @@ where
     async fn post_job_hook(&mut self) -> Result<(), JobError> {
         self.post.as_mut().await
     }
+
+    async fn catch(&mut self) {
+        self.catch.as_mut().await
+    }
 }
 
-impl<Pre, Protocol, Post> ExecutableJobWrapper<Pre, Protocol, Post>
+impl<Pre, Protocol, Post, Catch> ExecutableJobWrapper<Pre, Protocol, Post, Catch>
 where
     Pre: SendFuture<'static, Result<ProceedWithExecution, JobError>>,
     Protocol: SendFuture<'static, Result<(), JobError>>,
     Post: SendFuture<'static, Result<(), JobError>>,
+    Catch: SendFuture<'static, ()>,
 {
-    pub fn new(pre: Pre, protocol: Protocol, post: Post) -> Self {
+    pub fn new(pre: Pre, protocol: Protocol, post: Post, catch: Catch) -> Self {
         Self {
             pre: Box::pin(pre),
             protocol: Box::pin(protocol),
             post: Box::pin(post),
+            catch: Box::pin(catch),
         }
     }
 }
@@ -97,11 +108,13 @@ pub struct JobBuilder {
     pre: Option<Pin<Box<PreJobHook>>>,
     protocol: Option<Pin<Box<ProtocolJobHook>>>,
     post: Option<Pin<Box<PostJobHook>>>,
+    catch: Option<Pin<Box<CatchJobHook>>>,
 }
 
 pub type PreJobHook = dyn SendFuture<'static, Result<ProceedWithExecution, JobError>>;
 pub type PostJobHook = dyn SendFuture<'static, Result<(), JobError>>;
 pub type ProtocolJobHook = dyn SendFuture<'static, Result<(), JobError>>;
+pub type CatchJobHook = dyn SendFuture<'static, ()>;
 
 pub struct DefaultPreJobHook;
 impl Future for DefaultPreJobHook {
@@ -121,10 +134,21 @@ impl Future for DefaultPostJobHook {
     }
 }
 
+struct DefaultCatchJobHook;
+
+impl Future for DefaultCatchJobHook {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Poll::Ready(())
+    }
+}
+
 pub type BuiltExecutableJobWrapper = ExecutableJobWrapper<
     dyn SendFuture<'static, Result<ProceedWithExecution, JobError>>,
     dyn SendFuture<'static, Result<(), JobError>>,
     dyn SendFuture<'static, Result<(), JobError>>,
+    dyn SendFuture<'static, ()>,
 >;
 
 impl JobBuilder {
@@ -156,6 +180,14 @@ impl JobBuilder {
         self
     }
 
+    pub fn catch<Catch>(mut self, catch: Catch) -> Self
+    where
+        Catch: SendFuture<'static, ()>,
+    {
+        self.catch = Some(Box::pin(catch));
+        self
+    }
+
     pub fn build(self) -> BuiltExecutableJobWrapper {
         let pre = if let Some(pre) = self.pre {
             pre
@@ -169,12 +201,19 @@ impl JobBuilder {
             Box::pin(DefaultPostJobHook)
         };
 
+        let catch = if let Some(catch) = self.catch {
+            catch
+        } else {
+            Box::pin(DefaultCatchJobHook)
+        };
+
         let protocol = Box::pin(self.protocol.expect("Must specify protocol"));
 
         ExecutableJobWrapper {
             pre,
             protocol,
             post,
+            catch,
         }
     }
 }
@@ -205,7 +244,9 @@ mod tests {
             Ok(())
         };
 
-        let mut job = super::ExecutableJobWrapper::new(pre, protocol, post);
+        let catch = async move {};
+
+        let mut job = super::ExecutableJobWrapper::new(pre, protocol, post, catch);
         job.execute().await.unwrap();
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 3);
     }
@@ -232,7 +273,9 @@ mod tests {
             Ok(())
         };
 
-        let mut job = super::ExecutableJobWrapper::new(pre, protocol, post);
+        let catch = async move {};
+
+        let mut job = super::ExecutableJobWrapper::new(pre, protocol, post, catch);
         job.execute().await.unwrap();
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
@@ -321,5 +364,33 @@ mod tests {
 
         job.execute().await.unwrap();
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn test_protocol_err_catch_performs_increment() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        let counter_clone2 = counter.clone();
+        let counter_final = counter.clone();
+
+        let pre = async move {
+            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(super::ProceedWithExecution::True)
+        };
+
+        let protocol = async move {
+            counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Err(super::JobError::from("Protocol error"))
+        };
+
+        let post = async move { unreachable!("Post should not be called") };
+
+        let catch = async move {
+            counter_clone2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        };
+
+        let mut job = super::ExecutableJobWrapper::new(pre, protocol, post, catch);
+        job.execute().await.unwrap_err();
+        assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 3);
     }
 }

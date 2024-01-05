@@ -1,6 +1,7 @@
 use crate::client_ext::ClientWithApi;
 use crate::network::RegistantId;
 use async_trait::async_trait;
+use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::work_manager::WebbWorkManager;
 use gadget_common::gadget::{Job, WebbGadgetProtocol};
 use gadget_common::protocol::AsyncProtocol;
@@ -14,6 +15,7 @@ pub struct ZkProtocol<M: AsyncProtocol, B, C> {
     pub party_id: RegistantId,
     pub protocol: M,
     pub additional_params: <M as AsyncProtocol>::AdditionalParams,
+    pub logger: DebugLogger,
     pub client: C,
     pub _pd: std::marker::PhantomData<B>,
 }
@@ -33,13 +35,14 @@ where
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, Error> {
-        log::info!(
+        self.logger.info(format!(
             "Party {} received a finality notification at {now}",
             self.party_id
-        );
+        ));
 
         if let Some(job) = self.client.get_next_job().await? {
-            log::debug!("Found a job {} at {now}", job.job_id);
+            self.logger
+                .debug(format!("Found a job {} at {now}", job.job_id));
             let mut task_id = [0u8; 32];
             task_id[..8].copy_from_slice(&job.job_id.to_be_bytes()[..]);
 
@@ -55,7 +58,7 @@ where
 
             return Ok(Some(vec![(remote, protocol)]));
         } else {
-            log::debug!("No Jobs found at #{now}");
+            self.logger.debug(format!("No Jobs found at #{now}"));
         }
 
         Ok(None)
@@ -74,6 +77,13 @@ where
         error: Error,
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) {
-        log::error!("Party {} received an error: {:?}", self.party_id, error);
+        self.logger.error(format!(
+            "Party {} received an error: {:?}",
+            self.party_id, error
+        ));
+    }
+
+    fn logger(&self) -> &DebugLogger {
+        &self.logger
     }
 }

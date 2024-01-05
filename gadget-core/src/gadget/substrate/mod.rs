@@ -52,7 +52,9 @@ impl Error for SubstrateGadgetError {}
 pub trait Client<B: Block>: Send + Sync {
     async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>>;
     async fn get_latest_finality_notification(&self) -> Option<FinalityNotification<B>>;
-    async fn get_next_block_import_notification(&self) -> Option<BlockImportNotification<B>>;
+    async fn get_next_block_import_notification(&self) -> Option<BlockImportNotification<B>> {
+        futures::future::pending().await
+    }
 }
 
 impl<Module> SubstrateGadget<Module>

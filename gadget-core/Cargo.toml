@@ -14,10 +14,11 @@ substrate = [
 [dependencies]
 parking_lot = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "macros", "rt"] }
-hex = "0.4.3"
+hex = { workspace = true }
 log = { workspace = true }
-async-trait = "0.1.73"
-auto_impl = "1.1.0"
+async-trait = { workspace = true }
+auto_impl = { workspace = true }
+futures = { workspace = true }
 
 sp-runtime = { optional = true, workspace = true }
 sc-client-api = { optional = true, workspace = true }

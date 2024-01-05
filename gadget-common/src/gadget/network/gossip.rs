@@ -40,16 +40,15 @@
 //! engine, and it is verified then it will be added to the Engine's internal stream of DKG
 //! messages, later the DKG Gadget will read this stream and process the DKG message.
 
-pub use crate::constants::network::*;
+use crate::client::AccountId;
+use crate::debug_logger::DebugLogger;
+use crate::gadget::message::GadgetProtocolMessage;
+use crate::gadget::network::Network;
+use crate::gadget::work_manager::WebbWorkManager;
+use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
+use crate::Error;
 use async_trait::async_trait;
 use futures::StreamExt;
-use gadget_common::client::AccountId;
-use gadget_common::debug_logger::DebugLogger;
-use gadget_common::gadget::message::GadgetProtocolMessage;
-use gadget_common::gadget::network::Network;
-use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
-use gadget_common::Error;
 use gadget_core::job_manager::WorkManagerInterface;
 use linked_hash_map::LinkedHashMap;
 use parking_lot::{Mutex, RwLock};
@@ -72,6 +71,17 @@ use std::{
     },
 };
 use tokio::sync::mpsc::UnboundedReceiver;
+
+/// Maximum number of known messages hashes to keep for a peer.
+pub const MAX_KNOWN_MESSAGES: usize = 4096;
+
+/// Maximum allowed size for a DKG Signed Message notification.
+pub const MAX_MESSAGE_SIZE: u64 = 16 * 1024 * 1024;
+
+/// Maximum number of duplicate messages that a single peer can send us.
+///
+/// This is to prevent a malicious peer from spamming us with messages.
+pub const MAX_DUPLICATED_MESSAGES_PER_PEER: usize = 8;
 
 #[derive(Clone)]
 #[allow(dead_code)]
@@ -264,10 +274,6 @@ impl Network for GossipHandlerController {
                     err: format!("Failed to send message to handler: {err:?}"),
                 })
         }
-    }
-
-    async fn run(&self) -> Result<(), Error> {
-        futures::future::pending().await
     }
 }
 /// an Enum Representing the commands that can be sent to the background task.

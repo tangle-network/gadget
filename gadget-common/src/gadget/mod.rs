@@ -1,5 +1,5 @@
+use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
-use crate::gadget::network::Network;
 use crate::gadget::work_manager::WebbWorkManager;
 use crate::protocol::AsyncProtocolRemote;
 use crate::Error;
@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use gadget_core::gadget::substrate::{Client, SubstrateGadgetModule};
 use gadget_core::job::BuiltExecutableJobWrapper;
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager};
+use network::Network;
 use parking_lot::RwLock;
 use sc_client_api::{BlockImportNotification, FinalityNotification};
 use sp_runtime::traits::{Block, Header};
@@ -80,12 +81,16 @@ impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> SubstrateGadg
             for job in jobs {
                 let (remote, protocol) = job;
                 let task_id = remote.associated_task_id;
+                if self.job_manager.job_exists(&task_id) {
+                    // log::warn!(target: "gadget", "The job requested for initialization is already running or enqueued, skipping submission");
+                    continue;
+                }
 
                 if let Err(err) =
                     self.job_manager
                         .push_task(task_id, false, Arc::new(remote), protocol)
                 {
-                    log::error!("Failed to push task to job manager: {err:?}");
+                    log::error!(target: "gadget", "Failed to push task to job manager: {err:?}");
                 }
             }
         }
@@ -139,6 +144,7 @@ pub trait WebbGadgetProtocol<B: Block>: Send + Sync {
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<(), Error>;
     async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WebbWorkManager>);
+    fn logger(&self) -> &DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         WorkManagerConfig {
             interval: DEFAULT_POLL_INTERVAL,

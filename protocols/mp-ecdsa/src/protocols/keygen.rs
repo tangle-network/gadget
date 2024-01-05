@@ -4,13 +4,14 @@ use crate::protocols::util::PublicKeyGossipMessage;
 use crate::MpEcdsaProtocolConfig;
 use async_trait::async_trait;
 use curv::elliptic::curves::Secp256k1;
-use gadget_common::client::{AccountId, ClientWithApi, MpEcdsaClient};
+use frame_support::Hashable;
+use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
-use gadget_common::gadget::message::GadgetProtocolMessage;
+use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
 use gadget_common::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
-use gadget_common::keystore::KeystoreBackend;
+use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification, FinalityNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
@@ -23,17 +24,18 @@ use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
-use sp_application_crypto::RuntimePublic;
-use sp_core::crypto::KeyTypeId;
 use std::collections::{BTreeMap, HashMap};
-use std::error::Error;
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGResult, DkgKeyType, JobId, JobKey, JobResult, JobType};
+use tangle_primitives::jobs::{
+    DKGTSSKeySubmissionResult, DigitalSignatureType, JobId, JobResult, JobType,
+};
+use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 
 pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
-    client: MpEcdsaClient<B, BE, KBE, C>,
+    client: JobsClient<B, BE, C>,
+    key_store: ECDSAKeyStore<KBE>,
     network: N,
     round_blames: Arc<
         RwLock<
@@ -44,16 +46,16 @@ pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
         >,
     >,
     logger: DebugLogger,
-    id: sp_core::ecdsa::Public,
     account_id: AccountId,
 }
 
 pub async fn create_protocol<B, BE, KBE, C, N>(
     config: &MpEcdsaProtocolConfig,
-    client: MpEcdsaClient<B, BE, KBE, C>,
+    client: JobsClient<B, BE, C>,
     network: N,
     logger: DebugLogger,
-) -> Result<MpEcdsaKeygenProtocol<B, BE, KBE, C, N>, Box<dyn Error>>
+    key_store: ECDSAKeyStore<KBE>,
+) -> MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
     B: Block,
     BE: Backend<B>,
@@ -62,14 +64,14 @@ where
     N: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    Ok(MpEcdsaKeygenProtocol {
+    MpEcdsaKeygenProtocol {
         client,
         network,
+        key_store,
         round_blames: Arc::new(RwLock::new(HashMap::new())),
         logger,
-        id: config.id,
         account_id: config.account_id,
-    })
+    }
 }
 
 #[async_trait]
@@ -89,46 +91,60 @@ where
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, gadget_common::Error> {
+        self.logger.info(format!("At finality notification {now}"));
         let jobs = self
             .client
             .query_jobs_by_validator(notification.hash, self.account_id)
-            .await?
-            .into_iter()
-            .filter(|r| matches!(r.job_type, JobType::DKGTSSPhaseOne(..)));
+            .await?;
 
         let mut ret = vec![];
 
         for job in jobs {
-            let participants = job
-                .job_type
-                .clone()
-                .get_participants()
-                .expect("Should exist for DKG");
-            if participants.contains(&self.account_id) {
-                let task_id = job.job_id.to_be_bytes();
-                let task_id = keccak_256(&task_id);
-                let session_id = 0; // We are not interested in sessions for the ECDSA protocol
-                let retry_id = job_manager
-                    .latest_retry_id(&task_id)
-                    .map(|r| r + 1)
-                    .unwrap_or(0);
+            let job_id = job.job_id;
+            let role_type = job.job_type.get_role_type();
+            if let JobType::DKGTSSPhaseOne(p1_job) = job.job_type {
+                if p1_job.role_type != ThresholdSignatureRoleType::TssGG20 {
+                    continue;
+                }
+                let participants = p1_job.participants;
+                let threshold = p1_job.threshold;
+                if participants.contains(&self.account_id) {
+                    let task_id = job.job_id.to_be_bytes();
+                    let task_id = keccak_256(&task_id);
+                    let session_id = 0; // We are not interested in sessions for the ECDSA protocol
+                    let retry_id = job_manager
+                        .latest_retry_id(&task_id)
+                        .map(|r| r + 1)
+                        .unwrap_or(0);
 
-                let additional_params = MpEcdsaKeygenExtraParams {
-                    i: participants
-                        .iter()
-                        .position(|p| p == &self.account_id)
-                        .expect("Should exist") as u16,
-                    t: job.threshold.expect("T should exist for DKG") as u16,
-                    n: participants.len() as u16,
-                    job_id: job.job_id,
-                    job_key: job.job_type.get_job_key(),
-                };
+                    let user_id_to_account_id_mapping = Arc::new(
+                        participants
+                            .clone()
+                            .into_iter()
+                            .enumerate()
+                            .map(|r| ((r.0 + 1) as UserID, r.1))
+                            .collect(),
+                    );
 
-                let job = self
-                    .create(session_id, now, retry_id, task_id, additional_params)
-                    .await?;
+                    let additional_params = MpEcdsaKeygenExtraParams {
+                        i: participants
+                            .iter()
+                            .position(|p| p == &self.account_id)
+                            .expect("Should exist") as u16
+                            + 1,
+                        t: threshold as u16,
+                        n: participants.len() as u16,
+                        role_type,
+                        job_id,
+                        user_id_to_account_id_mapping,
+                    };
 
-                ret.push(job);
+                    let job = self
+                        .create(session_id, now, retry_id, task_id, additional_params)
+                        .await?;
+
+                    ret.push(job);
+                }
             }
         }
 
@@ -151,6 +167,10 @@ where
         log::error!(target: "mp-ecdsa", "Error: {error:?}");
     }
 
+    fn logger(&self) -> &DebugLogger {
+        &self.logger
+    }
+
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         WorkManagerConfig {
             interval: None, // Manual polling
@@ -165,7 +185,8 @@ pub struct MpEcdsaKeygenExtraParams {
     t: u16,
     n: u16,
     job_id: JobId,
-    job_key: JobKey,
+    role_type: RoleType,
+    user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
 }
 
 #[async_trait]
@@ -189,25 +210,29 @@ where
         protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
-        let key_store = self.client.key_store.clone();
+        let key_store = self.key_store.clone();
         let blame = self.round_blames.clone();
         let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
-        let id = self.id;
+        let id = self.account_id;
         let logger = self.logger.clone();
         let logger_clone = logger.clone();
         let round_blames = self.round_blames.clone();
         let network = self.network.clone();
 
-        let (i, t, n) = (
+        let (i, t, n, mapping) = (
             additional_params.i,
             additional_params.t,
             additional_params.n,
+            additional_params.user_id_to_account_id_mapping,
         );
 
         Ok(JobBuilder::new()
             .protocol(async move {
+                logger.info(format!(
+                    "Starting Keygen Protocol with params: i={i}, t={t}, n={n}"
+                ));
                 let keygen = Keygen::new(i, t, n).map_err(|err| JobError {
                     reason: format!("Keygen setup error: {err:?}"),
                 })?;
@@ -234,11 +259,13 @@ where
                     associated_retry_id,
                     associated_session_id,
                     associated_task_id,
+                    mapping,
                     network,
                 );
 
                 let state_machine_wrapper =
                     StateMachineWrapper::new(keygen, current_round_blame_tx, logger.clone());
+                logger.debug("Beginning AsyncProtocol - KeyGen");
                 let local_key = round_based::AsyncProtocol::new(
                     state_machine_wrapper,
                     keygen_rx_async_proto,
@@ -250,6 +277,8 @@ where
                 .map_err(|err| JobError {
                     reason: format!("Keygen protocol error: {err:?}"),
                 })?;
+
+                logger.debug("Finished AsyncProtocol - KeyGen");
 
                 let job_result = handle_public_key_gossip(
                     &logger,
@@ -269,6 +298,7 @@ where
                 // Check to see if there is any blame at the end of the protocol
                 if let Some(blame) = blame.write().await.remove(&associated_task_id) {
                     let blame = blame.borrow();
+                    // TODO: consider the fact that ids from the async protocol are offset by +1
                     if !blame.blamed_parties.is_empty() {
                         logger_clone.error(format!("Blame: {blame:?}"));
                         return Err(JobError {
@@ -288,7 +318,7 @@ where
 
                     client
                         .submit_job_result(
-                            additional_params.job_key,
+                            additional_params.role_type,
                             additional_params.job_id,
                             job_result,
                         )
@@ -309,19 +339,13 @@ async fn handle_public_key_gossip(
     local_key: &LocalKey<Secp256k1>,
     threshold: u16,
     i: u16,
-    my_id: sp_core::ecdsa::Public,
+    my_id: AccountId,
     broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<JobResult, JobError> {
     let serialized_public_key = local_key.public_key().to_bytes(true).to_vec();
-    // Sign the public key with our public key
-    let signature = my_id
-        .sign(KeyTypeId::default(), &serialized_public_key)
-        .ok_or_else(|| JobError {
-            reason: "Failed to sign public key".to_string(),
-        })?
-        .0
-        .to_vec();
+    // Note: the signature is also empty in the DKG implementation
+    let signature = vec![];
 
     let mut received_keys = BTreeMap::new();
     received_keys.insert(i, signature.clone());
@@ -339,23 +363,26 @@ async fn handle_public_key_gossip(
             reason: format!("Failed to send public key: {err:?}"),
         })?;
 
-    for _ in 0..threshold {
-        let message: PublicKeyGossipMessage =
-            broadcast_rx_from_gadget
-                .recv()
-                .await
-                .ok_or_else(|| JobError {
-                    reason: "Failed to receive public key".to_string(),
-                })?;
+    for idx in 0..threshold {
+        let message = broadcast_rx_from_gadget
+            .recv()
+            .await
+            .ok_or_else(|| JobError {
+                reason: "Failed to receive public key".to_string(),
+            })?;
 
         let from = message.from;
+        logger.debug(format!(
+            "Received public key from {from} | {}/{threshold} received",
+            idx + 1
+        ));
+
         if received_keys.contains_key(&(from as u16)) {
             logger.warn("Received duplicate key");
             continue;
         }
 
         received_keys.insert(from as u16, message.signature);
-
         received_participants.insert(from as u16, message.id);
     }
 
@@ -369,14 +396,14 @@ async fn handle_public_key_gossip(
     let participants = received_participants
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1 .0.to_vec())
+        .map(|r| r.1.identity())
         .collect();
 
-    Ok(JobResult::DKGPhaseOne(DKGResult {
-        key_type: DkgKeyType::Ecdsa,
+    Ok(JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
+        signature_type: DigitalSignatureType::Ecdsa,
         key: serialized_public_key,
         participants,
-        threshold: threshold as _,
         signatures,
+        threshold: threshold as _,
     }))
 }

@@ -195,6 +195,12 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         handle: Arc<dyn ProtocolRemote<WM>>,
         task: T,
     ) -> Result<(), WorkManagerError> {
+        if self.job_exists(&task_hash) {
+            return Err(WorkManagerError::PushTaskFailed {
+                reason: "Task already exists".to_string(),
+            });
+        }
+
         let mut lock = self.inner.write();
         let job = Job {
             task: Arc::new(parking_lot::Mutex::new(Some(Box::new(task)))),
@@ -401,9 +407,21 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         lock.active_tasks.insert(job);
 
         let mut task = task.lock().take().expect("Should not happen");
+        let logger = self.utility.clone();
         let on_task_finish_handle = self.inner.clone();
         let task = async move {
-            if task.execute().await.is_ok() {
+            let result = task.execute().await;
+            if let Err(err) = result {
+                logger.error(format!(
+                    "[worker] Job {:?} finished with error: {err:?}",
+                    hex::encode(task_hash)
+                ));
+            } else {
+                logger.debug(format!(
+                    "[worker] Job {:?} finished successfully",
+                    hex::encode(task_hash)
+                ));
+
                 on_task_finish_handle
                     .write()
                     .retry_id_tracker
@@ -431,11 +449,6 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         &self,
         msg: WM::ProtocolMessage,
     ) -> Result<DeliveryType, WorkManagerError> {
-        self.utility.debug(format!(
-            "Delivered message is intended for session_id = {}",
-            msg.associated_session_id()
-        ));
-
         if let Some(recv) = msg.associated_recipient_user_id() {
             if recv == msg.associated_sender_user_id() {
                 self.utility
@@ -505,6 +518,25 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
             .push_back(msg);
 
         Ok(DeliveryType::EnqueuedMessage)
+    }
+
+    #[cfg(test)]
+    pub fn simulate_job_stall(&self, task_id: &WM::TaskID)
+    where
+        WM::RetryID: std::ops::AddAssign<u32>,
+    {
+        let mut lock = self.inner.write();
+        lock.active_tasks.retain(|job| {
+            let should_keep = &job.task_hash != task_id;
+
+            if !should_keep {
+                let _ = job.handle.shutdown(ShutdownReason::Stalled);
+            }
+
+            should_keep
+        });
+
+        *lock.retry_id_tracker.get_mut(task_id).expect("Must exist") += 1;
     }
 
     pub fn poll_method(&self) -> PollMethod {
@@ -1305,6 +1337,8 @@ mod tests {
             0
         );
 
+        work_manager.simulate_job_stall(&[0; 32]);
+
         // Simulate a retry
         let (remote, task, _rx) = generate_async_protocol_error(1, 1, 0);
         work_manager.push_task([0; 32], true, remote, task).unwrap();
@@ -1316,6 +1350,8 @@ mod tests {
                 .expect("Should exist"),
             1
         );
+
+        work_manager.simulate_job_stall(&[0; 32]);
 
         // Simulate that the protocol works on the third attempt
         let (remote, task, _rx) = generate_async_protocol(1, 2, 0);
