@@ -66,4 +66,4 @@ jobs:
           locked: true
 
       - name: Run Tests
-        run: cargo nextest
+        run: cargo nextest run
