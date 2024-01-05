@@ -4,7 +4,7 @@
 pub const DKG_KEYGEN_PROTOCOL_NAME: &str = "/webb-tools/dkg/keygen/1";
 pub const DKG_SIGNING_PROTOCOL_NAME: &str = "/webb-tools/dkg/signing/1";
 
-// ============= Signing Worker ======================= //
+// ============= Signing Protocol ======================= //
 
 pub mod signing_worker {
     use std::time::Duration;
@@ -20,22 +20,7 @@ pub mod signing_worker {
     pub const JOB_POLL_INTERVAL: Duration = Duration::from_millis(500);
 }
 
-// ============= Networking ======================= //
-
-pub mod network {
-    /// Maximum number of known messages hashes to keep for a peer.
-    pub const MAX_KNOWN_MESSAGES: usize = 4096;
-
-    /// Maximum allowed size for a DKG Signed Message notification.
-    pub const MAX_MESSAGE_SIZE: u64 = 16 * 1024 * 1024;
-
-    /// Maximum number of duplicate messages that a single peer can send us.
-    ///
-    /// This is to prevent a malicious peer from spamming us with messages.
-    pub const MAX_DUPLICATED_MESSAGES_PER_PEER: usize = 8;
-}
-
-// ============= Keygen Worker ======================= //
+// ============= Keygen Protocol ======================= //
 
 pub mod keygen_worker {
     /// only 1 task at a time may run for keygen

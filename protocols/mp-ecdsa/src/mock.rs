@@ -446,7 +446,7 @@ pub async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
                 }
             }
 
-            tokio::time::sleep(Duration::from_millis(6000)).await;
+            tokio::time::sleep(Duration::from_millis(12000)).await;
         }
     });
 

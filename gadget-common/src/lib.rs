@@ -1,8 +1,8 @@
 use crate::client::AccountId;
-use crate::gadget::network::Network;
 use crate::gadget::work_manager::WebbWorkManager;
 use crate::gadget::{WebbGadgetProtocol, WebbModule};
 use futures_util::future::TryFutureExt;
+use gadget::network::Network;
 use gadget_core::gadget::manager::{GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
 use gadget_core::job::JobError;

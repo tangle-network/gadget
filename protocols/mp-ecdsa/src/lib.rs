@@ -11,7 +11,6 @@ use std::sync::Arc;
 pub mod constants;
 pub mod error;
 pub mod mock;
-pub mod network;
 pub mod protocols;
 pub mod util;
 

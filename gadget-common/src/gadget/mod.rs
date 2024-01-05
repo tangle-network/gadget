@@ -1,6 +1,5 @@
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
-use crate::gadget::network::Network;
 use crate::gadget::work_manager::WebbWorkManager;
 use crate::protocol::AsyncProtocolRemote;
 use crate::Error;
@@ -8,6 +7,7 @@ use async_trait::async_trait;
 use gadget_core::gadget::substrate::{Client, SubstrateGadgetModule};
 use gadget_core::job::BuiltExecutableJobWrapper;
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager};
+use network::Network;
 use parking_lot::RwLock;
 use sc_client_api::{BlockImportNotification, FinalityNotification};
 use sp_runtime::traits::{Block, Header};

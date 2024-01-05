@@ -18,7 +18,6 @@ curv = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 bincode2 = { workspace = true }
-linked-hash-map = { workspace = true }
 k256 = { workspace = true }
 anyhow = { workspace = true }
 
@@ -38,9 +37,6 @@ sp-std = { workspace = true, features = ["std"] }
 sp-version = { workspace = true }
 
 sc-client-api = { workspace = true }
-sc-network = { workspace = true }
-sc-network-common = { workspace = true }
-sc-network-sync = { workspace = true }
 sc-utils = { workspace = true }
 sc-rpc-spec-v2 = { workspace = true }
 
