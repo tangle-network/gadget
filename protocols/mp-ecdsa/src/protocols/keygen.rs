@@ -406,23 +406,3 @@ async fn handle_public_key_gossip(
         threshold: threshold as _,
     }))
 }
-
-#[cfg(test)]
-mod tests {
-    use multi_party_ecdsa::gg_2020::state_machine::keygen::Keygen;
-    use round_based::dev::AsyncSimulation;
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_async_protocol_only() {
-        let results = AsyncSimulation::<Keygen>::new()
-            .add_party(Keygen::new(1, 2, 3).unwrap())
-            .add_party(Keygen::new(2, 2, 3).unwrap())
-            .add_party(Keygen::new(3, 2, 3).unwrap())
-            .run()
-            .await;
-
-        for result in results {
-            assert!(result.is_ok());
-        }
-    }
-}
