@@ -35,7 +35,7 @@ use std::sync::Arc;
 use tangle_primitives::jobs::{
     DKGTSSSignatureResult, DigitalSignatureType, JobId, JobResult, JobType,
 };
-use tangle_primitives::roles::RoleType;
+use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::RwLock;
 
@@ -108,7 +108,11 @@ where
             let job_id = job.job_id;
             let participants = job.participants.clone();
             let role_type = job.job_type.get_role_type();
+
             if let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type {
+                if p2_job.role_type != ThresholdSignatureRoleType::TssGG20 {
+                    continue;
+                }
                 let input_data_to_sign = p2_job.submission;
                 let previous_job_id = p2_job.phase_one_id;
 

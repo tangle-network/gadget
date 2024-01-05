@@ -352,10 +352,6 @@ impl Network for MockNetwork {
         }
         Ok(())
     }
-
-    async fn run(&self) -> Result<(), Error> {
-        Ok(())
-    }
 }
 
 pub type MockBackend = sc_client_api::in_mem::Backend<Block>;

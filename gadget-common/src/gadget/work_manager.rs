@@ -9,7 +9,9 @@ pub struct WebbWorkManager {
     pub(crate) logger: DebugLogger,
 }
 
-const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 20;
+/// Acceptable delivery tolerance for a message. Messages that fall out
+/// of this range will be rejected by the work manager
+const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 10;
 
 impl WorkManagerInterface for WebbWorkManager {
     type RetryID = u16;

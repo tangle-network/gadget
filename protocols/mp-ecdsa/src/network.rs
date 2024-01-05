@@ -49,7 +49,6 @@ use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
-use gadget_common::locks::TokioMutexExt;
 use gadget_common::Error;
 use gadget_core::job_manager::WorkManagerInterface;
 use linked_hash_map::LinkedHashMap;
@@ -62,7 +61,6 @@ use sc_network_common::sync::{Metrics, SyncEvent};
 use sc_network_sync::SyncingService;
 use serde::{Deserialize, Serialize};
 use sp_runtime::traits::Block;
-use std::time::Duration;
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
@@ -216,7 +214,7 @@ impl Network for GossipHandlerController {
         loop {
             let message = self
                 .message_notifications_channel
-                .lock_timeout(Duration::from_millis(500))
+                .lock()
                 .await
                 .as_mut()?
                 .recv()
@@ -266,10 +264,6 @@ impl Network for GossipHandlerController {
                     err: format!("Failed to send message to handler: {err:?}"),
                 })
         }
-    }
-
-    async fn run(&self) -> Result<(), Error> {
-        futures::future::pending().await
     }
 }
 /// an Enum Representing the commands that can be sent to the background task.
