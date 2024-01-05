@@ -17,9 +17,12 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_externalities_gadget_starts() {
         setup_log();
-        new_test_ext::<1>().await.execute_with_async(|| {
-            assert_eq!(1, 1);
-        }).await
+        new_test_ext::<1>()
+            .await
+            .execute_with_async(|| {
+                assert_eq!(1, 1);
+            })
+            .await
     }
 
     #[tokio::test(flavor = "multi_thread")]
