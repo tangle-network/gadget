@@ -330,8 +330,8 @@ impl Network for MockNetwork {
         &self,
         message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
-        let _check_message_has_ids = message.from_account_id.ok_or(Error::MissingNetworkId)?;
-        if let Some(peer_id) = message.to_account_id {
+        let _check_message_has_ids = message.from_network_id.ok_or(Error::MissingNetworkId)?;
+        if let Some(peer_id) = message.to_network_id {
             let tx = self
                 .peers_tx
                 .get(&peer_id)

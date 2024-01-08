@@ -1,0 +1,77 @@
+[package]
+name = "zk-saas-protocol"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gadget-common = { workspace = true }
+tokio-rustls = { workspace = true }
+mpc-net = { workspace = true }
+secret-sharing = { workspace = true }
+dist-primitives = { workspace = true }
+groth16 = { workspace = true }
+gadget-core = { workspace = true }
+bincode2 = { workspace = true }
+tokio = { workspace = true }
+futures-util = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_bytes = { workspace = true }
+async-trait = { workspace = true }
+parking_lot = { workspace = true }
+log = { workspace = true }
+bytes = { workspace = true, features = ["serde"] }
+fflonk = { git = "https://github.com/w3f/fflonk", features = ["std"] }
+
+
+sp-runtime = { workspace = true }
+sp-core = { workspace = true }
+sp-api = { workspace = true }
+
+sc-client-api = { workspace = true }
+
+pallet-jobs-rpc-runtime-api = { workspace = true }
+tangle-primitives = { workspace = true, features = ["verifying"] }
+
+ark-serialize = { workspace = true, default-features = false }
+ark-groth16 = { workspace = true, default-features = false }
+ark-poly = { workspace = true, default-features = false }
+ark-relations = { workspace = true, default-features = false }
+ark-ec = { workspace = true, default-features = false }
+ark-crypto-primitives = { workspace = true, default-features = false }
+ark-ff = { workspace = true, default-features = false }
+ark-circom = { workspace = true }
+
+
+ark-bn254 = { workspace = true, default-features = false, features = ["curve"] }
+
+[dev-dependencies]
+scale-info = { workspace = true }
+sp-runtime = { workspace = true }
+sp-application-crypto = { workspace = true }
+sp-std = { workspace = true }
+sp-io = { workspace = true }
+sp-keystore = { workspace = true }
+sp-version = { workspace = true }
+sp-externalities = { workspace = true }
+sc-utils = { workspace = true }
+sc-client-api = { workspace = true }
+tangle-primitives = { workspace = true, features = ["std", "verifying"] }
+hex = { workspace = true }
+hex-literal = { workspace = true }
+libsecp256k1 = { workspace = true }
+pallet-balances = { workspace = true, features = ["std"] }
+pallet-timestamp = { workspace = true, features = ["std"] }
+pallet-jobs = { workspace = true, features = ["std"] }
+pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
+frame-support = { workspace = true, features = ["std"] }
+frame-executive = { workspace = true, features = ["std"] }
+frame-system = { workspace = true, features = ["std"] }
+uuid = { workspace = true, features = ["v4"] }
+futures = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
+rcgen = "0.12"
+parity-scale-codec = { workspace = true, features = ["derive"] }
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }

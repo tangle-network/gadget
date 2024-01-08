@@ -3,16 +3,16 @@ resolver = "2"
 members = [
     "gadget-core",
     "gadget-common",
-    "zk-gadget",
     "test-gadget",
     "protocols/mp-ecdsa",
+    "protocols/zk-saas",
     "test-utils"
 ]
 
 [workspace.dependencies]
 gadget-core = { path = "./gadget-core" }
 gadget-common = { path = "./gadget-common" }
-zk-gadget = { path = "./zk-gadget" }
+zk-saas-protocol = { path = "./protocols/zk-saas" }
 mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
 test-utils = { path = "./test-utils" }
 
@@ -69,6 +69,7 @@ scale-info = "2.10.0"
 
 frame-system = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
 frame-support = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
+frame-executive = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
 
 pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
 pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
@@ -77,6 +78,19 @@ mpc-net = { git = "https://github.com/webb-tools/zk-SaaS/" }
 dist-primitives = { git = "https://github.com/webb-tools/zk-SaaS/" }
 secret-sharing = { git = "https://github.com/webb-tools/zk-SaaS/" }
 groth16 = { git = "https://github.com/webb-tools/zk-SaaS/" }
+
+# ARK Libraries
+ark-std = { version = "0.4.0", default-features = false, features = [ "print-trace", "std" ] }
+ark-crypto-primitives = { version = "0.4.0", default-features = false }
+ark-ff = { version = "0.4.2", default-features = false }
+ark-poly = { version = "0.4.2", default-features = false }
+ark-ec = { version = "0.4.2", default-features = false }
+ark-relations = { version = "0.4.0", default-features = false }
+ark-serialize = { version = "0.4.2", default-features = false, features = [ "derive" ] }
+ark-groth16 = { version = "0.4.0", default-features = false }
+ark-circom = { git = "https://github.com/webb-tools/ark-circom.git" }
+# ARK curves
+ark-bn254 = { version = "0.4.0", default-features = false, features = ["curve"] }
 
 tokio-rustls = "0.24.1"
 tokio = "1.32.0"
@@ -102,3 +116,4 @@ linked-hash-map = "0.5.6"
 k256 = "0.13.2"
 subxt = "0.33.0"
 anyhow = "1.0.79"
+libsecp256k1 = "0.7.1"
