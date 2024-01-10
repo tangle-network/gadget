@@ -392,6 +392,7 @@ pub struct NodeInput {
     pub logger: DebugLogger,
     pub pallet_tx: TestExternalitiesPalletSubmitter,
     pub keystore: ECDSAKeyStore<InMemoryBackend>,
+    pub node_index: usize,
 }
 
 /// This function basically just builds a genesis storage key/value store according to
@@ -488,7 +489,7 @@ where
         }
     });
 
-    for (idx, (identity_pair, networks)) in pairs.into_iter().zip(networks).enumerate() {
+    for (node_index, (identity_pair, networks)) in pairs.into_iter().zip(networks).enumerate() {
         let mut mock_clients = Vec::new();
 
         for _ in 0..K {
@@ -498,7 +499,7 @@ where
         let account_id = identity_pair.public();
 
         let logger = DebugLogger {
-            peer_id: format!("Peer {idx}"),
+            peer_id: format!("Peer {node_index}"),
         };
 
         let pallet_tx = TestExternalitiesPalletSubmitter {
@@ -516,6 +517,7 @@ where
             logger,
             pallet_tx,
             keystore,
+            node_index,
         };
 
         let task = f(input);

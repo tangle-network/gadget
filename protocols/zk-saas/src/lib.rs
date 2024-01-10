@@ -40,7 +40,10 @@ where
 {
     // Create the zk gadget module
     let network = create_zk_network(&config).await?;
-    log::info!("Created zk network for party {}", config.account_id);
+    logger.info(format!(
+        "Created zk network for party {}",
+        config.account_id
+    ));
 
     let client_inner = Arc::new(client);
     let client = create_client(client_inner, logger.clone(), Arc::new(pallet_tx)).await?;
@@ -51,7 +54,7 @@ where
         logger,
     };
 
-    // Plug the module into the webb gadget
+    // Plug the protocol into the webb gadget
     gadget_common::run_protocol(network, zk_protocol, client).await
 }
 

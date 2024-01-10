@@ -35,5 +35,4 @@ parity-scale-codec = { workspace = true }
 serde = { version = "1.0.193", features = ["derive"] }
 
 [dev-dependencies]
-tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 test-utils = { workspace = true }
