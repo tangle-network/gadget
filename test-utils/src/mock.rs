@@ -51,8 +51,8 @@ use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
 use tangle_primitives::jobs::traits::{JobToFee, MPCHandler};
 use tangle_primitives::jobs::{
-    JobId, JobSubmission, JobType, JobWithResult, ReportValidatorOffence, RpcResponseJobsData,
-    RpcResponsePhaseOneResult, ValidatorOffenceType,
+    JobId, JobSubmission, JobType, JobWithResult, PhaseResult, ReportValidatorOffence,
+    RpcResponseJobsData, ValidatorOffenceType,
 };
 use tangle_primitives::roles::traits::RolesHandler;
 use tangle_primitives::roles::RoleType;
@@ -231,13 +231,13 @@ sp_api::mock_impl_runtime_apis! {
             })
         }
 
-        fn query_phase_one_by_id(
+        fn query_job_result(
             &self,
             role_type: RoleType,
             job_id: JobId,
-        ) -> Option<RpcResponsePhaseOneResult<AccountId, BlockNumberOf<Block>>> {
+        ) -> Option<PhaseResult<AccountId, BlockNumberOf<Block>>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                Jobs::query_phase_one_by_id(role_type, job_id)
+                Jobs::query_job_result(role_type, job_id)
             })
         }
 

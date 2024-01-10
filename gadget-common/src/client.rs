@@ -16,8 +16,8 @@ use subxt::ext::sp_core::Pair as SubxtPair;
 use subxt::tx::{PairSigner, TxPayload};
 use subxt::utils::H256;
 use subxt::{OnlineClient, PolkadotConfig};
-use tangle_primitives::jobs::{JobId, JobResult};
-use tangle_primitives::jobs::{RpcResponseJobsData, RpcResponsePhaseOneResult};
+use tangle_primitives::jobs::RpcResponseJobsData;
+use tangle_primitives::jobs::{JobId, JobResult, PhaseResult};
 use tangle_primitives::roles::RoleType;
 
 pub struct JobsClient<B: Block, BE, C> {
@@ -146,16 +146,14 @@ where
         })
     }
 
-    pub async fn query_phase_one_by_id(
+    pub async fn query_job_result(
         &self,
         at: <B as Block>::Hash,
         role_type: RoleType,
         job_id: JobId,
-    ) -> Result<Option<RpcResponsePhaseOneResult<AccountId, BlockNumberOf<B>>>, crate::Error> {
+    ) -> Result<Option<PhaseResult<AccountId, BlockNumberOf<B>>>, crate::Error> {
         exec_client_function(&self.client, move |client| {
-            client
-                .runtime_api()
-                .query_phase_one_by_id(at, role_type, job_id)
+            client.runtime_api().query_job_result(at, role_type, job_id)
         })
         .await
         .map_err(|err| crate::Error::ClientError {
