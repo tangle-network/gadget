@@ -2,13 +2,14 @@
 mod tests {
     use futures::stream::FuturesUnordered;
     use futures::StreamExt;
-    use mp_ecdsa_protocol::mock::{id_to_public, new_test_ext, Jobs, Runtime, RuntimeOrigin};
+    use mp_ecdsa_protocol::MpEcdsaProtocolConfig;
     use pallet_jobs::{SubmittedJobs, SubmittedJobsRole};
     use std::time::Duration;
     use tangle_primitives::jobs::{
         DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
     };
     use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
+    use test_utils::mock::{id_to_public, Jobs, MockBackend, Runtime, RuntimeOrigin};
     use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use tracing_subscriber::fmt::SubscriberBuilder;
     use tracing_subscriber::util::SubscriberInitExt;
@@ -168,5 +169,38 @@ mod tests {
         )
         .await;
         job_id
+    }
+
+    async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
+        test_utils::mock::new_test_ext::<N, 2, _, _>(|mut node_input| async move {
+            let keygen_client = node_input.mock_clients.pop().expect("No keygen client");
+            let signing_client = node_input.mock_clients.pop().expect("No signing client");
+
+            let keygen_network = node_input.mock_networks.pop().expect("No keygen network");
+            let signing_network = node_input.mock_networks.pop().expect("No signing network");
+
+            let config = MpEcdsaProtocolConfig {
+                account_id: node_input.account_id,
+            };
+
+            let logger = node_input.logger.clone();
+            let (pallet_tx, keystore) = (node_input.pallet_tx, node_input.keystore);
+            logger.info("Starting gadget");
+            if let Err(err) = mp_ecdsa_protocol::run::<_, MockBackend, _, _, _, _, _>(
+                config,
+                keygen_client,
+                signing_client,
+                logger.clone(),
+                keystore,
+                keygen_network,
+                signing_network,
+                pallet_tx,
+            )
+            .await
+            {
+                log::error!(target: "gadget", "Error running gadget: {err:?}");
+            }
+        })
+        .await
     }
 }

@@ -30,17 +30,18 @@ use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_core::{ByteArray, Pair, H256};
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
+use std::future::Future;
 use std::time::Duration;
 
 pub type Balance = u128;
 pub type BlockNumber = u64;
 
-use crate::mock::mock_wrapper_client::TestExternalitiesPalletSubmitter;
-use crate::MpEcdsaProtocolConfig;
+use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmitter};
+use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::keystore::ECDSAKeyStore;
+use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::Error;
 use gadget_core::job_manager::WorkManagerInterface;
@@ -55,7 +56,6 @@ use tangle_primitives::jobs::{
 };
 use tangle_primitives::roles::traits::RolesHandler;
 use tangle_primitives::roles::RoleType;
-use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 /// Key type for DKG keys
@@ -385,9 +385,27 @@ pub fn advance_to_block(block_number: u64) {
     }
 }
 
-// This function basically just builds a genesis storage key/value store according to
-// our desired mockup.
-pub async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
+pub struct NodeInput {
+    pub mock_clients: Vec<MockClient<Runtime, Block>>,
+    pub mock_networks: Vec<MockNetwork>,
+    pub account_id: AccountId,
+    pub logger: DebugLogger,
+    pub pallet_tx: TestExternalitiesPalletSubmitter,
+    pub keystore: ECDSAKeyStore<InMemoryBackend>,
+}
+
+/// This function basically just builds a genesis storage key/value store according to
+/// our desired mockup.
+/// N: number of nodes
+/// K: Number of networks accessible per node
+/// F: A repeated function that accepts relevant data, and, is expected to spawn each node
+pub async fn new_test_ext<const N: usize, const K: usize, F, J>(
+    f: F,
+) -> MultiThreadedTestExternalities
+where
+    F: Fn(NodeInput) -> J,
+    J: Future<Output = ()> + Send + 'static,
+{
     let mut t = frame_system::GenesisConfig::<Runtime>::default()
         .build_storage()
         .unwrap();
@@ -400,19 +418,25 @@ pub async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
         .map(|public| (*public, 100u128))
         .collect::<Vec<_>>();
 
-    let keygen_networks = MockNetwork::setup(&identities);
-    let signing_networks = MockNetwork::setup(&identities);
+    let networks = (0..K)
+        .map(|_| MockNetwork::setup(&identities))
+        .collect::<Vec<_>>();
+
+    // Transpose networks
+    let networks = (0..N)
+        .map(|i| {
+            networks
+                .iter()
+                .map(|network| network[i].clone())
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
 
     pallet_balances::GenesisConfig::<Runtime> { balances }
         .assimilate_storage(&mut t)
         .unwrap();
 
     let mut ext = sp_io::TestExternalities::new(t);
-    /*ext.execute_with(|| System::set_block_number(1));
-    ext.execute_with(|| System::on_finalize(1));
-    ext.execute_with(|| Jobs::on_finalize(1));
-    ext.execute_with(|| Balances::on_finalize(1));*/
-
     ext.register_extension(KeystoreExt(Arc::new(MemoryKeystore::new()) as KeystorePtr));
 
     let ext = MultiThreadedTestExternalities::new(ext);
@@ -464,19 +488,14 @@ pub async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
         }
     });
 
-    for (idx, ((identity_pair, keygen_network), signing_network)) in pairs
-        .into_iter()
-        .zip(keygen_networks)
-        .zip(signing_networks)
-        .enumerate()
-    {
-        let mock_client_keygen =
-            mock_wrapper_client::MockClient::new(Runtime, finality_notification_txs.clone()).await;
-        let mock_client_signing =
-            mock_wrapper_client::MockClient::new(Runtime, finality_notification_txs.clone()).await;
+    for (idx, (identity_pair, networks)) in pairs.into_iter().zip(networks).enumerate() {
+        let mut mock_clients = Vec::new();
+
+        for _ in 0..K {
+            mock_clients.push(MockClient::new(Runtime, finality_notification_txs.clone()).await);
+        }
 
         let account_id = identity_pair.public();
-        let protocol_config = MpEcdsaProtocolConfig { account_id };
 
         let logger = DebugLogger {
             peer_id: format!("Peer {idx}"),
@@ -487,26 +506,19 @@ pub async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
             ext: ext.clone(),
         };
 
-        // Both the keygen and signing will share a keystore
-        let ecdsa_keystore = ECDSAKeyStore::in_memory(identity_pair);
-        logger.trace("Starting protocol");
-        let task = async move {
-            if let Err(err) = crate::run::<_, MockBackend, _, _, _, _, _>(
-                protocol_config,
-                mock_client_keygen,
-                mock_client_signing,
-                logger.clone(),
-                ecdsa_keystore,
-                keygen_network,
-                signing_network,
-                pallet_tx,
-            )
-            .await
-            {
-                logger.error(format!("Error running test protocol: {err:?}"));
-            }
+        // Assume all clients/networks share the same keystore for sharing results
+        // between phases
+        let keystore = ECDSAKeyStore::in_memory(identity_pair);
+        let input = NodeInput {
+            mock_clients,
+            mock_networks: networks,
+            account_id,
+            logger,
+            pallet_tx,
+            keystore,
         };
 
+        let task = f(input);
         tokio::task::spawn(task);
     }
 
@@ -519,6 +531,7 @@ fn mock_pub_key() -> ecdsa::Public {
 
 pub mod mock_wrapper_client {
     use crate::mock::RuntimeOrigin;
+    use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use async_trait::async_trait;
     use futures::StreamExt;
     use gadget_common::client::{AccountId, PalletSubmitter};
@@ -536,7 +549,6 @@ pub mod mock_wrapper_client {
     use std::time::Duration;
     use tangle_primitives::jobs::{JobId, JobResult};
     use tangle_primitives::roles::RoleType;
-    use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
 
     #[derive(Clone)]
     pub struct MockClient<R, B: Block> {

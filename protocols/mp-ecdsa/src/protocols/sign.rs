@@ -117,7 +117,7 @@ where
 
                 let phase1_job = self
                     .client
-                    .query_phase_one_by_id(notification.hash, role_type, job_id)
+                    .query_phase_one_by_id(notification.hash, role_type, previous_job_id)
                     .await?
                     .ok_or_else(|| gadget_common::Error::ClientError {
                         err: format!("Corresponding phase one job {previous_job_id} not found for phase two job {job_id}"),
