@@ -265,7 +265,7 @@ where
 
                 let state_machine_wrapper =
                     StateMachineWrapper::new(keygen, current_round_blame_tx, logger.clone());
-                logger.debug("Beginning AsyncProtocol - KeyGen");
+                logger.debug("Beginning AsyncProtocol - Keygen");
                 let local_key = round_based::AsyncProtocol::new(
                     state_machine_wrapper,
                     keygen_rx_async_proto,
@@ -278,7 +278,7 @@ where
                     reason: format!("Keygen protocol error: {err:?}"),
                 })?;
 
-                logger.debug("Finished AsyncProtocol - KeyGen");
+                logger.debug("Finished AsyncProtocol - Keygen");
 
                 let job_result = handle_public_key_gossip(
                     &logger,

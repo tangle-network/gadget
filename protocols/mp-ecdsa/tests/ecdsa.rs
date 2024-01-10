@@ -79,6 +79,7 @@ mod tests {
         }));
     }
 
+    #[allow(dead_code)]
     fn remove_job(role_type: RoleType, job_id: JobId) {
         SubmittedJobs::<Runtime>::remove(role_type, job_id);
         SubmittedJobsRole::<Runtime>::remove(job_id);
@@ -92,14 +93,7 @@ mod tests {
         loop {
             tokio::time::sleep(Duration::from_millis(100)).await;
             if ext
-                .execute_with_async(move || {
-                    if Jobs::known_results(role_type, job_id).is_some() {
-                        remove_job(role_type, job_id);
-                        true
-                    } else {
-                        false
-                    }
-                })
+                .execute_with_async(move || Jobs::known_results(role_type, job_id).is_some())
                 .await
             {
                 return;
@@ -117,6 +111,7 @@ mod tests {
 
                 let submission = JobSubmission {
                     expiry: 100,
+                    ttl: 100,
                     job_type: JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
                         participants: identities.clone(),
                         threshold: T as _,
@@ -151,6 +146,7 @@ mod tests {
                 let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
                 let submission = JobSubmission {
                     expiry: 100,
+                    ttl: 100,
                     job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
                         phase_one_id: keygen_job_id,
                         submission: Vec::from("Hello, world!"),

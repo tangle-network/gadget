@@ -106,7 +106,6 @@ where
 
         for job in jobs {
             let job_id = job.job_id;
-            let participants = job.participants.clone();
             let role_type = job.job_type.get_role_type();
 
             if let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type {
@@ -116,8 +115,24 @@ where
                 let input_data_to_sign = p2_job.submission;
                 let previous_job_id = p2_job.phase_one_id;
 
-                let participants = participants.expect("Should exist for stage 2 signing");
-                let threshold = job.threshold.expect("T should exist for stage 2 signing") as u16;
+                let phase1_job = self
+                    .client
+                    .query_phase_one_by_id(notification.hash, role_type, job_id)
+                    .await?
+                    .ok_or_else(|| gadget_common::Error::ClientError {
+                        err: format!("Corresponding phase one job {previous_job_id} not found for phase two job {job_id}"),
+                    })?;
+
+                let participants = phase1_job
+                    .job_type
+                    .clone()
+                    .get_participants()
+                    .expect("Should exist for stage 1 signing");
+                let threshold = phase1_job
+                    .job_type
+                    .get_threshold()
+                    .expect("T should exist for stage 1 signing")
+                    as u16;
 
                 if participants.contains(&self.account_id) {
                     let task_id = job_id.to_be_bytes();
@@ -192,7 +207,7 @@ where
         error: gadget_common::Error,
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) {
-        log::error!(target: "mp-ecdsa", "Error: {error:?}");
+        log::error!(target: "gadget", "Error: {error:?}");
     }
 
     fn logger(&self) -> &DebugLogger {

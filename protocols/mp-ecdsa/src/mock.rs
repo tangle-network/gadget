@@ -23,11 +23,11 @@ use frame_support::{
 };
 use frame_system::EnsureSigned;
 use gadget_common::client::AccountId;
+use pallet_jobs_rpc_runtime_api::BlockNumberOf;
 use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use sp_api::{ApiRef, ProvideRuntimeApi};
-use sp_application_crypto::RuntimePublic;
-use sp_core::{Pair, H256};
+use sp_core::{ByteArray, Pair, H256};
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -49,15 +49,12 @@ use sp_io::crypto::ecdsa_generate;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
 use tangle_primitives::jobs::traits::{JobToFee, MPCHandler};
-use tangle_primitives::roles::traits::RolesHandler;
-use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
-use tangle_primitives::{
-    jobs::{
-        JobSubmission, JobType, JobWithResult, ReportValidatorOffence, RpcResponseJobsData,
-        ValidatorOffenceType,
-    },
-    roles::{RoleTypeMetadata, TssRoleMetadata},
+use tangle_primitives::jobs::{
+    JobId, JobSubmission, JobType, JobWithResult, ReportValidatorOffence, RpcResponseJobsData,
+    RpcResponsePhaseOneResult, ValidatorOffenceType,
 };
+use tangle_primitives::roles::traits::RolesHandler;
+use tangle_primitives::roles::RoleType;
 use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
@@ -171,15 +168,12 @@ impl RolesHandler<AccountId> for MockRolesHandler {
         Ok(())
     }
 
-    fn get_validator_metadata(address: AccountId, _job_key: RoleType) -> Option<RoleTypeMetadata> {
-        let mock_err_account = id_to_public(100);
-        if address == mock_err_account {
-            None
+    fn get_validator_role_key(address: AccountId) -> Option<Vec<u8>> {
+        let validators = (0..8).map(id_to_public).collect::<Vec<_>>();
+        if validators.contains(&address) {
+            Some(mock_pub_key().to_raw_vec())
         } else {
-            Some(RoleTypeMetadata::Tss(TssRoleMetadata {
-                role_type: ThresholdSignatureRoleType::TssGG20,
-                authority_key: RuntimePublic::to_raw_vec(&mock_pub_key()),
-            }))
+            None
         }
     }
 }
@@ -231,9 +225,29 @@ construct_runtime!(
 
 sp_api::mock_impl_runtime_apis! {
     impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId> for Runtime {
-        fn query_jobs_by_validator(&self, validator: AccountId) -> Option<Vec<RpcResponseJobsData<AccountId>>> {
+        fn query_jobs_by_validator(&self, validator: AccountId) -> Option<Vec<RpcResponseJobsData<AccountId, BlockNumberOf<Block>>>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
                 Jobs::query_jobs_by_validator(validator)
+            })
+        }
+
+        fn query_phase_one_by_id(
+            &self,
+            role_type: RoleType,
+            job_id: JobId,
+        ) -> Option<RpcResponsePhaseOneResult<AccountId, BlockNumberOf<Block>>> {
+            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
+                Jobs::query_phase_one_by_id(role_type, job_id)
+            })
+        }
+
+        fn query_job_by_id(
+            &self,
+            role_type: RoleType,
+            job_id: JobId,
+        ) -> Option<RpcResponseJobsData<AccountId, BlockNumberOf<Block>>> {
+            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
+                Jobs::query_job_by_id(role_type, job_id)
             })
         }
     }

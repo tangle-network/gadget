@@ -146,7 +146,7 @@ where
         })
     }
 
-    pub async fn query_phase_1_by_id(
+    pub async fn query_phase_one_by_id(
         &self,
         at: <B as Block>::Hash,
         role_type: RoleType,

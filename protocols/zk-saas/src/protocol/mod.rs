@@ -85,7 +85,7 @@ where
                     .expect("Should exist for a phase2 job");
                 let phase_one_job = self
                     .client
-                    .query_phase_1_by_id(notification.hash, role_type, phase_one_id)
+                    .query_phase_one_by_id(notification.hash, role_type, phase_one_id)
                     .await
                     .map_err(|err| crate::Error::ClientError {
                         err: format!("Failed to query phase one by id: {err:?}"),
