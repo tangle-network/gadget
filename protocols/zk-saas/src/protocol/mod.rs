@@ -1,4 +1,4 @@
-use crate::network::{RegistantId, ZkNetworkService, ZkSetupPacket};
+use crate::network::ZkNetworkService;
 use crate::protocol::proto_gen::ZkAsyncProtocolParameters;
 use ark_circom::CircomReduction;
 use ark_crypto_primitives::snark::SNARK;
@@ -67,7 +67,8 @@ where
         now: u64,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<Option<Vec<Job>>, Error> {
-        log::debug!("Received a finality notification at {now}",);
+        self.logger
+            .info(format!("Received a finality notification at {now}"));
 
         let jobs = self
             .client
@@ -138,6 +139,7 @@ where
                         role_type,
                         system: phase_one.system,
                         request: phase_two.request,
+                        participants,
                     };
 
                     let job = self
@@ -189,6 +191,7 @@ pub struct ZkJobAdditionalParams {
     role_type: RoleType,
     system: ZkSaaSSystem,
     request: ZkSaaSPhaseTwoRequest,
+    participants: Vec<AccountId>,
 }
 
 impl AdditionalProtocolParams for ZkJobAdditionalParams {
@@ -219,12 +222,15 @@ where
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let client = self.client.clone();
         let rxs = zk_setup_rxs(additional_params.n_parties(), protocol_message_rx).await?;
-        let other_network_ids = zk_setup_phase(
-            additional_params.n_parties(),
-            &associated_task_id,
+        let other_network_ids = zk_setup_phase_order_participants(
+            additional_params.participants.clone(),
             &self.network,
         )
-        .await?;
+        .map_err(|err| JobError {
+            reason: format!("Failed to setup phase order participants: {err:?}"),
+        })?;
+
+        self.logger.info("AB5.3");
 
         let params = ZkAsyncProtocolParameters::<_, _, _, B, BE> {
             associated_block_id,
@@ -505,48 +511,31 @@ async fn zk_setup_rxs(
     Ok(rxs)
 }
 
-/// The goal of the ZK setup phase it to determine the mapping of party_id -> network_id
-/// This will allow proper routing of messages to the correct parties.
-///
-/// This should be run before running any ZK protocols
-async fn zk_setup_phase(
-    n_parties: usize,
-    job_id: &[u8; 32],
+fn zk_setup_phase_order_participants(
+    mut participants: Vec<AccountId>,
     network: &ZkNetworkService,
-) -> Result<HashMap<u32, RegistantId>, JobError> {
-    if network.is_king() {
-        // Wait for n_parties - 1 messages since we are excluding ourselves
-        let expected_messages = n_parties - 1;
-        let mut ret = HashMap::new();
-        loop {
-            let packet = network
-                .king_only_next_zk_setup_packet(job_id)
-                .await
-                .ok_or_else(|| JobError {
-                    reason: "Failed to receive zk setup packet as king".to_string(),
-                })?;
+) -> Result<HashMap<u32, AccountId>, gadget_common::Error> {
+    let king_id = network
+        .king_id()
+        .ok_or_else(|| gadget_common::Error::ClientError {
+            err: "King id not found".to_string(),
+        })?;
 
-            if let ZkSetupPacket::ClientToKing {
-                party_id,
-                registry_id,
-                ..
-            } = packet
-            {
-                ret.insert(party_id, registry_id);
-                if ret.len() == expected_messages {
-                    network.king_only_clear_zk_setup_map_for(job_id).await;
-                    return Ok(ret);
-                }
-            } else {
-                log::warn!("Received a non-client-to-king packet during zk setup phase");
-            }
-        }
-    } else {
-        network
-            .client_only_get_zk_setup_result(job_id)
-            .await
-            .map_err(|err| JobError {
-                reason: err.to_string(),
-            })
-    }
+    // The king should be moved into the 0th index of the participants, swapping positions with the 0th participant
+    let king_index = participants
+        .iter()
+        .position(|p| p == &king_id)
+        .ok_or_else(|| gadget_common::Error::ClientError {
+            err: "King not found in participants".to_string(),
+        })?;
+
+    let current_0th = participants[0];
+    participants[0] = king_id;
+    participants[king_index] = current_0th;
+
+    Ok(participants
+        .into_iter()
+        .enumerate()
+        .map(|(i, p)| (i as u32, p))
+        .collect())
 }

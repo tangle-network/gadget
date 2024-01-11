@@ -47,7 +47,6 @@ pub trait AsyncProtocol {
         let (to_async_protocol, protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
         let (start_tx, start_rx) = tokio::sync::oneshot::channel();
         let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
-
         let async_protocol = self
             .generate_protocol_from(
                 now,
