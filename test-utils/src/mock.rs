@@ -399,12 +399,15 @@ pub struct NodeInput {
 /// our desired mockup.
 /// N: number of nodes
 /// K: Number of networks accessible per node
+/// D: Any data that you want to pass to pass with NodeInput.
 /// F: A repeated function that accepts relevant data, and, is expected to spawn each node
-pub async fn new_test_ext<const N: usize, const K: usize, F, J>(
+pub async fn new_test_ext<const N: usize, const K: usize, D, F, J>(
+    user_data: D,
     f: F,
 ) -> MultiThreadedTestExternalities
 where
-    F: Fn(NodeInput) -> J,
+    D: Clone + Send + Sync + 'static,
+    F: Fn(D, NodeInput) -> J,
     J: Future<Output = ()> + Send + 'static,
 {
     let mut t = frame_system::GenesisConfig::<Runtime>::default()
@@ -520,7 +523,7 @@ where
             node_index,
         };
 
-        let task = f(input);
+        let task = f(user_data.clone(), input);
         tokio::task::spawn(task);
     }
 

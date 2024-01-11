@@ -2,6 +2,7 @@
 mod tests {
     use std::net::SocketAddr;
     use std::str::FromStr;
+    use std::sync::Arc;
     use tangle_primitives::jobs::{
         Groth16ProveRequest, Groth16System, HyperData, JobSubmission, JobType,
         ZkSaaSPhaseOneJobType, ZkSaaSPhaseTwoJobType, ZkSaaSPhaseTwoRequest, ZkSaaSSystem,
@@ -72,62 +73,63 @@ mod tests {
     }
 
     async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
-        test_utils::mock::new_test_ext::<N, 1, _, _>(|mut node_info| async move {
-            let king_addr = SocketAddr::from_str("127.0.0.1:12344").expect("Should be valid addr");
-            let king_cert =
-                rcgen::generate_simple_self_signed(vec!["localhost".into(), "127.0.0.1".into()])
-                    .unwrap();
-            let king_public_identity_der = king_cert.serialize_der().expect("Should serialize");
-            let king_private_identity_der = king_cert.serialize_private_key_der();
-            let (king_bind_addr, client_only_king_addr, client_only_king_public_identity_der) =
-                if node_info.node_index == 0 {
-                    (Some(king_addr), None, None)
+        let king_addr = SocketAddr::from_str("127.0.0.1:12344").expect("Should be valid addr");
+        let king_cert =
+            rcgen::generate_simple_self_signed(vec!["localhost".into(), "127.0.0.1".into()])
+                .unwrap();
+        let king_cert = Arc::new(king_cert);
+        test_utils::mock::new_test_ext::<N, 1, _, _, _>(
+            king_cert,
+            |king_cert, mut node_info| async move {
+                let king_public_identity_der = king_cert.serialize_der().expect("Should serialize");
+                let king_private_identity_der = king_cert.serialize_private_key_der();
+                let (king_bind_addr, client_only_king_addr, client_only_king_public_identity_der) =
+                    if node_info.node_index == 0 {
+                        (Some(king_addr), None, None)
+                    } else {
+                        (
+                            None,
+                            Some(king_addr),
+                            Some(king_public_identity_der.clone()),
+                        )
+                    };
+
+                let (public_identity_der, private_identity_der) = if node_info.node_index == 0 {
+                    (king_public_identity_der, king_private_identity_der)
                 } else {
+                    let cert =
+                        rcgen::generate_simple_self_signed(vec!["127.0.0.1".into()]).unwrap();
                     (
-                        None,
-                        Some(king_addr),
-                        Some(king_public_identity_der.clone()),
+                        cert.serialize_der().expect("Should serialize"),
+                        cert.serialize_private_key_der(),
                     )
                 };
 
-            let (public_identity_der, private_identity_der) = if node_info.node_index == 0 {
-                (king_public_identity_der, king_private_identity_der)
-            } else {
-                let cert = rcgen::generate_simple_self_signed(vec![
-                    "localhost".into(),
-                    "127.0.0.1".into(),
-                ])
-                .unwrap();
-                (
-                    cert.serialize_der().expect("Should serialize"),
-                    cert.serialize_private_key_der(),
+                let config = ZkGadgetConfig {
+                    king_bind_addr,
+                    client_only_king_addr,
+                    public_identity_der,
+                    private_identity_der,
+                    client_only_king_public_identity_der,
+                    account_id: node_info.account_id,
+                };
+
+                let logger = node_info.logger.clone();
+                let client = node_info.mock_clients.pop().expect("Should have client");
+                let pallet_tx = node_info.pallet_tx;
+
+                if let Err(err) = zk_saas_protocol::run::<_, _, MockBackend, _>(
+                    config,
+                    logger.clone(),
+                    client,
+                    pallet_tx,
                 )
-            };
-
-            let config = ZkGadgetConfig {
-                king_bind_addr,
-                client_only_king_addr,
-                public_identity_der,
-                private_identity_der,
-                client_only_king_public_identity_der,
-                account_id: node_info.account_id,
-            };
-
-            let logger = node_info.logger.clone();
-            let client = node_info.mock_clients.pop().expect("Should have client");
-            let pallet_tx = node_info.pallet_tx;
-
-            if let Err(err) = zk_saas_protocol::run::<_, _, MockBackend, _>(
-                config,
-                logger.clone(),
-                client,
-                pallet_tx,
-            )
-            .await
-            {
-                log::error!(target: "gadget", "Failed to run zk protocol: {err:?}");
-            }
-        })
+                .await
+                {
+                    log::error!(target: "gadget", "Failed to run zk protocol: {err:?}");
+                }
+            },
+        )
         .await
     }
 }

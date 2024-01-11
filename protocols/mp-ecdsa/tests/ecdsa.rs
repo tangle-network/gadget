@@ -133,7 +133,7 @@ mod tests {
     }
 
     async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
-        test_utils::mock::new_test_ext::<N, 2, _, _>(|mut node_input| async move {
+        test_utils::mock::new_test_ext::<N, 2, _, _, _>((), |_, mut node_input| async move {
             let keygen_client = node_input.mock_clients.pop().expect("No keygen client");
             let signing_client = node_input.mock_clients.pop().expect("No signing client");
 
