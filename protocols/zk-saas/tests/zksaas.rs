@@ -1,11 +1,13 @@
 #[cfg(test)]
 mod tests {
+    use frame_support::assert_ok;
     use std::net::SocketAddr;
     use std::str::FromStr;
     use std::sync::Arc;
     use tangle_primitives::jobs::{
-        Groth16ProveRequest, Groth16System, HyperData, JobSubmission, JobType,
-        ZkSaaSPhaseOneJobType, ZkSaaSPhaseTwoJobType, ZkSaaSPhaseTwoRequest, ZkSaaSSystem,
+        Groth16ProveRequest, Groth16System, HyperData, JobResult, JobSubmission, JobType,
+        ZkSaaSCircuitResult, ZkSaaSPhaseOneJobType, ZkSaaSPhaseTwoJobType, ZkSaaSPhaseTwoRequest,
+        ZkSaaSSystem,
     };
     use tangle_primitives::roles::{RoleType, ZeroKnowledgeRoleType};
     use test_utils::mock::{id_to_public, Jobs, MockBackend, RuntimeOrigin};
@@ -45,7 +47,9 @@ mod tests {
                 }),
             };
 
-            assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), phase1_submission).is_ok());
+            assert_ok!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), phase1_submission));
+            let phase1_result = JobResult::ZkSaaSPhaseOne(ZkSaaSCircuitResult { job_id: phase_one_id, participants: identities.clone() });
+            assert_ok!(Jobs::submit_job_result(RuntimeOrigin::signed(identities[0]), RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16), phase_one_id, phase1_result));
 
             let phase_two_id = Jobs::next_job_id();
             let phase2_submission = JobSubmission {
@@ -58,7 +62,7 @@ mod tests {
                 }),
             };
 
-            assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), phase2_submission).is_ok());
+            assert_ok!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), phase2_submission));
 
             log::info!(target: "gadget", "******* Submitted ZkSaaS Job {phase_one_id} & {phase_two_id}");
             phase_two_id

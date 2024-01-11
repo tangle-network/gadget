@@ -47,5 +47,6 @@ ark-circom = { workspace = true }
 ark-bn254 = { workspace = true, default-features = false, features = ["curve"] }
 
 [dev-dependencies]
+frame-support = { workspace = true }
 test-utils = { workspace = true }
 rcgen = "0.12.0"
