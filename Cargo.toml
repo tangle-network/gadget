@@ -117,3 +117,4 @@ k256 = "0.13.2"
 subxt = "0.33.0"
 anyhow = "1.0.79"
 libsecp256k1 = "0.7.1"
+rayon = { version = "1.8.0" }

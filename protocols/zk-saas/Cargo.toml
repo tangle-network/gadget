@@ -45,8 +45,17 @@ ark-circom = { workspace = true }
 
 
 ark-bn254 = { workspace = true, default-features = false, features = ["curve"] }
+rayon = { workspace = true, optional = true }
 
 [dev-dependencies]
+ark-std = { workspace = true, default-features = false }
 frame-support = { workspace = true }
 test-utils = { workspace = true }
 rcgen = "0.12.0"
+
+[features]
+parallel = [
+  "ark-std/parallel",
+  # "groth16/parallel",
+  "rayon"
+]
