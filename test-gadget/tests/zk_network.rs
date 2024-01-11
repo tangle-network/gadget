@@ -19,6 +19,8 @@ mod tests {
     use test_gadget::test_network::InMemoryNetwork;
     use tokio::sync::Mutex;
 
+    const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60 * 10);
+
     pub fn setup_log() {
         let _ = SubscriberBuilder::default()
             .with_env_filter(EnvFilter::from_default_env())
@@ -105,10 +107,14 @@ mod tests {
                 let message = bincode2::serialize(&params.test_bundle.party_id)
                     .expect("Failed to serialize message");
                 let king_response = if let Some(messages) = network
-                    .client_send_or_king_receive(&message, sid)
+                    .client_send_or_king_receive(&message, sid, TIMEOUT)
                     .await
                     .expect("Failed to send")
                 {
+                    let messages = match messages {
+                        mpc_net::ClientSendOrKingReceiveResult::Full(m) => m,
+                        mpc_net::ClientSendOrKingReceiveResult::Partial(_) => todo!(),
+                    };
                     assert_eq!(messages.len(), params.test_bundle.n_peers);
                     let mut sum = 0;
                     for message in messages.into_iter() {

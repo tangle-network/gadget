@@ -3,11 +3,11 @@ mod tests {
     use std::net::SocketAddr;
     use std::str::FromStr;
     use tangle_primitives::jobs::{
-        Groth16System, JobSubmission, JobType, ZkSaaSPhaseOneJobType,
-        ZkSaaSPhaseTwoJobType, ZkSaaSSystem,
+        Groth16ProveRequest, Groth16System, HyperData, JobSubmission, JobType,
+        ZkSaaSPhaseOneJobType, ZkSaaSPhaseTwoJobType, ZkSaaSPhaseTwoRequest, ZkSaaSSystem,
     };
     use tangle_primitives::roles::{RoleType, ZeroKnowledgeRoleType};
-    use test_utils::mock::{id_to_public, Jobs, RuntimeOrigin};
+    use test_utils::mock::{id_to_public, Jobs, MockBackend, RuntimeOrigin};
     use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use zk_saas_protocol::ZkGadgetConfig;
 
@@ -18,7 +18,7 @@ mod tests {
         const T: usize = N - 1;
 
         let ext = new_test_ext::<N>().await;
-        wait_for_job(&ext).await;
+        wait_for_job::<N, T>(&ext).await;
     }
 
     async fn wait_for_job<const N: usize, const T: usize>(ext: &MultiThreadedTestExternalities) {
@@ -33,12 +33,12 @@ mod tests {
                     participants: identities.clone(),
                     permitted_caller: None,
                     system: ZkSaaSSystem::Groth16(Groth16System {
-                        circuit: (),
+                        circuit: HyperData::Raw(Vec::new()),
                         num_inputs: 0,
                         num_constraints: 0,
-                        proving_key: (),
+                        proving_key: HyperData::Raw(Vec::new()),
                         verifying_key: vec![],
-                        wasm: (),
+                        wasm: HyperData::Raw(Vec::new()),
                     }),
                     role_type: ZeroKnowledgeRoleType::ZkSaaSGroth16,
                 }),
@@ -52,7 +52,7 @@ mod tests {
                 ttl: 100,
                 job_type: JobType::ZkSaaSPhaseTwo(ZkSaaSPhaseTwoJobType {
                     phase_one_id,
-                    request: (),
+                    request: ZkSaaSPhaseTwoRequest::Groth16(Groth16ProveRequest { public_input: vec![], a_shares: vec![], ax_shares: vec![], qap_shares: vec![] }),
                     role_type: ZeroKnowledgeRoleType::ZkSaaSGroth16,
                 }),
             };
@@ -72,14 +72,13 @@ mod tests {
     }
 
     async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
-        let king_addr = SocketAddr::from_str("127.0.0.1:12344").expect("Should be valid addr");
-        let king_cert =
-            rcgen::generate_simple_self_signed(vec!["localhost".into(), "127.0.0.1".into()])
-                .unwrap();
-        let king_public_identity_der = king_cert.serialize_der().expect("Should serialize");
-        let king_private_identity_der = king_cert.serialize_private_key_der();
-
         test_utils::mock::new_test_ext::<N, 1, _, _>(|mut node_info| async move {
+            let king_addr = SocketAddr::from_str("127.0.0.1:12344").expect("Should be valid addr");
+            let king_cert =
+                rcgen::generate_simple_self_signed(vec!["localhost".into(), "127.0.0.1".into()])
+                    .unwrap();
+            let king_public_identity_der = king_cert.serialize_der().expect("Should serialize");
+            let king_private_identity_der = king_cert.serialize_private_key_der();
             let (king_bind_addr, client_only_king_addr, client_only_king_public_identity_der) =
                 if node_info.node_index == 0 {
                     (Some(king_addr), None, None)
@@ -118,7 +117,13 @@ mod tests {
             let client = node_info.mock_clients.pop().expect("Should have client");
             let pallet_tx = node_info.pallet_tx;
 
-            if let Err(err) = zk_saas_protocol::run(config, logger.clone(), client, pallet_tx).await
+            if let Err(err) = zk_saas_protocol::run::<_, _, MockBackend, _>(
+                config,
+                logger.clone(),
+                client,
+                pallet_tx,
+            )
+            .await
             {
                 log::error!(target: "gadget", "Failed to run zk protocol: {err:?}");
             }
