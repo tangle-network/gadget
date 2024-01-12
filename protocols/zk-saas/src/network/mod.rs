@@ -11,8 +11,10 @@ use mpc_net::MpcNetError;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -73,6 +75,29 @@ pub fn create_server_tls_acceptor<T: CertToDer>(
     Ok(TlsAcceptor::from(Arc::new(server_config)))
 }
 
+async fn retry_connect(addr: SocketAddr, timeout: Duration) -> Result<TcpStream, Error> {
+    let conn_subroutine = async move {
+        loop {
+            match TcpStream::connect(addr).await {
+                Ok(stream) => return Ok(stream),
+                Err(err) => {
+                    if err.kind() == ErrorKind::ConnectionRefused {
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                    }
+                }
+            }
+        }
+    };
+
+    tokio::time::timeout(timeout, conn_subroutine)
+        .await
+        .map_err(|err| Error::RegistryCreateError {
+            err: err.to_string(),
+        })?
+}
+
+const DEFAULT_CONNECTION_TIMEOUT: Duration = Duration::from_secs(10);
+
 impl ZkNetworkService {
     pub async fn new_king<T: std::net::ToSocketAddrs>(
         registry_id: RegistantId,
@@ -108,11 +133,7 @@ impl ZkNetworkService {
         let king_registry_addr = to_addr(king_registry_addr)?;
         let cert_der = client_identity.cert.0.clone();
 
-        let connection = TcpStream::connect(king_registry_addr)
-            .await
-            .map_err(|err| Error::RegistryCreateError {
-                err: err.to_string(),
-            })?;
+        let connection = retry_connect(king_registry_addr, DEFAULT_CONNECTION_TIMEOUT).await?;
 
         log::info!(
             "Party {registrant_id} connected to king registry at {}",
