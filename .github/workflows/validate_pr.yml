@@ -8,6 +8,10 @@ concurrency:
   group: rust-validation-${{ github.head_ref }}
   cancel-in-progress: true
 
+env:
+  RUST_BACKTRACE: full
+  RUST_LOG: "gadget=trace"
+
 jobs:
   formatting:
     name: Rustfmt
@@ -66,4 +70,4 @@ jobs:
           locked: true
 
       - name: Run Tests
-        run: cargo nextest run
+        run: cargo nextest run --test-threads=1

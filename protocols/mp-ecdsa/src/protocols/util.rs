@@ -99,8 +99,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     from,
                     to,
                     payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
-                    from_account_id,
-                    to_account_id,
+                    from_network_id: from_account_id,
+                    to_network_id: to_account_id,
                 };
 
                 if let Err(err) = network.send_message(msg).await {
@@ -124,8 +124,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     from,
                     to,
                     payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
-                    from_account_id,
-                    to_account_id,
+                    from_network_id: from_account_id,
+                    to_network_id: to_account_id,
                 };
 
                 if let Err(err) = network_clone.send_message(msg).await {

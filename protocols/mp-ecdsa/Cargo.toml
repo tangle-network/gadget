@@ -11,15 +11,12 @@ gadget-common = { workspace = true }
 gadget-core = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
-parking_lot = { workspace = true }
 multi-party-ecdsa = { workspace = true }
 round-based = { workspace = true }
 curv = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 bincode2 = { workspace = true }
-k256 = { workspace = true }
-anyhow = { workspace = true }
 
 pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
 pallet-jobs = { workspace = true, features = ["std"] }
@@ -27,30 +24,15 @@ tangle-primitives = { workspace = true, features = ["std"] }
 
 sp-core = { workspace = true, features = ["std"] }
 sp-api = { workspace = true, features = ["std"] }
-sp-externalities = { workspace = true, features = ["std"] }
 sp-runtime = { workspace = true, features = ["std"] }
 sp-application-crypto = { workspace = true, features = ["std"] }
-sp-consensus-aura = { workspace = true, features = ["std"] }
-sp-keystore = { workspace = true, features = ["std"] }
-sp-io = { workspace = true, features = ["std"] }
-sp-std = { workspace = true, features = ["std"] }
-sp-version = { workspace = true }
 
 sc-client-api = { workspace = true }
-sc-utils = { workspace = true }
-sc-rpc-spec-v2 = { workspace = true }
 
-frame-system = { workspace = true  }
 frame-support = { workspace = true  }
 parity-scale-codec = { workspace = true }
-scale-info = { workspace = true }
-
-pallet-balances = { workspace = true }
-pallet-timestamp = { workspace = true }
 
 serde = { version = "1.0.193", features = ["derive"] }
 
-test-utils = { workspace = true }
-
 [dev-dependencies]
-tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+test-utils = { workspace = true }

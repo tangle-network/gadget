@@ -35,11 +35,11 @@ subxt = { workspace = true, features = ["substrate-compat"] }
 anyhow = { workspace = true }
 futures = { workspace = true }
 
-sp-api = { workspace = true, default-features = false }
+sp-api = { workspace = true }
 
 sc-network = { workspace = true }
 sc-network-common = { workspace = true }
 sc-network-sync = { workspace = true }
 
-tangle-primitives = { workspace = true, default-features = false }
-pallet-jobs-rpc-runtime-api = { workspace = true, default-features = false }
+tangle-primitives = { workspace = true }
+pallet-jobs-rpc-runtime-api = { workspace = true }

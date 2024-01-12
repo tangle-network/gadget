@@ -15,9 +15,9 @@ pub struct GadgetProtocolMessage {
     pub to: Option<UserID>,
     pub payload: Vec<u8>,
     // Some protocols need this additional data
-    pub from_account_id: Option<AccountId>,
+    pub from_network_id: Option<AccountId>,
     // Some protocol need this additional data
-    pub to_account_id: Option<AccountId>,
+    pub to_network_id: Option<AccountId>,
 }
 
 pub type UserID = u32;

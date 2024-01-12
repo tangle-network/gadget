@@ -29,11 +29,13 @@
           nativeBuildInputs = [
             pkgs.pkg-config
             pkgs.clang
+            pkgs.gmp
             # Protocol Buffers
             pkgs.protobuf
             # Mold Linker for faster builds (only on Linux)
             (lib.optionals pkgs.stdenv.isLinux pkgs.mold)
             (lib.optionals pkgs.stdenv.isDarwin pkgs.darwin.apple_sdk.frameworks.Security)
+            (lib.optionals pkgs.stdenv.isDarwin pkgs.darwin.apple_sdk.frameworks.SystemConfiguration)
           ];
           buildInputs = [
             # We want the unwrapped version, wrapped comes with nixpkgs' toolchain
