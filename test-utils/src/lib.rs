@@ -1,5 +1,6 @@
 use crate::mock::{Jobs, Runtime};
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
+use gadget_common::client::AccountId;
 use pallet_jobs::{SubmittedJobs, SubmittedJobsRole};
 use std::time::Duration;
 use tangle_primitives::jobs::{JobId, PhaseResult};
@@ -7,7 +8,6 @@ use tangle_primitives::roles::RoleType;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
-use gadget_common::client::AccountId;
 
 pub mod mock;
 pub mod sync;
@@ -36,7 +36,7 @@ pub async fn wait_for_job_completion(
             .execute_with_async(move || Jobs::known_results(role_type, job_id))
             .await
         {
-            return ret
+            return ret;
         }
     }
 }
