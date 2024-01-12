@@ -230,8 +230,6 @@ where
             reason: format!("Failed to setup phase order participants: {err:?}"),
         })?;
 
-        self.logger.info("AB5.3");
-
         let params = ZkAsyncProtocolParameters::<_, _, _, B, BE> {
             associated_block_id,
             associated_retry_id,
@@ -525,7 +523,7 @@ fn zk_setup_phase_order_participants(
     let king_index = participants
         .iter()
         .position(|p| p == &king_id)
-        .ok_or_else(|| gadget_common::Error::ClientError {
+        .ok_or_else(|| Error::ClientError {
             err: "King not found in participants".to_string(),
         })?;
 

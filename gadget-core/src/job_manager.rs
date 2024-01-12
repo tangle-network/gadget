@@ -268,7 +268,9 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         let cur_count = lock.active_tasks.len();
         lock.active_tasks.retain(|job| {
             let is_stalled = job.handle.has_stalled(now);
-            if is_stalled {
+            let is_done = job.handle.is_done();
+
+            if is_stalled && !is_done {
                 // If stalled, lets log the start and now blocks for logging purposes
                 self.utility.debug(format!(
                     "[worker] Job {:?} | Started at {:?} | Now {:?} | is stalled, shutting down",
