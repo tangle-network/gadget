@@ -14,12 +14,12 @@ pub mod protocols;
 pub mod util;
 
 #[derive(Clone)]
-pub struct DnfsCGGMP21ProtocolConfig {
+pub struct DfnsCGGMP21ProtocolConfig {
     pub account_id: AccountId,
 }
 
 pub async fn run_keygen<B, BE, KBE, C, N>(
-    config: &DnfsCGGMP21ProtocolConfig,
+    config: &DfnsCGGMP21ProtocolConfig,
     client_inner: C,
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
@@ -56,7 +56,7 @@ where
 }
 
 pub async fn run_sign<B, BE, KBE, C, N>(
-    config: &DnfsCGGMP21ProtocolConfig,
+    config: &DfnsCGGMP21ProtocolConfig,
     client_inner: C,
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
@@ -89,7 +89,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub async fn run<B, BE, KBE, C, N, N2, Tx>(
-    config: DnfsCGGMP21ProtocolConfig,
+    config: DfnsCGGMP21ProtocolConfig,
     client_keygen: C,
     client_signing: C,
     logger: DebugLogger,

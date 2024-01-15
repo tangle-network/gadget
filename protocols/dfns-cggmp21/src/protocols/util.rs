@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use zengox_round_based::{Outgoing, Incoming};
+use zengox_round_based::{Incoming, Outgoing};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum SplitChannelMessage<C1, C2> {

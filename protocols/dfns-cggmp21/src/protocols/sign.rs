@@ -1,7 +1,4 @@
-use crate::protocols::state_machine::{CurrentRoundBlame, StateMachineWrapper};
-use crate::protocols::util;
-use crate::protocols::util::VotingMessage;
-use crate::DnfsCGGMP21ProtocolConfig;
+use crate::DfnsCGGMP21ProtocolConfig;
 use async_trait::async_trait;
 use curv::arithmetic::Converter;
 use curv::elliptic::curves::Secp256k1;
@@ -17,15 +14,8 @@ use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification, FinalityNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use multi_party_ecdsa::gg_2020::party_i::verify;
-use multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
-use multi_party_ecdsa::gg_2020::state_machine::sign::{
-    CompletedOfflineStage, OfflineStage, PartialSignature, SignManual,
-};
 use pallet_jobs_rpc_runtime_api::JobsApi;
 use parity_scale_codec::Encode;
-use round_based::async_runtime::watcher::StderrWatcher;
-use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_core::ecdsa::Signature;
@@ -37,31 +27,22 @@ use tangle_primitives::jobs::{
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use tokio::sync::RwLock;
 
-pub struct MpEcdsaSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
+pub struct DfnsCGGMP21SigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
     client: JobsClient<B, BE, C>,
     key_store: ECDSAKeyStore<KBE>,
     network: N,
-    round_blames: Arc<
-        RwLock<
-            HashMap<
-                <WebbWorkManager as WorkManagerInterface>::TaskID,
-                tokio::sync::watch::Receiver<CurrentRoundBlame>,
-            >,
-        >,
-    >,
     logger: DebugLogger,
     account_id: AccountId,
 }
 
 pub async fn create_protocol<B, BE, KBE, C, N>(
-    config: &DnfsCGGMP21ProtocolConfig,
+    config: &DfnsCGGMP21ProtocolConfig,
     logger: DebugLogger,
     client: JobsClient<B, BE, C>,
     network: N,
     key_store: ECDSAKeyStore<KBE>,
-) -> MpEcdsaSigningProtocol<B, BE, KBE, C, N>
+) -> DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
 where
     B: Block,
     BE: Backend<B>,
@@ -70,11 +51,10 @@ where
     N: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    MpEcdsaSigningProtocol {
+    DfnsCGGMP21SigningProtocol {
         client,
         network,
         key_store,
-        round_blames: Arc::new(Default::default()),
         logger,
         account_id: config.account_id,
     }
@@ -87,7 +67,7 @@ impl<
         C: ClientWithApi<B, BE>,
         KBE: KeystoreBackend,
         N: Network,
-    > WebbGadgetProtocol<B> for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
+    > WebbGadgetProtocol<B> for DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -109,7 +89,7 @@ where
             let role_type = job.job_type.get_role_type();
 
             if let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type {
-                if p2_job.role_type != ThresholdSignatureRoleType::TssGG20 {
+                if p2_job.role_type != ThresholdSignatureRoleType::TssCGGMP {
                     continue;
                 }
                 let input_data_to_sign = p2_job.submission;
@@ -157,16 +137,15 @@ where
                                 .clone()
                                 .into_iter()
                                 .enumerate()
-                                .map(|r| ((r.0 + 1) as UserID, r.1))
+                                .map(|r| (r.0 as UserID, r.1))
                                 .collect(),
                         );
 
-                        let additional_params = MpEcdsaSigningExtraParams {
+                        let additional_params = DfnsCGGMP21SigningExtraParams {
                             i: participants
                                 .iter()
                                 .position(|p| p == &self.account_id)
-                                .expect("Should exist") as u16
-                                + 1,
+                                .expect("Should exist") as u16,
                             t: threshold,
                             signers: (0..participants.len()).map(|r| (r + 1) as u16).collect(),
                             job_id,
@@ -223,7 +202,7 @@ where
     }
 }
 
-pub struct MpEcdsaSigningExtraParams {
+pub struct DfnsCGGMP21SigningExtraParams {
     i: u16,
     t: u16,
     signers: Vec<u16>,
@@ -241,11 +220,11 @@ impl<
         KBE: KeystoreBackend,
         C: ClientWithApi<B, BE>,
         N: Network,
-    > AsyncProtocol for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
+    > AsyncProtocol for DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    type AdditionalParams = MpEcdsaSigningExtraParams;
+    type AdditionalParams = DfnsCGGMP21SigningExtraParams;
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,

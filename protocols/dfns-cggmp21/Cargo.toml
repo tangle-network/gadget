@@ -1,5 +1,5 @@
 [package]
-name = "dnfs-cggmp21-protocol"
+name = "dfns-cggmp21-protocol"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,7 +9,7 @@ gadget-common = { workspace = true }
 gadget-core = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
-dnfs-cggmp21 = { workspace = true, features = ["all-curves"] }
+dfns-cggmp21 = { workspace = true, features = ["all-curves"] }
 zengox-round-based = { workspace = true }
 curv = { workspace = true }
 futures = { workspace = true }
