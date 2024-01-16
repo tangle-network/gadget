@@ -9,31 +9,31 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::JobId;
 
-pub type ECDSAKeyStore<BE> = GenaricKeyStore<BE, EcdsaPair>;
-pub type Sr25519KeyStore<BE> = GenaricKeyStore<BE, Sr25519Pair>;
+pub type ECDSAKeyStore<BE> = GenericKeyStore<BE, EcdsaPair>;
+pub type Sr25519KeyStore<BE> = GenericKeyStore<BE, Sr25519Pair>;
 
 #[derive(Clone)]
-pub struct GenaricKeyStore<BE: KeystoreBackend, P: Pair> {
+pub struct GenericKeyStore<BE: KeystoreBackend, P: Pair> {
     backend: BE,
     pair: P,
 }
 
-impl<P: Pair> GenaricKeyStore<InMemoryBackend, P> {
+impl<P: Pair> GenericKeyStore<InMemoryBackend, P> {
     pub fn in_memory(pair: P) -> Self {
-        GenaricKeyStore {
+        GenericKeyStore {
             backend: InMemoryBackend::new(),
             pair,
         }
     }
 }
 
-impl<P: Pair, BE: KeystoreBackend> GenaricKeyStore<BE, P> {
+impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
     pub fn pair(&self) -> &P {
         &self.pair
     }
 }
 
-impl<P: Pair, BE: KeystoreBackend> GenaricKeyStore<BE, P> {
+impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
     pub async fn get<T: DeserializeOwned>(
         &self,
         job_id: &JobId,
