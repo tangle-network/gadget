@@ -242,7 +242,7 @@ where
                     id,
                     network,
                 );
-                let delivery = (keygen_tx_to_outbound, keygen_rx_async_proto);
+                let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
                 let party = zengox_round_based::MpcParty::connected(delivery);
 
                 let incomplete_key_share = dfns_cggmp21::keygen::<Secp256k1>(eid, i, n)

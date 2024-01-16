@@ -239,18 +239,20 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     my_account_id: AccountId,
     network: N,
 ) -> (
-    futures::channel::mpsc::UnboundedSender<Incoming<M>>,
-    futures::channel::mpsc::UnboundedReceiver<Outgoing<M>>,
+    futures::channel::mpsc::UnboundedSender<Outgoing<M>>,
+    futures::channel::mpsc::UnboundedReceiver<
+        Result<Incoming<M>, futures::channel::mpsc::TryRecvError>,
+    >,
     futures::channel::mpsc::UnboundedSender<C2>,
     futures::channel::mpsc::UnboundedReceiver<C2>,
 ) {
-    let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded::<Incoming<M>>();
-    let (tx_to_async_proto_2, rx_for_async_proto_2) = futures::channel::mpsc::unbounded::<Outgoing<M>>();
+    let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
+    let (tx_to_async_proto_2, rx_for_async_proto_2) = futures::channel::mpsc::unbounded();
 
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
         while let Some(msg) = rx_gadget.recv().await {
-            match bincode2::deserialize::<SplitChannelMessage<C1, C2>>(&msg.payload) {
+            match bincode2::deserialize::<SplitChannelMessage<Incoming<M>, C2>>(&msg.payload) {
                 Ok(msg) => match msg {
                     SplitChannelMessage::Channel1(msg) => {
                         if tx_to_async_proto_1.unbounded_send(Ok(msg)).is_err() {
@@ -270,7 +272,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
         }
     });
 
-    let (tx_to_outbound_1, mut rx_to_outbound_1) = futures::channel::mpsc::unbounded::<C1>();
+    let (tx_to_outbound_1, mut rx_to_outbound_1) =
+        futures::channel::mpsc::unbounded::<Outgoing<M>>();
     let (tx_to_outbound_2, mut rx_to_outbound_2) = futures::channel::mpsc::unbounded::<C2>();
     let network_clone = network.clone();
     let user_id_mapping_clone = user_id_mapping.clone();
@@ -295,7 +298,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     from.as_user_id().unwrap_or(my_user_id),
                     to.as_user_id(),
                 );
-                let msg = SplitChannelMessage::<C1, C2>::Channel1(msg);
+                let msg = SplitChannelMessage::<Outgoing<M>, C2>::Channel1(msg);
                 let msg = GadgetProtocolMessage {
                     associated_block_id,
                     associated_session_id,
