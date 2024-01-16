@@ -1,3 +1,4 @@
 pub mod keygen;
-pub mod sign;
+// TODO: Support signing
+// pub mod sign;
 pub mod util;

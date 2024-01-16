@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
 use frame_support::Hashable;
+use futures::StreamExt;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -226,11 +227,22 @@ where
                     "Starting Keygen Protocol with params: i={i}, t={t}, n={n}"
                 ));
 
-                let (keygen_rx_async_proto, keygen_tx_async_proto) =
-                    futures::channel::mpsc::unbounded();
-                let (broadcast_tx_to_outbound, broadcast_rx_from_gadget) =
-                    futures::channel::mpsc::unbounded();
-                let delivery = (keygen_rx_async_proto, broadcast_tx_to_outbound);
+                let (
+                    keygen_tx_to_outbound,
+                    keygen_rx_async_proto,
+                    broadcast_tx_to_outbound,
+                    broadcast_rx_from_gadget,
+                ) = super::util::create_job_manager_to_async_protocol_channel_split(
+                    protocol_message_rx,
+                    associated_block_id,
+                    associated_retry_id,
+                    associated_session_id,
+                    associated_task_id,
+                    mapping,
+                    id,
+                    network,
+                );
+                let delivery = (keygen_tx_to_outbound, keygen_rx_async_proto);
                 let party = zengox_round_based::MpcParty::connected(delivery);
 
                 let incomplete_key_share = dfns_cggmp21::keygen::<Secp256k1>(eid, i, n)
@@ -240,6 +252,22 @@ where
                     .map_err(|err| JobError {
                         reason: format!("Keygen protocol error: {err:?}"),
                     })?;
+
+                let (
+                    keygen_tx_to_outbound,
+                    keygen_rx_async_proto,
+                    broadcast_tx_to_outbound,
+                    broadcast_rx_from_gadget,
+                ) = super::util::create_job_manager_to_async_protocol_channel_split(
+                    protocol_message_rx,
+                    associated_block_id,
+                    associated_retry_id,
+                    associated_session_id,
+                    associated_task_id,
+                    mapping,
+                    id,
+                    network,
+                );
                 let pregenerated_primes = dfns_cggmp21::PregeneratedPrimes::generate(&mut rng);
                 let aux_info = dfns_cggmp21::aux_info_gen(aux_eid, i, n, pregenerated_primes)
                     .start(&mut rng, party)
@@ -303,8 +331,8 @@ async fn handle_public_key_gossip(
     threshold: u16,
     i: u16,
     my_id: AccountId,
-    broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
-    mut broadcast_rx_from_gadget: UnboundedReceiver<PublicKeyGossipMessage>,
+    broadcast_tx_to_outbound: futures::channel::mpsc::UnboundedSender<PublicKeyGossipMessage>,
+    mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<JobResult, JobError> {
     let serialized_public_key = local_key.shared_public_key().to_bytes(true).to_vec();
     // Note: the signature is also empty in the DKG implementation
@@ -316,7 +344,7 @@ async fn handle_public_key_gossip(
     received_participants.insert(i, my_id);
 
     broadcast_tx_to_outbound
-        .send(PublicKeyGossipMessage {
+        .unbounded_send(PublicKeyGossipMessage {
             from: i as _,
             to: None,
             signature,
@@ -328,7 +356,7 @@ async fn handle_public_key_gossip(
 
     for idx in 0..threshold {
         let message = broadcast_rx_from_gadget
-            .recv()
+            .next()
             .await
             .ok_or_else(|| JobError {
                 reason: "Failed to receive public key".to_string(),
@@ -363,7 +391,7 @@ async fn handle_public_key_gossip(
         .collect();
 
     Ok(JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
-        signature_type: DigitalSignatureType::SchnorrSecp256k1,
+        signature_type: DigitalSignatureType::Ecdsa,
         key: serialized_public_key,
         participants,
         signatures,
