@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use parking_lot::RwLock;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use sp_core::bls381::Pair as Bls381Pair;
 use sp_core::ecdsa::Pair as EcdsaPair;
 use sp_core::sr25519::Pair as Sr25519Pair;
 use sp_core::Pair;
@@ -11,6 +12,7 @@ use tangle_primitives::jobs::JobId;
 
 pub type ECDSAKeyStore<BE> = GenericKeyStore<BE, EcdsaPair>;
 pub type Sr25519KeyStore<BE> = GenericKeyStore<BE, Sr25519Pair>;
+pub type Bls381KeyStore<BE> = GenericKeyStore<BE, Bls381Pair>;
 
 #[derive(Clone)]
 pub struct GenericKeyStore<BE: KeystoreBackend, P: Pair> {

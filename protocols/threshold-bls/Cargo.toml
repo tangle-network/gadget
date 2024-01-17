@@ -1,0 +1,43 @@
+[package]
+name = "threshold-bls-protocol"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
+gadget-common = { workspace = true }
+gadget-core = { workspace = true }
+async-trait = { workspace = true }
+log = { workspace = true }
+futures = { workspace = true }
+itertools = { workspace = true }
+bincode2 = { workspace = true }
+round-based = { package = "round-based", version = "0.2.0", default-features = false }
+vsss-rs = { workspace = true }
+gennaro-dkg = { workspace = true }
+dfns-cggmp21 = { workspace = true }
+bls12_381_plus = { workspace = true }
+digest = { workspace = true }
+udigest = { version = "0.1", features = ["std", "derive"]}
+hex = { version = "0.4", default-features = false, features = ["serde"] }
+
+pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
+pallet-jobs = { workspace = true, features = ["std"] }
+tangle-primitives = { workspace = true, features = ["std"] }
+
+sp-core = { workspace = true, features = ["std"] }
+sp-api = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+sp-application-crypto = { workspace = true, features = ["std"] }
+
+sc-client-api = { workspace = true }
+
+frame-support = { workspace = true  }
+parity-scale-codec = { workspace = true }
+
+serde = { version = "1.0.193", features = ["derive"] }
+
+[dev-dependencies]
+test-utils = { workspace = true }

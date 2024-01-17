@@ -7,6 +7,7 @@ members = [
     "protocols/mp-ecdsa",
     "protocols/dfns-cggmp21",
     "protocols/zk-saas",
+    "protocols/threshold-bls",
     "test-utils"
 ]
 
@@ -15,6 +16,7 @@ gadget-core = { path = "./gadget-core" }
 gadget-common = { path = "./gadget-common" }
 zk-saas-protocol = { path = "./protocols/zk-saas" }
 mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
+threshold-bls-protocol = { path = "./protocols/threshold-bls" }
 test-utils = { path = "./test-utils" }
 
 pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle" }
@@ -23,10 +25,21 @@ tangle-primitives = { git = "https://github.com/webb-tools/tangle" }
 tangle-testnet-runtime = { git = "https://github.com/webb-tools/tangle" }
 tangle-mainnet-runtime = { git = "https://github.com/webb-tools/tangle" }
 
+# Zengo / DFNS MPC libraries
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
 curv = { package = "curv-kzen", version = "0.10.0" }
 dfns-cggmp21 = { package = "cggmp21", version = "0.1.1", default-features = false }
+zengox-round-based = { package = "round-based", version = "0.2.0", default-features = false }
+digest = "0.10"
+
+# Other MPC libraries
+vsss-rs = { version = "3.3", default-features = false, features = ["std"] }
+gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
+bls12_381_plus = "0.8"
+ed25519-dalek = "2.0.0"
+k256 = { version = "0.13", features = ["arithmetic", "bits"] }
+p256 = { version = "0.13", features = ["arithmetic", "bits"] }
 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
@@ -115,7 +128,6 @@ hex-literal = "0.4.1"
 rand = "0.8.5"
 jsonrpsee = "0.16.2"
 linked-hash-map = "0.5.6"
-k256 = "0.13.2"
 subxt = "0.33.0"
 anyhow = "1.0.79"
 libsecp256k1 = "0.7.1"

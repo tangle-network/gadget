@@ -1,26 +1,19 @@
-use crate::protocols::state_machine::{CurrentRoundBlame, StateMachineWrapper};
-use crate::protocols::util;
-use crate::protocols::util::PublicKeyGossipMessage;
-use crate::MpEcdsaProtocolConfig;
 use async_trait::async_trait;
-use curv::elliptic::curves::Secp256k1;
 use frame_support::Hashable;
+use futures::StreamExt;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::{Job, TangleGadgetProtocol, WorkManagerConfig};
-use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
+use gadget_common::keystore::{Bls381KeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification, FinalityNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
-use multi_party_ecdsa::gg_2020::state_machine::keygen::{Keygen, LocalKey};
 use pallet_jobs_rpc_runtime_api::JobsApi;
-use round_based::async_runtime::watcher::StderrWatcher;
-use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
@@ -31,31 +24,26 @@ use tangle_primitives::jobs::{
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use tokio::sync::RwLock;
 
-pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
+use crate::ThresholdBls381ProtocolConfig;
+
+use super::util::PublicKeyGossipMessage;
+
+pub struct GennaroDkgKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
     client: JobsClient<B, BE, C>,
-    key_store: ECDSAKeyStore<KBE>,
+    key_store: Bls381KeyStore<KBE>,
     network: N,
-    round_blames: Arc<
-        RwLock<
-            HashMap<
-                <WorkManager as WorkManagerInterface>::TaskID,
-                tokio::sync::watch::Receiver<CurrentRoundBlame>,
-            >,
-        >,
-    >,
     logger: DebugLogger,
     account_id: AccountId,
 }
 
 pub async fn create_protocol<B, BE, KBE, C, N>(
-    config: &MpEcdsaProtocolConfig,
+    config: &ThresholdBls381ProtocolConfig,
     client: JobsClient<B, BE, C>,
     network: N,
     logger: DebugLogger,
-    key_store: ECDSAKeyStore<KBE>,
-) -> MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
+    key_store: Bls381KeyStore<KBE>,
+) -> GennaroDkgKeygenProtocol<B, BE, KBE, C, N>
 where
     B: Block,
     BE: Backend<B>,
@@ -64,11 +52,10 @@ where
     N: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    MpEcdsaKeygenProtocol {
+    GennaroDkgKeygenProtocol {
         client,
         network,
         key_store,
-        round_blames: Arc::new(RwLock::new(HashMap::new())),
         logger,
         account_id: config.account_id,
     }
@@ -81,7 +68,7 @@ impl<
         C: ClientWithApi<B, BE>,
         KBE: KeystoreBackend,
         N: Network,
-    > TangleGadgetProtocol<B> for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
+    > TangleGadgetProtocol<B> for GennaroDkgKeygenProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -103,7 +90,7 @@ where
             let job_id = job.job_id;
             let role_type = job.job_type.get_role_type();
             if let JobType::DKGTSSPhaseOne(p1_job) = job.job_type {
-                if p1_job.role_type != ThresholdSignatureRoleType::TssGG20 {
+                if p1_job.role_type != ThresholdSignatureRoleType::TssCGGMP {
                     continue;
                 }
                 let participants = p1_job.participants;
@@ -122,16 +109,15 @@ where
                             .clone()
                             .into_iter()
                             .enumerate()
-                            .map(|r| ((r.0 + 1) as UserID, r.1))
+                            .map(|r| (r.0 as UserID, r.1))
                             .collect(),
                     );
 
-                    let additional_params = MpEcdsaKeygenExtraParams {
+                    let additional_params = GennaroDkgKeygenExtraParams {
                         i: participants
                             .iter()
                             .position(|p| p == &self.account_id)
-                            .expect("Should exist") as u16
-                            + 1,
+                            .expect("Should exist") as u16,
                         t: threshold as u16,
                         n: participants.len() as u16,
                         role_type,
@@ -180,7 +166,7 @@ where
     }
 }
 
-pub struct MpEcdsaKeygenExtraParams {
+pub struct GennaroDkgKeygenExtraParams {
     i: u16,
     t: u16,
     n: u16,
@@ -196,11 +182,11 @@ impl<
         KBE: KeystoreBackend,
         C: ClientWithApi<B, BE>,
         N: Network,
-    > AsyncProtocol for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
+    > AsyncProtocol for GennaroDkgKeygenProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    type AdditionalParams = MpEcdsaKeygenExtraParams;
+    type AdditionalParams = GennaroDkgKeygenExtraParams;
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
@@ -211,15 +197,20 @@ where
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let key_store = self.key_store.clone();
-        let blame = self.round_blames.clone();
         let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
         let id = self.account_id;
         let logger = self.logger.clone();
         let logger_clone = logger.clone();
-        let round_blames = self.round_blames.clone();
         let network = self.network.clone();
+        let job_id_bytes = additional_params.job_id.to_be_bytes();
+        let mix = keccak_256(b"dnfs-cggmp21-keygen");
+        let eid_bytes = vec![&job_id_bytes[..], &mix[..]].concat();
+        let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
+        let mix = keccak_256(b"dnfs-cggmp21-keygen-aux");
+        let aux_eid_bytes = vec![&job_id_bytes[..], &mix[..]].concat();
+        let aux_eid = dfns_cggmp21::ExecutionId::new(&aux_eid_bytes);
 
         let (i, t, n, mapping) = (
             additional_params.i,
@@ -230,59 +221,69 @@ where
 
         Ok(JobBuilder::new()
             .protocol(async move {
+                let mut rng = rand::thread_rng();
                 logger.info(format!(
                     "Starting Keygen Protocol with params: i={i}, t={t}, n={n}"
                 ));
-                let keygen = Keygen::new(i, t, n).map_err(|err| JobError {
-                    reason: format!("Keygen setup error: {err:?}"),
-                })?;
-                let (current_round_blame_tx, current_round_blame_rx) =
-                    tokio::sync::watch::channel(CurrentRoundBlame::default());
-
-                round_blames
-                    .write()
-                    .await
-                    .insert(associated_task_id, current_round_blame_rx);
 
                 let (
                     keygen_tx_to_outbound,
                     keygen_rx_async_proto,
                     broadcast_tx_to_outbound,
                     broadcast_rx_from_gadget,
-                ) = util::create_job_manager_to_async_protocol_channel_split::<
-                    _,
-                    Msg<<Keygen as StateMachine>::MessageBody>,
-                    PublicKeyGossipMessage,
-                >(
+                ) = super::util::create_job_manager_to_async_protocol_channel_split(
                     protocol_message_rx,
                     associated_block_id,
                     associated_retry_id,
                     associated_session_id,
                     associated_task_id,
                     mapping,
+                    id,
                     network,
                 );
+                let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
+                let party = zengox_round_based::MpcParty::connected(delivery);
 
-                let state_machine_wrapper =
-                    StateMachineWrapper::new(keygen, current_round_blame_tx, logger.clone());
-                logger.debug("Beginning AsyncProtocol - Keygen");
-                let local_key = round_based::AsyncProtocol::new(
-                    state_machine_wrapper,
-                    keygen_rx_async_proto,
+                let incomplete_key_share = dfns_cggmp21::keygen::<Secp256k1>(eid, i, n)
+                    .set_threshold(t)
+                    .start(&mut rng, party)
+                    .await
+                    .map_err(|err| JobError {
+                        reason: format!("Keygen protocol error: {err:?}"),
+                    })?;
+
+                let (
                     keygen_tx_to_outbound,
-                )
-                .set_watcher(StderrWatcher)
-                .run()
-                .await
-                .map_err(|err| JobError {
-                    reason: format!("Keygen protocol error: {err:?}"),
-                })?;
+                    keygen_rx_async_proto,
+                    broadcast_tx_to_outbound,
+                    broadcast_rx_from_gadget,
+                ) = super::util::create_job_manager_to_async_protocol_channel_split(
+                    protocol_message_rx,
+                    associated_block_id,
+                    associated_retry_id,
+                    associated_session_id,
+                    associated_task_id,
+                    mapping,
+                    id,
+                    network,
+                );
+                let pregenerated_primes = dfns_cggmp21::PregeneratedPrimes::generate(&mut rng);
+                let aux_info = dfns_cggmp21::aux_info_gen(aux_eid, i, n, pregenerated_primes)
+                    .start(&mut rng, party)
+                    .await
+                    .map_err(|err| JobError {
+                        reason: format!("Aux info protocol error: {err:?}"),
+                    })?;
+                let key_share = dfns_cggmp21::KeyShare::make(incomplete_key_share, aux_info)
+                    .map_err(|err| JobError {
+                        reason: format!("Key share error: {err:?}"),
+                    })?;
 
                 logger.debug("Finished AsyncProtocol - Keygen");
 
                 let job_result = handle_public_key_gossip(
                     &logger,
-                    &local_key,
+                    &key_share,
                     t,
                     i,
                     id,
@@ -291,22 +292,11 @@ where
                 )
                 .await?;
 
-                *protocol_output.lock().await = Some((local_key, job_result));
+                *protocol_output.lock().await = Some((key_share, job_result));
                 Ok(())
             })
             .post(async move {
-                // Check to see if there is any blame at the end of the protocol
-                if let Some(blame) = blame.write().await.remove(&associated_task_id) {
-                    let blame = blame.borrow();
-                    // TODO: consider the fact that ids from the async protocol are offset by +1
-                    if !blame.blamed_parties.is_empty() {
-                        logger_clone.error(format!("Blame: {blame:?}"));
-                        return Err(JobError {
-                            reason: format!("Keygen blame: {blame:?}"),
-                        });
-                    }
-                }
-
+                // TODO: handle protocol blames
                 // Store the keys locally, as well as submitting them to the blockchain
                 if let Some((local_key, job_result)) = protocol_output_clone.lock().await.take() {
                     key_store
@@ -336,14 +326,14 @@ where
 
 async fn handle_public_key_gossip(
     logger: &DebugLogger,
-    local_key: &LocalKey<Secp256k1>,
+    local_key: &KeyShare<Secp256k1>,
     threshold: u16,
     i: u16,
     my_id: AccountId,
-    broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
-    mut broadcast_rx_from_gadget: UnboundedReceiver<PublicKeyGossipMessage>,
+    broadcast_tx_to_outbound: futures::channel::mpsc::UnboundedSender<PublicKeyGossipMessage>,
+    mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<JobResult, JobError> {
-    let serialized_public_key = local_key.public_key().to_bytes(true).to_vec();
+    let serialized_public_key = local_key.shared_public_key().to_bytes(true).to_vec();
     // Note: the signature is also empty in the DKG implementation
     let signature = vec![];
 
@@ -353,7 +343,7 @@ async fn handle_public_key_gossip(
     received_participants.insert(i, my_id);
 
     broadcast_tx_to_outbound
-        .send(PublicKeyGossipMessage {
+        .unbounded_send(PublicKeyGossipMessage {
             from: i as _,
             to: None,
             signature,
@@ -365,7 +355,7 @@ async fn handle_public_key_gossip(
 
     for idx in 0..threshold {
         let message = broadcast_rx_from_gadget
-            .recv()
+            .next()
             .await
             .ok_or_else(|| JobError {
                 reason: "Failed to receive public key".to_string(),

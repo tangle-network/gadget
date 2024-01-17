@@ -14,8 +14,8 @@ use futures_util::TryFutureExt;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::GadgetProtocolMessage;
-use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
+use gadget_common::gadget::work_manager::WorkManager;
+use gadget_common::gadget::{Job, TangleGadgetProtocol, WorkManagerConfig};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{BlockImportNotification, Error, FinalityNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
@@ -54,7 +54,7 @@ pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {
 }
 
 #[async_trait]
-impl<B, C, BE> WebbGadgetProtocol<B> for ZkProtocol<B, C, BE>
+impl<B, C, BE> TangleGadgetProtocol<B> for ZkProtocol<B, C, BE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
     B: Block,
@@ -65,7 +65,7 @@ where
         &self,
         notification: &FinalityNotification<B>,
         now: u64,
-        job_manager: &ProtocolWorkManager<WebbWorkManager>,
+        job_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<Option<Vec<Job>>, Error> {
         self.logger
             .info(format!("Received a finality notification at {now}"));
@@ -157,16 +157,12 @@ where
     async fn process_block_import_notification(
         &self,
         _notification: BlockImportNotification<B>,
-        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
+        _job_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<(), Error> {
         Ok(())
     }
 
-    async fn process_error(
-        &self,
-        error: Error,
-        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) {
+    async fn process_error(&self, error: Error, _job_manager: &ProtocolWorkManager<WorkManager>) {
         log::error!(target: "gadget", "Received an error: {error:?}");
     }
 
@@ -213,10 +209,10 @@ where
 
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
         protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {

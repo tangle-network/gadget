@@ -26,7 +26,7 @@ log = { workspace = true }
 parking_lot = { workspace = true }
 futures-util = { workspace = true }
 sc-client-api = { workspace = true }
-sp-core = { workspace = true }
+sp-core = { workspace = true, features = ["bls-experimental"] }
 sp-runtime = { workspace = true }
 hex = { workspace = true }
 bincode2 = { workspace = true }

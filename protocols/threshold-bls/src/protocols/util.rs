@@ -1,6 +1,5 @@
 //! When delivering messages to an async protocol, we want o make sure we don't mix up voting and public key gossip messages
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
-use dfns_cggmp21::round_based::{Incoming, MessageDestination, MessageType, Outgoing};
 use futures::StreamExt;
 use gadget_common::client::AccountId;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -12,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
+use zengox_round_based::{Incoming, Outgoing};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum SplitChannelMessage<C1, C2> {
@@ -205,8 +205,8 @@ impl<M> MaybeSenderReceiver for Outgoing<M> {
 
     fn maybe_receiver(&self) -> MaybeReceiver {
         match self.recipient {
-            MessageDestination::AllParties => MaybeReceiver::Broadcast,
-            MessageDestination::OneParty(i) => MaybeReceiver::P2P(i as UserID),
+            zengox_round_based::MessageDestination::AllParties => MaybeReceiver::Broadcast,
+            zengox_round_based::MessageDestination::OneParty(i) => MaybeReceiver::P2P(i as UserID),
         }
     }
 }
@@ -218,8 +218,8 @@ impl<M> MaybeSenderReceiver for Incoming<M> {
 
     fn maybe_receiver(&self) -> MaybeReceiver {
         match self.msg_type {
-            MessageType::Broadcast => MaybeReceiver::Broadcast,
-            MessageType::P2P => MaybeReceiver::Myself,
+            zengox_round_based::MessageType::Broadcast => MaybeReceiver::Broadcast,
+            zengox_round_based::MessageType::P2P => MaybeReceiver::Myself,
         }
     }
 }

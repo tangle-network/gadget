@@ -40,7 +40,7 @@ use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmit
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::network::Network;
-use gadget_common::gadget::work_manager::WebbWorkManager;
+use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::Error;
@@ -283,16 +283,13 @@ sp_externalities::decl_extension! {
 #[derive(Clone)]
 pub struct MockNetwork {
     peers_tx: Arc<
-        HashMap<
-            AccountId,
-            UnboundedSender<<WebbWorkManager as WorkManagerInterface>::ProtocolMessage>,
-        >,
+        HashMap<AccountId, UnboundedSender<<WorkManager as WorkManagerInterface>::ProtocolMessage>>,
     >,
     peers_rx: Arc<
         HashMap<
             AccountId,
             tokio::sync::Mutex<
-                UnboundedReceiver<<WebbWorkManager as WorkManagerInterface>::ProtocolMessage>,
+                UnboundedReceiver<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
             >,
         >,
     >,
@@ -329,9 +326,7 @@ impl MockNetwork {
 
 #[async_trait]
 impl Network for MockNetwork {
-    async fn next_message(
-        &self,
-    ) -> Option<<WebbWorkManager as WorkManagerInterface>::ProtocolMessage> {
+    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         self.peers_rx
             .get(&self.my_id)?
             .lock_timeout(Duration::from_millis(500))
@@ -342,7 +337,7 @@ impl Network for MockNetwork {
 
     async fn send_message(
         &self,
-        message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
+        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
         let _check_message_has_ids = message.from_network_id.ok_or(Error::MissingNetworkId)?;
         if let Some(peer_id) = message.to_network_id {

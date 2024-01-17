@@ -1,6 +1,6 @@
 use crate::client::AccountId;
-use crate::gadget::work_manager::WebbWorkManager;
-use crate::gadget::{WebbGadgetProtocol, WebbModule};
+use crate::gadget::work_manager::WorkManager;
+use crate::gadget::{Module, TangleGadgetProtocol};
 use gadget::network::Network;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
@@ -57,7 +57,7 @@ impl From<JobError> for Error {
     }
 }
 
-pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: WebbGadgetProtocol<B>>(
+pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: TangleGadgetProtocol<B>>(
     network: N,
     protocol: P,
     client: C,
@@ -66,7 +66,7 @@ pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: WebbGadgetProto
     let latest_finality_notification =
         get_latest_finality_notification_from_client(&client).await?;
     let work_manager = create_work_manager(&latest_finality_notification, &protocol).await?;
-    let webb_module = WebbModule::new(network.clone(), protocol, work_manager);
+    let webb_module = Module::new(network.clone(), protocol, work_manager);
     // Plug the module into the substrate gadget to interface the WebbGadget with Substrate
     let substrate_gadget = SubstrateGadget::new(client, webb_module);
     let network_future = network.run();
@@ -90,17 +90,17 @@ pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: WebbGadgetProto
 }
 
 /// Creates a work manager
-pub async fn create_work_manager<B: Block, P: WebbGadgetProtocol<B>>(
+pub async fn create_work_manager<B: Block, P: TangleGadgetProtocol<B>>(
     latest_finality_notification: &FinalityNotification<B>,
     protocol: &P,
-) -> Result<ProtocolWorkManager<WebbWorkManager>, Error> {
+) -> Result<ProtocolWorkManager<WorkManager>, Error> {
     let now: u64 = (*latest_finality_notification.header.number()).saturated_into();
 
     let work_manager_config = protocol.get_work_manager_config();
 
     let clock = Arc::new(RwLock::new(Some(now)));
 
-    let job_manager_zk = WebbWorkManager {
+    let job_manager_zk = WorkManager {
         clock,
         logger: protocol.logger().clone(),
     };

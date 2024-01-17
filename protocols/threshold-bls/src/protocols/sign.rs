@@ -1,8 +1,5 @@
-use crate::DfnsCGGMP21ProtocolConfig;
+use crate::ThresholdBls381ProtocolConfig;
 use async_trait::async_trait;
-use curv::arithmetic::Converter;
-use curv::elliptic::curves::Secp256k1;
-use curv::BigInt;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -14,6 +11,7 @@ use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification, FinalityNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use gennaro_dkg::*;
 use pallet_jobs_rpc_runtime_api::JobsApi;
 use parity_scale_codec::Encode;
 use sc_client_api::Backend;
@@ -27,8 +25,14 @@ use tangle_primitives::jobs::{
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use vsss_rs::{
+    combine_shares,
+    curve25519::*,
+    elliptic_curve::{group::GroupEncoding, Group},
+    Share,
+};
 
-pub struct DfnsCGGMP21SigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
+pub struct ThresholdBls381SigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
     client: JobsClient<B, BE, C>,
     key_store: ECDSAKeyStore<KBE>,
     network: N,
@@ -37,12 +41,12 @@ pub struct DfnsCGGMP21SigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> 
 }
 
 pub async fn create_protocol<B, BE, KBE, C, N>(
-    config: &DfnsCGGMP21ProtocolConfig,
+    config: &ThresholdBls381ProtocolConfig,
     logger: DebugLogger,
     client: JobsClient<B, BE, C>,
     network: N,
     key_store: ECDSAKeyStore<KBE>,
-) -> DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
+) -> ThresholdBls381SigningProtocol<B, BE, KBE, C, N>
 where
     B: Block,
     BE: Backend<B>,
@@ -51,7 +55,7 @@ where
     N: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    DfnsCGGMP21SigningProtocol {
+    ThresholdBls381SigningProtocol {
         client,
         network,
         key_store,
@@ -67,7 +71,7 @@ impl<
         C: ClientWithApi<B, BE>,
         KBE: KeystoreBackend,
         N: Network,
-    > TangleGadgetProtocol<B> for DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
+    > TangleGadgetProtocol<B> for ThresholdBls381SigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -141,7 +145,7 @@ where
                                 .collect(),
                         );
 
-                        let additional_params = DfnsCGGMP21SigningExtraParams {
+                        let additional_params = ThresholdBls381SigningExtraParams {
                             i: participants
                                 .iter()
                                 .position(|p| p == &self.account_id)
@@ -202,7 +206,7 @@ where
     }
 }
 
-pub struct DfnsCGGMP21SigningExtraParams {
+pub struct ThresholdBls381SigningExtraParams {
     i: u16,
     t: u16,
     signers: Vec<u16>,
@@ -220,11 +224,11 @@ impl<
         KBE: KeystoreBackend,
         C: ClientWithApi<B, BE>,
         N: Network,
-    > AsyncProtocol for DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
+    > AsyncProtocol for ThresholdBls381SigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    type AdditionalParams = DfnsCGGMP21SigningExtraParams;
+    type AdditionalParams = ThresholdBls381SigningExtraParams;
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WorkManager as WorkManagerInterface>::Clock,

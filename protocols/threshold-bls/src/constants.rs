@@ -1,8 +1,8 @@
-// Constants for GG20 t-ECDSA gadget
+// Constants for threshold BLS gadget
 
 // ================= Common ======================== //
-pub const GG20_KEYGEN_PROTOCOL_NAME: &str = "/tangle/gg20/keygen/1";
-pub const GG20_SIGNING_PROTOCOL_NAME: &str = "/tangle/gg20/signing/1";
+pub const THRESHOLD_BLS_KEYGEN_PROTOCOL_NAME: &str = "/tangle/bls/keygen/1";
+pub const THRESHOLD_BLS_SIGNING_PROTOCOL_NAME: &str = "/tangle/bls/signing/1";
 
 // ============= Signing Protocol ======================= //
 

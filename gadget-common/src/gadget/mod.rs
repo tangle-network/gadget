@@ -1,6 +1,6 @@
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
-use crate::gadget::work_manager::WebbWorkManager;
+use crate::gadget::work_manager::WorkManager;
 use crate::protocol::AsyncProtocolRemote;
 use crate::Error;
 use async_trait::async_trait;
@@ -21,10 +21,10 @@ pub mod network;
 pub mod work_manager;
 
 /// Used as a module to place inside the SubstrateGadget
-pub struct WebbModule<B, C, N, M> {
-    protocol: M,
+pub struct Module<B, C, N, P> {
+    protocol: P,
     network: N,
-    job_manager: ProtocolWorkManager<WebbWorkManager>,
+    job_manager: ProtocolWorkManager<WorkManager>,
     clock: Arc<RwLock<Option<u64>>>,
     _pd: PhantomData<(B, C)>,
 }
@@ -40,11 +40,11 @@ pub struct WorkManagerConfig {
     pub max_pending_tasks: usize,
 }
 
-impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> WebbModule<B, C, N, M> {
-    pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<WebbWorkManager>) -> Self {
+impl<C: Client<B>, B: Block, N: Network, P: TangleGadgetProtocol<B>> Module<B, C, N, P> {
+    pub fn new(network: N, protocol: P, job_manager: ProtocolWorkManager<WorkManager>) -> Self {
         let clock = job_manager.utility.clock.clone();
-        WebbModule {
-            protocol: module,
+        Module {
+            protocol,
             job_manager,
             network,
             clock,
@@ -54,8 +54,8 @@ impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> WebbModule<B,
 }
 
 #[async_trait]
-impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> SubstrateGadgetModule
-    for WebbModule<B, C, N, M>
+impl<C: Client<B>, B: Block, N: Network, M: TangleGadgetProtocol<B>> SubstrateGadgetModule
+    for Module<B, C, N, M>
 {
     type Error = Error;
     type ProtocolMessage = GadgetProtocolMessage;
@@ -131,19 +131,19 @@ impl<C: Client<B>, B: Block, N: Network, M: WebbGadgetProtocol<B>> SubstrateGadg
 pub type Job = (AsyncProtocolRemote, BuiltExecutableJobWrapper);
 
 #[async_trait]
-pub trait WebbGadgetProtocol<B: Block>: Send + Sync {
+pub trait TangleGadgetProtocol<B: Block>: Send + Sync {
     async fn get_next_jobs(
         &self,
         notification: &FinalityNotification<B>,
         now: u64,
-        job_manager: &ProtocolWorkManager<WebbWorkManager>,
+        job_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<Option<Vec<Job>>, Error>;
     async fn process_block_import_notification(
         &self,
         notification: BlockImportNotification<B>,
-        job_manager: &ProtocolWorkManager<WebbWorkManager>,
+        job_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<(), Error>;
-    async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WebbWorkManager>);
+    async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WorkManager>);
     fn logger(&self) -> &DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         WorkManagerConfig {
