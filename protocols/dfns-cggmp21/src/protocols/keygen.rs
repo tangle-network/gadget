@@ -191,11 +191,11 @@ where
     type AdditionalParams = DfnsCGGMP21KeygenExtraParams;
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
+        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+        protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let key_store = self.key_store.clone();

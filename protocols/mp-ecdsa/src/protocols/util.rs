@@ -40,10 +40,10 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     C2: Serialize + DeserializeOwned + HasSenderAndReceiver + Send + 'static,
 >(
     mut rx_gadget: UnboundedReceiver<GadgetProtocolMessage>,
-    associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-    associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
-    associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-    associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     user_id_mapping: Arc<HashMap<UserID, AccountId>>,
     network: N,
 ) -> (

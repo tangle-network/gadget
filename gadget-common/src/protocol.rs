@@ -12,13 +12,12 @@ use tokio::sync::mpsc::UnboundedReceiver;
 pub struct AsyncProtocolRemote {
     pub start_tx: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     pub shutdown_tx: Mutex<Option<tokio::sync::oneshot::Sender<ShutdownReason>>>,
-    pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-    pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-    pub associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
-    pub associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-    pub to_async_protocol: tokio::sync::mpsc::UnboundedSender<
-        <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
-    >,
+    pub associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    pub associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    pub associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    pub associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+    pub to_async_protocol:
+        tokio::sync::mpsc::UnboundedSender<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
     pub is_done: Arc<AtomicBool>,
 }
 
@@ -27,10 +26,10 @@ pub trait AsyncProtocol {
     type AdditionalParams: Send + Sync + 'static;
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
         protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError>;
@@ -124,8 +123,8 @@ impl ProtocolRemote<WorkManager> for AsyncProtocolRemote {
 
     fn deliver_message(
         &self,
-        message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), <WebbWorkManager as WorkManagerInterface>::Error> {
+        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
+    ) -> Result<(), <WorkManager as WorkManagerInterface>::Error> {
         self.to_async_protocol
             .send(message)
             .map_err(|err| crate::Error::ProtocolRemoteError {

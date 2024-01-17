@@ -1,7 +1,6 @@
-use crate::client::{AccountId, ClientWithApi};
-use crate::config::ProtocolConfig;
-use crate::gadget::work_manager::WebbWorkManager;
-use crate::gadget::{WebbGadgetProtocol, WebbModule};
+use crate::client::AccountId;
+use crate::gadget::work_manager::WorkManager;
+use crate::gadget::{Module, TangleGadgetProtocol};
 use gadget::network::Network;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
@@ -61,14 +60,11 @@ impl From<JobError> for Error {
     }
 }
 
-pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(), Error>
-where
-    <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApi<T::Block, AccountId>,
-{
-    let client = protocol_config.take_client();
-    let network = protocol_config.take_network();
-    let protocol = protocol_config.take_protocol();
-
+pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: TangleGadgetProtocol<B>>(
+    network: N,
+    protocol: P,
+    client: C,
+) -> Result<(), Error> {
     // Before running, wait for the first finality notification we receive
     let latest_finality_notification =
         get_latest_finality_notification_from_client(&client).await?;
@@ -97,18 +93,10 @@ where
 }
 
 /// Creates a work manager
-pub async fn create_work_manager<
-    B: Block,
-    BE: Backend<B>,
-    C: ClientWithApi<B, BE>,
-    P: WebbGadgetProtocol<B, BE, C>,
->(
+pub async fn create_work_manager<B: Block, P: TangleGadgetProtocol<B>>(
     latest_finality_notification: &FinalityNotification<B>,
     protocol: &P,
-) -> Result<ProtocolWorkManager<WebbWorkManager>, Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
-{
+) -> Result<ProtocolWorkManager<WorkManager>, Error> {
     let now: u64 = (*latest_finality_notification.header.number()).saturated_into();
 
     let work_manager_config = protocol.get_work_manager_config();

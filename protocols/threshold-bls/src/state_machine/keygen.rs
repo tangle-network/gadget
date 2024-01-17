@@ -8,7 +8,7 @@ use gennaro_dkg::{
     Round3BroadcastData, Round4EchoBroadcastData, SecretParticipant,
 };
 use round_based::{
-    rounds_router::simple_store::{RoundInput, RoundMsgs},
+    rounds_router::simple_store::RoundInput,
     rounds_router::{errors::IoError, RoundsRouter},
     Delivery, Mpc, MpcParty, Outgoing, ProtocolMessage,
 };
@@ -142,7 +142,7 @@ where
     let (incomings, mut outgoings) = delivery.split();
 
     let mut rounds = RoundsRouter::<Msg<G, D>>::builder();
-    let round1_broadcast = rounds.add_round(RoundInput::<MsgRound1Broadcast<G>>::broadcast(i, n));
+    let round1_broad = rounds.add_round(RoundInput::<MsgRound1Broadcast<G>>::broadcast(i, n));
     let round1_p2p = rounds.add_round(RoundInput::<MsgRound1P2P>::p2p(i, n));
     let round2 = rounds.add_round(RoundInput::<MsgRound2>::broadcast(i, n));
     let round3 = rounds.add_round(RoundInput::<MsgRound3<G>>::p2p(i, n));
@@ -151,25 +151,30 @@ where
 
     // Round 1
     tracer.round_begins();
+    tracer.stage("Compute execution id");
+    let sid = execution_id.as_bytes();
+    let tag = |j| {
+        udigest::Tag::<D>::new_structured(Tag::Indexed {
+            party_index: j,
+            sid,
+        })
+    };
+    let tag_i = tag(i);
 
     tracer.send_msg();
-    let (round1_broadcast_msg, round1_p2p_msgs): (
-        Round1BroadcastData<G>,
-        BTreeMap<usize, Round1P2PData>,
-    ) = match participant.round1() {
-        Ok(msgs) => msgs,
-        Err(e) => {
-            return Err(Error::RoundError(
-                1,
-                "Failed to create round 1 broadcast message".to_string(),
-            ))
-        }
-    };
+    let round1_msgs: (Round1BroadcastData<G>, BTreeMap<usize, Round1P2PData>) =
+        match participant.round1() {
+            Ok(msgs) => msgs,
+            Err(e) => {
+                return Err(Error::RoundError(
+                    1,
+                    "Failed to create round 1 broadcast message".to_string(),
+                ))
+            }
+        };
     outgoings
         .send(Outgoing::broadcast(Msg::Round1Broadcast(
-            MsgRound1Broadcast {
-                msg: round1_broadcast_msg,
-            },
+            MsgRound1Broadcast { msg: round1_msgs.0 },
         )))
         .await
         .map_err(|e| {
@@ -178,111 +183,20 @@ where
                 e.to_string(),
             ))
         })?;
-    for (j, msg) in round1_p2p_msgs.into_iter() {
-        outgoings
-            .send(Outgoing::p2p(
-                u16::try_from(j).unwrap_or_default(),
-                Msg::Round1P2P(MsgRound1P2P { msg }),
-            ))
-            .await
-            .map_err(|e| {
-                Error::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    e.to_string(),
-                ))
-            })?;
-    }
-    assert!(participant.round1().is_err());
     tracer.msg_sent();
 
     // Round 2
     tracer.round_begins();
     tracer.receive_msgs();
-    let round1_broadcast_msgs: RoundMsgs<MsgRound1Broadcast<G>> =
-        rounds.complete(round1_broadcast).await.map_err(|e| {
-            Error::IoError(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-        })?;
-    let round1_p2p_msgs: RoundMsgs<MsgRound1P2P> =
-        rounds.complete(round1_p2p).await.map_err(|e| {
-            Error::IoError(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-        })?;
     tracer.msgs_received();
     tracer.send_msg();
-    let round1_broadcast_msg_map: BTreeMap<usize, Round1BroadcastData<G>> = round1_broadcast_msgs
-        .into_iter_indexed()
-        .map(|(j, _, msg)| (usize::from(j), msg.msg))
-        .collect();
-    let round1_p2p_msg_map: BTreeMap<usize, Round1P2PData> = round1_p2p_msgs
-        .into_iter_indexed()
-        .map(|(j, _, msg)| (usize::from(j), msg.msg))
-        .collect();
-    let round2_msg: Round2EchoBroadcastData =
-        match participant.round2(round1_broadcast_msg_map, round1_p2p_msg_map) {
-            Ok(msg) => msg,
-            Err(e) => {
-                return Err(Error::RoundError(
-                    2,
-                    format!("Failed to create round 2 message: {}", e),
-                ))
-            }
-        };
-    outgoings
-        .send(Outgoing::broadcast(Msg::Round2(MsgRound2 {
-            msg: round2_msg,
-        })))
-        .await
-        .map_err(|e| {
-            Error::IoError(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-        })?;
     tracer.msg_sent();
 
     // Round 3
     tracer.round_begins();
     tracer.receive_msgs();
-    let round2_msgs: RoundMsgs<MsgRound2> = rounds.complete(round2).await.map_err(|e| {
-        Error::IoError(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            e.to_string(),
-        ))
-    })?;
-    let mut round2_msg_map: BTreeMap<usize, Round2EchoBroadcastData> = round2_msgs
-        .into_iter_indexed()
-        .map(|(j, _, msg)| (usize::from(j), msg.msg))
-        .collect();
-    // Add our own message into map
-    round2_msg_map.insert(usize::from(i), round2_msg);
     tracer.msgs_received();
-
     tracer.send_msg();
-    let round3_msg: Round3BroadcastData<G> = match participant.round3(&round2_msg_map) {
-        Ok(msg) => msg,
-        Err(e) => {
-            return Err(Error::RoundError(
-                3,
-                format!("Failed to create round 3 message: {}", e),
-            ))
-        }
-    };
-    outgoings
-        .send(Outgoing::broadcast(Msg::Round3(MsgRound3 {
-            msg: round3_msg,
-        })))
-        .await
-        .map_err(|e| {
-            Error::IoError(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-        })?;
     tracer.msg_sent();
 
     // Round 4

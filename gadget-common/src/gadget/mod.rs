@@ -1,8 +1,8 @@
 use crate::client::{AccountId, ClientWithApi, JobsClient};
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
-use crate::gadget::work_manager::WebbWorkManager;
-use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
+use crate::gadget::work_manager::WorkManager;
+use crate::protocol::AsyncProtocolRemote;
 use crate::Error;
 use async_trait::async_trait;
 use gadget_core::gadget::substrate::SubstrateGadgetModule;
@@ -27,8 +27,8 @@ pub mod network;
 pub mod work_manager;
 
 /// Used as a module to place inside the SubstrateGadget
-pub struct WebbModule<B, C, N, M, BE> {
-    protocol: M,
+pub struct Module<B, C, N, P> {
+    protocol: P,
     network: N,
     job_manager: ProtocolWorkManager<WorkManager>,
     clock: Arc<RwLock<Option<u64>>>,
@@ -46,17 +46,8 @@ pub struct WorkManagerConfig {
     pub max_pending_tasks: usize,
 }
 
-impl<
-        C: ClientWithApi<B, BE>,
-        B: Block,
-        N: Network,
-        M: WebbGadgetProtocol<B, BE, C>,
-        BE: Backend<B>,
-    > WebbModule<B, C, N, M, BE>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
-{
-    pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<WebbWorkManager>) -> Self {
+impl<C: Client<B>, B: Block, N: Network, P: TangleGadgetProtocol<B>> Module<B, C, N, P> {
+    pub fn new(network: N, protocol: P, job_manager: ProtocolWorkManager<WorkManager>) -> Self {
         let clock = job_manager.utility.clock.clone();
         Module {
             protocol,
@@ -79,15 +70,8 @@ pub struct JobInitMetadata {
 }
 
 #[async_trait]
-impl<
-        C: ClientWithApi<B, BE>,
-        B: Block,
-        N: Network,
-        M: WebbGadgetProtocol<B, BE, C>,
-        BE: Backend<B>,
-    > SubstrateGadgetModule for WebbModule<B, C, N, M, BE>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+impl<C: Client<B>, B: Block, N: Network, M: TangleGadgetProtocol<B>> SubstrateGadgetModule
+    for Module<B, C, N, M>
 {
     type Error = Error;
     type ProtocolMessage = GadgetProtocolMessage;
@@ -259,25 +243,19 @@ where
 pub type Job = (AsyncProtocolRemote, BuiltExecutableJobWrapper);
 
 #[async_trait]
-pub trait WebbGadgetProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>:
-    AsyncProtocol + Send + Sync
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
-{
-    async fn create_next_job(
+pub trait TangleGadgetProtocol<B: Block>: Send + Sync {
+    async fn get_next_jobs(
         &self,
-        job: JobInitMetadata,
-    ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error>;
+        notification: &FinalityNotification<B>,
+        now: u64,
+        job_manager: &ProtocolWorkManager<WorkManager>,
+    ) -> Result<Option<Vec<Job>>, Error>;
     async fn process_block_import_notification(
         &self,
         notification: BlockImportNotification<B>,
         job_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<(), Error>;
-    async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WebbWorkManager>);
-    fn account_id(&self) -> &AccountId;
-    fn role_type(&self) -> RoleType;
-    fn is_phase_one(&self) -> bool;
-    fn client(&self) -> &JobsClient<B, BE, C>;
+    async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WorkManager>);
     fn logger(&self) -> &DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         WorkManagerConfig {

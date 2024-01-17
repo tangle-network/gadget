@@ -234,11 +234,11 @@ where
     type AdditionalParams = DfnsCGGMP21SigningExtraParams;
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
+        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+        protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let debug_logger_post = self.logger.clone();
