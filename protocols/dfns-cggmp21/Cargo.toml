@@ -10,7 +10,6 @@ gadget-core = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
 dfns-cggmp21 = { workspace = true, features = ["all-curves"] }
-zengox-round-based = { workspace = true }
 curv = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }

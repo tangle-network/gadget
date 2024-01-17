@@ -243,8 +243,7 @@ where
                     network,
                 );
                 let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
-                let party = zengox_round_based::MpcParty::connected(delivery);
-
+                let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
                 let incomplete_key_share = dfns_cggmp21::keygen::<Secp256k1>(eid, i, n)
                     .set_threshold(t)
                     .start(&mut rng, party)
@@ -269,6 +268,8 @@ where
                     network,
                 );
                 let pregenerated_primes = dfns_cggmp21::PregeneratedPrimes::generate(&mut rng);
+                let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
+                let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
                 let aux_info = dfns_cggmp21::aux_info_gen(aux_eid, i, n, pregenerated_primes)
                     .start(&mut rng, party)
                     .await
