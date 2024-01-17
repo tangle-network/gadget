@@ -93,7 +93,9 @@ where
         let retry_id = job.retry_id;
 
         // We can safely make this assumption because we are only creating jobs for phase one
-        let JobType::DKGTSSPhaseOne(p1_job) = job.job_type;
+        let JobType::DKGTSSPhaseOne(p1_job) = job.job_type else {
+            panic!("Should be valid type")
+        };
 
         let participants = p1_job.participants;
         let threshold = p1_job.threshold;

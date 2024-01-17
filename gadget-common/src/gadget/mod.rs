@@ -71,9 +71,7 @@ where
 pub struct JobInitMetadata {
     pub job_type: JobType<AccountId>,
     /// This value only exists if this is a stage2 job
-    pub phase1_participants: Option<Vec<AccountId>>,
-    /// This value only exists if this is a stage2 job that requires a threshold
-    pub phase1_threshold: Option<u16>,
+    pub phase1_job: Option<JobType<AccountId>>,
     pub task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
     pub retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
     pub job_id: JobId,
@@ -111,7 +109,7 @@ where
         let jobs = self
             .protocol
             .client()
-            .query_jobs_by_validator(notification.hash, self.protocol.account_id().clone())
+            .query_jobs_by_validator(notification.hash, *self.protocol.account_id())
             .await?;
 
         let role_type = self.protocol.role_type();
@@ -119,83 +117,65 @@ where
         let mut relevant_jobs = Vec::new();
 
         for job in jobs {
-            if job.expiry > now_header {
-                if job.job_type.get_role_type() == role_type {
-                    let job_id = job.job_id;
-                    let task_id = job_id.to_be_bytes();
-                    let task_id = keccak_256(&task_id);
-                    if self.job_manager.job_exists(&task_id) {
-                        // log::warn!(target: "gadget", "The job requested for initialization is already running or enqueued, skipping submission");
+            if job.expiry > now_header && job.job_type.get_role_type() == role_type {
+                let job_id = job.job_id;
+                let task_id = job_id.to_be_bytes();
+                let task_id = keccak_256(&task_id);
+                if self.job_manager.job_exists(&task_id) {
+                    // log::warn!(target: "gadget", "The job requested for initialization is already running or enqueued, skipping submission");
+                    continue;
+                }
+
+                let retry_id = self
+                    .job_manager
+                    .latest_retry_id(&task_id)
+                    .map(|r| r + 1)
+                    .unwrap_or(0);
+
+                if job.job_type.is_phase_one() && self.protocol.is_phase_one() {
+                    let participants = job
+                        .job_type
+                        .clone()
+                        .get_participants()
+                        .expect("Should exist for all stage 1 jobs");
+                    if participants.contains(self.protocol.account_id()) {
+                        relevant_jobs.push(JobInitMetadata {
+                            job_type: job.job_type,
+                            // Only supply for stage 2 jobs
+                            phase1_job: None,
+                            task_id,
+                            retry_id,
+                            now,
+                            job_id,
+                        });
                         continue;
                     }
+                }
 
-                    let retry_id = self
-                        .job_manager
-                        .latest_retry_id(&task_id)
-                        .map(|r| r + 1)
-                        .unwrap_or(0);
+                if !job.job_type.is_phase_one() && !self.protocol.is_phase_one() {
+                    let previous_job_id = job
+                        .job_type
+                        .get_phase_one_id()
+                        .expect("Should exist for stage 2 jobs");
+                    let phase1_job = self
+                        .protocol
+                        .client()
+                        .query_job_result(notification.hash, role_type, previous_job_id)
+                        .await?
+                        .ok_or_else(|| Error::ClientError {
+                            err: format!("Corresponding phase one job {previous_job_id} not found for phase two job {job_id}"),
+                        })?;
 
-                    if job.job_type.is_phase_one() && self.protocol.is_phase_one() {
-                        let participants = job
-                            .job_type
-                            .clone()
-                            .get_participants()
-                            .expect("Should exist for all stage 1 jobs");
-                        if participants.contains(self.protocol.account_id()) {
-                            relevant_jobs.push(JobInitMetadata {
-                                job_type: job.job_type,
-                                // Only supply for stage 2 jobs
-                                phase1_participants: None,
-                                phase1_threshold: None,
-                                task_id,
-                                retry_id,
-                                now,
-                                job_id,
-                            });
-                            continue;
-                        }
-                    }
+                    relevant_jobs.push(JobInitMetadata {
+                        job_type: job.job_type,
+                        phase1_job: Some(phase1_job.job_type),
+                        task_id,
+                        job_id,
+                        retry_id,
+                        now,
+                    });
 
-                    if !job.job_type.is_phase_one() && !self.protocol.is_phase_one() {
-                        let previous_job_id = job
-                            .job_type
-                            .get_phase_one_id()
-                            .expect("Should exist for stage 2 jobs");
-                        let phase1_job = self
-                            .protocol
-                            .client()
-                            .query_job_result(notification.hash, role_type.clone(), previous_job_id)
-                            .await?
-                            .ok_or_else(|| Error::ClientError {
-                                err: format!("Corresponding phase one job {previous_job_id} not found for phase two job {job_id}"),
-                            })?;
-
-                        let participants = phase1_job
-                            .job_type
-                            .clone()
-                            .get_participants()
-                            .expect("Should exist for stage 1 signing");
-                        let threshold = phase1_job
-                            .job_type
-                            .clone()
-                            .get_threshold()
-                            .expect("T should exist for stage 1 signing")
-                            as u16;
-
-                        if participants.contains(self.protocol.account_id()) {
-                            relevant_jobs.push(JobInitMetadata {
-                                job_type: job.job_type,
-                                phase1_participants: Some(participants),
-                                phase1_threshold: Some(threshold),
-                                task_id,
-                                job_id,
-                                retry_id,
-                                now,
-                            });
-
-                            continue;
-                        }
-                    }
+                    continue;
                 }
             }
         }
