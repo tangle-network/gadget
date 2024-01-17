@@ -93,16 +93,15 @@ where
     async fn create_next_job(&self, job: JobInitMetadata) -> Result<Job, gadget_common::Error> {
         let (now, retry_id, task_id, job_id) = (job.now, job.retry_id, job.task_id, job.job_id);
 
-        let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type;
+        let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
+            panic!("Should be valid type")
+        };
         let input_data_to_sign = p2_job.submission;
         let previous_job_id = p2_job.phase_one_id;
 
-        let participants = job
-            .phase1_participants
-            .expect("Should exist for stage 1 signing");
-        let threshold = job
-            .phase1_threshold
-            .expect("T should exist for stage 1 signing");
+        let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
+        let participants = phase1_job.clone().get_participants().expect("Should exist");
+        let threshold = phase1_job.get_threshold().expect("Should exist") as u16;
 
         if let Some(key) = self.key_store.get(&previous_job_id).await.map_err(|err| {
             gadget_common::Error::ClientError {

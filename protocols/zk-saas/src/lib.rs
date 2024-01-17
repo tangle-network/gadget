@@ -1,7 +1,10 @@
 use crate::network::ZkNetworkService;
 use crate::protocol::ZkProtocol;
 use gadget_common::client::{create_client, AccountId, ClientWithApi, PalletSubmitter};
+use gadget_common::config::ProtocolConfig;
 use gadget_common::debug_logger::DebugLogger;
+use gadget_common::gadget::network::Network;
+use gadget_common::gadget::WebbGadgetProtocol;
 use gadget_common::Error;
 use mpc_net::prod::RustlsCertificate;
 use pallet_jobs_rpc_runtime_api::JobsApi;
@@ -32,7 +35,7 @@ pub async fn run<
 >(
     config: ZkGadgetConfig,
     logger: DebugLogger,
-    client: C,
+    client_inner: C,
     pallet_tx: P,
 ) -> Result<(), Error>
 where
@@ -45,8 +48,7 @@ where
         config.account_id
     ));
 
-    let client_inner = Arc::new(client);
-    let client = create_client(client_inner, logger.clone(), Arc::new(pallet_tx)).await?;
+    let client = create_client(client_inner.clone(), logger.clone(), Arc::new(pallet_tx)).await?;
     let zk_protocol = ZkProtocol {
         client: client.clone(),
         account_id: config.account_id,
@@ -54,8 +56,15 @@ where
         logger,
     };
 
+    let config = ZkProtocolConfig {
+        network: Some(network),
+        client: Some(client_inner),
+        protocol: Some(zk_protocol),
+        _pd: std::marker::PhantomData,
+    };
+
     // Plug the protocol into the webb gadget
-    gadget_common::run_protocol(network, zk_protocol, client).await
+    gadget_common::run_protocol(config).await
 }
 
 pub async fn create_zk_network(config: &ZkGadgetConfig) -> Result<ZkNetworkService, Error> {
@@ -84,5 +93,41 @@ pub async fn create_zk_network(config: &ZkGadgetConfig) -> Result<ZkNetworkServi
             })?;
 
         ZkNetworkService::new_client(king_addr, config.account_id, our_identity, king_certs).await
+    }
+}
+
+pub struct ZkProtocolConfig<N, P, C, B: Block, BE> {
+    pub network: Option<N>,
+    pub client: Option<C>,
+    pub protocol: Option<P>,
+    _pd: std::marker::PhantomData<(B, BE)>,
+}
+
+impl<
+        B: Block,
+        BE: Backend<B> + 'static,
+        N: Network,
+        C: ClientWithApi<B, BE>,
+        P: WebbGadgetProtocol<B, BE, C>,
+    > ProtocolConfig for ZkProtocolConfig<N, P, C, B, BE>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
+    type Network = N;
+    type Block = B;
+    type Backend = BE;
+    type Protocol = P;
+    type Client = C;
+
+    fn take_network(&mut self) -> Self::Network {
+        self.network.take().expect("Network not set")
+    }
+
+    fn take_protocol(&mut self) -> Self::Protocol {
+        self.protocol.take().expect("Protocol not set")
+    }
+
+    fn take_client(&mut self) -> Self::Client {
+        self.client.take().expect("Client not set")
     }
 }

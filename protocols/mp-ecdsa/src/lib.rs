@@ -1,6 +1,8 @@
 use gadget_common::client::{AccountId, ClientWithApi, PalletSubmitter};
+use gadget_common::config::ProtocolConfig;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::network::Network;
+use gadget_common::gadget::WebbGadgetProtocol;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use pallet_jobs_rpc_runtime_api::JobsApi;
 use sc_client_api::Backend;
@@ -36,13 +38,12 @@ where
 {
     logger.info("Starting keygen protocol");
 
-    let client_inner = Arc::new(client_inner);
     let client =
         gadget_common::client::create_client(client_inner.clone(), logger.clone(), pallet_tx)
             .await?;
     let protocol = protocols::keygen::create_protocol(
         config,
-        client,
+        client.clone(),
         network.clone(),
         logger.clone(),
         keystore,
@@ -51,7 +52,14 @@ where
 
     logger.info("Done creating keygen protocol");
 
-    gadget_common::run_protocol(network, protocol, client_inner).await?;
+    let protocol = EcdsaProtocolConfig {
+        network: Some(network),
+        client: Some(client_inner),
+        protocol: Some(protocol),
+        _pd: std::marker::PhantomData,
+    };
+
+    gadget_common::run_protocol(protocol).await?;
     Ok(())
 }
 
@@ -73,17 +81,28 @@ where
 {
     logger.info("Starting sign protocol");
 
-    let client_inner = Arc::new(client_inner);
     let client =
         gadget_common::client::create_client(client_inner.clone(), logger.clone(), pallet_tx)
             .await?;
-    let protocol =
-        protocols::sign::create_protocol(config, logger.clone(), client, network.clone(), keystore)
-            .await;
+    let protocol = protocols::sign::create_protocol(
+        config,
+        logger.clone(),
+        client.clone(),
+        network.clone(),
+        keystore,
+    )
+    .await;
 
     logger.info("Done creating sign protocol");
 
-    gadget_common::run_protocol(network, protocol, client_inner).await?;
+    let protocol = EcdsaProtocolConfig {
+        network: Some(network),
+        client: Some(client_inner),
+        protocol: Some(protocol),
+        _pd: std::marker::PhantomData,
+    };
+
+    gadget_common::run_protocol(protocol).await?;
     Ok(())
 }
 
@@ -130,5 +149,41 @@ where
     tokio::select! {
         res0 = keygen_future => res0,
         res1 = sign_future => res1,
+    }
+}
+
+pub struct EcdsaProtocolConfig<N, P, C, B: Block, BE> {
+    pub network: Option<N>,
+    pub client: Option<C>,
+    pub protocol: Option<P>,
+    _pd: std::marker::PhantomData<(B, BE)>,
+}
+
+impl<
+        B: Block,
+        BE: Backend<B> + 'static,
+        N: Network,
+        C: ClientWithApi<B, BE>,
+        P: WebbGadgetProtocol<B, BE, C>,
+    > ProtocolConfig for EcdsaProtocolConfig<N, P, C, B, BE>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
+    type Network = N;
+    type Block = B;
+    type Backend = BE;
+    type Protocol = P;
+    type Client = C;
+
+    fn take_network(&mut self) -> Self::Network {
+        self.network.take().expect("Network not set")
+    }
+
+    fn take_protocol(&mut self) -> Self::Protocol {
+        self.protocol.take().expect("Protocol not set")
+    }
+
+    fn take_client(&mut self) -> Self::Client {
+        self.client.take().expect("Client not set")
     }
 }

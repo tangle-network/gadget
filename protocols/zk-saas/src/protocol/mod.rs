@@ -15,9 +15,9 @@ use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
+use gadget_common::gadget::{Job, JobInitMetadata, WebbGadgetProtocol, WorkManagerConfig};
 use gadget_common::protocol::AsyncProtocol;
-use gadget_common::{BlockImportNotification, Error, FinalityNotification};
+use gadget_common::{BlockImportNotification, Error};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use groth16::proving_key::PackedProvingKeyShare;
@@ -32,7 +32,7 @@ use tangle_primitives::jobs::{
     ArkworksProofResult, HyperData, JobId, JobResult, JobType, ZkSaaSPhaseTwoRequest,
     ZkSaaSProofResult, ZkSaaSSystem,
 };
-use tangle_primitives::roles::RoleType;
+use tangle_primitives::roles::{RoleType, ZeroKnowledgeRoleType};
 use tangle_primitives::verifier::to_field_elements;
 use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -54,104 +54,44 @@ pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {
 }
 
 #[async_trait]
-impl<B, C, BE> WebbGadgetProtocol<B> for ZkProtocol<B, C, BE>
+impl<B, C, BE> WebbGadgetProtocol<B, BE, C> for ZkProtocol<B, C, BE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
     B: Block,
     C: ClientWithApi<B, BE> + 'static,
     BE: Backend<B> + 'static,
 {
-    async fn create_next_job(
-        &self,
-        notification: &FinalityNotification<B>,
-        now: u64,
-        job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) -> Result<Option<Vec<Job>>, Error> {
+    async fn create_next_job(&self, job: JobInitMetadata) -> Result<Job, Error> {
+        let (now, retry_id, task_id, _job_id) = (job.now, job.retry_id, job.task_id, job.job_id);
         self.logger
             .info(format!("Received a finality notification at {now}"));
 
-        let jobs = self
-            .client
-            .query_jobs_by_validator(notification.hash, self.account_id)
+        let JobType::ZkSaaSPhaseTwo(phase_two) = job.job_type else {
+            panic!("Should be valid")
+        };
+        let JobType::ZkSaaSPhaseOne(phase_one) = job.phase1_job.expect("Should exist") else {
+            panic!("Should be valid")
+        };
+
+        let participants = phase_one.participants;
+        let job_specific_params = ZkJobAdditionalParams {
+            n_parties: participants.len(),
+            party_id: participants
+                .iter()
+                .position(|p| p == &self.account_id)
+                .expect("Should exist") as _,
+            job_id: job.job_id,
+            role_type: self.role_type(),
+            system: phase_one.system,
+            request: phase_two.request,
+            participants,
+        };
+
+        let job = self
+            .create(0, now, retry_id, task_id, job_specific_params)
             .await?;
 
-        let mut ret = vec![];
-
-        for job in jobs {
-            let role_type = job.job_type.get_role_type();
-            if matches!(job.job_type, JobType::ZkSaaSPhaseTwo(..)) {
-                let phase_one_id = job
-                    .job_type
-                    .get_phase_one_id()
-                    .expect("Should exist for a phase2 job");
-                let phase_one_job = self
-                    .client
-                    .query_job_result(notification.hash, role_type, phase_one_id)
-                    .await
-                    .map_err(|err| crate::Error::ClientError {
-                        err: format!("Failed to query phase one by id: {err:?}"),
-                    })?
-                    .ok_or_else(|| crate::Error::JobError {
-                        err: JobError {
-                            reason: "Phase one job not found".to_string(),
-                        },
-                    })?;
-
-                let JobType::ZkSaaSPhaseOne(phase_one) = phase_one_job.job_type else {
-                    return Err(Error::JobError {
-                        err: JobError {
-                            reason: "Phase one job type not ZkSaaS".to_string(),
-                        },
-                    });
-                };
-
-                let JobType::ZkSaaSPhaseTwo(phase_two) = job.job_type else {
-                    return Err(Error::JobError {
-                        err: JobError {
-                            reason: "Phase two job type not ZkSaaS".to_string(),
-                        },
-                    });
-                };
-
-                let participants = phase_one.participants;
-
-                if participants.contains(&self.account_id) {
-                    let task_id = job.job_id.to_be_bytes();
-                    let task_id = sp_core::keccak_256(&task_id);
-
-                    if job_manager.job_exists(&task_id) {
-                        continue;
-                    }
-
-                    let session_id = 0;
-                    let retry_id = job_manager
-                        .latest_retry_id(&task_id)
-                        .map(|r| r + 1)
-                        .unwrap_or(0);
-
-                    let job_specific_params = ZkJobAdditionalParams {
-                        n_parties: participants.len(),
-                        party_id: participants
-                            .iter()
-                            .position(|p| p == &self.account_id)
-                            .expect("Should exist") as _,
-                        job_id: job.job_id,
-                        role_type,
-                        system: phase_one.system,
-                        request: phase_two.request,
-                        participants,
-                    };
-
-                    let job = self
-                        .create(session_id, now, retry_id, task_id, job_specific_params)
-                        .await?;
-
-                    ret.push(job);
-                }
-            }
-        }
-
-        Ok(Some(ret))
+        Ok(job)
     }
 
     async fn process_block_import_notification(
@@ -168,6 +108,22 @@ where
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) {
         log::error!(target: "gadget", "Received an error: {error:?}");
+    }
+
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
+    }
+
+    fn role_type(&self) -> RoleType {
+        RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16)
+    }
+
+    fn is_phase_one(&self) -> bool {
+        false
+    }
+
+    fn client(&self) -> &JobsClient<B, BE, C> {
+        &self.client
     }
 
     fn logger(&self) -> &DebugLogger {

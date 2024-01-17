@@ -21,13 +21,13 @@ use tangle_primitives::jobs::{JobId, JobResult, PhaseResult};
 use tangle_primitives::roles::RoleType;
 
 pub struct JobsClient<B: Block, BE, C> {
-    client: Arc<C>,
+    client: C,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
     _block: std::marker::PhantomData<(BE, B)>,
 }
 
-impl<B: Block, BE, C> Clone for JobsClient<B, BE, C> {
+impl<B: Block, BE, C: Clone> Clone for JobsClient<B, BE, C> {
     fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
@@ -39,7 +39,7 @@ impl<B: Block, BE, C> Clone for JobsClient<B, BE, C> {
 }
 
 pub async fn create_client<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>(
-    client: Arc<C>,
+    client: C,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
 ) -> Result<JobsClient<B, BE, C>, crate::Error>
@@ -57,7 +57,7 @@ where
 pub type AccountId = sp_core::ecdsa::Public;
 
 pub trait ClientWithApi<B, BE>:
-    BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + 'static
+    BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + Clone + 'static
 where
     B: Block,
     BE: Backend<B>,
@@ -69,7 +69,7 @@ impl<B, BE, T> ClientWithApi<B, BE> for T
 where
     B: Block,
     BE: Backend<B>,
-    T: BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + 'static,
+    T: BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + Clone + 'static,
     <T as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
 }
@@ -264,7 +264,7 @@ impl SubxtPalletSubmitter {
     }
 }
 
-async fn exec_client_function<C, F, T>(client: &Arc<C>, function: F) -> T
+async fn exec_client_function<C: Clone, F, T>(client: &C, function: F) -> T
 where
     for<'a> F: FnOnce(&'a C) -> T,
     C: Send + Sync + 'static,
