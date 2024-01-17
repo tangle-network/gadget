@@ -11,10 +11,10 @@ use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
+use gadget_common::gadget::{Job, JobInitMetadata, WebbGadgetProtocol, WorkManagerConfig};
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
-use gadget_common::{Block, BlockImportNotification, FinalityNotification};
+use gadget_common::{Block, BlockImportNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use multi_party_ecdsa::gg_2020::party_i::verify;
@@ -29,7 +29,6 @@ use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_core::ecdsa::Signature;
-use sp_core::keccak_256;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::{
@@ -87,111 +86,62 @@ impl<
         C: ClientWithApi<B, BE>,
         KBE: KeystoreBackend,
         N: Network,
-    > WebbGadgetProtocol<B> for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
+    > WebbGadgetProtocol<B, BE, C> for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    async fn get_next_jobs(
-        &self,
-        notification: &FinalityNotification<B>,
-        now: u64,
-        job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) -> Result<Option<Vec<Job>>, gadget_common::Error> {
-        let jobs = self
-            .client
-            .query_jobs_by_validator(notification.hash, self.account_id)
-            .await?;
+    async fn create_next_job(&self, job: JobInitMetadata) -> Result<Job, gadget_common::Error> {
+        let (now, retry_id, task_id, job_id) = (job.now, job.retry_id, job.task_id, job.job_id);
 
-        let mut ret = vec![];
+        let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type;
+        let input_data_to_sign = p2_job.submission;
+        let previous_job_id = p2_job.phase_one_id;
 
-        for job in jobs {
-            let job_id = job.job_id;
-            let role_type = job.job_type.get_role_type();
+        let participants = job
+            .phase1_participants
+            .expect("Should exist for stage 1 signing");
+        let threshold = job
+            .phase1_threshold
+            .expect("T should exist for stage 1 signing");
 
-            if let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type {
-                if p2_job.role_type != ThresholdSignatureRoleType::TssGG20 {
-                    continue;
-                }
-                let input_data_to_sign = p2_job.submission;
-                let previous_job_id = p2_job.phase_one_id;
-
-                let phase1_job = self
-                    .client
-                    .query_job_result(notification.hash, role_type, previous_job_id)
-                    .await?
-                    .ok_or_else(|| gadget_common::Error::ClientError {
-                        err: format!("Corresponding phase one job {previous_job_id} not found for phase two job {job_id}"),
-                    })?;
-
-                let participants = phase1_job
-                    .job_type
-                    .clone()
-                    .get_participants()
-                    .expect("Should exist for stage 1 signing");
-                let threshold = phase1_job
-                    .job_type
-                    .get_threshold()
-                    .expect("T should exist for stage 1 signing")
-                    as u16;
-
-                if participants.contains(&self.account_id) {
-                    let task_id = job_id.to_be_bytes();
-                    let task_id = keccak_256(&task_id);
-                    let session_id = 0; // We are not interested in sessions for the ECDSA protocol
-                                        // For the retry ID, get the latest retry and increment by 1 to set the next retry ID
-                                        // If no retry ID exists, it means the job is new, thus, set the retry_id to 0
-                    let retry_id = job_manager
-                        .latest_retry_id(&task_id)
-                        .map(|r| r + 1)
-                        .unwrap_or(0);
-
-                    if let Some(key) =
-                        self.key_store.get(&previous_job_id).await.map_err(|err| {
-                            gadget_common::Error::ClientError {
-                                err: err.to_string(),
-                            }
-                        })?
-                    {
-                        let user_id_to_account_id_mapping = Arc::new(
-                            participants
-                                .clone()
-                                .into_iter()
-                                .enumerate()
-                                .map(|r| ((r.0 + 1) as UserID, r.1))
-                                .collect(),
-                        );
-
-                        let additional_params = MpEcdsaSigningExtraParams {
-                            i: participants
-                                .iter()
-                                .position(|p| p == &self.account_id)
-                                .expect("Should exist") as u16
-                                + 1,
-                            t: threshold,
-                            signers: (0..participants.len()).map(|r| (r + 1) as u16).collect(),
-                            job_id,
-                            role_type,
-                            key,
-                            input_data_to_sign,
-                            user_id_to_account_id_mapping,
-                        };
-
-                        let job = self
-                            .create(session_id, now, retry_id, task_id, additional_params)
-                            .await?;
-
-                        ret.push(job);
-                    } else {
-                        self.logger.warn(format!(
-                            "No key found for job ID: {job_id:?}",
-                            job_id = job.job_id
-                        ));
-                    }
-                }
+        if let Some(key) = self.key_store.get(&previous_job_id).await.map_err(|err| {
+            gadget_common::Error::ClientError {
+                err: err.to_string(),
             }
-        }
+        })? {
+            let user_id_to_account_id_mapping = Arc::new(
+                participants
+                    .clone()
+                    .into_iter()
+                    .enumerate()
+                    .map(|r| ((r.0 + 1) as UserID, r.1))
+                    .collect(),
+            );
 
-        Ok(Some(ret))
+            let additional_params = MpEcdsaSigningExtraParams {
+                i: participants
+                    .iter()
+                    .position(|p| p == &self.account_id)
+                    .expect("Should exist") as u16
+                    + 1,
+                t: threshold,
+                signers: (0..participants.len()).map(|r| (r + 1) as u16).collect(),
+                job_id,
+                key,
+                input_data_to_sign,
+                user_id_to_account_id_mapping,
+            };
+
+            let job = self
+                .create(0, now, retry_id, task_id, additional_params)
+                .await?;
+
+            Ok(job)
+        } else {
+            Err(gadget_common::Error::ClientError {
+                err: format!("No key found for job ID: {job_id:?}", job_id = job.job_id),
+            })
+        }
     }
 
     async fn process_block_import_notification(
@@ -208,6 +158,22 @@ where
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) {
         log::error!(target: "gadget", "Error: {error:?}");
+    }
+
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
+    }
+
+    fn role_type(&self) -> RoleType {
+        RoleType::Tss(ThresholdSignatureRoleType::TssGG20)
+    }
+
+    fn is_phase_one(&self) -> bool {
+        false
+    }
+
+    fn client(&self) -> &JobsClient<B, BE, C> {
+        &self.client
     }
 
     fn logger(&self) -> &DebugLogger {
@@ -228,7 +194,6 @@ pub struct MpEcdsaSigningExtraParams {
     t: u16,
     signers: Vec<u16>,
     job_id: JobId,
-    role_type: RoleType,
     key: LocalKey<Secp256k1>,
     input_data_to_sign: Vec<u8>,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
@@ -263,6 +228,7 @@ where
         let client = self.client.clone();
         let round_blames = self.round_blames.clone();
         let network = self.network.clone();
+        let role_type = self.role_type();
 
         let (i, signers, t, key, input_data_to_sign, mapping) = (
             additional_params.i,
@@ -371,11 +337,7 @@ where
                     });
 
                     client
-                        .submit_job_result(
-                            additional_params.role_type,
-                            additional_params.job_id,
-                            job_result,
-                        )
+                        .submit_job_result(role_type, additional_params.job_id, job_result)
                         .await
                         .map_err(|err| JobError {
                             reason: format!("Failed to submit job result: {err:?}"),

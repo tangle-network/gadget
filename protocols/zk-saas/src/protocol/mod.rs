@@ -61,7 +61,7 @@ where
     C: ClientWithApi<B, BE> + 'static,
     BE: Backend<B> + 'static,
 {
-    async fn get_next_jobs(
+    async fn create_next_job(
         &self,
         notification: &FinalityNotification<B>,
         now: u64,

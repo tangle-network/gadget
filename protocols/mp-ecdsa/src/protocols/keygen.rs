@@ -10,10 +10,10 @@ use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
+use gadget_common::gadget::{Job, JobInitMetadata, WebbGadgetProtocol, WorkManagerConfig};
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
-use gadget_common::{Block, BlockImportNotification, FinalityNotification};
+use gadget_common::{Block, BlockImportNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
@@ -23,7 +23,6 @@ use round_based::async_runtime::watcher::StderrWatcher;
 use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
-use sp_application_crypto::sp_core::keccak_256;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tangle_primitives::jobs::{
@@ -81,74 +80,52 @@ impl<
         C: ClientWithApi<B, BE>,
         KBE: KeystoreBackend,
         N: Network,
-    > WebbGadgetProtocol<B> for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
+    > WebbGadgetProtocol<B, BE, C> for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    async fn get_next_jobs(
-        &self,
-        notification: &FinalityNotification<B>,
-        now: u64,
-        job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) -> Result<Option<Vec<Job>>, gadget_common::Error> {
+    async fn create_next_job(&self, job: JobInitMetadata) -> Result<Job, gadget_common::Error> {
+        let now = job.now;
         self.logger.info(format!("At finality notification {now}"));
-        let jobs = self
-            .client
-            .query_jobs_by_validator(notification.hash, self.account_id)
+
+        let job_id = job.job_id;
+        let role_type = job.job_type.get_role_type();
+        let task_id = job.task_id;
+        let retry_id = job.retry_id;
+
+        // We can safely make this assumption because we are only creating jobs for phase one
+        let JobType::DKGTSSPhaseOne(p1_job) = job.job_type;
+
+        let participants = p1_job.participants;
+        let threshold = p1_job.threshold;
+
+        let user_id_to_account_id_mapping = Arc::new(
+            participants
+                .clone()
+                .into_iter()
+                .enumerate()
+                .map(|r| ((r.0 + 1) as UserID, r.1))
+                .collect(),
+        );
+
+        let additional_params = MpEcdsaKeygenExtraParams {
+            i: participants
+                .iter()
+                .position(|p| p == &self.account_id)
+                .expect("Should exist") as u16
+                + 1,
+            t: threshold as u16,
+            n: participants.len() as u16,
+            role_type,
+            job_id,
+            user_id_to_account_id_mapping,
+        };
+
+        let job = self
+            .create(0, now, retry_id, task_id, additional_params)
             .await?;
 
-        let mut ret = vec![];
-
-        for job in jobs {
-            let job_id = job.job_id;
-            let role_type = job.job_type.get_role_type();
-            if let JobType::DKGTSSPhaseOne(p1_job) = job.job_type {
-                if p1_job.role_type != ThresholdSignatureRoleType::TssGG20 {
-                    continue;
-                }
-                let participants = p1_job.participants;
-                let threshold = p1_job.threshold;
-                if participants.contains(&self.account_id) {
-                    let task_id = job.job_id.to_be_bytes();
-                    let task_id = keccak_256(&task_id);
-                    let session_id = 0; // We are not interested in sessions for the ECDSA protocol
-                    let retry_id = job_manager
-                        .latest_retry_id(&task_id)
-                        .map(|r| r + 1)
-                        .unwrap_or(0);
-
-                    let user_id_to_account_id_mapping = Arc::new(
-                        participants
-                            .clone()
-                            .into_iter()
-                            .enumerate()
-                            .map(|r| ((r.0 + 1) as UserID, r.1))
-                            .collect(),
-                    );
-
-                    let additional_params = MpEcdsaKeygenExtraParams {
-                        i: participants
-                            .iter()
-                            .position(|p| p == &self.account_id)
-                            .expect("Should exist") as u16
-                            + 1,
-                        t: threshold as u16,
-                        n: participants.len() as u16,
-                        role_type,
-                        job_id,
-                        user_id_to_account_id_mapping,
-                    };
-
-                    let job = self
-                        .create(session_id, now, retry_id, task_id, additional_params)
-                        .await?;
-
-                    ret.push(job);
-                }
-            }
-        }
-
-        Ok(Some(ret))
+        Ok(job)
     }
 
     async fn process_block_import_notification(
@@ -165,6 +142,22 @@ where
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) {
         log::error!(target: "mp-ecdsa", "Error: {error:?}");
+    }
+
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
+    }
+
+    fn role_type(&self) -> RoleType {
+        RoleType::Tss(ThresholdSignatureRoleType::TssGG20)
+    }
+
+    fn is_phase_one(&self) -> bool {
+        true
+    }
+
+    fn client(&self) -> &JobsClient<B, BE, C> {
+        &self.client
     }
 
     fn logger(&self) -> &DebugLogger {
