@@ -1,6 +1,6 @@
 //! When delivering messages to an async protocol, we want o make sure we don't mix up voting and public key gossip messages
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
-use dfns_cggmp21::round_based::{Incoming, MessageDestination, MessageType, Outgoing};
+use dfns_cggmp21::round_based::{Incoming, MessageDestination, MessageType, Outgoing, PartyIndex};
 use futures::StreamExt;
 use gadget_common::client::AccountId;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -224,9 +224,18 @@ impl<M> MaybeSenderReceiver for Incoming<M> {
     }
 }
 
+impl MaybeSenderReceiver for () {
+    fn maybe_sender(&self) -> MaybeSender {
+        MaybeSender::Unknown
+    }
+
+    fn maybe_receiver(&self) -> MaybeReceiver {
+        MaybeReceiver::Unknown
+    }
+}
+
 pub fn create_job_manager_to_async_protocol_channel_split<
     N: Network + 'static,
-    C1: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     M: Serialize + DeserializeOwned + Send + 'static,
 >(
@@ -251,11 +260,22 @@ pub fn create_job_manager_to_async_protocol_channel_split<
 
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
-        while let Some(msg) = rx_gadget.recv().await {
-            match bincode2::deserialize::<SplitChannelMessage<Incoming<M>, C2>>(&msg.payload) {
+        while let Some(msg_orig) = rx_gadget.recv().await {
+            match bincode2::deserialize::<SplitChannelMessage<M, C2>>(&msg_orig.payload) {
                 Ok(msg) => match msg {
                     SplitChannelMessage::Channel1(msg) => {
-                        if tx_to_async_proto_1.unbounded_send(Ok(msg)).is_err() {
+                        let msg_type = if msg_orig.to.is_some() {
+                            MessageType::P2P
+                        } else {
+                            MessageType::Broadcast
+                        };
+                        let incoming = Incoming {
+                            id: 0, // TODO: How to get this value??
+                            sender: msg_orig.from as PartyIndex,
+                            msg_type,
+                            msg,
+                        };
+                        if tx_to_async_proto_1.unbounded_send(Ok(incoming)).is_err() {
                             log::error!(target: "gadget", "Failed to send message to protocol");
                         }
                     }
@@ -287,7 +307,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
             }
         })
         .expect("Failed to find my user id");
-    // Take the messages the async protocol sends to the outbound channel and send them to the gadget
+    // Take the messages from the async protocol and send them to the gadget
     tokio::task::spawn(async move {
         let offline_task = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
@@ -298,7 +318,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     from.as_user_id().unwrap_or(my_user_id),
                     to.as_user_id(),
                 );
-                let msg = SplitChannelMessage::<Outgoing<M>, C2>::Channel1(msg);
+                let msg = SplitChannelMessage::<M, C2>::Channel1(msg.msg);
                 let msg = GadgetProtocolMessage {
                     associated_block_id,
                     associated_session_id,
@@ -326,7 +346,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     from.as_user_id().unwrap_or(my_user_id),
                     to.as_user_id(),
                 );
-                let msg = SplitChannelMessage::<C1, C2>::Channel2(msg);
+                let msg = SplitChannelMessage::<M, C2>::Channel2(msg);
                 let msg = GadgetProtocolMessage {
                     associated_block_id,
                     associated_session_id,
