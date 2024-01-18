@@ -11,7 +11,7 @@ use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::gadget::{Job, JobInitMetadata, WebbGadgetProtocol, WorkManagerConfig};
+use gadget_common::gadget::{JobInitMetadata, WebbGadgetProtocol, WorkManagerConfig};
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification};
@@ -89,8 +89,11 @@ impl<
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    async fn create_next_job(&self, job: JobInitMetadata) -> Result<Job, gadget_common::Error> {
-        let (now, retry_id, task_id, job_id) = (job.now, job.retry_id, job.task_id, job.job_id);
+    async fn create_next_job(
+        &self,
+        job: JobInitMetadata,
+    ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
+        let job_id = job.job_id;
 
         let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
             panic!("Should be valid type")
@@ -116,7 +119,7 @@ where
                     .collect(),
             );
 
-            let additional_params = MpEcdsaSigningExtraParams {
+            let params = MpEcdsaSigningExtraParams {
                 i: participants
                     .iter()
                     .position(|p| p == &self.account_id)
@@ -130,11 +133,7 @@ where
                 user_id_to_account_id_mapping,
             };
 
-            let job = self
-                .create(0, now, retry_id, task_id, additional_params)
-                .await?;
-
-            Ok(job)
+            Ok(params)
         } else {
             Err(gadget_common::Error::ClientError {
                 err: format!("No key found for job ID: {job_id:?}", job_id = job.job_id),
