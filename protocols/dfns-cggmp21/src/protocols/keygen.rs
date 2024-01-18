@@ -232,7 +232,7 @@ where
                     keygen_rx_async_proto,
                     broadcast_tx_to_outbound,
                     broadcast_rx_from_gadget,
-                ) = super::util::create_job_manager_to_async_protocol_channel_split(
+                ) = super::util::create_job_manager_to_async_protocol_channel_split::<_, (), _>(
                     protocol_message_rx,
                     associated_block_id,
                     associated_retry_id,
