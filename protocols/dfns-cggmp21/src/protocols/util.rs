@@ -261,6 +261,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
         while let Some(msg_orig) = rx_gadget.recv().await {
+            let mut id = 0;
             match bincode2::deserialize::<SplitChannelMessage<M, C2>>(&msg_orig.payload) {
                 Ok(msg) => match msg {
                     SplitChannelMessage::Channel1(msg) => {
@@ -270,7 +271,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                             MessageType::Broadcast
                         };
                         let incoming = Incoming {
-                            id: 0, // TODO: How to get this value??
+                            id,
                             sender: msg_orig.from as PartyIndex,
                             msg_type,
                             msg,
@@ -278,6 +279,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                         if tx_to_async_proto_1.unbounded_send(Ok(incoming)).is_err() {
                             log::error!(target: "gadget", "Failed to send message to protocol");
                         }
+
+                        id += 1;
                     }
                     SplitChannelMessage::Channel2(msg) => {
                         if tx_to_async_proto_2.unbounded_send(msg).is_err() {
