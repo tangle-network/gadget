@@ -1,11 +1,8 @@
 use crate::network::ZkNetworkService;
 use crate::protocol::ZkProtocol;
 use gadget_common::client::{create_client, AccountId, ClientWithApi, PalletSubmitter};
-use gadget_common::config::ProtocolConfig;
 use gadget_common::debug_logger::DebugLogger;
-use gadget_common::gadget::network::Network;
-use gadget_common::gadget::WebbGadgetProtocol;
-use gadget_common::Error;
+use gadget_common::{define_protocol, Error};
 use mpc_net::prod::RustlsCertificate;
 use pallet_jobs_rpc_runtime_api::JobsApi;
 use sc_client_api::Backend;
@@ -56,12 +53,7 @@ where
         logger,
     };
 
-    let config = ZkProtocolConfig {
-        network: Some(network),
-        client: Some(client_inner),
-        protocol: Some(zk_protocol),
-        _pd: std::marker::PhantomData,
-    };
+    let config = ZkProtocolConfig::new(network, client_inner, zk_protocol);
 
     // Plug the protocol into the webb gadget
     gadget_common::run_protocol(config).await
@@ -96,38 +88,4 @@ pub async fn create_zk_network(config: &ZkGadgetConfig) -> Result<ZkNetworkServi
     }
 }
 
-pub struct ZkProtocolConfig<N, P, C, B: Block, BE> {
-    pub network: Option<N>,
-    pub client: Option<C>,
-    pub protocol: Option<P>,
-    _pd: std::marker::PhantomData<(B, BE)>,
-}
-
-impl<
-        B: Block,
-        BE: Backend<B> + 'static,
-        N: Network,
-        C: ClientWithApi<B, BE>,
-        P: WebbGadgetProtocol<B, BE, C>,
-    > ProtocolConfig for ZkProtocolConfig<N, P, C, B, BE>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
-{
-    type Network = N;
-    type Block = B;
-    type Backend = BE;
-    type Protocol = P;
-    type Client = C;
-
-    fn take_network(&mut self) -> Self::Network {
-        self.network.take().expect("Network not set")
-    }
-
-    fn take_protocol(&mut self) -> Self::Protocol {
-        self.protocol.take().expect("Protocol not set")
-    }
-
-    fn take_client(&mut self) -> Self::Client {
-        self.client.take().expect("Client not set")
-    }
-}
+define_protocol!(ZkProtocolConfig);
