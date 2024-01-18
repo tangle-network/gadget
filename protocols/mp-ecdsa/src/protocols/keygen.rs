@@ -10,7 +10,7 @@ use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::gadget::{Job, JobInitMetadata, WebbGadgetProtocol, WorkManagerConfig};
+use gadget_common::gadget::{JobInitMetadata, WebbGadgetProtocol, WorkManagerConfig};
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification};
@@ -84,14 +84,15 @@ impl<
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    async fn create_next_job(&self, job: JobInitMetadata) -> Result<Job, gadget_common::Error> {
+    async fn create_next_job(
+        &self,
+        job: JobInitMetadata,
+    ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
         let now = job.now;
         self.logger.info(format!("At finality notification {now}"));
 
         let job_id = job.job_id;
         let role_type = job.job_type.get_role_type();
-        let task_id = job.task_id;
-        let retry_id = job.retry_id;
 
         // We can safely make this assumption because we are only creating jobs for phase one
         let JobType::DKGTSSPhaseOne(p1_job) = job.job_type else {
@@ -110,7 +111,7 @@ where
                 .collect(),
         );
 
-        let additional_params = MpEcdsaKeygenExtraParams {
+        let params = MpEcdsaKeygenExtraParams {
             i: participants
                 .iter()
                 .position(|p| p == &self.account_id)
@@ -123,11 +124,7 @@ where
             user_id_to_account_id_mapping,
         };
 
-        let job = self
-            .create(0, now, retry_id, task_id, additional_params)
-            .await?;
-
-        Ok(job)
+        Ok(params)
     }
 
     async fn process_block_import_notification(

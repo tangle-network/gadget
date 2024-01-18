@@ -2,7 +2,7 @@ use crate::client::{AccountId, ClientWithApi, JobsClient};
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WebbWorkManager;
-use crate::protocol::AsyncProtocolRemote;
+use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
 use crate::Error;
 use async_trait::async_trait;
 use gadget_core::gadget::substrate::SubstrateGadgetModule;
@@ -153,17 +153,17 @@ where
                 }
 
                 if !job.job_type.is_phase_one() && !self.protocol.is_phase_one() {
-                    let previous_job_id = job
+                    let phase_one_job_id = job
                         .job_type
                         .get_phase_one_id()
                         .expect("Should exist for stage 2 jobs");
                     let phase1_job = self
                         .protocol
                         .client()
-                        .query_job_result(notification.hash, role_type, previous_job_id)
+                        .query_job_result(notification.hash, role_type, phase_one_job_id)
                         .await?
                         .ok_or_else(|| Error::ClientError {
-                            err: format!("Corresponding phase one job {previous_job_id} not found for phase two job {job_id}"),
+                            err: format!("Corresponding phase one job {phase_one_job_id} not found for phase two job {job_id}"),
                         })?;
 
                     relevant_jobs.push(JobInitMetadata {
@@ -182,21 +182,43 @@ where
 
         for relevant_job in relevant_jobs {
             let task_id = relevant_job.task_id;
+            let retry_id = relevant_job.retry_id;
             match self.protocol.create_next_job(relevant_job).await {
-                Ok(job) => {
-                    let (remote, protocol) = job;
-                    if let Err(err) =
-                        self.job_manager
-                            .push_task(task_id, false, Arc::new(remote), protocol)
+                Ok(params) => {
+                    match self
+                        .protocol
+                        .create(0, now, retry_id, task_id, params)
+                        .await
                     {
-                        self.protocol
-                            .process_error(Error::WorkManagerError { err }, &self.job_manager)
-                            .await;
+                        Ok(job) => {
+                            let (remote, protocol) = job;
+                            if let Err(err) = self.job_manager.push_task(
+                                task_id,
+                                false,
+                                Arc::new(remote),
+                                protocol,
+                            ) {
+                                self.protocol
+                                    .process_error(
+                                        Error::WorkManagerError { err },
+                                        &self.job_manager,
+                                    )
+                                    .await;
+                            }
+                        }
+
+                        Err(err) => {
+                            self.protocol
+                                .logger()
+                                .error(format!("Failed to create async protocol: {err:?}"));
+                        }
                     }
                 }
 
                 Err(err) => {
-                    log::error!(target: "gadget", "Failed to process job: {err:?}");
+                    self.protocol
+                        .logger()
+                        .error(format!("Failed to generate job parameters: {err:?}"));
                 }
             }
         }
@@ -238,11 +260,14 @@ pub type Job = (AsyncProtocolRemote, BuiltExecutableJobWrapper);
 
 #[async_trait]
 pub trait WebbGadgetProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>:
-    Send + Sync
+    AsyncProtocol + Send + Sync
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    async fn create_next_job(&self, job: JobInitMetadata) -> Result<Job, Error>;
+    async fn create_next_job(
+        &self,
+        job: JobInitMetadata,
+    ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error>;
     async fn process_block_import_notification(
         &self,
         notification: BlockImportNotification<B>,

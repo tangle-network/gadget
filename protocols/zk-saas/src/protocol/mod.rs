@@ -15,7 +15,7 @@ use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::gadget::{Job, JobInitMetadata, WebbGadgetProtocol, WorkManagerConfig};
+use gadget_common::gadget::{JobInitMetadata, WebbGadgetProtocol, WorkManagerConfig};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{BlockImportNotification, Error};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
@@ -61,8 +61,12 @@ where
     C: ClientWithApi<B, BE> + 'static,
     BE: Backend<B> + 'static,
 {
-    async fn create_next_job(&self, job: JobInitMetadata) -> Result<Job, Error> {
-        let (now, retry_id, task_id, _job_id) = (job.now, job.retry_id, job.task_id, job.job_id);
+    async fn create_next_job(
+        &self,
+        job: JobInitMetadata,
+    ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
+        let (now, job_id) = (job.now, job.job_id);
+
         self.logger
             .info(format!("Received a finality notification at {now}"));
 
@@ -74,24 +78,20 @@ where
         };
 
         let participants = phase_one.participants;
-        let job_specific_params = ZkJobAdditionalParams {
+        let params = ZkJobAdditionalParams {
             n_parties: participants.len(),
             party_id: participants
                 .iter()
                 .position(|p| p == &self.account_id)
                 .expect("Should exist") as _,
-            job_id: job.job_id,
+            job_id,
             role_type: self.role_type(),
             system: phase_one.system,
             request: phase_two.request,
             participants,
         };
 
-        let job = self
-            .create(0, now, retry_id, task_id, job_specific_params)
-            .await?;
-
-        Ok(job)
+        Ok(params)
     }
 
     async fn process_block_import_notification(
