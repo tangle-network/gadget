@@ -28,8 +28,10 @@ sp-application-crypto = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-jobs = { workspace = true }
+pallet-dkg = { workspace = true }
+pallet-zksaas = { workspace = true }
 sp-externalities = { workspace = true }
-tangle-primitives = { workspace = true }
+tangle-primitives = { workspace = true, features = ["verifying"] }
 scale-info = { workspace = true }
 parity-scale-codec = { workspace = true }
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
