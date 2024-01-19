@@ -24,6 +24,7 @@ use tangle_primitives::jobs::{
     DKGTSSSignatureResult, DigitalSignatureType, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
+use tokio::sync::mpsc::UnboundedReceiver;
 
 pub struct DfnsCGGMP21SigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
     client: JobsClient<B, BE, C>,
@@ -237,7 +238,7 @@ where
         associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
         associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
         associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_channel: tokio::sync::broadcast::Sender<GadgetProtocolMessage>,
+        protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let debug_logger_post = self.logger.clone();
@@ -262,6 +263,8 @@ where
         Ok(JobBuilder::new()
             .protocol(async move {
                 let mut rng = rand::rngs::StdRng::from_entropy();
+                let protocol_message_channel =
+                    super::util::MultiUseChannel::from(protocol_message_channel);
 
                 logger.info(format!(
                     "Starting Signing Protocol with params: i={i}, t={t}"
@@ -277,7 +280,7 @@ where
                     _broadcast_tx_to_outbound,
                     _broadcast_rx_from_gadget,
                 ) = super::util::create_job_manager_to_async_protocol_channel_split::<_, (), _>(
-                    protocol_message_channel.subscribe(),
+                    protocol_message_channel.clone(),
                     associated_block_id,
                     associated_retry_id,
                     associated_session_id,

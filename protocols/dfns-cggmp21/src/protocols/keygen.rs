@@ -27,6 +27,7 @@ use tangle_primitives::jobs::{
     DKGTSSKeySubmissionResult, DigitalSignatureType, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
+use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::util::PublicKeyGossipMessage;
 
@@ -194,7 +195,7 @@ where
         associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
         associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
         associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_channel: tokio::sync::broadcast::Sender<GadgetProtocolMessage>,
+        protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let key_store = self.key_store.clone();
@@ -215,6 +216,8 @@ where
         Ok(JobBuilder::new()
             .protocol(async move {
                 let mut rng = rand::rngs::StdRng::from_entropy();
+                let protocol_message_channel =
+                    super::util::MultiUseChannel::from(protocol_message_channel);
                 logger.info(format!(
                     "Starting Keygen Protocol with params: i={i}, t={t}, n={n}"
                 ));
@@ -233,7 +236,7 @@ where
                     _broadcast_tx_to_outbound,
                     _broadcast_rx_from_gadget,
                 ) = super::util::create_job_manager_to_async_protocol_channel_split::<_, (), _>(
-                    protocol_message_channel.subscribe(),
+                    protocol_message_channel.clone(),
                     associated_block_id,
                     associated_retry_id,
                     associated_session_id,
@@ -260,7 +263,7 @@ where
                     broadcast_tx_to_outbound,
                     broadcast_rx_from_gadget,
                 ) = super::util::create_job_manager_to_async_protocol_channel_split(
-                    protocol_message_channel.subscribe(),
+                    protocol_message_channel.clone(),
                     associated_block_id,
                     associated_retry_id,
                     associated_session_id,

@@ -12,6 +12,26 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::mpsc::UnboundedReceiver;
+
+#[derive(Clone)]
+pub struct MultiUseChannel<T> {
+    rx: Arc<tokio::sync::Mutex<UnboundedReceiver<T>>>,
+}
+
+impl<T> From<UnboundedReceiver<T>> for MultiUseChannel<T> {
+    fn from(rx: UnboundedReceiver<T>) -> Self {
+        Self {
+            rx: Arc::new(tokio::sync::Mutex::new(rx)),
+        }
+    }
+}
+
+impl<T> MultiUseChannel<T> {
+    pub async fn recv(&self) -> Option<T> {
+        self.rx.lock().await.recv().await
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum SplitChannelMessage<C1, C2> {
@@ -240,7 +260,7 @@ pub(crate) fn create_job_manager_to_async_protocol_channel_split<
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     M: Serialize + DeserializeOwned + Send + 'static,
 >(
-    mut rx_gadget: tokio::sync::broadcast::Receiver<GadgetProtocolMessage>,
+    rx_gadget: MultiUseChannel<GadgetProtocolMessage>,
     associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
@@ -262,7 +282,7 @@ pub(crate) fn create_job_manager_to_async_protocol_channel_split<
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
         let mut id = 0;
-        while let Ok(msg_orig) = rx_gadget.recv().await {
+        while let Some(msg_orig) = rx_gadget.recv().await {
             if msg_orig.payload.is_empty() {
                 log::warn!(target: "gadget", "Received empty message from Peer {}", msg_orig.from);
                 continue;
