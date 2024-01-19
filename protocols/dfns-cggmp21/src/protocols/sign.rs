@@ -264,7 +264,7 @@ where
             .protocol(async move {
                 let mut rng = rand::rngs::StdRng::from_entropy();
                 let protocol_message_channel =
-                    super::util::ColneableUnboundedReceiver::from(protocol_message_channel);
+                    super::util::CloneableUnboundedReceiver::from(protocol_message_channel);
 
                 logger.info(format!(
                     "Starting Signing Protocol with params: i={i}, t={t}"
