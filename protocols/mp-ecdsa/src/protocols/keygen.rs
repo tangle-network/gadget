@@ -207,7 +207,7 @@ where
         associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
         associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
         associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_channel: tokio::sync::broadcast::Sender<GadgetProtocolMessage>,
+        protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let key_store = self.key_store.clone();
@@ -254,7 +254,7 @@ where
                     Msg<<Keygen as StateMachine>::MessageBody>,
                     PublicKeyGossipMessage,
                 >(
-                    protocol_message_channel.subscribe(),
+                    protocol_message_rx,
                     associated_block_id,
                     associated_retry_id,
                     associated_session_id,
