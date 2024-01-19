@@ -19,24 +19,13 @@ use tokio::sync::mpsc::UnboundedReceiver;
 ///
 /// On the second clone, the original channel will stop sending messages
 /// and the new channel will start sending messages.
-pub struct ColneableUnboundedReceiver<T> {
+pub struct CloneableUnboundedReceiver<T> {
     rx: Arc<tokio::sync::Mutex<UnboundedReceiver<T>>>,
     is_in_use: Arc<AtomicBool>,
 }
 
-impl<T> ColneableUnboundedReceiver<T> {
-    pub fn try_use(self) -> Result<Self, ()> {
-        if self.rx.try_lock().is_ok() {
-            self.is_in_use
-                .store(true, std::sync::atomic::Ordering::SeqCst);
-            Ok(self)
-        } else {
-            Err(())
-        }
-    }
-}
 
-impl<T: Clone> Clone for ColneableUnboundedReceiver<T> {
+impl<T: Clone> Clone for CloneableUnboundedReceiver<T> {
     fn clone(&self) -> Self {
         // on the clone, we switch the is_in_use flag to false
         // and we return a new channel
@@ -49,7 +38,7 @@ impl<T: Clone> Clone for ColneableUnboundedReceiver<T> {
     }
 }
 
-impl<T> From<UnboundedReceiver<T>> for ColneableUnboundedReceiver<T> {
+impl<T> From<UnboundedReceiver<T>> for CloneableUnboundedReceiver<T> {
     fn from(rx: UnboundedReceiver<T>) -> Self {
         Self {
             rx: Arc::new(tokio::sync::Mutex::new(rx)),
@@ -58,7 +47,7 @@ impl<T> From<UnboundedReceiver<T>> for ColneableUnboundedReceiver<T> {
     }
 }
 
-impl<T> Stream for ColneableUnboundedReceiver<T> {
+impl<T> Stream for CloneableUnboundedReceiver<T> {
     type Item = T;
     fn poll_next(
         self: std::pin::Pin<&mut Self>,
@@ -304,7 +293,7 @@ pub(crate) fn create_job_manager_to_async_protocol_channel_split<
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     M: Serialize + DeserializeOwned + Send + 'static,
 >(
-    mut rx_gadget: ColneableUnboundedReceiver<GadgetProtocolMessage>,
+    mut rx_gadget: CloneableUnboundedReceiver<GadgetProtocolMessage>,
     associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
