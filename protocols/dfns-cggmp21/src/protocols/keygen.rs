@@ -226,6 +226,7 @@ where
                 let mix = keccak_256(b"dnfs-cggmp21-keygen-aux");
                 let aux_eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
                 let aux_eid = dfns_cggmp21::ExecutionId::new(&aux_eid_bytes);
+
                 let (
                     keygen_tx_to_outbound,
                     keygen_rx_async_proto,

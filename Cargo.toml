@@ -21,6 +21,8 @@ test-utils = { path = "./test-utils" }
 
 pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle" }
 pallet-jobs = { git = "https://github.com/webb-tools/tangle" }
+pallet-dkg = { git = "https://github.com/webb-tools/tangle" }
+pallet-zksaas = { git = "https://github.com/webb-tools/tangle" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle" }
 tangle-testnet-runtime = { git = "https://github.com/webb-tools/tangle" }
 tangle-mainnet-runtime = { git = "https://github.com/webb-tools/tangle" }

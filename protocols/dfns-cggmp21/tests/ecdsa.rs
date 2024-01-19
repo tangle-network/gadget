@@ -3,11 +3,12 @@ mod tests {
     use dfns_cggmp21_protocol::DfnsCGGMP21ProtocolConfig;
     use futures::stream::FuturesUnordered;
     use futures::StreamExt;
+    use pallet_jobs::KnownResults;
     use tangle_primitives::jobs::{
-        DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
+        DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, JobId, JobResult, JobSubmission, JobType,
     };
     use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
-    use test_utils::mock::{id_to_public, Jobs, MockBackend, RuntimeOrigin};
+    use test_utils::mock::{id_to_public, Jobs, MockBackend, Runtime, RuntimeOrigin};
     use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
 
     #[tokio::test(flavor = "multi_thread")]
@@ -105,6 +106,7 @@ mod tests {
     ) -> JobId {
         let job_id = ext
             .execute_with_async(move || {
+                let submission = Vec::from("Hello, world!");
                 let job_id = Jobs::next_job_id();
                 let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
                 let submission = JobSubmission {
@@ -112,7 +114,7 @@ mod tests {
                     ttl: 100,
                     job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
                         phase_one_id: keygen_job_id,
-                        submission: Vec::from("Hello, world!"),
+                        submission,
                         role_type: ThresholdSignatureRoleType::TssCGGMP,
                     }),
                 };
@@ -124,12 +126,25 @@ mod tests {
             })
             .await;
 
-        test_utils::wait_for_job_completion(
+        let phase_one_result = KnownResults::<Runtime>::get(
+            RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP),
+            keygen_job_id,
+        )
+        .expect("No phase one result");
+        let public_key = match phase_one_result.result {
+            JobResult::DKGPhaseOne(r) => r.key,
+            _ => panic!("Unexpected phase one result"),
+        };
+        let phase_two_result = test_utils::wait_for_job_completion(
             ext,
             RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP),
             job_id,
         )
         .await;
+        let signature = match phase_two_result.result {
+            JobResult::DKGPhaseTwo(r) => r.signature,
+            _ => panic!("Unexpected phase two result"),
+        };
         job_id
     }
 

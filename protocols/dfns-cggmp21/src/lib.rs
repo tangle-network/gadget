@@ -77,10 +77,9 @@ where
     let client =
         gadget_common::client::create_client(client_inner.clone(), logger.clone(), pallet_tx)
             .await?;
-    // let protocol =
-    //     protocols::sign::create_protocol(config, logger.clone(), client, network.clone(), keystore)
-    //         .await;
-    let protocol = ();
+    let protocol =
+        protocols::sign::create_protocol(config, logger.clone(), client, network.clone(), keystore)
+            .await;
 
     logger.info("Done creating sign protocol");
 
@@ -119,16 +118,14 @@ where
         pallet_tx.clone(),
     );
 
-    // let sign_future = run_sign(
-    //     &config,
-    //     client_signing,
-    //     logger,
-    //     keystore,
-    //     network_signing,
-    //     pallet_tx,
-    // );
-    //
-    let sign_future = futures::future::pending::<_>();
+    let sign_future = run_sign(
+        &config,
+        client_signing,
+        logger,
+        keystore,
+        network_signing,
+        pallet_tx,
+    );
 
     tokio::select! {
         res0 = keygen_future => res0,
