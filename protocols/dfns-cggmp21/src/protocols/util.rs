@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity, clippy::too_many_arguments)]
 //! When delivering messages to an async protocol, we want o make sure we don't mix up voting and public key gossip messages
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
 use dfns_cggmp21::round_based::{Incoming, MessageDestination, MessageType, Outgoing, PartyIndex};
@@ -11,7 +12,6 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum SplitChannelMessage<C1, C2> {
@@ -36,7 +36,7 @@ pub struct PublicKeyGossipMessage {
 
 /// All possible senders of a message
 #[derive(Debug, Default, Serialize, Deserialize)]
-enum MaybeSender {
+pub enum MaybeSender {
     /// We are the sender of the message
     Myself,
     /// The sender is someone else
@@ -52,7 +52,7 @@ impl MaybeSender {
     ///
     /// [`Myself`]: MaybeSender::Myself
     #[must_use]
-    fn is_myself(&self) -> bool {
+    pub fn is_myself(&self) -> bool {
         matches!(self, Self::Myself)
     }
 
@@ -62,7 +62,7 @@ impl MaybeSender {
     /// [`Myself`]: MaybeSender::Myself
     /// [`SomeoneElse`]: MaybeSender::SomeoneElse
     #[must_use]
-    fn is_myself_check(&self, my_user_id: UserID) -> bool {
+    pub fn is_myself_check(&self, my_user_id: UserID) -> bool {
         match self {
             Self::Myself => true,
             Self::SomeoneElse(id) if (*id == my_user_id) => true,
@@ -74,7 +74,7 @@ impl MaybeSender {
     ///
     /// [`SomeoneElse`]: MaybeSender::SomeoneElse
     #[must_use]
-    fn is_someone_else(&self) -> bool {
+    pub fn is_someone_else(&self) -> bool {
         matches!(self, Self::SomeoneElse(..))
     }
 
@@ -82,13 +82,13 @@ impl MaybeSender {
     ///
     /// [`Unknown`]: MaybeSender::Unknown
     #[must_use]
-    fn is_unknown(&self) -> bool {
+    pub fn is_unknown(&self) -> bool {
         matches!(self, Self::Unknown)
     }
 
     /// Returns the sender as [`UserID`] if it is knwon.
     #[must_use]
-    fn as_user_id(&self) -> Option<UserID> {
+    pub fn as_user_id(&self) -> Option<UserID> {
         match self {
             Self::Myself => None,
             Self::SomeoneElse(id) => Some(*id),
@@ -98,7 +98,7 @@ impl MaybeSender {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-enum MaybeReceiver {
+pub enum MaybeReceiver {
     /// The message is broadcasted to everyone
     Broadcast,
     /// The message is sent to a specific party
@@ -115,7 +115,7 @@ impl MaybeReceiver {
     ///
     /// [`Broadcast`]: MaybeReceiver::Broadcast
     #[must_use]
-    fn is_broadcast(&self) -> bool {
+    pub fn is_broadcast(&self) -> bool {
         matches!(self, Self::Broadcast)
     }
 
@@ -123,7 +123,7 @@ impl MaybeReceiver {
     ///
     /// [`P2P`]: MaybeReceiver::P2P
     #[must_use]
-    fn is_p2_p(&self) -> bool {
+    pub fn is_p2_p(&self) -> bool {
         matches!(self, Self::P2P(..))
     }
 
@@ -131,7 +131,7 @@ impl MaybeReceiver {
     ///
     /// [`Myself`]: MaybeReceiver::Myself
     #[must_use]
-    fn is_myself(&self) -> bool {
+    pub fn is_myself(&self) -> bool {
         matches!(self, Self::Myself)
     }
 
@@ -141,7 +141,7 @@ impl MaybeReceiver {
     /// [`Myself`]: MaybeReceiver::Myself
     /// [`P2P`]: MaybeReceiver::P2P
     #[must_use]
-    fn is_myself_check(&self, my_user_id: UserID) -> bool {
+    pub fn is_myself_check(&self, my_user_id: UserID) -> bool {
         match self {
             Self::Myself => true,
             Self::P2P(id) if (*id == my_user_id) => true,
@@ -153,12 +153,13 @@ impl MaybeReceiver {
     ///
     /// [`Unknown`]: MaybeReceiver::Unknown
     #[must_use]
-    fn is_unknown(&self) -> bool {
+    pub fn is_unknown(&self) -> bool {
         matches!(self, Self::Unknown)
     }
 
     /// Returns the receiver as [`UserID`] if it is knwon.
-    fn as_user_id(&self) -> Option<UserID> {
+    #[must_use]
+    pub fn as_user_id(&self) -> Option<UserID> {
         match self {
             Self::Broadcast => None,
             Self::P2P(id) => Some(*id),
@@ -169,7 +170,7 @@ impl MaybeReceiver {
 }
 
 /// A Simple trait to extract the sender and the receiver from a message
-trait MaybeSenderReceiver {
+pub trait MaybeSenderReceiver {
     fn maybe_sender(&self) -> MaybeSender;
     fn maybe_receiver(&self) -> MaybeReceiver;
 }
@@ -234,12 +235,12 @@ impl MaybeSenderReceiver for () {
     }
 }
 
-pub fn create_job_manager_to_async_protocol_channel_split<
+pub(crate) fn create_job_manager_to_async_protocol_channel_split<
     N: Network + 'static,
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     M: Serialize + DeserializeOwned + Send + 'static,
 >(
-    mut rx_gadget: UnboundedReceiver<GadgetProtocolMessage>,
+    mut rx_gadget: tokio::sync::broadcast::Receiver<GadgetProtocolMessage>,
     associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
@@ -260,8 +261,12 @@ pub fn create_job_manager_to_async_protocol_channel_split<
 
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
-        while let Some(msg_orig) = rx_gadget.recv().await {
-            let mut id = 0;
+        let mut id = 0;
+        while let Ok(msg_orig) = rx_gadget.recv().await {
+            if msg_orig.payload.is_empty() {
+                log::warn!(target: "gadget", "Received empty message from Peer {}", msg_orig.from);
+                continue;
+            }
             match bincode2::deserialize::<SplitChannelMessage<M, C2>>(&msg_orig.payload) {
                 Ok(msg) => match msg {
                     SplitChannelMessage::Channel1(msg) => {
@@ -270,21 +275,23 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                         } else {
                             MessageType::Broadcast
                         };
+                        log::debug!(target: "gadget", "#{id} Got a [{:?}] message from Peer {}", msg_type, msg_orig.from);
                         let incoming = Incoming {
                             id,
                             sender: msg_orig.from as PartyIndex,
                             msg_type,
                             msg,
                         };
+
                         if tx_to_async_proto_1.unbounded_send(Ok(incoming)).is_err() {
-                            log::error!(target: "gadget", "Failed to send message to protocol");
+                            log::error!(target: "gadget", "Failed to send Incoming message to protocol");
                         }
 
                         id += 1;
                     }
                     SplitChannelMessage::Channel2(msg) => {
                         if tx_to_async_proto_2.unbounded_send(msg).is_err() {
-                            log::error!(target: "gadget", "Failed to send message to protocol");
+                            log::error!(target: "gadget", "Failed to send C2 message to protocol");
                         }
                     }
                 },

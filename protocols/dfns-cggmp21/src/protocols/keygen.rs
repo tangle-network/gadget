@@ -17,6 +17,7 @@ use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
 use pallet_jobs_rpc_runtime_api::JobsApi;
+use rand::SeedableRng;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
@@ -26,7 +27,6 @@ use tangle_primitives::jobs::{
     DKGTSSKeySubmissionResult, DigitalSignatureType, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use super::util::PublicKeyGossipMessage;
 
@@ -151,7 +151,7 @@ where
         error: gadget_common::Error,
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) {
-        log::error!(target: "mp-ecdsa", "Error: {error:?}");
+        log::error!(target: "dfns_cggmp1", "Error: {error:?}");
     }
 
     fn logger(&self) -> &DebugLogger {
@@ -194,7 +194,7 @@ where
         associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
         associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
         associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+        protocol_message_channel: tokio::sync::broadcast::Sender<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let key_store = self.key_store.clone();
@@ -203,15 +203,7 @@ where
         let client = self.client.clone();
         let id = self.account_id;
         let logger = self.logger.clone();
-        let logger_clone = logger.clone();
         let network = self.network.clone();
-        let job_id_bytes = additional_params.job_id.to_be_bytes();
-        let mix = keccak_256(b"dnfs-cggmp21-keygen");
-        let eid_bytes = vec![&job_id_bytes[..], &mix[..]].concat();
-        let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
-        let mix = keccak_256(b"dnfs-cggmp21-keygen-aux");
-        let aux_eid_bytes = vec![&job_id_bytes[..], &mix[..]].concat();
-        let aux_eid = dfns_cggmp21::ExecutionId::new(&aux_eid_bytes);
 
         let (i, t, n, mapping) = (
             additional_params.i,
@@ -222,25 +214,32 @@ where
 
         Ok(JobBuilder::new()
             .protocol(async move {
-                let mut rng = rand::thread_rng();
+                let mut rng = rand::rngs::StdRng::from_entropy();
                 logger.info(format!(
                     "Starting Keygen Protocol with params: i={i}, t={t}, n={n}"
                 ));
 
+                let job_id_bytes = additional_params.job_id.to_be_bytes();
+                let mix = keccak_256(b"dnfs-cggmp21-keygen");
+                let eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
+                let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
+                let mix = keccak_256(b"dnfs-cggmp21-keygen-aux");
+                let aux_eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
+                let aux_eid = dfns_cggmp21::ExecutionId::new(&aux_eid_bytes);
                 let (
                     keygen_tx_to_outbound,
                     keygen_rx_async_proto,
-                    broadcast_tx_to_outbound,
-                    broadcast_rx_from_gadget,
+                    _broadcast_tx_to_outbound,
+                    _broadcast_rx_from_gadget,
                 ) = super::util::create_job_manager_to_async_protocol_channel_split::<_, (), _>(
-                    protocol_message_rx,
+                    protocol_message_channel.subscribe(),
                     associated_block_id,
                     associated_retry_id,
                     associated_session_id,
                     associated_task_id,
-                    mapping,
+                    mapping.clone(),
                     id,
-                    network,
+                    network.clone(),
                 );
                 let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
@@ -252,13 +251,15 @@ where
                         reason: format!("Keygen protocol error: {err:?}"),
                     })?;
 
+                logger.debug("Finished AsyncProtocol - Incomplete Keygen");
+
                 let (
                     keygen_tx_to_outbound,
                     keygen_rx_async_proto,
                     broadcast_tx_to_outbound,
                     broadcast_rx_from_gadget,
                 ) = super::util::create_job_manager_to_async_protocol_channel_split(
-                    protocol_message_rx,
+                    protocol_message_channel.subscribe(),
                     associated_block_id,
                     associated_retry_id,
                     associated_session_id,
@@ -276,6 +277,8 @@ where
                     .map_err(|err| JobError {
                         reason: format!("Aux info protocol error: {err:?}"),
                     })?;
+                logger.debug("Finished AsyncProtocol - Aux Info");
+
                 let key_share = dfns_cggmp21::KeyShare::make(incomplete_key_share, aux_info)
                     .map_err(|err| JobError {
                         reason: format!("Key share error: {err:?}"),
