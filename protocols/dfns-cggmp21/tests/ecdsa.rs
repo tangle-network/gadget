@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
+    use dfns_cggmp21_protocol::DfnsCGGMP21ProtocolConfig;
     use futures::stream::FuturesUnordered;
     use futures::StreamExt;
-    use mp_ecdsa_protocol::MpEcdsaProtocolConfig;
     use tangle_primitives::jobs::{
         DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
     };
@@ -78,7 +78,7 @@ mod tests {
                         participants: identities.clone(),
                         threshold: T as _,
                         permitted_caller: None,
-                        role_type: ThresholdSignatureRoleType::TssGG20,
+                        role_type: ThresholdSignatureRoleType::TssCGGMP,
                     }),
                 };
 
@@ -89,12 +89,13 @@ mod tests {
             })
             .await;
 
-        test_utils::wait_for_job_completion(
+        let phase_result = test_utils::wait_for_job_completion(
             ext,
-            RoleType::Tss(ThresholdSignatureRoleType::TssGG20),
+            RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP),
             job_id,
         )
         .await;
+        log::info!("Phase result: {phase_result:?}");
         job_id
     }
 
@@ -112,7 +113,7 @@ mod tests {
                     job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
                         phase_one_id: keygen_job_id,
                         submission: Vec::from("Hello, world!"),
-                        role_type: ThresholdSignatureRoleType::TssGG20,
+                        role_type: ThresholdSignatureRoleType::TssCGGMP,
                     }),
                 };
 
@@ -125,7 +126,7 @@ mod tests {
 
         test_utils::wait_for_job_completion(
             ext,
-            RoleType::Tss(ThresholdSignatureRoleType::TssGG20),
+            RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP),
             job_id,
         )
         .await;
@@ -140,14 +141,14 @@ mod tests {
             let keygen_network = node_input.mock_networks.pop().expect("No keygen network");
             let signing_network = node_input.mock_networks.pop().expect("No signing network");
 
-            let config = MpEcdsaProtocolConfig {
+            let config = DfnsCGGMP21ProtocolConfig {
                 account_id: node_input.account_id,
             };
 
             let logger = node_input.logger.clone();
             let (pallet_tx, keystore) = (node_input.pallet_tx, node_input.keystore);
             logger.info("Starting gadget");
-            if let Err(err) = mp_ecdsa_protocol::run::<_, MockBackend, _, _, _, _, _>(
+            if let Err(err) = dfns_cggmp21_protocol::run::<_, MockBackend, _, _, _, _, _>(
                 config,
                 keygen_client,
                 signing_client,

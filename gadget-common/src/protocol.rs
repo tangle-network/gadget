@@ -7,17 +7,16 @@ use gadget_core::job_manager::{ProtocolRemote, ShutdownReason, WorkManagerInterf
 use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 pub struct AsyncProtocolRemote {
     pub start_tx: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     pub shutdown_tx: Mutex<Option<tokio::sync::oneshot::Sender<ShutdownReason>>>,
-    pub associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-    pub associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-    pub associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-    pub associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    pub to_async_protocol:
-        tokio::sync::mpsc::UnboundedSender<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
+    pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
+    pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
+    pub associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
+    pub associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+    pub async_protocol_channel:
+        tokio::sync::broadcast::Sender<<WebbWorkManager as WorkManagerInterface>::ProtocolMessage>,
     pub is_done: Arc<AtomicBool>,
 }
 
@@ -26,11 +25,11 @@ pub trait AsyncProtocol {
     type AdditionalParams: Send + Sync + 'static;
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+        associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+        protocol_message_channel: tokio::sync::broadcast::Sender<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError>;
 
@@ -43,7 +42,7 @@ pub trait AsyncProtocol {
         additional_params: Self::AdditionalParams,
     ) -> Result<Job, JobError> {
         let is_done = Arc::new(AtomicBool::new(false));
-        let (to_async_protocol, protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (async_protocol_channel, _) = tokio::sync::broadcast::channel(1024);
         let (start_tx, start_rx) = tokio::sync::oneshot::channel();
         let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
         let async_protocol = self
@@ -52,7 +51,7 @@ pub trait AsyncProtocol {
                 retry_id,
                 session_id,
                 task_id,
-                protocol_message_rx,
+                async_protocol_channel.clone(),
                 additional_params,
             )
             .await?;
@@ -64,7 +63,7 @@ pub trait AsyncProtocol {
             associated_retry_id: retry_id,
             associated_task_id: task_id,
             associated_session_id: session_id,
-            to_async_protocol,
+            async_protocol_channel,
             is_done: is_done.clone(),
         };
 
@@ -123,10 +122,11 @@ impl ProtocolRemote<WorkManager> for AsyncProtocolRemote {
 
     fn deliver_message(
         &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), <WorkManager as WorkManagerInterface>::Error> {
-        self.to_async_protocol
+        message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
+    ) -> Result<(), <WebbWorkManager as WorkManagerInterface>::Error> {
+        self.async_protocol_channel
             .send(message)
+            .map(|_| ())
             .map_err(|err| crate::Error::ProtocolRemoteError {
                 err: err.to_string(),
             })

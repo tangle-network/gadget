@@ -153,3 +153,31 @@ pub trait TangleGadgetProtocol<B: Block>: Send + Sync {
         }
     }
 }
+
+#[async_trait]
+impl<B: Block> WebbGadgetProtocol<B> for () {
+    async fn get_next_jobs(
+        &self,
+        _notification: &FinalityNotification<B>,
+        _now: u64,
+        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
+    ) -> Result<Option<Vec<Job>>, Error> {
+        Ok(None)
+    }
+    async fn process_block_import_notification(
+        &self,
+        _notification: BlockImportNotification<B>,
+        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+    async fn process_error(
+        &self,
+        _error: Error,
+        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
+    ) {
+    }
+    fn logger(&self) -> &DebugLogger {
+        unimplemented!("No logger for empty protocol")
+    }
+}

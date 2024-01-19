@@ -209,15 +209,19 @@ where
 
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+        associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+        protocol_message_channel: tokio::sync::broadcast::Sender<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let client = self.client.clone();
-        let rxs = zk_setup_rxs(additional_params.n_parties(), protocol_message_rx).await?;
+        let rxs = zk_setup_rxs(
+            additional_params.n_parties(),
+            protocol_message_channel.subscribe(),
+        )
+        .await?;
         let other_network_ids = zk_setup_phase_order_participants(
             additional_params.participants.clone(),
             &self.network,
@@ -449,7 +453,7 @@ where
 
 async fn zk_setup_rxs(
     n_parties: usize,
-    mut protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+    mut protocol_message_rx: tokio::sync::broadcast::Receiver<GadgetProtocolMessage>,
 ) -> Result<
     HashMap<u32, Vec<tokio::sync::Mutex<UnboundedReceiver<proto_gen::MpcNetMessage>>>>,
     JobError,
@@ -471,7 +475,7 @@ async fn zk_setup_rxs(
     }
 
     tokio::task::spawn(async move {
-        while let Some(message) = protocol_message_rx.recv().await {
+        while let Ok(message) = protocol_message_rx.recv().await {
             let message: GadgetProtocolMessage = message;
             match bincode2::deserialize::<proto_gen::MpcNetMessage>(&message.payload) {
                 Ok(deserialized) => {
