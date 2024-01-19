@@ -2,7 +2,6 @@ use crate::DfnsCGGMP21ProtocolConfig;
 use async_trait::async_trait;
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
-use frame_support::Hashable;
 use futures::StreamExt;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
@@ -21,6 +20,7 @@ use rand::SeedableRng;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
+use sp_core::Pair;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tangle_primitives::jobs::{
@@ -199,6 +199,7 @@ where
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let key_store = self.key_store.clone();
+        let key_store_for_gossip = self.key_store.clone();
         let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
@@ -291,16 +292,17 @@ where
                 logger.debug("Finished AsyncProtocol - Keygen");
 
                 let job_result = handle_public_key_gossip(
+                    key_store_for_gossip,
                     &logger,
                     &key_share,
                     t,
                     i,
-                    id,
                     broadcast_tx_to_outbound,
                     broadcast_rx_from_gadget,
                 )
                 .await?;
 
+                logger.debug(format!("Job result: {job_result:?}"));
                 *protocol_output.lock().await = Some((key_share, job_result));
                 Ok(())
             })
@@ -333,18 +335,26 @@ where
     }
 }
 
-async fn handle_public_key_gossip(
+#[allow(clippy::too_many_arguments)]
+async fn handle_public_key_gossip<KBE: KeystoreBackend>(
+    key_store: ECDSAKeyStore<KBE>,
     logger: &DebugLogger,
     local_key: &KeyShare<Secp256k1>,
-    threshold: u16,
+    t: u16,
     i: u16,
-    my_id: AccountId,
     broadcast_tx_to_outbound: futures::channel::mpsc::UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<JobResult, JobError> {
     let serialized_public_key = local_key.shared_public_key().to_bytes(true).to_vec();
-    // Note: the signature is also empty in the DKG implementation
-    let signature = vec![];
+    let key_hashed = keccak_256(&serialized_public_key);
+    let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
+    let my_id = key_store.pair().public();
+    logger.debug(format!(
+        "Signed {} with my key {}: {}",
+        hex::encode(&key_hashed),
+        my_id,
+        hex::encode(&signature)
+    ));
 
     let mut received_keys = BTreeMap::new();
     received_keys.insert(i, signature.clone());
@@ -362,7 +372,7 @@ async fn handle_public_key_gossip(
             reason: format!("Failed to send public key: {err:?}"),
         })?;
 
-    for idx in 0..threshold {
+    for _ in 0..t {
         let message = broadcast_rx_from_gadget
             .next()
             .await
@@ -371,18 +381,37 @@ async fn handle_public_key_gossip(
             })?;
 
         let from = message.from;
-        logger.debug(format!(
-            "Received public key from {from} | {}/{threshold} received",
-            idx + 1
-        ));
+        logger.debug(format!("Received public key from {from}"));
 
         if received_keys.contains_key(&(from as u16)) {
             logger.warn("Received duplicate key");
             continue;
         }
+        // verify signature
+        let maybe_signature = sp_core::ecdsa::Signature::from_slice(&message.signature);
+        match maybe_signature.and_then(|s| s.recover_prehashed(&key_hashed)) {
+            Some(p) if p != message.id => {
+                logger.warn(format!(
+                    "Received invalid signature from {from} not signed by them"
+                ));
+            }
+            Some(p) if p == message.id => {
+                logger.debug(format!("Received valid signature from {from}"));
+            }
+            Some(_) => unreachable!("Should not happen"),
+            None => {
+                logger.warn(format!("Received invalid signature from {from}"));
+                continue;
+            }
+        }
 
         received_keys.insert(from as u16, message.signature);
         received_participants.insert(from as u16, message.id);
+        logger.debug(format!(
+            "Received {}/{} signatures",
+            received_keys.len(),
+            t + 1
+        ));
     }
 
     // Order and collect the map to ensure symmetric submission to blockchain
@@ -390,19 +419,29 @@ async fn handle_public_key_gossip(
         .into_iter()
         .sorted_by_key(|x| x.0)
         .map(|r| r.1)
-        .collect();
+        .collect::<Vec<_>>();
 
     let participants = received_participants
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1.identity())
+        .map(|r| r.1 .0.to_vec())
         .collect();
+
+    if signatures.len() < t as usize {
+        return Err(JobError {
+            reason: format!(
+                "Received {} signatures, expected at least {}",
+                signatures.len(),
+                t + 1,
+            ),
+        });
+    }
 
     Ok(JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
         signature_type: DigitalSignatureType::Ecdsa,
         key: serialized_public_key,
         participants,
         signatures,
-        threshold: threshold as _,
+        threshold: t as _,
     }))
 }

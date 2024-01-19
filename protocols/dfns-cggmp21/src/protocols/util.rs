@@ -24,7 +24,6 @@ pub struct CloneableUnboundedReceiver<T> {
     is_in_use: Arc<AtomicBool>,
 }
 
-
 impl<T: Clone> Clone for CloneableUnboundedReceiver<T> {
     fn clone(&self) -> Self {
         // on the clone, we switch the is_in_use flag to false
