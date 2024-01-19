@@ -1,5 +1,6 @@
 use gadget_common::client::{AccountId, ClientWithApi, PalletSubmitter};
 use gadget_common::debug_logger::DebugLogger;
+use gadget_common::define_protocol;
 use gadget_common::gadget::network::Network;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use pallet_jobs_rpc_runtime_api::JobsApi;
@@ -36,13 +37,12 @@ where
 {
     logger.info("Starting keygen protocol");
 
-    let client_inner = Arc::new(client_inner);
     let client =
         gadget_common::client::create_client(client_inner.clone(), logger.clone(), pallet_tx)
             .await?;
     let protocol = protocols::keygen::create_protocol(
         config,
-        client,
+        client.clone(),
         network.clone(),
         logger.clone(),
         keystore,
@@ -51,7 +51,9 @@ where
 
     logger.info("Done creating keygen protocol");
 
-    gadget_common::run_protocol(network, protocol, client_inner).await?;
+    let protocol = EcdsaProtocolConfig::new(network, client_inner, protocol);
+
+    gadget_common::run_protocol(protocol).await?;
     Ok(())
 }
 
@@ -73,17 +75,23 @@ where
 {
     logger.info("Starting sign protocol");
 
-    let client_inner = Arc::new(client_inner);
     let client =
         gadget_common::client::create_client(client_inner.clone(), logger.clone(), pallet_tx)
             .await?;
-    let protocol =
-        protocols::sign::create_protocol(config, logger.clone(), client, network.clone(), keystore)
-            .await;
+    let protocol = protocols::sign::create_protocol(
+        config,
+        logger.clone(),
+        client.clone(),
+        network.clone(),
+        keystore,
+    )
+    .await;
 
     logger.info("Done creating sign protocol");
 
-    gadget_common::run_protocol(network, protocol, client_inner).await?;
+    let protocol = EcdsaProtocolConfig::new(network, client_inner, protocol);
+
+    gadget_common::run_protocol(protocol).await?;
     Ok(())
 }
 
@@ -132,3 +140,5 @@ where
         res1 = sign_future => res1,
     }
 }
+
+define_protocol!(EcdsaProtocolConfig);

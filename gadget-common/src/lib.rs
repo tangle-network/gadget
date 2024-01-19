@@ -1,4 +1,5 @@
-use crate::client::AccountId;
+use crate::client::{AccountId, ClientWithApi};
+use crate::config::ProtocolConfig;
 use crate::gadget::work_manager::WebbWorkManager;
 use crate::gadget::{WebbGadgetProtocol, WebbModule};
 use gadget::network::Network;
@@ -6,9 +7,11 @@ use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
 use gadget_core::job::JobError;
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
+use pallet_jobs_rpc_runtime_api::JobsApi;
 use parking_lot::RwLock;
 pub use sc_client_api::BlockImportNotification;
 pub use sc_client_api::{Backend, FinalityNotification};
+use sp_api::ProvideRuntimeApi;
 pub use sp_runtime::traits::{Block, Header};
 use sp_runtime::SaturatedConversion;
 use std::fmt::{Debug, Display, Formatter};
@@ -23,6 +26,7 @@ pub mod keystore;
 pub mod locks;
 pub mod protocol;
 
+pub mod config;
 #[derive(Debug)]
 pub enum Error {
     RegistryCreateError { err: String },
@@ -57,11 +61,14 @@ impl From<JobError> for Error {
     }
 }
 
-pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: WebbGadgetProtocol<B>>(
-    network: N,
-    protocol: P,
-    client: C,
-) -> Result<(), Error> {
+pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(), Error>
+where
+    <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApi<T::Block, AccountId>,
+{
+    let client = protocol_config.take_client();
+    let network = protocol_config.take_network();
+    let protocol = protocol_config.take_protocol();
+
     // Before running, wait for the first finality notification we receive
     let latest_finality_notification =
         get_latest_finality_notification_from_client(&client).await?;
@@ -90,10 +97,18 @@ pub async fn run_protocol<C: Client<B>, B: Block, N: Network, P: WebbGadgetProto
 }
 
 /// Creates a work manager
-pub async fn create_work_manager<B: Block, P: WebbGadgetProtocol<B>>(
+pub async fn create_work_manager<
+    B: Block,
+    BE: Backend<B>,
+    C: ClientWithApi<B, BE>,
+    P: WebbGadgetProtocol<B, BE, C>,
+>(
     latest_finality_notification: &FinalityNotification<B>,
     protocol: &P,
-) -> Result<ProtocolWorkManager<WebbWorkManager>, Error> {
+) -> Result<ProtocolWorkManager<WebbWorkManager>, Error>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
     let now: u64 = (*latest_finality_notification.header.number()).saturated_into();
 
     let work_manager_config = protocol.get_work_manager_config();
