@@ -217,7 +217,7 @@ where
             .protocol(async move {
                 let mut rng = rand::rngs::StdRng::from_entropy();
                 let protocol_message_channel =
-                    super::util::MultiUseChannel::from(protocol_message_channel);
+                    super::util::ColneableUnboundedReceiver::from(protocol_message_channel);
                 logger.info(format!(
                     "Starting Keygen Protocol with params: i={i}, t={t}, n={n}"
                 ));

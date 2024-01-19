@@ -2,7 +2,7 @@
 //! When delivering messages to an async protocol, we want o make sure we don't mix up voting and public key gossip messages
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
 use dfns_cggmp21::round_based::{Incoming, MessageDestination, MessageType, Outgoing, PartyIndex};
-use futures::StreamExt;
+use futures::{Stream, StreamExt};
 use gadget_common::client::AccountId;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
@@ -11,25 +11,69 @@ use gadget_core::job_manager::WorkManagerInterface;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-#[derive(Clone)]
-pub struct MultiUseChannel<T> {
+/// A Channel Receiver that can be cloned.
+///
+/// On the second clone, the original channel will stop sending messages
+/// and the new channel will start sending messages.
+pub struct ColneableUnboundedReceiver<T> {
     rx: Arc<tokio::sync::Mutex<UnboundedReceiver<T>>>,
+    is_in_use: Arc<AtomicBool>,
 }
 
-impl<T> From<UnboundedReceiver<T>> for MultiUseChannel<T> {
-    fn from(rx: UnboundedReceiver<T>) -> Self {
-        Self {
-            rx: Arc::new(tokio::sync::Mutex::new(rx)),
+impl<T> ColneableUnboundedReceiver<T> {
+    pub fn try_use(self) -> Result<Self, ()> {
+        if self.rx.try_lock().is_ok() {
+            self.is_in_use
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+            Ok(self)
+        } else {
+            Err(())
         }
     }
 }
 
-impl<T> MultiUseChannel<T> {
-    pub async fn recv(&self) -> Option<T> {
-        self.rx.lock().await.recv().await
+impl<T: Clone> Clone for ColneableUnboundedReceiver<T> {
+    fn clone(&self) -> Self {
+        // on the clone, we switch the is_in_use flag to false
+        // and we return a new channel
+        self.is_in_use
+            .store(false, std::sync::atomic::Ordering::SeqCst);
+        Self {
+            rx: self.rx.clone(),
+            is_in_use: Arc::new(AtomicBool::new(true)),
+        }
+    }
+}
+
+impl<T> From<UnboundedReceiver<T>> for ColneableUnboundedReceiver<T> {
+    fn from(rx: UnboundedReceiver<T>) -> Self {
+        Self {
+            rx: Arc::new(tokio::sync::Mutex::new(rx)),
+            is_in_use: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
+impl<T> Stream for ColneableUnboundedReceiver<T> {
+    type Item = T;
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        if !self.is_in_use.load(std::sync::atomic::Ordering::SeqCst) {
+            return std::task::Poll::Ready(None);
+        }
+        let mut rx = match self.rx.try_lock() {
+            Ok(rx) => rx,
+            Err(_) => return std::task::Poll::Pending,
+        };
+        let rx = &mut *rx;
+        tokio::pin!(rx);
+        rx.poll_recv(cx)
     }
 }
 
@@ -260,7 +304,7 @@ pub(crate) fn create_job_manager_to_async_protocol_channel_split<
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     M: Serialize + DeserializeOwned + Send + 'static,
 >(
-    rx_gadget: MultiUseChannel<GadgetProtocolMessage>,
+    mut rx_gadget: ColneableUnboundedReceiver<GadgetProtocolMessage>,
     associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
@@ -282,7 +326,7 @@ pub(crate) fn create_job_manager_to_async_protocol_channel_split<
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
         let mut id = 0;
-        while let Some(msg_orig) = rx_gadget.recv().await {
+        while let Some(msg_orig) = rx_gadget.next().await {
             if msg_orig.payload.is_empty() {
                 log::warn!(target: "gadget", "Received empty message from Peer {}", msg_orig.from);
                 continue;
