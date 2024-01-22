@@ -7,7 +7,7 @@ use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::network::Network;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use pallet_jobs_rpc_runtime_api::JobsApi;
-use protocol_macros::define_protocol;
+use protocol_macros::protocol;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::Block;
@@ -18,7 +18,7 @@ pub mod error;
 pub mod protocols;
 pub mod util;
 
-#[define_protocol(KeygenProtocol)]
+#[protocol(KeygenProtocol)]
 pub struct MpEcdsaKeygenProtocolConfig<
     N: Network,
     B: Block,
@@ -37,7 +37,7 @@ pub struct MpEcdsaKeygenProtocolConfig<
     pub _pd: std::marker::PhantomData<(B, BE)>,
 }
 
-#[define_protocol(SigningProtocol)]
+#[protocol(SigningProtocol)]
 pub struct MpEcdsaSigningProtocolConfig<
     N: Network,
     B: Block,
@@ -64,10 +64,9 @@ where
 {
     type Network = N;
     type Protocol = MpEcdsaKeygenProtocol<B, BE, KBE, C, N>;
-    async fn build_network(&self) -> Result<Self::Network, gadget_common::Error> {
-        Ok(self.network.clone())
-    }
-    async fn build_protocol(&self) -> Result<Self::Protocol, gadget_common::Error> {
+    async fn build_network_and_protocol(
+        &self,
+    ) -> Result<(Self::Network, Self::Protocol), gadget_common::Error> {
         let client = gadget_common::client::create_client(
             self.client.clone(),
             self.logger.clone(),
@@ -82,7 +81,16 @@ where
             self.keystore_backend.clone(),
         )
         .await;
-        Ok(protocol)
+
+        Ok((self.network.clone(), protocol))
+    }
+
+    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
+        self.pallet_tx.clone()
+    }
+
+    fn logger(&self) -> DebugLogger {
+        self.logger.clone()
     }
 }
 
@@ -94,10 +102,9 @@ where
 {
     type Network = N;
     type Protocol = MpEcdsaSigningProtocol<B, BE, KBE, C, N>;
-    async fn build_network(&self) -> Result<Self::Network, gadget_common::Error> {
-        Ok(self.network.clone())
-    }
-    async fn build_protocol(&self) -> Result<Self::Protocol, gadget_common::Error> {
+    async fn build_network_and_protocol(
+        &self,
+    ) -> Result<(Self::Network, Self::Protocol), gadget_common::Error> {
         let client = gadget_common::client::create_client(
             self.client.clone(),
             self.logger.clone(),
@@ -112,14 +119,21 @@ where
             self.keystore_backend.clone(),
         )
         .await;
-        Ok(protocol)
+        Ok((self.network.clone(), protocol))
+    }
+
+    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
+        self.pallet_tx.clone()
+    }
+
+    fn logger(&self) -> DebugLogger {
+        self.logger.clone()
     }
 }
 
 pub async fn run_keygen<B, BE, KBE, C, N>(
     config: MpEcdsaKeygenProtocolConfig<N, B, BE, KBE, C>,
-    logger: DebugLogger,
-    pallet_tx: Arc<dyn PalletSubmitter>,
+    logger: &DebugLogger,
 ) -> Result<(), gadget_common::Error>
 where
     B: Block,
@@ -130,7 +144,7 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     logger.info("Starting keygen protocol");
-    let protocol = config.setup(pallet_tx, logger.clone()).build().await?;
+    let protocol = config.setup().build().await?;
     logger.info("Done creating keygen protocol");
     gadget_common::run_protocol(protocol).await?;
     Ok(())
@@ -138,8 +152,7 @@ where
 
 pub async fn run_sign<B, BE, KBE, C, N>(
     config: MpEcdsaSigningProtocolConfig<N, B, BE, KBE, C>,
-    logger: DebugLogger,
-    pallet_tx: Arc<dyn PalletSubmitter>,
+    logger: &DebugLogger,
 ) -> Result<(), gadget_common::Error>
 where
     B: Block,
@@ -150,7 +163,8 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     logger.info("Starting sign protocol");
-    let protocol = config.setup(pallet_tx, logger.clone()).build().await?;
+    let protocol = config.setup().build().await?;
+    logger.info("Done creating sign protocol");
     gadget_common::run_protocol(protocol).await?;
     Ok(())
 }
@@ -186,7 +200,7 @@ where
         pallet_tx: pallet_tx.clone(),
         _pd: std::marker::PhantomData,
     };
-    let keygen_future = run_keygen(keygen_config, logger.clone(), pallet_tx.clone());
+    let keygen_future = run_keygen(keygen_config, &logger);
 
     let sign_config = MpEcdsaSigningProtocolConfig {
         account_id,
@@ -198,7 +212,7 @@ where
         _pd: std::marker::PhantomData,
     };
 
-    let sign_future = run_sign(sign_config, logger.clone(), pallet_tx.clone());
+    let sign_future = run_sign(sign_config, &logger);
 
     tokio::select! {
         res0 = keygen_future => res0,

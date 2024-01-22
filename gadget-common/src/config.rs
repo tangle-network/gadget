@@ -33,9 +33,8 @@ where
         create_client(self.client_inner(), self.logger(), self.pallet_tx()).await
     }
     async fn build(&self) -> Result<Self, crate::Error> {
-        let network = self.params().build_network().await?;
+        let (network, protocol) = self.params().build_network_and_protocol().await?;
         let client = self.client_inner();
-        let protocol = self.params().build_protocol().await?;
         let params = self.params().clone();
         let pallet_tx = self.pallet_tx();
         let logger = self.logger();
@@ -62,6 +61,9 @@ where
 pub trait NetworkAndProtocolSetup {
     type Network;
     type Protocol;
-    async fn build_network(&self) -> Result<Self::Network, crate::Error>;
-    async fn build_protocol(&self) -> Result<Self::Protocol, crate::Error>;
+    async fn build_network_and_protocol(
+        &self,
+    ) -> Result<(Self::Network, Self::Protocol), crate::Error>;
+    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
+    fn logger(&self) -> DebugLogger;
 }

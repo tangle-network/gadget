@@ -187,6 +187,10 @@ mod tests {
                     )
                 };
 
+                let logger = node_info.logger.clone();
+                let client = node_info.mock_clients.pop().expect("Should have client");
+                let pallet_tx = node_info.pallet_tx;
+
                 let config = ZkGadgetConfig {
                     king_bind_addr,
                     client_only_king_addr,
@@ -194,19 +198,13 @@ mod tests {
                     private_identity_der,
                     client_only_king_public_identity_der,
                     account_id: node_info.account_id,
+                    logger: logger.clone(),
+                    client,
+                    pallet_tx: Arc::new(pallet_tx),
+                    _pd: Default::default(),
                 };
 
-                let logger = node_info.logger.clone();
-                let client = node_info.mock_clients.pop().expect("Should have client");
-                let pallet_tx = node_info.pallet_tx;
-
-                if let Err(err) = zk_saas_protocol::run::<_, _, MockBackend, _>(
-                    config,
-                    logger.clone(),
-                    client,
-                    pallet_tx,
-                )
-                .await
+                if let Err(err) = zk_saas_protocol::run::<_, _, MockBackend>(config, &logger).await
                 {
                     log::error!(target: "gadget", "Failed to run zk protocol: {err:?}");
                 }

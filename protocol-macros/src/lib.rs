@@ -82,7 +82,7 @@ fn generate_generic_params(
 }
 
 #[proc_macro_attribute]
-pub fn define_protocol(args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn protocol(args: TokenStream, input: TokenStream) -> TokenStream {
     let input_struct = parse_macro_input!(input as ItemStruct);
     let args_parsed = parse_macro_input!(args as MacroInput);
     let new_struct = args_parsed.protocol_name.to_token_stream();
@@ -107,27 +107,27 @@ pub fn define_protocol(args: TokenStream, input: TokenStream) -> TokenStream {
     // Generate the generic parameters
     let generics_token_stream = generate_generic_params(struct_generics, None);
     let generics_token_stream_unique =
-        generate_generic_params(struct_generics, Some(&["N", "C", "B", "BE"]));
+        generate_generic_params(struct_generics, Some(&["C", "B", "BE"]));
     let generics_token_stream_unique_with_bounds =
-        generate_generic_params_with_bounds(struct_generics, Some(&["N", "C", "B", "BE"]));
+        generate_generic_params_with_bounds(struct_generics, Some(&["C", "B", "BE"]));
     let generic_token_stream_with_bounds =
         generate_generic_params_with_bounds(struct_generics, None);
     // Create the implementation
     let generated = quote! {
         #input_struct
 
-        pub struct #new_struct<N: gadget_common::config::Network, C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B>, #generics_token_stream_unique_with_bounds>
+        pub struct #new_struct<C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B>, #generics_token_stream_unique_with_bounds>
             #where_bounds {
             pub network: Option<<#struct_ident<#generics_token_stream> as gadget_common::config::NetworkAndProtocolSetup>::Network>,
             pub protocol: Option<<#struct_ident<#generics_token_stream> as gadget_common::config::NetworkAndProtocolSetup>::Protocol>,
             pub client: Option<C>,
             pub params: #struct_ident<#generics_token_stream>,
-            pallet_tx: Arc<dyn gadget_common::client::PalletSubmitter>,
-            logger: gadget_common::config::DebugLogger,
+            pub pallet_tx: Arc<dyn gadget_common::client::PalletSubmitter>,
+            pub logger: gadget_common::config::DebugLogger,
             _pd: std::marker::PhantomData<(B, BE)>,
         }
 
-        impl<N: gadget_common::config::Network, C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B> + 'static, #generics_token_stream_unique_with_bounds> gadget_common::config::ProtocolConfig for #new_struct <N, C, B, BE, #generics_token_stream_unique>
+        impl<C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B> + 'static, #generics_token_stream_unique_with_bounds> gadget_common::config::ProtocolConfig for #new_struct <C, B, BE, #generics_token_stream_unique>
             #where_bounds
         {
             type Network = <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup>::Network;
@@ -178,10 +178,13 @@ pub fn define_protocol(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
-        impl<N: gadget_common::config::Network, C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B> + 'static, #generics_token_stream_unique_with_bounds> #struct_ident <#generics_token_stream>
+        impl<C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B> + 'static, #generics_token_stream_unique_with_bounds> #struct_ident <#generics_token_stream>
             #where_bounds
         {
-            pub fn setup(self, pallet_tx: Arc<dyn gadget_common::client::PalletSubmitter>, logger: gadget_common::config::DebugLogger) -> #new_struct <N, C, B, BE, #generics_token_stream_unique> {
+            pub fn setup(self) -> #new_struct <C, B, BE, #generics_token_stream_unique> {
+                let pallet_tx = <Self as gadget_common::config::NetworkAndProtocolSetup>::pallet_tx(&self);
+                let logger = <Self as gadget_common::config::NetworkAndProtocolSetup>::logger(&self);
+
                 #new_struct {
                     network: None,
                     protocol: None,
