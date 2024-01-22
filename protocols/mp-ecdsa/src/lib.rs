@@ -37,24 +37,6 @@ pub struct MpEcdsaKeygenProtocolConfig<
     pub _pd: std::marker::PhantomData<(B, BE)>,
 }
 
-impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>> Clone
-    for MpEcdsaKeygenProtocolConfig<N, B, BE, KBE, C>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
-{
-    fn clone(&self) -> Self {
-        Self {
-            account_id: self.account_id.clone(),
-            network: self.network.clone(),
-            keystore_backend: self.keystore_backend.clone(),
-            client: self.client.clone(),
-            logger: self.logger.clone(),
-            pallet_tx: self.pallet_tx.clone(),
-            _pd: self._pd,
-        }
-    }
-}
-
 #[define_protocol(SigningProtocol)]
 pub struct MpEcdsaSigningProtocolConfig<
     N: Network,
@@ -72,24 +54,6 @@ pub struct MpEcdsaSigningProtocolConfig<
     pub logger: DebugLogger,
     pub pallet_tx: Arc<dyn PalletSubmitter>,
     pub _pd: std::marker::PhantomData<(B, BE)>,
-}
-
-impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>> Clone
-    for MpEcdsaSigningProtocolConfig<N, B, BE, KBE, C>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
-{
-    fn clone(&self) -> Self {
-        Self {
-            account_id: self.account_id.clone(),
-            network: self.network.clone(),
-            keystore_backend: self.keystore_backend.clone(),
-            client: self.client.clone(),
-            logger: self.logger.clone(),
-            pallet_tx: self.pallet_tx.clone(),
-            _pd: self._pd,
-        }
-    }
 }
 
 #[async_trait]

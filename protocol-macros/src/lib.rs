@@ -32,9 +32,9 @@ fn generate_generic_params_with_bounds(
                 let ident = ty.ident.clone();
                 let bounds = ty.bounds.clone();
                 if bounds.is_empty() {
-                    Some(quote! { #ident })
+                    Some(quote! { #ident, })
                 } else {
-                    Some(quote! { #ident: #bounds })
+                    Some(quote! { #ident: #bounds, })
                 }
             } else {
                 None
@@ -93,6 +93,16 @@ pub fn define_protocol(args: TokenStream, input: TokenStream) -> TokenStream {
         .clone()
         .map(|r| r.to_token_stream())
         .unwrap_or_default();
+    let fields = &input_struct.fields;
+
+    // Create a function that takes each field and clones it
+    let clone_fields: proc_macro2::TokenStream = fields
+        .iter()
+        .map(|field| {
+            let field_ident = field.ident.as_ref().unwrap();
+            quote! { #field_ident: self.#field_ident.clone(), }
+        })
+        .collect();
 
     // Generate the generic parameters
     let generics_token_stream = generate_generic_params(struct_generics, None);
@@ -100,6 +110,8 @@ pub fn define_protocol(args: TokenStream, input: TokenStream) -> TokenStream {
         generate_generic_params(struct_generics, Some(&["N", "C", "B", "BE"]));
     let generics_token_stream_unique_with_bounds =
         generate_generic_params_with_bounds(struct_generics, Some(&["N", "C", "B", "BE"]));
+    let generic_token_stream_with_bounds =
+        generate_generic_params_with_bounds(struct_generics, None);
     // Create the implementation
     let generated = quote! {
         #input_struct
@@ -115,8 +127,8 @@ pub fn define_protocol(args: TokenStream, input: TokenStream) -> TokenStream {
             _pd: std::marker::PhantomData<(B, BE)>,
         }
 
-        impl<N: gadget_common::config::Network, C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B> + 'static, #generics_token_stream_unique_with_bounds> gadget_common::config::ProtocolConfig for #new_struct<N, C, B, BE, #generics_token_stream_unique>
-            #where_bounds,
+        impl<N: gadget_common::config::Network, C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B> + 'static, #generics_token_stream_unique_with_bounds> gadget_common::config::ProtocolConfig for #new_struct <N, C, B, BE, #generics_token_stream_unique>
+            #where_bounds
         {
             type Network = <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup>::Network;
             type Block = B;
@@ -163,6 +175,14 @@ pub fn define_protocol(args: TokenStream, input: TokenStream) -> TokenStream {
 
             fn params(&self) -> &Self::ProtocolSpecificConfiguration {
                 &self.params
+            }
+        }
+
+        impl<#generic_token_stream_with_bounds> Clone for #struct_ident <#generics_token_stream> #where_bounds {
+            fn clone(&self) -> Self {
+                Self {
+                    #clone_fields
+                }
             }
         }
     };
