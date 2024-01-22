@@ -668,9 +668,11 @@ pub mod mock_wrapper_client {
             self.ext
                 .execute_with_async(move || {
                     let origin = RuntimeOrigin::signed(id);
-                    if let Err(err) =
-                        crate::mock::Jobs::submit_job_result(origin, role_type, job_id, result)
-                    {
+                    log::debug!("Submitting Job Result: {origin:?} => ({role_type:?}, {job_id:?}, {result:?}");
+                    let res =
+                        crate::mock::Jobs::submit_job_result(origin, role_type, job_id, result);
+                    log::debug!("Pallet tx result: {:?}", res);
+                    if let Err(err) = res {
                         let err = format!("Pallet tx error: {err:?}");
                         if err.contains("JobNotFound") {
                             // Job has already been submitted (assumption only for tests)

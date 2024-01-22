@@ -302,7 +302,6 @@ where
                 )
                 .await?;
 
-                logger.debug(format!("Job result: {job_result:?}"));
                 *protocol_output.lock().await = Some((key_share, job_result));
                 Ok(())
             })
@@ -480,6 +479,7 @@ fn verify_generated_dkg_key_ecdsa(data: DKGTSSKeySubmissionResult, logger: &Debu
             // Ensure no duplicate signatures
             assert!(!known_signers.contains(&authority), "DuplicateSignature");
 
+            logger.debug(format!("Verified signature from {}", authority));
             known_signers.push(authority);
         }
     }
