@@ -20,7 +20,7 @@ use rand::SeedableRng;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
-use sp_core::Pair;
+use sp_core::{ecdsa, Pair};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tangle_primitives::jobs::{
@@ -351,7 +351,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     let my_id = key_store.pair().public();
     logger.debug(format!(
         "Signed {} with my key {}: {}",
-        hex::encode(&key_hashed),
+        hex::encode(key_hashed),
         my_id,
         hex::encode(&signature)
     ));
@@ -437,11 +437,111 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
         });
     }
 
-    Ok(JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
+    let res = DKGTSSKeySubmissionResult {
         signature_type: DigitalSignatureType::Ecdsa,
         key: serialized_public_key,
         participants,
         signatures,
         threshold: t as _,
-    }))
+    };
+    verify_generated_dkg_key_ecdsa(res.clone(), logger);
+    Ok(JobResult::DKGPhaseOne(res))
+}
+
+fn verify_generated_dkg_key_ecdsa(data: DKGTSSKeySubmissionResult, logger: &DebugLogger) {
+    // Ensure participants and signatures are not empty
+    assert!(!data.participants.is_empty(), "NoParticipantsFound",);
+    assert!(!data.signatures.is_empty(), "NoSignaturesFound");
+
+    // Generate the required ECDSA signers
+    let maybe_signers = data
+        .participants
+        .iter()
+        .map(|x| {
+            ecdsa::Public(
+                to_slice_33(x)
+                    .unwrap_or_else(|| panic!("Failed to convert input to ecdsa public key")),
+            )
+        })
+        .collect::<Vec<ecdsa::Public>>();
+
+    assert!(!maybe_signers.is_empty(), "NoParticipantsFound");
+
+    let mut known_signers: Vec<ecdsa::Public> = Default::default();
+
+    for signature in data.signatures {
+        // Ensure the required signer signature exists
+        let (maybe_authority, success) =
+            verify_signer_from_set_ecdsa(maybe_signers.clone(), &data.key, &signature);
+
+        if success {
+            let authority = maybe_authority.expect("CannotRetreiveSigner");
+
+            // Ensure no duplicate signatures
+            assert!(!known_signers.contains(&authority), "DuplicateSignature");
+
+            known_signers.push(authority);
+        }
+    }
+
+    // Ensure a sufficient number of unique signers are present
+    assert!(
+        known_signers.len() > data.threshold as usize,
+        "NotEnoughSigners"
+    );
+    logger.debug(format!(
+        "Verified {}/{} signatures",
+        known_signers.len(),
+        data.threshold + 1
+    ));
+}
+
+pub fn verify_signer_from_set_ecdsa(
+    maybe_signers: Vec<ecdsa::Public>,
+    msg: &[u8],
+    signature: &[u8],
+) -> (Option<ecdsa::Public>, bool) {
+    let mut signer = None;
+    let res = maybe_signers.iter().any(|x| {
+        if let Some(data) = recover_ecdsa_pub_key(msg, signature) {
+            let recovered = &data[..32];
+            if x.0[1..].to_vec() == recovered.to_vec() {
+                signer = Some(*x);
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    });
+
+    (signer, res)
+}
+
+pub fn recover_ecdsa_pub_key(data: &[u8], signature: &[u8]) -> Option<Vec<u8>> {
+    const SIGNATURE_LENGTH: usize = 65;
+    if signature.len() != SIGNATURE_LENGTH {
+        return None;
+    }
+    let mut sig = [0u8; SIGNATURE_LENGTH];
+    sig[..SIGNATURE_LENGTH].copy_from_slice(signature);
+
+    let hash = keccak_256(data);
+
+    let pub_key = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &hash)
+        .ok()
+        .unwrap();
+    Some(pub_key.to_vec())
+}
+
+pub fn to_slice_33(val: &[u8]) -> Option<[u8; 33]> {
+    const ECDSA_KEY_LENGTH: usize = 33;
+    if val.len() == ECDSA_KEY_LENGTH {
+        let mut key = [0u8; ECDSA_KEY_LENGTH];
+        key[..ECDSA_KEY_LENGTH].copy_from_slice(val);
+
+        return Some(key);
+    }
+    None
 }
