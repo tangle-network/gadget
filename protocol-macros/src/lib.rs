@@ -178,6 +178,22 @@ pub fn define_protocol(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
+        impl<N: gadget_common::config::Network, C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B> + 'static, #generics_token_stream_unique_with_bounds> #struct_ident <#generics_token_stream>
+            #where_bounds
+        {
+            pub fn setup(self, pallet_tx: Arc<dyn gadget_common::client::PalletSubmitter>, logger: gadget_common::config::DebugLogger) -> #new_struct <N, C, B, BE, #generics_token_stream_unique> {
+                #new_struct {
+                    network: None,
+                    protocol: None,
+                    client: None,
+                    params: self,
+                    pallet_tx,
+                    logger,
+                    _pd: std::marker::PhantomData,
+                }
+            }
+        }
+
         impl<#generic_token_stream_with_bounds> Clone for #struct_ident <#generics_token_stream> #where_bounds {
             fn clone(&self) -> Self {
                 Self {
