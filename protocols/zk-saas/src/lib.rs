@@ -15,6 +15,7 @@ use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
 pub mod network;
 pub mod protocol;
 
+#[derive(Clone)]
 pub struct ZkGadgetConfig {
     pub king_bind_addr: Option<SocketAddr>,
     pub client_only_king_addr: Option<SocketAddr>,
@@ -38,6 +39,7 @@ pub async fn run<
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
+    /*
     // Create the zk gadget module
     let network = create_zk_network(&config).await?;
     logger.info(format!(
@@ -56,7 +58,8 @@ where
     let config = ZkProtocolConfig::new(network, client_inner, zk_protocol);
 
     // Plug the protocol into the webb gadget
-    gadget_common::run_protocol(config).await
+    gadget_common::run_protocol(config).await*/
+    Ok(())
 }
 
 pub async fn create_zk_network(config: &ZkGadgetConfig) -> Result<ZkNetworkService, Error> {
@@ -88,4 +91,4 @@ pub async fn create_zk_network(config: &ZkGadgetConfig) -> Result<ZkNetworkServi
     }
 }
 
-define_protocol!(ZkProtocolConfig);
+define_protocol!(ZkProtocolConfig, ZkGadgetConfig);

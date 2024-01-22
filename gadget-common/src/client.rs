@@ -21,7 +21,7 @@ use tangle_primitives::jobs::{JobId, JobResult, PhaseResult};
 use tangle_primitives::roles::RoleType;
 
 pub struct JobsClient<B: Block, BE, C> {
-    client: C,
+    pub client: C,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
     _block: std::marker::PhantomData<(BE, B)>,

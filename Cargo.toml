@@ -6,7 +6,8 @@ members = [
     "test-gadget",
     "protocols/mp-ecdsa",
     "protocols/zk-saas",
-    "test-utils"
+    "test-utils",
+    "protocol-macros"
 ]
 
 [workspace.dependencies]
@@ -15,6 +16,7 @@ gadget-common = { path = "./gadget-common" }
 zk-saas-protocol = { path = "./protocols/zk-saas" }
 mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
 test-utils = { path = "./test-utils" }
+protocol-macros = { path = "./protocol-macros" }
 
 pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle" }
 pallet-jobs = { git = "https://github.com/webb-tools/tangle" }

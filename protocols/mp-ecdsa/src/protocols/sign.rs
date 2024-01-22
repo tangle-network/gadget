@@ -1,7 +1,6 @@
 use crate::protocols::state_machine::{CurrentRoundBlame, StateMachineWrapper};
 use crate::protocols::util;
 use crate::protocols::util::VotingMessage;
-use crate::MpEcdsaProtocolConfig;
 use async_trait::async_trait;
 use curv::arithmetic::Converter;
 use curv::elliptic::curves::Secp256k1;
@@ -55,7 +54,7 @@ pub struct MpEcdsaSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
 }
 
 pub async fn create_protocol<B, BE, KBE, C, N>(
-    config: &MpEcdsaProtocolConfig,
+    account_id: AccountId,
     logger: DebugLogger,
     client: JobsClient<B, BE, C>,
     network: N,
@@ -75,7 +74,7 @@ where
         key_store,
         round_blames: Arc::new(Default::default()),
         logger,
-        account_id: config.account_id,
+        account_id,
     }
 }
 

@@ -1,9 +1,13 @@
+use crate::protocols::keygen::MpEcdsaKeygenProtocol;
+use crate::protocols::sign::MpEcdsaSigningProtocol;
+use async_trait::async_trait;
 use gadget_common::client::{AccountId, ClientWithApi, PalletSubmitter};
+use gadget_common::config::NetworkAndProtocolSetup;
 use gadget_common::debug_logger::DebugLogger;
-use gadget_common::define_protocol;
 use gadget_common::gadget::network::Network;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use pallet_jobs_rpc_runtime_api::JobsApi;
+use protocol_macros::define_protocol;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::Block;
@@ -14,11 +18,140 @@ pub mod error;
 pub mod protocols;
 pub mod util;
 
-#[derive(Clone)]
-pub struct MpEcdsaProtocolConfig {
+#[define_protocol(KeygenProtocol)]
+pub struct MpEcdsaKeygenProtocolConfig<
+    N: Network,
+    B: Block,
+    BE: Backend<B>,
+    KBE: KeystoreBackend,
+    C: ClientWithApi<B, BE>,
+> where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
     pub account_id: AccountId,
+    pub network: N,
+    pub keystore_backend: ECDSAKeyStore<KBE>,
+    pub client: C,
+    pub logger: DebugLogger,
+    pub pallet_tx: Arc<dyn PalletSubmitter>,
+    pub _pd: std::marker::PhantomData<(B, BE)>,
 }
 
+impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>> Clone
+    for MpEcdsaKeygenProtocolConfig<N, B, BE, KBE, C>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            account_id: self.account_id.clone(),
+            network: self.network.clone(),
+            keystore_backend: self.keystore_backend.clone(),
+            client: self.client.clone(),
+            logger: self.logger.clone(),
+            pallet_tx: self.pallet_tx.clone(),
+            _pd: self._pd,
+        }
+    }
+}
+
+#[define_protocol(SigningProtocol)]
+pub struct MpEcdsaSigningProtocolConfig<
+    N: Network,
+    B: Block,
+    BE: Backend<B>,
+    KBE: KeystoreBackend,
+    C: ClientWithApi<B, BE>,
+> where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
+    pub account_id: AccountId,
+    pub network: N,
+    pub keystore_backend: ECDSAKeyStore<KBE>,
+    pub client: C,
+    pub logger: DebugLogger,
+    pub pallet_tx: Arc<dyn PalletSubmitter>,
+    pub _pd: std::marker::PhantomData<(B, BE)>,
+}
+
+impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>> Clone
+    for MpEcdsaSigningProtocolConfig<N, B, BE, KBE, C>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            account_id: self.account_id.clone(),
+            network: self.network.clone(),
+            keystore_backend: self.keystore_backend.clone(),
+            client: self.client.clone(),
+            logger: self.logger.clone(),
+            pallet_tx: self.pallet_tx.clone(),
+            _pd: self._pd,
+        }
+    }
+}
+
+#[async_trait]
+impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>>
+    NetworkAndProtocolSetup for MpEcdsaKeygenProtocolConfig<N, B, BE, KBE, C>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
+    type Network = N;
+    type Protocol = MpEcdsaKeygenProtocol<B, BE, KBE, C, N>;
+    async fn build_network(&self) -> Result<Self::Network, gadget_common::Error> {
+        Ok(self.network.clone())
+    }
+    async fn build_protocol(&self) -> Result<Self::Protocol, gadget_common::Error> {
+        let client = gadget_common::client::create_client(
+            self.client.clone(),
+            self.logger.clone(),
+            self.pallet_tx.clone(),
+        )
+        .await?;
+        let protocol = protocols::keygen::create_protocol(
+            self.account_id,
+            client.clone(),
+            self.network.clone(),
+            self.logger.clone(),
+            self.keystore_backend.clone(),
+        )
+        .await;
+        Ok(protocol)
+    }
+}
+
+#[async_trait]
+impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>>
+    NetworkAndProtocolSetup for MpEcdsaSigningProtocolConfig<N, B, BE, KBE, C>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
+    type Network = N;
+    type Protocol = MpEcdsaSigningProtocol<B, BE, KBE, C, N>;
+    async fn build_network(&self) -> Result<Self::Network, gadget_common::Error> {
+        Ok(self.network.clone())
+    }
+    async fn build_protocol(&self) -> Result<Self::Protocol, gadget_common::Error> {
+        let client = gadget_common::client::create_client(
+            self.client.clone(),
+            self.logger.clone(),
+            self.pallet_tx.clone(),
+        )
+        .await?;
+        let protocol = protocols::sign::create_protocol(
+            self.account_id,
+            self.logger.clone(),
+            client.clone(),
+            self.network.clone(),
+            self.keystore_backend.clone(),
+        )
+        .await;
+        Ok(protocol)
+    }
+}
+/*
 pub async fn run_keygen<B, BE, KBE, C, N>(
     config: &MpEcdsaProtocolConfig,
     client_inner: C,
@@ -36,7 +169,7 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     logger.info("Starting keygen protocol");
-
+    /*
     let client =
         gadget_common::client::create_client(client_inner.clone(), logger.clone(), pallet_tx)
             .await?;
@@ -53,7 +186,7 @@ where
 
     let protocol = EcdsaProtocolConfig::new(network, client_inner, protocol);
 
-    gadget_common::run_protocol(protocol).await?;
+    gadget_common::run_protocol(protocol).await?;*/
     Ok(())
 }
 
@@ -74,7 +207,7 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     logger.info("Starting sign protocol");
-
+/*
     let client =
         gadget_common::client::create_client(client_inner.clone(), logger.clone(), pallet_tx)
             .await?;
@@ -89,12 +222,12 @@ where
 
     logger.info("Done creating sign protocol");
 
-    let protocol = EcdsaProtocolConfig::new(network, client_inner, protocol);
+    let protocol = EcdsaProtocolConfig::from(config.clone()).build().await?;
 
-    gadget_common::run_protocol(protocol).await?;
+    gadget_common::run_protocol(protocol).await?;*/
     Ok(())
 }
-
+/*
 #[allow(clippy::too_many_arguments)]
 pub async fn run<B, BE, KBE, C, N, N2, Tx>(
     config: MpEcdsaProtocolConfig,
@@ -140,5 +273,4 @@ where
         res1 = sign_future => res1,
     }
 }
-
-define_protocol!(EcdsaProtocolConfig);
+*/*/

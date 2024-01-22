@@ -1,7 +1,6 @@
 use crate::protocols::state_machine::{CurrentRoundBlame, StateMachineWrapper};
 use crate::protocols::util;
 use crate::protocols::util::PublicKeyGossipMessage;
-use crate::MpEcdsaProtocolConfig;
 use async_trait::async_trait;
 use curv::elliptic::curves::Secp256k1;
 use frame_support::Hashable;
@@ -49,7 +48,7 @@ pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
 }
 
 pub async fn create_protocol<B, BE, KBE, C, N>(
-    config: &MpEcdsaProtocolConfig,
+    account_id: AccountId,
     client: JobsClient<B, BE, C>,
     network: N,
     logger: DebugLogger,
@@ -69,7 +68,7 @@ where
         key_store,
         round_blames: Arc::new(RwLock::new(HashMap::new())),
         logger,
-        account_id: config.account_id,
+        account_id,
     }
 }
 

@@ -1,74 +1,67 @@
+use crate::client::{create_client, JobsClient, PalletSubmitter};
 pub use crate::client::{AccountId, ClientWithApi};
+pub use crate::debug_logger::DebugLogger;
 pub use crate::gadget::network::Network;
 pub use crate::gadget::WebbGadgetProtocol;
+use async_trait::async_trait;
 pub use pallet_jobs_rpc_runtime_api::JobsApi;
 pub use sc_client_api::Backend;
 pub use sp_api::ProvideRuntimeApi;
 pub use sp_runtime::traits::Block;
+use std::sync::Arc;
 
+#[async_trait]
 pub trait ProtocolConfig
 where
     <Self::Client as ProvideRuntimeApi<Self::Block>>::Api: JobsApi<Self::Block, AccountId>,
+    Self: Sized,
 {
     type Network: Network;
     type Block: Block;
     type Backend: Backend<Self::Block>;
     type Protocol: WebbGadgetProtocol<Self::Block, Self::Backend, Self::Client>;
     type Client: ClientWithApi<Self::Block, Self::Backend>;
+    type ProtocolSpecificConfiguration: Clone
+        + NetworkAndProtocolSetup<Network = Self::Network, Protocol = Self::Protocol>;
+    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
+    fn logger(&self) -> DebugLogger;
+    fn client_inner(&self) -> Self::Client;
+    fn params(&self) -> &Self::ProtocolSpecificConfiguration;
+    async fn build_jobs_client(
+        &self,
+    ) -> Result<JobsClient<Self::Block, Self::Backend, Self::Client>, crate::Error> {
+        create_client(self.client_inner(), self.logger(), self.pallet_tx()).await
+    }
+    async fn build(&self) -> Result<Self, crate::Error> {
+        let network = self.params().build_network().await?;
+        let client = self.client_inner();
+        let protocol = self.params().build_protocol().await?;
+        let params = self.params().clone();
+        let pallet_tx = self.pallet_tx();
+        let logger = self.logger();
+        Ok(Self::new(
+            network, client, protocol, params, pallet_tx, logger,
+        ))
+    }
+
+    fn new(
+        network: Self::Network,
+        client: Self::Client,
+        protocol: Self::Protocol,
+        params: Self::ProtocolSpecificConfiguration,
+        pallet_tx: Arc<dyn PalletSubmitter>,
+        logger: DebugLogger,
+    ) -> Self;
 
     fn take_network(&mut self) -> Self::Network;
     fn take_protocol(&mut self) -> Self::Protocol;
     fn take_client(&mut self) -> Self::Client;
 }
 
-#[macro_export]
-macro_rules! define_protocol {
-    ($struct_name:ident) => {
-        pub struct $struct_name<N, P, C, B, BE> {
-            pub network: Option<N>,
-            pub client: Option<C>,
-            pub protocol: Option<P>,
-            _pd: std::marker::PhantomData<(B, BE)>,
-        }
-
-        impl<N, P, C, B, BE> $struct_name<N, P, C, B, BE> {
-            pub fn new(network: N, client: C, protocol: P) -> Self {
-                Self {
-                    network: Some(network),
-                    client: Some(client),
-                    protocol: Some(protocol),
-                    _pd: std::marker::PhantomData,
-                }
-            }
-        }
-
-        impl<
-                B: $crate::config::Block,
-                BE: $crate::config::Backend<B> + 'static,
-                N: $crate::config::Network,
-                C: $crate::config::ClientWithApi<B, BE>,
-                P: $crate::config::WebbGadgetProtocol<B, BE, C>,
-            > $crate::config::ProtocolConfig for $struct_name<N, P, C, B, BE>
-        where
-            <C as $crate::config::ProvideRuntimeApi<B>>::Api: $crate::config::JobsApi<B, AccountId>,
-        {
-            type Network = N;
-            type Block = B;
-            type Backend = BE;
-            type Protocol = P;
-            type Client = C;
-
-            fn take_network(&mut self) -> Self::Network {
-                self.network.take().expect("Network not set")
-            }
-
-            fn take_protocol(&mut self) -> Self::Protocol {
-                self.protocol.take().expect("Protocol not set")
-            }
-
-            fn take_client(&mut self) -> Self::Client {
-                self.client.take().expect("Client not set")
-            }
-        }
-    };
+#[async_trait]
+pub trait NetworkAndProtocolSetup {
+    type Network;
+    type Protocol;
+    async fn build_network(&self) -> Result<Self::Network, crate::Error>;
+    async fn build_protocol(&self) -> Result<Self::Protocol, crate::Error>;
 }
