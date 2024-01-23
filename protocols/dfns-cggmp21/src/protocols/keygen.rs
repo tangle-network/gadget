@@ -348,13 +348,6 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     let key_hashed = keccak_256(&serialized_public_key);
     let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
     let my_id = key_store.pair().public();
-    logger.debug(format!(
-        "Signed {} with my key {}: {}",
-        hex::encode(key_hashed),
-        my_id,
-        hex::encode(&signature)
-    ));
-
     let mut received_keys = BTreeMap::new();
     received_keys.insert(i, signature.clone());
     let mut received_participants = BTreeMap::new();

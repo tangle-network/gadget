@@ -259,6 +259,7 @@ where
         );
 
         let public_key_bytes = key.shared_public_key().to_bytes(true).to_vec();
+        let input_data_to_sign2 = input_data_to_sign.clone();
 
         Ok(JobBuilder::new()
             .protocol(async move {
@@ -312,14 +313,47 @@ where
             .post(async move {
                 // Submit the protocol output to the blockchain
                 if let Some(signature) = protocol_output_clone.lock().await.take() {
-                    let mut signature_bytes =
-                        vec![0u8; dfns_cggmp21::Signature::<Secp256k1>::serialized_len()];
-                    signature.write_to_slice(&mut signature_bytes[..]);
+                    let mut signature_bytes = [0u8; 65];
+                    signature.write_to_slice(&mut signature_bytes[0..64]);
+                    // To figure out the recovery ID, we need to try all possible values of v
+                    // in our case, v can be 0 or 1
+                    let mut v = 0u8;
+                    loop {
+                        let mut signature_bytes = signature_bytes;
+                        let data_hash = keccak_256(&input_data_to_sign2);
+                        signature_bytes[64] = v;
+                        let res =
+                            sp_io::crypto::secp256k1_ecdsa_recover(&signature_bytes, &data_hash);
+                        match res {
+                            Ok(key) if key[..32] == public_key_bytes[1..] => {
+                                // Found the correct v
+                                break;
+                            }
+                            Ok(_) => {
+                                // Found a key, but not the correct one
+                                // Try the other v value
+                                v = 1;
+                                continue;
+                            }
+                            Err(_) if v == 1 => {
+                                // We tried both v values, but no key was found
+                                // This should never happen, but if it does, we will just
+                                // leave v as 1 and break
+                                break;
+                            }
+                            Err(_) => {
+                                // No key was found, try the other v value
+                                v = 1;
+                                continue;
+                            }
+                        }
+                    }
+                    signature_bytes[64] = v;
 
                     let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
                         signature_type: DigitalSignatureType::Ecdsa,
                         data: additional_params.input_data_to_sign,
-                        signature: signature_bytes,
+                        signature: signature_bytes.to_vec(),
                         signing_key: public_key_bytes,
                     });
 

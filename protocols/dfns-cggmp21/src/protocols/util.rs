@@ -327,7 +327,6 @@ pub(crate) fn create_job_manager_to_async_protocol_channel_split<
                         } else {
                             MessageType::Broadcast
                         };
-                        log::debug!(target: "gadget", "#{id} Got a [{:?}] message from Peer {}", msg_type, msg_orig.from);
                         let incoming = Incoming {
                             id,
                             sender: msg_orig.from as PartyIndex,

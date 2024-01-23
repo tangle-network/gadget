@@ -3,12 +3,11 @@ mod tests {
     use dfns_cggmp21_protocol::DfnsCGGMP21ProtocolConfig;
     use futures::stream::FuturesUnordered;
     use futures::StreamExt;
-    use pallet_jobs::KnownResults;
     use tangle_primitives::jobs::{
-        DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, JobId, JobResult, JobSubmission, JobType,
+        DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
     };
     use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
-    use test_utils::mock::{id_to_public, Jobs, MockBackend, Runtime, RuntimeOrigin};
+    use test_utils::mock::{id_to_public, Jobs, MockBackend, RuntimeOrigin};
     use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
 
     #[tokio::test(flavor = "multi_thread")]
@@ -90,13 +89,12 @@ mod tests {
             })
             .await;
 
-        let phase_result = test_utils::wait_for_job_completion(
+        test_utils::wait_for_job_completion(
             ext,
             RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP),
             job_id,
         )
         .await;
-        log::info!("Phase result: {phase_result:?}");
         job_id
     }
 
@@ -126,25 +124,12 @@ mod tests {
             })
             .await;
 
-        let phase_one_result = KnownResults::<Runtime>::get(
-            RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP),
-            keygen_job_id,
-        )
-        .expect("No phase one result");
-        let public_key = match phase_one_result.result {
-            JobResult::DKGPhaseOne(r) => r.key,
-            _ => panic!("Unexpected phase one result"),
-        };
-        let phase_two_result = test_utils::wait_for_job_completion(
+        test_utils::wait_for_job_completion(
             ext,
             RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP),
             job_id,
         )
         .await;
-        let signature = match phase_two_result.result {
-            JobResult::DKGPhaseTwo(r) => r.signature,
-            _ => panic!("Unexpected phase two result"),
-        };
         job_id
     }
 
