@@ -46,7 +46,6 @@ use gadget_common::locks::TokioMutexExt;
 use gadget_common::Error;
 use gadget_core::job_manager::WorkManagerInterface;
 use sp_core::ecdsa;
-use sp_io::crypto::ecdsa_generate;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
 use tangle_primitives::jobs::traits::{JobToFee, MPCHandler};
@@ -524,10 +523,6 @@ where
     ext
 }
 
-fn mock_pub_key(id: u8) -> ecdsa::Public {
-    ecdsa_generate(KEY_TYPE, Some(vec![id; 32]))
-}
-
 pub mod mock_wrapper_client {
     use crate::mock::RuntimeOrigin;
     use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
@@ -665,10 +660,8 @@ pub mod mock_wrapper_client {
             self.ext
                 .execute_with_async(move || {
                     let origin = RuntimeOrigin::signed(id);
-                    log::debug!("Submitting Job Result: {origin:?} => ({role_type:?}, {job_id:?}, {result:?}");
                     let res =
                         crate::mock::Jobs::submit_job_result(origin, role_type, job_id, result);
-                    log::debug!("Pallet tx result: {:?}", res);
                     if let Err(err) = res {
                         let err = format!("Pallet tx error: {err:?}");
                         if err.contains("JobNotFound") {
