@@ -264,18 +264,26 @@ pub trait WebbGadgetProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>:
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
+    /// Given an input of a valid and relevant job, return the parameters needed to start the async protocol
+    /// Note: the parameters returned must be relevant to the `AsyncProtocol` implementation of this protocol
     async fn create_next_job(
         &self,
         job: JobInitMetadata,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error>;
+
+    /// Process a block import notification
     async fn process_block_import_notification(
         &self,
         notification: BlockImportNotification<B>,
         job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) -> Result<(), Error>;
+    /// Process an error that may arise from the work manager, async protocol, or the executor
     async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WebbWorkManager>);
+    /// The account ID of this node. Jobs queried will be filtered by this account ID
     fn account_id(&self) -> &AccountId;
+    /// The role type of this node. Jobs queried will be filtered by this role type
     fn role_type(&self) -> RoleType;
+    /// Whether this protocol is a phase one protocol
     fn is_phase_one(&self) -> bool;
     fn client(&self) -> &JobsClient<B, BE, C>;
     fn logger(&self) -> &DebugLogger;

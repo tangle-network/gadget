@@ -1,12 +1,14 @@
 use crate::client::{AccountId, ClientWithApi};
-use crate::config::ProtocolConfig;
+use crate::config::{NetworkAndProtocolSetup, ProtocolConfig};
 use crate::gadget::work_manager::WebbWorkManager;
 use crate::gadget::{WebbGadgetProtocol, WebbModule};
 use gadget::network::Network;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
-use gadget_core::job::JobError;
-use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
+pub use gadget_core::job::JobError;
+pub use gadget_core::job::*;
+pub use gadget_core::job_manager::WorkManagerInterface;
+pub use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
 use pallet_jobs_rpc_runtime_api::JobsApi;
 use parking_lot::RwLock;
 pub use sc_client_api::BlockImportNotification;
@@ -63,7 +65,10 @@ impl From<JobError> for Error {
 
 pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(), Error>
 where
-    <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApi<T::Block, AccountId>,
+    <<T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<
+        <T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block,
+    >>::Api:
+        JobsApi<<T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block, AccountId>,
 {
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
