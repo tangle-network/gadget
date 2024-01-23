@@ -1,19 +1,6 @@
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::parse::{Parse, ParseStream};
-use syn::{parse_macro_input, Expr, GenericParam, Generics, ItemStruct};
-
-struct MacroInput {
-    protocol_name: Expr,
-}
-
-impl Parse for MacroInput {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(Self {
-            protocol_name: input.parse()?,
-        })
-    }
-}
+use syn::{parse_macro_input, GenericParam, Generics, ItemStruct};
 
 fn generate_generic_params_with_bounds(
     generics: &Generics,
@@ -82,11 +69,10 @@ fn generate_generic_params(
 }
 
 #[proc_macro_attribute]
-pub fn protocol(args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input_struct = parse_macro_input!(input as ItemStruct);
-    let args_parsed = parse_macro_input!(args as MacroInput);
-    let new_struct = args_parsed.protocol_name.to_token_stream();
     let struct_ident = &input_struct.ident;
+    let new_struct = syn::Ident::new(&format!("_Internal{}", struct_ident), struct_ident.span());
     let struct_generics = &input_struct.generics;
     let where_bounds = &struct_generics
         .where_clause

@@ -18,7 +18,7 @@ use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
 pub mod network;
 pub mod protocol;
 
-#[protocol(ZkSaaSProtocol)]
+#[protocol]
 pub struct ZkGadgetConfig<B: Block, C: ClientWithApi<B, BE>, BE: Backend<B>>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,

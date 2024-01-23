@@ -11,7 +11,7 @@ use gadget_common::{
 };
 use tangle_primitives::roles::RoleType;
 
-pub struct StubProtocolImpl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>
+pub struct StubProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -22,7 +22,7 @@ where
 
 #[async_trait]
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> WebbGadgetProtocol<B, BE, C>
-    for StubProtocolImpl<B, BE, C>
+    for StubProtocol<B, BE, C>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -70,7 +70,7 @@ where
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> AsyncProtocol for StubProtocolImpl<B, BE, C>
+impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> AsyncProtocol for StubProtocol<B, BE, C>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {

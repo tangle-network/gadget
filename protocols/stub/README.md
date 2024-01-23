@@ -11,7 +11,7 @@ protocol-macros = { workspace = true }
 
 #### Step 2: Create a Config struct as such:
 ```rust
-#[protocol(StubProtocol)]
+#[protocol]
 pub struct StubConfig<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
@@ -23,13 +23,11 @@ where
 }
 ```
 
-Note: The first argument inside the protocol macro can be anything you want, but it must be unique.
-
 #### Step 3: Create a `StubNetwork` struct, and implement `Network` and `Clone` for it
 
-#### Step 4: Create a `StubProtocolImpl` struct, and implement `WebbGadgetProtocol` and `AsyncProtocol` for it
+#### Step 4: Create a `StubProtocol` struct, and implement `WebbGadgetProtocol` and `AsyncProtocol` for it
 
-#### Step 5: Implement `NetworkAndProtocolSetup` for `StubConfig`, passing in `StubNetwork` as the network and `StubProtocolImpl` as the protocol
+#### Step 5: Implement `NetworkAndProtocolSetup` for `StubConfig`, passing in `StubNetwork` as the network and `StubProtocol` as the protocol
 
 #### Step 6: Running the protocol
 First, create an instance of the `StubConfig` struct, then, call `execute` on it

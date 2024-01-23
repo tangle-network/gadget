@@ -1,4 +1,4 @@
-use crate::protocol::StubProtocolImpl;
+use crate::protocol::StubProtocol;
 use async_trait::async_trait;
 use gadget_common::client::*;
 use gadget_common::config::*;
@@ -10,7 +10,7 @@ use std::sync::Arc;
 pub mod network;
 pub mod protocol;
 
-#[protocol(StubProtocol)]
+#[protocol]
 pub struct StubConfig<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
@@ -28,7 +28,7 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     type Network = StubNetworkService;
-    type Protocol = StubProtocolImpl<B, BE, C>;
+    type Protocol = StubProtocol<B, BE, C>;
     type Client = C;
     type Block = B;
     type Backend = BE;
@@ -37,7 +37,7 @@ where
         &self,
         jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
     ) -> Result<(Self::Network, Self::Protocol), Error> {
-        let stub_protocol = StubProtocolImpl {
+        let stub_protocol = StubProtocol {
             jobs_client,
             account_id: AccountId::from_raw([0u8; 33]),
             logger: self.logger.clone(),

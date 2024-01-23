@@ -18,7 +18,7 @@ pub mod error;
 pub mod protocols;
 pub mod util;
 
-#[protocol(KeygenProtocol)]
+#[protocol]
 pub struct MpEcdsaKeygenProtocolConfig<
     N: Network,
     B: Block,
@@ -37,7 +37,7 @@ pub struct MpEcdsaKeygenProtocolConfig<
     pub _pd: std::marker::PhantomData<(B, BE)>,
 }
 
-#[protocol(SigningProtocol)]
+#[protocol]
 pub struct MpEcdsaSigningProtocolConfig<
     N: Network,
     B: Block,
