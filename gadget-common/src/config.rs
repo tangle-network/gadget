@@ -57,6 +57,10 @@ where
     fn logger(&self) -> DebugLogger {
         self.params().logger()
     }
+
+    async fn run(self) -> Result<(), crate::Error> {
+        crate::run_protocol(self).await
+    }
 }
 
 #[async_trait]

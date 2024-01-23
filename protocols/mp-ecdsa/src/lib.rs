@@ -137,44 +137,6 @@ where
     }
 }
 
-pub async fn run_keygen<B, BE, KBE, C, N>(
-    config: MpEcdsaKeygenProtocolConfig<N, B, BE, KBE, C>,
-    logger: &DebugLogger,
-) -> Result<(), gadget_common::Error>
-where
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    KBE: KeystoreBackend,
-    N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
-{
-    logger.info("Starting keygen protocol");
-    let protocol = config.setup().build().await?;
-    logger.info("Done creating keygen protocol");
-    gadget_common::run_protocol(protocol).await?;
-    Ok(())
-}
-
-pub async fn run_sign<B, BE, KBE, C, N>(
-    config: MpEcdsaSigningProtocolConfig<N, B, BE, KBE, C>,
-    logger: &DebugLogger,
-) -> Result<(), gadget_common::Error>
-where
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    KBE: KeystoreBackend,
-    N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
-{
-    logger.info("Starting sign protocol");
-    let protocol = config.setup().build().await?;
-    logger.info("Done creating sign protocol");
-    gadget_common::run_protocol(protocol).await?;
-    Ok(())
-}
-
 #[allow(clippy::too_many_arguments)]
 pub async fn run<B, BE, KBE, C, N, N2, Tx>(
     account_id: AccountId,
@@ -206,19 +168,19 @@ where
         pallet_tx: pallet_tx.clone(),
         _pd: std::marker::PhantomData,
     };
-    let keygen_future = run_keygen(keygen_config, &logger);
+    let keygen_future = async move { keygen_config.setup().build().await?.run().await };
 
     let sign_config = MpEcdsaSigningProtocolConfig {
         account_id,
         network: network_signing,
         keystore_backend: keystore,
         client: client_signing,
-        logger: logger.clone(),
+        logger,
         pallet_tx: pallet_tx.clone(),
         _pd: std::marker::PhantomData,
     };
 
-    let sign_future = run_sign(sign_config, &logger);
+    let sign_future = async move { sign_config.setup().build().await?.run().await };
 
     tokio::select! {
         res0 = keygen_future => res0,

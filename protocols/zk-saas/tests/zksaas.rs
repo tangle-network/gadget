@@ -15,6 +15,7 @@ mod tests {
     use ark_std::rand::SeedableRng;
     use ark_std::{cfg_chunks, cfg_into_iter};
     use frame_support::assert_ok;
+    use gadget_common::config::ProtocolConfig;
     use secret_sharing::pss::PackedSharingParams;
     use std::net::SocketAddr;
     use std::str::FromStr;
@@ -191,20 +192,26 @@ mod tests {
                 let client = node_info.mock_clients.pop().expect("Should have client");
                 let pallet_tx = node_info.pallet_tx;
 
-                let config = ZkGadgetConfig {
+                let config = ZkGadgetConfig::<_, _, MockBackend> {
                     king_bind_addr,
                     client_only_king_addr,
                     public_identity_der,
                     private_identity_der,
                     client_only_king_public_identity_der,
                     account_id: node_info.account_id,
-                    logger: logger.clone(),
+                    logger,
                     client,
                     pallet_tx: Arc::new(pallet_tx),
                     _pd: Default::default(),
                 };
 
-                if let Err(err) = zk_saas_protocol::run::<_, _, MockBackend>(config, &logger).await
+                if let Err(err) = config
+                    .setup()
+                    .build()
+                    .await
+                    .expect("Failed to setup protocol")
+                    .run()
+                    .await
                 {
                     log::error!(target: "gadget", "Failed to run zk protocol: {err:?}");
                 }

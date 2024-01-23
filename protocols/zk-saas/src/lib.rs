@@ -2,7 +2,7 @@ use crate::network::ZkNetworkService;
 use crate::protocol::ZkProtocol;
 use async_trait::async_trait;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
-use gadget_common::config::{NetworkAndProtocolSetup, ProtocolConfig};
+use gadget_common::config::NetworkAndProtocolSetup;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::Error;
 use mpc_net::prod::RustlsCertificate;
@@ -73,19 +73,6 @@ where
     fn client(&self) -> Self::Client {
         self.client.clone()
     }
-}
-
-pub async fn run<C: ClientWithApi<B, BE> + 'static, B: Block, BE: Backend<B> + 'static>(
-    config: ZkGadgetConfig<B, C, BE>,
-    logger: &DebugLogger,
-) -> Result<(), Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
-{
-    logger.info("Starting zk-saas protocol");
-    let protocol = config.setup().build().await?;
-    logger.info("Started zk-saas protocol");
-    gadget_common::run_protocol(protocol).await
 }
 
 pub async fn create_zk_network<B: Block, C: ClientWithApi<B, BE>, BE: Backend<B>>(
