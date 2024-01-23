@@ -4,7 +4,6 @@ use crate::protocols::util::PublicKeyGossipMessage;
 use crate::MpEcdsaProtocolConfig;
 use async_trait::async_trait;
 use curv::elliptic::curves::Secp256k1;
-use frame_support::Hashable;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -24,6 +23,7 @@ use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
+use sp_core::{ecdsa, Pair};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tangle_primitives::jobs::{
@@ -211,11 +211,11 @@ where
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let key_store = self.key_store.clone();
+        let key_store2 = self.key_store.clone();
         let blame = self.round_blames.clone();
         let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
-        let id = self.account_id;
         let logger = self.logger.clone();
         let logger_clone = logger.clone();
         let round_blames = self.round_blames.clone();
@@ -281,11 +281,11 @@ where
                 logger.debug("Finished AsyncProtocol - Keygen");
 
                 let job_result = handle_public_key_gossip(
+                    key_store,
                     &logger,
                     &local_key,
                     t,
                     i,
-                    id,
                     broadcast_tx_to_outbound,
                     broadcast_rx_from_gadget,
                 )
@@ -309,7 +309,7 @@ where
 
                 // Store the keys locally, as well as submitting them to the blockchain
                 if let Some((local_key, job_result)) = protocol_output_clone.lock().await.take() {
-                    key_store
+                    key_store2
                         .set(additional_params.job_id, local_key)
                         .await
                         .map_err(|err| JobError {
@@ -334,19 +334,20 @@ where
     }
 }
 
-async fn handle_public_key_gossip(
+#[allow(clippy::too_many_arguments)]
+async fn handle_public_key_gossip<KBE: KeystoreBackend>(
+    key_store: ECDSAKeyStore<KBE>,
     logger: &DebugLogger,
     local_key: &LocalKey<Secp256k1>,
-    threshold: u16,
+    t: u16,
     i: u16,
-    my_id: AccountId,
     broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<JobResult, JobError> {
     let serialized_public_key = local_key.public_key().to_bytes(true).to_vec();
-    // Note: the signature is also empty in the DKG implementation
-    let signature = vec![];
-
+    let key_hashed = keccak_256(&serialized_public_key);
+    let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
+    let my_id = key_store.pair().public();
     let mut received_keys = BTreeMap::new();
     received_keys.insert(i, signature.clone());
     let mut received_participants = BTreeMap::new();
@@ -363,7 +364,7 @@ async fn handle_public_key_gossip(
             reason: format!("Failed to send public key: {err:?}"),
         })?;
 
-    for idx in 0..threshold {
+    for _ in 0..t {
         let message = broadcast_rx_from_gadget
             .recv()
             .await
@@ -372,18 +373,37 @@ async fn handle_public_key_gossip(
             })?;
 
         let from = message.from;
-        logger.debug(format!(
-            "Received public key from {from} | {}/{threshold} received",
-            idx + 1
-        ));
+        logger.debug(format!("Received public key from {from}"));
 
         if received_keys.contains_key(&(from as u16)) {
             logger.warn("Received duplicate key");
             continue;
         }
+        // verify signature
+        let maybe_signature = sp_core::ecdsa::Signature::from_slice(&message.signature);
+        match maybe_signature.and_then(|s| s.recover_prehashed(&key_hashed)) {
+            Some(p) if p != message.id => {
+                logger.warn(format!(
+                    "Received invalid signature from {from} not signed by them"
+                ));
+            }
+            Some(p) if p == message.id => {
+                logger.debug(format!("Received valid signature from {from}"));
+            }
+            Some(_) => unreachable!("Should not happen"),
+            None => {
+                logger.warn(format!("Received invalid signature from {from}"));
+                continue;
+            }
+        }
 
         received_keys.insert(from as u16, message.signature);
         received_participants.insert(from as u16, message.id);
+        logger.debug(format!(
+            "Received {}/{} signatures",
+            received_keys.len(),
+            t + 1
+        ));
     }
 
     // Order and collect the map to ensure symmetric submission to blockchain
@@ -391,19 +411,129 @@ async fn handle_public_key_gossip(
         .into_iter()
         .sorted_by_key(|x| x.0)
         .map(|r| r.1)
-        .collect();
+        .collect::<Vec<_>>();
 
     let participants = received_participants
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1.identity())
+        .map(|r| r.1 .0.to_vec())
         .collect();
 
-    Ok(JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
+    if signatures.len() < t as usize {
+        return Err(JobError {
+            reason: format!(
+                "Received {} signatures, expected at least {}",
+                signatures.len(),
+                t + 1,
+            ),
+        });
+    }
+
+    let res = DKGTSSKeySubmissionResult {
         signature_type: DigitalSignatureType::Ecdsa,
         key: serialized_public_key,
         participants,
         signatures,
-        threshold: threshold as _,
-    }))
+        threshold: t as _,
+    };
+    verify_generated_dkg_key_ecdsa(res.clone(), logger);
+    Ok(JobResult::DKGPhaseOne(res))
+}
+
+fn verify_generated_dkg_key_ecdsa(data: DKGTSSKeySubmissionResult, logger: &DebugLogger) {
+    // Ensure participants and signatures are not empty
+    assert!(!data.participants.is_empty(), "NoParticipantsFound",);
+    assert!(!data.signatures.is_empty(), "NoSignaturesFound");
+
+    // Generate the required ECDSA signers
+    let maybe_signers = data
+        .participants
+        .iter()
+        .map(|x| {
+            ecdsa::Public(
+                to_slice_33(x)
+                    .unwrap_or_else(|| panic!("Failed to convert input to ecdsa public key")),
+            )
+        })
+        .collect::<Vec<ecdsa::Public>>();
+
+    assert!(!maybe_signers.is_empty(), "NoParticipantsFound");
+
+    let mut known_signers: Vec<ecdsa::Public> = Default::default();
+
+    for signature in data.signatures {
+        // Ensure the required signer signature exists
+        let (maybe_authority, success) =
+            verify_signer_from_set_ecdsa(maybe_signers.clone(), &data.key, &signature);
+
+        if success {
+            let authority = maybe_authority.expect("CannotRetreiveSigner");
+
+            // Ensure no duplicate signatures
+            assert!(!known_signers.contains(&authority), "DuplicateSignature");
+
+            logger.debug(format!("Verified signature from {}", authority));
+            known_signers.push(authority);
+        }
+    }
+
+    // Ensure a sufficient number of unique signers are present
+    assert!(
+        known_signers.len() > data.threshold as usize,
+        "NotEnoughSigners"
+    );
+    logger.debug(format!(
+        "Verified {}/{} signatures",
+        known_signers.len(),
+        data.threshold + 1
+    ));
+}
+
+pub fn verify_signer_from_set_ecdsa(
+    maybe_signers: Vec<ecdsa::Public>,
+    msg: &[u8],
+    signature: &[u8],
+) -> (Option<ecdsa::Public>, bool) {
+    let mut signer = None;
+    let res = maybe_signers.iter().any(|x| {
+        if let Some(data) = recover_ecdsa_pub_key(msg, signature) {
+            let recovered = &data[..32];
+            if x.0[1..].to_vec() == recovered.to_vec() {
+                signer = Some(*x);
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    });
+
+    (signer, res)
+}
+
+pub fn recover_ecdsa_pub_key(data: &[u8], signature: &[u8]) -> Option<Vec<u8>> {
+    const SIGNATURE_LENGTH: usize = 65;
+    if signature.len() != SIGNATURE_LENGTH {
+        return None;
+    }
+    let mut sig = [0u8; SIGNATURE_LENGTH];
+    sig[..SIGNATURE_LENGTH].copy_from_slice(signature);
+
+    let hash = keccak_256(data);
+
+    sp_io::crypto::secp256k1_ecdsa_recover(&sig, &hash)
+        .ok()
+        .map(|x| x.to_vec())
+}
+
+pub fn to_slice_33(val: &[u8]) -> Option<[u8; 33]> {
+    const ECDSA_KEY_LENGTH: usize = 33;
+    if val.len() == ECDSA_KEY_LENGTH {
+        let mut key = [0u8; ECDSA_KEY_LENGTH];
+        key[..ECDSA_KEY_LENGTH].copy_from_slice(val);
+
+        return Some(key);
+    }
+    None
 }

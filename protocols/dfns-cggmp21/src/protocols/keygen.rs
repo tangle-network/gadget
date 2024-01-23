@@ -522,10 +522,9 @@ pub fn recover_ecdsa_pub_key(data: &[u8], signature: &[u8]) -> Option<Vec<u8>> {
 
     let hash = keccak_256(data);
 
-    let pub_key = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &hash)
+    sp_io::crypto::secp256k1_ecdsa_recover(&sig, &hash)
         .ok()
-        .unwrap();
-    Some(pub_key.to_vec())
+        .map(|x| x.to_vec())
 }
 
 pub fn to_slice_33(val: &[u8]) -> Option<[u8; 33]> {

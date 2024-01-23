@@ -348,7 +348,7 @@ where
                             }
                         }
                     }
-                    signature_bytes[64] = v;
+                    signature_bytes[64] = v + 27;
 
                     let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
                         signature_type: DigitalSignatureType::Ecdsa,

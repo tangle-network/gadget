@@ -23,7 +23,6 @@ use multi_party_ecdsa::gg_2020::state_machine::sign::{
     CompletedOfflineStage, OfflineStage, PartialSignature, SignManual,
 };
 use pallet_jobs_rpc_runtime_api::JobsApi;
-use parity_scale_codec::Encode;
 use round_based::async_runtime::watcher::StderrWatcher;
 use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
@@ -361,7 +360,7 @@ where
 
                 // Submit the protocol output to the blockchain
                 if let Some(signature) = protocol_output_clone.lock().await.take() {
-                    let signature: Vec<u8> = signature.encode();
+                    let signature: Vec<u8> = signature.0.to_vec();
 
                     let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
                         signature_type: DigitalSignatureType::Ecdsa,
@@ -465,7 +464,5 @@ async fn voting_stage(
     })?;
 
     // Convert the signature to a substrate-compatible format
-    crate::util::convert_signature(debug_logger, &signature).ok_or_else(|| JobError {
-        reason: "Failed to convert signature to Substrate-compatible format".to_string(),
-    })
+    Ok(crate::util::convert_signature(&signature))
 }
