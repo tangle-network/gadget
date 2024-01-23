@@ -131,13 +131,10 @@ pub fn protocol(args: TokenStream, input: TokenStream) -> TokenStream {
             #where_bounds
         {
             type Network = <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup>::Network;
-            type Block = B;
-            type Backend = BE;
             type Protocol = <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup>::Protocol;
-            type Client = C;
-            type ProtocolSpecificConfiguration = #struct_ident<#generics_token_stream>;
+            type ProtocolSpecificConfiguration = #struct_ident <#generics_token_stream>;
 
-            fn new(network: Self::Network, client: Self::Client, protocol: Self::Protocol, params: Self::ProtocolSpecificConfiguration, pallet_tx: Arc<dyn gadget_common::client::PalletSubmitter>, logger: DebugLogger) -> Self {
+            fn new(network: Self::Network, client: <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup>::Client, protocol: Self::Protocol, params: Self::ProtocolSpecificConfiguration, pallet_tx: Arc<dyn gadget_common::client::PalletSubmitter>, logger: DebugLogger) -> Self {
                 Self {
                     network: Some(network),
                     client: Some(client),
@@ -157,20 +154,8 @@ pub fn protocol(args: TokenStream, input: TokenStream) -> TokenStream {
                 self.protocol.take().expect("Protocol not set")
             }
 
-            fn take_client(&mut self) -> Self::Client {
+            fn take_client(&mut self) -> <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup>::Client {
                 self.client.take().expect("Client not set")
-            }
-
-            fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
-                self.pallet_tx.clone()
-            }
-
-            fn logger(&self) -> DebugLogger {
-                self.logger.clone()
-            }
-
-            fn client_inner(&self) -> Self::Client {
-                self.client.as_ref().expect("Client not set").clone()
             }
 
             fn params(&self) -> &Self::ProtocolSpecificConfiguration {

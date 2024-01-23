@@ -1,7 +1,7 @@
 use crate::network::ZkNetworkService;
 use crate::protocol::ZkProtocol;
 use async_trait::async_trait;
-use gadget_common::client::{create_client, AccountId, ClientWithApi, PalletSubmitter};
+use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
 use gadget_common::config::{NetworkAndProtocolSetup, ProtocolConfig};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::Error;
@@ -43,17 +43,17 @@ where
 {
     type Network = ZkNetworkService;
     type Protocol = ZkProtocol<B, C, BE>;
+    type Client = C;
+    type Block = B;
+    type Backend = BE;
 
-    async fn build_network_and_protocol(&self) -> Result<(Self::Network, Self::Protocol), Error> {
+    async fn build_network_and_protocol(
+        &self,
+        jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
+    ) -> Result<(Self::Network, Self::Protocol), Error> {
         let network = create_zk_network(self).await?;
-        let client = create_client(
-            self.client.clone(),
-            self.logger.clone(),
-            self.pallet_tx.clone(),
-        )
-        .await?;
         let zk_protocol = ZkProtocol {
-            client: client.clone(),
+            client: jobs_client,
             account_id: self.account_id,
             network: network.clone(),
             logger: self.logger.clone(),
@@ -68,6 +68,10 @@ where
 
     fn logger(&self) -> DebugLogger {
         self.logger.clone()
+    }
+
+    fn client(&self) -> Self::Client {
+        self.client.clone()
     }
 }
 

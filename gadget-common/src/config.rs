@@ -13,28 +13,27 @@ use std::sync::Arc;
 #[async_trait]
 pub trait ProtocolConfig
 where
-    <Self::Client as ProvideRuntimeApi<Self::Block>>::Api: JobsApi<Self::Block, AccountId>,
+    <<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block>>::Api: JobsApi<<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block, AccountId>,
     Self: Sized,
 {
     type Network: Network;
-    type Block: Block;
-    type Backend: Backend<Self::Block>;
-    type Protocol: WebbGadgetProtocol<Self::Block, Self::Backend, Self::Client>;
-    type Client: ClientWithApi<Self::Block, Self::Backend>;
+    type Protocol: WebbGadgetProtocol<
+        <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block,
+        <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Backend,
+        <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client
+    >;
     type ProtocolSpecificConfiguration: Clone
-        + NetworkAndProtocolSetup<Network = Self::Network, Protocol = Self::Protocol>;
-    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
-    fn logger(&self) -> DebugLogger;
-    fn client_inner(&self) -> Self::Client;
+        + NetworkAndProtocolSetup<Network = Self::Network, Protocol = Self::Protocol> + Sync;
     fn params(&self) -> &Self::ProtocolSpecificConfiguration;
-    async fn build_jobs_client(
-        &self,
-    ) -> Result<JobsClient<Self::Block, Self::Backend, Self::Client>, crate::Error> {
-        create_client(self.client_inner(), self.logger(), self.pallet_tx()).await
-    }
+
+    fn take_network(&mut self) -> Self::Network;
+    fn take_protocol(&mut self) -> Self::Protocol;
+    fn take_client(&mut self) -> <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client;
+
     async fn build(&self) -> Result<Self, crate::Error> {
-        let (network, protocol) = self.params().build_network_and_protocol().await?;
-        let client = self.client_inner();
+        let jobs_client = self.params().build_jobs_client().await?;
+        let (network, protocol) = self.params().build_network_and_protocol(jobs_client).await?;
+        let client = self.params().client();
         let params = self.params().clone();
         let pallet_tx = self.pallet_tx();
         let logger = self.logger();
@@ -45,25 +44,48 @@ where
 
     fn new(
         network: Self::Network,
-        client: Self::Client,
+        client: <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client,
         protocol: Self::Protocol,
         params: Self::ProtocolSpecificConfiguration,
         pallet_tx: Arc<dyn PalletSubmitter>,
         logger: DebugLogger,
     ) -> Self;
 
-    fn take_network(&mut self) -> Self::Network;
-    fn take_protocol(&mut self) -> Self::Protocol;
-    fn take_client(&mut self) -> Self::Client;
+    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
+        self.params().pallet_tx()
+    }
+    fn logger(&self) -> DebugLogger {
+        self.params().logger()
+    }
 }
 
 #[async_trait]
-pub trait NetworkAndProtocolSetup {
+pub trait NetworkAndProtocolSetup
+where
+    <<Self as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<
+        <Self as NetworkAndProtocolSetup>::Block,
+    >>::Api: pallet_jobs_rpc_runtime_api::JobsApi<
+        <Self as NetworkAndProtocolSetup>::Block,
+        sp_core::ecdsa::Public,
+    >,
+{
     type Network;
     type Protocol;
+    type Client: ClientWithApi<Self::Block, Self::Backend>;
+    type Block: Block;
+    type Backend: Backend<Self::Block>;
+
+    async fn build_jobs_client(
+        &self,
+    ) -> Result<JobsClient<Self::Block, Self::Backend, Self::Client>, crate::Error> {
+        create_client(self.client(), self.logger(), self.pallet_tx()).await
+    }
+
     async fn build_network_and_protocol(
         &self,
+        jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
     ) -> Result<(Self::Network, Self::Protocol), crate::Error>;
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
     fn logger(&self) -> DebugLogger;
+    fn client(&self) -> Self::Client;
 }

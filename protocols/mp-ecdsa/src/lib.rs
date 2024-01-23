@@ -1,7 +1,7 @@
 use crate::protocols::keygen::MpEcdsaKeygenProtocol;
 use crate::protocols::sign::MpEcdsaSigningProtocol;
 use async_trait::async_trait;
-use gadget_common::client::{AccountId, ClientWithApi, PalletSubmitter};
+use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
 use gadget_common::config::{NetworkAndProtocolSetup, ProtocolConfig};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::network::Network;
@@ -64,18 +64,17 @@ where
 {
     type Network = N;
     type Protocol = MpEcdsaKeygenProtocol<B, BE, KBE, C, N>;
+    type Client = C;
+    type Block = B;
+    type Backend = BE;
+
     async fn build_network_and_protocol(
         &self,
+        jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
     ) -> Result<(Self::Network, Self::Protocol), gadget_common::Error> {
-        let client = gadget_common::client::create_client(
-            self.client.clone(),
-            self.logger.clone(),
-            self.pallet_tx.clone(),
-        )
-        .await?;
         let protocol = protocols::keygen::create_protocol(
             self.account_id,
-            client.clone(),
+            jobs_client,
             self.network.clone(),
             self.logger.clone(),
             self.keystore_backend.clone(),
@@ -91,6 +90,10 @@ where
 
     fn logger(&self) -> DebugLogger {
         self.logger.clone()
+    }
+
+    fn client(&self) -> Self::Client {
+        self.client.clone()
     }
 }
 
@@ -102,19 +105,18 @@ where
 {
     type Network = N;
     type Protocol = MpEcdsaSigningProtocol<B, BE, KBE, C, N>;
+    type Client = C;
+    type Block = B;
+    type Backend = BE;
+
     async fn build_network_and_protocol(
         &self,
+        jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
     ) -> Result<(Self::Network, Self::Protocol), gadget_common::Error> {
-        let client = gadget_common::client::create_client(
-            self.client.clone(),
-            self.logger.clone(),
-            self.pallet_tx.clone(),
-        )
-        .await?;
         let protocol = protocols::sign::create_protocol(
             self.account_id,
             self.logger.clone(),
-            client.clone(),
+            jobs_client,
             self.network.clone(),
             self.keystore_backend.clone(),
         )
@@ -128,6 +130,10 @@ where
 
     fn logger(&self) -> DebugLogger {
         self.logger.clone()
+    }
+
+    fn client(&self) -> Self::Client {
+        self.client.clone()
     }
 }
 
