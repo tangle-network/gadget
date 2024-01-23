@@ -143,12 +143,14 @@ impl RolesHandler<AccountId> for MockRolesHandler {
     }
 
     fn get_validator_role_key(address: AccountId) -> Option<Vec<u8>> {
-        let validators = (0..8).map(id_to_public).collect::<Vec<_>>();
-        if validators.contains(&address) {
-            Some(mock_pub_key().to_raw_vec())
-        } else {
-            None
-        }
+        let validators = (0..8).map(id_to_pair).collect::<Vec<_>>();
+        validators.iter().find_map(|p| {
+            if p.public() == address {
+                Some(p.public().to_raw_vec())
+            } else {
+                None
+            }
+        })
     }
 }
 
@@ -266,7 +268,7 @@ impl ProvideRuntimeApi<Block> for Runtime {
 }
 
 pub fn id_to_pair(id: u8) -> ecdsa::Pair {
-    ecdsa::Pair::from_string(&format!("//{id}//password"), None).unwrap()
+    ecdsa::Pair::from_string(&format!("//Alice///{id}"), None).expect("static values are valid")
 }
 
 pub fn id_to_public(id: u8) -> ecdsa::Public {
@@ -522,8 +524,8 @@ where
     ext
 }
 
-fn mock_pub_key() -> ecdsa::Public {
-    ecdsa_generate(KEY_TYPE, None)
+fn mock_pub_key(id: u8) -> ecdsa::Public {
+    ecdsa_generate(KEY_TYPE, Some(vec![id; 32]))
 }
 
 pub mod mock_wrapper_client {
