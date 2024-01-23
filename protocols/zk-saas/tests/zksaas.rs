@@ -15,7 +15,6 @@ mod tests {
     use ark_std::rand::SeedableRng;
     use ark_std::{cfg_chunks, cfg_into_iter};
     use frame_support::assert_ok;
-    use gadget_common::config::ProtocolConfig;
     use secret_sharing::pss::PackedSharingParams;
     use std::net::SocketAddr;
     use std::str::FromStr;
@@ -205,14 +204,7 @@ mod tests {
                     _pd: Default::default(),
                 };
 
-                if let Err(err) = config
-                    .setup()
-                    .build()
-                    .await
-                    .expect("Failed to setup protocol")
-                    .run()
-                    .await
-                {
+                if let Err(err) = config.execute().await {
                     log::error!(target: "gadget", "Failed to run zk protocol: {err:?}");
                 }
             },

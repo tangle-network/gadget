@@ -2,7 +2,7 @@ use crate::protocols::keygen::MpEcdsaKeygenProtocol;
 use crate::protocols::sign::MpEcdsaSigningProtocol;
 use async_trait::async_trait;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
-use gadget_common::config::{NetworkAndProtocolSetup, ProtocolConfig};
+use gadget_common::config::NetworkAndProtocolSetup;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::network::Network;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
@@ -168,7 +168,7 @@ where
         pallet_tx: pallet_tx.clone(),
         _pd: std::marker::PhantomData,
     };
-    let keygen_future = async move { keygen_config.setup().build().await?.run().await };
+    let keygen_future = keygen_config.execute();
 
     let sign_config = MpEcdsaSigningProtocolConfig {
         account_id,
@@ -180,7 +180,7 @@ where
         _pd: std::marker::PhantomData,
     };
 
-    let sign_future = async move { sign_config.setup().build().await?.run().await };
+    let sign_future = sign_config.execute();
 
     tokio::select! {
         res0 = keygen_future => res0,

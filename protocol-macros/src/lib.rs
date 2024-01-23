@@ -180,6 +180,11 @@ pub fn protocol(args: TokenStream, input: TokenStream) -> TokenStream {
                     _pd: std::marker::PhantomData,
                 }
             }
+
+            pub async fn execute(self) -> Result<(), gadget_common::Error> {
+                use gadget_common::config::ProtocolConfig;
+                self.setup().build().await?.run().await
+            }
         }
 
         impl<#generic_token_stream_with_bounds> Clone for #struct_ident <#generics_token_stream> #where_bounds {
