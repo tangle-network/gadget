@@ -49,6 +49,7 @@ jobs:
         run: cargo clippy --tests -- -D warnings
 
   testing:
+    timeout-minutes: 60
     name: Cargo Test
     runs-on: macos-latest
     strategy:
