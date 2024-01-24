@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
-use gadget_common::config::{DebugLogger, JobsApi, ProvideRuntimeApi, GadgetProtocol};
+use gadget_common::config::{DebugLogger, GadgetProtocol, JobsApi, ProvideRuntimeApi};
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
@@ -41,12 +41,7 @@ where
         Ok(())
     }
 
-    async fn process_error(
-        &self,
-        _error: Error,
-        _job_manager: &ProtocolWorkManager<WorkManager>,
-    ) {
-    }
+    async fn process_error(&self, _error: Error, _job_manager: &ProtocolWorkManager<WorkManager>) {}
 
     fn account_id(&self) -> &AccountId {
         &self.account_id

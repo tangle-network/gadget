@@ -6,7 +6,7 @@ use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
-use gadget_common::gadget::{JobInitMetadata, GadgetProtocol, WorkManagerConfig};
+use gadget_common::gadget::{GadgetProtocol, JobInitMetadata, WorkManagerConfig};
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification};

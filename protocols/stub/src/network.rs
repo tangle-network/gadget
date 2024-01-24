@@ -8,9 +8,7 @@ pub struct StubNetworkService;
 
 #[async_trait]
 impl Network for StubNetworkService {
-    async fn next_message(
-        &self,
-    ) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         futures::future::pending().await
     }
 

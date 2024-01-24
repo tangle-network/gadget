@@ -281,10 +281,7 @@ sp_externalities::decl_extension! {
 #[derive(Clone)]
 pub struct MockNetwork {
     peers_tx: Arc<
-        HashMap<
-            AccountId,
-            UnboundedSender<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
-        >,
+        HashMap<AccountId, UnboundedSender<<WorkManager as WorkManagerInterface>::ProtocolMessage>>,
     >,
     peers_rx: Arc<
         HashMap<
@@ -327,9 +324,7 @@ impl MockNetwork {
 
 #[async_trait]
 impl Network for MockNetwork {
-    async fn next_message(
-        &self,
-    ) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         self.peers_rx
             .get(&self.my_id)?
             .lock_timeout(Duration::from_millis(500))

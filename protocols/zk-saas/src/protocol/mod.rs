@@ -15,7 +15,7 @@ use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::work_manager::WorkManager;
-use gadget_common::gadget::{JobInitMetadata, GadgetProtocol, WorkManagerConfig};
+use gadget_common::gadget::{GadgetProtocol, JobInitMetadata, WorkManagerConfig};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{BlockImportNotification, Error};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
@@ -102,11 +102,7 @@ where
         Ok(())
     }
 
-    async fn process_error(
-        &self,
-        error: Error,
-        _job_manager: &ProtocolWorkManager<WorkManager>,
-    ) {
+    async fn process_error(&self, error: Error, _job_manager: &ProtocolWorkManager<WorkManager>) {
         log::error!(target: "gadget", "Received an error: {error:?}");
     }
 

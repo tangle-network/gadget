@@ -16,9 +16,8 @@ pub struct AsyncProtocolRemote {
     pub associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     pub associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     pub associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    pub to_async_protocol: tokio::sync::mpsc::UnboundedSender<
-        <WorkManager as WorkManagerInterface>::ProtocolMessage,
-    >,
+    pub to_async_protocol:
+        tokio::sync::mpsc::UnboundedSender<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
     pub is_done: Arc<AtomicBool>,
 }
 

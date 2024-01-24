@@ -437,9 +437,7 @@ async fn recv_stream<R: AsyncRead + AsyncWrite + Unpin>(
 
 #[async_trait]
 impl Network for ZkNetworkService {
-    async fn next_message(
-        &self,
-    ) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         match self {
             Self::King {
                 inbound_messages, ..

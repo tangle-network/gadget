@@ -7,9 +7,7 @@ pub mod gossip;
 
 #[async_trait]
 pub trait Network: Send + Sync + Clone + 'static {
-    async fn next_message(
-        &self,
-    ) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage>;
+    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage>;
     async fn send_message(
         &self,
         message: <WorkManager as WorkManagerInterface>::ProtocolMessage,

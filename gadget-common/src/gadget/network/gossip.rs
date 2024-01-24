@@ -218,9 +218,7 @@ pub struct GossipHandlerController {
 
 #[async_trait]
 impl Network for GossipHandlerController {
-    async fn next_message(
-        &self,
-    ) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         loop {
             let message = self
                 .message_notifications_channel
