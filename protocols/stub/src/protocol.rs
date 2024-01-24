@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
-use gadget_common::config::{DebugLogger, JobsApi, ProvideRuntimeApi, WebbGadgetProtocol};
+use gadget_common::config::{DebugLogger, GadgetProtocol, JobsApi, ProvideRuntimeApi};
 use gadget_common::gadget::message::GadgetProtocolMessage;
-use gadget_common::gadget::work_manager::WebbWorkManager;
+use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{
@@ -21,7 +21,7 @@ where
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> WebbGadgetProtocol<B, BE, C>
+impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> GadgetProtocol<B, BE, C>
     for StubProtocol<B, BE, C>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
@@ -36,17 +36,12 @@ where
     async fn process_block_import_notification(
         &self,
         _notification: BlockImportNotification<B>,
-        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
+        _job_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<(), Error> {
         Ok(())
     }
 
-    async fn process_error(
-        &self,
-        _error: Error,
-        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) {
-    }
+    async fn process_error(&self, _error: Error, _job_manager: &ProtocolWorkManager<WorkManager>) {}
 
     fn account_id(&self) -> &AccountId {
         &self.account_id
@@ -78,10 +73,10 @@ where
 
     async fn generate_protocol_from(
         &self,
-        _associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-        _associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
-        _associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-        _associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+        _associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+        _associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+        _associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+        _associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
         _protocol_message_rx: tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>,
         _additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {

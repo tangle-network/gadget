@@ -56,7 +56,7 @@ pub struct Registrant {
 use crate::Error;
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::network::Network;
-use gadget_common::gadget::work_manager::WebbWorkManager;
+use gadget_common::gadget::work_manager::WorkManager;
 
 pub fn create_server_tls_acceptor<T: CertToDer>(
     server_certificate: T,
@@ -437,9 +437,7 @@ async fn recv_stream<R: AsyncRead + AsyncWrite + Unpin>(
 
 #[async_trait]
 impl Network for ZkNetworkService {
-    async fn next_message(
-        &self,
-    ) -> Option<<WebbWorkManager as WorkManagerInterface>::ProtocolMessage> {
+    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         match self {
             Self::King {
                 inbound_messages, ..
@@ -466,7 +464,7 @@ impl Network for ZkNetworkService {
     #[allow(clippy::collapsible_else_if)]
     async fn send_message(
         &self,
-        message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
+        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
         if message.from_network_id.is_none() {
             return Err(Error::RegistrySendError {

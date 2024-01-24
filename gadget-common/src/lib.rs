@@ -1,7 +1,7 @@
 use crate::client::{AccountId, ClientWithApi};
 use crate::config::{NetworkAndProtocolSetup, ProtocolConfig};
-use crate::gadget::work_manager::WebbWorkManager;
-use crate::gadget::{WebbGadgetProtocol, WebbModule};
+use crate::gadget::work_manager::WorkManager;
+use crate::gadget::{GadgetProtocol, Module};
 use gadget::network::Network;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
@@ -78,9 +78,9 @@ where
     let latest_finality_notification =
         get_latest_finality_notification_from_client(&client).await?;
     let work_manager = create_work_manager(&latest_finality_notification, &protocol).await?;
-    let webb_module = WebbModule::new(network.clone(), protocol, work_manager);
+    let proto_module = Module::new(network.clone(), protocol, work_manager);
     // Plug the module into the substrate gadget to interface the WebbGadget with Substrate
-    let substrate_gadget = SubstrateGadget::new(client, webb_module);
+    let substrate_gadget = SubstrateGadget::new(client, proto_module);
     let network_future = network.run();
     let gadget_future = async move {
         // Poll the first finality notification to ensure clients can execute without having to wait
@@ -106,11 +106,11 @@ pub async fn create_work_manager<
     B: Block,
     BE: Backend<B>,
     C: ClientWithApi<B, BE>,
-    P: WebbGadgetProtocol<B, BE, C>,
+    P: GadgetProtocol<B, BE, C>,
 >(
     latest_finality_notification: &FinalityNotification<B>,
     protocol: &P,
-) -> Result<ProtocolWorkManager<WebbWorkManager>, Error>
+) -> Result<ProtocolWorkManager<WorkManager>, Error>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -120,7 +120,7 @@ where
 
     let clock = Arc::new(RwLock::new(Some(now)));
 
-    let job_manager_zk = WebbWorkManager {
+    let job_manager_zk = WorkManager {
         clock,
         logger: protocol.logger().clone(),
     };

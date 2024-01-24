@@ -1,7 +1,7 @@
 use crate::client::{AccountId, ClientWithApi, JobsClient};
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
-use crate::gadget::work_manager::WebbWorkManager;
+use crate::gadget::work_manager::WorkManager;
 use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
 use crate::Error;
 use async_trait::async_trait;
@@ -27,10 +27,10 @@ pub mod network;
 pub mod work_manager;
 
 /// Used as a module to place inside the SubstrateGadget
-pub struct WebbModule<B, C, N, M, BE> {
+pub struct Module<B, C, N, M, BE> {
     protocol: M,
     network: N,
-    job_manager: ProtocolWorkManager<WebbWorkManager>,
+    job_manager: ProtocolWorkManager<WorkManager>,
     clock: Arc<RwLock<Option<u64>>>,
     _pd: PhantomData<(B, C, BE)>,
 }
@@ -50,15 +50,15 @@ impl<
         C: ClientWithApi<B, BE>,
         B: Block,
         N: Network,
-        M: WebbGadgetProtocol<B, BE, C>,
+        M: GadgetProtocol<B, BE, C>,
         BE: Backend<B>,
-    > WebbModule<B, C, N, M, BE>
+    > Module<B, C, N, M, BE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<WebbWorkManager>) -> Self {
+    pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<WorkManager>) -> Self {
         let clock = job_manager.utility.clock.clone();
-        WebbModule {
+        Module {
             protocol: module,
             job_manager,
             network,
@@ -72,10 +72,10 @@ pub struct JobInitMetadata {
     pub job_type: JobType<AccountId>,
     /// This value only exists if this is a stage2 job
     pub phase1_job: Option<JobType<AccountId>>,
-    pub task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
-    pub retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
+    pub task_id: <WorkManager as WorkManagerInterface>::TaskID,
+    pub retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     pub job_id: JobId,
-    pub now: <WebbWorkManager as WorkManagerInterface>::Clock,
+    pub now: <WorkManager as WorkManagerInterface>::Clock,
 }
 
 #[async_trait]
@@ -83,9 +83,9 @@ impl<
         C: ClientWithApi<B, BE>,
         B: Block,
         N: Network,
-        M: WebbGadgetProtocol<B, BE, C>,
+        M: GadgetProtocol<B, BE, C>,
         BE: Backend<B>,
-    > SubstrateGadgetModule for WebbModule<B, C, N, M, BE>
+    > SubstrateGadgetModule for Module<B, C, N, M, BE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -259,7 +259,7 @@ where
 pub type Job = (AsyncProtocolRemote, BuiltExecutableJobWrapper);
 
 #[async_trait]
-pub trait WebbGadgetProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>:
+pub trait GadgetProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>:
     AsyncProtocol + Send + Sync
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
@@ -275,10 +275,10 @@ where
     async fn process_block_import_notification(
         &self,
         notification: BlockImportNotification<B>,
-        job_manager: &ProtocolWorkManager<WebbWorkManager>,
+        job_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<(), Error>;
     /// Process an error that may arise from the work manager, async protocol, or the executor
-    async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WebbWorkManager>);
+    async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WorkManager>);
     /// The account ID of this node. Jobs queried will be filtered by this account ID
     fn account_id(&self) -> &AccountId;
     /// The role type of this node. Jobs queried will be filtered by this role type

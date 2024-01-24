@@ -4,7 +4,7 @@ use bytes::Bytes;
 use gadget_common::client::{AccountId, ClientWithApi};
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::network::Network;
-use gadget_common::gadget::work_manager::WebbWorkManager;
+use gadget_common::gadget::work_manager::WorkManager;
 use gadget_core::job_manager::WorkManagerInterface;
 use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
 use sc_client_api::Backend;
@@ -16,10 +16,10 @@ use std::marker::PhantomData;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 pub struct ZkAsyncProtocolParameters<B, N, C, Bl, BE> {
-    pub associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-    pub associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
-    pub associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-    pub associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+    pub associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    pub associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    pub associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    pub associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     pub(crate) rxs: HashMap<u32, Vec<tokio::sync::Mutex<UnboundedReceiver<MpcNetMessage>>>>,
     pub party_id: u32,
     pub n_parties: usize,

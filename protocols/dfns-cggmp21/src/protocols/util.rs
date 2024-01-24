@@ -6,7 +6,7 @@ use futures::{Stream, StreamExt};
 use gadget_common::client::AccountId;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
-use gadget_common::gadget::work_manager::WebbWorkManager;
+use gadget_common::gadget::work_manager::WorkManager;
 use gadget_core::job_manager::WorkManagerInterface;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -293,10 +293,10 @@ pub(crate) fn create_job_manager_to_async_protocol_channel_split<
     M: Serialize + DeserializeOwned + Send + 'static,
 >(
     mut rx_gadget: CloneableUnboundedReceiver<GadgetProtocolMessage>,
-    associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-    associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
-    associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-    associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     user_id_mapping: Arc<HashMap<UserID, AccountId>>,
     my_account_id: AccountId,
     network: N,
