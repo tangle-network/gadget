@@ -30,6 +30,7 @@
             pkgs.pkg-config
             pkgs.clang
             pkgs.gmp
+            pkgs.om4
             # Protocol Buffers
             pkgs.protobuf
             # Mold Linker for faster builds (only on Linux)

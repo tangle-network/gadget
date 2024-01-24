@@ -46,16 +46,18 @@ use gadget_common::locks::TokioMutexExt;
 use gadget_common::Error;
 use gadget_core::job_manager::WorkManagerInterface;
 use sp_core::ecdsa;
-use sp_io::crypto::ecdsa_generate;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
 use tangle_primitives::jobs::traits::{JobToFee, MPCHandler};
 use tangle_primitives::jobs::{
-    JobId, JobSubmission, JobType, JobWithResult, PhaseResult, ReportValidatorOffence,
+    JobId, JobResult, JobSubmission, JobType, JobWithResult, PhaseResult, ReportValidatorOffence,
     RpcResponseJobsData, ValidatorOffenceType,
 };
 use tangle_primitives::roles::traits::RolesHandler;
 use tangle_primitives::roles::RoleType;
+use tangle_primitives::verifier::{
+    arkworks::ArkworksVerifierGroth16Bn254, circom::CircomVerifierGroth16Bn254,
+};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 /// Key type for DKG keys
@@ -112,46 +114,17 @@ impl pallet_timestamp::Config for Runtime {
     type WeightInfo = ();
 }
 
-pub struct MockDKGPallet;
+pub struct JobToFeeHandler;
 
-impl MockDKGPallet {
-    fn job_to_fee(job: &JobSubmission<AccountId, BlockNumber>) -> Balance {
-        if job.job_type.is_phase_one() {
-            job.job_type
-                .clone()
-                .get_participants()
-                .unwrap()
-                .len()
-                .try_into()
-                .unwrap()
-        } else {
-            20
-        }
-    }
-}
-
-pub struct MockZkSaasPallet;
-impl MockZkSaasPallet {
-    fn job_to_fee(job: &JobSubmission<AccountId, BlockNumber>) -> Balance {
-        if job.job_type.is_phase_one() {
-            10
-        } else {
-            20
-        }
-    }
-}
-
-pub struct MockJobToFeeHandler;
-
-impl JobToFee<AccountId, BlockNumber> for MockJobToFeeHandler {
+impl JobToFee<AccountId, BlockNumber> for JobToFeeHandler {
     type Balance = Balance;
 
     fn job_to_fee(job: &JobSubmission<AccountId, BlockNumber>) -> Balance {
         match job.job_type {
-            JobType::DKGTSSPhaseOne(_) => MockDKGPallet::job_to_fee(job),
-            JobType::DKGTSSPhaseTwo(_) => MockDKGPallet::job_to_fee(job),
-            JobType::ZkSaaSPhaseOne(_) => MockZkSaasPallet::job_to_fee(job),
-            JobType::ZkSaaSPhaseTwo(_) => MockZkSaasPallet::job_to_fee(job),
+            JobType::DKGTSSPhaseOne(_) => Dkg::job_to_fee(job),
+            JobType::DKGTSSPhaseTwo(_) => Dkg::job_to_fee(job),
+            JobType::ZkSaaSPhaseOne(_) => ZkSaaS::job_to_fee(job),
+            JobType::ZkSaaSPhaseTwo(_) => ZkSaaS::job_to_fee(job),
         }
     }
 }
@@ -169,20 +142,27 @@ impl RolesHandler<AccountId> for MockRolesHandler {
     }
 
     fn get_validator_role_key(address: AccountId) -> Option<Vec<u8>> {
-        let validators = (0..8).map(id_to_public).collect::<Vec<_>>();
-        if validators.contains(&address) {
-            Some(mock_pub_key().to_raw_vec())
-        } else {
-            None
-        }
+        let validators = (0..8).map(id_to_pair).collect::<Vec<_>>();
+        validators.iter().find_map(|p| {
+            if p.public() == address {
+                Some(p.public().to_raw_vec())
+            } else {
+                None
+            }
+        })
     }
 }
 
 pub struct MockMPCHandler;
 
 impl MPCHandler<AccountId, BlockNumber, Balance> for MockMPCHandler {
-    fn verify(_data: JobWithResult<AccountId>) -> DispatchResult {
-        Ok(())
+    fn verify(data: JobWithResult<AccountId>) -> DispatchResult {
+        match data.result {
+            JobResult::DKGPhaseOne(_) => Dkg::verify(data.result),
+            JobResult::DKGPhaseTwo(_) => Dkg::verify(data.result),
+            JobResult::ZkSaaSPhaseOne(_) => ZkSaaS::verify(data),
+            JobResult::ZkSaaSPhaseTwo(_) => ZkSaaS::verify(data),
+        }
     }
 
     fn verify_validator_report(
@@ -205,11 +185,27 @@ parameter_types! {
 impl pallet_jobs::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
-    type JobToFee = MockJobToFeeHandler;
+    type JobToFee = JobToFeeHandler;
     type RolesHandler = MockRolesHandler;
     type MPCHandler = MockMPCHandler;
     type ForceOrigin = EnsureSigned<AccountId>;
     type PalletId = JobsPalletId;
+    type WeightInfo = ();
+}
+
+impl pallet_dkg::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+    type UpdateOrigin = EnsureSigned<AccountId>;
+    type WeightInfo = ();
+}
+
+impl pallet_zksaas::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+
+    type UpdateOrigin = EnsureSigned<AccountId>;
+    type Verifier = (ArkworksVerifierGroth16Bn254, CircomVerifierGroth16Bn254);
     type WeightInfo = ();
 }
 
@@ -220,6 +216,8 @@ construct_runtime!(
         Timestamp: pallet_timestamp,
         Balances: pallet_balances,
         Jobs: pallet_jobs,
+        Dkg: pallet_dkg,
+        ZkSaaS: pallet_zksaas,
     }
 );
 
@@ -269,7 +267,7 @@ impl ProvideRuntimeApi<Block> for Runtime {
 }
 
 pub fn id_to_pair(id: u8) -> ecdsa::Pair {
-    ecdsa::Pair::from_string(&format!("//{id}//password"), None).unwrap()
+    ecdsa::Pair::from_string(&format!("//Alice///{id}"), None).expect("static values are valid")
 }
 
 pub fn id_to_public(id: u8) -> ecdsa::Public {
@@ -530,10 +528,6 @@ where
     ext
 }
 
-fn mock_pub_key() -> ecdsa::Public {
-    ecdsa_generate(KEY_TYPE, None)
-}
-
 pub mod mock_wrapper_client {
     use crate::mock::RuntimeOrigin;
     use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
@@ -671,9 +665,9 @@ pub mod mock_wrapper_client {
             self.ext
                 .execute_with_async(move || {
                     let origin = RuntimeOrigin::signed(id);
-                    if let Err(err) =
-                        crate::mock::Jobs::submit_job_result(origin, role_type, job_id, result)
-                    {
+                    let res =
+                        crate::mock::Jobs::submit_job_result(origin, role_type, job_id, result);
+                    if let Err(err) = res {
                         let err = format!("Pallet tx error: {err:?}");
                         if err.contains("JobNotFound") {
                             // Job has already been submitted (assumption only for tests)

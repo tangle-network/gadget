@@ -2,33 +2,38 @@ use async_trait::async_trait;
 use parking_lot::RwLock;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use sp_core::ecdsa::Pair;
+use sp_core::ecdsa::Pair as EcdsaPair;
+use sp_core::sr25519::Pair as Sr25519Pair;
+use sp_core::Pair;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::JobId;
 
+pub type ECDSAKeyStore<BE> = GenericKeyStore<BE, EcdsaPair>;
+pub type Sr25519KeyStore<BE> = GenericKeyStore<BE, Sr25519Pair>;
+
 #[derive(Clone)]
-pub struct ECDSAKeyStore<BE: KeystoreBackend> {
+pub struct GenericKeyStore<BE: KeystoreBackend, P: Pair> {
     backend: BE,
-    pair: Pair,
+    pair: P,
 }
 
-impl ECDSAKeyStore<InMemoryBackend> {
-    pub fn in_memory(pair: Pair) -> Self {
-        ECDSAKeyStore {
+impl<P: Pair> GenericKeyStore<InMemoryBackend, P> {
+    pub fn in_memory(pair: P) -> Self {
+        GenericKeyStore {
             backend: InMemoryBackend::new(),
             pair,
         }
     }
 }
 
-impl<BE: KeystoreBackend> ECDSAKeyStore<BE> {
-    pub fn pair(&self) -> &Pair {
+impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
+    pub fn pair(&self) -> &P {
         &self.pair
     }
 }
 
-impl<BE: KeystoreBackend> ECDSAKeyStore<BE> {
+impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
     pub async fn get<T: DeserializeOwned>(
         &self,
         job_id: &JobId,

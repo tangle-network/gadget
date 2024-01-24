@@ -1,19 +1,16 @@
 [package]
-name = "mp-ecdsa-protocol"
+name = "dfns-cggmp21-protocol"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
 gadget-common = { workspace = true }
 gadget-core = { workspace = true }
-async-trait = { workspace = true }
 protocol-macros = { workspace = true }
+async-trait = { workspace = true }
 log = { workspace = true }
-multi-party-ecdsa = { workspace = true }
-round-based = { workspace = true }
+dfns-cggmp21 = { workspace = true, features = ["all-curves"] }
 curv = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
@@ -35,6 +32,8 @@ frame-support = { workspace = true  }
 parity-scale-codec = { workspace = true }
 
 serde = { version = "1.0.193", features = ["derive"] }
+rand = { workspace = true }
+hex = { workspace = true }
 
 [dev-dependencies]
 test-utils = { workspace = true }
