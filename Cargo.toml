@@ -20,6 +20,7 @@ mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
 stub-protocol = { path = "./protocols/stub" }
 test-utils = { path = "./test-utils" }
 protocol-macros = { path = "./protocol-macros" }
+dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
 
 pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle" }
 pallet-jobs = { git = "https://github.com/webb-tools/tangle" }

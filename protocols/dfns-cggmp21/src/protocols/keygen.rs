@@ -116,7 +116,7 @@ where
     }
 
     fn role_type(&self) -> RoleType {
-        RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP)
+        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
     }
 
     async fn process_block_import_notification(

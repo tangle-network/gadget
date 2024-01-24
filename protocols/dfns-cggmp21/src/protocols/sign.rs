@@ -123,7 +123,7 @@ where
                 t: threshold,
                 signers,
                 job_id,
-                role_type: RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP),
+                role_type: RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1),
                 key,
                 input_data_to_sign,
                 user_id_to_account_id_mapping,
@@ -161,7 +161,7 @@ where
     }
 
     fn role_type(&self) -> RoleType {
-        RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP)
+        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
     }
 
     fn is_phase_one(&self) -> bool {
