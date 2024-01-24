@@ -77,7 +77,7 @@ mod tests {
                         participants: identities.clone(),
                         threshold: T as _,
                         permitted_caller: None,
-                        role_type: ThresholdSignatureRoleType::TssCGGMP,
+                        role_type: ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
                     }),
                 };
 
@@ -90,7 +90,7 @@ mod tests {
 
         test_utils::wait_for_job_completion(
             ext,
-            RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP),
+            RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1),
             job_id,
         )
         .await;
@@ -112,7 +112,7 @@ mod tests {
                     job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
                         phase_one_id: keygen_job_id,
                         submission,
-                        role_type: ThresholdSignatureRoleType::TssCGGMP,
+                        role_type: ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
                     }),
                 };
 
@@ -125,7 +125,7 @@ mod tests {
 
         test_utils::wait_for_job_completion(
             ext,
-            RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP),
+            RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1),
             job_id,
         )
         .await;

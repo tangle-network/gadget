@@ -161,7 +161,7 @@ where
     }
 
     fn role_type(&self) -> RoleType {
-        RoleType::Tss(ThresholdSignatureRoleType::TssGG20)
+        RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1)
     }
 
     fn is_phase_one(&self) -> bool {
