@@ -7,6 +7,7 @@ edition = "2021"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
 gadget-common = { workspace = true }
 gadget-core = { workspace = true }
+protocol-macros = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
 dfns-cggmp21 = { workspace = true, features = ["all-curves"] }

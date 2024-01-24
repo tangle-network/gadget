@@ -1,8 +1,6 @@
-// Constants for dkg-gadget
-
 // ================= Common ======================== //
-pub const DKG_KEYGEN_PROTOCOL_NAME: &str = "/webb-tools/dkg/keygen/1";
-pub const DKG_SIGNING_PROTOCOL_NAME: &str = "/webb-tools/dkg/signing/1";
+pub const MP_ECDSA_KEYGEN_PROTOCOL_NAME: &str = "/tangle/mp-ecdsa/keygen/1";
+pub const MP_ECDSA_SIGNING_PROTOCOL_NAME: &str = "/tangle/mp-ecdsa/signing/1";
 
 // ============= Signing Protocol ======================= //
 

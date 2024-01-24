@@ -1,4 +1,3 @@
-use crate::DfnsCGGMP21ProtocolConfig;
 use async_trait::async_trait;
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
@@ -7,10 +6,10 @@ use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::gadget::{Job, WebbGadgetProtocol, WorkManagerConfig};
+use gadget_common::gadget::{JobInitMetadata, WebbGadgetProtocol, WorkManagerConfig};
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
-use gadget_common::{Block, BlockImportNotification, FinalityNotification};
+use gadget_common::{Block, BlockImportNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use pallet_jobs_rpc_runtime_api::JobsApi;
@@ -35,7 +34,7 @@ pub struct DfnsCGGMP21SigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> 
 }
 
 pub async fn create_protocol<B, BE, KBE, C, N>(
-    config: &DfnsCGGMP21ProtocolConfig,
+    account_id: AccountId,
     logger: DebugLogger,
     client: JobsClient<B, BE, C>,
     network: N,
@@ -54,7 +53,7 @@ where
         network,
         key_store,
         logger,
-        account_id: config.account_id,
+        account_id,
     }
 }
 
@@ -65,119 +64,80 @@ impl<
         C: ClientWithApi<B, BE>,
         KBE: KeystoreBackend,
         N: Network,
-    > WebbGadgetProtocol<B> for DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
+    > WebbGadgetProtocol<B, BE, C> for DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    async fn get_next_jobs(
+    async fn create_next_job(
         &self,
-        notification: &FinalityNotification<B>,
-        now: u64,
-        job_manager: &ProtocolWorkManager<WebbWorkManager>,
-    ) -> Result<Option<Vec<Job>>, gadget_common::Error> {
-        let jobs = self
-            .client
-            .query_jobs_by_validator(notification.hash, self.account_id)
-            .await?;
+        job: JobInitMetadata,
+    ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
+        let job_id = job.job_id;
 
-        let mut ret = vec![];
+        let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
+            panic!("Should be valid type")
+        };
+        let input_data_to_sign = p2_job.submission;
+        let previous_job_id = p2_job.phase_one_id;
 
-        for job in jobs {
-            let job_id = job.job_id;
-            let role_type = job.job_type.get_role_type();
+        let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
+        let participants = phase1_job.clone().get_participants().expect("Should exist");
+        let threshold = phase1_job.get_threshold().expect("Should exist") as u16;
 
-            if let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type {
-                if p2_job.role_type != ThresholdSignatureRoleType::TssCGGMP {
-                    continue;
-                }
-                let input_data_to_sign = p2_job.submission;
-                let previous_job_id = p2_job.phase_one_id;
+        let i = participants
+            .iter()
+            .position(|p| p == &self.account_id)
+            .expect("Should exist") as u16;
+        // TODO: decide how we will pick the signers.
+        // For now, we will just pick the first t participants.
+        let signers = participants
+            .iter()
+            .enumerate()
+            .take(threshold as usize)
+            .map(|(i, _)| i as u16)
+            .collect::<Vec<_>>();
 
-                let phase1_job = self
-                    .client
-                    .query_job_result(notification.hash, role_type, previous_job_id)
-                    .await?
-                    .ok_or_else(|| gadget_common::Error::ClientError {
-                        err: format!("Corresponding phase one job {previous_job_id} not found for phase two job {job_id}"),
-                    })?;
+        let key = self
+            .key_store
+            .get(&previous_job_id)
+            .await
+            .map_err(|err| gadget_common::Error::ClientError {
+                err: err.to_string(),
+            })?
+            .ok_or_else(|| gadget_common::Error::ClientError {
+                err: format!("No key found for job ID: {job_id:?}"),
+            })?;
 
-                let participants = phase1_job
-                    .job_type
+        if participants.contains(&self.account_id) && signers.contains(&i) {
+            let user_id_to_account_id_mapping = Arc::new(
+                participants
                     .clone()
-                    .get_participants()
-                    .expect("Should exist for stage 1 signing");
-                let threshold = phase1_job
-                    .job_type
-                    .get_threshold()
-                    .expect("T should exist for stage 1 signing")
-                    as u16;
-                let i = participants
-                    .iter()
-                    .position(|p| p == &self.account_id)
-                    .expect("Should exist") as u16;
-                // TODO: decide how we will pick the signers.
-                // For now, we will just pick the first t participants.
-                let signers = participants
-                    .iter()
+                    .into_iter()
                     .enumerate()
-                    .take(threshold as usize)
-                    .map(|(i, _)| i as u16)
-                    .collect::<Vec<_>>();
+                    .map(|r| (r.0 as UserID, r.1))
+                    .collect(),
+            );
 
-                if participants.contains(&self.account_id) && signers.contains(&i) {
-                    let task_id = job_id.to_be_bytes();
-                    let task_id = keccak_256(&task_id);
-                    let session_id = 0; // We are not interested in sessions for the ECDSA protocol
-                                        // For the retry ID, get the latest retry and increment by 1 to set the next retry ID
-                                        // If no retry ID exists, it means the job is new, thus, set the retry_id to 0
-                    let retry_id = job_manager
-                        .latest_retry_id(&task_id)
-                        .map(|r| r + 1)
-                        .unwrap_or(0);
-
-                    if let Some(key) =
-                        self.key_store.get(&previous_job_id).await.map_err(|err| {
-                            gadget_common::Error::ClientError {
-                                err: err.to_string(),
-                            }
-                        })?
-                    {
-                        let user_id_to_account_id_mapping = Arc::new(
-                            participants
-                                .clone()
-                                .into_iter()
-                                .enumerate()
-                                .map(|r| (r.0 as UserID, r.1))
-                                .collect(),
-                        );
-
-                        let additional_params = DfnsCGGMP21SigningExtraParams {
-                            i,
-                            t: threshold,
-                            signers,
-                            job_id,
-                            role_type,
-                            key,
-                            input_data_to_sign,
-                            user_id_to_account_id_mapping,
-                        };
-
-                        let job = self
-                            .create(session_id, now, retry_id, task_id, additional_params)
-                            .await?;
-
-                        ret.push(job);
-                    } else {
-                        self.logger.warn(format!(
-                            "No key found for job ID: {job_id:?}",
-                            job_id = job.job_id
-                        ));
-                    }
-                }
-            }
+            let params = DfnsCGGMP21SigningExtraParams {
+                i,
+                t: threshold,
+                signers,
+                job_id,
+                role_type: RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP),
+                key,
+                input_data_to_sign,
+                user_id_to_account_id_mapping,
+            };
+            Ok(params)
+        } else {
+            Err(gadget_common::Error::ClientError {
+                err: format!(
+                    "Account ID {account_id:?} is not a participant or signer for job {job_id:?}",
+                    account_id = self.account_id,
+                    job_id = job_id
+                ),
+            })
         }
-
-        Ok(Some(ret))
     }
 
     async fn process_block_import_notification(
@@ -194,6 +154,22 @@ where
         _job_manager: &ProtocolWorkManager<WebbWorkManager>,
     ) {
         log::error!(target: "gadget", "Error: {error:?}");
+    }
+
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
+    }
+
+    fn role_type(&self) -> RoleType {
+        RoleType::Tss(ThresholdSignatureRoleType::TssCGGMP)
+    }
+
+    fn is_phase_one(&self) -> bool {
+        false
+    }
+
+    fn client(&self) -> &JobsClient<B, BE, C> {
+        &self.client
     }
 
     fn logger(&self) -> &DebugLogger {

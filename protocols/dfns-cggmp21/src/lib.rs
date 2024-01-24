@@ -1,8 +1,12 @@
-use gadget_common::client::{AccountId, ClientWithApi, PalletSubmitter};
+use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
+use gadget_common::config::NetworkAndProtocolSetup;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::network::Network;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use pallet_jobs_rpc_runtime_api::JobsApi;
+use protocol_macros::protocol;
+use protocols::keygen::DfnsCGGMP21KeygenProtocol;
+use protocols::sign::DfnsCGGMP21SigningProtocol;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::Block;
@@ -13,83 +17,128 @@ pub mod error;
 pub mod protocols;
 pub mod util;
 
-#[derive(Clone)]
-pub struct DfnsCGGMP21ProtocolConfig {
+#[protocol]
+pub struct DfnsCGGMP21KeygenProtocolConfig<
+    N: Network,
+    B: Block,
+    BE: Backend<B>,
+    KBE: KeystoreBackend,
+    C: ClientWithApi<B, BE>,
+> where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
     pub account_id: AccountId,
+    pub network: N,
+    pub keystore_backend: ECDSAKeyStore<KBE>,
+    pub client: C,
+    pub logger: DebugLogger,
+    pub pallet_tx: Arc<dyn PalletSubmitter>,
+    pub _pd: std::marker::PhantomData<(B, BE)>,
 }
 
-pub async fn run_keygen<B, BE, KBE, C, N>(
-    config: &DfnsCGGMP21ProtocolConfig,
-    client_inner: C,
-    logger: DebugLogger,
-    keystore: ECDSAKeyStore<KBE>,
-    network: N,
-    pallet_tx: Arc<dyn PalletSubmitter>,
-) -> Result<(), gadget_common::Error>
-where
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    KBE: KeystoreBackend,
+#[protocol]
+pub struct DfnsCGGMP21SigningProtocolConfig<
     N: Network,
+    B: Block,
+    BE: Backend<B>,
+    KBE: KeystoreBackend,
+    C: ClientWithApi<B, BE>,
+> where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    logger.info("Starting keygen protocol");
-
-    let client_inner = Arc::new(client_inner);
-    let client =
-        gadget_common::client::create_client(client_inner.clone(), logger.clone(), pallet_tx)
-            .await?;
-    let protocol = protocols::keygen::create_protocol(
-        config,
-        client,
-        network.clone(),
-        logger.clone(),
-        keystore,
-    )
-    .await;
-
-    logger.info("Done creating keygen protocol");
-
-    gadget_common::run_protocol(network, protocol, client_inner).await?;
-    Ok(())
+    pub account_id: AccountId,
+    pub network: N,
+    pub keystore_backend: ECDSAKeyStore<KBE>,
+    pub client: C,
+    pub logger: DebugLogger,
+    pub pallet_tx: Arc<dyn PalletSubmitter>,
+    pub _pd: std::marker::PhantomData<(B, BE)>,
 }
 
-pub async fn run_sign<B, BE, KBE, C, N>(
-    config: &DfnsCGGMP21ProtocolConfig,
-    client_inner: C,
-    logger: DebugLogger,
-    keystore: ECDSAKeyStore<KBE>,
-    network: N,
-    pallet_tx: Arc<dyn PalletSubmitter>,
-) -> Result<(), gadget_common::Error>
+#[async_trait::async_trait]
+impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>>
+    NetworkAndProtocolSetup for DfnsCGGMP21KeygenProtocolConfig<N, B, BE, KBE, C>
 where
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    KBE: KeystoreBackend,
-    N: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    logger.info("Starting sign protocol");
+    type Network = N;
+    type Protocol = DfnsCGGMP21KeygenProtocol<B, BE, KBE, C, N>;
+    type Client = C;
+    type Block = B;
+    type Backend = BE;
 
-    let client_inner = Arc::new(client_inner);
-    let client =
-        gadget_common::client::create_client(client_inner.clone(), logger.clone(), pallet_tx)
-            .await?;
-    let protocol =
-        protocols::sign::create_protocol(config, logger.clone(), client, network.clone(), keystore)
-            .await;
+    async fn build_network_and_protocol(
+        &self,
+        jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
+    ) -> Result<(Self::Network, Self::Protocol), gadget_common::Error> {
+        let protocol = protocols::keygen::create_protocol(
+            self.account_id,
+            jobs_client,
+            self.network.clone(),
+            self.logger.clone(),
+            self.keystore_backend.clone(),
+        )
+        .await;
 
-    logger.info("Done creating sign protocol");
+        Ok((self.network.clone(), protocol))
+    }
 
-    gadget_common::run_protocol(network, protocol, client_inner).await?;
-    Ok(())
+    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
+        self.pallet_tx.clone()
+    }
+
+    fn logger(&self) -> DebugLogger {
+        self.logger.clone()
+    }
+
+    fn client(&self) -> Self::Client {
+        self.client.clone()
+    }
+}
+
+#[async_trait::async_trait]
+impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>>
+    NetworkAndProtocolSetup for DfnsCGGMP21SigningProtocolConfig<N, B, BE, KBE, C>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+{
+    type Network = N;
+    type Protocol = DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>;
+    type Client = C;
+    type Block = B;
+    type Backend = BE;
+
+    async fn build_network_and_protocol(
+        &self,
+        jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
+    ) -> Result<(Self::Network, Self::Protocol), gadget_common::Error> {
+        let protocol = protocols::sign::create_protocol(
+            self.account_id,
+            self.logger.clone(),
+            jobs_client,
+            self.network.clone(),
+            self.keystore_backend.clone(),
+        )
+        .await;
+        Ok((self.network.clone(), protocol))
+    }
+
+    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
+        self.pallet_tx.clone()
+    }
+
+    fn logger(&self) -> DebugLogger {
+        self.logger.clone()
+    }
+
+    fn client(&self) -> Self::Client {
+        self.client.clone()
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
 pub async fn run<B, BE, KBE, C, N, N2, Tx>(
-    config: DfnsCGGMP21ProtocolConfig,
+    account_id: AccountId,
     client_keygen: C,
     client_signing: C,
     logger: DebugLogger,
@@ -109,23 +158,28 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     let pallet_tx = Arc::new(pallet_tx) as Arc<dyn PalletSubmitter>;
-    let keygen_future = run_keygen(
-        &config,
-        client_keygen,
-        logger.clone(),
-        keystore.clone(),
-        network_keygen,
-        pallet_tx.clone(),
-    );
+    let keygen_config = DfnsCGGMP21KeygenProtocolConfig {
+        account_id,
+        network: network_keygen,
+        keystore_backend: keystore.clone(),
+        client: client_keygen,
+        logger: logger.clone(),
+        pallet_tx: pallet_tx.clone(),
+        _pd: std::marker::PhantomData,
+    };
 
-    let sign_future = run_sign(
-        &config,
-        client_signing,
+    let sign_config = DfnsCGGMP21SigningProtocolConfig {
+        account_id,
+        network: network_signing,
+        keystore_backend: keystore,
+        client: client_signing,
         logger,
-        keystore,
-        network_signing,
-        pallet_tx,
-    );
+        pallet_tx: pallet_tx.clone(),
+        _pd: std::marker::PhantomData,
+    };
+
+    let keygen_future = keygen_config.execute();
+    let sign_future = sign_config.execute();
 
     tokio::select! {
         res0 = keygen_future => res0,

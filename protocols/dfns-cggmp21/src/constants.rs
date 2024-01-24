@@ -1,6 +1,6 @@
 // ================= Common ======================== //
-pub const DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME: &str = "/webb-tools/dfns-cggmp21/keygen/1";
-pub const DFNS_CGGMP21_SIGNING_PROTOCOL_NAME: &str = "/webb-tools/dfns-cggmp21/signing/1";
+pub const DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME: &str = "/tangle/dfns-cggmp21/keygen/1";
+pub const DFNS_CGGMP21_SIGNING_PROTOCOL_NAME: &str = "/tangle/dfns-cggmp21/signing/1";
 
 // ============= Signing Protocol ======================= //
 
