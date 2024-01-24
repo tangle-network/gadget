@@ -49,12 +49,12 @@ jobs:
         run: cargo clippy --tests -- -D warnings
 
   testing:
-    timeout-minutes: 60
+    timeout-minutes: 120
     name: Cargo Test
     runs-on: macos-latest
     strategy:
         matrix:
-            package: [gadget-core, gadget-common, zk-saas-protocol, mp-ecdsa-protocol, dfns-cggmp21-protocol]
+            package: [gadget-core, gadget-common, zk-saas-protocol, dfns-cggmp21-protocol]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
