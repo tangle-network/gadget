@@ -4,8 +4,8 @@ use gadget_core::job_manager::WorkManagerInterface;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-pub struct WebbWorkManager {
-    pub(crate) clock: Arc<RwLock<Option<<WebbWorkManager as WorkManagerInterface>::Clock>>>,
+pub struct WorkManager {
+    pub(crate) clock: Arc<RwLock<Option<<WorkManager as WorkManagerInterface>::Clock>>>,
     pub(crate) logger: DebugLogger,
 }
 
@@ -13,7 +13,7 @@ pub struct WebbWorkManager {
 /// of this range will be rejected by the work manager
 const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 20;
 
-impl WorkManagerInterface for WebbWorkManager {
+impl WorkManagerInterface for WorkManager {
     type RetryID = u16;
     type UserID = UserID;
     type Clock = u64;

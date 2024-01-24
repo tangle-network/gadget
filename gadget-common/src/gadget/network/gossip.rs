@@ -44,7 +44,7 @@ use crate::client::AccountId;
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::network::Network;
-use crate::gadget::work_manager::WebbWorkManager;
+use crate::gadget::work_manager::WorkManager;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use crate::Error;
 use async_trait::async_trait;
@@ -220,7 +220,7 @@ pub struct GossipHandlerController {
 impl Network for GossipHandlerController {
     async fn next_message(
         &self,
-    ) -> Option<<WebbWorkManager as WorkManagerInterface>::ProtocolMessage> {
+    ) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         loop {
             let message = self
                 .message_notifications_channel
@@ -242,7 +242,7 @@ impl Network for GossipHandlerController {
 
     async fn send_message(
         &self,
-        message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
+        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
         // Make sure that we programmed-in the account IDs
         let _ = message.from_network_id.ok_or_else(|| Error::NetworkError {

@@ -2,7 +2,7 @@ use crate::client::{create_client, JobsClient, PalletSubmitter};
 pub use crate::client::{AccountId, ClientWithApi};
 pub use crate::debug_logger::DebugLogger;
 pub use crate::gadget::network::Network;
-pub use crate::gadget::WebbGadgetProtocol;
+pub use crate::gadget::GadgetProtocol;
 use async_trait::async_trait;
 pub use pallet_jobs_rpc_runtime_api::JobsApi;
 pub use sc_client_api::Backend;
@@ -17,7 +17,7 @@ where
     Self: Sized,
 {
     type Network: Network;
-    type Protocol: WebbGadgetProtocol<
+    type Protocol: GadgetProtocol<
         <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block,
         <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Backend,
         <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client

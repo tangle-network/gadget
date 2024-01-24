@@ -25,7 +25,7 @@ where
 
 #### Step 3: Create a `StubNetwork` struct, and implement `Network` and `Clone` for it
 
-#### Step 4: Create a `StubProtocol` struct, and implement `WebbGadgetProtocol` and `AsyncProtocol` for it
+#### Step 4: Create a `StubProtocol` struct, and implement `GadgetProtocol` and `AsyncProtocol` for it
 
 #### Step 5: Implement `NetworkAndProtocolSetup` for `StubConfig`, passing in `StubNetwork` as the network and `StubProtocol` as the protocol
 

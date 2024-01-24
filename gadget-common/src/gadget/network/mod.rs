@@ -1,4 +1,4 @@
-use crate::gadget::work_manager::WebbWorkManager;
+use crate::gadget::work_manager::WorkManager;
 use crate::Error;
 use async_trait::async_trait;
 use gadget_core::job_manager::WorkManagerInterface;
@@ -9,10 +9,10 @@ pub mod gossip;
 pub trait Network: Send + Sync + Clone + 'static {
     async fn next_message(
         &self,
-    ) -> Option<<WebbWorkManager as WorkManagerInterface>::ProtocolMessage>;
+    ) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage>;
     async fn send_message(
         &self,
-        message: <WebbWorkManager as WorkManagerInterface>::ProtocolMessage,
+        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error>;
 
     /// If the network implementation requires a custom runtime, this function

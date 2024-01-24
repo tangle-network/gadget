@@ -7,8 +7,8 @@ use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
-use gadget_common::gadget::work_manager::WebbWorkManager;
-use gadget_common::gadget::{JobInitMetadata, WebbGadgetProtocol, WorkManagerConfig};
+use gadget_common::gadget::work_manager::WorkManager;
+use gadget_common::gadget::{JobInitMetadata, GadgetProtocol, WorkManagerConfig};
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification};
@@ -39,7 +39,7 @@ pub struct MpEcdsaKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
     round_blames: Arc<
         RwLock<
             HashMap<
-                <WebbWorkManager as WorkManagerInterface>::TaskID,
+                <WorkManager as WorkManagerInterface>::TaskID,
                 tokio::sync::watch::Receiver<CurrentRoundBlame>,
             >,
         >,
@@ -80,7 +80,7 @@ impl<
         C: ClientWithApi<B, BE>,
         KBE: KeystoreBackend,
         N: Network,
-    > WebbGadgetProtocol<B, BE, C> for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
+    > GadgetProtocol<B, BE, C> for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -130,7 +130,7 @@ where
     async fn process_block_import_notification(
         &self,
         _notification: BlockImportNotification<B>,
-        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
+        _job_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<(), gadget_common::Error> {
         Ok(())
     }
@@ -138,7 +138,7 @@ where
     async fn process_error(
         &self,
         error: gadget_common::Error,
-        _job_manager: &ProtocolWorkManager<WebbWorkManager>,
+        _job_manager: &ProtocolWorkManager<WorkManager>,
     ) {
         log::error!(target: "mp-ecdsa", "Error: {error:?}");
     }
@@ -195,10 +195,10 @@ where
     type AdditionalParams = MpEcdsaKeygenExtraParams;
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <WebbWorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <WebbWorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <WebbWorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <WebbWorkManager as WorkManagerInterface>::TaskID,
+        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
         protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
