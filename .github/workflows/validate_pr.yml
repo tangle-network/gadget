@@ -51,6 +51,9 @@ jobs:
   testing:
     name: Cargo Test
     runs-on: macos-latest
+    strategy:
+        matrix:
+            package: [gadget-core, gadget-common, zk-saas-protocol, mp-ecdsa-protocol, dfns-cggmp21-protocol]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
@@ -70,4 +73,4 @@ jobs:
           locked: true
 
       - name: Run Tests
-        run: cargo nextest run --test-threads=1
+        run: cargo nextest run --test-threads=1 --package ${{ matrix.package }}
