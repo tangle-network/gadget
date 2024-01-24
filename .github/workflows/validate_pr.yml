@@ -49,8 +49,12 @@ jobs:
         run: cargo clippy --tests -- -D warnings
 
   testing:
+    timeout-minutes: 120
     name: Cargo Test
     runs-on: macos-latest
+    strategy:
+        matrix:
+            package: [gadget-core, gadget-common, zk-saas-protocol, dfns-cggmp21-protocol]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
@@ -64,10 +68,7 @@ jobs:
         run: brew install protobuf
 
       - name: Install cargo-nextest
-        uses: baptiste0928/cargo-install@v1
-        with:
-          crate: cargo-nextest
-          locked: true
+        run: cargo install cargo-nextest --locked
 
       - name: Run Tests
-        run: cargo nextest run --test-threads=1
+        run: cargo nextest run --release --nocapture --package ${{ matrix.package }}
