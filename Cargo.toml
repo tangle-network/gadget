@@ -7,7 +7,9 @@ members = [
     "protocols/mp-ecdsa",
     "protocols/dfns-cggmp21",
     "protocols/zk-saas",
-    "test-utils"
+    "protocols/stub",
+    "test-utils",
+    "protocol-macros"
 ]
 
 [workspace.dependencies]
@@ -15,7 +17,9 @@ gadget-core = { path = "./gadget-core" }
 gadget-common = { path = "./gadget-common" }
 zk-saas-protocol = { path = "./protocols/zk-saas" }
 mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
+stub-protocol = { path = "./protocols/stub" }
 test-utils = { path = "./test-utils" }
+protocol-macros = { path = "./protocol-macros" }
 
 pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle" }
 pallet-jobs = { git = "https://github.com/webb-tools/tangle" }
@@ -78,10 +82,10 @@ frame-executive = { git = "https://github.com/paritytech/polkadot-sdk", branch =
 pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
 pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
 
-mpc-net = { git = "https://github.com/webb-tools/zk-SaaS/" }
-dist-primitives = { git = "https://github.com/webb-tools/zk-SaaS/" }
-secret-sharing = { git = "https://github.com/webb-tools/zk-SaaS/" }
-groth16 = { git = "https://github.com/webb-tools/zk-SaaS/" }
+mpc-net = { git = "https://github.com/webb-tools/zk-SaaS/", rev = "769c49ad6cc98308da35db2e4e0752cbaacc3aa0" }
+dist-primitives = { git = "https://github.com/webb-tools/zk-SaaS/", rev = "769c49ad6cc98308da35db2e4e0752cbaacc3aa0" }
+secret-sharing = { git = "https://github.com/webb-tools/zk-SaaS/", rev = "769c49ad6cc98308da35db2e4e0752cbaacc3aa0" }
+groth16 = { git = "https://github.com/webb-tools/zk-SaaS/", rev = "769c49ad6cc98308da35db2e4e0752cbaacc3aa0" }
 
 # ARK Libraries
 ark-std = { version = "0.4.0", default-features = false, features = [ "print-trace", "std" ] }

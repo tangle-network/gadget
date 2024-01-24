@@ -2,7 +2,6 @@
 mod tests {
     use futures::stream::FuturesUnordered;
     use futures::StreamExt;
-    use mp_ecdsa_protocol::MpEcdsaProtocolConfig;
     use tangle_primitives::jobs::{
         DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
     };
@@ -140,15 +139,13 @@ mod tests {
             let keygen_network = node_input.mock_networks.pop().expect("No keygen network");
             let signing_network = node_input.mock_networks.pop().expect("No signing network");
 
-            let config = MpEcdsaProtocolConfig {
-                account_id: node_input.account_id,
-            };
+            let account_id = node_input.account_id;
 
             let logger = node_input.logger.clone();
             let (pallet_tx, keystore) = (node_input.pallet_tx, node_input.keystore);
             logger.info("Starting gadget");
             if let Err(err) = mp_ecdsa_protocol::run::<_, MockBackend, _, _, _, _, _>(
-                config,
+                account_id,
                 keygen_client,
                 signing_client,
                 logger.clone(),

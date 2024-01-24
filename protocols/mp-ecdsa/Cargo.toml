@@ -10,6 +10,7 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "ne
 gadget-common = { workspace = true }
 gadget-core = { workspace = true }
 async-trait = { workspace = true }
+protocol-macros = { workspace = true }
 log = { workspace = true }
 multi-party-ecdsa = { workspace = true }
 round-based = { workspace = true }

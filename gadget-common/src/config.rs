@@ -1,74 +1,95 @@
+use crate::client::{create_client, JobsClient, PalletSubmitter};
 pub use crate::client::{AccountId, ClientWithApi};
+pub use crate::debug_logger::DebugLogger;
 pub use crate::gadget::network::Network;
 pub use crate::gadget::WebbGadgetProtocol;
+use async_trait::async_trait;
 pub use pallet_jobs_rpc_runtime_api::JobsApi;
 pub use sc_client_api::Backend;
 pub use sp_api::ProvideRuntimeApi;
 pub use sp_runtime::traits::Block;
+use std::sync::Arc;
 
+#[async_trait]
 pub trait ProtocolConfig
 where
-    <Self::Client as ProvideRuntimeApi<Self::Block>>::Api: JobsApi<Self::Block, AccountId>,
+    <<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block>>::Api: JobsApi<<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block, AccountId>,
+    Self: Sized,
 {
     type Network: Network;
-    type Block: Block;
-    type Backend: Backend<Self::Block>;
-    type Protocol: WebbGadgetProtocol<Self::Block, Self::Backend, Self::Client>;
-    type Client: ClientWithApi<Self::Block, Self::Backend>;
+    type Protocol: WebbGadgetProtocol<
+        <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block,
+        <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Backend,
+        <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client
+    >;
+    type ProtocolSpecificConfiguration: Clone
+        + NetworkAndProtocolSetup<Network = Self::Network, Protocol = Self::Protocol> + Sync;
+    fn params(&self) -> &Self::ProtocolSpecificConfiguration;
 
     fn take_network(&mut self) -> Self::Network;
     fn take_protocol(&mut self) -> Self::Protocol;
-    fn take_client(&mut self) -> Self::Client;
+    fn take_client(&mut self) -> <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client;
+
+    async fn build(&self) -> Result<Self, crate::Error> {
+        let jobs_client = self.params().build_jobs_client().await?;
+        let (network, protocol) = self.params().build_network_and_protocol(jobs_client).await?;
+        let client = self.params().client();
+        let params = self.params().clone();
+        let pallet_tx = self.pallet_tx();
+        let logger = self.logger();
+        Ok(Self::new(
+            network, client, protocol, params, pallet_tx, logger,
+        ))
+    }
+
+    fn new(
+        network: Self::Network,
+        client: <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client,
+        protocol: Self::Protocol,
+        params: Self::ProtocolSpecificConfiguration,
+        pallet_tx: Arc<dyn PalletSubmitter>,
+        logger: DebugLogger,
+    ) -> Self;
+
+    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
+        self.params().pallet_tx()
+    }
+    fn logger(&self) -> DebugLogger {
+        self.params().logger()
+    }
+
+    async fn run(self) -> Result<(), crate::Error> {
+        crate::run_protocol(self).await
+    }
 }
 
-#[macro_export]
-macro_rules! define_protocol {
-    ($struct_name:ident) => {
-        pub struct $struct_name<N, P, C, B, BE> {
-            pub network: Option<N>,
-            pub client: Option<C>,
-            pub protocol: Option<P>,
-            _pd: std::marker::PhantomData<(B, BE)>,
-        }
+#[async_trait]
+pub trait NetworkAndProtocolSetup
+where
+    <<Self as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<
+        <Self as NetworkAndProtocolSetup>::Block,
+    >>::Api: pallet_jobs_rpc_runtime_api::JobsApi<
+        <Self as NetworkAndProtocolSetup>::Block,
+        sp_core::ecdsa::Public,
+    >,
+{
+    type Network;
+    type Protocol;
+    type Client: ClientWithApi<Self::Block, Self::Backend>;
+    type Block: Block;
+    type Backend: Backend<Self::Block>;
 
-        impl<N, P, C, B, BE> $struct_name<N, P, C, B, BE> {
-            pub fn new(network: N, client: C, protocol: P) -> Self {
-                Self {
-                    network: Some(network),
-                    client: Some(client),
-                    protocol: Some(protocol),
-                    _pd: std::marker::PhantomData,
-                }
-            }
-        }
+    async fn build_jobs_client(
+        &self,
+    ) -> Result<JobsClient<Self::Block, Self::Backend, Self::Client>, crate::Error> {
+        create_client(self.client(), self.logger(), self.pallet_tx()).await
+    }
 
-        impl<
-                B: $crate::config::Block,
-                BE: $crate::config::Backend<B> + 'static,
-                N: $crate::config::Network,
-                C: $crate::config::ClientWithApi<B, BE>,
-                P: $crate::config::WebbGadgetProtocol<B, BE, C>,
-            > $crate::config::ProtocolConfig for $struct_name<N, P, C, B, BE>
-        where
-            <C as $crate::config::ProvideRuntimeApi<B>>::Api: $crate::config::JobsApi<B, AccountId>,
-        {
-            type Network = N;
-            type Block = B;
-            type Backend = BE;
-            type Protocol = P;
-            type Client = C;
-
-            fn take_network(&mut self) -> Self::Network {
-                self.network.take().expect("Network not set")
-            }
-
-            fn take_protocol(&mut self) -> Self::Protocol {
-                self.protocol.take().expect("Protocol not set")
-            }
-
-            fn take_client(&mut self) -> Self::Client {
-                self.client.take().expect("Client not set")
-            }
-        }
-    };
+    async fn build_network_and_protocol(
+        &self,
+        jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
+    ) -> Result<(Self::Network, Self::Protocol), crate::Error>;
+    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
+    fn logger(&self) -> DebugLogger;
+    fn client(&self) -> Self::Client;
 }
