@@ -19,6 +19,7 @@ use sp_runtime::SaturatedConversion;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use tokio::task::JoinError;
+pub use sp_core;
 
 pub mod client;
 pub mod debug_logger;

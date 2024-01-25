@@ -7,9 +7,10 @@ members = [
     "protocols/mp-ecdsa",
     "protocols/dfns-cggmp21",
     "protocols/zk-saas",
+    "protocols/bls",
     "protocols/stub",
     "test-utils",
-    "protocol-macros"
+    "protocol-macros",
 ]
 
 [workspace.dependencies]
@@ -17,12 +18,14 @@ gadget-core = { path = "./gadget-core" }
 gadget-common = { path = "./gadget-common" }
 zk-saas-protocol = { path = "./protocols/zk-saas" }
 mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
+threshold-bls-protocol = { path = "./protocols/bls" }
 stub-protocol = { path = "./protocols/stub" }
 test-utils = { path = "./test-utils" }
 protocol-macros = { path = "./protocol-macros" }
 dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
 
 pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle" }
+gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
 pallet-jobs = { git = "https://github.com/webb-tools/tangle" }
 pallet-dkg = { git = "https://github.com/webb-tools/tangle" }
 pallet-zksaas = { git = "https://github.com/webb-tools/tangle" }
@@ -127,3 +130,5 @@ subxt = "0.33.0"
 anyhow = "1.0.79"
 libsecp256k1 = "0.7.1"
 rayon = { version = "1.8.0" }
+vsss-rs = { version = "3.3", default-features = false, features = ["std"] }
+bls12_381_plus = "0.8"

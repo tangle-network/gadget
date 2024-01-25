@@ -1,0 +1,17 @@
+[package]
+name = "threshold-bls-protocol"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gadget-common = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true }
+protocol-macros = { workspace = true }
+tangle-primitives = { workspace = true }
+gennaro-dkg = { workspace = true }
+vsss-rs = { workspace = true }
+bls12_381_plus = { workspace = true }
