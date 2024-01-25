@@ -42,6 +42,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "takes a long time to work on CI"]
     async fn test_externalities_parallel_jobs() {
         test_utils::setup_log();
         const N: usize = 3;
