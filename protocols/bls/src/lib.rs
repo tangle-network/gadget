@@ -1,19 +1,24 @@
 use crate::keygen_protocol::BlsKeygenProtocol;
+use crate::signing_protocol::BlsSigningProtocol;
 use async_trait::async_trait;
 use gadget_common::client::*;
 use gadget_common::config::*;
+use gadget_common::keystore::{GenericKeyStore, KeystoreBackend};
 use gadget_common::Error;
 use protocol_macros::protocol;
 use std::sync::Arc;
-use gadget_common::keystore::{GenericKeyStore, KeystoreBackend};
-use crate::signing_protocol::BlsSigningProtocol;
 
 pub mod keygen_protocol;
 pub mod signing_protocol;
 
 #[protocol]
-pub struct BlsKeygenConfig<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
-where
+pub struct BlsKeygenConfig<
+    B: Block,
+    BE: Backend<B>,
+    C: ClientWithApi<B, BE>,
+    N: Network,
+    KBE: KeystoreBackend,
+> where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     pallet_tx: Arc<dyn PalletSubmitter>,
@@ -25,8 +30,8 @@ where
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend> NetworkAndProtocolSetup
-    for BlsKeygenConfig<B, BE, C, N, KBE>
+impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
+    NetworkAndProtocolSetup for BlsKeygenConfig<B, BE, C, N, KBE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -45,6 +50,7 @@ where
             account_id: AccountId::from_raw([0u8; 33]),
             logger: self.logger.clone(),
             network: self.network.clone(),
+            pallet_tx: self.pallet_tx.clone(),
             keystore: self.key_store.clone(),
         };
 
@@ -65,9 +71,14 @@ where
 }
 
 #[protocol]
-pub struct BlsSigningConfig<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
-    where
-        <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+pub struct BlsSigningConfig<
+    B: Block,
+    BE: Backend<B>,
+    C: ClientWithApi<B, BE>,
+    N: Network,
+    KBE: KeystoreBackend,
+> where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     pallet_tx: Arc<dyn PalletSubmitter>,
     logger: DebugLogger,
@@ -78,10 +89,10 @@ pub struct BlsSigningConfig<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend> NetworkAndProtocolSetup
-for BlsSigningConfig<B, BE, C, N, KBE>
-    where
-        <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
+    NetworkAndProtocolSetup for BlsSigningConfig<B, BE, C, N, KBE>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     type Network = N;
     type Protocol = BlsSigningProtocol<B, BE, C, N, KBE>;
@@ -117,7 +128,13 @@ for BlsSigningConfig<B, BE, C, N, KBE>
     }
 }
 
-pub async fn run<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>(
+pub async fn run<
+    B: Block,
+    BE: Backend<B> + 'static,
+    C: ClientWithApi<B, BE>,
+    N: Network,
+    KBE: KeystoreBackend,
+>(
     client_keygen: C,
     client_signing: C,
     pallet_tx: Arc<dyn PalletSubmitter>,

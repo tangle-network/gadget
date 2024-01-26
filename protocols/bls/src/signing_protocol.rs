@@ -1,38 +1,43 @@
-use std::collections::HashMap;
-use std::num::NonZeroUsize;
-use std::sync::Arc;
 use async_trait::async_trait;
-use gennaro_dkg::Parameters;
-use tangle_primitives::jobs::JobId;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::config::{DebugLogger, GadgetProtocol, JobsApi, Network, ProvideRuntimeApi};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
+use gadget_common::keystore::{GenericKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{
     Backend, Block, BlockImportNotification, BuiltExecutableJobWrapper, Error, JobBuilder,
     JobError, ProtocolWorkManager, WorkManagerInterface,
 };
+use gennaro_dkg::Parameters;
+use std::collections::HashMap;
+use std::num::NonZeroUsize;
+use std::sync::Arc;
+use tangle_primitives::jobs::JobId;
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
-use gadget_common::keystore::{GenericKeyStore, KeystoreBackend};
 
-pub struct BlsSigningProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
-    where
-        <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+pub struct BlsSigningProtocol<
+    B: Block,
+    BE: Backend<B>,
+    C: ClientWithApi<B, BE>,
+    N: Network,
+    KBE: KeystoreBackend,
+> where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     pub jobs_client: JobsClient<B, BE, C>,
     pub account_id: AccountId,
     pub logger: DebugLogger,
     pub network: N,
-    pub keystore: GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>
+    pub keystore: GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend> GadgetProtocol<B, BE, C>
-for BlsSigningProtocol<B, BE, C, N, KBE>
-    where
-        <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
+    GadgetProtocol<B, BE, C> for BlsSigningProtocol<B, BE, C, N, KBE>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     async fn create_next_job(
         &self,
@@ -109,9 +114,10 @@ pub struct BlsSigningAdditionalParams {
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend> AsyncProtocol for BlsSigningProtocol<B, BE, C, N, KBE>
-    where
-        <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
+    AsyncProtocol for BlsSigningProtocol<B, BE, C, N, KBE>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     type AdditionalParams = BlsSigningAdditionalParams;
 
@@ -126,8 +132,10 @@ impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: Keystor
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let threshold = NonZeroUsize::new(additional_params.t as usize).expect(" T should be > 0");
         let n = NonZeroUsize::new(additional_params.n as usize).expect("N should be > 0");
-        Ok(JobBuilder::new().protocol(async move {
-            let params = Parameters::<bls12_381_plus::G1Projective>::new(threshold, n);
-        }).build())
+        Ok(JobBuilder::new()
+            .protocol(async move {
+                let params = Parameters::<bls12_381_plus::G1Projective>::new(threshold, n);
+            })
+            .build())
     }
 }

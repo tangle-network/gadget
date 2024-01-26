@@ -14,12 +14,12 @@ use parking_lot::RwLock;
 pub use sc_client_api::BlockImportNotification;
 pub use sc_client_api::{Backend, FinalityNotification};
 use sp_api::ProvideRuntimeApi;
+pub use sp_core;
 pub use sp_runtime::traits::{Block, Header};
 use sp_runtime::SaturatedConversion;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use tokio::task::JoinError;
-pub use sp_core;
 
 pub mod client;
 pub mod debug_logger;

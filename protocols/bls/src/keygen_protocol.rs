@@ -1,39 +1,48 @@
-use std::collections::{BTreeMap, HashMap};
-use std::num::NonZeroUsize;
-use std::sync::Arc;
+use crate::keygen_protocol::payloads::RoundPayload;
 use async_trait::async_trait;
-use gennaro_dkg::{Parameters, SecretParticipant};
-use tangle_primitives::jobs::JobId;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
+use bls12_381_plus::group::Group;
+use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
 use gadget_common::config::{DebugLogger, GadgetProtocol, JobsApi, Network, ProvideRuntimeApi};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
+use gadget_common::keystore::{GenericKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{
     Backend, Block, BlockImportNotification, BuiltExecutableJobWrapper, Error, JobBuilder,
     JobError, ProtocolWorkManager, WorkManagerInterface,
 };
+use gennaro_dkg::{Parameters, SecretParticipant};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
+use std::num::NonZeroUsize;
+use std::sync::Arc;
+use tangle_primitives::jobs::{DKGTSSKeySubmissionResult, DigitalSignatureType, JobId, JobResult};
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
-use vsss_rs::elliptic_curve::weierstrass::add;
-use gadget_common::keystore::{GenericKeyStore, KeystoreBackend};
+use vsss_rs::{combine_shares, Share};
 
-pub struct BlsKeygenProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
-where
+pub struct BlsKeygenProtocol<
+    B: Block,
+    BE: Backend<B>,
+    C: ClientWithApi<B, BE>,
+    N: Network,
+    KBE: KeystoreBackend,
+> where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     pub jobs_client: JobsClient<B, BE, C>,
     pub account_id: AccountId,
     pub logger: DebugLogger,
     pub network: N,
-    pub keystore: GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>
+    pub pallet_tx: Arc<dyn PalletSubmitter>,
+    pub keystore: GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
 }
 
 pub type Group = bls12_381_plus::G1Projective;
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend> GadgetProtocol<B, BE, C>
-    for BlsKeygenProtocol<B, BE, C, N, KBE>
+impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
+    GadgetProtocol<B, BE, C> for BlsKeygenProtocol<B, BE, C, N, KBE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -42,6 +51,7 @@ where
         job: JobInitMetadata,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
         let job_id = job.job_id;
+        let task_hash = job.task_id;
         let p1_job = job.job_type;
         let threshold = p1_job.get_threshold().expect("Should exist") as u16;
         let role_type = p1_job.get_role_type();
@@ -59,10 +69,12 @@ where
             i: (participants
                 .iter()
                 .position(|p| p == &self.account_id)
-                .expect("Should exist") + 1) as u16,
+                .expect("Should exist")
+                + 1) as u16,
             t: threshold,
             n: participants.len() as u16,
             role_type,
+            task_hash,
             job_id,
             user_id_to_account_id_mapping,
         };
@@ -108,11 +120,13 @@ pub struct BlsKeygenAdditionalParams {
     n: u16,
     role_type: RoleType,
     job_id: JobId,
+    task_hash: [u8; 32],
     user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend> AsyncProtocol for BlsKeygenProtocol<B, BE, C, N, KBE>
+impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
+    AsyncProtocol for BlsKeygenProtocol<B, BE, C, N, KBE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -120,34 +134,337 @@ where
 
     async fn generate_protocol_from(
         &self,
-        _associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-        _associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-        _associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-        _associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-        _protocol_message_rx: tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>,
+        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+        mut protocol_message_rx: tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let threshold = NonZeroUsize::new(additional_params.t as usize).expect(" T should be > 0");
         let n = NonZeroUsize::new(additional_params.n as usize).expect("N should be > 0");
         let i = NonZeroUsize::new(additional_params.i as usize).expect("I should be > 0");
-        Ok(JobBuilder::new().protocol(async move {
-            let params = Parameters::<Group>::new(threshold, n);
-            let mut me = SecretParticipant::<Group>::new(i, params).unwrap();
-            tokio::task::spawn_blocking(move || {
+        let network = self.network.clone();
+        let result = Arc::new(tokio::sync::Mutex::new(None));
+        let result_clone = result.clone();
+        let keystore = self.keystore.clone();
+        let job_id = additional_params.job_id;
+        let pallet_tx = self.pallet_tx.clone();
+        let role_type = additional_params.role_type;
+
+        Ok(JobBuilder::new()
+            .protocol(async move {
+                let params = Parameters::<Group>::new(threshold, n);
+                let mut me = SecretParticipant::<Group>::new(i, params).unwrap();
+
                 // round 1: Everyone generated broadcast payload + p2p payload, then, sends to everyone
                 let count_required = additional_params.n - 1;
-                let (broadcast, p2p) = me.round1().map_err(|e| JobError { reason: e.to_string() })?;
-                let mut broadcast_data_r1 = BTreeMap::new();
-                let mut p2p_data_r1 = BTreeMap::new();
-                broadcast_data_r1.insert(additional_params.i, broadcast);
-                p2p_data_r1.insert(additional_params.i, p2p);
+                let (broadcast, p2p) = me.round1().map_err(|e| JobError {
+                    reason: e.to_string(),
+                })?;
 
-                for _ in 0..count_required {
+                // Broadcast the broadcast payload
+                send_message(
+                    associated_block_id,
+                    associated_retry_id,
+                    associated_session_id,
+                    associated_task_id,
+                    &network,
+                    RoundPayload::Round1(payloads::Round1Payload::Broadcast(broadcast)),
+                    self.account_id.clone(),
+                    additional_params.i as UserID,
+                    None,
+                    &additional_params.user_id_to_account_id_mapping,
+                )
+                .await?;
 
+                // For each p2p payload, send to the peer
+                for (to, p2p) in p2p {
+                    send_message(
+                        associated_block_id,
+                        associated_retry_id,
+                        associated_session_id,
+                        associated_task_id,
+                        &network,
+                        RoundPayload::Round1(payloads::Round1Payload::P2P(p2p)),
+                        self.account_id.clone(),
+                        additional_params.i as UserID,
+                        Some(to as UserID),
+                        &additional_params.user_id_to_account_id_mapping,
+                    )
+                    .await?;
                 }
 
-            }).await.unwrap();
+                // Now, receive all the broadcast and p2p messages in seperate BTreeMaps
+                let mut broadcast_map = BTreeMap::new();
+                let mut p2p_map = BTreeMap::new();
+                let mut count = 0;
+                while count < count_required {
+                    let message = protocol_message_rx.recv().await.ok_or(JobError {
+                        reason: "Channel closed".to_string(),
+                    })?;
+                    let payload =
+                        bincode2::deserialize(&message.payload).map_err(|e| JobError {
+                            reason: e.to_string(),
+                        })?;
+                    match payload {
+                        RoundPayload::Round1(payload) => match payload {
+                            payloads::Round1Payload::Broadcast(broadcast) => {
+                                broadcast_map.insert(message.from as usize, broadcast);
+                            }
+                            payloads::Round1Payload::P2P(p2p) => {
+                                p2p_map.insert(message.from as usize, p2p);
+                            }
+                        },
+                        _ => {
+                            return Err(JobError {
+                                reason: "Unexpected payload".to_string(),
+                            })
+                        }
+                    }
+                    count += 1;
+                }
 
-        }).build())
+                let round2_broadcast =
+                    me.round2(broadcast_map, p2p_map).map_err(|err| JobError {
+                        reason: err.to_string(),
+                    })?;
+
+                // Broadcast the round2 data
+                send_message(
+                    associated_block_id,
+                    associated_retry_id,
+                    associated_session_id,
+                    associated_task_id,
+                    &network,
+                    RoundPayload::Round2(round2_broadcast),
+                    self.account_id.clone(),
+                    additional_params.i as UserID,
+                    None,
+                    &additional_params.user_id_to_account_id_mapping,
+                )
+                .await?;
+
+                // Receive the broadcasts inside a BtreeMap
+                let mut round2_broadcast_map = BTreeMap::new();
+                let mut count = 0;
+                while count < count_required {
+                    let message = protocol_message_rx.recv().await.ok_or(JobError {
+                        reason: "Channel closed".to_string(),
+                    })?;
+                    let payload =
+                        bincode2::deserialize(&message.payload).map_err(|e| JobError {
+                            reason: e.to_string(),
+                        })?;
+                    match payload {
+                        RoundPayload::Round2(payload) => {
+                            round2_broadcast_map.insert(message.from as usize, payload);
+                        }
+                        _ => {
+                            return Err(JobError {
+                                reason: "Unexpected payload".to_string(),
+                            })
+                        }
+                    }
+                    count += 1;
+                }
+
+                let round3_broadcast =
+                    me.round3(&round2_broadcast_map).map_err(|err| JobError {
+                        reason: err.to_string(),
+                    })?;
+
+                // Broadcast the round3 data
+                send_message(
+                    associated_block_id,
+                    associated_retry_id,
+                    associated_session_id,
+                    associated_task_id,
+                    &network,
+                    RoundPayload::Round3(round3_broadcast),
+                    self.account_id.clone(),
+                    additional_params.i as UserID,
+                    None,
+                    &additional_params.user_id_to_account_id_mapping,
+                )
+                .await?;
+
+                // Receive the broadcasts inside a BtreeMap
+                let mut round3_broadcast_map = BTreeMap::new();
+                let mut count = 0;
+                while count < count_required {
+                    let message = protocol_message_rx.recv().await.ok_or(JobError {
+                        reason: "Channel closed".to_string(),
+                    })?;
+                    let payload =
+                        bincode2::deserialize(&message.payload).map_err(|e| JobError {
+                            reason: e.to_string(),
+                        })?;
+                    match payload {
+                        RoundPayload::Round3(payload) => {
+                            round3_broadcast_map.insert(message.from as usize, payload);
+                        }
+                        _ => {
+                            return Err(JobError {
+                                reason: "Unexpected payload".to_string(),
+                            })
+                        }
+                    }
+                    count += 1;
+                }
+
+                let round4_broadcast =
+                    me.round4(&round3_broadcast_map).map_err(|err| JobError {
+                        reason: err.to_string(),
+                    })?;
+
+                // Broadcast the round4 data
+                send_message(
+                    associated_block_id,
+                    associated_retry_id,
+                    associated_session_id,
+                    associated_task_id,
+                    &network,
+                    RoundPayload::Round4(round4_broadcast),
+                    self.account_id.clone(),
+                    additional_params.i as UserID,
+                    None,
+                    &additional_params.user_id_to_account_id_mapping,
+                )
+                .await?;
+
+                // Receive the broadcasts inside a BtreeMap
+                let mut round4_broadcast_map = BTreeMap::new();
+                let mut count = 0;
+                while count < count_required {
+                    let message = protocol_message_rx.recv().await.ok_or(JobError {
+                        reason: "Channel closed".to_string(),
+                    })?;
+                    let payload =
+                        bincode2::deserialize(&message.payload).map_err(|e| JobError {
+                            reason: e.to_string(),
+                        })?;
+                    match payload {
+                        RoundPayload::Round4(payload) => {
+                            round4_broadcast_map.insert(message.from as usize, payload);
+                        }
+                        _ => {
+                            return Err(JobError {
+                                reason: "Unexpected payload".to_string(),
+                            })
+                        }
+                    }
+                    count += 1;
+                }
+
+                me.round5(&round4_broadcast_map).map_err(|err| JobError {
+                    reason: err.to_string(),
+                })?;
+
+                let public_key = me.get_public_key().ok_or_else(|| JobError {
+                    reason: "Failed to get public key".to_string(),
+                })?;
+
+                let secret_share = me.get_secret_share().ok_or_else(|| JobError {
+                    reason: "Failed to get secret share".to_string(),
+                })?;
+
+                let secret =
+                    <Vec<u8> as Share>::from_field_element(me.get_id() as u8, secret_share)
+                        .map_err(|err| JobError {
+                            reason: err.to_string(),
+                        })?;
+
+                *result.lock().await = Some((public_key, secret));
+
+                Ok(())
+            })
+            .post(async move {
+                if let Some((public_key, secret)) = result_clone.lock().await {
+                    keystore.set(job_id, secret).await.map_err(|err| JobError {
+                        reason: err.to_string(),
+                    })?;
+
+                    pallet_tx
+                        .submit_job_result(
+                            role_type,
+                            job_id,
+                            JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
+                                signature_type: DigitalSignatureType::Bls381,
+                                key: public_key,
+                                participants: vec![],
+                                signatures: vec![],
+                                threshold: additional_params.t as u8,
+                            }),
+                        )
+                        .await
+                        .map_err(|err| JobError {
+                            reason: err.to_string(),
+                        })?;
+                }
+            })
+            .build())
+    }
+}
+
+async fn send_message<N: Network>(
+    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    task_hash: <WorkManager as WorkManagerInterface>::TaskID,
+    network: &N,
+    round_payload: RoundPayload,
+    my_id: AccountId,
+    my_idx: UserID,
+    to: Option<UserID>,
+    user_id_to_account_id_mapping: &Arc<HashMap<UserID, AccountId>>,
+) -> Result<(), JobError> {
+    let (to, to_network_id) = if let Some(to_val) = to {
+        let to = user_id_to_account_id_mapping
+            .get(&to_val)
+            .copied()
+            .expect("Should exist");
+        (Some(to_val), Some(to))
+    } else {
+        (None, None)
+    };
+
+    let payload = bincode2::serialize(&round_payload).expect("Should serialize");
+    let message = GadgetProtocolMessage {
+        associated_block_id,
+        associated_retry_id,
+        associated_session_id,
+        task_hash,
+        from: my_idx,
+        to,
+        payload,
+        from_network_id: Some(my_id),
+        to_network_id,
+    };
+
+    network.send_message(message).await?;
+    Ok(())
+}
+
+mod payloads {
+    use crate::keygen_protocol::Group;
+    use gennaro_dkg::{
+        Round1BroadcastData, Round1P2PData, Round2EchoBroadcastData, Round3BroadcastData,
+        Round4EchoBroadcastData,
+    };
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize, Deserialize)]
+    pub enum RoundPayload {
+        Round1(Round1Payload),
+        Round2(Round2EchoBroadcastData),
+        Round3(Round3BroadcastData<Group>),
+        Round4(Round4EchoBroadcastData<Group>),
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub enum Round1Payload {
+        Broadcast(Round1BroadcastData<Group>),
+        P2P(Round1P2PData),
     }
 }

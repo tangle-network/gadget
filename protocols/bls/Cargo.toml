@@ -15,3 +15,5 @@ tangle-primitives = { workspace = true }
 gennaro-dkg = { workspace = true }
 vsss-rs = { workspace = true }
 bls12_381_plus = { workspace = true }
+serde = { version = "1.0.195", features = ["derive"] }
+bincode2 = { workspace = true }
