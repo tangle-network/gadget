@@ -147,12 +147,15 @@ where
         &self.account_id
     }
 
-    fn role_type(&self) -> RoleType {
-        RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1)
+    fn role_filter(&self, role: RoleType) -> bool {
+        matches!(
+            role,
+            RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1)
+        )
     }
 
-    fn is_phase_one(&self) -> bool {
-        true
+    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+        matches!(job, JobType::DKGTSSPhaseOne(_))
     }
 
     fn client(&self) -> &JobsClient<B, BE, C> {

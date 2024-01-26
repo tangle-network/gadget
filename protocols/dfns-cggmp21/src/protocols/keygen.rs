@@ -115,10 +115,6 @@ where
         Ok(params)
     }
 
-    fn role_type(&self) -> RoleType {
-        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
-    }
-
     async fn process_block_import_notification(
         &self,
         _notification: BlockImportNotification<B>,
@@ -139,9 +135,14 @@ where
         &self.account_id
     }
 
-    fn is_phase_one(&self) -> bool {
-        true
+    fn role_filter(&self, role: RoleType) -> bool {
+        matches!(role, RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1))
     }
+
+    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+        matches!(job, JobType::DKGTSSPhaseOne(_))
+    }
+
 
     fn client(&self) -> &JobsClient<B, BE, C> {
         &self.client

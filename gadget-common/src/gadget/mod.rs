@@ -112,72 +112,62 @@ where
             .query_jobs_by_validator(notification.hash, *self.protocol.account_id())
             .await?;
 
-        let role_type = self.protocol.role_type();
-
         let mut relevant_jobs = Vec::new();
 
         for job in jobs {
-            if job.expiry > now_header && job.job_type.get_role_type() == role_type {
-                let job_id = job.job_id;
-                let task_id = job_id.to_be_bytes();
-                let task_id = keccak_256(&task_id);
-                if self.job_manager.job_exists(&task_id) {
-                    // log::warn!(target: "gadget", "The job requested for initialization is already running or enqueued, skipping submission");
-                    continue;
-                }
+            // Job is expired.
+            if job.expiry < now_header {
+                continue;
+            }
+            // Job is not for this role
+            if !self.protocol.role_filter(job.job_type.get_role_type()) {
+                continue;
+            }
+            // Job is not for this phase
+            if !self.protocol.phase_filter(job.job_type.clone()) {
+                continue;
+            }
 
-                let retry_id = self
-                    .job_manager
-                    .latest_retry_id(&task_id)
-                    .map(|r| r + 1)
-                    .unwrap_or(0);
+            let job_id = job.job_id;
+            let task_id = job_id.to_be_bytes();
+            let task_id = keccak_256(&task_id);
+            if self.job_manager.job_exists(&task_id) {
+                // log::warn!(target: "gadget", "The job requested for initialization is already running or enqueued, skipping submission");
+                continue;
+            }
 
-                if job.job_type.is_phase_one() && self.protocol.is_phase_one() {
-                    let participants = job
-                        .job_type
-                        .clone()
-                        .get_participants()
-                        .expect("Should exist for all stage 1 jobs");
-                    if participants.contains(self.protocol.account_id()) {
-                        relevant_jobs.push(JobInitMetadata {
-                            job_type: job.job_type,
-                            // Only supply for stage 2 jobs
-                            phase1_job: None,
-                            task_id,
-                            retry_id,
-                            now,
-                            job_id,
-                        });
-                        continue;
-                    }
-                }
+            let retry_id = self
+                .job_manager
+                .latest_retry_id(&task_id)
+                .map(|r| r + 1)
+                .unwrap_or(0);
 
-                if !job.job_type.is_phase_one() && !self.protocol.is_phase_one() {
-                    let phase_one_job_id = job
-                        .job_type
-                        .get_phase_one_id()
-                        .expect("Should exist for stage 2 jobs");
-                    let phase1_job = self
+            let phase1_job = if job.job_type.is_phase_one() {
+                None
+            } else {
+                let phase_one_job_id = job
+                    .job_type
+                    .get_phase_one_id()
+                    .expect("Should exist for stage 2 jobs");
+                let phase1_job = self
                         .protocol
                         .client()
-                        .query_job_result(notification.hash, role_type, phase_one_job_id)
+                        .query_job_result(notification.hash, job.job_type.get_role_type(), phase_one_job_id)
                         .await?
                         .ok_or_else(|| Error::ClientError {
                             err: format!("Corresponding phase one job {phase_one_job_id} not found for phase two job {job_id}"),
                         })?;
+                Some(phase1_job.job_type)
+            };
 
-                    relevant_jobs.push(JobInitMetadata {
-                        job_type: job.job_type,
-                        phase1_job: Some(phase1_job.job_type),
-                        task_id,
-                        job_id,
-                        retry_id,
-                        now,
-                    });
-
-                    continue;
-                }
-            }
+            relevant_jobs.push(JobInitMetadata {
+                job_type: job.job_type,
+                phase1_job,
+                task_id,
+                retry_id,
+                now,
+                job_id,
+            });
         }
 
         for relevant_job in relevant_jobs {
@@ -281,10 +271,25 @@ where
     async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WorkManager>);
     /// The account ID of this node. Jobs queried will be filtered by this account ID
     fn account_id(&self) -> &AccountId;
-    /// The role type of this node. Jobs queried will be filtered by this role type
-    fn role_type(&self) -> RoleType;
-    /// Whether this protocol is a phase one protocol
-    fn is_phase_one(&self) -> bool;
+    /// Filter queried jobs by role type.
+    /// ## Example
+    ///
+    /// ```rust,ignore
+    /// fn role_filter(&self, role: RoleType) -> bool {
+    ///   matches!(role, RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1))
+    /// }
+    /// ```
+    fn role_filter(&self, role: RoleType) -> bool;
+
+    /// Filter queried jobs by Job type & Phase.
+    /// ## Example
+    ///
+    /// ```rust,ignore
+    /// fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    ///   matches!(job, JobType::DKGTSSPhaseOne(_))
+    /// }
+    /// ```
+    fn phase_filter(&self, job: JobType<AccountId>) -> bool;
     fn client(&self) -> &JobsClient<B, BE, C>;
     fn logger(&self) -> &DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {

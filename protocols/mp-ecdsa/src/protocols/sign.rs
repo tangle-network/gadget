@@ -94,6 +94,7 @@ where
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
         let job_id = job.job_id;
 
+        let role_type = job.job_type.get_role_type();
         let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
             panic!("Should be valid type")
         };
@@ -129,6 +130,7 @@ where
                 job_id,
                 key,
                 input_data_to_sign,
+                role_type,
                 user_id_to_account_id_mapping,
             };
 
@@ -160,12 +162,15 @@ where
         &self.account_id
     }
 
-    fn role_type(&self) -> RoleType {
-        RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1)
+    fn role_filter(&self, role: RoleType) -> bool {
+        matches!(
+            role,
+            RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1)
+        )
     }
 
-    fn is_phase_one(&self) -> bool {
-        false
+    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+        matches!(job, JobType::DKGTSSPhaseTwo(_))
     }
 
     fn client(&self) -> &JobsClient<B, BE, C> {
@@ -191,6 +196,7 @@ pub struct MpEcdsaSigningExtraParams {
     signers: Vec<u16>,
     job_id: JobId,
     key: LocalKey<Secp256k1>,
+    role_type: RoleType,
     input_data_to_sign: Vec<u8>,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
 }
@@ -224,7 +230,7 @@ where
         let client = self.client.clone();
         let round_blames = self.round_blames.clone();
         let network = self.network.clone();
-        let role_type = self.role_type();
+        let role_type = additional_params.role_type;
 
         let (i, signers, t, key, input_data_to_sign, mapping) = (
             additional_params.i,

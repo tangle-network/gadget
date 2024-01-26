@@ -47,12 +47,12 @@ where
         &self.account_id
     }
 
-    fn role_type(&self) -> RoleType {
-        RoleType::LightClientRelaying
+    fn role_filter(&self, _role: RoleType) -> bool {
+        false
     }
 
-    fn is_phase_one(&self) -> bool {
-        true
+    fn phase_filter(&self, _job: tangle_primitives::jobs::JobType<AccountId>) -> bool {
+        false
     }
 
     fn client(&self) -> &JobsClient<B, BE, C> {
