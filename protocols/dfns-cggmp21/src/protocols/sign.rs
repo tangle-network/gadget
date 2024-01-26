@@ -161,7 +161,10 @@ where
     }
 
     fn role_filter(&self, role: RoleType) -> bool {
-        matches!(role, RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1))
+        matches!(
+            role,
+            RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
+        )
     }
 
     fn phase_filter(&self, job: JobType<AccountId>) -> bool {
