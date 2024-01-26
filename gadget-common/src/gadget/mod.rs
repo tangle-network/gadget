@@ -76,6 +76,7 @@ pub struct JobInitMetadata {
     pub retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     pub job_id: JobId,
     pub now: <WorkManager as WorkManagerInterface>::Clock,
+    pub at: [u8; 32],
 }
 
 #[async_trait]
@@ -148,7 +149,7 @@ where
                 let phase_one_job_id = job
                     .job_type
                     .get_phase_one_id()
-                    .expect("Should exist for stage 2 jobs");
+                    .expect("Should exist for non phase 1 jobs");
                 let phase1_job = self
                         .protocol
                         .client()
@@ -160,6 +161,8 @@ where
                 Some(phase1_job.job_type)
             };
 
+            let mut block_hash = [0u8; 32];
+            block_hash.copy_from_slice(notification.hash.as_ref());
             relevant_jobs.push(JobInitMetadata {
                 job_type: job.job_type,
                 phase1_job,
@@ -167,6 +170,7 @@ where
                 retry_id,
                 now,
                 job_id,
+                at: block_hash,
             });
         }
 

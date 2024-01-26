@@ -25,7 +25,7 @@ use tangle_primitives::jobs::{
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
-pub struct DfnsCGGMP21SigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
+pub struct DfnsCGGMP21KeyRotateProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
     client: JobsClient<B, BE, C>,
     key_store: ECDSAKeyStore<KBE>,
     network: N,
@@ -39,7 +39,7 @@ pub async fn create_protocol<B, BE, KBE, C, N>(
     network: N,
     logger: DebugLogger,
     key_store: ECDSAKeyStore<KBE>,
-) -> DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
+) -> DfnsCGGMP21KeyRotateProtocol<B, BE, KBE, C, N>
 where
     B: Block,
     BE: Backend<B>,
@@ -48,7 +48,7 @@ where
     N: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    DfnsCGGMP21SigningProtocol {
+    DfnsCGGMP21KeyRotateProtocol {
         client,
         network,
         key_store,
@@ -64,7 +64,7 @@ impl<
         C: ClientWithApi<B, BE>,
         KBE: KeystoreBackend,
         N: Network,
-    > GadgetProtocol<B, BE, C> for DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
+    > GadgetProtocol<B, BE, C> for DfnsCGGMP21KeyRotateProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -74,11 +74,11 @@ where
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
         let job_id = job.job_id;
 
-        let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
+        let JobType::DKGTSSPhaseFour(p4_job) = job.job_type else {
             panic!("Should be valid type")
         };
-        let input_data_to_sign = p2_job.submission;
-        let previous_job_id = p2_job.phase_one_id;
+        let phase_one_job_id = p4_job.phase_one_id;
+        let new_phase_one_job_id = p4_job.new_phase_one_id;
 
         let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
         let participants = phase1_job.clone().get_participants().expect("Should exist");
@@ -97,9 +97,17 @@ where
             .map(|(i, _)| i as u16)
             .collect::<Vec<_>>();
 
+        let new_key = self
+            .client
+            .query_job_result(
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1),
+                new_phase_one_job_id,
+            )
+            .await?;
+
         let key = self
             .key_store
-            .get(&previous_job_id)
+            .get(&phase_one_job_id)
             .await
             .map_err(|err| gadget_common::Error::ClientError {
                 err: err.to_string(),
@@ -118,7 +126,7 @@ where
                     .collect(),
             );
 
-            let params = DfnsCGGMP21SigningExtraParams {
+            let params = DfnsCGGMP21KeyRotateExtraParams {
                 i,
                 t: threshold,
                 signers,
@@ -168,7 +176,7 @@ where
     }
 
     fn phase_filter(&self, job: JobType<AccountId>) -> bool {
-        matches!(job, JobType::DKGTSSPhaseTwo(_))
+        matches!(job, JobType::DKGTSSPhaseFour(_))
     }
 
     fn client(&self) -> &JobsClient<B, BE, C> {
@@ -188,7 +196,7 @@ where
     }
 }
 
-pub struct DfnsCGGMP21SigningExtraParams {
+pub struct DfnsCGGMP21KeyRotateExtraParams {
     i: u16,
     t: u16,
     signers: Vec<u16>,
@@ -206,11 +214,11 @@ impl<
         KBE: KeystoreBackend,
         C: ClientWithApi<B, BE>,
         N: Network,
-    > AsyncProtocol for DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
+    > AsyncProtocol for DfnsCGGMP21KeyRotateProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    type AdditionalParams = DfnsCGGMP21SigningExtraParams;
+    type AdditionalParams = DfnsCGGMP21KeyRotateExtraParams;
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
