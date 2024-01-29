@@ -51,6 +51,8 @@ mod tests {
         let ext = new_test_ext::<N>().await;
         let keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
         assert_eq!(wait_for_keyrefresh::<N>(&ext, keygen_job_id).await, 1);
+        // try to sign with the key that was just refreshed.
+        assert_eq!(wait_for_signing::<N>(&ext, keygen_job_id).await, 2);
     }
 
     #[tokio::test(flavor = "multi_thread")]

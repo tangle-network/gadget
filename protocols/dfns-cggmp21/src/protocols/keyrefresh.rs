@@ -227,12 +227,8 @@ where
             additional_params.pregenerated_primes,
         );
         let i = key.i;
-        let n = key.public_shares.len();
-        let t = key
-            .vss_setup
-            .as_ref()
-            .map(|x| x.min_signers)
-            .unwrap_or(n as u16);
+        let n = key.public_shares.len() as u16;
+        let t = key.vss_setup.as_ref().map(|x| x.min_signers).unwrap_or(n);
 
         Ok(JobBuilder::new()
             .protocol(async move {
@@ -267,7 +263,7 @@ where
                 let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
                 let delivery = (keyrefresh_rx_async_proto, keyrefresh_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
-                let key_share = dfns_cggmp21::key_refresh(eid, &key, pregenerated_primes)
+                let aux_info = dfns_cggmp21::aux_info_gen(eid, i, n, pregenerated_primes)
                     .set_progress_tracer(&mut tracer)
                     .start(&mut rng, party)
                     .await
@@ -275,6 +271,9 @@ where
                         reason: format!("KeyRefresh protocol error: {err:?}"),
                     })?;
 
+                let key = key.update_aux(aux_info).map_err(|err| JobError {
+                    reason: format!("KeyRefresh protocol error: {err:?}"),
+                })?;
                 let perf_report = tracer.get_report().map_err(|err| JobError {
                     reason: format!("KeyRefresh protocol error: {err:?}"),
                 })?;
@@ -285,7 +284,7 @@ where
                 let job_result = JobResult::DKGPhaseThree(DKGTSSKeyRefreshResult {
                     signature_type: DigitalSignatureType::Ecdsa,
                 });
-                *protocol_output.lock().await = Some((key_share, job_result));
+                *protocol_output.lock().await = Some((key, job_result));
                 Ok(())
             })
             .post(async move {
