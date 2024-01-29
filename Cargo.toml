@@ -7,6 +7,7 @@ members = [
     "protocols/mp-ecdsa",
     "protocols/dfns-cggmp21",
     "protocols/zk-saas",
+    "protocols/zcash-frost",
     "protocols/stub",
     "test-utils",
     "protocol-macros"

@@ -1,0 +1,38 @@
+[package]
+name = "zcash-frost-protocol"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
+gadget-common = { workspace = true }
+gadget-core = { workspace = true }
+protocol-macros = { workspace = true }
+async-trait = { workspace = true }
+log = { workspace = true }
+curv = { workspace = true }
+futures = { workspace = true }
+itertools = { workspace = true }
+bincode2 = { workspace = true }
+
+pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
+pallet-jobs = { workspace = true, features = ["std"] }
+tangle-primitives = { workspace = true, features = ["std"] }
+
+sp-core = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, features = ["std"] }
+sp-api = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+sp-application-crypto = { workspace = true, features = ["std"] }
+
+sc-client-api = { workspace = true }
+
+frame-support = { workspace = true  }
+parity-scale-codec = { workspace = true }
+
+serde = { version = "1.0.193", features = ["derive"] }
+rand = { workspace = true }
+hex = { workspace = true }
+
+[dev-dependencies]
+test-utils = { workspace = true }
