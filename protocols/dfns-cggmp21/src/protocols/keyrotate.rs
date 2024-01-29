@@ -20,7 +20,7 @@ use sp_core::keccak_256;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::{
-    DKGTSSSignatureResult, DigitalSignatureType, JobId, JobResult, JobType,
+    DKGTSSKeyRotationResult, DigitalSignatureType, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -68,17 +68,21 @@ impl<
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
+    fn name(&self) -> String {
+        "dfns-cggmp21-keyrotate".to_string()
+    }
+
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
         let job_id = job.job_id;
 
         let JobType::DKGTSSPhaseFour(p4_job) = job.job_type else {
             panic!("Should be valid type")
         };
-        let phase_one_job_id = p4_job.phase_one_id;
-        let new_phase_one_job_id = p4_job.new_phase_one_id;
+        let phase_one_id = p4_job.phase_one_id;
+        let new_phase_one_id = p4_job.new_phase_one_id;
 
         let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
         let participants = phase1_job.clone().get_participants().expect("Should exist");
@@ -88,8 +92,6 @@ where
             .iter()
             .position(|p| p == &self.account_id)
             .expect("Should exist") as u16;
-        // TODO: decide how we will pick the signers.
-        // For now, we will just pick the first t participants.
         let signers = participants
             .iter()
             .enumerate()
@@ -97,17 +99,27 @@ where
             .map(|(i, _)| i as u16)
             .collect::<Vec<_>>();
 
-        let new_key = self
+        log::debug!(target: "gadget", "Fetching key for job ID: {new_phase_one_id}");
+        let new_phase_one_result = self
             .client
-            .query_job_result(
-                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1),
-                new_phase_one_job_id,
-            )
-            .await?;
+            .query_job_result(job.at, job.role_type, new_phase_one_id)
+            .await?
+            .ok_or_else(|| gadget_common::Error::ClientError {
+                err: format!("No key found for job ID: {new_phase_one_id}"),
+            })?;
+
+        let new_key = match new_phase_one_result.result {
+            JobResult::DKGPhaseOne(r) => r.key,
+            _ => {
+                return Err(gadget_common::Error::ClientError {
+                    err: format!("Wrong job result type for job ID: {new_phase_one_id}"),
+                })
+            }
+        };
 
         let key = self
             .key_store
-            .get(&phase_one_job_id)
+            .get(&phase_one_id)
             .await
             .map_err(|err| gadget_common::Error::ClientError {
                 err: err.to_string(),
@@ -131,9 +143,11 @@ where
                 t: threshold,
                 signers,
                 job_id,
-                role_type: RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1),
+                phase_one_id,
+                new_phase_one_id,
+                role_type: job.role_type,
                 key,
-                input_data_to_sign,
+                new_key,
                 user_id_to_account_id_mapping,
             };
             Ok(params)
@@ -201,9 +215,11 @@ pub struct DfnsCGGMP21KeyRotateExtraParams {
     t: u16,
     signers: Vec<u16>,
     job_id: JobId,
+    phase_one_id: JobId,
+    new_phase_one_id: JobId,
     role_type: RoleType,
     key: KeyShare<Secp256k1>,
-    input_data_to_sign: Vec<u8>,
+    new_key: Vec<u8>,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
 }
 
@@ -234,19 +250,21 @@ where
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
         let id = self.account_id;
+        let phase_one_id = additional_params.phase_one_id;
         let network = self.network.clone();
 
-        let (i, signers, t, key, input_data_to_sign, mapping) = (
+        let (i, signers, t, new_phase_one_id, key, new_key, mapping) = (
             additional_params.i,
             additional_params.signers,
             additional_params.t,
+            additional_params.new_phase_one_id,
             additional_params.key,
-            additional_params.input_data_to_sign.clone(),
+            additional_params.new_key.clone(),
             additional_params.user_id_to_account_id_mapping.clone(),
         );
 
         let public_key_bytes = key.shared_public_key().to_bytes(true).to_vec();
-        let input_data_to_sign2 = input_data_to_sign.clone();
+        let new_key2 = new_key.clone();
 
         Ok(JobBuilder::new()
             .protocol(async move {
@@ -255,7 +273,7 @@ where
                     super::util::CloneableUnboundedReceiver::from(protocol_message_channel);
 
                 logger.info(format!(
-                    "Starting Signing Protocol with params: i={i}, t={t}"
+                    "Starting Key Rotation Protocol with params: i={i}, t={t}"
                 ));
 
                 let job_id_bytes = additional_params.job_id.to_be_bytes();
@@ -280,7 +298,7 @@ where
 
                 let delivery = (signing_rx_async_proto, signing_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
-                let data_hash = keccak_256(&input_data_to_sign);
+                let data_hash = keccak_256(&new_key);
                 let data_to_sign = dfns_cggmp21::DataToSign::from_scalar(
                     dfns_cggmp21::generic_ec::Scalar::from_be_bytes_mod_order(data_hash),
                 );
@@ -288,12 +306,12 @@ where
                     .sign(&mut rng, party, data_to_sign)
                     .await
                     .map_err(|err| JobError {
-                        reason: format!("Signing protocol error: {err:?}"),
+                        reason: format!("Key Rotation protocol error: {err:?}"),
                     })?;
 
                 // Normalize the signature
                 let signature = signature.normalize_s();
-                logger.debug("Finished AsyncProtocol - Signing");
+                logger.debug("Finished AsyncProtocol - Key Rotation");
                 *protocol_output.lock().await = Some(signature);
                 Ok(())
             })
@@ -307,7 +325,7 @@ where
                     let mut v = 0u8;
                     loop {
                         let mut signature_bytes = signature_bytes;
-                        let data_hash = keccak_256(&input_data_to_sign2);
+                        let data_hash = keccak_256(&new_key2);
                         signature_bytes[64] = v;
                         let res =
                             sp_io::crypto::secp256k1_ecdsa_recover(&signature_bytes, &data_hash);
@@ -335,13 +353,16 @@ where
                             }
                         }
                     }
+                    // Add 27 to the recovery ID
                     signature_bytes[64] = v + 27;
 
-                    let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
+                    let job_result = JobResult::DKGPhaseFour(DKGTSSKeyRotationResult {
                         signature_type: DigitalSignatureType::Ecdsa,
-                        data: additional_params.input_data_to_sign,
                         signature: signature_bytes.to_vec(),
-                        signing_key: public_key_bytes,
+                        phase_one_id,
+                        new_phase_one_id,
+                        new_key: new_key2,
+                        key: public_key_bytes,
                     });
 
                     client

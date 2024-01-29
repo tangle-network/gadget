@@ -61,9 +61,13 @@ where
     C: ClientWithApi<B, BE> + 'static,
     BE: Backend<B> + 'static,
 {
+    fn name(&self) -> String {
+        "zk-saas".to_string()
+    }
+
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
         let (now, job_id) = (job.now, job.job_id);
 

@@ -84,9 +84,13 @@ impl<
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
+    fn name(&self) -> String {
+        "mp-ecdsa-keygen".to_string()
+    }
+
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
         let now = job.now;
         self.logger.info(format!("At finality notification {now}"));

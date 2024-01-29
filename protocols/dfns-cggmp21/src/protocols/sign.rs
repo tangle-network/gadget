@@ -68,9 +68,13 @@ impl<
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
+    fn name(&self) -> String {
+        "dfns-cggmp21-signing".to_string()
+    }
+
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
         let job_id = job.job_id;
 
@@ -270,6 +274,7 @@ where
                     network.clone(),
                 );
 
+                let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
                 let delivery = (signing_rx_async_proto, signing_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
                 let data_hash = keccak_256(&input_data_to_sign);
@@ -277,12 +282,17 @@ where
                     dfns_cggmp21::generic_ec::Scalar::from_be_bytes_mod_order(data_hash),
                 );
                 let signature = dfns_cggmp21::signing(eid, i, &signers, &key)
+                    .set_progress_tracer(&mut tracer)
                     .sign(&mut rng, party, data_to_sign)
                     .await
                     .map_err(|err| JobError {
                         reason: format!("Signing protocol error: {err:?}"),
                     })?;
 
+                let perf_report = tracer.get_report().map_err(|err| JobError {
+                    reason: format!("Signing protocol error: {err:?}"),
+                })?;
+                logger.debug(format!("Signing protocol report: {perf_report}"));
                 // Normalize the signature
                 let signature = signature.normalize_s();
                 logger.debug("Finished AsyncProtocol - Signing");

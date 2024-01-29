@@ -73,9 +73,13 @@ impl<
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
+    fn name(&self) -> String {
+        "dfns-cggmp21-keygen".to_string()
+    }
+
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
         let now = job.now;
         self.logger.info(format!("At finality notification {now}"));
@@ -241,9 +245,11 @@ where
                     id,
                     network.clone(),
                 );
+                let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
                 let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
                 let incomplete_key_share = dfns_cggmp21::keygen::<Secp256k1>(eid, i, n)
+                    .set_progress_tracer(&mut tracer)
                     .set_threshold(t)
                     .start(&mut rng, party)
                     .await
@@ -251,6 +257,10 @@ where
                         reason: format!("Keygen protocol error: {err:?}"),
                     })?;
 
+                let perf_report = tracer.get_report().map_err(|err| JobError {
+                    reason: format!("Keygen protocol error: {err:?}"),
+                })?;
+                logger.debug(format!("Incomplete Keygen protocol report: {perf_report}"));
                 logger.debug("Finished AsyncProtocol - Incomplete Keygen");
 
                 let (
@@ -268,15 +278,21 @@ where
                     id,
                     network,
                 );
+                let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
                 let pregenerated_primes = dfns_cggmp21::PregeneratedPrimes::generate(&mut rng);
                 let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
                 let aux_info = dfns_cggmp21::aux_info_gen(aux_eid, i, n, pregenerated_primes)
+                    .set_progress_tracer(&mut tracer)
                     .start(&mut rng, party)
                     .await
                     .map_err(|err| JobError {
                         reason: format!("Aux info protocol error: {err:?}"),
                     })?;
+                let perf_report = tracer.get_report().map_err(|err| JobError {
+                    reason: format!("Aux info protocol error: {err:?}"),
+                })?;
+                logger.debug(format!("Aux info protocol report: {perf_report}"));
                 logger.debug("Finished AsyncProtocol - Aux Info");
 
                 let key_share = dfns_cggmp21::KeyShare::make(incomplete_key_share, aux_info)

@@ -68,15 +68,16 @@ where
     }
 }
 
-pub struct JobInitMetadata {
+pub struct JobInitMetadata<B: Block> {
     pub job_type: JobType<AccountId>,
+    pub role_type: RoleType,
     /// This value only exists if this is a stage2 job
     pub phase1_job: Option<JobType<AccountId>>,
     pub task_id: <WorkManager as WorkManagerInterface>::TaskID,
     pub retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     pub job_id: JobId,
     pub now: <WorkManager as WorkManagerInterface>::Clock,
-    pub at: [u8; 32],
+    pub at: B::Hash,
 }
 
 #[async_trait]
@@ -106,6 +107,7 @@ where
         let now_header = *notification.header.number();
         let now: u64 = now_header.saturated_into();
         *self.clock.write() = Some(now);
+        log::info!(target: "gadget", "[{}] Processing finality notification at block number {now}", self.protocol.name());
 
         let jobs = self
             .protocol
@@ -113,19 +115,23 @@ where
             .query_jobs_by_validator(notification.hash, *self.protocol.account_id())
             .await?;
 
+        log::info!(target: "gadget", "[{}] Found {} jobs for initialization", self.protocol.name(), jobs.len());
         let mut relevant_jobs = Vec::new();
 
         for job in jobs {
             // Job is expired.
             if job.expiry < now_header {
+                log::warn!(target: "gadget", "[{}] The job requested for initialization is expired, skipping submission", self.protocol.name());
                 continue;
             }
             // Job is not for this role
             if !self.protocol.role_filter(job.job_type.get_role_type()) {
+                log::debug!(target: "gadget", "[{}] The job {} requested for initialization is not for this role {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type.get_role_type());
                 continue;
             }
             // Job is not for this phase
             if !self.protocol.phase_filter(job.job_type.clone()) {
+                log::debug!(target: "gadget", "[{}] The job {} requested for initialization is not for this phase {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type);
                 continue;
             }
 
@@ -161,22 +167,22 @@ where
                 Some(phase1_job.job_type)
             };
 
-            let mut block_hash = [0u8; 32];
-            block_hash.copy_from_slice(notification.hash.as_ref());
             relevant_jobs.push(JobInitMetadata {
+                role_type: job.job_type.get_role_type(),
                 job_type: job.job_type,
                 phase1_job,
                 task_id,
                 retry_id,
                 now,
                 job_id,
-                at: block_hash,
+                at: notification.hash,
             });
         }
 
         for relevant_job in relevant_jobs {
             let task_id = relevant_job.task_id;
             let retry_id = relevant_job.retry_id;
+            log::info!(target: "gadget", "[{}] Creating job for task {task_id} with retry id {retry_id}", self.protocol.name(), task_id = hex::encode(task_id), retry_id = retry_id);
             match self.protocol.create_next_job(relevant_job).await {
                 Ok(params) => {
                     match self
@@ -262,7 +268,7 @@ where
     /// Note: the parameters returned must be relevant to the `AsyncProtocol` implementation of this protocol
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error>;
 
     /// Process a block import notification
@@ -275,6 +281,10 @@ where
     async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WorkManager>);
     /// The account ID of this node. Jobs queried will be filtered by this account ID
     fn account_id(&self) -> &AccountId;
+
+    /// The Protocol Name.
+    /// Used for logging and debugging purposes
+    fn name(&self) -> String;
     /// Filter queried jobs by role type.
     /// ## Example
     ///

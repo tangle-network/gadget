@@ -19,6 +19,8 @@ pub mod error;
 pub mod protocols;
 pub mod util;
 
+/// A Helper macro to declare a protocol, used
+/// to avoid code duplication.
 macro_rules! decl_porto {
     ($name:ident + $proto:ident = $im:path) => {
 
@@ -90,6 +92,7 @@ macro_rules! decl_porto {
     };
 }
 
+// A macro to declare all the protocols
 decl_porto!(
     DfnsCGGMP21KeygenProtocolConfig + DfnsCGGMP21KeygenProtocol = protocols::keygen,
     DfnsCGGMP21SigningProtocolConfig + DfnsCGGMP21SigningProtocol = protocols::sign,
@@ -98,7 +101,7 @@ decl_porto!(
 );
 
 #[allow(clippy::too_many_arguments)]
-pub async fn run<B, BE, KBE, C, N, N2, Tx>(
+pub async fn run<B, BE, KBE, C, N, Tx>(
     account_id: AccountId,
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
@@ -146,7 +149,7 @@ where
         _pd: std::marker::PhantomData,
     };
 
-    let keyrotate_config = DfnsCGGMP21KeyRefreshProtocolConfig {
+    let keyrotate_config = DfnsCGGMP21KeyRotateProtocolConfig {
         account_id,
         network: network_keyrotate,
         keystore_backend: keystore,

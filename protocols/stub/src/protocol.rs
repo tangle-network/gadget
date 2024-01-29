@@ -26,9 +26,13 @@ impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> GadgetProtocol<B, BE, C>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
+    fn name(&self) -> String {
+        "stub".to_string()
+    }
+
     async fn create_next_job(
         &self,
-        _job: JobInitMetadata,
+        _job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
         Ok(())
     }

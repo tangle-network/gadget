@@ -69,9 +69,13 @@ impl<
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
+    fn name(&self) -> String {
+        "dfns-cggmp21-keyrefresh".to_string()
+    }
+
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
         let now = job.now;
         self.logger.info(format!("At finality notification {now}"));
@@ -195,7 +199,6 @@ where
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let key_store = self.key_store.clone();
-        let key_store_for_gossip = self.key_store.clone();
         let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
@@ -209,7 +212,11 @@ where
         );
         let i = key.i;
         let n = key.public_shares.len();
-        let t = key.vss_setup.map(|x| x.min_signers).unwrap_or(n as u16);
+        let t = key
+            .vss_setup
+            .as_ref()
+            .map(|x| x.min_signers)
+            .unwrap_or(n as u16);
 
         Ok(JobBuilder::new()
             .protocol(async move {
@@ -240,6 +247,7 @@ where
                     id,
                     network.clone(),
                 );
+                let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
                 let delivery = (keyrefresh_rx_async_proto, keyrefresh_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
                 let pregenerated_primes = dfns_cggmp21::PregeneratedPrimes::generate(&mut rng);
@@ -248,11 +256,17 @@ where
                     &key,
                     pregenerated_primes,
                 )
+                .set_progress_tracer(&mut tracer)
                 .start(&mut rng, party)
                 .await
                 .map_err(|err| JobError {
-                    reason: format!("Keygen protocol error: {err:?}"),
+                    reason: format!("KeyRefresh protocol error: {err:?}"),
                 })?;
+
+                let perf_report = tracer.get_report().map_err(|err| JobError {
+                    reason: format!("KeyRefresh protocol error: {err:?}"),
+                })?;
+                logger.debug(format!("KeyRefresh protocol report: {perf_report}"));
 
                 logger.debug("Finished AsyncProtocol - KeyRefresh");
 
