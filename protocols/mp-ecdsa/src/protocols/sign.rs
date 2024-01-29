@@ -109,11 +109,14 @@ where
         let participants = phase1_job.clone().get_participants().expect("Should exist");
         let threshold = phase1_job.get_threshold().expect("Should exist") as u16;
 
-        if let Some(key) = self.key_store.get(&previous_job_id).await.map_err(|err| {
-            gadget_common::Error::ClientError {
+        if let Some(key) = self
+            .key_store
+            .get_job_result(previous_job_id)
+            .await
+            .map_err(|err| gadget_common::Error::ClientError {
                 err: err.to_string(),
-            }
-        })? {
+            })?
+        {
             let user_id_to_account_id_mapping = Arc::new(
                 participants
                     .clone()

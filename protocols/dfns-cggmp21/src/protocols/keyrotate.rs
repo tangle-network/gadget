@@ -119,7 +119,7 @@ where
 
         let key = self
             .key_store
-            .get(&phase_one_id)
+            .get_job_result(phase_one_id)
             .await
             .map_err(|err| gadget_common::Error::ClientError {
                 err: err.to_string(),

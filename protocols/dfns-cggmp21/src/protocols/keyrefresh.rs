@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use dfns_cggmp21::security_level::SecurityLevel128;
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
@@ -101,7 +100,7 @@ where
 
         let key = self
             .key_store
-            .get(&p3_job.phase_one_id)
+            .get_job_result(p3_job.phase_one_id)
             .await
             .map_err(|err| gadget_common::Error::ClientError {
                 err: err.to_string(),
@@ -110,9 +109,24 @@ where
                 err: format!("No key found for job ID: {job_id:?}"),
             })?;
 
+        let phase_one_id_bytes = p3_job.phase_one_id.to_be_bytes();
+        let pregenerated_primes_key =
+            keccak_256(&[&b"dfns-cggmp21-keygen-primes"[..], &phase_one_id_bytes[..]].concat());
+        let pregenerated_primes = self
+            .key_store
+            .get(&pregenerated_primes_key)
+            .await?
+            .ok_or_else(|| gadget_common::Error::ClientError {
+                err: format!(
+                    "No pregenerated primes found for job ID: {}",
+                    p3_job.phase_one_id
+                ),
+            })?;
+
         let params = DfnsCGGMP21KeyRefreshExtraParams {
             phase_one_id: p3_job.phase_one_id,
             key,
+            pregenerated_primes,
             role_type,
             job_id,
             user_id_to_account_id_mapping,
@@ -174,6 +188,7 @@ pub struct DfnsCGGMP21KeyRefreshExtraParams {
     phase_one_id: JobId,
     role_type: RoleType,
     key: KeyShare<Secp256k1>,
+    pregenerated_primes: dfns_cggmp21::PregeneratedPrimes,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
 }
 
@@ -206,9 +221,10 @@ where
         let logger = self.logger.clone();
         let network = self.network.clone();
 
-        let (mapping, key) = (
+        let (mapping, key, pregenerated_primes) = (
             additional_params.user_id_to_account_id_mapping,
             additional_params.key,
+            additional_params.pregenerated_primes,
         );
         let i = key.i;
         let n = key.public_shares.len();
@@ -247,21 +263,17 @@ where
                     id,
                     network.clone(),
                 );
+
                 let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
                 let delivery = (keyrefresh_rx_async_proto, keyrefresh_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
-                let pregenerated_primes = dfns_cggmp21::PregeneratedPrimes::generate(&mut rng);
-                let key_share = dfns_cggmp21::key_refresh::<Secp256k1, SecurityLevel128>(
-                    eid,
-                    &key,
-                    pregenerated_primes,
-                )
-                .set_progress_tracer(&mut tracer)
-                .start(&mut rng, party)
-                .await
-                .map_err(|err| JobError {
-                    reason: format!("KeyRefresh protocol error: {err:?}"),
-                })?;
+                let key_share = dfns_cggmp21::key_refresh(eid, &key, pregenerated_primes)
+                    .set_progress_tracer(&mut tracer)
+                    .start(&mut rng, party)
+                    .await
+                    .map_err(|err| JobError {
+                        reason: format!("KeyRefresh protocol error: {err:?}"),
+                    })?;
 
                 let perf_report = tracer.get_report().map_err(|err| JobError {
                     reason: format!("KeyRefresh protocol error: {err:?}"),
@@ -281,7 +293,7 @@ where
                 if let Some((local_key, job_result)) = protocol_output_clone.lock().await.take() {
                     // Update the local key share, of the phase one.
                     key_store
-                        .set(additional_params.phase_one_id, local_key)
+                        .set_job_result(additional_params.phase_one_id, local_key)
                         .await
                         .map_err(|err| JobError {
                             reason: format!("Failed to store key: {err:?}"),

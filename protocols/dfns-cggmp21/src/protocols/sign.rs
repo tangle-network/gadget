@@ -103,7 +103,7 @@ where
 
         let key = self
             .key_store
-            .get(&previous_job_id)
+            .get_job_result(previous_job_id)
             .await
             .map_err(|err| gadget_common::Error::ClientError {
                 err: err.to_string(),

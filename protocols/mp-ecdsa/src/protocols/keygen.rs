@@ -309,7 +309,7 @@ where
                 // Store the keys locally, as well as submitting them to the blockchain
                 if let Some((local_key, job_result)) = protocol_output_clone.lock().await.take() {
                     key_store2
-                        .set(additional_params.job_id, local_key)
+                        .set_job_result(additional_params.job_id, local_key)
                         .await
                         .map_err(|err| JobError {
                             reason: format!("Failed to store key: {err:?}"),
