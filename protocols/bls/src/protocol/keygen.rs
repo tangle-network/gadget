@@ -1,25 +1,18 @@
-use crate::keygen_protocol::payloads::RoundPayload;
+use crate::keygen::payloads::RoundPayload;
+use crate::protocol::state_machine::payloads::RoundPayload;
 use async_trait::async_trait;
-use bls12_381_plus::group::Group;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
 use gadget_common::config::{DebugLogger, GadgetProtocol, JobsApi, Network, ProvideRuntimeApi};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
-use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{GenericKeyStore, KeystoreBackend};
-use gadget_common::protocol::AsyncProtocol;
-use gadget_common::{
-    Backend, Block, BlockImportNotification, BuiltExecutableJobWrapper, Error, JobBuilder,
-    JobError, ProtocolWorkManager, WorkManagerInterface,
-};
-use gennaro_dkg::{Parameters, SecretParticipant};
+use gadget_common::sp_core::{keccak_256, Pair};
+use gadget_common::{Backend, Block, JobError, WorkManagerInterface};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
-use std::num::NonZeroUsize;
 use std::sync::Arc;
 use tangle_primitives::jobs::{DKGTSSKeySubmissionResult, DigitalSignatureType, JobId, JobResult};
-use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
-use vsss_rs::{combine_shares, Share};
+use tangle_primitives::roles::RoleType;
 
 pub struct BlsKeygenProtocol<
     B: Block,
@@ -37,8 +30,6 @@ pub struct BlsKeygenProtocol<
     pub pallet_tx: Arc<dyn PalletSubmitter>,
     pub keystore: GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
 }
-
-pub type Group = bls12_381_plus::G1Projective;
 
 #[async_trait]
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
@@ -203,7 +194,7 @@ where
                     let message = protocol_message_rx.recv().await.ok_or(JobError {
                         reason: "Channel closed".to_string(),
                     })?;
-                    let payload =
+                    let payload: RoundPayload =
                         bincode2::deserialize(&message.payload).map_err(|e| JobError {
                             reason: e.to_string(),
                         })?;
@@ -252,7 +243,7 @@ where
                     let message = protocol_message_rx.recv().await.ok_or(JobError {
                         reason: "Channel closed".to_string(),
                     })?;
-                    let payload =
+                    let payload: RoundPayload =
                         bincode2::deserialize(&message.payload).map_err(|e| JobError {
                             reason: e.to_string(),
                         })?;
@@ -296,7 +287,7 @@ where
                     let message = protocol_message_rx.recv().await.ok_or(JobError {
                         reason: "Channel closed".to_string(),
                     })?;
-                    let payload =
+                    let payload: RoundPayload =
                         bincode2::deserialize(&message.payload).map_err(|e| JobError {
                             reason: e.to_string(),
                         })?;
@@ -375,28 +366,34 @@ where
                             reason: err.to_string(),
                         })?;
 
-                *result.lock().await = Some((public_key, secret));
+                let job_result = handle_public_key_broadcast(
+                    &keystore,
+                    public_key,
+                    additional_params.i,
+                    additional_params.t,
+                    &mut protocol_message_rx,
+                    associated_block_id,
+                    associated_retry_id,
+                    associated_session_id,
+                    associated_task_id,
+                    &network,
+                    additional_params.i as UserID,
+                    &additional_params.user_id_to_account_id_mapping,
+                )
+                .await?;
+
+                *result.lock().await = Some((job_result, secret));
 
                 Ok(())
             })
             .post(async move {
-                if let Some((public_key, secret)) = result_clone.lock().await {
+                if let Some((job_result, secret)) = result_clone.lock().await {
                     keystore.set(job_id, secret).await.map_err(|err| JobError {
                         reason: err.to_string(),
                     })?;
 
                     pallet_tx
-                        .submit_job_result(
-                            role_type,
-                            job_id,
-                            JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
-                                signature_type: DigitalSignatureType::Bls381,
-                                key: public_key,
-                                participants: vec![],
-                                signatures: vec![],
-                                threshold: additional_params.t as u8,
-                            }),
-                        )
+                        .submit_job_result(role_type, job_id, job_result)
                         .await
                         .map_err(|err| JobError {
                             reason: err.to_string(),
@@ -405,6 +402,86 @@ where
             })
             .build())
     }
+}
+
+async fn handle_public_key_broadcast<KBE: KeystoreBackend, N: Network>(
+    key_store: &GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
+    public_key: Vec<u8>,
+    i: u16,
+    t: u16,
+    protocol_message_rx: &mut tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>,
+    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    task_hash: <WorkManager as WorkManagerInterface>::TaskID,
+    network: &N,
+    my_idx: UserID,
+    user_id_to_account_id_mapping: &Arc<HashMap<UserID, AccountId>>,
+) -> Result<JobResult, JobError> {
+    let key_hashed = keccak_256(&public_key);
+    let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
+    let my_id = key_store.pair().public();
+
+    let mut received_signatures = BTreeMap::new();
+    received_signatures.insert(i, signature.clone());
+
+    let broadcast_message = RoundPayload::PublicKeyGossip(signature);
+    send_message(
+        associated_block_id,
+        associated_retry_id,
+        associated_session_id,
+        task_hash,
+        network,
+        broadcast_message,
+        my_id,
+        my_idx,
+        None,
+        user_id_to_account_id_mapping,
+    )
+    .await?;
+
+    // Receive t signatures
+    let mut count = 0;
+    while count < t {
+        let message = protocol_message_rx.recv().await.ok_or(JobError {
+            reason: "Channel closed".to_string(),
+        })?;
+        let payload: RoundPayload =
+            bincode2::deserialize(&message.payload).map_err(|e| JobError {
+                reason: e.to_string(),
+            })?;
+        match payload {
+            RoundPayload::PublicKeyGossip(signature) => {
+                received_signatures.insert(message.from as u16, signature);
+            }
+            _ => {
+                return Err(JobError {
+                    reason: "Unexpected payload".to_string(),
+                })
+            }
+        }
+        count += 1;
+    }
+
+    let participants = user_id_to_account_id_mapping
+        .into_iter()
+        .sorted_by_key(|x| x.0)
+        .map(|r| r.1 .0.to_vec())
+        .collect();
+
+    let signatures = received_signatures
+        .into_iter()
+        .sorted_by_key(|x| x.0)
+        .map(|r| r.1)
+        .collect();
+
+    Ok(JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
+        signature_type: DigitalSignatureType::Bls381,
+        key: public_key,
+        participants,
+        signatures,
+        threshold: t as u8,
+    }))
 }
 
 async fn send_message<N: Network>(
@@ -444,27 +521,4 @@ async fn send_message<N: Network>(
 
     network.send_message(message).await?;
     Ok(())
-}
-
-mod payloads {
-    use crate::keygen_protocol::Group;
-    use gennaro_dkg::{
-        Round1BroadcastData, Round1P2PData, Round2EchoBroadcastData, Round3BroadcastData,
-        Round4EchoBroadcastData,
-    };
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Serialize, Deserialize)]
-    pub enum RoundPayload {
-        Round1(Round1Payload),
-        Round2(Round2EchoBroadcastData),
-        Round3(Round3BroadcastData<Group>),
-        Round4(Round4EchoBroadcastData<Group>),
-    }
-
-    #[derive(Serialize, Deserialize)]
-    pub enum Round1Payload {
-        Broadcast(Round1BroadcastData<Group>),
-        P2P(Round1P2PData),
-    }
 }
