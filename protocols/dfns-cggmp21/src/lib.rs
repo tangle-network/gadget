@@ -5,9 +5,9 @@ use gadget_common::gadget::network::Network;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use pallet_jobs_rpc_runtime_api::JobsApi;
 use protocol_macros::protocol;
+use protocols::key_refresh::DfnsCGGMP21KeyRefreshProtocol;
+use protocols::key_rotate::DfnsCGGMP21KeyRotateProtocol;
 use protocols::keygen::DfnsCGGMP21KeygenProtocol;
-use protocols::keyrefresh::DfnsCGGMP21KeyRefreshProtocol;
-use protocols::keyrotate::DfnsCGGMP21KeyRotateProtocol;
 use protocols::sign::DfnsCGGMP21SigningProtocol;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
@@ -96,8 +96,8 @@ macro_rules! decl_porto {
 decl_porto!(
     DfnsCGGMP21KeygenProtocolConfig + DfnsCGGMP21KeygenProtocol = protocols::keygen,
     DfnsCGGMP21SigningProtocolConfig + DfnsCGGMP21SigningProtocol = protocols::sign,
-    DfnsCGGMP21KeyRefreshProtocolConfig + DfnsCGGMP21KeyRefreshProtocol = protocols::keyrefresh,
-    DfnsCGGMP21KeyRotateProtocolConfig + DfnsCGGMP21KeyRotateProtocol = protocols::keyrotate,
+    DfnsCGGMP21KeyRefreshProtocolConfig + DfnsCGGMP21KeyRefreshProtocol = protocols::key_refresh,
+    DfnsCGGMP21KeyRotateProtocolConfig + DfnsCGGMP21KeyRotateProtocol = protocols::key_rotate,
 );
 
 #[allow(clippy::too_many_arguments)]
@@ -106,8 +106,8 @@ pub async fn run<B, BE, KBE, C, N, Tx>(
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
     pallet_tx: Tx,
-    (client_keygen, client_signing, client_keyrefresh, client_keyrotate): (C, C, C, C),
-    (network_keygen, network_signing, network_keyrefresh, network_keyrotate): (N, N, N, N),
+    (client_keygen, client_signing, client_key_refresh, client_key_rotate): (C, C, C, C),
+    (network_keygen, network_signing, network_key_refresh, network_key_rotate): (N, N, N, N),
 ) -> Result<(), gadget_common::Error>
 where
     B: Block,
@@ -139,21 +139,21 @@ where
         _pd: std::marker::PhantomData,
     };
 
-    let keyrefresh_config = DfnsCGGMP21KeyRefreshProtocolConfig {
+    let key_refresh_config = DfnsCGGMP21KeyRefreshProtocolConfig {
         account_id,
-        network: network_keyrefresh,
+        network: network_key_refresh,
         keystore_backend: keystore.clone(),
-        client: client_keyrefresh,
+        client: client_key_refresh,
         logger: logger.clone(),
         pallet_tx: pallet_tx.clone(),
         _pd: std::marker::PhantomData,
     };
 
-    let keyrotate_config = DfnsCGGMP21KeyRotateProtocolConfig {
+    let key_rotate_config = DfnsCGGMP21KeyRotateProtocolConfig {
         account_id,
-        network: network_keyrotate,
+        network: network_key_rotate,
         keystore_backend: keystore,
-        client: client_keyrotate,
+        client: client_key_rotate,
         logger,
         pallet_tx,
         _pd: std::marker::PhantomData,
@@ -161,13 +161,13 @@ where
 
     let keygen_future = keygen_config.execute();
     let sign_future = sign_config.execute();
-    let keyrefresh_future = keyrefresh_config.execute();
-    let keyrotate_future = keyrotate_config.execute();
+    let key_refresh_future = key_refresh_config.execute();
+    let key_rotate_future = key_rotate_config.execute();
 
     tokio::select! {
         res0 = keygen_future => res0,
         res1 = sign_future => res1,
-        res2 = keyrefresh_future => res2,
-        res3 = keyrotate_future => res3,
+        res2 = key_refresh_future => res2,
+        res3 = key_rotate_future => res3,
     }
 }

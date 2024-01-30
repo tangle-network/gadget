@@ -69,7 +69,7 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     fn name(&self) -> String {
-        "dfns-cggmp21-keyrotate".to_string()
+        "dfns-cggmp21-key-rotate".to_string()
     }
 
     async fn create_next_job(
@@ -277,12 +277,12 @@ where
                 ));
 
                 let job_id_bytes = additional_params.job_id.to_be_bytes();
-                let mix = keccak_256(b"dnfs-cggmp21-signing");
+                let mix = keccak_256(b"dnfs-cggmp21-key-rotate");
                 let eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
                 let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
                 let (
-                    signing_tx_to_outbound,
-                    signing_rx_async_proto,
+                    key_rotate_tx_to_outbound,
+                    key_rotate_rx_async_proto,
                     _broadcast_tx_to_outbound,
                     _broadcast_rx_from_gadget,
                 ) = super::util::create_job_manager_to_async_protocol_channel_split::<_, (), _>(
@@ -296,7 +296,7 @@ where
                     network.clone(),
                 );
 
-                let delivery = (signing_rx_async_proto, signing_tx_to_outbound);
+                let delivery = (key_rotate_rx_async_proto, key_rotate_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
                 let data_hash = keccak_256(&new_key);
                 let data_to_sign = dfns_cggmp21::DataToSign::from_scalar(

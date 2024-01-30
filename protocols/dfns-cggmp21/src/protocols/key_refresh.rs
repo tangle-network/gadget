@@ -69,16 +69,13 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     fn name(&self) -> String {
-        "dfns-cggmp21-keyrefresh".to_string()
+        "dfns-cggmp21-key-refresh".to_string()
     }
 
     async fn create_next_job(
         &self,
         job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
-        let now = job.now;
-        self.logger.info(format!("At finality notification {now}"));
-
         let job_id = job.job_id;
         let role_type = job.job_type.get_role_type();
 
@@ -245,8 +242,8 @@ where
                 let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
 
                 let (
-                    keyrefresh_tx_to_outbound,
-                    keyrefresh_rx_async_proto,
+                    key_refresh_tx_to_outbound,
+                    key_refresh_rx_async_proto,
                     _broadcast_tx_to_outbound,
                     _broadcast_rx_from_gadget,
                 ) = super::util::create_job_manager_to_async_protocol_channel_split::<_, (), _>(
@@ -261,7 +258,7 @@ where
                 );
 
                 let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
-                let delivery = (keyrefresh_rx_async_proto, keyrefresh_tx_to_outbound);
+                let delivery = (key_refresh_rx_async_proto, key_refresh_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
                 let aux_info = dfns_cggmp21::aux_info_gen(eid, i, n, pregenerated_primes)
                     .set_progress_tracer(&mut tracer)

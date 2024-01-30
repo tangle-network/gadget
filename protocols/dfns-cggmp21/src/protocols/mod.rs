@@ -1,5 +1,5 @@
+pub mod key_refresh;
+pub mod key_rotate;
 pub mod keygen;
-pub mod keyrefresh;
-pub mod keyrotate;
 pub mod sign;
 pub mod util;
