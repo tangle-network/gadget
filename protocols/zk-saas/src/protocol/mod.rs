@@ -61,15 +61,20 @@ where
     C: ClientWithApi<B, BE> + 'static,
     BE: Backend<B> + 'static,
 {
+    fn name(&self) -> String {
+        "zk-saas".to_string()
+    }
+
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
         let (now, job_id) = (job.now, job.job_id);
 
         self.logger
             .info(format!("Received a finality notification at {now}"));
 
+        let role_type = job.job_type.get_role_type();
         let JobType::ZkSaaSPhaseTwo(phase_two) = job.job_type else {
             panic!("Should be valid")
         };
@@ -85,7 +90,7 @@ where
                 .position(|p| p == &self.account_id)
                 .expect("Should exist") as _,
             job_id,
-            role_type: self.role_type(),
+            role_type,
             system: phase_one.system,
             request: phase_two.request,
             participants,
@@ -110,12 +115,12 @@ where
         &self.account_id
     }
 
-    fn role_type(&self) -> RoleType {
-        RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16)
+    fn role_filter(&self, role: RoleType) -> bool {
+        matches!(role, RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16))
     }
 
-    fn is_phase_one(&self) -> bool {
-        false
+    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+        matches!(job, JobType::ZkSaaSPhaseTwo(_))
     }
 
     fn client(&self) -> &JobsClient<B, BE, C> {
