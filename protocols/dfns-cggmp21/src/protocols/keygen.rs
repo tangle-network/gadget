@@ -73,13 +73,14 @@ impl<
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
+    fn name(&self) -> String {
+        "dfns-cggmp21-keygen".to_string()
+    }
+
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
-        let now = job.now;
-        self.logger.info(format!("At finality notification {now}"));
-
         let job_id = job.job_id;
         let role_type = job.job_type.get_role_type();
 
@@ -115,10 +116,6 @@ where
         Ok(params)
     }
 
-    fn role_type(&self) -> RoleType {
-        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
-    }
-
     async fn process_block_import_notification(
         &self,
         _notification: BlockImportNotification<B>,
@@ -139,8 +136,15 @@ where
         &self.account_id
     }
 
-    fn is_phase_one(&self) -> bool {
-        true
+    fn role_filter(&self, role: RoleType) -> bool {
+        matches!(
+            role,
+            RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
+        )
+    }
+
+    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+        matches!(job, JobType::DKGTSSPhaseOne(_))
     }
 
     fn client(&self) -> &JobsClient<B, BE, C> {
@@ -191,7 +195,7 @@ where
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         let key_store = self.key_store.clone();
-        let key_store_for_gossip = self.key_store.clone();
+        let key_store2 = self.key_store.clone();
         let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
         let protocol_output_clone = protocol_output.clone();
         let client = self.client.clone();
@@ -238,9 +242,11 @@ where
                     id,
                     network.clone(),
                 );
+                let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
                 let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
                 let incomplete_key_share = dfns_cggmp21::keygen::<Secp256k1>(eid, i, n)
+                    .set_progress_tracer(&mut tracer)
                     .set_threshold(t)
                     .start(&mut rng, party)
                     .await
@@ -248,6 +254,10 @@ where
                         reason: format!("Keygen protocol error: {err:?}"),
                     })?;
 
+                let perf_report = tracer.get_report().map_err(|err| JobError {
+                    reason: format!("Keygen protocol error: {err:?}"),
+                })?;
+                logger.trace(format!("Incomplete Keygen protocol report: {perf_report}"));
                 logger.debug("Finished AsyncProtocol - Incomplete Keygen");
 
                 let (
@@ -265,15 +275,30 @@ where
                     id,
                     network,
                 );
+                let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
+
+                let pregenerated_primes_key =
+                    keccak_256(&[&b"dfns-cggmp21-keygen-primes"[..], &job_id_bytes[..]].concat());
                 let pregenerated_primes = dfns_cggmp21::PregeneratedPrimes::generate(&mut rng);
+                key_store2
+                    .set(&pregenerated_primes_key, pregenerated_primes.clone())
+                    .await
+                    .map_err(|err| JobError {
+                        reason: format!("Failed to store pregenerated primes: {err:?}"),
+                    })?;
                 let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
                 let aux_info = dfns_cggmp21::aux_info_gen(aux_eid, i, n, pregenerated_primes)
+                    .set_progress_tracer(&mut tracer)
                     .start(&mut rng, party)
                     .await
                     .map_err(|err| JobError {
                         reason: format!("Aux info protocol error: {err:?}"),
                     })?;
+                let perf_report = tracer.get_report().map_err(|err| JobError {
+                    reason: format!("Aux info protocol error: {err:?}"),
+                })?;
+                logger.trace(format!("Aux info protocol report: {perf_report}"));
                 logger.debug("Finished AsyncProtocol - Aux Info");
 
                 let key_share = dfns_cggmp21::KeyShare::make(incomplete_key_share, aux_info)
@@ -284,7 +309,7 @@ where
                 logger.debug("Finished AsyncProtocol - Keygen");
 
                 let job_result = handle_public_key_gossip(
-                    key_store_for_gossip,
+                    key_store2,
                     &logger,
                     &key_share,
                     t,
@@ -302,7 +327,7 @@ where
                 // Store the keys locally, as well as submitting them to the blockchain
                 if let Some((local_key, job_result)) = protocol_output_clone.lock().await.take() {
                     key_store
-                        .set(additional_params.job_id, local_key)
+                        .set_job_result(additional_params.job_id, local_key)
                         .await
                         .map_err(|err| JobError {
                             reason: format!("Failed to store key: {err:?}"),

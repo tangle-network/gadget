@@ -30,10 +30,10 @@
             pkgs.pkg-config
             pkgs.clang
             pkgs.gmp
-            pkgs.om4
             # Protocol Buffers
             pkgs.protobuf
             # Mold Linker for faster builds (only on Linux)
+            (lib.optionals pkgs.stdenv.isLinux pkgs.om4)
             (lib.optionals pkgs.stdenv.isLinux pkgs.mold)
             (lib.optionals pkgs.stdenv.isDarwin pkgs.darwin.apple_sdk.frameworks.Security)
             (lib.optionals pkgs.stdenv.isDarwin pkgs.darwin.apple_sdk.frameworks.SystemConfiguration)
