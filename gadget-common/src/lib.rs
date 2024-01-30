@@ -47,6 +47,7 @@ pub enum Error {
     MissingNetworkId,
     PeerNotFound { id: AccountId },
     JoinError { err: JoinError },
+    ParticipantNotSelected { id: AccountId, reason: String },
 }
 
 impl Display for Error {

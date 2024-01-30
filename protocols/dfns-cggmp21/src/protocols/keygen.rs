@@ -257,7 +257,7 @@ where
                 let perf_report = tracer.get_report().map_err(|err| JobError {
                     reason: format!("Keygen protocol error: {err:?}"),
                 })?;
-                logger.debug(format!("Incomplete Keygen protocol report: {perf_report}"));
+                logger.trace(format!("Incomplete Keygen protocol report: {perf_report}"));
                 logger.debug("Finished AsyncProtocol - Incomplete Keygen");
 
                 let (
@@ -298,7 +298,7 @@ where
                 let perf_report = tracer.get_report().map_err(|err| JobError {
                     reason: format!("Aux info protocol error: {err:?}"),
                 })?;
-                logger.debug(format!("Aux info protocol report: {perf_report}"));
+                logger.trace(format!("Aux info protocol report: {perf_report}"));
                 logger.debug("Finished AsyncProtocol - Aux Info");
 
                 let key_share = dfns_cggmp21::KeyShare::make(incomplete_key_share, aux_info)

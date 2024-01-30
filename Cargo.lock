@@ -2143,6 +2143,7 @@ dependencies = [
  "parity-scale-codec 3.6.9",
  "protocol-macros",
  "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "sc-client-api",
  "serde",
  "sp-api",
