@@ -21,15 +21,15 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use tokio::task::JoinError;
 
+pub mod channels;
 pub mod client;
+pub mod config;
 pub mod debug_logger;
 pub mod gadget;
 pub mod helpers;
 pub mod keystore;
 pub mod locks;
 pub mod protocol;
-
-pub mod config;
 #[derive(Debug)]
 pub enum Error {
     RegistryCreateError { err: String },

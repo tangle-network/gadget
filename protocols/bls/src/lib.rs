@@ -1,4 +1,4 @@
-/*use crate::protocol::keygen::BlsKeygenProtocol;
+use crate::protocol::keygen::BlsKeygenProtocol;
 use crate::protocol::signing::BlsSigningProtocol;
 use async_trait::async_trait;
 use gadget_common::client::*;
@@ -8,8 +8,6 @@ use gadget_common::Error;
 use protocol_macros::protocol;
 use std::sync::Arc;
 
-pub mod keygen;
-pub mod signing;
 pub mod protocol;
 
 #[protocol]
@@ -173,5 +171,3 @@ where
         res1 = signing_future => res1,
     }
 }
-*/
-pub mod protocol;

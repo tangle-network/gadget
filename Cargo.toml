@@ -37,6 +37,7 @@ multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
 curv = { package = "curv-kzen", version = "0.10.0" }
 dfns-cggmp21 = { package = "cggmp21", version = "0.1.1", default-features = false }
+blsful = { git = "https://github.com/webb-tools/blsful/" }
 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }

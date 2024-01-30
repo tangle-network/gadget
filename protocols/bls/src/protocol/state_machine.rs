@@ -6,6 +6,7 @@ use gennaro_dkg::{
 };
 use round_based::{IsCritical, Msg, StateMachine};
 use std::collections::BTreeMap;
+use std::fmt::{Display, Formatter};
 use std::num::NonZeroUsize;
 use std::time::Duration;
 
@@ -15,15 +16,24 @@ pub struct BlsStateMachine {
     party_index: u16,
     n: u16,
     state: BlsState,
+    #[allow(dead_code)]
     logger: DebugLogger,
 }
 
 #[derive(Debug)]
 pub struct BlsStateMachineError {
+    #[allow(dead_code)]
     reason: String,
 }
 
+impl Display for BlsStateMachineError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f)
+    }
+}
+
 pub type Group = bls12_381_plus::G1Projective;
+pub type GroupBlsful = blsful::Bls12381G1Impl;
 
 impl BlsStateMachine {
     pub fn new(i: u16, t: u16, n: u16, logger: DebugLogger) -> Result<Self, BlsStateMachineError> {
@@ -261,18 +271,23 @@ impl IsCritical for BlsStateMachineError {
 
 #[cfg(test)]
 mod tests {
-    use crate::protocol::state_machine::BlsStateMachine;
+    use crate::protocol::state_machine::{BlsStateMachine, GroupBlsful};
+    use blsful::{PublicKey, Signature, SignatureSchemes};
     use gadget_common::config::DebugLogger;
     use round_based::dev::AsyncSimulation;
 
     #[tokio::test]
     async fn test_bls_state_machine() {
+        const T: u16 = 2;
+        const N: u16 = 3;
+        const TEST_MSG: &[u8] = b"Hello, world";
+
         let simulation = AsyncSimulation::<BlsStateMachine>::new()
             .add_party(
                 BlsStateMachine::new(
                     1,
-                    2,
-                    3,
+                    T,
+                    N,
                     DebugLogger {
                         peer_id: "1".to_string(),
                     },
@@ -282,8 +297,8 @@ mod tests {
             .add_party(
                 BlsStateMachine::new(
                     2,
-                    2,
-                    3,
+                    T,
+                    N,
                     DebugLogger {
                         peer_id: "2".to_string(),
                     },
@@ -293,8 +308,8 @@ mod tests {
             .add_party(
                 BlsStateMachine::new(
                     3,
-                    2,
-                    3,
+                    T,
+                    N,
                     DebugLogger {
                         peer_id: "3".to_string(),
                     },
@@ -306,6 +321,36 @@ mod tests {
 
         for res in simulation {
             assert!(res.is_ok());
+            if let Ok(participant) = res {
+                let _pk = participant
+                    .get_public_key()
+                    .expect("Public key should be some");
+                let sk = participant
+                    .get_secret_share()
+                    .expect("Secret should be some");
+
+                let sk =
+                    blsful::SecretKey::<GroupBlsful>::from_be_bytes(&sk.to_be_bytes()).unwrap();
+                let shares = sk
+                    .split_with_rng(T as _, N as _, &mut rand::thread_rng())
+                    .unwrap();
+
+                let sig1 = shares[0].sign(SignatureSchemes::Basic, TEST_MSG).unwrap();
+                let sig2 = shares[1].sign(SignatureSchemes::Basic, TEST_MSG).unwrap();
+                let sig3 = shares[2].sign(SignatureSchemes::Basic, TEST_MSG).unwrap();
+
+                let pks1 = shares[0].public_key().unwrap();
+                let pks2 = shares[1].public_key().unwrap();
+                let pks3 = shares[2].public_key().unwrap();
+
+                assert!(sig1.verify(&pks1, TEST_MSG).is_ok());
+                assert!(sig2.verify(&pks2, TEST_MSG).is_ok());
+                assert!(sig3.verify(&pks3, TEST_MSG).is_ok());
+
+                let combined_signature = Signature::from_shares(&[sig1, sig2, sig3]).unwrap();
+                let combined_pk = PublicKey::from_shares(&[pks1, pks2, pks3]).unwrap();
+                assert!(combined_signature.verify(&combined_pk, TEST_MSG).is_ok());
+            }
         }
     }
 }

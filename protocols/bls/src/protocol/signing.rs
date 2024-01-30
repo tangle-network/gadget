@@ -45,7 +45,7 @@ where
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
         let job_id = job.job_id;
         let p1_job = job.phase1_job.expect("Should exist");
-        let threshold = p1_job.get_threshold().expect("Should exist") as u16;
+        let threshold = p1_job.clone().get_threshold().expect("Should exist") as u16;
         let role_type = p1_job.get_role_type();
         let participants = p1_job.get_participants().expect("Should exist");
         let user_id_to_account_id_mapping = Arc::new(
@@ -134,7 +134,8 @@ where
         let n = NonZeroUsize::new(additional_params.n as usize).expect("N should be > 0");
         Ok(JobBuilder::new()
             .protocol(async move {
-                let params = Parameters::<bls12_381_plus::G1Projective>::new(threshold, n);
+                let _params = Parameters::<bls12_381_plus::G1Projective>::new(threshold, n);
+                Ok(())
             })
             .build())
     }
