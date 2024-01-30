@@ -272,7 +272,7 @@ impl IsCritical for BlsStateMachineError {
 #[cfg(test)]
 mod tests {
     use crate::protocol::state_machine::{BlsStateMachine, GroupBlsful};
-    use blsful::{PublicKey, Signature, SignatureSchemes};
+    use blsful::{PublicKey, PublicKeyShare, Signature, SignatureSchemes};
     use gadget_common::config::DebugLogger;
     use round_based::dev::AsyncSimulation;
 
@@ -282,6 +282,7 @@ mod tests {
         const N: u16 = 3;
         const TEST_MSG: &[u8] = b"Hello, world";
 
+        // Step 1: Perform local DKG
         let simulation = AsyncSimulation::<BlsStateMachine>::new()
             .add_party(
                 BlsStateMachine::new(
@@ -319,39 +320,38 @@ mod tests {
             .run()
             .await;
 
+        // Step 2: Combine the signatures and public keys
+        let mut sig_shares = vec![];
+        let mut pk_shares = vec![];
+
         for res in simulation {
             assert!(res.is_ok());
             if let Ok(participant) = res {
-                let _pk = participant
+                let pk = participant
                     .get_public_key()
                     .expect("Public key should be some");
                 let sk = participant
                     .get_secret_share()
                     .expect("Secret should be some");
 
-                let sk =
-                    blsful::SecretKey::<GroupBlsful>::from_be_bytes(&sk.to_be_bytes()).unwrap();
-                let shares = sk
-                    .split_with_rng(T as _, N as _, &mut rand::thread_rng())
-                    .unwrap();
+                let share =
+                    blsful::SecretKeyShare::<GroupBlsful>::try_from(sk.to_be_bytes().to_vec())
+                        .unwrap();
 
-                let sig1 = shares[0].sign(SignatureSchemes::Basic, TEST_MSG).unwrap();
-                let sig2 = shares[1].sign(SignatureSchemes::Basic, TEST_MSG).unwrap();
-                let sig3 = shares[2].sign(SignatureSchemes::Basic, TEST_MSG).unwrap();
+                let sig_share = share.sign(SignatureSchemes::Basic, TEST_MSG).unwrap();
+                let pk_share =
+                    PublicKeyShare::<GroupBlsful>::try_from(&pk.to_compressed() as &[u8]).unwrap();
 
-                let pks1 = shares[0].public_key().unwrap();
-                let pks2 = shares[1].public_key().unwrap();
-                let pks3 = shares[2].public_key().unwrap();
-
-                assert!(sig1.verify(&pks1, TEST_MSG).is_ok());
-                assert!(sig2.verify(&pks2, TEST_MSG).is_ok());
-                assert!(sig3.verify(&pks3, TEST_MSG).is_ok());
-
-                let combined_signature = Signature::from_shares(&[sig1, sig2, sig3]).unwrap();
-                let combined_pk = PublicKey::from_shares(&[pks1, pks2, pks3]).unwrap();
-                assert!(combined_signature.verify(&combined_pk, TEST_MSG).is_ok());
+                assert!(sig_share.verify(&pk_share, TEST_MSG).is_ok());
+                sig_shares.push(sig_share);
+                pk_shares.push(pk_share);
             }
         }
+
+        // Step 3: Verify the combined signatures and public keys
+        let combined_signature = Signature::from_shares(&sig_shares).unwrap();
+        let combined_pk = PublicKey::from_shares(&pk_shares).unwrap();
+        assert!(combined_signature.verify(&combined_pk, TEST_MSG).is_ok());
     }
 }
 

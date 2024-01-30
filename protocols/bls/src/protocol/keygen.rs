@@ -50,7 +50,6 @@ where
         job: JobInitMetadata,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
         let job_id = job.job_id;
-        let task_hash = job.task_id;
         let p1_job = job.job_type;
         let threshold = p1_job.clone().get_threshold().expect("Should exist") as u16;
         let role_type = p1_job.get_role_type();
@@ -73,7 +72,6 @@ where
             t: threshold,
             n: participants.len() as u16,
             role_type,
-            task_hash,
             job_id,
             user_id_to_account_id_mapping,
         };
@@ -119,7 +117,6 @@ pub struct BlsKeygenAdditionalParams {
     n: u16,
     role_type: RoleType,
     job_id: JobId,
-    task_hash: [u8; 32],
     user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
 }
 
