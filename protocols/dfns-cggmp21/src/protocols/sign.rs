@@ -86,21 +86,14 @@ where
 
         let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
         let participants = phase1_job.clone().get_participants().expect("Should exist");
-        let threshold = phase1_job.get_threshold().expect("Should exist") as u16;
+        let t = phase1_job.get_threshold().expect("Should exist") as u16;
 
-        let i = participants
-            .iter()
-            .position(|p| p == &self.account_id)
-            .expect("Should exist") as u16;
-        // TODO: decide how we will pick the signers.
-        // For now, we will just pick the first t participants.
-        let signers = participants
-            .iter()
-            .enumerate()
-            .take(threshold as usize)
-            .map(|(i, _)| i as u16)
-            .collect::<Vec<_>>();
+        let seed =
+            keccak_256(&[&job_id.to_be_bytes()[..], &job.retry_id.to_be_bytes()[..]].concat());
+        let mut rng = rand_chacha::ChaChaRng::from_seed(seed);
 
+        let (i, signers, mapping) =
+            super::util::choose_signers(&mut rng, &self.account_id, &participants, t)?;
         let key = self
             .key_store
             .get_job_result(previous_job_id)
@@ -112,36 +105,19 @@ where
                 err: format!("No key found for job ID: {job_id:?}"),
             })?;
 
-        if participants.contains(&self.account_id) && signers.contains(&i) {
-            let user_id_to_account_id_mapping = Arc::new(
-                participants
-                    .clone()
-                    .into_iter()
-                    .enumerate()
-                    .map(|r| (r.0 as UserID, r.1))
-                    .collect(),
-            );
+        let user_id_to_account_id_mapping = Arc::new(mapping);
 
-            let params = DfnsCGGMP21SigningExtraParams {
-                i,
-                t: threshold,
-                signers,
-                job_id,
-                role_type: RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1),
-                key,
-                input_data_to_sign,
-                user_id_to_account_id_mapping,
-            };
-            Ok(params)
-        } else {
-            Err(gadget_common::Error::ClientError {
-                err: format!(
-                    "Account ID {account_id:?} is not a participant or signer for job {job_id:?}",
-                    account_id = self.account_id,
-                    job_id = job_id
-                ),
-            })
-        }
+        let params = DfnsCGGMP21SigningExtraParams {
+            i,
+            t,
+            signers,
+            job_id,
+            role_type: job.role_type,
+            key,
+            input_data_to_sign,
+            user_id_to_account_id_mapping,
+        };
+        Ok(params)
     }
 
     async fn process_block_import_notification(
@@ -292,7 +268,7 @@ where
                 let perf_report = tracer.get_report().map_err(|err| JobError {
                     reason: format!("Signing protocol error: {err:?}"),
                 })?;
-                logger.debug(format!("Signing protocol report: {perf_report}"));
+                logger.trace(format!("Signing protocol report: {perf_report}"));
                 // Normalize the signature
                 let signature = signature.normalize_s();
                 logger.debug("Finished AsyncProtocol - Signing");

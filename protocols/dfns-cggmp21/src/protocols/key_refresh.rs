@@ -274,7 +274,7 @@ where
                 let perf_report = tracer.get_report().map_err(|err| JobError {
                     reason: format!("KeyRefresh protocol error: {err:?}"),
                 })?;
-                logger.debug(format!("KeyRefresh protocol report: {perf_report}"));
+                logger.trace(format!("KeyRefresh protocol report: {perf_report}"));
 
                 logger.debug("Finished AsyncProtocol - KeyRefresh");
 

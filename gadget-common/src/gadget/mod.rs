@@ -115,23 +115,23 @@ where
             .query_jobs_by_validator(notification.hash, *self.protocol.account_id())
             .await?;
 
-        log::info!(target: "gadget", "[{}] Found {} jobs for initialization", self.protocol.name(), jobs.len());
+        log::trace!(target: "gadget", "[{}] Found {} jobs for initialization", self.protocol.name(), jobs.len());
         let mut relevant_jobs = Vec::new();
 
         for job in jobs {
             // Job is expired.
             if job.expiry < now_header {
-                log::warn!(target: "gadget", "[{}] The job requested for initialization is expired, skipping submission", self.protocol.name());
+                log::trace!(target: "gadget", "[{}] The job requested for initialization is expired, skipping submission", self.protocol.name());
                 continue;
             }
             // Job is not for this role
             if !self.protocol.role_filter(job.job_type.get_role_type()) {
-                log::debug!(target: "gadget", "[{}] The job {} requested for initialization is not for this role {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type.get_role_type());
+                log::trace!(target: "gadget", "[{}] The job {} requested for initialization is not for this role {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type.get_role_type());
                 continue;
             }
             // Job is not for this phase
             if !self.protocol.phase_filter(job.job_type.clone()) {
-                log::debug!(target: "gadget", "[{}] The job {} requested for initialization is not for this phase {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type);
+                log::trace!(target: "gadget", "[{}] The job {} requested for initialization is not for this phase {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type);
                 continue;
             }
 
@@ -182,7 +182,7 @@ where
         for relevant_job in relevant_jobs {
             let task_id = relevant_job.task_id;
             let retry_id = relevant_job.retry_id;
-            log::info!(target: "gadget", "[{}] Creating job for task {task_id} with retry id {retry_id}", self.protocol.name(), task_id = hex::encode(task_id), retry_id = retry_id);
+            log::trace!(target: "gadget", "[{}] Creating job for task {task_id} with retry id {retry_id}", self.protocol.name(), task_id = hex::encode(task_id), retry_id = retry_id);
             match self.protocol.create_next_job(relevant_job).await {
                 Ok(params) => {
                     match self
@@ -213,6 +213,10 @@ where
                                 .error(format!("Failed to create async protocol: {err:?}"));
                         }
                     }
+                }
+
+                Err(Error::ParticipantNotSelected { id, reason }) => {
+                    log::debug!(target: "gadget", "[{}] Participant {id} not selected for job {task_id} with retry id {retry_id} because {reason}", self.protocol.name(), id = id, task_id = hex::encode(task_id), retry_id = retry_id, reason = reason);
                 }
 
                 Err(err) => {
@@ -266,6 +270,8 @@ where
 {
     /// Given an input of a valid and relevant job, return the parameters needed to start the async protocol
     /// Note: the parameters returned must be relevant to the `AsyncProtocol` implementation of this protocol
+    ///
+    /// In case the participant is not selected for some reason, return an [`Error::ParticipantNotSelected`]
     async fn create_next_job(
         &self,
         job: JobInitMetadata<B>,
