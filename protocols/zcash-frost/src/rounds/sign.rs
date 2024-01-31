@@ -161,11 +161,17 @@ where
         }))
     })?;
 
-    assert!(frost_keyshare
+    if !frost_keyshare
         .1
         .verifying_key()
         .verify(message_to_sign, &group_signature)
-        .is_ok());
+        .is_ok()
+    {
+        return Err(SignError(Reason::SignFailure(SignAborted::FrostError {
+            parties: vec![],
+            error: frost_core::Error::<C>::InvalidSignature,
+        })));
+    }
 
     tracer.protocol_ends();
 
