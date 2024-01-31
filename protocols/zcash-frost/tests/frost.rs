@@ -3,8 +3,7 @@ mod tests {
     use futures::stream::FuturesUnordered;
     use futures::StreamExt;
     use tangle_primitives::jobs::{
-        DKGTSSPhaseFourJobType, DKGTSSPhaseOneJobType, DKGTSSPhaseThreeJobType,
-        DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
+        DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
     };
     use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
     use test_utils::mock::{id_to_public, Jobs, MockBackend, RuntimeOrigin};
@@ -40,34 +39,6 @@ mod tests {
         let ext = new_test_ext::<N>().await;
         let keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
         assert_eq!(wait_for_signing::<N>(&ext, keygen_job_id).await, 1);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_externalities_keyrefresh() {
-        test_utils::setup_log();
-        const N: usize = 3;
-        const T: usize = N - 1;
-
-        let ext = new_test_ext::<N>().await;
-        let keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
-        assert_eq!(wait_for_keyrefresh::<N>(&ext, keygen_job_id).await, 1);
-        // try to sign with the key that was just refreshed.
-        assert_eq!(wait_for_signing::<N>(&ext, keygen_job_id).await, 2);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_externalities_keyrotation() {
-        test_utils::setup_log();
-        const N: usize = 3;
-        const T: usize = N - 1;
-
-        let ext = new_test_ext::<N>().await;
-        let keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
-        let new_keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
-        assert_eq!(
-            wait_for_keyrotation::<N>(&ext, keygen_job_id, new_keygen_job_id).await,
-            2
-        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -107,7 +78,7 @@ mod tests {
                         participants: identities.clone(),
                         threshold: T as _,
                         permitted_caller: None,
-                        role_type: ThresholdSignatureRoleType::ZcashFrostEd25519,
+                        role_type: ThresholdSignatureRoleType::ZcashFrostRistretto255,
                     }),
                 };
 
@@ -120,7 +91,7 @@ mod tests {
 
         test_utils::wait_for_job_completion(
             ext,
-            RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1),
+            RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255),
             job_id,
         )
         .await;
@@ -142,7 +113,7 @@ mod tests {
                     job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
                         phase_one_id: keygen_job_id,
                         submission,
-                        role_type: ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
+                        role_type: ThresholdSignatureRoleType::ZcashFrostRistretto255,
                     }),
                 };
 
@@ -155,75 +126,7 @@ mod tests {
 
         test_utils::wait_for_job_completion(
             ext,
-            RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1),
-            job_id,
-        )
-        .await;
-        job_id
-    }
-
-    async fn wait_for_keyrefresh<const N: usize>(
-        ext: &MultiThreadedTestExternalities,
-        keygen_job_id: JobId,
-    ) -> JobId {
-        let job_id = ext
-            .execute_with_async(move || {
-                let job_id = Jobs::next_job_id();
-                let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
-                let submission = JobSubmission {
-                    expiry: 100,
-                    ttl: 100,
-                    job_type: JobType::DKGTSSPhaseThree(DKGTSSPhaseThreeJobType {
-                        phase_one_id: keygen_job_id,
-                        role_type: ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
-                    }),
-                };
-
-                assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission).is_ok());
-
-                log::info!(target: "gadget", "******* Submitted KeyRefresh Job {job_id}");
-                job_id
-            })
-            .await;
-
-        test_utils::wait_for_job_completion(
-            ext,
-            RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1),
-            job_id,
-        )
-        .await;
-        job_id
-    }
-
-    async fn wait_for_keyrotation<const N: usize>(
-        ext: &MultiThreadedTestExternalities,
-        keygen_job_id: JobId,
-        new_keygen_job_id: JobId,
-    ) -> JobId {
-        let job_id = ext
-            .execute_with_async(move || {
-                let job_id = Jobs::next_job_id();
-                let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
-                let submission = JobSubmission {
-                    expiry: 100,
-                    ttl: 100,
-                    job_type: JobType::DKGTSSPhaseFour(DKGTSSPhaseFourJobType {
-                        phase_one_id: keygen_job_id,
-                        new_phase_one_id: new_keygen_job_id,
-                        role_type: ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
-                    }),
-                };
-
-                assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission).is_ok());
-
-                log::info!(target: "gadget", "******* Submitted KeyRotation Job {job_id}");
-                job_id
-            })
-            .await;
-
-        test_utils::wait_for_job_completion(
-            ext,
-            RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1),
+            RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255),
             job_id,
         )
         .await;
