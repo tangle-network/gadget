@@ -1,7 +1,6 @@
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 //! When delivering messages to an async protocol, we want to make sure we don't mix up voting and public key gossip messages
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
-use dfns_cggmp21::round_based::{Incoming, MessageDestination, MessageType, Outgoing, PartyIndex};
 use futures::{Stream, StreamExt};
 use gadget_common::client::AccountId;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -9,6 +8,7 @@ use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_core::job_manager::WorkManagerInterface;
 use rand::seq::SliceRandom;
+use round_based::{Incoming, MessageDestination, MessageType, Outgoing, PartyIndex};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

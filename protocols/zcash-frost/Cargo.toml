@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
 gadget-common = { workspace = true }
 gadget-core = { workspace = true }
@@ -14,6 +15,24 @@ curv = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 bincode2 = { workspace = true }
+round-based = { git = "https://github.com/ZenGo-X/round-based-protocol" }
+digest = "0.10"
+sha2 = "0.10"
+rand_core = "0.6"
+rand_chacha = { version = "0.3", default-features = false }
+dfns-cggmp21 = { workspace = true }
+
+udigest = { workspace = true }
+frost-core = { workspace = true }
+frost-ed25519 = { workspace = true }
+frost-ed448 = { workspace = true }
+frost-p256 = { workspace = true }
+frost-p384 = { workspace = true }
+frost-redjubjub = { workspace = true }
+frost-ristretto255 = { workspace = true }
+frost-secp256k1 = { workspace = true }
+frost-rerandomized = { workspace = true }
+frost-taproot = { workspace = true }
 
 pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
 pallet-jobs = { workspace = true, features = ["std"] }

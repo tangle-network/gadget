@@ -22,6 +22,7 @@ stub-protocol = { path = "./protocols/stub" }
 test-utils = { path = "./test-utils" }
 protocol-macros = { path = "./protocol-macros" }
 dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
+zcash-frost-protocol = { path = "./protocols/zcash-frost" }
 
 pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle" }
 pallet-jobs = { git = "https://github.com/webb-tools/tangle" }
@@ -35,6 +36,17 @@ multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
 curv = { package = "curv-kzen", version = "0.10.0" }
 dfns-cggmp21 = { package = "cggmp21", version = "0.1.1", default-features = false }
+udigest = { version = "0.1", features = ["std", "derive"]}
+frost-core = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-ed25519 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-ed448 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-p256 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-p384 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-redjubjub = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-ristretto255 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-secp256k1 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-rerandomized = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-taproot = { git = "https://github.com/LIT-Protocol/frost.git" }
 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
@@ -129,3 +141,4 @@ subxt = "0.33.0"
 anyhow = "1.0.79"
 libsecp256k1 = "0.7.1"
 rayon = { version = "1.8.0" }
+thiserror = { version = "1.0" }
