@@ -272,7 +272,7 @@ impl IsCritical for BlsStateMachineError {
 #[cfg(test)]
 mod tests {
     use crate::protocol::state_machine::{BlsStateMachine, GroupBlsful};
-    use blsful::{PublicKey, PublicKeyShare, Signature, SignatureSchemes};
+    use blsful::{MultiPublicKey, MultiSignature, PublicKey, SignatureSchemes};
     use gadget_common::config::DebugLogger;
     use round_based::dev::AsyncSimulation;
 
@@ -327,7 +327,7 @@ mod tests {
         for res in simulation {
             assert!(res.is_ok());
             if let Ok(participant) = res {
-                let pk = participant
+                let _pk = participant
                     .get_public_key()
                     .expect("Public key should be some");
                 let sk = participant
@@ -335,12 +335,10 @@ mod tests {
                     .expect("Secret should be some");
 
                 let share =
-                    blsful::SecretKeyShare::<GroupBlsful>::try_from(sk.to_be_bytes().to_vec())
-                        .unwrap();
+                    blsful::SecretKey::<GroupBlsful>::from_be_bytes(&sk.to_be_bytes()).unwrap();
 
                 let sig_share = share.sign(SignatureSchemes::Basic, TEST_MSG).unwrap();
-                let pk_share =
-                    PublicKeyShare::<GroupBlsful>::try_from(&pk.to_compressed() as &[u8]).unwrap();
+                let pk_share = PublicKey::<GroupBlsful>::from(&share);
 
                 assert!(sig_share.verify(&pk_share, TEST_MSG).is_ok());
                 sig_shares.push(sig_share);
@@ -349,9 +347,10 @@ mod tests {
         }
 
         // Step 3: Verify the combined signatures and public keys
-        let combined_signature = Signature::from_shares(&sig_shares).unwrap();
-        let combined_pk = PublicKey::from_shares(&pk_shares).unwrap();
-        assert!(combined_signature.verify(&combined_pk, TEST_MSG).is_ok());
+        let combined_signature =
+            MultiSignature::<GroupBlsful>::from_signatures(&sig_shares).unwrap();
+        let combined_pk = MultiPublicKey::<GroupBlsful>::from_public_keys(&pk_shares);
+        assert!(combined_signature.verify(combined_pk, TEST_MSG).is_ok());
     }
 }
 

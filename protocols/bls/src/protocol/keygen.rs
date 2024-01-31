@@ -187,9 +187,10 @@ where
                     .ok_or_else(|| JobError {
                         reason: "Failed to get public key".to_string(),
                     })?
-                    .to_compressed()
+                    .to_uncompressed()
                     .to_vec();
 
+                /*
                 let secret_share = me.get_secret_share().ok_or_else(|| JobError {
                     reason: "Failed to get secret share".to_string(),
                 })?;
@@ -198,7 +199,7 @@ where
                     <Vec<u8> as Share>::from_field_element(me.get_id() as u8, secret_share)
                         .map_err(|err| JobError {
                             reason: err.to_string(),
-                        })?;
+                        })?;*/
 
                 let job_result = handle_public_key_broadcast(
                     &keystore,
@@ -211,7 +212,7 @@ where
                 )
                 .await?;
 
-                *result.lock().await = Some((job_result, secret));
+                *result.lock().await = Some((job_result, me));
 
                 Ok(())
             })
