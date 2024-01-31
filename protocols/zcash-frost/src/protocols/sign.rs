@@ -32,7 +32,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use crate::rounds;
 use crate::rounds::keygen::FrostKeyShare;
 
-pub struct ZCashFrostSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
+pub struct ZcashFrostSigningProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
     client: JobsClient<B, BE, C>,
     key_store: ECDSAKeyStore<KBE>,
     network: N,
@@ -46,7 +46,7 @@ pub async fn create_protocol<B, BE, KBE, C, N>(
     network: N,
     logger: DebugLogger,
     key_store: ECDSAKeyStore<KBE>,
-) -> ZCashFrostSigningProtocol<B, BE, KBE, C, N>
+) -> ZcashFrostSigningProtocol<B, BE, KBE, C, N>
 where
     B: Block,
     BE: Backend<B>,
@@ -55,7 +55,7 @@ where
     N: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    ZCashFrostSigningProtocol {
+    ZcashFrostSigningProtocol {
         client,
         network,
         key_store,
@@ -71,7 +71,7 @@ impl<
         C: ClientWithApi<B, BE>,
         KBE: KeystoreBackend,
         N: Network,
-    > GadgetProtocol<B, BE, C> for ZCashFrostSigningProtocol<B, BE, KBE, C, N>
+    > GadgetProtocol<B, BE, C> for ZcashFrostSigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -114,7 +114,7 @@ where
 
         let user_id_to_account_id_mapping = Arc::new(mapping);
 
-        let params = ZCashFrostSigningExtraParams {
+        let params = ZcashFrostSigningExtraParams {
             i,
             t,
             signers,
@@ -178,7 +178,7 @@ where
     }
 }
 
-pub struct ZCashFrostSigningExtraParams {
+pub struct ZcashFrostSigningExtraParams {
     i: u16,
     t: u16,
     signers: Vec<u16>,
@@ -196,11 +196,11 @@ impl<
         KBE: KeystoreBackend,
         C: ClientWithApi<B, BE>,
         N: Network,
-    > AsyncProtocol for ZCashFrostSigningProtocol<B, BE, KBE, C, N>
+    > AsyncProtocol for ZcashFrostSigningProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    type AdditionalParams = ZCashFrostSigningExtraParams;
+    type AdditionalParams = ZcashFrostSigningExtraParams;
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WorkManager as WorkManagerInterface>::Clock,

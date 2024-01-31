@@ -4,10 +4,10 @@ use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::{Error, WorkManagerInterface};
 
 #[derive(Clone)]
-pub struct ZCashFrostNetworkService;
+pub struct ZcashFrostNetworkService;
 
 #[async_trait]
-impl Network for ZCashFrostNetworkService {
+impl Network for ZcashFrostNetworkService {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         futures::future::pending().await
     }

@@ -16,7 +16,7 @@ use sc_client_api::BlockImportNotification;
 use tangle_primitives::jobs::{JobId, JobType};
 use tangle_primitives::roles::RoleType;
 
-pub struct ZCashFrostProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>
+pub struct ZcashFrostProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -27,7 +27,7 @@ where
 
 pub type Curve = u8;
 
-pub struct ZCashFrostKeygenExtraParams {
+pub struct ZcashFrostKeygenExtraParams {
     i: u16,
     t: u16,
     n: u16,
@@ -38,7 +38,7 @@ pub struct ZCashFrostKeygenExtraParams {
 
 #[async_trait]
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> GadgetProtocol<B, BE, C>
-    for ZCashFrostProtocol<B, BE, C>
+    for ZcashFrostProtocol<B, BE, C>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -71,7 +71,7 @@ where
                 .collect(),
         );
 
-        let params = ZCashFrostKeygenExtraParams {
+        let params = ZcashFrostKeygenExtraParams {
             i: participants
                 .iter()
                 .position(|p| p == &self.account_id)
@@ -118,11 +118,11 @@ where
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> AsyncProtocol for ZCashFrostProtocol<B, BE, C>
+impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> AsyncProtocol for ZcashFrostProtocol<B, BE, C>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    type AdditionalParams = ZCashFrostKeygenExtraParams;
+    type AdditionalParams = ZcashFrostKeygenExtraParams;
 
     async fn generate_protocol_from(
         &self,

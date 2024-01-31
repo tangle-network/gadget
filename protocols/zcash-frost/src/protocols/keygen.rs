@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use frost_core::Ciphersuite;
 use frost_ed25519::Ed25519Sha512;
 use frost_p256::P256Sha256;
 use frost_ristretto255::Ristretto255Sha512;
@@ -35,7 +34,7 @@ use crate::rounds;
 
 use super::util::PublicKeyGossipMessage;
 
-pub struct ZCashFrostKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
+pub struct ZcashFrostKeygenProtocol<B: Block, BE, KBE: KeystoreBackend, C, N> {
     client: JobsClient<B, BE, C>,
     key_store: ECDSAKeyStore<KBE>,
     network: N,
@@ -49,7 +48,7 @@ pub async fn create_protocol<B, BE, KBE, C, N>(
     network: N,
     logger: DebugLogger,
     key_store: ECDSAKeyStore<KBE>,
-) -> ZCashFrostKeygenProtocol<B, BE, KBE, C, N>
+) -> ZcashFrostKeygenProtocol<B, BE, KBE, C, N>
 where
     B: Block,
     BE: Backend<B>,
@@ -58,7 +57,7 @@ where
     N: Network,
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    ZCashFrostKeygenProtocol {
+    ZcashFrostKeygenProtocol {
         client,
         network,
         key_store,
@@ -74,7 +73,7 @@ impl<
         C: ClientWithApi<B, BE>,
         KBE: KeystoreBackend,
         N: Network,
-    > GadgetProtocol<B, BE, C> for ZCashFrostKeygenProtocol<B, BE, KBE, C, N>
+    > GadgetProtocol<B, BE, C> for ZcashFrostKeygenProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
@@ -106,7 +105,7 @@ where
                 .collect(),
         );
 
-        let params = ZCashFrostKeygenExtraParams {
+        let params = ZcashFrostKeygenExtraParams {
             i: participants
                 .iter()
                 .position(|p| p == &self.account_id)
@@ -169,7 +168,7 @@ where
     }
 }
 
-pub struct ZCashFrostKeygenExtraParams {
+pub struct ZcashFrostKeygenExtraParams {
     i: u16,
     t: u16,
     n: u16,
@@ -185,11 +184,11 @@ impl<
         KBE: KeystoreBackend,
         C: ClientWithApi<B, BE>,
         N: Network,
-    > AsyncProtocol for ZCashFrostKeygenProtocol<B, BE, KBE, C, N>
+    > AsyncProtocol for ZcashFrostKeygenProtocol<B, BE, KBE, C, N>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
-    type AdditionalParams = ZCashFrostKeygenExtraParams;
+    type AdditionalParams = ZcashFrostKeygenExtraParams;
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
@@ -370,14 +369,14 @@ where
 async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     key_store: ECDSAKeyStore<KBE>,
     logger: &DebugLogger,
-    public_key_package: &Vec<u8>,
+    public_key_package: &[u8],
     role: ThresholdSignatureRoleType,
     t: u16,
     i: u16,
     broadcast_tx_to_outbound: futures::channel::mpsc::UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<JobResult, JobError> {
-    let key_hashed = keccak_256(&public_key_package);
+    let key_hashed = keccak_256(public_key_package);
     let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
     let my_id = key_store.pair().public();
     let mut received_keys = BTreeMap::new();
@@ -473,7 +472,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
             }
             _ => unreachable!("Invalid role"),
         },
-        key: public_key_package.clone(),
+        key: public_key_package.to_vec(),
         participants,
         signatures,
         threshold: t as _,

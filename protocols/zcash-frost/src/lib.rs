@@ -3,8 +3,8 @@ use gadget_common::config::*;
 use gadget_common::keystore::ECDSAKeyStore;
 use gadget_common::keystore::KeystoreBackend;
 use protocol_macros::protocol;
-use protocols::keygen::ZCashFrostKeygenProtocol;
-use protocols::sign::ZCashFrostSigningProtocol;
+use protocols::keygen::ZcashFrostKeygenProtocol;
+use protocols::sign::ZcashFrostSigningProtocol;
 use std::sync::Arc;
 
 pub mod constants;
@@ -87,8 +87,8 @@ macro_rules! decl_porto {
 
 // A macro to declare all the protocols
 decl_porto!(
-    ZCashFrostKeygenConfig + ZCashFrostKeygenProtocol = protocols::keygen,
-    ZCashFrostSigningConfig + ZCashFrostSigningProtocol = protocols::sign,
+    ZcashFrostKeygenConfig + ZcashFrostKeygenProtocol = protocols::keygen,
+    ZcashFrostSigningConfig + ZcashFrostSigningProtocol = protocols::sign,
 );
 
 #[allow(clippy::too_many_arguments)]
@@ -110,7 +110,7 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
     let pallet_tx = Arc::new(pallet_tx) as Arc<dyn PalletSubmitter>;
-    let keygen_config = ZCashFrostKeygenConfig {
+    let keygen_config = ZcashFrostKeygenConfig {
         account_id,
         network: network_keygen,
         keystore_backend: keystore.clone(),
@@ -120,7 +120,7 @@ where
         _pd: std::marker::PhantomData,
     };
 
-    let sign_config = ZCashFrostSigningConfig {
+    let sign_config = ZcashFrostSigningConfig {
         account_id,
         network: network_signing,
         keystore_backend: keystore.clone(),

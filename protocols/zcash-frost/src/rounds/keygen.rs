@@ -1,14 +1,12 @@
 use std::collections::BTreeMap;
 
 use dfns_cggmp21::{progress::Tracer, round_based::ProtocolMessage};
-use digest::Digest;
-use frost_core::Field;
 use frost_core::{
     keys::{
         dkg::{round1, round2},
         KeyPackage, PublicKeyPackage,
     },
-    Ciphersuite, Error, Group, Identifier,
+    Ciphersuite, Error, Identifier,
 };
 use futures::SinkExt;
 use rand_core::{CryptoRng, RngCore};
@@ -18,7 +16,7 @@ use round_based::{
     Delivery, Mpc, MpcParty, Outgoing,
 };
 use serde::{Deserialize, Serialize};
-use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
+use tangle_primitives::roles::ThresholdSignatureRoleType;
 
 use super::{errors::IoError, KeygenAborted, KeygenError, Reason};
 
@@ -178,8 +176,8 @@ where
     tracer.stage("Compute round 3 dkg secret package");
     let round2_packages_map: BTreeMap<Identifier<C>, round2::Package<C>> = round2_packages
         .into_iter_indexed()
-        .map(|(inx, msg_id, msg)| {
-            let identifier = (inx as u16 + 1).try_into().expect("should be nonzero");
+        .map(|(inx, _msg_id, msg)| {
+            let identifier = (inx + 1).try_into().expect("should be nonzero");
             let package = round2::Package::deserialize(&msg.msg)
                 .unwrap_or_else(|_| panic!("Failed to deserialize round 2 package"));
             (identifier, package)
@@ -211,7 +209,7 @@ pub fn dkg_part1<R, C>(
     t: u16,
     n: u16,
     role: ThresholdSignatureRoleType,
-    mut rng: R,
+    rng: R,
 ) -> Result<(round1::SecretPackage<C>, round1::Package<C>), Error<C>>
 where
     R: RngCore + CryptoRng,
@@ -228,6 +226,7 @@ where
     frost_core::keys::dkg::part1::<C, R>(participant_identifier, t, n, rng)
 }
 
+#[allow(clippy::type_complexity)]
 pub fn dkg_part2<C>(
     role: ThresholdSignatureRoleType,
     secret_package: round1::SecretPackage<C>,

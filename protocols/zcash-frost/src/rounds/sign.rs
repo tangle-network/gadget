@@ -3,9 +3,7 @@ use dfns_cggmp21::round_based::ProtocolMessage;
 use frost_core::keys::{KeyPackage, PublicKeyPackage};
 use frost_core::round1::{SigningCommitments, SigningNonces};
 use frost_core::round2::{self, SignatureShare};
-use frost_core::{
-    aggregate, round1, Ciphersuite, Field, Group, Identifier, Signature, SigningPackage,
-};
+use frost_core::{aggregate, round1, Ciphersuite, Field, Group, Identifier, SigningPackage};
 use futures::SinkExt;
 use rand_core::{CryptoRng, RngCore};
 use round_based::rounds_router::simple_store::RoundInput;
@@ -50,6 +48,7 @@ pub struct FrostSignature {
     pub group_signature: Vec<u8>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_threshold_sign<C, R, M>(
     mut tracer: Option<&mut dyn Tracer>,
     i: u16,
@@ -100,7 +99,7 @@ where
         .await
         .map_err(|e| SignError(Reason::IoError(IoError::receive_message(e))))?
         .into_iter_indexed()
-        .map(|(party_inx, msg_id, msg)| {
+        .map(|(party_inx, _msg_id, msg)| {
             let msg = SigningCommitments::<C>::deserialize(&msg.msg)
                 .unwrap_or_else(|_| panic!("Failed to deserialize round 1 signing commitments"));
             let participant_identifier = Identifier::<C>::try_from(party_inx)
@@ -141,7 +140,7 @@ where
             let participant_identifier = Identifier::<C>::try_from(party_inx as u16)
                 .expect("Failed to convert party index to identifier");
             let ser = <<C::Group as Group>::Field as Field>::Serialization::try_from(msg.msg)
-                .map_err(|e| SignError(Reason::<C>::SerializationError))
+                .map_err(|_e| SignError(Reason::<C>::SerializationError))
                 .expect("Failed to deserialize round 2 signature share");
             let sig_share = SignatureShare::<C>::deserialize(ser)
                 .unwrap_or_else(|_| panic!("Failed to deserialize round 2 signature share"));
@@ -161,6 +160,12 @@ where
             error: e,
         }))
     })?;
+
+    assert!(frost_keyshare
+        .1
+        .verifying_key()
+        .verify(message_to_sign, &group_signature)
+        .is_ok());
 
     tracer.protocol_ends();
 
@@ -207,39 +212,4 @@ fn participant_round2<C: Ciphersuite>(
             error: e,
         }))
     })
-}
-
-/// Aggregates the `SignatureShares` from the participants to produce the final group signature.
-fn signature_share_aggregate<C: Ciphersuite>(
-    role: ThresholdSignatureRoleType,
-    signing_package: &SigningPackage<C>,
-    signature_shares: &BTreeMap<Identifier<C>, SignatureShare<C>>,
-    pubkey_package: &PublicKeyPackage<C>,
-) -> Result<Signature<C>, SignError<C>> {
-    match role {
-        ThresholdSignatureRoleType::ZcashFrostEd25519
-        | ThresholdSignatureRoleType::ZcashFrostP256
-        | ThresholdSignatureRoleType::ZcashFrostRistretto255
-        | ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {}
-        _ => panic!("Invalid role"),
-    };
-
-    aggregate(signing_package, signature_shares, pubkey_package).map_err(|e| {
-        SignError(Reason::SignFailure(SignAborted::FrostError {
-            parties: vec![],
-            error: e,
-        }))
-    })
-}
-
-/// Verifies the group signature.
-fn verify_signature<C: Ciphersuite>(
-    pubkey_package: &PublicKeyPackage<C>,
-    message: &[u8],
-    group_signature: &Signature<C>,
-) -> bool {
-    pubkey_package
-        .verifying_key()
-        .verify(message, group_signature)
-        .is_ok()
 }

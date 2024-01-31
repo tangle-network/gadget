@@ -1,4 +1,4 @@
-use frost_core::{Ciphersuite, FieldError};
+use frost_core::Ciphersuite;
 use frost_ed25519::Ed25519Sha512;
 use frost_ed448::Ed448Shake256;
 use frost_p256::P256Sha256;
@@ -9,7 +9,7 @@ use frost_secp256k1::Secp256K1Sha256;
 use frost_taproot::Secp256K1Taproot;
 use thiserror::Error;
 
-use self::errors::{BoxedError, IoError};
+use self::errors::IoError;
 
 pub mod errors;
 pub mod keygen;
@@ -90,8 +90,6 @@ enum Reason<C: Ciphersuite> {
         #[from]
         SignAborted<C>,
     ),
-    #[error("field error")]
-    FieldError(#[source] FieldError),
     #[error("i/o error")]
     IoError(#[source] IoError),
     #[error("unknown error")]
