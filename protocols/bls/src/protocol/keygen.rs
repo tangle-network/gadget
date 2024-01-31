@@ -20,7 +20,6 @@ use std::sync::Arc;
 use tangle_primitives::jobs::{DKGTSSKeySubmissionResult, DigitalSignatureType, JobId, JobResult};
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use vsss_rs::Share;
 
 pub struct BlsKeygenProtocol<
     B: Block,

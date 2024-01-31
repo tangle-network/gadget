@@ -158,3 +158,13 @@ impl<T> HasSenderAndReceiver for Msg<T> {
         self.receiver.map(|r| r as UserID)
     }
 }
+
+impl HasSenderAndReceiver for () {
+    fn sender(&self) -> UserID {
+        unimplemented!("Stub implementation")
+    }
+
+    fn receiver(&self) -> Option<UserID> {
+        unimplemented!("Stub implementation")
+    }
+}
