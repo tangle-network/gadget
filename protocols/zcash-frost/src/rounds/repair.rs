@@ -59,7 +59,7 @@ pub async fn run_threshold_repair<C, R, M>(
     role: ThresholdSignatureRoleType,
     rng: &mut R,
     party: M,
-) -> Result<Option<SecretShare<C>>, RepairError<C>>
+) -> Result<Option<Vec<u8>>, RepairError<C>>
 where
     R: RngCore + CryptoRng,
     M: Mpc<ProtocolMessage = Msg>,
@@ -175,15 +175,16 @@ where
         .collect();
     tracer.msgs_received();
     tracer.stage("Repair secret share w/ sigmas from helpers");
-    let mut secret_share: Option<SecretShare<C>> = None;
+    let mut secret_share: Option<Vec<u8>> = None;
     if i == participant {
         let commitment = commitment.unwrap();
-        secret_share = Some(repair_round3(
+        let secret_share_val = repair_round3(
             role,
             &sigmas,
             lost_share_participant_identifier,
             &commitment,
-        ));
+        );
+        secret_share = Some(secret_share_val.serialize().unwrap_or_default());
     }
     tracer.protocol_ends();
 
