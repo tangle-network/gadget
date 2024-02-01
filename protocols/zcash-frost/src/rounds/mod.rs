@@ -13,6 +13,7 @@ use self::errors::IoError;
 
 pub mod errors;
 pub mod keygen;
+pub mod repair;
 pub mod sign;
 
 /// Keygen protocol error
@@ -75,6 +76,30 @@ impl_sign_error_from!(Ed448Shake256);
 impl_sign_error_from!(JubjubBlake2b512);
 impl_sign_error_from!(Secp256K1Taproot);
 
+/// Repair protocol error
+#[derive(Debug, Error)]
+#[error("repair protocol is failed to complete")]
+pub struct RepairError<C: Ciphersuite>(Reason<C>);
+
+macro_rules! impl_repair_error_from {
+    ($ciphersuite:ty) => {
+        impl From<IoError> for RepairError<$ciphersuite> {
+            fn from(err: IoError) -> Self {
+                RepairError(Reason::IoError(err))
+            }
+        }
+    };
+}
+
+impl_repair_error_from!(Ed25519Sha512);
+impl_repair_error_from!(P256Sha256);
+impl_repair_error_from!(P384Sha384);
+impl_repair_error_from!(Ristretto255Sha512);
+impl_repair_error_from!(Secp256K1Sha256);
+impl_repair_error_from!(Ed448Shake256);
+impl_repair_error_from!(JubjubBlake2b512);
+impl_repair_error_from!(Secp256K1Taproot);
+
 #[derive(Debug, Error)]
 enum Reason<C: Ciphersuite> {
     /// Keygen protocol was maliciously aborted by another party
@@ -90,6 +115,12 @@ enum Reason<C: Ciphersuite> {
         #[from]
         SignAborted<C>,
     ),
+    #[error("repair protocol was aborted by malicious party")]
+    RepairFailure(
+        #[source]
+        #[from]
+        RepairAborted<C>,
+    ),
     #[error("i/o error")]
     IoError(#[source] IoError),
     #[error("unknown error")]
@@ -97,8 +128,6 @@ enum Reason<C: Ciphersuite> {
 }
 
 /// Error indicating that protocol was aborted by malicious party
-///
-/// It _can be_ cryptographically proven, but we do not support it yet.
 #[derive(Debug, Error)]
 enum KeygenAborted<C: Ciphersuite> {
     #[error("Frost keygen error")]
@@ -109,11 +138,19 @@ enum KeygenAborted<C: Ciphersuite> {
 }
 
 /// Sign protocol error
-///
-/// It _can be_ cryptographically proven, but we do not support it yet.
 #[derive(Debug, Error)]
 enum SignAborted<C: Ciphersuite> {
     #[error("Frost sign error")]
+    FrostError {
+        parties: Vec<u16>,
+        error: frost_core::Error<C>,
+    },
+}
+
+/// Repair protocol error
+#[derive(Debug, Error)]
+enum RepairAborted<C: Ciphersuite> {
+    #[error("Frost repair error")]
     FrostError {
         parties: Vec<u16>,
         error: frost_core::Error<C>,
