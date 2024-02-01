@@ -120,7 +120,7 @@ where
             signers,
             job_id,
             role_type: job.role_type,
-            frost_keyshare: key,
+            keyshare: key,
             input_data_to_sign,
             user_id_to_account_id_mapping,
         };
@@ -178,13 +178,45 @@ where
     }
 }
 
+macro_rules! deserialize_and_run_threshold_sign {
+    ($impl_type:ty, $keyshare:expr, $tracer:expr, $i:expr, $signers:expr, $data_hash:expr, $role:expr, $rng:expr, $party:expr) => {{
+        let key_package =
+            KeyPackage::<$impl_type>::deserialize(&$keyshare.key_package).map_err(|err| {
+                JobError {
+                    reason: format!("Failed to deserialize key share: {err:?}"),
+                }
+            })?;
+
+        let public_key_package = PublicKeyPackage::<$impl_type>::deserialize(
+            &$keyshare.pubkey_package,
+        )
+        .map_err(|err| JobError {
+            reason: format!("Failed to deserialize public key package: {err:?}"),
+        })?;
+        rounds::sign::run_threshold_sign(
+            Some($tracer),
+            $i,
+            $signers,
+            (key_package, public_key_package),
+            $data_hash,
+            $role,
+            $rng,
+            $party,
+        )
+        .await
+        .map_err(|err| JobError {
+            reason: format!("Failed to run threshold sign: {err:?}"),
+        })?
+    }};
+}
+
 pub struct ZcashFrostSigningExtraParams {
     i: u16,
     t: u16,
     signers: Vec<u16>,
     job_id: JobId,
     role_type: RoleType,
-    frost_keyshare: FrostKeyShare,
+    keyshare: FrostKeyShare,
     input_data_to_sign: Vec<u8>,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
 }
@@ -218,11 +250,11 @@ where
         let id = self.account_id;
         let network = self.network.clone();
 
-        let (i, signers, t, frost_keyshare, role_type, input_data_to_sign, mapping) = (
+        let (i, signers, t, keyshare, role_type, input_data_to_sign, mapping) = (
             additional_params.i,
             additional_params.signers,
             additional_params.t,
-            additional_params.frost_keyshare,
+            additional_params.keyshare,
             additional_params.role_type,
             additional_params.input_data_to_sign.clone(),
             additional_params.user_id_to_account_id_mapping.clone(),
@@ -237,7 +269,7 @@ where
             }
         };
 
-        let frost_keyshare2 = frost_keyshare.clone();
+        let keyshare2 = keyshare.clone();
 
         Ok(JobBuilder::new()
             .protocol(async move {
@@ -271,120 +303,56 @@ where
                 let data_hash = keccak_256(&input_data_to_sign);
                 let signature = match role {
                     ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
-                        let key_package =
-                            KeyPackage::<Secp256K1Sha256>::deserialize(&frost_keyshare.key_package)
-                                .map_err(|err| JobError {
-                                    reason: format!("Failed to deserialize key share: {err:?}"),
-                                })?;
-
-                        let public_key_package = PublicKeyPackage::<Secp256K1Sha256>::deserialize(
-                            &frost_keyshare.pubkey_package,
-                        )
-                        .map_err(|err| JobError {
-                            reason: format!("Failed to deserialize public key package: {err:?}"),
-                        })?;
-                        rounds::sign::run_threshold_sign(
-                            Some(&mut tracer),
+                        deserialize_and_run_threshold_sign!(
+                            Secp256K1Sha256,
+                            keyshare,
+                            &mut tracer,
                             i,
                             signers,
-                            (key_package, public_key_package),
                             &data_hash,
                             role,
                             &mut rng,
-                            party,
+                            party
                         )
-                        .await
-                        .map_err(|err| JobError {
-                            reason: format!("Failed to run threshold sign: {err:?}"),
-                        })?
                     }
                     ThresholdSignatureRoleType::ZcashFrostEd25519 => {
-                        let key_package =
-                            KeyPackage::<Ed25519Sha512>::deserialize(&frost_keyshare.key_package)
-                                .map_err(|err| JobError {
-                                reason: format!("Failed to deserialize key share: {err:?}"),
-                            })?;
-
-                        let public_key_package = PublicKeyPackage::<Ed25519Sha512>::deserialize(
-                            &frost_keyshare.pubkey_package,
-                        )
-                        .map_err(|err| JobError {
-                            reason: format!("Failed to deserialize public key package: {err:?}"),
-                        })?;
-                        rounds::sign::run_threshold_sign(
-                            Some(&mut tracer),
+                        deserialize_and_run_threshold_sign!(
+                            Ed25519Sha512,
+                            keyshare,
+                            &mut tracer,
                             i,
                             signers,
-                            (key_package, public_key_package),
                             &data_hash,
                             role,
                             &mut rng,
-                            party,
+                            party
                         )
-                        .await
-                        .map_err(|err| JobError {
-                            reason: format!("Failed to run threshold sign: {err:?}"),
-                        })?
                     }
                     ThresholdSignatureRoleType::ZcashFrostP256 => {
-                        let key_package =
-                            KeyPackage::<P256Sha256>::deserialize(&frost_keyshare.key_package)
-                                .map_err(|err| JobError {
-                                    reason: format!("Failed to deserialize key share: {err:?}"),
-                                })?;
-
-                        let public_key_package = PublicKeyPackage::<P256Sha256>::deserialize(
-                            &frost_keyshare.pubkey_package,
-                        )
-                        .map_err(|err| JobError {
-                            reason: format!("Failed to deserialize public key package: {err:?}"),
-                        })?;
-                        rounds::sign::run_threshold_sign(
-                            Some(&mut tracer),
+                        deserialize_and_run_threshold_sign!(
+                            P256Sha256,
+                            keyshare,
+                            &mut tracer,
                             i,
                             signers,
-                            (key_package, public_key_package),
                             &data_hash,
                             role,
                             &mut rng,
-                            party,
+                            party
                         )
-                        .await
-                        .map_err(|err| JobError {
-                            reason: format!("Failed to run threshold sign: {err:?}"),
-                        })?
                     }
                     ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
-                        let key_package = KeyPackage::<Ristretto255Sha512>::deserialize(
-                            &frost_keyshare.key_package,
-                        )
-                        .map_err(|err| JobError {
-                            reason: format!("Failed to deserialize key share: {err:?}"),
-                        })?;
-
-                        let public_key_package =
-                            PublicKeyPackage::<Ristretto255Sha512>::deserialize(
-                                &frost_keyshare.pubkey_package,
-                            )
-                            .map_err(|err| JobError {
-                                reason: format!(
-                                    "Failed to deserialize public key package: {err:?}"
-                                ),
-                            })?;
-                        rounds::sign::run_threshold_sign(
-                            Some(&mut tracer),
+                        deserialize_and_run_threshold_sign!(
+                            Ristretto255Sha512,
+                            keyshare,
+                            &mut tracer,
                             i,
                             signers,
-                            (key_package, public_key_package),
                             &data_hash,
                             role,
                             &mut rng,
-                            party,
+                            party
                         )
-                        .await
-                        .map_err(|err| JobError {
-                            reason: format!("Failed to run threshold sign: {err:?}"),
-                        })?
                     }
                     _ => {
                         return Err(JobError {
@@ -446,7 +414,7 @@ where
                         signature_type,
                         signature,
                         data: additional_params.input_data_to_sign,
-                        signing_key: frost_keyshare2.pubkey_package,
+                        signing_key: keyshare2.pubkey_package,
                     });
 
                     client

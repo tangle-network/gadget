@@ -168,6 +168,24 @@ where
     }
 }
 
+macro_rules! run_threshold_keygen {
+    ($impl_type:ty, $tracer:expr, $i:expr, $t:expr, $n:expr, $role:expr, $rng:expr, $party:expr) => {
+        rounds::keygen::run_threshold_keygen::<$impl_type, _, _>(
+            Some($tracer),
+            $i,
+            $t,
+            $n,
+            $role,
+            $rng,
+            $party,
+        )
+        .await
+        .map_err(|err| JobError {
+            reason: format!("Keygen protocol error: {err:?}"),
+        })?
+    };
+}
+
 pub struct ZcashFrostKeygenExtraParams {
     i: u16,
     t: u16,
@@ -253,68 +271,55 @@ where
                 let party = round_based::MpcParty::connected(delivery);
                 let frost_key_share_package = match role {
                     ThresholdSignatureRoleType::ZcashFrostEd25519 => {
-                        rounds::keygen::run_threshold_keygen::<Ed25519Sha512, _, _>(
-                            Some(&mut tracer),
+                        run_threshold_keygen!(
+                            Ed25519Sha512,
+                            &mut tracer,
                             i,
                             t,
                             n,
                             role,
                             &mut rng,
-                            party,
+                            party
                         )
-                        .await
-                        .map_err(|err| JobError {
-                            reason: format!("Keygen protocol error: {err:?}"),
-                        })?
                     }
                     ThresholdSignatureRoleType::ZcashFrostP256 => {
-                        rounds::keygen::run_threshold_keygen::<P256Sha256, _, _>(
-                            Some(&mut tracer),
+                        run_threshold_keygen!(
+                            P256Sha256,
+                            &mut tracer,
                             i,
                             t,
                             n,
                             role,
                             &mut rng,
-                            party,
+                            party
                         )
-                        .await
-                        .map_err(|err| JobError {
-                            reason: format!("Keygen protocol error: {err:?}"),
-                        })?
                     }
                     ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
-                        rounds::keygen::run_threshold_keygen::<Ristretto255Sha512, _, _>(
-                            Some(&mut tracer),
+                        run_threshold_keygen!(
+                            Ristretto255Sha512,
+                            &mut tracer,
                             i,
                             t,
                             n,
                             role,
                             &mut rng,
-                            party,
+                            party
                         )
-                        .await
-                        .map_err(|err| JobError {
-                            reason: format!("Keygen protocol error: {err:?}"),
-                        })?
                     }
                     ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
-                        rounds::keygen::run_threshold_keygen::<Secp256K1Sha256, _, _>(
-                            Some(&mut tracer),
+                        run_threshold_keygen!(
+                            Secp256K1Sha256,
+                            &mut tracer,
                             i,
                             t,
                             n,
                             role,
                             &mut rng,
-                            party,
+                            party
                         )
-                        .await
-                        .map_err(|err| JobError {
-                            reason: format!("Keygen protocol error: {err:?}"),
-                        })?
                     }
                     _ => unreachable!("Invalid role"),
                 };
-
                 let perf_report = tracer.get_report().map_err(|err| JobError {
                     reason: format!("Keygen protocol error: {err:?}"),
                 })?;
