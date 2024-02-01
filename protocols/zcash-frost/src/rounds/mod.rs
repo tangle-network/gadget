@@ -13,7 +13,6 @@ use self::errors::IoError;
 
 pub mod errors;
 pub mod keygen;
-pub mod repair;
 pub mod sign;
 
 /// Keygen protocol error
@@ -115,12 +114,6 @@ enum Reason<C: Ciphersuite> {
         #[from]
         SignAborted<C>,
     ),
-    #[error("repair protocol was aborted by malicious party")]
-    RepairFailure(
-        #[source]
-        #[from]
-        RepairAborted<C>,
-    ),
     #[error("i/o error")]
     IoError(#[source] IoError),
     #[error("unknown error")]
@@ -141,16 +134,6 @@ enum KeygenAborted<C: Ciphersuite> {
 #[derive(Debug, Error)]
 enum SignAborted<C: Ciphersuite> {
     #[error("Frost sign error")]
-    FrostError {
-        parties: Vec<u16>,
-        error: frost_core::Error<C>,
-    },
-}
-
-/// Repair protocol error
-#[derive(Debug, Error)]
-enum RepairAborted<C: Ciphersuite> {
-    #[error("Frost repair error")]
     FrostError {
         parties: Vec<u16>,
         error: frost_core::Error<C>,
