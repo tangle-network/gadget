@@ -144,10 +144,10 @@ where
         matches!(
             role,
             RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSr25519)
-            | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP256)
-            | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1)
-            | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255)
-            | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd25519)
+                | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP256)
+                | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1)
+                | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255)
+                | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd25519)
         )
     }
 
