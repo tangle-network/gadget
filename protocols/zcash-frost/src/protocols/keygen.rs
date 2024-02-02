@@ -143,7 +143,11 @@ where
     fn role_filter(&self, role: RoleType) -> bool {
         matches!(
             role,
-            RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
+            RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSr25519)
+            | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP256)
+            | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1)
+            | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255)
+            | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd25519)
         )
     }
 
