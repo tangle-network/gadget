@@ -184,14 +184,6 @@ where
 
                 logger.info("Completed BlsKeygenProtocol ...");
 
-                let public_key = me
-                    .get_public_key()
-                    .ok_or_else(|| JobError {
-                        reason: "Failed to get public key".to_string(),
-                    })?
-                    .to_uncompressed()
-                    .to_vec();
-
                 let sk = me.get_secret_share().ok_or_else(|| JobError {
                     reason: "Failed to get secret share".to_string(),
                 })?;
@@ -255,6 +247,7 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     user_id_to_account_id_mapping: &Arc<HashMap<UserID, AccountId>>,
 ) -> Result<JobResult, JobError> {
     let mut received_pk_shares = BTreeMap::new();
+    let mut received_signatures = BTreeMap::new();
     received_pk_shares.insert(i, public_key_share.clone());
 
     let broadcast_message =
@@ -285,6 +278,10 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
                     }
                 }
             }
+
+            RoundPayload::PublicKeyGossipRound2(sig) => {
+                received_signatures.insert(payload.sender, sig);
+            }
             _ => {
                 return Err(JobError {
                     reason: "Unexpected payload".to_string(),
@@ -310,7 +307,6 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     let key_hashed = keccak_256(&pk_agg.to_public_key().serialize());
     let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
 
-    let mut received_signatures = BTreeMap::new();
     received_signatures.insert(i, signature.clone());
 
     // Now, broadcast the signature and collect them
