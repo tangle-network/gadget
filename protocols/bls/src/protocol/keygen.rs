@@ -192,9 +192,22 @@ where
                     .to_uncompressed()
                     .to_vec();
 
+                let sk = me.get_secret_share().ok_or_else(|| JobError {
+                    reason: "Failed to get secret share".to_string(),
+                })?;
+
+                let share =
+                    blst::min_pk::SecretKey::from_bytes(&sk.to_be_bytes()).map_err(|e| {
+                        JobError {
+                            reason: format!("Failed to create secret key: {e:?}"),
+                        }
+                    })?;
+
+                let pk_share = share.sk_to_pk();
+
                 let job_result = handle_public_key_broadcast(
                     &keystore,
-                    public_key,
+                    pk_share,
                     additional_params.i,
                     additional_params.t,
                     &mut tx1,
@@ -234,20 +247,18 @@ where
 
 async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     key_store: &GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
-    public_key: Vec<u8>,
+    public_key_share: blst::min_pk::PublicKey,
     i: u16,
     t: u16,
     tx: &mut UnboundedSender<Msg<RoundPayload>>,
     rx: &mut UnboundedReceiver<Msg<RoundPayload>>,
     user_id_to_account_id_mapping: &Arc<HashMap<UserID, AccountId>>,
 ) -> Result<JobResult, JobError> {
-    let key_hashed = keccak_256(&public_key);
-    let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
+    let mut received_pk_shares = BTreeMap::new();
+    received_pk_shares.insert(i, public_key_share.clone());
 
-    let mut received_signatures = BTreeMap::new();
-    received_signatures.insert(i, signature.clone());
-
-    let broadcast_message = RoundPayload::PublicKeyGossip(signature);
+    let broadcast_message =
+        RoundPayload::PublicKeyGossipRound1(public_key_share.serialize().to_vec());
     tx.send(Msg {
         sender: i,
         receiver: None,
@@ -264,8 +275,63 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
             reason: "Failed to receive message".to_string(),
         })?;
         match payload.body {
-            RoundPayload::PublicKeyGossip(signature) => {
-                received_signatures.insert(payload.sender, signature);
+            RoundPayload::PublicKeyGossipRound1(pk_share) => {
+                match blst::min_pk::PublicKey::deserialize(&pk_share) {
+                    Ok(pk) => {
+                        received_pk_shares.insert(payload.sender, pk);
+                    }
+                    Err(e) => {
+                        log::warn!(target: "gadget", "Failed to deserialize public key: {e:?}");
+                    }
+                }
+            }
+            _ => {
+                return Err(JobError {
+                    reason: "Unexpected payload".to_string(),
+                })
+            }
+        }
+        count += 1;
+    }
+
+    let pk_shares = received_pk_shares
+        .into_iter()
+        .sorted_by_key(|x| x.0)
+        .map(|r| r.1)
+        .collect::<Vec<_>>();
+
+    let pk_agg =
+        blst::min_pk::AggregatePublicKey::aggregate(&pk_shares.iter().collect::<Vec<_>>(), true)
+            .map_err(|e| JobError {
+                reason: format!("Failed to aggregate public keys: {e:?}"),
+            })?;
+
+    // Now, sign this aggregated public key
+    let key_hashed = keccak_256(&pk_agg.to_public_key().serialize());
+    let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
+
+    let mut received_signatures = BTreeMap::new();
+    received_signatures.insert(i, signature.clone());
+
+    // Now, broadcast the signature and collect them
+    let broadcast_message = RoundPayload::PublicKeyGossipRound2(signature.clone());
+    tx.send(Msg {
+        sender: i,
+        receiver: None,
+        body: broadcast_message,
+    })
+    .map_err(|err| JobError {
+        reason: err.to_string(),
+    })?;
+
+    let mut count = 0;
+    while count < t {
+        let payload = rx.recv().await.ok_or_else(|| JobError {
+            reason: "Failed to receive message".to_string(),
+        })?;
+        match payload.body {
+            RoundPayload::PublicKeyGossipRound2(sig) => {
+                received_signatures.insert(payload.sender, sig);
             }
             _ => {
                 return Err(JobError {
@@ -290,7 +356,7 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
 
     Ok(JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
         signature_type: DigitalSignatureType::Bls381,
-        key: public_key,
+        key: pk_agg.to_public_key().serialize().to_vec(), // The pallet is assuming this is the signing key, but it's not
         participants,
         signatures,
         threshold: t as u8,

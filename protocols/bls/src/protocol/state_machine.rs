@@ -390,7 +390,10 @@ pub(crate) mod payloads {
         Round2(Round2EchoBroadcastData),
         Round3(Round3BroadcastData<Group>),
         Round4(Round4EchoBroadcastData<Group>),
-        PublicKeyGossip(Vec<u8>),
+        // Broadcast our public key share
+        PublicKeyGossipRound1(Vec<u8>),
+        // Broadcast our signature of the aggregated public key
+        PublicKeyGossipRound2(Vec<u8>),
     }
 
     #[derive(Serialize, Deserialize, Clone)]
