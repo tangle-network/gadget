@@ -117,7 +117,7 @@ where
         let mut relevant_jobs = Vec::new();
 
         for job in jobs {
-            if job.expiry > now_header && job.job_type.get_role_type() == role_type {
+            if job.job_type.get_role_type() == role_type {
                 let job_id = job.job_id;
                 let task_id = job_id.to_be_bytes();
                 let task_id = keccak_256(&task_id);

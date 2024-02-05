@@ -24,6 +24,7 @@ pub struct BlsKeygenConfig<
     logger: DebugLogger,
     client: C,
     network: N,
+    account_id: AccountId,
     key_store: GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
     _pd: std::marker::PhantomData<(B, BE)>,
 }
@@ -46,7 +47,7 @@ where
     ) -> Result<(Self::Network, Self::Protocol), Error> {
         let protocol = BlsKeygenProtocol {
             jobs_client,
-            account_id: AccountId::from_raw([0u8; 33]),
+            account_id: self.account_id,
             logger: self.logger.clone(),
             network: self.network.clone(),
             pallet_tx: self.pallet_tx.clone(),
@@ -83,6 +84,7 @@ pub struct BlsSigningConfig<
     logger: DebugLogger,
     client: C,
     network: N,
+    account_id: AccountId,
     key_store: GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
     _pd: std::marker::PhantomData<(B, BE)>,
 }
@@ -105,7 +107,7 @@ where
     ) -> Result<(Self::Network, Self::Protocol), Error> {
         let protocol = BlsSigningProtocol {
             jobs_client,
-            account_id: AccountId::from_raw([0u8; 33]),
+            account_id: self.account_id,
             logger: self.logger.clone(),
             network: self.network.clone(),
             keystore: self.key_store.clone(),
@@ -140,6 +142,7 @@ pub async fn run<
     logger: DebugLogger,
     network_keygen: N,
     network_signing: N,
+    account_id: AccountId,
     keystore: GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
 ) -> Result<(), Error>
 where
@@ -152,6 +155,7 @@ where
         network: network_keygen,
         _pd: std::marker::PhantomData,
         key_store: keystore.clone(),
+        account_id,
     };
 
     let config_signing = BlsSigningConfig {
@@ -161,6 +165,7 @@ where
         network: network_signing,
         _pd: std::marker::PhantomData,
         key_store: keystore.clone(),
+        account_id,
     };
 
     let keygen_future = config_keygen.execute();

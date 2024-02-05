@@ -123,6 +123,8 @@ impl JobToFee<AccountId, BlockNumber> for JobToFeeHandler {
         match job.job_type {
             JobType::DKGTSSPhaseOne(_) => Dkg::job_to_fee(job),
             JobType::DKGTSSPhaseTwo(_) => Dkg::job_to_fee(job),
+            JobType::DKGTSSPhaseThree(_) => Dkg::job_to_fee(job),
+            JobType::DKGTSSPhaseFour(_) => Dkg::job_to_fee(job),
             JobType::ZkSaaSPhaseOne(_) => ZkSaaS::job_to_fee(job),
             JobType::ZkSaaSPhaseTwo(_) => ZkSaaS::job_to_fee(job),
         }
@@ -160,6 +162,8 @@ impl MPCHandler<AccountId, BlockNumber, Balance> for MockMPCHandler {
         match data.result {
             JobResult::DKGPhaseOne(_) => Dkg::verify(data.result),
             JobResult::DKGPhaseTwo(_) => Dkg::verify(data.result),
+            JobResult::DKGPhaseThree(_) => Dkg::verify(data.result),
+            JobResult::DKGPhaseFour(_) => Dkg::verify(data.result),
             JobResult::ZkSaaSPhaseOne(_) => ZkSaaS::verify(data),
             JobResult::ZkSaaSPhaseTwo(_) => ZkSaaS::verify(data),
         }
@@ -229,23 +233,15 @@ sp_api::mock_impl_runtime_apis! {
             })
         }
 
-        fn query_job_result(
-            &self,
-            role_type: RoleType,
-            job_id: JobId,
-        ) -> Option<PhaseResult<AccountId, BlockNumberOf<Block>>> {
+        fn query_job_by_id(role_type: RoleType, job_id: JobId) -> Option<RpcResponseJobsData<AccountId, BlockNumberOf<Block>>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                Jobs::query_job_result(role_type, job_id)
+                Jobs::query_job_by_id(role_type, job_id)
             })
         }
 
-        fn query_job_by_id(
-            &self,
-            role_type: RoleType,
-            job_id: JobId,
-        ) -> Option<RpcResponseJobsData<AccountId, BlockNumberOf<Block>>> {
+        fn query_job_result(role_type: RoleType, job_id: JobId) -> Option<PhaseResult<AccountId, BlockNumberOf<Block>>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                Jobs::query_job_by_id(role_type, job_id)
+                Jobs::query_job_result(role_type, job_id)
             })
         }
     }

@@ -18,6 +18,11 @@ bls12_381_plus = { workspace = true }
 serde = { version = "1.0.195", features = ["derive"] }
 bincode2 = { workspace = true }
 round-based = { workspace = true, features = ["dev"] }
-blsful = { workspace = true }
 rand = { workspace = true }
 itertools = { workspace = true }
+log = { workspace = true }
+blst = "0.3.11"
+
+[dev-dependencies]
+log = { workspace = true }
+test-utils = { workspace = true }

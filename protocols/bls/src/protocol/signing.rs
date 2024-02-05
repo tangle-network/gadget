@@ -1,6 +1,5 @@
-use crate::protocol::state_machine::{Group, GroupBlsful};
+use crate::protocol::state_machine::Group;
 use async_trait::async_trait;
-use blsful::{MultiPublicKey, MultiSignature, SignatureSchemes};
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
 use gadget_common::config::{DebugLogger, GadgetProtocol, JobsApi, Network, ProvideRuntimeApi};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -170,17 +169,16 @@ where
         let client = self.jobs_client.clone();
         let role_type = additional_params.role_type;
         let job_id = additional_params.job_id;
+        let logger = self.logger.clone();
 
         Ok(JobBuilder::new()
             .protocol(async move {
+                logger.info("Starting BlsSigningProtocol");
                 let (_tx0, _rx0, tx1, mut rx1) =
                     gadget_common::channels::create_job_manager_to_async_protocol_channel_split::<
                         _,
                         (),
-                        Msg<(
-                            blsful::Signature<GroupBlsful>,
-                            blsful::PublicKey<GroupBlsful>,
-                        )>,
+                        Msg<(Vec<u8>, Vec<u8>)>,
                     >(
                         protocol_message_rx,
                         associated_block_id,
@@ -197,30 +195,25 @@ where
                     reason: "Failed to get secret share".to_string(),
                 })?;
 
-                let share_opt = blsful::SecretKey::<GroupBlsful>::from_be_bytes(&sk.to_be_bytes());
-                if share_opt.is_none().into() {
-                    return Err(JobError {
-                        reason: "Failed to create secret key".to_string(),
-                    });
-                }
-
-                let share = share_opt.unwrap();
-
-                let sig_share = share
-                    .sign(
-                        SignatureSchemes::Basic,
-                        &additional_params.input_data_to_sign,
-                    )
-                    .map_err(|e| JobError {
-                        reason: format!("Failed to sign: {e}"),
+                let share =
+                    blst::min_pk::SecretKey::from_bytes(&sk.to_be_bytes()).map_err(|e| {
+                        JobError {
+                            reason: format!("Failed to create secret key: {e:?}"),
+                        }
                     })?;
-                let pk_share = blsful::PublicKey::<GroupBlsful>::from(&share);
+
+                let dst = &mut [0u8; 48];
+                let sig_share = share.sign(&additional_params.input_data_to_sign, dst, &[]);
+                let pk_share = share.sk_to_pk();
 
                 // Step 2: Broadcast shares
                 let msg = Msg {
                     sender: additional_params.i,
                     receiver: None,
-                    body: (sig_share.clone(), pk_share.clone()),
+                    body: (
+                        sig_share.serialize().to_vec(),
+                        pk_share.serialize().to_vec(),
+                    ),
                 };
 
                 tx1.send(msg).map_err(|e| JobError {
@@ -230,6 +223,7 @@ where
                 let mut received_pk_shares = BTreeMap::new();
                 let mut received_sig_shares = BTreeMap::new();
                 received_pk_shares.insert(additional_params.i, pk_share);
+                received_sig_shares.insert(additional_params.i, sig_share);
 
                 // Step 3: Receive shares until there are t+1 total
                 while received_pk_shares.len() != (threshold + 1) as usize {
@@ -238,9 +232,17 @@ where
                     })?;
 
                     let (sender, (sig, pk)) = (msg.sender, msg.body);
+                    let pk = blst::min_pk::PublicKey::from_bytes(&pk).map_err(|e| JobError {
+                        reason: format!("Failed to create public key: {e:?}"),
+                    })?;
+                    let sig = blst::min_pk::Signature::from_bytes(&sig).map_err(|e| JobError {
+                        reason: format!("Failed to create signature: {e:?}"),
+                    })?;
                     received_pk_shares.insert(sender, pk);
                     received_sig_shares.insert(sender, sig);
                 }
+
+                logger.info("BlsSigningProtocol finished public broadcast stage");
 
                 // Step 4: Verify the combined signatures and public keys
                 let sig_shares = received_sig_shares
@@ -255,20 +257,45 @@ where
                     .map(|r| r.1)
                     .collect::<Vec<_>>();
 
-                let combined_signature =
-                    MultiSignature::<GroupBlsful>::from_signatures(&sig_shares).unwrap();
-                let combined_pk = MultiPublicKey::<GroupBlsful>::from_public_keys(&pk_shares);
-                combined_signature
-                    .verify(combined_pk, &additional_params.input_data_to_sign)
-                    .map_err(|e| JobError {
-                        reason: format!("Failed to verify signature: {e}"),
-                    })?;
+                let combined_signature = blst::min_pk::AggregateSignature::aggregate(
+                    &sig_shares.iter().collect::<Vec<_>>(),
+                    true,
+                )
+                .map_err(|e| JobError {
+                    reason: format!("Failed to aggregate signatures: {e:?}"),
+                })?;
 
+                let pk_agg = blst::min_pk::AggregatePublicKey::aggregate(
+                    &pk_shares.iter().collect::<Vec<_>>(),
+                    true,
+                )
+                .map_err(|e| JobError {
+                    reason: format!("Failed to aggregate public keys: {e:?}"),
+                })?;
+
+                let (as_pk, as_sig) = (pk_agg.to_public_key(), combined_signature.to_signature());
+
+                let dst = &mut [0u8; 48];
+                if as_sig.verify(
+                    true,
+                    &additional_params.input_data_to_sign,
+                    dst,
+                    &[],
+                    &as_pk,
+                    true,
+                ) != blst::BLST_ERROR::BLST_SUCCESS
+                {
+                    return Err(JobError {
+                        reason: "Failed to verify signature".to_string(),
+                    });
+                }
+
+                logger.info("BlsSigningProtocol finished verification stage");
                 let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
                     signature_type: DigitalSignatureType::Bls381,
                     data: additional_params.input_data_to_sign.clone(),
-                    signature: combined_signature.as_raw_value().to_uncompressed().to_vec(),
-                    signing_key: share.to_be_bytes().to_vec(), // Use our secret share as the signing key
+                    signature: as_sig.serialize().to_vec(),
+                    signing_key: as_pk.serialize().to_vec(),
                 });
 
                 *result.lock().await = Some(job_result);

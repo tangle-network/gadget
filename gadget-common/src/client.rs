@@ -16,8 +16,8 @@ use subxt::ext::sp_core::Pair as SubxtPair;
 use subxt::tx::{PairSigner, TxPayload};
 use subxt::utils::H256;
 use subxt::{OnlineClient, PolkadotConfig};
-use tangle_primitives::jobs::RpcResponseJobsData;
-use tangle_primitives::jobs::{JobId, JobResult, PhaseResult};
+use tangle_primitives::jobs::{JobId, JobResult};
+use tangle_primitives::jobs::{PhaseResult, RpcResponseJobsData};
 use tangle_primitives::roles::RoleType;
 
 pub struct JobsClient<B: Block, BE, C> {

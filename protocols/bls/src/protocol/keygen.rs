@@ -154,8 +154,9 @@ where
 
         Ok(JobBuilder::new()
             .protocol(async move {
+                logger.info("Beginning BlsKeygenProtocol ...");
                 let state_machine =
-                    BlsStateMachine::new(i, t, n, logger).map_err(|err| JobError {
+                    BlsStateMachine::new(i, t, n, logger.clone()).map_err(|err| JobError {
                         reason: err.to_string(),
                     })?;
 
@@ -181,6 +182,8 @@ where
                         reason: err.to_string(),
                     })?;
 
+                logger.info("Completed BlsKeygenProtocol ...");
+
                 let public_key = me
                     .get_public_key()
                     .ok_or_else(|| JobError {
@@ -188,17 +191,6 @@ where
                     })?
                     .to_uncompressed()
                     .to_vec();
-
-                /*
-                let secret_share = me.get_secret_share().ok_or_else(|| JobError {
-                    reason: "Failed to get secret share".to_string(),
-                })?;
-
-                let secret =
-                    <Vec<u8> as Share>::from_field_element(me.get_id() as u8, secret_share)
-                        .map_err(|err| JobError {
-                            reason: err.to_string(),
-                        })?;*/
 
                 let job_result = handle_public_key_broadcast(
                     &keystore,
@@ -210,6 +202,8 @@ where
                     &user_id_to_account_id,
                 )
                 .await?;
+
+                logger.info("Finished public key broadcast ...");
 
                 *result.lock().await = Some((job_result, me));
 

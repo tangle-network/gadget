@@ -33,7 +33,6 @@ impl Display for BlsStateMachineError {
 }
 
 pub type Group = bls12_381_plus::G1Projective;
-pub type GroupBlsful = blsful::Bls12381G1Impl;
 
 impl BlsStateMachine {
     pub fn new(i: u16, t: u16, n: u16, logger: DebugLogger) -> Result<Self, BlsStateMachineError> {
@@ -271,8 +270,7 @@ impl IsCritical for BlsStateMachineError {
 
 #[cfg(test)]
 mod tests {
-    use crate::protocol::state_machine::{BlsStateMachine, GroupBlsful};
-    use blsful::{MultiPublicKey, MultiSignature, PublicKey, SignatureSchemes};
+    use crate::protocol::state_machine::BlsStateMachine;
     use gadget_common::config::DebugLogger;
     use round_based::dev::AsyncSimulation;
 
@@ -334,23 +332,47 @@ mod tests {
                     .get_secret_share()
                     .expect("Secret should be some");
 
-                let share =
-                    blsful::SecretKey::<GroupBlsful>::from_be_bytes(&sk.to_be_bytes()).unwrap();
+                let share_blst = blst::min_pk::SecretKey::from_bytes(&sk.to_be_bytes()).unwrap();
+                let pk_share_blst = share_blst.sk_to_pk();
+                let dst = &mut [0u8; 48];
+                let sig_share_blst = share_blst.sign(TEST_MSG, dst, &[]);
 
-                let sig_share = share.sign(SignatureSchemes::Basic, TEST_MSG).unwrap();
-                let pk_share = PublicKey::<GroupBlsful>::from(&share);
-
-                assert!(sig_share.verify(&pk_share, TEST_MSG).is_ok());
-                sig_shares.push(sig_share);
-                pk_shares.push(pk_share);
+                sig_shares.push(sig_share_blst.serialize());
+                pk_shares.push(pk_share_blst.serialize());
             }
         }
 
-        // Step 3: Verify the combined signatures and public keys
-        let combined_signature =
-            MultiSignature::<GroupBlsful>::from_signatures(&sig_shares).unwrap();
-        let combined_pk = MultiPublicKey::<GroupBlsful>::from_public_keys(&pk_shares);
-        assert!(combined_signature.verify(combined_pk, TEST_MSG).is_ok());
+        // Step 3: Verify the combined signatures and public keys using the pallet method
+        let pks = pk_shares.iter().map(|r| r as &[u8]).collect::<Vec<_>>();
+        let sigs = sig_shares.iter().map(|r| r as &[u8]).collect::<Vec<_>>();
+        let pk_shares = blst::min_pk::AggregatePublicKey::aggregate_serialized(&pks, true).unwrap();
+        let sig_shares =
+            blst::min_pk::AggregateSignature::aggregate_serialized(&sigs, true).unwrap();
+        let (as_sig, as_pk) = (sig_shares.to_signature(), pk_shares.to_public_key());
+        let dst = &mut [0u8; 48];
+        assert_eq!(
+            blst::BLST_ERROR::BLST_SUCCESS,
+            as_sig.verify(true, TEST_MSG, dst, &[], &as_pk, true)
+        );
+        assert_eq!(
+            blst::BLST_ERROR::BLST_VERIFY_FAIL,
+            as_sig.verify(true, b"fake message", dst, &[], &as_pk, true)
+        );
+
+        // Step 4: Verify the combined signatures and public keys using the pallet method
+        let serialized_pk_share = as_pk.serialize().to_vec();
+        let serialized_sig_share = as_sig.serialize().to_vec();
+        let as_pk = blst::min_pk::PublicKey::deserialize(&serialized_pk_share).unwrap();
+        let as_sig = blst::min_pk::Signature::deserialize(&serialized_sig_share).unwrap();
+        let dst = &mut [0u8; 48];
+        assert_eq!(
+            blst::BLST_ERROR::BLST_SUCCESS,
+            as_sig.verify(true, TEST_MSG, dst, &[], &as_pk, true)
+        );
+        assert_eq!(
+            blst::BLST_ERROR::BLST_VERIFY_FAIL,
+            as_sig.verify(true, b"fake message", dst, &[], &as_pk, true)
+        );
     }
 }
 
