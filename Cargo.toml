@@ -46,7 +46,6 @@ frost-redjubjub = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-ristretto255 = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-secp256k1 = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-rerandomized = { git = "https://github.com/LIT-Protocol/frost.git" }
-frost-taproot = { git = "https://github.com/LIT-Protocol/frost.git" }
 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }

@@ -90,12 +90,13 @@ where
     tracer.round_begins();
 
     tracer.stage("Compute round 1 dkg secret package");
-    let (round1_secret_package, round1_package) = dkg_part1(i, n, t, role, rng).map_err(|e| {
-        KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {
-            parties: vec![],
-            error: e,
-        }))
-    })?;
+    let (round1_secret_package, round1_package) =
+        dkg_part1(i + 1, t, n, role, rng).map_err(|e| {
+            KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {
+                parties: vec![],
+                error: e,
+            }))
+        })?;
 
     tracer.send_msg();
     let my_round1_msg = MsgRound1 {
@@ -134,7 +135,9 @@ where
                 p.clone(),
             )
         })
+        .filter(|(inx, _)| *inx != Identifier::try_from(i + 1).unwrap())
         .collect();
+
     let (round2_secret_package, round2_packages_map) =
         dkg_part2(role, round1_secret_package, &round1_packages_map).map_err(|e| {
             KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {
@@ -145,15 +148,16 @@ where
 
     tracer.send_msg();
     for (receiver_identifier, round2_package) in round2_packages_map {
-        let receiver_index_be_bytes: [u8; 2] = receiver_identifier
-            .serialize()
-            .as_ref()
-            .try_into()
-            .expect("should be 2 bytes");
-        let receiver_index = u16::from_be_bytes(receiver_index_be_bytes);
+        let receiver_index_bytes: Vec<u8> = receiver_identifier.serialize().as_ref().to_vec();
+        let receiver_index = u16::from_le_bytes([receiver_index_bytes[0], receiver_index_bytes[1]]);
+        println!(
+            "Party i: {:?} | Sending round 2 to {:?}",
+            i,
+            receiver_index - 1
+        );
         outgoings
             .send(Outgoing::p2p(
-                receiver_index,
+                receiver_index - 1,
                 Msg::Round2(MsgRound2 {
                     msg: round2_package.serialize().unwrap_or_default(),
                 }),
@@ -222,8 +226,12 @@ where
         | ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {}
         _ => panic!("Invalid role"),
     };
+    println!(
+        "Party i: {:?}, Total parties n: {:?}, Threshold t: {:?}",
+        i, n, t
+    );
     let participant_identifier = i.try_into().expect("should be nonzero");
-    frost_core::keys::dkg::part1::<C, R>(participant_identifier, t, n, rng)
+    frost_core::keys::dkg::part1::<C, R>(participant_identifier, n, t, rng)
 }
 
 #[allow(clippy::type_complexity)]

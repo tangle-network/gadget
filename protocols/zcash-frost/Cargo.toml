@@ -32,7 +32,6 @@ frost-redjubjub = { workspace = true }
 frost-ristretto255 = { workspace = true }
 frost-secp256k1 = { workspace = true }
 frost-rerandomized = { workspace = true }
-frost-taproot = { workspace = true }
 
 pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
 pallet-jobs = { workspace = true, features = ["std"] }
