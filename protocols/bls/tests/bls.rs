@@ -59,9 +59,7 @@ mod tests {
                     }),
                 };
 
-                let result = Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission);
-                log::info!(target: "gadget", "******* Submitted Keygen Job RESULT: {:?}", result);
-                assert!(result.is_ok());
+                assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission).is_ok());
 
                 log::info!(target: "gadget", "******* Submitted Keygen Job {job_id}");
                 job_id

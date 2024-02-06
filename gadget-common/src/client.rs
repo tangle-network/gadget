@@ -61,6 +61,7 @@ pub type MaxKeyLen = tangle_testnet_runtime::MaxKeyLen;
 pub type MaxDataLen = tangle_testnet_runtime::MaxDataLen;
 pub type MaxSignatureLen = tangle_testnet_runtime::MaxSignatureLen;
 pub type MaxProofLen = tangle_testnet_runtime::MaxProofLen;
+pub type MaxActiveJobsPerValidator = tangle_testnet_runtime::MaxActiveJobsPerValidator;
 pub type GadgetJobResult = tangle_testnet_runtime::JobResult<
     MaxParticipants,
     MaxKeyLen,
