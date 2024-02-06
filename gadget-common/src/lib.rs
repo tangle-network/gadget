@@ -1,4 +1,4 @@
-use crate::client::{AccountId, ClientWithApi};
+use crate::client::{AccountId, ClientWithApi, JobsApiForGadget};
 use crate::config::{NetworkAndProtocolSetup, ProtocolConfig};
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{GadgetProtocol, Module};
@@ -9,7 +9,6 @@ pub use gadget_core::job::JobError;
 pub use gadget_core::job::*;
 pub use gadget_core::job_manager::WorkManagerInterface;
 pub use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use parking_lot::RwLock;
 pub use sc_client_api::BlockImportNotification;
 pub use sc_client_api::{Backend, FinalityNotification};
@@ -68,8 +67,7 @@ pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(
 where
     <<T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<
         <T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block,
-    >>::Api:
-        JobsApi<<T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block, AccountId>,
+    >>::Api: JobsApiForGadget<<T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block>,
 {
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
@@ -113,7 +111,7 @@ pub async fn create_work_manager<
     protocol: &P,
 ) -> Result<ProtocolWorkManager<WorkManager>, Error>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     let now: u64 = (*latest_finality_notification.header.number()).saturated_into();
 

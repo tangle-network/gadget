@@ -1,4 +1,4 @@
-use crate::client::{AccountId, ClientWithApi, JobsClient};
+use crate::client::{AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient};
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
@@ -9,7 +9,6 @@ use gadget_core::gadget::substrate::SubstrateGadgetModule;
 use gadget_core::job::BuiltExecutableJobWrapper;
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerInterface};
 use network::Network;
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use parking_lot::RwLock;
 use sc_client_api::{Backend, BlockImportNotification, FinalityNotification};
 use sp_api::ProvideRuntimeApi;
@@ -19,7 +18,7 @@ use sp_runtime::SaturatedConversion;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::Duration;
-use tangle_primitives::jobs::{JobId, JobType};
+use tangle_primitives::jobs::JobId;
 use tangle_primitives::roles::RoleType;
 
 pub mod message;
@@ -54,7 +53,7 @@ impl<
         BE: Backend<B>,
     > Module<B, C, N, M, BE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<WorkManager>) -> Self {
         let clock = job_manager.utility.clock.clone();
@@ -69,9 +68,9 @@ where
 }
 
 pub struct JobInitMetadata {
-    pub job_type: JobType<AccountId>,
+    pub job_type: GadgetJobType,
     /// This value only exists if this is a stage2 job
-    pub phase1_job: Option<JobType<AccountId>>,
+    pub phase1_job: Option<GadgetJobType>,
     pub task_id: <WorkManager as WorkManagerInterface>::TaskID,
     pub retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     pub job_id: JobId,
@@ -87,7 +86,7 @@ impl<
         BE: Backend<B>,
     > SubstrateGadgetModule for Module<B, C, N, M, BE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type Error = Error;
     type ProtocolMessage = GadgetProtocolMessage;
@@ -262,7 +261,7 @@ pub type Job = (AsyncProtocolRemote, BuiltExecutableJobWrapper);
 pub trait GadgetProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>:
     AsyncProtocol + Send + Sync
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     /// Given an input of a valid and relevant job, return the parameters needed to start the async protocol
     /// Note: the parameters returned must be relevant to the `AsyncProtocol` implementation of this protocol

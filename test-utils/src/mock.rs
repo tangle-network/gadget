@@ -22,7 +22,10 @@ use frame_support::{
     PalletId,
 };
 use frame_system::EnsureSigned;
-use gadget_common::client::AccountId;
+use gadget_common::client::{
+    AccountId, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen,
+    MaxSubmissionLen,
+};
 use pallet_jobs_rpc_runtime_api::BlockNumberOf;
 use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
@@ -70,7 +73,7 @@ impl frame_system::Config for Runtime {
     type Nonce = u64;
     type RuntimeCall = RuntimeCall;
     type Hash = H256;
-    type Hashing = ::sp_runtime::traits::BlakeTwo256;
+    type Hashing = sp_runtime::traits::BlakeTwo256;
     type AccountId = AccountId;
     type Block = Block;
     type Lookup = IdentityLookup<Self::AccountId>;
@@ -116,10 +119,12 @@ impl pallet_timestamp::Config for Runtime {
 
 pub struct JobToFeeHandler;
 
-impl JobToFee<AccountId, BlockNumber> for JobToFeeHandler {
+impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen> for JobToFeeHandler {
     type Balance = Balance;
 
-    fn job_to_fee(job: &JobSubmission<AccountId, BlockNumber>) -> Balance {
+    fn job_to_fee(
+        job: &JobSubmission<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen>,
+    ) -> Balance {
         match job.job_type {
             JobType::DKGTSSPhaseOne(_) => Dkg::job_to_fee(job),
             JobType::DKGTSSPhaseTwo(_) => Dkg::job_to_fee(job),
@@ -157,8 +162,30 @@ impl RolesHandler<AccountId> for MockRolesHandler {
 
 pub struct MockMPCHandler;
 
-impl MPCHandler<AccountId, BlockNumber, Balance> for MockMPCHandler {
-    fn verify(data: JobWithResult<AccountId>) -> DispatchResult {
+impl
+    MPCHandler<
+        AccountId,
+        BlockNumber,
+        Balance,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    > for MockMPCHandler
+{
+    fn verify(
+        data: JobWithResult<
+            AccountId,
+            MaxParticipants,
+            MaxSubmissionLen,
+            MaxKeyLen,
+            MaxDataLen,
+            MaxSignatureLen,
+            MaxProofLen,
+        >,
+    ) -> DispatchResult {
         match data.result {
             JobResult::DKGPhaseOne(_) => Dkg::verify(data.result),
             JobResult::DKGPhaseTwo(_) => Dkg::verify(data.result),
@@ -193,6 +220,13 @@ impl pallet_jobs::Config for Runtime {
     type RolesHandler = MockRolesHandler;
     type MPCHandler = MockMPCHandler;
     type ForceOrigin = EnsureSigned<AccountId>;
+    type MaxParticipants = MaxParticipants;
+    type MaxSubmissionLen = MaxSubmissionLen;
+    type MaxSignatureLen = MaxSignatureLen;
+    type MaxDataLen = MaxDataLen;
+    type MaxKeyLen = MaxKeyLen;
+    type MaxProofLen = MaxProofLen;
+    type MaxActiveJobsPerValidator = ();
     type PalletId = JobsPalletId;
     type WeightInfo = ();
 }
@@ -201,6 +235,12 @@ impl pallet_dkg::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type UpdateOrigin = EnsureSigned<AccountId>;
+    type MaxParticipants = MaxParticipants;
+    type MaxSubmissionLen = MaxSubmissionLen;
+    type MaxSignatureLen = MaxSignatureLen;
+    type MaxDataLen = MaxDataLen;
+    type MaxKeyLen = MaxKeyLen;
+    type MaxProofLen = MaxProofLen;
     type WeightInfo = ();
 }
 
@@ -210,6 +250,12 @@ impl pallet_zksaas::Config for Runtime {
 
     type UpdateOrigin = EnsureSigned<AccountId>;
     type Verifier = (ArkworksVerifierGroth16Bn254, CircomVerifierGroth16Bn254);
+    type MaxParticipants = MaxParticipants;
+    type MaxSubmissionLen = MaxSubmissionLen;
+    type MaxSignatureLen = MaxSignatureLen;
+    type MaxDataLen = MaxDataLen;
+    type MaxKeyLen = MaxKeyLen;
+    type MaxProofLen = MaxProofLen;
     type WeightInfo = ();
 }
 
@@ -226,20 +272,20 @@ construct_runtime!(
 );
 
 sp_api::mock_impl_runtime_apis! {
-    impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId> for Runtime {
-        fn query_jobs_by_validator(&self, validator: AccountId) -> Option<Vec<RpcResponseJobsData<AccountId, BlockNumberOf<Block>>>> {
+    impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen> for Runtime {
+        fn query_jobs_by_validator(&self, validator: AccountId) -> Option<Vec<RpcResponseJobsData<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxSubmissionLen>>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
                 Jobs::query_jobs_by_validator(validator)
             })
         }
 
-        fn query_job_by_id(role_type: RoleType, job_id: JobId) -> Option<RpcResponseJobsData<AccountId, BlockNumberOf<Block>>> {
+        fn query_job_by_id(role_type: RoleType, job_id: JobId) -> Option<RpcResponseJobsData<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxSubmissionLen>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
                 Jobs::query_job_by_id(role_type, job_id)
             })
         }
 
-        fn query_job_result(role_type: RoleType, job_id: JobId) -> Option<PhaseResult<AccountId, BlockNumberOf<Block>>> {
+        fn query_job_result(role_type: RoleType, job_id: JobId) -> Option<PhaseResult<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxSubmissionLen, MaxProofLen>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
                 Jobs::query_job_result(role_type, job_id)
             })
@@ -524,7 +570,7 @@ pub mod mock_wrapper_client {
     use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use async_trait::async_trait;
     use futures::StreamExt;
-    use gadget_common::client::{AccountId, PalletSubmitter};
+    use gadget_common::client::{AccountId, GadgetJobResult, PalletSubmitter};
     use gadget_common::locks::TokioMutexExt;
     use gadget_common::Header;
     use gadget_core::gadget::substrate::Client;
@@ -537,7 +583,7 @@ pub mod mock_wrapper_client {
     use sp_runtime::traits::Block;
     use std::sync::Arc;
     use std::time::Duration;
-    use tangle_primitives::jobs::{JobId, JobResult};
+    use tangle_primitives::jobs::JobId;
     use tangle_primitives::roles::RoleType;
 
     #[derive(Clone)]
@@ -650,7 +696,7 @@ pub mod mock_wrapper_client {
             &self,
             role_type: RoleType,
             job_id: JobId,
-            result: JobResult,
+            result: GadgetJobResult,
         ) -> Result<(), gadget_common::Error> {
             let id = self.id;
             self.ext

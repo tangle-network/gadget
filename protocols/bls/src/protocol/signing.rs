@@ -1,7 +1,7 @@
 use crate::protocol::state_machine::Group;
 use async_trait::async_trait;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
-use gadget_common::config::{DebugLogger, GadgetProtocol, JobsApi, Network, ProvideRuntimeApi};
+use gadget_common::client::{AccountId, ClientWithApi, JobsApiForGadget, JobsClient};
+use gadget_common::config::{DebugLogger, GadgetProtocol, Network, ProvideRuntimeApi};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
@@ -17,7 +17,7 @@ use round_based::Msg;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tangle_primitives::jobs::{
-    DKGTSSSignatureResult, DigitalSignatureType, JobId, JobResult, JobType,
+    DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 
@@ -28,7 +28,7 @@ pub struct BlsSigningProtocol<
     N: Network,
     KBE: KeystoreBackend,
 > where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pub jobs_client: JobsClient<B, BE, C>,
     pub account_id: AccountId,
@@ -46,7 +46,7 @@ impl<
         KBE: KeystoreBackend,
     > GadgetProtocol<B, BE, C> for BlsSigningProtocol<B, BE, C, N, KBE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     async fn create_next_job(
         &self,
@@ -87,7 +87,7 @@ where
                 job_id,
                 user_id_to_account_id_mapping,
                 key_bundle,
-                input_data_to_sign,
+                input_data_to_sign: input_data_to_sign.to_vec(),
             };
 
             Ok(additional_params)
@@ -149,7 +149,7 @@ impl<
         KBE: KeystoreBackend,
     > AsyncProtocol for BlsSigningProtocol<B, BE, C, N, KBE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type AdditionalParams = BlsSigningAdditionalParams;
 
@@ -290,12 +290,19 @@ where
                     });
                 }
 
+                let signing_key = as_pk.serialize().to_vec();
+                let signature = as_sig.serialize().to_vec();
+
                 logger.info("BlsSigningProtocol finished verification stage");
                 let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
-                    signature_type: DigitalSignatureType::Bls381,
-                    data: additional_params.input_data_to_sign.clone(),
-                    signature: as_sig.serialize().to_vec(),
-                    signing_key: as_pk.serialize().to_vec(),
+                    signature_scheme: DigitalSignatureScheme::Bls381,
+                    data: additional_params
+                        .input_data_to_sign
+                        .clone()
+                        .try_into()
+                        .unwrap(),
+                    signature: signature.try_into().unwrap(),
+                    signing_key: signing_key.try_into().unwrap(),
                 });
 
                 *result.lock().await = Some(job_result);

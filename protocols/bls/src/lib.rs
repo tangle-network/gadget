@@ -18,7 +18,7 @@ pub struct BlsKeygenConfig<
     N: Network,
     KBE: KeystoreBackend,
 > where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pallet_tx: Arc<dyn PalletSubmitter>,
     logger: DebugLogger,
@@ -33,7 +33,7 @@ pub struct BlsKeygenConfig<
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
     NetworkAndProtocolSetup for BlsKeygenConfig<B, BE, C, N, KBE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type Network = N;
     type Protocol = BlsKeygenProtocol<B, BE, C, N, KBE>;
@@ -78,7 +78,7 @@ pub struct BlsSigningConfig<
     N: Network,
     KBE: KeystoreBackend,
 > where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pallet_tx: Arc<dyn PalletSubmitter>,
     logger: DebugLogger,
@@ -93,7 +93,7 @@ pub struct BlsSigningConfig<
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
     NetworkAndProtocolSetup for BlsSigningConfig<B, BE, C, N, KBE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type Network = N;
     type Protocol = BlsSigningProtocol<B, BE, C, N, KBE>;
@@ -146,7 +146,7 @@ pub async fn run<
     keystore: GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
 ) -> Result<(), Error>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     let config_keygen = BlsKeygenConfig {
         pallet_tx: pallet_tx.clone(),

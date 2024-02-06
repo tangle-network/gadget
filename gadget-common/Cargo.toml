@@ -42,4 +42,5 @@ sc-network-common = { workspace = true }
 sc-network-sync = { workspace = true }
 
 tangle-primitives = { workspace = true }
+tangle-testnet-runtime = { workspace = true }
 pallet-jobs-rpc-runtime-api = { workspace = true }

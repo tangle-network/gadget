@@ -52,14 +52,16 @@ mod tests {
                     expiry: 100,
                     ttl: 100,
                     job_type: JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
-                        participants: identities.clone(),
+                        participants: identities.clone().try_into().unwrap(),
                         threshold: T as _,
                         permitted_caller: None,
                         role_type: ThresholdSignatureRoleType::GennaroDKGBls381,
                     }),
                 };
 
-                assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission).is_ok());
+                let result = Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission);
+                log::info!(target: "gadget", "******* Submitted Keygen Job RESULT: {:?}", result);
+                assert!(result.is_ok());
 
                 log::info!(target: "gadget", "******* Submitted Keygen Job {job_id}");
                 job_id
@@ -88,7 +90,7 @@ mod tests {
                     ttl: 100,
                     job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
                         phase_one_id: keygen_job_id,
-                        submission: Vec::from("Hello, world!"),
+                        submission: Vec::from("Hello, world!").try_into().unwrap(),
                         role_type: ThresholdSignatureRoleType::GennaroDKGBls381,
                     }),
                 };

@@ -1,8 +1,10 @@
 use crate::protocol::state_machine::payloads::RoundPayload;
 use crate::protocol::state_machine::BlsStateMachine;
 use async_trait::async_trait;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
-use gadget_common::config::{DebugLogger, GadgetProtocol, JobsApi, Network, ProvideRuntimeApi};
+use gadget_common::client::{
+    AccountId, ClientWithApi, GadgetJobResult, JobsApiForGadget, JobsClient, PalletSubmitter,
+};
+use gadget_common::config::{DebugLogger, GadgetProtocol, Network, ProvideRuntimeApi};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
@@ -17,7 +19,9 @@ use itertools::Itertools;
 use round_based::{AsyncProtocol as RoundsBasedAsyncProtocol, Msg};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGTSSKeySubmissionResult, DigitalSignatureType, JobId, JobResult};
+use tangle_primitives::jobs::{
+    DKGTSSKeySubmissionResult, DigitalSignatureScheme, JobId, JobResult,
+};
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
@@ -28,7 +32,7 @@ pub struct BlsKeygenProtocol<
     N: Network,
     KBE: KeystoreBackend,
 > where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pub jobs_client: JobsClient<B, BE, C>,
     pub account_id: AccountId,
@@ -42,7 +46,7 @@ pub struct BlsKeygenProtocol<
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
     GadgetProtocol<B, BE, C> for BlsKeygenProtocol<B, BE, C, N, KBE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     async fn create_next_job(
         &self,
@@ -123,7 +127,7 @@ pub struct BlsKeygenAdditionalParams {
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
     AsyncProtocol for BlsKeygenProtocol<B, BE, C, N, KBE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type AdditionalParams = BlsKeygenAdditionalParams;
 
@@ -245,7 +249,7 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     tx: &mut UnboundedSender<Msg<RoundPayload>>,
     rx: &mut UnboundedReceiver<Msg<RoundPayload>>,
     user_id_to_account_id_mapping: &Arc<HashMap<UserID, AccountId>>,
-) -> Result<JobResult, JobError> {
+) -> Result<GadgetJobResult, JobError> {
     let mut received_pk_shares = BTreeMap::new();
     let mut received_signatures = BTreeMap::new();
     received_pk_shares.insert(i, public_key_share.clone());
@@ -341,18 +345,24 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     let participants = user_id_to_account_id_mapping
         .iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1 .0.to_vec())
-        .collect();
+        .map(|r| r.1 .0.to_vec().try_into().unwrap())
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
 
     let signatures = received_signatures
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1)
-        .collect();
+        .map(|r| r.1.try_into().unwrap())
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+    let key = pk_agg.to_public_key().serialize().to_vec();
 
     Ok(JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
-        signature_type: DigitalSignatureType::Bls381,
-        key: pk_agg.to_public_key().serialize().to_vec(), // The pallet is assuming this is the signing key, but it's not
+        signature_scheme: DigitalSignatureScheme::Bls381,
+        key: key.try_into().unwrap(),
         participants,
         signatures,
         threshold: t as u8,

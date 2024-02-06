@@ -13,15 +13,14 @@ tokio = { workspace = true }
 protocol-macros = { workspace = true }
 tangle-primitives = { workspace = true }
 gennaro-dkg = { workspace = true }
-vsss-rs = { workspace = true }
-bls12_381_plus = { workspace = true }
-serde = { version = "1.0.195", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 bincode2 = { workspace = true }
 round-based = { workspace = true, features = ["dev"] }
 rand = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
-blst = "0.3.11"
+blst = { workspace = true }
+bls12_381_plus = { workspace = true }
 
 [dev-dependencies]
 log = { workspace = true }
