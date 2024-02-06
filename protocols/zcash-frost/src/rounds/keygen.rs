@@ -150,11 +150,6 @@ where
     for (receiver_identifier, round2_package) in round2_packages_map {
         let receiver_index_bytes: Vec<u8> = receiver_identifier.serialize().as_ref().to_vec();
         let receiver_index = u16::from_le_bytes([receiver_index_bytes[0], receiver_index_bytes[1]]);
-        println!(
-            "Party i: {:?} | Sending round 2 to {:?}",
-            i,
-            receiver_index - 1
-        );
         outgoings
             .send(Outgoing::p2p(
                 receiver_index - 1,
@@ -226,10 +221,7 @@ where
         | ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {}
         _ => panic!("Invalid role"),
     };
-    println!(
-        "Party i: {:?}, Total parties n: {:?}, Threshold t: {:?}",
-        i, n, t
-    );
+
     let participant_identifier = i.try_into().expect("should be nonzero");
     frost_core::keys::dkg::part1::<C, R>(participant_identifier, n, t, rng)
 }
