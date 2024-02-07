@@ -11,6 +11,7 @@ concurrency:
 env:
   RUST_BACKTRACE: full
   RUST_LOG: "gadget=trace"
+  SKIP_WASM_BUILD: "true"
 
 jobs:
   formatting:
