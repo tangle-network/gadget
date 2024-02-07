@@ -1,4 +1,5 @@
 use crate::debug_logger::DebugLogger;
+use crate::jobs_api_config::*;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use async_trait::async_trait;
 use auto_impl::auto_impl;
@@ -44,7 +45,16 @@ pub async fn create_client<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>(
     pallet_tx: Arc<dyn PalletSubmitter>,
 ) -> Result<JobsClient<B, BE, C>, crate::Error>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     Ok(JobsClient {
         client,
@@ -61,7 +71,16 @@ pub trait ClientWithApi<B, BE>:
 where
     B: Block,
     BE: Backend<B>,
-    <Self as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <Self as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
 }
 
@@ -70,14 +89,32 @@ where
     B: Block,
     BE: Backend<B>,
     T: BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + Clone + 'static,
-    <T as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <T as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
 }
 
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> ProvideRuntimeApi<B>
     for JobsClient<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     type Api = C::Api;
 
@@ -88,7 +125,16 @@ where
 
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> BlockchainEvents<B> for JobsClient<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     fn import_notification_stream(&self) -> ImportNotifications<B> {
         self.client.import_notification_stream()
@@ -114,13 +160,25 @@ where
 
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> JobsClient<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     pub async fn query_jobs_by_validator(
         &self,
         at: <B as Block>::Hash,
         validator: AccountId,
-    ) -> Result<Vec<RpcResponseJobsData<AccountId, BlockNumberOf<B>>>, crate::Error> {
+    ) -> Result<
+        Vec<RpcResponseJobsData<AccountId, BlockNumberOf<B>, MaxParticipants, MaxSubmissionLen>>,
+        crate::Error,
+    > {
         exec_client_function(&self.client, move |client| {
             client.runtime_api().query_jobs_by_validator(at, validator)
         })
@@ -136,7 +194,10 @@ where
         at: <B as Block>::Hash,
         role_type: RoleType,
         job_id: JobId,
-    ) -> Result<Option<RpcResponseJobsData<AccountId, BlockNumberOf<B>>>, crate::Error> {
+    ) -> Result<
+        Option<RpcResponseJobsData<AccountId, BlockNumberOf<B>, MaxParticipants, MaxSubmissionLen>>,
+        crate::Error,
+    > {
         exec_client_function(&self.client, move |client| {
             client.runtime_api().query_job_by_id(at, role_type, job_id)
         })
@@ -151,7 +212,21 @@ where
         at: <B as Block>::Hash,
         role_type: RoleType,
         job_id: JobId,
-    ) -> Result<Option<PhaseResult<AccountId, BlockNumberOf<B>>>, crate::Error> {
+    ) -> Result<
+        Option<
+            PhaseResult<
+                AccountId,
+                BlockNumberOf<B>,
+                MaxParticipants,
+                MaxKeyLen,
+                MaxDataLen,
+                MaxSignatureLen,
+                MaxSubmissionLen,
+                MaxProofLen,
+            >,
+        >,
+        crate::Error,
+    > {
         exec_client_function(&self.client, move |client| {
             client.runtime_api().query_job_result(at, role_type, job_id)
         })
@@ -165,7 +240,7 @@ where
         &self,
         role_type: RoleType,
         job_id: JobId,
-        result: JobResult,
+        result: JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
     ) -> Result<(), crate::Error> {
         self.pallet_tx
             .submit_job_result(role_type, job_id, result)
@@ -179,7 +254,16 @@ where
     B: Block,
     BE: Backend<B>,
     C: ClientWithApi<B, BE>,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>> {
         self.client.get_next_finality_notification().await
@@ -201,7 +285,7 @@ pub trait PalletSubmitter: Send + Sync + 'static {
         &self,
         role_type: RoleType,
         job_id: JobId,
-        result: JobResult,
+        result: JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
     ) -> Result<(), crate::Error>;
 }
 
@@ -216,7 +300,7 @@ impl PalletSubmitter for SubxtPalletSubmitter {
         &self,
         role_type: RoleType,
         job_id: JobId,
-        result: JobResult,
+        result: JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
     ) -> Result<(), crate::Error> {
         let tx = tangle::tx().jobs().submit_job_result(
             Decode::decode(&mut role_type.encode().as_slice()).expect("Should decode"),

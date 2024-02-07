@@ -29,8 +29,8 @@ pallet-jobs = { git = "https://github.com/webb-tools/tangle" }
 pallet-dkg = { git = "https://github.com/webb-tools/tangle" }
 pallet-zksaas = { git = "https://github.com/webb-tools/tangle" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle" }
-tangle-testnet-runtime = { git = "https://github.com/webb-tools/tangle" }
-tangle-mainnet-runtime = { git = "https://github.com/webb-tools/tangle" }
+tangle-testnet-runtime = { path = "../tangle/runtime/testnet" }
+tangle-mainnet-runtime = { package = "tangle-runtime", path = "../tangle/runtime/mainnet" }
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
@@ -42,7 +42,6 @@ frost-ed25519 = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-ed448 = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-p256 = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-p384 = { git = "https://github.com/LIT-Protocol/frost.git" }
-frost-redjubjub = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-ristretto255 = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-secp256k1 = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-rerandomized = { git = "https://github.com/LIT-Protocol/frost.git" }

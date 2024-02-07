@@ -18,7 +18,7 @@ use tangle_primitives::roles::RoleType;
 
 pub struct ZcashFrostProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen>,
 {
     pub jobs_client: JobsClient<B, BE, C>,
     pub account_id: AccountId,
@@ -40,7 +40,7 @@ pub struct ZcashFrostKeygenExtraParams {
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> GadgetProtocol<B, BE, C>
     for ZcashFrostProtocol<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen>,
 {
     async fn create_next_job(
         &self,
@@ -120,7 +120,7 @@ where
 #[async_trait]
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> AsyncProtocol for ZcashFrostProtocol<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen>,
 {
     type AdditionalParams = ZcashFrostKeygenExtraParams;
 

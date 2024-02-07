@@ -23,6 +23,7 @@ use frame_support::{
 };
 use frame_system::EnsureSigned;
 use gadget_common::client::AccountId;
+use gadget_common::jobs_api_config::*;
 use pallet_jobs_rpc_runtime_api::BlockNumberOf;
 use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
@@ -235,7 +236,7 @@ sp_api::mock_impl_runtime_apis! {
             &self,
             role_type: RoleType,
             job_id: JobId,
-        ) -> Option<PhaseResult<AccountId, BlockNumberOf<Block>>> {
+        ) -> Option<PhaseResult<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxSubmissionLen, MaxProofLen>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
                 Jobs::query_job_result(role_type, job_id)
             })

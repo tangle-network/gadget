@@ -25,7 +25,7 @@ use sp_core::{ecdsa, Pair};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tangle_primitives::jobs::{
-    DKGTSSKeySubmissionResult, DigitalSignatureType, JobId, JobResult, JobType,
+    DKGTSSKeySubmissionResult, DigitalSignatureScheme, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -55,7 +55,16 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     ZcashFrostKeygenProtocol {
         client,
@@ -75,7 +84,16 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for ZcashFrostKeygenProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     fn name(&self) -> String {
         "zcash-frost-keygen".to_string()
@@ -151,7 +169,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
         matches!(job, JobType::DKGTSSPhaseOne(_))
     }
 
@@ -208,7 +226,16 @@ impl<
         N: Network,
     > AsyncProtocol for ZcashFrostKeygenProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     type AdditionalParams = ZcashFrostKeygenExtraParams;
     async fn generate_protocol_from(
@@ -470,14 +497,14 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     }
 
     let res = DKGTSSKeySubmissionResult {
-        signature_type: match role {
-            ThresholdSignatureRoleType::ZcashFrostEd25519 => DigitalSignatureType::SchnorrEd25519,
-            ThresholdSignatureRoleType::ZcashFrostP256 => DigitalSignatureType::SchnorrP256,
+        signature_scheme: match role {
+            ThresholdSignatureRoleType::ZcashFrostEd25519 => DigitalSignatureScheme::SchnorrEd25519,
+            ThresholdSignatureRoleType::ZcashFrostP256 => DigitalSignatureScheme::SchnorrP256,
             ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
-                DigitalSignatureType::SchnorrSr25519
+                DigitalSignatureScheme::SchnorrSr25519
             }
             ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
-                DigitalSignatureType::SchnorrSecp256k1
+                DigitalSignatureScheme::SchnorrSecp256k1
             }
             _ => unreachable!("Invalid role"),
         },

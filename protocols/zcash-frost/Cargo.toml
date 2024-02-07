@@ -28,7 +28,6 @@ frost-ed25519 = { workspace = true }
 frost-ed448 = { workspace = true }
 frost-p256 = { workspace = true }
 frost-p384 = { workspace = true }
-frost-redjubjub = { workspace = true }
 frost-ristretto255 = { workspace = true }
 frost-secp256k1 = { workspace = true }
 frost-rerandomized = { workspace = true }

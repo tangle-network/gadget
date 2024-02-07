@@ -24,7 +24,7 @@ use sp_core::keccak_256;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::{
-    DKGTSSSignatureResult, DigitalSignatureType, JobId, JobResult, JobType,
+    DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -53,7 +53,16 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     ZcashFrostSigningProtocol {
         client,
@@ -73,7 +82,16 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for ZcashFrostSigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     fn name(&self) -> String {
         "zcash-frost-signing".to_string()
@@ -157,7 +175,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
         matches!(job, JobType::DKGTSSPhaseTwo(_))
     }
 
@@ -230,7 +248,16 @@ impl<
         N: Network,
     > AsyncProtocol for ZcashFrostSigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     type AdditionalParams = ZcashFrostSigningExtraParams;
     async fn generate_protocol_from(
@@ -379,7 +406,7 @@ where
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
                                 signature_bytes.to_vec(),
-                                DigitalSignatureType::SchnorrSecp256k1,
+                                DigitalSignatureScheme::SchnorrSecp256k1,
                             )
                         }
                         ThresholdSignatureRoleType::ZcashFrostEd25519 => {
@@ -387,20 +414,23 @@ where
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
                                 signature_bytes.to_vec(),
-                                DigitalSignatureType::SchnorrEd25519,
+                                DigitalSignatureScheme::SchnorrEd25519,
                             )
                         }
                         ThresholdSignatureRoleType::ZcashFrostP256 => {
                             let mut signature_bytes = [0u8; 64];
                             signature_bytes.copy_from_slice(&signature.group_signature);
-                            (signature_bytes.to_vec(), DigitalSignatureType::SchnorrP256)
+                            (
+                                signature_bytes.to_vec(),
+                                DigitalSignatureScheme::SchnorrP256,
+                            )
                         }
                         ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
                             let mut signature_bytes = [0u8; 64];
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
                                 signature_bytes.to_vec(),
-                                DigitalSignatureType::SchnorrSr25519,
+                                DigitalSignatureScheme::SchnorrSr25519,
                             )
                         }
                         _ => {

@@ -2,6 +2,7 @@ use crate::client::{AccountId, ClientWithApi, JobsClient};
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
+use crate::jobs_api_config::*;
 use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
 use crate::Error;
 use async_trait::async_trait;
@@ -54,7 +55,16 @@ impl<
         BE: Backend<B>,
     > Module<B, C, N, M, BE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<WorkManager>) -> Self {
         let clock = job_manager.utility.clock.clone();
@@ -69,10 +79,10 @@ where
 }
 
 pub struct JobInitMetadata<B: Block> {
-    pub job_type: JobType<AccountId>,
+    pub job_type: JobType<AccountId, MaxParticipants, MaxSubmissionLen>,
     pub role_type: RoleType,
     /// This value only exists if this is a stage2 job
-    pub phase1_job: Option<JobType<AccountId>>,
+    pub phase1_job: Option<JobType<AccountId, MaxParticipants, MaxSubmissionLen>>,
     pub task_id: <WorkManager as WorkManagerInterface>::TaskID,
     pub retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     pub job_id: JobId,
@@ -89,7 +99,16 @@ impl<
         BE: Backend<B>,
     > SubstrateGadgetModule for Module<B, C, N, M, BE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     type Error = Error;
     type ProtocolMessage = GadgetProtocolMessage;
@@ -266,7 +285,16 @@ pub type Job = (AsyncProtocolRemote, BuiltExecutableJobWrapper);
 pub trait GadgetProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>:
     AsyncProtocol + Send + Sync
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     /// Given an input of a valid and relevant job, return the parameters needed to start the async protocol
     /// Note: the parameters returned must be relevant to the `AsyncProtocol` implementation of this protocol
@@ -305,11 +333,11 @@ where
     /// ## Example
     ///
     /// ```rust,ignore
-    /// fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    /// fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
     ///   matches!(job, JobType::DKGTSSPhaseOne(_))
     /// }
     /// ```
-    fn phase_filter(&self, job: JobType<AccountId>) -> bool;
+    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool;
     fn client(&self) -> &JobsClient<B, BE, C>;
     fn logger(&self) -> &DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {

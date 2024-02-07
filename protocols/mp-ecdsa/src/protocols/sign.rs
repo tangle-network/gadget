@@ -30,7 +30,7 @@ use sp_core::ecdsa::Signature;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::{
-    DKGTSSSignatureResult, DigitalSignatureType, JobId, JobResult, JobType,
+    DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -65,7 +65,16 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     MpEcdsaSigningProtocol {
         client,
@@ -86,7 +95,16 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     fn name(&self) -> String {
         "mp-ecdsa-signing".to_string()
@@ -176,7 +194,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
         matches!(job, JobType::DKGTSSPhaseTwo(_))
     }
 
@@ -217,7 +235,16 @@ impl<
         N: Network,
     > AsyncProtocol for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     type AdditionalParams = MpEcdsaSigningExtraParams;
     async fn generate_protocol_from(
@@ -339,7 +366,7 @@ where
                     let signature: Vec<u8> = signature.0.to_vec();
 
                     let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
-                        signature_type: DigitalSignatureType::Ecdsa,
+                        signature_scheme: DigitalSignatureScheme::Ecdsa,
                         data: additional_params.input_data_to_sign,
                         signature,
                         signing_key: public_key_bytes,

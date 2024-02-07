@@ -20,7 +20,7 @@ use sp_core::keccak_256;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::{
-    DKGTSSSignatureResult, DigitalSignatureType, JobId, JobResult, JobType,
+    DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -46,7 +46,16 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     DfnsCGGMP21SigningProtocol {
         client,
@@ -66,7 +75,16 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     fn name(&self) -> String {
         "dfns-cggmp21-signing".to_string()
@@ -147,7 +165,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
         matches!(job, JobType::DKGTSSPhaseTwo(_))
     }
 
@@ -188,7 +206,16 @@ impl<
         N: Network,
     > AsyncProtocol for DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     type AdditionalParams = DfnsCGGMP21SigningExtraParams;
     async fn generate_protocol_from(
@@ -316,7 +343,7 @@ where
                     signature_bytes[64] = v + 27;
 
                     let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
-                        signature_type: DigitalSignatureType::Ecdsa,
+                        signature_scheme: DigitalSignatureScheme::Ecdsa,
                         data: additional_params.input_data_to_sign,
                         signature: signature_bytes.to_vec(),
                         signing_key: public_key_bytes,

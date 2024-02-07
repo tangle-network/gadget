@@ -13,7 +13,16 @@ use tangle_primitives::roles::RoleType;
 
 pub struct StubProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     pub jobs_client: JobsClient<B, BE, C>,
     pub account_id: AccountId,
@@ -24,7 +33,16 @@ where
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> GadgetProtocol<B, BE, C>
     for StubProtocol<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     fn name(&self) -> String {
         "stub".to_string()
@@ -55,7 +73,10 @@ where
         false
     }
 
-    fn phase_filter(&self, _job: tangle_primitives::jobs::JobType<AccountId>) -> bool {
+    fn phase_filter(
+        &self,
+        _job: tangle_primitives::jobs::JobType<AccountId, MaxParticipants, MaxSubmissionLen>,
+    ) -> bool {
         false
     }
 
@@ -71,7 +92,16 @@ where
 #[async_trait]
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> AsyncProtocol for StubProtocol<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     type AdditionalParams = ();
 

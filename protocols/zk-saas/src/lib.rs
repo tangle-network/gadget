@@ -21,7 +21,16 @@ pub mod protocol;
 #[protocol]
 pub struct ZkGadgetConfig<B: Block, C: ClientWithApi<B, BE>, BE: Backend<B>>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     pub king_bind_addr: Option<SocketAddr>,
     pub client_only_king_addr: Option<SocketAddr>,
@@ -39,7 +48,16 @@ where
 impl<B: Block, C: ClientWithApi<B, BE>, BE: Backend<B>> NetworkAndProtocolSetup
     for ZkGadgetConfig<B, C, BE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     type Network = ZkNetworkService;
     type Protocol = ZkProtocol<B, C, BE>;
@@ -79,7 +97,16 @@ pub async fn create_zk_network<B: Block, C: ClientWithApi<B, BE>, BE: Backend<B>
     config: &ZkGadgetConfig<B, C, BE>,
 ) -> Result<ZkNetworkService, Error>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     let our_identity = RustlsCertificate {
         cert: Certificate(config.public_identity_der.clone()),

@@ -25,7 +25,7 @@ macro_rules! decl_porto {
             KBE: KeystoreBackend,
             C: ClientWithApi<B, BE>,
         > where
-            <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+            <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen>,
         {
             pub account_id: AccountId,
             pub network: N,
@@ -40,7 +40,7 @@ macro_rules! decl_porto {
         impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>>
             NetworkAndProtocolSetup for $name<N, B, BE, KBE, C>
         where
-            <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+            <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen>,
         {
             type Network = N;
             type Protocol = $proto<B, BE, KBE, C, N>;
@@ -107,7 +107,16 @@ where
     KBE: KeystoreBackend,
     N: Network,
     Tx: PalletSubmitter,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     let pallet_tx = Arc::new(pallet_tx) as Arc<dyn PalletSubmitter>;
     let keygen_config = ZcashFrostKeygenConfig {

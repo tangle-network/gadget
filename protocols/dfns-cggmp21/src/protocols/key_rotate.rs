@@ -20,7 +20,7 @@ use sp_core::keccak_256;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::{
-    DKGTSSKeyRotationResult, DigitalSignatureType, JobId, JobResult, JobType,
+    DKGTSSKeyRotationResult, DigitalSignatureScheme, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -46,7 +46,16 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     DfnsCGGMP21KeyRotateProtocol {
         client,
@@ -66,7 +75,16 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for DfnsCGGMP21KeyRotateProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     fn name(&self) -> String {
         "dfns-cggmp21-key-rotate".to_string()
@@ -167,7 +185,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
         matches!(job, JobType::DKGTSSPhaseFour(_))
     }
 
@@ -210,7 +228,16 @@ impl<
         N: Network,
     > AsyncProtocol for DfnsCGGMP21KeyRotateProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     type AdditionalParams = DfnsCGGMP21KeyRotateExtraParams;
     async fn generate_protocol_from(
@@ -335,7 +362,7 @@ where
                     signature_bytes[64] = v + 27;
 
                     let job_result = JobResult::DKGPhaseFour(DKGTSSKeyRotationResult {
-                        signature_type: DigitalSignatureType::Ecdsa,
+                        signature_scheme: DigitalSignatureScheme::Ecdsa,
                         signature: signature_bytes.to_vec(),
                         phase_one_id,
                         new_phase_one_id,

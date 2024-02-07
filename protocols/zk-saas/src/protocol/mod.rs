@@ -56,7 +56,16 @@ pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {
 #[async_trait]
 impl<B, C, BE> GadgetProtocol<B, BE, C> for ZkProtocol<B, C, BE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
     B: Block,
     C: ClientWithApi<B, BE> + 'static,
     BE: Backend<B> + 'static,
@@ -119,7 +128,7 @@ where
         matches!(role, RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16))
     }
 
-    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
         matches!(job, JobType::ZkSaaSPhaseTwo(_))
     }
 
@@ -164,7 +173,16 @@ impl AdditionalProtocolParams for ZkJobAdditionalParams {
 impl<B: Block, C: ClientWithApi<B, BE> + 'static, BE: Backend<B> + 'static> AsyncProtocol
     for ZkProtocol<B, C, BE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     type AdditionalParams = ZkJobAdditionalParams;
 

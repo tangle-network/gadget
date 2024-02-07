@@ -14,7 +14,7 @@ protocol-macros = { workspace = true }
 #[protocol]
 pub struct StubConfig<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen>,
 {
     pallet_tx: Arc<dyn PalletSubmitter>,
     logger: DebugLogger,
@@ -38,7 +38,7 @@ pub async fn run<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>>(
     logger: DebugLogger,
 ) -> Result<(), Error>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen>,
 {
     let config = StubConfig {
         pallet_tx,

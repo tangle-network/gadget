@@ -23,7 +23,7 @@ use sp_core::{ecdsa, Pair};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tangle_primitives::jobs::{
-    DKGTSSKeySubmissionResult, DigitalSignatureType, JobId, JobResult, JobType,
+    DKGTSSKeySubmissionResult, DigitalSignatureScheme, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -51,7 +51,16 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     DfnsCGGMP21KeygenProtocol {
         client,
@@ -71,7 +80,16 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for DfnsCGGMP21KeygenProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     fn name(&self) -> String {
         "dfns-cggmp21-keygen".to_string()
@@ -143,7 +161,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
         matches!(job, JobType::DKGTSSPhaseOne(_))
     }
 
@@ -182,7 +200,16 @@ impl<
         N: Network,
     > AsyncProtocol for DfnsCGGMP21KeygenProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     type AdditionalParams = DfnsCGGMP21KeygenExtraParams;
     async fn generate_protocol_from(
@@ -447,10 +474,10 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     }
 
     let res = DKGTSSKeySubmissionResult {
-        signature_type: DigitalSignatureType::Ecdsa,
+        signature_scheme: DigitalSignatureScheme::Ecdsa,
         key: serialized_public_key,
         participants,
-        signatures,
+        signatures: signatures.try_into().unwrap(),
         threshold: t as _,
     };
     verify_generated_dkg_key_ecdsa(res.clone(), logger);

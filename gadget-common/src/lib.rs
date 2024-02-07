@@ -29,6 +29,29 @@ pub mod locks;
 pub mod protocol;
 
 pub mod config;
+
+#[cfg(feature = "mainnet")]
+pub mod jobs_api_config {
+    pub type MaxParticipants = tangle_mainnet_runtime::MaxParticipants;
+    pub type MaxSubmissionLen = tangle_mainnet_runtime::MaxSubmissionLen;
+    pub type MaxKeyLen = tangle_mainnet_runtime::MaxKeyLen;
+    pub type MaxDataLen = tangle_mainnet_runtime::MaxDataLen;
+    pub type MaxSignatureLen = tangle_mainnet_runtime::MaxSignatureLen;
+    pub type MaxProofLen = tangle_mainnet_runtime::MaxProofLen;
+}
+
+#[cfg(feature = "testnet")]
+pub mod jobs_api_config {
+    pub type MaxParticipants = tangle_testnet_runtime::MaxParticipants;
+    pub type MaxSubmissionLen = tangle_testnet_runtime::MaxSubmissionLen;
+    pub type MaxKeyLen = tangle_testnet_runtime::MaxKeyLen;
+    pub type MaxDataLen = tangle_testnet_runtime::MaxDataLen;
+    pub type MaxSignatureLen = tangle_testnet_runtime::MaxSignatureLen;
+    pub type MaxProofLen = tangle_testnet_runtime::MaxProofLen;
+}
+
+use jobs_api_config::*;
+
 #[derive(Debug)]
 pub enum Error {
     RegistryCreateError { err: String },
@@ -68,8 +91,16 @@ pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(
 where
     <<T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<
         <T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block,
-    >>::Api:
-        JobsApi<<T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block, AccountId>,
+    >>::Api: JobsApi<
+        <T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
@@ -113,7 +144,16 @@ pub async fn create_work_manager<
     protocol: &P,
 ) -> Result<ProtocolWorkManager<WorkManager>, Error>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
 {
     let now: u64 = (*latest_finality_notification.header.number()).saturated_into();
 

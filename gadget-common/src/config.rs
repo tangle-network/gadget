@@ -3,6 +3,9 @@ pub use crate::client::{AccountId, ClientWithApi};
 pub use crate::debug_logger::DebugLogger;
 pub use crate::gadget::network::Network;
 pub use crate::gadget::GadgetProtocol;
+use crate::jobs_api_config::{
+    MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen,
+};
 use async_trait::async_trait;
 pub use pallet_jobs_rpc_runtime_api::JobsApi;
 pub use sc_client_api::Backend;
@@ -13,7 +16,18 @@ use std::sync::Arc;
 #[async_trait]
 pub trait ProtocolConfig
 where
-    <<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block>>::Api: JobsApi<<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block, AccountId>,
+    <<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<
+        <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block
+    >>::Api: JobsApi<
+        <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >,
     Self: Sized,
 {
     type Network: Network;
@@ -71,6 +85,12 @@ where
     >>::Api: pallet_jobs_rpc_runtime_api::JobsApi<
         <Self as NetworkAndProtocolSetup>::Block,
         sp_core::ecdsa::Public,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
     >,
 {
     type Network;

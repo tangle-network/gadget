@@ -3,7 +3,6 @@ use frost_ed25519::Ed25519Sha512;
 use frost_ed448::Ed448Shake256;
 use frost_p256::P256Sha256;
 use frost_p384::P384Sha384;
-// use frost_redjubjub::JubjubBlake2b512;
 use frost_ristretto255::Ristretto255Sha512;
 use frost_secp256k1::Secp256K1Sha256;
 use thiserror::Error;
@@ -41,7 +40,6 @@ impl_keygen_error_from!(P384Sha384);
 impl_keygen_error_from!(Ristretto255Sha512);
 impl_keygen_error_from!(Secp256K1Sha256);
 impl_keygen_error_from!(Ed448Shake256);
-// impl_keygen_error_from!(JubjubBlake2b512);
 
 /// Sign protocol error
 #[derive(Debug, Error)]
@@ -70,7 +68,6 @@ impl_sign_error_from!(P384Sha384);
 impl_sign_error_from!(Ristretto255Sha512);
 impl_sign_error_from!(Secp256K1Sha256);
 impl_sign_error_from!(Ed448Shake256);
-// impl_sign_error_from!(JubjubBlake2b512);
 
 /// Repair protocol error
 #[derive(Debug, Error)]
@@ -93,7 +90,6 @@ impl_repair_error_from!(P384Sha384);
 impl_repair_error_from!(Ristretto255Sha512);
 impl_repair_error_from!(Secp256K1Sha256);
 impl_repair_error_from!(Ed448Shake256);
-// impl_repair_error_from!(JubjubBlake2b512);
 
 #[derive(Debug, Error)]
 enum Reason<C: Ciphersuite> {

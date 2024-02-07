@@ -3,19 +3,6 @@ name = "gadget-common"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[features]
-default = [
-    "std"
-]
-
-std = [
-    "sp-api/std",
-    "tangle-primitives/std",
-    "pallet-jobs-rpc-runtime-api/std"
-]
-
 [dependencies]
 gadget-core = { workspace = true, features = ["substrate"] }
 tokio = { workspace = true }
@@ -43,3 +30,19 @@ sc-network-sync = { workspace = true }
 
 tangle-primitives = { workspace = true }
 pallet-jobs-rpc-runtime-api = { workspace = true }
+
+tangle-mainnet-runtime = { workspace = true, optional = true }
+tangle-testnet-runtime = { workspace = true, optional = true }
+
+[features]
+default = [
+    "std",
+    "mainnet",
+]
+std = [
+    "sp-api/std",
+    "tangle-primitives/std",
+    "pallet-jobs-rpc-runtime-api/std"
+]
+mainnet = ["tangle-mainnet-runtime"]
+testnet = ["tangle-testnet-runtime"]
