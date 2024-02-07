@@ -3759,7 +3759,7 @@ dependencies = [
 [[package]]
 name = "evm-tracer"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "ethereum-types 0.14.1",
  "evm",
@@ -3779,7 +3779,7 @@ dependencies = [
 [[package]]
 name = "evm-tracing-events"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "environmental",
  "ethereum",
@@ -4424,7 +4424,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "debugless-unwrap",
  "hex",
@@ -4439,7 +4439,7 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "frost-core",
@@ -4452,7 +4452,7 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "ed448-goldilocks-plus",
  "frost-core",
@@ -4465,7 +4465,7 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "frost-core",
  "p256 0.13.2",
@@ -4478,7 +4478,7 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "frost-core",
  "p384",
@@ -4491,7 +4491,7 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "frost-core",
@@ -4504,7 +4504,7 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "frost-core",
  "k256",
@@ -7548,7 +7548,7 @@ dependencies = [
 [[package]]
 name = "pallet-airdrop-claims"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7732,7 +7732,7 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "blst",
  "elliptic-curve 0.13.8",
@@ -7934,7 +7934,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-batch"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "evm",
  "evm-runtime",
@@ -7974,7 +7974,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-call-permit"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8005,7 +8005,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-democracy"
 version = "0.2.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8047,7 +8047,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-jobs"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8077,7 +8077,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-preimage"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8097,7 +8097,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-proxy"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8119,7 +8119,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-registry"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8155,7 +8155,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-staking"
 version = "1.0.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8177,7 +8177,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-vesting"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8306,7 +8306,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8323,7 +8323,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -8419,7 +8419,7 @@ dependencies = [
 [[package]]
 name = "pallet-roles"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -8552,7 +8552,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-pause"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8642,7 +8642,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9117,7 +9117,7 @@ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 [[package]]
 name = "precompile-utils"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "affix",
  "environmental",
@@ -9143,7 +9143,7 @@ dependencies = [
 [[package]]
 name = "precompile-utils-macro"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "case",
  "num_enum 0.5.11",
@@ -9255,7 +9255,7 @@ dependencies = [
 [[package]]
 name = "primitives-ext"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "ethereum-types 0.14.1",
  "evm-tracing-events",
@@ -10189,7 +10189,7 @@ dependencies = [
 [[package]]
 name = "rpc-primitives-debug"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "environmental",
  "ethereum",
@@ -10207,7 +10207,7 @@ dependencies = [
 [[package]]
 name = "rpc-primitives-txpool"
 version = "0.6.0"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "ethereum",
  "parity-scale-codec 3.6.9",
@@ -13580,7 +13580,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -13590,7 +13590,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -13617,7 +13617,7 @@ dependencies = [
 [[package]]
 name = "tangle-runtime"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "evm-tracer",
  "fp-account",
@@ -13719,7 +13719,7 @@ dependencies = [
 [[package]]
 name = "tangle-testnet-runtime"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/?branch=bls#1639d99b158859c0763e6201885ef79f4d176083"
+source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
 dependencies = [
  "evm-tracer",
  "fp-account",
