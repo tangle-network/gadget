@@ -45,7 +45,7 @@ sc-network = { workspace = true }
 sc-network-common = { workspace = true }
 sc-network-sync = { workspace = true }
 
-tangle-primitives = { workspace = true }
-tangle-testnet-runtime = { workspace = true }
-tangle-mainnet-runtime = { workspace = true, optional = true }
-pallet-jobs-rpc-runtime-api = { workspace = true }
+tangle-primitives = { workspace = true, features = ["std"] }
+tangle-testnet-runtime = { workspace = true, features = ["std"] }
+tangle-mainnet-runtime = { workspace = true, optional = true, features = ["std"] }
+pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
