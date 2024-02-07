@@ -26,9 +26,13 @@ impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> GadgetProtocol<B, BE, C>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
+    fn name(&self) -> String {
+        "stub".to_string()
+    }
+
     async fn create_next_job(
         &self,
-        _job: JobInitMetadata,
+        _job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
         Ok(())
     }
@@ -47,12 +51,12 @@ where
         &self.account_id
     }
 
-    fn role_type(&self) -> RoleType {
-        RoleType::LightClientRelaying
+    fn role_filter(&self, _role: RoleType) -> bool {
+        false
     }
 
-    fn is_phase_one(&self) -> bool {
-        true
+    fn phase_filter(&self, _job: tangle_primitives::jobs::JobType<AccountId>) -> bool {
+        false
     }
 
     fn client(&self) -> &JobsClient<B, BE, C> {

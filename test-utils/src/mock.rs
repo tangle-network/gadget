@@ -123,12 +123,13 @@ impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen> for Job
         job: &JobSubmission<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen>,
     ) -> Balance {
         match job.job_type {
-            JobType::DKGTSSPhaseOne(_) => Dkg::job_to_fee(job),
-            JobType::DKGTSSPhaseTwo(_) => Dkg::job_to_fee(job),
+            JobType::DKGTSSPhaseOne(_)
+            | JobType::DKGTSSPhaseTwo(_)
+            | JobType::DKGTSSPhaseThree(_)
+            | JobType::DKGTSSPhaseFour(_) => Dkg::job_to_fee(job),
             JobType::DKGTSSPhaseThree(_) => Dkg::job_to_fee(job),
             JobType::DKGTSSPhaseFour(_) => Dkg::job_to_fee(job),
-            JobType::ZkSaaSPhaseOne(_) => ZkSaaS::job_to_fee(job),
-            JobType::ZkSaaSPhaseTwo(_) => ZkSaaS::job_to_fee(job),
+            JobType::ZkSaaSPhaseOne(_) | JobType::ZkSaaSPhaseTwo(_) => ZkSaaS::job_to_fee(job),
         }
     }
 }
@@ -184,12 +185,13 @@ impl
         >,
     ) -> DispatchResult {
         match data.result {
-            JobResult::DKGPhaseOne(_) => Dkg::verify(data.result),
-            JobResult::DKGPhaseTwo(_) => Dkg::verify(data.result),
+            JobResult::DKGPhaseOne(_)
+            | JobResult::DKGPhaseTwo(_)
+            | JobResult::DKGPhaseThree(_)
+            | JobResult::DKGPhaseFour(_) => Dkg::verify(data.result),
             JobResult::DKGPhaseThree(_) => Dkg::verify(data.result),
             JobResult::DKGPhaseFour(_) => Dkg::verify(data.result),
-            JobResult::ZkSaaSPhaseOne(_) => ZkSaaS::verify(data),
-            JobResult::ZkSaaSPhaseTwo(_) => ZkSaaS::verify(data),
+            JobResult::ZkSaaSPhaseOne(_) | JobResult::ZkSaaSPhaseTwo(_) => ZkSaaS::verify(data),
         }
     }
 

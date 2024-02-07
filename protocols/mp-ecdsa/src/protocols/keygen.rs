@@ -84,9 +84,13 @@ impl<
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
 {
+    fn name(&self) -> String {
+        "mp-ecdsa-keygen".to_string()
+    }
+
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, gadget_common::Error> {
         let now = job.now;
         self.logger.info(format!("At finality notification {now}"));
@@ -147,12 +151,15 @@ where
         &self.account_id
     }
 
-    fn role_type(&self) -> RoleType {
-        RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1)
+    fn role_filter(&self, role: RoleType) -> bool {
+        matches!(
+            role,
+            RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1)
+        )
     }
 
-    fn is_phase_one(&self) -> bool {
-        true
+    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+        matches!(job, JobType::DKGTSSPhaseOne(_))
     }
 
     fn client(&self) -> &JobsClient<B, BE, C> {
@@ -302,7 +309,7 @@ where
                 // Store the keys locally, as well as submitting them to the blockchain
                 if let Some((local_key, job_result)) = protocol_output_clone.lock().await.take() {
                     key_store2
-                        .set(additional_params.job_id, local_key)
+                        .set_job_result(additional_params.job_id, local_key)
                         .await
                         .map_err(|err| JobError {
                             reason: format!("Failed to store key: {err:?}"),
