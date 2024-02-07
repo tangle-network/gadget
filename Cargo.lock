@@ -1070,7 +1070,7 @@ checksum = "93f2635620bf0b9d4576eb7bb9a38a55df78bd1205d26fa994b25911a69f212f"
 dependencies = [
  "bitcoin_hashes",
  "rand 0.6.5",
- "rand_core 0.4.2",
+ "rand_core 0.6.4",
  "serde",
  "unicode-normalization",
 ]
@@ -2639,8 +2639,8 @@ dependencies = [
  "hex",
  "itertools 0.12.1",
  "log",
- "pallet-jobs 0.6.1 (git+https://github.com/webb-tools/tangle)",
- "pallet-jobs-rpc-runtime-api 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "pallet-jobs",
+ "pallet-jobs-rpc-runtime-api",
  "parity-scale-codec 3.6.9",
  "protocol-macros",
  "rand 0.8.5",
@@ -2652,7 +2652,7 @@ dependencies = [
  "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-io 23.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "tangle-primitives",
  "test-utils",
  "tokio",
 ]
@@ -3810,6 +3810,7 @@ dependencies = [
 [[package]]
 name = "evm-tracer"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "ethereum-types 0.14.1",
  "evm",
@@ -3829,6 +3830,7 @@ dependencies = [
 [[package]]
 name = "evm-tracing-events"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "environmental",
  "ethereum",
@@ -4473,21 +4475,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.1"
-dependencies = [
- "debugless-unwrap",
- "hex",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "serde",
- "serdect",
- "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "subtle",
-]
-
-[[package]]
-name = "frost-core"
-version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "debugless-unwrap",
  "hex",
@@ -4524,18 +4512,6 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
-dependencies = [
- "curve25519-dalek 4.1.1",
- "frost-core 0.6.1",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle",
-]
-
-[[package]]
-name = "frost-ed25519"
-version = "1.0.0-rc.0"
 source = "git+https://github.com/LIT-Protocol/frost.git#996e0bf2ffe46cd8bbe132b74f7495ac5ce8f607"
 dependencies = [
  "curve25519-dalek 4.1.1",
@@ -4549,25 +4525,13 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "curve25519-dalek 4.1.1",
- "frost-core 0.6.1 (git+https://github.com/webb-tools/tangle)",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle",
-]
-
-[[package]]
-name = "frost-ed448"
-version = "1.0.0-rc.0"
-dependencies = [
- "ed448-goldilocks-plus 0.11.1 (git+https://github.com/drewstone/Ed448-Goldilocks.git?branch=drew/zeroize)",
  "frost-core 0.6.1",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
- "sha3 0.10.8",
+ "sha2 0.10.8",
  "subtle",
 ]
 
@@ -4587,10 +4551,10 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "ed448-goldilocks-plus 0.11.1 (git+https://github.com/drewstone/Ed448-Goldilocks.git?branch=drew/zeroize)",
- "frost-core 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "frost-core 0.6.1",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha3 0.10.8",
@@ -4600,18 +4564,6 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-dependencies = [
- "frost-core 0.6.1",
- "p256 0.13.2",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle",
-]
-
-[[package]]
-name = "frost-p256"
-version = "1.0.0-rc.0"
 source = "git+https://github.com/LIT-Protocol/frost.git#996e0bf2ffe46cd8bbe132b74f7495ac5ce8f607"
 dependencies = [
  "document-features",
@@ -4625,22 +4577,10 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
-dependencies = [
- "frost-core 0.6.1 (git+https://github.com/webb-tools/tangle)",
- "p256 0.13.2",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle",
-]
-
-[[package]]
-name = "frost-p384"
-version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "frost-core 0.6.1",
- "p384",
+ "p256 0.13.2",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -4663,9 +4603,9 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
- "frost-core 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "frost-core 0.6.1",
  "p384",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
@@ -4687,18 +4627,6 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-dependencies = [
- "curve25519-dalek 4.1.1",
- "frost-core 0.6.1",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle",
-]
-
-[[package]]
-name = "frost-ristretto255"
-version = "1.0.0-rc.0"
 source = "git+https://github.com/LIT-Protocol/frost.git#996e0bf2ffe46cd8bbe132b74f7495ac5ce8f607"
 dependencies = [
  "curve25519-dalek 4.1.1",
@@ -4712,22 +4640,10 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "curve25519-dalek 4.1.1",
- "frost-core 0.6.1 (git+https://github.com/webb-tools/tangle)",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle",
-]
-
-[[package]]
-name = "frost-secp256k1"
-version = "1.0.0-rc.0"
-dependencies = [
  "frost-core 0.6.1",
- "k256",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -4750,9 +4666,9 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
- "frost-core 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "frost-core 0.6.1",
  "k256",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
@@ -4959,7 +4875,7 @@ dependencies = [
  "hex",
  "linked-hash-map",
  "log",
- "pallet-jobs-rpc-runtime-api 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "pallet-jobs-rpc-runtime-api",
  "parking_lot 0.12.1",
  "sc-client-api",
  "sc-network",
@@ -4970,7 +4886,7 @@ dependencies = [
  "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "subxt 0.33.0",
- "tangle-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "tangle-primitives",
  "tangle-runtime",
  "tangle-testnet-runtime",
  "tokio",
@@ -7096,8 +7012,8 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "multi-party-ecdsa",
- "pallet-jobs 0.6.1 (git+https://github.com/webb-tools/tangle)",
- "pallet-jobs-rpc-runtime-api 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "pallet-jobs",
+ "pallet-jobs-rpc-runtime-api",
  "parity-scale-codec 3.6.9",
  "protocol-macros",
  "round-based 0.1.7",
@@ -7108,7 +7024,7 @@ dependencies = [
  "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-io 23.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "tangle-primitives",
  "test-utils",
  "tokio",
 ]
@@ -7797,6 +7713,7 @@ dependencies = [
 [[package]]
 name = "pallet-airdrop-claims"
 version = "0.6.1"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7980,39 +7897,12 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.1"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "elliptic-curve 0.13.8",
  "frame-support",
  "frame-system",
  "frost-core 0.6.1",
- "frost-ed25519 1.0.0-rc.0",
- "frost-ed448 1.0.0-rc.0",
- "frost-p256 1.0.0-rc.0",
- "frost-p384 1.0.0-rc.0",
- "frost-ristretto255 1.0.0-rc.0",
- "frost-secp256k1 1.0.0-rc.0",
- "parity-scale-codec 3.6.9",
- "scale-info",
- "serde",
- "serdect",
- "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-io 23.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "subtle",
- "tangle-crypto-primitives 0.6.1",
- "tangle-primitives 0.6.1",
-]
-
-[[package]]
-name = "pallet-dkg"
-version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
-dependencies = [
- "elliptic-curve 0.13.8",
- "frame-support",
- "frame-system",
- "frost-core 0.6.1 (git+https://github.com/webb-tools/tangle)",
  "frost-ed25519 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle)",
  "frost-ed448 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle)",
  "frost-p256 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle)",
@@ -8028,8 +7918,8 @@ dependencies = [
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "subtle",
- "tangle-crypto-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
- "tangle-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "tangle-crypto-primitives",
+ "tangle-primitives",
 ]
 
 [[package]]
@@ -8208,6 +8098,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-batch"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "evm",
  "evm-runtime",
@@ -8247,6 +8138,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-call-permit"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8277,6 +8169,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-democracy"
 version = "0.2.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8318,6 +8211,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-jobs"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8325,14 +8219,14 @@ dependencies = [
  "log",
  "num_enum 0.5.11",
  "pallet-evm",
- "pallet-jobs 0.6.1",
+ "pallet-jobs",
  "parity-scale-codec 3.6.9",
  "precompile-utils",
  "rustc-hex",
  "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives 0.6.1",
+ "tangle-primitives",
 ]
 
 [[package]]
@@ -8347,6 +8241,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-preimage"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8366,6 +8261,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-proxy"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8387,6 +8283,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-registry"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8422,6 +8319,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-staking"
 version = "1.0.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8437,12 +8335,13 @@ dependencies = [
  "sp-io 23.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives 0.6.1",
+ "tangle-primitives",
 ]
 
 [[package]]
 name = "pallet-evm-precompile-vesting"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8459,7 +8358,7 @@ dependencies = [
  "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives 0.6.1",
+ "tangle-primitives",
 ]
 
 [[package]]
@@ -8571,6 +8470,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.1"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8580,48 +8480,20 @@ dependencies = [
  "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-crypto-primitives 0.6.1",
- "tangle-primitives 0.6.1",
-]
-
-[[package]]
-name = "pallet-jobs"
-version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec 3.6.9",
- "scale-info",
- "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-crypto-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
- "tangle-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "tangle-crypto-primitives",
+ "tangle-primitives",
 ]
 
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.1"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives 0.6.1",
-]
-
-[[package]]
-name = "pallet-jobs-rpc-runtime-api"
-version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
-dependencies = [
- "parity-scale-codec 3.6.9",
- "sp-api",
- "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "tangle-primitives",
 ]
 
 [[package]]
@@ -8711,6 +8583,7 @@ dependencies = [
 [[package]]
 name = "pallet-roles"
 version = "0.6.1"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -8729,8 +8602,8 @@ dependencies = [
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-staking",
  "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-crypto-primitives 0.6.1",
- "tangle-primitives 0.6.1",
+ "tangle-crypto-primitives",
+ "tangle-primitives",
 ]
 
 [[package]]
@@ -8843,6 +8716,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-pause"
 version = "0.6.1"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8932,6 +8806,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.1"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8944,26 +8819,7 @@ dependencies = [
  "sp-io 23.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives 0.6.1",
-]
-
-[[package]]
-name = "pallet-zksaas"
-version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec 3.6.9",
- "scale-info",
- "serde",
- "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-io 23.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "tangle-primitives",
 ]
 
 [[package]]
@@ -9437,6 +9293,7 @@ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 [[package]]
 name = "precompile-utils"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "affix",
  "environmental",
@@ -9462,6 +9319,7 @@ dependencies = [
 [[package]]
 name = "precompile-utils-macro"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "case",
  "num_enum 0.5.11",
@@ -9573,6 +9431,7 @@ dependencies = [
 [[package]]
 name = "primitives-ext"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "ethereum-types 0.14.1",
  "evm-tracing-events",
@@ -10517,6 +10376,7 @@ dependencies = [
 [[package]]
 name = "rpc-primitives-debug"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "environmental",
  "ethereum",
@@ -10534,6 +10394,7 @@ dependencies = [
 [[package]]
 name = "rpc-primitives-txpool"
 version = "0.6.0"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "ethereum",
  "parity-scale-codec 3.6.9",
@@ -13548,7 +13409,7 @@ dependencies = [
  "futures",
  "gadget-common",
  "protocol-macros",
- "tangle-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "tangle-primitives",
  "tokio",
 ]
 
@@ -13878,16 +13739,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.1"
-dependencies = [
- "parity-scale-codec 3.6.9",
- "scale-info",
- "sp-application-crypto 23.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
-]
-
-[[package]]
-name = "tangle-crypto-primitives"
-version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -13897,33 +13749,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.1"
-dependencies = [
- "ark-bn254",
- "ark-crypto-primitives",
- "ark-ec",
- "ark-ff",
- "ark-groth16",
- "ark-serialize",
- "ark-std",
- "ethabi 15.0.0",
- "frame-support",
- "log",
- "parity-scale-codec 3.6.9",
- "scale-info",
- "serde",
- "smallvec",
- "sp-arithmetic 16.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-consensus-babe",
- "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-staking",
- "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
-]
-
-[[package]]
-name = "tangle-primitives"
-version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle#d46546bde3bcc6e37bf2f4fdd1fe9eb88e95b3ab"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -13950,6 +13776,7 @@ dependencies = [
 [[package]]
 name = "tangle-runtime"
 version = "0.6.1"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "evm-tracer",
  "fp-account",
@@ -14003,7 +13830,7 @@ dependencies = [
  "pallet-im-online",
  "pallet-indices",
  "pallet-insecure-randomness-collective-flip",
- "pallet-jobs 0.6.1",
+ "pallet-jobs",
  "pallet-multisig",
  "pallet-nomination-pools",
  "pallet-offences",
@@ -14044,13 +13871,14 @@ dependencies = [
  "sp-version",
  "static_assertions",
  "substrate-wasm-builder",
- "tangle-crypto-primitives 0.6.1",
- "tangle-primitives 0.6.1",
+ "tangle-crypto-primitives",
+ "tangle-primitives",
 ]
 
 [[package]]
 name = "tangle-testnet-runtime"
 version = "0.6.1"
+source = "git+https://github.com/webb-tools/tangle#7b25b6a99f21c95d6b13b63740456830ec33c8cb"
 dependencies = [
  "evm-tracer",
  "fp-account",
@@ -14075,7 +13903,7 @@ dependencies = [
  "pallet-child-bounties",
  "pallet-collective",
  "pallet-democracy",
- "pallet-dkg 0.6.1",
+ "pallet-dkg",
  "pallet-dynamic-fee",
  "pallet-election-provider-multi-phase",
  "pallet-elections-phragmen",
@@ -14106,8 +13934,8 @@ dependencies = [
  "pallet-im-online",
  "pallet-indices",
  "pallet-insecure-randomness-collective-flip",
- "pallet-jobs 0.6.1",
- "pallet-jobs-rpc-runtime-api 0.6.1",
+ "pallet-jobs",
+ "pallet-jobs-rpc-runtime-api",
  "pallet-multisig",
  "pallet-nomination-pools",
  "pallet-offences",
@@ -14126,7 +13954,7 @@ dependencies = [
  "pallet-treasury",
  "pallet-utility",
  "pallet-vesting",
- "pallet-zksaas 0.6.1",
+ "pallet-zksaas",
  "parity-scale-codec 3.6.9",
  "precompile-utils",
  "rpc-primitives-debug",
@@ -14149,8 +13977,8 @@ dependencies = [
  "sp-version",
  "static_assertions",
  "substrate-wasm-builder",
- "tangle-crypto-primitives 0.6.1",
- "tangle-primitives 0.6.1",
+ "tangle-crypto-primitives",
+ "tangle-primitives",
 ]
 
 [[package]]
@@ -14241,11 +14069,11 @@ dependencies = [
  "gadget-core",
  "log",
  "pallet-balances",
- "pallet-dkg 0.6.1 (git+https://github.com/webb-tools/tangle)",
- "pallet-jobs 0.6.1 (git+https://github.com/webb-tools/tangle)",
- "pallet-jobs-rpc-runtime-api 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "pallet-dkg",
+ "pallet-jobs",
+ "pallet-jobs-rpc-runtime-api",
  "pallet-timestamp",
- "pallet-zksaas 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "pallet-zksaas",
  "parity-scale-codec 3.6.9",
  "parking_lot 0.12.1",
  "sc-client-api",
@@ -14259,7 +14087,7 @@ dependencies = [
  "sp-keystore 0.27.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "tangle-primitives",
  "tokio",
  "tracing-subscriber 0.3.18",
 ]
@@ -14834,7 +14662,7 @@ checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
  "digest 0.10.7",
- "rand 0.4.6",
+ "rand 0.6.5",
  "static_assertions",
 ]
 
@@ -16588,8 +16416,8 @@ dependencies = [
  "hex",
  "itertools 0.12.1",
  "log",
- "pallet-jobs 0.6.1 (git+https://github.com/webb-tools/tangle)",
- "pallet-jobs-rpc-runtime-api 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "pallet-jobs",
+ "pallet-jobs-rpc-runtime-api",
  "parity-scale-codec 3.6.9",
  "protocol-macros",
  "rand 0.8.5",
@@ -16604,7 +16432,7 @@ dependencies = [
  "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-io 23.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "tangle-primitives",
  "test-utils",
  "thiserror",
  "tokio",
@@ -16694,7 +16522,7 @@ dependencies = [
  "groth16",
  "log",
  "mpc-net",
- "pallet-jobs-rpc-runtime-api 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "pallet-jobs-rpc-runtime-api",
  "parking_lot 0.12.1",
  "protocol-macros",
  "rayon",
@@ -16706,7 +16534,7 @@ dependencies = [
  "sp-api",
  "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives 0.6.1 (git+https://github.com/webb-tools/tangle)",
+ "tangle-primitives",
  "test-utils",
  "tokio",
  "tokio-rustls",
