@@ -22,7 +22,10 @@ use frame_support::{
     PalletId,
 };
 use frame_system::EnsureSigned;
-use gadget_common::client::{AccountId, MaxActiveJobsPerValidator, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen};
+use gadget_common::client::{
+    AccountId, MaxActiveJobsPerValidator, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
+    MaxSignatureLen, MaxSubmissionLen,
+};
 use pallet_jobs_rpc_runtime_api::BlockNumberOf;
 use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
