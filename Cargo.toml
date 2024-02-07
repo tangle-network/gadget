@@ -25,13 +25,13 @@ protocol-macros = { path = "./protocol-macros" }
 dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
 
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
-pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle/", branch = "bls"}
-pallet-jobs = { git = "https://github.com/webb-tools/tangle/", branch = "bls" }
-pallet-dkg = { git = "https://github.com/webb-tools/tangle/", branch = "bls" }
-pallet-zksaas = { git = "https://github.com/webb-tools/tangle/", branch = "bls" }
-tangle-primitives = { git = "https://github.com/webb-tools/tangle/", branch = "bls" }
-tangle-testnet-runtime = { git = "https://github.com/webb-tools/tangle/", branch = "bls" }
-tangle-mainnet-runtime = { package = "tangle-runtime", git = "https://github.com/webb-tools/tangle/", branch = "bls" }
+pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle/", rev = "b0673f8b2fe9eb50d24e1798c1292b290ee602d8"}
+pallet-jobs = { git = "https://github.com/webb-tools/tangle/", rev = "b0673f8b2fe9eb50d24e1798c1292b290ee602d8" }
+pallet-dkg = { git = "https://github.com/webb-tools/tangle/", rev = "b0673f8b2fe9eb50d24e1798c1292b290ee602d8" }
+pallet-zksaas = { git = "https://github.com/webb-tools/tangle/", rev = "b0673f8b2fe9eb50d24e1798c1292b290ee602d8" }
+tangle-primitives = { git = "https://github.com/webb-tools/tangle/", rev = "b0673f8b2fe9eb50d24e1798c1292b290ee602d8" }
+tangle-testnet-runtime = { git = "https://github.com/webb-tools/tangle/", rev = "b0673f8b2fe9eb50d24e1798c1292b290ee602d8" }
+tangle-mainnet-runtime = { package = "tangle-runtime", git = "https://github.com/webb-tools/tangle/", rev = "b0673f8b2fe9eb50d24e1798c1292b290ee602d8" }
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
