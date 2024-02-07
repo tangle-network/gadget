@@ -49,7 +49,7 @@ jobs:
         run: cargo clippy --tests -- -D warnings
 
   linting-mainnet:
-    name: Clippy
+    name: Clippy-Mainnet
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
