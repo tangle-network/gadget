@@ -129,6 +129,7 @@ where
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run<
     B: Block,
     BE: Backend<B> + 'static,

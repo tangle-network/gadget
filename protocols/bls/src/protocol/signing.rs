@@ -1,12 +1,15 @@
 use crate::protocol::state_machine::Group;
 use async_trait::async_trait;
-use gadget_common::client::{AccountId, ClientWithApi, JobsApiForGadget, JobsClient};
+use gadget_common::client::{
+    AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient,
+};
 use gadget_common::config::{DebugLogger, GadgetProtocol, Network, ProvideRuntimeApi};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{GenericKeyStore, KeystoreBackend};
 use gadget_common::protocol::AsyncProtocol;
+use gadget_common::sp_core::keccak_256;
 use gadget_common::{
     Backend, Block, BlockImportNotification, BuiltExecutableJobWrapper, Error, JobBuilder,
     JobError, ProtocolWorkManager, WorkManagerInterface,
@@ -50,7 +53,7 @@ where
 {
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
         let job_id = job.job_id;
         let p1_job = job.phase1_job.expect("Should exist");
@@ -72,9 +75,11 @@ where
                 .collect(),
         );
 
+        let key = keccak_256(&previous_job_id.to_be_bytes());
+
         if let Ok(Some(key_bundle)) = self
             .keystore
-            .get::<Participant<SecretParticipantImpl<Group>, Group>>(&previous_job_id)
+            .get::<Participant<SecretParticipantImpl<Group>, Group>>(&key)
             .await
         {
             let additional_params = BlsSigningAdditionalParams {
@@ -112,12 +117,19 @@ where
         &self.account_id
     }
 
-    fn role_type(&self) -> RoleType {
-        RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381)
+    fn name(&self) -> String {
+        "BlsSigningProtocol".to_string()
     }
 
-    fn is_phase_one(&self) -> bool {
-        false
+    fn role_filter(&self, role: RoleType) -> bool {
+        matches!(
+            role,
+            RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381)
+        )
+    }
+
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
+        matches!(job, GadgetJobType::DKGTSSPhaseTwo(_))
     }
 
     fn client(&self) -> &JobsClient<B, BE, C> {

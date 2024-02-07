@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
+use gadget_common::client::{
+    AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient,
+};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
@@ -12,7 +14,6 @@ use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use rand::SeedableRng;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
@@ -20,7 +21,7 @@ use sp_core::keccak_256;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::{
-    DKGTSSSignatureResult, DigitalSignatureType, JobId, JobResult, JobType,
+    DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -46,7 +47,7 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     DfnsCGGMP21SigningProtocol {
         client,
@@ -66,7 +67,7 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     fn name(&self) -> String {
         "dfns-cggmp21-signing".to_string()
@@ -81,7 +82,7 @@ where
         let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
             panic!("Should be valid type")
         };
-        let input_data_to_sign = p2_job.submission;
+        let input_data_to_sign = p2_job.submission.to_vec();
         let previous_job_id = p2_job.phase_one_id;
 
         let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
@@ -147,7 +148,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
         matches!(job, JobType::DKGTSSPhaseTwo(_))
     }
 
@@ -188,7 +189,7 @@ impl<
         N: Network,
     > AsyncProtocol for DfnsCGGMP21SigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type AdditionalParams = DfnsCGGMP21SigningExtraParams;
     async fn generate_protocol_from(
@@ -316,10 +317,10 @@ where
                     signature_bytes[64] = v + 27;
 
                     let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
-                        signature_type: DigitalSignatureType::Ecdsa,
-                        data: additional_params.input_data_to_sign,
-                        signature: signature_bytes.to_vec(),
-                        signing_key: public_key_bytes,
+                        signature_scheme: DigitalSignatureScheme::Ecdsa,
+                        data: additional_params.input_data_to_sign.try_into().unwrap(),
+                        signature: signature_bytes.to_vec().try_into().unwrap(),
+                        signing_key: public_key_bytes.try_into().unwrap(),
                     });
 
                     client

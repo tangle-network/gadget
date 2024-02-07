@@ -308,7 +308,7 @@ where
     ///   matches!(job, JobType::DKGTSSPhaseOne(_))
     /// }
     /// ```
-    fn phase_filter(&self, job: JobType<AccountId>) -> bool;
+    fn phase_filter(&self, job: GadgetJobType) -> bool;
     fn client(&self) -> &JobsClient<B, BE, C>;
     fn logger(&self) -> &DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {

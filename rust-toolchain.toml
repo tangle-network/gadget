@@ -5,5 +5,4 @@
 # and: https://stackoverflow.com/questions/75955457/substrate-node-template-cannot-create-a-runtime-error-othercannot-deserialize
 channel = "nightly-2023-09-28"
 components = ["rustfmt", "clippy", "rust-src"]
-targets = ["wasm32-unknown-unknown"]
 profile = "minimal"

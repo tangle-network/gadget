@@ -397,6 +397,7 @@ pub(crate) mod payloads {
     }
 
     #[derive(Serialize, Deserialize, Clone)]
+    #[allow(clippy::large_enum_variant)]
     pub enum Round1Payload {
         Broadcast(Round1BroadcastData<Group>),
         P2P(Round1P2PData),

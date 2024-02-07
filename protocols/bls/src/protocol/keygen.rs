@@ -2,7 +2,8 @@ use crate::protocol::state_machine::payloads::RoundPayload;
 use crate::protocol::state_machine::BlsStateMachine;
 use async_trait::async_trait;
 use gadget_common::client::{
-    AccountId, ClientWithApi, GadgetJobResult, JobsApiForGadget, JobsClient, PalletSubmitter,
+    AccountId, ClientWithApi, GadgetJobResult, GadgetJobType, JobsApiForGadget, JobsClient,
+    PalletSubmitter,
 };
 use gadget_common::config::{DebugLogger, GadgetProtocol, Network, ProvideRuntimeApi};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -50,7 +51,7 @@ where
 {
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: JobInitMetadata<B>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
         let job_id = job.job_id;
         let p1_job = job.job_type;
@@ -96,12 +97,19 @@ where
         &self.account_id
     }
 
-    fn role_type(&self) -> RoleType {
-        RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381)
+    fn name(&self) -> String {
+        "BlsKeygenProtocol".to_string()
     }
 
-    fn is_phase_one(&self) -> bool {
-        true
+    fn role_filter(&self, role: RoleType) -> bool {
+        matches!(
+            role,
+            RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381)
+        )
+    }
+
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
+        matches!(job, GadgetJobType::DKGTSSPhaseOne(_))
     }
 
     fn client(&self) -> &JobsClient<B, BE, C> {
@@ -164,7 +172,7 @@ where
                         reason: err.to_string(),
                     })?;
 
-                let (tx0, rx0, mut tx1, mut rx1) =
+                let (tx0, rx0, tx1, mut rx1) =
                     gadget_common::channels::create_job_manager_to_async_protocol_channel_split::<
                         _,
                         Msg<RoundPayload>,
@@ -206,7 +214,7 @@ where
                     pk_share,
                     additional_params.i,
                     additional_params.t,
-                    &mut tx1,
+                    &tx1,
                     &mut rx1,
                     &user_id_to_account_id,
                 )
@@ -220,8 +228,9 @@ where
             })
             .post(async move {
                 if let Some((job_result, secret)) = result_clone.lock().await.take() {
+                    let key = keccak_256(&job_id.to_be_bytes());
                     keystore_clone
-                        .set(job_id, secret)
+                        .set(&key, secret)
                         .await
                         .map_err(|err| JobError {
                             reason: err.to_string(),
@@ -246,13 +255,13 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     public_key_share: blst::min_pk::PublicKey,
     i: u16,
     t: u16,
-    tx: &mut UnboundedSender<Msg<RoundPayload>>,
+    tx: &UnboundedSender<Msg<RoundPayload>>,
     rx: &mut UnboundedReceiver<Msg<RoundPayload>>,
     user_id_to_account_id_mapping: &Arc<HashMap<UserID, AccountId>>,
 ) -> Result<GadgetJobResult, JobError> {
     let mut received_pk_shares = BTreeMap::new();
     let mut received_signatures = BTreeMap::new();
-    received_pk_shares.insert(i, public_key_share.clone());
+    received_pk_shares.insert(i, public_key_share);
 
     let broadcast_message =
         RoundPayload::PublicKeyGossipRound1(public_key_share.serialize().to_vec());

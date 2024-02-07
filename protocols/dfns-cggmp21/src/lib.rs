@@ -1,9 +1,9 @@
+use gadget_common::client::JobsApiForGadget;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
 use gadget_common::config::NetworkAndProtocolSetup;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::network::Network;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use protocol_macros::protocol;
 use protocols::key_refresh::DfnsCGGMP21KeyRefreshProtocol;
 use protocols::key_rotate::DfnsCGGMP21KeyRotateProtocol;
@@ -32,7 +32,7 @@ macro_rules! decl_porto {
             KBE: KeystoreBackend,
             C: ClientWithApi<B, BE>,
         > where
-            <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
         {
             pub account_id: AccountId,
             pub network: N,
@@ -47,7 +47,7 @@ macro_rules! decl_porto {
         impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>>
             NetworkAndProtocolSetup for $name<N, B, BE, KBE, C>
         where
-            <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
         {
             type Network = N;
             type Protocol = $proto<B, BE, KBE, C, N>;
@@ -116,7 +116,7 @@ where
     KBE: KeystoreBackend,
     N: Network,
     Tx: PalletSubmitter,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     let pallet_tx = Arc::new(pallet_tx) as Arc<dyn PalletSubmitter>;
     let keygen_config = DfnsCGGMP21KeygenProtocolConfig {

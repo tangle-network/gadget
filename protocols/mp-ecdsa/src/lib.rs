@@ -1,12 +1,13 @@
 use crate::protocols::keygen::MpEcdsaKeygenProtocol;
 use crate::protocols::sign::MpEcdsaSigningProtocol;
 use async_trait::async_trait;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
+use gadget_common::client::{
+    AccountId, ClientWithApi, JobsApiForGadget, JobsClient, PalletSubmitter,
+};
 use gadget_common::config::NetworkAndProtocolSetup;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::network::Network;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use protocol_macros::protocol;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
@@ -26,7 +27,7 @@ pub struct MpEcdsaKeygenProtocolConfig<
     KBE: KeystoreBackend,
     C: ClientWithApi<B, BE>,
 > where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pub account_id: AccountId,
     pub network: N,
@@ -45,7 +46,7 @@ pub struct MpEcdsaSigningProtocolConfig<
     KBE: KeystoreBackend,
     C: ClientWithApi<B, BE>,
 > where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pub account_id: AccountId,
     pub network: N,
@@ -60,7 +61,7 @@ pub struct MpEcdsaSigningProtocolConfig<
 impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>>
     NetworkAndProtocolSetup for MpEcdsaKeygenProtocolConfig<N, B, BE, KBE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type Network = N;
     type Protocol = MpEcdsaKeygenProtocol<B, BE, KBE, C, N>;
@@ -101,7 +102,7 @@ where
 impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>>
     NetworkAndProtocolSetup for MpEcdsaSigningProtocolConfig<N, B, BE, KBE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type Network = N;
     type Protocol = MpEcdsaSigningProtocol<B, BE, KBE, C, N>;
@@ -156,7 +157,7 @@ where
     N: Network,
     N2: Network,
     Tx: PalletSubmitter,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     let pallet_tx = Arc::new(pallet_tx) as Arc<dyn PalletSubmitter>;
     let keygen_config = MpEcdsaKeygenProtocolConfig {

@@ -130,8 +130,6 @@ impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen> for Job
             | JobType::DKGTSSPhaseTwo(_)
             | JobType::DKGTSSPhaseThree(_)
             | JobType::DKGTSSPhaseFour(_) => Dkg::job_to_fee(job),
-            JobType::DKGTSSPhaseThree(_) => Dkg::job_to_fee(job),
-            JobType::DKGTSSPhaseFour(_) => Dkg::job_to_fee(job),
             JobType::ZkSaaSPhaseOne(_) | JobType::ZkSaaSPhaseTwo(_) => ZkSaaS::job_to_fee(job),
         }
     }
@@ -192,8 +190,6 @@ impl
             | JobResult::DKGPhaseTwo(_)
             | JobResult::DKGPhaseThree(_)
             | JobResult::DKGPhaseFour(_) => Dkg::verify(data.result),
-            JobResult::DKGPhaseThree(_) => Dkg::verify(data.result),
-            JobResult::DKGPhaseFour(_) => Dkg::verify(data.result),
             JobResult::ZkSaaSPhaseOne(_) | JobResult::ZkSaaSPhaseTwo(_) => ZkSaaS::verify(data),
         }
     }

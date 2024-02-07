@@ -1,12 +1,13 @@
 use crate::network::ZkNetworkService;
 use crate::protocol::ZkProtocol;
 use async_trait::async_trait;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
+use gadget_common::client::{
+    AccountId, ClientWithApi, JobsApiForGadget, JobsClient, PalletSubmitter,
+};
 use gadget_common::config::NetworkAndProtocolSetup;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::Error;
 use mpc_net::prod::RustlsCertificate;
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use protocol_macros::protocol;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
@@ -21,7 +22,7 @@ pub mod protocol;
 #[protocol]
 pub struct ZkGadgetConfig<B: Block, C: ClientWithApi<B, BE>, BE: Backend<B>>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pub king_bind_addr: Option<SocketAddr>,
     pub client_only_king_addr: Option<SocketAddr>,
@@ -39,7 +40,7 @@ where
 impl<B: Block, C: ClientWithApi<B, BE>, BE: Backend<B>> NetworkAndProtocolSetup
     for ZkGadgetConfig<B, C, BE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type Network = ZkNetworkService;
     type Protocol = ZkProtocol<B, C, BE>;
@@ -79,7 +80,7 @@ pub async fn create_zk_network<B: Block, C: ClientWithApi<B, BE>, BE: Backend<B>
     config: &ZkGadgetConfig<B, C, BE>,
 ) -> Result<ZkNetworkService, Error>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     let our_identity = RustlsCertificate {
         cert: Certificate(config.public_identity_der.clone()),
