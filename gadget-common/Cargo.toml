@@ -16,6 +16,10 @@ std = [
     "pallet-jobs-rpc-runtime-api/std"
 ]
 
+mainnet = [
+    "tangle-mainnet-runtime"
+]
+
 [dependencies]
 gadget-core = { workspace = true, features = ["substrate"] }
 tokio = { workspace = true }
@@ -43,4 +47,5 @@ sc-network-sync = { workspace = true }
 
 tangle-primitives = { workspace = true }
 tangle-testnet-runtime = { workspace = true }
+tangle-mainnet-runtime = { workspace = true, optional = true }
 pallet-jobs-rpc-runtime-api = { workspace = true }

@@ -16,7 +16,7 @@ use subxt::ext::sp_core::Pair as SubxtPair;
 use subxt::tx::{PairSigner, TxPayload};
 use subxt::utils::H256;
 use subxt::{OnlineClient, PolkadotConfig};
-use tangle_primitives::jobs::{JobId, JobType};
+use tangle_primitives::jobs::JobId;
 use tangle_primitives::jobs::{PhaseResult, RpcResponseJobsData};
 use tangle_primitives::roles::RoleType;
 
@@ -54,62 +54,139 @@ where
     })
 }
 
-pub type AccountId = sp_core::ecdsa::Public;
-pub type MaxParticipants = tangle_testnet_runtime::MaxParticipants;
-pub type MaxSubmissionLen = tangle_testnet_runtime::MaxSubmissionLen;
-pub type MaxKeyLen = tangle_testnet_runtime::MaxKeyLen;
-pub type MaxDataLen = tangle_testnet_runtime::MaxDataLen;
-pub type MaxSignatureLen = tangle_testnet_runtime::MaxSignatureLen;
-pub type MaxProofLen = tangle_testnet_runtime::MaxProofLen;
-pub type MaxActiveJobsPerValidator = tangle_testnet_runtime::MaxActiveJobsPerValidator;
-pub type GadgetJobResult = tangle_testnet_runtime::JobResult<
-    MaxParticipants,
-    MaxKeyLen,
-    MaxSignatureLen,
-    MaxDataLen,
-    MaxProofLen,
->;
-pub type GadgetJobType = JobType<AccountId, MaxParticipants, MaxSubmissionLen>;
-pub type GadgetPhaseResult<B> = PhaseResult<
-    AccountId,
-    B,
-    MaxParticipants,
-    MaxKeyLen,
-    MaxDataLen,
-    MaxSignatureLen,
-    MaxSubmissionLen,
-    MaxProofLen,
->;
+#[cfg(not(feature = "mainnet"))]
+pub mod types {
+    use pallet_jobs_rpc_runtime_api::JobsApi;
+    use sp_runtime::traits::Block;
+    use tangle_primitives::jobs::{JobType, PhaseResult};
 
-pub trait JobsApiForGadget<B: Block>:
-    JobsApi<
-    B,
-    AccountId,
-    MaxParticipants,
-    MaxSubmissionLen,
-    MaxKeyLen,
-    MaxDataLen,
-    MaxSignatureLen,
-    MaxProofLen,
->
-{
+    pub type AccountId = sp_core::ecdsa::Public;
+    pub type MaxParticipants = tangle_testnet_runtime::MaxParticipants;
+    pub type MaxSubmissionLen = tangle_testnet_runtime::MaxSubmissionLen;
+    pub type MaxKeyLen = tangle_testnet_runtime::MaxKeyLen;
+    pub type MaxDataLen = tangle_testnet_runtime::MaxDataLen;
+    pub type MaxSignatureLen = tangle_testnet_runtime::MaxSignatureLen;
+    pub type MaxProofLen = tangle_testnet_runtime::MaxProofLen;
+    pub type MaxActiveJobsPerValidator = tangle_testnet_runtime::MaxActiveJobsPerValidator;
+    pub type GadgetJobResult = tangle_testnet_runtime::JobResult<
+        MaxParticipants,
+        MaxKeyLen,
+        MaxSignatureLen,
+        MaxDataLen,
+        MaxProofLen,
+    >;
+    pub type GadgetJobType = JobType<AccountId, MaxParticipants, MaxSubmissionLen>;
+    pub type GadgetPhaseResult<B> = PhaseResult<
+        AccountId,
+        B,
+        MaxParticipants,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxSubmissionLen,
+        MaxProofLen,
+    >;
+
+    pub trait JobsApiForGadget<B: Block>:
+        JobsApi<
+        B,
+        AccountId,
+        MaxParticipants,
+        MaxSubmissionLen,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxProofLen,
+    >
+    {
+    }
+    // Implement JobsApiForGadget for any T that implements JobsApi
+    impl<
+            B: Block,
+            T: JobsApi<
+                B,
+                AccountId,
+                MaxParticipants,
+                MaxSubmissionLen,
+                MaxKeyLen,
+                MaxDataLen,
+                MaxSignatureLen,
+                MaxProofLen,
+            >,
+        > JobsApiForGadget<B> for T
+    {
+    }
 }
-// Implement JobsApiForGadget for any T that implements JobsApi
-impl<
-        B: Block,
-        T: JobsApi<
-            B,
-            AccountId,
-            MaxParticipants,
-            MaxSubmissionLen,
-            MaxKeyLen,
-            MaxDataLen,
-            MaxSignatureLen,
-            MaxProofLen,
-        >,
-    > JobsApiForGadget<B> for T
-{
+
+#[cfg(feature = "mainnet")]
+pub mod types {
+    use pallet_jobs_rpc_runtime_api::JobsApi;
+    use sp_runtime::traits::Block;
+    use tangle_primitives::jobs::{JobType, PhaseResult};
+
+    pub type AccountId = sp_core::ecdsa::Public;
+    pub type MaxParticipants = tangle_mainnet_runtime::MaxParticipants;
+    pub type MaxSubmissionLen = tangle_mainnet_runtime::MaxSubmissionLen;
+    pub type MaxKeyLen = tangle_mainnet_runtime::MaxKeyLen;
+    pub type MaxDataLen = tangle_mainnet_runtime::MaxDataLen;
+    pub type MaxSignatureLen = tangle_mainnet_runtime::MaxSignatureLen;
+    pub type MaxProofLen = tangle_mainnet_runtime::MaxProofLen;
+    pub type MaxActiveJobsPerValidator = tangle_mainnet_runtime::MaxActiveJobsPerValidator;
+    pub type GadgetJobResult = tangle_mainnet_runtime::JobResult<
+        crate::client::types::MaxParticipants,
+        crate::client::types::MaxKeyLen,
+        crate::client::types::MaxSignatureLen,
+        crate::client::types::MaxDataLen,
+        crate::client::types::MaxProofLen,
+    >;
+    pub type GadgetJobType = JobType<
+        crate::client::types::AccountId,
+        crate::client::types::MaxParticipants,
+        crate::client::types::MaxSubmissionLen,
+    >;
+    pub type GadgetPhaseResult<B> = PhaseResult<
+        crate::client::types::AccountId,
+        B,
+        crate::client::types::MaxParticipants,
+        crate::client::types::MaxKeyLen,
+        crate::client::types::MaxDataLen,
+        crate::client::types::MaxSignatureLen,
+        crate::client::types::MaxSubmissionLen,
+        crate::client::types::MaxProofLen,
+    >;
+
+    pub trait JobsApiForGadget<B: Block>:
+        JobsApi<
+        B,
+        crate::client::types::AccountId,
+        crate::client::types::MaxParticipants,
+        crate::client::types::MaxSubmissionLen,
+        crate::client::types::MaxKeyLen,
+        crate::client::types::MaxDataLen,
+        crate::client::types::MaxSignatureLen,
+        crate::client::types::MaxProofLen,
+    >
+    {
+    }
+    // Implement JobsApiForGadget for any T that implements JobsApi
+    impl<
+            B: Block,
+            T: JobsApi<
+                B,
+                crate::client::types::AccountId,
+                crate::client::types::MaxParticipants,
+                crate::client::types::MaxSubmissionLen,
+                crate::client::types::MaxKeyLen,
+                crate::client::types::MaxDataLen,
+                crate::client::types::MaxSignatureLen,
+                crate::client::types::MaxProofLen,
+            >,
+        > crate::client::types::JobsApiForGadget<B> for T
+    {
+    }
 }
+
+pub use types::*;
 
 pub trait ClientWithApi<B, BE>:
     BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + Clone + 'static

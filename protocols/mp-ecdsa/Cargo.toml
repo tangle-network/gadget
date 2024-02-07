@@ -3,7 +3,8 @@ name = "mp-ecdsa-protocol"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+mainnet = ["gadget-common/mainnet"]
 
 [dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
