@@ -1,3 +1,5 @@
+#![feature(return_position_impl_trait_in_trait)]
+
 use async_trait::async_trait;
 use gadget_common::client::*;
 use gadget_common::config::*;
@@ -10,9 +12,11 @@ use parking_lot::Mutex;
 use protocol_macros::protocol;
 use std::sync::Arc;
 use tangle_primitives::roles::RoleType;
+use test_utils::mock::NodeInput;
+use test_utils::{generate_tss_tests, ProtocolTestingUtils, SendFuture};
 use tokio::sync::mpsc::UnboundedReceiver;
 
-#[protocol]
+#[protocol(keygen_test, signing_test)]
 pub struct StubConfig<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
@@ -35,6 +39,7 @@ where
     type Client = C;
     type Block = B;
     type Backend = BE;
+    type AdditionalTestParameters = ();
 
     async fn generate_protocol_from(
         &self,
@@ -110,6 +115,19 @@ where
     }
 }
 
+impl<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network> ProtocolTestingUtils
+    for StubConfig<B, BE, C, N>
+where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
+{
+    fn setup_test_node(
+        _additional_param: Self::AdditionalTestParameters,
+        _node_input: NodeInput,
+    ) -> impl SendFuture<'static, ()> {
+        async move {}
+    }
+}
+
 pub async fn run<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network>(
     client: C,
     pallet_tx: Arc<dyn PalletSubmitter>,
@@ -131,3 +149,5 @@ where
 
     config.execute().await
 }
+
+generate_tss_tests!(StubConfig, ThresholdSignatureRoleType::GennaroDKGBls381);

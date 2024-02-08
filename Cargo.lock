@@ -13300,6 +13300,7 @@ dependencies = [
  "parking_lot 0.12.1",
  "protocol-macros",
  "tangle-primitives",
+ "test-utils",
  "tokio",
 ]
 

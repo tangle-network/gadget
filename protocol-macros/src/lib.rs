@@ -2,6 +2,8 @@ use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_macro_input, GenericParam, Generics, ItemStruct};
 
+// Setup args for "keygen_test" and "signing_test"
+
 fn generate_generic_params_with_bounds(
     generics: &Generics,
     excluded: Option<&[&str]>,
@@ -71,6 +73,7 @@ fn generate_generic_params(
 #[proc_macro_attribute]
 pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input_struct = parse_macro_input!(input as ItemStruct);
+
     let struct_ident = &input_struct.ident;
     let new_struct = syn::Ident::new(&format!("_Internal{}", struct_ident), struct_ident.span());
     let struct_generics = &input_struct.generics;

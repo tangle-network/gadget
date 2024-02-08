@@ -26,6 +26,7 @@ where
     type Client: ClientWithApi<Self::Block, Self::Backend>;
     type Block: Block;
     type Backend: Backend<Self::Block>;
+    type AdditionalTestParameters;
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
