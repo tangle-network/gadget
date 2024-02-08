@@ -200,14 +200,12 @@ where
                     reason: "Failed to get secret share".to_string(),
                 })?;
 
-                let share =
-                    blst::min_pk::SecretKey::from_bytes(&sk.to_be_bytes()).map_err(|e| {
-                        JobError {
-                            reason: format!("Failed to create secret key: {e:?}"),
-                        }
+                let share = snowbridge_milagro_bls::SecretKey::from_bytes(&sk.to_be_bytes())
+                    .map_err(|e| JobError {
+                        reason: format!("Failed to create secret key: {e:?}"),
                     })?;
 
-                let pk_share = share.sk_to_pk();
+                let pk_share = snowbridge_milagro_bls::PublicKey::from_secret_key(&share);
 
                 let job_result = handle_public_key_broadcast(
                     &keystore,
@@ -252,7 +250,7 @@ where
 
 async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     key_store: &GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
-    public_key_share: blst::min_pk::PublicKey,
+    public_key_share: snowbridge_milagro_bls::PublicKey,
     i: u16,
     t: u16,
     tx: &UnboundedSender<Msg<RoundPayload>>,
@@ -261,10 +259,10 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
 ) -> Result<GadgetJobResult, JobError> {
     let mut received_pk_shares = BTreeMap::new();
     let mut received_signatures = BTreeMap::new();
-    received_pk_shares.insert(i, public_key_share);
+    received_pk_shares.insert(i, public_key_share.clone());
 
     let broadcast_message =
-        RoundPayload::PublicKeyGossipRound1(public_key_share.serialize().to_vec());
+        RoundPayload::PublicKeyGossipRound1(public_key_share.as_uncompressed_bytes().to_vec());
     tx.send(Msg {
         sender: i,
         receiver: None,
@@ -282,7 +280,7 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
         })?;
         match payload.body {
             RoundPayload::PublicKeyGossipRound1(pk_share) => {
-                match blst::min_pk::PublicKey::deserialize(&pk_share) {
+                match snowbridge_milagro_bls::PublicKey::from_uncompressed_bytes(&pk_share) {
                     Ok(pk) => {
                         received_pk_shares.insert(payload.sender, pk);
                     }
@@ -310,14 +308,17 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
         .map(|r| r.1)
         .collect::<Vec<_>>();
 
-    let pk_agg =
-        blst::min_pk::AggregatePublicKey::aggregate(&pk_shares.iter().collect::<Vec<_>>(), true)
-            .map_err(|e| JobError {
-                reason: format!("Failed to aggregate public keys: {e:?}"),
-            })?;
+    let pk_agg = snowbridge_milagro_bls::AggregatePublicKey::aggregate(
+        &pk_shares.iter().collect::<Vec<_>>(),
+    )
+    .map_err(|e| JobError {
+        reason: format!("Failed to aggregate public keys: {e:?}"),
+    })?;
 
+    let uncompressed_public_key = &mut [0u8; 97];
+    pk_agg.point.to_bytes(uncompressed_public_key, false);
     // Now, sign this aggregated public key
-    let key_hashed = keccak_256(&pk_agg.to_public_key().serialize());
+    let key_hashed = keccak_256(&uncompressed_public_key[1..]);
     let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
 
     received_signatures.insert(i, signature.clone());
@@ -333,8 +334,8 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
         reason: err.to_string(),
     })?;
 
-    let mut count = 0;
-    while count < t {
+    let mut count = received_signatures.len();
+    while count < t as usize {
         let payload = rx.recv().await.ok_or_else(|| JobError {
             reason: "Failed to receive message".to_string(),
         })?;
@@ -367,7 +368,7 @@ async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
         .try_into()
         .unwrap();
 
-    let key = pk_agg.to_public_key().serialize().to_vec();
+    let key = uncompressed_public_key[1..].to_vec();
 
     Ok(JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
         signature_scheme: DigitalSignatureScheme::Bls381,
