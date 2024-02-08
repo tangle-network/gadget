@@ -102,7 +102,7 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
     let generated = quote! {
         #input_struct
 
-        pub struct #new_struct<C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B>, #generics_token_stream_unique_with_bounds>
+        pub struct #new_struct<C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B> + 'static, #generics_token_stream_unique_with_bounds>
             #where_bounds {
             pub network: Option<<#struct_ident<#generics_token_stream> as gadget_common::config::NetworkAndProtocolSetup>::Network>,
             pub protocol: Option<<#struct_ident<#generics_token_stream> as gadget_common::config::NetworkAndProtocolSetup>::Protocol>,

@@ -13297,6 +13297,7 @@ dependencies = [
  "async-trait",
  "futures",
  "gadget-common",
+ "parking_lot 0.12.1",
  "protocol-macros",
  "tangle-primitives",
  "tokio",

@@ -24,6 +24,7 @@ pub mod channels;
 pub mod client;
 pub mod config;
 pub mod debug_logger;
+pub mod full_protocol;
 pub mod gadget;
 pub mod helpers;
 pub mod keystore;
