@@ -2,7 +2,6 @@ use crate::client::{AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, J
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
-use crate::jobs_api_config::*;
 use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
 use crate::Error;
 use async_trait::async_trait;

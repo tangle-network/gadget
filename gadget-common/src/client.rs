@@ -1,5 +1,4 @@
 use crate::debug_logger::DebugLogger;
-use crate::jobs_api_config::*;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use async_trait::async_trait;
 use auto_impl::auto_impl;

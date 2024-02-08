@@ -15160,7 +15160,9 @@ version = "3.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "196bbee60607a195bc850e94f0e040bd090e45794ad8df0e9c5a422b9975a00f"
 dependencies = [
+ "curve25519-dalek 4.1.1",
  "elliptic-curve 0.13.8",
+ "hex",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",

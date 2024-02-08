@@ -75,7 +75,7 @@ mod tests {
                     expiry: 100,
                     ttl: 100,
                     job_type: JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
-                        participants: identities.clone(),
+                        participants: identities.clone().try_into().unwrap(),
                         threshold: T as _,
                         permitted_caller: None,
                         role_type: ThresholdSignatureRoleType::ZcashFrostRistretto255,
@@ -112,7 +112,7 @@ mod tests {
                     ttl: 100,
                     job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
                         phase_one_id: keygen_job_id,
-                        submission,
+                        submission: submission.try_into().unwrap(),
                         role_type: ThresholdSignatureRoleType::ZcashFrostRistretto255,
                     }),
                 };

@@ -4,7 +4,11 @@ use frost_p256::P256Sha256;
 use frost_ristretto255::Ristretto255Sha512;
 use frost_secp256k1::Secp256K1Sha256;
 use futures::StreamExt;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
+use gadget_common::client::JobsApiForGadget;
+use gadget_common::client::{
+    AccountId, ClientWithApi, GadgetJobResult, GadgetJobType, JobsClient, MaxKeyLen,
+    MaxParticipants, MaxSignatureLen,
+};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
@@ -16,7 +20,6 @@ use gadget_common::{Block, BlockImportNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use rand::SeedableRng;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
@@ -141,15 +144,14 @@ where
     fn role_filter(&self, role: RoleType) -> bool {
         matches!(
             role,
-            RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSr25519)
+            RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd25519)
                 | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP256)
                 | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1)
                 | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255)
-                | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd25519)
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
         matches!(job, JobType::DKGTSSPhaseOne(_))
     }
 
@@ -448,14 +450,16 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     let signatures = received_keys
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1)
+        .map(|r| r.1.try_into().unwrap())
         .collect::<Vec<_>>();
 
     let participants = received_participants
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1 .0.to_vec())
-        .collect();
+        .map(|r| r.1 .0.to_vec().try_into().unwrap())
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
 
     if signatures.len() < t as usize {
         return Err(JobError {
@@ -479,16 +483,19 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
             }
             _ => unreachable!("Invalid role"),
         },
-        key: public_key_package.to_vec(),
+        key: public_key_package.to_vec().try_into().unwrap(),
         participants,
-        signatures,
+        signatures: signatures.try_into().unwrap(),
         threshold: t as _,
     };
     verify_generated_dkg_key_ecdsa(res.clone(), logger);
     Ok(GadgetJobResult::DKGPhaseOne(res))
 }
 
-fn verify_generated_dkg_key_ecdsa(data: DKGTSSKeySubmissionResult, logger: &DebugLogger) {
+fn verify_generated_dkg_key_ecdsa(
+    data: DKGTSSKeySubmissionResult<MaxKeyLen, MaxParticipants, MaxSignatureLen>,
+    logger: &DebugLogger,
+) {
     // Ensure participants and signatures are not empty
     assert!(!data.participants.is_empty(), "NoParticipantsFound",);
     assert!(!data.signatures.is_empty(), "NoSignaturesFound");

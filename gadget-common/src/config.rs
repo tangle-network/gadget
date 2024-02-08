@@ -3,9 +3,6 @@ pub use crate::client::{AccountId, ClientWithApi};
 pub use crate::debug_logger::DebugLogger;
 pub use crate::gadget::network::Network;
 pub use crate::gadget::GadgetProtocol;
-use crate::jobs_api_config::{
-    MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen,
-};
 use async_trait::async_trait;
 pub use pallet_jobs_rpc_runtime_api::JobsApi;
 pub use sc_client_api::Backend;

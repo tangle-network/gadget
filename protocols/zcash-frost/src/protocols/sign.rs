@@ -4,7 +4,8 @@ use frost_ed25519::Ed25519Sha512;
 use frost_p256::P256Sha256;
 use frost_ristretto255::Ristretto255Sha512;
 use frost_secp256k1::Secp256K1Sha256;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
+use gadget_common::client::JobsApiForGadget;
+use gadget_common::client::{AccountId, ClientWithApi, GadgetJobResult, GadgetJobType, JobsClient};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
@@ -15,7 +16,6 @@ use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use rand::SeedableRng;
 use round_based::MpcParty;
 use sc_client_api::Backend;
@@ -86,7 +86,7 @@ where
         let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
             panic!("Should be valid type")
         };
-        let input_data_to_sign = p2_job.submission;
+        let input_data_to_sign = p2_job.submission.try_into().unwrap();
         let previous_job_id = p2_job.phase_one_id;
 
         let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
@@ -155,7 +155,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
         matches!(job, JobType::DKGTSSPhaseTwo(_))
     }
 
@@ -371,12 +371,12 @@ where
                 if let Some(signature) = protocol_output_clone.lock().await.take() {
                     // Compute the signature bytes by first converting the signature
                     // to a fixed byte array and then converting that to a Vec<u8>.
-                    let (signature, signature_type) = match role {
+                    let (signature, signature_scheme) = match role {
                         ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
                             let mut signature_bytes = [0u8; 64];
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
-                                signature_bytes.to_vec(),
+                                signature_bytes.to_vec().try_into().unwrap(),
                                 DigitalSignatureScheme::SchnorrSecp256k1,
                             )
                         }
@@ -384,7 +384,7 @@ where
                             let mut signature_bytes = [0u8; 64];
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
-                                signature_bytes.to_vec(),
+                                signature_bytes.to_vec().try_into().unwrap(),
                                 DigitalSignatureScheme::SchnorrEd25519,
                             )
                         }
@@ -392,7 +392,7 @@ where
                             let mut signature_bytes = [0u8; 64];
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
-                                signature_bytes.to_vec(),
+                                signature_bytes.to_vec().try_into().unwrap(),
                                 DigitalSignatureScheme::SchnorrP256,
                             )
                         }
@@ -400,7 +400,7 @@ where
                             let mut signature_bytes = [0u8; 64];
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
-                                signature_bytes.to_vec(),
+                                signature_bytes.to_vec().try_into().unwrap(),
                                 DigitalSignatureScheme::SchnorrSr25519,
                             )
                         }
@@ -412,10 +412,10 @@ where
                     };
 
                     let job_result = GadgetJobResult::DKGPhaseTwo(DKGTSSSignatureResult {
-                        signature_type,
+                        signature_scheme,
+                        data: additional_params.input_data_to_sign.try_into().unwrap(),
                         signature,
-                        data: additional_params.input_data_to_sign,
-                        signing_key: keyshare2.pubkey_package,
+                        signing_key: keyshare2.pubkey_package.try_into().unwrap(),
                     });
 
                     client
