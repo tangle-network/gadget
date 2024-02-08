@@ -107,16 +107,7 @@ where
     KBE: KeystoreBackend,
     N: Network,
     Tx: PalletSubmitter,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     let pallet_tx = Arc::new(pallet_tx) as Arc<dyn PalletSubmitter>;
     let keygen_config = ZcashFrostKeygenConfig {

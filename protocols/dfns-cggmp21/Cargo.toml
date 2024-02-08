@@ -3,6 +3,9 @@ name = "dfns-cggmp21-protocol"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+mainnet = ["gadget-common/mainnet"]
+
 [dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
 gadget-common = { workspace = true }

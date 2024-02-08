@@ -104,7 +104,7 @@ mod tests {
                     expiry: 100,
                     ttl: 100,
                     job_type: JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
-                        participants: identities.clone(),
+                        participants: identities.clone().try_into().unwrap(),
                         threshold: T as _,
                         permitted_caller: None,
                         role_type: ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
@@ -133,7 +133,7 @@ mod tests {
     ) -> JobId {
         let job_id = ext
             .execute_with_async(move || {
-                let submission = Vec::from("Hello, world!");
+                let submission = Vec::from("Hello, world!").try_into().unwrap();
                 let job_id = Jobs::next_job_id();
                 let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
                 let submission = JobSubmission {

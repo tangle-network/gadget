@@ -21,23 +21,21 @@ linked-hash-map = { workspace = true }
 subxt = { workspace = true, features = ["substrate-compat"] }
 anyhow = { workspace = true }
 futures = { workspace = true }
-
+round-based = { workspace = true }
 sp-api = { workspace = true }
 
 sc-network = { workspace = true }
 sc-network-common = { workspace = true }
 sc-network-sync = { workspace = true }
 
-tangle-primitives = { workspace = true }
-pallet-jobs-rpc-runtime-api = { workspace = true }
-
-tangle-mainnet-runtime = { workspace = true, optional = true }
-tangle-testnet-runtime = { workspace = true, optional = true }
+tangle-primitives = { workspace = true, features = ["std"] }
+tangle-testnet-runtime = { workspace = true, features = ["std"] }
+tangle-mainnet-runtime = { workspace = true, optional = true, features = ["std"] }
+pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
 
 [features]
 default = [
     "std",
-    "mainnet",
 ]
 std = [
     "sp-api/std",
@@ -45,4 +43,3 @@ std = [
     "pallet-jobs-rpc-runtime-api/std"
 ]
 mainnet = ["tangle-mainnet-runtime"]
-testnet = ["tangle-testnet-runtime"]

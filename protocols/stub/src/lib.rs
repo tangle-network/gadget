@@ -13,16 +13,7 @@ pub mod protocol;
 #[protocol]
 pub struct StubConfig<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pallet_tx: Arc<dyn PalletSubmitter>,
     logger: DebugLogger,
@@ -34,16 +25,7 @@ where
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> NetworkAndProtocolSetup
     for StubConfig<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type Network = StubNetworkService;
     type Protocol = StubProtocol<B, BE, C>;
@@ -83,16 +65,7 @@ pub async fn run<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>>(
     logger: DebugLogger,
 ) -> Result<(), Error>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     let config = StubConfig {
         pallet_tx,

@@ -1,6 +1,8 @@
 use async_trait::async_trait;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
-use gadget_common::config::{DebugLogger, GadgetProtocol, JobsApi, ProvideRuntimeApi};
+use gadget_common::client::{
+    AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient,
+};
+use gadget_common::config::{DebugLogger, GadgetProtocol, ProvideRuntimeApi};
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
@@ -13,16 +15,7 @@ use tangle_primitives::roles::RoleType;
 
 pub struct StubProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pub jobs_client: JobsClient<B, BE, C>,
     pub account_id: AccountId,
@@ -33,16 +26,7 @@ where
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> GadgetProtocol<B, BE, C>
     for StubProtocol<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     fn name(&self) -> String {
         "stub".to_string()
@@ -73,10 +57,7 @@ where
         false
     }
 
-    fn phase_filter(
-        &self,
-        _job: tangle_primitives::jobs::JobType<AccountId, MaxParticipants, MaxSubmissionLen>,
-    ) -> bool {
+    fn phase_filter(&self, _job: GadgetJobType) -> bool {
         false
     }
 
@@ -92,16 +73,7 @@ where
 #[async_trait]
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> AsyncProtocol for StubProtocol<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type AdditionalParams = ();
 

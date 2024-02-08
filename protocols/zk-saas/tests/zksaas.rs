@@ -75,22 +75,22 @@ mod tests {
                 expiry: 100,
                 ttl: 100,
                 job_type: JobType::ZkSaaSPhaseOne(ZkSaaSPhaseOneJobType {
-                    participants: identities.clone(),
+                    participants: identities.clone().try_into().unwrap(),
                     permitted_caller: None,
                     system: ZkSaaSSystem::Groth16(Groth16System {
-                        circuit: HyperData::Raw(r1cs_file),
+                        circuit: HyperData::Raw(r1cs_file.try_into().unwrap()),
                         num_inputs: num_inputs as u64,
                         num_constraints: num_constraints as u64,
-                        proving_key: HyperData::Raw(pk_bytes),
-                        verifying_key: vk_bytes,
-                        wasm: HyperData::Raw(wasm_file),
+                        proving_key: HyperData::Raw(pk_bytes.try_into().unwrap()),
+                        verifying_key: vk_bytes.try_into().unwrap(),
+                        wasm: HyperData::Raw(wasm_file.try_into().unwrap()),
                     }),
                     role_type: ZeroKnowledgeRoleType::ZkSaaSGroth16,
                 }),
             };
 
             assert_ok!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), phase1_submission));
-            let phase1_result = JobResult::ZkSaaSPhaseOne(ZkSaaSCircuitResult { job_id: phase_one_id, participants: identities.clone() });
+            let phase1_result = JobResult::ZkSaaSPhaseOne(ZkSaaSCircuitResult { job_id: phase_one_id, participants: identities.clone().try_into().unwrap() });
             assert_ok!(
                 Jobs::submit_job_result(
                 RuntimeOrigin::signed(identities[0]),
@@ -104,24 +104,24 @@ mod tests {
             let qap_shares = qap.pss(&pp)
                 .into_iter()
                 .map(|s| QAPShare {
-                    a: HyperData::Raw(from_field_elements(&s.a).unwrap()),
-                    b: HyperData::Raw(from_field_elements(&s.b).unwrap()),
-                    c: HyperData::Raw(from_field_elements(&s.c).unwrap()),
+                    a: HyperData::Raw(from_field_elements(&s.a).unwrap().try_into().unwrap()),
+                    b: HyperData::Raw(from_field_elements(&s.b).unwrap().try_into().unwrap()),
+                    c: HyperData::Raw(from_field_elements(&s.c).unwrap().try_into().unwrap()),
                 })
-                .collect();
+                .collect::<Vec<_>>();
 
             let aux_assignment = &full_assignment[num_inputs..];
             let ax_shares = pack_from_witness::<Bn254>(&pp, aux_assignment.to_vec())
                 .into_iter()
                 .filter_map(|s| from_field_elements(&s).ok())
-                .map(HyperData::Raw)
-                .collect();
+                .map(|r|HyperData::Raw(r.try_into().unwrap()))
+                .collect::<Vec<_>>();
             let a_shares = pack_from_witness::<Bn254>(&pp, full_assignment[1..].to_vec())
                 .into_iter()
                 .filter_map(|s| from_field_elements(&s).ok())
-                .map(HyperData::Raw)
-                .collect();
-            let public_input = from_field_elements::<Bn254Fr>(&[BigInt!("72587776472194017031617589674261467945970986113287823188107011979").into()]).unwrap();
+                .map(|r| HyperData::Raw(r.try_into().unwrap()))
+                .collect::<Vec<_>>();
+            let public_input = from_field_elements::<Bn254Fr>(&[BigInt!("72587776472194017031617589674261467945970986113287823188107011979").into()]).unwrap().try_into().unwrap();
             let phase_two_id = Jobs::next_job_id();
             let phase2_submission = JobSubmission {
                 expiry: 100,
@@ -131,9 +131,9 @@ mod tests {
                     request: ZkSaaSPhaseTwoRequest::Groth16(
                         Groth16ProveRequest {
                             public_input,
-                            a_shares,
-                            ax_shares,
-                            qap_shares,
+                            a_shares: a_shares.try_into().unwrap(),
+                            ax_shares: ax_shares.try_into().unwrap(),
+                            qap_shares: qap_shares.try_into().unwrap(),
                         }
                     ),
                     role_type: ZeroKnowledgeRoleType::ZkSaaSGroth16,

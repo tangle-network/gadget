@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
+use gadget_common::client::{
+    AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient,
+};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
@@ -12,7 +14,6 @@ use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use rand::SeedableRng;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
@@ -46,16 +47,7 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     DfnsCGGMP21KeyRotateProtocol {
         client,
@@ -75,16 +67,7 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for DfnsCGGMP21KeyRotateProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     fn name(&self) -> String {
         "dfns-cggmp21-key-rotate".to_string()
@@ -152,7 +135,7 @@ where
             new_phase_one_id,
             role_type: job.role_type,
             key,
-            new_key,
+            new_key: new_key.try_into().unwrap(),
             user_id_to_account_id_mapping,
         };
         Ok(params)
@@ -185,7 +168,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
         matches!(job, JobType::DKGTSSPhaseFour(_))
     }
 
@@ -228,16 +211,7 @@ impl<
         N: Network,
     > AsyncProtocol for DfnsCGGMP21KeyRotateProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type AdditionalParams = DfnsCGGMP21KeyRotateExtraParams;
     async fn generate_protocol_from(
@@ -363,11 +337,11 @@ where
 
                     let job_result = JobResult::DKGPhaseFour(DKGTSSKeyRotationResult {
                         signature_scheme: DigitalSignatureScheme::Ecdsa,
-                        signature: signature_bytes.to_vec(),
+                        signature: signature_bytes.to_vec().try_into().unwrap(),
                         phase_one_id,
                         new_phase_one_id,
-                        new_key: new_key2,
-                        key: public_key_bytes,
+                        new_key: new_key2.try_into().unwrap(),
+                        key: public_key_bytes.try_into().unwrap(),
                     });
 
                     client

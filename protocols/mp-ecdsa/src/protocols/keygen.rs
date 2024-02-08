@@ -3,7 +3,10 @@ use crate::protocols::util;
 use crate::protocols::util::PublicKeyGossipMessage;
 use async_trait::async_trait;
 use curv::elliptic::curves::Secp256k1;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
+use gadget_common::client::{
+    AccountId, ClientWithApi, GadgetJobResult, GadgetJobType, JobsApiForGadget, JobsClient,
+    MaxKeyLen, MaxParticipants, MaxSignatureLen,
+};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
@@ -16,7 +19,6 @@ use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
 use multi_party_ecdsa::gg_2020::state_machine::keygen::{Keygen, LocalKey};
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use round_based::async_runtime::watcher::StderrWatcher;
 use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
@@ -63,16 +65,7 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     MpEcdsaKeygenProtocol {
         client,
@@ -93,16 +86,7 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     fn name(&self) -> String {
         "mp-ecdsa-keygen".to_string()
@@ -178,7 +162,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
         matches!(job, JobType::DKGTSSPhaseOne(_))
     }
 
@@ -217,16 +201,7 @@ impl<
         N: Network,
     > AsyncProtocol for MpEcdsaKeygenProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type AdditionalParams = MpEcdsaKeygenExtraParams;
     async fn generate_protocol_from(
@@ -371,7 +346,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     i: u16,
     broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: UnboundedReceiver<PublicKeyGossipMessage>,
-) -> Result<JobResult, JobError> {
+) -> Result<GadgetJobResult, JobError> {
     let serialized_public_key = local_key.public_key().to_bytes(true).to_vec();
     let key_hashed = keccak_256(&serialized_public_key);
     let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
@@ -438,14 +413,16 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     let signatures = received_keys
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1)
+        .map(|r| r.1.try_into().unwrap())
         .collect::<Vec<_>>();
 
     let participants = received_participants
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1 .0.to_vec())
-        .collect();
+        .map(|r| r.1 .0.to_vec().try_into().unwrap())
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
 
     if signatures.len() < t as usize {
         return Err(JobError {
@@ -459,7 +436,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
 
     let res = DKGTSSKeySubmissionResult {
         signature_scheme: DigitalSignatureScheme::Ecdsa,
-        key: serialized_public_key,
+        key: serialized_public_key.try_into().unwrap(),
         participants,
         signatures: signatures.try_into().unwrap(),
         threshold: t as _,
@@ -468,7 +445,10 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     Ok(JobResult::DKGPhaseOne(res))
 }
 
-fn verify_generated_dkg_key_ecdsa(data: DKGTSSKeySubmissionResult, logger: &DebugLogger) {
+fn verify_generated_dkg_key_ecdsa(
+    data: DKGTSSKeySubmissionResult<MaxKeyLen, MaxParticipants, MaxSignatureLen>,
+    logger: &DebugLogger,
+) {
     // Ensure participants and signatures are not empty
     assert!(!data.participants.is_empty(), "NoParticipantsFound",);
     assert!(!data.signatures.is_empty(), "NoSignaturesFound");

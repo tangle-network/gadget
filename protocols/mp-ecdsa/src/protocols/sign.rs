@@ -5,7 +5,9 @@ use async_trait::async_trait;
 use curv::arithmetic::Converter;
 use curv::elliptic::curves::Secp256k1;
 use curv::BigInt;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
+use gadget_common::client::{
+    AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient,
+};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
@@ -21,7 +23,6 @@ use multi_party_ecdsa::gg_2020::state_machine::keygen::LocalKey;
 use multi_party_ecdsa::gg_2020::state_machine::sign::{
     CompletedOfflineStage, OfflineStage, PartialSignature, SignManual,
 };
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use round_based::async_runtime::watcher::StderrWatcher;
 use round_based::{Msg, StateMachine};
 use sc_client_api::Backend;
@@ -65,16 +66,7 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     MpEcdsaSigningProtocol {
         client,
@@ -95,16 +87,7 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     fn name(&self) -> String {
         "mp-ecdsa-signing".to_string()
@@ -154,7 +137,7 @@ where
                 signers: (0..participants.len()).map(|r| (r + 1) as u16).collect(),
                 job_id,
                 key,
-                input_data_to_sign,
+                input_data_to_sign: input_data_to_sign.try_into().unwrap(),
                 role_type,
                 user_id_to_account_id_mapping,
             };
@@ -194,7 +177,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
         matches!(job, JobType::DKGTSSPhaseTwo(_))
     }
 
@@ -235,16 +218,7 @@ impl<
         N: Network,
     > AsyncProtocol for MpEcdsaSigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type AdditionalParams = MpEcdsaSigningExtraParams;
     async fn generate_protocol_from(
@@ -363,13 +337,13 @@ where
 
                 // Submit the protocol output to the blockchain
                 if let Some(signature) = protocol_output_clone.lock().await.take() {
-                    let signature: Vec<u8> = signature.0.to_vec();
+                    let signature = signature.0.to_vec().try_into().unwrap();
 
                     let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
                         signature_scheme: DigitalSignatureScheme::Ecdsa,
-                        data: additional_params.input_data_to_sign,
+                        data: additional_params.input_data_to_sign.try_into().unwrap(),
                         signature,
-                        signing_key: public_key_bytes,
+                        signing_key: public_key_bytes.try_into().unwrap(),
                     });
 
                     client

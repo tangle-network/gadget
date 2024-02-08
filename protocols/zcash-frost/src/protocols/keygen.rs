@@ -24,9 +24,7 @@ use sp_application_crypto::sp_core::keccak_256;
 use sp_core::{ecdsa, Pair};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use tangle_primitives::jobs::{
-    DKGTSSKeySubmissionResult, DigitalSignatureScheme, JobId, JobResult, JobType,
-};
+use tangle_primitives::jobs::{DKGTSSKeySubmissionResult, DigitalSignatureScheme, JobId, JobType};
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -55,16 +53,7 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     ZcashFrostKeygenProtocol {
         client,
@@ -84,16 +73,7 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for ZcashFrostKeygenProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     fn name(&self) -> String {
         "zcash-frost-keygen".to_string()
@@ -226,16 +206,7 @@ impl<
         N: Network,
     > AsyncProtocol for ZcashFrostKeygenProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type AdditionalParams = ZcashFrostKeygenExtraParams;
     async fn generate_protocol_from(
@@ -411,7 +382,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     i: u16,
     broadcast_tx_to_outbound: futures::channel::mpsc::UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
-) -> Result<JobResult, JobError> {
+) -> Result<GadgetJobResult, JobError> {
     let key_hashed = keccak_256(public_key_package);
     let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
     let my_id = key_store.pair().public();
@@ -514,7 +485,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
         threshold: t as _,
     };
     verify_generated_dkg_key_ecdsa(res.clone(), logger);
-    Ok(JobResult::DKGPhaseOne(res))
+    Ok(GadgetJobResult::DKGPhaseOne(res))
 }
 
 fn verify_generated_dkg_key_ecdsa(data: DKGTSSKeySubmissionResult, logger: &DebugLogger) {

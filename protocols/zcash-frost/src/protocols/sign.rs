@@ -23,9 +23,7 @@ use sp_api::ProvideRuntimeApi;
 use sp_core::keccak_256;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tangle_primitives::jobs::{
-    DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobResult, JobType,
-};
+use tangle_primitives::jobs::{DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobType};
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -53,16 +51,7 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     ZcashFrostSigningProtocol {
         client,
@@ -82,16 +71,7 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for ZcashFrostSigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     fn name(&self) -> String {
         "zcash-frost-signing".to_string()
@@ -248,16 +228,7 @@ impl<
         N: Network,
     > AsyncProtocol for ZcashFrostSigningProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type AdditionalParams = ZcashFrostSigningExtraParams;
     async fn generate_protocol_from(
@@ -440,7 +411,7 @@ where
                         }
                     };
 
-                    let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
+                    let job_result = GadgetJobResult::DKGPhaseTwo(DKGTSSSignatureResult {
                         signature_type,
                         signature,
                         data: additional_params.input_data_to_sign,

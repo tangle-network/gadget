@@ -11,7 +11,9 @@ use ark_relations::r1cs::SynthesisError;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use async_trait::async_trait;
 use futures_util::TryFutureExt;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
+use gadget_common::client::{
+    AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient, MaxSubmissionLen,
+};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::work_manager::WorkManager;
@@ -22,7 +24,6 @@ use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use groth16::proving_key::PackedProvingKeyShare;
 use mpc_net::{MpcNet, MultiplexedStreamID};
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use sc_client_api::Backend;
 use secret_sharing::pss::PackedSharingParams;
 use sp_api::ProvideRuntimeApi;
@@ -56,16 +57,7 @@ pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {
 #[async_trait]
 impl<B, C, BE> GadgetProtocol<B, BE, C> for ZkProtocol<B, C, BE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
     B: Block,
     C: ClientWithApi<B, BE> + 'static,
     BE: Backend<B> + 'static,
@@ -102,7 +94,7 @@ where
             role_type,
             system: phase_one.system,
             request: phase_two.request,
-            participants,
+            participants: participants.into_inner(),
         };
 
         Ok(params)
@@ -128,7 +120,7 @@ where
         matches!(role, RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16))
     }
 
-    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
         matches!(job, JobType::ZkSaaSPhaseTwo(_))
     }
 
@@ -155,8 +147,8 @@ pub struct ZkJobAdditionalParams {
     party_id: u32,
     job_id: JobId,
     role_type: RoleType,
-    system: ZkSaaSSystem,
-    request: ZkSaaSPhaseTwoRequest,
+    system: ZkSaaSSystem<MaxSubmissionLen>,
+    request: ZkSaaSPhaseTwoRequest<MaxSubmissionLen>,
     participants: Vec<AccountId>,
 }
 
@@ -173,16 +165,7 @@ impl AdditionalProtocolParams for ZkJobAdditionalParams {
 impl<B: Block, C: ClientWithApi<B, BE> + 'static, BE: Backend<B> + 'static> AsyncProtocol
     for ZkProtocol<B, C, BE>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type AdditionalParams = ZkJobAdditionalParams;
 
@@ -406,8 +389,9 @@ where
                     }
                     let mut proof_bytes = Vec::new();
                     proof.serialize_compressed(&mut proof_bytes).unwrap();
-                    let result =
-                        ZkSaaSProofResult::Arkworks(ArkworksProofResult { proof: proof_bytes });
+                    let result = ZkSaaSProofResult::Arkworks(ArkworksProofResult {
+                        proof: proof_bytes.try_into().unwrap(),
+                    });
 
                     client
                         .submit_job_result(

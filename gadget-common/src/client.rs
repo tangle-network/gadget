@@ -17,8 +17,8 @@ use subxt::ext::sp_core::Pair as SubxtPair;
 use subxt::tx::{PairSigner, TxPayload};
 use subxt::utils::H256;
 use subxt::{OnlineClient, PolkadotConfig};
-use tangle_primitives::jobs::RpcResponseJobsData;
-use tangle_primitives::jobs::{JobId, JobResult, PhaseResult};
+use tangle_primitives::jobs::JobId;
+use tangle_primitives::jobs::{PhaseResult, RpcResponseJobsData};
 use tangle_primitives::roles::RoleType;
 
 pub struct JobsClient<B: Block, BE, C> {
@@ -45,16 +45,7 @@ pub async fn create_client<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>(
     pallet_tx: Arc<dyn PalletSubmitter>,
 ) -> Result<JobsClient<B, BE, C>, crate::Error>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     Ok(JobsClient {
         client,
@@ -64,14 +55,41 @@ where
     })
 }
 
-pub type AccountId = sp_core::ecdsa::Public;
+#[cfg(not(feature = "mainnet"))]
+pub mod types {
+    use pallet_jobs_rpc_runtime_api::JobsApi;
+    use sp_runtime::traits::Block;
+    use tangle_primitives::jobs::{JobType, PhaseResult};
 
-pub trait ClientWithApi<B, BE>:
-    BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + Clone + 'static
-where
-    B: Block,
-    BE: Backend<B>,
-    <Self as ProvideRuntimeApi<B>>::Api: JobsApi<
+    pub type AccountId = sp_core::ecdsa::Public;
+    pub type MaxParticipants = tangle_testnet_runtime::MaxParticipants;
+    pub type MaxSubmissionLen = tangle_testnet_runtime::MaxSubmissionLen;
+    pub type MaxKeyLen = tangle_testnet_runtime::MaxKeyLen;
+    pub type MaxDataLen = tangle_testnet_runtime::MaxDataLen;
+    pub type MaxSignatureLen = tangle_testnet_runtime::MaxSignatureLen;
+    pub type MaxProofLen = tangle_testnet_runtime::MaxProofLen;
+    pub type MaxActiveJobsPerValidator = tangle_testnet_runtime::MaxActiveJobsPerValidator;
+    pub type GadgetJobResult = tangle_testnet_runtime::JobResult<
+        MaxParticipants,
+        MaxKeyLen,
+        MaxSignatureLen,
+        MaxDataLen,
+        MaxProofLen,
+    >;
+    pub type GadgetJobType = JobType<AccountId, MaxParticipants, MaxSubmissionLen>;
+    pub type GadgetPhaseResult<B> = PhaseResult<
+        AccountId,
+        B,
+        MaxParticipants,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxSubmissionLen,
+        MaxProofLen,
+    >;
+
+    pub trait JobsApiForGadget<B: Block>:
+        JobsApi<
         B,
         AccountId,
         MaxParticipants,
@@ -80,7 +98,103 @@ where
         MaxDataLen,
         MaxSignatureLen,
         MaxProofLen,
-    >,
+    >
+    {
+    }
+    // Implement JobsApiForGadget for any T that implements JobsApi
+    impl<
+            B: Block,
+            T: JobsApi<
+                B,
+                AccountId,
+                MaxParticipants,
+                MaxSubmissionLen,
+                MaxKeyLen,
+                MaxDataLen,
+                MaxSignatureLen,
+                MaxProofLen,
+            >,
+        > JobsApiForGadget<B> for T
+    {
+    }
+}
+
+#[cfg(feature = "mainnet")]
+pub mod types {
+    use pallet_jobs_rpc_runtime_api::JobsApi;
+    use sp_runtime::traits::Block;
+    use tangle_primitives::jobs::{JobType, PhaseResult};
+
+    pub type AccountId = sp_core::ecdsa::Public;
+    pub type MaxParticipants = tangle_mainnet_runtime::MaxParticipants;
+    pub type MaxSubmissionLen = tangle_mainnet_runtime::MaxSubmissionLen;
+    pub type MaxKeyLen = tangle_mainnet_runtime::MaxKeyLen;
+    pub type MaxDataLen = tangle_mainnet_runtime::MaxDataLen;
+    pub type MaxSignatureLen = tangle_mainnet_runtime::MaxSignatureLen;
+    pub type MaxProofLen = tangle_mainnet_runtime::MaxProofLen;
+    pub type MaxActiveJobsPerValidator = tangle_mainnet_runtime::MaxActiveJobsPerValidator;
+    pub type GadgetJobResult = tangle_mainnet_runtime::JobResult<
+        crate::client::types::MaxParticipants,
+        crate::client::types::MaxKeyLen,
+        crate::client::types::MaxSignatureLen,
+        crate::client::types::MaxDataLen,
+        crate::client::types::MaxProofLen,
+    >;
+    pub type GadgetJobType = JobType<
+        crate::client::types::AccountId,
+        crate::client::types::MaxParticipants,
+        crate::client::types::MaxSubmissionLen,
+    >;
+    pub type GadgetPhaseResult<B> = PhaseResult<
+        crate::client::types::AccountId,
+        B,
+        crate::client::types::MaxParticipants,
+        crate::client::types::MaxKeyLen,
+        crate::client::types::MaxDataLen,
+        crate::client::types::MaxSignatureLen,
+        crate::client::types::MaxSubmissionLen,
+        crate::client::types::MaxProofLen,
+    >;
+
+    pub trait JobsApiForGadget<B: Block>:
+        JobsApi<
+        B,
+        crate::client::types::AccountId,
+        crate::client::types::MaxParticipants,
+        crate::client::types::MaxSubmissionLen,
+        crate::client::types::MaxKeyLen,
+        crate::client::types::MaxDataLen,
+        crate::client::types::MaxSignatureLen,
+        crate::client::types::MaxProofLen,
+    >
+    {
+    }
+    // Implement JobsApiForGadget for any T that implements JobsApi
+    impl<
+            B: Block,
+            T: JobsApi<
+                B,
+                crate::client::types::AccountId,
+                crate::client::types::MaxParticipants,
+                crate::client::types::MaxSubmissionLen,
+                crate::client::types::MaxKeyLen,
+                crate::client::types::MaxDataLen,
+                crate::client::types::MaxSignatureLen,
+                crate::client::types::MaxProofLen,
+            >,
+        > crate::client::types::JobsApiForGadget<B> for T
+    {
+    }
+}
+
+pub use types::*;
+
+pub trait ClientWithApi<B, BE>:
+    BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + Clone + 'static
+where
+    B: Block,
+    BE: Backend<B>,
+    <Self as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
 }
 
@@ -89,32 +203,14 @@ where
     B: Block,
     BE: Backend<B>,
     T: BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + Clone + 'static,
-    <T as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <T as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
 }
 
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> ProvideRuntimeApi<B>
     for JobsClient<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type Api = C::Api;
 
@@ -125,16 +221,7 @@ where
 
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> BlockchainEvents<B> for JobsClient<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     fn import_notification_stream(&self) -> ImportNotifications<B> {
         self.client.import_notification_stream()
@@ -160,16 +247,7 @@ where
 
 impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> JobsClient<B, BE, C>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pub async fn query_jobs_by_validator(
         &self,
@@ -240,7 +318,7 @@ where
         &self,
         role_type: RoleType,
         job_id: JobId,
-        result: JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
+        result: GadgetJobResult,
     ) -> Result<(), crate::Error> {
         self.pallet_tx
             .submit_job_result(role_type, job_id, result)
@@ -254,16 +332,7 @@ where
     B: Block,
     BE: Backend<B>,
     C: ClientWithApi<B, BE>,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>> {
         self.client.get_next_finality_notification().await
@@ -285,7 +354,7 @@ pub trait PalletSubmitter: Send + Sync + 'static {
         &self,
         role_type: RoleType,
         job_id: JobId,
-        result: JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
+        result: GadgetJobResult,
     ) -> Result<(), crate::Error>;
 }
 
@@ -300,7 +369,7 @@ impl PalletSubmitter for SubxtPalletSubmitter {
         &self,
         role_type: RoleType,
         job_id: JobId,
-        result: JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
+        result: GadgetJobResult,
     ) -> Result<(), crate::Error> {
         let tx = tangle::tx().jobs().submit_job_result(
             Decode::decode(&mut role_type.encode().as_slice()).expect("Should decode"),

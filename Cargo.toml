@@ -8,9 +8,10 @@ members = [
     "protocols/dfns-cggmp21",
     "protocols/zk-saas",
     "protocols/zcash-frost",
+    "protocols/bls",
     "protocols/stub",
     "test-utils",
-    "protocol-macros"
+    "protocol-macros",
 ]
 
 [workspace.dependencies]
@@ -18,19 +19,21 @@ gadget-core = { path = "./gadget-core" }
 gadget-common = { path = "./gadget-common" }
 zk-saas-protocol = { path = "./protocols/zk-saas" }
 mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
+threshold-bls-protocol = { path = "./protocols/bls" }
 stub-protocol = { path = "./protocols/stub" }
 test-utils = { path = "./test-utils" }
 protocol-macros = { path = "./protocol-macros" }
 dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
 zcash-frost-protocol = { path = "./protocols/zcash-frost" }
 
-pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle" }
-pallet-jobs = { git = "https://github.com/webb-tools/tangle" }
-pallet-dkg = { git = "https://github.com/webb-tools/tangle" }
-pallet-zksaas = { git = "https://github.com/webb-tools/tangle" }
-tangle-primitives = { git = "https://github.com/webb-tools/tangle" }
-tangle-testnet-runtime = { git = "https://github.com/webb-tools/tangle" }
-tangle-mainnet-runtime = { package = "tangle-runtime", git = "https://github.com/webb-tools/tangle" }
+gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
+pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git" }
+pallet-jobs = { git = "https://github.com/webb-tools/tangle.git" }
+pallet-dkg = { git = "https://github.com/webb-tools/tangle.git" }
+pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git" }
+tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
+tangle-testnet-runtime = { git = "https://github.com/webb-tools/tangle.git" }
+tangle-mainnet-runtime = { package = "tangle-runtime", git = "https://github.com/webb-tools/tangle.git" }
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
@@ -45,6 +48,7 @@ frost-p384 = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-ristretto255 = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-secp256k1 = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-rerandomized = { git = "https://github.com/LIT-Protocol/frost.git" }
+bls12_381_plus = "0.8.13"
 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
@@ -140,3 +144,4 @@ anyhow = "1.0.79"
 libsecp256k1 = "0.7.1"
 rayon = { version = "1.8.0" }
 thiserror = { version = "1.0" }
+blst = "0.3.11"

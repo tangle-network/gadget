@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
+use gadget_common::client::{
+    AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient,
+};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
@@ -12,7 +14,6 @@ use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use rand::SeedableRng;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
@@ -46,16 +47,7 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     DfnsCGGMP21KeyRefreshProtocol {
         client,
@@ -75,16 +67,7 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for DfnsCGGMP21KeyRefreshProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     fn name(&self) -> String {
         "dfns-cggmp21-key-refresh".to_string()
@@ -177,7 +160,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
         matches!(job, JobType::DKGTSSPhaseThree(_))
     }
 
@@ -216,16 +199,7 @@ impl<
         N: Network,
     > AsyncProtocol for DfnsCGGMP21KeyRefreshProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type AdditionalParams = DfnsCGGMP21KeyRefreshExtraParams;
     async fn generate_protocol_from(
