@@ -22,6 +22,3 @@ brew install gmp
 export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
 export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
 ```
-
-#### WASM build issues
-Make sure to set the environment variable `SKIP_WASM_BUILD="true"` to bypass any compilations of the tangle runtime into wasm artifacts

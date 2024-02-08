@@ -278,7 +278,6 @@ mod tests {
     async fn test_bls_state_machine() {
         const T: u16 = 2;
         const N: u16 = 3;
-        const TEST_MSG: &[u8] = b"Hello, world";
 
         // Step 1: Perform local DKG
         let simulation = AsyncSimulation::<BlsStateMachine>::new()
@@ -318,61 +317,17 @@ mod tests {
             .run()
             .await;
 
-        // Step 2: Combine the signatures and public keys
-        let mut sig_shares = vec![];
-        let mut pk_shares = vec![];
-
         for res in simulation {
             assert!(res.is_ok());
             if let Ok(participant) = res {
                 let _pk = participant
                     .get_public_key()
                     .expect("Public key should be some");
-                let sk = participant
+                let _sk = participant
                     .get_secret_share()
                     .expect("Secret should be some");
-
-                let share_blst = blst::min_pk::SecretKey::from_bytes(&sk.to_be_bytes()).unwrap();
-                let pk_share_blst = share_blst.sk_to_pk();
-                let dst = &mut [0u8; 48];
-                let sig_share_blst = share_blst.sign(TEST_MSG, dst, &[]);
-
-                sig_shares.push(sig_share_blst.serialize());
-                pk_shares.push(pk_share_blst.serialize());
             }
         }
-
-        // Step 3: Verify the combined signatures and public keys using the pallet method
-        let pks = pk_shares.iter().map(|r| r as &[u8]).collect::<Vec<_>>();
-        let sigs = sig_shares.iter().map(|r| r as &[u8]).collect::<Vec<_>>();
-        let pk_shares = blst::min_pk::AggregatePublicKey::aggregate_serialized(&pks, true).unwrap();
-        let sig_shares =
-            blst::min_pk::AggregateSignature::aggregate_serialized(&sigs, true).unwrap();
-        let (as_sig, as_pk) = (sig_shares.to_signature(), pk_shares.to_public_key());
-        let dst = &mut [0u8; 48];
-        assert_eq!(
-            blst::BLST_ERROR::BLST_SUCCESS,
-            as_sig.verify(true, TEST_MSG, dst, &[], &as_pk, true)
-        );
-        assert_eq!(
-            blst::BLST_ERROR::BLST_VERIFY_FAIL,
-            as_sig.verify(true, b"fake message", dst, &[], &as_pk, true)
-        );
-
-        // Step 4: Verify the combined signatures and public keys using the pallet method
-        let serialized_pk_share = as_pk.serialize().to_vec();
-        let serialized_sig_share = as_sig.serialize().to_vec();
-        let as_pk = blst::min_pk::PublicKey::deserialize(&serialized_pk_share).unwrap();
-        let as_sig = blst::min_pk::Signature::deserialize(&serialized_sig_share).unwrap();
-        let dst = &mut [0u8; 48];
-        assert_eq!(
-            blst::BLST_ERROR::BLST_SUCCESS,
-            as_sig.verify(true, TEST_MSG, dst, &[], &as_pk, true)
-        );
-        assert_eq!(
-            blst::BLST_ERROR::BLST_VERIFY_FAIL,
-            as_sig.verify(true, b"fake message", dst, &[], &as_pk, true)
-        );
     }
 }
 

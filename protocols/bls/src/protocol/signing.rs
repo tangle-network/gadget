@@ -207,25 +207,20 @@ where
                     reason: "Failed to get secret share".to_string(),
                 })?;
 
-                let share =
-                    blst::min_pk::SecretKey::from_bytes(&sk.to_be_bytes()).map_err(|e| {
-                        JobError {
-                            reason: format!("Failed to create secret key: {e:?}"),
-                        }
+                let share = snowbridge_milagro_bls::SecretKey::from_bytes(&sk.to_be_bytes())
+                    .map_err(|e| JobError {
+                        reason: format!("Failed to create secret key: {e:?}"),
                     })?;
 
-                let dst = &mut [0u8; 48];
-                let sig_share = share.sign(&additional_params.input_data_to_sign, dst, &[]);
-                let pk_share = share.sk_to_pk();
+                let sign_input = keccak_256(&additional_params.input_data_to_sign);
+                let sig_share = snowbridge_milagro_bls::Signature::new(&sign_input, &share);
+                let pk_share = snowbridge_milagro_bls::PublicKey::from_secret_key(&share);
 
                 // Step 2: Broadcast shares
                 let msg = Msg {
                     sender: additional_params.i,
                     receiver: None,
-                    body: (
-                        sig_share.serialize().to_vec(),
-                        pk_share.serialize().to_vec(),
-                    ),
+                    body: (sig_share.as_bytes().to_vec(), pk_share.as_bytes().to_vec()),
                 };
 
                 tx1.send(msg).map_err(|e| JobError {
@@ -244,11 +239,15 @@ where
                     })?;
 
                     let (sender, (sig, pk)) = (msg.sender, msg.body);
-                    let pk = blst::min_pk::PublicKey::from_bytes(&pk).map_err(|e| JobError {
-                        reason: format!("Failed to create public key: {e:?}"),
+                    let pk = snowbridge_milagro_bls::PublicKey::from_bytes(&pk).map_err(|e| {
+                        JobError {
+                            reason: format!("Failed to create public key: {e:?}"),
+                        }
                     })?;
-                    let sig = blst::min_pk::Signature::from_bytes(&sig).map_err(|e| JobError {
-                        reason: format!("Failed to create signature: {e:?}"),
+                    let sig = snowbridge_milagro_bls::Signature::from_bytes(&sig).map_err(|e| {
+                        JobError {
+                            reason: format!("Failed to create signature: {e:?}"),
+                        }
                     })?;
                     received_pk_shares.insert(sender, pk);
                     received_sig_shares.insert(sender, sig);
@@ -269,41 +268,39 @@ where
                     .map(|r| r.1)
                     .collect::<Vec<_>>();
 
-                let combined_signature = blst::min_pk::AggregateSignature::aggregate(
+                let combined_signature = snowbridge_milagro_bls::AggregateSignature::aggregate(
                     &sig_shares.iter().collect::<Vec<_>>(),
-                    true,
-                )
-                .map_err(|e| JobError {
-                    reason: format!("Failed to aggregate signatures: {e:?}"),
-                })?;
+                );
 
-                let pk_agg = blst::min_pk::AggregatePublicKey::aggregate(
+                let pk_agg = snowbridge_milagro_bls::AggregatePublicKey::aggregate(
                     &pk_shares.iter().collect::<Vec<_>>(),
-                    true,
                 )
                 .map_err(|e| JobError {
                     reason: format!("Failed to aggregate public keys: {e:?}"),
                 })?;
 
-                let (as_pk, as_sig) = (pk_agg.to_public_key(), combined_signature.to_signature());
+                let input = &mut [0u8; 97];
+                pk_agg.point.to_bytes(input, false);
 
-                let dst = &mut [0u8; 48];
-                if as_sig.verify(
-                    true,
-                    &additional_params.input_data_to_sign,
-                    dst,
-                    &[],
-                    &as_pk,
-                    true,
-                ) != blst::BLST_ERROR::BLST_SUCCESS
-                {
+                let as_pk = snowbridge_milagro_bls::PublicKey::from_uncompressed_bytes(&input[1..])
+                    .map_err(|e| JobError {
+                        reason: format!("Failed to create public key: {e:?}"),
+                    })?;
+
+                let as_sig =
+                    snowbridge_milagro_bls::Signature::from_bytes(&combined_signature.as_bytes())
+                        .map_err(|e| JobError {
+                        reason: format!("Failed to create signature: {e:?}"),
+                    })?;
+
+                if !as_sig.verify(&sign_input, &as_pk) {
                     return Err(JobError {
-                        reason: "Failed to verify signature".to_string(),
+                        reason: "Failed to verify signature locally".to_string(),
                     });
                 }
 
-                let signing_key = as_pk.serialize().to_vec();
-                let signature = as_sig.serialize().to_vec();
+                let signing_key = as_pk.as_uncompressed_bytes().to_vec();
+                let signature = as_sig.as_bytes().to_vec();
 
                 logger.info("BlsSigningProtocol finished verification stage");
                 let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {

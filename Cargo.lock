@@ -1637,6 +1637,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cobs"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67ba02a97a2bd10f4b59b25c7973101c79642302776489e030cd13cdab09ed15"
+
+[[package]]
 name = "codespan-reporting"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3759,7 +3765,7 @@ dependencies = [
 [[package]]
 name = "evm-tracer"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "ethereum-types 0.14.1",
  "evm",
@@ -3779,7 +3785,7 @@ dependencies = [
 [[package]]
 name = "evm-tracing-events"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "environmental",
  "ethereum",
@@ -4424,7 +4430,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "debugless-unwrap",
  "hex",
@@ -4439,7 +4445,7 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "frost-core",
@@ -4452,7 +4458,7 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "ed448-goldilocks-plus",
  "frost-core",
@@ -4465,7 +4471,7 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "frost-core",
  "p256 0.13.2",
@@ -4478,7 +4484,7 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "frost-core",
  "p384",
@@ -4491,7 +4497,7 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "frost-core",
@@ -4504,7 +4510,7 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "frost-core",
  "k256",
@@ -5617,9 +5623,9 @@ checksum = "b1a46d1a171d865aa5f83f92695765caa047a9b4cbae2cbf37dbd613a793fd4c"
 
 [[package]]
 name = "jobserver"
-version = "0.1.27"
+version = "0.1.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c37f63953c4c63420ed5fd3d6d398c719489b9f872b9fa683262f8edd363c7d"
+checksum = "ab46a6e9526ddef3ae7f787c06f0f2600639ba80ea3eade3d8e670a2230f51d6"
 dependencies = [
  "libc",
 ]
@@ -7227,19 +7233,18 @@ dependencies = [
 
 [[package]]
 name = "num-integer"
-version = "0.1.45"
+version = "0.1.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "225d3389fb3509a24c93f5c29eb6bde2586b98d9f016636dff58d7c6f7569cd9"
+checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
 dependencies = [
- "autocfg 1.1.0",
  "num-traits",
 ]
 
 [[package]]
 name = "num-iter"
-version = "0.1.43"
+version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d03e6c028c5dc5cac6e2dec0efda81fc887605bb3d884578bb6d6bf7514e252"
+checksum = "d869c01cc0c455284163fd0092f1f93835385ccab5a98a0dcc497b2f8bf055a9"
 dependencies = [
  "autocfg 1.1.0",
  "num-integer",
@@ -7260,9 +7265,9 @@ dependencies = [
 
 [[package]]
 name = "num-traits"
-version = "0.2.17"
+version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39e3200413f237f41ab11ad6d161bc7239c84dcb631773ccd7de3dfe4b5c267c"
+checksum = "da0df0e5185db44f69b44f26786fe401b6c293d1907744beaa7fa62b2e5a517a"
 dependencies = [
  "autocfg 1.1.0",
  "libm",
@@ -7548,7 +7553,7 @@ dependencies = [
 [[package]]
 name = "pallet-airdrop-claims"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7732,9 +7737,9 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
- "blst",
+ "digest 0.10.7",
  "elliptic-curve 0.13.8",
  "frame-support",
  "frame-system",
@@ -7745,10 +7750,18 @@ dependencies = [
  "frost-p384",
  "frost-ristretto255",
  "frost-secp256k1",
+ "generic-ec",
+ "generic-ec-zkp",
+ "hex",
  "parity-scale-codec 3.6.9",
+ "postcard",
+ "rand_core 0.6.4",
  "scale-info",
  "serde",
+ "serde_with 3.6.0",
  "serdect",
+ "sha2 0.10.8",
+ "snowbridge-milagro-bls",
  "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-io 23.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
  "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
@@ -7756,6 +7769,7 @@ dependencies = [
  "subtle",
  "tangle-crypto-primitives",
  "tangle-primitives",
+ "udigest",
 ]
 
 [[package]]
@@ -7934,7 +7948,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-batch"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "evm",
  "evm-runtime",
@@ -7974,7 +7988,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-call-permit"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8005,7 +8019,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-democracy"
 version = "0.2.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8047,7 +8061,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-jobs"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8077,7 +8091,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-preimage"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8097,7 +8111,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-proxy"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8119,7 +8133,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-registry"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8155,7 +8169,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-staking"
 version = "1.0.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8177,7 +8191,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-vesting"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8306,7 +8320,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8323,7 +8337,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -8419,7 +8433,7 @@ dependencies = [
 [[package]]
 name = "pallet-roles"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -8552,7 +8566,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-pause"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8642,7 +8656,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9103,6 +9117,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "postcard"
+version = "1.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a55c51ee6c0db07e68448e336cf8ea4131a620edefebf9893e759b2d793420f8"
+dependencies = [
+ "cobs",
+ "serde",
+]
+
+[[package]]
 name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9117,7 +9141,7 @@ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 [[package]]
 name = "precompile-utils"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "affix",
  "environmental",
@@ -9143,7 +9167,7 @@ dependencies = [
 [[package]]
 name = "precompile-utils-macro"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "case",
  "num_enum 0.5.11",
@@ -9255,7 +9279,7 @@ dependencies = [
 [[package]]
 name = "primitives-ext"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "ethereum-types 0.14.1",
  "evm-tracing-events",
@@ -10189,7 +10213,7 @@ dependencies = [
 [[package]]
 name = "rpc-primitives-debug"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "environmental",
  "ethereum",
@@ -10207,7 +10231,7 @@ dependencies = [
 [[package]]
 name = "rpc-primitives-txpool"
 version = "0.6.0"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "ethereum",
  "parity-scale-codec 3.6.9",
@@ -11683,6 +11707,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "snowbridge-amcl"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "460a9ed63cdf03c1b9847e8a12a5f5ba19c4efd5869e4a737e05be25d7c427e5"
+dependencies = [
+ "parity-scale-codec 3.6.9",
+ "scale-info",
+]
+
+[[package]]
+name = "snowbridge-milagro-bls"
+version = "1.5.4"
+source = "git+https://github.com/Snowfork/milagro_bls?rev=43a5d480ed6e3b83de4cf54888680d51604199e6#43a5d480ed6e3b83de4cf54888680d51604199e6"
+dependencies = [
+ "hex",
+ "lazy_static",
+ "parity-scale-codec 3.6.9",
+ "rand 0.8.5",
+ "scale-info",
+ "snowbridge-amcl",
+ "zeroize",
+]
+
+[[package]]
 name = "socket2"
 version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13126,9 +13174,9 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "stark-curve"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f357220731130667173ede5f8f9763eba482bdec60cd91a535156537635cdbcc"
+checksum = "13ffed6a893a0438ef248355db18ea1d2c49f6bd38f1f099a709e0d181e41a21"
 dependencies = [
  "ff 0.13.0",
  "hex-literal 0.3.4",
@@ -13580,7 +13628,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -13590,7 +13638,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -13617,7 +13665,7 @@ dependencies = [
 [[package]]
 name = "tangle-runtime"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "evm-tracer",
  "fp-account",
@@ -13719,7 +13767,7 @@ dependencies = [
 [[package]]
 name = "tangle-testnet-runtime"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#68fca9b95a1de188b8638dce65babbbf91e8dba2"
+source = "git+https://github.com/webb-tools/tangle/#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
 dependencies = [
  "evm-tracer",
  "fp-account",
@@ -14017,7 +14065,6 @@ dependencies = [
  "async-trait",
  "bincode2",
  "bls12_381_plus",
- "blst",
  "futures",
  "gadget-common",
  "gennaro-dkg",
@@ -14027,6 +14074,7 @@ dependencies = [
  "rand 0.8.5",
  "round-based 0.1.7",
  "serde",
+ "snowbridge-milagro-bls",
  "tangle-primitives",
  "test-utils",
  "tokio",

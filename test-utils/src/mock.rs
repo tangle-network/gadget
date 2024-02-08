@@ -56,6 +56,7 @@ use tangle_primitives::jobs::{
     JobId, JobResult, JobSubmission, JobType, JobWithResult, PhaseResult, ReportValidatorOffence,
     RpcResponseJobsData, ValidatorOffenceType,
 };
+use tangle_primitives::misbehavior::{MisbehaviorHandler, MisbehaviorSubmission};
 use tangle_primitives::roles::traits::RolesHandler;
 use tangle_primitives::roles::RoleType;
 use tangle_primitives::verifier::{
@@ -227,6 +228,15 @@ impl pallet_jobs::Config for Runtime {
     type MaxActiveJobsPerValidator = MaxActiveJobsPerValidator;
     type PalletId = JobsPalletId;
     type WeightInfo = ();
+    type MisbehaviorHandler = MockMisbehaviorHandler;
+}
+
+pub struct MockMisbehaviorHandler;
+
+impl MisbehaviorHandler for MockMisbehaviorHandler {
+    fn verify(_data: MisbehaviorSubmission) -> DispatchResult {
+        Ok(())
+    }
 }
 
 impl pallet_dkg::Config for Runtime {
