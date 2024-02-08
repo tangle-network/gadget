@@ -22,8 +22,8 @@ round-based = { workspace = true, features = ["dev"] }
 rand = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
-blst = { workspace = true }
 bls12_381_plus = { workspace = true }
+snowbridge-milagro-bls = { workspace = true }
 
 [dev-dependencies]
 log = { workspace = true }

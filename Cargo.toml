@@ -26,6 +26,7 @@ protocol-macros = { path = "./protocol-macros" }
 dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
 zcash-frost-protocol = { path = "./protocols/zcash-frost" }
 
+snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
 pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git" }
 pallet-jobs = { git = "https://github.com/webb-tools/tangle.git" }
@@ -144,4 +145,3 @@ anyhow = "1.0.79"
 libsecp256k1 = "0.7.1"
 rayon = { version = "1.8.0" }
 thiserror = { version = "1.0" }
-blst = "0.3.11"
