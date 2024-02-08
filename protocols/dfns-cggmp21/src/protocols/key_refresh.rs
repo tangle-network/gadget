@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient};
+use gadget_common::client::{
+    AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient,
+};
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
@@ -12,7 +14,6 @@ use gadget_common::protocol::AsyncProtocol;
 use gadget_common::{Block, BlockImportNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use pallet_jobs_rpc_runtime_api::JobsApi;
 use rand::SeedableRng;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
@@ -20,7 +21,7 @@ use sp_application_crypto::sp_core::keccak_256;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::{
-    DKGTSSKeyRefreshResult, DigitalSignatureType, JobId, JobResult, JobType,
+    DKGTSSKeyRefreshResult, DigitalSignatureScheme, JobId, JobResult, JobType,
 };
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -46,7 +47,7 @@ where
     C: ClientWithApi<B, BE>,
     KBE: KeystoreBackend,
     N: Network,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     DfnsCGGMP21KeyRefreshProtocol {
         client,
@@ -66,7 +67,7 @@ impl<
         N: Network,
     > GadgetProtocol<B, BE, C> for DfnsCGGMP21KeyRefreshProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     fn name(&self) -> String {
         "dfns-cggmp21-key-refresh".to_string()
@@ -159,7 +160,7 @@ where
         )
     }
 
-    fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
         matches!(job, JobType::DKGTSSPhaseThree(_))
     }
 
@@ -198,7 +199,7 @@ impl<
         N: Network,
     > AsyncProtocol for DfnsCGGMP21KeyRefreshProtocol<B, BE, KBE, C, N>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     type AdditionalParams = DfnsCGGMP21KeyRefreshExtraParams;
     async fn generate_protocol_from(
@@ -279,7 +280,7 @@ where
                 logger.debug("Finished AsyncProtocol - KeyRefresh");
 
                 let job_result = JobResult::DKGPhaseThree(DKGTSSKeyRefreshResult {
-                    signature_type: DigitalSignatureType::Ecdsa,
+                    signature_scheme: DigitalSignatureScheme::Ecdsa,
                 });
                 *protocol_output.lock().await = Some((key, job_result));
                 Ok(())

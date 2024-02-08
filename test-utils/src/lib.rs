@@ -1,9 +1,9 @@
 use crate::mock::{Jobs, Runtime};
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
-use gadget_common::client::AccountId;
+use gadget_common::client::GadgetPhaseResult;
 use pallet_jobs::{SubmittedJobs, SubmittedJobsRole};
 use std::time::Duration;
-use tangle_primitives::jobs::{JobId, PhaseResult};
+use tangle_primitives::jobs::JobId;
 use tangle_primitives::roles::RoleType;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
@@ -29,7 +29,7 @@ pub async fn wait_for_job_completion(
     ext: &MultiThreadedTestExternalities,
     role_type: RoleType,
     job_id: JobId,
-) -> PhaseResult<AccountId, u64> {
+) -> GadgetPhaseResult<mock::BlockNumber> {
     loop {
         tokio::time::sleep(Duration::from_millis(100)).await;
         if let Some(ret) = ext

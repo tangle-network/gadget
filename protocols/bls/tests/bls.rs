@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use futures::stream::FuturesUnordered;
-    use futures::StreamExt;
+    use std::sync::Arc;
     use tangle_primitives::jobs::{
         DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
     };
@@ -41,28 +40,6 @@ mod tests {
         assert_eq!(wait_for_signing::<N>(&ext, keygen_job_id).await, 1);
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    #[ignore = "takes a long time to work on CI"]
-    async fn test_externalities_parallel_jobs() {
-        test_utils::setup_log();
-        const N: usize = 3;
-        const T: usize = N - 1;
-        const TEST_COUNT: usize = 2;
-
-        let ext = new_test_ext::<N>().await;
-        let futures = FuturesUnordered::new();
-
-        for _ in 0..TEST_COUNT {
-            let ext = ext.clone();
-            futures.push(Box::pin(async move {
-                let keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
-                wait_for_signing::<N>(&ext, keygen_job_id).await;
-            }));
-        }
-
-        futures.collect::<()>().await;
-    }
-
     async fn wait_for_keygen<const N: usize, const T: usize>(
         ext: &MultiThreadedTestExternalities,
     ) -> JobId {
@@ -78,7 +55,7 @@ mod tests {
                         participants: identities.clone().try_into().unwrap(),
                         threshold: T as _,
                         permitted_caller: None,
-                        role_type: ThresholdSignatureRoleType::ZengoGG20Secp256k1,
+                        role_type: ThresholdSignatureRoleType::GennaroDKGBls381,
                     }),
                 };
 
@@ -91,7 +68,7 @@ mod tests {
 
         test_utils::wait_for_job_completion(
             ext,
-            RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1),
+            RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381),
             job_id,
         )
         .await;
@@ -112,7 +89,7 @@ mod tests {
                     job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
                         phase_one_id: keygen_job_id,
                         submission: Vec::from("Hello, world!").try_into().unwrap(),
-                        role_type: ThresholdSignatureRoleType::ZengoGG20Secp256k1,
+                        role_type: ThresholdSignatureRoleType::GennaroDKGBls381,
                     }),
                 };
 
@@ -125,7 +102,7 @@ mod tests {
 
         test_utils::wait_for_job_completion(
             ext,
-            RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1),
+            RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381),
             job_id,
         )
         .await;
@@ -145,15 +122,16 @@ mod tests {
             let logger = node_input.logger.clone();
             let (pallet_tx, keystore) = (node_input.pallet_tx, node_input.keystore);
             logger.info("Starting gadget");
-            if let Err(err) = mp_ecdsa_protocol::run::<_, MockBackend, _, _, _, _, _>(
-                account_id,
+
+            if let Err(err) = threshold_bls_protocol::run::<_, MockBackend, _, _, _>(
                 keygen_client,
                 signing_client,
-                logger.clone(),
-                keystore,
+                Arc::new(pallet_tx),
+                logger,
                 keygen_network,
                 signing_network,
-                pallet_tx,
+                account_id,
+                keystore,
             )
             .await
             {

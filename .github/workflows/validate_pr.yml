@@ -11,6 +11,7 @@ concurrency:
 env:
   RUST_BACKTRACE: full
   RUST_LOG: "gadget=trace"
+  SKIP_WASM_BUILD: "true"
 
 jobs:
   formatting:
@@ -48,13 +49,32 @@ jobs:
       - name: Run Clippy
         run: cargo clippy --tests -- -D warnings
 
+  linting-mainnet:
+    name: Clippy-Mainnet
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+
+      - name: Install protobuf
+        run: sudo apt-get install protobuf-compiler
+
+      - name: Run Clippy
+        run: cargo clippy --tests --features=mainnet -- -D warnings
+
   testing:
     timeout-minutes: 120
     name: Cargo Test
     runs-on: macos-latest
     strategy:
         matrix:
-            package: [gadget-core, gadget-common, zk-saas-protocol, dfns-cggmp21-protocol]
+            package: [gadget-core, gadget-common, zk-saas-protocol, dfns-cggmp21-protocol, threshold-bls-protocol]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2

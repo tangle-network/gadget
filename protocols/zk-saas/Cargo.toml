@@ -3,7 +3,14 @@ name = "zk-saas-protocol"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+mainnet = ["gadget-common/mainnet"]
+
+parallel = [
+    "ark-std/parallel",
+    # "groth16/parallel",
+    "rayon"
+]
 
 [dependencies]
 protocol-macros = { workspace = true }
@@ -53,10 +60,4 @@ ark-std = { workspace = true, default-features = false }
 frame-support = { workspace = true }
 test-utils = { workspace = true }
 rcgen = "0.12.0"
-
-[features]
-parallel = [
-  "ark-std/parallel",
-  # "groth16/parallel",
-  "rayon"
-]
+tangle-testnet-runtime = { workspace = true, features = ["local-testing"] }

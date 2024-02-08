@@ -1,7 +1,7 @@
 use crate::network::RegistantId;
 use async_trait::async_trait;
 use bytes::Bytes;
-use gadget_common::client::{AccountId, ClientWithApi};
+use gadget_common::client::{ClientWithApi, JobsApiForGadget};
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
@@ -43,7 +43,7 @@ pub(crate) struct MpcNetMessage {
 impl<B: Send + Sync, N: Network, C: ClientWithApi<Bl, BE>, Bl: Block, BE: Backend<Bl>> MpcNet
     for ZkAsyncProtocolParameters<B, N, C, Bl, BE>
 where
-    <C as ProvideRuntimeApi<Bl>>::Api: pallet_jobs_rpc_runtime_api::JobsApi<Bl, AccountId>,
+    <C as ProvideRuntimeApi<Bl>>::Api: JobsApiForGadget<Bl>,
 {
     fn n_parties(&self) -> usize {
         self.n_parties

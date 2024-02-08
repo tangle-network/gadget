@@ -1,4 +1,4 @@
-use crate::client::{create_client, JobsClient, PalletSubmitter};
+use crate::client::{create_client, JobsApiForGadget, JobsClient, PalletSubmitter};
 pub use crate::client::{AccountId, ClientWithApi};
 pub use crate::debug_logger::DebugLogger;
 pub use crate::gadget::network::Network;
@@ -13,7 +13,7 @@ use std::sync::Arc;
 #[async_trait]
 pub trait ProtocolConfig
 where
-    <<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block>>::Api: JobsApi<<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block, AccountId>,
+    <<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block>>::Api: JobsApiForGadget<<Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block>,
     Self: Sized,
 {
     type Network: Network;
@@ -68,10 +68,7 @@ pub trait NetworkAndProtocolSetup
 where
     <<Self as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<
         <Self as NetworkAndProtocolSetup>::Block,
-    >>::Api: pallet_jobs_rpc_runtime_api::JobsApi<
-        <Self as NetworkAndProtocolSetup>::Block,
-        sp_core::ecdsa::Public,
-    >,
+    >>::Api: JobsApiForGadget<<Self as NetworkAndProtocolSetup>::Block>,
 {
     type Network;
     type Protocol;
