@@ -1,5 +1,4 @@
 use dfns_cggmp21::progress::Tracer;
-use dfns_cggmp21::round_based::ProtocolMessage;
 use frost_core::keys::{KeyPackage, PublicKeyPackage};
 use frost_core::round1::{SigningCommitments, SigningNonces};
 use frost_core::round2::{self, SignatureShare};
@@ -7,7 +6,9 @@ use frost_core::{aggregate, round1, Ciphersuite, Field, Group, Identifier, Signi
 use futures::SinkExt;
 use rand_core::{CryptoRng, RngCore};
 use round_based::rounds_router::simple_store::RoundInput;
+
 use round_based::rounds_router::RoundsRouter;
+use round_based::ProtocolMessage;
 use round_based::{Delivery, Mpc, MpcParty, Outgoing};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -69,7 +70,7 @@ where
     tracer.stage("Setup networking");
     let MpcParty { delivery, .. } = party.into_party();
     let (incomings, mut outgoings) = delivery.split();
-
+    println!("Signers: {:?}", signers);
     let mut rounds = RoundsRouter::<Msg>::builder();
     let round1 = rounds.add_round(RoundInput::<MsgRound1>::broadcast(i, signers.len() as u16));
     let round2 = rounds.add_round(RoundInput::<MsgRound2>::broadcast(i, signers.len() as u16));
@@ -94,15 +95,19 @@ where
     tracer.round_begins();
 
     tracer.receive_msgs();
-    let round1_signing_commitments: BTreeMap<Identifier<C>, SigningCommitments<C>> = rounds
+    let round1_msgs: Vec<MsgRound1> = rounds
         .complete(round1)
         .await
         .map_err(|e| SignError(Reason::IoError(IoError::receive_message(e))))?
-        .into_iter_indexed()
-        .map(|(party_inx, _msg_id, msg)| {
+        .into_vec_including_me(my_round1_msg);
+
+    let round1_signing_commitments: BTreeMap<Identifier<C>, SigningCommitments<C>> = round1_msgs
+        .into_iter()
+        .enumerate()
+        .map(|(party_inx, msg)| {
             let msg = SigningCommitments::<C>::deserialize(&msg.msg)
                 .unwrap_or_else(|_| panic!("Failed to deserialize round 1 signing commitments"));
-            let participant_identifier = Identifier::<C>::try_from(party_inx)
+            let participant_identifier = Identifier::<C>::try_from((party_inx + 1) as u16)
                 .expect("Failed to convert party index to identifier");
             (participant_identifier, msg)
         })
@@ -137,7 +142,7 @@ where
         .into_iter()
         .enumerate()
         .map(|(party_inx, msg)| {
-            let participant_identifier = Identifier::<C>::try_from(party_inx as u16)
+            let participant_identifier = Identifier::<C>::try_from((party_inx + 1) as u16)
                 .expect("Failed to convert party index to identifier");
             let ser = <<C::Group as Group>::Field as Field>::Serialization::try_from(msg.msg)
                 .map_err(|_e| SignError(Reason::<C>::SerializationError))
@@ -212,6 +217,11 @@ fn participant_round2<C: Ciphersuite>(
         _ => panic!("Invalid role"),
     };
 
+    println!("Min signers: {:?}", key_package.min_signers());
+    println!(
+        "Signing package commits: {:?}",
+        signing_package.signing_commitments().len()
+    );
     round2::sign(signing_package, nonces, key_package).map_err(|e| {
         SignError(Reason::SignFailure(SignAborted::FrostError {
             parties: vec![],

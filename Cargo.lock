@@ -1366,9 +1366,9 @@ dependencies = [
 
 [[package]]
 name = "bytemuck"
-version = "1.14.2"
+version = "1.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea31d69bda4949c1c1562c1e6f042a1caefac98cdc8a298260a2ff41c1e2d42b"
+checksum = "a2ef034f05691a48569bd920a96c81b9d91bbad1ab5ac7c4616c1f6ef36cb79f"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -1424,9 +1424,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-platform"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ceed8ef69d8518a5dda55c07425450b58a4e1946f4951eab6d7191ee86c2443d"
+checksum = "694c8807f2ae16faecc43dc17d74b3eb042482789fd0eb64b39a2e04e087053f"
 dependencies = [
  "serde",
 ]
@@ -1498,9 +1498,9 @@ dependencies = [
 
 [[package]]
 name = "cfg-expr"
-version = "0.15.6"
+version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6100bc57b6209840798d95cb2775684849d332f7bd788db2a8c8caf7ef82a41a"
+checksum = "fa50868b64a9a6fda9d593ce778849ea8715cd2a3d2cc17ffdb4a2f2f2f1961d"
 dependencies = [
  "smallvec",
 ]
@@ -3868,7 +3868,7 @@ dependencies = [
 [[package]]
 name = "evm-tracer"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "ethereum-types 0.14.1",
  "evm",
@@ -3888,7 +3888,7 @@ dependencies = [
 [[package]]
 name = "evm-tracing-events"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "environmental",
  "ethereum",
@@ -4533,7 +4533,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "debugless-unwrap",
  "hex",
@@ -4570,6 +4570,19 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+dependencies = [
+ "curve25519-dalek 4.1.1",
+ "frost-core 0.6.1",
+ "parity-scale-codec 3.6.9",
+ "rand_core 0.6.4",
+ "sha2 0.10.8",
+ "subtle",
+]
+
+[[package]]
+name = "frost-ed25519"
+version = "1.0.0-rc.0"
 source = "git+https://github.com/LIT-Protocol/frost.git#1be134913acd67a63a8568b305abaceff520b1e9"
 dependencies = [
  "curve25519-dalek-ml",
@@ -4581,15 +4594,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-ed25519"
+name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
- "curve25519-dalek 4.1.1",
+ "ed448-goldilocks-plus 0.11.1 (git+https://github.com/drewstone/Ed448-Goldilocks.git?branch=drew/zeroize)",
  "frost-core 0.6.1",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
- "sha2 0.10.8",
+ "sha3 0.10.8",
  "subtle",
 ]
 
@@ -4607,15 +4620,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-ed448"
+name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
- "ed448-goldilocks-plus 0.11.1 (git+https://github.com/drewstone/Ed448-Goldilocks.git?branch=drew/zeroize)",
  "frost-core 0.6.1",
+ "p256 0.13.2",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
- "sha3 0.10.8",
+ "sha2 0.10.8",
  "subtle",
 ]
 
@@ -4633,12 +4646,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-p256"
+name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "frost-core 0.6.1",
- "p256 0.13.2",
+ "p384",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -4656,19 +4669,6 @@ dependencies = [
  "p384",
  "rand_core 0.6.4",
  "sha2 0.10.8",
-]
-
-[[package]]
-name = "frost-p384"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
-dependencies = [
- "frost-core 0.6.1",
- "p384",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle",
 ]
 
 [[package]]
@@ -4685,23 +4685,36 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#1be134913acd67a63a8568b305abaceff520b1e9"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "curve25519-dalek 4.1.1",
- "document-features",
- "frost-core 1.0.0-rc.0",
- "frost-rerandomized",
+ "frost-core 0.6.1",
+ "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
+ "subtle",
 ]
 
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/LIT-Protocol/frost.git#1be134913acd67a63a8568b305abaceff520b1e9"
 dependencies = [
  "curve25519-dalek 4.1.1",
+ "document-features",
+ "frost-core 1.0.0-rc.0",
+ "frost-rerandomized",
+ "rand_core 0.6.4",
+ "sha2 0.10.8",
+]
+
+[[package]]
+name = "frost-secp256k1"
+version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+dependencies = [
  "frost-core 0.6.1",
+ "k256",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -4719,19 +4732,6 @@ dependencies = [
  "k256",
  "rand_core 0.6.4",
  "sha2 0.10.8",
-]
-
-[[package]]
-name = "frost-secp256k1"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
-dependencies = [
- "frost-core 0.6.1",
- "k256",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle",
 ]
 
 [[package]]
@@ -5807,12 +5807,12 @@ checksum = "8f518f335dce6725a761382244631d86cf0ccb2863413590b31338feb467f9c3"
 
 [[package]]
 name = "is-terminal"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bad00257d07be169d870ab665980b06cdb366d792ad690bf2e76876dc503455"
+checksum = "fe8f25ce1159c7740ff0b9b2f5cdf4a8428742ba7c112b9f20f22cd5219c7dab"
 dependencies = [
  "hermit-abi 0.3.5",
- "rustix 0.38.31",
+ "libc",
  "windows-sys 0.52.0",
 ]
 
@@ -7146,7 +7146,7 @@ dependencies = [
  "round-based 0.1.7",
  "serde",
  "serde_repr",
- "serde_with 3.6.0",
+ "serde_with 3.6.1",
  "sha2 0.9.9",
  "subtle",
  "thiserror",
@@ -7766,7 +7766,7 @@ dependencies = [
  "rand_core 0.6.4",
  "rug",
  "serde",
- "serde_with 3.6.0",
+ "serde_with 3.6.1",
  "thiserror",
 ]
 
@@ -7797,7 +7797,7 @@ dependencies = [
 [[package]]
 name = "pallet-airdrop-claims"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7981,19 +7981,19 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "digest 0.10.7",
  "elliptic-curve 0.13.8",
  "frame-support",
  "frame-system",
  "frost-core 0.6.1",
- "frost-ed25519 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git)",
- "frost-ed448 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git)",
- "frost-p256 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git)",
- "frost-p384 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git)",
- "frost-ristretto255 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git)",
- "frost-secp256k1 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git)",
+ "frost-ed25519 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework)",
+ "frost-ed448 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework)",
+ "frost-p256 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework)",
+ "frost-p384 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework)",
+ "frost-ristretto255 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework)",
+ "frost-secp256k1 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework)",
  "generic-ec",
  "generic-ec-zkp",
  "hex",
@@ -8002,7 +8002,7 @@ dependencies = [
  "rand_core 0.6.4",
  "scale-info",
  "serde",
- "serde_with 3.6.0",
+ "serde_with 3.6.1",
  "serdect",
  "sha2 0.10.8",
  "snowbridge-milagro-bls",
@@ -8192,7 +8192,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-batch"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "evm",
  "evm-runtime",
@@ -8232,7 +8232,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-call-permit"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8263,7 +8263,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-democracy"
 version = "0.2.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8305,7 +8305,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-jobs"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8335,7 +8335,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-preimage"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8355,7 +8355,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-proxy"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8377,7 +8377,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-registry"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8413,7 +8413,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-staking"
 version = "1.0.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8435,7 +8435,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-vesting"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8564,7 +8564,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8581,7 +8581,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -8677,7 +8677,7 @@ dependencies = [
 [[package]]
 name = "pallet-roles"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -8810,7 +8810,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-pause"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8900,7 +8900,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9387,7 +9387,7 @@ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 [[package]]
 name = "precompile-utils"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "affix",
  "environmental",
@@ -9413,7 +9413,7 @@ dependencies = [
 [[package]]
 name = "precompile-utils-macro"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "case",
  "num_enum 0.5.11",
@@ -9525,7 +9525,7 @@ dependencies = [
 [[package]]
 name = "primitives-ext"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "ethereum-types 0.14.1",
  "evm-tracing-events",
@@ -10452,6 +10452,7 @@ source = "git+https://github.com/ZenGo-X/round-based-protocol#1b372fe7d19de8cc52
 dependencies = [
  "futures-util",
  "phantom-type 0.3.1",
+ "round-based-derive",
  "thiserror",
  "tracing",
 ]
@@ -10470,7 +10471,7 @@ dependencies = [
 [[package]]
 name = "rpc-primitives-debug"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "environmental",
  "ethereum",
@@ -10488,7 +10489,7 @@ dependencies = [
 [[package]]
 name = "rpc-primitives-txpool"
 version = "0.6.0"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "ethereum",
  "parity-scale-codec 3.6.9",
@@ -11574,9 +11575,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "3.6.0"
+version = "3.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b0ed1662c5a68664f45b76d18deb0e234aff37207086803165c961eb695e981"
+checksum = "15d167997bd841ec232f5b2b8e0e26606df2e7caa4c31b95ea9ca52b200bd270"
 dependencies = [
  "base64 0.21.7",
  "chrono",
@@ -11584,8 +11585,9 @@ dependencies = [
  "indexmap 1.9.3",
  "indexmap 2.2.2",
  "serde",
+ "serde_derive",
  "serde_json",
- "serde_with_macros 3.6.0",
+ "serde_with_macros 3.6.1",
  "time",
 ]
 
@@ -11615,9 +11617,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "3.6.0"
+version = "3.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "568577ff0ef47b879f736cd66740e022f3672788cdf002a05a4e609ea5a6fb15"
+checksum = "865f9743393e638991566a8b7a479043c2c8da94a33e0a31f18214c9cae0a64d"
 dependencies = [
  "darling 0.20.5",
  "proc-macro2",
@@ -13894,7 +13896,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -13904,7 +13906,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -13931,7 +13933,7 @@ dependencies = [
 [[package]]
 name = "tangle-runtime"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "evm-tracer",
  "fp-account",
@@ -14033,7 +14035,7 @@ dependencies = [
 [[package]]
 name = "tangle-testnet-runtime"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#19ed43b09fa9f8bf505672ee0b51e0290f72c960"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "evm-tracer",
  "fp-account",

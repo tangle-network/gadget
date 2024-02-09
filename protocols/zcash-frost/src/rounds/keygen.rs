@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use dfns_cggmp21::{progress::Tracer, round_based::ProtocolMessage};
+use dfns_cggmp21::progress::Tracer;
 use frost_core::{
     keys::{
         dkg::{round1, round2},
@@ -13,7 +13,7 @@ use rand_core::{CryptoRng, RngCore};
 use round_based::{
     rounds_router::simple_store::RoundInput,
     rounds_router::{simple_store::RoundMsgs, RoundsRouter},
-    Delivery, Mpc, MpcParty, Outgoing,
+    Delivery, Mpc, MpcParty, Outgoing, ProtocolMessage,
 };
 use serde::{Deserialize, Serialize};
 use tangle_primitives::roles::ThresholdSignatureRoleType;
