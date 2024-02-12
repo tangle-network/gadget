@@ -14,8 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tangle_primitives::roles::ThresholdSignatureRoleType;
 
-use super::errors::IoError;
-use super::{Reason, SignAborted, SignError};
+use super::{IoError, Reason, SignAborted, SignError};
 
 /// Message of key generation protocol
 #[derive(ProtocolMessage, Clone, Serialize, Deserialize)]
@@ -28,7 +27,7 @@ pub enum Msg {
 }
 
 /// Message from round 1
-#[derive(Clone, Serialize, Deserialize, udigest::Digestable)]
+#[derive(Clone, Debug, Serialize, Deserialize, udigest::Digestable)]
 #[serde(bound = "")]
 #[udigest(bound = "")]
 #[udigest(tag = "zcash.frost.sign.threshold.round1")]
@@ -36,7 +35,7 @@ pub struct MsgRound1 {
     pub msg: Vec<u8>,
 }
 /// Message from round 2
-#[derive(Clone, Serialize, Deserialize, udigest::Digestable)]
+#[derive(Clone, Debug, Serialize, Deserialize, udigest::Digestable)]
 #[serde(bound = "")]
 #[udigest(bound = "")]
 #[udigest(tag = "zcash.frost.sign.threshold.round2")]
@@ -81,14 +80,20 @@ where
 
     tracer.send_msg();
     tracer.stage("Generate nonces and commitments for Round 1");
-    let (nonces, commitments) = participant_round1(role, &frost_keyshare.0, rng);
+    let (nonces, commitments) = participant_round1(role, &frost_keyshare.0, rng)?;
     let my_round1_msg = MsgRound1 {
         msg: commitments.serialize().unwrap_or_default(),
     };
+    println!(
+        "<Identifier, MSG> for party {:?}: <{:#?}, {:#?}>",
+        i,
+        frost_keyshare.0.identifier(),
+        commitments
+    );
     outgoings
         .send(Outgoing::broadcast(Msg::Round1(my_round1_msg.clone())))
         .await
-        .map_err(|e| SignError(Reason::IoError(IoError::send_message(e))))?;
+        .map_err(IoError::send_message)?;
     tracer.msg_sent();
 
     // Round 2
@@ -98,20 +103,25 @@ where
     let round1_msgs: Vec<MsgRound1> = rounds
         .complete(round1)
         .await
-        .map_err(|e| SignError(Reason::IoError(IoError::receive_message(e))))?
+        .map_err(IoError::receive_message)?
         .into_vec_including_me(my_round1_msg);
 
-    let round1_signing_commitments: BTreeMap<Identifier<C>, SigningCommitments<C>> = round1_msgs
+    let round1_signing_commitments = round1_msgs
         .into_iter()
         .enumerate()
         .map(|(party_inx, msg)| {
-            let msg = SigningCommitments::<C>::deserialize(&msg.msg)
-                .unwrap_or_else(|_| panic!("Failed to deserialize round 1 signing commitments"));
             let participant_identifier = Identifier::<C>::try_from((party_inx + 1) as u16)
                 .expect("Failed to convert party index to identifier");
+            let msg = SigningCommitments::<C>::deserialize(&msg.msg)
+                .unwrap_or_else(|_| panic!("Failed to deserialize round 1 signing commitments"));
             (participant_identifier, msg)
         })
         .collect();
+
+    println!(
+        "Received signing commitments: {:#?}",
+        round1_signing_commitments
+    );
     tracer.msgs_received();
 
     tracer.send_msg();
@@ -125,7 +135,7 @@ where
             msg: signature_share.serialize().as_ref().to_vec(),
         })))
         .await
-        .map_err(|e| SignError(Reason::IoError(IoError::send_message(e))))?;
+        .map_err(IoError::send_message)?;
     tracer.msg_sent();
 
     // Aggregation / output round
@@ -158,13 +168,7 @@ where
         &signing_package,
         &round2_signature_shares,
         &frost_keyshare.1,
-    )
-    .map_err(|e| {
-        SignError(Reason::SignFailure(SignAborted::FrostError {
-            parties: vec![],
-            error: e,
-        }))
-    })?;
+    )?;
 
     if frost_keyshare
         .1
@@ -185,21 +189,30 @@ where
     })
 }
 
+fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(), SignError<C>> {
+    match role {
+        ThresholdSignatureRoleType::ZcashFrostEd25519
+        | ThresholdSignatureRoleType::ZcashFrostEd448
+        | ThresholdSignatureRoleType::ZcashFrostSecp256k1
+        | ThresholdSignatureRoleType::ZcashFrostP256
+        | ThresholdSignatureRoleType::ZcashFrostP384
+        | ThresholdSignatureRoleType::ZcashFrostRistretto255 => {}
+        _ => Err(SignError(Reason::SignFailure(
+            SignAborted::InvalidFrostProtocol,
+        )))?,
+    };
+
+    Ok(())
+}
+
 /// Participant generates nonces and commitments for Round 1.
 fn participant_round1<R: RngCore + CryptoRng, C: Ciphersuite>(
     role: ThresholdSignatureRoleType,
     key_package: &KeyPackage<C>,
     rng: &mut R,
-) -> (SigningNonces<C>, SigningCommitments<C>) {
-    match role {
-        ThresholdSignatureRoleType::ZcashFrostEd25519
-        | ThresholdSignatureRoleType::ZcashFrostP256
-        | ThresholdSignatureRoleType::ZcashFrostRistretto255
-        | ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {}
-        _ => panic!("Invalid role"),
-    };
-
-    round1::commit(key_package.signing_share(), rng)
+) -> Result<(SigningNonces<C>, SigningCommitments<C>), SignError<C>> {
+    validate_role::<C>(role)?;
+    Ok(round1::commit(key_package.signing_share(), rng))
 }
 
 /// Participant produces their signature share using the `SigningPackage` and their `SigningNonces` from Round 1.
@@ -209,19 +222,7 @@ fn participant_round2<C: Ciphersuite>(
     nonces: &SigningNonces<C>,
     key_package: &KeyPackage<C>,
 ) -> Result<SignatureShare<C>, SignError<C>> {
-    match role {
-        ThresholdSignatureRoleType::ZcashFrostEd25519
-        | ThresholdSignatureRoleType::ZcashFrostP256
-        | ThresholdSignatureRoleType::ZcashFrostRistretto255
-        | ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {}
-        _ => panic!("Invalid role"),
-    };
-
-    println!("Min signers: {:?}", key_package.min_signers());
-    println!(
-        "Signing package commits: {:?}",
-        signing_package.signing_commitments().len()
-    );
+    validate_role::<C>(role)?;
     round2::sign(signing_package, nonces, key_package).map_err(|e| {
         SignError(Reason::SignFailure(SignAborted::FrostError {
             parties: vec![],

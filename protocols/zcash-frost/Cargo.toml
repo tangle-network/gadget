@@ -23,7 +23,7 @@ rand_chacha = { version = "0.3", default-features = false }
 dfns-cggmp21 = { workspace = true }
 
 udigest = { workspace = true }
-frost-core = { workspace = true }
+frost-core = { workspace = true, features = ["cheater-detection"] }
 frost-ed25519 = { workspace = true }
 frost-ed448 = { workspace = true }
 frost-p256 = { workspace = true }

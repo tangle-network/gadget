@@ -1,115 +1,48 @@
 use frost_core::Ciphersuite;
-use frost_ed25519::Ed25519Sha512;
-use frost_ed448::Ed448Shake256;
-use frost_p256::P256Sha256;
-use frost_p384::P384Sha384;
-use frost_ristretto255::Ristretto255Sha512;
-use frost_secp256k1::Secp256K1Sha256;
+use round_based::rounds_router::{
+    errors::{self as router_error, CompleteRoundError},
+    simple_store::RoundInputError,
+};
+use std::convert::Infallible;
 use thiserror::Error;
 
-use self::errors::IoError;
-
-pub mod errors;
 pub mod keygen;
 pub mod sign;
 
-/// Keygen protocol error
+pub type BoxedError = Box<dyn std::error::Error + Send + Sync>;
+
 #[derive(Debug, Error)]
-#[error("keygen protocol is failed to complete")]
-pub struct KeygenError<C: Ciphersuite>(#[source] Reason<C>);
-
-macro_rules! impl_keygen_error_from {
-    ($ciphersuite:ty) => {
-        impl From<KeygenAborted<$ciphersuite>> for KeygenError<$ciphersuite> {
-            fn from(err: KeygenAborted<$ciphersuite>) -> Self {
-                KeygenError(Reason::KeygenFailure(err))
-            }
-        }
-
-        impl From<IoError> for KeygenError<$ciphersuite> {
-            fn from(err: IoError) -> Self {
-                KeygenError(Reason::IoError(err))
-            }
-        }
-    };
+pub enum IoError {
+    #[error("send message")]
+    SendMessage(#[source] BoxedError),
+    #[error("receive message")]
+    ReceiveMessage(#[source] BoxedError),
+    #[error("got eof while recieving messages")]
+    ReceiveMessageEof,
+    #[error("route received message (possibly malicious behavior)")]
+    RouteReceivedError(router_error::CompleteRoundError<RoundInputError, Infallible>),
 }
 
-impl_keygen_error_from!(Ed25519Sha512);
-impl_keygen_error_from!(P256Sha256);
-impl_keygen_error_from!(P384Sha384);
-impl_keygen_error_from!(Ristretto255Sha512);
-impl_keygen_error_from!(Secp256K1Sha256);
-impl_keygen_error_from!(Ed448Shake256);
+impl IoError {
+    pub fn send_message<E: std::error::Error + Send + Sync + 'static>(err: E) -> Self {
+        Self::SendMessage(Box::new(err))
+    }
 
-/// Sign protocol error
-#[derive(Debug, Error)]
-#[error("keygen protocol is failed to complete")]
-pub struct SignError<C: Ciphersuite>(#[source] Reason<C>);
-
-macro_rules! impl_sign_error_from {
-    ($ciphersuite:ty) => {
-        impl From<SignAborted<$ciphersuite>> for SignError<$ciphersuite> {
-            fn from(err: SignAborted<$ciphersuite>) -> Self {
-                SignError(Reason::SignFailure(err))
+    pub fn receive_message<E: std::error::Error + Send + Sync + 'static>(
+        err: CompleteRoundError<RoundInputError, E>,
+    ) -> Self {
+        match err {
+            CompleteRoundError::Io(router_error::IoError::Io(e)) => {
+                Self::ReceiveMessage(Box::new(e))
             }
-        }
+            CompleteRoundError::Io(router_error::IoError::UnexpectedEof) => Self::ReceiveMessageEof,
 
-        impl From<IoError> for SignError<$ciphersuite> {
-            fn from(err: IoError) -> Self {
-                SignError(Reason::IoError(err))
+            CompleteRoundError::ProcessMessage(e) => {
+                Self::RouteReceivedError(CompleteRoundError::ProcessMessage(e))
             }
+            CompleteRoundError::Other(e) => Self::RouteReceivedError(CompleteRoundError::Other(e)),
         }
-    };
-}
-
-impl_sign_error_from!(Ed25519Sha512);
-impl_sign_error_from!(P256Sha256);
-impl_sign_error_from!(P384Sha384);
-impl_sign_error_from!(Ristretto255Sha512);
-impl_sign_error_from!(Secp256K1Sha256);
-impl_sign_error_from!(Ed448Shake256);
-
-/// Repair protocol error
-#[derive(Debug, Error)]
-#[error("repair protocol is failed to complete")]
-pub struct RepairError<C: Ciphersuite>(Reason<C>);
-
-macro_rules! impl_repair_error_from {
-    ($ciphersuite:ty) => {
-        impl From<IoError> for RepairError<$ciphersuite> {
-            fn from(err: IoError) -> Self {
-                RepairError(Reason::IoError(err))
-            }
-        }
-    };
-}
-
-impl_repair_error_from!(Ed25519Sha512);
-impl_repair_error_from!(P256Sha256);
-impl_repair_error_from!(P384Sha384);
-impl_repair_error_from!(Ristretto255Sha512);
-impl_repair_error_from!(Secp256K1Sha256);
-impl_repair_error_from!(Ed448Shake256);
-
-#[derive(Debug, Error)]
-enum Reason<C: Ciphersuite> {
-    /// Keygen protocol was maliciously aborted by another party
-    #[error("keygen protocol was aborted by malicious party")]
-    KeygenFailure(
-        #[source]
-        #[from]
-        KeygenAborted<C>,
-    ),
-    #[error("sign protocol was aborted by malicious party")]
-    SignFailure(
-        #[source]
-        #[from]
-        SignAborted<C>,
-    ),
-    #[error("i/o error")]
-    IoError(#[source] IoError),
-    #[error("unknown error")]
-    SerializationError,
+    }
 }
 
 /// Error indicating that protocol was aborted by malicious party
@@ -130,4 +63,99 @@ enum SignAborted<C: Ciphersuite> {
         parties: Vec<u16>,
         error: frost_core::Error<C>,
     },
+    #[error("Invalid frost protocol")]
+    InvalidFrostProtocol,
+}
+
+/// Keygen protocol error
+#[derive(Debug, Error)]
+#[error("keygen protocol is failed to complete")]
+pub struct KeygenError<C: Ciphersuite>(#[source] Reason<C>);
+
+impl<C: Ciphersuite> From<frost_core::Error<C>> for KeygenError<C> {
+    fn from(err: frost_core::Error<C>) -> Self {
+        match err {
+            frost_core::Error::<C>::InvalidProofOfKnowledge { culprit } => {
+                let culprit_bytes: Vec<u8> = culprit.serialize().as_ref().to_vec();
+                let culprit = u16::from_le_bytes([culprit_bytes[0], culprit_bytes[1]]);
+                KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {
+                    parties: vec![culprit],
+                    error: err,
+                }))
+            }
+            _ => KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {
+                parties: vec![],
+                error: err,
+            })),
+        }
+    }
+}
+
+impl<C: Ciphersuite> From<IoError> for KeygenError<C> {
+    fn from(err: IoError) -> Self {
+        KeygenError(Reason::IoError(err))
+    }
+}
+
+impl<C: Ciphersuite> From<KeygenAborted<C>> for KeygenError<C> {
+    fn from(err: KeygenAborted<C>) -> Self {
+        KeygenError(Reason::KeygenFailure(err))
+    }
+}
+
+/// Sign protocol error
+#[derive(Debug, Error)]
+#[error("keygen protocol is failed to complete")]
+pub struct SignError<C: Ciphersuite>(#[source] Reason<C>);
+
+impl<C: Ciphersuite> From<frost_core::Error<C>> for SignError<C> {
+    fn from(err: frost_core::Error<C>) -> Self {
+        match err {
+            frost_core::Error::<C>::InvalidSignatureShare { culprit } => {
+                let culprit_bytes: Vec<u8> = culprit.serialize().as_ref().to_vec();
+                let culprit = u16::from_le_bytes([culprit_bytes[0], culprit_bytes[1]]);
+                SignError(Reason::SignFailure(SignAborted::FrostError {
+                    parties: vec![culprit],
+                    error: err,
+                }))
+            }
+            _ => SignError(Reason::SignFailure(SignAborted::FrostError {
+                parties: vec![],
+                error: err,
+            })),
+        }
+    }
+}
+
+impl<C: Ciphersuite> From<IoError> for SignError<C> {
+    fn from(err: IoError) -> Self {
+        SignError(Reason::IoError(err))
+    }
+}
+
+impl<C: Ciphersuite> From<SignAborted<C>> for SignError<C> {
+    fn from(err: SignAborted<C>) -> Self {
+        SignError(Reason::SignFailure(err))
+    }
+}
+
+#[derive(Debug, Error)]
+enum Reason<C: Ciphersuite> {
+    /// Keygen protocol was maliciously aborted by another party
+    #[error("keygen protocol was aborted by malicious party")]
+    KeygenFailure(
+        #[source]
+        #[from]
+        KeygenAborted<C>,
+    ),
+    #[error("sign protocol was aborted by malicious party")]
+    SignFailure(
+        #[source]
+        #[from]
+        SignAborted<C>,
+    ),
+    #[error("i/o error")]
+    IoError(#[source] IoError),
+    #[error("unknown error")]
+    SerializationError,
 }

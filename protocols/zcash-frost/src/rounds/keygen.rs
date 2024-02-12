@@ -18,7 +18,7 @@ use round_based::{
 use serde::{Deserialize, Serialize};
 use tangle_primitives::roles::ThresholdSignatureRoleType;
 
-use super::{errors::IoError, KeygenAborted, KeygenError, Reason};
+use super::{IoError, KeygenAborted, KeygenError, Reason};
 
 /// Message of key generation protocol
 #[derive(ProtocolMessage, Clone, Serialize, Deserialize)]
@@ -90,6 +90,7 @@ where
     tracer.round_begins();
 
     tracer.stage("Compute round 1 dkg secret package");
+    println!("Keygen | i: {}, t: {}, n: {}", i, t, n);
     let (round1_secret_package, round1_package) =
         dkg_part1(i + 1, t, n, role, rng).map_err(|e| {
             KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {
@@ -116,7 +117,7 @@ where
         .complete(round1)
         .await
         .map_err(|e| KeygenError(Reason::IoError(IoError::receive_message(e))))?
-        .into_vec_including_me(my_round1_msg)
+        .into_vec_including_me(my_round1_msg.clone())
         .into_iter()
         .map(|msg| {
             round1::Package::deserialize(&msg.msg)
@@ -124,7 +125,7 @@ where
         })
         .collect();
     tracer.msgs_received();
-
+    println!("Keygen | i: {}, my_package: {:#?}", i, round1_package);
     tracer.stage("Compute round 2 dkg secret package");
     let round1_packages_map: BTreeMap<Identifier<C>, round1::Package<C>> = round1_packages
         .iter()
@@ -137,7 +138,7 @@ where
         })
         .filter(|(inx, _)| *inx != Identifier::try_from(i + 1).unwrap())
         .collect();
-
+    println!("Keygen | round1_packages_map: {:#?}", round1_packages_map);
     let (round2_secret_package, round2_packages_map) =
         dkg_part2(role, round1_secret_package, &round1_packages_map).map_err(|e| {
             KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {

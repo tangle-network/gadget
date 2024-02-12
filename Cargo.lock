@@ -4548,7 +4548,6 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#1be134913acd67a63a8568b305abaceff520b1e9"
 dependencies = [
  "byteorder",
  "const-crc32",
@@ -4570,6 +4569,18 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
+dependencies = [
+ "curve25519-dalek-ml",
+ "document-features",
+ "frost-core 1.0.0-rc.0",
+ "frost-rerandomized",
+ "rand_core 0.6.4",
+ "sha2 0.10.8",
+]
+
+[[package]]
+name = "frost-ed25519"
+version = "1.0.0-rc.0"
 source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "curve25519-dalek 4.1.1",
@@ -4581,16 +4592,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-ed25519"
+name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#1be134913acd67a63a8568b305abaceff520b1e9"
 dependencies = [
- "curve25519-dalek-ml",
  "document-features",
+ "ed448-goldilocks-plus 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "frost-core 1.0.0-rc.0",
  "frost-rerandomized",
  "rand_core 0.6.4",
- "sha2 0.10.8",
+ "sha3 0.10.8",
 ]
 
 [[package]]
@@ -4607,16 +4617,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-ed448"
+name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#1be134913acd67a63a8568b305abaceff520b1e9"
 dependencies = [
  "document-features",
- "ed448-goldilocks-plus 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "frost-core 1.0.0-rc.0",
  "frost-rerandomized",
+ "p256 0.13.2",
  "rand_core 0.6.4",
- "sha3 0.10.8",
+ "sha2 0.10.8",
 ]
 
 [[package]]
@@ -4633,14 +4642,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-p256"
+name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#1be134913acd67a63a8568b305abaceff520b1e9"
 dependencies = [
  "document-features",
  "frost-core 1.0.0-rc.0",
  "frost-rerandomized",
- "p256 0.13.2",
+ "p384",
  "rand_core 0.6.4",
  "sha2 0.10.8",
 ]
@@ -4656,25 +4664,11 @@ dependencies = [
  "rand_core 0.6.4",
  "sha2 0.10.8",
  "subtle",
-]
-
-[[package]]
-name = "frost-p384"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#1be134913acd67a63a8568b305abaceff520b1e9"
-dependencies = [
- "document-features",
- "frost-core 1.0.0-rc.0",
- "frost-rerandomized",
- "p384",
- "rand_core 0.6.4",
- "sha2 0.10.8",
 ]
 
 [[package]]
 name = "frost-rerandomized"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#1be134913acd67a63a8568b305abaceff520b1e9"
 dependencies = [
  "derive-getters",
  "document-features",
@@ -4685,25 +4679,36 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "curve25519-dalek 4.1.1",
- "frost-core 0.6.1",
- "parity-scale-codec 3.6.9",
+ "document-features",
+ "frost-core 1.0.0-rc.0",
+ "frost-rerandomized",
  "rand_core 0.6.4",
  "sha2 0.10.8",
- "subtle",
 ]
 
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#1be134913acd67a63a8568b305abaceff520b1e9"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
 dependencies = [
  "curve25519-dalek 4.1.1",
+ "frost-core 0.6.1",
+ "parity-scale-codec 3.6.9",
+ "rand_core 0.6.4",
+ "sha2 0.10.8",
+ "subtle",
+]
+
+[[package]]
+name = "frost-secp256k1"
+version = "1.0.0-rc.0"
+dependencies = [
  "document-features",
  "frost-core 1.0.0-rc.0",
  "frost-rerandomized",
+ "k256",
  "rand_core 0.6.4",
  "sha2 0.10.8",
 ]
@@ -4719,19 +4724,6 @@ dependencies = [
  "rand_core 0.6.4",
  "sha2 0.10.8",
  "subtle",
-]
-
-[[package]]
-name = "frost-secp256k1"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#1be134913acd67a63a8568b305abaceff520b1e9"
-dependencies = [
- "document-features",
- "frost-core 1.0.0-rc.0",
- "frost-rerandomized",
- "k256",
- "rand_core 0.6.4",
- "sha2 0.10.8",
 ]
 
 [[package]]
@@ -16638,13 +16630,13 @@ dependencies = [
  "digest 0.10.7",
  "frame-support",
  "frost-core 1.0.0-rc.0",
- "frost-ed25519 1.0.0-rc.0 (git+https://github.com/LIT-Protocol/frost.git)",
- "frost-ed448 1.0.0-rc.0 (git+https://github.com/LIT-Protocol/frost.git)",
- "frost-p256 1.0.0-rc.0 (git+https://github.com/LIT-Protocol/frost.git)",
- "frost-p384 1.0.0-rc.0 (git+https://github.com/LIT-Protocol/frost.git)",
+ "frost-ed25519 1.0.0-rc.0",
+ "frost-ed448 1.0.0-rc.0",
+ "frost-p256 1.0.0-rc.0",
+ "frost-p384 1.0.0-rc.0",
  "frost-rerandomized",
- "frost-ristretto255 1.0.0-rc.0 (git+https://github.com/LIT-Protocol/frost.git)",
- "frost-secp256k1 1.0.0-rc.0 (git+https://github.com/LIT-Protocol/frost.git)",
+ "frost-ristretto255 1.0.0-rc.0",
+ "frost-secp256k1 1.0.0-rc.0",
  "futures",
  "gadget-common",
  "gadget-core",

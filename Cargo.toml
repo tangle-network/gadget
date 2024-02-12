@@ -41,14 +41,22 @@ round-based = { git = "https://github.com/webb-tools/round-based-protocol", feat
 curv = { package = "curv-kzen", version = "0.10.0" }
 dfns-cggmp21 = { package = "cggmp21", version = "0.1.1", default-features = false }
 udigest = { version = "0.1", features = ["std", "derive"]}
-frost-core = { git = "https://github.com/LIT-Protocol/frost.git" }
-frost-ed25519 = { git = "https://github.com/LIT-Protocol/frost.git" }
-frost-ed448 = { git = "https://github.com/LIT-Protocol/frost.git" }
-frost-p256 = { git = "https://github.com/LIT-Protocol/frost.git" }
-frost-p384 = { git = "https://github.com/LIT-Protocol/frost.git" }
-frost-ristretto255 = { git = "https://github.com/LIT-Protocol/frost.git" }
-frost-secp256k1 = { git = "https://github.com/LIT-Protocol/frost.git" }
-frost-rerandomized = { git = "https://github.com/LIT-Protocol/frost.git" }
+# frost-core = { git = "https://github.com/LIT-Protocol/frost.git" }
+# frost-ed25519 = { git = "https://github.com/LIT-Protocol/frost.git" }
+# frost-ed448 = { git = "https://github.com/LIT-Protocol/frost.git" }
+# frost-p256 = { git = "https://github.com/LIT-Protocol/frost.git" }
+# frost-p384 = { git = "https://github.com/LIT-Protocol/frost.git" }
+# frost-ristretto255 = { git = "https://github.com/LIT-Protocol/frost.git" }
+# frost-secp256k1 = { git = "https://github.com/LIT-Protocol/frost.git" }
+# frost-rerandomized = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-core = { path = "../frost/frost-core" }
+frost-ed25519 = { path = "../frost/frost-ed25519" }
+frost-ed448 = { path = "../frost/frost-ed448" }
+frost-p256 = { path = "../frost/frost-p256" }
+frost-p384 = { path = "../frost/frost-p384" }
+frost-ristretto255 = { path = "../frost/frost-ristretto255" }
+frost-secp256k1 = { path = "../frost/frost-secp256k1" }
+frost-rerandomized = { path = "../frost/frost-rerandomized" }
 bls12_381_plus = "0.8.13"
 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }
