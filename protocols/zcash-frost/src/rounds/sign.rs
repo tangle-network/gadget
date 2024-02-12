@@ -100,12 +100,14 @@ where
     tracer.round_begins();
 
     tracer.receive_msgs();
+    println!("Receiving Round 1 messages");
     let round1_msgs: Vec<MsgRound1> = rounds
         .complete(round1)
         .await
         .map_err(IoError::receive_message)?
         .into_vec_including_me(my_round1_msg);
 
+    println!("Received Round 1 messages");
     let round1_signing_commitments = round1_msgs
         .into_iter()
         .enumerate()
@@ -142,6 +144,7 @@ where
     tracer.round_begins();
 
     tracer.receive_msgs();
+    println!("Receiving Round 2 messages");
     let round2_signature_shares: BTreeMap<Identifier<C>, SignatureShare<C>> = rounds
         .complete(round2)
         .await
@@ -162,6 +165,7 @@ where
             (participant_identifier, sig_share)
         })
         .collect();
+    println!("Received Round 2 messages");
     tracer.msgs_received();
 
     let group_signature = aggregate(
@@ -176,10 +180,7 @@ where
         .verify(message_to_sign, &group_signature)
         .is_err()
     {
-        return Err(SignError(Reason::SignFailure(SignAborted::FrostError {
-            parties: vec![],
-            error: frost_core::Error::<C>::InvalidSignature,
-        })));
+        return Err(frost_core::Error::<C>::InvalidSignature.into());
     }
 
     tracer.protocol_ends();
@@ -223,10 +224,5 @@ fn participant_round2<C: Ciphersuite>(
     key_package: &KeyPackage<C>,
 ) -> Result<SignatureShare<C>, SignError<C>> {
     validate_role::<C>(role)?;
-    round2::sign(signing_package, nonces, key_package).map_err(|e| {
-        SignError(Reason::SignFailure(SignAborted::FrostError {
-            parties: vec![],
-            error: e,
-        }))
-    })
+    Ok(round2::sign(signing_package, nonces, key_package)?)
 }

@@ -1,12 +1,16 @@
 # Gadget
+This repo contains code for MPC and other restaking service gadgets. A gadget is a service that listens to a job management system (such as a blockchain w/ onchain job management logic) and communicates with other service providers using a peer to peer or alternative networking stack. Currently, the main services the gadget implements are multi-party computation services such as threshold signature MPCs and an MPC proving service for Groth16 zkSNARKs.
+
+- [x] [DFNS CGGMP21](https://github.com/dfns/cggmp21/tree/m/cggmp21)
+- [x] [Threshold BLS](https://github.com/mikelodder7/blsful)
+- [ ] [LIT Protocol fork of ZCash Frost](https://github.com/LIT-Protocol/frost)
+- [x] [Groth16 ZK-SaaS](https://github.com/webb-tools/zk-SaaS)
 
 ## Design
 
-The core library is `gadget-core`. The core library allows gadgets to hold standardization of use across different blockchains. The core library is the base of all gadgets, and expects to receive `FinalityNotifications` and `BlockImportNotifications`.
+The core library is `gadget-core`. The core library allows gadgets to hold standardization of use across different blockchains that implement a compatible job management and submission infrastructure. All gadgets should implement the relevant traits from `gadget-core`, which implement job allocation, completion, and submission. Currently, gadgets expect to receive `FinalityNotifications` and `BlockImportNotifications` so blockchains with finality are mainly targetted.
 
-Once such blockchain is a substrate blockchain. This is where `webb-gadget` comes into play. The `webb-gadget` is the `core-gadget` endowed with a connection to a substrate blockchain, a networking layer to communicate with other gadgets, and a `WebbGadgetModule` that has application-specific logic. 
-
-Since `webb-gadget` allows varying connections to a substrate blockchain and differing network layers, we thus design above it various *protocols*. Some example protocols are `zk-saas-protocol`, `dfns-cggmp21-protocol`, `threshold-bls-protocol`, and `stub-protocol` (where the former is for getting a bare minimum skeleton of a protocol crate setup). These protocols are endowed with the same functionalities as the `webb-gadget` but with a (potentially) different blockchain connection, networking layer, and application-specific logic using assistance from macros.
+Currently the repo is built around Substrate blockchain logic and networking. The job system implemented by [Tangle](https://github.com/webb-tools/tangle) drives the current job allocation mechanism. Validators of a Substrate chain implementing Tangle's runtime pallets execute jobs assigned to them from an onchain job submission system and use the underlying Substrate p2p layer to communicate with other service peers.
 
 ## Testing
 

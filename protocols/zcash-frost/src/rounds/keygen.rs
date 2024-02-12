@@ -125,32 +125,33 @@ where
         })
         .collect();
     tracer.msgs_received();
-    println!("Keygen | i: {}, my_package: {:#?}", i, round1_package);
+    // println!("Keygen | i: {}, my_package: {:#?}", i, round1_package);
     tracer.stage("Compute round 2 dkg secret package");
     let round1_packages_map: BTreeMap<Identifier<C>, round1::Package<C>> = round1_packages
         .iter()
         .enumerate()
+        .filter(|(inx, _)| *inx != i as usize)
         .map(|(inx, p)| {
             (
                 ((inx + 1) as u16).try_into().expect("should be nonzero"),
                 p.clone(),
             )
         })
-        .filter(|(inx, _)| *inx != Identifier::try_from(i + 1).unwrap())
         .collect();
-    println!("Keygen | round1_packages_map: {:#?}", round1_packages_map);
+    // println!("Keygen | round1_packages_map: {:#?}", round1_packages_map);
     let (round2_secret_package, round2_packages_map) =
-        dkg_part2(role, round1_secret_package, &round1_packages_map).map_err(|e| {
-            KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {
-                parties: vec![],
-                error: e,
-            }))
-        })?;
+        dkg_part2(role, round1_secret_package, &round1_packages_map)?;
 
     tracer.send_msg();
     for (receiver_identifier, round2_package) in round2_packages_map {
         let receiver_index_bytes: Vec<u8> = receiver_identifier.serialize().as_ref().to_vec();
         let receiver_index = u16::from_le_bytes([receiver_index_bytes[0], receiver_index_bytes[1]]);
+        println!(
+            "Sender ID: {:#?}, Sender: {}, Receiver: {}",
+            round2_secret_package.identifier,
+            i,
+            receiver_index - 1
+        );
         outgoings
             .send(Outgoing::p2p(
                 receiver_index - 1,
@@ -159,7 +160,7 @@ where
                 }),
             ))
             .await
-            .map_err(|e| KeygenError(Reason::IoError(IoError::send_message(e))))?;
+            .map_err(IoError::send_message)?;
     }
     tracer.msg_sent();
 
@@ -170,14 +171,17 @@ where
     let round2_packages: RoundMsgs<MsgRound2> = rounds
         .complete(round2)
         .await
-        .map_err(|e| KeygenError(Reason::IoError(IoError::receive_message(e))))?;
+        .map_err(IoError::receive_message)?;
     tracer.msgs_received();
 
     tracer.stage("Compute round 3 dkg secret package");
     let round2_packages_map: BTreeMap<Identifier<C>, round2::Package<C>> = round2_packages
-        .into_iter_indexed()
-        .map(|(inx, _msg_id, msg)| {
-            let identifier = (inx + 1).try_into().expect("should be nonzero");
+        .into_vec_including_me(MsgRound2 { msg: vec![] })
+        .into_iter()
+        .enumerate()
+        .filter(|(inx, _)| *inx != i as usize)
+        .map(|(inx, msg)| {
+            let identifier = (inx as u16 + 1).try_into().expect("should be nonzero");
             let package = round2::Package::deserialize(&msg.msg)
                 .unwrap_or_else(|_| panic!("Failed to deserialize round 2 package"));
             (identifier, package)
@@ -188,16 +192,11 @@ where
         &round2_secret_package,
         &round1_packages_map,
         &round2_packages_map,
-    )
-    .map_err(|e| {
-        KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {
-            parties: vec![],
-            error: e,
-        }))
-    })?;
+    )?;
 
     tracer.protocol_ends();
-
+    println!("Finished KEYGEN!");
+    println!("Key Package for {}: {:#?}", i, key_package);
     Ok(FrostKeyShare {
         key_package: key_package.serialize().unwrap_or_default(),
         pubkey_package: pubkey_package.serialize().unwrap_or_default(),

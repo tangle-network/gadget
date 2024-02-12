@@ -7,6 +7,7 @@ use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_core::job_manager::WorkManagerInterface;
+use itertools::Itertools;
 use rand::seq::SliceRandom;
 use round_based::{Incoming, MessageDestination, MessageType, Outgoing, PartyIndex};
 use serde::de::DeserializeOwned;
@@ -477,6 +478,7 @@ pub fn choose_signers<R: rand::Rng>(
     let selected_participants_indices = selected_participants
         .iter()
         .map(|p| participants.iter().position(|x| x == p).unwrap() as u16)
+        // .sorted()
         .collect::<Vec<_>>();
 
     let j = participants
