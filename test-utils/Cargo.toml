@@ -35,4 +35,3 @@ tangle-primitives = { workspace = true, features = ["verifying"] }
 scale-info = { workspace = true }
 parity-scale-codec = { workspace = true }
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
-paste = "1.0.14"

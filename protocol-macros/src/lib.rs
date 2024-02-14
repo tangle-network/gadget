@@ -2,8 +2,6 @@ use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_macro_input, GenericParam, Generics, ItemStruct};
 
-// Setup args for "keygen_test" and "signing_test"
-
 fn generate_generic_params_with_bounds(
     generics: &Generics,
     excluded: Option<&[&str]>,
