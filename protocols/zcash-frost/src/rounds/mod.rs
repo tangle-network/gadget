@@ -1,4 +1,5 @@
 use frost_core::Ciphersuite;
+use gadget_common::JobError;
 use round_based::rounds_router::{
     errors::{self as router_error, CompleteRoundError},
     simple_store::RoundInputError,
