@@ -45,119 +45,26 @@ impl IoError {
     }
 }
 
-/// Error indicating that protocol was aborted by malicious party
 #[derive(Debug, Error)]
-enum KeygenAborted<C: Ciphersuite> {
-    #[error("Frost keygen error")]
-    FrostError {
-        parties: Vec<u16>,
-        error: frost_core::Error<C>,
-    },
-    #[error("Invalid frost protocol")]
-    InvalidFrostProtocol,
-}
-
-/// Sign protocol error
-#[derive(Debug, Error)]
-enum SignAborted<C: Ciphersuite> {
-    #[error("Frost sign error")]
-    FrostError {
-        parties: Vec<u16>,
-        error: frost_core::Error<C>,
-    },
-    #[error("Invalid frost protocol")]
-    InvalidFrostProtocol,
-}
-
-/// Keygen protocol error
-#[derive(Debug, Error)]
-#[error("keygen protocol is failed to complete")]
-pub struct KeygenError<C: Ciphersuite>(#[source] Reason<C>);
-
-impl<C: Ciphersuite> From<frost_core::Error<C>> for KeygenError<C> {
-    fn from(err: frost_core::Error<C>) -> Self {
-        match err {
-            frost_core::Error::<C>::InvalidProofOfKnowledge { culprit } => {
-                let culprit_bytes: Vec<u8> = culprit.serialize().as_ref().to_vec();
-                let culprit = u16::from_le_bytes([culprit_bytes[0], culprit_bytes[1]]);
-                KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {
-                    parties: vec![culprit],
-                    error: err,
-                }))
-            }
-            _ => KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {
-                parties: vec![],
-                error: err,
-            })),
-        }
-    }
-}
-
-impl<C: Ciphersuite> From<IoError> for KeygenError<C> {
-    fn from(err: IoError) -> Self {
-        KeygenError(Reason::IoError(err))
-    }
-}
-
-impl<C: Ciphersuite> From<KeygenAborted<C>> for KeygenError<C> {
-    fn from(err: KeygenAborted<C>) -> Self {
-        KeygenError(Reason::KeygenFailure(err))
-    }
-}
-
-/// Sign protocol error
-#[derive(Debug, Error)]
-#[error("keygen protocol is failed to complete")]
-pub struct SignError<C: Ciphersuite>(#[source] Reason<C>);
-
-impl<C: Ciphersuite> From<frost_core::Error<C>> for SignError<C> {
-    fn from(err: frost_core::Error<C>) -> Self {
-        match err {
-            frost_core::Error::<C>::InvalidSignatureShare { culprit } => {
-                let culprit_bytes: Vec<u8> = culprit.serialize().as_ref().to_vec();
-                let culprit = u16::from_le_bytes([culprit_bytes[0], culprit_bytes[1]]);
-                SignError(Reason::SignFailure(SignAborted::FrostError {
-                    parties: vec![culprit],
-                    error: err,
-                }))
-            }
-            _ => SignError(Reason::SignFailure(SignAborted::FrostError {
-                parties: vec![],
-                error: err,
-            })),
-        }
-    }
-}
-
-impl<C: Ciphersuite> From<IoError> for SignError<C> {
-    fn from(err: IoError) -> Self {
-        SignError(Reason::IoError(err))
-    }
-}
-
-impl<C: Ciphersuite> From<SignAborted<C>> for SignError<C> {
-    fn from(err: SignAborted<C>) -> Self {
-        SignError(Reason::SignFailure(err))
-    }
-}
-
-#[derive(Debug, Error)]
-enum Reason<C: Ciphersuite> {
-    /// Keygen protocol was maliciously aborted by another party
-    #[error("keygen protocol was aborted by malicious party")]
-    KeygenFailure(
-        #[source]
-        #[from]
-        KeygenAborted<C>,
-    ),
-    #[error("sign protocol was aborted by malicious party")]
-    SignFailure(
-        #[source]
-        #[from]
-        SignAborted<C>,
-    ),
+pub enum Error<C: Ciphersuite> {
     #[error("i/o error")]
     IoError(#[source] IoError),
     #[error("unknown error")]
     SerializationError,
+    #[error("Frost keygen error")]
+    FrostError(#[source] frost_core::Error<C>),
+    #[error("Invalid frost protocol")]
+    InvalidFrostProtocol,
+}
+
+impl<C: Ciphersuite> From<IoError> for Error<C> {
+    fn from(e: IoError) -> Self {
+        Self::IoError(e)
+    }
+}
+
+impl<C: Ciphersuite> From<frost_core::Error<C>> for Error<C> {
+    fn from(e: frost_core::Error<C>) -> Self {
+        Self::FrostError(e)
+    }
 }

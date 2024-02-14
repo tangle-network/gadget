@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use tangle_primitives::roles::ThresholdSignatureRoleType;
 
-use super::{IoError, Reason, SignAborted, SignError};
+use super::{Error, IoError};
 
 /// Message of key generation protocol
 #[derive(ProtocolMessage, Clone, Serialize, Deserialize)]
@@ -59,7 +59,7 @@ pub async fn run_threshold_sign<C, R, M>(
     role: ThresholdSignatureRoleType,
     rng: &mut R,
     party: M,
-) -> Result<FrostSignature, SignError<C>>
+) -> Result<FrostSignature, Error<C>>
 where
     R: RngCore + CryptoRng,
     M: Mpc<ProtocolMessage = Msg>,
@@ -135,7 +135,7 @@ where
     let round2_signature_shares: BTreeMap<Identifier<C>, SignatureShare<C>> = rounds
         .complete(round2)
         .await
-        .map_err(|e| SignError(Reason::IoError(IoError::receive_message(e))))?
+        .map_err(IoError::receive_message)?
         .into_vec_including_me(MsgRound2 {
             msg: signature_share.serialize().as_ref().to_vec(),
         })
@@ -145,7 +145,7 @@ where
             let participant_identifier = Identifier::<C>::try_from((party_inx + 1) as u16)
                 .expect("Failed to convert party index to identifier");
             let ser = <<C::Group as Group>::Field as Field>::Serialization::try_from(msg.msg)
-                .map_err(|_e| SignError(Reason::<C>::SerializationError))
+                .map_err(|_e| Error::<C>::SerializationError)
                 .expect("Failed to deserialize round 2 signature share");
             let sig_share = SignatureShare::<C>::deserialize(ser)
                 .unwrap_or_else(|_| panic!("Failed to deserialize round 2 signature share"));
@@ -177,7 +177,7 @@ where
     })
 }
 
-fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(), SignError<C>> {
+fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(), Error<C>> {
     match role {
         ThresholdSignatureRoleType::ZcashFrostEd25519
         | ThresholdSignatureRoleType::ZcashFrostEd448
@@ -185,7 +185,7 @@ fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(),
         | ThresholdSignatureRoleType::ZcashFrostP256
         | ThresholdSignatureRoleType::ZcashFrostP384
         | ThresholdSignatureRoleType::ZcashFrostRistretto255 => {}
-        _ => Err(SignAborted::InvalidFrostProtocol)?,
+        _ => Err(Error::InvalidFrostProtocol)?,
     };
 
     Ok(())
@@ -196,7 +196,7 @@ fn participant_round1<R: RngCore + CryptoRng, C: Ciphersuite>(
     role: ThresholdSignatureRoleType,
     key_package: &KeyPackage<C>,
     rng: &mut R,
-) -> Result<(SigningNonces<C>, SigningCommitments<C>), SignError<C>> {
+) -> Result<(SigningNonces<C>, SigningCommitments<C>), Error<C>> {
     validate_role::<C>(role)?;
     Ok(round1::commit(key_package.signing_share(), rng))
 }
@@ -207,7 +207,7 @@ fn participant_round2<C: Ciphersuite>(
     signing_package: &SigningPackage<C>,
     nonces: &SigningNonces<C>,
     key_package: &KeyPackage<C>,
-) -> Result<SignatureShare<C>, SignError<C>> {
+) -> Result<SignatureShare<C>, Error<C>> {
     validate_role::<C>(role)?;
     Ok(round2::sign(signing_package, nonces, key_package)?)
 }

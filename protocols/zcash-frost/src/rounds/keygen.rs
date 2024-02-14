@@ -18,7 +18,7 @@ use round_based::{
 use serde::{Deserialize, Serialize};
 use tangle_primitives::roles::ThresholdSignatureRoleType;
 
-use super::{IoError, KeygenAborted, KeygenError};
+use super::{Error, IoError};
 
 /// Message of key generation protocol
 #[derive(ProtocolMessage, Clone, Serialize, Deserialize)]
@@ -70,7 +70,7 @@ pub async fn run_threshold_keygen<C, R, M>(
     role: ThresholdSignatureRoleType,
     rng: &mut R,
     party: M,
-) -> Result<FrostKeyShare, KeygenError<C>>
+) -> Result<FrostKeyShare, Error<C>>
 where
     R: RngCore + CryptoRng,
     M: Mpc<ProtocolMessage = Msg>,
@@ -187,7 +187,7 @@ where
     })
 }
 
-fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(), KeygenError<C>> {
+fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(), Error<C>> {
     match role {
         ThresholdSignatureRoleType::ZcashFrostEd25519
         | ThresholdSignatureRoleType::ZcashFrostEd448
@@ -195,7 +195,7 @@ fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(),
         | ThresholdSignatureRoleType::ZcashFrostP256
         | ThresholdSignatureRoleType::ZcashFrostP384
         | ThresholdSignatureRoleType::ZcashFrostRistretto255 => {}
-        _ => Err(KeygenAborted::InvalidFrostProtocol)?,
+        _ => Err(Error::InvalidFrostProtocol)?,
     };
 
     Ok(())
@@ -207,7 +207,7 @@ pub fn dkg_part1<R, C>(
     n: u16,
     role: ThresholdSignatureRoleType,
     rng: R,
-) -> Result<(round1::SecretPackage<C>, round1::Package<C>), KeygenError<C>>
+) -> Result<(round1::SecretPackage<C>, round1::Package<C>), Error<C>>
 where
     R: RngCore + CryptoRng,
     C: Ciphersuite,
@@ -233,7 +233,7 @@ pub fn dkg_part2<C>(
         round2::SecretPackage<C>,
         BTreeMap<Identifier<C>, round2::Package<C>>,
     ),
-    KeygenError<C>,
+    Error<C>,
 >
 where
     C: Ciphersuite,
@@ -251,7 +251,7 @@ pub fn dkg_part3<C>(
     round2_secret_package: &round2::SecretPackage<C>,
     round1_packages: &BTreeMap<Identifier<C>, round1::Package<C>>,
     round2_packages: &BTreeMap<Identifier<C>, round2::Package<C>>,
-) -> Result<(KeyPackage<C>, PublicKeyPackage<C>), KeygenError<C>>
+) -> Result<(KeyPackage<C>, PublicKeyPackage<C>), Error<C>>
 where
     C: Ciphersuite,
 {
