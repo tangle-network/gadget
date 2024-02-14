@@ -1,9 +1,14 @@
+use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::prelude::*;
-use test_utils::generate_setup_and_run_command;
 
 #[protocol]
-pub struct StubConfig<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network>
-where
+pub struct StubConfig<
+    B: Block,
+    BE: Backend<B> + 'static,
+    C: ClientWithApi<B, BE>,
+    N: Network,
+    KBE: KeystoreBackend,
+> where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pallet_tx: Arc<dyn PalletSubmitter>,
@@ -11,12 +16,18 @@ where
     client: C,
     network: N,
     account_id: AccountId,
+    key_store: ECDSAKeyStore<KBE>,
     jobs_client: Arc<Mutex<Option<JobsClient<B, BE, C>>>>,
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network> FullProtocolConfig
-    for StubConfig<B, BE, C, N>
+impl<
+        B: Block,
+        BE: Backend<B> + 'static,
+        C: ClientWithApi<B, BE>,
+        N: Network,
+        KBE: KeystoreBackend,
+    > FullProtocolConfig for StubConfig<B, BE, C, N, KBE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
@@ -26,7 +37,7 @@ where
     type Backend = BE;
     type Network = N;
     type AdditionalNodeParameters = ();
-    type KeystoreBackend = InMemoryBackend;
+    type KeystoreBackend = KBE;
 
     async fn new(
         client: Self::Client,
@@ -34,6 +45,7 @@ where
         network: Self::Network,
         logger: DebugLogger,
         account_id: AccountId,
+        key_store: ECDSAKeyStore<Self::KeystoreBackend>,
     ) -> Result<Self, Error> {
         Ok(Self {
             pallet_tx,
@@ -41,6 +53,7 @@ where
             client,
             network,
             account_id,
+            key_store,
             jobs_client: Arc::new(Mutex::new(None)),
         })
     }

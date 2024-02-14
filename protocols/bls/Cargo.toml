@@ -24,7 +24,5 @@ itertools = { workspace = true }
 log = { workspace = true }
 bls12_381_plus = { workspace = true }
 snowbridge-milagro-bls = { workspace = true }
-
-[dev-dependencies]
-log = { workspace = true }
+parking_lot = { workspace = true }
 test-utils = { workspace = true }

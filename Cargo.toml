@@ -4,7 +4,6 @@ members = [
     "gadget-core",
     "gadget-common",
     "test-gadget",
-    "protocols/mp-ecdsa",
     "protocols/dfns-cggmp21",
     "protocols/zk-saas",
     "protocols/bls",
@@ -17,7 +16,6 @@ members = [
 gadget-core = { path = "./gadget-core" }
 gadget-common = { path = "./gadget-common" }
 zk-saas-protocol = { path = "./protocols/zk-saas" }
-mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
 threshold-bls-protocol = { path = "./protocols/bls" }
 stub-protocol = { path = "./protocols/stub" }
 test-utils = { path = "./test-utils" }

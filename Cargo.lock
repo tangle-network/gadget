@@ -1302,20 +1302,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bulletproof-kzen"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e1ad3c6d12dfa84b0f3d33d3aafccd81a8a493c449216cb5246b66c846900f3"
-dependencies = [
- "curv-kzen",
- "generic-array 0.14.7",
- "itertools 0.7.11",
- "serde",
- "serde_derive",
- "sha2 0.9.9",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1470,21 +1456,6 @@ checksum = "f1174fb0b6ec23863f8b971027804a42614e347eafb0a95bf0b12cdae21fc4d0"
 dependencies = [
  "jobserver",
  "libc",
-]
-
-[[package]]
-name = "centipede"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c30db9451346358a37cbabe951e4dfdfb34b0c0804df4bfdfc2978cb790a512"
-dependencies = [
- "bulletproof-kzen",
- "curv-kzen",
- "generic-array 0.14.7",
- "rayon",
- "serde",
- "serde_derive",
- "sha2 0.9.9",
 ]
 
 [[package]]
@@ -5511,7 +5482,6 @@ checksum = "824b2ae422412366ba479e8111fd301f7b5faece8149317bb81925979a53f520"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.3",
- "serde",
 ]
 
 [[package]]
@@ -5599,15 +5569,6 @@ dependencies = [
  "hermit-abi 0.3.5",
  "libc",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "itertools"
-version = "0.7.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d47946d458e94a1b7bcabbf6521ea7c037062c81f534615abcad76e84d4970d"
-dependencies = [
- "either",
 ]
 
 [[package]]
@@ -5882,17 +5843,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7d770dcb02bf6835887c3a979b5107a04ff4bbde97a5f0928d27404a155add9"
 dependencies = [
  "smallvec",
-]
-
-[[package]]
-name = "kzen-paillier"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90b7e469348f203838b2ed1d46f068ba63162e7a1e63be868763a80bbd5d046f"
-dependencies = [
- "curv-kzen",
- "rayon",
- "serde",
 ]
 
 [[package]]
@@ -6854,37 +6804,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
-name = "mp-ecdsa-protocol"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "bincode2",
- "curv-kzen",
- "frame-support",
- "futures",
- "gadget-common",
- "gadget-core",
- "itertools 0.12.1",
- "log",
- "multi-party-ecdsa",
- "pallet-jobs",
- "pallet-jobs-rpc-runtime-api",
- "parity-scale-codec 3.6.9",
- "protocol-macros",
- "round-based 0.1.7",
- "sc-client-api",
- "serde",
- "sp-api",
- "sp-application-crypto 23.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-core 21.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-io 23.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "sp-runtime 24.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
- "tangle-primitives",
- "test-utils",
- "tokio",
-]
-
-[[package]]
 name = "mpc-net"
 version = "0.1.0"
 source = "git+https://github.com/webb-tools/zk-SaaS/?rev=769c49ad6cc98308da35db2e4e0752cbaacc3aa0#769c49ad6cc98308da35db2e4e0752cbaacc3aa0"
@@ -6908,29 +6827,6 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-util",
-]
-
-[[package]]
-name = "multi-party-ecdsa"
-version = "0.8.2"
-source = "git+https://github.com/webb-tools/cggmp-threshold-ecdsa/#b7a73ab91ef34af7e225fe71c1c64844bdb12124"
-dependencies = [
- "bincode",
- "centipede",
- "curv-kzen",
- "derivative",
- "kzen-paillier",
- "log",
- "merlin 3.0.0",
- "round-based 0.1.7",
- "serde",
- "serde_repr",
- "serde_with 3.6.1",
- "sha2 0.9.9",
- "subtle",
- "thiserror",
- "zeroize",
- "zk-paillier",
 ]
 
 [[package]]
@@ -11280,17 +11176,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_repr"
-version = "0.1.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b2e6b945e9d3df726b65d6ee24060aff8e3533d431f677a9695db04eff9dfdb"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.48",
-]
-
-[[package]]
 name = "serde_spanned"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11343,16 +11228,9 @@ version = "3.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "15d167997bd841ec232f5b2b8e0e26606df2e7caa4c31b95ea9ca52b200bd270"
 dependencies = [
- "base64 0.21.7",
- "chrono",
- "hex",
- "indexmap 1.9.3",
- "indexmap 2.2.2",
  "serde",
  "serde_derive",
- "serde_json",
  "serde_with_macros 3.6.1",
- "time",
 ]
 
 [[package]]
@@ -13996,7 +13874,6 @@ dependencies = [
  "pallet-zksaas",
  "parity-scale-codec 3.6.9",
  "parking_lot 0.12.1",
- "paste",
  "sc-client-api",
  "sc-utils",
  "scale-info",
@@ -14102,6 +13979,7 @@ dependencies = [
  "gennaro-dkg",
  "itertools 0.12.1",
  "log",
+ "parking_lot 0.12.1",
  "protocol-macros",
  "rand 0.8.5",
  "round-based 0.1.7",
@@ -16416,23 +16294,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.48",
-]
-
-[[package]]
-name = "zk-paillier"
-version = "0.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "072972ea8d7c9829c9d87492ac021cf4b665b90c6c9b58fbeb6f71d036e66a04"
-dependencies = [
- "bit-vec",
- "curv-kzen",
- "digest 0.9.0",
- "kzen-paillier",
- "rand 0.6.5",
- "rayon",
- "serde",
- "sha2 0.9.9",
- "thiserror",
 ]
 
 [[package]]

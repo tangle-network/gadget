@@ -37,6 +37,7 @@ where
         network: Self::Network,
         logger: DebugLogger,
         account_id: AccountId,
+        key_store: ECDSAKeyStore<Self::KeystoreBackend>,
     ) -> Result<Self, Error>;
     async fn generate_protocol_from(
         &self,

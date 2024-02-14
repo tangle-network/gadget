@@ -27,7 +27,8 @@ pub mod prelude {
     pub use crate::gadget::message::GadgetProtocolMessage;
     pub use crate::gadget::work_manager::WorkManager;
     pub use crate::gadget::JobInitMetadata;
-    pub use crate::keystore::InMemoryBackend;
+    pub use crate::generate_setup_and_run_command;
+    pub use crate::keystore::{ECDSAKeyStore, InMemoryBackend, KeystoreBackend};
     pub use crate::{BuiltExecutableJobWrapper, Error, JobBuilder, JobError, WorkManagerInterface};
     pub use async_trait::async_trait;
     pub use gadget_core::job_manager::SendFuture;
@@ -35,8 +36,9 @@ pub mod prelude {
     pub use protocol_macros::protocol;
     pub use std::pin::Pin;
     pub use std::sync::Arc;
-    pub use tangle_primitives::roles::RoleType;
-    pub use tokio::sync::mpsc::UnboundedReceiver;
+    pub use tangle_primitives::jobs::*;
+    pub use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
+    pub use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 }
 pub mod channels;
 pub mod client;
@@ -168,4 +170,56 @@ async fn get_latest_finality_notification_from_client<C: Client<B>, B: Block>(
         .ok_or_else(|| Error::InitError {
             err: "No finality notification received".to_string(),
         })
+}
+
+#[macro_export]
+/// Generates a run function that returns a future that runs all the supplied protocols run concurrently
+/// Also generates a setup_node function that sets up the future that runs all the protocols concurrently
+#[allow(clippy::crate_in_macro_def)]
+macro_rules! generate_setup_and_run_command {
+    ($( $config:ident ),*) => {
+        /// Sets up a future that runs all the protocols concurrently
+        pub fn setup_node<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network, KBE: gadget_common::keystore::KeystoreBackend, D: Send + Clone + 'static>(node_input: NodeInput<B, BE, C, N, KBE, D>) -> impl SendFuture<'static, ()>
+                where
+            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,{
+            async move {
+                if let Err(err) = run(
+                    node_input.mock_clients,
+                    node_input.pallet_tx,
+                    node_input.mock_networks,
+                    node_input.logger.clone(),
+                    node_input.account_id,
+                    node_input.keystore,
+                )
+                .await
+                {
+                    node_input
+                        .logger
+                        .error(format!("Error running gadget: {:?}", err));
+                }
+            }
+        }
+
+        pub async fn run<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network, KBE: gadget_common::keystore::KeystoreBackend>(
+            mut client: Vec<C>,
+            pallet_tx: Arc<dyn PalletSubmitter>,
+            mut network: Vec<N>,
+            logger: DebugLogger,
+            account_id: AccountId,
+            key_store: ECDSAKeyStore<KBE>,
+        ) -> Result<(), Error>
+        where
+            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
+        {
+            use futures::TryStreamExt;
+            let futures = futures::stream::FuturesUnordered::new();
+
+            $(
+                let config = crate::$config::new(client.pop().expect("Not enough clients"), pallet_tx.clone(), network.pop().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone()).await?;
+                futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), gadget_common::Error>>>>);
+            )*
+
+            futures.try_collect::<Vec<_>>().await.map(|_| ())
+        }
+    };
 }
