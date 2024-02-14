@@ -222,7 +222,7 @@ where
         protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AsyncProtocolParameters,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
-        crate::protocol::signing::generate_protocol_from(
+        protocol::signing::generate_protocol_from(
             self,
             associated_block_id,
             associated_retry_id,

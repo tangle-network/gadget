@@ -12,41 +12,29 @@ protocol-macros = { workspace = true }
 #### Step 2: Create a Config struct as such:
 ```rust
 #[protocol]
-pub struct StubConfig<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
+pub struct StubConfig<
+    B: Block,
+    BE: Backend<B> + 'static,
+    C: ClientWithApi<B, BE>,
+    N: Network,
+    KBE: KeystoreBackend,
+> where
+        <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     pallet_tx: Arc<dyn PalletSubmitter>,
     logger: DebugLogger,
     client: C,
-    _pd: std::marker::PhantomData<(B, BE)>,
+    network: N,
+    account_id: AccountId,
+    key_store: ECDSAKeyStore<KBE>,
+    jobs_client: Arc<Mutex<Option<JobsClient<B, BE, C>>>>,
 }
 ```
 
-#### Step 3: Create a `StubNetwork` struct, and implement `Network` and `Clone` for it
+#### Step 2: Implement `FullProtocolConfig` for `StubConfig`
 
-#### Step 4: Create a `StubProtocol` struct, and implement `GadgetProtocol` and `AsyncProtocol` for it
+#### Step 3: Running the protocol
+At the bottom of lib.rs, add the macro: `generate_setup_and_run_command!(StubConfig, StubConfig, ...)`. For real applications, you will want to add all the protocol configs you wish to run concurrently.
 
-#### Step 5: Implement `NetworkAndProtocolSetup` for `StubConfig`, passing in `StubNetwork` as the network and `StubProtocol` as the protocol
-
-#### Step 6: Running the protocol
-First, create an instance of the `StubConfig` struct, then, call `execute` on it
-```rust
-pub async fn run<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>>(
-    client: C,
-    pallet_tx: Arc<dyn PalletSubmitter>,
-    logger: DebugLogger,
-) -> Result<(), Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId>,
-{
-    let config = StubConfig {
-        pallet_tx,
-        logger,
-        client,
-        _pd: std::marker::PhantomData,
-    };
-
-    config.execute().await
-}
-```
+#### Step 4: Testing the protocol:
+After generating the macro above, run this macro with appropriate `T` and `N` values: `test_utils::generate_signing_and_keygen_tss_tests!(T, N, ThresholdSignatureRoleType::StubProtocol)`
