@@ -6,7 +6,7 @@ use frost_core::{
         dkg::{round1, round2},
         KeyPackage, PublicKeyPackage,
     },
-    Ciphersuite, Error, Identifier,
+    Ciphersuite, Identifier,
 };
 use futures::SinkExt;
 use rand_core::{CryptoRng, RngCore};
@@ -18,7 +18,7 @@ use round_based::{
 use serde::{Deserialize, Serialize};
 use tangle_primitives::roles::ThresholdSignatureRoleType;
 
-use super::{IoError, KeygenAborted, KeygenError, Reason};
+use super::{IoError, KeygenAborted, KeygenError};
 
 /// Message of key generation protocol
 #[derive(ProtocolMessage, Clone, Serialize, Deserialize)]
@@ -90,13 +90,7 @@ where
     // Round 1
     tracer.round_begins();
     tracer.stage("Compute round 1 dkg secret package");
-    let (round1_secret_package, round1_package) =
-        dkg_part1(i + 1, t, n, role, rng).map_err(|e| {
-            KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {
-                parties: vec![],
-                error: e,
-            }))
-        })?;
+    let (round1_secret_package, round1_package) = dkg_part1(i + 1, t, n, role, rng)?;
 
     tracer.send_msg();
     let my_round1_msg = MsgRound1 {
@@ -105,7 +99,7 @@ where
     outgoings
         .send(Outgoing::broadcast(Msg::Round1(my_round1_msg.clone())))
         .await
-        .map_err(|e| KeygenError(Reason::IoError(IoError::send_message(e))))?;
+        .map_err(IoError::send_message)?;
     tracer.msg_sent();
 
     // Round 2
@@ -115,7 +109,7 @@ where
     let round1_packages: Vec<round1::Package<C>> = rounds
         .complete(round1)
         .await
-        .map_err(|e| KeygenError(Reason::IoError(IoError::receive_message(e))))?
+        .map_err(IoError::receive_message)?
         .into_vec_including_me(my_round1_msg.clone())
         .into_iter()
         .map(|msg| {
@@ -193,27 +187,40 @@ where
     })
 }
 
+fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(), KeygenError<C>> {
+    match role {
+        ThresholdSignatureRoleType::ZcashFrostEd25519
+        | ThresholdSignatureRoleType::ZcashFrostEd448
+        | ThresholdSignatureRoleType::ZcashFrostSecp256k1
+        | ThresholdSignatureRoleType::ZcashFrostP256
+        | ThresholdSignatureRoleType::ZcashFrostP384
+        | ThresholdSignatureRoleType::ZcashFrostRistretto255 => {}
+        _ => Err(KeygenAborted::InvalidFrostProtocol)?,
+    };
+
+    Ok(())
+}
+
 pub fn dkg_part1<R, C>(
     i: u16,
     t: u16,
     n: u16,
     role: ThresholdSignatureRoleType,
     rng: R,
-) -> Result<(round1::SecretPackage<C>, round1::Package<C>), Error<C>>
+) -> Result<(round1::SecretPackage<C>, round1::Package<C>), KeygenError<C>>
 where
     R: RngCore + CryptoRng,
     C: Ciphersuite,
 {
-    match role {
-        ThresholdSignatureRoleType::ZcashFrostEd25519
-        | ThresholdSignatureRoleType::ZcashFrostP256
-        | ThresholdSignatureRoleType::ZcashFrostRistretto255
-        | ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {}
-        _ => panic!("Invalid role"),
-    };
+    validate_role::<C>(role)?;
 
     let participant_identifier = i.try_into().expect("should be nonzero");
-    frost_core::keys::dkg::part1::<C, R>(participant_identifier, n, t, rng)
+    Ok(frost_core::keys::dkg::part1::<C, R>(
+        participant_identifier,
+        n,
+        t,
+        rng,
+    )?)
 }
 
 #[allow(clippy::type_complexity)]
@@ -226,20 +233,17 @@ pub fn dkg_part2<C>(
         round2::SecretPackage<C>,
         BTreeMap<Identifier<C>, round2::Package<C>>,
     ),
-    Error<C>,
+    KeygenError<C>,
 >
 where
     C: Ciphersuite,
 {
-    match role {
-        ThresholdSignatureRoleType::ZcashFrostEd25519
-        | ThresholdSignatureRoleType::ZcashFrostP256
-        | ThresholdSignatureRoleType::ZcashFrostRistretto255
-        | ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {}
-        _ => panic!("Invalid role"),
-    };
+    validate_role::<C>(role)?;
 
-    frost_core::keys::dkg::part2::<C>(secret_package, round1_packages)
+    Ok(frost_core::keys::dkg::part2::<C>(
+        secret_package,
+        round1_packages,
+    )?)
 }
 
 pub fn dkg_part3<C>(
@@ -247,17 +251,15 @@ pub fn dkg_part3<C>(
     round2_secret_package: &round2::SecretPackage<C>,
     round1_packages: &BTreeMap<Identifier<C>, round1::Package<C>>,
     round2_packages: &BTreeMap<Identifier<C>, round2::Package<C>>,
-) -> Result<(KeyPackage<C>, PublicKeyPackage<C>), Error<C>>
+) -> Result<(KeyPackage<C>, PublicKeyPackage<C>), KeygenError<C>>
 where
     C: Ciphersuite,
 {
-    match role {
-        ThresholdSignatureRoleType::ZcashFrostEd25519
-        | ThresholdSignatureRoleType::ZcashFrostP256
-        | ThresholdSignatureRoleType::ZcashFrostRistretto255
-        | ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {}
-        _ => panic!("Invalid role"),
-    };
+    validate_role::<C>(role)?;
 
-    frost_core::keys::dkg::part3::<C>(round2_secret_package, round1_packages, round2_packages)
+    Ok(frost_core::keys::dkg::part3::<C>(
+        round2_secret_package,
+        round1_packages,
+        round2_packages,
+    )?)
 }

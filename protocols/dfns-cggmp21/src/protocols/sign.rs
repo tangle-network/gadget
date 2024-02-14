@@ -286,9 +286,13 @@ where
                     loop {
                         let mut signature_bytes = signature_bytes;
                         signature_bytes[64] = v;
+
                         let res = sp_io::crypto::secp256k1_ecdsa_recover(
                             &signature_bytes,
-                            &input_data_to_sign2,
+                            &input_data_to_sign2
+                                .clone()
+                                .try_into()
+                                .expect("Expected a 32-byte array"),
                         );
                         match res {
                             Ok(key) if key[..32] == public_key_bytes[1..] => {

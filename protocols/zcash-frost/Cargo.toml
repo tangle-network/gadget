@@ -34,6 +34,7 @@ frost-rerandomized = { workspace = true }
 
 pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
 pallet-jobs = { workspace = true, features = ["std"] }
+pallet-dkg = { workspace = true, features = ["std"] }
 tangle-primitives = { workspace = true, features = ["std"] }
 
 sp-core = { workspace = true, features = ["std"] }

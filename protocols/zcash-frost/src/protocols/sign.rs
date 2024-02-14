@@ -2,7 +2,9 @@ use async_trait::async_trait;
 use frame_support::BoundedVec;
 use frost_core::keys::{KeyPackage, PublicKeyPackage};
 use frost_ed25519::Ed25519Sha512;
+use frost_ed448::Ed448Shake256;
 use frost_p256::P256Sha256;
+use frost_p384::P384Sha384;
 use frost_ristretto255::Ristretto255Sha512;
 use frost_secp256k1::Secp256K1Sha256;
 use gadget_common::client::JobsApiForGadget;
@@ -325,9 +327,35 @@ where
                             party
                         )
                     }
+                    ThresholdSignatureRoleType::ZcashFrostEd448 => {
+                        deserialize_and_run_threshold_sign!(
+                            Ed448Shake256,
+                            keyshare,
+                            &mut tracer,
+                            i,
+                            signers,
+                            &input_data_to_sign,
+                            role,
+                            &mut rng,
+                            party
+                        )
+                    }
                     ThresholdSignatureRoleType::ZcashFrostP256 => {
                         deserialize_and_run_threshold_sign!(
                             P256Sha256,
+                            keyshare,
+                            &mut tracer,
+                            i,
+                            signers,
+                            &input_data_to_sign,
+                            role,
+                            &mut rng,
+                            party
+                        )
+                    }
+                    ThresholdSignatureRoleType::ZcashFrostP384 => {
+                        deserialize_and_run_threshold_sign!(
+                            P384Sha384,
                             keyshare,
                             &mut tracer,
                             i,
@@ -387,12 +415,28 @@ where
                                 DigitalSignatureScheme::SchnorrEd25519,
                             )
                         }
+                        ThresholdSignatureRoleType::ZcashFrostEd448 => {
+                            let mut signature_bytes = [0u8; 64];
+                            signature_bytes.copy_from_slice(&signature.group_signature);
+                            (
+                                signature_bytes.to_vec().try_into().unwrap(),
+                                DigitalSignatureScheme::SchnorrEd448,
+                            )
+                        }
                         ThresholdSignatureRoleType::ZcashFrostP256 => {
                             let mut signature_bytes = [0u8; 64];
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
                                 signature_bytes.to_vec().try_into().unwrap(),
                                 DigitalSignatureScheme::SchnorrP256,
+                            )
+                        }
+                        ThresholdSignatureRoleType::ZcashFrostP384 => {
+                            let mut signature_bytes = [0u8; 64];
+                            signature_bytes.copy_from_slice(&signature.group_signature);
+                            (
+                                signature_bytes.to_vec().try_into().unwrap(),
+                                DigitalSignatureScheme::SchnorrP384,
                             )
                         }
                         ThresholdSignatureRoleType::ZcashFrostRistretto255 => {

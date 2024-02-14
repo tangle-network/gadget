@@ -51,8 +51,6 @@ where
 
         let job_id = job.job_id;
         let role_type = job.job_type.get_role_type();
-        // ZcashFrostSr25519 | ZcashFrostP256 | ZcashFrostSecp256k1 | ZcashFrostRistretto255 | ZcashFrostEd25519
-        
 
         // We can safely make this assumption because we are only creating jobs for phase one
         let JobType::DKGTSSPhaseOne(p1_job) = job.job_type else {

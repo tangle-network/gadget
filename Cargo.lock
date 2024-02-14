@@ -1069,8 +1069,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93f2635620bf0b9d4576eb7bb9a38a55df78bd1205d26fa994b25911a69f212f"
 dependencies = [
  "bitcoin_hashes",
- "rand 0.8.5",
- "rand_core 0.6.4",
+ "rand 0.6.5",
+ "rand_core 0.4.2",
  "serde",
  "unicode-normalization",
 ]
@@ -2676,6 +2676,7 @@ dependencies = [
  "hex",
  "itertools 0.12.1",
  "log",
+ "pallet-dkg",
  "pallet-jobs",
  "pallet-jobs-rpc-runtime-api",
  "parity-scale-codec 3.6.9",
@@ -3868,7 +3869,7 @@ dependencies = [
 [[package]]
 name = "evm-tracer"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "ethereum-types 0.14.1",
  "evm",
@@ -3888,7 +3889,7 @@ dependencies = [
 [[package]]
 name = "evm-tracing-events"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "environmental",
  "ethereum",
@@ -4533,7 +4534,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "debugless-unwrap",
  "hex",
@@ -4571,7 +4572,7 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "frost-core 0.6.1",
@@ -4597,7 +4598,7 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "ed448-goldilocks-plus 0.11.1 (git+https://github.com/drewstone/Ed448-Goldilocks.git?branch=drew/zeroize)",
  "frost-core 0.6.1",
@@ -4623,7 +4624,7 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "frost-core 0.6.1",
  "p256 0.13.2",
@@ -4649,7 +4650,7 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "frost-core 0.6.1",
  "p384",
@@ -4686,7 +4687,7 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "frost-core 0.6.1",
@@ -4712,7 +4713,7 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "frost-core 0.6.1",
  "k256",
@@ -5520,7 +5521,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite 0.2.13",
- "socket2 0.5.5",
+ "socket2 0.4.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -5568,7 +5569,7 @@ dependencies = [
  "iana-time-zone-haiku",
  "js-sys",
  "wasm-bindgen",
- "windows-core 0.52.0",
+ "windows-core",
 ]
 
 [[package]]
@@ -7112,6 +7113,7 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "multi-party-ecdsa",
+ "pallet-dkg",
  "pallet-jobs",
  "pallet-jobs-rpc-runtime-api",
  "parity-scale-codec 3.6.9",
@@ -7821,7 +7823,7 @@ dependencies = [
 [[package]]
 name = "pallet-airdrop-claims"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8005,7 +8007,7 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "digest 0.10.7",
  "elliptic-curve 0.13.8",
@@ -8219,7 +8221,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-batch"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "evm",
  "evm-runtime",
@@ -8259,7 +8261,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-call-permit"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8290,7 +8292,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-democracy"
 version = "0.2.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8332,7 +8334,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-jobs"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8362,7 +8364,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-preimage"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8382,7 +8384,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-proxy"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8404,7 +8406,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-registry"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8440,7 +8442,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-staking"
 version = "1.0.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8462,7 +8464,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-vesting"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8591,7 +8593,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8608,7 +8610,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -8704,7 +8706,7 @@ dependencies = [
 [[package]]
 name = "pallet-roles"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -8837,7 +8839,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-pause"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8927,7 +8929,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9414,7 +9416,7 @@ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 [[package]]
 name = "precompile-utils"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "affix",
  "environmental",
@@ -9440,7 +9442,7 @@ dependencies = [
 [[package]]
 name = "precompile-utils-macro"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "case",
  "num_enum 0.5.11",
@@ -9552,7 +9554,7 @@ dependencies = [
 [[package]]
 name = "primitives-ext"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "ethereum-types 0.14.1",
  "evm-tracing-events",
@@ -10498,7 +10500,7 @@ dependencies = [
 [[package]]
 name = "rpc-primitives-debug"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "environmental",
  "ethereum",
@@ -10516,7 +10518,7 @@ dependencies = [
 [[package]]
 name = "rpc-primitives-txpool"
 version = "0.6.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "ethereum",
  "parity-scale-codec 3.6.9",
@@ -13923,7 +13925,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -13933,7 +13935,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -13960,7 +13962,7 @@ dependencies = [
 [[package]]
 name = "tangle-runtime"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "evm-tracer",
  "fp-account",
@@ -14062,7 +14064,7 @@ dependencies = [
 [[package]]
 name = "tangle-testnet-runtime"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#688b9e1d1d79dc09166bc70d84e0d4a3e62a955d"
 dependencies = [
  "evm-tracer",
  "fp-account",
@@ -14888,7 +14890,7 @@ checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
  "digest 0.10.7",
- "rand 0.8.5",
+ "rand 0.4.6",
  "static_assertions",
 ]
 
@@ -16247,7 +16249,7 @@ version = "0.51.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca229916c5ee38c2f2bc1e9d8f04df975b4bd93f9955dc69fabb5d91270045c9"
 dependencies = [
- "windows-core 0.51.1",
+ "windows-core",
  "windows-targets 0.48.5",
 ]
 
@@ -16258,15 +16260,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1f8cf84f35d2db49a46868f947758c7a1138116f7fac3bc844f43ade1292e64"
 dependencies = [
  "windows-targets 0.48.5",
-]
-
-[[package]]
-name = "windows-core"
-version = "0.52.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33ab640c8d7e35bf8ba19b884ba838ceb4fba93a4e8c65a9059d08afcfc683d9"
-dependencies = [
- "windows-targets 0.52.0",
 ]
 
 [[package]]
@@ -16678,6 +16671,7 @@ dependencies = [
  "hex",
  "itertools 0.12.1",
  "log",
+ "pallet-dkg",
  "pallet-jobs",
  "pallet-jobs-rpc-runtime-api",
  "parity-scale-codec 3.6.9",

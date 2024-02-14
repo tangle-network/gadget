@@ -17,6 +17,8 @@ use gadget_common::{Block, BlockImportNotification};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
+use pallet_dkg::signatures_schemes::ecdsa::verify_signer_from_set_ecdsa;
+use pallet_dkg::signatures_schemes::to_slice_33;
 use rand::SeedableRng;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
@@ -511,53 +513,4 @@ fn verify_generated_dkg_key_ecdsa(
         known_signers.len(),
         data.threshold + 1
     ));
-}
-
-pub fn verify_signer_from_set_ecdsa(
-    maybe_signers: Vec<ecdsa::Public>,
-    msg: &[u8],
-    signature: &[u8],
-) -> (Option<ecdsa::Public>, bool) {
-    let mut signer = None;
-    let res = maybe_signers.iter().any(|x| {
-        if let Some(data) = recover_ecdsa_pub_key(msg, signature) {
-            let recovered = &data[..32];
-            if x.0[1..].to_vec() == recovered.to_vec() {
-                signer = Some(*x);
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    });
-
-    (signer, res)
-}
-
-pub fn recover_ecdsa_pub_key(data: &[u8], signature: &[u8]) -> Option<Vec<u8>> {
-    const SIGNATURE_LENGTH: usize = 65;
-    if signature.len() != SIGNATURE_LENGTH {
-        return None;
-    }
-    let mut sig = [0u8; SIGNATURE_LENGTH];
-    sig[..SIGNATURE_LENGTH].copy_from_slice(signature);
-
-    let hash = keccak_256(data);
-
-    sp_io::crypto::secp256k1_ecdsa_recover(&sig, &hash)
-        .ok()
-        .map(|x| x.to_vec())
-}
-
-pub fn to_slice_33(val: &[u8]) -> Option<[u8; 33]> {
-    const ECDSA_KEY_LENGTH: usize = 33;
-    if val.len() == ECDSA_KEY_LENGTH {
-        let mut key = [0u8; ECDSA_KEY_LENGTH];
-        key[..ECDSA_KEY_LENGTH].copy_from_slice(val);
-
-        return Some(key);
-    }
-    None
 }

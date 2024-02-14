@@ -53,6 +53,8 @@ enum KeygenAborted<C: Ciphersuite> {
         parties: Vec<u16>,
         error: frost_core::Error<C>,
     },
+    #[error("Invalid frost protocol")]
+    InvalidFrostProtocol,
 }
 
 /// Sign protocol error

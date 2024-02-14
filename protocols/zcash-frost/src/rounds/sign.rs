@@ -185,9 +185,7 @@ fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(),
         | ThresholdSignatureRoleType::ZcashFrostP256
         | ThresholdSignatureRoleType::ZcashFrostP384
         | ThresholdSignatureRoleType::ZcashFrostRistretto255 => {}
-        _ => Err(SignError(Reason::SignFailure(
-            SignAborted::InvalidFrostProtocol,
-        )))?,
+        _ => Err(SignAborted::InvalidFrostProtocol)?,
     };
 
     Ok(())

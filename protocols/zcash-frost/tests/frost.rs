@@ -22,24 +22,201 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_externalities_keygen() {
+    async fn test_externalities_keygen_zcash_frost_ed25519() {
         test_utils::setup_log();
         const N: usize = 3;
         const T: usize = N - 1;
 
         let ext = new_test_ext::<N>().await;
-        assert_eq!(wait_for_keygen::<N, T>(&ext).await, 0);
+        assert_eq!(
+            wait_for_keygen::<N, T>(&ext, ThresholdSignatureRoleType::ZcashFrostEd25519).await,
+            0
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_externalities_signing() {
+    async fn test_externalities_keygen_zcash_frost_ed448() {
         test_utils::setup_log();
         const N: usize = 3;
         const T: usize = N - 1;
 
         let ext = new_test_ext::<N>().await;
-        let keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
-        assert_eq!(wait_for_signing::<N>(&ext, keygen_job_id).await, 1);
+        assert_eq!(
+            wait_for_keygen::<N, T>(&ext, ThresholdSignatureRoleType::ZcashFrostEd448).await,
+            0
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_keygen_zcash_frost_p256() {
+        test_utils::setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+
+        let ext = new_test_ext::<N>().await;
+        assert_eq!(
+            wait_for_keygen::<N, T>(&ext, ThresholdSignatureRoleType::ZcashFrostP256).await,
+            0
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_keygen_zcash_frost_p384() {
+        test_utils::setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+
+        let ext = new_test_ext::<N>().await;
+        assert_eq!(
+            wait_for_keygen::<N, T>(&ext, ThresholdSignatureRoleType::ZcashFrostP384).await,
+            0
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_keygen_zcash_frost_ristretto255() {
+        test_utils::setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+
+        let ext = new_test_ext::<N>().await;
+        assert_eq!(
+            wait_for_keygen::<N, T>(&ext, ThresholdSignatureRoleType::ZcashFrostRistretto255).await,
+            0
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_keygen_zcash_frost_secp256k1() {
+        test_utils::setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+
+        let ext = new_test_ext::<N>().await;
+        assert_eq!(
+            wait_for_keygen::<N, T>(&ext, ThresholdSignatureRoleType::ZcashFrostSecp256k1).await,
+            0
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_signing_zcash_frost_ed25519() {
+        test_utils::setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+
+        let ext = new_test_ext::<N>().await;
+        let keygen_job_id =
+            wait_for_keygen::<N, T>(&ext, ThresholdSignatureRoleType::ZcashFrostEd25519).await;
+        assert_eq!(
+            wait_for_signing::<N>(
+                &ext,
+                keygen_job_id,
+                ThresholdSignatureRoleType::ZcashFrostEd25519
+            )
+            .await,
+            1
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_signing_zcash_frost_ed448() {
+        test_utils::setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+
+        let ext = new_test_ext::<N>().await;
+        let keygen_job_id =
+            wait_for_keygen::<N, T>(&ext, ThresholdSignatureRoleType::ZcashFrostEd448).await;
+        assert_eq!(
+            wait_for_signing::<N>(
+                &ext,
+                keygen_job_id,
+                ThresholdSignatureRoleType::ZcashFrostEd448
+            )
+            .await,
+            1
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_signing_zcash_frost_p256() {
+        test_utils::setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+
+        let ext = new_test_ext::<N>().await;
+        let keygen_job_id =
+            wait_for_keygen::<N, T>(&ext, ThresholdSignatureRoleType::ZcashFrostP256).await;
+        assert_eq!(
+            wait_for_signing::<N>(
+                &ext,
+                keygen_job_id,
+                ThresholdSignatureRoleType::ZcashFrostP256
+            )
+            .await,
+            1
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_signing_zcash_frost_p384() {
+        test_utils::setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+
+        let ext = new_test_ext::<N>().await;
+        let keygen_job_id =
+            wait_for_keygen::<N, T>(&ext, ThresholdSignatureRoleType::ZcashFrostP384).await;
+        assert_eq!(
+            wait_for_signing::<N>(
+                &ext,
+                keygen_job_id,
+                ThresholdSignatureRoleType::ZcashFrostP384
+            )
+            .await,
+            1
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_signing_zcash_frost_ristretto255() {
+        test_utils::setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+
+        let ext = new_test_ext::<N>().await;
+        let keygen_job_id =
+            wait_for_keygen::<N, T>(&ext, ThresholdSignatureRoleType::ZcashFrostRistretto255).await;
+        assert_eq!(
+            wait_for_signing::<N>(
+                &ext,
+                keygen_job_id,
+                ThresholdSignatureRoleType::ZcashFrostRistretto255
+            )
+            .await,
+            1
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_signing_zcash_frost_secp256k1() {
+        test_utils::setup_log();
+        const N: usize = 3;
+        const T: usize = N - 1;
+
+        let ext = new_test_ext::<N>().await;
+        let keygen_job_id =
+            wait_for_keygen::<N, T>(&ext, ThresholdSignatureRoleType::ZcashFrostSecp256k1).await;
+        assert_eq!(
+            wait_for_signing::<N>(
+                &ext,
+                keygen_job_id,
+                ThresholdSignatureRoleType::ZcashFrostSecp256k1
+            )
+            .await,
+            1
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -48,16 +225,23 @@ mod tests {
         test_utils::setup_log();
         const N: usize = 3;
         const T: usize = N - 1;
-        const TEST_COUNT: usize = 2;
+        const FROST_ROLES: [ThresholdSignatureRoleType; 6] = [
+            ThresholdSignatureRoleType::ZcashFrostEd25519,
+            ThresholdSignatureRoleType::ZcashFrostEd448,
+            ThresholdSignatureRoleType::ZcashFrostP256,
+            ThresholdSignatureRoleType::ZcashFrostP384,
+            ThresholdSignatureRoleType::ZcashFrostRistretto255,
+            ThresholdSignatureRoleType::ZcashFrostSecp256k1,
+        ];
 
         let ext = new_test_ext::<N>().await;
         let futures = FuturesUnordered::new();
 
-        for _ in 0..TEST_COUNT {
+        for i in 0..FROST_ROLES.len() {
             let ext = ext.clone();
             futures.push(Box::pin(async move {
-                let keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
-                wait_for_signing::<N>(&ext, keygen_job_id).await;
+                let keygen_job_id = wait_for_keygen::<N, T>(&ext, FROST_ROLES[i]).await;
+                wait_for_signing::<N>(&ext, keygen_job_id, FROST_ROLES[i]).await;
             }));
         }
 
@@ -66,9 +250,10 @@ mod tests {
 
     async fn wait_for_keygen<const N: usize, const T: usize>(
         ext: &MultiThreadedTestExternalities,
+        role_type: ThresholdSignatureRoleType,
     ) -> JobId {
         let job_id = ext
-            .execute_with_async(|| {
+            .execute_with_async(move || {
                 let job_id = Jobs::next_job_id();
                 let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
 
@@ -79,7 +264,7 @@ mod tests {
                         participants: identities.clone().try_into().unwrap(),
                         threshold: T as _,
                         permitted_caller: None,
-                        role_type: ThresholdSignatureRoleType::ZcashFrostRistretto255,
+                        role_type: role_type.clone(),
                     }),
                 };
 
@@ -90,18 +275,14 @@ mod tests {
             })
             .await;
 
-        test_utils::wait_for_job_completion(
-            ext,
-            RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255),
-            job_id,
-        )
-        .await;
+        test_utils::wait_for_job_completion(ext, RoleType::Tss(role_type), job_id).await;
         job_id
     }
 
     async fn wait_for_signing<const N: usize>(
         ext: &MultiThreadedTestExternalities,
         keygen_job_id: JobId,
+        role_type: ThresholdSignatureRoleType,
     ) -> JobId {
         let job_id = ext
             .execute_with_async(move || {
@@ -115,7 +296,7 @@ mod tests {
                     job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
                         phase_one_id: keygen_job_id,
                         submission: submission.to_vec().try_into().unwrap(),
-                        role_type: ThresholdSignatureRoleType::ZcashFrostRistretto255,
+                        role_type,
                     }),
                 };
 
@@ -126,12 +307,7 @@ mod tests {
             })
             .await;
 
-        test_utils::wait_for_job_completion(
-            ext,
-            RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255),
-            job_id,
-        )
-        .await;
+        test_utils::wait_for_job_completion(ext, RoleType::Tss(role_type), job_id).await;
         job_id
     }
 
