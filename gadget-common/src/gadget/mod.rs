@@ -124,7 +124,7 @@ where
             .query_jobs_by_validator(notification.hash, *self.protocol.account_id())
             .await?;
 
-        log::trace!(target: "gadget", "[{}] Found {} jobs for initialization", self.protocol.name(), jobs.len());
+        log::trace!(target: "gadget", "[{}] Found {} job(s) for initialization", self.protocol.name(), jobs.len());
         let mut relevant_jobs = Vec::new();
 
         for job in jobs {

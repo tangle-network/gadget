@@ -1,22 +1,7 @@
-#![feature(return_position_impl_trait_in_trait)]
+use gadget_common::prelude::*;
+use test_utils::generate_setup_and_run_command;
 
-use async_trait::async_trait;
-use gadget_common::client::*;
-use gadget_common::config::*;
-use gadget_common::full_protocol::FullProtocolConfig;
-use gadget_common::gadget::message::GadgetProtocolMessage;
-use gadget_common::gadget::work_manager::WorkManager;
-use gadget_common::gadget::JobInitMetadata;
-use gadget_common::{BuiltExecutableJobWrapper, Error, JobBuilder, JobError, WorkManagerInterface};
-use parking_lot::Mutex;
-use protocol_macros::protocol;
-use std::sync::Arc;
-use tangle_primitives::roles::RoleType;
-use test_utils::mock::NodeInput;
-use test_utils::{generate_tss_tests, ProtocolTestingUtils, SendFuture};
-use tokio::sync::mpsc::UnboundedReceiver;
-
-#[protocol(keygen_test, signing_test)]
+#[protocol]
 pub struct StubConfig<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
@@ -39,7 +24,26 @@ where
     type Client = C;
     type Block = B;
     type Backend = BE;
-    type AdditionalTestParameters = ();
+    type Network = N;
+    type AdditionalNodeParameters = ();
+    type KeystoreBackend = InMemoryBackend;
+
+    async fn new(
+        client: Self::Client,
+        pallet_tx: Arc<dyn PalletSubmitter>,
+        network: Self::Network,
+        logger: DebugLogger,
+        account_id: AccountId,
+    ) -> Result<Self, Error> {
+        Ok(Self {
+            pallet_tx,
+            logger,
+            client,
+            network,
+            account_id,
+            jobs_client: Arc::new(Mutex::new(None)),
+        })
+    }
 
     async fn generate_protocol_from(
         &self,
@@ -115,39 +119,16 @@ where
     }
 }
 
-impl<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network> ProtocolTestingUtils
-    for StubConfig<B, BE, C, N>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
-    fn setup_test_node(
-        _additional_param: Self::AdditionalTestParameters,
-        _node_input: NodeInput,
-    ) -> impl SendFuture<'static, ()> {
-        async move {}
-    }
-}
+// Generates the main entry point for the crate. The input is variadic, and accepts an arbitrary number of protocol configurations.
+// For example, you may supply both a KeygenConfig and a SigningConfig to generate a main entry point that runs both protocols concurrently.
+// In the below example, the generated run command will run two duplicated protocols concurrently. In a real example, you would want to supply
+// The config type for each protocol you want to run in tandem.
+generate_setup_and_run_command!(StubConfig, StubConfig);
 
-pub async fn run<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network>(
-    client: C,
-    pallet_tx: Arc<dyn PalletSubmitter>,
-    network: N,
-    logger: DebugLogger,
-    account_id: AccountId,
-) -> Result<(), Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
-    let config = StubConfig {
-        pallet_tx,
-        logger,
-        client,
-        network,
-        account_id,
-        jobs_client: Arc::new(Mutex::new(None)),
-    };
-
-    config.execute().await
-}
-
-generate_tss_tests!(StubConfig, ThresholdSignatureRoleType::GennaroDKGBls381);
+// An Example usage of generating signing and keygen tests
+// Note: since the StubProtocol does not submit any JobResults, the wait_for_job_completion function will not work as expected. This is just an example of how to use the macro.
+// test_utils::generate_signing_and_keygen_tss_tests!(
+//    2,
+//    3,
+//    ThresholdSignatureRoleType::GennaroDKGBls381
+//);

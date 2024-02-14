@@ -33,21 +33,21 @@ use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_core::{ByteArray, Pair, H256};
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
-use std::future::Future;
 use std::time::Duration;
 
 pub type Balance = u128;
 pub type BlockNumber = u64;
 
-use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmitter};
+pub use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmitter};
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use gadget_common::debug_logger::DebugLogger;
+use gadget_common::full_protocol::NodeInput;
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::Error;
-use gadget_core::job_manager::WorkManagerInterface;
+use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
 use sp_core::ecdsa;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
@@ -67,7 +67,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 /// Key type for DKG keys
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"role");
 
-type Block = frame_system::mocking::MockBlock<Runtime>;
+pub type Block = frame_system::mocking::MockBlock<Runtime>;
 
 impl frame_system::Config for Runtime {
     type RuntimeOrigin = RuntimeOrigin;
@@ -428,31 +428,24 @@ pub fn advance_to_block(block_number: u64) {
     }
 }
 
-pub struct NodeInput {
-    pub mock_clients: Vec<MockClient<Runtime, Block>>,
-    pub mock_networks: Vec<MockNetwork>,
-    pub account_id: AccountId,
-    pub logger: DebugLogger,
-    pub pallet_tx: TestExternalitiesPalletSubmitter,
-    pub keystore: ECDSAKeyStore<InMemoryBackend>,
-    pub node_index: usize,
-}
-
 /// This function basically just builds a genesis storage key/value store according to
 /// our desired mockup.
 /// N: number of nodes
 /// K: Number of networks accessible per node
 /// D: Any data that you want to pass to pass with NodeInput.
-/// F: A repeated function that accepts relevant data, and, is expected to spawn each node
-pub async fn new_test_ext<const N: usize, const K: usize, D, F, J>(
-    user_data: D,
+/// F: A function that generates a singular full node (all possible protocols) by returning a future representing the node's execution
+pub async fn new_test_ext<
+    const N: usize,
+    const K: usize,
+    D: Send + Clone + 'static,
+    F: Fn(
+        NodeInput<Block, MockBackend, MockClient<Runtime, Block>, MockNetwork, InMemoryBackend, D>,
+    ) -> Fut,
+    Fut: SendFuture<'static, ()>,
+>(
+    additional_params: D,
     f: F,
-) -> MultiThreadedTestExternalities
-where
-    D: Clone + Send + Sync + 'static,
-    F: Fn(D, NodeInput) -> J,
-    J: Future<Output = ()> + Send + 'static,
-{
+) -> MultiThreadedTestExternalities {
     let mut t = frame_system::GenesisConfig::<Runtime>::default()
         .build_storage()
         .unwrap();
@@ -548,10 +541,10 @@ where
             peer_id: format!("Peer {node_index}"),
         };
 
-        let pallet_tx = TestExternalitiesPalletSubmitter {
+        let pallet_tx = Arc::new(TestExternalitiesPalletSubmitter {
             id: account_id,
             ext: ext.clone(),
-        };
+        });
 
         // Assume all clients/networks share the same keystore for sharing results
         // between phases
@@ -564,9 +557,11 @@ where
             pallet_tx,
             keystore,
             node_index,
+            additional_params: additional_params.clone(),
+            _pd: Default::default(),
         };
 
-        let task = f(user_data.clone(), input);
+        let task = f(input);
         tokio::task::spawn(task);
     }
 

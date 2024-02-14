@@ -5,6 +5,7 @@ use crate::config::{DebugLogger, GadgetProtocol, Network, NetworkAndProtocolSetu
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{JobInitMetadata, WorkManagerConfig};
+use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use crate::protocol::AsyncProtocol;
 use crate::Error;
 use async_trait::async_trait;
@@ -13,12 +14,13 @@ use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use sc_client_api::{Backend, BlockImportNotification};
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::Block;
+use std::marker::PhantomData;
 use std::sync::Arc;
 use tangle_primitives::roles::RoleType;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 #[async_trait]
-pub trait FullProtocolConfig: Clone + Send + Sync + 'static
+pub trait FullProtocolConfig: Clone + Send + Sync + Sized + 'static
 where
     <Self::Client as ProvideRuntimeApi<Self::Block>>::Api: JobsApiForGadget<Self::Block>,
 {
@@ -26,7 +28,16 @@ where
     type Client: ClientWithApi<Self::Block, Self::Backend>;
     type Block: Block;
     type Backend: Backend<Self::Block>;
-    type AdditionalTestParameters;
+    type Network: Network;
+    type AdditionalNodeParameters: Clone + Send + Sync + 'static;
+    type KeystoreBackend: KeystoreBackend;
+    async fn new(
+        client: Self::Client,
+        pallet_tx: Arc<dyn PalletSubmitter>,
+        network: Self::Network,
+        logger: DebugLogger,
+        account_id: AccountId,
+    ) -> Result<Self, Error>;
     async fn generate_protocol_from(
         &self,
         associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
@@ -60,8 +71,7 @@ where
     }
 
     async fn process_error(&self, error: Error, _job_manager: &ProtocolWorkManager<WorkManager>) {
-        self.logger()
-            .error(&format!("Error in protocol: {}", error));
+        self.logger().error(format!("Error in protocol: {error}"));
     }
 
     fn account_id(&self) -> &AccountId;
@@ -212,4 +222,28 @@ where
     ) -> Result<(), Error> {
         T::send_message(self, message).await
     }
+}
+
+/// Used for constructing an instance of a node. If there is both a keygen and a signing protocol, then,
+/// the length of the vectors are 2. The length of the vector is equal to the numbers of protocols that
+/// the constructed node is going to concurrently execute
+pub struct NodeInput<
+    B: Block,
+    BE: Backend<B>,
+    C: ClientWithApi<B, BE>,
+    N: Network,
+    KBE: KeystoreBackend,
+    D,
+> where
+    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
+{
+    pub mock_clients: Vec<C>,
+    pub mock_networks: Vec<N>,
+    pub account_id: AccountId,
+    pub logger: DebugLogger,
+    pub pallet_tx: Arc<dyn PalletSubmitter>,
+    pub keystore: ECDSAKeyStore<KBE>,
+    pub node_index: usize,
+    pub additional_params: D,
+    pub _pd: PhantomData<(B, BE)>,
 }

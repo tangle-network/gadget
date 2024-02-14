@@ -1,12 +1,9 @@
-#![feature(return_position_impl_trait_in_trait)]
-
-use crate::mock::{Jobs, NodeInput, Runtime};
+use crate::mock::{Jobs, Runtime};
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
-use gadget_common::client::{GadgetPhaseResult, JobsApiForGadget};
-use gadget_common::full_protocol::FullProtocolConfig;
+use gadget_common::client::GadgetPhaseResult;
 pub use gadget_core::job_manager::SendFuture;
+pub use log;
 use pallet_jobs::{SubmittedJobs, SubmittedJobsRole};
-use sp_api::ProvideRuntimeApi;
 use std::time::Duration;
 use tangle_primitives::jobs::JobId;
 use tangle_primitives::roles::RoleType;
@@ -51,21 +48,13 @@ pub fn remove_job(role_type: RoleType, job_id: JobId) {
     SubmittedJobsRole::<Runtime>::remove(job_id);
 }
 
-pub trait ProtocolTestingUtils: FullProtocolConfig
-where
-    <<Self as FullProtocolConfig>::Client as ProvideRuntimeApi<
-        <Self as FullProtocolConfig>::Block,
-    >>::Api: JobsApiForGadget<<Self as FullProtocolConfig>::Block>,
-{
-    fn setup_test_node(
-        additional_param: <Self as FullProtocolConfig>::AdditionalTestParameters,
-        node_input: NodeInput,
-    ) -> impl SendFuture<'static, ()>;
-}
-
 #[macro_export]
-macro_rules! generate_tss_tests {
-    ($config:ident, $threshold_sig_ty:expr) => {
+/// When using this macro, the `generate_setup_and_run_command` macro should be used to generate the `setup_node` function.
+/// If not, you must manually create a function named `setup_node` in your crate's lib.rs that accepts a NodeInput and
+/// returns a future that runs the protocols.
+#[allow(clippy::crate_in_macro_def)]
+macro_rules! generate_signing_and_keygen_tss_tests {
+    ($t:expr, $n:expr, $threshold_sig_ty:expr) => {
         #[cfg(test)]
         mod tests {
             use std::sync::Arc;
@@ -73,6 +62,7 @@ macro_rules! generate_tss_tests {
                 DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
             };
             use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
+use gadget_common::full_protocol::FullProtocolConfig;
             use test_utils::mock::{id_to_public, Jobs, MockBackend, RuntimeOrigin};
             use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
 
@@ -90,8 +80,8 @@ macro_rules! generate_tss_tests {
             #[tokio::test(flavor = "multi_thread")]
             async fn test_externalities_keygen() {
                 test_utils::setup_log();
-                const N: usize = 3;
-                const T: usize = N - 1;
+                const N: usize = $n;
+                const T: usize = $t;
 
                 let ext = new_test_ext::<N>().await;
                 assert_eq!(wait_for_keygen::<N, T>(&ext).await, 0);
@@ -100,8 +90,8 @@ macro_rules! generate_tss_tests {
             #[tokio::test(flavor = "multi_thread")]
             async fn test_externalities_signing() {
                 test_utils::setup_log();
-                const N: usize = 3;
-                const T: usize = N - 1;
+                const N: usize = $n;
+                const T: usize = $t;
 
                 let ext = new_test_ext::<N>().await;
                 let keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
@@ -129,7 +119,7 @@ macro_rules! generate_tss_tests {
 
                         assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission).is_ok());
 
-                        log::info!(target: "gadget", "******* Submitted Keygen Job {job_id}");
+                        $crate::log::info!(target: "gadget", "******* Submitted Keygen Job {job_id}");
                         job_id
                     })
                     .await;
@@ -163,7 +153,7 @@ macro_rules! generate_tss_tests {
 
                         assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission).is_ok());
 
-                        log::info!(target: "gadget", "******* Submitted Signing Job {job_id}");
+                        $crate::log::info!(target: "gadget", "******* Submitted Signing Job {job_id}");
                         job_id
                     })
                     .await;
@@ -178,11 +168,58 @@ macro_rules! generate_tss_tests {
             }
 
             async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
-                test_utils::mock::new_test_ext::<N, 2, _, _, _>((), |extra_param, mut node_input| async move {
-                    crate::$config::setup_test_node(extra_param, node_input).await
-                })
-                .await
+                test_utils::mock::new_test_ext::<N, 2, (), _, _>((), crate::setup_node).await
             }
+        }
+    };
+}
+
+#[macro_export]
+/// Generates a run function that returns a future that runs all the supplied protocols run concurrently
+/// Also generates a setup_node function that sets up the future that runs all the protocols concurrently
+#[allow(clippy::crate_in_macro_def)]
+macro_rules! generate_setup_and_run_command {
+    ($( $config:ident ),*) => {
+        /// Sets up a future that runs all the protocols concurrently
+        pub fn setup_node<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network, KBE: gadget_common::keystore::KeystoreBackend, D: Send + Clone + 'static>(node_input: NodeInput<B, BE, C, N, KBE, D>) -> impl SendFuture<'static, ()>
+                where
+            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,{
+            async move {
+                if let Err(err) = run(
+                    node_input.mock_clients,
+                    node_input.pallet_tx,
+                    node_input.mock_networks,
+                    node_input.logger.clone(),
+                    node_input.account_id,
+                )
+                .await
+                {
+                    node_input
+                        .logger
+                        .error(format!("Error running gadget: {:?}", err));
+                }
+            }
+        }
+
+        pub async fn run<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network>(
+            mut client: Vec<C>,
+            pallet_tx: Arc<dyn PalletSubmitter>,
+            mut network: Vec<N>,
+            logger: DebugLogger,
+            account_id: AccountId,
+        ) -> Result<(), Error>
+        where
+            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
+        {
+            use futures::TryStreamExt;
+            let futures = futures::stream::FuturesUnordered::new();
+
+            $(
+                let config = crate::$config::new(client.pop().expect("Not enough clients"), pallet_tx.clone(), network.pop().expect("Not enough networks"), logger.clone(), account_id.clone()).await?;
+                futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), gadget_common::Error>>>>);
+            )*
+
+            futures.try_collect::<Vec<_>>().await.map(|_| ())
         }
     };
 }

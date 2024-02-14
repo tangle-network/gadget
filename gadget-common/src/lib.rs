@@ -20,6 +20,24 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use tokio::task::JoinError;
 
+pub mod prelude {
+    pub use crate::client::*;
+    pub use crate::config::*;
+    pub use crate::full_protocol::{FullProtocolConfig, NodeInput};
+    pub use crate::gadget::message::GadgetProtocolMessage;
+    pub use crate::gadget::work_manager::WorkManager;
+    pub use crate::gadget::JobInitMetadata;
+    pub use crate::keystore::InMemoryBackend;
+    pub use crate::{BuiltExecutableJobWrapper, Error, JobBuilder, JobError, WorkManagerInterface};
+    pub use async_trait::async_trait;
+    pub use gadget_core::job_manager::SendFuture;
+    pub use parking_lot::Mutex;
+    pub use protocol_macros::protocol;
+    pub use std::pin::Pin;
+    pub use std::sync::Arc;
+    pub use tangle_primitives::roles::RoleType;
+    pub use tokio::sync::mpsc::UnboundedReceiver;
+}
 pub mod channels;
 pub mod client;
 pub mod config;

@@ -22,6 +22,7 @@ mainnet = [
 
 [dependencies]
 gadget-core = { workspace = true, features = ["substrate"] }
+protocol-macros = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 auto_impl = { workspace = true }

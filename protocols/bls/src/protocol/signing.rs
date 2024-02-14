@@ -132,12 +132,12 @@ where
         matches!(job, GadgetJobType::DKGTSSPhaseTwo(_))
     }
 
-    fn client(&self) -> &JobsClient<B, BE, C> {
-        &self.jobs_client
+    fn client(&self) -> JobsClient<B, BE, C> {
+        self.jobs_client.clone()
     }
 
-    fn logger(&self) -> &DebugLogger {
-        &self.logger
+    fn logger(&self) -> DebugLogger {
+        self.logger.clone()
     }
 }
 
