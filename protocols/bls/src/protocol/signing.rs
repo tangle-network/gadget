@@ -299,7 +299,7 @@ where
                     });
                 }
 
-                let signing_key = as_pk.as_uncompressed_bytes().to_vec();
+                let verifying_key = as_pk.as_uncompressed_bytes().to_vec();
                 let signature = as_sig.as_bytes().to_vec();
 
                 logger.info("BlsSigningProtocol finished verification stage");
@@ -311,7 +311,7 @@ where
                         .try_into()
                         .unwrap(),
                     signature: signature.try_into().unwrap(),
-                    signing_key: signing_key.try_into().unwrap(),
+                    verifying_key: verifying_key.try_into().unwrap(),
                 });
 
                 *result.lock().await = Some(job_result);

@@ -59,6 +59,7 @@ pub struct MsgRound3 {
 pub struct FrostKeyShare {
     pub key_package: Vec<u8>,
     pub pubkey_package: Vec<u8>,
+    pub verifying_key: Vec<u8>,
 }
 
 pub async fn run_threshold_keygen<C, R, M>(
@@ -88,9 +89,7 @@ where
 
     // Round 1
     tracer.round_begins();
-
     tracer.stage("Compute round 1 dkg secret package");
-    println!("Keygen | i: {}, t: {}, n: {}", i, t, n);
     let (round1_secret_package, round1_package) =
         dkg_part1(i + 1, t, n, role, rng).map_err(|e| {
             KeygenError(Reason::KeygenFailure(KeygenAborted::FrostError {
@@ -125,7 +124,6 @@ where
         })
         .collect();
     tracer.msgs_received();
-    // println!("Keygen | i: {}, my_package: {:#?}", i, round1_package);
     tracer.stage("Compute round 2 dkg secret package");
     let round1_packages_map: BTreeMap<Identifier<C>, round1::Package<C>> = round1_packages
         .iter()
@@ -138,7 +136,6 @@ where
             )
         })
         .collect();
-    // println!("Keygen | round1_packages_map: {:#?}", round1_packages_map);
     let (round2_secret_package, round2_packages_map) =
         dkg_part2(role, round1_secret_package, &round1_packages_map)?;
 
@@ -146,12 +143,6 @@ where
     for (receiver_identifier, round2_package) in round2_packages_map {
         let receiver_index_bytes: Vec<u8> = receiver_identifier.serialize().as_ref().to_vec();
         let receiver_index = u16::from_le_bytes([receiver_index_bytes[0], receiver_index_bytes[1]]);
-        println!(
-            "Sender ID: {:#?}, Sender: {}, Receiver: {}",
-            round2_secret_package.identifier,
-            i,
-            receiver_index - 1
-        );
         outgoings
             .send(Outgoing::p2p(
                 receiver_index - 1,
@@ -195,11 +186,10 @@ where
     )?;
 
     tracer.protocol_ends();
-    println!("Finished KEYGEN!");
-    println!("Key Package for {}: {:#?}", i, key_package);
     Ok(FrostKeyShare {
         key_package: key_package.serialize().unwrap_or_default(),
         pubkey_package: pubkey_package.serialize().unwrap_or_default(),
+        verifying_key: pubkey_package.verifying_key().serialize().as_ref().to_vec(),
     })
 }
 

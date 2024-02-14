@@ -343,7 +343,7 @@ where
                         signature_scheme: DigitalSignatureScheme::Ecdsa,
                         data: additional_params.input_data_to_sign.try_into().unwrap(),
                         signature,
-                        signing_key: public_key_bytes.try_into().unwrap(),
+                        verifying_key: public_key_bytes.try_into().unwrap(),
                     });
 
                     client

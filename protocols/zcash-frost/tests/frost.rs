@@ -2,6 +2,7 @@
 mod tests {
     use futures::stream::FuturesUnordered;
     use futures::StreamExt;
+    use sp_core::keccak_256;
     use tangle_primitives::jobs::{
         DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
     };
@@ -104,7 +105,8 @@ mod tests {
     ) -> JobId {
         let job_id = ext
             .execute_with_async(move || {
-                let submission = Vec::from("Hello, world!");
+                let msg = Vec::from("Hello, world!");
+                let submission = keccak_256(&msg);
                 let job_id = Jobs::next_job_id();
                 let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
                 let submission = JobSubmission {
@@ -112,7 +114,7 @@ mod tests {
                     ttl: 100,
                     job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
                         phase_one_id: keygen_job_id,
-                        submission: submission.try_into().unwrap(),
+                        submission: submission.to_vec().try_into().unwrap(),
                         role_type: ThresholdSignatureRoleType::ZcashFrostRistretto255,
                     }),
                 };

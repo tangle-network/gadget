@@ -8,6 +8,7 @@ use rand_core::{CryptoRng, RngCore};
 use round_based::rounds_router::simple_store::RoundInput;
 
 use round_based::rounds_router::RoundsRouter;
+use round_based::runtime::AsyncRuntime;
 use round_based::ProtocolMessage;
 use round_based::{Delivery, Mpc, MpcParty, Outgoing};
 use serde::{Deserialize, Serialize};
@@ -67,9 +68,10 @@ where
     tracer.protocol_begins();
 
     tracer.stage("Setup networking");
-    let MpcParty { delivery, .. } = party.into_party();
+    let MpcParty {
+        delivery, runtime, ..
+    } = party.into_party();
     let (incomings, mut outgoings) = delivery.split();
-    println!("Signers: {:?}", signers);
     let mut rounds = RoundsRouter::<Msg>::builder();
     let round1 = rounds.add_round(RoundInput::<MsgRound1>::broadcast(i, signers.len() as u16));
     let round2 = rounds.add_round(RoundInput::<MsgRound2>::broadcast(i, signers.len() as u16));
@@ -77,19 +79,13 @@ where
 
     // Round 1
     tracer.round_begins();
-
-    tracer.send_msg();
     tracer.stage("Generate nonces and commitments for Round 1");
     let (nonces, commitments) = participant_round1(role, &frost_keyshare.0, rng)?;
+    runtime.yield_now().await;
+    tracer.send_msg();
     let my_round1_msg = MsgRound1 {
         msg: commitments.serialize().unwrap_or_default(),
     };
-    println!(
-        "<Identifier, MSG> for party {:?}: <{:#?}, {:#?}>",
-        i,
-        frost_keyshare.0.identifier(),
-        commitments
-    );
     outgoings
         .send(Outgoing::broadcast(Msg::Round1(my_round1_msg.clone())))
         .await
@@ -100,14 +96,12 @@ where
     tracer.round_begins();
 
     tracer.receive_msgs();
-    println!("Receiving Round 1 messages");
     let round1_msgs: Vec<MsgRound1> = rounds
         .complete(round1)
         .await
         .map_err(IoError::receive_message)?
         .into_vec_including_me(my_round1_msg);
 
-    println!("Received Round 1 messages");
     let round1_signing_commitments = round1_msgs
         .into_iter()
         .enumerate()
@@ -119,19 +113,13 @@ where
             (participant_identifier, msg)
         })
         .collect();
-
-    println!(
-        "Received signing commitments: {:#?}",
-        round1_signing_commitments
-    );
     tracer.msgs_received();
 
-    tracer.send_msg();
-    tracer.stage(
-        "Produce signature share using the `SigningPackage` and `SigningNonces` from Round 1",
-    );
+    tracer.stage("Produce signature share using the Round 1 data");
     let signing_package = SigningPackage::<C>::new(round1_signing_commitments, message_to_sign);
     let signature_share = participant_round2(role, &signing_package, &nonces, &frost_keyshare.0)?;
+    runtime.yield_now().await;
+    tracer.send_msg();
     outgoings
         .send(Outgoing::broadcast(Msg::Round2(MsgRound2 {
             msg: signature_share.serialize().as_ref().to_vec(),
@@ -144,7 +132,6 @@ where
     tracer.round_begins();
 
     tracer.receive_msgs();
-    println!("Receiving Round 2 messages");
     let round2_signature_shares: BTreeMap<Identifier<C>, SignatureShare<C>> = rounds
         .complete(round2)
         .await
@@ -165,9 +152,9 @@ where
             (participant_identifier, sig_share)
         })
         .collect();
-    println!("Received Round 2 messages");
     tracer.msgs_received();
 
+    tracer.stage("Aggregate signature shares");
     let group_signature = aggregate(
         &signing_package,
         &round2_signature_shares,
@@ -181,9 +168,9 @@ where
         .is_err()
     {
         return Err(frost_core::Error::<C>::InvalidSignature.into());
+    } else {
+        tracer.protocol_ends();
     }
-
-    tracer.protocol_ends();
 
     Ok(FrostSignature {
         group_signature: group_signature.serialize().as_ref().to_vec(),

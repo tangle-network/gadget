@@ -7,7 +7,6 @@ use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_core::job_manager::WorkManagerInterface;
-use itertools::Itertools;
 use rand::seq::SliceRandom;
 use round_based::{Incoming, MessageDestination, MessageType, Outgoing, PartyIndex};
 use serde::de::DeserializeOwned;
@@ -478,15 +477,28 @@ pub fn choose_signers<R: rand::Rng>(
     let selected_participants_indices = selected_participants
         .iter()
         .map(|p| participants.iter().position(|x| x == p).unwrap() as u16)
-        // .sorted()
         .collect::<Vec<_>>();
+
+    let mut selected_participants_with_indices: Vec<(u16, AccountId)> =
+        selected_participants_indices
+            .iter()
+            .cloned()
+            .zip(selected_participants.into_iter())
+            .collect();
+
+    selected_participants_with_indices.sort_by_key(|&(index, _)| index);
+
+    let (sorted_selected_participants_indices, sorted_selected_participants): (
+        Vec<u16>,
+        Vec<AccountId>,
+    ) = selected_participants_with_indices.into_iter().unzip();
 
     let j = participants
         .iter()
         .position(|p| p == my_account_id)
         .expect("Should exist") as u16;
 
-    let i = selected_participants_indices
+    let i = sorted_selected_participants_indices
         .iter()
         .position(|p| p == &j)
         .map(|i| i as u16)
@@ -495,7 +507,7 @@ pub fn choose_signers<R: rand::Rng>(
             reason: String::from("we are not selected to sign"),
         })?;
 
-    let user_id_to_account_id_mapping = selected_participants
+    let user_id_to_account_id_mapping = sorted_selected_participants
         .clone()
         .into_iter()
         .enumerate()
@@ -503,7 +515,7 @@ pub fn choose_signers<R: rand::Rng>(
         .collect();
     Ok((
         i,
-        selected_participants_indices,
+        sorted_selected_participants_indices,
         user_id_to_account_id_mapping,
     ))
 }

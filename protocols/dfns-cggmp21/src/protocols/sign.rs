@@ -254,9 +254,8 @@ where
                 let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
                 let delivery = (signing_rx_async_proto, signing_tx_to_outbound);
                 let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
-                let data_hash = keccak_256(&input_data_to_sign);
                 let data_to_sign = dfns_cggmp21::DataToSign::from_scalar(
-                    dfns_cggmp21::generic_ec::Scalar::from_be_bytes_mod_order(data_hash),
+                    dfns_cggmp21::generic_ec::Scalar::from_be_bytes_mod_order(input_data_to_sign),
                 );
                 let signature = dfns_cggmp21::signing(eid, i, &signers, &key)
                     .set_progress_tracer(&mut tracer)
@@ -286,10 +285,11 @@ where
                     let mut v = 0u8;
                     loop {
                         let mut signature_bytes = signature_bytes;
-                        let data_hash = keccak_256(&input_data_to_sign2);
                         signature_bytes[64] = v;
-                        let res =
-                            sp_io::crypto::secp256k1_ecdsa_recover(&signature_bytes, &data_hash);
+                        let res = sp_io::crypto::secp256k1_ecdsa_recover(
+                            &signature_bytes,
+                            &input_data_to_sign2,
+                        );
                         match res {
                             Ok(key) if key[..32] == public_key_bytes[1..] => {
                                 // Found the correct v
@@ -320,7 +320,7 @@ where
                         signature_scheme: DigitalSignatureScheme::Ecdsa,
                         data: additional_params.input_data_to_sign.try_into().unwrap(),
                         signature: signature_bytes.to_vec().try_into().unwrap(),
-                        signing_key: public_key_bytes.try_into().unwrap(),
+                        verifying_key: public_key_bytes.try_into().unwrap(),
                     });
 
                     client

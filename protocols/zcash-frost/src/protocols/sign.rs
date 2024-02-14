@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use frame_support::BoundedVec;
 use frost_core::keys::{KeyPackage, PublicKeyPackage};
 use frost_ed25519::Ed25519Sha512;
 use frost_p256::P256Sha256;
@@ -177,7 +178,7 @@ where
 }
 
 macro_rules! deserialize_and_run_threshold_sign {
-    ($impl_type:ty, $keyshare:expr, $tracer:expr, $i:expr, $signers:expr, $data_hash:expr, $role:expr, $rng:expr, $party:expr) => {{
+    ($impl_type:ty, $keyshare:expr, $tracer:expr, $i:expr, $signers:expr, $msg:expr, $role:expr, $rng:expr, $party:expr) => {{
         let key_package =
             KeyPackage::<$impl_type>::deserialize(&$keyshare.key_package).map_err(|err| {
                 JobError {
@@ -191,12 +192,13 @@ macro_rules! deserialize_and_run_threshold_sign {
         .map_err(|err| JobError {
             reason: format!("Failed to deserialize public key package: {err:?}"),
         })?;
+
         rounds::sign::run_threshold_sign(
             Some($tracer),
             $i,
             $signers,
             (key_package, public_key_package),
-            $data_hash,
+            $msg,
             $role,
             $rng,
             $party,
@@ -267,8 +269,6 @@ where
             }
         };
 
-        let keyshare2 = keyshare.clone();
-
         Ok(JobBuilder::new()
             .protocol(async move {
                 let mut rng = rand::rngs::StdRng::from_entropy();
@@ -298,7 +298,6 @@ where
                 let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
                 let delivery = (signing_rx_async_proto, signing_tx_to_outbound);
                 let party = MpcParty::connected(delivery);
-                let data_hash = keccak_256(&input_data_to_sign);
                 let signature = match role {
                     ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
                         deserialize_and_run_threshold_sign!(
@@ -307,7 +306,7 @@ where
                             &mut tracer,
                             i,
                             signers,
-                            &data_hash,
+                            &input_data_to_sign,
                             role,
                             &mut rng,
                             party
@@ -320,7 +319,7 @@ where
                             &mut tracer,
                             i,
                             signers,
-                            &data_hash,
+                            &input_data_to_sign,
                             role,
                             &mut rng,
                             party
@@ -333,7 +332,7 @@ where
                             &mut tracer,
                             i,
                             signers,
-                            &data_hash,
+                            &input_data_to_sign,
                             role,
                             &mut rng,
                             party
@@ -346,7 +345,7 @@ where
                             &mut tracer,
                             i,
                             signers,
-                            &data_hash,
+                            &input_data_to_sign,
                             role,
                             &mut rng,
                             party
@@ -401,7 +400,7 @@ where
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
                                 signature_bytes.to_vec().try_into().unwrap(),
-                                DigitalSignatureScheme::SchnorrSr25519,
+                                DigitalSignatureScheme::SchnorrRistretto255,
                             )
                         }
                         _ => {
@@ -415,7 +414,7 @@ where
                         signature_scheme,
                         data: additional_params.input_data_to_sign.try_into().unwrap(),
                         signature,
-                        signing_key: keyshare2.pubkey_package.try_into().unwrap(),
+                        verifying_key: BoundedVec::new(),
                     });
 
                     client

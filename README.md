@@ -14,7 +14,7 @@ Currently the repo is built around Substrate blockchain logic and networking. Th
 
 ## Testing
 
-`cargo nextest run` is required to run tests, since 1-program per-program space is required for tests due to the nature of the use of static variables in test-only contexts.
+`SKIP_WASM_BUILD=true RUST_LOG=debug cargo nextest run` is required to run tests, since 1-program per-program space is required for tests due to the nature of the use of static variables in test-only contexts. There is currently an issue with the WASM build so the `SKIP_WASM_BUILD` flag is required. The `RUST_LOG=debug` flag is optional but useful for debugging.
 
 ## Troubleshooting
 #### GMP Issues

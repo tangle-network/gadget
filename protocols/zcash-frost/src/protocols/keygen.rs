@@ -333,7 +333,7 @@ where
                 let job_result = handle_public_key_gossip(
                     key_store2,
                     &logger,
-                    &frost_key_share_package.pubkey_package,
+                    &frost_key_share_package.verifying_key,
                     role,
                     t,
                     i,

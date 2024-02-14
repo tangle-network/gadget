@@ -28,35 +28,27 @@ zcash-frost-protocol = { path = "./protocols/zcash-frost" }
 
 snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git" }
-pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/sig-renaming-rework"}
-pallet-jobs = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/sig-renaming-rework"}
-pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/sig-renaming-rework"}
-pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/sig-renaming-rework"}
-tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/sig-renaming-rework"}
-tangle-testnet-runtime = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/sig-renaming-rework"}
-tangle-mainnet-runtime = { package = "tangle-runtime", git = "https://github.com/webb-tools/tangle.git", branch = "drew/sig-renaming-rework"}
+pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
+pallet-jobs = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
+pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
+pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
+tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
+tangle-testnet-runtime = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
+tangle-mainnet-runtime = { package = "tangle-runtime", git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
 curv = { package = "curv-kzen", version = "0.10.0" }
 dfns-cggmp21 = { package = "cggmp21", version = "0.1.1", default-features = false }
 udigest = { version = "0.1", features = ["std", "derive"]}
-# frost-core = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-ed25519 = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-ed448 = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-p256 = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-p384 = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-ristretto255 = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-secp256k1 = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-rerandomized = { git = "https://github.com/LIT-Protocol/frost.git" }
-frost-core = { path = "../frost/frost-core" }
-frost-ed25519 = { path = "../frost/frost-ed25519" }
-frost-ed448 = { path = "../frost/frost-ed448" }
-frost-p256 = { path = "../frost/frost-p256" }
-frost-p384 = { path = "../frost/frost-p384" }
-frost-ristretto255 = { path = "../frost/frost-ristretto255" }
-frost-secp256k1 = { path = "../frost/frost-secp256k1" }
-frost-rerandomized = { path = "../frost/frost-rerandomized" }
+frost-core = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-ed25519 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-ed448 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-p256 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-p384 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-ristretto255 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-secp256k1 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-rerandomized = { git = "https://github.com/LIT-Protocol/frost.git" }
 bls12_381_plus = "0.8.13"
 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0"  }

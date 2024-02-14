@@ -59,9 +59,9 @@ dependencies = [
 
 [[package]]
 name = "aes"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac1f845298e95f983ff1944b728ae08b8cebab80d684f0a832ed0fc74dfa27e2"
+checksum = "b169f7a6d4742236a0a00c541b845991d0ac43e546831af1249753ab4c3aa3a0"
 dependencies = [
  "cfg-if",
  "cipher",
@@ -93,9 +93,9 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.7.7"
+version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a824f2aa7e75a0c98c5a504fceb80649e9c35265d44525b5f94de4771a395cd"
+checksum = "891477e0c6a8957309ee5c45a6368af3ae14bb510732d2684ffa19af310920f9"
 dependencies = [
  "getrandom 0.2.12",
  "once_cell",
@@ -104,9 +104,9 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.8.7"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c3a9648d43b9cd48db467b3f87fdd6e146bcc88ab0180006cef2179fe11d01"
+checksum = "42cd52102d3df161c77a887b608d7a4897d7cc112886a9537b738a887a03aaff"
 dependencies = [
  "cfg-if",
  "getrandom 0.2.12",
@@ -1559,9 +1559,9 @@ dependencies = [
 
 [[package]]
 name = "chrono"
-version = "0.4.33"
+version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f13690e35a5e4ace198e7beea2895d29f3a9cc55015fcebe6336bd2010af9eb"
+checksum = "5bc015644b92d5890fab7489e49d21f879d5c990186827d42ec511919404f38b"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
@@ -2089,9 +2089,9 @@ dependencies = [
 
 [[package]]
 name = "crc32fast"
-version = "1.3.2"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b540bd8bc810d3885c6ea91e2018302f68baba2129ab3e88f32389ee9370880d"
+checksum = "b3855a8a784b474f333699ef2bbca9db2c4a1f6d9088a90a2d25b1eb53111eaa"
 dependencies = [
  "cfg-if",
 ]
@@ -2380,9 +2380,9 @@ dependencies = [
 
 [[package]]
 name = "cxx"
-version = "1.0.115"
+version = "1.0.116"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8de00f15a6fa069c99b88c5c78c4541d0e7899a33b86f7480e23df2431fce0bc"
+checksum = "8aff472b83efd22bfc0176aa8ba34617dd5c17364670eb201a5f06d339b8abf7"
 dependencies = [
  "cc",
  "cxxbridge-flags",
@@ -2392,9 +2392,9 @@ dependencies = [
 
 [[package]]
 name = "cxx-build"
-version = "1.0.115"
+version = "1.0.116"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a71e1e631fa2f2f5f92e8b0d860a00c198c6771623a6cefcc863e3554f0d8d6"
+checksum = "bcf6e7a52c19013a9a0ec421c7d9c2d1125faf333551227e0a017288d71b47c3"
 dependencies = [
  "cc",
  "codespan-reporting",
@@ -2407,15 +2407,15 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-flags"
-version = "1.0.115"
+version = "1.0.116"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f3fed61d56ba497c4efef9144dfdbaa25aa58f2f6b3a7cf441d4591c583745c"
+checksum = "589e83d02fc1d4fb78f5ad56ca08835341e23499d086d2821315869426d618dc"
 
 [[package]]
 name = "cxxbridge-macro"
-version = "1.0.115"
+version = "1.0.116"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8908e380a8efd42150c017b0cfa31509fc49b6d47f7cb6b33e93ffb8f4e3661e"
+checksum = "e2cb1fd8ffae4230c7cfbbaf3698dbeaf750fa8c5dadf7ed897df581b9b572a5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3079,9 +3079,9 @@ dependencies = [
 
 [[package]]
 name = "either"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
+checksum = "11157ac094ffbdde99aa67b23417ebdd801842852b500e395a45a9c0aac03e4a"
 
 [[package]]
 name = "elliptic-curve"
@@ -3213,18 +3213,18 @@ dependencies = [
 
 [[package]]
 name = "enumflags2"
-version = "0.7.8"
+version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5998b4f30320c9d93aed72f63af821bfdac50465b75428fce77b48ec482c3939"
+checksum = "3278c9d5fb675e0a51dabcf4c0d355f692b064171535ba72361be1528a9d8e8d"
 dependencies = [
  "enumflags2_derive",
 ]
 
 [[package]]
 name = "enumflags2_derive"
-version = "0.7.8"
+version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f95e2801cd355d4a1a3e3953ce6ee5ae9603a5c833455343a8bfe3f44d418246"
+checksum = "5c785274071b1b420972453b306eeca06acf4633829db4223b58a2a8c5953bc4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3868,7 +3868,7 @@ dependencies = [
 [[package]]
 name = "evm-tracer"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "ethereum-types 0.14.1",
  "evm",
@@ -3888,7 +3888,7 @@ dependencies = [
 [[package]]
 name = "evm-tracing-events"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "environmental",
  "ethereum",
@@ -4533,11 +4533,12 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "debugless-unwrap",
  "hex",
  "parity-scale-codec 3.6.9",
+ "postcard",
  "rand_core 0.6.4",
  "serde",
  "serdect",
@@ -4548,6 +4549,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
 dependencies = [
  "byteorder",
  "const-crc32",
@@ -4569,6 +4571,20 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+dependencies = [
+ "curve25519-dalek 4.1.1",
+ "frost-core 0.6.1",
+ "parity-scale-codec 3.6.9",
+ "rand_core 0.6.4",
+ "sha2 0.10.8",
+ "subtle",
+]
+
+[[package]]
+name = "frost-ed25519"
+version = "1.0.0-rc.0"
+source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
 dependencies = [
  "curve25519-dalek-ml",
  "document-features",
@@ -4579,34 +4595,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-ed25519"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
-dependencies = [
- "curve25519-dalek 4.1.1",
- "frost-core 0.6.1",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle",
-]
-
-[[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
-dependencies = [
- "document-features",
- "ed448-goldilocks-plus 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "frost-core 1.0.0-rc.0",
- "frost-rerandomized",
- "rand_core 0.6.4",
- "sha3 0.10.8",
-]
-
-[[package]]
-name = "frost-ed448"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "ed448-goldilocks-plus 0.11.1 (git+https://github.com/drewstone/Ed448-Goldilocks.git?branch=drew/zeroize)",
  "frost-core 0.6.1",
@@ -4617,21 +4608,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-p256"
+name = "frost-ed448"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
 dependencies = [
  "document-features",
+ "ed448-goldilocks-plus 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "frost-core 1.0.0-rc.0",
  "frost-rerandomized",
- "p256 0.13.2",
  "rand_core 0.6.4",
- "sha2 0.10.8",
+ "sha3 0.10.8",
 ]
 
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "frost-core 0.6.1",
  "p256 0.13.2",
@@ -4642,13 +4634,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-p384"
+name = "frost-p256"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
 dependencies = [
  "document-features",
  "frost-core 1.0.0-rc.0",
  "frost-rerandomized",
- "p384",
+ "p256 0.13.2",
  "rand_core 0.6.4",
  "sha2 0.10.8",
 ]
@@ -4656,7 +4649,7 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "frost-core 0.6.1",
  "p384",
@@ -4664,11 +4657,25 @@ dependencies = [
  "rand_core 0.6.4",
  "sha2 0.10.8",
  "subtle",
+]
+
+[[package]]
+name = "frost-p384"
+version = "1.0.0-rc.0"
+source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
+dependencies = [
+ "document-features",
+ "frost-core 1.0.0-rc.0",
+ "frost-rerandomized",
+ "p384",
+ "rand_core 0.6.4",
+ "sha2 0.10.8",
 ]
 
 [[package]]
 name = "frost-rerandomized"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
 dependencies = [
  "derive-getters",
  "document-features",
@@ -4679,22 +4686,36 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "curve25519-dalek 4.1.1",
- "document-features",
- "frost-core 1.0.0-rc.0",
- "frost-rerandomized",
+ "frost-core 0.6.1",
+ "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
+ "subtle",
 ]
 
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
 dependencies = [
  "curve25519-dalek 4.1.1",
+ "document-features",
+ "frost-core 1.0.0-rc.0",
+ "frost-rerandomized",
+ "rand_core 0.6.4",
+ "sha2 0.10.8",
+]
+
+[[package]]
+name = "frost-secp256k1"
+version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
+dependencies = [
  "frost-core 0.6.1",
+ "k256",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -4704,6 +4725,7 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
 dependencies = [
  "document-features",
  "frost-core 1.0.0-rc.0",
@@ -4711,19 +4733,6 @@ dependencies = [
  "k256",
  "rand_core 0.6.4",
  "sha2 0.10.8",
-]
-
-[[package]]
-name = "frost-secp256k1"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
-dependencies = [
- "frost-core 0.6.1",
- "k256",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle",
 ]
 
 [[package]]
@@ -5221,7 +5230,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http",
- "indexmap 2.2.2",
+ "indexmap 2.2.3",
  "slab",
  "tokio",
  "tokio-util",
@@ -5270,7 +5279,7 @@ version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
 dependencies = [
- "ahash 0.7.7",
+ "ahash 0.7.8",
 ]
 
 [[package]]
@@ -5279,7 +5288,7 @@ version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 dependencies = [
- "ahash 0.7.7",
+ "ahash 0.7.8",
 ]
 
 [[package]]
@@ -5288,7 +5297,7 @@ version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 dependencies = [
- "ahash 0.8.7",
+ "ahash 0.8.8",
 ]
 
 [[package]]
@@ -5297,7 +5306,7 @@ version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
 dependencies = [
- "ahash 0.8.7",
+ "ahash 0.8.8",
  "allocator-api2",
  "serde",
 ]
@@ -5360,9 +5369,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0c62115964e08cb8039170eb33c1d0e2388a256930279edca206fff675f82c3"
+checksum = "bd5256b483761cd23699d0da46cc6fd2ee3be420bbe6d020ae4a091e70b7e9fd"
 
 [[package]]
 name = "hex"
@@ -5712,9 +5721,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.2.2"
+version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "824b2ae422412366ba479e8111fd301f7b5faece8149317bb81925979a53f520"
+checksum = "233cf39063f058ea2caae4091bf4a3ef70a653afbc026f5c4a4135d114e3c177"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.3",
@@ -5768,7 +5777,7 @@ version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eae7b9aee968036d54dce06cebaefd919e4472e753296daccd6d344e3e2df0c2"
 dependencies = [
- "hermit-abi 0.3.5",
+ "hermit-abi 0.3.6",
  "libc",
  "windows-sys 0.48.0",
 ]
@@ -5799,11 +5808,11 @@ checksum = "8f518f335dce6725a761382244631d86cf0ccb2863413590b31338feb467f9c3"
 
 [[package]]
 name = "is-terminal"
-version = "0.4.11"
+version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe8f25ce1159c7740ff0b9b2f5cdf4a8428742ba7c112b9f20f22cd5219c7dab"
+checksum = "f23ff5ef2b80d608d61efee834934d862cd92461afc0560dedf493e4c033738b"
 dependencies = [
- "hermit-abi 0.3.5",
+ "hermit-abi 0.3.6",
  "libc",
  "windows-sys 0.52.0",
 ]
@@ -6808,6 +6817,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "malachite-base"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e960ee0e7e1b8eec9229f5b20d6b191762574225144ea638eb961d065c97b55d"
+dependencies = [
+ "hashbrown 0.14.3",
+ "itertools 0.11.0",
+ "libm",
+ "ryu",
+]
+
+[[package]]
+name = "malachite-nz"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "770aaf1a4d59a82ed3d8644eb66aff7492a6dd7476def275a922d04d77ca8e57"
+dependencies = [
+ "itertools 0.11.0",
+ "libm",
+ "malachite-base",
+]
+
+[[package]]
 name = "maplit"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7514,7 +7546,7 @@ version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
 dependencies = [
- "hermit-abi 0.3.5",
+ "hermit-abi 0.3.6",
  "libc",
 ]
 
@@ -7789,7 +7821,7 @@ dependencies = [
 [[package]]
 name = "pallet-airdrop-claims"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7973,24 +8005,27 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "digest 0.10.7",
  "elliptic-curve 0.13.8",
  "frame-support",
  "frame-system",
  "frost-core 0.6.1",
- "frost-ed25519 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework)",
- "frost-ed448 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework)",
- "frost-p256 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework)",
- "frost-p384 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework)",
- "frost-ristretto255 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework)",
- "frost-secp256k1 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework)",
+ "frost-ed25519 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost)",
+ "frost-ed448 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost)",
+ "frost-p256 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost)",
+ "frost-p384 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost)",
+ "frost-ristretto255 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost)",
+ "frost-secp256k1 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost)",
  "generic-ec",
  "generic-ec-zkp",
  "hex",
+ "malachite-base",
+ "malachite-nz",
  "parity-scale-codec 3.6.9",
  "postcard",
+ "rand_chacha 0.3.1",
  "rand_core 0.6.4",
  "scale-info",
  "serde",
@@ -8184,7 +8219,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-batch"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "evm",
  "evm-runtime",
@@ -8224,7 +8259,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-call-permit"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8255,7 +8290,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-democracy"
 version = "0.2.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8297,7 +8332,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-jobs"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8327,7 +8362,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-preimage"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8347,7 +8382,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-proxy"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8369,7 +8404,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-registry"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8405,7 +8440,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-staking"
 version = "1.0.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "fp-evm",
  "frame-support",
@@ -8427,7 +8462,7 @@ dependencies = [
 [[package]]
 name = "pallet-evm-precompile-vesting"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "evm",
  "fp-evm",
@@ -8556,7 +8591,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8573,7 +8608,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -8669,7 +8704,7 @@ dependencies = [
 [[package]]
 name = "pallet-roles"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -8802,7 +8837,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-pause"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8892,7 +8927,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9108,7 +9143,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1d3afd2628e69da2be385eb6f2fd57c8ac7977ceeff6dc166ff1657b0e386a9"
 dependencies = [
  "fixedbitset",
- "indexmap 2.2.2",
+ "indexmap 2.2.3",
 ]
 
 [[package]]
@@ -9261,9 +9296,9 @@ dependencies = [
 
 [[package]]
 name = "pkg-config"
-version = "0.3.29"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2900ede94e305130c13ddd391e0ab7cbaeb783945ae07a279c268cb05109c6cb"
+checksum = "d231b230927b5e4ad203db57bbcbee2802f6bce620b1e4a9024a07d94e2907ec"
 
 [[package]]
 name = "platforms"
@@ -9379,7 +9414,7 @@ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 [[package]]
 name = "precompile-utils"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "affix",
  "environmental",
@@ -9405,7 +9440,7 @@ dependencies = [
 [[package]]
 name = "precompile-utils-macro"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "case",
  "num_enum 0.5.11",
@@ -9517,7 +9552,7 @@ dependencies = [
 [[package]]
 name = "primitives-ext"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "ethereum-types 0.14.1",
  "evm-tracing-events",
@@ -10463,7 +10498,7 @@ dependencies = [
 [[package]]
 name = "rpc-primitives-debug"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "environmental",
  "ethereum",
@@ -10481,7 +10516,7 @@ dependencies = [
 [[package]]
 name = "rpc-primitives-txpool"
 version = "0.6.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "ethereum",
  "parity-scale-codec 3.6.9",
@@ -11212,7 +11247,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "772575a524feeb803e5b0fcbc6dd9f367e579488197c94c6e4023aad2305774d"
 dependencies = [
- "ahash 0.8.7",
+ "ahash 0.8.8",
  "cfg-if",
  "hashbrown 0.13.2",
 ]
@@ -11575,7 +11610,7 @@ dependencies = [
  "chrono",
  "hex",
  "indexmap 1.9.3",
- "indexmap 2.2.2",
+ "indexmap 2.2.3",
  "serde",
  "serde_derive",
  "serde_json",
@@ -13170,7 +13205,7 @@ version = "22.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48e4eeb7ef23f79eba8609db79ef9cef242f994f1f87a3c0387b4b5f177fda74"
 dependencies = [
- "ahash 0.8.7",
+ "ahash 0.8.8",
  "hash-db 0.16.0",
  "hashbrown 0.13.2",
  "lazy_static",
@@ -13193,7 +13228,7 @@ name = "sp-trie"
 version = "22.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
 dependencies = [
- "ahash 0.8.7",
+ "ahash 0.8.8",
  "hash-db 0.16.0",
  "hashbrown 0.13.2",
  "lazy_static",
@@ -13217,7 +13252,7 @@ version = "27.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9c4bf89a5bd74f696cd1f23d83bb6abe6bd0abad1f3c70d4b0d7ebec4098cfe"
 dependencies = [
- "ahash 0.8.7",
+ "ahash 0.8.8",
  "hash-db 0.16.0",
  "hashbrown 0.13.2",
  "lazy_static",
@@ -13888,7 +13923,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -13898,7 +13933,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -13925,7 +13960,7 @@ dependencies = [
 [[package]]
 name = "tangle-runtime"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "evm-tracer",
  "fp-account",
@@ -14027,7 +14062,7 @@ dependencies = [
 [[package]]
 name = "tangle-testnet-runtime"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-renaming-rework#8774446af41d523fccd51e807a979759f3a50116"
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/fix-for-frost#8da89c4c7b8000c4dce3e084cac7448c3058216c"
 dependencies = [
  "evm-tracer",
  "fp-account",
@@ -14261,18 +14296,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.56"
+version = "1.0.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d54378c645627613241d077a3a79db965db602882668f9136ac42af9ecb730ad"
+checksum = "1e45bcbe8ed29775f228095caf2cd67af7a4ccf756ebff23a306bf3e8b47b24b"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.56"
+version = "1.0.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa0faa943b50f3db30a20aa7e265dbc66076993efed8463e8de414e5d06d3471"
+checksum = "a953cb265bef375dae3de6663da4d3804eee9682ea80d8e2542529b73c531c81"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -14548,7 +14583,7 @@ version = "0.19.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
 dependencies = [
- "indexmap 2.2.2",
+ "indexmap 2.2.3",
  "serde",
  "serde_spanned",
  "toml_datetime",
@@ -14561,7 +14596,7 @@ version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "396e4d48bbb2b7554c944bde63101b5ae446cff6ec4a24227428f15eb72ef338"
 dependencies = [
- "indexmap 2.2.2",
+ "indexmap 2.2.3",
  "serde",
  "serde_spanned",
  "toml_datetime",
@@ -15295,9 +15330,9 @@ checksum = "4f186bd2dcf04330886ce82d6f33dd75a7bfcf69ecf5763b89fcde53b6ac9838"
 
 [[package]]
 name = "wasm-encoder"
-version = "0.41.1"
+version = "0.41.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ce14de623d48dda4c10698c4dadae2366b5c2c8e81bad981d5a0625a5fcf68c"
+checksum = "972f97a5d8318f908dded23594188a90bcd09365986b1163e66d70170e5287ae"
 dependencies = [
  "leb128",
 ]
@@ -15850,9 +15885,9 @@ dependencies = [
 
 [[package]]
 name = "wast"
-version = "71.0.0"
+version = "71.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a10dad39ea4623ed4c304fb42bd455eca6d212f7e5e0cb59681fed7e4d128a2e"
+checksum = "647c3ac4354da32688537e8fc4d2fe6c578df51896298cb64727d98088a1fd26"
 dependencies = [
  "bumpalo",
  "leb128",
@@ -15863,9 +15898,9 @@ dependencies = [
 
 [[package]]
 name = "wat"
-version = "1.0.86"
+version = "1.0.88"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b724419d3bffeff174745b924f6ed053095ac58f9ae72e87d2e0f8ef6df6df96"
+checksum = "b69c36f634411568a2c6d24828b674961e37ea03340fe1d605c337ed8162d901"
 dependencies = [
  "wast",
 ]
@@ -16073,7 +16108,7 @@ dependencies = [
 [[package]]
 name = "webb-proposal-derive"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/webb-rs.git#1f0d2635971b2d9c36af4bc0bd1501d0b2a1e675"
+source = "git+https://github.com/webb-tools/webb-rs.git#a19d65bfa4218f5809feafca6a101cab5f3a4e0d"
 dependencies = [
  "ethers-core",
  "quote",
@@ -16083,7 +16118,7 @@ dependencies = [
 [[package]]
 name = "webb-proposals"
 version = "0.8.0"
-source = "git+https://github.com/webb-tools/webb-rs.git#1f0d2635971b2d9c36af4bc0bd1501d0b2a1e675"
+source = "git+https://github.com/webb-tools/webb-rs.git#a19d65bfa4218f5809feafca6a101cab5f3a4e0d"
 dependencies = [
  "frame-support",
  "hex",
@@ -16477,9 +16512,9 @@ checksum = "dff9641d1cd4be8d1a070daf9e3773c5f67e78b4d9d42263020c057706765c04"
 
 [[package]]
 name = "winnow"
-version = "0.5.39"
+version = "0.5.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5389a154b01683d28c77f8f68f49dea75f0a4da32557a58f68ee51ebba472d29"
+checksum = "f593a95398737aeed53e489c785df13f3618e41dbcd6718c6addbf1395aa6876"
 dependencies = [
  "memchr",
 ]
@@ -16630,13 +16665,13 @@ dependencies = [
  "digest 0.10.7",
  "frame-support",
  "frost-core 1.0.0-rc.0",
- "frost-ed25519 1.0.0-rc.0",
- "frost-ed448 1.0.0-rc.0",
- "frost-p256 1.0.0-rc.0",
- "frost-p384 1.0.0-rc.0",
+ "frost-ed25519 1.0.0-rc.0 (git+https://github.com/LIT-Protocol/frost.git)",
+ "frost-ed448 1.0.0-rc.0 (git+https://github.com/LIT-Protocol/frost.git)",
+ "frost-p256 1.0.0-rc.0 (git+https://github.com/LIT-Protocol/frost.git)",
+ "frost-p384 1.0.0-rc.0 (git+https://github.com/LIT-Protocol/frost.git)",
  "frost-rerandomized",
- "frost-ristretto255 1.0.0-rc.0",
- "frost-secp256k1 1.0.0-rc.0",
+ "frost-ristretto255 1.0.0-rc.0 (git+https://github.com/LIT-Protocol/frost.git)",
+ "frost-secp256k1 1.0.0-rc.0 (git+https://github.com/LIT-Protocol/frost.git)",
  "futures",
  "gadget-common",
  "gadget-core",
