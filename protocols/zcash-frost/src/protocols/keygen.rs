@@ -504,9 +504,11 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     let res = DKGTSSKeySubmissionResult {
         signature_scheme: match role {
             ThresholdSignatureRoleType::ZcashFrostEd25519 => DigitalSignatureScheme::SchnorrEd25519,
+            ThresholdSignatureRoleType::ZcashFrostEd448 => DigitalSignatureScheme::SchnorrEd448,
             ThresholdSignatureRoleType::ZcashFrostP256 => DigitalSignatureScheme::SchnorrP256,
+            ThresholdSignatureRoleType::ZcashFrostP384 => DigitalSignatureScheme::SchnorrP384,
             ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
-                DigitalSignatureScheme::SchnorrSr25519
+                DigitalSignatureScheme::SchnorrRistretto255
             }
             ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
                 DigitalSignatureScheme::SchnorrSecp256k1

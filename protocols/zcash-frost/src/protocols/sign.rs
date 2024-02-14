@@ -152,7 +152,9 @@ where
         matches!(
             role,
             RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd25519)
+                | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd448)
                 | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP256)
+                | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP384)
                 | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255)
                 | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1)
         )
@@ -416,7 +418,7 @@ where
                             )
                         }
                         ThresholdSignatureRoleType::ZcashFrostEd448 => {
-                            let mut signature_bytes = [0u8; 64];
+                            let mut signature_bytes = [0u8; 114];
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
                                 signature_bytes.to_vec().try_into().unwrap(),

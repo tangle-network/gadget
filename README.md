@@ -3,7 +3,7 @@ This repo contains code for MPC and other restaking service gadgets. A gadget is
 
 - [x] [DFNS CGGMP21](https://github.com/dfns/cggmp21/tree/m/cggmp21)
 - [x] [Threshold BLS](https://github.com/mikelodder7/blsful)
-- [ ] [LIT Protocol fork of ZCash Frost](https://github.com/LIT-Protocol/frost)
+- [x] [LIT Protocol fork of ZCash Frost](https://github.com/LIT-Protocol/frost)
 - [x] [Groth16 ZK-SaaS](https://github.com/webb-tools/zk-SaaS)
 
 ## Design
