@@ -190,7 +190,10 @@ macro_rules! run_threshold_keygen {
             $party,
         )
         .await
-        .map_err(|err| err.to_string())?
+        .map_err(|err| {
+            println!("Keygen protocol error: {err:#?}");
+            err.to_string()
+        })?
     };
 }
 

@@ -11,8 +11,11 @@ use frost_core::{
 use futures::SinkExt;
 use rand_core::{CryptoRng, RngCore};
 use round_based::{
-    rounds_router::simple_store::RoundInput,
-    rounds_router::{simple_store::RoundMsgs, RoundsRouter},
+    rounds_router::{
+        simple_store::{RoundInput, RoundMsgs},
+        RoundsRouter,
+    },
+    runtime::AsyncRuntime,
     Delivery, Mpc, MpcParty, Outgoing, ProtocolMessage,
 };
 use serde::{Deserialize, Serialize};
@@ -79,7 +82,9 @@ where
     tracer.protocol_begins();
 
     tracer.stage("Setup networking");
-    let MpcParty { delivery, .. } = party.into_party();
+    let MpcParty {
+        delivery, runtime, ..
+    } = party.into_party();
     let (incomings, mut outgoings) = delivery.split();
 
     let mut rounds = RoundsRouter::<Msg>::builder();
@@ -91,13 +96,12 @@ where
     tracer.round_begins();
     tracer.stage("Compute round 1 dkg secret package");
     let (round1_secret_package, round1_package) = dkg_part1(i + 1, t, n, role, rng)?;
-
+    runtime.yield_now().await;
     tracer.send_msg();
-    let my_round1_msg = MsgRound1 {
-        msg: round1_package.serialize().unwrap_or_default(),
-    };
     outgoings
-        .send(Outgoing::broadcast(Msg::Round1(my_round1_msg.clone())))
+        .send(Outgoing::broadcast(Msg::Round1(MsgRound1 {
+            msg: round1_package.serialize().unwrap_or_default(),
+        })))
         .await
         .map_err(IoError::send_message)?;
     tracer.msg_sent();
@@ -106,30 +110,23 @@ where
     tracer.round_begins();
 
     tracer.receive_msgs();
-    let round1_packages: Vec<round1::Package<C>> = rounds
+    let round1_packages_map: BTreeMap<Identifier<C>, round1::Package<C>> = rounds
         .complete(round1)
         .await
         .map_err(IoError::receive_message)?
-        .into_vec_including_me(my_round1_msg.clone())
-        .into_iter()
-        .map(|msg| {
-            round1::Package::deserialize(&msg.msg)
-                .unwrap_or_else(|_| panic!("Failed to deserialize round 1 package"))
+        .into_iter_indexed()
+        .map(|(party_index, _, msg)| {
+            (
+                ((party_index + 1) as u16)
+                    .try_into()
+                    .expect("should be nonzero"),
+                round1::Package::deserialize(&msg.msg)
+                    .unwrap_or_else(|_| panic!("Failed to deserialize round 1 package")),
+            )
         })
         .collect();
     tracer.msgs_received();
     tracer.stage("Compute round 2 dkg secret package");
-    let round1_packages_map: BTreeMap<Identifier<C>, round1::Package<C>> = round1_packages
-        .iter()
-        .enumerate()
-        .filter(|(inx, _)| *inx != i as usize)
-        .map(|(inx, p)| {
-            (
-                ((inx + 1) as u16).try_into().expect("should be nonzero"),
-                p.clone(),
-            )
-        })
-        .collect();
     let (round2_secret_package, round2_packages_map) =
         dkg_part2(role, round1_secret_package, &round1_packages_map)?;
 
