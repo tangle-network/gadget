@@ -237,11 +237,11 @@ mod tests {
         let ext = new_test_ext::<N>().await;
         let futures = FuturesUnordered::new();
 
-        for i in 0..FROST_ROLES.len() {
+        for role in &FROST_ROLES {
             let ext = ext.clone();
             futures.push(Box::pin(async move {
-                let keygen_job_id = wait_for_keygen::<N, T>(&ext, FROST_ROLES[i]).await;
-                wait_for_signing::<N>(&ext, keygen_job_id, FROST_ROLES[i]).await;
+                let keygen_job_id = wait_for_keygen::<N, T>(&ext, *role).await;
+                wait_for_signing::<N>(&ext, keygen_job_id, *role).await;
             }));
         }
 
@@ -264,7 +264,7 @@ mod tests {
                         participants: identities.clone().try_into().unwrap(),
                         threshold: T as _,
                         permitted_caller: None,
-                        role_type: role_type.clone(),
+                        role_type,
                     }),
                 };
 
@@ -312,7 +312,7 @@ mod tests {
     }
 
     async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
-        test_utils::mock::new_test_ext::<N, 4, _, _, _>((), |_, mut node_input| async move {
+        test_utils::mock::new_test_ext::<N, 4, _, _, _>((), |mut node_input| async move {
             let keygen_client = node_input.mock_clients.pop().expect("No keygen client");
             let signing_client = node_input.mock_clients.pop().expect("No signing client");
 

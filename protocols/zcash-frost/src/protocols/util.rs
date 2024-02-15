@@ -483,7 +483,7 @@ pub fn choose_signers<R: rand::Rng>(
         selected_participants_indices
             .iter()
             .cloned()
-            .zip(selected_participants.into_iter())
+            .zip(selected_participants)
             .collect();
 
     selected_participants_with_indices.sort_by_key(|&(index, _)| index);

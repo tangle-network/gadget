@@ -117,9 +117,7 @@ where
         .into_iter_indexed()
         .map(|(party_index, _, msg)| {
             (
-                ((party_index + 1) as u16)
-                    .try_into()
-                    .expect("should be nonzero"),
+                (party_index + 1).try_into().expect("should be nonzero"),
                 round1::Package::deserialize(&msg.msg)
                     .unwrap_or_else(|_| panic!("Failed to deserialize round 1 package")),
             )
