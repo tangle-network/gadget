@@ -161,12 +161,12 @@ where
         matches!(job, JobType::DKGTSSPhaseOne(_))
     }
 
-    fn client(&self) -> &JobsClient<B, BE, C> {
-        &self.client
+    fn client(&self) -> JobsClient<B, BE, C> {
+        self.client.clone()
     }
 
-    fn logger(&self) -> &DebugLogger {
-        &self.logger
+    fn logger(&self) -> DebugLogger {
+        self.logger.clone()
     }
 
     fn get_work_manager_config(&self) -> WorkManagerConfig {

@@ -14,7 +14,7 @@ log = { workspace = true }
 async-trait = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-gadget-common= { workspace = true }
+gadget-common = { workspace = true }
 gadget-core = { workspace = true }
 pallet-jobs-rpc-runtime-api = { workspace = true }
 sc-client-api = { workspace = true }

@@ -1,10 +1,12 @@
-use crate::protocol::keygen::BlsKeygenProtocol;
-use crate::protocol::signing::BlsSigningProtocol;
+use crate::protocol::keygen::BlsKeygenAdditionalParams;
 use async_trait::async_trait;
-use gadget_common::client::*;
-use gadget_common::config::*;
-use gadget_common::keystore::{GenericKeyStore, KeystoreBackend};
-use gadget_common::Error;
+use gadget_common::gadget::JobInitMetadata;
+use gadget_common::prelude::*;
+use gadget_common::{
+    generate_setup_and_run_command, BuiltExecutableJobWrapper, Error, JobError,
+    WorkManagerInterface,
+};
+use protocol::signing::BlsSigningAdditionalParams;
 use protocol_macros::protocol;
 use std::sync::Arc;
 
@@ -13,7 +15,7 @@ pub mod protocol;
 #[protocol]
 pub struct BlsKeygenConfig<
     B: Block,
-    BE: Backend<B>,
+    BE: Backend<B> + 'static,
     C: ClientWithApi<B, BE>,
     N: Network,
     KBE: KeystoreBackend,
@@ -25,36 +27,118 @@ pub struct BlsKeygenConfig<
     client: C,
     network: N,
     account_id: AccountId,
-    key_store: GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
+    key_store: ECDSAKeyStore<KBE>,
+    jobs_client: Arc<Mutex<Option<JobsClient<B, BE, C>>>>,
     _pd: std::marker::PhantomData<(B, BE)>,
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
-    NetworkAndProtocolSetup for BlsKeygenConfig<B, BE, C, N, KBE>
+impl<
+        B: Block,
+        BE: Backend<B> + 'static,
+        C: ClientWithApi<B, BE>,
+        N: Network,
+        KBE: KeystoreBackend,
+    > FullProtocolConfig for BlsKeygenConfig<B, BE, C, N, KBE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
-    type Network = N;
-    type Protocol = BlsKeygenProtocol<B, BE, C, N, KBE>;
+    type AsyncProtocolParameters = BlsKeygenAdditionalParams;
     type Client = C;
     type Block = B;
     type Backend = BE;
+    type Network = N;
+    type AdditionalNodeParameters = ();
+    type KeystoreBackend = KBE;
 
-    async fn build_network_and_protocol(
+    async fn new(
+        client: Self::Client,
+        pallet_tx: Arc<dyn PalletSubmitter>,
+        network: Self::Network,
+        logger: DebugLogger,
+        account_id: AccountId,
+        key_store: ECDSAKeyStore<Self::KeystoreBackend>,
+    ) -> Result<Self, Error> {
+        Ok(Self {
+            pallet_tx,
+            logger,
+            client,
+            network,
+            account_id,
+            key_store,
+            jobs_client: Arc::new(parking_lot::Mutex::new(None)),
+            _pd: std::marker::PhantomData,
+        })
+    }
+
+    async fn generate_protocol_from(
+        &self,
+        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+        protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+        additional_params: Self::AsyncProtocolParameters,
+    ) -> Result<BuiltExecutableJobWrapper, JobError> {
+        protocol::keygen::generate_protocol_from(
+            self,
+            associated_block_id,
+            associated_retry_id,
+            associated_session_id,
+            associated_task_id,
+            protocol_message_rx,
+            additional_params,
+        )
+        .await
+    }
+
+    async fn initialize_network_and_protocol(
         &self,
         jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
-    ) -> Result<(Self::Network, Self::Protocol), Error> {
-        let protocol = BlsKeygenProtocol {
-            jobs_client,
-            account_id: self.account_id,
-            logger: self.logger.clone(),
-            network: self.network.clone(),
-            pallet_tx: self.pallet_tx.clone(),
-            keystore: self.key_store.clone(),
-        };
+    ) -> Result<(), Error> {
+        self.jobs_client.lock().replace(jobs_client);
+        Ok(())
+    }
 
-        Ok((self.network.clone(), protocol))
+    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+        self.network.next_message().await
+    }
+
+    async fn send_message(
+        &self,
+        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
+    ) -> Result<(), Error> {
+        self.network.send_message(message).await
+    }
+
+    async fn create_next_job(
+        &self,
+        job: JobInitMetadata<Self::Block>,
+    ) -> Result<Self::AsyncProtocolParameters, Error> {
+        protocol::keygen::create_next_job(self, job).await
+    }
+
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
+    }
+
+    fn name(&self) -> String {
+        "BLS_KEYGEN_PROTOCOL".to_string()
+    }
+
+    fn role_filter(&self, role: RoleType) -> bool {
+        matches!(
+            role,
+            RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381)
+        )
+    }
+
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
+        matches!(job, GadgetJobType::DKGTSSPhaseOne(_))
+    }
+
+    fn jobs_client(&self) -> JobsClient<Self::Block, Self::Backend, Self::Client> {
+        self.jobs_client.lock().as_ref().unwrap().clone()
     }
 
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
@@ -73,7 +157,7 @@ where
 #[protocol]
 pub struct BlsSigningConfig<
     B: Block,
-    BE: Backend<B>,
+    BE: Backend<B> + 'static,
     C: ClientWithApi<B, BE>,
     N: Network,
     KBE: KeystoreBackend,
@@ -85,35 +169,118 @@ pub struct BlsSigningConfig<
     client: C,
     network: N,
     account_id: AccountId,
-    key_store: GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
+    key_store: ECDSAKeyStore<KBE>,
+    jobs_client: Arc<Mutex<Option<JobsClient<B, BE, C>>>>,
     _pd: std::marker::PhantomData<(B, BE)>,
 }
 
 #[async_trait]
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>, N: Network, KBE: KeystoreBackend>
-    NetworkAndProtocolSetup for BlsSigningConfig<B, BE, C, N, KBE>
+impl<
+        B: Block,
+        BE: Backend<B> + 'static,
+        C: ClientWithApi<B, BE>,
+        N: Network,
+        KBE: KeystoreBackend,
+    > FullProtocolConfig for BlsSigningConfig<B, BE, C, N, KBE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
-    type Network = N;
-    type Protocol = BlsSigningProtocol<B, BE, C, N, KBE>;
+    type AsyncProtocolParameters = BlsSigningAdditionalParams;
     type Client = C;
     type Block = B;
     type Backend = BE;
+    type Network = N;
+    type AdditionalNodeParameters = ();
+    type KeystoreBackend = KBE;
 
-    async fn build_network_and_protocol(
+    async fn new(
+        client: Self::Client,
+        pallet_tx: Arc<dyn PalletSubmitter>,
+        network: Self::Network,
+        logger: DebugLogger,
+        account_id: AccountId,
+        key_store: ECDSAKeyStore<Self::KeystoreBackend>,
+    ) -> Result<Self, Error> {
+        Ok(Self {
+            pallet_tx,
+            logger,
+            client,
+            network,
+            account_id,
+            key_store,
+            jobs_client: Arc::new(parking_lot::Mutex::new(None)),
+            _pd: std::marker::PhantomData,
+        })
+    }
+
+    async fn generate_protocol_from(
+        &self,
+        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+        protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+        additional_params: Self::AsyncProtocolParameters,
+    ) -> Result<BuiltExecutableJobWrapper, JobError> {
+        protocol::signing::generate_protocol_from(
+            self,
+            associated_block_id,
+            associated_retry_id,
+            associated_session_id,
+            associated_task_id,
+            protocol_message_rx,
+            additional_params,
+        )
+        .await
+    }
+
+    async fn initialize_network_and_protocol(
         &self,
         jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
-    ) -> Result<(Self::Network, Self::Protocol), Error> {
-        let protocol = BlsSigningProtocol {
-            jobs_client,
-            account_id: self.account_id,
-            logger: self.logger.clone(),
-            network: self.network.clone(),
-            keystore: self.key_store.clone(),
-        };
+    ) -> Result<(), Error> {
+        self.jobs_client.lock().replace(jobs_client);
+        Ok(())
+    }
 
-        Ok((self.network.clone(), protocol))
+    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+        self.network.next_message().await
+    }
+
+    async fn send_message(
+        &self,
+        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
+    ) -> Result<(), Error> {
+        self.network.send_message(message).await
+    }
+
+    async fn create_next_job(
+        &self,
+        job: JobInitMetadata<Self::Block>,
+    ) -> Result<Self::AsyncProtocolParameters, Error> {
+        protocol::signing::create_next_job(self, job).await
+    }
+
+    fn account_id(&self) -> &AccountId {
+        &self.account_id
+    }
+
+    fn name(&self) -> String {
+        "BLS_SIGNING_PROTOCOL".to_string()
+    }
+
+    fn role_filter(&self, role: RoleType) -> bool {
+        matches!(
+            role,
+            RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381)
+        )
+    }
+
+    fn phase_filter(&self, job: GadgetJobType) -> bool {
+        matches!(job, GadgetJobType::DKGTSSPhaseTwo(_))
+    }
+
+    fn jobs_client(&self) -> JobsClient<Self::Block, Self::Backend, Self::Client> {
+        self.jobs_client.lock().as_ref().unwrap().clone()
     }
 
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
@@ -129,51 +296,9 @@ where
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn run<
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    N: Network,
-    KBE: KeystoreBackend,
->(
-    client_keygen: C,
-    client_signing: C,
-    pallet_tx: Arc<dyn PalletSubmitter>,
-    logger: DebugLogger,
-    network_keygen: N,
-    network_signing: N,
-    account_id: AccountId,
-    keystore: GenericKeyStore<KBE, gadget_common::sp_core::ecdsa::Pair>,
-) -> Result<(), Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
-    let config_keygen = BlsKeygenConfig {
-        pallet_tx: pallet_tx.clone(),
-        logger: logger.clone(),
-        client: client_keygen,
-        network: network_keygen,
-        _pd: std::marker::PhantomData,
-        key_store: keystore.clone(),
-        account_id,
-    };
-
-    let config_signing = BlsSigningConfig {
-        pallet_tx,
-        logger,
-        client: client_signing,
-        network: network_signing,
-        _pd: std::marker::PhantomData,
-        key_store: keystore.clone(),
-        account_id,
-    };
-
-    let keygen_future = config_keygen.execute();
-    let signing_future = config_signing.execute();
-
-    tokio::select! {
-        res0 = keygen_future => res0,
-        res1 = signing_future => res1,
-    }
-}
+generate_setup_and_run_command!(BlsKeygenConfig, BlsSigningConfig);
+test_utils::generate_signing_and_keygen_tss_tests!(
+    2,
+    3,
+    ThresholdSignatureRoleType::GennaroDKGBls381
+);

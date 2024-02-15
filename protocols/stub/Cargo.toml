@@ -3,9 +3,6 @@ name = "stub-protocol"
 version = "0.1.0"
 edition = "2021"
 
-[features]
-mainnet = ["gadget-common/mainnet"]
-
 [dependencies]
 gadget-common = { workspace = true }
 async-trait = { workspace = true }
@@ -13,3 +10,5 @@ futures = { workspace = true }
 tokio = { workspace = true }
 protocol-macros = { workspace = true }
 tangle-primitives = { workspace = true }
+parking_lot = { workspace = true }
+test-utils = { workspace = true }

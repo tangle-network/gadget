@@ -54,27 +54,44 @@ where
     })
 }
 
-#[cfg(not(feature = "mainnet"))]
 pub mod types {
+    use frame_support::pallet_prelude::{Decode, Encode, TypeInfo};
+    use frame_support::parameter_types;
     use pallet_jobs_rpc_runtime_api::JobsApi;
+    use serde::{Deserialize, Serialize};
     use sp_runtime::traits::Block;
-    use tangle_primitives::jobs::{JobType, PhaseResult};
+    use sp_runtime::RuntimeDebug;
+    use tangle_primitives::jobs::{JobResult, JobType, PhaseResult};
 
+    parameter_types! {
+        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+        #[derive(Serialize, Deserialize)]
+        pub const MaxSubmissionLen: u32 = 60_000_000;
+        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+        #[derive(Serialize, Deserialize)]
+        pub const MaxParticipants: u32 = 10;
+        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+        #[derive(Serialize, Deserialize)]
+        pub const MaxKeyLen: u32 = 256;
+        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+        #[derive(Serialize, Deserialize)]
+        pub const MaxDataLen: u32 = 256;
+        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+        #[derive(Serialize, Deserialize)]
+        pub const MaxSignatureLen: u32 = 256;
+        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+        #[derive(Serialize, Deserialize)]
+        pub const MaxProofLen: u32 = 256;
+        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+        #[derive(Serialize, Deserialize)]
+        pub const MaxActiveJobsPerValidator: u32 = 100;
+        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+        #[derive(Serialize, Deserialize)]
+        pub const MaxRolesPerValidator: u32 = 100;
+    }
     pub type AccountId = sp_core::ecdsa::Public;
-    pub type MaxParticipants = tangle_testnet_runtime::MaxParticipants;
-    pub type MaxSubmissionLen = tangle_testnet_runtime::MaxSubmissionLen;
-    pub type MaxKeyLen = tangle_testnet_runtime::MaxKeyLen;
-    pub type MaxDataLen = tangle_testnet_runtime::MaxDataLen;
-    pub type MaxSignatureLen = tangle_testnet_runtime::MaxSignatureLen;
-    pub type MaxProofLen = tangle_testnet_runtime::MaxProofLen;
-    pub type MaxActiveJobsPerValidator = tangle_testnet_runtime::MaxActiveJobsPerValidator;
-    pub type GadgetJobResult = tangle_testnet_runtime::JobResult<
-        MaxParticipants,
-        MaxKeyLen,
-        MaxSignatureLen,
-        MaxDataLen,
-        MaxProofLen,
-    >;
+    pub type GadgetJobResult =
+        JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>;
     pub type GadgetJobType = JobType<AccountId, MaxParticipants, MaxSubmissionLen>;
     pub type GadgetPhaseResult<B> = PhaseResult<
         AccountId,
@@ -114,74 +131,6 @@ pub mod types {
                 MaxProofLen,
             >,
         > JobsApiForGadget<B> for T
-    {
-    }
-}
-
-#[cfg(feature = "mainnet")]
-pub mod types {
-    use pallet_jobs_rpc_runtime_api::JobsApi;
-    use sp_runtime::traits::Block;
-    use tangle_primitives::jobs::{JobType, PhaseResult};
-
-    pub type AccountId = sp_core::ecdsa::Public;
-    pub type MaxParticipants = tangle_mainnet_runtime::MaxParticipants;
-    pub type MaxSubmissionLen = tangle_mainnet_runtime::MaxSubmissionLen;
-    pub type MaxKeyLen = tangle_mainnet_runtime::MaxKeyLen;
-    pub type MaxDataLen = tangle_mainnet_runtime::MaxDataLen;
-    pub type MaxSignatureLen = tangle_mainnet_runtime::MaxSignatureLen;
-    pub type MaxProofLen = tangle_mainnet_runtime::MaxProofLen;
-    pub type MaxActiveJobsPerValidator = tangle_mainnet_runtime::MaxActiveJobsPerValidator;
-    pub type GadgetJobResult = tangle_mainnet_runtime::JobResult<
-        crate::client::types::MaxParticipants,
-        crate::client::types::MaxKeyLen,
-        crate::client::types::MaxSignatureLen,
-        crate::client::types::MaxDataLen,
-        crate::client::types::MaxProofLen,
-    >;
-    pub type GadgetJobType = JobType<
-        crate::client::types::AccountId,
-        crate::client::types::MaxParticipants,
-        crate::client::types::MaxSubmissionLen,
-    >;
-    pub type GadgetPhaseResult<B> = PhaseResult<
-        crate::client::types::AccountId,
-        B,
-        crate::client::types::MaxParticipants,
-        crate::client::types::MaxKeyLen,
-        crate::client::types::MaxDataLen,
-        crate::client::types::MaxSignatureLen,
-        crate::client::types::MaxSubmissionLen,
-        crate::client::types::MaxProofLen,
-    >;
-
-    pub trait JobsApiForGadget<B: Block>:
-        JobsApi<
-        B,
-        crate::client::types::AccountId,
-        crate::client::types::MaxParticipants,
-        crate::client::types::MaxSubmissionLen,
-        crate::client::types::MaxKeyLen,
-        crate::client::types::MaxDataLen,
-        crate::client::types::MaxSignatureLen,
-        crate::client::types::MaxProofLen,
-    >
-    {
-    }
-    // Implement JobsApiForGadget for any T that implements JobsApi
-    impl<
-            B: Block,
-            T: JobsApi<
-                B,
-                crate::client::types::AccountId,
-                crate::client::types::MaxParticipants,
-                crate::client::types::MaxSubmissionLen,
-                crate::client::types::MaxKeyLen,
-                crate::client::types::MaxDataLen,
-                crate::client::types::MaxSignatureLen,
-                crate::client::types::MaxProofLen,
-            >,
-        > crate::client::types::JobsApiForGadget<B> for T
     {
     }
 }

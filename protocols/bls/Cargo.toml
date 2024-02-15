@@ -5,8 +5,6 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-mainnet = ["gadget-common/mainnet"]
 
 [dependencies]
 gadget-common = { workspace = true }
@@ -24,7 +22,5 @@ itertools = { workspace = true }
 log = { workspace = true }
 bls12_381_plus = { workspace = true }
 snowbridge-milagro-bls = { workspace = true }
-
-[dev-dependencies]
-log = { workspace = true }
+parking_lot = { workspace = true }
 test-utils = { workspace = true }

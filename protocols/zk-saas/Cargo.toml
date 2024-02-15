@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-mainnet = ["gadget-common/mainnet"]
 
 parallel = [
     "ark-std/parallel",
@@ -60,4 +59,3 @@ ark-std = { workspace = true, default-features = false }
 frame-support = { workspace = true }
 test-utils = { workspace = true }
 rcgen = "0.12.0"
-tangle-testnet-runtime = { workspace = true, features = ["local-testing"] }

@@ -160,55 +160,52 @@ mod tests {
             rcgen::generate_simple_self_signed(vec!["localhost".into(), "127.0.0.1".into()])
                 .unwrap();
         let king_cert = Arc::new(king_cert);
-        test_utils::mock::new_test_ext::<N, 1, _, _, _>(
-            king_cert,
-            |king_cert, mut node_info| async move {
-                let king_public_identity_der = king_cert.serialize_der().expect("Should serialize");
-                let king_private_identity_der = king_cert.serialize_private_key_der();
-                let (king_bind_addr, client_only_king_addr, client_only_king_public_identity_der) =
-                    if node_info.node_index == 0 {
-                        (Some(king_addr), None, None)
-                    } else {
-                        (
-                            None,
-                            Some(king_addr),
-                            Some(king_public_identity_der.clone()),
-                        )
-                    };
-
-                let (public_identity_der, private_identity_der) = if node_info.node_index == 0 {
-                    (king_public_identity_der, king_private_identity_der)
+        test_utils::mock::new_test_ext::<N, 1, _, _, _>(king_cert, |mut node_info| async move {
+            let king_cert = node_info.additional_params;
+            let king_public_identity_der = king_cert.serialize_der().expect("Should serialize");
+            let king_private_identity_der = king_cert.serialize_private_key_der();
+            let (king_bind_addr, client_only_king_addr, client_only_king_public_identity_der) =
+                if node_info.node_index == 0 {
+                    (Some(king_addr), None, None)
                 } else {
-                    let cert =
-                        rcgen::generate_simple_self_signed(vec!["127.0.0.1".into()]).unwrap();
                     (
-                        cert.serialize_der().expect("Should serialize"),
-                        cert.serialize_private_key_der(),
+                        None,
+                        Some(king_addr),
+                        Some(king_public_identity_der.clone()),
                     )
                 };
 
-                let logger = node_info.logger.clone();
-                let client = node_info.mock_clients.pop().expect("Should have client");
-                let pallet_tx = node_info.pallet_tx;
+            let (public_identity_der, private_identity_der) = if node_info.node_index == 0 {
+                (king_public_identity_der, king_private_identity_der)
+            } else {
+                let cert = rcgen::generate_simple_self_signed(vec!["127.0.0.1".into()]).unwrap();
+                (
+                    cert.serialize_der().expect("Should serialize"),
+                    cert.serialize_private_key_der(),
+                )
+            };
 
-                let config = ZkGadgetConfig::<_, _, MockBackend> {
-                    king_bind_addr,
-                    client_only_king_addr,
-                    public_identity_der,
-                    private_identity_der,
-                    client_only_king_public_identity_der,
-                    account_id: node_info.account_id,
-                    logger,
-                    client,
-                    pallet_tx: Arc::new(pallet_tx),
-                    _pd: Default::default(),
-                };
+            let logger = node_info.logger.clone();
+            let client = node_info.mock_clients.pop().expect("Should have client");
+            let pallet_tx = node_info.pallet_tx;
 
-                if let Err(err) = config.execute().await {
-                    log::error!(target: "gadget", "Failed to run zk protocol: {err:?}");
-                }
-            },
-        )
+            let config = ZkGadgetConfig::<_, _, MockBackend> {
+                king_bind_addr,
+                client_only_king_addr,
+                public_identity_der,
+                private_identity_der,
+                client_only_king_public_identity_der,
+                account_id: node_info.account_id,
+                logger,
+                client,
+                pallet_tx: Arc::new(pallet_tx),
+                _pd: Default::default(),
+            };
+
+            if let Err(err) = config.execute().await {
+                log::error!(target: "gadget", "Failed to run zk protocol: {err:?}");
+            }
+        })
         .await
     }
 

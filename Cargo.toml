@@ -4,7 +4,6 @@ members = [
     "gadget-core",
     "gadget-common",
     "test-gadget",
-    "protocols/mp-ecdsa",
     "protocols/dfns-cggmp21",
     "protocols/zk-saas",
     "protocols/zcash-frost",
@@ -18,7 +17,6 @@ members = [
 gadget-core = { path = "./gadget-core" }
 gadget-common = { path = "./gadget-common" }
 zk-saas-protocol = { path = "./protocols/zk-saas" }
-mp-ecdsa-protocol = { path = "./protocols/mp-ecdsa" }
 threshold-bls-protocol = { path = "./protocols/bls" }
 stub-protocol = { path = "./protocols/stub" }
 test-utils = { path = "./test-utils" }
@@ -26,15 +24,13 @@ protocol-macros = { path = "./protocol-macros" }
 dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
 zcash-frost-protocol = { path = "./protocols/zcash-frost" }
 
-snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
-gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git" }
-pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
-pallet-jobs = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
-pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
-pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
-tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
-tangle-testnet-runtime = { git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
-tangle-mainnet-runtime = { package = "tangle-runtime", git = "https://github.com/webb-tools/tangle.git", branch = "drew/fix-for-frost"}
+snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
+gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
+pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle/" }
+pallet-jobs = { git = "https://github.com/webb-tools/tangle/" }
+pallet-dkg = { git = "https://github.com/webb-tools/tangle/" }
+pallet-zksaas = { git = "https://github.com/webb-tools/tangle/" }
+tangle-primitives = { git = "https://github.com/webb-tools/tangle/" }
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
