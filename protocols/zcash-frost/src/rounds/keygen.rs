@@ -133,7 +133,14 @@ where
     tracer.send_msg();
     for (receiver_identifier, round2_package) in round2_packages_map {
         let receiver_index_bytes: Vec<u8> = receiver_identifier.serialize().as_ref().to_vec();
-        let receiver_index = u16::from_le_bytes([receiver_index_bytes[0], receiver_index_bytes[1]]);
+        let receiver_index: u16 = if receiver_index_bytes[0] == 0 && receiver_index_bytes[1] == 0 {
+            u16::from_le_bytes([
+                receiver_index_bytes[receiver_index_bytes.len() - 1],
+                receiver_index_bytes[receiver_index_bytes.len() - 2],
+            ])
+        } else {
+            u16::from_le_bytes([receiver_index_bytes[0], receiver_index_bytes[1]])
+        };
         outgoings
             .send(Outgoing::p2p(
                 receiver_index - 1,

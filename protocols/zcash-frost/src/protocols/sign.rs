@@ -402,7 +402,7 @@ where
                     // to a fixed byte array and then converting that to a Vec<u8>.
                     let (signature, signature_scheme) = match role {
                         ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
-                            let mut signature_bytes = [0u8; 64];
+                            let mut signature_bytes = [0u8; 65];
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
                                 signature_bytes.to_vec().try_into().unwrap(),
@@ -426,7 +426,7 @@ where
                             )
                         }
                         ThresholdSignatureRoleType::ZcashFrostP256 => {
-                            let mut signature_bytes = [0u8; 64];
+                            let mut signature_bytes = [0u8; 65];
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
                                 signature_bytes.to_vec().try_into().unwrap(),
@@ -434,7 +434,7 @@ where
                             )
                         }
                         ThresholdSignatureRoleType::ZcashFrostP384 => {
-                            let mut signature_bytes = [0u8; 64];
+                            let mut signature_bytes = [0u8; 97];
                             signature_bytes.copy_from_slice(&signature.group_signature);
                             (
                                 signature_bytes.to_vec().try_into().unwrap(),
