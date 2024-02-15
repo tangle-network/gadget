@@ -45,6 +45,16 @@ pub struct WorkManagerConfig {
     pub max_pending_tasks: usize,
 }
 
+impl Default for WorkManagerConfig {
+    fn default() -> Self {
+        WorkManagerConfig {
+            interval: DEFAULT_POLL_INTERVAL,
+            max_active_tasks: DEFAULT_MAX_ACTIVE_TASKS,
+            max_pending_tasks: DEFAULT_MAX_PENDING_TASKS,
+        }
+    }
+}
+
 impl<
         C: ClientWithApi<B, BE>,
         B: Block,
@@ -114,7 +124,7 @@ where
             .query_jobs_by_validator(notification.hash, *self.protocol.account_id())
             .await?;
 
-        log::trace!(target: "gadget", "[{}] Found {} jobs for initialization", self.protocol.name(), jobs.len());
+        log::trace!(target: "gadget", "[{}] Found {} job(s) for initialization", self.protocol.name(), jobs.len());
         let mut relevant_jobs = Vec::new();
 
         for job in jobs {
@@ -309,13 +319,9 @@ where
     /// }
     /// ```
     fn phase_filter(&self, job: GadgetJobType) -> bool;
-    fn client(&self) -> &JobsClient<B, BE, C>;
-    fn logger(&self) -> &DebugLogger;
+    fn client(&self) -> JobsClient<B, BE, C>;
+    fn logger(&self) -> DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
-        WorkManagerConfig {
-            interval: DEFAULT_POLL_INTERVAL,
-            max_active_tasks: DEFAULT_MAX_ACTIVE_TASKS,
-            max_pending_tasks: DEFAULT_MAX_PENDING_TASKS,
-        }
+        Default::default()
     }
 }

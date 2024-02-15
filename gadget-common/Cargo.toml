@@ -9,19 +9,15 @@ edition = "2021"
 default = [
     "std"
 ]
-
 std = [
     "sp-api/std",
     "tangle-primitives/std",
     "pallet-jobs-rpc-runtime-api/std"
 ]
 
-mainnet = [
-    "tangle-mainnet-runtime"
-]
-
 [dependencies]
 gadget-core = { workspace = true, features = ["substrate"] }
+protocol-macros = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 auto_impl = { workspace = true }
@@ -41,11 +37,12 @@ futures = { workspace = true }
 round-based = { workspace = true }
 sp-api = { workspace = true }
 
+frame-support = { workspace = true }
 sc-network = { workspace = true }
 sc-network-common = { workspace = true }
 sc-network-sync = { workspace = true }
 
 tangle-primitives = { workspace = true, features = ["std"] }
-tangle-testnet-runtime = { workspace = true, features = ["std"] }
-tangle-mainnet-runtime = { workspace = true, optional = true, features = ["std"] }
 pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
+parity-scale-codec = { workspace = true }
+scale-info = { workspace = true }

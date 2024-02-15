@@ -152,12 +152,12 @@ where
         matches!(job, JobType::DKGTSSPhaseTwo(_))
     }
 
-    fn client(&self) -> &JobsClient<B, BE, C> {
-        &self.client
+    fn client(&self) -> JobsClient<B, BE, C> {
+        self.client.clone()
     }
 
-    fn logger(&self) -> &DebugLogger {
-        &self.logger
+    fn logger(&self) -> DebugLogger {
+        self.logger.clone()
     }
 
     fn get_work_manager_config(&self) -> WorkManagerConfig {
@@ -320,7 +320,7 @@ where
                         signature_scheme: DigitalSignatureScheme::Ecdsa,
                         data: additional_params.input_data_to_sign.try_into().unwrap(),
                         signature: signature_bytes.to_vec().try_into().unwrap(),
-                        signing_key: public_key_bytes.try_into().unwrap(),
+                        verifying_key: public_key_bytes.try_into().unwrap(),
                     });
 
                     client
