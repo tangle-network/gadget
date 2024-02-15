@@ -247,7 +247,7 @@ where
                     .try_into()
                     .unwrap(),
                 signature: signature.try_into().unwrap(),
-                signing_key: signing_key.try_into().unwrap(),
+                verifying_key: signing_key.try_into().unwrap(),
             });
 
             *result.lock().await = Some(job_result);

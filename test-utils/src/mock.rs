@@ -53,7 +53,7 @@ use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
 use tangle_primitives::jobs::traits::{JobToFee, MPCHandler};
 use tangle_primitives::jobs::{
-    JobId, JobResult, JobSubmission, JobType, JobWithResult, PhaseResult, ReportValidatorOffence,
+    JobId, JobResult, JobSubmission, JobType, JobWithResult, PhaseResult, ReportRestakerOffence,
     RpcResponseJobsData, ValidatorOffenceType,
 };
 use tangle_primitives::misbehavior::{MisbehaviorHandler, MisbehaviorSubmission};
@@ -139,13 +139,13 @@ impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen> for Job
 pub struct MockRolesHandler;
 
 impl RolesHandler<AccountId> for MockRolesHandler {
-    fn is_validator(address: AccountId, _role_type: RoleType) -> bool {
-        let validators = (0..8).map(id_to_public).collect::<Vec<_>>();
-        validators.contains(&address)
+    fn report_offence(_offence_report: ReportRestakerOffence<AccountId>) -> DispatchResult {
+        Ok(())
     }
 
-    fn report_offence(_offence_report: ReportValidatorOffence<AccountId>) -> DispatchResult {
-        Ok(())
+    fn is_restaker(address: AccountId, _role_type: RoleType) -> bool {
+        let restakers = (0..8).map(id_to_public).collect::<Vec<_>>();
+        restakers.contains(&address)
     }
 
     fn get_validator_role_key(address: AccountId) -> Option<Vec<u8>> {

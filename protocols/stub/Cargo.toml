@@ -3,9 +3,6 @@ name = "stub-protocol"
 version = "0.1.0"
 edition = "2021"
 
-[features]
-mainnet = ["gadget-common/mainnet"]
-
 [dependencies]
 gadget-common = { workspace = true }
 async-trait = { workspace = true }
