@@ -24,7 +24,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2023-09-28
+          toolchain: nightly
           components: rustfmt
 
       - name: Check Formatting
@@ -40,9 +40,9 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2023-09-28
+          toolchain: nightly
           components: clippy
-          target: wasm32-unknown-unknown
+
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: "true"
@@ -67,7 +67,7 @@ jobs:
       - name: install rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2023-09-28
+          toolchain: nightly
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -93,7 +93,7 @@ jobs:
       - name: install rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2023-09-28
+          toolchain: nightly
 
       - uses: swatinem/rust-cache@v2
         with:
