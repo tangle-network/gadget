@@ -31,6 +31,7 @@ pub async fn create_next_job<
 >(
     config: &crate::BlsKeygenProtocol<B, BE, C, N, KBE>,
     job: JobInitMetadata<B>,
+    _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<BlsKeygenAdditionalParams, Error>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,

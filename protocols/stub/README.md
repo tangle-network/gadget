@@ -37,4 +37,4 @@ pub struct StubProtocol<
 At the bottom of lib.rs, add the macro: `generate_setup_and_run_command!(StubProtocol, StubProtocol, ...)`. For real applications, you will want to add all the protocol configs you wish to run concurrently.
 
 #### Step 4: Testing the protocol:
-After generating the macro above, run this macro with appropriate `T` and `N` values: `test_utils::generate_signing_and_keygen_tss_tests!(T, N, ThresholdSignatureRoleType::StubProtocol)`
+After generating the macro above, run this macro with appropriate `T`, `N`, and `K` values: `test_utils::generate_signing_and_keygen_tss_tests!(T, N, K, ThresholdSignatureRoleType::StubProtocol)`. Note: the `K` value is the number of expected protocols to run concurrently. It should match the number of items in the `generate_setup_and_run_command!` macro. 

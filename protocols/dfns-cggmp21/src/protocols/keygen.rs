@@ -14,7 +14,7 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
-use gadget_core::job_manager::WorkManagerInterface;
+use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
 use rand::SeedableRng;
 use sc_client_api::Backend;
@@ -40,6 +40,7 @@ pub async fn create_next_job<
 >(
     config: &crate::DfnsKeygenProtocol<B, BE, C, N, KBE>,
     job: JobInitMetadata<B>,
+    _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<DfnsCGGMP21KeygenExtraParams, gadget_common::Error>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,

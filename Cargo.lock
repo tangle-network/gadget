@@ -2137,6 +2137,7 @@ dependencies = [
  "pallet-jobs",
  "pallet-jobs-rpc-runtime-api",
  "parity-scale-codec 3.6.9",
+ "parking_lot 0.12.1",
  "protocol-macros",
  "rand 0.8.5",
  "rand_chacha 0.3.1",

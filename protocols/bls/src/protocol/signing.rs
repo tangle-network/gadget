@@ -8,7 +8,8 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::sp_core::keccak_256;
 use gadget_common::{
-    Backend, Block, BuiltExecutableJobWrapper, Error, JobBuilder, JobError, WorkManagerInterface,
+    Backend, Block, BuiltExecutableJobWrapper, Error, JobBuilder, JobError, ProtocolWorkManager,
+    WorkManagerInterface,
 };
 use gennaro_dkg::{Participant, SecretParticipantImpl};
 use itertools::Itertools;
@@ -40,6 +41,7 @@ pub async fn create_next_job<
 >(
     config: &crate::BlsSigningProtocol<B, BE, C, N, KBE>,
     job: JobInitMetadata<B>,
+    _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<BlsSigningAdditionalParams, Error>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,

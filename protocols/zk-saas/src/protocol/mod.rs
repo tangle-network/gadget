@@ -16,7 +16,7 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::prelude::{KeystoreBackend, Network};
 use gadget_common::Error;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
-use gadget_core::job_manager::WorkManagerInterface;
+use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use groth16::proving_key::PackedProvingKeyShare;
 use mpc_net::{MpcNet, MultiplexedStreamID};
 use sc_client_api::Backend;
@@ -43,8 +43,9 @@ pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {
 }
 
 pub async fn create_next_job<B, C, BE, N: Network, KBE>(
-    config: &crate::ZkProtocol<B, C, BE, N, KBE>,
+    config: &crate::ZkProtocol<B, BE, C, N, KBE>,
     job: JobInitMetadata<B>,
+    _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<ZkJobAdditionalParams, Error>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
@@ -100,7 +101,7 @@ impl AdditionalProtocolParams for ZkJobAdditionalParams {
 }
 
 pub async fn generate_protocol_from<B, C, BE, N: Network, KBE>(
-    config: &crate::ZkProtocol<B, C, BE, N, KBE>,
+    config: &crate::ZkProtocol<B, BE, C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,

@@ -9,7 +9,7 @@ use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::FullProtocolConfig;
 use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
-use gadget_core::job_manager::WorkManagerInterface;
+use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
@@ -31,6 +31,7 @@ pub async fn create_next_job<
 >(
     config: &crate::DfnsKeyRotateProtocol<B, BE, C, N, KBE>,
     job: JobInitMetadata<B>,
+    _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<DfnsCGGMP21KeyRotateExtraParams, gadget_common::Error>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
