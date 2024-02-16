@@ -42,6 +42,7 @@ jobs:
         with:
           toolchain: nightly-2023-09-28
           components: clippy
+          target: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: "true"
