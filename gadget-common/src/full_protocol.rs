@@ -11,6 +11,7 @@ use crate::Error;
 use async_trait::async_trait;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use parking_lot::Mutex;
 use sc_client_api::{Backend, BlockImportNotification};
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::Block;
@@ -18,6 +19,8 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use tangle_primitives::roles::RoleType;
 use tokio::sync::mpsc::UnboundedReceiver;
+
+pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 
 #[async_trait]
 pub trait FullProtocolConfig: Clone + Send + Sync + Sized + 'static
@@ -48,19 +51,15 @@ where
         protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AsyncProtocolParameters,
     ) -> Result<BuiltExecutableJobWrapper, JobError>;
-    async fn initialize_network_and_protocol(
-        &self,
-        jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
-    ) -> Result<(), Error>;
-    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage>;
-
-    async fn send_message(
-        &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), Error>;
+    fn network(&self) -> &Self::Network;
+    /// Given an input of metadata for a job, return a set of parameters that can be used to
+    /// construct a protocol.
+    ///
+    /// The provided work manager should only be used for querying recorded_messages
     async fn create_next_job(
         &self,
         job: JobInitMetadata<Self::Block>,
+        work_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<Self::AsyncProtocolParameters, Error>;
 
     async fn process_block_import_notification(
@@ -83,12 +82,18 @@ where
 
     fn phase_filter(&self, job: GadgetJobType) -> bool;
 
-    fn jobs_client(&self) -> JobsClient<Self::Block, Self::Backend, Self::Client>;
+    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Block, Self::Backend, Self::Client>>;
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
 
     fn logger(&self) -> DebugLogger;
 
     fn client(&self) -> Self::Client;
+    fn get_jobs_client(&self) -> JobsClient<Self::Block, Self::Backend, Self::Client> {
+        self.jobs_client()
+            .lock()
+            .clone()
+            .expect("Jobs client not initialized")
+    }
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         Default::default()
     }
@@ -138,7 +143,8 @@ where
         &self,
         jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
     ) -> Result<(Self::Network, Self::Protocol), Error> {
-        T::initialize_network_and_protocol(self, jobs_client).await?;
+        let jobs_client_store = T::jobs_client(self);
+        jobs_client_store.lock().replace(jobs_client);
         Ok((self.clone(), self.clone()))
     }
 
@@ -163,8 +169,9 @@ where
     async fn create_next_job(
         &self,
         job: JobInitMetadata<T::Block>,
+        work_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
-        T::create_next_job(self, job).await
+        T::create_next_job(self, job, work_manager).await
     }
 
     async fn process_block_import_notification(
@@ -196,7 +203,7 @@ where
     }
 
     fn client(&self) -> JobsClient<T::Block, T::Backend, T::Client> {
-        T::jobs_client(self)
+        T::get_jobs_client(self)
     }
 
     fn logger(&self) -> DebugLogger {
@@ -214,14 +221,14 @@ where
     <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApiForGadget<T::Block>,
 {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        T::next_message(self).await
+        T::network(self).next_message().await
     }
 
     async fn send_message(
         &self,
         message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
-        T::send_message(self, message).await
+        T::network(self).send_message(message).await
     }
 }
 

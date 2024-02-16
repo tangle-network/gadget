@@ -38,7 +38,7 @@ pub async fn create_next_job<
     N: Network,
     KBE: KeystoreBackend,
 >(
-    config: &crate::BlsSigningConfig<B, BE, C, N, KBE>,
+    config: &crate::BlsSigningProtocol<B, BE, C, N, KBE>,
     job: JobInitMetadata<B>,
 ) -> Result<BlsSigningAdditionalParams, Error>
 where
@@ -99,7 +99,7 @@ pub async fn generate_protocol_from<
     N: Network,
     KBE: KeystoreBackend,
 >(
-    config: &crate::BlsSigningConfig<B, BE, C, N, KBE>,
+    config: &crate::BlsSigningProtocol<B, BE, C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
@@ -114,7 +114,7 @@ where
     let network = config.network.clone();
     let result = Arc::new(tokio::sync::Mutex::new(None));
     let result_clone = result.clone();
-    let client = config.jobs_client();
+    let client = config.get_jobs_client();
     let role_type = additional_params.role_type;
     let job_id = additional_params.job_id;
     let logger = config.logger.clone();

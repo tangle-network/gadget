@@ -231,44 +231,16 @@ mod tests {
     }
 
     async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
-        test_utils::mock::new_test_ext::<N, 4, _, _, _>((), |mut node_input| async move {
-            let keygen_client = node_input.mock_clients.pop().expect("No keygen client");
-            let signing_client = node_input.mock_clients.pop().expect("No signing client");
-            let keyrefresh_client = node_input.mock_clients.pop().expect("No keyrefresh client");
-            let keyrotate_client = node_input.mock_clients.pop().expect("No keyrotate client");
-
-            let keygen_network = node_input.mock_networks.pop().expect("No keygen network");
-            let signing_network = node_input.mock_networks.pop().expect("No signing network");
-            let keyrefresh_network = node_input
-                .mock_networks
-                .pop()
-                .expect("No keyrefresh network");
-            let keyrotate_network = node_input
-                .mock_networks
-                .pop()
-                .expect("No keyrotate network");
+        test_utils::mock::new_test_ext::<N, 4, _, _, _>((), |node_input| async move {
+            let clients = node_input.mock_clients;
+            let networks = node_input.mock_networks;
             let account_id = node_input.account_id;
-
             let logger = node_input.logger.clone();
-            let (pallet_tx, keystore) = (node_input.pallet_tx, node_input.keystore);
+
+            let (pallet_tx, key_store) = (node_input.pallet_tx, node_input.keystore);
             logger.info("Starting gadget");
-            if let Err(err) = dfns_cggmp21_protocol::run::<_, MockBackend, _, _, _, _>(
-                account_id,
-                logger.clone(),
-                keystore,
-                pallet_tx,
-                (
-                    keygen_client,
-                    signing_client,
-                    keyrefresh_client,
-                    keyrotate_client,
-                ),
-                (
-                    keygen_network,
-                    signing_network,
-                    keyrefresh_network,
-                    keyrotate_network,
-                ),
+            if let Err(err) = dfns_cggmp21_protocol::run::<_, MockBackend, _, _, _>(
+                clients, pallet_tx, networks, logger, account_id, key_store,
             )
             .await
             {

@@ -1,10 +1,11 @@
 use crate::protocol::keygen::BlsKeygenAdditionalParams;
 use async_trait::async_trait;
+use gadget_common::full_protocol::SharedOptional;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::prelude::*;
 use gadget_common::{
     generate_setup_and_run_command, BuiltExecutableJobWrapper, Error, JobError,
-    WorkManagerInterface,
+    ProtocolWorkManager, WorkManagerInterface,
 };
 use protocol::signing::BlsSigningAdditionalParams;
 use protocol_macros::protocol;
@@ -13,7 +14,7 @@ use std::sync::Arc;
 pub mod protocol;
 
 #[protocol]
-pub struct BlsKeygenConfig<
+pub struct BlsKeygenProtocol<
     B: Block,
     BE: Backend<B> + 'static,
     C: ClientWithApi<B, BE>,
@@ -29,7 +30,6 @@ pub struct BlsKeygenConfig<
     account_id: AccountId,
     key_store: ECDSAKeyStore<KBE>,
     jobs_client: Arc<Mutex<Option<JobsClient<B, BE, C>>>>,
-    _pd: std::marker::PhantomData<(B, BE)>,
 }
 
 #[async_trait]
@@ -39,7 +39,7 @@ impl<
         C: ClientWithApi<B, BE>,
         N: Network,
         KBE: KeystoreBackend,
-    > FullProtocolConfig for BlsKeygenConfig<B, BE, C, N, KBE>
+    > FullProtocolConfig for BlsKeygenProtocol<B, BE, C, N, KBE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
@@ -67,7 +67,6 @@ where
             account_id,
             key_store,
             jobs_client: Arc::new(parking_lot::Mutex::new(None)),
-            _pd: std::marker::PhantomData,
         })
     }
 
@@ -92,28 +91,14 @@ where
         .await
     }
 
-    async fn initialize_network_and_protocol(
-        &self,
-        jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
-    ) -> Result<(), Error> {
-        self.jobs_client.lock().replace(jobs_client);
-        Ok(())
-    }
-
-    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        self.network.next_message().await
-    }
-
-    async fn send_message(
-        &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), Error> {
-        self.network.send_message(message).await
+    fn network(&self) -> &Self::Network {
+        &self.network
     }
 
     async fn create_next_job(
         &self,
         job: JobInitMetadata<Self::Block>,
+        _work_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<Self::AsyncProtocolParameters, Error> {
         protocol::keygen::create_next_job(self, job).await
     }
@@ -137,8 +122,8 @@ where
         matches!(job, GadgetJobType::DKGTSSPhaseOne(_))
     }
 
-    fn jobs_client(&self) -> JobsClient<Self::Block, Self::Backend, Self::Client> {
-        self.jobs_client.lock().as_ref().unwrap().clone()
+    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Block, Self::Backend, Self::Client>> {
+        &self.jobs_client
     }
 
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
@@ -155,7 +140,7 @@ where
 }
 
 #[protocol]
-pub struct BlsSigningConfig<
+pub struct BlsSigningProtocol<
     B: Block,
     BE: Backend<B> + 'static,
     C: ClientWithApi<B, BE>,
@@ -181,7 +166,7 @@ impl<
         C: ClientWithApi<B, BE>,
         N: Network,
         KBE: KeystoreBackend,
-    > FullProtocolConfig for BlsSigningConfig<B, BE, C, N, KBE>
+    > FullProtocolConfig for BlsSigningProtocol<B, BE, C, N, KBE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
@@ -234,28 +219,14 @@ where
         .await
     }
 
-    async fn initialize_network_and_protocol(
-        &self,
-        jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
-    ) -> Result<(), Error> {
-        self.jobs_client.lock().replace(jobs_client);
-        Ok(())
-    }
-
-    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        self.network.next_message().await
-    }
-
-    async fn send_message(
-        &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), Error> {
-        self.network.send_message(message).await
+    fn network(&self) -> &Self::Network {
+        &self.network
     }
 
     async fn create_next_job(
         &self,
         job: JobInitMetadata<Self::Block>,
+        _work_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<Self::AsyncProtocolParameters, Error> {
         protocol::signing::create_next_job(self, job).await
     }
@@ -279,8 +250,8 @@ where
         matches!(job, GadgetJobType::DKGTSSPhaseTwo(_))
     }
 
-    fn jobs_client(&self) -> JobsClient<Self::Block, Self::Backend, Self::Client> {
-        self.jobs_client.lock().as_ref().unwrap().clone()
+    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Block, Self::Backend, Self::Client>> {
+        &self.jobs_client
     }
 
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
@@ -296,7 +267,7 @@ where
     }
 }
 
-generate_setup_and_run_command!(BlsKeygenConfig, BlsSigningConfig);
+generate_setup_and_run_command!(BlsKeygenProtocol, BlsSigningProtocol);
 test_utils::generate_signing_and_keygen_tss_tests!(
     2,
     3,

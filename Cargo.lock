@@ -11829,6 +11829,7 @@ dependencies = [
  "dist-primitives",
  "fflonk",
  "frame-support",
+ "futures",
  "futures-util",
  "gadget-common",
  "gadget-core",

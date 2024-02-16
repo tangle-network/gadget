@@ -29,7 +29,7 @@ pub async fn create_next_job<
     N: Network,
     KBE: KeystoreBackend,
 >(
-    config: &crate::BlsKeygenConfig<B, BE, C, N, KBE>,
+    config: &crate::BlsKeygenProtocol<B, BE, C, N, KBE>,
     job: JobInitMetadata<B>,
 ) -> Result<BlsKeygenAdditionalParams, Error>
 where
@@ -72,7 +72,7 @@ pub async fn generate_protocol_from<
     N: Network,
     KBE: KeystoreBackend,
 >(
-    config: &crate::BlsKeygenConfig<B, BE, C, N, KBE>,
+    config: &crate::BlsKeygenProtocol<B, BE, C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,

@@ -529,6 +529,10 @@ impl Network for ZkNetworkService {
         }
     }
 
+    fn greatest_authority_id(&self) -> Option<AccountId> {
+        self.king_id()
+    }
+
     async fn run(&self) -> Result<(), Error> {
         match self {
             Self::King {
@@ -567,4 +571,14 @@ impl Network for ZkNetworkService {
             Self::Client { .. } => Ok(()),
         }
     }
+}
+
+#[derive(Clone)]
+pub struct ZkProtocolNetworkConfig {
+    pub king_bind_addr: Option<SocketAddr>,
+    pub client_only_king_addr: Option<SocketAddr>,
+    pub public_identity_der: Vec<u8>,
+    pub private_identity_der: Vec<u8>,
+    pub client_only_king_public_identity_der: Option<Vec<u8>>,
+    pub account_id: AccountId,
 }

@@ -9,10 +9,10 @@ tangle-primitives = { workspace = true }
 protocol-macros = { workspace = true }
 ```
 
-#### Step 2: Create a Config struct as such:
+#### Step 2: Create a struct representing the protocol as such:
 ```rust
 #[protocol]
-pub struct StubConfig<
+pub struct StubProtocol<
     B: Block,
     BE: Backend<B> + 'static,
     C: ClientWithApi<B, BE>,
@@ -31,10 +31,10 @@ pub struct StubConfig<
 }
 ```
 
-#### Step 2: Implement `FullProtocolConfig` for `StubConfig`
+#### Step 2: Implement `FullProtocolConfig` for `StubProtocol`
 
 #### Step 3: Running the protocol
-At the bottom of lib.rs, add the macro: `generate_setup_and_run_command!(StubConfig, StubConfig, ...)`. For real applications, you will want to add all the protocol configs you wish to run concurrently.
+At the bottom of lib.rs, add the macro: `generate_setup_and_run_command!(StubProtocol, StubProtocol, ...)`. For real applications, you will want to add all the protocol configs you wish to run concurrently.
 
 #### Step 4: Testing the protocol:
 After generating the macro above, run this macro with appropriate `T` and `N` values: `test_utils::generate_signing_and_keygen_tss_tests!(T, N, ThresholdSignatureRoleType::StubProtocol)`

@@ -27,10 +27,12 @@ pub mod prelude {
     pub use crate::gadget::message::GadgetProtocolMessage;
     pub use crate::gadget::work_manager::WorkManager;
     pub use crate::gadget::JobInitMetadata;
+    pub use crate::gadget::WorkManagerConfig;
     pub use crate::generate_setup_and_run_command;
     pub use crate::keystore::{ECDSAKeyStore, InMemoryBackend, KeystoreBackend};
     pub use crate::{BuiltExecutableJobWrapper, Error, JobBuilder, JobError, WorkManagerInterface};
     pub use async_trait::async_trait;
+    pub use gadget_core::job_manager::ProtocolWorkManager;
     pub use gadget_core::job_manager::SendFuture;
     pub use parking_lot::Mutex;
     pub use protocol_macros::protocol;
