@@ -719,7 +719,7 @@ checksum = "16e62a023e7c117e27523144c5d2459f4397fcc3cab0085af8e2224f643a0193"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -736,7 +736,7 @@ checksum = "c980ee35e870bd1a4d2c8294d4c04d0499e67bca1e4b5cefcc693c2fa00caea9"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -810,7 +810,7 @@ checksum = "823b8bb275161044e2ac7a25879cb3e2480cb403e3943022c7c769c599b756aa"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -1090,9 +1090,9 @@ dependencies = [
 
 [[package]]
 name = "bls12_381_plus"
-version = "0.8.13"
+version = "0.8.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7533858fe2da020c4fba936036e702de0f73144fe13f9c71113f6f804cde3466"
+checksum = "3125f174c275392512b904ff23317d722baf6daae5a392987a213a9740345ad5"
 dependencies = [
  "arrayref",
  "elliptic-curve 0.13.8",
@@ -1102,6 +1102,7 @@ dependencies = [
  "pairing",
  "rand_core 0.6.4",
  "serde",
+ "sha2 0.10.8",
  "subtle",
  "zeroize",
 ]
@@ -1135,9 +1136,9 @@ dependencies = [
 
 [[package]]
 name = "bumpalo"
-version = "3.14.0"
+version = "3.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f30e7476521f6f8af1a1c4c0b8cc94f0bee37d91763d0ca2665f299b6cd8aec"
+checksum = "d32a994c2b3ca201d9b263612a374263f05e7adde37c4707f693dcd375076d1f"
 
 [[package]]
 name = "byte-slice-cast"
@@ -1190,7 +1191,7 @@ checksum = "965ab7eb5f8f97d2a083c799f3a1b994fc397b2fe2da5d1da1626ce15a39f2b1"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -1253,7 +1254,7 @@ dependencies = [
  "paillier-zk",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
- "round-based 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "round-based 0.2.1",
  "serde",
  "serde_with 2.3.3",
  "sha2 0.10.8",
@@ -1956,14 +1957,14 @@ checksum = "f46882e17999c6cc590af592290432be3bce0428cb0d5f8b6715e4dc7b383eb3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
 name = "curve25519-dalek-ml"
-version = "4.1.2"
+version = "4.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e7872afcaad92a4f3917ec9e66a3cca827d187419bcb1f5edc78e9f47a483ff"
+checksum = "d8d84187ac3a5dddb1466f2f2707336cc6ebe3f658a5b74c0ca7538e07aea7af"
 dependencies = [
  "cfg-if",
  "cpufeatures",
@@ -2023,7 +2024,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim 0.10.0",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -2045,7 +2046,7 @@ checksum = "c5a91391accf613803c2a9bf9abccdbaa07c54b4244a5b64883f9c3c137c86be"
 dependencies = [
  "darling_core 0.20.6",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -2270,7 +2271,7 @@ checksum = "487585f4d0c6655fe74905e2504d8ad6908e4db67f744eb140876906c2f3175d"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -2334,7 +2335,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "syn 2.0.48",
+ "syn 2.0.49",
  "termcolor",
  "toml 0.8.2",
  "walkdir",
@@ -2607,7 +2608,7 @@ dependencies = [
  "num-traits",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -2628,7 +2629,7 @@ dependencies = [
  "darling 0.20.6",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -2860,7 +2861,7 @@ dependencies = [
  "fs-err",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -3205,7 +3206,7 @@ dependencies = [
  "proc-macro-warning",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -3217,7 +3218,7 @@ dependencies = [
  "proc-macro-crate 1.1.3",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -3227,7 +3228,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -3252,7 +3253,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "debugless-unwrap",
  "hex",
@@ -3268,7 +3269,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
+source = "git+https://github.com/LIT-Protocol/frost.git#f1e6ab1f8ed163f64b358c9d3cfef185a29513f8"
 dependencies = [
  "byteorder",
  "const-crc32",
@@ -3290,7 +3291,7 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
+source = "git+https://github.com/LIT-Protocol/frost.git#f1e6ab1f8ed163f64b358c9d3cfef185a29513f8"
 dependencies = [
  "curve25519-dalek-ml",
  "document-features",
@@ -3303,7 +3304,7 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "frost-core 0.6.1",
@@ -3316,7 +3317,7 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
+source = "git+https://github.com/LIT-Protocol/frost.git#f1e6ab1f8ed163f64b358c9d3cfef185a29513f8"
 dependencies = [
  "document-features",
  "ed448-goldilocks-plus 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3329,7 +3330,7 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "ed448-goldilocks-plus 0.11.1 (git+https://github.com/drewstone/Ed448-Goldilocks.git?branch=drew/zeroize)",
  "frost-core 0.6.1",
@@ -3342,7 +3343,7 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
+source = "git+https://github.com/LIT-Protocol/frost.git#f1e6ab1f8ed163f64b358c9d3cfef185a29513f8"
 dependencies = [
  "document-features",
  "frost-core 1.0.0-rc.0",
@@ -3355,7 +3356,7 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "frost-core 0.6.1",
  "p256 0.13.2",
@@ -3368,7 +3369,7 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
+source = "git+https://github.com/LIT-Protocol/frost.git#f1e6ab1f8ed163f64b358c9d3cfef185a29513f8"
 dependencies = [
  "document-features",
  "frost-core 1.0.0-rc.0",
@@ -3381,7 +3382,7 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "frost-core 0.6.1",
  "p384",
@@ -3394,7 +3395,7 @@ dependencies = [
 [[package]]
 name = "frost-rerandomized"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
+source = "git+https://github.com/LIT-Protocol/frost.git#f1e6ab1f8ed163f64b358c9d3cfef185a29513f8"
 dependencies = [
  "derive-getters",
  "document-features",
@@ -3405,7 +3406,7 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
+source = "git+https://github.com/LIT-Protocol/frost.git#f1e6ab1f8ed163f64b358c9d3cfef185a29513f8"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "document-features",
@@ -3418,7 +3419,7 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "frost-core 0.6.1",
@@ -3431,7 +3432,7 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#fed7ba93f6214f34711669c53522293b339aaa02"
+source = "git+https://github.com/LIT-Protocol/frost.git#f1e6ab1f8ed163f64b358c9d3cfef185a29513f8"
 dependencies = [
  "document-features",
  "frost-core 1.0.0-rc.0",
@@ -3444,7 +3445,7 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "frost-core 0.6.1",
  "k256",
@@ -3566,7 +3567,7 @@ checksum = "87750cf4b7a4c0625b1529e4c543c2182106e4dedc60a2a6455e00d212c489ac"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -3697,13 +3698,12 @@ dependencies = [
 
 [[package]]
 name = "generic-ec"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e61335b136fd9559af4284e642c081c2845e1f92650909eeec1fb47a8945a3f7"
+checksum = "f20aec40cfb745f7af3d8e889bbfedbe1565cd383a645ceae86b32e8766d5060"
 dependencies = [
  "generic-ec-core",
  "generic-ec-curves",
- "getrandom 0.2.12",
  "hex",
  "phantom-type 0.4.2",
  "rand_core 0.6.4",
@@ -3729,9 +3729,9 @@ dependencies = [
 
 [[package]]
 name = "generic-ec-curves"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a01b7dc4d4f06522f1c2bd8170c978f555a317c0e6c6f141b8b4f3db63c8c302"
+checksum = "fd36d2998f36338ccff5c7e9155e280b8d7caeba2aa9ea72e06c4bd01760cf90"
 dependencies = [
  "crypto-bigint 0.5.5",
  "elliptic-curve 0.13.8",
@@ -3747,9 +3747,9 @@ dependencies = [
 
 [[package]]
 name = "generic-ec-zkp"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f98645d68f62951789a4aec46ef4416878c2827b2353f5267cf96b096eae60d9"
+checksum = "aba23d4bd116ecc034402603a3d12c7032dd6c3476c6075b69eeae58d8054fa9"
 dependencies = [
  "generic-array 0.14.7",
  "generic-ec",
@@ -5234,7 +5234,7 @@ dependencies = [
  "macro_magic_core",
  "macro_magic_macros",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -5248,7 +5248,7 @@ dependencies = [
  "macro_magic_core_macros",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -5259,7 +5259,7 @@ checksum = "d710e1214dffbab3b5dacb21475dde7d6ed84c69ff722b3a47a782668d44fbac"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -5270,7 +5270,7 @@ checksum = "b8fb85ec1620619edf2984a7693497d4ec88a9665d8b87e942856884c92dbf2a"
 dependencies = [
  "macro_magic_core",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -5877,7 +5877,7 @@ dependencies = [
  "proc-macro-crate 2.0.2",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -6081,7 +6081,7 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "digest 0.10.7",
  "elliptic-curve 0.13.8",
@@ -6122,7 +6122,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6139,7 +6139,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -6170,7 +6170,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6417,7 +6417,7 @@ checksum = "266c042b60c9c76b8d53061e52b2e0d1116abc57cefc8c5cd671619a56ac3690"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -6720,7 +6720,7 @@ checksum = "3d1eaa7fa0aa1929ffdf7eeb6eac234dde6268914a14ad44d23521ab6a9b258e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -6766,7 +6766,7 @@ checksum = "440f724eba9f6996b75d63681b0a92b06947f1457076d503a4d2e2c8f56442b8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -6845,7 +6845,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -7280,7 +7280,7 @@ checksum = "5fddb4f8d99b0a2ebafc65a87a69a7b9875e4b1ae1f00db265d300ef7f28bccc"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -7513,19 +7513,6 @@ dependencies = [
 [[package]]
 name = "round-based"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50a0cb1a40a115430c0d124ee305cf118208a37f921a744d41e84d3468a2c1d0"
-dependencies = [
- "futures-util",
- "phantom-type 0.3.1",
- "round-based-derive",
- "thiserror",
- "tracing",
-]
-
-[[package]]
-name = "round-based"
-version = "0.2.0"
 source = "git+https://github.com/ZenGo-X/round-based-protocol#1b372fe7d19de8cc5236cfcd0bcd92d610dacecd"
 dependencies = [
  "futures-util",
@@ -7536,10 +7523,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "round-based-derive"
-version = "0.2.0"
+name = "round-based"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0397bf224fdbcb3b286926e43bba90a96f81a82cc630ebfc9290d18e8b6331bd"
+checksum = "3b0c7c6c07f090c99eea5fbfdae05d96cd82bf31459aec95a7720f5215cb692a"
+dependencies = [
+ "futures-util",
+ "phantom-type 0.3.1",
+ "round-based-derive",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "round-based-derive"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c3f220fb17bab108a448f516ce4ec470584675233ab3a799915ba71295da32e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8357,7 +8357,7 @@ checksum = "33c85360c95e7d137454dc81d9a4ed2b8efd8fbe19cee57357b32b9771fccb67"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -8416,7 +8416,7 @@ dependencies = [
  "darling 0.20.6",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -8428,7 +8428,7 @@ dependencies = [
  "darling 0.20.6",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -8829,7 +8829,7 @@ dependencies = [
  "proc-macro-crate 1.1.3",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -9099,7 +9099,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 dependencies = [
  "quote",
  "sp-core-hashing 9.0.0",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -9118,7 +9118,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -9129,7 +9129,7 @@ checksum = "50535e1a5708d3ba5c1195b59ebefac61cc8679c2c24716b87a86e8b7ed2e4a1"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -9386,7 +9386,7 @@ dependencies = [
  "proc-macro-crate 1.1.3",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -9399,7 +9399,7 @@ dependencies = [
  "proc-macro-crate 1.1.3",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -9632,7 +9632,7 @@ dependencies = [
  "parity-scale-codec 3.6.9",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -9829,7 +9829,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -9927,7 +9927,7 @@ dependencies = [
  "quote",
  "scale-info",
  "subxt-metadata",
- "syn 2.0.48",
+ "syn 2.0.49",
  "thiserror",
  "tokio",
 ]
@@ -9959,7 +9959,7 @@ dependencies = [
  "parity-scale-codec 3.6.9",
  "proc-macro-error",
  "subxt-codegen",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -9988,9 +9988,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.48"
+version = "2.0.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f3531638e407dfc0814761abb7c00a5b54992b849452a0646b7f65c9f770f3f"
+checksum = "915aea9e586f80826ee59f8453c1101f9d1c4b3964cd2460185ee8e299ada496"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10033,7 +10033,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -10043,7 +10043,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#dc3e5e65dafa1c115facbc7977bafc216eded9fe"
+source = "git+https://github.com/webb-tools/tangle/#a689893cebbb90de8ae3ae0c79724b8d45fbca1d"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -10193,7 +10193,7 @@ checksum = "a953cb265bef375dae3de6663da4d3804eee9682ea80d8e2542529b73c531c81"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -10359,7 +10359,7 @@ checksum = "5b8a1e28f2deaa14e508979454cb3a223b10b938b45af148bc0986de36f1923b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -10488,7 +10488,7 @@ checksum = "34704c8d6ebcbc939824180af020566b01a7c01f80641264eba0999f6c2b6be7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -10712,7 +10712,7 @@ checksum = "8b29f121da05aa0857e7b96cf2f8782bd4140911506518486d4a125b97d7d609"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -10864,7 +10864,7 @@ checksum = "b3fd98999db9227cf28e59d83e1f120f42bc233d4b152e8fab9bc87d5bb1e0f8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -10971,7 +10971,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
  "wasm-bindgen-shared",
 ]
 
@@ -11005,7 +11005,7 @@ checksum = "642f325be6301eb8107a83d12a8ac6c1e1c54345a7ef1a9261962dfefda09e66"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -11018,9 +11018,9 @@ checksum = "4f186bd2dcf04330886ce82d6f33dd75a7bfcf69ecf5763b89fcde53b6ac9838"
 
 [[package]]
 name = "wasm-encoder"
-version = "0.41.2"
+version = "0.200.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "972f97a5d8318f908dded23594188a90bcd09365986b1163e66d70170e5287ae"
+checksum = "b9e3fb0c8fbddd78aa6095b850dfeedbc7506cf5f81e633f69cf8f2333ab84b9"
 dependencies = [
  "leb128",
 ]
@@ -11533,9 +11533,9 @@ dependencies = [
 
 [[package]]
 name = "wast"
-version = "71.0.1"
+version = "200.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "647c3ac4354da32688537e8fc4d2fe6c578df51896298cb64727d98088a1fd26"
+checksum = "d1810d14e6b03ebb8fb05eef4009ad5749c989b65197d83bce7de7172ed91366"
 dependencies = [
  "bumpalo",
  "leb128",
@@ -11546,9 +11546,9 @@ dependencies = [
 
 [[package]]
 name = "wat"
-version = "1.0.88"
+version = "1.200.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b69c36f634411568a2c6d24828b674961e37ea03340fe1d605c337ed8162d901"
+checksum = "776cbd10e217f83869beaa3f40e312bb9e91d5eee29bbf6f560db1261b6a4c3d"
 dependencies = [
  "wast",
 ]
@@ -12046,7 +12046,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
- "round-based 0.2.0 (git+https://github.com/ZenGo-X/round-based-protocol)",
+ "round-based 0.2.0",
  "sc-client-api",
  "serde",
  "sha2 0.10.8",
@@ -12079,7 +12079,7 @@ checksum = "9ce1b18ccd8e73a9321186f97e46f9f04b778851177567b1975109d26a08d2a6"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]
@@ -12099,7 +12099,7 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 2.0.49",
 ]
 
 [[package]]

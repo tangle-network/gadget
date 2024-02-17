@@ -139,6 +139,8 @@ impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen> for Job
 pub struct MockRolesHandler;
 
 impl RolesHandler<AccountId> for MockRolesHandler {
+    type Balance = Balance;
+
     fn report_offence(_offence_report: ReportRestakerOffence<AccountId>) -> DispatchResult {
         Ok(())
     }
@@ -157,6 +159,10 @@ impl RolesHandler<AccountId> for MockRolesHandler {
                 None
             }
         })
+    }
+
+    fn record_job_by_validators(_validators: Vec<AccountId>) -> DispatchResult {
+        Ok(())
     }
 }
 
