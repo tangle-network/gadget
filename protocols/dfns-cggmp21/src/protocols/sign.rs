@@ -219,6 +219,12 @@ where
         );
 
         let public_key_bytes = key.shared_public_key().to_bytes(true).to_vec();
+        let input_data_to_sign = if input_data_to_sign.len() == 32 {
+            input_data_to_sign
+        } else {
+            keccak_256(&input_data_to_sign).to_vec()
+        };
+
         let input_data_to_sign2 = input_data_to_sign.clone();
 
         Ok(JobBuilder::new()
