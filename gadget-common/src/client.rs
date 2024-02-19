@@ -1,5 +1,5 @@
 use crate::debug_logger::DebugLogger;
-use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
+use crate::keystore::{KeystoreBackend, Sr25519KeyStore};
 use async_trait::async_trait;
 use auto_impl::auto_impl;
 use gadget_core::gadget::substrate::Client;
@@ -12,13 +12,13 @@ use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_api::{BlockT as Block, Decode, Encode};
 use sp_core::Pair;
 use std::sync::Arc;
-use subxt::ext::sp_core::Pair as SubxtPair;
-use subxt::tx::{PairSigner, TxPayload};
+use subxt::tx::TxPayload;
 use subxt::utils::H256;
 use subxt::{OnlineClient, PolkadotConfig};
 use tangle_primitives::jobs::JobId;
 use tangle_primitives::jobs::{PhaseResult, RpcResponseJobsData};
 use tangle_primitives::roles::RoleType;
+use webb::substrate::subxt;
 
 pub struct JobsClient<B: Block, BE, C> {
     pub client: C,
@@ -308,7 +308,7 @@ pub trait PalletSubmitter: Send + Sync + 'static {
 
 pub struct SubxtPalletSubmitter {
     subxt_client: OnlineClient<PolkadotConfig>,
-    subxt_pair: subxt::ext::sp_core::ecdsa::Pair,
+    subxt_pair: subxt_signer::sr25519::Keypair,
 }
 
 #[async_trait]
@@ -319,11 +319,13 @@ impl PalletSubmitter for SubxtPalletSubmitter {
         job_id: JobId,
         result: GadgetJobResult,
     ) -> Result<(), crate::Error> {
-        let tx = tangle::tx().jobs().submit_job_result(
-            Decode::decode(&mut role_type.encode().as_slice()).expect("Should decode"),
-            job_id,
-            Decode::decode(&mut result.encode().as_slice()).expect("Should decode"),
-        );
+        let tx = webb::substrate::tangle_runtime::api::tx()
+            .jobs()
+            .submit_job_result(
+                Decode::decode(&mut role_type.encode().as_slice()).expect("Should decode"),
+                job_id,
+                Decode::decode(&mut result.encode().as_slice()).expect("Should decode"),
+            );
         self.submit(&tx)
             .await
             .map(|_| ())
@@ -335,29 +337,30 @@ impl PalletSubmitter for SubxtPalletSubmitter {
 
 impl SubxtPalletSubmitter {
     pub async fn new<KBE: KeystoreBackend>(
-        key_store: &ECDSAKeyStore<KBE>,
+        key_store: &Sr25519KeyStore<KBE>,
     ) -> Result<Self, crate::Error> {
         let subxt_client = OnlineClient::<PolkadotConfig>::new().await.map_err(|err| {
             crate::Error::ClientError {
                 err: format!("Failed to setup api: {err:?}"),
             }
         })?;
-
-        let raw_pair = key_store.pair().to_raw_vec();
-        let subxt_pair: subxt::ext::sp_core::ecdsa::Pair =
-            subxt::ext::sp_core::ecdsa::Pair::from_seed_slice(&raw_pair)
-                .expect("Should create pair");
+        let mut seed = [0u8; 32];
+        seed.copy_from_slice(&key_store.pair().to_raw_vec());
+        let subxt_pair = subxt_signer::sr25519::Keypair::from_seed(seed).map_err(|err| {
+            crate::Error::ClientError {
+                err: format!("Failed to setup api: {err:?}"),
+            }
+        })?;
         Ok(Self {
             subxt_client,
             subxt_pair,
         })
     }
     async fn submit<Call: TxPayload>(&self, call: &Call) -> anyhow::Result<H256> {
-        let signer = PairSigner::new(self.subxt_pair.clone());
         Ok(self
             .subxt_client
             .tx()
-            .sign_and_submit_then_watch_default(call, &signer)
+            .sign_and_submit_then_watch_default(call, &self.subxt_pair)
             .await?
             .wait_for_finalized_success()
             .await?
@@ -377,6 +380,3 @@ where
         .await
         .expect("Failed to spawn blocking task")
 }
-
-#[subxt::subxt(runtime_metadata_path = "../metadata/tangle.scale")]
-pub mod tangle {}

@@ -29,6 +29,8 @@ pallet-jobs = { git = "https://github.com/webb-tools/tangle/" }
 pallet-dkg = { git = "https://github.com/webb-tools/tangle/" }
 pallet-zksaas = { git = "https://github.com/webb-tools/tangle/" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle/" }
+webb = { git = "https://github.com/webb-tools/webb-rs", default-features = false }
+subxt-signer = { version = "0.31.0", default-features = false }
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
@@ -125,7 +127,6 @@ rand_chacha = "0.3.1"
 jsonrpsee = "0.16.2"
 linked-hash-map = "0.5.6"
 k256 = "0.13.2"
-subxt = "0.33.0"
 anyhow = "1.0.79"
 libsecp256k1 = "0.7.1"
 rayon = { version = "1.8.0" }

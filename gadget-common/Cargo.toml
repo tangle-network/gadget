@@ -12,7 +12,7 @@ default = [
 std = [
     "sp-api/std",
     "tangle-primitives/std",
-    "pallet-jobs-rpc-runtime-api/std"
+    "pallet-jobs-rpc-runtime-api/std",
 ]
 
 [dependencies]
@@ -31,7 +31,8 @@ sp-runtime = { workspace = true }
 hex = { workspace = true }
 bincode2 = { workspace = true }
 linked-hash-map = { workspace = true }
-subxt = { workspace = true, features = ["substrate-compat"] }
+webb = { workspace = true, default-features = false, features = ["substrate-runtime"] }
+subxt-signer = { workspace = true, features = ["subxt", "sr25519"] }
 anyhow = { workspace = true }
 futures = { workspace = true }
 round-based = { workspace = true }
