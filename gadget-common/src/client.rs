@@ -1,5 +1,4 @@
 use crate::debug_logger::DebugLogger;
-use crate::keystore::{KeystoreBackend, Sr25519KeyStore};
 use async_trait::async_trait;
 use auto_impl::auto_impl;
 use gadget_core::gadget::substrate::Client;
@@ -10,15 +9,14 @@ use sc_client_api::{
 };
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_api::{BlockT as Block, Decode, Encode};
-use sp_core::Pair;
 use std::sync::Arc;
 use subxt::tx::TxPayload;
-use subxt::utils::H256;
-use subxt::{OnlineClient, PolkadotConfig};
+use subxt::OnlineClient;
 use tangle_primitives::jobs::JobId;
 use tangle_primitives::jobs::{PhaseResult, RpcResponseJobsData};
 use tangle_primitives::roles::RoleType;
 use webb::substrate::subxt;
+use webb::substrate::subxt::config::ExtrinsicParams;
 
 pub struct JobsClient<B: Block, BE, C> {
     pub client: C,
@@ -306,13 +304,23 @@ pub trait PalletSubmitter: Send + Sync + 'static {
     ) -> Result<(), crate::Error>;
 }
 
-pub struct SubxtPalletSubmitter {
-    subxt_client: OnlineClient<PolkadotConfig>,
-    subxt_pair: subxt_signer::sr25519::Keypair,
+pub struct SubxtPalletSubmitter<C, S>
+where
+    C: subxt::Config,
+    S: subxt::tx::Signer<C>,
+{
+    subxt_client: OnlineClient<C>,
+    signer: S,
 }
 
 #[async_trait]
-impl PalletSubmitter for SubxtPalletSubmitter {
+impl<C, S> PalletSubmitter for SubxtPalletSubmitter<C, S>
+where
+    C: subxt::Config + Send + Sync + 'static,
+    S: subxt::tx::Signer<C> + Send + Sync + 'static,
+    C::AccountId: Send + Sync + 'static,
+    <C::ExtrinsicParams as ExtrinsicParams<C::Hash>>::OtherParams: Default + Send + Sync + 'static,
+{
     async fn submit_job_result(
         &self,
         role_type: RoleType,
@@ -335,32 +343,29 @@ impl PalletSubmitter for SubxtPalletSubmitter {
     }
 }
 
-impl SubxtPalletSubmitter {
-    pub async fn new<KBE: KeystoreBackend>(
-        key_store: &Sr25519KeyStore<KBE>,
-    ) -> Result<Self, crate::Error> {
-        let subxt_client = OnlineClient::<PolkadotConfig>::new().await.map_err(|err| {
-            crate::Error::ClientError {
-                err: format!("Failed to setup api: {err:?}"),
-            }
-        })?;
-        let mut seed = [0u8; 32];
-        seed.copy_from_slice(&key_store.pair().to_raw_vec());
-        let subxt_pair = subxt_signer::sr25519::Keypair::from_seed(seed).map_err(|err| {
-            crate::Error::ClientError {
-                err: format!("Failed to setup api: {err:?}"),
-            }
-        })?;
+impl<C, S> SubxtPalletSubmitter<C, S>
+where
+    C: subxt::Config,
+    S: subxt::tx::Signer<C>,
+    <C::ExtrinsicParams as ExtrinsicParams<C::Hash>>::OtherParams: Default,
+{
+    pub async fn new(signer: S) -> Result<Self, crate::Error> {
+        let subxt_client =
+            OnlineClient::<C>::new()
+                .await
+                .map_err(|err| crate::Error::ClientError {
+                    err: format!("Failed to setup api: {err:?}"),
+                })?;
         Ok(Self {
             subxt_client,
-            subxt_pair,
+            signer,
         })
     }
-    async fn submit<Call: TxPayload>(&self, call: &Call) -> anyhow::Result<H256> {
+    async fn submit<Call: TxPayload>(&self, call: &Call) -> anyhow::Result<C::Hash> {
         Ok(self
             .subxt_client
             .tx()
-            .sign_and_submit_then_watch_default(call, &self.subxt_pair)
+            .sign_and_submit_then_watch_default(call, &self.signer)
             .await?
             .wait_for_finalized_success()
             .await?
@@ -379,4 +384,46 @@ where
     tokio::task::spawn_blocking(move || function(&client))
         .await
         .expect("Failed to spawn blocking task")
+}
+
+#[cfg(test)]
+mod tests {
+
+    use webb::substrate::{
+        subxt::{tx::Signer, utils::AccountId32, PolkadotConfig},
+        tangle_runtime::api::runtime_types::{
+            bounded_collections::bounded_vec::BoundedVec,
+            tangle_primitives::{jobs, roles},
+        },
+    };
+
+    use super::*;
+
+    #[tokio::test]
+    #[ignore = "This test requires a running substrate node"]
+    async fn subxt_pallet_submitter() -> anyhow::Result<()> {
+        let alice = subxt_signer::sr25519::dev::alice();
+        let bob = subxt_signer::sr25519::dev::bob();
+        let alice_account_id =
+            <subxt_signer::sr25519::Keypair as Signer<PolkadotConfig>>::account_id(&alice);
+        let bob_account_id =
+            <subxt_signer::sr25519::Keypair as Signer<PolkadotConfig>>::account_id(&bob);
+        let pallet_tx = SubxtPalletSubmitter::<PolkadotConfig, _>::new(alice.clone()).await?;
+        let dkg_phase_one = jobs::JobSubmission {
+            expiry: 100u64,
+            ttl: 100u64,
+            job_type: jobs::JobType::DKGTSSPhaseOne(jobs::tss::DKGTSSPhaseOneJobType {
+                participants: BoundedVec::<AccountId32>(vec![alice_account_id, bob_account_id]),
+                threshold: 1u8,
+                permitted_caller: None,
+                role_type: roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
+                __subxt_unused_type_params: std::marker::PhantomData,
+            }),
+        };
+        let tx = webb::substrate::tangle_runtime::api::tx()
+            .jobs()
+            .submit_job(dkg_phase_one);
+        let _hash = pallet_tx.submit(&tx).await?;
+        Ok(())
+    }
 }
