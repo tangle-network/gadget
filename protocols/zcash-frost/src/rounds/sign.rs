@@ -17,7 +17,7 @@ use tangle_primitives::roles::ThresholdSignatureRoleType;
 
 use super::{Error, IoError};
 
-/// Message of key generation protocol
+/// Message of threshold FROST signing protocol
 #[derive(ProtocolMessage, Clone, Serialize, Deserialize)]
 #[serde(bound = "")]
 pub enum Msg {
@@ -117,7 +117,8 @@ where
 
     tracer.stage("Produce signature share using the Round 1 data");
     let signing_package = SigningPackage::<C>::new(round1_signing_commitments, message_to_sign);
-    let signature_share = participant_round2(role, &signing_package, &nonces, &frost_keyshare.0)?;
+    let signature_share: SignatureShare<C> =
+        participant_round2(role, &signing_package, &nonces, &frost_keyshare.0)?;
     runtime.yield_now().await;
     tracer.send_msg();
     outgoings
