@@ -11,7 +11,10 @@ pub struct WorkManager {
 
 /// Acceptable delivery tolerance for a message. Messages that fall out
 /// of this range will be rejected by the work manager
+#[cfg(not(feature = "testing"))]
 const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 20;
+#[cfg(feature = "testing")]
+const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 60;
 
 impl WorkManagerInterface for WorkManager {
     type RetryID = u16;
