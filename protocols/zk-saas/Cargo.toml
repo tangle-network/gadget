@@ -30,6 +30,7 @@ parking_lot = { workspace = true }
 log = { workspace = true }
 bytes = { workspace = true, features = ["serde"] }
 fflonk = { git = "https://github.com/w3f/fflonk", features = ["std"] }
+futures = { workspace = true }
 
 
 sp-runtime = { workspace = true }

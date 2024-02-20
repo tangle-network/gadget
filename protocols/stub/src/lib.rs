@@ -1,8 +1,10 @@
+use gadget_common::full_protocol::SharedOptional;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::prelude::*;
+use gadget_common::ProtocolWorkManager;
 
 #[protocol]
-pub struct StubConfig<
+pub struct StubProtocol<
     B: Block,
     BE: Backend<B> + 'static,
     C: ClientWithApi<B, BE>,
@@ -27,7 +29,7 @@ impl<
         C: ClientWithApi<B, BE>,
         N: Network,
         KBE: KeystoreBackend,
-    > FullProtocolConfig for StubConfig<B, BE, C, N, KBE>
+    > FullProtocolConfig for StubProtocol<B, BE, C, N, KBE>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
@@ -70,28 +72,14 @@ where
         Ok(JobBuilder::new().protocol(async move { Ok(()) }).build())
     }
 
-    async fn initialize_network_and_protocol(
-        &self,
-        jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
-    ) -> Result<(), Error> {
-        self.jobs_client.lock().replace(jobs_client);
-        Ok(())
-    }
-
-    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        self.network.next_message().await
-    }
-
-    async fn send_message(
-        &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), Error> {
-        self.network.send_message(message).await
+    fn network(&self) -> &Self::Network {
+        &self.network
     }
 
     async fn create_next_job(
         &self,
         _job: JobInitMetadata<Self::Block>,
+        _work_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<Self::AsyncProtocolParameters, Error> {
         Ok(())
     }
@@ -112,11 +100,8 @@ where
         false
     }
 
-    fn jobs_client(&self) -> JobsClient<Self::Block, Self::Backend, Self::Client> {
-        self.jobs_client
-            .lock()
-            .clone()
-            .expect("Should be initialized")
+    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Block, Self::Backend, Self::Client>> {
+        &self.jobs_client
     }
 
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
@@ -136,7 +121,7 @@ where
 // For example, you may supply both a KeygenConfig and a SigningConfig to generate a main entry point that runs both protocols concurrently.
 // In the below example, the generated run command will run two duplicated protocols concurrently. In a real example, you would want to supply
 // The config type for each protocol you want to run in tandem.
-generate_setup_and_run_command!(StubConfig, StubConfig);
+generate_setup_and_run_command!(StubProtocol, StubProtocol);
 
 // An Example usage of generating signing and keygen tests
 // Note: since the StubProtocol does not submit any JobResults, the wait_for_job_completion function will not work as expected. This is just an example of how to use the macro.

@@ -105,4 +105,9 @@ jobs:
         run: cargo install cargo-nextest --locked
 
       - name: tests
+        if: ${{ matrix.package != 'zk-saas-protocol' }}
         run: cargo nextest run --release --nocapture --package ${{ matrix.package }}
+
+      - name: tests (parallel enabled)
+        if: ${{ matrix.package == 'zk-saas-protocol' }}
+        run: cargo nextest run --features=parallel --release --nocapture --package ${{ matrix.package }}

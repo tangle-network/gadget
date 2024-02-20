@@ -27,10 +27,12 @@ pub mod prelude {
     pub use crate::gadget::message::GadgetProtocolMessage;
     pub use crate::gadget::work_manager::WorkManager;
     pub use crate::gadget::JobInitMetadata;
+    pub use crate::gadget::WorkManagerConfig;
     pub use crate::generate_setup_and_run_command;
     pub use crate::keystore::{ECDSAKeyStore, InMemoryBackend, KeystoreBackend};
     pub use crate::{BuiltExecutableJobWrapper, Error, JobBuilder, JobError, WorkManagerInterface};
     pub use async_trait::async_trait;
+    pub use gadget_core::job_manager::ProtocolWorkManager;
     pub use gadget_core::job_manager::SendFuture;
     pub use parking_lot::Mutex;
     pub use protocol_macros::protocol;
@@ -220,6 +222,142 @@ macro_rules! generate_setup_and_run_command {
             )*
 
             futures.try_collect::<Vec<_>>().await.map(|_| ())
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! generate_protocol {
+    ($name:expr, $struct_name:ident, $async_proto_params:ty, $proto_gen_path:expr, $create_job_path:expr, $phase_filter:pat, $( $role_filter:pat ),*) => {
+        #[protocol]
+        pub struct $struct_name<
+            B: Block,
+            BE: Backend<B> + 'static,
+            C: ClientWithApi<B, BE>,
+            N: Network,
+            KBE: KeystoreBackend,
+        > where
+            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
+        {
+            pallet_tx: Arc<dyn PalletSubmitter>,
+            logger: DebugLogger,
+            client: C,
+            network: N,
+            account_id: AccountId,
+            key_store: ECDSAKeyStore<KBE>,
+            jobs_client: Arc<Mutex<Option<JobsClient<B, BE, C>>>>,
+            _pd: std::marker::PhantomData<(B, BE)>,
+        }
+
+        #[async_trait]
+        impl<
+                B: Block,
+                BE: Backend<B> + 'static,
+                C: ClientWithApi<B, BE>,
+                N: Network,
+                KBE: KeystoreBackend,
+            > FullProtocolConfig for $struct_name<B, BE, C, N, KBE>
+        where
+            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
+        {
+            type AsyncProtocolParameters = $async_proto_params;
+            type Client = C;
+            type Block = B;
+            type Backend = BE;
+            type Network = N;
+            type AdditionalNodeParameters = ();
+            type KeystoreBackend = KBE;
+
+            async fn new(
+                client: Self::Client,
+                pallet_tx: Arc<dyn PalletSubmitter>,
+                network: Self::Network,
+                logger: DebugLogger,
+                account_id: AccountId,
+                key_store: ECDSAKeyStore<Self::KeystoreBackend>,
+            ) -> Result<Self, Error> {
+                Ok(Self {
+                    pallet_tx,
+                    logger,
+                    client,
+                    network,
+                    account_id,
+                    key_store,
+                    jobs_client: Arc::new(parking_lot::Mutex::new(None)),
+                    _pd: std::marker::PhantomData,
+                })
+            }
+
+            async fn generate_protocol_from(
+                &self,
+                associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+                associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+                associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+                associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+                protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+                additional_params: Self::AsyncProtocolParameters,
+            ) -> Result<BuiltExecutableJobWrapper, JobError> {
+                $proto_gen_path(
+                    self,
+                    associated_block_id,
+                    associated_retry_id,
+                    associated_session_id,
+                    associated_task_id,
+                    protocol_message_rx,
+                    additional_params,
+                )
+                .await
+            }
+
+            fn network(&self) -> &Self::Network {
+                &self.network
+            }
+
+            async fn create_next_job(
+                &self,
+                job: JobInitMetadata<Self::Block>,
+                work_manager: &ProtocolWorkManager<WorkManager>,
+            ) -> Result<Self::AsyncProtocolParameters, Error> {
+                $create_job_path(self, job, work_manager).await
+            }
+
+            fn account_id(&self) -> &AccountId {
+                &self.account_id
+            }
+
+            fn name(&self) -> String {
+                $name.to_string()
+            }
+
+            fn role_filter(&self, role: RoleType) -> bool {
+                $(
+                    if matches!(role, $role_filter) {
+                        return true;
+                    }
+                )*
+
+                false
+            }
+
+            fn phase_filter(&self, job: GadgetJobType) -> bool {
+                matches!(job, $phase_filter)
+            }
+
+            fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Block, Self::Backend, Self::Client>> {
+                &self.jobs_client
+            }
+
+            fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
+                self.pallet_tx.clone()
+            }
+
+            fn logger(&self) -> DebugLogger {
+                self.logger.clone()
+            }
+
+            fn client(&self) -> Self::Client {
+                self.client.clone()
+            }
         }
     };
 }
