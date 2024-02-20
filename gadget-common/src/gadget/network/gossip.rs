@@ -1,30 +1,21 @@
-//! A DKG Gossip Engine that uses [`sc_network::NetworkService`] as a backend.
+//! A Gossip Engine that uses [`sc_network::NetworkService`] as a backend.
 //!
 //! In a nutshell, it works as follows:
 //!
-//! 1. You create a new [`NetworkGossipEngineBuilder`] which does not require any setup for now,
+//! 1. You create a new [`NetworkGossipEngineBuilder`] which does require the protocol name and
+//!    keystore,
 //! 2. You call [`NetworkGossipEngineBuilder::build`] to get two things:
 //!   - a [`GossipHandler`] that is a simple background task that should run indefinitely, and
 //!   - a [`GossipHandlerController`] that can be used to control that background task.
 //!
 //! The background task ([`GossipHandler`]) role is to listen, and gossip (if enabled) all the
-//! DKG messages.
+//! messages.
 //!
-//! From the [`GossipHandlerController`] which implements [`super::GossipEngineIface`], you can:
-//!  - send a DKG message to a specific peer.
-//!  - send a DKG message to all peers.
-//!  - get a notification stream when you get a DKG message.
-//!  - Have access to the message queue, which is a FIFO queue of DKG messages.
-//!
-//!
-//! ### The Lifetime of the DKG Message:
-//!
-//! The DKG message is a [`SignedDKGMessage`] that is signed by the DKG authority, first it get
-//! sent to the Gossip Engine either by calling [`GossipHandlerController::send`] or
-//! [`GossipHandlerController::gossip`], depending on the call, the message will be sent to all
-//! peers or only to a specific peer. on the other end, the DKG message is received by the DKG
-//! engine, and it is verified then it will be added to the Engine's internal stream of DKG
-//! messages, later the DKG Gadget will read this stream and process the DKG message.
+//! From the [`GossipHandlerController`] which implements [`super::Network`], you can:
+//!  - send a message to a specific peer.
+//!  - send a message to all peers.
+//!  - get a notification stream when you get a message.
+//!  - Have access to the message queue, which is a FIFO queue of messages.
 
 use crate::client::AccountId;
 use crate::debug_logger::DebugLogger;
@@ -45,6 +36,7 @@ use sc_network::{
 use sc_network_common::sync::{Metrics, SyncEvent};
 use sc_network_sync::SyncingService;
 use serde::{Deserialize, Serialize};
+use sp_core::Pair;
 use sp_runtime::traits::Block;
 use std::{
     collections::{HashMap, HashSet},
@@ -61,7 +53,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 /// Maximum number of known messages hashes to keep for a peer.
 pub const MAX_KNOWN_MESSAGES: usize = 4096;
 
-/// Maximum allowed size for a DKG Signed Message notification.
+/// Maximum allowed size for a Signed Message notification.
 pub const MAX_MESSAGE_SIZE: u64 = 16 * 1024 * 1024;
 
 /// Maximum number of duplicate messages that a single peer can send us.
@@ -127,7 +119,6 @@ impl<KBE: KeystoreBackend> NetworkGossipEngineBuilder<KBE> {
         sync_service: Arc<SyncingService<B>>,
         metrics: Option<Metrics>,
         logger: DebugLogger,
-        account_id: AccountId,
     ) -> error::Result<(GossipHandler<B, KBE>, GossipHandlerController)> {
         // Here we need to create few channels to communicate back and forth between the
         // background task and the controller.
@@ -138,7 +129,6 @@ impl<KBE: KeystoreBackend> NetworkGossipEngineBuilder<KBE> {
         let gossip_enabled = Arc::new(AtomicBool::new(false));
         let authority_id_to_peer_id = Arc::new(RwLock::new(HashMap::new()));
         let handler = GossipHandler {
-            account_id,
             keystore: self.keystore,
             protocol_name: self.protocol_name.clone(),
             to_receiver: message_channel_tx,
@@ -260,15 +250,16 @@ impl Network for GossipHandlerController {
         }
     }
 }
+
 /// an Enum Representing the commands that can be sent to the background task.
 #[derive(Clone, Debug)]
 enum ToHandler {
-    /// Send a DKG message to a peer.
+    /// Send a message to a peer.
     SendMessage {
         recipient: PeerId,
         message: GossipNetworkMessage,
     },
-    /// Gossip a DKG message to all peers.
+    /// Gossip a message to all peers.
     Gossip(GossipNetworkMessage),
 }
 
@@ -281,13 +272,13 @@ impl GossipHandlerController {
 
 /// Handler for gossiping messages. Call [`GossipHandler::run`] to start the processing.
 ///
-/// This is a background task that handles all the DKG messages.
+/// This is a background task that handles all the messages.
 pub struct GossipHandler<B: Block + 'static, KBE: KeystoreBackend> {
     /// The Protocol Name, should be unique.
     ///
     /// Used as an identifier for the gossip protocol.
     protocol_name: ProtocolName,
-    /// The DKG Keystore.
+    /// The Keystore.
     keystore: ECDSAKeyStore<KBE>,
     /// A Simple notification stream to notify the caller that we have messages in the queue.
     to_receiver: tokio::sync::mpsc::UnboundedSender<GossipNetworkMessage>,
@@ -311,13 +302,11 @@ pub struct GossipHandler<B: Block + 'static, KBE: KeystoreBackend> {
     logger: DebugLogger,
     /// Prometheus metrics.
     metrics: Arc<Option<Metrics>>,
-    account_id: AccountId,
 }
 
 impl<B: Block + 'static, KBE: KeystoreBackend> Clone for GossipHandler<B, KBE> {
     fn clone(&self) -> Self {
         Self {
-            account_id: self.account_id,
             protocol_name: self.protocol_name.clone(),
             keystore: self.keystore.clone(),
             to_receiver: self.to_receiver.clone(),
@@ -365,7 +354,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
         let mut event_stream = self.service.event_stream("dkg-handler");
         let mut sync_event_stream = self.sync_service.event_stream("dkg-handler");
 
-        self.logger.debug("Starting the DKG Gossip Handler");
+        self.logger.debug("Starting the Gossip Handler");
 
         // we have two streams, one from the network and one from the controller.
         // hence we want to start two separate tasks, one for each stream that are running
@@ -378,7 +367,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                 match message {
                     ToHandler::SendMessage { recipient, message } => {
                         if let GossipNetworkMessage::Protocol(protocol_message) = message {
-                            self0.send_signed_dkg_message(recipient, protocol_message)
+                            self0.send_signed_message(recipient, protocol_message)
                         } else {
                             self0.logger.error(
                                 "Received a non-protocol message from the controller".to_string(),
@@ -387,7 +376,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                     }
                     ToHandler::Gossip(v) => {
                         if let GossipNetworkMessage::Protocol(protocol_message) = v {
-                            self0.gossip_dkg_signed_message(protocol_message);
+                            self0.gossip_signed_message(protocol_message);
                         } else {
                             self0.logger.error(
                                 "Received a non-protocol message from the controller".to_string(),
@@ -435,7 +424,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
         ])
         .await;
         self.logger
-            .error("The DKG Gossip Handler has finished!!".to_string());
+            .error("The Gossip Handler has finished!!".to_string());
     }
 
     async fn handle_sync_event(&mut self, event: SyncEvent) {
@@ -530,7 +519,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                     let m = match maybe_dkg_network_message {
                         Ok(m) => m,
                         Err(e) => {
-                            self.logger.warn(format!("Failed to decode DKG Network message from peer {remote} with error: {e:?}"));
+                            self.logger.warn(format!("Failed to decode Network message from peer {remote} with error: {e:?}"));
                             self.service.report_peer(remote, rep::UNEXPECTED_MESSAGE);
                             return;
                         }
@@ -540,7 +529,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                             self.on_handshake_message(remote, h).await
                         }
                         GossipNetworkMessage::Protocol(s) => {
-                            self.on_signed_dkg_message(remote, s).await
+                            self.on_signed_message(remote, s).await
                         }
                     };
                 }
@@ -553,7 +542,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
     /// Creates and sends handshake message to the peer.
     async fn send_handshake_message(&self, to_who: PeerId) {
         let handshake_message = GossipNetworkMessage::Handshake(HandshakeMessage {
-            account_id: self.account_id,
+            account_id: self.keystore.pair().public(),
         });
         let msg = bincode2::serialize(&handshake_message).expect("Failed to serialize message");
         self.service
@@ -578,13 +567,15 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
             .insert(message.account_id, who);
     }
 
-    /// Called when peer sends us new signed DKG message.
-    async fn on_signed_dkg_message(&self, who: PeerId, message: GadgetProtocolMessage) {
+    /// Called when peer sends us new signed message.
+    async fn on_signed_message(&self, who: PeerId, message: GadgetProtocolMessage) {
         // Check behavior of the peer.
         self.logger.debug(format!(
-            "session {:?} | Received a signed DKG messages from {}",
+            "session {:?} | Received a signed messages from {}",
             message.associated_session_id, who,
         ));
+
+        // TODO(@tbraun96): verify the signature of the message
 
         if let Some(_metrics) = self.metrics.as_ref() {
             //metrics.dkg_signed_messages.inc();
@@ -600,17 +591,16 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                     .send(GossipNetworkMessage::Protocol(message))
                 {
                     self.logger.error(format!(
-                        "Failed to send message notification to DKG controller: {e:?}"
+                        "Failed to send message notification to controller: {e:?}"
                     ));
                 } else {
-                    self.logger.debug(
-                        "Message Notification sent to {recv_count} DKG controller listeners",
-                    );
+                    self.logger
+                        .debug("Message Notification sent to all controller listeners");
                 }
             };
             match pending_messages_peers.inner.entry(message_hash.clone()) {
                 linked_hash_map::Entry::Vacant(entry) => {
-                    self.logger.debug(format!("NEW DKG MESSAGE FROM {who}"));
+                    self.logger.debug(format!("NEW MESSAGE FROM {who}"));
                     if let Some(_metrics) = self.metrics.as_ref() {
                         //metrics.dkg_new_signed_messages.inc();
                     }
@@ -622,7 +612,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                     self.service.report_peer(who, rep::GOOD_MESSAGE);
                 }
                 linked_hash_map::Entry::Occupied(mut entry) => {
-                    self.logger.debug(format!("OLD DKG MESSAGE FROM {who}"));
+                    self.logger.debug(format!("OLD MESSAGE FROM {who}"));
                     if let Some(_metrics) = self.metrics.as_ref() {
                         //metrics.dkg_old_signed_messages.inc();
                     }
@@ -658,17 +648,18 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
 
         // if the gossip is enabled, we send the message to the gossiping peers
         if self.gossip_enabled.load(Ordering::Relaxed) {
-            self.gossip_dkg_signed_message(message);
+            self.gossip_signed_message(message);
         }
     }
 
-    pub fn send_signed_dkg_message(&self, to_who: PeerId, message: GadgetProtocolMessage) {
+    pub fn send_signed_message(&self, to_who: PeerId, message: GadgetProtocolMessage) {
         let message_hash = message.hash();
         if let Some(ref mut peer) = self.peers.write().get_mut(&to_who) {
             let new_to_them = peer.known_messages.insert(message_hash);
             if !new_to_them {
                 return;
             }
+            // TODO(@tbraun96): sign the message
             let message = GossipNetworkMessage::Protocol(message);
             let msg = bincode2::serialize(&message).expect("Failed to serialize message");
             self.service
@@ -683,7 +674,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
         }
     }
 
-    fn gossip_dkg_signed_message(&self, message: GadgetProtocolMessage) {
+    fn gossip_signed_message(&self, message: GadgetProtocolMessage) {
         // Check if the message has a recipient
         let maybe_peer_id = match &message.to_network_id {
             Some(recipient_id) => self
@@ -697,7 +688,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
         if let Some(peer_id) = maybe_peer_id {
             self.logger
                 .debug(format!("Sending message to recipient {peer_id} using p2p"));
-            self.send_signed_dkg_message(peer_id, message.clone());
+            self.send_signed_message(peer_id, message.clone());
             // potential bug "fix"
             //return
         } else if let Some(recipient_id) = &message.to {
@@ -720,7 +711,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
             return;
         }
         for peer in peer_ids {
-            self.send_signed_dkg_message(peer, message.clone());
+            self.send_signed_message(peer, message.clone());
         }
     }
 }
