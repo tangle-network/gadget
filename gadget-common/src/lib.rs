@@ -51,6 +51,7 @@ pub mod gadget;
 pub mod helpers;
 pub mod keystore;
 pub mod locks;
+pub mod prometheus;
 pub mod protocol;
 #[derive(Debug)]
 pub enum Error {
@@ -71,6 +72,7 @@ pub enum Error {
     PeerNotFound { id: AccountId },
     JoinError { err: JoinError },
     ParticipantNotSelected { id: AccountId, reason: String },
+    PrometheusError { err: String },
 }
 
 impl Display for Error {
@@ -119,6 +121,8 @@ where
             .await
             .map_err(|err| Error::GadgetManagerError { err })
     };
+
+    prometheus::setup().await?;
 
     // Run both the network and the gadget together
     tokio::try_join!(network_future, gadget_future).map(|_| ())

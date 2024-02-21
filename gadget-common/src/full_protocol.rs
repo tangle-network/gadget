@@ -221,13 +221,16 @@ where
     <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApiForGadget<T::Block>,
 {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        T::network(self).next_message().await
+        let message = T::network(self).next_message().await?;
+        crate::prometheus::BYTES_RECEIVED.inc_by(message.payload.len() as u64);
+        Some(message)
     }
 
     async fn send_message(
         &self,
         message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
+        crate::prometheus::BYTES_SENT.inc_by(message.payload.len() as u64);
         T::network(self).send_message(message).await
     }
 }
