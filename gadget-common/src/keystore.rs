@@ -1,3 +1,4 @@
+use crate::Error;
 use async_trait::async_trait;
 use parking_lot::RwLock;
 use serde::de::DeserializeOwned;
@@ -5,6 +6,8 @@ use serde::Serialize;
 use sp_core::ecdsa::Pair as EcdsaPair;
 use sp_core::sr25519::Pair as Sr25519Pair;
 use sp_core::{keccak_256, Pair};
+use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::{Pool, Row, Sqlite};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::JobId;
@@ -24,6 +27,12 @@ impl<P: Pair> GenericKeyStore<InMemoryBackend, P> {
             backend: InMemoryBackend::new(),
             pair,
         }
+    }
+}
+
+impl<P: Pair, Backend: KeystoreBackend> GenericKeyStore<Backend, P> {
+    pub fn new(backend: Backend, pair: P) -> Self {
+        GenericKeyStore { backend, pair }
     }
 }
 
@@ -112,5 +121,95 @@ impl KeystoreBackend for InMemoryBackend {
         })?;
         self.map.write().insert(*key, serialized);
         Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub struct SqliteBackend {
+    pool: Pool<Sqlite>,
+}
+
+impl SqliteBackend {
+    pub async fn in_memory() -> Result<Self, Box<dyn std::error::Error>> {
+        Self::new("sqlite://:memory:").await
+    }
+
+    // Initialize a new key-value store with a SqlitePool
+    pub async fn new(database_url: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let pool = SqlitePoolOptions::new().connect(database_url).await?;
+
+        // Ensure the table exists
+        sqlx::query(
+            r"CREATE TABLE IF NOT EXISTS key_value_store (
+                key TEXT PRIMARY KEY,
+                value BLOB NOT NULL
+              )",
+        )
+        .execute(&pool)
+        .await?;
+
+        Ok(Self { pool })
+    }
+}
+
+#[async_trait]
+impl KeystoreBackend for SqliteBackend {
+    async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, Error> {
+        let key = key_to_string(key);
+        let result = sqlx::query("SELECT value FROM key_value_store WHERE key = ?")
+            .bind(key)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|err| Error::KeystoreError {
+                err: format!("Failed to fetch value: {:?}", err),
+            })?;
+
+        match result {
+            Some(row) => {
+                let value: Vec<u8> = row.get("value");
+                let value: T =
+                    bincode2::deserialize(&value).map_err(|rr| Error::KeystoreError {
+                        err: format!("Failed to deserialize value: {:?}", rr),
+                    })?;
+                Ok(Some(value))
+            }
+            None => Ok(None),
+        }
+    }
+
+    async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), Error> {
+        let key = key_to_string(key);
+        let value = bincode2::serialize(&value).map_err(|rr| Error::KeystoreError {
+            err: format!("Failed to serialize value: {:?}", rr),
+        })?;
+
+        sqlx::query("INSERT INTO key_value_store (key, value) VALUES (?, ?)")
+            .bind(key)
+            .bind(value)
+            .execute(&self.pool)
+            .await
+            .map_err(|err| Error::KeystoreError {
+                err: format!("Failed to insert value: {:?}", err),
+            })?;
+        Ok(())
+    }
+}
+
+fn key_to_string(key: &[u8; 32]) -> String {
+    hex::encode(key)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::KeystoreBackend;
+
+    #[tokio::test]
+    async fn test_in_memory_kv_store() {
+        let store = super::SqliteBackend::in_memory().await.unwrap();
+        let key = [0u8; 32];
+        let value = "hello".to_string();
+        store.set(&key, value.clone()).await.unwrap();
+        let result: String = store.get(&key).await.unwrap().unwrap();
+        assert_eq!(value, result);
     }
 }
