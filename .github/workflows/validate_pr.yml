@@ -81,7 +81,7 @@ jobs:
   testing:
     timeout-minutes: 120
     name: cargo test
-    runs-on: macos-latest
+    runs-on: ubuntu-20.04-16core
     strategy:
         matrix:
             package: [gadget-core, gadget-common, zk-saas-protocol, dfns-cggmp21-protocol, threshold-bls-protocol]
@@ -99,7 +99,7 @@ jobs:
           cache-on-failure: "true"
 
       - name: install protobuf
-        run: brew install protobuf
+        run: sudo apt-get install protobuf-compiler
 
       - name: install cargo-nextest
         run: cargo install cargo-nextest --locked
