@@ -27,9 +27,11 @@ impl Default for PrometheusConfig {
 
 pub async fn setup(config: PrometheusConfig) -> Result<(), crate::Error> {
     static HAS_REGISTERED: AtomicBool = AtomicBool::new(false);
-    if HAS_REGISTERED.load(std::sync::atomic::Ordering::Relaxed) {
+    if HAS_REGISTERED.load(std::sync::atomic::Ordering::SeqCst) {
         return Ok(());
     }
+
+    HAS_REGISTERED.store(true, std::sync::atomic::Ordering::SeqCst);
 
     substrate_prometheus_endpoint::register(BYTES_RECEIVED.clone(), &REGISTRY).map_err(|err| {
         crate::Error::PrometheusError {
@@ -49,6 +51,5 @@ pub async fn setup(config: PrometheusConfig) -> Result<(), crate::Error> {
             err: err.to_string(),
         })?;
 
-    HAS_REGISTERED.store(true, std::sync::atomic::Ordering::Relaxed);
     Ok(())
 }
