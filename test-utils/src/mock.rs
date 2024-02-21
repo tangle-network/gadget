@@ -139,6 +139,10 @@ impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen> for Job
 pub struct MockRolesHandler;
 
 impl RolesHandler<AccountId> for MockRolesHandler {
+    type Balance = Balance;
+    fn record_job_by_validators(_: Vec<sp_application_crypto::ecdsa::Public>) -> DispatchResult {
+        Ok(())
+    }
     fn report_offence(_offence_report: ReportRestakerOffence<AccountId>) -> DispatchResult {
         Ok(())
     }
