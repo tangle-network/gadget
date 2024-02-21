@@ -192,7 +192,11 @@ where
             let task_id = relevant_job.task_id;
             let retry_id = relevant_job.retry_id;
             log::trace!(target: "gadget", "[{}] Creating job for task {task_id} with retry id {retry_id}", self.protocol.name(), task_id = hex::encode(task_id), retry_id = retry_id);
-            match self.protocol.create_next_job(relevant_job).await {
+            match self
+                .protocol
+                .create_next_job(relevant_job, &self.job_manager)
+                .await
+            {
                 Ok(params) => {
                     match self
                         .protocol
@@ -284,6 +288,7 @@ where
     async fn create_next_job(
         &self,
         job: JobInitMetadata<B>,
+        work_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error>;
 
     /// Process a block import notification

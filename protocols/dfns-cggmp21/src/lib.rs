@@ -1,173 +1,76 @@
-use gadget_common::client::JobsApiForGadget;
+use crate::protocols::key_refresh::DfnsCGGMP21KeyRefreshExtraParams;
+use crate::protocols::key_rotate::DfnsCGGMP21KeyRotateExtraParams;
+use crate::protocols::keygen::DfnsCGGMP21KeygenExtraParams;
+use crate::protocols::sign::DfnsCGGMP21SigningExtraParams;
+use async_trait::async_trait;
 use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
-use gadget_common::config::NetworkAndProtocolSetup;
+use gadget_common::client::{GadgetJobType, JobsApiForGadget};
 use gadget_common::debug_logger::DebugLogger;
+use gadget_common::full_protocol::SharedOptional;
 use gadget_common::gadget::network::Network;
+use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
+use gadget_common::prelude::*;
+use gadget_common::prelude::{FullProtocolConfig, GadgetProtocolMessage, Mutex, WorkManager};
+use gadget_common::{generate_protocol, generate_setup_and_run_command, Error};
+use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
+use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use protocol_macros::protocol;
-use protocols::key_refresh::DfnsCGGMP21KeyRefreshProtocol;
-use protocols::key_rotate::DfnsCGGMP21KeyRotateProtocol;
-use protocols::keygen::DfnsCGGMP21KeygenProtocol;
-use protocols::sign::DfnsCGGMP21SigningProtocol;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_runtime::traits::Block;
 use std::sync::Arc;
+use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
+use test_utils::generate_signing_and_keygen_tss_tests;
+use tokio::sync::mpsc::UnboundedReceiver;
 
 pub mod constants;
 pub mod error;
 pub mod protocols;
 pub mod util;
 
-/// A Helper macro to declare a protocol, used
-/// to avoid code duplication.
-macro_rules! decl_porto {
-    ($name:ident + $proto:ident = $im:path) => {
-
-        #[protocol]
-        pub struct $name<
-            N: Network,
-            B: Block,
-            BE: Backend<B>,
-            KBE: KeystoreBackend,
-            C: ClientWithApi<B, BE>,
-        > where
-            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-        {
-            pub account_id: AccountId,
-            pub network: N,
-            pub keystore_backend: ECDSAKeyStore<KBE>,
-            pub client: C,
-            pub logger: DebugLogger,
-            pub pallet_tx: Arc<dyn PalletSubmitter>,
-            pub _pd: std::marker::PhantomData<(B, BE)>,
-        }
-
-        #[async_trait::async_trait]
-        impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>>
-            NetworkAndProtocolSetup for $name<N, B, BE, KBE, C>
-        where
-            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-        {
-            type Network = N;
-            type Protocol = $proto<B, BE, KBE, C, N>;
-            type Client = C;
-            type Block = B;
-            type Backend = BE;
-
-            async fn build_network_and_protocol(
-                &self,
-                jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
-            ) -> Result<(Self::Network, Self::Protocol), gadget_common::Error> {
-                use $im as m;
-                let protocol = m::create_protocol(
-                    self.account_id,
-                    jobs_client,
-                    self.network.clone(),
-                    self.logger.clone(),
-                    self.keystore_backend.clone(),
-                )
-                .await;
-
-                Ok((self.network.clone(), protocol))
-            }
-
-            fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
-                self.pallet_tx.clone()
-            }
-
-            fn logger(&self) -> DebugLogger {
-                self.logger.clone()
-            }
-
-            fn client(&self) -> Self::Client {
-                self.client.clone()
-            }
-        }
-
-    };
-    // recursive case with optional trailing comma
-    ($($name:ident + $proto:ident = $im:path),+ $(,)?) => {
-        $(decl_porto!($name + $proto = $im);)+
-    };
-}
-
-// A macro to declare all the protocols
-decl_porto!(
-    DfnsCGGMP21KeygenProtocolConfig + DfnsCGGMP21KeygenProtocol = protocols::keygen,
-    DfnsCGGMP21SigningProtocolConfig + DfnsCGGMP21SigningProtocol = protocols::sign,
-    DfnsCGGMP21KeyRefreshProtocolConfig + DfnsCGGMP21KeyRefreshProtocol = protocols::key_refresh,
-    DfnsCGGMP21KeyRotateProtocolConfig + DfnsCGGMP21KeyRotateProtocol = protocols::key_rotate,
+generate_protocol!(
+    "DFNS-Keygen-Protocol",
+    DfnsKeygenProtocol,
+    DfnsCGGMP21KeygenExtraParams,
+    protocols::keygen::generate_protocol_from,
+    protocols::keygen::create_next_job,
+    GadgetJobType::DKGTSSPhaseOne(_),
+    RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
+);
+generate_protocol!(
+    "DFNS-Signing-Protocol",
+    DfnsSigningProtocol,
+    DfnsCGGMP21SigningExtraParams,
+    protocols::sign::generate_protocol_from,
+    protocols::sign::create_next_job,
+    GadgetJobType::DKGTSSPhaseTwo(_),
+    RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
+);
+generate_protocol!(
+    "DFNS-Refresh-Protocol",
+    DfnsKeyRefreshProtocol,
+    DfnsCGGMP21KeyRefreshExtraParams,
+    protocols::key_refresh::generate_protocol_from,
+    protocols::key_refresh::create_next_job,
+    GadgetJobType::DKGTSSPhaseThree(_),
+    RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
+);
+generate_protocol!(
+    "DFNS-Rotate-Protocol",
+    DfnsKeyRotateProtocol,
+    DfnsCGGMP21KeyRotateExtraParams,
+    protocols::key_rotate::generate_protocol_from,
+    protocols::key_rotate::create_next_job,
+    GadgetJobType::DKGTSSPhaseFour(_),
+    RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
 );
 
-#[allow(clippy::too_many_arguments)]
-pub async fn run<B, BE, KBE, C, N, Tx>(
-    account_id: AccountId,
-    logger: DebugLogger,
-    keystore: ECDSAKeyStore<KBE>,
-    pallet_tx: Tx,
-    (client_keygen, client_signing, client_key_refresh, client_key_rotate): (C, C, C, C),
-    (network_keygen, network_signing, network_key_refresh, network_key_rotate): (N, N, N, N),
-) -> Result<(), gadget_common::Error>
-where
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    KBE: KeystoreBackend,
-    N: Network,
-    Tx: PalletSubmitter,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
-    let pallet_tx = Arc::new(pallet_tx) as Arc<dyn PalletSubmitter>;
-    let keygen_config = DfnsCGGMP21KeygenProtocolConfig {
-        account_id,
-        network: network_keygen,
-        keystore_backend: keystore.clone(),
-        client: client_keygen,
-        logger: logger.clone(),
-        pallet_tx: pallet_tx.clone(),
-        _pd: std::marker::PhantomData,
-    };
+generate_setup_and_run_command!(
+    DfnsKeygenProtocol,
+    DfnsSigningProtocol,
+    DfnsKeyRefreshProtocol,
+    DfnsKeyRotateProtocol
+);
 
-    let sign_config = DfnsCGGMP21SigningProtocolConfig {
-        account_id,
-        network: network_signing,
-        keystore_backend: keystore.clone(),
-        client: client_signing,
-        logger: logger.clone(),
-        pallet_tx: pallet_tx.clone(),
-        _pd: std::marker::PhantomData,
-    };
-
-    let key_refresh_config = DfnsCGGMP21KeyRefreshProtocolConfig {
-        account_id,
-        network: network_key_refresh,
-        keystore_backend: keystore.clone(),
-        client: client_key_refresh,
-        logger: logger.clone(),
-        pallet_tx: pallet_tx.clone(),
-        _pd: std::marker::PhantomData,
-    };
-
-    let key_rotate_config = DfnsCGGMP21KeyRotateProtocolConfig {
-        account_id,
-        network: network_key_rotate,
-        keystore_backend: keystore,
-        client: client_key_rotate,
-        logger,
-        pallet_tx,
-        _pd: std::marker::PhantomData,
-    };
-
-    let keygen_future = keygen_config.execute();
-    let sign_future = sign_config.execute();
-    let key_refresh_future = key_refresh_config.execute();
-    let key_rotate_future = key_rotate_config.execute();
-
-    tokio::select! {
-        res0 = keygen_future => res0,
-        res1 = sign_future => res1,
-        res2 = key_refresh_future => res2,
-        res3 = key_rotate_future => res3,
-    }
-}
+generate_signing_and_keygen_tss_tests!(2, 3, 4, ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1);

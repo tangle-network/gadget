@@ -54,7 +54,7 @@ pub fn remove_job(role_type: RoleType, job_id: JobId) {
 /// returns a future that runs the protocols.
 #[allow(clippy::crate_in_macro_def)]
 macro_rules! generate_signing_and_keygen_tss_tests {
-    ($t:expr, $n:expr, $threshold_sig_ty:expr) => {
+    ($t:expr, $n:expr, $proto_count:expr, $threshold_sig_ty:expr) => {
         #[cfg(test)]
         mod tests {
             use std::sync::Arc;
@@ -168,7 +168,7 @@ use gadget_common::full_protocol::FullProtocolConfig;
             }
 
             async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
-                test_utils::mock::new_test_ext::<N, 2, (), _, _>((), crate::setup_node).await
+                test_utils::mock::new_test_ext::<N, $proto_count, (), _, _>((), crate::setup_node).await
             }
         }
     };

@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display};
 use std::future::Future;
 use std::ops::{Add, Sub};
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, VecDeque},
     hash::{Hash, Hasher},
     sync::Arc,
 };
@@ -44,7 +44,7 @@ impl<WM: WorkManagerInterface> Clone for ProtocolWorkManager<WM> {
 }
 
 pub struct WorkManagerInner<WM: WorkManagerInterface> {
-    pub active_tasks: HashSet<Job<WM>>,
+    pub active_tasks: HashMap<WM::TaskID, Job<WM>>,
     pub enqueued_tasks: VecDeque<Job<WM>>,
     // task hash => SSID => enqueued messages
     pub enqueued_messages: EnqueuedMessage<WM::TaskID, WM::RetryID, WM::ProtocolMessage>,
@@ -68,7 +68,7 @@ pub trait WorkManagerInterface: Send + Sync + 'static + Sized {
         + Sub<Output = Self::Clock>
         + Add<Output = Self::Clock>
         + 'static;
-    type ProtocolMessage: ProtocolMessageMetadata<Self> + Send + Sync + 'static;
+    type ProtocolMessage: ProtocolMessageMetadata<Self> + Send + Sync + Clone + 'static;
     type Error: Debug + Send + Sync + 'static;
     type SessionID: Copy + Hash + Eq + PartialEq + Display + Debug + Send + Sync + 'static;
     type TaskID: Copy + Hash + Eq + PartialEq + Debug + Send + Sync + AsRef<[u8]> + 'static;
@@ -147,7 +147,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
     ) -> Self {
         let this = Self {
             inner: Arc::new(RwLock::new(WorkManagerInner {
-                active_tasks: HashSet::new(),
+                active_tasks: HashMap::new(),
                 enqueued_tasks: VecDeque::new(),
                 enqueued_messages: HashMap::new(),
                 retry_id_tracker: HashMap::new(),
@@ -207,6 +207,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
             handle,
             task_hash,
             utility: self.utility.clone(),
+            recorded_messages: vec![],
         };
 
         if force_start {
@@ -249,7 +250,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
             .read()
             .active_tasks
             .iter()
-            .map(|r| r.metadata(now))
+            .map(|r| r.1.metadata(now))
             .collect()
     }
 
@@ -266,7 +267,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         let now = self.utility.clock();
         let mut lock = self.inner.write();
         let cur_count = lock.active_tasks.len();
-        lock.active_tasks.retain(|job| {
+        lock.active_tasks.retain(|_, job| {
             let is_stalled = job.handle.has_stalled(now);
             let is_done = job.handle.is_done();
 
@@ -379,11 +380,13 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
 
                     while let Some(message) = enqueued_messages.pop_front() {
                         if should_deliver(&job, &message, job.task_hash) {
-                            if let Err(err) = job.handle.deliver_message(message) {
+                            if let Err(err) = job.handle.deliver_message(message.clone()) {
                                 self.utility.error(format!(
                                     "Unable to deliver message for job {:?}: {err:?}",
                                     hex::encode(job.task_hash)
                                 ));
+                            } else {
+                                lock.record_message(message)
                             }
                         } else {
                             self.utility.warn("Will not deliver enqueued message to async protocol since the message is no longer acceptable".to_string())
@@ -406,7 +409,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
             .retry_id_tracker
             .entry(task_hash)
             .or_insert(job.handle.retry_id()) = job.handle.retry_id();
-        lock.active_tasks.insert(job);
+        lock.active_tasks.insert(task_hash, job);
 
         let mut task = task.lock().take().expect("Should not happen");
         let logger = self.utility.clone();
@@ -443,7 +446,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
 
     pub fn job_exists(&self, job: &WM::TaskID) -> bool {
         let lock = self.inner.read();
-        lock.active_tasks.iter().any(|r| &r.task_hash == job)
+        lock.active_tasks.iter().any(|r| &r.1.task_hash == job)
             || lock.enqueued_tasks.iter().any(|j| &j.task_hash == job)
     }
 
@@ -464,36 +467,38 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         let message_task_hash = msg.associated_task();
         let mut lock = self.inner.write();
 
-        // check the enqueued
+        // Check the enqueued
         for task in lock.enqueued_tasks.iter() {
             if should_deliver(task, &msg, message_task_hash) {
                 self.utility.debug(format!(
                     "Message is for this ENQUEUED execution in session: {}",
                     task.handle.session_id()
                 ));
-                if let Err(err) = task.handle.deliver_message(msg) {
+                if let Err(err) = task.handle.deliver_message(msg.clone()) {
                     return Err(WorkManagerError::DeliverMessageFailed {
                         reason: format!("{err:?}"),
                     });
                 }
 
+                lock.record_message(msg);
                 return Ok(DeliveryType::EnqueuedProtocol);
             }
         }
 
-        // check the currently signing
-        for task in lock.active_tasks.iter() {
+        // Check the currently signing
+        for (_, task) in lock.active_tasks.iter() {
             if should_deliver(task, &msg, message_task_hash) {
                 self.utility.debug(format!(
                     "Message is for this CURRENT execution in session: {}",
                     task.handle.session_id()
                 ));
-                if let Err(err) = task.handle.deliver_message(msg) {
+                if let Err(err) = task.handle.deliver_message(msg.clone()) {
                     return Err(WorkManagerError::DeliverMessageFailed {
                         reason: format!("{err:?}"),
                     });
                 }
 
+                lock.record_message(msg);
                 return Ok(DeliveryType::ActiveProtocol);
             }
         }
@@ -503,7 +508,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         let current_running_session_ids: Vec<WM::SessionID> = lock
             .active_tasks
             .iter()
-            .map(|job| job.handle.session_id())
+            .map(|job| job.1.handle.session_id())
             .collect();
         let enqueued_session_ids: Vec<WM::SessionID> = lock
             .enqueued_tasks
@@ -528,7 +533,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         WM::RetryID: std::ops::AddAssign<u32>,
     {
         let mut lock = self.inner.write();
-        lock.active_tasks.retain(|job| {
+        lock.active_tasks.retain(|_, job| {
             let should_keep = &job.task_hash != task_id;
 
             if !should_keep {
@@ -541,8 +546,46 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         *lock.retry_id_tracker.get_mut(task_id).expect("Must exist") += 1;
     }
 
+    pub fn visit_recorded_messages<V: FnOnce(&Vec<WM::ProtocolMessage>) -> T, T>(
+        &self,
+        task_hash: &WM::TaskID,
+        visitor: V,
+    ) -> Option<T> {
+        let lock = self.inner.read();
+        if let Some(active_job) = lock.active_tasks.get(task_hash) {
+            return Some(visitor(&active_job.recorded_messages));
+        }
+
+        if let Some(enqueued_job) = lock
+            .enqueued_tasks
+            .iter()
+            .find(|j| j.task_hash == *task_hash)
+        {
+            return Some(visitor(&enqueued_job.recorded_messages));
+        }
+
+        None
+    }
+
     pub fn poll_method(&self) -> PollMethod {
         *self.poll_method
+    }
+}
+
+impl<WM: WorkManagerInterface> WorkManagerInner<WM> {
+    fn record_message(&mut self, msg: WM::ProtocolMessage) {
+        if let Some(active_job) = self.active_tasks.get_mut(&msg.associated_task()) {
+            active_job.recorded_messages.push(msg);
+            return;
+        }
+
+        if let Some(enqueued_job) = self
+            .enqueued_tasks
+            .iter_mut()
+            .find(|j| j.task_hash == msg.associated_task())
+        {
+            enqueued_job.recorded_messages.push(msg);
+        }
     }
 }
 
@@ -551,6 +594,7 @@ pub struct Job<WM: WorkManagerInterface> {
     utility: Arc<WM>,
     handle: Arc<dyn ProtocolRemote<WM>>,
     task: Arc<parking_lot::Mutex<Option<Box<dyn ExecutableJob>>>>,
+    recorded_messages: Vec<WM::ProtocolMessage>,
 }
 
 impl<WM: WorkManagerInterface> Job<WM> {
@@ -1363,7 +1407,38 @@ mod tests {
         assert!(work_manager.latest_retry_id(&[0; 32]).is_none());
     }
 
+    #[tokio::test]
+    async fn test_record_message() {
+        let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 0, PollMethod::Manual);
+        let (remote, task, _rx) = generate_async_protocol(1, 1, 0);
+        work_manager.push_task([0; 32], true, remote, task).unwrap();
+        let message = TestMessage {
+            message: "test".to_string(),
+            associated_block_id: 0,
+            associated_session_id: 1,
+            associated_retry_id: 1,
+            associated_task: [0; 32],
+            associated_sender: 0,
+            associated_recipient: None,
+        };
+
+        work_manager.deliver_message(message.clone()).unwrap();
+        let lock = work_manager.inner.read();
+        let active_job = lock.active_tasks.get(&[0; 32]).unwrap();
+        assert_eq!(active_job.recorded_messages.len(), 1);
+        assert_eq!(active_job.recorded_messages[0], message);
+
+        drop(lock);
+        assert!(work_manager
+            .visit_recorded_messages(&[0; 32], |messages| {
+                assert_eq!(messages.len(), 1);
+                assert_eq!(messages[0], message);
+            })
+            .is_some());
+    }
+
     struct DummyRangeChecker<const N: u64>;
+    #[derive(Clone)]
     struct DummyProtocolMessage;
 
     impl<const N: u64> ProtocolMessageMetadata<DummyRangeChecker<N>> for DummyProtocolMessage {

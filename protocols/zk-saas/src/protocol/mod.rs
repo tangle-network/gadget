@@ -1,4 +1,3 @@
-use crate::network::ZkNetworkService;
 use crate::protocol::proto_gen::ZkAsyncProtocolParameters;
 use ark_circom::CircomReduction;
 use ark_crypto_primitives::snark::SNARK;
@@ -9,17 +8,13 @@ use ark_groth16::{Groth16, ProvingKey};
 use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
 use ark_relations::r1cs::SynthesisError;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-use async_trait::async_trait;
 use futures_util::TryFutureExt;
-use gadget_common::client::{
-    AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient, MaxSubmissionLen,
-};
-use gadget_common::debug_logger::DebugLogger;
+use gadget_common::client::{AccountId, ClientWithApi, JobsApiForGadget, MaxSubmissionLen};
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::work_manager::WorkManager;
-use gadget_common::gadget::{GadgetProtocol, JobInitMetadata, WorkManagerConfig};
-use gadget_common::protocol::AsyncProtocol;
-use gadget_common::{BlockImportNotification, Error};
+use gadget_common::gadget::JobInitMetadata;
+use gadget_common::prelude::{KeystoreBackend, Network};
+use gadget_common::Error;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use groth16::proving_key::PackedProvingKeyShare;
@@ -33,7 +28,7 @@ use tangle_primitives::jobs::{
     ArkworksProofResult, HyperData, JobId, JobResult, JobType, ZkSaaSPhaseTwoRequest,
     ZkSaaSProofResult, ZkSaaSSystem,
 };
-use tangle_primitives::roles::{RoleType, ZeroKnowledgeRoleType};
+use tangle_primitives::roles::RoleType;
 use tangle_primitives::verifier::to_field_elements;
 use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -42,103 +37,47 @@ pub mod proto_gen;
 type F = ark_bn254::Fr;
 type E = ark_bn254::Bn254;
 
-pub struct ZkProtocol<B: Block, C, BE> {
-    pub client: JobsClient<B, BE, C>,
-    pub account_id: AccountId,
-    pub network: ZkNetworkService,
-    pub logger: DebugLogger,
-}
-
 pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {
     fn n_parties(&self) -> usize;
     fn party_id(&self) -> u32;
 }
 
-#[async_trait]
-impl<B, C, BE> GadgetProtocol<B, BE, C> for ZkProtocol<B, C, BE>
+pub async fn create_next_job<B, C, BE, N: Network, KBE>(
+    config: &crate::ZkProtocol<B, BE, C, N, KBE>,
+    job: JobInitMetadata<B>,
+    _work_manager: &ProtocolWorkManager<WorkManager>,
+) -> Result<ZkJobAdditionalParams, Error>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
     B: Block,
     C: ClientWithApi<B, BE> + 'static,
     BE: Backend<B> + 'static,
+    KBE: KeystoreBackend,
 {
-    fn name(&self) -> String {
-        "zk-saas".to_string()
-    }
+    let (_now, job_id) = (job.now, job.job_id);
+    let role_type = job.job_type.get_role_type();
+    let JobType::ZkSaaSPhaseTwo(phase_two) = job.job_type else {
+        panic!("Should be valid")
+    };
+    let JobType::ZkSaaSPhaseOne(phase_one) = job.phase1_job.expect("Should exist") else {
+        panic!("Should be valid")
+    };
 
-    async fn create_next_job(
-        &self,
-        job: JobInitMetadata<B>,
-    ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
-        let (now, job_id) = (job.now, job.job_id);
+    let participants = phase_one.participants;
+    let params = ZkJobAdditionalParams {
+        n_parties: participants.len(),
+        party_id: participants
+            .iter()
+            .position(|p| p == &config.account_id)
+            .expect("Should exist") as _,
+        job_id,
+        role_type,
+        system: phase_one.system,
+        request: phase_two.request,
+        participants: participants.into_inner(),
+    };
 
-        self.logger
-            .info(format!("Received a finality notification at {now}"));
-
-        let role_type = job.job_type.get_role_type();
-        let JobType::ZkSaaSPhaseTwo(phase_two) = job.job_type else {
-            panic!("Should be valid")
-        };
-        let JobType::ZkSaaSPhaseOne(phase_one) = job.phase1_job.expect("Should exist") else {
-            panic!("Should be valid")
-        };
-
-        let participants = phase_one.participants;
-        let params = ZkJobAdditionalParams {
-            n_parties: participants.len(),
-            party_id: participants
-                .iter()
-                .position(|p| p == &self.account_id)
-                .expect("Should exist") as _,
-            job_id,
-            role_type,
-            system: phase_one.system,
-            request: phase_two.request,
-            participants: participants.into_inner(),
-        };
-
-        Ok(params)
-    }
-
-    async fn process_block_import_notification(
-        &self,
-        _notification: BlockImportNotification<B>,
-        _job_manager: &ProtocolWorkManager<WorkManager>,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn process_error(&self, error: Error, _job_manager: &ProtocolWorkManager<WorkManager>) {
-        log::error!(target: "gadget", "Received an error: {error:?}");
-    }
-
-    fn account_id(&self) -> &AccountId {
-        &self.account_id
-    }
-
-    fn role_filter(&self, role: RoleType) -> bool {
-        matches!(role, RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16))
-    }
-
-    fn phase_filter(&self, job: GadgetJobType) -> bool {
-        matches!(job, JobType::ZkSaaSPhaseTwo(_))
-    }
-
-    fn client(&self) -> JobsClient<B, BE, C> {
-        self.client.clone()
-    }
-
-    fn logger(&self) -> DebugLogger {
-        self.logger.clone()
-    }
-
-    fn get_work_manager_config(&self) -> WorkManagerConfig {
-        WorkManagerConfig {
-            interval: None,
-            max_active_tasks: 2,
-            max_pending_tasks: 10,
-        }
-    }
+    Ok(params)
 }
 
 #[derive(Clone, Debug)]
@@ -161,253 +100,248 @@ impl AdditionalProtocolParams for ZkJobAdditionalParams {
     }
 }
 
-#[async_trait]
-impl<B: Block, C: ClientWithApi<B, BE> + 'static, BE: Backend<B> + 'static> AsyncProtocol
-    for ZkProtocol<B, C, BE>
+pub async fn generate_protocol_from<B, C, BE, N: Network, KBE>(
+    config: &crate::ZkProtocol<B, BE, C, N, KBE>,
+    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+    protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+    additional_params: ZkJobAdditionalParams,
+) -> Result<BuiltExecutableJobWrapper, JobError>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
+    B: Block,
+    C: ClientWithApi<B, BE> + 'static,
+    BE: Backend<B> + 'static,
+    KBE: KeystoreBackend,
 {
-    type AdditionalParams = ZkJobAdditionalParams;
+    let pallet_tx = config.pallet_tx.clone();
+    let rxs = zk_setup_rxs(additional_params.n_parties(), protocol_message_rx).await?;
+    let other_network_ids =
+        zk_setup_phase_order_participants(additional_params.participants.clone(), &config.network)
+            .map_err(|err| JobError {
+                reason: format!("Failed to setup phase order participants: {err:?}"),
+            })?;
 
-    async fn generate_protocol_from(
-        &self,
-        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
-        additional_params: Self::AdditionalParams,
-    ) -> Result<BuiltExecutableJobWrapper, JobError> {
-        let client = self.client.clone();
-        let rxs = zk_setup_rxs(additional_params.n_parties(), protocol_message_rx).await?;
-        let other_network_ids = zk_setup_phase_order_participants(
-            additional_params.participants.clone(),
-            &self.network,
-        )
-        .map_err(|err| JobError {
-            reason: format!("Failed to setup phase order participants: {err:?}"),
-        })?;
+    let params = ZkAsyncProtocolParameters::<_, _, _, B, BE> {
+        associated_block_id,
+        associated_retry_id,
+        associated_session_id,
+        associated_task_id,
+        rxs,
+        party_id: additional_params.party_id(),
+        n_parties: additional_params.n_parties(),
+        my_network_id: config.account_id,
+        other_network_ids,
+        network: config.network.clone(),
+        client: config.client.clone(),
+        extra_parameters: additional_params.clone(),
+        _pd: Default::default(),
+    };
 
-        let params = ZkAsyncProtocolParameters::<_, _, _, B, BE> {
-            associated_block_id,
-            associated_retry_id,
-            associated_session_id,
-            associated_task_id,
-            rxs,
-            party_id: additional_params.party_id(),
-            n_parties: additional_params.n_parties(),
-            my_network_id: self.network.my_id(),
-            other_network_ids,
-            network: self.network.clone(),
-            client: self.client.clone(),
-            extra_parameters: additional_params.clone(),
-            _pd: Default::default(),
-        };
+    Ok(JobBuilder::new()
+        .protocol(async move {
+            log::debug!(
+                "Running ZkSaaS for {:?} with JobId: {}",
+                params.extra_parameters.role_type,
+                params.extra_parameters.job_id
+            );
+            let ZkSaaSSystem::Groth16(ref system) = params.extra_parameters.system;
+            let ZkSaaSPhaseTwoRequest::Groth16(ref job) = params.extra_parameters.request;
+            let HyperData::Raw(ref proving_key_bytes) = system.proving_key else {
+                return Err(JobError {
+                    reason: "Only raw proving key is supported".to_string(),
+                });
+            };
 
-        Ok(JobBuilder::new()
-            .protocol(async move {
-                log::debug!(
-                    "Running ZkSaaS for {:?} with JobId: {}",
-                    params.extra_parameters.role_type,
-                    params.extra_parameters.job_id
-                );
-                let ZkSaaSSystem::Groth16(ref system) = params.extra_parameters.system;
-                let ZkSaaSPhaseTwoRequest::Groth16(ref job) = params.extra_parameters.request;
-                let HyperData::Raw(ref proving_key_bytes) = system.proving_key else {
-                    return Err(JobError {
-                        reason: "Only raw proving key is supported".to_string(),
-                    });
-                };
-
-                let pk = ProvingKey::<E>::deserialize_compressed(&proving_key_bytes[..]).map_err(
-                    |err| JobError {
+            let pk =
+                ProvingKey::<E>::deserialize_compressed(&proving_key_bytes[..]).map_err(|err| {
+                    JobError {
                         reason: format!("Failed to deserialize proving key: {err:?}"),
-                    },
-                )?;
-                let l = params.n_parties / 4;
-                let pp = PackedSharingParams::new(l);
-                let crs_shares =
-                    PackedProvingKeyShare::<E>::pack_from_arkworks_proving_key(&pk, pp);
-                let our_qap_share =
-                    job.qap_shares
-                        .get(params.party_id as usize)
-                        .ok_or_else(|| JobError {
-                            reason: "Failed to get our qap share".to_string(),
-                        })?;
-                let HyperData::Raw(ref qap_a) = our_qap_share.a else {
-                    return Err(JobError {
-                        reason: "Only raw qap_a is supported".to_string(),
-                    });
-                };
-                let HyperData::Raw(ref qap_b) = our_qap_share.b else {
-                    return Err(JobError {
-                        reason: "Only raw qap_b is supported".to_string(),
-                    });
-                };
-                let HyperData::Raw(ref qap_c) = our_qap_share.c else {
-                    return Err(JobError {
-                        reason: "Only raw qap_c is supported".to_string(),
-                    });
-                };
-                let our_a_share =
-                    job.a_shares
-                        .get(params.party_id as usize)
-                        .ok_or_else(|| JobError {
-                            reason: "Failed to get our a share".to_string(),
-                        })?;
-                let HyperData::Raw(a_share_bytes) = our_a_share else {
-                    return Err(JobError {
-                        reason: "Only raw a_share is supported".to_string(),
-                    });
-                };
-
-                let our_ax_share =
-                    job.ax_shares
-                        .get(params.party_id as usize)
-                        .ok_or_else(|| JobError {
-                            reason: "Failed to get our ax share".to_string(),
-                        })?;
-
-                let HyperData::Raw(ax_share_bytes) = our_ax_share else {
-                    return Err(JobError {
-                        reason: "Only raw ax_share is supported".to_string(),
-                    });
-                };
-                let m = system.num_inputs + system.num_constraints;
-                let domain = Radix2EvaluationDomain::<F>::new(m as usize)
-                    .ok_or(SynthesisError::PolynomialDegreeTooLarge)
-                    .map_err(|err| JobError {
-                        reason: format!("Failed to create evaluation domain: {err:?}"),
-                    })?;
-                let qap_share = groth16::qap::PackedQAPShare {
-                    num_inputs: system.num_inputs as _,
-                    num_constraints: system.num_constraints as _,
-                    a: to_field_elements(qap_a).map_err(|err| JobError {
-                        reason: format!("Failed to convert a to field elements: {err:?}"),
-                    })?,
-                    b: to_field_elements(qap_b).map_err(|err| JobError {
-                        reason: format!("Failed to convert b to field elements: {err:?}"),
-                    })?,
-                    c: to_field_elements(qap_c).map_err(|err| JobError {
-                        reason: format!("Failed to convert c to field elements: {err:?}"),
-                    })?,
-                    domain,
-                };
-                let a_share = to_field_elements(a_share_bytes).map_err(|err| JobError {
-                    reason: format!("Failed to convert a_share to field elements: {err:?}"),
-                })?;
-                let ax_share = to_field_elements(ax_share_bytes).map_err(|err| JobError {
-                    reason: format!("Failed to convert ax_share to field elements: {err:?}"),
-                })?;
-                let crs_share =
-                    crs_shares
-                        .get(params.party_id as usize)
-                        .ok_or_else(|| JobError {
-                            reason: "Failed to get crs share".to_string(),
-                        })?;
-                let h_share = groth16::ext_wit::circom_h(qap_share, &pp, &params)
-                    .map_err(|err| JobError {
-                        reason: format!("Failed to compute circom_h: {err:?}"),
-                    })
-                    .await?;
-                let pi_a_share = groth16::prove::A::<E> {
-                    L: Default::default(),
-                    N: Default::default(),
-                    r: <E as Pairing>::ScalarField::zero(),
-                    pp: &pp,
-                    S: &crs_share.s,
-                    a: &a_share,
-                }
-                .compute(&params, MultiplexedStreamID::Zero)
-                .map_err(|err| JobError {
-                    reason: format!("Failed to compute pi_a_share: {err:?}"),
-                })
-                .await?;
-                let pi_b_share = groth16::prove::B::<E> {
-                    Z: Default::default(),
-                    K: Default::default(),
-                    s: <E as Pairing>::ScalarField::zero(),
-                    pp: &pp,
-                    V: &crs_share.v,
-                    a: &a_share,
-                }
-                .compute(&params, MultiplexedStreamID::Zero)
-                .map_err(|err| JobError {
-                    reason: format!("Failed to compute pi_b_share: {err:?}"),
-                })
-                .await?;
-                let pi_c_share = groth16::prove::C::<E> {
-                    W: &crs_share.w,
-                    U: &crs_share.u,
-                    A: pi_a_share,
-                    M: Default::default(),
-                    r: <E as Pairing>::ScalarField::zero(),
-                    s: <E as Pairing>::ScalarField::zero(),
-                    pp: &pp,
-                    H: &crs_share.h,
-                    a: &a_share,
-                    ax: &ax_share,
-                    h: &h_share,
-                }
-                .compute(&params)
-                .map_err(|err| JobError {
-                    reason: format!("Failed to compute pi_c_share: {err:?}"),
-                })
-                .await?;
-                if params.is_king() {
-                    let (mut a, mut b, c) = (pi_a_share, pi_b_share, pi_c_share);
-                    // These elements are needed to construct the full proof, they are part of the proving key.
-                    // however, we can just send these values to the client, not the full proving key.
-                    a += pk.a_query[0] + pk.vk.alpha_g1;
-                    b += pk.b_g2_query[0] + pk.vk.beta_g2;
-
-                    let proof = ark_groth16::Proof::<E> {
-                        a: a.into_affine(),
-                        b: b.into_affine(),
-                        c: c.into_affine(),
-                    };
-
-                    // Verify the proof
-                    // convert the public inputs from string to bigints
-                    let public_inputs =
-                        to_field_elements(&job.public_input).map_err(|err| JobError {
-                            reason: format!(
-                                "Failed to convert public inputs to field elements: {err:?}"
-                            ),
-                        })?;
-                    let pvk = ark_groth16::prepare_verifying_key(&pk.vk);
-                    let verified = Groth16::<E, CircomReduction>::verify_with_processed_vk(
-                        &pvk,
-                        public_inputs.as_slice(),
-                        &proof,
-                    )
-                    .unwrap();
-                    if verified {
-                        log::info!("Proof verified");
-                    } else {
-                        log::error!("Proof verification failed");
                     }
-                    let mut proof_bytes = Vec::new();
-                    proof.serialize_compressed(&mut proof_bytes).unwrap();
-                    let result = ZkSaaSProofResult::Arkworks(ArkworksProofResult {
-                        proof: proof_bytes.try_into().unwrap(),
-                    });
+                })?;
+            let l = params.n_parties / 4;
+            let pp = PackedSharingParams::new(l);
+            let crs_shares = PackedProvingKeyShare::<E>::pack_from_arkworks_proving_key(&pk, pp);
+            let our_qap_share = job
+                .qap_shares
+                .get(params.party_id as usize)
+                .ok_or_else(|| JobError {
+                    reason: "Failed to get our qap share".to_string(),
+                })?;
+            let HyperData::Raw(ref qap_a) = our_qap_share.a else {
+                return Err(JobError {
+                    reason: "Only raw qap_a is supported".to_string(),
+                });
+            };
+            let HyperData::Raw(ref qap_b) = our_qap_share.b else {
+                return Err(JobError {
+                    reason: "Only raw qap_b is supported".to_string(),
+                });
+            };
+            let HyperData::Raw(ref qap_c) = our_qap_share.c else {
+                return Err(JobError {
+                    reason: "Only raw qap_c is supported".to_string(),
+                });
+            };
+            let our_a_share =
+                job.a_shares
+                    .get(params.party_id as usize)
+                    .ok_or_else(|| JobError {
+                        reason: "Failed to get our a share".to_string(),
+                    })?;
+            let HyperData::Raw(a_share_bytes) = our_a_share else {
+                return Err(JobError {
+                    reason: "Only raw a_share is supported".to_string(),
+                });
+            };
 
-                    client
-                        .submit_job_result(
-                            params.extra_parameters.role_type,
-                            params.extra_parameters.job_id,
-                            JobResult::ZkSaaSPhaseTwo(result),
-                        )
-                        .await
-                        .map_err(|err| JobError {
-                            reason: err.to_string(),
-                        })?;
-                }
-                Ok(())
+            let our_ax_share =
+                job.ax_shares
+                    .get(params.party_id as usize)
+                    .ok_or_else(|| JobError {
+                        reason: "Failed to get our ax share".to_string(),
+                    })?;
+
+            let HyperData::Raw(ax_share_bytes) = our_ax_share else {
+                return Err(JobError {
+                    reason: "Only raw ax_share is supported".to_string(),
+                });
+            };
+            let m = system.num_inputs + system.num_constraints;
+            let domain = Radix2EvaluationDomain::<F>::new(m as usize)
+                .ok_or(SynthesisError::PolynomialDegreeTooLarge)
+                .map_err(|err| JobError {
+                    reason: format!("Failed to create evaluation domain: {err:?}"),
+                })?;
+            let qap_share = groth16::qap::PackedQAPShare {
+                num_inputs: system.num_inputs as _,
+                num_constraints: system.num_constraints as _,
+                a: to_field_elements(qap_a).map_err(|err| JobError {
+                    reason: format!("Failed to convert a to field elements: {err:?}"),
+                })?,
+                b: to_field_elements(qap_b).map_err(|err| JobError {
+                    reason: format!("Failed to convert b to field elements: {err:?}"),
+                })?,
+                c: to_field_elements(qap_c).map_err(|err| JobError {
+                    reason: format!("Failed to convert c to field elements: {err:?}"),
+                })?,
+                domain,
+            };
+            let a_share = to_field_elements(a_share_bytes).map_err(|err| JobError {
+                reason: format!("Failed to convert a_share to field elements: {err:?}"),
+            })?;
+            let ax_share = to_field_elements(ax_share_bytes).map_err(|err| JobError {
+                reason: format!("Failed to convert ax_share to field elements: {err:?}"),
+            })?;
+            let crs_share = crs_shares
+                .get(params.party_id as usize)
+                .ok_or_else(|| JobError {
+                    reason: "Failed to get crs share".to_string(),
+                })?;
+            let h_share = groth16::ext_wit::circom_h(qap_share, &pp, &params)
+                .map_err(|err| JobError {
+                    reason: format!("Failed to compute circom_h: {err:?}"),
+                })
+                .await?;
+            let pi_a_share = groth16::prove::A::<E> {
+                L: Default::default(),
+                N: Default::default(),
+                r: <E as Pairing>::ScalarField::zero(),
+                pp: &pp,
+                S: &crs_share.s,
+                a: &a_share,
+            }
+            .compute(&params, MultiplexedStreamID::Zero)
+            .map_err(|err| JobError {
+                reason: format!("Failed to compute pi_a_share: {err:?}"),
             })
-            .build())
-    }
+            .await?;
+            let pi_b_share = groth16::prove::B::<E> {
+                Z: Default::default(),
+                K: Default::default(),
+                s: <E as Pairing>::ScalarField::zero(),
+                pp: &pp,
+                V: &crs_share.v,
+                a: &a_share,
+            }
+            .compute(&params, MultiplexedStreamID::Zero)
+            .map_err(|err| JobError {
+                reason: format!("Failed to compute pi_b_share: {err:?}"),
+            })
+            .await?;
+            let pi_c_share = groth16::prove::C::<E> {
+                W: &crs_share.w,
+                U: &crs_share.u,
+                A: pi_a_share,
+                M: Default::default(),
+                r: <E as Pairing>::ScalarField::zero(),
+                s: <E as Pairing>::ScalarField::zero(),
+                pp: &pp,
+                H: &crs_share.h,
+                a: &a_share,
+                ax: &ax_share,
+                h: &h_share,
+            }
+            .compute(&params)
+            .map_err(|err| JobError {
+                reason: format!("Failed to compute pi_c_share: {err:?}"),
+            })
+            .await?;
+            if params.is_king() {
+                let (mut a, mut b, c) = (pi_a_share, pi_b_share, pi_c_share);
+                // These elements are needed to construct the full proof, they are part of the proving key.
+                // however, we can just send these values to the client, not the full proving key.
+                a += pk.a_query[0] + pk.vk.alpha_g1;
+                b += pk.b_g2_query[0] + pk.vk.beta_g2;
+
+                let proof = ark_groth16::Proof::<E> {
+                    a: a.into_affine(),
+                    b: b.into_affine(),
+                    c: c.into_affine(),
+                };
+
+                // Verify the proof
+                // convert the public inputs from string to bigints
+                let public_inputs =
+                    to_field_elements(&job.public_input).map_err(|err| JobError {
+                        reason: format!(
+                            "Failed to convert public inputs to field elements: {err:?}"
+                        ),
+                    })?;
+                let pvk = ark_groth16::prepare_verifying_key(&pk.vk);
+                let verified = Groth16::<E, CircomReduction>::verify_with_processed_vk(
+                    &pvk,
+                    public_inputs.as_slice(),
+                    &proof,
+                )
+                .unwrap();
+                if verified {
+                    log::info!("Proof verified");
+                } else {
+                    log::error!("Proof verification failed");
+                }
+                let mut proof_bytes = Vec::new();
+                proof.serialize_compressed(&mut proof_bytes).unwrap();
+                let result = ZkSaaSProofResult::Arkworks(ArkworksProofResult {
+                    proof: proof_bytes.try_into().unwrap(),
+                });
+
+                pallet_tx
+                    .submit_job_result(
+                        params.extra_parameters.role_type,
+                        params.extra_parameters.job_id,
+                        JobResult::ZkSaaSPhaseTwo(result),
+                    )
+                    .await
+                    .map_err(|err| JobError {
+                        reason: err.to_string(),
+                    })?;
+            }
+            Ok(())
+        })
+        .build())
 }
 
 async fn zk_setup_rxs(
@@ -468,15 +402,20 @@ async fn zk_setup_rxs(
     Ok(rxs)
 }
 
-fn zk_setup_phase_order_participants(
+pub trait ZkNetworkExt {
+    fn king_id(&self) -> Option<AccountId>;
+}
+
+fn zk_setup_phase_order_participants<N: Network>(
     mut participants: Vec<AccountId>,
-    network: &ZkNetworkService,
+    network: &N,
 ) -> Result<HashMap<u32, AccountId>, gadget_common::Error> {
-    let king_id = network
-        .king_id()
-        .ok_or_else(|| gadget_common::Error::ClientError {
-            err: "King id not found".to_string(),
-        })?;
+    let king_id =
+        network
+            .greatest_authority_id()
+            .ok_or_else(|| gadget_common::Error::ClientError {
+                err: "King id not found".to_string(),
+            })?;
 
     // The king should be moved into the 0th index of the participants, swapping positions with the 0th participant
     let king_index = participants
