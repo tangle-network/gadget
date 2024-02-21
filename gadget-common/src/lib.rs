@@ -124,10 +124,15 @@ where
             .map_err(|err| Error::GadgetManagerError { err })
     };
 
-    if let Err(err) = prometheus::setup(prometheus_config).await {
+    if let Err(err) = prometheus::setup(prometheus_config.clone()).await {
         protocol_config
             .logger()
             .warn(format!("Error setting up prometheus: {err:?}"));
+    } else {
+        protocol_config.logger().info(format!(
+            "Prometheus setup successfully on {}",
+            prometheus_config.prometheus_addr
+        ));
     }
 
     // Run both the network and the gadget together
