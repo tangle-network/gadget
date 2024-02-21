@@ -12,7 +12,20 @@ lazy_static! {
         IntCounter::new("bytes_sent", "Bytes Sent").expect("metric can be created");
 }
 
-pub async fn setup() -> Result<(), crate::Error> {
+#[derive(Debug, Clone)]
+pub struct PrometheusConfig {
+    pub prometheus_addr: SocketAddr,
+}
+
+impl Default for PrometheusConfig {
+    fn default() -> Self {
+        Self {
+            prometheus_addr: SocketAddr::from_str("0.0.0.0:9615").unwrap(),
+        }
+    }
+}
+
+pub async fn setup(config: PrometheusConfig) -> Result<(), crate::Error> {
     static HAS_REGISTERED: AtomicBool = AtomicBool::new(false);
     if HAS_REGISTERED.load(std::sync::atomic::Ordering::Relaxed) {
         return Ok(());
@@ -30,14 +43,11 @@ pub async fn setup() -> Result<(), crate::Error> {
         }
     })?;
 
-    substrate_prometheus_endpoint::init_prometheus(
-        SocketAddr::from_str("0.0.0.0:9615").unwrap(),
-        REGISTRY.clone(),
-    )
-    .await
-    .map_err(|err| crate::Error::PrometheusError {
-        err: err.to_string(),
-    })?;
+    substrate_prometheus_endpoint::init_prometheus(config.prometheus_addr, REGISTRY.clone())
+        .await
+        .map_err(|err| crate::Error::PrometheusError {
+            err: err.to_string(),
+        })?;
 
     HAS_REGISTERED.store(true, std::sync::atomic::Ordering::Relaxed);
     Ok(())

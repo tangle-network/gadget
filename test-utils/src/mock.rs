@@ -33,6 +33,8 @@ use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_core::{ByteArray, Pair, H256};
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::str::FromStr;
 use std::time::Duration;
 
 pub type Balance = u128;
@@ -46,6 +48,7 @@ use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
+use gadget_common::prelude::PrometheusConfig;
 use gadget_common::Error;
 use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
 use sp_core::ecdsa;
@@ -549,6 +552,11 @@ pub async fn new_test_ext<
         // Assume all clients/networks share the same keystore for sharing results
         // between phases
         let keystore = ECDSAKeyStore::in_memory(identity_pair);
+
+        let prometheus_config = PrometheusConfig {
+            prometheus_addr: SocketAddr::from_str(&format!("0.0.0.0:{}", open_tcp_port())).unwrap(),
+        };
+
         let input = NodeInput {
             mock_clients,
             mock_networks: networks,
@@ -558,6 +566,7 @@ pub async fn new_test_ext<
             keystore,
             node_index,
             additional_params: additional_params.clone(),
+            prometheus_config,
             _pd: Default::default(),
         };
 
@@ -566,6 +575,12 @@ pub async fn new_test_ext<
     }
 
     ext
+}
+
+fn open_tcp_port() -> u16 {
+    use std::net::TcpListener;
+    let listener = TcpListener::bind("0.0.0.0:0").unwrap();
+    listener.local_addr().unwrap().port()
 }
 
 pub mod mock_wrapper_client {

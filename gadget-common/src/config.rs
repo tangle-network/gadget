@@ -3,6 +3,7 @@ pub use crate::client::{AccountId, ClientWithApi};
 pub use crate::debug_logger::DebugLogger;
 pub use crate::gadget::network::Network;
 pub use crate::gadget::GadgetProtocol;
+pub use crate::prometheus::PrometheusConfig;
 use async_trait::async_trait;
 pub use pallet_jobs_rpc_runtime_api::JobsApi;
 pub use sc_client_api::Backend;
@@ -29,6 +30,7 @@ where
     fn take_network(&mut self) -> Self::Network;
     fn take_protocol(&mut self) -> Self::Protocol;
     fn take_client(&mut self) -> <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client;
+    fn prometheus_config(&self) -> PrometheusConfig;
 
     async fn build(&self) -> Result<Self, crate::Error> {
         let jobs_client = self.params().build_jobs_client().await?;
@@ -37,8 +39,10 @@ where
         let params = self.params().clone();
         let pallet_tx = self.pallet_tx();
         let logger = self.logger();
+        let prometheus_config = self.prometheus_config();
+
         Ok(Self::new(
-            network, client, protocol, params, pallet_tx, logger,
+            network, client, protocol, params, pallet_tx, logger, prometheus_config,
         ))
     }
 
@@ -49,6 +53,7 @@ where
         params: Self::ProtocolSpecificConfiguration,
         pallet_tx: Arc<dyn PalletSubmitter>,
         logger: DebugLogger,
+        prometheus_config: PrometheusConfig,
     ) -> Self;
 
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {

@@ -213,6 +213,7 @@ mod tests {
                 logger,
                 node_info.account_id,
                 key_store,
+                Default::default(),
             )
             .await
             {

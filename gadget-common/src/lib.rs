@@ -99,6 +99,8 @@ where
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
 
+    let prometheus_config = protocol_config.prometheus_config();
+
     // Before running, wait for the first finality notification we receive
     let latest_finality_notification =
         get_latest_finality_notification_from_client(&client).await?;
@@ -122,7 +124,11 @@ where
             .map_err(|err| Error::GadgetManagerError { err })
     };
 
-    prometheus::setup().await?;
+    if let Err(err) = prometheus::setup(prometheus_config).await {
+        protocol_config
+            .logger()
+            .warn(format!("Error setting up prometheus: {err:?}"));
+    }
 
     // Run both the network and the gadget together
     tokio::try_join!(network_future, gadget_future).map(|_| ())
@@ -196,6 +202,7 @@ macro_rules! generate_setup_and_run_command {
                     node_input.logger.clone(),
                     node_input.account_id,
                     node_input.keystore,
+                    node_input.prometheus_config,
                 )
                 .await
                 {
@@ -213,6 +220,7 @@ macro_rules! generate_setup_and_run_command {
             logger: DebugLogger,
             account_id: AccountId,
             key_store: ECDSAKeyStore<KBE>,
+            prometheus_config: $crate::prometheus::PrometheusConfig,
         ) -> Result<(), Error>
         where
             <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
@@ -221,7 +229,7 @@ macro_rules! generate_setup_and_run_command {
             let futures = futures::stream::FuturesUnordered::new();
 
             $(
-                let config = crate::$config::new(client.pop().expect("Not enough clients"), pallet_tx.clone(), network.pop().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone()).await?;
+                let config = crate::$config::new(client.pop().expect("Not enough clients"), pallet_tx.clone(), network.pop().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone(), prometheus_config.clone()).await?;
                 futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), gadget_common::Error>>>>);
             )*
 
@@ -250,6 +258,7 @@ macro_rules! generate_protocol {
             account_id: AccountId,
             key_store: ECDSAKeyStore<KBE>,
             jobs_client: Arc<Mutex<Option<JobsClient<B, BE, C>>>>,
+            prometheus_config: $crate::prometheus::PrometheusConfig,
             _pd: std::marker::PhantomData<(B, BE)>,
         }
 
@@ -279,6 +288,7 @@ macro_rules! generate_protocol {
                 logger: DebugLogger,
                 account_id: AccountId,
                 key_store: ECDSAKeyStore<Self::KeystoreBackend>,
+                prometheus_config: $crate::prometheus::PrometheusConfig,
             ) -> Result<Self, Error> {
                 Ok(Self {
                     pallet_tx,
@@ -287,6 +297,7 @@ macro_rules! generate_protocol {
                     network,
                     account_id,
                     key_store,
+                    prometheus_config,
                     jobs_client: Arc::new(parking_lot::Mutex::new(None)),
                     _pd: std::marker::PhantomData,
                 })

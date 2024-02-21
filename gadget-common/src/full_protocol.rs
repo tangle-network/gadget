@@ -6,6 +6,7 @@ use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{JobInitMetadata, WorkManagerConfig};
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
+use crate::prometheus::PrometheusConfig;
 use crate::protocol::AsyncProtocol;
 use crate::Error;
 use async_trait::async_trait;
@@ -41,6 +42,7 @@ where
         logger: DebugLogger,
         account_id: AccountId,
         key_store: ECDSAKeyStore<Self::KeystoreBackend>,
+        prometheus_config: PrometheusConfig,
     ) -> Result<Self, Error>;
     async fn generate_protocol_from(
         &self,
@@ -256,5 +258,6 @@ pub struct NodeInput<
     pub keystore: ECDSAKeyStore<KBE>,
     pub node_index: usize,
     pub additional_params: D,
+    pub prometheus_config: PrometheusConfig,
     pub _pd: PhantomData<(B, BE)>,
 }

@@ -207,7 +207,13 @@ mod tests {
             let (pallet_tx, key_store) = (node_input.pallet_tx, node_input.keystore);
             logger.info("Starting gadget");
             if let Err(err) = dfns_cggmp21_protocol::run::<_, MockBackend, _, _, _>(
-                clients, pallet_tx, networks, logger, account_id, key_store,
+                clients,
+                pallet_tx,
+                networks,
+                logger,
+                account_id,
+                key_store,
+                Default::default(),
             )
             .await
             {
