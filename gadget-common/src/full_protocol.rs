@@ -9,11 +9,16 @@ use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use crate::protocol::AsyncProtocol;
 use crate::Error;
 use async_trait::async_trait;
+use frame_support::__private::sp_io::crypto::{ecdsa_sign_prehashed, ecdsa_verify_prehashed};
+use frame_support::pallet_prelude::{Decode, Encode};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use parking_lot::Mutex;
 use sc_client_api::{Backend, BlockImportNotification};
 use sp_api::ProvideRuntimeApi;
+use sp_core::crypto::KeyTypeId;
+use sp_core::ecdsa::Signature;
+use sp_core::keccak_256;
 use sp_runtime::traits::Block;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -221,13 +226,54 @@ where
     <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApiForGadget<T::Block>,
 {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        T::network(self).next_message().await
+        let message = T::network(self).next_message().await?;
+        if let Some(peer_public_key) = message.from_network_id {
+            if let Ok(payload_and_signature) =
+                <PayloadAndSignature as Decode>::decode(&mut message.payload.as_slice())
+            {
+                let hashed_message = keccak_256(&message.payload);
+                if ecdsa_verify_prehashed(
+                    &payload_and_signature.signature,
+                    &hashed_message,
+                    &peer_public_key,
+                ) {
+                    return Some(message);
+                } else {
+                    self.logger()
+                        .warn("Received a message with an invalid signature.")
+                }
+            } else {
+                self.logger()
+                    .warn("Received a message without a valid payload and signature.")
+            }
+        } else {
+            self.logger()
+                .warn("Received a message without a valid sender public key.")
+        }
+
+        // This message was invalid. Thus, poll the next message
+        self.next_message().await
     }
 
     async fn send_message(
         &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
+        mut message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
+        // Sign the hash of the message
+        let hashed_message = keccak_256(&message.payload);
+        let signature =
+            ecdsa_sign_prehashed(KeyTypeId::from(0), self.account_id(), &hashed_message)
+                .ok_or_else(|| Error::NetworkError {
+                    err: "Unable to sign message".to_string(),
+                })?;
+
+        let payload_and_signature = PayloadAndSignature {
+            payload: message.payload,
+            signature,
+        };
+
+        let serialized_message = Encode::encode(&payload_and_signature);
+        message.payload = serialized_message;
         T::network(self).send_message(message).await
     }
 }
@@ -254,4 +300,10 @@ pub struct NodeInput<
     pub node_index: usize,
     pub additional_params: D,
     pub _pd: PhantomData<(B, BE)>,
+}
+
+#[derive(Encode, Decode)]
+pub struct PayloadAndSignature {
+    payload: Vec<u8>,
+    signature: Signature,
 }

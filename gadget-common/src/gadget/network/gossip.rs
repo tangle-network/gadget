@@ -28,7 +28,6 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use gadget_core::job_manager::WorkManagerInterface;
 use linked_hash_map::LinkedHashMap;
-use parity_scale_codec::{Decode, Encode};
 use parking_lot::{Mutex, RwLock};
 use sc_network::{
     config, error, multiaddr, Event, NetworkEventStream, NetworkNotification, NetworkPeers,
@@ -37,9 +36,7 @@ use sc_network::{
 use sc_network_common::sync::{Metrics, SyncEvent};
 use sc_network_sync::SyncingService;
 use serde::{Deserialize, Serialize};
-use sp_core::ecdsa::Signature;
 use sp_core::Pair;
-use sp_runtime::app_crypto::RuntimePublic;
 use sp_runtime::traits::Block;
 use std::{
     collections::{HashMap, HashSet},
@@ -193,12 +190,6 @@ pub struct GossipHandlerController {
     gossip_enabled: Arc<AtomicBool>,
     authority_id_to_peer_id: Arc<RwLock<HashMap<AccountId, PeerId>>>,
     logger: DebugLogger,
-}
-
-#[derive(Encode, Decode)]
-pub struct PayloadAndSignature {
-    payload: Vec<u8>,
-    signature: Signature,
 }
 
 #[async_trait]
@@ -577,49 +568,12 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
     }
 
     /// Called when peer sends us new signed message.
-    async fn on_signed_message(&self, who: PeerId, mut message: GadgetProtocolMessage) {
+    async fn on_signed_message(&self, who: PeerId, message: GadgetProtocolMessage) {
         // Check behavior of the peer.
         self.logger.debug(format!(
             "session {:?} | Received a signed messages from {}",
             message.associated_session_id, who,
         ));
-
-        let payload = message.payload;
-        let payload_and_sig: PayloadAndSignature = match Decode::decode(&mut payload.as_slice()) {
-            Ok(ret) => ret,
-            Err(e) => {
-                self.logger
-                    .error(format!("Failed to decode message payload: {e:?}"));
-                return;
-            }
-        };
-
-        // Get the public key of the sender
-        let authority_id = self
-            .peers
-            .read()
-            .get(&who)
-            .and_then(|peer| peer.authority_id.clone())
-            .clone();
-        if authority_id.is_none() {
-            self.logger.warn(format!(
-                "Peer {who} sent us a message without sending a handshake message first"
-            ));
-            return;
-        }
-
-        let peer_public_key = authority_id.unwrap();
-        // The verify function performs blake2_256 on the payload and then verifies the signature
-        if !peer_public_key.verify(&payload_and_sig.payload, &payload_and_sig.signature) {
-            self.logger.error("Failed to verify message signature");
-            return;
-        }
-
-        message.payload = payload_and_sig.payload;
-
-        if let Some(_metrics) = self.metrics.as_ref() {
-            //metrics.dkg_signed_messages.inc();
-        }
 
         if let Some(ref mut peer) = self.peers.write().get_mut(&who) {
             let message_hash = message.hash();
@@ -692,22 +646,13 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
         }
     }
 
-    pub fn send_signed_message(&self, to_who: PeerId, mut message: GadgetProtocolMessage) {
+    pub fn send_signed_message(&self, to_who: PeerId, message: GadgetProtocolMessage) {
         let message_hash = message.hash();
         if let Some(ref mut peer) = self.peers.write().get_mut(&to_who) {
             let new_to_them = peer.known_messages.insert(message_hash);
             if !new_to_them {
                 return;
             }
-            // Sign the message. blake2_256 is performed by the sign message function.
-            let signature = self.keystore.pair().sign(&message.payload);
-            let payload_and_signature = PayloadAndSignature {
-                payload: message.payload,
-                signature,
-            };
-
-            let serialized_message = Encode::encode(&payload_and_signature);
-            message.payload = serialized_message;
             let message = GossipNetworkMessage::Protocol(message);
             let msg = bincode2::serialize(&message).expect("Failed to serialize message");
             self.service
