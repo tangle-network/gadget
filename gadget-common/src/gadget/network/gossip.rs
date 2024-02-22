@@ -594,12 +594,23 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
             }
         };
 
-        if !self
-            .keystore
-            .pair()
-            .public()
-            .verify(&payload_and_sig.payload, &payload_and_sig.signature)
-        {
+        // Get the publis key of the sender
+        let authority_id = self
+            .peers
+            .read()
+            .get(&who)
+            .and_then(|peer| peer.authority_id.clone())
+            .clone();
+        if authority_id.is_none() {
+            self.logger.warn(format!(
+                "Peer {who} sent us a message without sending a handshake message first"
+            ));
+            return;
+        }
+
+        let peer_public_key = authority_id.unwrap();
+        // The verify function performs blake2_256 on the payload and then verifies the signature
+        if !peer_public_key.verify(&payload_and_sig.payload, &payload_and_sig.signature) {
             self.logger.error("Failed to verify message signature");
             return;
         }
@@ -688,7 +699,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
             if !new_to_them {
                 return;
             }
-            // Sign the message
+            // Sign the message. blake2_256 is performed by the sign message function.
             let signature = self.keystore.pair().sign(&message.payload);
             let payload_and_signature = PayloadAndSignature {
                 payload: message.payload,
