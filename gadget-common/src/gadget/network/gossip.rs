@@ -594,7 +594,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
             }
         };
 
-        // Get the publis key of the sender
+        // Get the public key of the sender
         let authority_id = self
             .peers
             .read()
