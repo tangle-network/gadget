@@ -3,6 +3,8 @@ name: Validate PR
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 concurrency:
   group: rust-validation-${{ github.head_ref }}
@@ -81,7 +83,7 @@ jobs:
   testing:
     timeout-minutes: 120
     name: cargo test
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     strategy:
         matrix:
             package: [gadget-core, gadget-common, zk-saas-protocol, dfns-cggmp21-protocol, threshold-bls-protocol]
@@ -99,7 +101,7 @@ jobs:
           cache-on-failure: "true"
 
       - name: install protobuf
-        run: sudo apt-get install protobuf-compiler
+        run: brew install protobuf
 
       - name: install cargo-nextest
         run: cargo install cargo-nextest --locked
