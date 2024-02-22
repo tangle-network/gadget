@@ -194,6 +194,9 @@ pub struct GossipHandlerController {
 
 #[async_trait]
 impl Network for GossipHandlerController {
+    fn network_name(&self) -> &'static str {
+        "Gossip Network"
+    }
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         loop {
             let message = self

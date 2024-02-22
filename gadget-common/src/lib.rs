@@ -99,6 +99,10 @@ where
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
 
+    protocol_config
+        .logger()
+        .info(format!("Network name: {}", network.network_name()));
+
     // Before running, wait for the first finality notification we receive
     let latest_finality_notification =
         get_latest_finality_notification_from_client(&client).await?;
@@ -355,6 +359,10 @@ macro_rules! generate_protocol {
 
             fn logger(&self) -> DebugLogger {
                 self.logger.clone()
+            }
+
+            fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend> {
+                &self.key_store
             }
 
             fn client(&self) -> Self::Client {

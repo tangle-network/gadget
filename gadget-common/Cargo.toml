@@ -39,6 +39,7 @@ futures = { workspace = true }
 round-based = { workspace = true }
 sp-api = { workspace = true }
 sqlx = { version = "^0.7.1", features = ["runtime-tokio-rustls", "sqlite"] }
+ed448-goldilocks-plus = { git = "https://github.com/mikelodder7/Ed448-Goldilocks", features = ["std"]}
 
 frame-support = { workspace = true }
 sc-network = { workspace = true }

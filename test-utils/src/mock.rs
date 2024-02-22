@@ -152,6 +152,10 @@ impl RolesHandler<AccountId> for MockRolesHandler {
         restakers.contains(&address)
     }
 
+    fn get_max_active_service_for_restaker(_address: AccountId) -> Option<u32> {
+        Some(10)
+    }
+
     fn get_validator_role_key(address: AccountId) -> Option<Vec<u8>> {
         let validators = (0..8).map(id_to_pair).collect::<Vec<_>>();
         validators.iter().find_map(|p| {
@@ -378,6 +382,9 @@ impl MockNetwork {
 
 #[async_trait]
 impl Network for MockNetwork {
+    fn network_name(&self) -> &'static str {
+        "Mock Network"
+    }
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         self.peers_rx
             .get(&self.my_id)?

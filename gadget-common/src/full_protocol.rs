@@ -9,14 +9,13 @@ use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use crate::protocol::AsyncProtocol;
 use crate::Error;
 use async_trait::async_trait;
-use frame_support::__private::sp_io::crypto::{ecdsa_sign_prehashed, ecdsa_verify_prehashed};
+use frame_support::__private::sp_io::crypto::ecdsa_verify_prehashed;
 use frame_support::pallet_prelude::{Decode, Encode};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use parking_lot::Mutex;
 use sc_client_api::{Backend, BlockImportNotification};
 use sp_api::ProvideRuntimeApi;
-use sp_core::crypto::KeyTypeId;
 use sp_core::ecdsa::Signature;
 use sp_core::keccak_256;
 use sp_runtime::traits::Block;
@@ -99,6 +98,7 @@ where
             .clone()
             .expect("Jobs client not initialized")
     }
+    fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend>;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         Default::default()
     }
@@ -225,18 +225,22 @@ impl<T: FullProtocolConfig> Network for T
 where
     <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApiForGadget<T::Block>,
 {
+    fn network_name(&self) -> &'static str {
+        "Full Protocol Config"
+    }
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        let message = T::network(self).next_message().await?;
+        let mut message = T::network(self).next_message().await?;
         if let Some(peer_public_key) = message.from_network_id {
             if let Ok(payload_and_signature) =
                 <PayloadAndSignature as Decode>::decode(&mut message.payload.as_slice())
             {
-                let hashed_message = keccak_256(&message.payload);
+                let hashed_message = keccak_256(&payload_and_signature.payload);
                 if ecdsa_verify_prehashed(
                     &payload_and_signature.signature,
                     &hashed_message,
                     &peer_public_key,
                 ) {
+                    message.payload = payload_and_signature.payload;
                     return Some(message);
                 } else {
                     self.logger()
@@ -261,12 +265,7 @@ where
     ) -> Result<(), Error> {
         // Sign the hash of the message
         let hashed_message = keccak_256(&message.payload);
-        let signature =
-            ecdsa_sign_prehashed(KeyTypeId::from(0), self.account_id(), &hashed_message)
-                .ok_or_else(|| Error::NetworkError {
-                    err: "Unable to sign message".to_string(),
-                })?;
-
+        let signature = self.key_store().pair().sign_prehashed(&hashed_message);
         let payload_and_signature = PayloadAndSignature {
             payload: message.payload,
             signature,

@@ -23,4 +23,5 @@ pub trait Network: Send + Sync + Clone + 'static {
     async fn run(&self) -> Result<(), Error> {
         Ok(())
     }
+    fn network_name(&self) -> &'static str;
 }
