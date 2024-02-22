@@ -29,7 +29,6 @@ pub type RegistantId = AccountId;
 #[derive(Clone)]
 pub enum ZkNetworkService {
     King {
-        listener: Arc<Mutex<Option<tokio::net::TcpListener>>>,
         registrants: Arc<Mutex<HashMap<RegistantId, Registrant>>>,
         to_gadget: UnboundedSender<RegistryPacket>,
         to_outbound_txs: Arc<RwLock<HashMap<RegistantId, UnboundedSender<RegistryPacket>>>>,
@@ -113,15 +112,53 @@ impl ZkNetworkService {
             })?;
         let registrants = Arc::new(Mutex::new(HashMap::new()));
         let (to_gadget, from_registry) = tokio::sync::mpsc::unbounded_channel();
-        Ok(ZkNetworkService::King {
-            listener: Arc::new(Mutex::new(Some(listener))),
-            to_outbound_txs: Arc::new(RwLock::new(HashMap::new())),
+        let to_outbound_txs = Arc::new(RwLock::new(HashMap::new()));
+
+        let this = ZkNetworkService::King {
+            to_outbound_txs,
             registry_id,
             registrants,
             to_gadget,
             identity,
             inbound_messages: Arc::new(Mutex::new(from_registry)),
-        })
+        };
+
+        let ZkNetworkService::King {
+            registrants,
+            to_outbound_txs,
+            to_gadget,
+            identity,
+            registry_id,
+            ..
+        } = this.clone()
+        else {
+            panic!("Should be king")
+        };
+
+        tokio::task::spawn(async move {
+            let tls_acceptor = create_server_tls_acceptor(identity.clone()).map_err(|err| {
+                Error::RegistryCreateError {
+                    err: format!("{err:?}"),
+                }
+            })?;
+
+            while let Ok((stream, peer_addr)) = listener.accept().await {
+                log::info!(target: "gadget", "[Registry] Accepted connection from {peer_addr}, upgrading to TLS");
+                handle_stream_as_king(
+                    tls_acceptor.clone(),
+                    stream,
+                    peer_addr,
+                    registrants.clone(),
+                    to_outbound_txs.clone(),
+                    to_gadget.clone(),
+                    registry_id,
+                );
+            }
+
+            Ok::<_, Error>(())
+        });
+
+        Ok(this)
     }
 
     pub async fn new_client<T: std::net::ToSocketAddrs>(
@@ -136,6 +173,7 @@ impl ZkNetworkService {
         let connection = retry_connect(king_registry_addr, DEFAULT_CONNECTION_TIMEOUT).await?;
 
         log::info!(
+            target: "gadget",
             "Party {registrant_id} connected to king registry at {}",
             king_registry_addr
         );
@@ -535,45 +573,6 @@ impl Network for ZkNetworkService {
 
     fn greatest_authority_id(&self) -> Option<AccountId> {
         self.king_id()
-    }
-
-    async fn run(&self) -> Result<(), Error> {
-        match self {
-            Self::King {
-                listener,
-                registrants,
-                to_gadget,
-                identity,
-                to_outbound_txs,
-                registry_id,
-                ..
-            } => {
-                let listener = listener.lock().await.take().expect("Should exist");
-                let tls_acceptor = create_server_tls_acceptor(identity.clone()).map_err(|err| {
-                    Error::RegistryCreateError {
-                        err: format!("{err:?}"),
-                    }
-                })?;
-
-                while let Ok((stream, peer_addr)) = listener.accept().await {
-                    log::info!("[Registry] Accepted connection from {peer_addr}, upgrading to TLS");
-                    handle_stream_as_king(
-                        tls_acceptor.clone(),
-                        stream,
-                        peer_addr,
-                        registrants.clone(),
-                        to_outbound_txs.clone(),
-                        to_gadget.clone(),
-                        *registry_id,
-                    );
-                }
-
-                Err(Error::RegistryCreateError {
-                    err: "Listener closed".to_string(),
-                })
-            }
-            Self::Client { .. } => Ok(()),
-        }
     }
 }
 
