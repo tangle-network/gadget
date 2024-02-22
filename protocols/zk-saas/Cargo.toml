@@ -60,3 +60,4 @@ ark-std = { workspace = true, default-features = false }
 frame-support = { workspace = true }
 test-utils = { workspace = true }
 rcgen = "0.12.0"
+gadget-common = { workspace = true, features = ["testing"] }
