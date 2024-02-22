@@ -54,14 +54,14 @@ where
 
 pub mod types {
     use frame_support::pallet_prelude::{Decode, Encode, TypeInfo};
-    use frame_support::parameter_types;
     use pallet_jobs_rpc_runtime_api::JobsApi;
     use serde::{Deserialize, Serialize};
     use sp_runtime::traits::Block;
     use sp_runtime::RuntimeDebug;
     use tangle_primitives::jobs::{JobResult, JobType, PhaseResult};
 
-    parameter_types! {
+    #[cfg(not(feature = "testnet"))]
+    frame_support::parameter_types! {
         #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
         #[derive(Serialize, Deserialize)]
         pub const MaxSubmissionLen: u32 = 60_000_000;
@@ -87,7 +87,19 @@ pub mod types {
         #[derive(Serialize, Deserialize)]
         pub const MaxRolesPerValidator: u32 = 100;
     }
+
+    #[cfg(feature = "testnet")]
+    pub use tangle_primitives::jobs::{
+        MaxActiveJobsPerValidator, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
+        MaxRolesPerValidator, MaxSignatureLen, MaxSubmissionLen
+    };
+
+    #[cfg(not(feature = "testnet"))]
     pub type AccountId = sp_core::ecdsa::Public;
+
+    #[cfg(feature = "testnet")]
+    pub use tangle_primitives::AccountId;
+
     pub type GadgetJobResult =
         JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>;
     pub type GadgetJobType = JobType<AccountId, MaxParticipants, MaxSubmissionLen>;

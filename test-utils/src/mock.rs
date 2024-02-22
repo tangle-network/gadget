@@ -143,6 +143,12 @@ impl RolesHandler<AccountId> for MockRolesHandler {
     fn record_job_by_validators(_: Vec<sp_application_crypto::ecdsa::Public>) -> DispatchResult {
         Ok(())
     }
+
+    fn get_max_active_service_for_restaker(
+        _: sp_application_crypto::ecdsa::Public,
+    ) -> std::option::Option<u32> {
+        Some(u32::MAX)
+    }
     fn report_offence(_offence_report: ReportRestakerOffence<AccountId>) -> DispatchResult {
         Ok(())
     }
