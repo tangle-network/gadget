@@ -140,6 +140,16 @@ impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen> for Job
 pub struct MockRolesHandler;
 
 impl RolesHandler<AccountId> for MockRolesHandler {
+    type Balance = Balance;
+
+    fn record_job_by_validators(_validators: Vec<AccountId>) -> DispatchResult {
+        Ok(())
+    }
+
+    fn get_max_active_service_for_restaker(_restaker: AccountId) -> Option<u32> {
+        Some(u32::MAX)
+    }
+
     fn report_offence(_offence_report: ReportRestakerOffence<AccountId>) -> DispatchResult {
         Ok(())
     }
@@ -426,6 +436,19 @@ pub fn advance_to_block(block_number: u64) {
         System::on_initialize(System::block_number());
         Jobs::on_initialize(System::block_number());
         Balances::on_initialize(System::block_number());
+    }
+}
+
+// Checks events against the latest. A contiguous set of events must be
+// provided. They must include the most recent RuntimeEvent, but do not have to include
+// every past RuntimeEvent.
+pub fn assert_events(mut expected: Vec<RuntimeEvent>) {
+    let mut actual: Vec<RuntimeEvent> = System::events().iter().map(|e| e.event.clone()).collect();
+
+    expected.reverse();
+    for evt in expected {
+        let next = actual.pop().expect("RuntimeEvent expected");
+        assert_eq!(next, evt, "Events don't match (actual,expected)");
     }
 }
 
