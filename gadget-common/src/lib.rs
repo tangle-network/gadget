@@ -259,7 +259,8 @@ macro_rules! generate_protocol {
             pallet_tx: Arc<dyn PalletSubmitter>,
             logger: DebugLogger,
             client: C,
-            network: N,
+            // This field should NEVER be used directly. Use Self instead as the network
+            network_inner: N,
             account_id: AccountId,
             key_store: ECDSAKeyStore<KBE>,
             jobs_client: Arc<Mutex<Option<JobsClient<B, BE, C>>>>,
@@ -289,7 +290,7 @@ macro_rules! generate_protocol {
             async fn new(
                 client: Self::Client,
                 pallet_tx: Arc<dyn PalletSubmitter>,
-                network: Self::Network,
+                network_inner: Self::Network,
                 logger: DebugLogger,
                 account_id: AccountId,
                 key_store: ECDSAKeyStore<Self::KeystoreBackend>,
@@ -299,7 +300,7 @@ macro_rules! generate_protocol {
                     pallet_tx,
                     logger,
                     client,
-                    network,
+                    network_inner,
                     account_id,
                     key_store,
                     prometheus_config,
@@ -330,7 +331,7 @@ macro_rules! generate_protocol {
             }
 
             fn network(&self) -> &Self::Network {
-                &self.network
+                &self.network_inner
             }
 
             async fn create_next_job(
