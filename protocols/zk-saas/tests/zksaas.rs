@@ -208,6 +208,8 @@ mod tests {
             let network = zk_saas_protocol::create_zk_network(network_cfg)
                 .await
                 .expect("Should create network");
+
+            let prometheus_config = node_info.prometheus_config.clone();
             log::info!(target: "gadget", "Started node {}", node_info.node_index);
             // ZkSaaS only requires 1 client and 1 network, no need to use the NodeInput's vectors
             if let Err(err) = zk_saas_protocol::run::<_, MockBackend, _, _, _>(
@@ -217,7 +219,7 @@ mod tests {
                 logger,
                 node_info.account_id,
                 key_store,
-                Default::default(),
+                prometheus_config,
             )
             .await
             {

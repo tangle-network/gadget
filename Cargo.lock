@@ -3542,6 +3542,7 @@ dependencies = [
  "serde",
  "sp-api",
  "sp-core",
+ "sp-io",
  "sp-runtime",
  "sqlx",
  "substrate-prometheus-endpoint",

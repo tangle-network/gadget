@@ -75,7 +75,7 @@ where
         Ok(JobBuilder::new().protocol(async move { Ok(()) }).build())
     }
 
-    fn network(&self) -> &Self::Network {
+    fn internal_network(&self) -> &Self::Network {
         &self.network
     }
 
@@ -113,6 +113,10 @@ where
 
     fn logger(&self) -> DebugLogger {
         self.logger.clone()
+    }
+
+    fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend> {
+        &self.key_store
     }
 
     fn client(&self) -> Self::Client {

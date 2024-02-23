@@ -30,6 +30,13 @@ impl<P: Pair> GenericKeyStore<InMemoryBackend, P> {
     }
 }
 
+impl<P: Pair> GenericKeyStore<SqliteBackend, P> {
+    pub async fn sqlite_in_memory(pair: P) -> Result<Self, Box<dyn std::error::Error>> {
+        let backend = SqliteBackend::in_memory().await?;
+        Ok(GenericKeyStore { backend, pair })
+    }
+}
+
 impl<P: Pair, Backend: KeystoreBackend> GenericKeyStore<Backend, P> {
     pub fn new(backend: Backend, pair: P) -> Self {
         GenericKeyStore { backend, pair }
