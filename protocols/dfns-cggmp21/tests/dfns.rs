@@ -203,6 +203,7 @@ mod tests {
             let networks = node_input.mock_networks;
             let account_id = node_input.account_id;
             let logger = node_input.logger.clone();
+            let prometheus_config = node_input.prometheus_config.clone();
 
             let (pallet_tx, key_store) = (node_input.pallet_tx, node_input.keystore);
             logger.info("Starting gadget");
@@ -213,7 +214,7 @@ mod tests {
                 logger,
                 account_id,
                 key_store,
-                Default::default(),
+                prometheus_config,
             )
             .await
             {

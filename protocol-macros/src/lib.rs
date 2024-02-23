@@ -162,6 +162,7 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
             pub fn setup(self) -> #new_struct <C, B, BE, #generics_token_stream_unique> {
                 let pallet_tx = <Self as gadget_common::config::NetworkAndProtocolSetup>::pallet_tx(&self);
                 let logger = <Self as gadget_common::config::NetworkAndProtocolSetup>::logger(&self);
+                let prometheus_config = self.prometheus_config.clone();
 
                 #new_struct {
                     network: None,
@@ -170,7 +171,7 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
                     params: self,
                     pallet_tx,
                     logger,
-                    prometheus_config: Default::default(),
+                    prometheus_config,
                     _pd: std::marker::PhantomData,
                 }
             }

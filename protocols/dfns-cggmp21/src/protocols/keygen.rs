@@ -117,7 +117,7 @@ where
     let client = config.get_jobs_client();
     let id = config.account_id;
     let logger = config.logger.clone();
-    let network = config.network.clone();
+    let network = config.clone();
 
     let (i, t, n, mapping) = (
         additional_params.i,
