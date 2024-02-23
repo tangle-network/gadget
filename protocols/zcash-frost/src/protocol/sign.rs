@@ -12,7 +12,7 @@ use gadget_common::config::{Network, ProvideRuntimeApi};
 
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
-use gadget_common::gadget::{GadgetProtocol, JobInitMetadata};
+use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 
 use gadget_common::Block;
