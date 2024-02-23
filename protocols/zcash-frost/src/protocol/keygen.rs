@@ -138,7 +138,7 @@ where
     let pallet_tx = config.pallet_tx.clone();
     let id = config.account_id;
     let logger = config.logger.clone();
-    let network = config.network.clone();
+    let network = config.clone();
 
     let (i, t, n, mapping, role_type) = (
         additional_params.i,

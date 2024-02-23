@@ -157,7 +157,7 @@ where
     let protocol_output_clone = protocol_output.clone();
     let pallet_tx = config.pallet_tx.clone();
     let id = config.account_id;
-    let network = config.network.clone();
+    let network = config.clone();
 
     let (i, signers, t, keyshare, role_type, input_data_to_sign, mapping) = (
         additional_params.i,
