@@ -6,6 +6,7 @@ use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{JobInitMetadata, WorkManagerConfig};
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
+use crate::prometheus::PrometheusConfig;
 use crate::protocol::AsyncProtocol;
 use crate::Error;
 use async_trait::async_trait;
@@ -41,6 +42,7 @@ where
         logger: DebugLogger,
         account_id: AccountId,
         key_store: ECDSAKeyStore<Self::KeystoreBackend>,
+        prometheus_config: PrometheusConfig,
     ) -> Result<Self, Error>;
     async fn generate_protocol_from(
         &self,
@@ -221,13 +223,16 @@ where
     <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApiForGadget<T::Block>,
 {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        T::network(self).next_message().await
+        let message = T::network(self).next_message().await?;
+        crate::prometheus::BYTES_RECEIVED.inc_by(message.payload.len() as u64);
+        Some(message)
     }
 
     async fn send_message(
         &self,
         message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
+        crate::prometheus::BYTES_SENT.inc_by(message.payload.len() as u64);
         T::network(self).send_message(message).await
     }
 }
@@ -253,5 +258,6 @@ pub struct NodeInput<
     pub keystore: ECDSAKeyStore<KBE>,
     pub node_index: usize,
     pub additional_params: D,
+    pub prometheus_config: PrometheusConfig,
     pub _pd: PhantomData<(B, BE)>,
 }

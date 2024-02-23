@@ -46,6 +46,7 @@ use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
+use gadget_common::prelude::PrometheusConfig;
 use gadget_common::Error;
 use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
 use sp_core::ecdsa;
@@ -549,6 +550,9 @@ pub async fn new_test_ext<
         // Assume all clients/networks share the same keystore for sharing results
         // between phases
         let keystore = ECDSAKeyStore::in_memory(identity_pair);
+
+        let prometheus_config = PrometheusConfig::Disabled;
+
         let input = NodeInput {
             mock_clients,
             mock_networks: networks,
@@ -558,6 +562,7 @@ pub async fn new_test_ext<
             keystore,
             node_index,
             additional_params: additional_params.clone(),
+            prometheus_config,
             _pd: Default::default(),
         };
 
