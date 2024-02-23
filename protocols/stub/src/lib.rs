@@ -75,7 +75,7 @@ where
         Ok(JobBuilder::new().protocol(async move { Ok(()) }).build())
     }
 
-    fn network(&self) -> &Self::Network {
+    fn internal_network(&self) -> &Self::Network {
         &self.network
     }
 

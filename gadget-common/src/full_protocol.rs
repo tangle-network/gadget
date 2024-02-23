@@ -57,7 +57,13 @@ where
         protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AsyncProtocolParameters,
     ) -> Result<BuiltExecutableJobWrapper, JobError>;
-    fn network(&self) -> &Self::Network;
+
+    /// This function returns the internally-used network for the protocol.
+    ///
+    /// Important: This function should never be used directly, it is for internal use only.
+    /// Instead, `Self` implements `Network` and should instead be used for networking, as it
+    /// grants metrics and message signing and verification to messages
+    fn internal_network(&self) -> &Self::Network;
     /// Given an input of metadata for a job, return a set of parameters that can be used to
     /// construct a protocol.
     ///
@@ -228,7 +234,7 @@ where
     <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApiForGadget<T::Block>,
 {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        let mut message = T::network(self).next_message().await?;
+        let mut message = T::internal_network(self).next_message().await?;
         if let Some(peer_public_key) = message.from_network_id {
             if let Ok(payload_and_signature) =
                 <PayloadAndSignature as Decode>::decode(&mut message.payload.as_slice())
@@ -274,7 +280,7 @@ where
         let serialized_message = Encode::encode(&payload_and_signature);
         message.payload = serialized_message;
         crate::prometheus::BYTES_SENT.inc_by(message.payload.len() as u64);
-        T::network(self).send_message(message).await
+        T::internal_network(self).send_message(message).await
     }
 }
 

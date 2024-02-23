@@ -330,7 +330,7 @@ macro_rules! generate_protocol {
                 .await
             }
 
-            fn network(&self) -> &Self::Network {
+            fn internal_network(&self) -> &Self::Network {
                 &self.network_inner
             }
 
