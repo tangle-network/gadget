@@ -51,6 +51,5 @@ parity-scale-codec = { workspace = true }
 serde = { version = "1.0.193", features = ["derive"] }
 rand = { workspace = true }
 hex = { workspace = true }
-
-[dev-dependencies]
+parking_lot = { workspace = true }
 test-utils = { workspace = true }

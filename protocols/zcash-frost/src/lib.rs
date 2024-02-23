@@ -1,140 +1,101 @@
-use gadget_common::client::*;
-use gadget_common::config::*;
-use gadget_common::keystore::ECDSAKeyStore;
-use gadget_common::keystore::KeystoreBackend;
+use crate::protocol::keygen::ZcashFrostKeygenExtraParams;
+use crate::protocol::sign::ZcashFrostSigningExtraParams;
+use async_trait::async_trait;
+use gadget_common::full_protocol::SharedOptional;
+use gadget_common::gadget::JobInitMetadata;
+use gadget_common::prelude::*;
+use gadget_common::{
+    generate_protocol, generate_setup_and_run_command, BuiltExecutableJobWrapper, Error, JobError,
+    ProtocolWorkManager, WorkManagerInterface,
+};
 use protocol_macros::protocol;
-use protocols::keygen::ZcashFrostKeygenProtocol;
-use protocols::sign::ZcashFrostSigningProtocol;
 use std::sync::Arc;
 
 pub mod constants;
-pub mod network;
-pub mod protocols;
+pub mod protocol;
 pub mod rounds;
 
-/// A Helper macro to declare a protocol, used
-/// to avoid code duplication.
-macro_rules! decl_porto {
-    ($name:ident + $proto:ident = $im:path) => {
-
-        #[protocol]
-        pub struct $name<
-            N: Network,
-            B: Block,
-            BE: Backend<B>,
-            KBE: KeystoreBackend,
-            C: ClientWithApi<B, BE>,
-        > where
-            <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen>,
-        {
-            pub account_id: AccountId,
-            pub network: N,
-            pub keystore_backend: ECDSAKeyStore<KBE>,
-            pub client: C,
-            pub logger: DebugLogger,
-            pub pallet_tx: Arc<dyn PalletSubmitter>,
-            pub _pd: std::marker::PhantomData<(B, BE)>,
-        }
-
-        #[async_trait::async_trait]
-        impl<N: Network, B: Block, BE: Backend<B>, KBE: KeystoreBackend, C: ClientWithApi<B, BE>>
-            NetworkAndProtocolSetup for $name<N, B, BE, KBE, C>
-        where
-            <C as ProvideRuntimeApi<B>>::Api: JobsApi<B, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen>,
-        {
-            type Network = N;
-            type Protocol = $proto<B, BE, KBE, C, N>;
-            type Client = C;
-            type Block = B;
-            type Backend = BE;
-
-            async fn build_network_and_protocol(
-                &self,
-                jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
-            ) -> Result<(Self::Network, Self::Protocol), gadget_common::Error> {
-                use $im as m;
-                let protocol = m::create_protocol(
-                    self.account_id,
-                    jobs_client,
-                    self.network.clone(),
-                    self.logger.clone(),
-                    self.keystore_backend.clone(),
-                )
-                .await;
-
-                Ok((self.network.clone(), protocol))
-            }
-
-            fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
-                self.pallet_tx.clone()
-            }
-
-            fn logger(&self) -> DebugLogger {
-                self.logger.clone()
-            }
-
-            fn client(&self) -> Self::Client {
-                self.client.clone()
-            }
-        }
-
-    };
-    // recursive case with optional trailing comma
-    ($($name:ident + $proto:ident = $im:path),+ $(,)?) => {
-        $(decl_porto!($name + $proto = $im);)+
-    };
-}
-
-// A macro to declare all the protocols
-decl_porto!(
-    ZcashFrostKeygenConfig + ZcashFrostKeygenProtocol = protocols::keygen,
-    ZcashFrostSigningConfig + ZcashFrostSigningProtocol = protocols::sign,
+generate_protocol!(
+    "Zcash-FROST-Keygen-Protocol",
+    ZcashFrostKeygenProtocol,
+    ZcashFrostKeygenExtraParams,
+    crate::protocol::keygen::generate_protocol_from,
+    crate::protocol::keygen::create_next_job,
+    GadgetJobType::DKGTSSPhaseOne(_),
+    RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd25519)
+        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd448)
+        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP256)
+        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP384)
+        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1)
+        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255)
+);
+generate_protocol!(
+    "Zcash-FROST-Signing-Protocol",
+    ZcashFrostSigningProtocol,
+    ZcashFrostSigningExtraParams,
+    crate::protocol::sign::generate_protocol_from,
+    crate::protocol::sign::create_next_job,
+    GadgetJobType::DKGTSSPhaseTwo(_),
+    RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd25519)
+        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd448)
+        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP256)
+        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP384)
+        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1)
+        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255)
 );
 
-#[allow(clippy::too_many_arguments)]
-pub async fn run<B, BE, KBE, C, N, Tx>(
-    account_id: AccountId,
-    logger: DebugLogger,
-    keystore: ECDSAKeyStore<KBE>,
-    pallet_tx: Tx,
-    (client_keygen, client_signing): (C, C),
-    (network_keygen, network_signing): (N, N),
-) -> Result<(), gadget_common::Error>
-where
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    KBE: KeystoreBackend,
-    N: Network,
-    Tx: PalletSubmitter,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
-    let pallet_tx = Arc::new(pallet_tx) as Arc<dyn PalletSubmitter>;
-    let keygen_config = ZcashFrostKeygenConfig {
-        account_id,
-        network: network_keygen,
-        keystore_backend: keystore.clone(),
-        client: client_keygen,
-        logger: logger.clone(),
-        pallet_tx: pallet_tx.clone(),
-        _pd: std::marker::PhantomData,
-    };
+generate_setup_and_run_command!(ZcashFrostKeygenProtocol, ZcashFrostSigningProtocol);
 
-    let sign_config = ZcashFrostSigningConfig {
-        account_id,
-        network: network_signing,
-        keystore_backend: keystore.clone(),
-        client: client_signing,
-        logger: logger.clone(),
-        pallet_tx: pallet_tx.clone(),
-        _pd: std::marker::PhantomData,
-    };
+mod secp256k1 {
+    test_utils::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        2,
+        ThresholdSignatureRoleType::ZcashFrostSecp256k1
+    );
+}
 
-    let keygen_future = keygen_config.execute();
-    let sign_future = sign_config.execute();
+mod ristretto255 {
+    test_utils::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        2,
+        ThresholdSignatureRoleType::ZcashFrostRistretto255
+    );
+}
 
-    tokio::select! {
-        res0 = keygen_future => res0,
-        res1 = sign_future => res1,
-    }
+mod p256 {
+    test_utils::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        2,
+        ThresholdSignatureRoleType::ZcashFrostP256
+    );
+}
+
+mod p384 {
+    test_utils::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        2,
+        ThresholdSignatureRoleType::ZcashFrostP384
+    );
+}
+
+mod ed25519 {
+    test_utils::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        2,
+        ThresholdSignatureRoleType::ZcashFrostEd25519
+    );
+}
+
+mod ed448 {
+    test_utils::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        2,
+        ThresholdSignatureRoleType::ZcashFrostEd448
+    );
 }
