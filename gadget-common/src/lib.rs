@@ -2,6 +2,7 @@ use crate::client::{AccountId, ClientWithApi, JobsApiForGadget};
 use crate::config::{NetworkAndProtocolSetup, ProtocolConfig};
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{GadgetProtocol, Module};
+use crate::prelude::PrometheusConfig;
 use gadget::network::Network;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
@@ -128,11 +129,10 @@ where
         protocol_config
             .logger()
             .warn(format!("Error setting up prometheus: {err:?}"));
-    } else {
-        protocol_config.logger().info(format!(
-            "Prometheus setup successfully on {}",
-            prometheus_config.prometheus_addr
-        ));
+    } else if let PrometheusConfig::Enabled { bind_addr } = prometheus_config {
+        protocol_config
+            .logger()
+            .info(format!("Prometheus enabled on {bind_addr}"));
     }
 
     // Run both the network and the gadget together

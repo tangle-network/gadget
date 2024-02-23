@@ -33,8 +33,6 @@ use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_core::{ByteArray, Pair, H256};
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::str::FromStr;
 use std::time::Duration;
 
 pub type Balance = u128;
@@ -553,9 +551,7 @@ pub async fn new_test_ext<
         // between phases
         let keystore = ECDSAKeyStore::in_memory(identity_pair);
 
-        let prometheus_config = PrometheusConfig {
-            prometheus_addr: SocketAddr::from_str(&format!("0.0.0.0:{}", open_tcp_port())).unwrap(),
-        };
+        let prometheus_config = PrometheusConfig::Disabled;
 
         let input = NodeInput {
             mock_clients,
@@ -575,12 +571,6 @@ pub async fn new_test_ext<
     }
 
     ext
-}
-
-fn open_tcp_port() -> u16 {
-    use std::net::TcpListener;
-    let listener = TcpListener::bind("0.0.0.0:0").unwrap();
-    listener.local_addr().unwrap().port()
 }
 
 pub mod mock_wrapper_client {
