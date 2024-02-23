@@ -116,7 +116,10 @@ where
         let now_header = *notification.header.number();
         let now: u64 = now_header.saturated_into();
         *self.clock.write() = Some(now);
-        log::info!(target: "gadget", "[{}] Processing finality notification at block number {now}", self.protocol.name());
+        self.protocol.logger().info(format!(
+            "[{}] Processing finality notification at block number {now}",
+            self.protocol.name()
+        ));
 
         let jobs = self
             .protocol
@@ -124,23 +127,30 @@ where
             .query_jobs_by_validator(notification.hash, *self.protocol.account_id())
             .await?;
 
-        log::trace!(target: "gadget", "[{}] Found {} job(s) for initialization", self.protocol.name(), jobs.len());
+        self.protocol.logger().trace(format!(
+            "[{}] Found {} potential job(s) for initialization",
+            self.protocol.name(),
+            jobs.len()
+        ));
         let mut relevant_jobs = Vec::new();
 
         for job in jobs {
             // Job is expired.
             if job.expiry < now_header {
-                log::trace!(target: "gadget", "[{}] The job requested for initialization is expired, skipping submission", self.protocol.name());
+                self.protocol.logger().trace(format!(
+                    "[{}] The job requested for initialization is expired, skipping submission",
+                    self.protocol.name()
+                ));
                 continue;
             }
             // Job is not for this role
             if !self.protocol.role_filter(job.job_type.get_role_type()) {
-                log::trace!(target: "gadget", "[{}] The job {} requested for initialization is not for this role {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type.get_role_type());
+                self.protocol.logger().trace(format!("[{}] The job {} requested for initialization is not for this role {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type.get_role_type()));
                 continue;
             }
             // Job is not for this phase
             if !self.protocol.phase_filter(job.job_type.clone()) {
-                log::trace!(target: "gadget", "[{}] The job {} requested for initialization is not for this phase {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type);
+                self.protocol.logger().trace(format!("[{}] The job {} requested for initialization is not for this phase {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type));
                 continue;
             }
 
@@ -191,7 +201,12 @@ where
         for relevant_job in relevant_jobs {
             let task_id = relevant_job.task_id;
             let retry_id = relevant_job.retry_id;
-            log::trace!(target: "gadget", "[{}] Creating job for task {task_id} with retry id {retry_id}", self.protocol.name(), task_id = hex::encode(task_id), retry_id = retry_id);
+            self.protocol.logger().trace(format!(
+                "[{}] Creating job for task {task_id} with retry id {retry_id}",
+                self.protocol.name(),
+                task_id = hex::encode(task_id),
+                retry_id = retry_id
+            ));
             match self
                 .protocol
                 .create_next_job(relevant_job, &self.job_manager)
@@ -229,7 +244,7 @@ where
                 }
 
                 Err(Error::ParticipantNotSelected { id, reason }) => {
-                    log::debug!(target: "gadget", "[{}] Participant {id} not selected for job {task_id} with retry id {retry_id} because {reason}", self.protocol.name(), id = id, task_id = hex::encode(task_id), retry_id = retry_id, reason = reason);
+                    self.protocol.logger().debug(format!("[{}] Participant {id} not selected for job {task_id} with retry id {retry_id} because {reason}", self.protocol.name(), id = id, task_id = hex::encode(task_id), retry_id = retry_id, reason = reason));
                 }
 
                 Err(err) => {

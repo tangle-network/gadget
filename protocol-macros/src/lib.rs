@@ -165,9 +165,9 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
                 let prometheus_config = self.prometheus_config.clone();
 
                 #new_struct {
-                    network: None, // Will be setup later in the FullProtocolConfig
-                    protocol: None, // Will be setup later in the FullProtocolConfig
-                    client: None, // Will be setup later in the FullProtocolConfig
+                    network: None,
+                    protocol: None,
+                    client: None,
                     params: self,
                     pallet_tx,
                     logger,

@@ -115,6 +115,10 @@ where
         self.logger.clone()
     }
 
+    fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend> {
+        &self.key_store
+    }
+
     fn client(&self) -> Self::Client {
         self.client.clone()
     }

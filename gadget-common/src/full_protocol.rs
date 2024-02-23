@@ -10,11 +10,15 @@ use crate::prometheus::PrometheusConfig;
 use crate::protocol::AsyncProtocol;
 use crate::Error;
 use async_trait::async_trait;
+use frame_support::__private::sp_io::crypto::ecdsa_verify_prehashed;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
 use sc_client_api::{Backend, BlockImportNotification};
 use sp_api::ProvideRuntimeApi;
+use sp_core::ecdsa::Signature;
+use sp_core::keccak_256;
 use sp_runtime::traits::Block;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -96,6 +100,7 @@ where
             .clone()
             .expect("Jobs client not initialized")
     }
+    fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend>;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         Default::default()
     }
@@ -223,15 +228,51 @@ where
     <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApiForGadget<T::Block>,
 {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        let message = T::network(self).next_message().await?;
-        crate::prometheus::BYTES_RECEIVED.inc_by(message.payload.len() as u64);
-        Some(message)
+        let mut message = T::network(self).next_message().await?;
+        if let Some(peer_public_key) = message.from_network_id {
+            if let Ok(payload_and_signature) =
+                <PayloadAndSignature as Decode>::decode(&mut message.payload.as_slice())
+            {
+                let hashed_message = keccak_256(&payload_and_signature.payload);
+                if ecdsa_verify_prehashed(
+                    &payload_and_signature.signature,
+                    &hashed_message,
+                    &peer_public_key,
+                ) {
+                    message.payload = payload_and_signature.payload;
+                    crate::prometheus::BYTES_RECEIVED.inc_by(message.payload.len() as u64);
+                    return Some(message);
+                } else {
+                    self.logger()
+                        .warn("Received a message with an invalid signature.")
+                }
+            } else {
+                self.logger()
+                    .warn("Received a message without a valid payload and signature.")
+            }
+        } else {
+            self.logger()
+                .warn("Received a message without a valid sender public key.")
+        }
+
+        // This message was invalid. Thus, poll the next message
+        self.next_message().await
     }
 
     async fn send_message(
         &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
+        mut message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
+        // Sign the hash of the message
+        let hashed_message = keccak_256(&message.payload);
+        let signature = self.key_store().pair().sign_prehashed(&hashed_message);
+        let payload_and_signature = PayloadAndSignature {
+            payload: message.payload,
+            signature,
+        };
+
+        let serialized_message = Encode::encode(&payload_and_signature);
+        message.payload = serialized_message;
         crate::prometheus::BYTES_SENT.inc_by(message.payload.len() as u64);
         T::network(self).send_message(message).await
     }
@@ -260,4 +301,10 @@ pub struct NodeInput<
     pub additional_params: D,
     pub prometheus_config: PrometheusConfig,
     pub _pd: PhantomData<(B, BE)>,
+}
+
+#[derive(Encode, Decode)]
+pub struct PayloadAndSignature {
+    payload: Vec<u8>,
+    signature: Signature,
 }

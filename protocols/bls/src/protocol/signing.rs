@@ -113,7 +113,7 @@ where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
     let threshold = additional_params.t;
-    let network = config.network.clone();
+    let network = config.clone();
     let result = Arc::new(tokio::sync::Mutex::new(None));
     let result_clone = result.clone();
     let client = config.get_jobs_client();
