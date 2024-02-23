@@ -38,7 +38,9 @@ anyhow = { workspace = true }
 futures = { workspace = true }
 round-based = { workspace = true }
 sp-api = { workspace = true }
-sqlx = { version = "0.7.3", features = ["runtime-tokio-rustls", "sqlite"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
+substrate-prometheus-endpoint = { workspace = true }
+lazy_static = { workspace = true }
 
 frame-support = { workspace = true }
 sc-network = { workspace = true }

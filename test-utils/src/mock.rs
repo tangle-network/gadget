@@ -46,6 +46,7 @@ use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
+use gadget_common::prelude::PrometheusConfig;
 use gadget_common::Error;
 use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
 use sp_core::ecdsa;
@@ -141,6 +142,14 @@ pub struct MockRolesHandler;
 impl RolesHandler<AccountId> for MockRolesHandler {
     type Balance = Balance;
 
+    fn record_job_by_validators(_validators: Vec<AccountId>) -> DispatchResult {
+        Ok(())
+    }
+
+    fn get_max_active_service_for_restaker(_restaker: AccountId) -> Option<u32> {
+        Some(u32::MAX)
+    }
+
     fn report_offence(_offence_report: ReportRestakerOffence<AccountId>) -> DispatchResult {
         Ok(())
     }
@@ -159,10 +168,6 @@ impl RolesHandler<AccountId> for MockRolesHandler {
                 None
             }
         })
-    }
-
-    fn record_job_by_validators(_validators: Vec<AccountId>) -> DispatchResult {
-        Ok(())
     }
 }
 
@@ -434,6 +439,19 @@ pub fn advance_to_block(block_number: u64) {
     }
 }
 
+// Checks events against the latest. A contiguous set of events must be
+// provided. They must include the most recent RuntimeEvent, but do not have to include
+// every past RuntimeEvent.
+pub fn assert_events(mut expected: Vec<RuntimeEvent>) {
+    let mut actual: Vec<RuntimeEvent> = System::events().iter().map(|e| e.event.clone()).collect();
+
+    expected.reverse();
+    for evt in expected {
+        let next = actual.pop().expect("RuntimeEvent expected");
+        assert_eq!(next, evt, "Events don't match (actual,expected)");
+    }
+}
+
 /// This function basically just builds a genesis storage key/value store according to
 /// our desired mockup.
 /// N: number of nodes
@@ -555,6 +573,9 @@ pub async fn new_test_ext<
         // Assume all clients/networks share the same keystore for sharing results
         // between phases
         let keystore = ECDSAKeyStore::in_memory(identity_pair);
+
+        let prometheus_config = PrometheusConfig::Disabled;
+
         let input = NodeInput {
             mock_clients,
             mock_networks: networks,
@@ -564,6 +585,7 @@ pub async fn new_test_ext<
             keystore,
             node_index,
             additional_params: additional_params.clone(),
+            prometheus_config,
             _pd: Default::default(),
         };
 
