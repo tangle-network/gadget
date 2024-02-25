@@ -76,6 +76,10 @@ where
         &self.network
     }
 
+    fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend> {
+        &self.key_store
+    }
+
     async fn create_next_job(
         &self,
         _job: JobInitMetadata<Self::Block>,

@@ -26,7 +26,8 @@ mod tests {
     };
     use tangle_primitives::roles::{RoleType, ZeroKnowledgeRoleType};
     use tangle_primitives::verifier::from_field_elements;
-    use test_utils::mock::{id_to_public, Jobs, MockBackend, RuntimeOrigin};
+    use tangle_primitives::AccountId;
+    use test_utils::mock::{id_to_public, id_to_sr25519_public, Jobs, MockBackend, RuntimeOrigin};
     use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use zk_saas_protocol::network::ZkProtocolNetworkConfig;
 
@@ -42,7 +43,8 @@ mod tests {
     async fn wait_for_job<const N: usize>(ext: &MultiThreadedTestExternalities) {
         let job_id = ext.execute_with_async(|| {
             let phase_one_id = Jobs::next_job_id();
-            let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
+            let role_identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
+            let identities = (0..N).map(|i| id_to_sr25519_public(i as u8)).map(AccountId::from).collect::<Vec<_>>();
             let wasm_file = std::fs::read("../../fixtures/sha256/sha256_js/sha256.wasm").unwrap();
             let r1cs_file = std::fs::read("../../fixtures/sha256/sha256.r1cs").unwrap();
             let cfg = CircomConfig::<Bn254>::new(
@@ -89,11 +91,11 @@ mod tests {
                 }),
             };
 
-            assert_ok!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), phase1_submission));
-            let phase1_result = JobResult::ZkSaaSPhaseOne(ZkSaaSCircuitResult { job_id: phase_one_id, participants: identities.clone().try_into().unwrap() });
+            assert_ok!(Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), phase1_submission));
+            let phase1_result = JobResult::ZkSaaSPhaseOne(ZkSaaSCircuitResult { job_id: phase_one_id, participants: role_identities.clone().try_into().unwrap() });
             assert_ok!(
                 Jobs::submit_job_result(
-                RuntimeOrigin::signed(identities[0]),
+                RuntimeOrigin::signed(identities[0].clone()),
                 RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16),
                 phase_one_id,
                 phase1_result
@@ -140,7 +142,7 @@ mod tests {
                 }),
             };
 
-            assert_ok!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), phase2_submission));
+            assert_ok!(Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), phase2_submission));
 
             log::info!(target: "gadget", "******* Submitted ZkSaaS Job {phase_one_id} & {phase_two_id}");
             phase_two_id
@@ -191,11 +193,12 @@ mod tests {
             let key_store = node_info.keystore;
 
             let network_cfg = ZkProtocolNetworkConfig {
-                account_id: node_info.account_id,
+                account_id: node_info.account_id.clone(),
                 king_bind_addr,
                 client_only_king_addr,
                 client_only_king_public_identity_der,
                 public_identity_der,
+                key_store: key_store.clone(),
                 private_identity_der,
             };
 

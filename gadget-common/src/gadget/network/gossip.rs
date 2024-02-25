@@ -17,7 +17,6 @@
 //!  - get a notification stream when you get a message.
 //!  - Have access to the message queue, which is a FIFO queue of messages.
 
-use crate::client::AccountId;
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::network::Network;
@@ -36,7 +35,7 @@ use sc_network::{
 use sc_network_common::sync::{Metrics, SyncEvent};
 use sc_network_sync::SyncingService;
 use serde::{Deserialize, Serialize};
-use sp_core::Pair;
+use sp_core::{ecdsa, Pair};
 use sp_runtime::traits::Block;
 use std::{
     collections::{HashMap, HashSet},
@@ -76,7 +75,7 @@ pub enum GossipNetworkMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HandshakeMessage {
-    pub account_id: AccountId,
+    pub account_id: ecdsa::Public,
 }
 
 impl<KBE: KeystoreBackend> NetworkGossipEngineBuilder<KBE> {
@@ -188,7 +187,7 @@ pub struct GossipHandlerController {
         Arc<tokio::sync::Mutex<Option<UnboundedReceiver<GossipNetworkMessage>>>>,
     /// Whether the gossip mechanism is enabled or not.
     gossip_enabled: Arc<AtomicBool>,
-    authority_id_to_peer_id: Arc<RwLock<HashMap<AccountId, PeerId>>>,
+    authority_id_to_peer_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
     logger: DebugLogger,
 }
 
@@ -296,7 +295,7 @@ pub struct GossipHandler<B: Block + 'static, KBE: KeystoreBackend> {
     /// A mapping from authority id to peer id.
     ///
     /// This is used to send messages to specific peer by knowing the authority id.
-    authority_id_to_peer_id: Arc<RwLock<HashMap<AccountId, PeerId>>>,
+    authority_id_to_peer_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
     /// Whether the gossip mechanism is enabled or not.
     gossip_enabled: Arc<AtomicBool>,
     logger: DebugLogger,
@@ -339,7 +338,7 @@ struct Peer {
     /// The Known AuthorityId of that Peer.
     ///
     /// Could be None if that peer did not handshake with us yet.
-    authority_id: Option<AccountId>,
+    authority_id: Option<ecdsa::Public>,
 }
 
 impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {

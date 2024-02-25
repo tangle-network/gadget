@@ -4,12 +4,14 @@ use futures_util::sink::SinkExt;
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::StreamExt;
 use gadget_common::client::AccountId;
+use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_core::job_manager::WorkManagerInterface;
 use mpc_net::multi::WrappedStream;
 use mpc_net::prod::{CertToDer, RustlsCertificate};
 use mpc_net::MpcNetError;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::net::SocketAddr;
@@ -24,7 +26,7 @@ use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{rustls, TlsAcceptor, TlsStream};
 
 /// Type should correspond to the on-chain identifier of the registrant
-pub type RegistantId = AccountId;
+pub type RegistantId = ecdsa::Public;
 
 #[derive(Clone)]
 pub enum ZkNetworkService {
@@ -529,7 +531,7 @@ impl Network for ZkNetworkService {
         }
     }
 
-    fn greatest_authority_id(&self) -> Option<AccountId> {
+    fn greatest_authority_id(&self) -> Option<ecdsa::Public> {
         self.king_id()
     }
 
@@ -574,11 +576,12 @@ impl Network for ZkNetworkService {
 }
 
 #[derive(Clone)]
-pub struct ZkProtocolNetworkConfig {
+pub struct ZkProtocolNetworkConfig<KBE: KeystoreBackend> {
     pub king_bind_addr: Option<SocketAddr>,
     pub client_only_king_addr: Option<SocketAddr>,
     pub public_identity_der: Vec<u8>,
     pub private_identity_der: Vec<u8>,
     pub client_only_king_public_identity_der: Option<Vec<u8>>,
     pub account_id: AccountId,
+    pub key_store: ECDSAKeyStore<KBE>,
 }

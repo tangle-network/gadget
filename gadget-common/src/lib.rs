@@ -1,4 +1,4 @@
-use crate::client::{AccountId, ClientWithApi, JobsApiForGadget};
+use crate::client::{ClientWithApi, JobsApiForGadget};
 use crate::config::{NetworkAndProtocolSetup, ProtocolConfig};
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{GadgetProtocol, Module};
@@ -14,6 +14,7 @@ pub use sc_client_api::BlockImportNotification;
 pub use sc_client_api::{Backend, FinalityNotification};
 use sp_api::ProvideRuntimeApi;
 pub use sp_core;
+use sp_core::ecdsa;
 pub use sp_runtime::traits::{Block, Header};
 use sp_runtime::SaturatedConversion;
 use std::fmt::{Debug, Display, Formatter};
@@ -70,9 +71,9 @@ pub enum Error {
     NetworkError { err: String },
     KeystoreError { err: String },
     MissingNetworkId,
-    PeerNotFound { id: AccountId },
+    PeerNotFound { id: ecdsa::Public },
     JoinError { err: JoinError },
-    ParticipantNotSelected { id: AccountId, reason: String },
+    ParticipantNotSelected { id: ecdsa::Public, reason: String },
 }
 
 impl Display for Error {
@@ -313,6 +314,10 @@ macro_rules! generate_protocol {
 
             fn network(&self) -> &Self::Network {
                 &self.network
+            }
+
+            fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend> {
+                &self.key_store
             }
 
             async fn create_next_job(

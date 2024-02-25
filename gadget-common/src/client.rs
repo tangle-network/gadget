@@ -9,6 +9,7 @@ use sc_client_api::{
 };
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_api::{BlockT as Block, Decode, Encode};
+use sp_core::{ecdsa, ByteArray};
 use std::sync::Arc;
 use subxt::tx::TxPayload;
 use subxt::OnlineClient;
@@ -53,10 +54,13 @@ where
 }
 
 pub mod types {
+    #[cfg(not(feature = "testnet"))]
     use frame_support::pallet_prelude::{Decode, Encode, TypeInfo};
     use pallet_jobs_rpc_runtime_api::JobsApi;
+    #[cfg(not(feature = "testnet"))]
     use serde::{Deserialize, Serialize};
     use sp_runtime::traits::Block;
+    #[cfg(not(feature = "testnet"))]
     use sp_runtime::RuntimeDebug;
     use tangle_primitives::jobs::{JobResult, JobType, PhaseResult};
 
@@ -87,17 +91,10 @@ pub mod types {
         #[derive(Serialize, Deserialize)]
         pub const MaxRolesPerValidator: u32 = 100;
     }
-
     #[cfg(feature = "testnet")]
     pub use tangle_primitives::jobs::{
-        MaxActiveJobsPerValidator, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
-        MaxRolesPerValidator, MaxSignatureLen, MaxSubmissionLen
+        MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen,
     };
-
-    #[cfg(not(feature = "testnet"))]
-    pub type AccountId = sp_core::ecdsa::Public;
-
-    #[cfg(feature = "testnet")]
     pub use tangle_primitives::AccountId;
 
     pub type GadgetJobResult =
@@ -223,6 +220,21 @@ where
             err: format!("Failed to query jobs by validator: {err:?}"),
         })
         .map(|r| r.unwrap_or_default())
+    }
+
+    pub async fn query_restaker_role_key(
+        &self,
+        at: <B as Block>::Hash,
+        address: AccountId,
+    ) -> Result<Option<ecdsa::Public>, crate::Error> {
+        exec_client_function(&self.client, move |client| {
+            client.runtime_api().query_restaker_role_key(at, address)
+        })
+        .await
+        .map_err(|err| crate::Error::ClientError {
+            err: format!("Failed to query restaker role key: {err:?}"),
+        })
+        .map(|r| r.and_then(|v| ecdsa::Public::from_slice(v.as_slice()).ok()))
     }
 
     pub async fn query_job_by_id(

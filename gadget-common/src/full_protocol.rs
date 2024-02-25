@@ -1,6 +1,4 @@
-use crate::client::{
-    AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient, PalletSubmitter,
-};
+use crate::client::{ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient, PalletSubmitter};
 use crate::config::{DebugLogger, GadgetProtocol, Network, NetworkAndProtocolSetup};
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
@@ -9,20 +7,19 @@ use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use crate::protocol::AsyncProtocol;
 use crate::Error;
 use async_trait::async_trait;
-use frame_support::__private::sp_io::crypto::{ecdsa_sign_prehashed, ecdsa_verify_prehashed};
 use frame_support::pallet_prelude::{Decode, Encode};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use parking_lot::Mutex;
 use sc_client_api::{Backend, BlockImportNotification};
 use sp_api::ProvideRuntimeApi;
-use sp_core::crypto::KeyTypeId;
 use sp_core::ecdsa::Signature;
 use sp_core::keccak_256;
 use sp_runtime::traits::Block;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tangle_primitives::roles::RoleType;
+use tangle_primitives::AccountId;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
@@ -56,7 +53,9 @@ where
         protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
         additional_params: Self::AsyncProtocolParameters,
     ) -> Result<BuiltExecutableJobWrapper, JobError>;
+
     fn network(&self) -> &Self::Network;
+    fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend>;
     /// Given an input of metadata for a job, return a set of parameters that can be used to
     /// construct a protocol.
     ///
@@ -232,11 +231,13 @@ where
                 <PayloadAndSignature as Decode>::decode(&mut message.payload.as_slice())
             {
                 let hashed_message = keccak_256(&message.payload);
-                if ecdsa_verify_prehashed(
-                    &payload_and_signature.signature,
-                    &hashed_message,
-                    &peer_public_key,
-                ) {
+                let sig_match = payload_and_signature
+                    .signature
+                    .recover_prehashed(&hashed_message)
+                    .map(|x| x == peer_public_key)
+                    .unwrap_or(false);
+
+                if sig_match {
                     return Some(message);
                 } else {
                     self.logger()
@@ -261,11 +262,8 @@ where
     ) -> Result<(), Error> {
         // Sign the hash of the message
         let hashed_message = keccak_256(&message.payload);
-        let signature =
-            ecdsa_sign_prehashed(KeyTypeId::from(0), self.account_id(), &hashed_message)
-                .ok_or_else(|| Error::NetworkError {
-                    err: "Unable to sign message".to_string(),
-                })?;
+        let pair = self.key_store().pair();
+        let signature = pair.sign_prehashed(&hashed_message);
 
         let payload_and_signature = PayloadAndSignature {
             payload: message.payload,

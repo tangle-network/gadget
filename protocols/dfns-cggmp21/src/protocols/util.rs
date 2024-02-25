@@ -11,6 +11,7 @@ use gadget_core::job_manager::WorkManagerInterface;
 use rand::seq::SliceRandom;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -84,7 +85,7 @@ pub struct PublicKeyGossipMessage {
     pub from: UserID,
     pub to: Option<UserID>,
     pub signature: Vec<u8>,
-    pub id: AccountId,
+    pub id: ecdsa::Public,
 }
 
 /// All possible senders of a message
@@ -298,8 +299,8 @@ pub(crate) fn create_job_manager_to_async_protocol_channel_split<
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    user_id_mapping: Arc<HashMap<UserID, AccountId>>,
-    my_account_id: AccountId,
+    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+    my_role_id: ecdsa::Public,
     network: N,
 ) -> (
     futures::channel::mpsc::UnboundedSender<Outgoing<M>>,
@@ -362,7 +363,7 @@ pub(crate) fn create_job_manager_to_async_protocol_channel_split<
     let my_user_id = user_id_mapping
         .iter()
         .find_map(|(user_id, account_id)| {
-            if *account_id == my_account_id {
+            if *account_id == my_role_id {
                 Some(*user_id)
             } else {
                 None
@@ -439,10 +440,10 @@ pub(crate) fn create_job_manager_to_async_protocol_channel_split<
 }
 
 fn get_to_and_from_account_id(
-    mapping: &HashMap<UserID, AccountId>,
+    mapping: &HashMap<UserID, ecdsa::Public>,
     from: UserID,
     to: Option<UserID>,
-) -> (Option<AccountId>, Option<AccountId>) {
+) -> (Option<ecdsa::Public>, Option<ecdsa::Public>) {
     let from_account_id = mapping.get(&from).cloned();
     let to_account_id = if let Some(to) = to {
         mapping.get(&to).cloned()
@@ -465,10 +466,10 @@ fn get_to_and_from_account_id(
 /// If the current participant is not in the list of participants it will panic.
 pub fn choose_signers<R: rand::Rng>(
     rng: &mut R,
-    my_account_id: &AccountId,
-    participants: &[AccountId],
+    my_role_key: &ecdsa::Public,
+    participants: &[ecdsa::Public],
     t: u16,
-) -> Result<(u16, Vec<u16>, HashMap<UserID, AccountId>), gadget_common::Error> {
+) -> Result<(u16, Vec<u16>, HashMap<UserID, ecdsa::Public>), gadget_common::Error> {
     let selected_participants = participants
         .choose_multiple(rng, t as usize)
         .cloned()
@@ -481,7 +482,7 @@ pub fn choose_signers<R: rand::Rng>(
 
     let j = participants
         .iter()
-        .position(|p| p == my_account_id)
+        .position(|p| p == my_role_key)
         .expect("Should exist") as u16;
 
     let i = selected_participants_indices
@@ -489,7 +490,7 @@ pub fn choose_signers<R: rand::Rng>(
         .position(|p| p == &j)
         .map(|i| i as u16)
         .ok_or_else(|| gadget_common::Error::ParticipantNotSelected {
-            id: *my_account_id,
+            id: *my_role_key,
             reason: String::from("we are not selected to sign"),
         })?;
 

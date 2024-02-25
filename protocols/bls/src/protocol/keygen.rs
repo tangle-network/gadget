@@ -3,7 +3,7 @@ use crate::protocol::state_machine::BlsStateMachine;
 use gadget_common::gadget::message::UserID;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::prelude::*;
-use gadget_common::sp_core::keccak_256;
+use gadget_common::sp_core::{ecdsa, keccak_256, ByteArray};
 use itertools::Itertools;
 use round_based::Msg;
 use std::collections::{BTreeMap, HashMap};
@@ -19,7 +19,7 @@ pub struct BlsKeygenAdditionalParams {
     pub n: u16,
     pub role_type: RoleType,
     pub job_id: JobId,
-    pub user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
+    pub user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
 pub async fn create_next_job<
@@ -42,7 +42,7 @@ where
     let role_type = p1_job.get_role_type();
     let participants = p1_job.get_participants().expect("Should exist");
     let user_id_to_account_id_mapping = Arc::new(
-        participants
+        job.participants_role_ids
             .clone()
             .into_iter()
             .enumerate()
@@ -192,7 +192,7 @@ pub(crate) async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     t: u16,
     tx: &UnboundedSender<Msg<RoundPayload>>,
     rx: &mut UnboundedReceiver<Msg<RoundPayload>>,
-    user_id_to_account_id_mapping: &Arc<HashMap<UserID, AccountId>>,
+    user_id_to_account_id_mapping: &Arc<HashMap<UserID, ecdsa::Public>>,
 ) -> Result<GadgetJobResult, JobError> {
     let mut received_pk_shares = BTreeMap::new();
     let mut received_signatures = BTreeMap::new();
@@ -292,7 +292,7 @@ pub(crate) async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     let participants = user_id_to_account_id_mapping
         .iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1 .0.to_vec().try_into().unwrap())
+        .map(|r| r.1.to_raw_vec().try_into().unwrap())
         .collect::<Vec<_>>()
         .try_into()
         .unwrap();

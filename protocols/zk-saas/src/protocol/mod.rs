@@ -22,6 +22,8 @@ use mpc_net::{MpcNet, MultiplexedStreamID};
 use sc_client_api::Backend;
 use secret_sharing::pss::PackedSharingParams;
 use sp_api::ProvideRuntimeApi;
+use sp_core::ecdsa;
+use sp_core::Pair;
 use sp_runtime::traits::Block;
 use std::collections::HashMap;
 use tangle_primitives::jobs::{
@@ -74,7 +76,7 @@ where
         role_type,
         system: phase_one.system,
         request: phase_two.request,
-        participants: participants.into_inner(),
+        participants_role_keys: job.participants_role_ids,
     };
 
     Ok(params)
@@ -88,7 +90,7 @@ pub struct ZkJobAdditionalParams {
     role_type: RoleType,
     system: ZkSaaSSystem<MaxSubmissionLen>,
     request: ZkSaaSPhaseTwoRequest<MaxSubmissionLen>,
-    participants: Vec<AccountId>,
+    participants_role_keys: Vec<ecdsa::Public>,
 }
 
 impl AdditionalProtocolParams for ZkJobAdditionalParams {
@@ -118,11 +120,13 @@ where
 {
     let pallet_tx = config.pallet_tx.clone();
     let rxs = zk_setup_rxs(additional_params.n_parties(), protocol_message_rx).await?;
-    let other_network_ids =
-        zk_setup_phase_order_participants(additional_params.participants.clone(), &config.network)
-            .map_err(|err| JobError {
-                reason: format!("Failed to setup phase order participants: {err:?}"),
-            })?;
+    let other_network_ids = zk_setup_phase_order_participants(
+        additional_params.participants_role_keys.clone(),
+        &config.network,
+    )
+    .map_err(|err| JobError {
+        reason: format!("Failed to setup phase order participants: {err:?}"),
+    })?;
 
     let params = ZkAsyncProtocolParameters::<_, _, _, B, BE> {
         associated_block_id,
@@ -132,7 +136,7 @@ where
         rxs,
         party_id: additional_params.party_id(),
         n_parties: additional_params.n_parties(),
-        my_network_id: config.account_id,
+        my_network_id: config.key_store.pair().public(),
         other_network_ids,
         network: config.network.clone(),
         client: config.client.clone(),
@@ -407,9 +411,9 @@ pub trait ZkNetworkExt {
 }
 
 fn zk_setup_phase_order_participants<N: Network>(
-    mut participants: Vec<AccountId>,
+    mut participants: Vec<ecdsa::Public>,
     network: &N,
-) -> Result<HashMap<u32, AccountId>, gadget_common::Error> {
+) -> Result<HashMap<u32, ecdsa::Public>, gadget_common::Error> {
     let king_id =
         network
             .greatest_authority_id()
