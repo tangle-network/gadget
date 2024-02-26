@@ -15,6 +15,7 @@ std = [
     "pallet-jobs-rpc-runtime-api/std"
 ]
 testnet = []
+testing = []
 
 [dependencies]
 gadget-core = { workspace = true, features = ["substrate"] }
@@ -41,8 +42,10 @@ anyhow = { workspace = true }
 futures = { workspace = true }
 round-based = { workspace = true }
 sp-api = { workspace = true }
-sqlx = { version = "^0.7.1", features = ["runtime-tokio-rustls", "sqlite"] }
-
+sp-io = { workspace = true }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
+substrate-prometheus-endpoint = { workspace = true }
+lazy_static = { workspace = true }
 
 frame-support = { workspace = true }
 sc-network = { workspace = true }

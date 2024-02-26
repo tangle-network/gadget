@@ -46,6 +46,7 @@ use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
+use gadget_common::prelude::PrometheusConfig;
 use gadget_common::Error;
 use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
 use sp_core::ecdsa;
@@ -449,6 +450,19 @@ pub fn advance_to_block(block_number: u64) {
     }
 }
 
+// Checks events against the latest. A contiguous set of events must be
+// provided. They must include the most recent RuntimeEvent, but do not have to include
+// every past RuntimeEvent.
+pub fn assert_events(mut expected: Vec<RuntimeEvent>) {
+    let mut actual: Vec<RuntimeEvent> = System::events().iter().map(|e| e.event.clone()).collect();
+
+    expected.reverse();
+    for evt in expected {
+        let next = actual.pop().expect("RuntimeEvent expected");
+        assert_eq!(next, evt, "Events don't match (actual,expected)");
+    }
+}
+
 /// This function basically just builds a genesis storage key/value store according to
 /// our desired mockup.
 /// N: number of nodes
@@ -583,6 +597,8 @@ pub async fn new_test_ext<
         });
 
         let keystore = ECDSAKeyStore::in_memory(role_pair);
+        let prometheus_config = PrometheusConfig::Disabled;
+
         let input = NodeInput {
             mock_clients,
             mock_networks: networks,
@@ -592,6 +608,7 @@ pub async fn new_test_ext<
             keystore,
             node_index,
             additional_params: additional_params.clone(),
+            prometheus_config,
             _pd: Default::default(),
         };
 

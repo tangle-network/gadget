@@ -117,7 +117,7 @@ where
     let protocol_output_clone = protocol_output.clone();
     let client = config.get_jobs_client();
     let my_role_id = config.key_store.pair().public();
-    let network = config.network.clone();
+    let network = config.clone();
 
     let (i, signers, t, key, input_data_to_sign, mapping) = (
         additional_params.i,

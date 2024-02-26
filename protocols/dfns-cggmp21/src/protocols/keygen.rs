@@ -117,7 +117,7 @@ where
     let client = config.get_jobs_client();
     let my_role_id = key_store.pair().public();
     let logger = config.logger.clone();
-    let network = config.network.clone();
+    let network = config.clone();
 
     let (i, t, n, mapping) = (
         additional_params.i,

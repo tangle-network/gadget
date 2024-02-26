@@ -84,7 +84,7 @@ pub async fn generate_protocol_from<
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
-    let network = config.network.clone();
+    let network = config.clone();
     let result = Arc::new(tokio::sync::Mutex::new(None));
     let result_clone = result.clone();
     let keystore = config.key_store.clone();

@@ -141,7 +141,7 @@ where
     let client = config.get_jobs_client();
     let role_id = config.key_store.pair().public();
     let phase_one_id = additional_params.phase_one_id;
-    let network = config.network.clone();
+    let network = config.clone();
 
     let (i, signers, t, new_phase_one_id, key, new_key, mapping) = (
         additional_params.i,

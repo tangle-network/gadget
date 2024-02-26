@@ -2,6 +2,7 @@ use crate::client::{ClientWithApi, JobsApiForGadget};
 use crate::config::{NetworkAndProtocolSetup, ProtocolConfig};
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{GadgetProtocol, Module};
+use crate::prelude::PrometheusConfig;
 use gadget::network::Network;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, SubstrateGadget};
@@ -54,6 +55,7 @@ pub mod gadget;
 pub mod helpers;
 pub mod keystore;
 pub mod locks;
+pub mod prometheus;
 pub mod protocol;
 #[derive(Debug)]
 pub enum Error {
@@ -74,6 +76,7 @@ pub enum Error {
     PeerNotFound { id: ecdsa::Public },
     JoinError { err: JoinError },
     ParticipantNotSelected { id: ecdsa::Public, reason: String },
+    PrometheusError { err: String },
 }
 
 impl Display for Error {
@@ -100,6 +103,8 @@ where
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
 
+    let prometheus_config = protocol_config.prometheus_config();
+
     // Before running, wait for the first finality notification we receive
     let latest_finality_notification =
         get_latest_finality_notification_from_client(&client).await?;
@@ -122,6 +127,16 @@ where
             .await
             .map_err(|err| Error::GadgetManagerError { err })
     };
+
+    if let Err(err) = prometheus::setup(prometheus_config.clone()).await {
+        protocol_config
+            .logger()
+            .warn(format!("Error setting up prometheus: {err:?}"));
+    } else if let PrometheusConfig::Enabled { bind_addr } = prometheus_config {
+        protocol_config
+            .logger()
+            .info(format!("Prometheus enabled on {bind_addr}"));
+    }
 
     // Run both the network and the gadget together
     tokio::try_join!(network_future, gadget_future).map(|_| ())
@@ -195,6 +210,7 @@ macro_rules! generate_setup_and_run_command {
                     node_input.logger.clone(),
                     node_input.account_id,
                     node_input.keystore,
+                    node_input.prometheus_config,
                 )
                 .await
                 {
@@ -212,6 +228,7 @@ macro_rules! generate_setup_and_run_command {
             logger: DebugLogger,
             account_id: AccountId,
             key_store: ECDSAKeyStore<KBE>,
+            prometheus_config: $crate::prometheus::PrometheusConfig,
         ) -> Result<(), Error>
         where
             <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
@@ -220,7 +237,7 @@ macro_rules! generate_setup_and_run_command {
             let futures = futures::stream::FuturesUnordered::new();
 
             $(
-                let config = crate::$config::new(client.pop().expect("Not enough clients"), pallet_tx.clone(), network.pop().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone()).await?;
+                let config = crate::$config::new(client.pop().expect("Not enough clients"), pallet_tx.clone(), network.pop().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone(), prometheus_config.clone()).await?;
                 futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), gadget_common::Error>>>>);
             )*
 
@@ -245,10 +262,12 @@ macro_rules! generate_protocol {
             pallet_tx: Arc<dyn PalletSubmitter>,
             logger: DebugLogger,
             client: C,
-            network: N,
+            // This field should NEVER be used directly. Use Self instead as the network
+            network_inner: N,
             account_id: AccountId,
             key_store: ECDSAKeyStore<KBE>,
             jobs_client: Arc<Mutex<Option<JobsClient<B, BE, C>>>>,
+            prometheus_config: $crate::prometheus::PrometheusConfig,
             _pd: std::marker::PhantomData<(B, BE)>,
         }
 
@@ -274,18 +293,20 @@ macro_rules! generate_protocol {
             async fn new(
                 client: Self::Client,
                 pallet_tx: Arc<dyn PalletSubmitter>,
-                network: Self::Network,
+                network_inner: Self::Network,
                 logger: DebugLogger,
                 account_id: AccountId,
                 key_store: ECDSAKeyStore<Self::KeystoreBackend>,
+                prometheus_config: $crate::prometheus::PrometheusConfig,
             ) -> Result<Self, Error> {
                 Ok(Self {
                     pallet_tx,
                     logger,
                     client,
-                    network,
+                    network_inner,
                     account_id,
                     key_store,
+                    prometheus_config,
                     jobs_client: Arc::new(parking_lot::Mutex::new(None)),
                     _pd: std::marker::PhantomData,
                 })
@@ -312,8 +333,8 @@ macro_rules! generate_protocol {
                 .await
             }
 
-            fn network(&self) -> &Self::Network {
-                &self.network
+            fn internal_network(&self) -> &Self::Network {
+                &self.network_inner
             }
 
             fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend> {
@@ -360,6 +381,11 @@ macro_rules! generate_protocol {
 
             fn logger(&self) -> DebugLogger {
                 self.logger.clone()
+            }
+
+
+            fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend> {
+                &self.key_store
             }
 
             fn client(&self) -> Self::Client {

@@ -4,17 +4,20 @@ use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{JobInitMetadata, WorkManagerConfig};
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
+use crate::prometheus::PrometheusConfig;
 use crate::protocol::AsyncProtocol;
 use crate::Error;
 use async_trait::async_trait;
 use frame_support::pallet_prelude::{Decode, Encode};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
 use sc_client_api::{Backend, BlockImportNotification};
 use sp_api::ProvideRuntimeApi;
 use sp_core::ecdsa::Signature;
 use sp_core::keccak_256;
+use sp_io::crypto::ecdsa_verify_prehashed;
 use sp_runtime::traits::Block;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -43,6 +46,7 @@ where
         logger: DebugLogger,
         account_id: AccountId,
         key_store: ECDSAKeyStore<Self::KeystoreBackend>,
+        prometheus_config: PrometheusConfig,
     ) -> Result<Self, Error>;
     async fn generate_protocol_from(
         &self,
@@ -54,8 +58,12 @@ where
         additional_params: Self::AsyncProtocolParameters,
     ) -> Result<BuiltExecutableJobWrapper, JobError>;
 
-    fn network(&self) -> &Self::Network;
-    fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend>;
+    /// This function returns the internally-used network for the protocol.
+    ///
+    /// Important: This function should never be used directly, it is for internal use only.
+    /// Instead, `Self` implements `Network` and should instead be used for networking, as it
+    /// grants metrics and message signing and verification to messages
+    fn internal_network(&self) -> &Self::Network;
     /// Given an input of metadata for a job, return a set of parameters that can be used to
     /// construct a protocol.
     ///
@@ -98,6 +106,7 @@ where
             .clone()
             .expect("Jobs client not initialized")
     }
+    fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend>;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         Default::default()
     }
@@ -225,31 +234,27 @@ where
     <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApiForGadget<T::Block>,
 {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        let message = T::network(self).next_message().await?;
+        let mut message = T::internal_network(self).next_message().await?;
         if let Some(peer_public_key) = message.from_network_id {
-            self.logger().info(format!(
-                "Received a 0x{} from {peer_public_key}",
-                hex::encode(message.payload.as_slice()),
-            ));
-            match bincode2::deserialize::<PayloadAndSignature>(message.payload.as_slice()) {
-                Ok(payload_and_signature) => {
-                    let hashed_message = keccak_256(&message.payload);
-                    let sig = Signature(payload_and_signature.signature);
-                    let sig_match = sig
-                        .recover_prehashed(&hashed_message)
-                        .map(|x| x == peer_public_key)
-                        .unwrap_or(false);
-
-                    if sig_match {
-                        return Some(message);
-                    } else {
-                        self.logger()
-                            .warn("Received a message with an invalid signature.")
-                    }
+            if let Ok(payload_and_signature) =
+                <PayloadAndSignature as Decode>::decode(&mut message.payload.as_slice())
+            {
+                let hashed_message = keccak_256(&payload_and_signature.payload);
+                if ecdsa_verify_prehashed(
+                    &payload_and_signature.signature,
+                    &hashed_message,
+                    &peer_public_key,
+                ) {
+                    message.payload = payload_and_signature.payload;
+                    crate::prometheus::BYTES_RECEIVED.inc_by(message.payload.len() as u64);
+                    return Some(message);
+                } else {
+                    self.logger()
+                        .warn("Received a message with an invalid signature.")
                 }
-                Err(e) => self.logger().warn(format!(
-                    "Received a message without a valid payload and signature. err={e:?}",
-                )),
+            } else {
+                self.logger()
+                    .warn("Received a message without a valid payload and signature.")
             }
         } else {
             self.logger()
@@ -266,20 +271,16 @@ where
     ) -> Result<(), Error> {
         // Sign the hash of the message
         let hashed_message = keccak_256(&message.payload);
-        let pair = self.key_store().pair();
-        let signature = pair.sign_prehashed(&hashed_message);
-
+        let signature = self.key_store().pair().sign_prehashed(&hashed_message);
         let payload_and_signature = PayloadAndSignature {
             payload: message.payload,
-            signature: signature.0,
+            signature,
         };
 
-        let serialized_message =
-            bincode2::serialize(&payload_and_signature).map_err(|e| Error::NetworkError {
-                err: format!("Failed to serialize payload and signature: {e:?}"),
-            })?;
+        let serialized_message = Encode::encode(&payload_and_signature);
         message.payload = serialized_message;
-        T::network(self).send_message(message).await
+        crate::prometheus::BYTES_SENT.inc_by(message.payload.len() as u64);
+        T::internal_network(self).send_message(message).await
     }
 }
 
@@ -304,13 +305,12 @@ pub struct NodeInput<
     pub keystore: ECDSAKeyStore<KBE>,
     pub node_index: usize,
     pub additional_params: D,
+    pub prometheus_config: PrometheusConfig,
     pub _pd: PhantomData<(B, BE)>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Encode, Decode)]
 pub struct PayloadAndSignature {
-    #[serde(with = "hex::serde")]
     payload: Vec<u8>,
-    #[serde(with = "hex::serde")]
-    signature: [u8; 65],
+    signature: Signature,
 }

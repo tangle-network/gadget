@@ -180,7 +180,11 @@ mod tests {
             let (public_identity_der, private_identity_der) = if node_info.node_index == 0 {
                 (king_public_identity_der, king_private_identity_der)
             } else {
-                let cert = rcgen::generate_simple_self_signed(vec!["127.0.0.1".into()]).unwrap();
+                let cert = rcgen::generate_simple_self_signed(vec![
+                    "127.0.0.1".into(),
+                    "localhost".into(),
+                ])
+                .unwrap();
                 (
                     cert.serialize_der().expect("Should serialize"),
                     cert.serialize_private_key_der(),
@@ -208,6 +212,8 @@ mod tests {
                 .await
                 .expect("Should create network");
 
+            let prometheus_config = node_info.prometheus_config.clone();
+            log::info!(target: "gadget", "Started node {}", node_info.node_index);
             // ZkSaaS only requires 1 client and 1 network, no need to use the NodeInput's vectors
             if let Err(err) = zk_saas_protocol::run::<_, MockBackend, _, _, _>(
                 vec![client],
@@ -216,6 +222,7 @@ mod tests {
                 logger,
                 node_info.account_id,
                 key_store,
+                prometheus_config,
             )
             .await
             {

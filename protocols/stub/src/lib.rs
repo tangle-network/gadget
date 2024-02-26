@@ -19,6 +19,7 @@ pub struct StubProtocol<
     network: N,
     account_id: AccountId,
     key_store: ECDSAKeyStore<KBE>,
+    prometheus_config: PrometheusConfig,
     jobs_client: Arc<Mutex<Option<JobsClient<B, BE, C>>>>,
 }
 
@@ -48,6 +49,7 @@ where
         logger: DebugLogger,
         account_id: AccountId,
         key_store: ECDSAKeyStore<Self::KeystoreBackend>,
+        prometheus_config: PrometheusConfig,
     ) -> Result<Self, Error> {
         Ok(Self {
             pallet_tx,
@@ -56,6 +58,7 @@ where
             network,
             account_id,
             key_store,
+            prometheus_config,
             jobs_client: Arc::new(Mutex::new(None)),
         })
     }
@@ -72,7 +75,7 @@ where
         Ok(JobBuilder::new().protocol(async move { Ok(()) }).build())
     }
 
-    fn network(&self) -> &Self::Network {
+    fn internal_network(&self) -> &Self::Network {
         &self.network
     }
 
@@ -114,6 +117,10 @@ where
 
     fn logger(&self) -> DebugLogger {
         self.logger.clone()
+    }
+
+    fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend> {
+        &self.key_store
     }
 
     fn client(&self) -> Self::Client {

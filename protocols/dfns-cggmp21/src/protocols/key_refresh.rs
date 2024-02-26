@@ -125,7 +125,7 @@ where
     let client = config.get_jobs_client();
     let role_id = config.key_store.pair().public();
     let logger = config.logger.clone();
-    let network = config.network.clone();
+    let network = config.clone();
 
     let (mapping, key, pregenerated_primes) = (
         additional_params.user_id_to_account_id_mapping,

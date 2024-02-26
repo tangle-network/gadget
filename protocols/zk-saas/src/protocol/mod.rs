@@ -120,13 +120,11 @@ where
 {
     let pallet_tx = config.pallet_tx.clone();
     let rxs = zk_setup_rxs(additional_params.n_parties(), protocol_message_rx).await?;
-    let other_network_ids = zk_setup_phase_order_participants(
-        additional_params.participants_role_keys.clone(),
-        &config.network,
-    )
-    .map_err(|err| JobError {
-        reason: format!("Failed to setup phase order participants: {err:?}"),
-    })?;
+    let other_network_ids =
+        zk_setup_phase_order_participants(additional_params.participants.clone(), config.clone())
+            .map_err(|err| JobError {
+            reason: format!("Failed to setup phase order participants: {err:?}"),
+        })?;
 
     let params = ZkAsyncProtocolParameters::<_, _, _, B, BE> {
         associated_block_id,
@@ -138,7 +136,7 @@ where
         n_parties: additional_params.n_parties(),
         my_network_id: config.key_store.pair().public(),
         other_network_ids,
-        network: config.network.clone(),
+        network: config.clone(),
         client: config.client.clone(),
         extra_parameters: additional_params.clone(),
         _pd: Default::default(),
@@ -412,7 +410,7 @@ pub trait ZkNetworkExt {
 
 fn zk_setup_phase_order_participants<N: Network>(
     mut participants: Vec<ecdsa::Public>,
-    network: &N,
+    network: N,
 ) -> Result<HashMap<u32, ecdsa::Public>, gadget_common::Error> {
     let king_id =
         network
