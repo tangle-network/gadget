@@ -337,10 +337,6 @@ macro_rules! generate_protocol {
                 &self.network_inner
             }
 
-            fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend> {
-                &self.key_store
-            }
-
             async fn create_next_job(
                 &self,
                 job: JobInitMetadata<Self::Block>,

@@ -8,7 +8,6 @@ use crate::prometheus::PrometheusConfig;
 use crate::protocol::AsyncProtocol;
 use crate::Error;
 use async_trait::async_trait;
-use frame_support::pallet_prelude::{Decode, Encode};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use parity_scale_codec::{Decode, Encode};
