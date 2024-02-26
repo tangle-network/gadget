@@ -26,7 +26,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: 1.78.0
           components: rustfmt
 
       - name: Check Formatting
@@ -42,7 +42,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: 1.78.0
           components: clippy
 
       - uses: Swatinem/rust-cache@v2
@@ -69,7 +69,7 @@ jobs:
       - name: install rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: 1.78.0
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -95,7 +95,7 @@ jobs:
       - name: install rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: 1.78.0
 
       - uses: swatinem/rust-cache@v2
         with:
