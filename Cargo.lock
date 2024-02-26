@@ -2211,6 +2211,7 @@ dependencies = [
  "bincode2",
  "cggmp21",
  "curv-kzen",
+ "digest 0.10.7",
  "frame-support",
  "futures",
  "gadget-common",
