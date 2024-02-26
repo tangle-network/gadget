@@ -227,25 +227,29 @@ where
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         let message = T::network(self).next_message().await?;
         if let Some(peer_public_key) = message.from_network_id {
-            if let Ok(payload_and_signature) =
-                <PayloadAndSignature as Decode>::decode(&mut message.payload.as_slice())
-            {
-                let hashed_message = keccak_256(&message.payload);
-                let sig_match = payload_and_signature
-                    .signature
-                    .recover_prehashed(&hashed_message)
-                    .map(|x| x == peer_public_key)
-                    .unwrap_or(false);
+            self.logger().info(format!(
+                "Received a 0x{} from {peer_public_key}",
+                hex::encode(message.payload.as_slice()),
+            ));
+            match bincode2::deserialize::<PayloadAndSignature>(message.payload.as_slice()) {
+                Ok(payload_and_signature) => {
+                    let hashed_message = keccak_256(&message.payload);
+                    let sig = Signature(payload_and_signature.signature);
+                    let sig_match = sig
+                        .recover_prehashed(&hashed_message)
+                        .map(|x| x == peer_public_key)
+                        .unwrap_or(false);
 
-                if sig_match {
-                    return Some(message);
-                } else {
-                    self.logger()
-                        .warn("Received a message with an invalid signature.")
+                    if sig_match {
+                        return Some(message);
+                    } else {
+                        self.logger()
+                            .warn("Received a message with an invalid signature.")
+                    }
                 }
-            } else {
-                self.logger()
-                    .warn("Received a message without a valid payload and signature.")
+                Err(e) => self.logger().warn(format!(
+                    "Received a message without a valid payload and signature. err={e:?}",
+                )),
             }
         } else {
             self.logger()
@@ -267,10 +271,13 @@ where
 
         let payload_and_signature = PayloadAndSignature {
             payload: message.payload,
-            signature,
+            signature: signature.0,
         };
 
-        let serialized_message = Encode::encode(&payload_and_signature);
+        let serialized_message =
+            bincode2::serialize(&payload_and_signature).map_err(|e| Error::NetworkError {
+                err: format!("Failed to serialize payload and signature: {e:?}"),
+            })?;
         message.payload = serialized_message;
         T::network(self).send_message(message).await
     }
@@ -300,8 +307,10 @@ pub struct NodeInput<
     pub _pd: PhantomData<(B, BE)>,
 }
 
-#[derive(Encode, Decode)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct PayloadAndSignature {
+    #[serde(with = "hex::serde")]
     payload: Vec<u8>,
-    signature: Signature,
+    #[serde(with = "hex::serde")]
+    signature: [u8; 65],
 }

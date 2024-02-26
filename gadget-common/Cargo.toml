@@ -33,6 +33,7 @@ sp-runtime = { workspace = true }
 sp-application-crypto = { workspace = true }
 hex = { workspace = true }
 bincode2 = { workspace = true }
+serde_bytes = { workspace = true }
 linked-hash-map = { workspace = true }
 webb = { workspace = true, default-features = false, features = ["substrate-runtime"] }
 subxt-signer = { workspace = true, features = ["subxt", "sr25519"] }

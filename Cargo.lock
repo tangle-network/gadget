@@ -3689,6 +3689,7 @@ dependencies = [
  "sc-service",
  "scale-info",
  "serde",
+ "serde_bytes",
  "sp-api",
  "sp-application-crypto",
  "sp-core",
