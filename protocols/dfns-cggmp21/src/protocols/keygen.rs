@@ -1,4 +1,9 @@
-use dfns_cggmp21::supported_curves::Secp256k1;
+use curv::cryptographic_primitives::hashing::Digest;
+use dfns_cggmp21::generic_ec::Curve;
+use dfns_cggmp21::keygen::msg::threshold;
+use dfns_cggmp21::round_based::{Delivery, Mpc};
+use dfns_cggmp21::security_level::SecurityLevel;
+use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 use dfns_cggmp21::KeyShare;
 use futures::StreamExt;
 use gadget_common::client::{
@@ -18,8 +23,10 @@ use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
 use pallet_dkg::signatures_schemes::ecdsa::verify_signer_from_set_ecdsa;
 use pallet_dkg::signatures_schemes::to_slice_33;
+use rand::rngs::StdRng;
 use rand::SeedableRng;
 use sc_client_api::Backend;
+use serde::Serialize;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
 use sp_core::{ecdsa, Pair};
@@ -28,7 +35,7 @@ use std::sync::Arc;
 use tangle_primitives::jobs::{
     DKGTSSKeySubmissionResult, DigitalSignatureScheme, JobId, JobResult, JobType,
 };
-use tangle_primitives::roles::RoleType;
+use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::util::PublicKeyGossipMessage;
@@ -92,6 +99,105 @@ pub struct DfnsCGGMP21KeygenExtraParams {
     user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
 }
 
+use dfns_cggmp21::keygen::KeygenBuilder;
+
+pub async fn run_and_serialize_keygen<'r, E: Curve, M, D, L, DG>(
+    tracer: dfns_cggmp21::progress::PerfProfiler,
+    eid: dfns_cggmp21::ExecutionId<'r>,
+    i: u16,
+    n: u16,
+    t: u16,
+    party: dfns_cggmp21::round_based::MpcParty<M, D>,
+    rng: StdRng,
+) -> Result<Vec<u8>, JobError>
+where
+    M: Send + 'static,
+    D: Delivery<M>,
+    DG: Digest + digest::FixedOutput + digest::HashMarker + Default,
+    M: Mpc<ProtocolMessage = threshold::Msg<E, L, DG>>,
+    L: SecurityLevel,
+{
+    let incomplete_key_share = dfns_cggmp21::keygen::<E>(eid, i, n)
+        .set_progress_tracer(&mut tracer)
+        .set_threshold(t)
+        .start(&mut rng, party)
+        .await
+        .map_err(|err| JobError {
+            reason: format!("Keygen protocol error: {err:?}"),
+        })?;
+    bincode2::serialize(&incomplete_key_share).map_err(|err| JobError {
+        reason: format!("Keygen protocol error: {err:?}"),
+    })
+}
+macro_rules! run_keygen_protocol {
+    ($curve_type:ty, $tracer:expr, $eid:expr, $i:expr, $n:expr, $t:expr, $party:expr, $rng:expr,) => {
+        run_and_serialize_keygen::<$curve_type, _, _, _, _>($tracer, $eid, $i, $n, $t, $party, $rng)
+            .await?
+    };
+}
+
+pub async fn run_and_serialize_keyrefresh<'r, E: Curve, M, D, L, DG>(
+    logger: &DebugLogger,
+    incomplete_key_share: Vec<u8>,
+    pregenerated_primes: dfns_cggmp21::PregeneratedPrimes<L>,
+    tracer: dfns_cggmp21::progress::PerfProfiler,
+    aux_eid: dfns_cggmp21::ExecutionId<'r>,
+    i: u16,
+    n: u16,
+    party: dfns_cggmp21::round_based::MpcParty<M, D>,
+    rng: StdRng,
+) -> Result<Vec<u8>, JobError>
+where
+    M: Send + 'static,
+    D: Delivery<M>,
+    DG: Digest + digest::FixedOutput + digest::HashMarker + Default,
+    M: Mpc<ProtocolMessage = threshold::Msg<E, L, DG>>,
+    L: SecurityLevel,
+{
+    let incomplete_key_share: dfns_cggmp21::key_share::Valid<
+        dfns_cggmp21::key_share::DirtyIncompleteKeyShare<_>,
+    > = bincode2::deserialize(&incomplete_key_share).map_err(|err| JobError {
+        reason: format!("Keygen protocol error: {err:?}"),
+    })?;
+    let aux_info = dfns_cggmp21::aux_info_gen(aux_eid, i, n, pregenerated_primes)
+        .set_progress_tracer(&mut tracer)
+        .start(&mut rng, party)
+        .await
+        .map_err(|err| JobError {
+            reason: format!("Aux info protocol error: {err:?}"),
+        })?;
+    let perf_report = tracer.get_report().map_err(|err| JobError {
+        reason: format!("Aux info protocol error: {err:?}"),
+    })?;
+    logger.trace(format!("Aux info protocol report: {perf_report}"));
+    logger.debug("Finished AsyncProtocol - Aux Info");
+
+    let key_share =
+        dfns_cggmp21::KeyShare::make(incomplete_key_share, aux_info).map_err(|err| JobError {
+            reason: format!("Key share error: {err:?}"),
+        })?;
+    bincode2::serialize(&key_share).map_err(|err| JobError {
+        reason: format!("Keygen protocol error: {err:?}"),
+    })
+}
+
+macro_rules! run_keyrefresh_protocol {
+    ($curve_type:ty, $logger:expr, $incomplete_key_share:expr, $pregenerated_primes:expr, $tracer:expr, $eid:expr, $i:expr, $n:expr, $party:expr, $rng:expr,) => {
+        run_and_serialize_keyrefresh::<$curve_type, _, _, _, _>(
+            $logger,
+            $incomplete_key_share,
+            $pregenerated_primes,
+            $tracer,
+            $eid,
+            $i,
+            $n,
+            $t,
+            $party,
+            $rng,
+        )
+        .await?
+    };
+}
 pub async fn generate_protocol_from<
     B: Block,
     BE: Backend<B> + 'static,
@@ -119,10 +225,11 @@ where
     let logger = config.logger.clone();
     let network = config.clone();
 
-    let (i, t, n, mapping) = (
+    let (i, t, n, role_type, mapping) = (
         additional_params.i,
         additional_params.t,
         additional_params.n,
+        additional_params.role_type,
         additional_params.user_id_to_account_id_mapping,
     );
 
@@ -161,14 +268,18 @@ where
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
             let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
             let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
-            let incomplete_key_share = dfns_cggmp21::keygen::<Secp256k1>(eid, i, n)
-                .set_progress_tracer(&mut tracer)
-                .set_threshold(t)
-                .start(&mut rng, party)
-                .await
-                .map_err(|err| JobError {
-                    reason: format!("Keygen protocol error: {err:?}"),
-                })?;
+            let incomplete_key_share: Vec<u8> = match role_type {
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
+                    run_keygen_protocol!(Secp256k1, tracer, eid, i, n, t, party, rng,)
+                }
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
+                    run_keygen_protocol!(Secp256r1, tracer, eid, i, n, t, party, rng,)
+                }
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+                    run_keygen_protocol!(Stark, tracer, eid, i, n, t, party, rng,)
+                }
+                _ => unreachable!("Invalid role type"),
+            };
 
             let perf_report = tracer.get_report().map_err(|err| JobError {
                 reason: format!("Keygen protocol error: {err:?}"),
@@ -204,25 +315,52 @@ where
                 })?;
             let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
             let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
-            let aux_info = dfns_cggmp21::aux_info_gen(aux_eid, i, n, pregenerated_primes)
-                .set_progress_tracer(&mut tracer)
-                .start(&mut rng, party)
-                .await
-                .map_err(|err| JobError {
-                    reason: format!("Aux info protocol error: {err:?}"),
-                })?;
-            let perf_report = tracer.get_report().map_err(|err| JobError {
-                reason: format!("Aux info protocol error: {err:?}"),
-            })?;
-            logger.trace(format!("Aux info protocol report: {perf_report}"));
-            logger.debug("Finished AsyncProtocol - Aux Info");
 
-            let key_share =
-                dfns_cggmp21::KeyShare::make(incomplete_key_share, aux_info).map_err(|err| {
-                    JobError {
-                        reason: format!("Key share error: {err:?}"),
-                    }
-                })?;
+            let key_share: Vec<u8> = match role_type {
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
+                    run_keyrefresh_protocol!(
+                        Secp256k1,
+                        &logger,
+                        incomplete_key_share,
+                        pregenerated_primes,
+                        tracer,
+                        aux_eid,
+                        i,
+                        n,
+                        party,
+                        rng,
+                    )?
+                }
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
+                    run_keyrefresh_protocol!(
+                        Secp256r1,
+                        &logger,
+                        incomplete_key_share,
+                        pregenerated_primes,
+                        tracer,
+                        aux_eid,
+                        i,
+                        n,
+                        party,
+                        rng,
+                    )?
+                }
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+                    run_keyrefresh_protocol!(
+                        Stark,
+                        &logger,
+                        incomplete_key_share,
+                        pregenerated_primes,
+                        tracer,
+                        aux_eid,
+                        i,
+                        n,
+                        party,
+                        rng,
+                    )?
+                }
+                _ => unreachable!("Invalid role type"),
+            };
 
             logger.debug("Finished AsyncProtocol - Keygen");
 
@@ -272,7 +410,7 @@ where
 async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     key_store: ECDSAKeyStore<KBE>,
     logger: &DebugLogger,
-    local_key: &KeyShare<Secp256k1>,
+    local_key: &[u8],
     t: u16,
     i: u16,
     broadcast_tx_to_outbound: futures::channel::mpsc::UnboundedSender<PublicKeyGossipMessage>,
