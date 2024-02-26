@@ -54,6 +54,8 @@ pub mod keystore;
 pub mod locks;
 pub mod prometheus;
 pub mod protocol;
+pub mod utils;
+
 #[derive(Debug)]
 pub enum Error {
     RegistryCreateError { err: String },

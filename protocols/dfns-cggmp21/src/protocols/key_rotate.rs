@@ -7,6 +7,7 @@ use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::FullProtocolConfig;
+use gadget_common::utils::CloneableUnboundedReceiver;
 use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
@@ -157,7 +158,7 @@ where
         .protocol(async move {
             let mut rng = rand::rngs::StdRng::from_entropy();
             let protocol_message_channel =
-                super::util::CloneableUnboundedReceiver::from(protocol_message_channel);
+                CloneableUnboundedReceiver::from(protocol_message_channel);
 
             logger.info(format!(
                 "Starting Key Rotation Protocol with params: i={i}, t={t}"
