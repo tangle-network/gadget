@@ -146,7 +146,7 @@ pub async fn run_and_serialize_keyrefresh<'r, E: Curve, M, D, L, DG>(
     n: u16,
     party: dfns_cggmp21::round_based::MpcParty<M, D>,
     rng: StdRng,
-) -> Result<Vec<u8>, JobError>
+) -> Result<(Vec<u8>, Vec<u8>), JobError>
 where
     M: Send + 'static,
     D: Delivery<M>,
@@ -176,9 +176,11 @@ where
         dfns_cggmp21::KeyShare::make(incomplete_key_share, aux_info).map_err(|err| JobError {
             reason: format!("Key share error: {err:?}"),
         })?;
-    bincode2::serialize(&key_share).map_err(|err| JobError {
-        reason: format!("Keygen protocol error: {err:?}"),
-    })
+    bincode2::serialize(&key_share)
+        .map(|ks| (ks, key_share.shared_public_key().to_bytes(true).to_vec()))
+        .map_err(|err| JobError {
+            reason: format!("Keygen protocol error: {err:?}"),
+        })
 }
 
 macro_rules! run_keyrefresh_protocol {
@@ -191,7 +193,6 @@ macro_rules! run_keyrefresh_protocol {
             $eid,
             $i,
             $n,
-            $t,
             $party,
             $rng,
         )
@@ -316,7 +317,7 @@ where
             let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
             let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
 
-            let key_share: Vec<u8> = match role_type {
+            let (key_share, serialized_public_key): (Vec<u8>, Vec<u8>) = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
                     run_keyrefresh_protocol!(
                         Secp256k1,
@@ -329,7 +330,7 @@ where
                         n,
                         party,
                         rng,
-                    )?
+                    )
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
                     run_keyrefresh_protocol!(
@@ -343,7 +344,7 @@ where
                         n,
                         party,
                         rng,
-                    )?
+                    )
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
                     run_keyrefresh_protocol!(
@@ -357,7 +358,7 @@ where
                         n,
                         party,
                         rng,
-                    )?
+                    )
                 }
                 _ => unreachable!("Invalid role type"),
             };
@@ -368,6 +369,7 @@ where
                 key_store2,
                 &logger,
                 &key_share,
+                &serialized_public_key,
                 t,
                 i,
                 broadcast_tx_to_outbound,
@@ -411,12 +413,12 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     key_store: ECDSAKeyStore<KBE>,
     logger: &DebugLogger,
     local_key: &[u8],
+    serialized_public_key: &[u8],
     t: u16,
     i: u16,
     broadcast_tx_to_outbound: futures::channel::mpsc::UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<GadgetJobResult, JobError> {
-    let serialized_public_key = local_key.shared_public_key().to_bytes(true).to_vec();
     let key_hashed = keccak_256(&serialized_public_key);
     let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
     let my_id = key_store.pair().public();
