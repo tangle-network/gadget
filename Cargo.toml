@@ -147,3 +147,4 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-
 lazy_static = "1.4.0"
 sqlx = "=0.7.1"
 postcard = "1.0.8"
+sha2 = "0.10.8"

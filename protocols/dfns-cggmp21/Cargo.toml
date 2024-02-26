@@ -39,3 +39,4 @@ rand_chacha = { workspace = true }
 hex = { workspace = true }
 test-utils = { workspace = true }
 parking_lot = { workspace = true }
+sha2 = { workspace = true }
