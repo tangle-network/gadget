@@ -1,20 +1,12 @@
 use crate::network::ZkNetworkService;
 use crate::protocol::ZkJobAdditionalParams;
 use async_trait::async_trait;
-use gadget_common::client::{
-    AccountId, ClientWithApi, JobsApiForGadget, JobsClient, PalletSubmitter,
-};
-use gadget_common::debug_logger::DebugLogger;
 use gadget_common::full_protocol::SharedOptional;
 use gadget_common::prelude::*;
 use gadget_common::{generate_protocol, Error};
 use mpc_net::prod::RustlsCertificate;
 use network::ZkProtocolNetworkConfig;
 use protocol_macros::protocol;
-use sc_client_api::Backend;
-use sp_api::ProvideRuntimeApi;
-use sp_runtime::traits::Block;
-use std::sync::Arc;
 use tangle_primitives::roles::ZeroKnowledgeRoleType;
 use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
 

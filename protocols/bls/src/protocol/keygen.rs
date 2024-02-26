@@ -1,16 +1,11 @@
 use crate::protocol::state_machine::payloads::RoundPayload;
 use crate::protocol::state_machine::BlsStateMachine;
 use gadget_common::gadget::message::UserID;
-use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::prelude::*;
 use gadget_common::sp_core::keccak_256;
 use itertools::Itertools;
 use round_based::Msg;
 use std::collections::{BTreeMap, HashMap};
-use tangle_primitives::jobs::{
-    DKGTSSKeySubmissionResult, DigitalSignatureScheme, JobId, JobResult,
-};
-use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Clone)]
 pub struct BlsKeygenAdditionalParams {

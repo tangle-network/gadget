@@ -62,7 +62,7 @@ where
     let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
         panic!("Should be valid type")
     };
-    let input_data_to_sign = p2_job.submission.try_into().unwrap();
+    let input_data_to_sign = p2_job.submission.into();
     let previous_job_id = p2_job.phase_one_id;
 
     let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");

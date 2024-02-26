@@ -94,7 +94,7 @@ where
         new_phase_one_id,
         role_type: job.role_type,
         key,
-        new_key: new_key.try_into().unwrap(),
+        new_key: new_key.into(),
         user_id_to_account_id_mapping,
     };
     Ok(params)

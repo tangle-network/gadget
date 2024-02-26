@@ -2,14 +2,9 @@ use crate::protocol::keygen::ZcashFrostKeygenExtraParams;
 use crate::protocol::sign::ZcashFrostSigningExtraParams;
 use async_trait::async_trait;
 use gadget_common::full_protocol::SharedOptional;
-use gadget_common::gadget::JobInitMetadata;
 use gadget_common::prelude::*;
-use gadget_common::{
-    generate_protocol, generate_setup_and_run_command, BuiltExecutableJobWrapper, Error, JobError,
-    ProtocolWorkManager, WorkManagerInterface,
-};
+use gadget_common::{generate_protocol, generate_setup_and_run_command};
 use protocol_macros::protocol;
-use std::sync::Arc;
 
 pub mod constants;
 pub mod protocol;

@@ -1,7 +1,5 @@
 use gadget_common::full_protocol::SharedOptional;
-use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::prelude::*;
-use gadget_common::ProtocolWorkManager;
 
 #[protocol]
 pub struct StubProtocol<
