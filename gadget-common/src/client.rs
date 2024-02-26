@@ -93,7 +93,8 @@ pub mod types {
     }
     #[cfg(feature = "testnet")]
     pub use tangle_primitives::jobs::{
-        MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen,
+        MaxActiveJobsPerValidator, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
+        MaxSignatureLen, MaxSubmissionLen,
     };
     pub use tangle_primitives::AccountId;
 
