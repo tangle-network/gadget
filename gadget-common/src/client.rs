@@ -93,6 +93,7 @@ pub mod types {
         #[derive(Serialize, Deserialize)]
         pub const MaxRolesPerValidator: u32 = 100;
     }
+
     #[cfg(feature = "testnet")]
     pub use tangle_primitives::jobs::{
         MaxActiveJobsPerValidator, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
