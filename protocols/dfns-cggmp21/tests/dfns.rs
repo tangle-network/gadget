@@ -7,7 +7,8 @@ mod tests {
         DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
     };
     use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
-    use test_utils::mock::{id_to_public, Jobs, MockBackend, RuntimeOrigin};
+    use tangle_primitives::AccountId;
+    use test_utils::mock::{id_to_sr25519_public, Jobs, MockBackend, RuntimeOrigin};
     use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
     #[tokio::test(flavor = "multi_thread")]
     async fn test_externalities_keyrefresh() {
@@ -65,7 +66,10 @@ mod tests {
         let job_id = ext
             .execute_with_async(|| {
                 let job_id = Jobs::next_job_id();
-                let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
+                let identities = (0..N)
+                    .map(|i| id_to_sr25519_public(i as u8))
+                    .map(AccountId::from)
+                    .collect::<Vec<_>>();
 
                 let submission = JobSubmission {
                     expiry: 100,
@@ -78,7 +82,10 @@ mod tests {
                     }),
                 };
 
-                assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission).is_ok());
+                assert!(
+                    Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), submission)
+                        .is_ok()
+                );
 
                 log::info!(target: "gadget", "******* Submitted Keygen Job {job_id}");
                 job_id
@@ -102,7 +109,10 @@ mod tests {
             .execute_with_async(move || {
                 let submission = Vec::from("Hello, world!").try_into().unwrap();
                 let job_id = Jobs::next_job_id();
-                let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
+                let identities = (0..N)
+                    .map(|i| id_to_sr25519_public(i as u8))
+                    .map(AccountId::from)
+                    .collect::<Vec<_>>();
                 let submission = JobSubmission {
                     expiry: 100,
                     ttl: 100,
@@ -113,7 +123,10 @@ mod tests {
                     }),
                 };
 
-                assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission).is_ok());
+                assert!(
+                    Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), submission)
+                        .is_ok()
+                );
 
                 log::info!(target: "gadget", "******* Submitted Signing Job {job_id}");
                 job_id
@@ -136,7 +149,10 @@ mod tests {
         let job_id = ext
             .execute_with_async(move || {
                 let job_id = Jobs::next_job_id();
-                let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
+                let identities = (0..N)
+                    .map(|i| id_to_sr25519_public(i as u8))
+                    .map(AccountId::from)
+                    .collect::<Vec<_>>();
                 let submission = JobSubmission {
                     expiry: 100,
                     ttl: 100,
@@ -146,7 +162,10 @@ mod tests {
                     }),
                 };
 
-                assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission).is_ok());
+                assert!(
+                    Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), submission)
+                        .is_ok()
+                );
 
                 log::info!(target: "gadget", "******* Submitted KeyRefresh Job {job_id}");
                 job_id
@@ -170,7 +189,10 @@ mod tests {
         let job_id = ext
             .execute_with_async(move || {
                 let job_id = Jobs::next_job_id();
-                let identities = (0..N).map(|i| id_to_public(i as u8)).collect::<Vec<_>>();
+                let identities = (0..N)
+                    .map(|i| id_to_sr25519_public(i as u8))
+                    .map(AccountId::from)
+                    .collect::<Vec<_>>();
                 let submission = JobSubmission {
                     expiry: 100,
                     ttl: 100,
@@ -181,7 +203,10 @@ mod tests {
                     }),
                 };
 
-                assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0]), submission).is_ok());
+                assert!(
+                    Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), submission)
+                        .is_ok()
+                );
 
                 log::info!(target: "gadget", "******* Submitted KeyRotation Job {job_id}");
                 job_id

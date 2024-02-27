@@ -31,6 +31,12 @@ pallet-jobs = { git = "https://github.com/webb-tools/tangle/" }
 pallet-dkg = { git = "https://github.com/webb-tools/tangle/" }
 pallet-zksaas = { git = "https://github.com/webb-tools/tangle/" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle/" }
+# pallet-jobs-rpc-runtime-api = { path = "../tangle/pallets/jobs/rpc/runtime-api" }
+# pallet-jobs = { path = "../tangle/pallets/jobs" }
+# pallet-dkg = { path = "../tangle/pallets/dkg" }
+# pallet-zksaas = { path = "../tangle/pallets/zksaas" }
+# tangle-primitives = { path = "../tangle/primitives" }
+
 webb = { git = "https://github.com/webb-tools/webb-rs", default-features = false }
 subxt-signer = { version = "0.31.0", default-features = false }
 

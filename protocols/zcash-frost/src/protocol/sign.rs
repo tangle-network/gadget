@@ -7,7 +7,7 @@ use frost_p384::P384Sha384;
 use frost_ristretto255::Ristretto255Sha512;
 use frost_secp256k1::Secp256K1Sha256;
 use gadget_common::client::JobsApiForGadget;
-use gadget_common::client::{AccountId, ClientWithApi, GadgetJobResult};
+use gadget_common::client::{ClientWithApi, GadgetJobResult};
 use gadget_common::config::{Network, ProvideRuntimeApi};
 
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -15,13 +15,14 @@ use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 
+use crate::protocol::util::account_id_32_to_public;
 use gadget_common::{channels, Block};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
 use round_based_21::{Incoming, MpcParty, Outgoing};
 use sc_client_api::Backend;
-use sp_core::keccak_256;
+use sp_core::{ecdsa, keccak_256, ByteArray};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::{DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobType};
@@ -41,7 +42,7 @@ pub struct ZcashFrostSigningExtraParams {
     pub role_type: RoleType,
     pub keyshare: FrostKeyShare,
     pub input_data_to_sign: Vec<u8>,
-    pub user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
+    pub user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
 pub async fn create_next_job<
@@ -68,13 +69,17 @@ where
 
     let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
     let participants = phase1_job.clone().get_participants().expect("Should exist");
+    let participants = participants
+        .iter()
+        .map(|p| account_id_32_to_public(p.as_slice()).expect("Should convert"))
+        .collect::<Vec<_>>();
     let t = phase1_job.get_threshold().expect("Should exist") as u16;
 
     let seed = keccak_256(&[&job_id.to_be_bytes()[..], &job.retry_id.to_be_bytes()[..]].concat());
     let mut rng = rand_chacha::ChaChaRng::from_seed(seed);
+    let id = account_id_32_to_public(config.account_id.as_slice()).expect("Should convert");
 
-    let (i, signers, mapping) =
-        super::util::choose_signers(&mut rng, &config.account_id, &participants, t)?;
+    let (i, signers, mapping) = super::util::choose_signers(&mut rng, &id, &participants, t)?;
     let key = config
         .key_store
         .get_job_result(previous_job_id)
@@ -157,7 +162,7 @@ where
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let pallet_tx = config.pallet_tx.clone();
-    let id = config.account_id;
+    let id = account_id_32_to_public(config.account_id.as_slice()).expect("Should convert");
     let network = config.clone();
 
     let (i, signers, t, keyshare, role_type, input_data_to_sign, mapping) = (

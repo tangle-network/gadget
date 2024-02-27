@@ -7,7 +7,7 @@ use frost_secp256k1::Secp256K1Sha256;
 use futures::StreamExt;
 use gadget_common::client::JobsApiForGadget;
 use gadget_common::client::{
-    AccountId, ClientWithApi, GadgetJobResult, MaxKeyLen, MaxParticipants, MaxSignatureLen,
+    ClientWithApi, GadgetJobResult, MaxKeyLen, MaxParticipants, MaxSignatureLen,
 };
 use gadget_common::config::{Network, ProvideRuntimeApi};
 use gadget_common::debug_logger::DebugLogger;
@@ -25,7 +25,7 @@ use rand::SeedableRng;
 use round_based_21::{Incoming, Outgoing};
 use sc_client_api::Backend;
 use sp_application_crypto::sp_core::keccak_256;
-use sp_core::{ecdsa, Pair};
+use sp_core::{ecdsa, ByteArray, Pair};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tangle_primitives::jobs::{DKGTSSKeySubmissionResult, DigitalSignatureScheme, JobId, JobType};
@@ -35,6 +35,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use crate::rounds;
 use crate::rounds::keygen::Msg;
 
+use crate::protocol::util::account_id_32_to_public;
 use gadget_common::channels::PublicKeyGossipMessage;
 
 #[derive(Clone)]
@@ -44,7 +45,7 @@ pub struct ZcashFrostKeygenExtraParams {
     pub n: u16,
     pub job_id: JobId,
     pub role_type: RoleType,
-    pub user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
+    pub user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
 pub async fn create_next_job<
@@ -77,7 +78,12 @@ where
             .clone()
             .into_iter()
             .enumerate()
-            .map(|r| (r.0 as UserID, r.1))
+            .map(|r| {
+                (
+                    r.0 as UserID,
+                    account_id_32_to_public(r.1.as_slice()).expect("Should convert"),
+                )
+            })
             .collect(),
     );
 
@@ -138,7 +144,7 @@ where
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let pallet_tx = config.pallet_tx.clone();
-    let id = config.account_id;
+    let id = account_id_32_to_public(config.account_id.as_slice()).expect("Should convert");
     let logger = config.logger.clone();
     let network = config.clone();
 

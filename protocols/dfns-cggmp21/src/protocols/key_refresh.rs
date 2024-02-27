@@ -2,7 +2,7 @@ use dfns_cggmp21::key_refresh::msg::aux_only;
 use dfns_cggmp21::security_level::SecurityLevel128;
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
-use gadget_common::client::{AccountId, ClientWithApi, JobsApiForGadget};
+use gadget_common::client::{ClientWithApi, JobsApiForGadget};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
@@ -19,6 +19,7 @@ use sc_client_api::Backend;
 use sha2::Sha256;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
+use sp_core::{ecdsa, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::{
@@ -49,10 +50,8 @@ where
         panic!("Should be valid type")
     };
 
-    let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
-    let participants = phase1_job.clone().get_participants().expect("Should exist");
     let user_id_to_account_id_mapping = Arc::new(
-        participants
+        job.participants_role_ids
             .clone()
             .into_iter()
             .enumerate()
@@ -104,7 +103,7 @@ pub struct DfnsCGGMP21KeyRefreshExtraParams {
     role_type: RoleType,
     key: KeyShare<Secp256k1>,
     pregenerated_primes: dfns_cggmp21::PregeneratedPrimes,
-    user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
+    user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
 pub async fn generate_protocol_from<
@@ -129,7 +128,7 @@ where
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let client = config.get_jobs_client();
-    let id = config.account_id;
+    let role_id = config.key_store.pair().public();
     let logger = config.logger.clone();
     let network = config.clone();
 
@@ -173,7 +172,7 @@ where
                 associated_session_id,
                 associated_task_id,
                 mapping.clone(),
-                id,
+                role_id,
                 network.clone(),
             );
 

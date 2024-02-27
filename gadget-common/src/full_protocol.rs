@@ -1,6 +1,4 @@
-use crate::client::{
-    AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient, PalletSubmitter,
-};
+use crate::client::{ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient, PalletSubmitter};
 use crate::config::{DebugLogger, GadgetProtocol, Network, NetworkAndProtocolSetup};
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
@@ -23,6 +21,7 @@ use sp_runtime::traits::Block;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tangle_primitives::roles::RoleType;
+use tangle_primitives::AccountId;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;

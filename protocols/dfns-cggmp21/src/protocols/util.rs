@@ -1,6 +1,6 @@
 use gadget_common::gadget::message::UserID;
-use gadget_common::prelude::AccountId;
 use rand::prelude::SliceRandom;
+use sp_core::ecdsa::Public;
 use std::collections::HashMap;
 
 /// Given a list of participants, choose `t` of them and return the index of the current participant
@@ -15,10 +15,10 @@ use std::collections::HashMap;
 /// If the current participant is not in the list of participants it will panic.
 pub fn choose_signers<R: rand::Rng>(
     rng: &mut R,
-    my_account_id: &AccountId,
-    participants: &[AccountId],
+    my_account_id: &Public,
+    participants: &[Public],
     t: u16,
-) -> Result<(u16, Vec<u16>, HashMap<UserID, AccountId>), gadget_common::Error> {
+) -> Result<(u16, Vec<u16>, HashMap<UserID, Public>), gadget_common::Error> {
     let selected_participants = participants
         .choose_multiple(rng, t as usize)
         .cloned()

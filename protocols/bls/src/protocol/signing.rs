@@ -1,12 +1,12 @@
 use crate::protocol::state_machine::Group;
-use gadget_common::client::{AccountId, ClientWithApi, JobsApiForGadget};
+use gadget_common::client::{ClientWithApi, JobsApiForGadget};
 use gadget_common::config::{Network, ProvideRuntimeApi};
 use gadget_common::full_protocol::FullProtocolConfig;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
-use gadget_common::sp_core::keccak_256;
+use gadget_common::sp_core::{ecdsa, keccak_256};
 use gadget_common::{
     Backend, Block, BuiltExecutableJobWrapper, Error, JobBuilder, JobError, ProtocolWorkManager,
     WorkManagerInterface,
@@ -28,7 +28,7 @@ pub struct BlsSigningAdditionalParams {
     role_type: RoleType,
     job_id: JobId,
     key_bundle: Participant<SecretParticipantImpl<Group>, Group>,
-    user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
+    user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
     input_data_to_sign: Vec<u8>,
 }
 
@@ -58,7 +58,7 @@ where
     let previous_job_id = p2_job.phase_one_id;
 
     let user_id_to_account_id_mapping = Arc::new(
-        participants
+        job.participants_role_ids
             .clone()
             .into_iter()
             .enumerate()

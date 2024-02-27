@@ -8,8 +8,7 @@ use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 use futures::channel::mpsc::{TryRecvError, UnboundedSender};
 use futures::StreamExt;
 use gadget_common::client::{
-    AccountId, ClientWithApi, GadgetJobResult, JobsApiForGadget, MaxKeyLen, MaxParticipants,
-    MaxSignatureLen,
+    ClientWithApi, GadgetJobResult, JobsApiForGadget, MaxKeyLen, MaxParticipants, MaxSignatureLen,
 };
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::full_protocol::FullProtocolConfig;
@@ -65,7 +64,7 @@ where
         panic!("Should be valid type")
     };
 
-    let participants = p1_job.participants;
+    let participants = job.participants_role_ids;
     let threshold = p1_job.threshold;
 
     let user_id_to_account_id_mapping = Arc::new(
@@ -77,11 +76,14 @@ where
             .collect(),
     );
 
+    let i = p1_job
+        .participants
+        .iter()
+        .position(|p| p == &config.account_id)
+        .expect("Should exist") as u16;
+
     let params = DfnsCGGMP21KeygenExtraParams {
-        i: participants
-            .iter()
-            .position(|p| p == &config.account_id)
-            .expect("Should exist") as u16,
+        i,
         t: threshold as u16,
         n: participants.len() as u16,
         role_type,
@@ -99,7 +101,7 @@ pub struct DfnsCGGMP21KeygenExtraParams {
     n: u16,
     job_id: JobId,
     role_type: RoleType,
-    user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
+    user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
 pub async fn run_and_serialize_keygen<'r, E: Curve, D>(
@@ -195,7 +197,7 @@ where
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let client = config.get_jobs_client();
-    let id = config.account_id;
+    let my_role_id = key_store.pair().public();
     let logger = config.logger.clone();
     let network = config.clone();
 
@@ -231,8 +233,8 @@ where
                 associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
                 associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
                 associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-                mapping: Arc<HashMap<UserID, AccountId>>,
-                id: AccountId,
+                mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+                id: ecdsa::Public,
                 network: N,
             ) -> MpcParty<
                 Msg<E, SecurityLevel128, Sha256>,
@@ -276,7 +278,7 @@ where
                         associated_session_id,
                         associated_task_id,
                         mapping.clone(),
-                        id,
+                        my_role_id,
                         network.clone(),
                     );
                     run_and_serialize_keygen(&mut tracer, eid, i, n, t, party, rng.clone()).await?
@@ -289,7 +291,7 @@ where
                         associated_session_id,
                         associated_task_id,
                         mapping.clone(),
-                        id,
+                        my_role_id,
                         network.clone(),
                     );
                     run_and_serialize_keygen(&mut tracer, eid, i, n, t, party, rng.clone()).await?
@@ -302,7 +304,7 @@ where
                         associated_session_id,
                         associated_task_id,
                         mapping.clone(),
-                        id,
+                        my_role_id,
                         network.clone(),
                     );
                     run_and_serialize_keygen(&mut tracer, eid, i, n, t, party, rng.clone()).await?
@@ -345,8 +347,8 @@ where
                 associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
                 associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
                 associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-                mapping: Arc<HashMap<UserID, AccountId>>,
-                id: AccountId,
+                mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+                id: ecdsa::Public,
                 network: N,
             ) -> (
                 UnboundedSender<PublicKeyGossipMessage>,
@@ -414,7 +416,7 @@ where
                         associated_session_id,
                         associated_task_id,
                         mapping.clone(),
-                        id,
+                        my_role_id,
                         network.clone(),
                     );
                     let (ks, pk) = run_and_serialize_keyrefresh::<Secp256k1, _>(
@@ -439,7 +441,7 @@ where
                         associated_session_id,
                         associated_task_id,
                         mapping.clone(),
-                        id,
+                        my_role_id,
                         network.clone(),
                     );
                     let (kx, pk) = run_and_serialize_keyrefresh::<Secp256r1, _>(
@@ -464,7 +466,7 @@ where
                         associated_session_id,
                         associated_task_id,
                         mapping.clone(),
-                        id,
+                        my_role_id,
                         network.clone(),
                     );
                     let (ks, pk) = run_and_serialize_keyrefresh::<Stark, _>(

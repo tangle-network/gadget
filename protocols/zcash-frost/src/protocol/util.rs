@@ -1,10 +1,21 @@
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 //! When delivering messages to an async protocol, we want to make sure we don't mix up voting and public key gossip messages
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
-use gadget_common::client::AccountId;
 use gadget_common::gadget::message::UserID;
 use rand::seq::SliceRandom;
+use sp_core::ecdsa::Public;
 use std::collections::HashMap;
+
+/// Converts an ECDSA key in 32-byte format to 33-byte format with the metadata 0th byte set to 0x00
+pub fn account_id_32_to_public(account_id: &[u8]) -> Option<Public> {
+    if account_id.len() != 32 {
+        return None;
+    }
+
+    let mut bytes = [0u8; 33];
+    bytes[1..].copy_from_slice(account_id);
+    Some(Public::from_raw(bytes))
+}
 
 /// Given a list of participants, choose `t` of them and return the index of the current participant
 /// and the indices of the chosen participants, as well as a mapping from the index to the account
@@ -18,10 +29,10 @@ use std::collections::HashMap;
 /// If the current participant is not in the list of participants it will panic.
 pub fn choose_signers<R: rand::Rng>(
     rng: &mut R,
-    my_account_id: &AccountId,
-    participants: &[AccountId],
+    my_account_id: &Public,
+    participants: &[Public],
     t: u16,
-) -> Result<(u16, Vec<u16>, HashMap<UserID, AccountId>), gadget_common::Error> {
+) -> Result<(u16, Vec<u16>, HashMap<UserID, Public>), gadget_common::Error> {
     let selected_participants = participants
         .choose_multiple(rng, t as usize)
         .cloned()
@@ -32,18 +43,17 @@ pub fn choose_signers<R: rand::Rng>(
         .map(|p| participants.iter().position(|x| x == p).unwrap() as u16)
         .collect::<Vec<_>>();
 
-    let mut selected_participants_with_indices: Vec<(u16, AccountId)> =
-        selected_participants_indices
-            .iter()
-            .cloned()
-            .zip(selected_participants)
-            .collect();
+    let mut selected_participants_with_indices: Vec<(u16, Public)> = selected_participants_indices
+        .iter()
+        .cloned()
+        .zip(selected_participants)
+        .collect();
 
     selected_participants_with_indices.sort_by_key(|&(index, _)| index);
 
     let (sorted_selected_participants_indices, sorted_selected_participants): (
         Vec<u16>,
-        Vec<AccountId>,
+        Vec<Public>,
     ) = selected_participants_with_indices.into_iter().unzip();
 
     let j = participants

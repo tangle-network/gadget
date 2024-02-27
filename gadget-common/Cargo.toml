@@ -12,8 +12,9 @@ default = [
 std = [
     "sp-api/std",
     "tangle-primitives/std",
-    "pallet-jobs-rpc-runtime-api/std",
+    "pallet-jobs-rpc-runtime-api/std"
 ]
+testnet = []
 testing = []
 
 [dependencies]
@@ -27,10 +28,13 @@ log = { workspace = true }
 parking_lot = { workspace = true }
 futures-util = { workspace = true }
 sc-client-api = { workspace = true }
+sc-service = { workspace = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }
+sp-application-crypto = { workspace = true }
 hex = { workspace = true }
 bincode2 = { workspace = true }
+serde_bytes = { workspace = true }
 linked-hash-map = { workspace = true }
 webb = { workspace = true, default-features = false, features = ["substrate-runtime"] }
 subxt-signer = { workspace = true, features = ["subxt", "sr25519"] }
@@ -53,3 +57,5 @@ tangle-primitives = { workspace = true, features = ["std"] }
 pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
 parity-scale-codec = { workspace = true }
 scale-info = { workspace = true }
+# Just to get it to compile for now
+ed448-goldilocks-plus = { git = "https://github.com/mikelodder7/Ed448-Goldilocks", features = ["std"] }

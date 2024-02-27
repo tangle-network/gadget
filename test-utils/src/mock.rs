@@ -30,7 +30,7 @@ use pallet_jobs_rpc_runtime_api::BlockNumberOf;
 use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use sp_api::{ApiRef, ProvideRuntimeApi};
-use sp_core::{ByteArray, Pair, H256};
+use sp_core::{sr25519, ByteArray, Pair, H256};
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -141,33 +141,33 @@ pub struct MockRolesHandler;
 
 impl RolesHandler<AccountId> for MockRolesHandler {
     type Balance = Balance;
-
-    fn record_job_by_validators(_validators: Vec<AccountId>) -> DispatchResult {
+    fn record_job_by_validators(_: Vec<AccountId>) -> DispatchResult {
         Ok(())
     }
 
-    fn get_max_active_service_for_restaker(_restaker: AccountId) -> Option<u32> {
+    fn get_max_active_service_for_restaker(_: AccountId) -> std::option::Option<u32> {
         Some(u32::MAX)
     }
-
     fn report_offence(_offence_report: ReportRestakerOffence<AccountId>) -> DispatchResult {
         Ok(())
     }
 
     fn is_restaker(address: AccountId, _role_type: RoleType) -> bool {
-        let restakers = (0..8).map(id_to_public).collect::<Vec<_>>();
+        let restakers = (0..8)
+            .map(id_to_sr25519_public)
+            .map(Into::into)
+            .collect::<Vec<_>>();
         restakers.contains(&address)
     }
 
     fn get_validator_role_key(address: AccountId) -> Option<Vec<u8>> {
-        let validators = (0..8).map(id_to_pair).collect::<Vec<_>>();
-        validators.iter().find_map(|p| {
-            if p.public() == address {
-                Some(p.public().to_raw_vec())
-            } else {
-                None
-            }
-        })
+        let validators = (0..8).map(id_to_ecdsa_pair).collect::<Vec<_>>();
+        let restakers = (0..8)
+            .map(id_to_sr25519_public)
+            .map(AccountId::from)
+            .collect::<Vec<_>>();
+        let idx = restakers.iter().position(|p| p == &address);
+        idx.map(|i| validators[i].public().to_raw_vec())
     }
 }
 
@@ -327,12 +327,20 @@ impl ProvideRuntimeApi<Block> for Runtime {
     }
 }
 
-pub fn id_to_pair(id: u8) -> ecdsa::Pair {
+pub fn id_to_ecdsa_pair(id: u8) -> ecdsa::Pair {
     ecdsa::Pair::from_string(&format!("//Alice///{id}"), None).expect("static values are valid")
 }
 
+pub fn id_to_sr25519_pair(id: u8) -> sr25519::Pair {
+    sr25519::Pair::from_string(&format!("//Alice///{id}"), None).expect("static values are valid")
+}
+
 pub fn id_to_public(id: u8) -> ecdsa::Public {
-    id_to_pair(id).public()
+    id_to_ecdsa_pair(id).public()
+}
+
+pub fn id_to_sr25519_public(id: u8) -> sr25519::Public {
+    id_to_sr25519_pair(id).public()
 }
 
 sp_externalities::decl_extension! {
@@ -342,21 +350,24 @@ sp_externalities::decl_extension! {
 #[derive(Clone)]
 pub struct MockNetwork {
     peers_tx: Arc<
-        HashMap<AccountId, UnboundedSender<<WorkManager as WorkManagerInterface>::ProtocolMessage>>,
+        HashMap<
+            ecdsa::Public,
+            UnboundedSender<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
+        >,
     >,
     peers_rx: Arc<
         HashMap<
-            AccountId,
+            ecdsa::Public,
             tokio::sync::Mutex<
                 UnboundedReceiver<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
             >,
         >,
     >,
-    my_id: AccountId,
+    my_id: ecdsa::Public,
 }
 
 impl MockNetwork {
-    pub fn setup(ids: &Vec<AccountId>) -> Vec<Self> {
+    pub fn setup(ids: &Vec<ecdsa::Public>) -> Vec<Self> {
         let mut peers_tx = HashMap::new();
         let mut peers_rx = HashMap::new();
         let mut networks = Vec::new();
@@ -474,16 +485,29 @@ pub async fn new_test_ext<
         .build_storage()
         .unwrap();
 
-    let pairs = (0..N).map(|i| id_to_pair(i as u8)).collect::<Vec<_>>();
-    let identities = pairs.iter().map(|pair| pair.public()).collect::<Vec<_>>();
-
-    let balances = identities
+    let role_pairs = (0..N)
+        .map(|i| id_to_ecdsa_pair(i as u8))
+        .collect::<Vec<_>>();
+    let roles_identities = role_pairs
         .iter()
-        .map(|public| (*public, 100u128))
+        .map(|pair| pair.public())
+        .collect::<Vec<_>>();
+
+    let pairs = (0..N)
+        .map(|i| id_to_sr25519_pair(i as u8))
+        .collect::<Vec<_>>();
+    let account_ids = pairs
+        .iter()
+        .map(|pair| pair.public().into())
+        .collect::<Vec<AccountId>>();
+
+    let balances = account_ids
+        .iter()
+        .map(|public| (public.clone(), 100u128))
         .collect::<Vec<_>>();
 
     let networks = (0..K)
-        .map(|_| MockNetwork::setup(&identities))
+        .map(|_| MockNetwork::setup(&roles_identities))
         .collect::<Vec<_>>();
 
     // Transpose networks
@@ -552,28 +576,27 @@ pub async fn new_test_ext<
         }
     });
 
-    for (node_index, (identity_pair, networks)) in pairs.into_iter().zip(networks).enumerate() {
+    for (node_index, ((role_pair, pair), networks)) in
+        role_pairs.into_iter().zip(pairs).zip(networks).enumerate()
+    {
         let mut mock_clients = Vec::new();
 
         for _ in 0..K {
             mock_clients.push(MockClient::new(Runtime, finality_notification_txs.clone()).await);
         }
 
-        let account_id = identity_pair.public();
+        let account_id: AccountId = pair.public().into();
 
         let logger = DebugLogger {
             peer_id: format!("Peer {node_index}"),
         };
 
         let pallet_tx = Arc::new(TestExternalitiesPalletSubmitter {
-            id: account_id,
+            id: account_id.clone(),
             ext: ext.clone(),
         });
 
-        // Assume all clients/networks share the same keystore for sharing results
-        // between phases
-        let keystore = ECDSAKeyStore::in_memory(identity_pair);
-
+        let keystore = ECDSAKeyStore::in_memory(role_pair);
         let prometheus_config = PrometheusConfig::Disabled;
 
         let input = NodeInput {
@@ -729,7 +752,7 @@ pub mod mock_wrapper_client {
             job_id: JobId,
             result: GadgetJobResult,
         ) -> Result<(), gadget_common::Error> {
-            let id = self.id;
+            let id = self.id.clone();
             self.ext
                 .execute_with_async(move || {
                     let origin = RuntimeOrigin::signed(id);
