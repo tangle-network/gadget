@@ -15,7 +15,7 @@ curv = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 bincode2 = { workspace = true }
-round-based = { git = "https://github.com/ZenGo-X/round-based-protocol", features = ["derive"]}
+round-based-21 = { workspace = true, features = ["derive"]}
 digest = { workspace = true }
 sha2 = "0.10"
 rand_core = "0.6"

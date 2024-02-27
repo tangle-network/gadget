@@ -15,13 +15,14 @@ use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
-use gadget_common::Block;
+use gadget_common::{channels, Block};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
 use pallet_dkg::signatures_schemes::ecdsa::verify_signer_from_set_ecdsa;
 use pallet_dkg::signatures_schemes::to_slice_33;
 use rand::SeedableRng;
+use round_based_21::{Incoming, Outgoing};
 use sc_client_api::Backend;
 use sp_application_crypto::sp_core::keccak_256;
 use sp_core::{ecdsa, Pair};
@@ -32,8 +33,9 @@ use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::rounds;
+use crate::rounds::keygen::Msg;
 
-use super::util::PublicKeyGossipMessage;
+use gadget_common::channels::PublicKeyGossipMessage;
 
 #[derive(Clone)]
 pub struct ZcashFrostKeygenExtraParams {
@@ -171,7 +173,12 @@ where
                 keygen_rx_async_proto,
                 broadcast_tx_to_outbound,
                 broadcast_rx_from_gadget,
-            ) = super::util::create_job_manager_to_async_protocol_channel_split_futures(
+            ) = channels::create_job_manager_to_async_protocol_channel_split_io::<
+                _,
+                _,
+                Outgoing<Msg>,
+                Incoming<Msg>,
+            >(
                 protocol_message_channel.clone(),
                 associated_block_id,
                 associated_retry_id,
@@ -183,7 +190,7 @@ where
             );
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
             let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
-            let party = round_based::MpcParty::connected(delivery);
+            let party = round_based_21::MpcParty::connected(delivery);
             let frost_key_share_package = match role {
                 ThresholdSignatureRoleType::ZcashFrostEd25519 => {
                     run_threshold_keygen!(

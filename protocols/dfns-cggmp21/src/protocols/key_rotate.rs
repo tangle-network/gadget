@@ -1,3 +1,4 @@
+use dfns_cggmp21::signing::msg::Msg;
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
 use gadget_common::client::{AccountId, ClientWithApi, JobsApiForGadget};
@@ -12,7 +13,9 @@ use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
+use round_based_21::{Incoming, Outgoing};
 use sc_client_api::Backend;
+use sha2::Sha256;
 use sp_api::ProvideRuntimeApi;
 use sp_core::keccak_256;
 use std::collections::HashMap;
@@ -173,7 +176,12 @@ where
                 key_rotate_rx_async_proto,
                 _broadcast_tx_to_outbound,
                 _broadcast_rx_from_gadget,
-            ) = super::util::create_job_manager_to_async_protocol_channel_split_futures::<_, (), _>(
+            ) = gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io::<
+                _,
+                (),
+                Outgoing<Msg<Secp256k1, Sha256>>,
+                Incoming<Msg<Secp256k1, Sha256>>,
+            >(
                 protocol_message_channel.clone(),
                 associated_block_id,
                 associated_retry_id,
@@ -185,7 +193,7 @@ where
             );
 
             let delivery = (key_rotate_rx_async_proto, key_rotate_tx_to_outbound);
-            let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
+            let party = round_based_21::MpcParty::connected(delivery);
             let data_hash = keccak_256(&new_key);
             let data_to_sign = dfns_cggmp21::DataToSign::from_scalar(
                 dfns_cggmp21::generic_ec::Scalar::from_be_bytes_mod_order(data_hash),

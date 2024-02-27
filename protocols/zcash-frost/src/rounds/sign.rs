@@ -6,6 +6,7 @@ use frost_core::{aggregate, round1, Ciphersuite, Field, Group, Identifier, Signi
 use futures::SinkExt;
 use rand_core::{CryptoRng, RngCore};
 use round_based::rounds_router::simple_store::RoundInput;
+use round_based_21 as round_based;
 
 use round_based::rounds_router::RoundsRouter;
 use round_based::runtime::AsyncRuntime;

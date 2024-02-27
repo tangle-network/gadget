@@ -3,7 +3,6 @@ use dfns_cggmp21::key_refresh::msg::aux_only;
 use dfns_cggmp21::keygen::msg::threshold;
 use dfns_cggmp21::keygen::msg::threshold::Msg;
 use dfns_cggmp21::keygen::ThresholdMsg;
-use dfns_cggmp21::round_based::{Delivery, Incoming, MpcParty, Outgoing};
 use dfns_cggmp21::security_level::SecurityLevel128;
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 use futures::channel::mpsc::{TryRecvError, UnboundedSender};
@@ -28,6 +27,7 @@ use pallet_dkg::signatures_schemes::ecdsa::verify_signer_from_set_ecdsa;
 use pallet_dkg::signatures_schemes::to_slice_33;
 use rand::rngs::{OsRng, StdRng};
 use rand::SeedableRng;
+use round_based_21::{Delivery, Incoming, MpcParty, Outgoing};
 use sc_client_api::Backend;
 use sha2::Sha256;
 use sp_api::ProvideRuntimeApi;
@@ -41,7 +41,7 @@ use tangle_primitives::jobs::{
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use super::util::PublicKeyGossipMessage;
+use gadget_common::channels::PublicKeyGossipMessage;
 
 pub async fn create_next_job<
     B: Block,
@@ -248,10 +248,11 @@ where
                     keygen_rx_async_proto,
                     _broadcast_tx_to_outbound,
                     _broadcast_rx_from_gadget,
-                ) = super::util::create_job_manager_to_async_protocol_channel_split_futures::<
+                ) = gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io::<
                     _,
                     (),
-                    threshold::Msg<E, SecurityLevel128, sha2::Sha256>,
+                    Outgoing<threshold::Msg<E, SecurityLevel128, sha2::Sha256>>,
+                    Incoming<threshold::Msg<E, SecurityLevel128, sha2::Sha256>>,
                 >(
                     protocol_message_channel,
                     associated_block_id,
@@ -380,10 +381,11 @@ where
                     keyrefresh_rx_async_proto,
                     broadcast_tx_to_outbound,
                     broadcast_rx_from_gadget,
-                ) = super::util::create_job_manager_to_async_protocol_channel_split_futures::<
+                ) = gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io::<
                     _,
                     PublicKeyGossipMessage,
-                    aux_only::Msg<sha2::Sha256, SecurityLevel128>,
+                    Outgoing<aux_only::Msg<sha2::Sha256, SecurityLevel128>>,
+                    Incoming<aux_only::Msg<sha2::Sha256, SecurityLevel128>>,
                 >(
                     protocol_message_channel,
                     associated_block_id,

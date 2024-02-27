@@ -15,11 +15,11 @@ use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 
-use gadget_common::Block;
+use gadget_common::{channels, Block};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
-use round_based::MpcParty;
+use round_based_21::{Incoming, MpcParty, Outgoing};
 use sc_client_api::Backend;
 use sp_core::keccak_256;
 use std::collections::HashMap;
@@ -30,6 +30,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::rounds;
 use crate::rounds::keygen::FrostKeyShare;
+use crate::rounds::sign::Msg;
 
 #[derive(Clone)]
 pub struct ZcashFrostSigningExtraParams {
@@ -193,7 +194,12 @@ where
                 signing_rx_async_proto,
                 _broadcast_tx_to_outbound,
                 _broadcast_rx_from_gadget,
-            ) = super::util::create_job_manager_to_async_protocol_channel_split_futures::<_, (), _>(
+            ) = channels::create_job_manager_to_async_protocol_channel_split_io::<
+                _,
+                (),
+                Outgoing<Msg>,
+                Incoming<Msg>,
+            >(
                 protocol_message_channel.clone(),
                 associated_block_id,
                 associated_retry_id,

@@ -18,6 +18,7 @@ use round_based::{
     runtime::AsyncRuntime,
     Delivery, Mpc, MpcParty, Outgoing, ProtocolMessage,
 };
+use round_based_21 as round_based;
 use serde::{Deserialize, Serialize};
 use tangle_primitives::roles::ThresholdSignatureRoleType;
 

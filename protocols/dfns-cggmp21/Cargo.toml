@@ -11,6 +11,7 @@ protocol-macros = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
 dfns-cggmp21 = { workspace = true, features = ["all-curves"] }
+round-based-21 = { workspace = true }
 curv = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }

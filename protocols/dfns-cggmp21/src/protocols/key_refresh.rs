@@ -1,3 +1,5 @@
+use dfns_cggmp21::key_refresh::msg::aux_only;
+use dfns_cggmp21::security_level::SecurityLevel128;
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
 use gadget_common::client::{AccountId, ClientWithApi, JobsApiForGadget};
@@ -12,7 +14,9 @@ use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
+use round_based_21::{Incoming, Outgoing};
 use sc_client_api::Backend;
+use sha2::Sha256;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
 use std::collections::HashMap;
@@ -157,7 +161,12 @@ where
                 key_refresh_rx_async_proto,
                 _broadcast_tx_to_outbound,
                 _broadcast_rx_from_gadget,
-            ) = super::util::create_job_manager_to_async_protocol_channel_split_futures::<_, (), _>(
+            ) = gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io::<
+                _,
+                (),
+                Outgoing<aux_only::Msg<Sha256, SecurityLevel128>>,
+                Incoming<aux_only::Msg<Sha256, SecurityLevel128>>,
+            >(
                 protocol_message_channel.clone(),
                 associated_block_id,
                 associated_retry_id,
@@ -170,7 +179,7 @@ where
 
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
             let delivery = (key_refresh_rx_async_proto, key_refresh_tx_to_outbound);
-            let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
+            let party = round_based_21::MpcParty::connected(delivery);
             let aux_info = dfns_cggmp21::aux_info_gen(eid, i, n, pregenerated_primes)
                 .set_progress_tracer(&mut tracer)
                 .start(&mut rng, party)

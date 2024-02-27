@@ -2227,6 +2227,7 @@ dependencies = [
  "protocol-macros",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
+ "round-based 0.2.1",
  "sc-client-api",
  "serde",
  "sha2 0.10.8",
@@ -3724,6 +3725,7 @@ dependencies = [
  "parking_lot 0.12.1",
  "protocol-macros",
  "round-based 0.1.7",
+ "round-based 0.2.1",
  "sc-client-api",
  "sc-network",
  "sc-network-common",
@@ -7648,18 +7650,6 @@ dependencies = [
  "serde",
  "thiserror",
  "tokio",
-]
-
-[[package]]
-name = "round-based"
-version = "0.2.0"
-source = "git+https://github.com/ZenGo-X/round-based-protocol#1b372fe7d19de8cc5236cfcd0bcd92d610dacecd"
-dependencies = [
- "futures-util",
- "phantom-type 0.3.1",
- "round-based-derive",
- "thiserror",
- "tracing",
 ]
 
 [[package]]
@@ -12151,7 +12141,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
- "round-based 0.2.0",
+ "round-based 0.2.1",
  "sc-client-api",
  "serde",
  "sha2 0.10.8",
