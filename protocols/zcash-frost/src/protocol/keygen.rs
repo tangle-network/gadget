@@ -171,7 +171,7 @@ where
                 keygen_rx_async_proto,
                 broadcast_tx_to_outbound,
                 broadcast_rx_from_gadget,
-            ) = super::util::create_job_manager_to_async_protocol_channel_split(
+            ) = super::util::create_job_manager_to_async_protocol_channel_split_futures(
                 protocol_message_channel.clone(),
                 associated_block_id,
                 associated_retry_id,

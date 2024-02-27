@@ -193,7 +193,7 @@ where
                 signing_rx_async_proto,
                 _broadcast_tx_to_outbound,
                 _broadcast_rx_from_gadget,
-            ) = super::util::create_job_manager_to_async_protocol_channel_split::<_, (), _>(
+            ) = super::util::create_job_manager_to_async_protocol_channel_split_futures::<_, (), _>(
                 protocol_message_channel.clone(),
                 associated_block_id,
                 associated_retry_id,

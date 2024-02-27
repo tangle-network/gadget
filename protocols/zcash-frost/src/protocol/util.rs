@@ -237,7 +237,7 @@ impl MaybeSenderReceiver for () {
     }
 }
 
-pub(crate) fn create_job_manager_to_async_protocol_channel_split<
+pub(crate) fn create_job_manager_to_async_protocol_channel_split_futures<
     N: Network + 'static,
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     M: Serialize + DeserializeOwned + Send + 'static,

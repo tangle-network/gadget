@@ -26,7 +26,7 @@ use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
 use pallet_dkg::signatures_schemes::ecdsa::verify_signer_from_set_ecdsa;
 use pallet_dkg::signatures_schemes::to_slice_33;
-use rand::rngs::StdRng;
+use rand::rngs::{OsRng, StdRng};
 use rand::SeedableRng;
 use sc_client_api::Backend;
 use sha2::Sha256;
@@ -209,7 +209,7 @@ where
 
     Ok(JobBuilder::new()
         .protocol(async move {
-            let mut rng = rand::rngs::StdRng::from_entropy();
+            let rng = rand::rngs::StdRng::from_entropy();
             let protocol_message_channel =
                 CloneableUnboundedReceiver::from(protocol_message_channel);
             logger.info(format!(
@@ -248,7 +248,7 @@ where
                     keygen_rx_async_proto,
                     _broadcast_tx_to_outbound,
                     _broadcast_rx_from_gadget,
-                ) = super::util::create_job_manager_to_async_protocol_channel_split::<
+                ) = super::util::create_job_manager_to_async_protocol_channel_split_futures::<
                     _,
                     (),
                     threshold::Msg<E, SecurityLevel128, sha2::Sha256>,
@@ -318,8 +318,19 @@ where
 
             let pregenerated_primes_key =
                 keccak_256(&[&b"dfns-cggmp21-keygen-primes"[..], &job_id_bytes[..]].concat());
-            let pregenerated_primes =
-                dfns_cggmp21::PregeneratedPrimes::<SecurityLevel128>::generate(&mut rng);
+            let now = tokio::time::Instant::now();
+            let pregenerated_primes = tokio::task::spawn_blocking(|| {
+                let mut rng = OsRng;
+                dfns_cggmp21::PregeneratedPrimes::<SecurityLevel128>::generate(&mut rng)
+            })
+            .await
+            .map_err(|err| JobError {
+                reason: format!("Failed to generate pregenerated primes: {err:?}"),
+            })?;
+
+            let elapsed = now.elapsed();
+            logger.debug(format!("Pregenerated primes took {elapsed:?}"));
+
             key_store2
                 .set(&pregenerated_primes_key, pregenerated_primes.clone())
                 .await
@@ -369,7 +380,7 @@ where
                     keyrefresh_rx_async_proto,
                     broadcast_tx_to_outbound,
                     broadcast_rx_from_gadget,
-                ) = super::util::create_job_manager_to_async_protocol_channel_split::<
+                ) = super::util::create_job_manager_to_async_protocol_channel_split_futures::<
                     _,
                     PublicKeyGossipMessage,
                     aux_only::Msg<sha2::Sha256, SecurityLevel128>,
@@ -391,6 +402,7 @@ where
                 )
             }
 
+            logger.info(format!("Will now run Keygen protocol: {role_type:?}"));
             let (tx, rx, key_share, serialized_public_key) = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
                     let (tx, rx, party) = create_party_refresh(
