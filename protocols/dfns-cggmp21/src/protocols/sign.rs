@@ -1,6 +1,6 @@
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
-use gadget_common::client::{AccountId, ClientWithApi, JobsApiForGadget};
+use gadget_common::client::{ClientWithApi, JobsApiForGadget};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;

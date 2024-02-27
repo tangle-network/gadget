@@ -11,7 +11,7 @@ use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_api::{BlockT as Block, Decode, Encode};
 use sp_core::Pair;
 use sp_core::{ecdsa, ByteArray};
-use sp_runtime::traits::IdentifyAccount;
+
 use std::sync::Arc;
 use subxt::tx::TxPayload;
 use subxt::OnlineClient;
@@ -336,7 +336,10 @@ where
     }
 }
 
-impl<T: subxt::Config> subxt::tx::Signer<T> for PairSigner<T> {
+impl<T: subxt::Config> subxt::tx::Signer<T> for PairSigner<T>
+where
+    T::Signature: From<subxt::utils::MultiSignature>,
+{
     fn account_id(&self) -> T::AccountId {
         self.account_id.clone()
     }
@@ -346,7 +349,7 @@ impl<T: subxt::Config> subxt::tx::Signer<T> for PairSigner<T> {
     }
 
     fn sign(&self, signer_payload: &[u8]) -> T::Signature {
-        self.signer.sign(signer_payload).into()
+        subxt::utils::MultiSignature::Sr25519(self.signer.sign(signer_payload).0).into()
     }
 }
 
@@ -377,6 +380,7 @@ where
     C: subxt::Config + Send + Sync + 'static,
     S: subxt::tx::Signer<C> + Send + Sync + 'static,
     C::AccountId: std::fmt::Display + Send + Sync + 'static,
+    C::Hash: std::fmt::Display,
     <C::ExtrinsicParams as ExtrinsicParams<C::Hash>>::OtherParams: Default + Send + Sync + 'static,
 {
     async fn submit_job_result(
@@ -392,12 +396,27 @@ where
                 job_id,
                 Decode::decode(&mut result.encode().as_slice()).expect("Should decode"),
             );
-        self.submit(&tx)
-            .await
-            .map(|_| ())
-            .map_err(|err| crate::Error::ClientError {
-                err: format!("Failed to submit job result: {err:?}"),
-            })
+        match self.submit(&tx).await {
+            Ok(hash) => {
+                self.logger.info(format!(
+                    "({}) Job result submitted for job_id: {job_id} at block: {hash}",
+                    self.signer.account_id(),
+                ));
+                Ok(())
+            }
+            Err(err) if err.to_string().contains("JobNotFound") => {
+                self.logger.warn(format!(
+                    "({}) Job not found for job_id: {job_id}",
+                    self.signer.account_id(),
+                ));
+                Ok(())
+            },
+            Err(err) => {
+                return Err(crate::Error::ClientError {
+                    err: format!("Failed to submit job result: {err:?}"),
+                })
+            }
+        }
     }
 }
 

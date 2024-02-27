@@ -3,7 +3,7 @@
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
 use dfns_cggmp21::round_based::{Incoming, MessageDestination, MessageType, Outgoing, PartyIndex};
 use futures::{Stream, StreamExt};
-use gadget_common::client::AccountId;
+
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;

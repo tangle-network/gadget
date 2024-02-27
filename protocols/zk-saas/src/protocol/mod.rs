@@ -76,7 +76,7 @@ where
         role_type,
         system: phase_one.system,
         request: phase_two.request,
-        participants_role_keys: job.participants_role_ids,
+        participants_role_ids: job.participants_role_ids,
     };
 
     Ok(params)
@@ -90,7 +90,7 @@ pub struct ZkJobAdditionalParams {
     role_type: RoleType,
     system: ZkSaaSSystem<MaxSubmissionLen>,
     request: ZkSaaSPhaseTwoRequest<MaxSubmissionLen>,
-    participants_role_keys: Vec<ecdsa::Public>,
+    participants_role_ids: Vec<ecdsa::Public>,
 }
 
 impl AdditionalProtocolParams for ZkJobAdditionalParams {
@@ -121,7 +121,7 @@ where
     let pallet_tx = config.pallet_tx.clone();
     let rxs = zk_setup_rxs(additional_params.n_parties(), protocol_message_rx).await?;
     let other_network_ids =
-        zk_setup_phase_order_participants(additional_params.participants.clone(), config.clone())
+        zk_setup_phase_order_participants(additional_params.participants_role_ids.clone(), config.clone())
             .map_err(|err| JobError {
             reason: format!("Failed to setup phase order participants: {err:?}"),
         })?;
