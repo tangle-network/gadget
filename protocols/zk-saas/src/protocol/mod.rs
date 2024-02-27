@@ -120,11 +120,13 @@ where
 {
     let pallet_tx = config.pallet_tx.clone();
     let rxs = zk_setup_rxs(additional_params.n_parties(), protocol_message_rx).await?;
-    let other_network_ids =
-        zk_setup_phase_order_participants(additional_params.participants_role_ids.clone(), config.clone())
-            .map_err(|err| JobError {
-            reason: format!("Failed to setup phase order participants: {err:?}"),
-        })?;
+    let other_network_ids = zk_setup_phase_order_participants(
+        additional_params.participants_role_ids.clone(),
+        config.clone(),
+    )
+    .map_err(|err| JobError {
+        reason: format!("Failed to setup phase order participants: {err:?}"),
+    })?;
 
     let params = ZkAsyncProtocolParameters::<_, _, _, B, BE> {
         associated_block_id,

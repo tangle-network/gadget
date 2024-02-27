@@ -410,7 +410,7 @@ where
                     self.signer.account_id(),
                 ));
                 Ok(())
-            },
+            }
             Err(err) => {
                 return Err(crate::Error::ClientError {
                     err: format!("Failed to submit job result: {err:?}"),
