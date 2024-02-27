@@ -56,5 +56,3 @@ tangle-primitives = { workspace = true, features = ["std"] }
 pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
 parity-scale-codec = { workspace = true }
 scale-info = { workspace = true }
-# Just to get it to compile for now
-ed448-goldilocks-plus = { git = "https://github.com/mikelodder7/Ed448-Goldilocks", features = ["std"] }
