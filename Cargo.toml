@@ -35,7 +35,8 @@ pallet-dkg = { path = "../tangle/pallets/dkg" }
 pallet-zksaas = { path = "../tangle/pallets/zksaas" }
 tangle-primitives = { path = "../tangle/primitives" }
 
-webb = { git = "https://github.com/webb-tools/webb-rs", default-features = false }
+# webb = { git = "https://github.com/webb-tools/webb-rs", default-features = false }
+webb = { path = "../webb-rs", default-features = false }
 subxt-signer = { version = "0.31.0", default-features = false }
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }

@@ -9,7 +9,9 @@ use sc_client_api::{
 };
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_api::{BlockT as Block, Decode, Encode};
+use sp_core::Pair;
 use sp_core::{ecdsa, ByteArray};
+use sp_runtime::traits::IdentifyAccount;
 use std::sync::Arc;
 use subxt::tx::TxPayload;
 use subxt::OnlineClient;
@@ -317,6 +319,36 @@ where
         self.client.get_next_block_import_notification().await
     }
 }
+/// A [`Signer`] implementation that can be constructed from an [`sp_core::Pair`].
+#[derive(Clone)]
+pub struct PairSigner<T: subxt::Config> {
+    account_id: T::AccountId,
+    signer: sp_core::sr25519::Pair,
+}
+
+impl<T: subxt::Config> PairSigner<T>
+where
+    T::AccountId: From<[u8; 32]>,
+{
+    pub fn new(signer: sp_core::sr25519::Pair) -> Self {
+        let account_id = T::AccountId::from(signer.public().into());
+        Self { account_id, signer }
+    }
+}
+
+impl<T: subxt::Config> subxt::tx::Signer<T> for PairSigner<T> {
+    fn account_id(&self) -> T::AccountId {
+        self.account_id.clone()
+    }
+
+    fn address(&self) -> T::Address {
+        self.account_id.clone().into()
+    }
+
+    fn sign(&self, signer_payload: &[u8]) -> T::Signature {
+        self.signer.sign(signer_payload).into()
+    }
+}
 
 #[async_trait]
 #[auto_impl(Arc)]
@@ -336,6 +368,7 @@ where
 {
     subxt_client: OnlineClient<C>,
     signer: S,
+    logger: DebugLogger,
 }
 
 #[async_trait]
@@ -343,7 +376,7 @@ impl<C, S> PalletSubmitter for SubxtPalletSubmitter<C, S>
 where
     C: subxt::Config + Send + Sync + 'static,
     S: subxt::tx::Signer<C> + Send + Sync + 'static,
-    C::AccountId: Send + Sync + 'static,
+    C::AccountId: std::fmt::Display + Send + Sync + 'static,
     <C::ExtrinsicParams as ExtrinsicParams<C::Hash>>::OtherParams: Default + Send + Sync + 'static,
 {
     async fn submit_job_result(
@@ -371,10 +404,11 @@ where
 impl<C, S> SubxtPalletSubmitter<C, S>
 where
     C: subxt::Config,
+    C::AccountId: std::fmt::Display,
     S: subxt::tx::Signer<C>,
     <C::ExtrinsicParams as ExtrinsicParams<C::Hash>>::OtherParams: Default,
 {
-    pub async fn new(signer: S) -> Result<Self, crate::Error> {
+    pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, crate::Error> {
         let subxt_client =
             OnlineClient::<C>::new()
                 .await
@@ -384,9 +418,18 @@ where
         Ok(Self {
             subxt_client,
             signer,
+            logger,
         })
     }
     async fn submit<Call: TxPayload>(&self, call: &Call) -> anyhow::Result<C::Hash> {
+        if let Some(details) = call.validation_details() {
+            self.logger.trace(format!(
+                "({}) Submitting {}.{}",
+                self.signer.account_id(),
+                details.pallet_name,
+                details.call_name
+            ));
+        }
         Ok(self
             .subxt_client
             .tx()
@@ -427,13 +470,17 @@ mod tests {
     #[tokio::test]
     #[ignore = "This test requires a running substrate node"]
     async fn subxt_pallet_submitter() -> anyhow::Result<()> {
+        let logger = DebugLogger {
+            peer_id: "test".into(),
+        };
         let alice = subxt_signer::sr25519::dev::alice();
         let bob = subxt_signer::sr25519::dev::bob();
         let alice_account_id =
             <subxt_signer::sr25519::Keypair as Signer<PolkadotConfig>>::account_id(&alice);
         let bob_account_id =
             <subxt_signer::sr25519::Keypair as Signer<PolkadotConfig>>::account_id(&bob);
-        let pallet_tx = SubxtPalletSubmitter::<PolkadotConfig, _>::new(alice.clone()).await?;
+        let pallet_tx =
+            SubxtPalletSubmitter::<PolkadotConfig, _>::new(alice.clone(), logger).await?;
         let dkg_phase_one = jobs::JobSubmission {
             expiry: 100u64,
             ttl: 100u64,

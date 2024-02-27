@@ -12337,7 +12337,6 @@ dependencies = [
 [[package]]
 name = "webb"
 version = "0.8.4"
-source = "git+https://github.com/webb-tools/webb-rs#33f65ddea4478923c8e27042265928b6f6715cd9"
 dependencies = [
  "async-trait",
  "hex",
