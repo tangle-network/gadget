@@ -1,6 +1,5 @@
 //! When delivering messages to an async protocol, we want o make sure we don't mix up voting and public key gossip messages
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
-use crate::client::AccountId;
 use crate::gadget::message::{GadgetProtocolMessage, UserID};
 use crate::gadget::network::Network;
 use crate::gadget::work_manager::WorkManager;
@@ -9,6 +8,7 @@ use gadget_core::job_manager::WorkManagerInterface;
 use round_based::Msg;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -29,7 +29,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    user_id_mapping: Arc<HashMap<UserID, AccountId>>,
+    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
     network: N,
 ) -> (
     futures::channel::mpsc::UnboundedSender<C1>,
@@ -131,10 +131,10 @@ pub fn create_job_manager_to_async_protocol_channel_split<
 }
 
 fn get_to_and_from_account_id(
-    mapping: &HashMap<UserID, AccountId>,
+    mapping: &HashMap<UserID, ecdsa::Public>,
     from: UserID,
     to: Option<UserID>,
-) -> (Option<AccountId>, Option<AccountId>) {
+) -> (Option<ecdsa::Public>, Option<ecdsa::Public>) {
     let from_account_id = mapping.get(&from).cloned();
     let to_account_id = if let Some(to) = to {
         mapping.get(&to).cloned()

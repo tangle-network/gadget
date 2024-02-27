@@ -1,7 +1,7 @@
-use crate::client::AccountId;
 use crate::gadget::work_manager::WorkManager;
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::{Deserialize, Serialize};
+use sp_core::ecdsa;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GadgetProtocolMessage {
@@ -15,9 +15,9 @@ pub struct GadgetProtocolMessage {
     pub to: Option<UserID>,
     pub payload: Vec<u8>,
     // Some protocols need this additional data
-    pub from_network_id: Option<AccountId>,
+    pub from_network_id: Option<ecdsa::Public>,
     // Some protocol need this additional data
-    pub to_network_id: Option<AccountId>,
+    pub to_network_id: Option<ecdsa::Public>,
 }
 
 pub type UserID = u32;

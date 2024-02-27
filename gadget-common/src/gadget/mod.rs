@@ -12,7 +12,7 @@ use network::Network;
 use parking_lot::RwLock;
 use sc_client_api::{Backend, BlockImportNotification, FinalityNotification};
 use sp_api::ProvideRuntimeApi;
-use sp_core::keccak_256;
+use sp_core::{ecdsa, keccak_256};
 use sp_runtime::traits::{Block, Header};
 use sp_runtime::SaturatedConversion;
 use std::marker::PhantomData;
@@ -82,6 +82,7 @@ pub struct JobInitMetadata<B: Block> {
     pub role_type: RoleType,
     /// This value only exists if this is a stage2 job
     pub phase1_job: Option<GadgetJobType>,
+    pub participants_role_ids: Vec<ecdsa::Public>,
     pub task_id: <WorkManager as WorkManagerInterface>::TaskID,
     pub retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     pub job_id: JobId,
@@ -124,7 +125,7 @@ where
         let jobs = self
             .protocol
             .client()
-            .query_jobs_by_validator(notification.hash, *self.protocol.account_id())
+            .query_jobs_by_validator(notification.hash, self.protocol.account_id().clone())
             .await?;
 
         self.protocol.logger().trace(format!(
@@ -185,11 +186,37 @@ where
                         })?;
                 Some(phase1_job.job_type)
             };
+            let participants = match phase1_job {
+                Some(ref j) => j
+                    .clone()
+                    .get_participants()
+                    .expect("Should exist for phase 1 jobs"),
+                None => job
+                    .job_type
+                    .clone()
+                    .get_participants()
+                    .expect("Should exist for phase 1 jobs"),
+            };
 
+            let participants_role_ids = {
+                let mut out = Vec::new();
+                for p in participants {
+                    let maybe_role_key = self
+                        .protocol
+                        .client()
+                        .query_restaker_role_key(notification.hash, p.clone())
+                        .await?;
+                    if let Some(role_key) = maybe_role_key {
+                        out.push(role_key);
+                    }
+                }
+                out
+            };
             relevant_jobs.push(JobInitMetadata {
                 role_type: job.job_type.get_role_type(),
                 job_type: job.job_type,
                 phase1_job,
+                participants_role_ids,
                 task_id,
                 retry_id,
                 now,

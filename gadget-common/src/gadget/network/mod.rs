@@ -1,8 +1,8 @@
-use crate::client::AccountId;
 use crate::gadget::work_manager::WorkManager;
 use crate::Error;
 use async_trait::async_trait;
 use gadget_core::job_manager::WorkManagerInterface;
+use sp_core::ecdsa;
 
 pub mod gossip;
 
@@ -15,7 +15,7 @@ pub trait Network: Send + Sync + Clone + 'static {
     ) -> Result<(), Error>;
 
     /// The ID of the king. Only relevant for ZkSaaS networks
-    fn greatest_authority_id(&self) -> Option<AccountId> {
+    fn greatest_authority_id(&self) -> Option<ecdsa::Public> {
         None
     }
     /// If the network implementation requires a custom runtime, this function

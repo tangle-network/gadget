@@ -13,6 +13,7 @@ use network::ZkProtocolNetworkConfig;
 use protocol_macros::protocol;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
+use sp_core::Pair;
 use sp_runtime::traits::Block;
 use std::sync::Arc;
 use tangle_primitives::roles::ZeroKnowledgeRoleType;
@@ -31,14 +32,16 @@ generate_protocol!(
     RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16)
 );
 
-pub async fn create_zk_network(config: ZkProtocolNetworkConfig) -> Result<ZkNetworkService, Error> {
+pub async fn create_zk_network<KBE: KeystoreBackend>(
+    config: ZkProtocolNetworkConfig<KBE>,
+) -> Result<ZkNetworkService, Error> {
     let our_identity = RustlsCertificate {
         cert: Certificate(config.public_identity_der.clone()),
         private_key: PrivateKey(config.private_identity_der.clone()),
     };
 
     if let Some(addr) = &config.king_bind_addr {
-        ZkNetworkService::new_king(config.account_id, *addr, our_identity).await
+        ZkNetworkService::new_king(config.key_store.pair().public(), *addr, our_identity).await
     } else {
         let king_addr = config
             .client_only_king_addr
@@ -56,7 +59,13 @@ pub async fn create_zk_network(config: ZkProtocolNetworkConfig) -> Result<ZkNetw
                 err: err.to_string(),
             })?;
 
-        ZkNetworkService::new_client(king_addr, config.account_id, our_identity, king_certs).await
+        ZkNetworkService::new_client(
+            king_addr,
+            config.key_store.pair().public(),
+            our_identity,
+            king_certs,
+        )
+        .await
     }
 }
 

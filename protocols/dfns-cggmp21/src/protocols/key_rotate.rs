@@ -1,6 +1,6 @@
 use dfns_cggmp21::supported_curves::Secp256k1;
 use dfns_cggmp21::KeyShare;
-use gadget_common::client::{AccountId, ClientWithApi, JobsApiForGadget};
+use gadget_common::client::{ClientWithApi, JobsApiForGadget};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
@@ -13,7 +13,7 @@ use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
-use sp_core::keccak_256;
+use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tangle_primitives::jobs::{
@@ -45,14 +45,17 @@ where
     let new_phase_one_id = p4_job.new_phase_one_id;
 
     let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
-    let participants = phase1_job.clone().get_participants().expect("Should exist");
     let t = phase1_job.get_threshold().expect("Should exist") as u16;
 
     let seed = keccak_256(&[&job_id.to_be_bytes()[..], &job.retry_id.to_be_bytes()[..]].concat());
     let mut rng = rand_chacha::ChaChaRng::from_seed(seed);
 
-    let (i, signers, mapping) =
-        super::util::choose_signers(&mut rng, &config.account_id, &participants, t)?;
+    let (i, signers, mapping) = super::util::choose_signers(
+        &mut rng,
+        &config.key_store.pair().public(),
+        &job.participants_role_ids,
+        t,
+    )?;
 
     let new_phase_one_result = config
         .get_jobs_client()
@@ -110,7 +113,7 @@ pub struct DfnsCGGMP21KeyRotateExtraParams {
     role_type: RoleType,
     key: KeyShare<Secp256k1>,
     new_key: Vec<u8>,
-    user_id_to_account_id_mapping: Arc<HashMap<UserID, AccountId>>,
+    user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
 pub async fn generate_protocol_from<
@@ -136,7 +139,7 @@ where
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let client = config.get_jobs_client();
-    let id = config.account_id;
+    let role_id = config.key_store.pair().public();
     let phase_one_id = additional_params.phase_one_id;
     let network = config.clone();
 
@@ -179,7 +182,7 @@ where
                 associated_session_id,
                 associated_task_id,
                 mapping.clone(),
-                id,
+                role_id,
                 network.clone(),
             );
 
