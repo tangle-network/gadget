@@ -42,7 +42,6 @@ pub mod prelude {
     pub use protocol_macros::protocol;
     pub use std::pin::Pin;
     pub use std::sync::Arc;
-    pub use tangle_primitives::jobs::*;
     pub use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
     pub use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 }
