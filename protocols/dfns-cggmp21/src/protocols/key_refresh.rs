@@ -9,7 +9,6 @@ use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::FullProtocolConfig;
-use gadget_common::utils::CloneableUnboundedReceiver;
 use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
@@ -144,8 +143,6 @@ where
     Ok(JobBuilder::new()
         .protocol(async move {
             let mut rng = rand::rngs::StdRng::from_entropy();
-            let protocol_message_channel =
-                CloneableUnboundedReceiver::from(protocol_message_channel);
             logger.info(format!(
                 "Starting KeyRefresh Protocol with params: i={i}, t={t}, n={n}"
             ));
@@ -166,7 +163,7 @@ where
                 Outgoing<aux_only::Msg<Sha256, SecurityLevel128>>,
                 Incoming<aux_only::Msg<Sha256, SecurityLevel128>>,
             >(
-                protocol_message_channel.clone(),
+                protocol_message_channel,
                 associated_block_id,
                 associated_retry_id,
                 associated_session_id,

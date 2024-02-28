@@ -6,7 +6,7 @@ use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
-use gadget_common::sp_core::{ecdsa, keccak_256};
+use gadget_common::sp_core::{ecdsa, keccak_256, Pair};
 use gadget_common::{
     Backend, Block, BuiltExecutableJobWrapper, Error, JobBuilder, JobError, ProtocolWorkManager,
     WorkManagerInterface,
@@ -120,6 +120,7 @@ where
     let role_type = additional_params.role_type;
     let job_id = additional_params.job_id;
     let logger = config.logger.clone();
+    let id = config.key_store.pair().public();
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -136,6 +137,7 @@ where
                     associated_session_id,
                     associated_task_id,
                     additional_params.user_id_to_account_id_mapping.clone(),
+                    id,
                     network,
                 );
 

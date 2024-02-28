@@ -2,7 +2,7 @@ use crate::protocol::state_machine::payloads::RoundPayload;
 use crate::protocol::state_machine::BlsStateMachine;
 use gadget_common::gadget::message::UserID;
 use gadget_common::prelude::*;
-use gadget_common::sp_core::{ecdsa, keccak_256, ByteArray};
+use gadget_common::sp_core::{ecdsa, keccak_256, ByteArray, Pair};
 use itertools::Itertools;
 use round_based::Msg;
 use std::collections::{BTreeMap, HashMap};
@@ -87,6 +87,7 @@ where
     let job_id = additional_params.job_id;
     let pallet_tx = config.pallet_tx.clone();
     let role_type = additional_params.role_type;
+    let id = keystore.pair().public();
     let (i, t, n) = (
         additional_params.i,
         additional_params.t,
@@ -115,6 +116,7 @@ where
                     associated_session_id,
                     associated_task_id,
                     user_id_to_account_id.clone(),
+                    id,
                     network.clone(),
                 );
 

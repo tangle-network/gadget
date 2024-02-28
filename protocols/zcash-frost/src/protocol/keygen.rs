@@ -163,8 +163,6 @@ where
     Ok(JobBuilder::new()
         .protocol(async move {
             let mut rng = rand::rngs::StdRng::from_entropy();
-            let protocol_message_channel =
-                gadget_common::utils::CloneableUnboundedReceiver::from(protocol_message_channel);
             logger.info(format!(
                 "Starting Keygen Protocol with params: i={i}, t={t}, n={n}"
             ));
@@ -180,7 +178,7 @@ where
                 Outgoing<Msg>,
                 Incoming<Msg>,
             >(
-                protocol_message_channel.clone(),
+                protocol_message_channel,
                 associated_block_id,
                 associated_retry_id,
                 associated_session_id,

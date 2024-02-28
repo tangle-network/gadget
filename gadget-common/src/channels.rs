@@ -3,7 +3,6 @@
 use crate::gadget::message::{GadgetProtocolMessage, UserID};
 use crate::gadget::network::Network;
 use crate::gadget::work_manager::WorkManager;
-use crate::utils::CloneableUnboundedReceiver;
 use futures::StreamExt;
 use gadget_core::job_manager::WorkManagerInterface;
 use round_based::Msg;
@@ -17,8 +16,8 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 pub fn create_job_manager_to_async_protocol_channel_split<
     N: Network + 'static,
-    C1: Serialize + DeserializeOwned + HasSenderAndReceiver + Send + 'static,
-    C2: Serialize + DeserializeOwned + HasSenderAndReceiver + Send + 'static,
+    C1: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
+    C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
 >(
     mut rx_gadget: UnboundedReceiver<GadgetProtocolMessage>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
@@ -26,6 +25,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+    my_account_id: ecdsa::Public,
     network: N,
 ) -> (
     futures::channel::mpsc::UnboundedSender<C1>,
@@ -39,17 +39,21 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
         while let Some(msg) = rx_gadget.recv().await {
-            match bincode2::deserialize::<SplitChannelMessage<C1, C2>>(&msg.payload) {
+            match bincode2::deserialize::<MultiplexedChannelMessage<C1, C2>>(&msg.payload) {
                 Ok(msg) => match msg {
-                    SplitChannelMessage::Channel1(msg) => {
+                    MultiplexedChannelMessage::Channel1(msg) => {
                         if tx_to_async_proto_1.unbounded_send(Ok(msg)).is_err() {
                             log::error!(target: "gadget", "Failed to send message to protocol");
                         }
                     }
-                    SplitChannelMessage::Channel2(msg) => {
+                    MultiplexedChannelMessage::Channel2(msg) => {
                         if tx_to_async_proto_2.send(msg).is_err() {
                             log::error!(target: "gadget", "Failed to send message to protocol");
                         }
+                    }
+
+                    _ => {
+                        unreachable!("We only have two channels")
                     }
                 },
                 Err(err) => {
@@ -63,28 +67,34 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     let (tx_to_outbound_2, mut rx_to_outbound_2) = tokio::sync::mpsc::unbounded_channel::<C2>();
     let network_clone = network.clone();
     let user_id_mapping_clone = user_id_mapping.clone();
+    let my_user_id = user_id_mapping
+        .iter()
+        .find_map(|(user_id, account_id)| {
+            if *account_id == my_account_id {
+                Some(*user_id)
+            } else {
+                None
+            }
+        })
+        .expect("Failed to find my user id");
+
     // Take the messages the async protocol sends to the outbound channel and send them to the gadget
     tokio::task::spawn(async move {
         let offline_task = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
-                let from = msg.sender();
-                let to = msg.receiver();
-                let (to_account_id, from_account_id) =
-                    get_to_and_from_account_id(&user_id_mapping_clone, from, to);
-                let msg = SplitChannelMessage::<C1, C2>::Channel1(msg);
-                let msg = GadgetProtocolMessage {
+                if let Err(err) = wrap_message_and_forward_to_network::<_, C1, C2, (), _>(
+                    msg,
+                    &network,
+                    &*user_id_mapping,
+                    my_user_id,
                     associated_block_id,
                     associated_session_id,
                     associated_retry_id,
-                    task_hash: associated_task_id,
-                    from,
-                    to,
-                    payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
-                    from_network_id: from_account_id,
-                    to_network_id: to_account_id,
-                };
-
-                if let Err(err) = network.send_message(msg).await {
+                    associated_task_id,
+                    MultiplexedChannelMessage::Channel1,
+                )
+                .await
+                {
                     log::error!(target:"gadget", "Failed to send message to outbound: {err:?}");
                 }
             }
@@ -92,24 +102,19 @@ pub fn create_job_manager_to_async_protocol_channel_split<
 
         let voting_task = async move {
             while let Some(msg) = rx_to_outbound_2.recv().await {
-                let from = msg.sender();
-                let to = msg.receiver();
-                let (to_account_id, from_account_id) =
-                    get_to_and_from_account_id(&user_id_mapping, from, to);
-                let msg = SplitChannelMessage::<C1, C2>::Channel2(msg);
-                let msg = GadgetProtocolMessage {
+                if let Err(err) = wrap_message_and_forward_to_network::<_, C1, C2, (), _>(
+                    msg,
+                    &network_clone,
+                    &*user_id_mapping_clone,
+                    my_user_id,
                     associated_block_id,
                     associated_session_id,
                     associated_retry_id,
-                    task_hash: associated_task_id,
-                    from,
-                    to,
-                    payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
-                    from_network_id: from_account_id,
-                    to_network_id: to_account_id,
-                };
-
-                if let Err(err) = network_clone.send_message(msg).await {
+                    associated_task_id,
+                    MultiplexedChannelMessage::Channel2,
+                )
+                .await
+                {
                     log::error!(target:"gadget", "Failed to send message to outbound: {err:?}");
                 }
             }
@@ -141,34 +146,24 @@ pub fn get_to_and_from_account_id(
     (to_account_id, from_account_id)
 }
 
-pub trait HasSenderAndReceiver {
-    fn sender(&self) -> UserID;
-    fn receiver(&self) -> Option<UserID>;
-}
-
-impl<T> HasSenderAndReceiver for Msg<T> {
-    fn sender(&self) -> UserID {
-        self.sender as UserID
-    }
-    fn receiver(&self) -> Option<UserID> {
-        self.receiver.map(|r| r as UserID)
-    }
-}
-
-impl HasSenderAndReceiver for () {
-    fn sender(&self) -> UserID {
-        unimplemented!("Stub implementation")
+impl<T> MaybeSenderReceiver for Msg<T> {
+    fn maybe_sender(&self) -> MaybeSender {
+        MaybeSender::SomeoneElse(self.sender as UserID)
     }
 
-    fn receiver(&self) -> Option<UserID> {
-        unimplemented!("Stub implementation")
+    fn maybe_receiver(&self) -> MaybeReceiver {
+        match self.receiver {
+            None => MaybeReceiver::Broadcast,
+            Some(i) => MaybeReceiver::P2P(i as UserID),
+        }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum SplitChannelMessage<C1, C2> {
+pub enum MultiplexedChannelMessage<C1, C2, C3 = ()> {
     Channel1(C1),
     Channel2(C2),
+    Channel3(C3),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -439,7 +434,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     O: InnerMessage<Inner = I::Inner> + MaybeSenderReceiver + Send + 'static,
     I: InnerMessage + InnerMessageFromInbound + MaybeSenderReceiver + Send + 'static,
 >(
-    mut rx_gadget: CloneableUnboundedReceiver<GadgetProtocolMessage>,
+    mut rx_gadget: UnboundedReceiver<GadgetProtocolMessage>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
@@ -459,14 +454,16 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
         let mut id = 0;
-        while let Some(msg_orig) = rx_gadget.next().await {
+        while let Some(msg_orig) = rx_gadget.recv().await {
             if msg_orig.payload.is_empty() {
                 log::warn!(target: "gadget", "Received empty message from Peer {}", msg_orig.from);
                 continue;
             }
-            match bincode2::deserialize::<SplitChannelMessage<O::Inner, C2>>(&msg_orig.payload) {
+            match bincode2::deserialize::<MultiplexedChannelMessage<O::Inner, C2>>(
+                &msg_orig.payload,
+            ) {
                 Ok(msg) => match msg {
-                    SplitChannelMessage::Channel1(msg) => {
+                    MultiplexedChannelMessage::Channel1(msg) => {
                         let msg_type = if msg_orig.to.is_some() {
                             MessageType::P2P
                         } else {
@@ -482,10 +479,13 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
 
                         id += 1;
                     }
-                    SplitChannelMessage::Channel2(msg) => {
+                    MultiplexedChannelMessage::Channel2(msg) => {
                         if tx_to_async_proto_2.unbounded_send(msg).is_err() {
                             log::error!(target: "gadget", "Failed to send C2 message to protocol");
                         }
+                    }
+                    _ => {
+                        unreachable!("We only have two channels")
                     }
                 },
                 Err(err) => {
@@ -513,27 +513,19 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     tokio::task::spawn(async move {
         let offline_task = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
-                let from = msg.maybe_sender();
-                let to = msg.maybe_receiver();
-                let (to_account_id, from_account_id) = get_to_and_from_account_id(
-                    &user_id_mapping_clone,
-                    from.as_user_id().unwrap_or(my_user_id),
-                    to.as_user_id(),
-                );
-                let msg = SplitChannelMessage::<O::Inner, C2>::Channel1(msg.inner_message());
-                let msg = GadgetProtocolMessage {
+                if let Err(err) = wrap_message_and_forward_to_network::<_, O::Inner, C2, (), _>(
+                    msg,
+                    &network,
+                    &user_id_mapping,
+                    my_user_id,
                     associated_block_id,
                     associated_session_id,
                     associated_retry_id,
-                    task_hash: associated_task_id,
-                    from: from.as_user_id().unwrap_or(my_user_id),
-                    to: to.as_user_id(),
-                    payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
-                    from_network_id: from_account_id,
-                    to_network_id: to_account_id,
-                };
-
-                if let Err(err) = network.send_message(msg).await {
+                    associated_task_id,
+                    |m| MultiplexedChannelMessage::Channel1(m.inner_message()),
+                )
+                .await
+                {
                     log::error!(target:"gadget", "Failed to send message to outbound: {err:?}");
                 }
             }
@@ -541,27 +533,19 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
 
         let voting_task = async move {
             while let Some(msg) = rx_to_outbound_2.next().await {
-                let from = msg.maybe_sender();
-                let to = msg.maybe_receiver();
-                let (to_account_id, from_account_id) = get_to_and_from_account_id(
-                    &user_id_mapping,
-                    from.as_user_id().unwrap_or(my_user_id),
-                    to.as_user_id(),
-                );
-                let msg = SplitChannelMessage::<O::Inner, C2>::Channel2(msg);
-                let msg = GadgetProtocolMessage {
+                if let Err(err) = wrap_message_and_forward_to_network::<_, O::Inner, C2, (), _>(
+                    msg,
+                    &network_clone,
+                    &user_id_mapping_clone,
+                    my_user_id,
                     associated_block_id,
                     associated_session_id,
                     associated_retry_id,
-                    task_hash: associated_task_id,
-                    from: from.as_user_id().unwrap_or(my_user_id),
-                    to: to.as_user_id(),
-                    payload: bincode2::serialize(&msg).expect("Failed to serialize message"),
-                    from_network_id: from_account_id,
-                    to_network_id: to_account_id,
-                };
-
-                if let Err(err) = network_clone.send_message(msg).await {
+                    associated_task_id,
+                    |m| MultiplexedChannelMessage::Channel2(m),
+                )
+                .await
+                {
                     log::error!(target:"gadget", "Failed to send message to outbound: {err:?}");
                 }
             }
@@ -576,4 +560,229 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
         tx_to_outbound_2,
         rx_for_async_proto_2,
     )
+}
+
+pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
+    N: Network + 'static,
+    C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
+    O1: InnerMessage<Inner = I1::Inner> + MaybeSenderReceiver + Send + 'static,
+    I1: InnerMessage + InnerMessageFromInbound + MaybeSenderReceiver + Send + 'static,
+    O2: InnerMessage<Inner = I2::Inner> + MaybeSenderReceiver + Send + 'static,
+    I2: InnerMessage + InnerMessageFromInbound + MaybeSenderReceiver + Send + 'static,
+>(
+    mut rx_gadget: UnboundedReceiver<GadgetProtocolMessage>,
+    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+    user_id_mapping: Arc<HashMap<UserID, sp_core::ecdsa::Public>>,
+    my_account_id: sp_core::ecdsa::Public,
+    network: N,
+) -> (
+    futures::channel::mpsc::UnboundedSender<O1>,
+    futures::channel::mpsc::UnboundedReceiver<Result<I1, futures::channel::mpsc::TryRecvError>>,
+    futures::channel::mpsc::UnboundedSender<O2>,
+    futures::channel::mpsc::UnboundedReceiver<Result<I2, futures::channel::mpsc::TryRecvError>>,
+    futures::channel::mpsc::UnboundedSender<C2>,
+    futures::channel::mpsc::UnboundedReceiver<C2>,
+) {
+    let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
+    let (tx_to_async_proto_2, rx_for_async_proto_2) = futures::channel::mpsc::unbounded();
+    let (tx_to_async_proto_3, rx_for_async_proto_3) = futures::channel::mpsc::unbounded();
+
+    // Take the messages from the gadget and send them to the async protocol
+    tokio::task::spawn(async move {
+        let mut id = 0;
+        while let Some(msg_orig) = rx_gadget.recv().await {
+            if msg_orig.payload.is_empty() {
+                log::warn!(target: "gadget", "Received empty message from Peer {}", msg_orig.from);
+                continue;
+            }
+            match bincode2::deserialize::<MultiplexedChannelMessage<O1::Inner, O2::Inner, C2>>(
+                &msg_orig.payload,
+            ) {
+                Ok(msg) => match msg {
+                    MultiplexedChannelMessage::Channel1(msg) => {
+                        let msg_type = if msg_orig.to.is_some() {
+                            MessageType::P2P
+                        } else {
+                            MessageType::Broadcast
+                        };
+
+                        let incoming =
+                            I1::from_inbound(id, msg_orig.from as PartyIndex, msg_type, msg);
+
+                        if tx_to_async_proto_1.unbounded_send(Ok(incoming)).is_err() {
+                            log::error!(target: "gadget", "Failed to send Incoming message to protocol");
+                        }
+
+                        id += 1;
+                    }
+                    MultiplexedChannelMessage::Channel2(msg) => {
+                        let msg_type = if msg_orig.to.is_some() {
+                            MessageType::P2P
+                        } else {
+                            MessageType::Broadcast
+                        };
+
+                        let incoming =
+                            I2::from_inbound(id, msg_orig.from as PartyIndex, msg_type, msg);
+
+                        if tx_to_async_proto_2.unbounded_send(Ok(incoming)).is_err() {
+                            log::error!(target: "gadget", "Failed to send Incoming message to protocol");
+                        }
+
+                        id += 1;
+                    }
+                    MultiplexedChannelMessage::Channel3(msg) => {
+                        if tx_to_async_proto_3.unbounded_send(msg).is_err() {
+                            log::error!(target: "gadget", "Failed to send C2 message to protocol");
+                        }
+                    }
+                },
+
+                Err(err) => {
+                    log::error!(target: "gadget", "Failed to deserialize message: {err:?}");
+                }
+            }
+        }
+    });
+
+    let (tx_to_outbound_1, mut rx_to_outbound_1) = futures::channel::mpsc::unbounded::<O1>();
+    let (tx_to_outbound_2, mut rx_to_outbound_2) = futures::channel::mpsc::unbounded::<O2>();
+    let (tx_to_outbound_3, mut rx_to_outbound_3) = futures::channel::mpsc::unbounded::<C2>();
+
+    let my_user_id = user_id_mapping
+        .iter()
+        .find_map(|(user_id, account_id)| {
+            if *account_id == my_account_id {
+                Some(*user_id)
+            } else {
+                None
+            }
+        })
+        .expect("Failed to find my user id");
+    // Take the messages from the async protocol and send them to the gadget
+    tokio::task::spawn(async move {
+        let ref user_id_mapping = user_id_mapping;
+        let ref network = network;
+        let task0 = async move {
+            while let Some(msg) = rx_to_outbound_1.next().await {
+                if let Err(err) =
+                    wrap_message_and_forward_to_network::<_, O1::Inner, O2::Inner, C2, _>(
+                        msg,
+                        network,
+                        user_id_mapping,
+                        my_user_id,
+                        associated_block_id,
+                        associated_session_id,
+                        associated_retry_id,
+                        associated_task_id,
+                        |m| MultiplexedChannelMessage::Channel1(m.inner_message()),
+                    )
+                    .await
+                {
+                    log::error!(target:"gadget", "Failed to send message to outbound: {err:?}");
+                }
+            }
+        };
+
+        let task1 = async move {
+            while let Some(msg) = rx_to_outbound_2.next().await {
+                if let Err(err) =
+                    wrap_message_and_forward_to_network::<_, O1::Inner, O2::Inner, C2, _>(
+                        msg,
+                        network,
+                        user_id_mapping,
+                        my_user_id,
+                        associated_block_id,
+                        associated_session_id,
+                        associated_retry_id,
+                        associated_task_id,
+                        |m| MultiplexedChannelMessage::Channel2(m.inner_message()),
+                    )
+                    .await
+                {
+                    log::error!(target:"gadget", "Failed to send message to outbound: {err:?}");
+                }
+            }
+        };
+
+        let task2 = async move {
+            while let Some(msg) = rx_to_outbound_3.next().await {
+                if let Err(err) =
+                    wrap_message_and_forward_to_network::<_, O1::Inner, O2::Inner, C2, _>(
+                        msg,
+                        network,
+                        user_id_mapping,
+                        my_user_id,
+                        associated_block_id,
+                        associated_session_id,
+                        associated_retry_id,
+                        associated_task_id,
+                        |m| MultiplexedChannelMessage::Channel3(m),
+                    )
+                    .await
+                {
+                    log::error!(target:"gadget", "Failed to send message to outbound: {err:?}");
+                }
+            }
+        };
+
+        tokio::join!(task0, task1, task2);
+    });
+
+    (
+        tx_to_outbound_1,
+        rx_for_async_proto_1,
+        tx_to_outbound_2,
+        rx_for_async_proto_2,
+        tx_to_outbound_3,
+        rx_for_async_proto_3,
+    )
+}
+
+async fn wrap_message_and_forward_to_network<
+    N: Network,
+    C1: Serialize,
+    C2: Serialize,
+    C3: Serialize,
+    M,
+>(
+    msg: M,
+    network: &N,
+    user_id_mapping: &HashMap<UserID, ecdsa::Public>,
+    my_user_id: UserID,
+    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+    splitter: impl FnOnce(M) -> MultiplexedChannelMessage<C1, C2, C3>,
+) -> Result<(), crate::Error>
+where
+    M: MaybeSenderReceiver + Send + 'static,
+{
+    let from = msg.maybe_sender();
+    let to = msg.maybe_receiver();
+    let (to_account_id, from_account_id) = get_to_and_from_account_id(
+        user_id_mapping,
+        from.as_user_id().unwrap_or(my_user_id),
+        to.as_user_id(),
+    );
+
+    // let message_multiplexed = MultiplexedChannelMessage::<O::Inner, C2, C3>::Channel1(msg.inner_message());
+    let message_multiplexed = splitter(msg);
+
+    let msg = GadgetProtocolMessage {
+        associated_block_id,
+        associated_session_id,
+        associated_retry_id,
+        task_hash: associated_task_id,
+        from: from.as_user_id().unwrap_or(my_user_id),
+        to: to.as_user_id(),
+        payload: bincode2::serialize(&message_multiplexed).expect("Failed to serialize message"),
+        from_network_id: from_account_id,
+        to_network_id: to_account_id,
+    };
+    network.send_message(msg).await
 }

@@ -2,8 +2,10 @@ use dfns_cggmp21::generic_ec::Curve;
 use dfns_cggmp21::key_refresh::msg::aux_only;
 
 use dfns_cggmp21::keygen::msg::threshold::Msg;
+use dfns_cggmp21::progress::PerfProfiler;
 use dfns_cggmp21::security_level::{SecurityLevel, SecurityLevel128};
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
+use dfns_cggmp21::PregeneratedPrimes;
 use futures::channel::mpsc::{TryRecvError, UnboundedSender};
 use futures::StreamExt;
 use gadget_common::client::{
@@ -16,7 +18,6 @@ use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
-use gadget_common::utils::CloneableUnboundedReceiver;
 use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
@@ -178,7 +179,7 @@ where
 }
 
 pub fn create_party<E: Curve, N: Network, L: SecurityLevel, M>(
-    protocol_message_channel: CloneableUnboundedReceiver<GadgetProtocolMessage>,
+    protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
@@ -265,8 +266,6 @@ where
     Ok(JobBuilder::new()
         .protocol(async move {
             let rng = rand::rngs::StdRng::from_entropy();
-            let protocol_message_channel =
-                CloneableUnboundedReceiver::from(protocol_message_channel);
             logger.info(format!(
                 "Starting Keygen Protocol with params: i={i}, t={t}, n={n}"
             ));
@@ -280,15 +279,10 @@ where
             let aux_eid = dfns_cggmp21::ExecutionId::new(&aux_eid_bytes);
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
 
-            let incomplete_key_share: Vec<u8> = match role_type {
+            let (key_share, serialized_public_key, tx2, rx2) = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-                    let (_, _, party) = create_party::<
-                        Secp256k1,
-                        _,
-                        SecurityLevel128,
-                        Msg<Secp256k1, SecurityLevel128, _>,
-                    >(
-                        protocol_message_channel.clone(),
+                    let (tx0, rx0, tx1, rx1, tx2, rx2) = gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io_triplex(
+                        protocol_message_channel,
                         associated_block_id,
                         associated_retry_id,
                         associated_session_id,
@@ -297,16 +291,34 @@ where
                         my_role_id,
                         network.clone(),
                     );
-                    run_and_serialize_keygen(&mut tracer, eid, i, n, t, party, rng.clone()).await?
+
+                    let delivery = (rx0, tx0);
+                    let party = MpcParty::<Msg<Secp256k1, SecurityLevel128, Sha256>, _, _>::connected(delivery);
+                    let incomplete_key_share = run_and_serialize_keygen::<Secp256k1, _, _>(&mut tracer, eid, i, n, t, party, rng.clone()).await?;
+                    let (mut tracer, pregenerated_primes) = handle_post_incomplete_keygen(&mut tracer, &logger, &job_id_bytes, &key_store2).await?;
+
+                    logger.info(format!("Will now run Keygen protocol: {role_type:?}"));
+
+                    let delivery = (rx1, tx1);
+                    let party = MpcParty::<aux_only::Msg<Sha256, SecurityLevel128>, _, _>::connected(delivery);
+                    let (key_share, serialized_public_key) = run_and_serialize_keyrefresh::<Secp256k1, _>(
+                        &logger,
+                        incomplete_key_share,
+                        pregenerated_primes,
+                        &mut tracer,
+                        aux_eid,
+                        i,
+                        n,
+                        party,
+                        rng,
+                    )
+                        .await?;
+
+                    (key_share, serialized_public_key, tx2, rx2)
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-                    let (_, _, party) = create_party::<
-                        Secp256r1,
-                        _,
-                        SecurityLevel128,
-                        Msg<Secp256r1, SecurityLevel128, _>,
-                    >(
-                        protocol_message_channel.clone(),
+                    let (tx0, rx0, tx1, rx1, tx2, rx2) = gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io_triplex(
+                        protocol_message_channel,
                         associated_block_id,
                         associated_retry_id,
                         associated_session_id,
@@ -315,16 +327,33 @@ where
                         my_role_id,
                         network.clone(),
                     );
-                    run_and_serialize_keygen(&mut tracer, eid, i, n, t, party, rng.clone()).await?
+                    let delivery = (rx0, tx0);
+                    let party = MpcParty::<Msg<Secp256r1, SecurityLevel128, Sha256>, _, _>::connected(delivery);
+                    let incomplete_key_share = run_and_serialize_keygen::<Secp256r1, _, _>(&mut tracer, eid, i, n, t, party, rng.clone()).await?;
+                    let (mut tracer, pregenerated_primes) = handle_post_incomplete_keygen(&mut tracer, &logger, &job_id_bytes, &key_store2).await?;
+
+                    logger.info(format!("Will now run Keygen protocol: {role_type:?}"));
+
+                    let delivery = (rx1, tx1);
+                    let party = MpcParty::<aux_only::Msg<Sha256, SecurityLevel128>, _, _>::connected(delivery);
+                    let (key_share, serialized_public_key) = run_and_serialize_keyrefresh::<Secp256r1, _>(
+                        &logger,
+                        incomplete_key_share,
+                        pregenerated_primes,
+                        &mut tracer,
+                        aux_eid,
+                        i,
+                        n,
+                        party,
+                        rng,
+                    )
+                        .await?;
+
+                    (key_share, serialized_public_key, tx2, rx2)
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-                    let (_, _, party) = create_party::<
-                        Stark,
-                        _,
-                        SecurityLevel128,
-                        Msg<Stark, SecurityLevel128, _>,
-                    >(
-                        protocol_message_channel.clone(),
+                    let (tx0, rx0, tx1, rx1, tx2, rx2) = gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io_triplex(
+                        protocol_message_channel,
                         associated_block_id,
                         associated_retry_id,
                         associated_session_id,
@@ -333,163 +362,49 @@ where
                         my_role_id,
                         network.clone(),
                     );
-                    run_and_serialize_keygen(&mut tracer, eid, i, n, t, party, rng.clone()).await?
+                    let delivery = (rx0, tx0);
+                    let party = MpcParty::<Msg<Stark, SecurityLevel128, Sha256>, _, _>::connected(delivery);
+                    let incomplete_key_share = run_and_serialize_keygen::<Stark, _, _>(&mut tracer, eid, i, n, t, party, rng.clone()).await?;
+                    let (mut tracer, pregenerated_primes) = handle_post_incomplete_keygen(&mut tracer, &logger, &job_id_bytes, &key_store2).await?;
+
+                    logger.info(format!("Will now run Keygen protocol: {role_type:?}"));
+
+                    let delivery = (rx1, tx1);
+                    let party = MpcParty::<aux_only::Msg<Sha256, SecurityLevel128>, _, _>::connected(delivery);
+                    let (key_share, serialized_public_key) = run_and_serialize_keyrefresh::<Stark, _>(
+                        &logger,
+                        incomplete_key_share,
+                        pregenerated_primes,
+                        &mut tracer,
+                        aux_eid,
+                        i,
+                        n,
+                        party,
+                        rng,
+                    )
+                        .await?;
+
+                    (key_share, serialized_public_key, tx2, rx2)
                 }
                 _ => unreachable!("Invalid role type"),
             };
 
-            let perf_report = tracer.get_report().map_err(|err| JobError {
-                reason: format!("Keygen protocol error: {err:?}"),
-            })?;
-            logger.trace(format!("Incomplete Keygen protocol report: {perf_report}"));
-            logger.debug("Finished AsyncProtocol - Incomplete Keygen");
-            let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
-
-            let pregenerated_primes_key =
-                keccak_256(&[&b"dfns-cggmp21-keygen-primes"[..], &job_id_bytes[..]].concat());
-            let now = tokio::time::Instant::now();
-            let pregenerated_primes = tokio::task::spawn_blocking(|| {
-                let mut rng = OsRng;
-                dfns_cggmp21::PregeneratedPrimes::<SecurityLevel128>::generate(&mut rng)
-            })
-            .await
-            .map_err(|err| JobError {
-                reason: format!("Failed to generate pregenerated primes: {err:?}"),
-            })?;
-
-            let elapsed = now.elapsed();
-            logger.debug(format!("Pregenerated primes took {elapsed:?}"));
-
-            key_store2
-                .set(&pregenerated_primes_key, pregenerated_primes.clone())
-                .await
-                .map_err(|err| JobError {
-                    reason: format!("Failed to store pregenerated primes: {err:?}"),
-                })?;
-
-            logger.info(format!("Will now run Keygen protocol: {role_type:?}"));
-            let (mut pubkey_gossip_tx, mut pubkey_gossip_rx) = (None, None);
-            let (key_share, serialized_public_key) = match role_type {
-                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-                    let (tx, rx, party) = create_party::<
-                        Secp256k1,
-                        _,
-                        SecurityLevel128,
-                        aux_only::Msg<Sha256, SecurityLevel128>,
-                    >(
-                        protocol_message_channel.clone(),
-                        associated_block_id,
-                        associated_retry_id,
-                        associated_session_id,
-                        associated_task_id,
-                        mapping.clone(),
-                        my_role_id,
-                        network.clone(),
-                    );
-                    pubkey_gossip_tx = Some(tx);
-                    pubkey_gossip_rx = Some(rx);
-                    run_and_serialize_keyrefresh::<Secp256k1, _>(
-                        &logger,
-                        incomplete_key_share,
-                        pregenerated_primes,
-                        &mut tracer,
-                        aux_eid,
-                        i,
-                        n,
-                        party,
-                        rng,
-                    )
-                    .await?
-                }
-                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-                    let (tx, rx, party) = create_party::<
-                        Secp256r1,
-                        _,
-                        SecurityLevel128,
-                        aux_only::Msg<Sha256, SecurityLevel128>,
-                    >(
-                        protocol_message_channel.clone(),
-                        associated_block_id,
-                        associated_retry_id,
-                        associated_session_id,
-                        associated_task_id,
-                        mapping.clone(),
-                        my_role_id,
-                        network.clone(),
-                    );
-                    pubkey_gossip_tx = Some(tx);
-                    pubkey_gossip_rx = Some(rx);
-                    run_and_serialize_keyrefresh::<Secp256r1, _>(
-                        &logger,
-                        incomplete_key_share,
-                        pregenerated_primes,
-                        &mut tracer,
-                        aux_eid,
-                        i,
-                        n,
-                        party,
-                        rng,
-                    )
-                    .await?
-                }
-                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-                    let (tx, rx, party) = create_party::<
-                        Stark,
-                        _,
-                        SecurityLevel128,
-                        aux_only::Msg<Sha256, SecurityLevel128>,
-                    >(
-                        protocol_message_channel.clone(),
-                        associated_block_id,
-                        associated_retry_id,
-                        associated_session_id,
-                        associated_task_id,
-                        mapping.clone(),
-                        my_role_id,
-                        network.clone(),
-                    );
-                    pubkey_gossip_tx = Some(tx);
-                    pubkey_gossip_rx = Some(rx);
-                    run_and_serialize_keyrefresh::<Stark, _>(
-                        &logger,
-                        incomplete_key_share,
-                        pregenerated_primes,
-                        &mut tracer,
-                        aux_eid,
-                        i,
-                        n,
-                        party,
-                        rng,
-                    )
-                    .await?
-                }
-                _ => Err(JobError {
-                    reason: "Invalid role type".to_string(),
-                })?,
-            };
-
             logger.debug("Finished AsyncProtocol - Keygen");
 
-            if let (Some(tx), Some(rx)) = (pubkey_gossip_tx, pubkey_gossip_rx) {
-                let job_result = handle_public_key_gossip(
-                    key_store2,
-                    &logger,
-                    &key_share,
-                    &serialized_public_key,
-                    t,
-                    i,
-                    tx,
-                    rx,
-                )
+            let job_result = handle_public_key_gossip(
+                key_store2,
+                &logger,
+                &key_share,
+                &serialized_public_key,
+                t,
+                i,
+                tx2,
+                rx2,
+            )
                 .await?;
 
-                *protocol_output.lock().await = Some((key_share, job_result));
-                Ok(())
-            } else {
-                Err(JobError {
-                    reason: "Failed to create gossip channels".to_string(),
-                })?
-            }
+            *protocol_output.lock().await = Some((key_share, job_result));
+            Ok(())
         })
         .post(async move {
             // TODO: handle protocol blames
@@ -677,4 +592,41 @@ fn verify_generated_dkg_key_ecdsa(
         known_signers.len(),
         data.threshold + 1
     ));
+}
+
+async fn handle_post_incomplete_keygen<KBE: KeystoreBackend>(
+    tracer: &mut PerfProfiler,
+    logger: &DebugLogger,
+    job_id_bytes: &[u8],
+    key_store: &ECDSAKeyStore<KBE>,
+) -> Result<(PerfProfiler, PregeneratedPrimes), JobError> {
+    let perf_report = tracer.get_report().map_err(|err| JobError {
+        reason: format!("Keygen protocol error: {err:?}"),
+    })?;
+    logger.trace(format!("Incomplete Keygen protocol report: {perf_report}"));
+    logger.debug("Finished AsyncProtocol - Incomplete Keygen");
+    let tracer = PerfProfiler::new();
+
+    let pregenerated_primes_key =
+        keccak_256(&[&b"dfns-cggmp21-keygen-primes"[..], &job_id_bytes[..]].concat());
+    let now = tokio::time::Instant::now();
+    let pregenerated_primes = tokio::task::spawn_blocking(|| {
+        let mut rng = OsRng;
+        dfns_cggmp21::PregeneratedPrimes::<SecurityLevel128>::generate(&mut rng)
+    })
+    .await
+    .map_err(|err| JobError {
+        reason: format!("Failed to generate pregenerated primes: {err:?}"),
+    })?;
+
+    let elapsed = now.elapsed();
+    logger.debug(format!("Pregenerated primes took {elapsed:?}"));
+
+    key_store
+        .set(&pregenerated_primes_key, pregenerated_primes.clone())
+        .await
+        .map_err(|err| JobError {
+            reason: format!("Failed to store pregenerated primes: {err:?}"),
+        })?;
+    Ok((tracer, pregenerated_primes))
 }

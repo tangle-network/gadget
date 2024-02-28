@@ -13,7 +13,6 @@ use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::{FullProtocolConfig, Network};
-use gadget_common::utils::CloneableUnboundedReceiver;
 use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
@@ -186,9 +185,6 @@ where
     Ok(JobBuilder::new()
         .protocol(async move {
             let mut rng = rand::rngs::StdRng::from_entropy();
-            let protocol_message_channel =
-                CloneableUnboundedReceiver::from(protocol_message_channel);
-
             logger.info(format!(
                 "Starting Signing Protocol with params: i={i}, t={t}"
             ));
@@ -207,7 +203,7 @@ where
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
                     let (_, _, party) =
                         create_party::<Secp256k1, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
-                            protocol_message_channel.clone(),
+                            protocol_message_channel,
                             associated_block_id,
                             associated_retry_id,
                             associated_session_id,
@@ -232,7 +228,7 @@ where
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
                     let (_, _, party) =
                         create_party::<Secp256r1, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
-                            protocol_message_channel.clone(),
+                            protocol_message_channel,
                             associated_block_id,
                             associated_retry_id,
                             associated_session_id,
@@ -257,7 +253,7 @@ where
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
                     let (_, _, party) =
                         create_party::<Stark, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
-                            protocol_message_channel.clone(),
+                            protocol_message_channel,
                             associated_block_id,
                             associated_retry_id,
                             associated_session_id,
