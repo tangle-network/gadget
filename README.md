@@ -19,8 +19,7 @@ These protocols are endowed with the same functionalities as the `gadget-common`
 For more information on how to create a new protocol, see the README.md in the `protocols/stub` directory [here](protocols/stub/README.md).
 ## Testing
 
-`SKIP_WASM_BUILD=true RUST_LOG=debug cargo nextest run` is required to run tests, since 1-program per-program space is required for tests due to the nature of the use of static variables in test-only contexts. There is currently an issue with the WASM build so the `SKIP_WASM_BUILD` flag is required. The `RUST_LOG=debug` flag is optional but useful for debugging.
-
+`RUST_LOG=debug cargo nextest run` is required to run tests, since 1-program per-program space is required for tests due to the nature of the use of static variables in test-only contexts. The `RUST_LOG=debug` flag is optional but useful for debugging.
 ## Troubleshooting
 #### GMP Issues
 The linking phase may fail due to not finding libgmp (i.e., "could not find library -lgmp") when building on a mac M1. To fix this problem, run:
