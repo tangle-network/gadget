@@ -95,9 +95,9 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.8.9"
+version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d713b3834d76b85304d4d525563c1276e2e30dc97cc67bfb4585a4a29fc2c89f"
+checksum = "8b79b82693f705137f8fb9b37871d99e4f9a7df12b917eed79c3d3954830a60b"
 dependencies = [
  "cfg-if",
  "getrandom 0.2.12",
@@ -2566,7 +2566,7 @@ dependencies = [
 [[package]]
 name = "ed448-goldilocks-plus"
 version = "0.11.2"
-source = "git+https://github.com/mikelodder7/Ed448-Goldilocks#2f2b6a84680a3fc7c4658a5e47c88a22ac630502"
+source = "git+https://github.com/webb-tools/Ed448-Goldilocks#31a201b82fbfd7e9c67530fd340c5b9f7087b592"
 dependencies = [
  "elliptic-curve 0.13.8",
  "hex",
@@ -3374,7 +3374,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "byteorder",
  "debugless-unwrap",
@@ -3392,7 +3392,7 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "frost-core",
@@ -3405,7 +3405,7 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "ed448-goldilocks-plus",
  "frost-core",
@@ -3418,7 +3418,7 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "frost-core",
  "p256 0.13.2",
@@ -3431,7 +3431,7 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "frost-core",
  "p384",
@@ -3444,7 +3444,7 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "frost-core",
@@ -3457,7 +3457,7 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "frost-core",
  "k256",
@@ -4021,7 +4021,7 @@ version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a3c133739dddd0d2990f9a4bdf8eb4b21ef50e4851ca85ab661199821d510e"
 dependencies = [
- "ahash 0.8.9",
+ "ahash 0.8.10",
 ]
 
 [[package]]
@@ -4030,7 +4030,7 @@ version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
 dependencies = [
- "ahash 0.8.9",
+ "ahash 0.8.10",
  "allocator-api2",
  "serde",
 ]
@@ -6289,7 +6289,7 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "digest 0.10.7",
  "elliptic-curve 0.13.8",
@@ -6331,7 +6331,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6348,7 +6348,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -6379,7 +6379,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7442,9 +7442,9 @@ checksum = "60a357793950651c4ed0f3f52338f53b2f809f32d83a07f72909fa13e4c6c1e3"
 
 [[package]]
 name = "rayon"
-version = "1.8.1"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa7237101a77a10773db45d62004a272517633fbcc3df19d96455ede1122e051"
+checksum = "e4963ed1bc86e4f3ee217022bd855b297cef07fb9eac5dfa1f788b220b49b3bd"
 dependencies = [
  "either",
  "rayon-core",
@@ -8855,7 +8855,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "772575a524feeb803e5b0fcbc6dd9f367e579488197c94c6e4023aad2305774d"
 dependencies = [
- "ahash 0.8.9",
+ "ahash 0.8.10",
  "cfg-if",
  "hashbrown 0.13.2",
 ]
@@ -10117,7 +10117,7 @@ name = "sp-trie"
 version = "22.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0#c8d2251cafadc108ba2f1f8a3208dc547ff38901"
 dependencies = [
- "ahash 0.8.9",
+ "ahash 0.8.10",
  "hash-db",
  "hashbrown 0.13.2",
  "lazy_static",
@@ -10256,7 +10256,7 @@ version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd4cef4251aabbae751a3710927945901ee1d97ee96d757f6880ebb9a79bfd53"
 dependencies = [
- "ahash 0.8.9",
+ "ahash 0.8.10",
  "atoi",
  "byteorder",
  "bytes",
@@ -10801,7 +10801,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -10811,7 +10811,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#bfa60f4d9a9118db6e4d58bfdb1c0a1e7ee02866"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -11801,9 +11801,9 @@ checksum = "4f186bd2dcf04330886ce82d6f33dd75a7bfcf69ecf5763b89fcde53b6ac9838"
 
 [[package]]
 name = "wasm-encoder"
-version = "0.200.0"
+version = "0.201.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9e3fb0c8fbddd78aa6095b850dfeedbc7506cf5f81e633f69cf8f2333ab84b9"
+checksum = "b9c7d2731df60006819b013f64ccc2019691deccf6e11a1804bc850cd6748f1a"
 dependencies = [
  "leb128",
 ]
@@ -12317,9 +12317,9 @@ dependencies = [
 
 [[package]]
 name = "wast"
-version = "200.0.0"
+version = "201.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1810d14e6b03ebb8fb05eef4009ad5749c989b65197d83bce7de7172ed91366"
+checksum = "1ef6e1ef34d7da3e2b374fd2b1a9c0227aff6cad596e1b24df9b58d0f6222faa"
 dependencies = [
  "bumpalo",
  "leb128",
@@ -12330,9 +12330,9 @@ dependencies = [
 
 [[package]]
 name = "wat"
-version = "1.200.0"
+version = "1.201.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "776cbd10e217f83869beaa3f40e312bb9e91d5eee29bbf6f560db1261b6a4c3d"
+checksum = "453d5b37a45b98dee4f4cb68015fc73634d7883bbef1c65e6e9c78d454cf3f32"
 dependencies = [
  "wast",
 ]
@@ -12350,7 +12350,7 @@ dependencies = [
 [[package]]
 name = "webb"
 version = "0.8.4"
-source = "git+https://github.com/webb-tools/webb-rs.git#118801febf8bc221fc617622ca0cf994b1f05e15"
+source = "git+https://github.com/webb-tools/webb-rs.git?branch=main#118801febf8bc221fc617622ca0cf994b1f05e15"
 dependencies = [
  "async-trait",
  "hex",
