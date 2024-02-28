@@ -6,7 +6,6 @@ use dfns_cggmp21::signing::msg::Msg;
 
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 use dfns_cggmp21::{DataToSign, KeyShare};
-use digest::KeyInit;
 use gadget_common::client::{ClientWithApi, JobsApiForGadget};
 use gadget_common::config::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
