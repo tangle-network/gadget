@@ -27,7 +27,7 @@ use rand::rngs::{OsRng, StdRng};
 use rand::{CryptoRng, RngCore, SeedableRng};
 use round_based_21::{Delivery, Incoming, MpcParty, Outgoing};
 use sc_client_api::Backend;
-use serde::{Serialize};
+use serde::Serialize;
 use sha2::Sha256;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
@@ -169,6 +169,7 @@ where
             .map_err(|err| JobError {
                 reason: format!("Key share error: {err:?}"),
             })?;
+    // Serialize the key share and the public key
     bincode2::serialize(&key_share)
         .map(|ks| (ks, key_share.shared_public_key().to_bytes(true).to_vec()))
         .map_err(|err| JobError {
@@ -185,23 +186,27 @@ pub fn create_party<E: Curve, N: Network, L: SecurityLevel, M>(
     mapping: Arc<HashMap<UserID, ecdsa::Public>>,
     id: ecdsa::Public,
     network: N,
-) -> MpcParty<
-    M,
-    (
-        futures::channel::mpsc::UnboundedReceiver<Result<Incoming<M>, TryRecvError>>,
-        UnboundedSender<Outgoing<M>>,
-    ),
->
+) -> (
+    UnboundedSender<PublicKeyGossipMessage>,
+    futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
+    MpcParty<
+        M,
+        (
+            futures::channel::mpsc::UnboundedReceiver<Result<Incoming<M>, TryRecvError>>,
+            UnboundedSender<Outgoing<M>>,
+        ),
+    >,
+)
 where
     N: Network,
     L: SecurityLevel,
     E: Curve,
     M: Serialize + DeserializeOwned + Send + Sync + 'static,
 {
-    let (tx_to_outbound, rx_async_proto, _broadcast_tx_to_outbound, _broadcast_rx_from_gadget) =
+    let (tx_to_outbound, rx_async_proto, broadcast_tx_to_outbound, broadcast_rx_from_gadget) =
         gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io::<
             _,
-            (),
+            PublicKeyGossipMessage,
             Outgoing<M>,
             Incoming<M>,
         >(
@@ -215,7 +220,11 @@ where
             network,
         );
     let delivery = (rx_async_proto, tx_to_outbound);
-    MpcParty::connected(delivery)
+    (
+        broadcast_tx_to_outbound,
+        broadcast_rx_from_gadget,
+        MpcParty::connected(delivery),
+    )
 }
 
 pub async fn generate_protocol_from<
@@ -273,7 +282,12 @@ where
 
             let incomplete_key_share: Vec<u8> = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-                    let party = create_party::<Secp256k1, _, SecurityLevel128, Msg<Secp256k1, SecurityLevel128, _>>(
+                    let (_, _, party) = create_party::<
+                        Secp256k1,
+                        _,
+                        SecurityLevel128,
+                        Msg<Secp256k1, SecurityLevel128, _>,
+                    >(
                         protocol_message_channel.clone(),
                         associated_block_id,
                         associated_retry_id,
@@ -286,7 +300,12 @@ where
                     run_and_serialize_keygen(&mut tracer, eid, i, n, t, party, rng.clone()).await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-                    let party = create_party::<Secp256r1, _, SecurityLevel128, Msg<Secp256r1, SecurityLevel128, _>>(
+                    let (_, _, party) = create_party::<
+                        Secp256r1,
+                        _,
+                        SecurityLevel128,
+                        Msg<Secp256r1, SecurityLevel128, _>,
+                    >(
                         protocol_message_channel.clone(),
                         associated_block_id,
                         associated_retry_id,
@@ -299,7 +318,12 @@ where
                     run_and_serialize_keygen(&mut tracer, eid, i, n, t, party, rng.clone()).await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-                    let party = create_party::<Stark, _, SecurityLevel128, Msg<Stark, SecurityLevel128, _>>(
+                    let (_, _, party) = create_party::<
+                        Stark,
+                        _,
+                        SecurityLevel128,
+                        Msg<Stark, SecurityLevel128, _>,
+                    >(
                         protocol_message_channel.clone(),
                         associated_block_id,
                         associated_retry_id,
@@ -343,75 +367,16 @@ where
                     reason: format!("Failed to store pregenerated primes: {err:?}"),
                 })?;
 
-            fn create_party_refresh<N: Network>(
-                protocol_message_channel: CloneableUnboundedReceiver<GadgetProtocolMessage>,
-                associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-                associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-                associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-                associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-                mapping: Arc<HashMap<UserID, ecdsa::Public>>,
-                id: ecdsa::Public,
-                network: N,
-            ) -> (
-                UnboundedSender<PublicKeyGossipMessage>,
-                futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
-                MpcParty<
-                    dfns_cggmp21::key_refresh::msg::aux_only::Msg<Sha256, SecurityLevel128>,
-                    (
-                        futures::channel::mpsc::UnboundedReceiver<
-                            Result<
-                                Incoming<
-                                    dfns_cggmp21::key_refresh::msg::aux_only::Msg<
-                                        Sha256,
-                                        SecurityLevel128,
-                                    >,
-                                >,
-                                TryRecvError,
-                            >,
-                        >,
-                        UnboundedSender<
-                            Outgoing<
-                                dfns_cggmp21::key_refresh::msg::aux_only::Msg<
-                                    Sha256,
-                                    SecurityLevel128,
-                                >,
-                            >,
-                        >,
-                    ),
-                >,
-            ) {
-                let (
-                    keyrefresh_tx_to_outbound,
-                    keyrefresh_rx_async_proto,
-                    broadcast_tx_to_outbound,
-                    broadcast_rx_from_gadget,
-                ) = gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io::<
-                    _,
-                    PublicKeyGossipMessage,
-                    Outgoing<aux_only::Msg<sha2::Sha256, SecurityLevel128>>,
-                    Incoming<aux_only::Msg<sha2::Sha256, SecurityLevel128>>,
-                >(
-                    protocol_message_channel,
-                    associated_block_id,
-                    associated_retry_id,
-                    associated_session_id,
-                    associated_task_id,
-                    mapping,
-                    id,
-                    network,
-                );
-                let delivery = (keyrefresh_rx_async_proto, keyrefresh_tx_to_outbound);
-                (
-                    broadcast_tx_to_outbound,
-                    broadcast_rx_from_gadget,
-                    MpcParty::connected(delivery),
-                )
-            }
-
             logger.info(format!("Will now run Keygen protocol: {role_type:?}"));
-            let (tx, rx, key_share, serialized_public_key) = match role_type {
+            let (mut pubkey_gossip_tx, mut pubkey_gossip_rx) = (None, None);
+            let (key_share, serialized_public_key) = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-                    let (tx, rx, party) = create_party_refresh(
+                    let (tx, rx, party) = create_party::<
+                        Secp256k1,
+                        _,
+                        SecurityLevel128,
+                        aux_only::Msg<Sha256, SecurityLevel128>,
+                    >(
                         protocol_message_channel.clone(),
                         associated_block_id,
                         associated_retry_id,
@@ -421,7 +386,9 @@ where
                         my_role_id,
                         network.clone(),
                     );
-                    let (ks, pk) = run_and_serialize_keyrefresh::<Secp256k1, _>(
+                    pubkey_gossip_tx = Some(tx);
+                    pubkey_gossip_rx = Some(rx);
+                    run_and_serialize_keyrefresh::<Secp256k1, _>(
                         &logger,
                         incomplete_key_share,
                         pregenerated_primes,
@@ -432,11 +399,15 @@ where
                         party,
                         rng,
                     )
-                    .await?;
-                    (tx, rx, ks, pk)
+                    .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-                    let (tx, rx, party) = create_party_refresh(
+                    let (tx, rx, party) = create_party::<
+                        Secp256r1,
+                        _,
+                        SecurityLevel128,
+                        aux_only::Msg<Sha256, SecurityLevel128>,
+                    >(
                         protocol_message_channel.clone(),
                         associated_block_id,
                         associated_retry_id,
@@ -446,7 +417,9 @@ where
                         my_role_id,
                         network.clone(),
                     );
-                    let (kx, pk) = run_and_serialize_keyrefresh::<Secp256r1, _>(
+                    pubkey_gossip_tx = Some(tx);
+                    pubkey_gossip_rx = Some(rx);
+                    run_and_serialize_keyrefresh::<Secp256r1, _>(
                         &logger,
                         incomplete_key_share,
                         pregenerated_primes,
@@ -457,11 +430,15 @@ where
                         party,
                         rng,
                     )
-                    .await?;
-                    (tx, rx, kx, pk)
+                    .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-                    let (tx, rx, party) = create_party_refresh(
+                    let (tx, rx, party) = create_party::<
+                        Stark,
+                        _,
+                        SecurityLevel128,
+                        aux_only::Msg<Sha256, SecurityLevel128>,
+                    >(
                         protocol_message_channel.clone(),
                         associated_block_id,
                         associated_retry_id,
@@ -471,7 +448,9 @@ where
                         my_role_id,
                         network.clone(),
                     );
-                    let (ks, pk) = run_and_serialize_keyrefresh::<Stark, _>(
+                    pubkey_gossip_tx = Some(tx);
+                    pubkey_gossip_rx = Some(rx);
+                    run_and_serialize_keyrefresh::<Stark, _>(
                         &logger,
                         incomplete_key_share,
                         pregenerated_primes,
@@ -482,28 +461,35 @@ where
                         party,
                         rng,
                     )
-                    .await?;
-                    (tx, rx, ks, pk)
+                    .await?
                 }
-                _ => unreachable!("Invalid role type"),
+                _ => Err(JobError {
+                    reason: "Invalid role type".to_string(),
+                })?,
             };
 
             logger.debug("Finished AsyncProtocol - Keygen");
 
-            let job_result = handle_public_key_gossip(
-                key_store2,
-                &logger,
-                &key_share,
-                &serialized_public_key,
-                t,
-                i,
-                tx,
-                rx,
-            )
-            .await?;
+            if let (Some(tx), Some(rx)) = (pubkey_gossip_tx, pubkey_gossip_rx) {
+                let job_result = handle_public_key_gossip(
+                    key_store2,
+                    &logger,
+                    &key_share,
+                    &serialized_public_key,
+                    t,
+                    i,
+                    tx,
+                    rx,
+                )
+                .await?;
 
-            *protocol_output.lock().await = Some((key_share, job_result));
-            Ok(())
+                *protocol_output.lock().await = Some((key_share, job_result));
+                Ok(())
+            } else {
+                Err(JobError {
+                    reason: "Failed to create gossip channels".to_string(),
+                })?
+            }
         })
         .post(async move {
             // TODO: handle protocol blames

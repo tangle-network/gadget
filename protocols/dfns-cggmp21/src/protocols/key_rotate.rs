@@ -187,7 +187,7 @@ where
             );
             let signature = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-                    let party =
+                    let (_, _, party) =
                         create_party::<Secp256k1, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
                             protocol_message_channel.clone(),
                             associated_block_id,
@@ -212,7 +212,7 @@ where
                     .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-                    let party =
+                    let (_, _, party) =
                         create_party::<Secp256r1, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
                             protocol_message_channel.clone(),
                             associated_block_id,
@@ -237,16 +237,17 @@ where
                     .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-                    let party = create_party::<Stark, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
-                        protocol_message_channel.clone(),
-                        associated_block_id,
-                        associated_retry_id,
-                        associated_session_id,
-                        associated_task_id,
-                        mapping.clone(),
-                        role_id,
-                        network.clone(),
-                    );
+                    let (_, _, party) =
+                        create_party::<Stark, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
+                            protocol_message_channel.clone(),
+                            associated_block_id,
+                            associated_retry_id,
+                            associated_session_id,
+                            associated_task_id,
+                            mapping.clone(),
+                            role_id,
+                            network.clone(),
+                        );
                     run_and_serialize_signing::<_, SecurityLevel128, _, _>(
                         &logger,
                         &mut tracer,
