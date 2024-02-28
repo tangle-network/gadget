@@ -5,8 +5,8 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 /// A Channel Receiver that can be cloned.
 ///
-/// On the second clone, the original channel will stop sending messages
-/// and the new channel will start sending messages.
+/// On the second clone, the original channel will stop receiving new messages
+/// and the new channel will start receiving any new messages after the clone.
 pub struct CloneableUnboundedReceiver<T> {
     rx: Arc<tokio::sync::Mutex<UnboundedReceiver<T>>>,
     is_in_use: Arc<AtomicBool>,
