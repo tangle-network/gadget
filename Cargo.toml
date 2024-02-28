@@ -24,13 +24,13 @@ dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
 
 snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
-pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git" }
-pallet-jobs = { git = "https://github.com/webb-tools/tangle.git" }
-pallet-dkg = { git = "https://github.com/webb-tools/tangle.git" }
-pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git" }
-tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
+pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
+pallet-jobs = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
+pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
+pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
+tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
 
-webb = { git = "https://github.com/webb-tools/webb-rs.git", default-features = false }
+webb = { git = "https://github.com/webb-tools/webb-rs.git", default-features = false, branch = "main" }
 subxt-signer = { version = "0.31.0", default-features = false }
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }
