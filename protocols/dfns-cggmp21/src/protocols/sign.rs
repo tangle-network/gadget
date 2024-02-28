@@ -1,7 +1,14 @@
+use dfns_cggmp21::generic_ec::coords::HasAffineX;
+use dfns_cggmp21::generic_ec::{Curve, Point};
+use dfns_cggmp21::round_based::{Delivery, MpcParty};
+use dfns_cggmp21::security_level::{SecurityLevel, SecurityLevel128};
 use dfns_cggmp21::signing::msg::Msg;
-use dfns_cggmp21::supported_curves::Secp256k1;
-use dfns_cggmp21::KeyShare;
+
+use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
+use dfns_cggmp21::{DataToSign, KeyShare};
+use digest::KeyInit;
 use gadget_common::client::{ClientWithApi, JobsApiForGadget};
+use gadget_common::config::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
@@ -11,9 +18,10 @@ use gadget_common::utils::CloneableUnboundedReceiver;
 use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use rand::SeedableRng;
-use round_based_21::{Incoming, Outgoing};
+use rand::{CryptoRng, RngCore, SeedableRng};
+
 use sc_client_api::Backend;
+
 use sha2::Sha256;
 use sp_api::ProvideRuntimeApi;
 use sp_core::{ecdsa, keccak_256, Pair};
@@ -22,8 +30,10 @@ use std::sync::Arc;
 use tangle_primitives::jobs::{
     DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobResult, JobType,
 };
-use tangle_primitives::roles::RoleType;
+use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
+
+use super::keygen::create_party;
 
 pub async fn create_next_job<
     B: Block,
@@ -92,9 +102,48 @@ pub struct DfnsCGGMP21SigningExtraParams {
     signers: Vec<u16>,
     job_id: JobId,
     role_type: RoleType,
-    key: KeyShare<Secp256k1>,
+    key: Vec<u8>,
     input_data_to_sign: Vec<u8>,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+}
+
+pub async fn run_and_serialize_signing<'r, E, L, R, D>(
+    logger: &DebugLogger,
+    tracer: &mut dfns_cggmp21::progress::PerfProfiler,
+    eid: dfns_cggmp21::ExecutionId<'r>,
+    i: u16,
+    signers: Vec<u16>,
+    msg: DataToSign<E>,
+    key: Vec<u8>,
+    party: MpcParty<Msg<E, Sha256>, D>,
+    rng: &mut R,
+) -> Result<Vec<u8>, JobError>
+where
+    E: Curve,
+    Point<E>: HasAffineX<E>,
+    L: SecurityLevel,
+    R: RngCore + CryptoRng,
+    D: Delivery<Msg<E, Sha256>>,
+{
+    let key: KeyShare<E, L> = bincode2::deserialize(&key).map_err(|err| JobError {
+        reason: format!("Keygen protocol error: {err:?}"),
+    })?;
+    let signature = dfns_cggmp21::signing(eid, i, &signers, &key)
+        .set_progress_tracer(tracer)
+        .sign(rng, party, msg)
+        .await
+        .map_err(|err| JobError {
+            reason: format!("Signing protocol error: {err:?}"),
+        })?;
+
+    let perf_report = tracer.get_report().map_err(|err| JobError {
+        reason: format!("Signing protocol error: {err:?}"),
+    })?;
+    logger.trace(format!("Signing protocol report: {perf_report}"));
+    // Normalize the signature
+    bincode2::serialize(&signature.normalize_s()).map_err(|err| JobError {
+        reason: format!("Signing protocol error: {err:?}"),
+    })
 }
 
 pub async fn generate_protocol_from<
@@ -123,17 +172,17 @@ where
     let my_role_id = config.key_store.pair().public();
     let network = config.clone();
 
-    let (i, signers, t, key, input_data_to_sign, mapping) = (
+    let (i, signers, t, key, role_type, input_data_to_sign, mapping) = (
         additional_params.i,
         additional_params.signers,
         additional_params.t,
         additional_params.key,
+        additional_params.role_type,
         additional_params.input_data_to_sign.clone(),
         additional_params.user_id_to_account_id_mapping.clone(),
     );
 
-    let public_key_bytes = key.shared_public_key().to_bytes(true).to_vec();
-    let input_data_to_sign2 = input_data_to_sign.clone();
+    let key2 = key.clone();
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -149,48 +198,94 @@ where
             let mix = keccak_256(b"dnfs-cggmp21-signing");
             let eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
             let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
-            let (
-                signing_tx_to_outbound,
-                signing_rx_async_proto,
-                _broadcast_tx_to_outbound,
-                _broadcast_rx_from_gadget,
-            ) = gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io::<
-                _,
-                (),
-                Outgoing<Msg<Secp256k1, Sha256>>,
-                Incoming<Msg<Secp256k1, Sha256>>,
-            >(
-                protocol_message_channel.clone(),
-                associated_block_id,
-                associated_retry_id,
-                associated_session_id,
-                associated_task_id,
-                mapping.clone(),
-                my_role_id,
-                network.clone(),
-            );
 
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
-            let delivery = (signing_rx_async_proto, signing_tx_to_outbound);
-            let party = round_based_21::MpcParty::connected(delivery);
             let data_hash = keccak_256(&input_data_to_sign);
             let data_to_sign = dfns_cggmp21::DataToSign::from_scalar(
                 dfns_cggmp21::generic_ec::Scalar::from_be_bytes_mod_order(data_hash),
             );
-            let signature = dfns_cggmp21::signing(eid, i, &signers, &key)
-                .set_progress_tracer(&mut tracer)
-                .sign(&mut rng, party, data_to_sign)
-                .await
-                .map_err(|err| JobError {
-                    reason: format!("Signing protocol error: {err:?}"),
-                })?;
+            let signature = match role_type {
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
+                    let party =
+                        create_party::<Secp256k1, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
+                            protocol_message_channel.clone(),
+                            associated_block_id,
+                            associated_retry_id,
+                            associated_session_id,
+                            associated_task_id,
+                            mapping.clone(),
+                            my_role_id,
+                            network.clone(),
+                        );
+                    run_and_serialize_signing::<_, SecurityLevel128, _, _>(
+                        &logger,
+                        &mut tracer,
+                        eid,
+                        i,
+                        signers,
+                        data_to_sign,
+                        key,
+                        party,
+                        &mut rng,
+                    )
+                    .await?
+                }
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
+                    let party =
+                        create_party::<Secp256r1, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
+                            protocol_message_channel.clone(),
+                            associated_block_id,
+                            associated_retry_id,
+                            associated_session_id,
+                            associated_task_id,
+                            mapping.clone(),
+                            my_role_id,
+                            network.clone(),
+                        );
+                    run_and_serialize_signing::<_, SecurityLevel128, _, _>(
+                        &logger,
+                        &mut tracer,
+                        eid,
+                        i,
+                        signers,
+                        data_to_sign,
+                        key,
+                        party,
+                        &mut rng,
+                    )
+                    .await?
+                }
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+                    let party = create_party::<Stark, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
+                        protocol_message_channel.clone(),
+                        associated_block_id,
+                        associated_retry_id,
+                        associated_session_id,
+                        associated_task_id,
+                        mapping.clone(),
+                        my_role_id,
+                        network.clone(),
+                    );
+                    run_and_serialize_signing::<_, SecurityLevel128, _, _>(
+                        &logger,
+                        &mut tracer,
+                        eid,
+                        i,
+                        signers,
+                        data_to_sign,
+                        key,
+                        party,
+                        &mut rng,
+                    )
+                    .await?
+                }
+                _ => {
+                    return Err(JobError {
+                        reason: format!("Invalid role type: {role_type:?}"),
+                    });
+                }
+            };
 
-            let perf_report = tracer.get_report().map_err(|err| JobError {
-                reason: format!("Signing protocol error: {err:?}"),
-            })?;
-            logger.trace(format!("Signing protocol report: {perf_report}"));
-            // Normalize the signature
-            let signature = signature.normalize_s();
             logger.debug("Finished AsyncProtocol - Signing");
             *protocol_output.lock().await = Some(signature);
             Ok(())
@@ -198,47 +293,11 @@ where
         .post(async move {
             // Submit the protocol output to the blockchain
             if let Some(signature) = protocol_output_clone.lock().await.take() {
-                let mut signature_bytes = [0u8; 65];
-                signature.write_to_slice(&mut signature_bytes[0..64]);
-                // To figure out the recovery ID, we need to try all possible values of v
-                // in our case, v can be 0 or 1
-                let mut v = 0u8;
-                loop {
-                    let mut signature_bytes = signature_bytes;
-                    let data_hash = keccak_256(&input_data_to_sign2);
-                    signature_bytes[64] = v;
-                    let res = sp_io::crypto::secp256k1_ecdsa_recover(&signature_bytes, &data_hash);
-                    match res {
-                        Ok(key) if key[..32] == public_key_bytes[1..] => {
-                            // Found the correct v
-                            break;
-                        }
-                        Ok(_) => {
-                            // Found a key, but not the correct one
-                            // Try the other v value
-                            v = 1;
-                            continue;
-                        }
-                        Err(_) if v == 1 => {
-                            // We tried both v values, but no key was found
-                            // This should never happen, but if it does, we will just
-                            // leave v as 1 and break
-                            break;
-                        }
-                        Err(_) => {
-                            // No key was found, try the other v value
-                            v = 1;
-                            continue;
-                        }
-                    }
-                }
-                signature_bytes[64] = v + 27;
-
                 let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
                     signature_scheme: DigitalSignatureScheme::Ecdsa,
                     data: additional_params.input_data_to_sign.try_into().unwrap(),
-                    signature: signature_bytes.to_vec().try_into().unwrap(),
-                    verifying_key: public_key_bytes.try_into().unwrap(),
+                    signature: signature.try_into().unwrap(),
+                    verifying_key: key2.try_into().unwrap(),
                 });
 
                 client
