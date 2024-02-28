@@ -25,7 +25,7 @@ use rand::SeedableRng;
 use round_based_21::{Incoming, Outgoing};
 use sc_client_api::Backend;
 use sp_application_crypto::sp_core::keccak_256;
-use sp_core::{ecdsa, ByteArray, Pair};
+use sp_core::{ecdsa, Pair};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tangle_primitives::jobs::{DKGTSSKeySubmissionResult, DigitalSignatureScheme, JobId, JobType};
@@ -34,8 +34,6 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::rounds;
 use crate::rounds::keygen::Msg;
-
-use crate::protocol::util::account_id_32_to_public;
 use gadget_common::channels::PublicKeyGossipMessage;
 
 #[derive(Clone)]
@@ -70,7 +68,7 @@ where
         panic!("Should be valid type")
     };
 
-    let participants = p1_job.participants;
+    let participants = job.participants_role_ids;
     let threshold = p1_job.threshold;
 
     let user_id_to_account_id_mapping = Arc::new(
@@ -78,19 +76,16 @@ where
             .clone()
             .into_iter()
             .enumerate()
-            .map(|r| {
-                (
-                    r.0 as UserID,
-                    account_id_32_to_public(r.1.as_slice()).expect("Should convert"),
-                )
-            })
+            .map(|r| (r.0 as UserID, r.1))
             .collect(),
     );
+
+    let id = config.key_store.pair().public();
 
     let params = ZcashFrostKeygenExtraParams {
         i: participants
             .iter()
-            .position(|p| p == &config.account_id)
+            .position(|p| p == &id)
             .expect("Should exist") as u16,
         t: threshold as u16,
         n: participants.len() as u16,
@@ -144,7 +139,7 @@ where
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let pallet_tx = config.pallet_tx.clone();
-    let id = account_id_32_to_public(config.account_id.as_slice()).expect("Should convert");
+    let id = config.key_store.pair().public();
     let logger = config.logger.clone();
     let network = config.clone();
 

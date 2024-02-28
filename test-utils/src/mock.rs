@@ -316,7 +316,7 @@ sp_api::mock_impl_runtime_apis! {
             })
         }
 
-		fn query_restaker_role_key(address: AccountId) -> Option<Vec<u8>> {
+        fn query_restaker_role_key(address: AccountId) -> Option<Vec<u8>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
                 MockRolesHandler::get_validator_role_key(address)
             })

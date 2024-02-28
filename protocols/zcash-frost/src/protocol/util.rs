@@ -6,17 +6,6 @@ use rand::seq::SliceRandom;
 use sp_core::ecdsa::Public;
 use std::collections::HashMap;
 
-/// Converts an ECDSA key in 32-byte format to 33-byte format with the metadata 0th byte set to 0x00
-pub fn account_id_32_to_public(account_id: &[u8]) -> Option<Public> {
-    if account_id.len() != 32 {
-        return None;
-    }
-
-    let mut bytes = [0u8; 33];
-    bytes[1..].copy_from_slice(account_id);
-    Some(Public::from_raw(bytes))
-}
-
 /// Given a list of participants, choose `t` of them and return the index of the current participant
 /// and the indices of the chosen participants, as well as a mapping from the index to the account
 /// id.
