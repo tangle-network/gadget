@@ -1,298 +1,235 @@
 use crate::debug_logger::DebugLogger;
 use async_trait::async_trait;
 use auto_impl::auto_impl;
-use gadget_core::gadget::substrate::Client;
-use pallet_jobs_rpc_runtime_api::{BlockNumberOf, JobsApi};
-use sc_client_api::{
-    Backend, BlockImportNotification, BlockchainEvents, FinalityNotification,
-    FinalityNotifications, ImportNotifications, StorageEventStream, StorageKey,
-};
-use sp_api::{ApiRef, ProvideRuntimeApi};
-use sp_api::{BlockT as Block, Decode, Encode};
-use sp_core::Pair;
+use gadget_core::gadget::substrate::{Client, FinalityNotification};
 use sp_core::{ecdsa, ByteArray};
+use sp_core::{sr25519, Pair};
+use webb::substrate::subxt::utils::AccountId32;
+use webb::substrate::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
 
 use std::sync::Arc;
 use subxt::tx::TxPayload;
 use subxt::OnlineClient;
-use tangle_primitives::jobs::JobId;
-use tangle_primitives::jobs::{PhaseResult, RpcResponseJobsData};
-use tangle_primitives::roles::RoleType;
 use webb::substrate::subxt;
 use webb::substrate::subxt::config::ExtrinsicParams;
 
-pub struct JobsClient<B: Block, BE, C> {
+pub struct JobsClient<C> {
     pub client: C,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
-    _block: std::marker::PhantomData<(BE, B)>,
 }
 
-impl<B: Block, BE, C: Clone> Clone for JobsClient<B, BE, C> {
+impl<C: Clone> Clone for JobsClient<C> {
     fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
             logger: self.logger.clone(),
             pallet_tx: self.pallet_tx.clone(),
-            _block: self._block,
         }
     }
 }
 
-pub async fn create_client<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>(
+pub async fn create_client<C: ClientWithApi>(
     client: C,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
-) -> Result<JobsClient<B, BE, C>, crate::Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<JobsClient<C>, crate::Error> {
     Ok(JobsClient {
         client,
         logger,
         pallet_tx,
-        _block: std::marker::PhantomData,
     })
 }
 
-pub mod types {
-    #[cfg(not(feature = "testnet"))]
-    use frame_support::pallet_prelude::{Decode, Encode, TypeInfo};
-    use pallet_jobs_rpc_runtime_api::JobsApi;
-    #[cfg(not(feature = "testnet"))]
-    use serde::{Deserialize, Serialize};
-    use sp_runtime::traits::Block;
-    #[cfg(not(feature = "testnet"))]
-    use sp_runtime::RuntimeDebug;
-    use tangle_primitives::jobs::{JobResult, JobType, PhaseResult};
-
-    #[cfg(not(feature = "testnet"))]
-    frame_support::parameter_types! {
-        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-        #[derive(Serialize, Deserialize)]
-        pub const MaxSubmissionLen: u32 = 60_000_000;
-        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-        #[derive(Serialize, Deserialize)]
-        pub const MaxParticipants: u32 = 10;
-        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-        #[derive(Serialize, Deserialize)]
-        pub const MaxKeyLen: u32 = 256;
-        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-        #[derive(Serialize, Deserialize)]
-        pub const MaxDataLen: u32 = 256;
-        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-        #[derive(Serialize, Deserialize)]
-        pub const MaxSignatureLen: u32 = 256;
-        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-        #[derive(Serialize, Deserialize)]
-        pub const MaxProofLen: u32 = 256;
-        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-        #[derive(Serialize, Deserialize)]
-        pub const MaxActiveJobsPerValidator: u32 = 100;
-        #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-        #[derive(Serialize, Deserialize)]
-        pub const MaxRolesPerValidator: u32 = 100;
-    }
-
-    #[cfg(feature = "testnet")]
-    pub use tangle_primitives::jobs::{
-        MaxActiveJobsPerValidator, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
-        MaxSignatureLen, MaxSubmissionLen,
-    };
-    pub use tangle_primitives::AccountId;
-
-    pub type GadgetJobResult =
-        JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>;
-    pub type GadgetJobType = JobType<AccountId, MaxParticipants, MaxSubmissionLen>;
-    pub type GadgetPhaseResult<B> = PhaseResult<
-        AccountId,
-        B,
-        MaxParticipants,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxSubmissionLen,
-        MaxProofLen,
+#[async_trait]
+pub trait ClientWithApi: Client {
+    /// Query jobs associated with a specific validator.
+    ///
+    /// This function takes a `validator` parameter of type `AccountId` and attempts
+    /// to retrieve a list of jobs associated with the provided validator. If successful,
+    /// it constructs a vector of `RpcResponseJobsData` containing information
+    /// about the jobs and returns it as a `Result`.
+    ///
+    /// # Arguments
+    ///
+    /// * `validator` - The account ID of the validator whose jobs are to be queried.
+    ///
+    /// # Returns
+    ///
+    /// An optional vec of `RpcResponseJobsData` of jobs assigned to validator
+    async fn query_jobs_by_validator(
+        at: [u8; 32],
+        validator: AccountId32,
+    ) -> Option<
+        Vec<
+            jobs::RpcResponseJobsData<
+                AccountId32,
+                u64,
+                jobs::MaxParticipants,
+                jobs::MaxSubmissionLen,
+            >,
+        >,
+    >;
+    /// Queries a job by its key and ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `role_type` - The role of the job.
+    /// * `job_id` - The ID of the job.
+    ///
+    /// # Returns
+    ///
+    /// An optional `RpcResponseJobsData` containing the account ID of the job.
+    async fn query_job_by_id(
+        at: [u8; 32],
+        role_type: roles::RoleType,
+        job_id: u64,
+    ) -> Option<
+        jobs::RpcResponseJobsData<
+            AccountId32,
+            AccountId32,
+            u64,
+            jobs::MaxParticipants,
+            jobs::MaxSubmissionLen,
+        >,
     >;
 
-    pub trait JobsApiForGadget<B: Block>:
-        JobsApi<
-        B,
-        AccountId,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-    >
-    {
-    }
-    // Implement JobsApiForGadget for any T that implements JobsApi
-    impl<
-            B: Block,
-            T: JobsApi<
-                B,
-                AccountId,
-                MaxParticipants,
-                MaxSubmissionLen,
-                MaxKeyLen,
-                MaxDataLen,
-                MaxSignatureLen,
-                MaxProofLen,
-            >,
-        > JobsApiForGadget<B> for T
-    {
-    }
+    /// Queries the result of a job by its role_type and ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `role_type` - The role of the job.
+    /// * `job_id` - The ID of the job.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing the phase one result of the job, wrapped in an `PhaseResult`.
+    async fn query_job_result(
+        at: [u8; 32],
+        role_type: roles::RoleType,
+        job_id: u64,
+    ) -> Option<
+        jobs::PhaseResult<
+            AccountId32,
+            u64,
+            jobs::MaxParticipants,
+            jobs::MaxKeyLen,
+            jobs::MaxDataLen,
+            jobs::MaxSignatureLen,
+            jobs::MaxSubmissionLen,
+            jobs::MaxProofLen,
+        >,
+    >;
+
+    /// Queries next job ID.
+    ///
+    ///  # Returns
+    ///  Next job ID.
+    async fn query_next_job_id(at: [u8; 32]) -> u64;
+
+    /// Queries restaker's role key
+    ///
+    ///  # Returns
+    ///  Role key
+    fn query_restaker_role_key(at: [u8; 32], address: AccountId32) -> Option<Vec<u8>>;
 }
 
-pub use types::*;
-
-pub trait ClientWithApi<B, BE>:
-    BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + Clone + 'static
-where
-    B: Block,
-    BE: Backend<B>,
-    <Self as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
-}
-
-impl<B, BE, T> ClientWithApi<B, BE> for T
-where
-    B: Block,
-    BE: Backend<B>,
-    T: BlockchainEvents<B> + ProvideRuntimeApi<B> + Send + Sync + Client<B> + Clone + 'static,
-    <T as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
-}
-
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> ProvideRuntimeApi<B>
-    for JobsClient<B, BE, C>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
-    type Api = C::Api;
-
-    fn runtime_api(&self) -> ApiRef<Self::Api> {
-        self.client.runtime_api()
-    }
-}
-
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> BlockchainEvents<B> for JobsClient<B, BE, C>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
-    fn import_notification_stream(&self) -> ImportNotifications<B> {
-        self.client.import_notification_stream()
-    }
-
-    fn every_import_notification_stream(&self) -> ImportNotifications<B> {
-        self.client.every_import_notification_stream()
-    }
-
-    fn finality_notification_stream(&self) -> FinalityNotifications<B> {
-        self.client.finality_notification_stream()
-    }
-
-    fn storage_changes_notification_stream(
-        &self,
-        filter_keys: Option<&[StorageKey]>,
-        child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
-    ) -> sc_client_api::blockchain::Result<StorageEventStream<B::Hash>> {
-        self.client
-            .storage_changes_notification_stream(filter_keys, child_filter_keys)
-    }
-}
-
-impl<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>> JobsClient<B, BE, C>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+impl<C: ClientWithApi> JobsClient<C> {
     pub async fn query_jobs_by_validator(
         &self,
-        at: <B as Block>::Hash,
-        validator: AccountId,
+        at: [u8; 32],
+        validator: sr25519::Public,
     ) -> Result<
-        Vec<RpcResponseJobsData<AccountId, BlockNumberOf<B>, MaxParticipants, MaxSubmissionLen>>,
-        crate::Error,
-    > {
-        exec_client_function(&self.client, move |client| {
-            client.runtime_api().query_jobs_by_validator(at, validator)
-        })
-        .await
-        .map_err(|err| crate::Error::ClientError {
-            err: format!("Failed to query jobs by validator: {err:?}"),
-        })
-        .map(|r| r.unwrap_or_default())
-    }
-
-    pub async fn query_restaker_role_key(
-        &self,
-        at: <B as Block>::Hash,
-        address: AccountId,
-    ) -> Result<Option<ecdsa::Public>, crate::Error> {
-        exec_client_function(&self.client, move |client| {
-            client.runtime_api().query_restaker_role_key(at, address)
-        })
-        .await
-        .map_err(|err| crate::Error::ClientError {
-            err: format!("Failed to query restaker role key: {err:?}"),
-        })
-        .map(|r| r.and_then(|v| ecdsa::Public::from_slice(v.as_slice()).ok()))
-    }
-
-    pub async fn query_job_by_id(
-        &self,
-        at: <B as Block>::Hash,
-        role_type: RoleType,
-        job_id: JobId,
-    ) -> Result<
-        Option<RpcResponseJobsData<AccountId, BlockNumberOf<B>, MaxParticipants, MaxSubmissionLen>>,
-        crate::Error,
-    > {
-        exec_client_function(&self.client, move |client| {
-            client.runtime_api().query_job_by_id(at, role_type, job_id)
-        })
-        .await
-        .map_err(|err| crate::Error::ClientError {
-            err: format!("Failed to query job by id: {err:?}"),
-        })
-    }
-
-    pub async fn query_job_result(
-        &self,
-        at: <B as Block>::Hash,
-        role_type: RoleType,
-        job_id: JobId,
-    ) -> Result<
-        Option<
-            PhaseResult<
-                AccountId,
-                BlockNumberOf<B>,
-                MaxParticipants,
-                MaxKeyLen,
-                MaxDataLen,
-                MaxSignatureLen,
-                MaxSubmissionLen,
-                MaxProofLen,
+        Vec<
+            jobs::RpcResponseJobsData<
+                sr25519::Public,
+                u64,
+                jobs::MaxParticipants,
+                jobs::MaxSubmissionLen,
             >,
         >,
         crate::Error,
     > {
-        exec_client_function(&self.client, move |client| {
-            client.runtime_api().query_job_result(at, role_type, job_id)
-        })
-        .await
-        .map_err(|err| crate::Error::ClientError {
-            err: format!("Failed to query phase 1 by id: {err:?}"),
-        })
+        self.client
+            .query_jobs_by_validator(at, validator)
+            .await
+            .map_err(|err| crate::Error::ClientError {
+                err: format!("Failed to query jobs by validator: {err:?}"),
+            })
+            .map(|r| r.unwrap_or_default())
+    }
+
+    pub async fn query_restaker_role_key(
+        &self,
+        at: [u8; 32],
+        address: sr25519::Public,
+    ) -> Result<Option<ecdsa::Public>, crate::Error> {
+        self.client
+            .query_restaker_role_key(at, address)
+            .await
+            .map_err(|err| crate::Error::ClientError {
+                err: format!("Failed to query restaker role key: {err:?}"),
+            })
+            .map(|r| r.and_then(|v| ecdsa::Public::from_slice(v.as_slice()).ok()))
+    }
+
+    pub async fn query_job_by_id(
+        &self,
+        at: [u8; 32],
+        role_type: roles::RoleType,
+        job_id: u64,
+    ) -> Result<
+        Option<
+            jobs::RpcResponseJobsData<
+                sr25519::Public,
+                u64,
+                jobs::MaxParticipants,
+                jobs::MaxSubmissionLen,
+            >,
+        >,
+        crate::Error,
+    > {
+        self.client
+            .query_job_by_id(at, role_type, job_id)
+            .await
+            .map_err(|err| crate::Error::ClientError {
+                err: format!("Failed to query job by id: {err:?}"),
+            })
+    }
+
+    pub async fn query_job_result(
+        &self,
+        at: [u8; 32],
+        role_type: roles::RoleType,
+        job_id: u64,
+    ) -> Result<
+        Option<
+            jobs::PhaseResult<
+                sr25519::Public,
+                u64,
+                jobs::MaxParticipants,
+                jobs::MaxKeyLen,
+                jobs::MaxDataLen,
+                jobs::MaxSignatureLen,
+                jobs::MaxSubmissionLen,
+                jobs::MaxProofLen,
+            >,
+        >,
+        crate::Error,
+    > {
+        self.client
+            .query_job_result(at, role_type, job_id)
+            .await
+            .map_err(|err| crate::Error::ClientError {
+                err: format!("Failed to query job result: {err:?}"),
+            })
     }
 
     pub async fn submit_job_result(
         &self,
-        role_type: RoleType,
-        job_id: JobId,
-        result: GadgetJobResult,
+        role_type: roles::RoleType,
+        job_id: u64,
+        result: jobs::JobResult,
     ) -> Result<(), crate::Error> {
         self.pallet_tx
             .submit_job_result(role_type, job_id, result)
@@ -301,23 +238,13 @@ where
 }
 
 #[async_trait]
-impl<B, BE, C> Client<B> for JobsClient<B, BE, C>
-where
-    B: Block,
-    BE: Backend<B>,
-    C: ClientWithApi<B, BE>,
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
-    async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>> {
+impl<C: Client> Client for JobsClient<C> {
+    async fn get_next_finality_notification(&self) -> Option<FinalityNotification> {
         self.client.get_next_finality_notification().await
     }
 
-    async fn get_latest_finality_notification(&self) -> Option<FinalityNotification<B>> {
+    async fn get_latest_finality_notification(&self) -> Option<FinalityNotification> {
         self.client.get_latest_finality_notification().await
-    }
-
-    async fn get_next_block_import_notification(&self) -> Option<BlockImportNotification<B>> {
-        self.client.get_next_block_import_notification().await
     }
 }
 /// A [`Signer`] implementation that can be constructed from an [`sp_core::Pair`].
@@ -359,9 +286,9 @@ where
 pub trait PalletSubmitter: Send + Sync + 'static {
     async fn submit_job_result(
         &self,
-        role_type: RoleType,
-        job_id: JobId,
-        result: GadgetJobResult,
+        role_type: roles::RoleType,
+        job_id: u64,
+        result: jobs::JobResult,
     ) -> Result<(), crate::Error>;
 }
 
@@ -386,17 +313,13 @@ where
 {
     async fn submit_job_result(
         &self,
-        role_type: RoleType,
-        job_id: JobId,
-        result: GadgetJobResult,
+        role_type: roles::RoleType,
+        job_id: u64,
+        result: jobs::JobResult,
     ) -> Result<(), crate::Error> {
         let tx = webb::substrate::tangle_runtime::api::tx()
             .jobs()
-            .submit_job_result(
-                Decode::decode(&mut role_type.encode().as_slice()).expect("Should decode"),
-                job_id,
-                Decode::decode(&mut result.encode().as_slice()).expect("Should decode"),
-            );
+            .submit_job_result(role_type, job_id, result);
         match self.submit(&tx).await {
             Ok(hash) => {
                 self.logger.info(format!(
@@ -459,19 +382,6 @@ where
             .await?
             .block_hash())
     }
-}
-
-async fn exec_client_function<C: Clone, F, T>(client: &C, function: F) -> T
-where
-    for<'a> F: FnOnce(&'a C) -> T,
-    C: Send + Sync + 'static,
-    T: Send + 'static,
-    F: Send + 'static,
-{
-    let client = client.clone();
-    tokio::task::spawn_blocking(move || function(&client))
-        .await
-        .expect("Failed to spawn blocking task")
 }
 
 #[cfg(test)]

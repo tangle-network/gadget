@@ -3684,7 +3684,6 @@ dependencies = [
  "lazy_static",
  "linked-hash-map",
  "log",
- "pallet-jobs-rpc-runtime-api",
  "parity-scale-codec 3.6.9",
  "parking_lot 0.12.1",
  "protocol-macros",
@@ -3705,7 +3704,6 @@ dependencies = [
  "sqlx",
  "substrate-prometheus-endpoint",
  "subxt-signer",
- "tangle-primitives",
  "tokio",
  "webb",
 ]
@@ -3720,8 +3718,6 @@ dependencies = [
  "hex",
  "log",
  "parking_lot 0.12.1",
- "sc-client-api",
- "sp-runtime",
  "tokio",
 ]
 

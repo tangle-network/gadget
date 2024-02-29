@@ -1,23 +1,18 @@
-use crate::client::{ClientWithApi, JobsApiForGadget};
+use crate::client::ClientWithApi;
 use crate::config::{NetworkAndProtocolSetup, ProtocolConfig};
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{GadgetProtocol, Module};
 use crate::prelude::PrometheusConfig;
 use gadget::network::Network;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
-use gadget_core::gadget::substrate::{Client, SubstrateGadget};
+use gadget_core::gadget::substrate::{Client, FinalityNotification, SubstrateGadget};
 pub use gadget_core::job::JobError;
 pub use gadget_core::job::*;
 pub use gadget_core::job_manager::WorkManagerInterface;
 pub use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
 use parking_lot::RwLock;
-pub use sc_client_api::BlockImportNotification;
-pub use sc_client_api::{Backend, FinalityNotification};
-use sp_api::ProvideRuntimeApi;
 pub use sp_core;
 use sp_core::ecdsa;
-pub use sp_runtime::traits::{Block, Header};
-use sp_runtime::SaturatedConversion;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 pub use subxt_signer;
@@ -42,7 +37,6 @@ pub mod prelude {
     pub use protocol_macros::protocol;
     pub use std::pin::Pin;
     pub use std::sync::Arc;
-    pub use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
     pub use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 }
 pub mod channels;
@@ -92,12 +86,7 @@ impl From<JobError> for Error {
     }
 }
 
-pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(), Error>
-where
-    <<T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client as ProvideRuntimeApi<
-        <T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block,
-    >>::Api: JobsApiForGadget<<T::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Block>,
-{
+pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(), Error> {
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
@@ -142,19 +131,11 @@ where
 }
 
 /// Creates a work manager
-pub async fn create_work_manager<
-    B: Block,
-    BE: Backend<B>,
-    C: ClientWithApi<B, BE>,
-    P: GadgetProtocol<B, BE, C>,
->(
-    latest_finality_notification: &FinalityNotification<B>,
+pub async fn create_work_manager<C: ClientWithApi, P: GadgetProtocol<C>>(
+    latest_finality_notification: &FinalityNotification,
     protocol: &P,
-) -> Result<ProtocolWorkManager<WorkManager>, Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
-    let now: u64 = (*latest_finality_notification.header.number()).saturated_into();
+) -> Result<ProtocolWorkManager<WorkManager>, Error> {
+    let now: u64 = *latest_finality_notification.number;
 
     let work_manager_config = protocol.get_work_manager_config();
 
@@ -180,9 +161,9 @@ where
     ))
 }
 
-async fn get_latest_finality_notification_from_client<C: Client<B>, B: Block>(
+async fn get_latest_finality_notification_from_client<C: Client>(
     client: &C,
-) -> Result<FinalityNotification<B>, Error> {
+) -> Result<FinalityNotification, Error> {
     client
         .get_latest_finality_notification()
         .await

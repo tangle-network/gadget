@@ -1,4 +1,4 @@
-use crate::client::{AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient};
+use crate::client::{ClientWithApi, JobsClient};
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
@@ -12,26 +12,24 @@ use network::Network;
 use parking_lot::RwLock;
 use sc_client_api::{Backend, BlockImportNotification, FinalityNotification};
 use sp_api::ProvideRuntimeApi;
-use sp_core::{ecdsa, keccak_256};
+use sp_core::{ecdsa, keccak_256, sr25519};
 use sp_runtime::traits::{Block, Header};
 use sp_runtime::SaturatedConversion;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::Duration;
-use tangle_primitives::jobs::JobId;
-use tangle_primitives::roles::RoleType;
+use webb::substrate::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
 
 pub mod message;
 pub mod network;
 pub mod work_manager;
 
 /// Used as a module to place inside the SubstrateGadget
-pub struct Module<B, C, N, M, BE> {
+pub struct Module<C, N, M> {
     protocol: M,
     network: N,
     job_manager: ProtocolWorkManager<WorkManager>,
     clock: Arc<RwLock<Option<u64>>>,
-    _pd: PhantomData<(B, C, BE)>,
+    _client: core::marker::PhantomData<C>,
 }
 
 const DEFAULT_MAX_ACTIVE_TASKS: usize = 4;
@@ -55,16 +53,7 @@ impl Default for WorkManagerConfig {
     }
 }
 
-impl<
-        C: ClientWithApi<B, BE>,
-        B: Block,
-        N: Network,
-        M: GadgetProtocol<B, BE, C>,
-        BE: Backend<B>,
-    > Module<B, C, N, M, BE>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> Module<C, N, M> {
     pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<WorkManager>) -> Self {
         let clock = job_manager.utility.clock.clone();
         Module {
@@ -72,38 +61,29 @@ where
             job_manager,
             network,
             clock,
-            _pd: Default::default(),
+            _client: Default::default(),
         }
     }
 }
 
-pub struct JobInitMetadata<B: Block> {
-    pub job_type: GadgetJobType,
-    pub role_type: RoleType,
+pub struct JobInitMetadata {
+    pub job_type: jobs::JobType<sr25519::Public, jobs::MaxParticipants, jobs::MaxSubmissionLen>,
+    pub role_type: roles::RoleType,
     /// This value only exists if this is a stage2 job
-    pub phase1_job: Option<GadgetJobType>,
+    pub phase1_job:
+        Option<jobs::JobType<sr25519::Public, jobs::MaxParticipants, jobs::MaxSubmissionLen>>,
     pub participants_role_ids: Vec<ecdsa::Public>,
     pub task_id: <WorkManager as WorkManagerInterface>::TaskID,
     pub retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-    pub job_id: JobId,
+    pub job_id: u64,
     pub now: <WorkManager as WorkManagerInterface>::Clock,
-    pub at: B::Hash,
+    pub at: [u8; 32],
 }
 
 #[async_trait]
-impl<
-        C: ClientWithApi<B, BE>,
-        B: Block,
-        N: Network,
-        M: GadgetProtocol<B, BE, C>,
-        BE: Backend<B>,
-    > SubstrateGadgetModule for Module<B, C, N, M, BE>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule for Module<C, N, M> {
     type Error = Error;
     type ProtocolMessage = GadgetProtocolMessage;
-    type Block = B;
     type Client = C;
 
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage> {
@@ -112,10 +92,9 @@ where
 
     async fn process_finality_notification(
         &self,
-        notification: FinalityNotification<B>,
+        notification: FinalityNotification,
     ) -> Result<(), Self::Error> {
-        let now_header = *notification.header.number();
-        let now: u64 = now_header.saturated_into();
+        let now: u64 = notification.number;
         *self.clock.write() = Some(now);
         self.protocol.logger().info(format!(
             "[{}] Processing finality notification at block number {now}",
@@ -137,7 +116,7 @@ where
 
         for job in jobs {
             // Job is expired.
-            if job.expiry < now_header {
+            if job.expiry < now {
                 self.protocol.logger().trace(format!(
                     "[{}] The job requested for initialization is expired, skipping submission",
                     self.protocol.name()
@@ -291,15 +270,6 @@ where
         Ok(())
     }
 
-    async fn process_block_import_notification(
-        &self,
-        notification: BlockImportNotification<B>,
-    ) -> Result<(), Self::Error> {
-        self.protocol
-            .process_block_import_notification(notification, &self.job_manager)
-            .await
-    }
-
     async fn process_protocol_message(
         &self,
         message: Self::ProtocolMessage,
@@ -318,31 +288,21 @@ where
 pub type Job = (AsyncProtocolRemote, BuiltExecutableJobWrapper);
 
 #[async_trait]
-pub trait GadgetProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>:
-    AsyncProtocol + Send + Sync
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+pub trait GadgetProtocol<C: ClientWithApi>: AsyncProtocol + Send + Sync {
     /// Given an input of a valid and relevant job, return the parameters needed to start the async protocol
     /// Note: the parameters returned must be relevant to the `AsyncProtocol` implementation of this protocol
     ///
     /// In case the participant is not selected for some reason, return an [`Error::ParticipantNotSelected`]
     async fn create_next_job(
         &self,
-        job: JobInitMetadata<B>,
+        job: JobInitMetadata,
         work_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error>;
 
-    /// Process a block import notification
-    async fn process_block_import_notification(
-        &self,
-        notification: BlockImportNotification<B>,
-        job_manager: &ProtocolWorkManager<WorkManager>,
-    ) -> Result<(), Error>;
     /// Process an error that may arise from the work manager, async protocol, or the executor
     async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WorkManager>);
     /// The account ID of this node. Jobs queried will be filtered by this account ID
-    fn account_id(&self) -> &AccountId;
+    fn account_id(&self) -> &sr25519::Public;
 
     /// The Protocol Name.
     /// Used for logging and debugging purposes
@@ -355,7 +315,7 @@ where
     ///   matches!(role, RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1))
     /// }
     /// ```
-    fn role_filter(&self, role: RoleType) -> bool;
+    fn role_filter(&self, role: roles::RoleType) -> bool;
 
     /// Filter queried jobs by Job type & Phase.
     /// ## Example
@@ -366,7 +326,7 @@ where
     /// }
     /// ```
     fn phase_filter(&self, job: GadgetJobType) -> bool;
-    fn client(&self) -> JobsClient<B, BE, C>;
+    fn client(&self) -> JobsClient<C>;
     fn logger(&self) -> DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         Default::default()
