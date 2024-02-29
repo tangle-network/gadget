@@ -22,6 +22,7 @@ use tangle_primitives::jobs::JobId;
 use tangle_primitives::roles::RoleType;
 
 pub mod message;
+pub mod metrics;
 pub mod network;
 pub mod work_manager;
 

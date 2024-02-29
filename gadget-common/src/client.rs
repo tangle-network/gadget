@@ -3,14 +3,15 @@ use async_trait::async_trait;
 use auto_impl::auto_impl;
 use gadget_core::gadget::substrate::Client;
 use pallet_jobs_rpc_runtime_api::{BlockNumberOf, JobsApi};
+use parity_scale_codec::{Decode, Encode};
 use sc_client_api::{
     Backend, BlockImportNotification, BlockchainEvents, FinalityNotification,
     FinalityNotifications, ImportNotifications, StorageEventStream, StorageKey,
 };
 use sp_api::{ApiRef, ProvideRuntimeApi};
-use sp_api::{BlockT as Block, Decode, Encode};
 use sp_core::Pair;
 use sp_core::{ecdsa, ByteArray};
+use sp_runtime::traits::Block;
 
 use std::sync::Arc;
 use subxt::tx::TxPayload;

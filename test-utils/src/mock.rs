@@ -93,6 +93,7 @@ impl frame_system::Config for Runtime {
     type SystemWeightInfo = ();
     type SS58Prefix = ();
     type OnSetCode = ();
+    type RuntimeTask = ();
     type MaxConsumers = ConstU32<16>;
 }
 
@@ -108,8 +109,8 @@ impl pallet_balances::Config for Runtime {
     type FreezeIdentifier = ();
     type MaxLocks = ();
     type MaxReserves = ConstU32<50>;
-    type MaxHolds = ();
     type MaxFreezes = ();
+    type RuntimeFreezeReason = ();
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -633,7 +634,8 @@ pub mod mock_wrapper_client {
         StorageEventStream, StorageKey,
     };
     use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedSender};
-    use sp_api::{ApiRef, BlockT, ProvideRuntimeApi};
+    use sp_api::{ApiRef, ProvideRuntimeApi};
+    use sp_runtime::traits::Block as BlockT;
     use sp_runtime::traits::Block;
     use std::sync::Arc;
     use std::time::Duration;
