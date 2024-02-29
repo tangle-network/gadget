@@ -1,5 +1,4 @@
 use crate::protocols::sign::run_and_serialize_signing;
-use dfns_cggmp21::security_level::SecurityLevel128;
 use dfns_cggmp21::signing::msg::Msg;
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 
@@ -16,8 +15,8 @@ use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
 
+use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
 use sc_client_api::Backend;
-use sha2::Sha256;
 use sp_api::ProvideRuntimeApi;
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
@@ -184,18 +183,22 @@ where
             );
             let signature = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-                    let (_, _, party) =
-                        create_party::<Secp256k1, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
-                            protocol_message_channel,
-                            associated_block_id,
-                            associated_retry_id,
-                            associated_session_id,
-                            associated_task_id,
-                            mapping.clone(),
-                            role_id,
-                            network.clone(),
-                        );
-                    run_and_serialize_signing::<_, SecurityLevel128, _, _>(
+                    let (_, _, party) = create_party::<
+                        Secp256k1,
+                        _,
+                        DefaultSecurityLevel,
+                        Msg<Secp256k1, DefaultCryptoHasher>,
+                    >(
+                        protocol_message_channel,
+                        associated_block_id,
+                        associated_retry_id,
+                        associated_session_id,
+                        associated_task_id,
+                        mapping.clone(),
+                        role_id,
+                        network.clone(),
+                    );
+                    run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,
                         &mut tracer,
                         eid,
@@ -209,18 +212,22 @@ where
                     .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-                    let (_, _, party) =
-                        create_party::<Secp256r1, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
-                            protocol_message_channel,
-                            associated_block_id,
-                            associated_retry_id,
-                            associated_session_id,
-                            associated_task_id,
-                            mapping.clone(),
-                            role_id,
-                            network.clone(),
-                        );
-                    run_and_serialize_signing::<_, SecurityLevel128, _, _>(
+                    let (_, _, party) = create_party::<
+                        Secp256r1,
+                        _,
+                        DefaultSecurityLevel,
+                        Msg<Secp256k1, DefaultCryptoHasher>,
+                    >(
+                        protocol_message_channel,
+                        associated_block_id,
+                        associated_retry_id,
+                        associated_session_id,
+                        associated_task_id,
+                        mapping.clone(),
+                        role_id,
+                        network.clone(),
+                    );
+                    run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,
                         &mut tracer,
                         eid,
@@ -234,18 +241,22 @@ where
                     .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-                    let (_, _, party) =
-                        create_party::<Stark, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
-                            protocol_message_channel,
-                            associated_block_id,
-                            associated_retry_id,
-                            associated_session_id,
-                            associated_task_id,
-                            mapping.clone(),
-                            role_id,
-                            network.clone(),
-                        );
-                    run_and_serialize_signing::<_, SecurityLevel128, _, _>(
+                    let (_, _, party) = create_party::<
+                        Stark,
+                        _,
+                        DefaultSecurityLevel,
+                        Msg<Secp256k1, DefaultCryptoHasher>,
+                    >(
+                        protocol_message_channel,
+                        associated_block_id,
+                        associated_retry_id,
+                        associated_session_id,
+                        associated_task_id,
+                        mapping.clone(),
+                        role_id,
+                        network.clone(),
+                    );
+                    run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,
                         &mut tracer,
                         eid,

@@ -1,7 +1,7 @@
 use dfns_cggmp21::generic_ec::coords::HasAffineX;
 use dfns_cggmp21::generic_ec::{Curve, Point};
 use dfns_cggmp21::round_based::{Delivery, MpcParty};
-use dfns_cggmp21::security_level::{SecurityLevel, SecurityLevel128};
+use dfns_cggmp21::security_level::SecurityLevel;
 use dfns_cggmp21::signing::msg::Msg;
 
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
@@ -20,7 +20,10 @@ use rand::{CryptoRng, RngCore, SeedableRng};
 
 use sc_client_api::Backend;
 
-use sha2::Sha256;
+use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
+use dfns_cggmp21::signing::SigningBuilder;
+use digest::typenum::U32;
+use digest::Digest;
 use sp_api::ProvideRuntimeApi;
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
@@ -105,7 +108,8 @@ pub struct DfnsCGGMP21SigningExtraParams {
     user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
-pub async fn run_and_serialize_signing<'r, E, L, R, D>(
+#[allow(clippy::too_many_arguments)]
+pub async fn run_and_serialize_signing<'r, E, L, R, D, H>(
     logger: &DebugLogger,
     tracer: &mut dfns_cggmp21::progress::PerfProfiler,
     eid: dfns_cggmp21::ExecutionId<'r>,
@@ -113,7 +117,7 @@ pub async fn run_and_serialize_signing<'r, E, L, R, D>(
     signers: Vec<u16>,
     msg: DataToSign<E>,
     key: Vec<u8>,
-    party: MpcParty<Msg<E, Sha256>, D>,
+    party: MpcParty<Msg<E, H>, D>,
     rng: &mut R,
 ) -> Result<Vec<u8>, JobError>
 where
@@ -121,12 +125,14 @@ where
     Point<E>: HasAffineX<E>,
     L: SecurityLevel,
     R: RngCore + CryptoRng,
-    D: Delivery<Msg<E, Sha256>>,
+    D: Delivery<Msg<E, H>>,
+    H: Digest<OutputSize = U32> + Clone + Send + 'static,
 {
     let key: KeyShare<E, L> = bincode2::deserialize(&key).map_err(|err| JobError {
         reason: format!("Keygen protocol error: {err:?}"),
     })?;
-    let signature = dfns_cggmp21::signing(eid, i, &signers, &key)
+    let signing_builder = SigningBuilder::<E, L, H>::new(eid, i, &signers, &key);
+    let signature = signing_builder
         .set_progress_tracer(tracer)
         .sign(rng, party, msg)
         .await
@@ -170,7 +176,7 @@ where
     let my_role_id = config.key_store.pair().public();
     let network = config.clone();
 
-    let (i, signers, t, key, role_type, input_data_to_sign, mapping) = (
+    let (i, signers, t, local_key_serialized, role_type, input_data_to_sign, mapping) = (
         additional_params.i,
         additional_params.signers,
         additional_params.t,
@@ -180,7 +186,22 @@ where
         additional_params.user_id_to_account_id_mapping.clone(),
     );
 
-    let key2 = key.clone();
+    let public_key = match role_type {
+        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
+            get_public_key_from_serialized_local_key_bytes::<Secp256k1>(&local_key_serialized)?
+        }
+        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
+            get_public_key_from_serialized_local_key_bytes::<Secp256r1>(&local_key_serialized)?
+        }
+        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+            get_public_key_from_serialized_local_key_bytes::<Stark>(&local_key_serialized)?
+        }
+        _ => {
+            return Err(JobError {
+                reason: format!("Invalid role type: {role_type:?}"),
+            });
+        }
+    };
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -201,75 +222,87 @@ where
             );
             let signature = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-                    let (_, _, party) =
-                        create_party::<Secp256k1, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
-                            protocol_message_channel,
-                            associated_block_id,
-                            associated_retry_id,
-                            associated_session_id,
-                            associated_task_id,
-                            mapping.clone(),
-                            my_role_id,
-                            network.clone(),
-                        );
-                    run_and_serialize_signing::<_, SecurityLevel128, _, _>(
+                    let (_, _, party) = create_party::<
+                        Secp256k1,
+                        _,
+                        DefaultSecurityLevel,
+                        Msg<Secp256k1, DefaultCryptoHasher>,
+                    >(
+                        protocol_message_channel,
+                        associated_block_id,
+                        associated_retry_id,
+                        associated_session_id,
+                        associated_task_id,
+                        mapping.clone(),
+                        my_role_id,
+                        network.clone(),
+                    );
+                    run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,
                         &mut tracer,
                         eid,
                         i,
                         signers,
                         data_to_sign,
-                        key,
+                        local_key_serialized,
                         party,
                         &mut rng,
                     )
                     .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-                    let (_, _, party) =
-                        create_party::<Secp256r1, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
-                            protocol_message_channel,
-                            associated_block_id,
-                            associated_retry_id,
-                            associated_session_id,
-                            associated_task_id,
-                            mapping.clone(),
-                            my_role_id,
-                            network.clone(),
-                        );
-                    run_and_serialize_signing::<_, SecurityLevel128, _, _>(
+                    let (_, _, party) = create_party::<
+                        Secp256r1,
+                        _,
+                        DefaultSecurityLevel,
+                        Msg<Secp256k1, DefaultCryptoHasher>,
+                    >(
+                        protocol_message_channel,
+                        associated_block_id,
+                        associated_retry_id,
+                        associated_session_id,
+                        associated_task_id,
+                        mapping.clone(),
+                        my_role_id,
+                        network.clone(),
+                    );
+                    run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,
                         &mut tracer,
                         eid,
                         i,
                         signers,
                         data_to_sign,
-                        key,
+                        local_key_serialized,
                         party,
                         &mut rng,
                     )
                     .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-                    let (_, _, party) =
-                        create_party::<Stark, _, SecurityLevel128, Msg<Secp256k1, Sha256>>(
-                            protocol_message_channel,
-                            associated_block_id,
-                            associated_retry_id,
-                            associated_session_id,
-                            associated_task_id,
-                            mapping.clone(),
-                            my_role_id,
-                            network.clone(),
-                        );
-                    run_and_serialize_signing::<_, SecurityLevel128, _, _>(
+                    let (_, _, party) = create_party::<
+                        Stark,
+                        _,
+                        DefaultSecurityLevel,
+                        Msg<Secp256k1, DefaultCryptoHasher>,
+                    >(
+                        protocol_message_channel,
+                        associated_block_id,
+                        associated_retry_id,
+                        associated_session_id,
+                        associated_task_id,
+                        mapping.clone(),
+                        my_role_id,
+                        network.clone(),
+                    );
+                    run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,
                         &mut tracer,
                         eid,
                         i,
                         signers,
                         data_to_sign,
-                        key,
+                        local_key_serialized,
                         party,
                         &mut rng,
                     )
@@ -293,7 +326,7 @@ where
                     signature_scheme: DigitalSignatureScheme::Ecdsa,
                     data: additional_params.input_data_to_sign.try_into().unwrap(),
                     signature: signature.try_into().unwrap(),
-                    verifying_key: key2.try_into().unwrap(),
+                    verifying_key: public_key.try_into().unwrap(),
                 });
 
                 client
@@ -311,4 +344,16 @@ where
             Ok(())
         })
         .build())
+}
+
+fn get_public_key_from_serialized_local_key_bytes<E: Curve>(
+    local_key_serialized: &[u8],
+) -> Result<Vec<u8>, JobError> {
+    let key_share = bincode2::deserialize::<KeyShare<E, DefaultSecurityLevel>>(
+        local_key_serialized,
+    )
+    .map_err(|err| JobError {
+        reason: format!("Keygen protocol error: {err:?}"),
+    })?;
+    Ok(key_share.shared_public_key().to_bytes(true).to_vec())
 }

@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_job_manager_to_async_protocol_channel_split<
     N: Network + 'static,
     C1: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
@@ -85,7 +86,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                 if let Err(err) = wrap_message_and_forward_to_network::<_, C1, C2, (), _>(
                     msg,
                     &network,
-                    &*user_id_mapping,
+                    &user_id_mapping,
                     my_user_id,
                     associated_block_id,
                     associated_session_id,
@@ -105,7 +106,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                 if let Err(err) = wrap_message_and_forward_to_network::<_, C1, C2, (), _>(
                     msg,
                     &network_clone,
-                    &*user_id_mapping_clone,
+                    &user_id_mapping_clone,
                     my_user_id,
                     associated_block_id,
                     associated_session_id,
@@ -428,6 +429,14 @@ impl MaybeSenderReceiver for () {
     }
 }
 
+pub type DuplexedChannel<O, I, C2> = (
+    futures::channel::mpsc::UnboundedSender<O>,
+    futures::channel::mpsc::UnboundedReceiver<Result<I, futures::channel::mpsc::TryRecvError>>,
+    futures::channel::mpsc::UnboundedSender<C2>,
+    futures::channel::mpsc::UnboundedReceiver<C2>,
+);
+
+#[allow(clippy::too_many_arguments)]
 pub fn create_job_manager_to_async_protocol_channel_split_io<
     N: Network + 'static,
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
@@ -439,15 +448,10 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    user_id_mapping: Arc<HashMap<UserID, sp_core::ecdsa::Public>>,
-    my_account_id: sp_core::ecdsa::Public,
+    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+    my_account_id: ecdsa::Public,
     network: N,
-) -> (
-    futures::channel::mpsc::UnboundedSender<O>,
-    futures::channel::mpsc::UnboundedReceiver<Result<I, futures::channel::mpsc::TryRecvError>>,
-    futures::channel::mpsc::UnboundedSender<C2>,
-    futures::channel::mpsc::UnboundedReceiver<C2>,
-) {
+) -> DuplexedChannel<O, I, C2> {
     let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
     let (tx_to_async_proto_2, rx_for_async_proto_2) = futures::channel::mpsc::unbounded();
 
@@ -562,9 +566,19 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     )
 }
 
+pub type TriplexedChannel<O1, I1, O2, I2, C2> = (
+    futures::channel::mpsc::UnboundedSender<O1>,
+    futures::channel::mpsc::UnboundedReceiver<Result<I1, futures::channel::mpsc::TryRecvError>>,
+    futures::channel::mpsc::UnboundedSender<O2>,
+    futures::channel::mpsc::UnboundedReceiver<Result<I2, futures::channel::mpsc::TryRecvError>>,
+    futures::channel::mpsc::UnboundedSender<C2>,
+    futures::channel::mpsc::UnboundedReceiver<C2>,
+);
+
+#[allow(clippy::too_many_arguments)]
 pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
     N: Network + 'static,
-    C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
+    C3: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     O1: InnerMessage<Inner = I1::Inner> + MaybeSenderReceiver + Send + 'static,
     I1: InnerMessage + InnerMessageFromInbound + MaybeSenderReceiver + Send + 'static,
     O2: InnerMessage<Inner = I2::Inner> + MaybeSenderReceiver + Send + 'static,
@@ -575,17 +589,10 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    user_id_mapping: Arc<HashMap<UserID, sp_core::ecdsa::Public>>,
-    my_account_id: sp_core::ecdsa::Public,
+    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+    my_account_id: ecdsa::Public,
     network: N,
-) -> (
-    futures::channel::mpsc::UnboundedSender<O1>,
-    futures::channel::mpsc::UnboundedReceiver<Result<I1, futures::channel::mpsc::TryRecvError>>,
-    futures::channel::mpsc::UnboundedSender<O2>,
-    futures::channel::mpsc::UnboundedReceiver<Result<I2, futures::channel::mpsc::TryRecvError>>,
-    futures::channel::mpsc::UnboundedSender<C2>,
-    futures::channel::mpsc::UnboundedReceiver<C2>,
-) {
+) -> TriplexedChannel<O1, I1, O2, I2, C3> {
     let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
     let (tx_to_async_proto_2, rx_for_async_proto_2) = futures::channel::mpsc::unbounded();
     let (tx_to_async_proto_3, rx_for_async_proto_3) = futures::channel::mpsc::unbounded();
@@ -598,7 +605,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
                 log::warn!(target: "gadget", "Received empty message from Peer {}", msg_orig.from);
                 continue;
             }
-            match bincode2::deserialize::<MultiplexedChannelMessage<O1::Inner, O2::Inner, C2>>(
+            match bincode2::deserialize::<MultiplexedChannelMessage<O1::Inner, O2::Inner, C3>>(
                 &msg_orig.payload,
             ) {
                 Ok(msg) => match msg {
@@ -650,7 +657,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
 
     let (tx_to_outbound_1, mut rx_to_outbound_1) = futures::channel::mpsc::unbounded::<O1>();
     let (tx_to_outbound_2, mut rx_to_outbound_2) = futures::channel::mpsc::unbounded::<O2>();
-    let (tx_to_outbound_3, mut rx_to_outbound_3) = futures::channel::mpsc::unbounded::<C2>();
+    let (tx_to_outbound_3, mut rx_to_outbound_3) = futures::channel::mpsc::unbounded::<C3>();
 
     let my_user_id = user_id_mapping
         .iter()
@@ -664,12 +671,12 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
         .expect("Failed to find my user id");
     // Take the messages from the async protocol and send them to the gadget
     tokio::task::spawn(async move {
-        let ref user_id_mapping = user_id_mapping;
-        let ref network = network;
+        let user_id_mapping = &user_id_mapping;
+        let network = &network;
         let task0 = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
                 if let Err(err) =
-                    wrap_message_and_forward_to_network::<_, O1::Inner, O2::Inner, C2, _>(
+                    wrap_message_and_forward_to_network::<_, O1::Inner, O2::Inner, C3, _>(
                         msg,
                         network,
                         user_id_mapping,
@@ -690,7 +697,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
         let task1 = async move {
             while let Some(msg) = rx_to_outbound_2.next().await {
                 if let Err(err) =
-                    wrap_message_and_forward_to_network::<_, O1::Inner, O2::Inner, C2, _>(
+                    wrap_message_and_forward_to_network::<_, O1::Inner, O2::Inner, C3, _>(
                         msg,
                         network,
                         user_id_mapping,
@@ -711,7 +718,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
         let task2 = async move {
             while let Some(msg) = rx_to_outbound_3.next().await {
                 if let Err(err) =
-                    wrap_message_and_forward_to_network::<_, O1::Inner, O2::Inner, C2, _>(
+                    wrap_message_and_forward_to_network::<_, O1::Inner, O2::Inner, C3, _>(
                         msg,
                         network,
                         user_id_mapping,
@@ -742,6 +749,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn wrap_message_and_forward_to_network<
     N: Network,
     C1: Serialize,

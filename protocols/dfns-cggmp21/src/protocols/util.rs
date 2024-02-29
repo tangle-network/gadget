@@ -3,6 +3,8 @@ use rand::prelude::SliceRandom;
 use sp_core::ecdsa::Public;
 use std::collections::HashMap;
 
+pub type ChosenSigners = (u16, Vec<u16>, HashMap<UserID, Public>);
+
 /// Given a list of participants, choose `t` of them and return the index of the current participant
 /// and the indices of the chosen participants, as well as a mapping from the index to the account
 /// id.
@@ -18,7 +20,7 @@ pub fn choose_signers<R: rand::Rng>(
     my_account_id: &Public,
     participants: &[Public],
     t: u16,
-) -> Result<(u16, Vec<u16>, HashMap<UserID, Public>), gadget_common::Error> {
+) -> Result<ChosenSigners, gadget_common::Error> {
     let selected_participants = participants
         .choose_multiple(rng, t as usize)
         .cloned()

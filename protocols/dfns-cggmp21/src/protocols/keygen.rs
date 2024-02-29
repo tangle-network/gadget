@@ -5,7 +5,7 @@ use dfns_cggmp21::key_refresh::AuxInfoGenerationBuilder;
 use dfns_cggmp21::keygen::msg::threshold::Msg;
 use dfns_cggmp21::keygen::KeygenBuilder;
 use dfns_cggmp21::progress::PerfProfiler;
-use dfns_cggmp21::security_level::{SecurityLevel, SecurityLevel128};
+use dfns_cggmp21::security_level::SecurityLevel;
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 use dfns_cggmp21::PregeneratedPrimes;
 use digest::typenum::U32;
@@ -33,7 +33,6 @@ use rand::{CryptoRng, RngCore, SeedableRng};
 use round_based_21::{Delivery, Incoming, MpcParty, Outgoing};
 use sc_client_api::Backend;
 use serde::Serialize;
-use sha2::Sha256;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
 use sp_core::{ecdsa, Pair};
@@ -46,10 +45,8 @@ use tangle_primitives::jobs::{
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
+use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
 use gadget_common::channels::PublicKeyGossipMessage;
-
-type DefaultSecurityLevel = SecurityLevel128;
-type DefaultCryptoHasher = Sha256;
 
 pub async fn create_next_job<
     B: Block,
@@ -147,6 +144,7 @@ where
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_and_serialize_keyrefresh<
     'r,
     E: Curve,
@@ -203,16 +201,7 @@ where
         })
 }
 
-pub fn create_party<E: Curve, N: Network, L: SecurityLevel, M>(
-    protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
-    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-    associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    mapping: Arc<HashMap<UserID, ecdsa::Public>>,
-    id: ecdsa::Public,
-    network: N,
-) -> (
+pub type CreatePartyResult<M> = (
     UnboundedSender<PublicKeyGossipMessage>,
     futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
     MpcParty<
@@ -222,7 +211,19 @@ pub fn create_party<E: Curve, N: Network, L: SecurityLevel, M>(
             UnboundedSender<Outgoing<M>>,
         ),
     >,
-)
+);
+
+#[allow(clippy::too_many_arguments)]
+pub fn create_party<E: Curve, N: Network, L: SecurityLevel, M>(
+    protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
+    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+    mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+    id: ecdsa::Public,
+    network: N,
+) -> CreatePartyResult<M>
 where
     N: Network,
     L: SecurityLevel,
@@ -302,7 +303,7 @@ where
             let mix = keccak_256(b"dnfs-cggmp21-keygen-aux");
             let aux_eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
             let aux_eid = dfns_cggmp21::ExecutionId::new(&aux_eid_bytes);
-            let tracer = dfns_cggmp21::progress::PerfProfiler::new();
+            let tracer = PerfProfiler::new();
 
             let (key_share, serialized_public_key, tx2, rx2) =
                 match role_type {
@@ -452,7 +453,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     serialized_public_key: &[u8],
     t: u16,
     i: u16,
-    broadcast_tx_to_outbound: futures::channel::mpsc::UnboundedSender<PublicKeyGossipMessage>,
+    broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<GadgetJobResult, JobError> {
     let key_hashed = keccak_256(serialized_public_key);
@@ -490,7 +491,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
             continue;
         }
         // verify signature
-        let maybe_signature = sp_core::ecdsa::Signature::from_slice(&message.signature);
+        let maybe_signature = ecdsa::Signature::from_slice(&message.signature);
         match maybe_signature.and_then(|s| s.recover_prehashed(&key_hashed)) {
             Some(p) if p != message.id => {
                 logger.warn(format!(
@@ -605,7 +606,7 @@ fn verify_generated_dkg_key_ecdsa(
 }
 
 async fn handle_post_incomplete_keygen<S: SecurityLevel, KBE: KeystoreBackend>(
-    tracer: &mut PerfProfiler,
+    tracer: &PerfProfiler,
     logger: &DebugLogger,
     job_id_bytes: &[u8],
     key_store: &ECDSAKeyStore<KBE>,
@@ -618,7 +619,7 @@ async fn handle_post_incomplete_keygen<S: SecurityLevel, KBE: KeystoreBackend>(
     let tracer = PerfProfiler::new();
 
     let pregenerated_primes_key =
-        keccak_256(&[&b"dfns-cggmp21-keygen-primes"[..], &job_id_bytes[..]].concat());
+        keccak_256(&[&b"dfns-cggmp21-keygen-primes"[..], job_id_bytes].concat());
     let now = tokio::time::Instant::now();
     let pregenerated_primes = tokio::task::spawn_blocking(|| {
         let mut rng = OsRng;
@@ -641,6 +642,7 @@ async fn handle_post_incomplete_keygen<S: SecurityLevel, KBE: KeystoreBackend>(
     Ok((tracer, pregenerated_primes))
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn run_full_keygen_protocol<
     'a,
     E: Curve,
@@ -694,15 +696,14 @@ async fn run_full_keygen_protocol<
         run_and_serialize_keygen::<E, S, H, _, _>(&mut tracer, eid, i, n, t, party, rng.clone())
             .await?;
     let (mut tracer, pregenerated_primes) =
-        handle_post_incomplete_keygen::<S, KBE>(&mut tracer, &logger, &job_id_bytes, &key_store)
-            .await?;
+        handle_post_incomplete_keygen::<S, KBE>(&tracer, logger, job_id_bytes, key_store).await?;
 
     logger.info(format!("Will now run Keygen protocol: {role_type:?}"));
 
     let delivery = (rx1, tx1);
     let party = MpcParty::<aux_only::Msg<H, S>, _, _>::connected(delivery);
     let (key_share, serialized_public_key) = run_and_serialize_keyrefresh::<E, S, H, _>(
-        &logger,
+        logger,
         incomplete_key_share,
         pregenerated_primes,
         &mut tracer,

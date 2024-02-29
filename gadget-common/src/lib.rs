@@ -24,6 +24,7 @@ pub use subxt_signer;
 use tokio::task::JoinError;
 pub use webb;
 
+#[allow(ambiguous_glob_reexports)]
 pub mod prelude {
     pub use crate::client::*;
     pub use crate::config::*;
