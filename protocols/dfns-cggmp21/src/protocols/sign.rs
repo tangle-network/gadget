@@ -89,7 +89,7 @@ where
         signers,
         job_id,
         role_type: job.role_type,
-        key,
+        serialized_key_share: key,
         input_data_to_sign,
         user_id_to_account_id_mapping,
     };
@@ -103,7 +103,7 @@ pub struct DfnsCGGMP21SigningExtraParams {
     signers: Vec<u16>,
     job_id: JobId,
     role_type: RoleType,
-    key: Vec<u8>,
+    serialized_key_share: Vec<u8>,
     input_data_to_sign: Vec<u8>,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
@@ -145,9 +145,9 @@ where
     })?;
     logger.trace(format!("Signing protocol report: {perf_report}"));
     // Normalize the signature
-    bincode2::serialize(&signature.normalize_s()).map_err(|err| JobError {
-        reason: format!("Signing protocol error: {err:?}"),
-    })
+    let mut ret = [0u8; 65];
+    signature.write_to_slice(&mut ret);
+    Ok(ret.to_vec())
 }
 
 pub async fn generate_protocol_from<
@@ -176,32 +176,18 @@ where
     let my_role_id = config.key_store.pair().public();
     let network = config.clone();
 
-    let (i, signers, t, local_key_serialized, role_type, input_data_to_sign, mapping) = (
+    let (i, signers, t, serialized_key_share, role_type, input_data_to_sign, mapping) = (
         additional_params.i,
         additional_params.signers,
         additional_params.t,
-        additional_params.key,
+        additional_params.serialized_key_share,
         additional_params.role_type,
         additional_params.input_data_to_sign.clone(),
         additional_params.user_id_to_account_id_mapping.clone(),
     );
 
-    let public_key = match role_type {
-        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-            get_public_key_from_serialized_local_key_bytes::<Secp256k1>(&local_key_serialized)?
-        }
-        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-            get_public_key_from_serialized_local_key_bytes::<Secp256r1>(&local_key_serialized)?
-        }
-        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-            get_public_key_from_serialized_local_key_bytes::<Stark>(&local_key_serialized)?
-        }
-        _ => {
-            return Err(JobError {
-                reason: format!("Invalid role type: {role_type:?}"),
-            });
-        }
-    };
+    let public_key =
+        get_public_key_from_serialized_key_share_bytes(&role_type, &serialized_key_share)?;
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -217,9 +203,10 @@ where
 
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
             let data_hash = keccak_256(&input_data_to_sign);
-            let data_to_sign = dfns_cggmp21::DataToSign::from_scalar(
+            let data_to_sign = DataToSign::from_scalar(
                 dfns_cggmp21::generic_ec::Scalar::from_be_bytes_mod_order(data_hash),
             );
+
             let signature = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
                     let (_, _, party) = create_party::<
@@ -244,7 +231,7 @@ where
                         i,
                         signers,
                         data_to_sign,
-                        local_key_serialized,
+                        serialized_key_share,
                         party,
                         &mut rng,
                     )
@@ -273,7 +260,7 @@ where
                         i,
                         signers,
                         data_to_sign,
-                        local_key_serialized,
+                        serialized_key_share,
                         party,
                         &mut rng,
                     )
@@ -302,7 +289,7 @@ where
                         i,
                         signers,
                         data_to_sign,
-                        local_key_serialized,
+                        serialized_key_share,
                         party,
                         &mut rng,
                     )
@@ -322,10 +309,16 @@ where
         .post(async move {
             // Submit the protocol output to the blockchain
             if let Some(signature) = protocol_output_clone.lock().await.take() {
+                let signature = convert_dfns_signature(
+                    signature,
+                    &additional_params.input_data_to_sign,
+                    &public_key,
+                );
+
                 let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
                     signature_scheme: DigitalSignatureScheme::Ecdsa,
                     data: additional_params.input_data_to_sign.try_into().unwrap(),
-                    signature: signature.try_into().unwrap(),
+                    signature: signature.to_vec().try_into().unwrap(),
                     verifying_key: public_key.try_into().unwrap(),
                 });
 
@@ -346,7 +339,27 @@ where
         .build())
 }
 
-fn get_public_key_from_serialized_local_key_bytes<E: Curve>(
+pub fn get_public_key_from_serialized_key_share_bytes(
+    role_type: &RoleType,
+    serialized_key_share: &[u8],
+) -> Result<Vec<u8>, JobError> {
+    match role_type {
+        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
+            get_public_key_from_serialized_local_key_bytes_inner::<Secp256k1>(serialized_key_share)
+        }
+        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
+            get_public_key_from_serialized_local_key_bytes_inner::<Secp256r1>(serialized_key_share)
+        }
+        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+            get_public_key_from_serialized_local_key_bytes_inner::<Stark>(serialized_key_share)
+        }
+        _ => Err(JobError {
+            reason: format!("Invalid role type: {role_type:?}"),
+        }),
+    }
+}
+
+fn get_public_key_from_serialized_local_key_bytes_inner<E: Curve>(
     local_key_serialized: &[u8],
 ) -> Result<Vec<u8>, JobError> {
     let key_share = bincode2::deserialize::<KeyShare<E, DefaultSecurityLevel>>(
@@ -356,4 +369,47 @@ fn get_public_key_from_serialized_local_key_bytes<E: Curve>(
         reason: format!("Keygen protocol error: {err:?}"),
     })?;
     Ok(key_share.shared_public_key().to_bytes(true).to_vec())
+}
+
+pub fn convert_dfns_signature(
+    signature: Vec<u8>,
+    input_data_to_sign: &[u8],
+    public_key_bytes: &[u8],
+) -> [u8; 65] {
+    let mut signature_bytes = [0u8; 65];
+    (signature_bytes[..64]).copy_from_slice(&signature[..64]);
+    let data_hash = keccak_256(input_data_to_sign);
+    // To figure out the recovery ID, we need to try all possible values of v
+    // in our case, v can be 0 or 1
+    let mut v = 0u8;
+    loop {
+        let mut signature_bytes = signature_bytes;
+        signature_bytes[64] = v;
+        let res = sp_io::crypto::secp256k1_ecdsa_recover(&signature_bytes, &data_hash);
+        match res {
+            Ok(key) if key[..32] == public_key_bytes[1..] => {
+                // Found the correct v
+                break;
+            }
+            Ok(_) => {
+                // Found a key, but not the correct one
+                // Try the other v value
+                v = 1;
+                continue;
+            }
+            Err(_) if v == 1 => {
+                // We tried both v values, but no key was found
+                // This should never happen, but if it does, we will just
+                // leave v as 1 and break
+                break;
+            }
+            Err(_) => {
+                // No key was found, try the other v value
+                v = 1;
+                continue;
+            }
+        }
+    }
+    signature_bytes[64] = v + 27;
+    signature_bytes
 }

@@ -150,7 +150,7 @@ where
     let phase_one_id = additional_params.phase_one_id;
     let network = config.clone();
 
-    let (i, signers, t, new_phase_one_id, key, role_type, new_key, mapping) = (
+    let (i, signers, t, new_phase_one_id, serialized_key_share, role_type, new_key, mapping) = (
         additional_params.i,
         additional_params.signers,
         additional_params.t,
@@ -161,8 +161,20 @@ where
         additional_params.user_id_to_account_id_mapping.clone(),
     );
 
-    let key2 = key.clone();
-    let new_key2 = new_key.clone();
+    let public_key = super::sign::get_public_key_from_serialized_key_share_bytes(
+        &role_type,
+        &serialized_key_share,
+    )?;
+    let new_public_key =
+        super::sign::get_public_key_from_serialized_key_share_bytes(&role_type, &new_key)?;
+
+    // We're signing over the hash of the new key
+    let data_hash = keccak_256(&new_key);
+    let data_to_sign = dfns_cggmp21::DataToSign::from_scalar(
+        dfns_cggmp21::generic_ec::Scalar::from_be_bytes_mod_order(data_hash),
+    );
+
+    let data_to_sign_bytes = data_hash.to_vec();
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -177,10 +189,6 @@ where
             let eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
             let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
-            let data_hash = keccak_256(&new_key);
-            let data_to_sign = dfns_cggmp21::DataToSign::from_scalar(
-                dfns_cggmp21::generic_ec::Scalar::from_be_bytes_mod_order(data_hash),
-            );
             let signature = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
                     let (_, _, party) = create_party::<
@@ -205,7 +213,7 @@ where
                         i,
                         signers,
                         data_to_sign,
-                        key,
+                        serialized_key_share,
                         party,
                         &mut rng,
                     )
@@ -234,7 +242,7 @@ where
                         i,
                         signers,
                         data_to_sign,
-                        key,
+                        serialized_key_share,
                         party,
                         &mut rng,
                     )
@@ -263,7 +271,7 @@ where
                         i,
                         signers,
                         data_to_sign,
-                        key,
+                        serialized_key_share,
                         party,
                         &mut rng,
                     )
@@ -282,13 +290,18 @@ where
         .post(async move {
             // Submit the protocol output to the blockchain
             if let Some(signature) = protocol_output_clone.lock().await.take() {
+                let signature = super::sign::convert_dfns_signature(
+                    signature,
+                    &data_to_sign_bytes,
+                    &new_public_key,
+                );
                 let job_result = JobResult::DKGPhaseFour(DKGTSSKeyRotationResult {
                     signature_scheme: DigitalSignatureScheme::Ecdsa,
-                    signature: signature.try_into().unwrap(),
+                    signature: signature.to_vec().try_into().unwrap(),
                     phase_one_id,
                     new_phase_one_id,
-                    new_key: new_key2.try_into().unwrap(),
-                    key: key2.try_into().unwrap(),
+                    new_key: new_public_key.try_into().unwrap(),
+                    key: public_key.try_into().unwrap(),
                 });
 
                 client
