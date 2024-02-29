@@ -192,7 +192,7 @@ mod tests {
             };
 
             let logger = node_info.logger.clone();
-            let client = node_info.mock_clients.pop().expect("Should have client");
+            let client = node_info.clients.pop().expect("Should have client");
             let pallet_tx = node_info.pallet_tx;
             let key_store = node_info.keystore;
 

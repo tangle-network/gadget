@@ -9,7 +9,7 @@ use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
 use ark_relations::r1cs::SynthesisError;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use futures_util::TryFutureExt;
-use gadget_common::client::{AccountId, ClientWithApi, JobsApiForGadget, MaxSubmissionLen};
+use gadget_common::client::ClientWithApi;
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
@@ -19,9 +19,7 @@ use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use groth16::proving_key::PackedProvingKeyShare;
 use mpc_net::{MpcNet, MultiplexedStreamID};
-use sc_client_api::Backend;
 use secret_sharing::pss::PackedSharingParams;
-use sp_api::ProvideRuntimeApi;
 use sp_core::ecdsa;
 use sp_core::Pair;
 use sp_runtime::traits::Block;
@@ -44,16 +42,13 @@ pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {
     fn party_id(&self) -> u32;
 }
 
-pub async fn create_next_job<B, C, BE, N: Network, KBE>(
-    config: &crate::ZkProtocol<B, BE, C, N, KBE>,
-    job: JobInitMetadata<B>,
+pub async fn create_next_job<C, N: Network, KBE>(
+    config: &crate::ZkProtocol<C, N, KBE>,
+    job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<ZkJobAdditionalParams, Error>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-    B: Block,
-    C: ClientWithApi<B, BE> + 'static,
-    BE: Backend<B> + 'static,
+    C: ClientWithApi + 'static,
     KBE: KeystoreBackend,
 {
     let (_now, job_id) = (job.now, job.job_id);
@@ -102,8 +97,8 @@ impl AdditionalProtocolParams for ZkJobAdditionalParams {
     }
 }
 
-pub async fn generate_protocol_from<B, C, BE, N: Network, KBE>(
-    config: &crate::ZkProtocol<B, BE, C, N, KBE>,
+pub async fn generate_protocol_from<C, N: Network, KBE>(
+    config: &crate::ZkProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
@@ -112,10 +107,7 @@ pub async fn generate_protocol_from<B, C, BE, N: Network, KBE>(
     additional_params: ZkJobAdditionalParams,
 ) -> Result<BuiltExecutableJobWrapper, JobError>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-    B: Block,
-    C: ClientWithApi<B, BE> + 'static,
-    BE: Backend<B> + 'static,
+    C: ClientWithApi + 'static,
     KBE: KeystoreBackend,
 {
     let pallet_tx = config.pallet_tx.clone();
@@ -128,7 +120,7 @@ where
         reason: format!("Failed to setup phase order participants: {err:?}"),
     })?;
 
-    let params = ZkAsyncProtocolParameters::<_, _, _, B, BE> {
+    let params = ZkAsyncProtocolParameters {
         associated_block_id,
         associated_retry_id,
         associated_session_id,
@@ -407,7 +399,7 @@ async fn zk_setup_rxs(
 }
 
 pub trait ZkNetworkExt {
-    fn king_id(&self) -> Option<AccountId>;
+    fn king_id(&self) -> Option<ecdsa::Public>;
 }
 
 fn zk_setup_phase_order_participants<N: Network>(

@@ -22,10 +22,6 @@ use frame_support::{
     PalletId,
 };
 use frame_system::EnsureSigned;
-use gadget_common::client::{
-    AccountId, MaxActiveJobsPerValidator, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
-    MaxSignatureLen, MaxSubmissionLen,
-};
 use pallet_jobs_rpc_runtime_api::BlockNumberOf;
 use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
@@ -34,6 +30,7 @@ use sp_core::{sr25519, ByteArray, Pair, H256};
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
 use std::time::Duration;
+use tangle_primitives::AccountId;
 
 pub type Balance = u128;
 pub type BlockNumber = u64;
@@ -54,8 +51,9 @@ use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
 use tangle_primitives::jobs::traits::{JobToFee, MPCHandler};
 use tangle_primitives::jobs::{
-    JobId, JobResult, JobSubmission, JobType, JobWithResult, PhaseResult, ReportRestakerOffence,
-    RpcResponseJobsData, ValidatorOffenceType,
+    JobId, JobResult, JobSubmission, JobType, JobWithResult, MaxActiveJobsPerValidator, MaxDataLen,
+    MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen, PhaseResult,
+    ReportRestakerOffence, RpcResponseJobsData, ValidatorOffenceType,
 };
 use tangle_primitives::misbehavior::{MisbehaviorHandler, MisbehaviorSubmission};
 use tangle_primitives::roles::traits::RolesHandler;
@@ -473,9 +471,7 @@ pub async fn new_test_ext<
     const N: usize,
     const K: usize,
     D: Send + Clone + 'static,
-    F: Fn(
-        NodeInput<Block, MockBackend, MockClient<Runtime, Block>, MockNetwork, InMemoryBackend, D>,
-    ) -> Fut,
+    F: Fn(NodeInput<MockClient<Runtime, Block>, MockNetwork, InMemoryBackend, D>) -> Fut,
     Fut: SendFuture<'static, ()>,
 >(
     additional_params: D,
@@ -600,8 +596,8 @@ pub async fn new_test_ext<
         let prometheus_config = PrometheusConfig::Disabled;
 
         let input = NodeInput {
-            mock_clients,
-            mock_networks: networks,
+            clients: mock_clients,
+            networks,
             account_id,
             logger,
             pallet_tx,
@@ -609,7 +605,6 @@ pub async fn new_test_ext<
             node_index,
             additional_params: additional_params.clone(),
             prometheus_config,
-            _pd: Default::default(),
         };
 
         let task = f(input);
@@ -624,9 +619,9 @@ pub mod mock_wrapper_client {
     use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use async_trait::async_trait;
     use futures::StreamExt;
-    use gadget_common::client::{AccountId, GadgetJobResult, PalletSubmitter};
+    use gadget_common::client::PalletSubmitter;
     use gadget_common::locks::TokioMutexExt;
-    use gadget_common::Header;
+    use gadget_common::webb::substrate::tangle_runtime::api::runtime_types::tangle_primitives::jobs;
     use gadget_core::gadget::substrate::Client;
     use sc_client_api::{
         BlockchainEvents, FinalityNotification, FinalityNotifications, ImportNotifications,
@@ -639,6 +634,7 @@ pub mod mock_wrapper_client {
     use std::time::Duration;
     use tangle_primitives::jobs::JobId;
     use tangle_primitives::roles::RoleType;
+    use tangle_primitives::AccountId;
 
     #[derive(Clone)]
     pub struct MockClient<R, B: Block> {
@@ -675,7 +671,7 @@ pub mod mock_wrapper_client {
     }
 
     #[async_trait]
-    impl<R: Send + Sync, B: Block> Client<B> for MockClient<R, B> {
+    impl<R: Send + Sync + Clone, B: Block> Client for MockClient<R, B> {
         async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>> {
             let mut lock = self
                 .finality_notification_stream
@@ -750,7 +746,13 @@ pub mod mock_wrapper_client {
             &self,
             role_type: RoleType,
             job_id: JobId,
-            result: GadgetJobResult,
+            result: jobs::JobResult<
+                jobs::MaxParticipants,
+                jobs::MaxKeyLen,
+                jobs::MaxSignatureLen,
+                jobs::MaxDataLen,
+                jobs::MaxProofLen,
+            >,
         ) -> Result<(), gadget_common::Error> {
             let id = self.id.clone();
             self.ext

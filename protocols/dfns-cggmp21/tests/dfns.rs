@@ -224,8 +224,8 @@ mod tests {
 
     async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
         test_utils::mock::new_test_ext::<N, 4, _, _, _>((), |node_input| async move {
-            let clients = node_input.mock_clients;
-            let networks = node_input.mock_networks;
+            let clients = node_input.clients;
+            let networks = node_input.networks;
             let account_id = node_input.account_id;
             let logger = node_input.logger.clone();
             let prometheus_config = node_input.prometheus_config.clone();

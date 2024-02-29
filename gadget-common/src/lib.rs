@@ -1,5 +1,5 @@
 use crate::client::ClientWithApi;
-use crate::config::{NetworkAndProtocolSetup, ProtocolConfig};
+use crate::config::ProtocolConfig;
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{GadgetProtocol, Module};
 use crate::prelude::PrometheusConfig;
@@ -38,6 +38,8 @@ pub mod prelude {
     pub use std::pin::Pin;
     pub use std::sync::Arc;
     pub use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+    pub use webb::substrate::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
+    pub use webb::substrate::subxt::utils::AccountId32;
 }
 pub mod channels;
 pub mod client;
@@ -135,7 +137,7 @@ pub async fn create_work_manager<C: ClientWithApi, P: GadgetProtocol<C>>(
     latest_finality_notification: &FinalityNotification,
     protocol: &P,
 ) -> Result<ProtocolWorkManager<WorkManager>, Error> {
-    let now: u64 = *latest_finality_notification.number;
+    let now: u64 = latest_finality_notification.number;
 
     let work_manager_config = protocol.get_work_manager_config();
 
@@ -179,14 +181,13 @@ async fn get_latest_finality_notification_from_client<C: Client>(
 macro_rules! generate_setup_and_run_command {
     ($( $config:ident ),*) => {
         /// Sets up a future that runs all the protocols concurrently
-        pub fn setup_node<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network, KBE: gadget_common::keystore::KeystoreBackend, D: Send + Clone + 'static>(node_input: NodeInput<B, BE, C, N, KBE, D>) -> impl SendFuture<'static, ()>
-                where
-            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,{
+        pub fn setup_node<C: ClientWithApi + 'static, N: Network, KBE: gadget_common::keystore::KeystoreBackend, D: Send + Clone + 'static>(node_input: NodeInput<C, N, KBE, D>) -> impl SendFuture<'static, ()>
+        {
             async move {
                 if let Err(err) = run(
-                    node_input.mock_clients,
+                    node_input.clients,
                     node_input.pallet_tx,
-                    node_input.mock_networks,
+                    node_input.networks,
                     node_input.logger.clone(),
                     node_input.account_id,
                     node_input.keystore,
@@ -201,17 +202,15 @@ macro_rules! generate_setup_and_run_command {
             }
         }
 
-        pub async fn run<B: Block, BE: Backend<B> + 'static, C: ClientWithApi<B, BE>, N: Network, KBE: gadget_common::keystore::KeystoreBackend>(
+        pub async fn run<C: ClientWithApi + 'static, N: Network, KBE: gadget_common::keystore::KeystoreBackend>(
             mut client: Vec<C>,
             pallet_tx: Arc<dyn PalletSubmitter>,
             mut network: Vec<N>,
             logger: DebugLogger,
-            account_id: AccountId,
+            account_id: sp_core::sr25519::Public,
             key_store: ECDSAKeyStore<KBE>,
             prometheus_config: $crate::prometheus::PrometheusConfig,
         ) -> Result<(), Error>
-        where
-            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
         {
             use futures::TryStreamExt;
             let futures = futures::stream::FuturesUnordered::new();
@@ -231,41 +230,30 @@ macro_rules! generate_protocol {
     ($name:expr, $struct_name:ident, $async_proto_params:ty, $proto_gen_path:expr, $create_job_path:expr, $phase_filter:pat, $( $role_filter:pat ),*) => {
         #[protocol]
         pub struct $struct_name<
-            B: Block,
-            BE: Backend<B> + 'static,
-            C: ClientWithApi<B, BE>,
+            C: ClientWithApi + 'static,
             N: Network,
             KBE: KeystoreBackend,
-        > where
-            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-        {
+        > {
             pallet_tx: Arc<dyn PalletSubmitter>,
             logger: DebugLogger,
             client: C,
             // This field should NEVER be used directly. Use Self instead as the network
             network_inner: N,
-            account_id: AccountId,
+            account_id: sp_core::sr25519::Public,
             key_store: ECDSAKeyStore<KBE>,
-            jobs_client: Arc<Mutex<Option<JobsClient<B, BE, C>>>>,
+            jobs_client: Arc<Mutex<Option<JobsClient<C>>>>,
             prometheus_config: $crate::prometheus::PrometheusConfig,
-            _pd: std::marker::PhantomData<(B, BE)>,
         }
 
         #[async_trait]
         impl<
-                B: Block,
-                BE: Backend<B> + 'static,
-                C: ClientWithApi<B, BE>,
+                C: ClientWithApi + 'static,
                 N: Network,
                 KBE: KeystoreBackend,
-            > FullProtocolConfig for $struct_name<B, BE, C, N, KBE>
-        where
-            <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
+            > FullProtocolConfig for $struct_name<C, N, KBE>
         {
             type AsyncProtocolParameters = $async_proto_params;
             type Client = C;
-            type Block = B;
-            type Backend = BE;
             type Network = N;
             type AdditionalNodeParameters = ();
             type KeystoreBackend = KBE;
@@ -275,7 +263,7 @@ macro_rules! generate_protocol {
                 pallet_tx: Arc<dyn PalletSubmitter>,
                 network_inner: Self::Network,
                 logger: DebugLogger,
-                account_id: AccountId,
+                account_id: sp_core::sr25519::Public,
                 key_store: ECDSAKeyStore<Self::KeystoreBackend>,
                 prometheus_config: $crate::prometheus::PrometheusConfig,
             ) -> Result<Self, Error> {
@@ -288,7 +276,6 @@ macro_rules! generate_protocol {
                     key_store,
                     prometheus_config,
                     jobs_client: Arc::new(parking_lot::Mutex::new(None)),
-                    _pd: std::marker::PhantomData,
                 })
             }
 
@@ -319,13 +306,13 @@ macro_rules! generate_protocol {
 
             async fn create_next_job(
                 &self,
-                job: JobInitMetadata<Self::Block>,
+                job: JobInitMetadata,
                 work_manager: &ProtocolWorkManager<WorkManager>,
             ) -> Result<Self::AsyncProtocolParameters, Error> {
                 $create_job_path(self, job, work_manager).await
             }
 
-            fn account_id(&self) -> &AccountId {
+            fn account_id(&self) -> &sp_core::sr25519::Public {
                 &self.account_id
             }
 
@@ -333,7 +320,7 @@ macro_rules! generate_protocol {
                 $name.to_string()
             }
 
-            fn role_filter(&self, role: RoleType) -> bool {
+            fn role_filter(&self, role: roles::RoleType) -> bool {
                 $(
                     if matches!(role, $role_filter) {
                         return true;
@@ -343,11 +330,14 @@ macro_rules! generate_protocol {
                 false
             }
 
-            fn phase_filter(&self, job: GadgetJobType) -> bool {
+            fn phase_filter(
+                &self,
+                job: jobs::JobType<AccountId32, jobs::MaxParticipants, jobs::MaxSubmissionLen>,
+            ) -> bool {
                 matches!(job, $phase_filter)
             }
 
-            fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Block, Self::Backend, Self::Client>> {
+            fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Client>> {
                 &self.jobs_client
             }
 

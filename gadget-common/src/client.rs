@@ -58,17 +58,21 @@ pub trait ClientWithApi: Client {
     ///
     /// An optional vec of `RpcResponseJobsData` of jobs assigned to validator
     async fn query_jobs_by_validator(
+        &self,
         at: [u8; 32],
         validator: AccountId32,
-    ) -> Option<
-        Vec<
-            jobs::RpcResponseJobsData<
-                AccountId32,
-                u64,
-                jobs::MaxParticipants,
-                jobs::MaxSubmissionLen,
+    ) -> Result<
+        Option<
+            Vec<
+                jobs::RpcResponseJobsData<
+                    AccountId32,
+                    u64,
+                    jobs::MaxParticipants,
+                    jobs::MaxSubmissionLen,
+                >,
             >,
         >,
+        crate::Error,
     >;
     /// Queries a job by its key and ID.
     ///
@@ -81,17 +85,20 @@ pub trait ClientWithApi: Client {
     ///
     /// An optional `RpcResponseJobsData` containing the account ID of the job.
     async fn query_job_by_id(
+        &self,
         at: [u8; 32],
         role_type: roles::RoleType,
         job_id: u64,
-    ) -> Option<
-        jobs::RpcResponseJobsData<
-            AccountId32,
-            AccountId32,
-            u64,
-            jobs::MaxParticipants,
-            jobs::MaxSubmissionLen,
+    ) -> Result<
+        Option<
+            jobs::RpcResponseJobsData<
+                AccountId32,
+                u64,
+                jobs::MaxParticipants,
+                jobs::MaxSubmissionLen,
+            >,
         >,
+        crate::Error,
     >;
 
     /// Queries the result of a job by its role_type and ID.
@@ -105,33 +112,41 @@ pub trait ClientWithApi: Client {
     ///
     /// An `Option` containing the phase one result of the job, wrapped in an `PhaseResult`.
     async fn query_job_result(
+        &self,
         at: [u8; 32],
         role_type: roles::RoleType,
         job_id: u64,
-    ) -> Option<
-        jobs::PhaseResult<
-            AccountId32,
-            u64,
-            jobs::MaxParticipants,
-            jobs::MaxKeyLen,
-            jobs::MaxDataLen,
-            jobs::MaxSignatureLen,
-            jobs::MaxSubmissionLen,
-            jobs::MaxProofLen,
+    ) -> Result<
+        Option<
+            jobs::PhaseResult<
+                AccountId32,
+                u64,
+                jobs::MaxParticipants,
+                jobs::MaxKeyLen,
+                jobs::MaxDataLen,
+                jobs::MaxSignatureLen,
+                jobs::MaxSubmissionLen,
+                jobs::MaxProofLen,
+            >,
         >,
+        crate::Error,
     >;
 
     /// Queries next job ID.
     ///
     ///  # Returns
     ///  Next job ID.
-    async fn query_next_job_id(at: [u8; 32]) -> u64;
+    async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, crate::Error>;
 
     /// Queries restaker's role key
     ///
     ///  # Returns
     ///  Role key
-    fn query_restaker_role_key(at: [u8; 32], address: AccountId32) -> Option<Vec<u8>>;
+    async fn query_restaker_role_key(
+        &self,
+        at: [u8; 32],
+        address: AccountId32,
+    ) -> Result<Option<Vec<u8>>, crate::Error>;
 }
 
 impl<C: ClientWithApi> JobsClient<C> {
@@ -142,7 +157,7 @@ impl<C: ClientWithApi> JobsClient<C> {
     ) -> Result<
         Vec<
             jobs::RpcResponseJobsData<
-                sr25519::Public,
+                AccountId32,
                 u64,
                 jobs::MaxParticipants,
                 jobs::MaxSubmissionLen,
@@ -150,13 +165,13 @@ impl<C: ClientWithApi> JobsClient<C> {
         >,
         crate::Error,
     > {
-        self.client
-            .query_jobs_by_validator(at, validator)
-            .await
-            .map_err(|err| crate::Error::ClientError {
-                err: format!("Failed to query jobs by validator: {err:?}"),
-            })
-            .map(|r| r.unwrap_or_default())
+        Ok(self
+            .client
+            .query_jobs_by_validator(at, AccountId32::from(validator.0))
+            .await?
+            .into_iter()
+            .flatten()
+            .collect())
     }
 
     pub async fn query_restaker_role_key(
@@ -165,11 +180,8 @@ impl<C: ClientWithApi> JobsClient<C> {
         address: sr25519::Public,
     ) -> Result<Option<ecdsa::Public>, crate::Error> {
         self.client
-            .query_restaker_role_key(at, address)
+            .query_restaker_role_key(at, AccountId32::from(address.0))
             .await
-            .map_err(|err| crate::Error::ClientError {
-                err: format!("Failed to query restaker role key: {err:?}"),
-            })
             .map(|r| r.and_then(|v| ecdsa::Public::from_slice(v.as_slice()).ok()))
     }
 
@@ -181,7 +193,7 @@ impl<C: ClientWithApi> JobsClient<C> {
     ) -> Result<
         Option<
             jobs::RpcResponseJobsData<
-                sr25519::Public,
+                AccountId32,
                 u64,
                 jobs::MaxParticipants,
                 jobs::MaxSubmissionLen,
@@ -189,12 +201,7 @@ impl<C: ClientWithApi> JobsClient<C> {
         >,
         crate::Error,
     > {
-        self.client
-            .query_job_by_id(at, role_type, job_id)
-            .await
-            .map_err(|err| crate::Error::ClientError {
-                err: format!("Failed to query job by id: {err:?}"),
-            })
+        self.client.query_job_by_id(at, role_type, job_id).await
     }
 
     pub async fn query_job_result(
@@ -205,7 +212,7 @@ impl<C: ClientWithApi> JobsClient<C> {
     ) -> Result<
         Option<
             jobs::PhaseResult<
-                sr25519::Public,
+                AccountId32,
                 u64,
                 jobs::MaxParticipants,
                 jobs::MaxKeyLen,
@@ -217,19 +224,20 @@ impl<C: ClientWithApi> JobsClient<C> {
         >,
         crate::Error,
     > {
-        self.client
-            .query_job_result(at, role_type, job_id)
-            .await
-            .map_err(|err| crate::Error::ClientError {
-                err: format!("Failed to query job result: {err:?}"),
-            })
+        self.client.query_job_result(at, role_type, job_id).await
     }
 
     pub async fn submit_job_result(
         &self,
         role_type: roles::RoleType,
         job_id: u64,
-        result: jobs::JobResult,
+        result: jobs::JobResult<
+            jobs::MaxParticipants,
+            jobs::MaxKeyLen,
+            jobs::MaxSignatureLen,
+            jobs::MaxDataLen,
+            jobs::MaxProofLen,
+        >,
     ) -> Result<(), crate::Error> {
         self.pallet_tx
             .submit_job_result(role_type, job_id, result)
@@ -288,7 +296,14 @@ pub trait PalletSubmitter: Send + Sync + 'static {
         &self,
         role_type: roles::RoleType,
         job_id: u64,
-        result: jobs::JobResult,
+
+        result: jobs::JobResult<
+            jobs::MaxParticipants,
+            jobs::MaxKeyLen,
+            jobs::MaxSignatureLen,
+            jobs::MaxDataLen,
+            jobs::MaxProofLen,
+        >,
     ) -> Result<(), crate::Error>;
 }
 
@@ -315,7 +330,13 @@ where
         &self,
         role_type: roles::RoleType,
         job_id: u64,
-        result: jobs::JobResult,
+        result: jobs::JobResult<
+            jobs::MaxParticipants,
+            jobs::MaxKeyLen,
+            jobs::MaxSignatureLen,
+            jobs::MaxDataLen,
+            jobs::MaxProofLen,
+        >,
     ) -> Result<(), crate::Error> {
         let tx = webb::substrate::tangle_runtime::api::tx()
             .jobs()

@@ -1,4 +1,4 @@
-use crate::client::{ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient, PalletSubmitter};
+use crate::client::{ClientWithApi, JobsClient, PalletSubmitter};
 use crate::config::{DebugLogger, GadgetProtocol, Network, NetworkAndProtocolSetup};
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
@@ -12,29 +12,20 @@ use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
-use sc_client_api::{Backend, BlockImportNotification};
-use sp_api::ProvideRuntimeApi;
 use sp_core::ecdsa::Signature;
-use sp_core::keccak_256;
+use sp_core::{keccak_256, sr25519};
 use sp_io::crypto::ecdsa_verify_prehashed;
-use sp_runtime::traits::Block;
-use std::marker::PhantomData;
+use webb::substrate::subxt::utils::AccountId32;
 use std::sync::Arc;
-use tangle_primitives::roles::RoleType;
-use tangle_primitives::AccountId;
 use tokio::sync::mpsc::UnboundedReceiver;
+use webb::substrate::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 
 #[async_trait]
-pub trait FullProtocolConfig: Clone + Send + Sync + Sized + 'static
-where
-    <Self::Client as ProvideRuntimeApi<Self::Block>>::Api: JobsApiForGadget<Self::Block>,
-{
+pub trait FullProtocolConfig: Clone + Send + Sync + Sized + 'static {
     type AsyncProtocolParameters: Send + Sync + Clone;
-    type Client: ClientWithApi<Self::Block, Self::Backend>;
-    type Block: Block;
-    type Backend: Backend<Self::Block>;
+    type Client: ClientWithApi;
     type Network: Network;
     type AdditionalNodeParameters: Clone + Send + Sync + 'static;
     type KeystoreBackend: KeystoreBackend;
@@ -43,7 +34,7 @@ where
         pallet_tx: Arc<dyn PalletSubmitter>,
         network: Self::Network,
         logger: DebugLogger,
-        account_id: AccountId,
+        account_id: sr25519::Public,
         key_store: ECDSAKeyStore<Self::KeystoreBackend>,
         prometheus_config: PrometheusConfig,
     ) -> Result<Self, Error>;
@@ -69,37 +60,32 @@ where
     /// The provided work manager should only be used for querying recorded_messages
     async fn create_next_job(
         &self,
-        job: JobInitMetadata<Self::Block>,
+        job: JobInitMetadata,
         work_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<Self::AsyncProtocolParameters, Error>;
-
-    async fn process_block_import_notification(
-        &self,
-        _notification: BlockImportNotification<Self::Block>,
-        _job_manager: &ProtocolWorkManager<WorkManager>,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
 
     async fn process_error(&self, error: Error, _job_manager: &ProtocolWorkManager<WorkManager>) {
         self.logger().error(format!("Error in protocol: {error}"));
     }
 
-    fn account_id(&self) -> &AccountId;
+    fn account_id(&self) -> &sr25519::Public;
 
     fn name(&self) -> String;
 
-    fn role_filter(&self, role: RoleType) -> bool;
+    fn role_filter(&self, role: roles::RoleType) -> bool;
 
-    fn phase_filter(&self, job: GadgetJobType) -> bool;
+    fn phase_filter(
+        &self,
+        job: jobs::JobType<AccountId32, jobs::MaxParticipants, jobs::MaxSubmissionLen>,
+    ) -> bool;
 
-    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Block, Self::Backend, Self::Client>>;
+    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Client>>;
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
 
     fn logger(&self) -> DebugLogger;
 
     fn client(&self) -> Self::Client;
-    fn get_jobs_client(&self) -> JobsClient<Self::Block, Self::Backend, Self::Client> {
+    fn get_jobs_client(&self) -> JobsClient<Self::Client> {
         self.jobs_client()
             .lock()
             .clone()
@@ -112,10 +98,7 @@ where
 }
 
 #[async_trait]
-impl<T: FullProtocolConfig> AsyncProtocol for T
-where
-    <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApiForGadget<T::Block>,
-{
+impl<T: FullProtocolConfig> AsyncProtocol for T {
     type AdditionalParams = T::AsyncProtocolParameters;
 
     async fn generate_protocol_from(
@@ -141,19 +124,14 @@ where
 }
 
 #[async_trait]
-impl<T: FullProtocolConfig> NetworkAndProtocolSetup for T
-where
-    <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApiForGadget<T::Block>,
-{
+impl<T: FullProtocolConfig> NetworkAndProtocolSetup for T {
     type Network = T;
     type Protocol = T;
     type Client = T::Client;
-    type Block = T::Block;
-    type Backend = T::Backend;
 
     async fn build_network_and_protocol(
         &self,
-        jobs_client: JobsClient<Self::Block, Self::Backend, Self::Client>,
+        jobs_client: JobsClient<Self::Client>,
     ) -> Result<(Self::Network, Self::Protocol), Error> {
         let jobs_client_store = T::jobs_client(self);
         jobs_client_store.lock().replace(jobs_client);
@@ -174,31 +152,20 @@ where
 }
 
 #[async_trait]
-impl<T: FullProtocolConfig> GadgetProtocol<T::Block, T::Backend, T::Client> for T
-where
-    <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApiForGadget<T::Block>,
-{
+impl<T: FullProtocolConfig> GadgetProtocol<T::Client> for T {
     async fn create_next_job(
         &self,
-        job: JobInitMetadata<T::Block>,
+        job: JobInitMetadata,
         work_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
         T::create_next_job(self, job, work_manager).await
-    }
-
-    async fn process_block_import_notification(
-        &self,
-        notification: BlockImportNotification<T::Block>,
-        job_manager: &ProtocolWorkManager<WorkManager>,
-    ) -> Result<(), Error> {
-        T::process_block_import_notification(self, notification, job_manager).await
     }
 
     async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WorkManager>) {
         T::process_error(self, error, job_manager).await;
     }
 
-    fn account_id(&self) -> &AccountId {
+    fn account_id(&self) -> &sr25519::Public {
         T::account_id(self)
     }
 
@@ -206,15 +173,18 @@ where
         T::name(self)
     }
 
-    fn role_filter(&self, role: RoleType) -> bool {
+    fn role_filter(&self, role: roles::RoleType) -> bool {
         T::role_filter(self, role)
     }
 
-    fn phase_filter(&self, job: GadgetJobType) -> bool {
+    fn phase_filter(
+        &self,
+        job: jobs::JobType<AccountId32, jobs::MaxParticipants, jobs::MaxSubmissionLen>,
+    ) -> bool {
         T::phase_filter(self, job)
     }
 
-    fn client(&self) -> JobsClient<T::Block, T::Backend, T::Client> {
+    fn client(&self) -> JobsClient<T::Client> {
         T::get_jobs_client(self)
     }
 
@@ -228,10 +198,7 @@ where
 }
 
 #[async_trait]
-impl<T: FullProtocolConfig> Network for T
-where
-    <T::Client as ProvideRuntimeApi<T::Block>>::Api: JobsApiForGadget<T::Block>,
-{
+impl<T: FullProtocolConfig> Network for T {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         let mut message = T::internal_network(self).next_message().await?;
         if let Some(peer_public_key) = message.from_network_id {
@@ -286,26 +253,16 @@ where
 /// Used for constructing an instance of a node. If there is both a keygen and a signing protocol, then,
 /// the length of the vectors are 2. The length of the vector is equal to the numbers of protocols that
 /// the constructed node is going to concurrently execute
-pub struct NodeInput<
-    B: Block,
-    BE: Backend<B>,
-    C: ClientWithApi<B, BE>,
-    N: Network,
-    KBE: KeystoreBackend,
-    D,
-> where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
-    pub mock_clients: Vec<C>,
-    pub mock_networks: Vec<N>,
-    pub account_id: AccountId,
+pub struct NodeInput<C: ClientWithApi, N: Network, KBE: KeystoreBackend, D> {
+    pub clients: Vec<C>,
+    pub networks: Vec<N>,
+    pub account_id: sr25519::Public,
     pub logger: DebugLogger,
     pub pallet_tx: Arc<dyn PalletSubmitter>,
     pub keystore: ECDSAKeyStore<KBE>,
     pub node_index: usize,
     pub additional_params: D,
     pub prometheus_config: PrometheusConfig,
-    pub _pd: PhantomData<(B, BE)>,
 }
 
 #[derive(Encode, Decode)]

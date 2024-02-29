@@ -50,7 +50,7 @@ impl Error for SubstrateGadgetError {}
 
 #[async_trait]
 #[auto_impl(Arc)]
-pub trait Client: Send + Sync {
+pub trait Client: Clone + Send + Sync {
     async fn get_next_finality_notification(&self) -> Option<FinalityNotification>;
     async fn get_latest_finality_notification(&self) -> Option<FinalityNotification>;
 }
