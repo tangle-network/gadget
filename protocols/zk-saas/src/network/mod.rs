@@ -3,7 +3,6 @@ use bytes::Bytes;
 use futures_util::sink::SinkExt;
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::StreamExt;
-use gadget_common::client::AccountId;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_core::job_manager::WorkManagerInterface;
 use mpc_net::multi::WrappedStream;
@@ -11,7 +10,7 @@ use mpc_net::prod::{CertToDer, RustlsCertificate};
 use mpc_net::MpcNetError;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use sp_core::ecdsa;
+use sp_core::{ecdsa, sr25519};
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::net::SocketAddr;
@@ -581,6 +580,6 @@ pub struct ZkProtocolNetworkConfig<KBE: KeystoreBackend> {
     pub public_identity_der: Vec<u8>,
     pub private_identity_der: Vec<u8>,
     pub client_only_king_public_identity_der: Option<Vec<u8>>,
-    pub account_id: AccountId,
+    pub account_id: sr25519::Public,
     pub key_store: ECDSAKeyStore<KBE>,
 }

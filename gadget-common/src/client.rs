@@ -41,6 +41,28 @@ pub async fn create_client<C: ClientWithApi>(
     })
 }
 
+pub trait JobTypeExt {
+    /// Checks if the job type is a phase one job.
+    fn is_phase_one(&self) -> bool;
+    /// Gets the participants for the job type, if applicable.
+    fn get_participants(self) -> Option<Vec<AccountId32>>;
+    /// Gets the threshold value for the job type, if applicable.
+    fn get_threshold(self) -> Option<u8>;
+    /// Gets the role associated with the job type.
+    fn get_role_type(&self) -> roles::RoleType;
+    /// Gets the phase one ID for phase two jobs, if applicable.
+    fn get_phase_one_id(&self) -> Option<u64>;
+    /// Gets the permitted caller for the job type, if applicable.
+    fn get_permitted_caller(self) -> Option<AccountId32>;
+}
+
+pub trait PhaseResultExt {
+    /// Gets the participants for the phase result, if applicable.
+    fn participants(&self) -> Option<Vec<AccountId32>>;
+    /// Gets the threshold value for the phase result, if applicable.
+    fn threshold(&self) -> Option<u8>;
+}
+
 #[async_trait]
 pub trait ClientWithApi: Client {
     /// Query jobs associated with a specific validator.
@@ -242,6 +264,100 @@ impl<C: ClientWithApi> JobsClient<C> {
         self.pallet_tx
             .submit_job_result(role_type, job_id, result)
             .await
+    }
+}
+
+impl<MaxParticipants, MaxSubmissionLen> JobTypeExt
+    for jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen>
+{
+    fn is_phase_one(&self) -> bool {
+        use jobs::JobType::*;
+        matches!(self, DKGTSSPhaseOne(_) | ZkSaaSPhaseOne(_))
+    }
+
+    fn get_participants(self) -> Option<Vec<AccountId32>> {
+        use jobs::JobType::*;
+        match self {
+            DKGTSSPhaseOne(p) => Some(p.participants.0),
+            ZkSaaSPhaseOne(p) => Some(p.participants.0),
+            _ => None,
+        }
+    }
+
+    fn get_threshold(self) -> Option<u8> {
+        use jobs::JobType::*;
+        match self {
+            DKGTSSPhaseOne(p) => Some(p.threshold),
+            _ => None,
+        }
+    }
+
+    fn get_role_type(&self) -> roles::RoleType {
+        use jobs::JobType::*;
+        use roles::RoleType;
+        match self {
+            DKGTSSPhaseOne(job) => RoleType::Tss(job.role_type.clone()),
+            ZkSaaSPhaseOne(job) => RoleType::ZkSaaS(job.role_type.clone()),
+            DKGTSSPhaseTwo(job) => RoleType::Tss(job.role_type.clone()),
+            ZkSaaSPhaseTwo(job) => RoleType::ZkSaaS(job.role_type.clone()),
+            DKGTSSPhaseThree(job) => RoleType::Tss(job.role_type.clone()),
+            DKGTSSPhaseFour(job) => RoleType::Tss(job.role_type.clone()),
+        }
+    }
+
+    fn get_phase_one_id(&self) -> Option<u64> {
+        use jobs::JobType::*;
+        match self {
+            DKGTSSPhaseTwo(info) => Some(info.phase_one_id),
+            DKGTSSPhaseThree(info) => Some(info.phase_one_id),
+            DKGTSSPhaseFour(info) => Some(info.phase_one_id),
+            ZkSaaSPhaseTwo(info) => Some(info.phase_one_id),
+            _ => None,
+        }
+    }
+
+    fn get_permitted_caller(self) -> Option<AccountId32> {
+        use jobs::JobType::*;
+        match self {
+            DKGTSSPhaseOne(p) => p.permitted_caller,
+            ZkSaaSPhaseOne(p) => p.permitted_caller,
+            _ => None,
+        }
+    }
+}
+
+impl<
+        JobId,
+        MaxParticipants,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxSubmissionLen,
+        MaxProofLen,
+    > PhaseResultExt
+    for jobs::PhaseResult<
+        AccountId32,
+        JobId,
+        MaxParticipants,
+        MaxKeyLen,
+        MaxDataLen,
+        MaxSignatureLen,
+        MaxSubmissionLen,
+        MaxProofLen,
+    >
+{
+    fn participants(&self) -> Option<Vec<AccountId32>> {
+        match &self.job_type {
+            jobs::JobType::DKGTSSPhaseOne(p) => Some(p.participants.0.clone()),
+            jobs::JobType::ZkSaaSPhaseOne(p) => Some(p.participants.0.clone()),
+            _ => None,
+        }
+    }
+    fn threshold(&self) -> Option<u8> {
+        match &self.job_type {
+            jobs::JobType::DKGTSSPhaseOne(p) => Some(p.threshold),
+            _ => None,
+        }
     }
 }
 

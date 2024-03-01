@@ -181,7 +181,7 @@ async fn get_latest_finality_notification_from_client<C: Client>(
 macro_rules! generate_setup_and_run_command {
     ($( $config:ident ),*) => {
         /// Sets up a future that runs all the protocols concurrently
-        pub fn setup_node<C: ClientWithApi + 'static, N: Network, KBE: gadget_common::keystore::KeystoreBackend, D: Send + Clone + 'static>(node_input: NodeInput<C, N, KBE, D>) -> impl SendFuture<'static, ()>
+        pub fn setup_node<C: ClientWithApi + 'static, N: Network, KBE: $crate::keystore::KeystoreBackend, D: Send + Clone + 'static>(node_input: NodeInput<C, N, KBE, D>) -> impl SendFuture<'static, ()>
         {
             async move {
                 if let Err(err) = run(
@@ -202,7 +202,7 @@ macro_rules! generate_setup_and_run_command {
             }
         }
 
-        pub async fn run<C: ClientWithApi + 'static, N: Network, KBE: gadget_common::keystore::KeystoreBackend>(
+        pub async fn run<C: ClientWithApi + 'static, N: Network, KBE: $crate::keystore::KeystoreBackend>(
             mut client: Vec<C>,
             pallet_tx: Arc<dyn PalletSubmitter>,
             mut network: Vec<N>,
@@ -217,7 +217,7 @@ macro_rules! generate_setup_and_run_command {
 
             $(
                 let config = crate::$config::new(client.pop().expect("Not enough clients"), pallet_tx.clone(), network.pop().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone(), prometheus_config.clone()).await?;
-                futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), gadget_common::Error>>>>);
+                futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), $crate::Error>>>>);
             )*
 
             futures.try_collect::<Vec<_>>().await.map(|_| ())
@@ -237,7 +237,7 @@ macro_rules! generate_protocol {
             pallet_tx: Arc<dyn PalletSubmitter>,
             logger: DebugLogger,
             client: C,
-            // This field should NEVER be used directly. Use Self instead as the network
+            /// This field should NEVER be used directly. Use Self instead as the network
             network_inner: N,
             account_id: sp_core::sr25519::Public,
             key_store: ECDSAKeyStore<KBE>,

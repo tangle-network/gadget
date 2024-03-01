@@ -9,11 +9,8 @@ use gadget_common::{generate_protocol, Error};
 use mpc_net::prod::RustlsCertificate;
 use network::ZkProtocolNetworkConfig;
 use protocol_macros::protocol;
-use sc_client_api::Backend;
 use sp_core::Pair;
-use sp_runtime::traits::Block;
 use std::sync::Arc;
-use tangle_primitives::roles::ZeroKnowledgeRoleType;
 use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
 
 pub mod network;
@@ -26,7 +23,7 @@ generate_protocol!(
     protocol::generate_protocol_from,
     protocol::create_next_job,
     jobs::JobType::ZkSaaSPhaseTwo(_),
-    roles::RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16)
+    roles::RoleType::ZkSaaS(roles::zksaas::ZeroKnowledgeRoleType::ZkSaaSGroth16)
 );
 
 pub async fn create_zk_network<KBE: KeystoreBackend>(

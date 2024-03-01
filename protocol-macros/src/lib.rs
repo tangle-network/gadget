@@ -130,7 +130,6 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
                     pallet_tx,
                     logger,
                     prometheus_config,
-                    _pd: std::marker::PhantomData,
                 }
             }
 
@@ -171,7 +170,6 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
                     pallet_tx,
                     logger,
                     prometheus_config,
-                    _pd: std::marker::PhantomData,
                 }
             }
 
