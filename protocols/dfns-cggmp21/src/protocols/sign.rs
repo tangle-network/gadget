@@ -186,8 +186,10 @@ where
         additional_params.user_id_to_account_id_mapping.clone(),
     );
 
-    let public_key =
-        get_public_key_from_serialized_key_share_bytes(&role_type, &serialized_key_share)?;
+    let public_key = get_public_key_from_serialized_key_share_bytes::<DefaultSecurityLevel>(
+        &role_type,
+        &serialized_key_share,
+    )?;
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -339,19 +341,26 @@ where
         .build())
 }
 
-pub fn get_public_key_from_serialized_key_share_bytes(
+pub fn get_public_key_from_serialized_key_share_bytes<S: SecurityLevel>(
     role_type: &RoleType,
     serialized_key_share: &[u8],
 ) -> Result<Vec<u8>, JobError> {
     match role_type {
         RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-            get_public_key_from_serialized_local_key_bytes_inner::<Secp256k1>(serialized_key_share)
+            get_local_key_share_from_serialized_local_key_bytes::<Secp256k1, S>(
+                serialized_key_share,
+            )
+            .map(|key_share| key_share.shared_public_key().to_bytes(true).to_vec())
         }
         RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-            get_public_key_from_serialized_local_key_bytes_inner::<Secp256r1>(serialized_key_share)
+            get_local_key_share_from_serialized_local_key_bytes::<Secp256r1, S>(
+                serialized_key_share,
+            )
+            .map(|key_share| key_share.shared_public_key().to_bytes(true).to_vec())
         }
         RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-            get_public_key_from_serialized_local_key_bytes_inner::<Stark>(serialized_key_share)
+            get_local_key_share_from_serialized_local_key_bytes::<Stark, S>(serialized_key_share)
+                .map(|key_share| key_share.shared_public_key().to_bytes(true).to_vec())
         }
         _ => Err(JobError {
             reason: format!("Invalid role type: {role_type:?}"),
@@ -359,16 +368,12 @@ pub fn get_public_key_from_serialized_key_share_bytes(
     }
 }
 
-fn get_public_key_from_serialized_local_key_bytes_inner<E: Curve>(
+pub fn get_local_key_share_from_serialized_local_key_bytes<E: Curve, S: SecurityLevel>(
     local_key_serialized: &[u8],
-) -> Result<Vec<u8>, JobError> {
-    let key_share = bincode2::deserialize::<KeyShare<E, DefaultSecurityLevel>>(
-        local_key_serialized,
-    )
-    .map_err(|err| JobError {
+) -> Result<KeyShare<E, S>, JobError> {
+    bincode2::deserialize::<KeyShare<E, S>>(local_key_serialized).map_err(|err| JobError {
         reason: format!("Keygen protocol error: {err:?}"),
-    })?;
-    Ok(key_share.shared_public_key().to_bytes(true).to_vec())
+    })
 }
 
 pub fn convert_dfns_signature(

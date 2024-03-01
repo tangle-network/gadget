@@ -161,12 +161,12 @@ where
         additional_params.user_id_to_account_id_mapping.clone(),
     );
 
-    let public_key = super::sign::get_public_key_from_serialized_key_share_bytes(
-        &role_type,
-        &serialized_key_share,
-    )?;
-    let new_public_key =
-        super::sign::get_public_key_from_serialized_key_share_bytes(&role_type, &new_key)?;
+    let public_key = super::sign::get_public_key_from_serialized_key_share_bytes::<
+        DefaultSecurityLevel,
+    >(&role_type, &serialized_key_share)?;
+    let new_public_key = super::sign::get_public_key_from_serialized_key_share_bytes::<
+        DefaultSecurityLevel,
+    >(&role_type, &new_key)?;
 
     // We're signing over the hash of the new key
     let data_hash = keccak_256(&new_key);

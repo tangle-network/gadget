@@ -801,6 +801,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
+name = "atomic-write-file"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edcdbedc2236483ab103a53415653d6b4442ea6141baf1ffa85df29635e88436"
+dependencies = [
+ "nix 0.27.1",
+ "rand 0.8.5",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2646,7 +2656,7 @@ dependencies = [
 [[package]]
 name = "ed448-goldilocks-plus"
 version = "0.11.2"
-source = "git+https://github.com/mikelodder7/Ed448-Goldilocks#2f2b6a84680a3fc7c4658a5e47c88a22ac630502"
+source = "git+https://github.com/webb-tools/Ed448-Goldilocks#31a201b82fbfd7e9c67530fd340c5b9f7087b592"
 dependencies = [
  "elliptic-curve 0.13.8",
  "hex",
@@ -3265,13 +3275,12 @@ dependencies = [
 
 [[package]]
 name = "flume"
-version = "0.10.14"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1657b4441c3403d9f7b3409e47575237dac27b1b5726df654a6ecbf92f0f7577"
+checksum = "55ac459de2512911e4b674ce33cf20befaba382d05b62b008afc1c8b57cbf181"
 dependencies = [
  "futures-core",
  "futures-sink",
- "pin-project",
  "spin 0.9.8",
 ]
 
@@ -3454,7 +3463,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
 dependencies = [
  "byteorder",
  "debugless-unwrap",
@@ -3494,6 +3503,19 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
+dependencies = [
+ "curve25519-dalek 4.1.1",
+ "frost-core 0.6.1",
+ "parity-scale-codec 3.6.9",
+ "rand_core 0.6.4",
+ "sha2 0.10.8",
+ "subtle",
+]
+
+[[package]]
+name = "frost-ed25519"
+version = "1.0.0-rc.0"
 source = "git+https://github.com/LIT-Protocol/frost.git#f1e6ab1f8ed163f64b358c9d3cfef185a29513f8"
 dependencies = [
  "curve25519-dalek-ml",
@@ -3505,15 +3527,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-ed25519"
+name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
 dependencies = [
- "curve25519-dalek 4.1.1",
+ "ed448-goldilocks-plus 0.11.2 (git+https://github.com/webb-tools/Ed448-Goldilocks)",
  "frost-core 0.6.1",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
- "sha2 0.10.8",
+ "sha3 0.10.8",
  "subtle",
 ]
 
@@ -3531,15 +3553,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-ed448"
+name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
 dependencies = [
- "ed448-goldilocks-plus 0.11.2 (git+https://github.com/mikelodder7/Ed448-Goldilocks)",
  "frost-core 0.6.1",
+ "p256 0.13.2",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
- "sha3 0.10.8",
+ "sha2 0.10.8",
  "subtle",
 ]
 
@@ -3557,12 +3579,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-p256"
+name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
 dependencies = [
  "frost-core 0.6.1",
- "p256 0.13.2",
+ "p384",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -3580,19 +3602,6 @@ dependencies = [
  "p384",
  "rand_core 0.6.4",
  "sha2 0.10.8",
-]
-
-[[package]]
-name = "frost-p384"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
-dependencies = [
- "frost-core 0.6.1",
- "p384",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle",
 ]
 
 [[package]]
@@ -3609,23 +3618,36 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/LIT-Protocol/frost.git#f1e6ab1f8ed163f64b358c9d3cfef185a29513f8"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
 dependencies = [
  "curve25519-dalek 4.1.1",
- "document-features",
- "frost-core 1.0.0-rc.0",
- "frost-rerandomized",
+ "frost-core 0.6.1",
+ "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
+ "subtle",
 ]
 
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/LIT-Protocol/frost.git#f1e6ab1f8ed163f64b358c9d3cfef185a29513f8"
 dependencies = [
  "curve25519-dalek 4.1.1",
+ "document-features",
+ "frost-core 1.0.0-rc.0",
+ "frost-rerandomized",
+ "rand_core 0.6.4",
+ "sha2 0.10.8",
+]
+
+[[package]]
+name = "frost-secp256k1"
+version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
+dependencies = [
  "frost-core 0.6.1",
+ "k256",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -3643,19 +3665,6 @@ dependencies = [
  "k256",
  "rand_core 0.6.4",
  "sha2 0.10.8",
-]
-
-[[package]]
-name = "frost-secp256k1"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
-dependencies = [
- "frost-core 0.6.1",
- "k256",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle",
 ]
 
 [[package]]
@@ -3858,7 +3867,6 @@ dependencies = [
  "async-trait",
  "auto_impl",
  "bincode2",
- "ed448-goldilocks-plus 0.11.2 (git+https://github.com/mikelodder7/Ed448-Goldilocks)",
  "frame-support",
  "futures",
  "futures-util",
@@ -5473,9 +5481,9 @@ dependencies = [
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.26.0"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afc22eff61b133b115c6e8c74e818c628d6d5e7a502afea6f64dee076dd94326"
+checksum = "cf4e226dcd58b4be396f7bd3c20da8fdee2911400705297ba7d2d7cc2c30f716"
 dependencies = [
  "cc",
  "pkg-config",
@@ -6107,6 +6115,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix"
+version = "0.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
+dependencies = [
+ "bitflags 2.4.2",
+ "cfg-if",
+ "libc",
+]
+
+[[package]]
 name = "no-std-net"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6514,19 +6533,19 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
 dependencies = [
  "digest 0.10.7",
  "elliptic-curve 0.13.8",
  "frame-support",
  "frame-system",
  "frost-core 0.6.1",
- "frost-ed25519 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle/)",
- "frost-ed448 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle/)",
- "frost-p256 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle/)",
- "frost-p384 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle/)",
- "frost-ristretto255 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle/)",
- "frost-secp256k1 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle/)",
+ "frost-ed25519 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
+ "frost-ed448 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
+ "frost-p256 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
+ "frost-p384 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
+ "frost-ristretto255 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
+ "frost-secp256k1 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
  "generic-ec",
  "generic-ec-zkp",
  "hex",
@@ -6556,7 +6575,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6573,7 +6592,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -6604,7 +6623,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8072,7 +8091,7 @@ dependencies = [
  "log",
  "netlink-packet-route",
  "netlink-proto",
- "nix",
+ "nix 0.24.3",
  "thiserror",
  "tokio",
 ]
@@ -10465,9 +10484,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.7.1"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e58421b6bc416714d5115a2ca953718f6c621a51b68e4f4922aea5a4391a721"
+checksum = "dba03c279da73694ef99763320dea58b51095dfe87d001b1d4b5fe78ba8763cf"
 dependencies = [
  "sqlx-core",
  "sqlx-macros",
@@ -10478,9 +10497,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.7.1"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd4cef4251aabbae751a3710927945901ee1d97ee96d757f6880ebb9a79bfd53"
+checksum = "d84b0a3c3739e220d94b3239fd69fb1f74bc36e16643423bd99de3b43c21bfbd"
 dependencies = [
  "ahash 0.8.9",
  "atoi",
@@ -10516,14 +10535,14 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "url",
- "webpki-roots 0.24.0",
+ "webpki-roots 0.25.4",
 ]
 
 [[package]]
 name = "sqlx-macros"
-version = "0.7.1"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "208e3165167afd7f3881b16c1ef3f2af69fa75980897aac8874a0696516d12c2"
+checksum = "89961c00dc4d7dffb7aee214964b065072bff69e36ddb9e2c107541f75e4f2a5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10534,10 +10553,11 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros-core"
-version = "0.7.1"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a4a8336d278c62231d87f24e8a7a74898156e34c1c18942857be2acb29c7dfc"
+checksum = "d0bd4519486723648186a08785143599760f7cc81c52334a55d6a83ea1e20841"
 dependencies = [
+ "atomic-write-file",
  "dotenvy",
  "either",
  "heck 0.4.1",
@@ -10559,9 +10579,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx-mysql"
-version = "0.7.1"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ca69bf415b93b60b80dc8fda3cb4ef52b2336614d8da2de5456cc942a110482"
+checksum = "e37195395df71fd068f6e2082247891bc11e3289624bbc776a0cdfa1ca7f1ea4"
 dependencies = [
  "atoi",
  "base64 0.21.7",
@@ -10601,9 +10621,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx-postgres"
-version = "0.7.1"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0db2df1b8731c3651e204629dd55e52adbae0462fa1bdcbed56a2302c18181e"
+checksum = "d6ac0ac3b7ccd10cc96c7ab29791a7dd236bd94021f31eec7ba3d46a74aa1c24"
 dependencies = [
  "atoi",
  "base64 0.21.7",
@@ -10640,9 +10660,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx-sqlite"
-version = "0.7.1"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be4c21bf34c7cae5b283efb3ac1bcc7670df7561124dc2f8bdc0b59be40f79a2"
+checksum = "210976b7d948c7ba9fced8ca835b11cbb2d677c59c79de41ac0d397e14547490"
 dependencies = [
  "atoi",
  "flume",
@@ -10658,6 +10678,7 @@ dependencies = [
  "sqlx-core",
  "tracing",
  "url",
+ "urlencoding",
 ]
 
 [[package]]
@@ -11027,7 +11048,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -11037,7 +11058,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle/#fe0df96a46fa41a48711a5eebcae5db63d4b6e25"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#81c5c468ec7b8a80d8b9c585412da3670b8ebcd3"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -11871,6 +11892,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "urlencoding"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
+
+[[package]]
 name = "uuid"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12587,7 +12614,7 @@ dependencies = [
 [[package]]
 name = "webb"
 version = "0.8.4"
-source = "git+https://github.com/webb-tools/webb-rs#118801febf8bc221fc617622ca0cf994b1f05e15"
+source = "git+https://github.com/webb-tools/webb-rs.git?branch=main#05c3441fe2c957c2eaa473f3f59bd593c396b521"
 dependencies = [
  "async-trait",
  "hex",
@@ -12619,15 +12646,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c71e40d7d2c34a5106301fb632274ca37242cd0c9d3e64dbece371a40a2d87"
 dependencies = [
  "webpki",
-]
-
-[[package]]
-name = "webpki-roots"
-version = "0.24.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b291546d5d9d1eab74f069c77749f2cb8504a12caa20f0f2de93ddbf6f411888"
-dependencies = [
- "rustls-webpki",
 ]
 
 [[package]]
