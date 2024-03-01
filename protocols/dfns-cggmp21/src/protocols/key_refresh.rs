@@ -1,16 +1,24 @@
-use dfns_cggmp21::supported_curves::Secp256k1;
-use dfns_cggmp21::KeyShare;
+use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
+use dfns_cggmp21::generic_ec::Curve;
+use dfns_cggmp21::key_refresh::msg::aux_only;
+use dfns_cggmp21::key_refresh::AuxInfoGenerationBuilder;
+use dfns_cggmp21::security_level::SecurityLevel;
+use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
+use dfns_cggmp21::{KeyShare, PregeneratedPrimes};
+use digest::typenum::U32;
+use digest::Digest;
 use gadget_common::client::{ClientWithApi, JobsApiForGadget};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
-use gadget_common::prelude::FullProtocolConfig;
+use gadget_common::prelude::{DebugLogger, FullProtocolConfig};
 use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
+use round_based_21::{Incoming, Outgoing};
 use sc_client_api::Backend;
 use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
@@ -20,7 +28,7 @@ use std::sync::Arc;
 use tangle_primitives::jobs::{
     DKGTSSKeyRefreshResult, DigitalSignatureScheme, JobId, JobResult, JobType,
 };
-use tangle_primitives::roles::RoleType;
+use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 pub(crate) async fn create_next_job<
@@ -96,7 +104,7 @@ pub struct DfnsCGGMP21KeyRefreshExtraParams {
     job_id: JobId,
     phase_one_id: JobId,
     role_type: RoleType,
-    key: KeyShare<Secp256k1>,
+    key: Vec<u8>,
     pregenerated_primes: dfns_cggmp21::PregeneratedPrimes,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
@@ -126,70 +134,83 @@ where
     let role_id = config.key_store.pair().public();
     let logger = config.logger.clone();
     let network = config.clone();
+    let role_type = additional_params.role_type;
 
-    let (mapping, key, pregenerated_primes) = (
+    let (mapping, serialized_key_share, pregenerated_primes) = (
         additional_params.user_id_to_account_id_mapping,
         additional_params.key,
         additional_params.pregenerated_primes,
     );
-    let i = key.i;
-    let n = key.public_shares.len() as u16;
-    let t = key.vss_setup.as_ref().map(|x| x.min_signers).unwrap_or(n);
 
     Ok(JobBuilder::new()
         .protocol(async move {
-            let mut rng = rand::rngs::StdRng::from_entropy();
-            let protocol_message_channel =
-                super::util::CloneableUnboundedReceiver::from(protocol_message_channel);
-            logger.info(format!(
-                "Starting KeyRefresh Protocol with params: i={i}, t={t}, n={n}"
-            ));
+            let key = match role_type {
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
+                    handle_key_refresh::<Secp256k1, DefaultSecurityLevel, DefaultCryptoHasher, _>(
+                        &serialized_key_share,
+                        &logger,
+                        additional_params.job_id,
+                        pregenerated_primes,
+                        protocol_message_channel,
+                        associated_block_id,
+                        associated_retry_id,
+                        associated_session_id,
+                        associated_task_id,
+                        mapping,
+                        role_id,
+                        network,
+                    )
+                    .await?
+                }
 
-            let job_id_bytes = additional_params.job_id.to_be_bytes();
-            let mix = keccak_256(b"dnfs-cggmp21-keyrefresh");
-            let eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
-            let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
+                    handle_key_refresh::<Secp256r1, DefaultSecurityLevel, DefaultCryptoHasher, _>(
+                        &serialized_key_share,
+                        &logger,
+                        additional_params.job_id,
+                        pregenerated_primes,
+                        protocol_message_channel,
+                        associated_block_id,
+                        associated_retry_id,
+                        associated_session_id,
+                        associated_task_id,
+                        mapping,
+                        role_id,
+                        network,
+                    )
+                    .await?
+                }
 
-            let (
-                key_refresh_tx_to_outbound,
-                key_refresh_rx_async_proto,
-                _broadcast_tx_to_outbound,
-                _broadcast_rx_from_gadget,
-            ) = super::util::create_job_manager_to_async_protocol_channel_split::<_, (), _>(
-                protocol_message_channel.clone(),
-                associated_block_id,
-                associated_retry_id,
-                associated_session_id,
-                associated_task_id,
-                mapping.clone(),
-                role_id,
-                network.clone(),
-            );
-
-            let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
-            let delivery = (key_refresh_rx_async_proto, key_refresh_tx_to_outbound);
-            let party = dfns_cggmp21::round_based::MpcParty::connected(delivery);
-            let aux_info = dfns_cggmp21::aux_info_gen(eid, i, n, pregenerated_primes)
-                .set_progress_tracer(&mut tracer)
-                .start(&mut rng, party)
-                .await
-                .map_err(|err| JobError {
-                    reason: format!("KeyRefresh protocol error: {err:?}"),
-                })?;
-
-            let key = key.update_aux(aux_info).map_err(|err| JobError {
-                reason: format!("KeyRefresh protocol error: {err:?}"),
-            })?;
-            let perf_report = tracer.get_report().map_err(|err| JobError {
-                reason: format!("KeyRefresh protocol error: {err:?}"),
-            })?;
-            logger.trace(format!("KeyRefresh protocol report: {perf_report}"));
-
-            logger.debug("Finished AsyncProtocol - KeyRefresh");
+                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+                    handle_key_refresh::<Stark, DefaultSecurityLevel, DefaultCryptoHasher, _>(
+                        &serialized_key_share,
+                        &logger,
+                        additional_params.job_id,
+                        pregenerated_primes,
+                        protocol_message_channel,
+                        associated_block_id,
+                        associated_retry_id,
+                        associated_session_id,
+                        associated_task_id,
+                        mapping,
+                        role_id,
+                        network,
+                    )
+                    .await?
+                }
+                _ => {
+                    return Err(JobError {
+                        reason: format!(
+                            "Role type {role_type:?} is not supported for KeyRefresh protocol"
+                        ),
+                    })
+                }
+            };
 
             let job_result = JobResult::DKGPhaseThree(DKGTSSKeyRefreshResult {
                 signature_scheme: DigitalSignatureScheme::Ecdsa,
             });
+
             *protocol_output.lock().await = Some((key, job_result));
             Ok(())
         })
@@ -219,4 +240,98 @@ where
             Ok(())
         })
         .build())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn handle_key_refresh<
+    E: Curve,
+    S: SecurityLevel,
+    H: Digest<OutputSize = U32> + Clone + Send + 'static,
+    N: Network,
+>(
+    serialized_key_share: &[u8],
+    logger: &DebugLogger,
+    job_id: JobId,
+    pregenerated_primes: PregeneratedPrimes<S>,
+    protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
+    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+    mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+    role_id: ecdsa::Public,
+    network: N,
+) -> Result<Vec<u8>, JobError> {
+    let mut rng = rand::rngs::StdRng::from_entropy();
+    let local_key_share: KeyShare<E, S> =
+        super::sign::get_local_key_share_from_serialized_local_key_bytes::<E, S>(
+            serialized_key_share,
+        )?;
+    let i = local_key_share.i;
+    let n = local_key_share.public_shares.len() as u16;
+    let t = local_key_share
+        .vss_setup
+        .as_ref()
+        .map(|x| x.min_signers)
+        .unwrap_or(n);
+
+    logger.info(format!(
+        "Starting KeyRefresh Protocol with params: i={i}, t={t}, n={n}"
+    ));
+
+    let job_id_bytes = job_id.to_be_bytes();
+    let mix = keccak_256(b"dnfs-cggmp21-keyrefresh");
+    let eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
+    let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
+
+    let (
+        key_refresh_tx_to_outbound,
+        key_refresh_rx_async_proto,
+        _broadcast_tx_to_outbound,
+        _broadcast_rx_from_gadget,
+    ) = gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io::<
+        _,
+        (),
+        Outgoing<aux_only::Msg<H, S>>,
+        Incoming<aux_only::Msg<H, S>>,
+    >(
+        protocol_message_channel,
+        associated_block_id,
+        associated_retry_id,
+        associated_session_id,
+        associated_task_id,
+        mapping.clone(),
+        role_id,
+        network.clone(),
+        logger.clone(),
+    );
+
+    let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
+    let delivery = (key_refresh_rx_async_proto, key_refresh_tx_to_outbound);
+    let party = round_based_21::MpcParty::connected(delivery);
+    let aux_info_builder =
+        AuxInfoGenerationBuilder::<S, H>::new_aux_gen(eid, i, n, pregenerated_primes);
+    let aux_info = aux_info_builder
+        .set_progress_tracer(&mut tracer)
+        .start(&mut rng, party)
+        .await
+        .map_err(|err| JobError {
+            reason: format!("KeyRefresh protocol error: {err:?}"),
+        })?;
+
+    let key = local_key_share
+        .update_aux(aux_info)
+        .map_err(|err| JobError {
+            reason: format!("KeyRefresh protocol error: {err:?}"),
+        })?;
+    let perf_report = tracer.get_report().map_err(|err| JobError {
+        reason: format!("KeyRefresh protocol error: {err:?}"),
+    })?;
+    logger.trace(format!("KeyRefresh protocol report: {perf_report}"));
+
+    logger.debug("Finished AsyncProtocol - KeyRefresh");
+    let serialized_local_key = bincode2::serialize(&key).map_err(|err| JobError {
+        reason: format!("KeyRefresh protocol error: {err:?}"),
+    })?;
+    Ok(serialized_local_key)
 }

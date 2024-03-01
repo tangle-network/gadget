@@ -118,8 +118,7 @@ where
         let now: u64 = now_header.saturated_into();
         *self.clock.write() = Some(now);
         self.protocol.logger().info(format!(
-            "[{}] Processing finality notification at block number {now}",
-            self.protocol.name()
+            "Processing finality notification at block number {now}",
         ));
 
         let jobs = self
@@ -129,8 +128,7 @@ where
             .await?;
 
         self.protocol.logger().trace(format!(
-            "[{}] Found {} potential job(s) for initialization",
-            self.protocol.name(),
+            "Found {} potential job(s) for initialization",
             jobs.len()
         ));
         let mut relevant_jobs = Vec::new();
@@ -146,12 +144,12 @@ where
             }
             // Job is not for this role
             if !self.protocol.role_filter(job.job_type.get_role_type()) {
-                self.protocol.logger().trace(format!("[{}] The job {} requested for initialization is not for this role {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type.get_role_type()));
+                // self.protocol.logger().trace(format!("[{}] The job {} requested for initialization is not for this role {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type.get_role_type()));
                 continue;
             }
             // Job is not for this phase
             if !self.protocol.phase_filter(job.job_type.clone()) {
-                self.protocol.logger().trace(format!("[{}] The job {} requested for initialization is not for this phase {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type));
+                // self.protocol.logger().trace(format!("[{}] The job {} requested for initialization is not for this phase {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type));
                 continue;
             }
 
@@ -208,6 +206,10 @@ where
                         .await?;
                     if let Some(role_key) = maybe_role_key {
                         out.push(role_key);
+                    } else {
+                        self.protocol.logger().warn(format!(
+                            "Participant {p} not found in the restaker registry",
+                        ));
                     }
                 }
                 out
@@ -229,8 +231,7 @@ where
             let task_id = relevant_job.task_id;
             let retry_id = relevant_job.retry_id;
             self.protocol.logger().trace(format!(
-                "[{}] Creating job for task {task_id} with retry id {retry_id}",
-                self.protocol.name(),
+                "Creating job for task {task_id} with retry id {retry_id}",
                 task_id = hex::encode(task_id),
                 retry_id = retry_id
             ));
@@ -271,7 +272,7 @@ where
                 }
 
                 Err(Error::ParticipantNotSelected { id, reason }) => {
-                    self.protocol.logger().debug(format!("[{}] Participant {id} not selected for job {task_id} with retry id {retry_id} because {reason}", self.protocol.name(), id = id, task_id = hex::encode(task_id), retry_id = retry_id, reason = reason));
+                    self.protocol.logger().debug(format!("Participant {id} not selected for job {task_id} with retry id {retry_id} because {reason}", id = id, task_id = hex::encode(task_id), retry_id = retry_id, reason = reason));
                 }
 
                 Err(err) => {
@@ -361,7 +362,7 @@ where
     /// ## Example
     ///
     /// ```rust,ignore
-    /// fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    /// fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
     ///   matches!(job, JobType::DKGTSSPhaseOne(_))
     /// }
     /// ```

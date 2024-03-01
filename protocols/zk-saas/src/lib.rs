@@ -1,10 +1,6 @@
 use crate::network::ZkNetworkService;
 use crate::protocol::ZkJobAdditionalParams;
 use async_trait::async_trait;
-use gadget_common::client::{
-    AccountId, ClientWithApi, JobsApiForGadget, JobsClient, PalletSubmitter,
-};
-use gadget_common::debug_logger::DebugLogger;
 use gadget_common::full_protocol::SharedOptional;
 use gadget_common::prelude::*;
 use gadget_common::{generate_protocol, Error};

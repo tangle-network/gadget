@@ -4,7 +4,7 @@ mod tests {
     use futures::StreamExt;
     use tangle_primitives::jobs::{
         DKGTSSPhaseFourJobType, DKGTSSPhaseOneJobType, DKGTSSPhaseThreeJobType,
-        DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
+        DKGTSSPhaseTwoJobType, FallbackOptions, JobId, JobSubmission, JobType,
     };
     use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
     use tangle_primitives::AccountId;
@@ -72,6 +72,7 @@ mod tests {
                     .collect::<Vec<_>>();
 
                 let submission = JobSubmission {
+                    fallback: FallbackOptions::Destroy,
                     expiry: 100,
                     ttl: 100,
                     job_type: JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
@@ -114,6 +115,7 @@ mod tests {
                     .map(AccountId::from)
                     .collect::<Vec<_>>();
                 let submission = JobSubmission {
+                    fallback: FallbackOptions::Destroy,
                     expiry: 100,
                     ttl: 100,
                     job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
@@ -154,6 +156,7 @@ mod tests {
                     .map(AccountId::from)
                     .collect::<Vec<_>>();
                 let submission = JobSubmission {
+                    fallback: FallbackOptions::Destroy,
                     expiry: 100,
                     ttl: 100,
                     job_type: JobType::DKGTSSPhaseThree(DKGTSSPhaseThreeJobType {
@@ -194,6 +197,7 @@ mod tests {
                     .map(AccountId::from)
                     .collect::<Vec<_>>();
                 let submission = JobSubmission {
+                    fallback: FallbackOptions::Destroy,
                     expiry: 100,
                     ttl: 100,
                     job_type: JobType::DKGTSSPhaseFour(DKGTSSPhaseFourJobType {
