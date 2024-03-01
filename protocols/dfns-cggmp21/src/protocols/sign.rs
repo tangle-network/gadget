@@ -195,7 +195,6 @@ where
 
     Ok(JobBuilder::new()
         .protocol(async move {
-            let mut rng = rand::rngs::StdRng::from_entropy();
             logger.info(format!(
                 "Starting Signing Protocol with params: i={i}, t={t}"
             ));
@@ -205,22 +204,12 @@ where
             let eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
             let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
 
-            let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
             let data_hash = keccak_256(&input_data_to_sign);
 
             let signature = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-                    let data_to_sign = DataToSign::from_scalar(dfns_cggmp21::generic_ec::Scalar::<
-                        Secp256k1,
-                    >::from_be_bytes_mod_order(
-                        data_hash
-                    ));
-                    let (_, _, party) = create_party::<
-                        Secp256k1,
-                        _,
-                        DefaultSecurityLevel,
-                        Msg<Secp256k1, DefaultCryptoHasher>,
-                    >(
+                    run_signing::<Secp256k1, DefaultSecurityLevel, DefaultCryptoHasher, _>(
+                        data_hash,
                         protocol_message_channel,
                         associated_block_id,
                         associated_retry_id,
@@ -229,33 +218,17 @@ where
                         mapping.clone(),
                         my_role_id,
                         network.clone(),
-                        logger.clone(),
-                    );
-                    run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,
-                        &mut tracer,
                         eid,
                         i,
                         signers,
-                        data_to_sign,
                         serialized_key_share,
-                        party,
-                        &mut rng,
                     )
                     .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-                    let data_to_sign = DataToSign::from_scalar(dfns_cggmp21::generic_ec::Scalar::<
-                        Secp256r1,
-                    >::from_be_bytes_mod_order(
-                        data_hash
-                    ));
-                    let (_, _, party) = create_party::<
-                        Secp256r1,
-                        _,
-                        DefaultSecurityLevel,
-                        Msg<Secp256r1, DefaultCryptoHasher>,
-                    >(
+                    run_signing::<Secp256r1, DefaultSecurityLevel, DefaultCryptoHasher, _>(
+                        data_hash,
                         protocol_message_channel,
                         associated_block_id,
                         associated_retry_id,
@@ -264,33 +237,17 @@ where
                         mapping.clone(),
                         my_role_id,
                         network.clone(),
-                        logger.clone(),
-                    );
-                    run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,
-                        &mut tracer,
                         eid,
                         i,
                         signers,
-                        data_to_sign,
                         serialized_key_share,
-                        party,
-                        &mut rng,
                     )
                     .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-                    let data_to_sign = DataToSign::from_scalar(dfns_cggmp21::generic_ec::Scalar::<
-                        Stark,
-                    >::from_be_bytes_mod_order(
-                        data_hash
-                    ));
-                    let (_, _, party) = create_party::<
-                        Stark,
-                        _,
-                        DefaultSecurityLevel,
-                        Msg<Stark, DefaultCryptoHasher>,
-                    >(
+                    run_signing::<Stark, DefaultSecurityLevel, DefaultCryptoHasher, _>(
+                        data_hash,
                         protocol_message_channel,
                         associated_block_id,
                         associated_retry_id,
@@ -299,18 +256,11 @@ where
                         mapping.clone(),
                         my_role_id,
                         network.clone(),
-                        logger.clone(),
-                    );
-                    run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,
-                        &mut tracer,
                         eid,
                         i,
                         signers,
-                        data_to_sign,
                         serialized_key_share,
-                        party,
-                        &mut rng,
                     )
                     .await?
                 }
@@ -434,4 +384,62 @@ pub fn convert_dfns_signature(
     }
     signature_bytes[64] = v + 27;
     signature_bytes
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn run_signing<
+    'a,
+    E: Curve,
+    S: SecurityLevel,
+    H: Digest<OutputSize = U32> + Clone + Send + 'static,
+    N: Network,
+>(
+    data_to_sign: [u8; 32],
+    protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
+    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+    mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+    my_role_id: ecdsa::Public,
+    network: N,
+    logger: &DebugLogger,
+    eid: dfns_cggmp21::ExecutionId<'a>,
+    i: u16,
+    signers: Vec<u16>,
+    serialized_key_share: Vec<u8>,
+) -> Result<Vec<u8>, JobError>
+where
+    Point<E>: HasAffineX<E>,
+{
+    let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
+    let mut rng = rand::rngs::StdRng::from_entropy();
+
+    let data_to_sign = DataToSign::<E>::from_scalar(
+        dfns_cggmp21::generic_ec::Scalar::<E>::from_be_bytes_mod_order(data_to_sign),
+    );
+
+    let (_, _, party) = create_party::<E, _, S, Msg<E, H>>(
+        protocol_message_channel,
+        associated_block_id,
+        associated_retry_id,
+        associated_session_id,
+        associated_task_id,
+        mapping.clone(),
+        my_role_id,
+        network.clone(),
+        logger.clone(),
+    );
+    run_and_serialize_signing::<E, S, _, _, H>(
+        logger,
+        &mut tracer,
+        eid,
+        i,
+        signers,
+        data_to_sign,
+        serialized_key_share,
+        party,
+        &mut rng,
+    )
+    .await
 }

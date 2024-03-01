@@ -1,5 +1,3 @@
-use crate::protocols::sign::run_and_serialize_signing;
-use dfns_cggmp21::signing::msg::Msg;
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 
 use gadget_common::client::{ClientWithApi, JobsApiForGadget};
@@ -27,8 +25,6 @@ use tangle_primitives::jobs::{
 use tangle_primitives::roles::RoleType;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use super::keygen::create_party;
-
 pub async fn create_next_job<
     B: Block,
     BE: Backend<B> + 'static,
@@ -39,7 +35,7 @@ pub async fn create_next_job<
     config: &crate::DfnsKeyRotateProtocol<B, BE, C, N, KBE>,
     job: JobInitMetadata<B>,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<DfnsCGGMP21KeyRotateExtraParams, gadget_common::Error>
+) -> Result<DfnsCGGMP21KeyRotateExtraParams, Error>
 where
     <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
 {
@@ -186,8 +182,6 @@ where
     let data_to_sign_bytes = data_hash.to_vec();
     Ok(JobBuilder::new()
         .protocol(async move {
-            let mut rng = rand::rngs::StdRng::from_entropy();
-
             logger.info(format!(
                 "Starting Key Rotation Protocol with params: i={i}, t={t}"
             ));
@@ -196,122 +190,72 @@ where
             let mix = keccak_256(b"dnfs-cggmp21-key-rotate");
             let eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
             let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
-            let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
+
             let signature = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-                    let data_to_sign = dfns_cggmp21::DataToSign::<Secp256k1>::from_scalar(
-                        dfns_cggmp21::generic_ec::Scalar::<Secp256k1>::from_be_bytes_mod_order(
-                            data_hash,
-                        ),
-                    );
-                    let (_, _, party) = create_party::<
+                    super::sign::run_signing::<
                         Secp256k1,
-                        _,
                         DefaultSecurityLevel,
-                        Msg<Secp256k1, DefaultCryptoHasher>,
+                        DefaultCryptoHasher,
+                        _,
                     >(
+                        data_hash,
                         protocol_message_channel,
                         associated_block_id,
                         associated_retry_id,
                         associated_session_id,
                         associated_task_id,
-                        mapping.clone(),
+                        mapping,
                         role_id,
-                        network.clone(),
-                        logger.clone(),
-                    );
-                    run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
+                        network,
                         &logger,
-                        &mut tracer,
                         eid,
                         i,
                         signers,
-                        data_to_sign,
                         serialized_key_share,
-                        party,
-                        &mut rng,
                     )
                     .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-                    let data_to_sign = dfns_cggmp21::DataToSign::<Secp256r1>::from_scalar(
-                        dfns_cggmp21::generic_ec::Scalar::<Secp256r1>::from_be_bytes_mod_order(
-                            data_hash,
-                        ),
-                    );
-                    let (_, _, party) = create_party::<
+                    super::sign::run_signing::<
                         Secp256r1,
-                        _,
                         DefaultSecurityLevel,
-                        Msg<Secp256r1, DefaultCryptoHasher>,
+                        DefaultCryptoHasher,
+                        _,
                     >(
+                        data_hash,
                         protocol_message_channel,
                         associated_block_id,
                         associated_retry_id,
                         associated_session_id,
                         associated_task_id,
-                        mapping.clone(),
+                        mapping,
                         role_id,
-                        network.clone(),
-                        logger.clone(),
-                    );
-                    run_and_serialize_signing::<
-                        Secp256r1,
-                        DefaultSecurityLevel,
-                        _,
-                        _,
-                        DefaultCryptoHasher,
-                    >(
+                        network,
                         &logger,
-                        &mut tracer,
                         eid,
                         i,
                         signers,
-                        data_to_sign,
                         serialized_key_share,
-                        party,
-                        &mut rng,
                     )
                     .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-                    let data_to_sign = dfns_cggmp21::DataToSign::<Stark>::from_scalar(
-                        dfns_cggmp21::generic_ec::Scalar::<Stark>::from_be_bytes_mod_order(
-                            data_hash,
-                        ),
-                    );
-                    let (_, _, party) = create_party::<
-                        Stark,
-                        _,
-                        DefaultSecurityLevel,
-                        Msg<Stark, DefaultCryptoHasher>,
-                    >(
+                    super::sign::run_signing::<Stark, DefaultSecurityLevel, DefaultCryptoHasher, _>(
+                        data_hash,
                         protocol_message_channel,
                         associated_block_id,
                         associated_retry_id,
                         associated_session_id,
                         associated_task_id,
-                        mapping.clone(),
+                        mapping,
                         role_id,
-                        network.clone(),
-                        logger.clone(),
-                    );
-                    run_and_serialize_signing::<
-                        Stark,
-                        DefaultSecurityLevel,
-                        _,
-                        _,
-                        DefaultCryptoHasher,
-                    >(
+                        network,
                         &logger,
-                        &mut tracer,
                         eid,
                         i,
                         signers,
-                        data_to_sign,
                         serialized_key_share,
-                        party,
-                        &mut rng,
                     )
                     .await?
                 }
@@ -321,6 +265,7 @@ where
                     });
                 }
             };
+
             logger.debug("Finished AsyncProtocol - Key Rotation");
             *protocol_output.lock().await = Some(signature);
             Ok(())
