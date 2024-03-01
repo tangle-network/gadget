@@ -38,7 +38,7 @@ pub fn choose_signers<R: rand::Rng>(
 
     let i = selected_participants_indices
         .iter()
-        .position(|p| p == &j)
+        .position(|p| *p == j)
         .map(|i| i as u16)
         .ok_or_else(|| gadget_common::Error::ParticipantNotSelected {
             id: *my_account_id,

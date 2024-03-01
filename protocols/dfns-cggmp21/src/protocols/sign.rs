@@ -140,6 +140,8 @@ where
             reason: format!("Signing protocol error: {err:?}"),
         })?;
 
+    logger.info("Done signing");
+
     let perf_report = tracer.get_report().map_err(|err| JobError {
         reason: format!("Signing protocol error: {err:?}"),
     })?;
