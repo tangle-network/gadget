@@ -58,4 +58,29 @@ generate_setup_and_run_command!(
     DfnsKeyRotateProtocol
 );
 
-generate_signing_and_keygen_tss_tests!(2, 3, 4, ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1);
+mod secp256k1 {
+    super::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        4,
+        ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1
+    );
+}
+
+mod secp256r1 {
+    super::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        4,
+        ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1
+    );
+}
+
+mod stark {
+    super::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        4,
+        ThresholdSignatureRoleType::DfnsCGGMP21Stark
+    );
+}

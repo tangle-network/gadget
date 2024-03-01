@@ -302,6 +302,9 @@ macro_rules! generate_protocol {
                 key_store: ECDSAKeyStore<Self::KeystoreBackend>,
                 prometheus_config: $crate::prometheus::PrometheusConfig,
             ) -> Result<Self, Error> {
+                let logger = DebugLogger {
+                    peer_id: (logger.peer_id + " | " + stringify!($name)).replace("\"", "")
+                };
                 Ok(Self {
                     pallet_tx,
                     logger,
