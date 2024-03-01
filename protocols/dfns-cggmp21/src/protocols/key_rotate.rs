@@ -64,6 +64,9 @@ where
         "We are selected to sign: i={i}, signers={signers:?} | signers len: {}",
         signers.len()
     ));
+    config
+        .logger
+        .info(format!("Mapping for network: {mapping:?}"));
 
     let new_key = config
         .key_store
@@ -215,6 +218,7 @@ where
                         mapping.clone(),
                         role_id,
                         network.clone(),
+                        logger.clone(),
                     );
                     run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,
@@ -249,6 +253,7 @@ where
                         mapping.clone(),
                         role_id,
                         network.clone(),
+                        logger.clone(),
                     );
                     run_and_serialize_signing::<
                         Secp256r1,
@@ -289,6 +294,7 @@ where
                         mapping.clone(),
                         role_id,
                         network.clone(),
+                        logger.clone(),
                     );
                     run_and_serialize_signing::<
                         Stark,

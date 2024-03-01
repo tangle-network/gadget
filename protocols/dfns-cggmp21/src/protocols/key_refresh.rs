@@ -303,6 +303,7 @@ async fn handle_key_refresh<
         mapping.clone(),
         role_id,
         network.clone(),
+        logger.clone(),
     );
 
     let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();

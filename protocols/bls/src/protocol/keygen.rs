@@ -118,6 +118,7 @@ where
                     user_id_to_account_id.clone(),
                     id,
                     network.clone(),
+                    logger.clone(),
                 );
 
             let me = round_based::AsyncProtocol::new(state_machine, rx0, tx0)

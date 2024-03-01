@@ -207,12 +207,14 @@ where
 
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
             let data_hash = keccak_256(&input_data_to_sign);
-            let data_to_sign = DataToSign::from_scalar(
-                dfns_cggmp21::generic_ec::Scalar::from_be_bytes_mod_order(data_hash),
-            );
 
             let signature = match role_type {
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
+                    let data_to_sign = DataToSign::from_scalar(dfns_cggmp21::generic_ec::Scalar::<
+                        Secp256k1,
+                    >::from_be_bytes_mod_order(
+                        data_hash
+                    ));
                     let (_, _, party) = create_party::<
                         Secp256k1,
                         _,
@@ -227,6 +229,7 @@ where
                         mapping.clone(),
                         my_role_id,
                         network.clone(),
+                        logger.clone(),
                     );
                     run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,
@@ -242,11 +245,16 @@ where
                     .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
+                    let data_to_sign = DataToSign::from_scalar(dfns_cggmp21::generic_ec::Scalar::<
+                        Secp256r1,
+                    >::from_be_bytes_mod_order(
+                        data_hash
+                    ));
                     let (_, _, party) = create_party::<
                         Secp256r1,
                         _,
                         DefaultSecurityLevel,
-                        Msg<Secp256k1, DefaultCryptoHasher>,
+                        Msg<Secp256r1, DefaultCryptoHasher>,
                     >(
                         protocol_message_channel,
                         associated_block_id,
@@ -256,6 +264,7 @@ where
                         mapping.clone(),
                         my_role_id,
                         network.clone(),
+                        logger.clone(),
                     );
                     run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,
@@ -271,11 +280,16 @@ where
                     .await?
                 }
                 RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+                    let data_to_sign = DataToSign::from_scalar(dfns_cggmp21::generic_ec::Scalar::<
+                        Stark,
+                    >::from_be_bytes_mod_order(
+                        data_hash
+                    ));
                     let (_, _, party) = create_party::<
                         Stark,
                         _,
                         DefaultSecurityLevel,
-                        Msg<Secp256k1, DefaultCryptoHasher>,
+                        Msg<Stark, DefaultCryptoHasher>,
                     >(
                         protocol_message_channel,
                         associated_block_id,
@@ -285,6 +299,7 @@ where
                         mapping.clone(),
                         my_role_id,
                         network.clone(),
+                        logger.clone(),
                     );
                     run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
                         &logger,

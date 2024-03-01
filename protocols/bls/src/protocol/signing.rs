@@ -139,6 +139,7 @@ where
                     additional_params.user_id_to_account_id_mapping.clone(),
                     id,
                     network,
+                    logger.clone(),
                 );
 
             // Step 1: Generate shares

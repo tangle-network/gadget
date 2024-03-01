@@ -223,6 +223,7 @@ pub fn create_party<E: Curve, N: Network, L: SecurityLevel, M>(
     mapping: Arc<HashMap<UserID, ecdsa::Public>>,
     id: ecdsa::Public,
     network: N,
+    logger: DebugLogger,
 ) -> CreatePartyResult<M>
 where
     N: Network,
@@ -245,6 +246,7 @@ where
             mapping,
             id,
             network,
+            logger,
         );
     let delivery = (rx_async_proto, tx_to_outbound);
     (
@@ -689,6 +691,7 @@ async fn run_full_keygen_protocol<
             mapping,
             my_role_id,
             network,
+            logger.clone(),
         );
     let delivery = (rx0, tx0);
     let party = MpcParty::<Msg<E, S, H>, _, _>::connected(delivery);
