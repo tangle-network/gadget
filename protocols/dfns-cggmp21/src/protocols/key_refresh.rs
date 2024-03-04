@@ -7,20 +7,17 @@ use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 use dfns_cggmp21::{KeyShare, PregeneratedPrimes};
 use digest::typenum::U32;
 use digest::Digest;
-use gadget_common::client::{ClientWithApi, JobsApiForGadget};
+use gadget_common::client::ClientWithApi;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::{DebugLogger, FullProtocolConfig};
-use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
 use round_based_21::{Incoming, Outgoing};
-use sc_client_api::Backend;
-use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
 use sp_core::{ecdsa, Pair};
 use std::collections::HashMap;
@@ -31,20 +28,11 @@ use tangle_primitives::jobs::{
 use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
-pub(crate) async fn create_next_job<
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    KBE: KeystoreBackend,
-    N: Network,
->(
-    config: &crate::DfnsKeyRefreshProtocol<B, BE, C, N, KBE>,
-    job: JobInitMetadata<B>,
+pub(crate) async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>(
+    config: &crate::DfnsKeyRefreshProtocol<C, N, KBE>,
+    job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<DfnsCGGMP21KeyRefreshExtraParams, gadget_common::Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<DfnsCGGMP21KeyRefreshExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
     let role_type = job.job_type.get_role_type();
 
@@ -109,24 +97,15 @@ pub struct DfnsCGGMP21KeyRefreshExtraParams {
     user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
-pub async fn generate_protocol_from<
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    KBE: KeystoreBackend,
-    N: Network,
->(
-    config: &crate::DfnsKeyRefreshProtocol<B, BE, C, N, KBE>,
+pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: Network>(
+    config: &crate::DfnsKeyRefreshProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
     additional_params: DfnsCGGMP21KeyRefreshExtraParams,
-) -> Result<BuiltExecutableJobWrapper, JobError>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<BuiltExecutableJobWrapper, JobError> {
     let key_store = config.key_store.clone();
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();

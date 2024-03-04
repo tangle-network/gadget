@@ -2,7 +2,7 @@ use crate::protocols::sign::run_and_serialize_signing;
 use dfns_cggmp21::signing::msg::Msg;
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 
-use gadget_common::client::{ClientWithApi, JobsApiForGadget};
+use gadget_common::client::ClientWithApi;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
@@ -10,14 +10,11 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::FullProtocolConfig;
 use gadget_common::prelude::*;
-use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
 
 use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
-use sc_client_api::Backend;
-use sp_api::ProvideRuntimeApi;
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -29,20 +26,11 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::keygen::create_party;
 
-pub async fn create_next_job<
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    KBE: KeystoreBackend,
-    N: Network,
->(
-    config: &crate::DfnsKeyRotateProtocol<B, BE, C, N, KBE>,
-    job: JobInitMetadata<B>,
+pub async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>(
+    config: &crate::DfnsKeyRotateProtocol<C, N, KBE>,
+    job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<DfnsCGGMP21KeyRotateExtraParams, gadget_common::Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<DfnsCGGMP21KeyRotateExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
 
     let JobType::DKGTSSPhaseFour(p4_job) = job.job_type else {
@@ -126,24 +114,15 @@ pub struct DfnsCGGMP21KeyRotateExtraParams {
     user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
-pub async fn generate_protocol_from<
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    KBE: KeystoreBackend,
-    N: Network,
->(
-    config: &crate::DfnsKeyRotateProtocol<B, BE, C, N, KBE>,
+pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: Network>(
+    config: &crate::DfnsKeyRotateProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
     additional_params: DfnsCGGMP21KeyRotateExtraParams,
-) -> Result<BuiltExecutableJobWrapper, JobError>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<BuiltExecutableJobWrapper, JobError> {
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
@@ -198,7 +177,9 @@ where
             let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
             let signature = match role_type {
-                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
+                roles::RoleType::Tss(
+                    roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
+                ) => {
                     let data_to_sign = dfns_cggmp21::DataToSign::<Secp256k1>::from_scalar(
                         dfns_cggmp21::generic_ec::Scalar::<Secp256k1>::from_be_bytes_mod_order(
                             data_hash,
@@ -233,7 +214,9 @@ where
                     )
                     .await?
                 }
-                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
+                roles::RoleType::Tss(
+                    roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1,
+                ) => {
                     let data_to_sign = dfns_cggmp21::DataToSign::<Secp256r1>::from_scalar(
                         dfns_cggmp21::generic_ec::Scalar::<Secp256r1>::from_be_bytes_mod_order(
                             data_hash,
@@ -274,7 +257,7 @@ where
                     )
                     .await?
                 }
-                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+                roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
                     let data_to_sign = dfns_cggmp21::DataToSign::<Stark>::from_scalar(
                         dfns_cggmp21::generic_ec::Scalar::<Stark>::from_be_bytes_mod_order(
                             data_hash,

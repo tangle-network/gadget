@@ -5,9 +5,6 @@ pub use crate::gadget::network::Network;
 pub use crate::gadget::GadgetProtocol;
 pub use crate::prometheus::PrometheusConfig;
 use async_trait::async_trait;
-pub use sc_client_api::Backend;
-pub use sp_api::ProvideRuntimeApi;
-pub use sp_runtime::traits::Block;
 use std::sync::Arc;
 
 #[async_trait]

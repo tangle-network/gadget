@@ -12,9 +12,7 @@ use digest::typenum::U32;
 use digest::Digest;
 use futures::channel::mpsc::{TryRecvError, UnboundedSender};
 use futures::StreamExt;
-use gadget_common::client::{
-    ClientWithApi, GadgetJobResult, JobsApiForGadget, MaxKeyLen, MaxParticipants, MaxSignatureLen,
-};
+use gadget_common::client::ClientWithApi;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::full_protocol::FullProtocolConfig;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -22,7 +20,7 @@ use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
-use gadget_common::Block;
+use gadget_common::prelude::*;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
@@ -31,9 +29,7 @@ use pallet_dkg::signatures_schemes::to_slice_33;
 use rand::rngs::{OsRng, StdRng};
 use rand::{CryptoRng, RngCore, SeedableRng};
 use round_based_21::{Delivery, Incoming, MpcParty, Outgoing};
-use sc_client_api::Backend;
 use serde::Serialize;
-use sp_api::ProvideRuntimeApi;
 use sp_application_crypto::sp_core::keccak_256;
 use sp_core::{ecdsa, Pair};
 use sp_runtime::DeserializeOwned;
@@ -48,20 +44,11 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
 use gadget_common::channels::PublicKeyGossipMessage;
 
-pub async fn create_next_job<
-    B: Block,
-    BE: Backend<B> + 'static,
-    KBE: KeystoreBackend,
-    C: ClientWithApi<B, BE>,
-    N: Network,
->(
-    config: &crate::DfnsKeygenProtocol<B, BE, C, N, KBE>,
-    job: JobInitMetadata<B>,
+pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
+    config: &crate::DfnsKeygenProtocol<C, N, KBE>,
+    job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<DfnsCGGMP21KeygenExtraParams, gadget_common::Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<DfnsCGGMP21KeygenExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
     let role_type = job.job_type.get_role_type();
 
@@ -256,24 +243,15 @@ where
     )
 }
 
-pub async fn generate_protocol_from<
-    B: Block,
-    BE: Backend<B> + 'static,
-    KBE: KeystoreBackend,
-    C: ClientWithApi<B, BE>,
-    N: Network,
->(
-    config: &crate::DfnsKeygenProtocol<B, BE, C, N, KBE>,
+pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
+    config: &crate::DfnsKeygenProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
     additional_params: DfnsCGGMP21KeygenExtraParams,
-) -> Result<BuiltExecutableJobWrapper, JobError>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<BuiltExecutableJobWrapper, JobError> {
     let key_store = config.key_store.clone();
     let key_store2 = config.key_store.clone();
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
@@ -457,7 +435,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     i: u16,
     broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
-) -> Result<GadgetJobResult, JobError> {
+) -> Result<jobs::JobResult, JobError> {
     let key_hashed = keccak_256(serialized_public_key);
     let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
     let my_id = key_store.pair().public();
@@ -556,7 +534,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
 }
 
 fn verify_generated_dkg_key_ecdsa(
-    data: DKGTSSKeySubmissionResult<MaxKeyLen, MaxParticipants, MaxSignatureLen>,
+    data: DKGTSSKeySubmissionResult<jobs::MaxKeyLen, jobs::MaxParticipants, jobs::MaxSignatureLen>,
     logger: &DebugLogger,
 ) {
     // Ensure participants and signatures are not empty

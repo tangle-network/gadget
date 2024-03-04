@@ -27,7 +27,7 @@ mod tests {
     use tangle_primitives::roles::{RoleType, ZeroKnowledgeRoleType};
     use tangle_primitives::verifier::from_field_elements;
     use tangle_primitives::AccountId;
-    use test_utils::mock::{id_to_public, id_to_sr25519_public, Jobs, MockBackend, RuntimeOrigin};
+    use test_utils::mock::{id_to_public, id_to_sr25519_public, Jobs, RuntimeOrigin};
     use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use zk_saas_protocol::network::ZkProtocolNetworkConfig;
 
@@ -199,7 +199,7 @@ mod tests {
             let key_store = node_info.keystore;
 
             let network_cfg = ZkProtocolNetworkConfig {
-                account_id: node_info.account_id.clone(),
+                account_id: node_info.account_id,
                 king_bind_addr,
                 client_only_king_addr,
                 client_only_king_public_identity_der,
@@ -217,7 +217,7 @@ mod tests {
             let prometheus_config = node_info.prometheus_config.clone();
             log::info!(target: "gadget", "Started node {}", node_info.node_index);
             // ZkSaaS only requires 1 client and 1 network, no need to use the NodeInput's vectors
-            if let Err(err) = zk_saas_protocol::run::<_, MockBackend, _, _, _>(
+            if let Err(err) = zk_saas_protocol::run(
                 vec![client],
                 pallet_tx,
                 vec![network],

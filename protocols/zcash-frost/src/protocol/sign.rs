@@ -6,21 +6,20 @@ use frost_p256::P256Sha256;
 use frost_p384::P384Sha384;
 use frost_ristretto255::Ristretto255Sha512;
 use frost_secp256k1::Secp256K1Sha256;
-use gadget_common::client::JobsApiForGadget;
-use gadget_common::client::{ClientWithApi, GadgetJobResult};
-use gadget_common::config::{Network, ProvideRuntimeApi};
+use gadget_common::client::ClientWithApi;
+use gadget_common::config::Network;
 
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
+use gadget_common::prelude::*;
 
-use gadget_common::{channels, Block};
+use gadget_common::channels;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
 use round_based_21::{Incoming, MpcParty, Outgoing};
-use sc_client_api::Backend;
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -44,20 +43,11 @@ pub struct ZcashFrostSigningExtraParams {
     pub user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
-pub async fn create_next_job<
-    B: Block,
-    BE: Backend<B>,
-    C: ClientWithApi<B, BE>,
-    N: Network,
-    KBE: KeystoreBackend,
->(
-    config: &crate::ZcashFrostSigningProtocol<B, BE, C, N, KBE>,
-    job: JobInitMetadata<B>,
+pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>(
+    config: &crate::ZcashFrostSigningProtocol<C, N, KBE>,
+    job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<ZcashFrostSigningExtraParams, gadget_common::Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<ZcashFrostSigningExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
 
     let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
@@ -134,24 +124,15 @@ macro_rules! deserialize_and_run_threshold_sign {
     }};
 }
 
-pub async fn generate_protocol_from<
-    B: Block,
-    BE: Backend<B>,
-    C: ClientWithApi<B, BE>,
-    N: Network,
-    KBE: KeystoreBackend,
->(
-    config: &crate::ZcashFrostSigningProtocol<B, BE, C, N, KBE>,
+pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreBackend>(
+    config: &crate::ZcashFrostSigningProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
     additional_params: ZcashFrostSigningExtraParams,
-) -> Result<BuiltExecutableJobWrapper, JobError>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<BuiltExecutableJobWrapper, JobError> {
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
@@ -365,7 +346,7 @@ where
                     }
                 };
 
-                let job_result = GadgetJobResult::DKGPhaseTwo(DKGTSSSignatureResult {
+                let job_result = jobs::JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
                     signature_scheme,
                     data: additional_params.input_data_to_sign.try_into().unwrap(),
                     signature,

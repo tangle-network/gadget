@@ -4,27 +4,22 @@ use dfns_cggmp21::round_based::{Delivery, MpcParty};
 use dfns_cggmp21::security_level::SecurityLevel;
 use dfns_cggmp21::signing::msg::Msg;
 
+use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
+use dfns_cggmp21::signing::SigningBuilder;
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 use dfns_cggmp21::{DataToSign, KeyShare};
-use gadget_common::client::{ClientWithApi, JobsApiForGadget};
+use digest::typenum::U32;
+use digest::Digest;
+use gadget_common::client::ClientWithApi;
 use gadget_common::config::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::{FullProtocolConfig, Network};
-use gadget_common::Block;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::{CryptoRng, RngCore, SeedableRng};
-
-use sc_client_api::Backend;
-
-use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
-use dfns_cggmp21::signing::SigningBuilder;
-use digest::typenum::U32;
-use digest::Digest;
-use sp_api::ProvideRuntimeApi;
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -36,20 +31,11 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::keygen::create_party;
 
-pub async fn create_next_job<
-    B: Block,
-    BE: Backend<B> + 'static,
-    KBE: KeystoreBackend,
-    C: ClientWithApi<B, BE>,
-    N: Network,
->(
-    config: &crate::DfnsSigningProtocol<B, BE, C, N, KBE>,
-    job: JobInitMetadata<B>,
+pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
+    config: &crate::DfnsSigningProtocol<C, N, KBE>,
+    job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<DfnsCGGMP21SigningExtraParams, gadget_common::Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<DfnsCGGMP21SigningExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
 
     let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
@@ -152,24 +138,15 @@ where
     Ok(ret.to_vec())
 }
 
-pub async fn generate_protocol_from<
-    B: Block,
-    BE: Backend<B> + 'static,
-    KBE: KeystoreBackend,
-    C: ClientWithApi<B, BE>,
-    N: Network,
->(
-    config: &crate::DfnsSigningProtocol<B, BE, C, N, KBE>,
+pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
+    config: &crate::DfnsSigningProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
     additional_params: DfnsCGGMP21SigningExtraParams,
-) -> Result<BuiltExecutableJobWrapper, JobError>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<BuiltExecutableJobWrapper, JobError> {
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
