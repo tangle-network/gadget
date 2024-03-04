@@ -7,12 +7,10 @@ use gadget_common::full_protocol::SharedOptional;
 use gadget_common::prelude::*;
 use gadget_common::{generate_protocol, generate_setup_and_run_command};
 use protocol_macros::protocol;
-use test_utils::generate_signing_and_keygen_tss_tests;
 
 pub mod constants;
 pub mod error;
 pub mod protocols;
-pub mod util;
 
 generate_protocol!(
     "DFNS-Keygen-Protocol",
@@ -58,8 +56,9 @@ generate_setup_and_run_command!(
     DfnsKeyRotateProtocol
 );
 
+#[cfg(test)]
 mod secp256k1 {
-    super::generate_signing_and_keygen_tss_tests!(
+    test_utils::generate_signing_and_keygen_tss_tests!(
         2,
         3,
         4,
@@ -67,8 +66,9 @@ mod secp256k1 {
     );
 }
 
+#[cfg(test)]
 mod secp256r1 {
-    super::generate_signing_and_keygen_tss_tests!(
+    test_utils::generate_signing_and_keygen_tss_tests!(
         2,
         3,
         4,
@@ -76,8 +76,9 @@ mod secp256r1 {
     );
 }
 
+#[cfg(test)]
 mod stark {
-    super::generate_signing_and_keygen_tss_tests!(
+    test_utils::generate_signing_and_keygen_tss_tests!(
         2,
         3,
         4,

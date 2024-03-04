@@ -1,4 +1,3 @@
-use frame_support::BoundedVec;
 use frost_core::keys::{KeyPackage, PublicKeyPackage};
 use frost_ed25519::Ed25519Sha512;
 use frost_ed448::Ed448Shake256;
@@ -6,16 +5,15 @@ use frost_p256::P256Sha256;
 use frost_p384::P384Sha384;
 use frost_ristretto255::Ristretto255Sha512;
 use frost_secp256k1::Secp256K1Sha256;
+use gadget_common::channels;
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
-
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::*;
-
-use gadget_common::channels;
+use gadget_common::webb::substrate::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
@@ -23,8 +21,6 @@ use round_based_21::{Incoming, MpcParty, Outgoing};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobType};
-use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::rounds;
@@ -36,8 +32,8 @@ pub struct ZcashFrostSigningExtraParams {
     pub i: u16,
     pub t: u16,
     pub signers: Vec<u16>,
-    pub job_id: JobId,
-    pub role_type: RoleType,
+    pub job_id: u64,
+    pub role_type: roles::RoleType,
     pub keyshare: FrostKeyShare,
     pub input_data_to_sign: Vec<u8>,
     pub user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
@@ -50,10 +46,10 @@ pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>
 ) -> Result<ZcashFrostSigningExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
 
-    let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
+    let jobs::JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
         panic!("Should be valid type")
     };
-    let input_data_to_sign = p2_job.submission.into();
+    let input_data_to_sign = p2_job.submission.0;
     let previous_job_id = p2_job.phase_one_id;
 
     let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
@@ -146,13 +142,13 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
         additional_params.signers,
         additional_params.t,
         additional_params.keyshare,
-        additional_params.role_type,
+        additional_params.role_type.clone(),
         additional_params.input_data_to_sign.clone(),
         additional_params.user_id_to_account_id_mapping.clone(),
     );
 
     let role = match role_type {
-        RoleType::Tss(role) => role,
+        roles::RoleType::Tss(role) => role.clone(),
         _ => {
             return Err(JobError {
                 reason: "Invalid role type".to_string(),
@@ -193,7 +189,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
             let delivery = (signing_rx_async_proto, signing_tx_to_outbound);
             let party = MpcParty::connected(delivery);
             let signature = match role {
-                ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
+                roles::tss::ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
                     deserialize_and_run_threshold_sign!(
                         Secp256K1Sha256,
                         keyshare,
@@ -201,12 +197,12 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                         i,
                         signers,
                         &input_data_to_sign,
-                        role,
+                        role.clone(),
                         &mut rng,
                         party
                     )
                 }
-                ThresholdSignatureRoleType::ZcashFrostEd25519 => {
+                roles::tss::ThresholdSignatureRoleType::ZcashFrostEd25519 => {
                     deserialize_and_run_threshold_sign!(
                         Ed25519Sha512,
                         keyshare,
@@ -214,12 +210,12 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                         i,
                         signers,
                         &input_data_to_sign,
-                        role,
+                        role.clone(),
                         &mut rng,
                         party
                     )
                 }
-                ThresholdSignatureRoleType::ZcashFrostEd448 => {
+                roles::tss::ThresholdSignatureRoleType::ZcashFrostEd448 => {
                     deserialize_and_run_threshold_sign!(
                         Ed448Shake256,
                         keyshare,
@@ -227,12 +223,12 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                         i,
                         signers,
                         &input_data_to_sign,
-                        role,
+                        role.clone(),
                         &mut rng,
                         party
                     )
                 }
-                ThresholdSignatureRoleType::ZcashFrostP256 => {
+                roles::tss::ThresholdSignatureRoleType::ZcashFrostP256 => {
                     deserialize_and_run_threshold_sign!(
                         P256Sha256,
                         keyshare,
@@ -240,12 +236,12 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                         i,
                         signers,
                         &input_data_to_sign,
-                        role,
+                        role.clone(),
                         &mut rng,
                         party
                     )
                 }
-                ThresholdSignatureRoleType::ZcashFrostP384 => {
+                roles::tss::ThresholdSignatureRoleType::ZcashFrostP384 => {
                     deserialize_and_run_threshold_sign!(
                         P384Sha384,
                         keyshare,
@@ -253,12 +249,12 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                         i,
                         signers,
                         &input_data_to_sign,
-                        role,
+                        role.clone(),
                         &mut rng,
                         party
                     )
                 }
-                ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
+                roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
                     deserialize_and_run_threshold_sign!(
                         Ristretto255Sha512,
                         keyshare,
@@ -266,7 +262,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                         i,
                         signers,
                         &input_data_to_sign,
-                        role,
+                        role.clone(),
                         &mut rng,
                         party
                     )
@@ -291,52 +287,52 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 // Compute the signature bytes by first converting the signature
                 // to a fixed byte array and then converting that to a Vec<u8>.
                 let (signature, signature_scheme) = match role {
-                    ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
+                    roles::tss::ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
                         let mut signature_bytes = [0u8; 65];
                         signature_bytes.copy_from_slice(&signature.group_signature);
                         (
-                            signature_bytes.to_vec().try_into().unwrap(),
-                            DigitalSignatureScheme::SchnorrSecp256k1,
+                            signature_bytes.to_vec(),
+                            jobs::tss::DigitalSignatureScheme::SchnorrSecp256k1,
                         )
                     }
-                    ThresholdSignatureRoleType::ZcashFrostEd25519 => {
+                    roles::tss::ThresholdSignatureRoleType::ZcashFrostEd25519 => {
                         let mut signature_bytes = [0u8; 64];
                         signature_bytes.copy_from_slice(&signature.group_signature);
                         (
-                            signature_bytes.to_vec().try_into().unwrap(),
-                            DigitalSignatureScheme::SchnorrEd25519,
+                            signature_bytes.to_vec(),
+                            jobs::tss::DigitalSignatureScheme::SchnorrEd25519,
                         )
                     }
-                    ThresholdSignatureRoleType::ZcashFrostEd448 => {
+                    roles::tss::ThresholdSignatureRoleType::ZcashFrostEd448 => {
                         let mut signature_bytes = [0u8; 114];
                         signature_bytes.copy_from_slice(&signature.group_signature);
                         (
-                            signature_bytes.to_vec().try_into().unwrap(),
-                            DigitalSignatureScheme::SchnorrEd448,
+                            signature_bytes.to_vec(),
+                            jobs::tss::DigitalSignatureScheme::SchnorrEd448,
                         )
                     }
-                    ThresholdSignatureRoleType::ZcashFrostP256 => {
+                    roles::tss::ThresholdSignatureRoleType::ZcashFrostP256 => {
                         let mut signature_bytes = [0u8; 65];
                         signature_bytes.copy_from_slice(&signature.group_signature);
                         (
-                            signature_bytes.to_vec().try_into().unwrap(),
-                            DigitalSignatureScheme::SchnorrP256,
+                            signature_bytes.to_vec(),
+                            jobs::tss::DigitalSignatureScheme::SchnorrP256,
                         )
                     }
-                    ThresholdSignatureRoleType::ZcashFrostP384 => {
+                    roles::tss::ThresholdSignatureRoleType::ZcashFrostP384 => {
                         let mut signature_bytes = [0u8; 97];
                         signature_bytes.copy_from_slice(&signature.group_signature);
                         (
-                            signature_bytes.to_vec().try_into().unwrap(),
-                            DigitalSignatureScheme::SchnorrP384,
+                            signature_bytes.to_vec(),
+                            jobs::tss::DigitalSignatureScheme::SchnorrP384,
                         )
                     }
-                    ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
+                    roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
                         let mut signature_bytes = [0u8; 64];
                         signature_bytes.copy_from_slice(&signature.group_signature);
                         (
-                            signature_bytes.to_vec().try_into().unwrap(),
-                            DigitalSignatureScheme::SchnorrRistretto255,
+                            signature_bytes.to_vec(),
+                            jobs::tss::DigitalSignatureScheme::SchnorrRistretto255,
                         )
                     }
                     _ => {
@@ -346,11 +342,12 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                     }
                 };
 
-                let job_result = jobs::JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
+                let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
                     signature_scheme,
-                    data: additional_params.input_data_to_sign.try_into().unwrap(),
-                    signature,
-                    verifying_key: BoundedVec::new(),
+                    data: BoundedVec(additional_params.input_data_to_sign),
+                    signature: BoundedVec(signature),
+                    verifying_key: BoundedVec(Default::default()),
+                    __subxt_unused_type_params: Default::default(),
                 });
 
                 pallet_tx

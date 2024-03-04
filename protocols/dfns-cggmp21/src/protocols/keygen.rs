@@ -20,7 +20,7 @@ use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
-use gadget_common::prelude::*;
+use gadget_common::{prelude::*, utils};
 use gadget_common::webb::substrate::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
@@ -561,7 +561,7 @@ fn verify_generated_dkg_key_ecdsa(
         .iter()
         .map(|x| {
             ecdsa::Public(
-                crate::util::to_slice_33(&x.0)
+                utils::to_slice_33(&x.0)
                     .unwrap_or_else(|| panic!("Failed to convert input to ecdsa public key")),
             )
         })
@@ -573,11 +573,8 @@ fn verify_generated_dkg_key_ecdsa(
 
     for signature in data.signatures.0 {
         // Ensure the required signer signature exists
-        let (maybe_authority, success) = crate::util::verify_signer_from_set_ecdsa(
-            maybe_signers.clone(),
-            &data.key.0,
-            &signature.0,
-        );
+        let (maybe_authority, success) =
+            utils::verify_signer_from_set_ecdsa(maybe_signers.clone(), &data.key.0, &signature.0);
 
         if success {
             let authority = maybe_authority.expect("CannotRetreiveSigner");
