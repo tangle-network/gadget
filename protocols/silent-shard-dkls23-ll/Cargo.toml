@@ -1,0 +1,48 @@
+[package]
+name = "silence-shard-dkls23-ll-protocol"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
+gadget-common = { workspace = true }
+gadget-core = { workspace = true }
+protocol-macros = { workspace = true }
+async-trait = { workspace = true }
+log = { workspace = true }
+curv = { workspace = true }
+futures = { workspace = true }
+itertools = { workspace = true }
+bincode2 = { workspace = true }
+round-based-21 = { workspace = true, features = ["derive"]}
+digest = { workspace = true }
+sha2 = "0.10"
+rand_core = "0.6"
+rand_chacha = { version = "0.3", default-features = false }
+dfns-cggmp21 = { workspace = true }
+udigest = { workspace = true }
+k256 = { workspace = true }
+dkls23-ll = { workspace = true }
+
+pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
+pallet-jobs = { workspace = true, features = ["std"] }
+pallet-dkg = { workspace = true, features = ["std"] }
+tangle-primitives = { workspace = true, features = ["std"] }
+
+sp-core = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, features = ["std"] }
+sp-api = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+sp-application-crypto = { workspace = true, features = ["std"] }
+
+sc-client-api = { workspace = true }
+
+frame-support = { workspace = true  }
+parity-scale-codec = { workspace = true }
+
+serde = { version = "1.0.193", features = ["derive"] }
+rand = { workspace = true }
+hex = { workspace = true }
+parking_lot = { workspace = true }
+test-utils = { workspace = true }
