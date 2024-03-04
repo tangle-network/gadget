@@ -307,6 +307,18 @@ sp_api::mock_impl_runtime_apis! {
                 Jobs::query_job_result(role_type, job_id)
             })
         }
+
+        fn query_next_job_id() -> JobId {
+            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
+                Jobs::query_next_job_id()
+            })
+        }
+
+        fn query_restaker_role_key(address: AccountId) -> Option<Vec<u8>> {
+            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
+                MockRolesHandler::get_validator_role_key(address)
+            })
+        }
     }
 }
 

@@ -94,8 +94,7 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
         let now: u64 = notification.number;
         *self.clock.write() = Some(now);
         self.protocol.logger().info(format!(
-            "[{}] Processing finality notification at block number {now}",
-            self.protocol.name()
+            "Processing finality notification at block number {now}",
         ));
 
         let jobs = self
@@ -105,8 +104,7 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
             .await?;
 
         self.protocol.logger().trace(format!(
-            "[{}] Found {} potential job(s) for initialization",
-            self.protocol.name(),
+            "Found {} potential job(s) for initialization",
             jobs.len()
         ));
         let mut relevant_jobs = Vec::new();
@@ -214,6 +212,10 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
                         .await?;
                     if let Some(role_key) = maybe_role_key {
                         out.push(role_key);
+                    } else {
+                        self.protocol.logger().warn(format!(
+                            "Participant {p} not found in the restaker registry",
+                        ));
                     }
                 }
                 out
@@ -235,8 +237,7 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
             let task_id = relevant_job.task_id;
             let retry_id = relevant_job.retry_id;
             self.protocol.logger().trace(format!(
-                "[{}] Creating job for task {task_id} with retry id {retry_id}",
-                self.protocol.name(),
+                "Creating job for task {task_id} with retry id {retry_id}",
                 task_id = hex::encode(task_id),
                 retry_id = retry_id
             ));
@@ -277,7 +278,7 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
                 }
 
                 Err(Error::ParticipantNotSelected { id, reason }) => {
-                    self.protocol.logger().debug(format!("[{}] Participant {id} not selected for job {task_id} with retry id {retry_id} because {reason}", self.protocol.name(), id = id, task_id = hex::encode(task_id), retry_id = retry_id, reason = reason));
+                    self.protocol.logger().debug(format!("Participant {id} not selected for job {task_id} with retry id {retry_id} because {reason}", id = id, task_id = hex::encode(task_id), retry_id = retry_id, reason = reason));
                 }
 
                 Err(err) => {
@@ -348,7 +349,7 @@ pub trait GadgetProtocol<C: ClientWithApi>: AsyncProtocol + Send + Sync {
     /// ## Example
     ///
     /// ```rust,ignore
-    /// fn phase_filter(&self, job: JobType<AccountId>) -> bool {
+    /// fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
     ///   matches!(job, JobType::DKGTSSPhaseOne(_))
     /// }
     /// ```

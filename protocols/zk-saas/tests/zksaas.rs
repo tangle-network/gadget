@@ -20,9 +20,9 @@ mod tests {
     use std::str::FromStr;
     use std::sync::Arc;
     use tangle_primitives::jobs::{
-        Groth16ProveRequest, Groth16System, HyperData, JobResult, JobSubmission, JobType, QAPShare,
-        ZkSaaSCircuitResult, ZkSaaSPhaseOneJobType, ZkSaaSPhaseTwoJobType, ZkSaaSPhaseTwoRequest,
-        ZkSaaSSystem,
+        FallbackOptions, Groth16ProveRequest, Groth16System, HyperData, JobResult, JobSubmission,
+        JobType, QAPShare, ZkSaaSCircuitResult, ZkSaaSPhaseOneJobType, ZkSaaSPhaseTwoJobType,
+        ZkSaaSPhaseTwoRequest, ZkSaaSSystem,
     };
     use tangle_primitives::roles::{RoleType, ZeroKnowledgeRoleType};
     use tangle_primitives::verifier::from_field_elements;
@@ -74,6 +74,7 @@ mod tests {
             let num_inputs = matrices.num_instance_variables;
             let num_constraints = matrices.num_constraints;
             let phase1_submission = JobSubmission {
+                fallback: FallbackOptions::Destroy,
                 expiry: 100,
                 ttl: 100,
                 job_type: JobType::ZkSaaSPhaseOne(ZkSaaSPhaseOneJobType {
@@ -126,6 +127,7 @@ mod tests {
             let public_input = from_field_elements::<Bn254Fr>(&[BigInt!("72587776472194017031617589674261467945970986113287823188107011979").into()]).unwrap().try_into().unwrap();
             let phase_two_id = Jobs::next_job_id();
             let phase2_submission = JobSubmission {
+                fallback: FallbackOptions::Destroy,
                 expiry: 100,
                 ttl: 100,
                 job_type: JobType::ZkSaaSPhaseTwo(ZkSaaSPhaseTwoJobType {

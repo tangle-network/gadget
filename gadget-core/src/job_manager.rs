@@ -668,7 +668,6 @@ mod tests {
     use crate::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
     use parking_lot::Mutex;
     use std::sync::atomic::{AtomicBool, Ordering};
-    use std::sync::Arc;
     use std::time::Duration;
     use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 

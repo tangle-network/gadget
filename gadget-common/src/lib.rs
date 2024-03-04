@@ -19,6 +19,7 @@ pub use subxt_signer;
 use tokio::task::JoinError;
 pub use webb;
 
+#[allow(ambiguous_glob_reexports)]
 pub mod prelude {
     pub use crate::client::*;
     pub use crate::config::*;
@@ -52,6 +53,8 @@ pub mod keystore;
 pub mod locks;
 pub mod prometheus;
 pub mod protocol;
+pub mod utils;
+
 #[derive(Debug)]
 pub enum Error {
     RegistryCreateError { err: String },
@@ -267,6 +270,9 @@ macro_rules! generate_protocol {
                 key_store: ECDSAKeyStore<Self::KeystoreBackend>,
                 prometheus_config: $crate::prometheus::PrometheusConfig,
             ) -> Result<Self, Error> {
+                let logger = DebugLogger {
+                    peer_id: (logger.peer_id + " | " + stringify!($name)).replace("\"", "")
+                };
                 Ok(Self {
                     pallet_tx,
                     logger,
