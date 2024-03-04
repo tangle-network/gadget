@@ -165,7 +165,10 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
                 .map(|r| r + 1)
                 .unwrap_or(0);
 
-            let is_phase_one = matches!(job.job_type, jobs::JobType::DKGTSSPhaseOne(_) | jobs::JobType::ZkSaaSPhaseOne(_));
+            let is_phase_one = matches!(
+                job.job_type,
+                jobs::JobType::DKGTSSPhaseOne(_) | jobs::JobType::ZkSaaSPhaseOne(_)
+            );
 
             let phase1_job = if is_phase_one {
                 None

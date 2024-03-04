@@ -4,8 +4,12 @@ pub use gadget_core::job_manager::SendFuture;
 pub use log;
 use pallet_jobs::{SubmittedJobs, SubmittedJobsRole};
 use std::time::Duration;
-use tangle_primitives::jobs::{JobId, PhaseResult};
+use tangle_primitives::jobs::{
+    JobId, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen,
+    PhaseResult,
+};
 use tangle_primitives::roles::RoleType;
+use tangle_primitives::AccountId;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -29,8 +33,17 @@ pub fn setup_log() {
 pub async fn wait_for_job_completion(
     ext: &MultiThreadedTestExternalities,
     role_type: RoleType,
-    job_id: JobId,
-) -> PhaseResult<mock::BlockNumber> {
+    job_id: u64,
+) -> PhaseResult<
+    AccountId,
+    mock::BlockNumber,
+    MaxParticipants,
+    MaxKeyLen,
+    MaxDataLen,
+    MaxSignatureLen,
+    MaxSubmissionLen,
+    MaxProofLen,
+> {
     loop {
         tokio::time::sleep(Duration::from_millis(100)).await;
         if let Some(ret) = ext

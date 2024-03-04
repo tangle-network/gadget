@@ -15,9 +15,9 @@ use parking_lot::Mutex;
 use sp_core::ecdsa::Signature;
 use sp_core::{keccak_256, sr25519};
 use sp_io::crypto::ecdsa_verify_prehashed;
-use webb::substrate::subxt::utils::AccountId32;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
+use webb::substrate::subxt::utils::AccountId32;
 use webb::substrate::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;

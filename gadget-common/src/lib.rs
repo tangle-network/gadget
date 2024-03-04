@@ -39,8 +39,8 @@ pub mod prelude {
     pub use std::pin::Pin;
     pub use std::sync::Arc;
     pub use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-    pub use webb::substrate::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
     pub use webb::substrate::subxt::utils::AccountId32;
+    pub use webb::substrate::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
 }
 pub mod channels;
 pub mod client;

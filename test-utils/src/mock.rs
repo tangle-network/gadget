@@ -610,7 +610,7 @@ pub async fn new_test_ext<
         let input = NodeInput {
             clients: mock_clients,
             networks,
-            account_id,
+            account_id: sr25519::Public(account_id.into()),
             logger,
             pallet_tx,
             keystore,
@@ -632,20 +632,26 @@ pub mod mock_wrapper_client {
     use async_trait::async_trait;
     use futures::StreamExt;
     use gadget_common::client::PalletSubmitter;
+    use gadget_common::config::ClientWithApi;
     use gadget_common::locks::TokioMutexExt;
-    use gadget_common::webb::substrate::tangle_runtime::api::runtime_types::tangle_primitives::jobs;
-    use gadget_core::gadget::substrate::Client;
+    use gadget_common::webb::substrate::subxt::utils::AccountId32;
+    use gadget_common::webb::substrate::tangle_runtime::api::runtime_types::tangle_primitives::{
+        jobs, roles,
+    };
+    use gadget_core::gadget::substrate::{self, Client};
+    use pallet_jobs_rpc_runtime_api::JobsApi;
+    use parity_scale_codec::{Decode, Encode};
     use sc_client_api::{
         BlockchainEvents, FinalityNotification, FinalityNotifications, ImportNotifications,
         StorageEventStream, StorageKey,
     };
     use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedSender};
-    use sp_api::{ApiRef, BlockT, ProvideRuntimeApi};
+    use sp_api::{ApiRef, ProvideRuntimeApi};
     use sp_runtime::traits::Block;
+    use sp_runtime::traits::Header;
     use std::sync::Arc;
     use std::time::Duration;
     use tangle_primitives::jobs::JobId;
-    use tangle_primitives::roles::RoleType;
     use tangle_primitives::AccountId;
 
     #[derive(Clone)]
@@ -684,7 +690,7 @@ pub mod mock_wrapper_client {
 
     #[async_trait]
     impl<R: Send + Sync + Clone, B: Block> Client for MockClient<R, B> {
-        async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>> {
+        async fn get_next_finality_notification(&self) -> Option<substrate::FinalityNotification> {
             let mut lock = self
                 .finality_notification_stream
                 .lock_timeout(Duration::from_millis(500))
@@ -695,20 +701,160 @@ pub mod mock_wrapper_client {
                 .latest_finality_notification
                 .lock_timeout(Duration::from_millis(500))
                 .await = next.clone();
-            next
+            next.map(|n| {
+                let mut hash = [0u8; 32];
+                hash.copy_from_slice(n.header.hash().as_ref());
+                let number =
+                    Decode::decode(&mut Encode::encode(&n.header.number()).as_slice()).unwrap();
+                substrate::FinalityNotification { hash, number }
+            })
         }
 
-        async fn get_latest_finality_notification(&self) -> Option<FinalityNotification<B>> {
+        async fn get_latest_finality_notification(
+            &self,
+        ) -> Option<substrate::FinalityNotification> {
             let lock = self
                 .latest_finality_notification
                 .lock_timeout(Duration::from_millis(500))
                 .await;
-            if let Some(latest) = lock.clone() {
-                Some(latest)
+            if let Some(n) = lock.clone() {
+                let mut hash = [0u8; 32];
+                hash.copy_from_slice(n.header.hash().as_ref());
+                let number =
+                    Decode::decode(&mut Encode::encode(&n.header.number()).as_slice()).unwrap();
+                Some(substrate::FinalityNotification { hash, number })
             } else {
                 drop(lock);
                 self.get_next_finality_notification().await
             }
+        }
+    }
+
+    #[async_trait]
+    impl<R: Send + Sync + Clone, B: Block> ClientWithApi for MockClient<R, B>
+    where
+        R: ProvideRuntimeApi<B>,
+        R::Api: pallet_jobs_rpc_runtime_api::JobsApi<
+            B,
+            ::tangle_primitives::AccountId,
+            ::tangle_primitives::jobs::MaxParticipants,
+            ::tangle_primitives::jobs::MaxSubmissionLen,
+            ::tangle_primitives::jobs::MaxKeyLen,
+            ::tangle_primitives::jobs::MaxDataLen,
+            ::tangle_primitives::jobs::MaxSignatureLen,
+            ::tangle_primitives::jobs::MaxProofLen,
+        >,
+    {
+        async fn query_jobs_by_validator(
+            &self,
+            at: [u8; 32],
+            validator: AccountId32,
+        ) -> Result<
+            Option<
+                Vec<
+                    jobs::RpcResponseJobsData<
+                        AccountId32,
+                        u64,
+                        jobs::MaxParticipants,
+                        jobs::MaxSubmissionLen,
+                    >,
+                >,
+            >,
+            gadget_common::Error,
+        > {
+            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
+            let validator = tangle_primitives::AccountId::from(validator.0);
+            self.runtime_api()
+                .query_jobs_by_validator(at, validator)
+                .map_err(|err| gadget_common::Error::ClientError {
+                    err: format!("{err:?}"),
+                })
+                .map(|r| {
+                    r.map(|r| {
+                        r.into_iter()
+                            .flat_map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()))
+                            .collect()
+                    })
+                })
+        }
+        async fn query_job_by_id(
+            &self,
+            at: [u8; 32],
+            role_type: roles::RoleType,
+            job_id: u64,
+        ) -> Result<
+            Option<
+                jobs::RpcResponseJobsData<
+                    AccountId32,
+                    u64,
+                    jobs::MaxParticipants,
+                    jobs::MaxSubmissionLen,
+                >,
+            >,
+            gadget_common::Error,
+        > {
+            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
+            let role_type = Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap();
+            self.runtime_api()
+                .query_job_by_id(at, role_type, job_id)
+                .map_err(|err| gadget_common::Error::ClientError {
+                    err: format!("{err:?}"),
+                })
+                .map(|r| r.map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()).unwrap()))
+        }
+
+        async fn query_job_result(
+            &self,
+            at: [u8; 32],
+            role_type: roles::RoleType,
+            job_id: u64,
+        ) -> Result<
+            Option<
+                jobs::PhaseResult<
+                    AccountId32,
+                    u64,
+                    jobs::MaxParticipants,
+                    jobs::MaxKeyLen,
+                    jobs::MaxDataLen,
+                    jobs::MaxSignatureLen,
+                    jobs::MaxSubmissionLen,
+                    jobs::MaxProofLen,
+                >,
+            >,
+            gadget_common::Error,
+        > {
+            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
+            let role_type = Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap();
+            self.runtime_api()
+                .query_job_result(at, role_type, job_id)
+                .map_err(|err| gadget_common::Error::ClientError {
+                    err: format!("{err:?}"),
+                })
+                .map(|r| r.map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()).unwrap()))
+        }
+
+        async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, gadget_common::Error> {
+            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
+            self.runtime_api().query_next_job_id(at).map_err(|err| {
+                gadget_common::Error::ClientError {
+                    err: format!("{err:?}"),
+                }
+            })
+        }
+
+        async fn query_restaker_role_key(
+            &self,
+            at: [u8; 32],
+            address: AccountId32,
+        ) -> Result<Option<Vec<u8>>, gadget_common::Error> {
+            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
+            let address = tangle_primitives::AccountId::from(address.0);
+            self.runtime_api()
+                .query_restaker_role_key(at, address)
+                .map_err(|err| gadget_common::Error::ClientError {
+                    err: format!("{err:?}"),
+                })
+                .map(|r| r.map(|r| r.to_vec()))
         }
     }
 
@@ -742,7 +888,7 @@ pub mod mock_wrapper_client {
             &self,
             _filter_keys: Option<&[StorageKey]>,
             _child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
-        ) -> sc_client_api::blockchain::Result<StorageEventStream<<B as BlockT>::Hash>> {
+        ) -> sc_client_api::blockchain::Result<StorageEventStream<<B as Block>::Hash>> {
             unimplemented!()
         }
     }
@@ -756,7 +902,7 @@ pub mod mock_wrapper_client {
     impl PalletSubmitter for TestExternalitiesPalletSubmitter {
         async fn submit_job_result(
             &self,
-            role_type: RoleType,
+            role_type: roles::RoleType,
             job_id: JobId,
             result: jobs::JobResult<
                 jobs::MaxParticipants,
@@ -770,8 +916,12 @@ pub mod mock_wrapper_client {
             self.ext
                 .execute_with_async(move || {
                     let origin = RuntimeOrigin::signed(id);
-                    let res =
-                        crate::mock::Jobs::submit_job_result(origin, role_type, job_id, result);
+                    let res = crate::mock::Jobs::submit_job_result(
+                        origin,
+                        Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap(),
+                        job_id,
+                        Decode::decode(&mut Encode::encode(&result).as_slice()).unwrap(),
+                    );
                     if let Err(err) = res {
                         let err = format!("Pallet tx error: {err:?}");
                         if err.contains("JobNotFound") {
