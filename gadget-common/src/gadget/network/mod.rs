@@ -20,7 +20,7 @@ pub trait Network: Send + Sync + Clone + 'static {
     }
     /// If the network implementation requires a custom runtime, this function
     /// should be manually implemented to keep the network alive
-    async fn run(&self) -> Result<(), Error> {
+    async fn run(self) -> Result<(), Error> {
         Ok(())
     }
 }

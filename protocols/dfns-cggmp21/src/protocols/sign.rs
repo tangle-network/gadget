@@ -129,7 +129,7 @@ where
     H: Digest<OutputSize = U32> + Clone + Send + 'static,
 {
     let key: KeyShare<E, L> = bincode2::deserialize(&key).map_err(|err| JobError {
-        reason: format!("Keygen protocol error: {err:?}"),
+        reason: format!("Signing protocol error: {err:?}"),
     })?;
     let signing_builder = SigningBuilder::<E, L, H>::new(eid, i, &signers, &key);
     let signature = signing_builder
@@ -339,7 +339,7 @@ pub fn get_local_key_share_from_serialized_local_key_bytes<E: Curve, S: Security
     local_key_serialized: &[u8],
 ) -> Result<KeyShare<E, S>, JobError> {
     bincode2::deserialize::<KeyShare<E, S>>(local_key_serialized).map_err(|err| JobError {
-        reason: format!("Keygen protocol error: {err:?}"),
+        reason: format!("Signing protocol error: {err:?}"),
     })
 }
 
@@ -429,6 +429,7 @@ where
         my_role_id,
         network.clone(),
         logger.clone(),
+        i,
     );
     run_and_serialize_signing::<E, S, _, _, H>(
         logger,

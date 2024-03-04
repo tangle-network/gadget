@@ -304,6 +304,7 @@ async fn handle_key_refresh<
         role_id,
         network.clone(),
         logger.clone(),
+        i,
     );
 
     let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
@@ -318,6 +319,14 @@ async fn handle_key_refresh<
         .map_err(|err| JobError {
             reason: format!("KeyRefresh protocol error: {err:?}"),
         })?;
+
+    /*
+    let key: KeyShare<E, S> = DirtyKeyShare::<E, S> {
+        core: local_key_share.into_inner().core,
+        aux: aux_info.into_inner(),
+    }.validate().map_err(|err| JobError {
+        reason: format!("KeyRefresh protocol validation error: {err:?}"),
+    })?;*/
 
     let key = local_key_share
         .update_aux(aux_info)

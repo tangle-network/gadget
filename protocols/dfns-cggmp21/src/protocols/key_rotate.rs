@@ -64,6 +64,12 @@ where
         .logger
         .info(format!("Mapping for network: {mapping:?}"));
 
+    if mapping[&(i as u32)] != my_id {
+        return Err(Error::ClientError {
+            err: format!("Invalid mapping for our id: {my_id:?}"),
+        });
+    }
+
     let new_key = config
         .key_store
         .get_job_result(new_phase_one_id)
@@ -86,11 +92,7 @@ where
             err: format!("No key found for job ID: {job_id:?}"),
         })?;
 
-    config.logger.info("RB4");
-
     let user_id_to_account_id_mapping = Arc::new(mapping);
-
-    config.logger.info("RB5");
 
     let params = DfnsCGGMP21KeyRotateExtraParams {
         i,

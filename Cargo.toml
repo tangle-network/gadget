@@ -50,7 +50,8 @@ round-based-zengo = { package = "round-based", git = "https://github.com/ZenGo-X
 
 curv = { package = "curv-kzen", version = "0.10.0" }
 digest = "0.10"
-dfns-cggmp21 = { package = "cggmp21", version = "0.1.1", default-features = false }
+# dfns-cggmp21 = { package = "cggmp21", version = "0.1.1" }
+dfns-cggmp21 = { package = "cggmp21", git = "https://github.com/webb-tools/cggmp21", branch = "v0.1.1-fix" }
 udigest = { version = "0.1", features = ["std", "derive"]}
 frost-core = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-ed25519 = { git = "https://github.com/LIT-Protocol/frost.git" }

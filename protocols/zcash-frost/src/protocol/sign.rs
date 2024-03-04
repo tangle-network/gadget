@@ -206,6 +206,7 @@ where
                 id,
                 network.clone(),
                 logger.clone(),
+                i,
             );
 
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();

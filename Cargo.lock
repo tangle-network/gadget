@@ -1343,8 +1343,7 @@ checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
 [[package]]
 name = "cggmp21"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "051c2befb2a8a0f920d91bfda17a2e101f80a1e5dc6470b9f03434e40ca77012"
+source = "git+https://github.com/webb-tools/cggmp21?branch=v0.1.1-fix#702e6c76ff2062b7e13a59fd4d6515668a9f09d5"
 dependencies = [
  "digest 0.10.7",
  "futures",
