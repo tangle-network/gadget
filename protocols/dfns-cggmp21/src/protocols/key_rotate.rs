@@ -1,7 +1,7 @@
 use crate::protocols::sign::run_and_serialize_signing;
+use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
 use dfns_cggmp21::signing::msg::Msg;
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
-
 use gadget_common::client::ClientWithApi;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::network::Network;
@@ -10,18 +10,13 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::FullProtocolConfig;
 use gadget_common::prelude::*;
+use gadget_common::webb::substrate::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
-
-use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tangle_primitives::jobs::{
-    DKGTSSKeyRotationResult, DigitalSignatureScheme, JobId, JobResult, JobType,
-};
-use tangle_primitives::roles::RoleType;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::keygen::create_party;
@@ -33,7 +28,7 @@ pub async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>
 ) -> Result<DfnsCGGMP21KeyRotateExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
 
-    let JobType::DKGTSSPhaseFour(p4_job) = job.job_type else {
+    let jobs::JobType::DKGTSSPhaseFour(p4_job) = job.job_type else {
         panic!("Should be valid type")
     };
     let phase_one_id = p4_job.phase_one_id;
@@ -105,10 +100,10 @@ pub struct DfnsCGGMP21KeyRotateExtraParams {
     i: u16,
     t: u16,
     signers: Vec<u16>,
-    job_id: JobId,
-    phase_one_id: JobId,
-    new_phase_one_id: JobId,
-    role_type: RoleType,
+    job_id: u64,
+    phase_one_id: u64,
+    new_phase_one_id: u64,
+    role_type: roles::RoleType,
     key: Vec<u8>,
     new_key: Vec<u8>,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
@@ -147,7 +142,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
         additional_params.t,
         additional_params.new_phase_one_id,
         additional_params.key,
-        additional_params.role_type,
+        additional_params.role_type.clone(),
         additional_params.new_key.clone(),
         additional_params.user_id_to_account_id_mapping.clone(),
     );
@@ -316,14 +311,16 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
                     &data_to_sign_bytes,
                     &new_public_key,
                 );
-                let job_result = JobResult::DKGPhaseFour(DKGTSSKeyRotationResult {
-                    signature_scheme: DigitalSignatureScheme::Ecdsa,
-                    signature: signature.to_vec().try_into().unwrap(),
-                    phase_one_id,
-                    new_phase_one_id,
-                    new_key: new_public_key.try_into().unwrap(),
-                    key: public_key.try_into().unwrap(),
-                });
+                let job_result =
+                    jobs::JobResult::DKGPhaseFour(jobs::tss::DKGTSSKeyRotationResult {
+                        signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
+                        signature: BoundedVec(signature.to_vec()),
+                        phase_one_id,
+                        new_phase_one_id,
+                        new_key: BoundedVec(new_public_key),
+                        key: BoundedVec(public_key),
+                        __subxt_unused_type_params: Default::default(),
+                    });
 
                 client
                     .submit_job_result(
