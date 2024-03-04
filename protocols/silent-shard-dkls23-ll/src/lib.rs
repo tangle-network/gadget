@@ -6,7 +6,6 @@ use gadget_common::prelude::*;
 use gadget_common::{generate_protocol, generate_setup_and_run_command};
 use protocol_macros::protocol;
 
-pub mod constants;
 pub mod protocol;
 pub mod rounds;
 
