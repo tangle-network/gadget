@@ -355,7 +355,6 @@ macro_rules! generate_protocol {
                 self.logger.clone()
             }
 
-
             fn key_store(&self) -> &ECDSAKeyStore<Self::KeystoreBackend> {
                 &self.key_store
             }

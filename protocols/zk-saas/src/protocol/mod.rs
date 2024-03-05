@@ -397,10 +397,6 @@ async fn zk_setup_rxs(
     Ok(rxs)
 }
 
-pub trait ZkNetworkExt {
-    fn king_id(&self) -> Option<ecdsa::Public>;
-}
-
 fn zk_setup_phase_order_participants<N: Network>(
     mut participants: Vec<ecdsa::Public>,
     network: N,

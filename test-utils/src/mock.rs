@@ -15,6 +15,7 @@
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
 use async_trait::async_trait;
+use frame_support::pallet_prelude::*;
 use frame_support::traits::Hooks;
 use frame_support::{
     construct_runtime, parameter_types,
@@ -25,8 +26,10 @@ use frame_system::EnsureSigned;
 use pallet_jobs_rpc_runtime_api::BlockNumberOf;
 use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
+use serde::{Deserialize, Serialize};
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_core::{sr25519, ByteArray, Pair, H256};
+use sp_runtime::RuntimeDebug;
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -51,9 +54,8 @@ use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
 use tangle_primitives::jobs::traits::{JobToFee, MPCHandler};
 use tangle_primitives::jobs::{
-    JobId, JobResult, JobSubmission, JobType, JobWithResult, MaxActiveJobsPerValidator, MaxDataLen,
-    MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen, PhaseResult,
-    ReportRestakerOffence, RpcResponseJobsData, ValidatorOffenceType,
+    JobId, JobResult, JobSubmission, JobType, JobWithResult, PhaseResult, ReportRestakerOffence,
+    RpcResponseJobsData, ValidatorOffenceType,
 };
 use tangle_primitives::misbehavior::{MisbehaviorHandler, MisbehaviorSubmission};
 use tangle_primitives::roles::traits::RolesHandler;
@@ -219,6 +221,36 @@ impl
 
 parameter_types! {
     pub const JobsPalletId: PalletId = PalletId(*b"py/jobss");
+}
+
+const KB: u32 = 1024;
+const MB: u32 = 1024 * KB;
+
+parameter_types! {
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxSubmissionLen: u32 = 64 * MB;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxParticipants: u32 = 10;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxKeyLen: u32 = 256;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxDataLen: u32 = 256;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxSignatureLen: u32 = 256;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxProofLen: u32 = 256;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxActiveJobsPerValidator: u32 = 100;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxRolesPerValidator: u32 = 100;
 }
 
 impl pallet_jobs::Config for Runtime {
@@ -737,12 +769,12 @@ pub mod mock_wrapper_client {
         R::Api: pallet_jobs_rpc_runtime_api::JobsApi<
             B,
             ::tangle_primitives::AccountId,
-            ::tangle_primitives::jobs::MaxParticipants,
-            ::tangle_primitives::jobs::MaxSubmissionLen,
-            ::tangle_primitives::jobs::MaxKeyLen,
-            ::tangle_primitives::jobs::MaxDataLen,
-            ::tangle_primitives::jobs::MaxSignatureLen,
-            ::tangle_primitives::jobs::MaxProofLen,
+            super::MaxParticipants,
+            super::MaxSubmissionLen,
+            super::MaxKeyLen,
+            super::MaxDataLen,
+            super::MaxSignatureLen,
+            super::MaxProofLen,
         >,
     {
         async fn query_jobs_by_validator(

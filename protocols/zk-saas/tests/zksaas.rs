@@ -164,6 +164,7 @@ mod tests {
             rcgen::generate_simple_self_signed(vec!["localhost".into(), "127.0.0.1".into()])
                 .unwrap();
         let king_cert = Arc::new(king_cert);
+
         test_utils::mock::new_test_ext::<N, 1, _, _, _>(king_cert, |mut node_info| async move {
             let king_cert = node_info.additional_params;
             let king_public_identity_der = king_cert.serialize_der().expect("Should serialize");
