@@ -8,7 +8,7 @@ mod tests {
     };
     use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
     use tangle_primitives::AccountId;
-    use test_utils::mock::{id_to_sr25519_public, Jobs, MockBackend, RuntimeOrigin};
+    use test_utils::mock::{id_to_sr25519_public, Jobs, RuntimeOrigin};
     use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
     #[tokio::test(flavor = "multi_thread")]
     async fn test_externalities_keyrefresh() {
@@ -236,7 +236,7 @@ mod tests {
 
             let (pallet_tx, key_store) = (node_input.pallet_tx, node_input.keystore);
             logger.info("Starting gadget");
-            if let Err(err) = dfns_cggmp21_protocol::run::<_, MockBackend, _, _, _>(
+            if let Err(err) = dfns_cggmp21_protocol::run(
                 clients,
                 pallet_tx,
                 networks,
