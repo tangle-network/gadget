@@ -9,6 +9,7 @@ use frost_core::{
     Ciphersuite, Identifier,
 };
 use futures::SinkExt;
+use gadget_common::prelude::*;
 use rand_core::{CryptoRng, RngCore};
 use round_based::{
     rounds_router::{
@@ -20,7 +21,6 @@ use round_based::{
 };
 use round_based_21 as round_based;
 use serde::{Deserialize, Serialize};
-use gadget_common::prelude::*;
 
 use super::{Error, IoError};
 
@@ -190,7 +190,9 @@ where
     })
 }
 
-fn validate_role<C: Ciphersuite>(role: roles::tss::ThresholdSignatureRoleType) -> Result<(), Error<C>> {
+fn validate_role<C: Ciphersuite>(
+    role: roles::tss::ThresholdSignatureRoleType,
+) -> Result<(), Error<C>> {
     use roles::tss::ThresholdSignatureRoleType;
     match role {
         ThresholdSignatureRoleType::ZcashFrostEd25519

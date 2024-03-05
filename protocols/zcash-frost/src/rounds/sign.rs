@@ -8,13 +8,13 @@ use rand_core::{CryptoRng, RngCore};
 use round_based::rounds_router::simple_store::RoundInput;
 use round_based_21 as round_based;
 
+use gadget_common::prelude::*;
 use round_based::rounds_router::RoundsRouter;
 use round_based::runtime::AsyncRuntime;
 use round_based::ProtocolMessage;
 use round_based::{Delivery, Mpc, MpcParty, Outgoing};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use gadget_common::prelude::*;
 
 use super::{Error, IoError};
 
@@ -179,7 +179,9 @@ where
     })
 }
 
-fn validate_role<C: Ciphersuite>(role: roles::tss::ThresholdSignatureRoleType) -> Result<(), Error<C>> {
+fn validate_role<C: Ciphersuite>(
+    role: roles::tss::ThresholdSignatureRoleType,
+) -> Result<(), Error<C>> {
     use roles::tss::ThresholdSignatureRoleType;
     match role {
         ThresholdSignatureRoleType::ZcashFrostEd25519

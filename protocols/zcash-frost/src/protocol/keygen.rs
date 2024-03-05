@@ -192,10 +192,28 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                     )
                 }
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostP256 => {
-                    run_threshold_keygen!(P256Sha256, &mut tracer, i, t, n, role.clone(), &mut rng, party)
+                    run_threshold_keygen!(
+                        P256Sha256,
+                        &mut tracer,
+                        i,
+                        t,
+                        n,
+                        role.clone(),
+                        &mut rng,
+                        party
+                    )
                 }
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostP384 => {
-                    run_threshold_keygen!(P384Sha384, &mut tracer, i, t, n, role.clone(), &mut rng, party)
+                    run_threshold_keygen!(
+                        P384Sha384,
+                        &mut tracer,
+                        i,
+                        t,
+                        n,
+                        role.clone(),
+                        &mut rng,
+                        party
+                    )
                 }
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
                     run_threshold_keygen!(
