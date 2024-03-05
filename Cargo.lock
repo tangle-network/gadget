@@ -3458,7 +3458,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "byteorder",
  "debugless-unwrap",
@@ -3498,7 +3498,7 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "frost-core 0.6.1",
@@ -3524,7 +3524,7 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "ed448-goldilocks-plus 0.11.2 (git+https://github.com/webb-tools/Ed448-Goldilocks)",
  "frost-core 0.6.1",
@@ -3550,7 +3550,7 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "frost-core 0.6.1",
  "p256 0.13.2",
@@ -3576,7 +3576,7 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "frost-core 0.6.1",
  "p384",
@@ -3613,7 +3613,7 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "frost-core 0.6.1",
@@ -3639,7 +3639,7 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "frost-core 0.6.1",
  "k256",
@@ -3891,8 +3891,8 @@ dependencies = [
  "sqlx",
  "substrate-prometheus-endpoint",
  "subxt-signer",
+ "tangle-subxt",
  "tokio",
- "webb",
 ]
 
 [[package]]
@@ -4483,7 +4483,7 @@ dependencies = [
  "iana-time-zone-haiku",
  "js-sys",
  "wasm-bindgen",
- "windows-core 0.52.0",
+ "windows-core",
 ]
 
 [[package]]
@@ -6543,7 +6543,7 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "digest 0.10.7",
  "elliptic-curve 0.13.8",
@@ -6585,7 +6585,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6602,7 +6602,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -6633,7 +6633,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11086,7 +11086,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -11096,7 +11096,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.1"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#134875d248585de7ddfcff3c90543675f03903d6"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -11119,6 +11119,16 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.1.0)",
+]
+
+[[package]]
+name = "tangle-subxt"
+version = "0.6.1"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#26bbeb5203a92ac9262302ffcd051742eb11ce49"
+dependencies = [
+ "parity-scale-codec 3.6.9",
+ "scale-info",
+ "subxt",
 ]
 
 [[package]]
@@ -11783,7 +11793,7 @@ checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
  "digest 0.10.7",
- "rand 0.8.5",
+ "rand 0.6.5",
  "static_assertions",
 ]
 
@@ -12658,24 +12668,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "webb"
-version = "0.8.4"
-source = "git+https://github.com/webb-tools/webb-rs.git?branch=main#05c3441fe2c957c2eaa473f3f59bd593c396b521"
-dependencies = [
- "async-trait",
- "hex",
- "parity-scale-codec 3.6.9",
- "prettyplease 0.2.16",
- "rand 0.8.5",
- "scale-info",
- "serde",
- "serde_json",
- "subxt",
- "tempfile",
- "thiserror",
-]
-
-[[package]]
 name = "webpki"
 version = "0.22.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12775,7 +12767,7 @@ version = "0.51.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca229916c5ee38c2f2bc1e9d8f04df975b4bd93f9955dc69fabb5d91270045c9"
 dependencies = [
- "windows-core 0.51.1",
+ "windows-core",
  "windows-targets 0.48.5",
 ]
 
@@ -12786,15 +12778,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1f8cf84f35d2db49a46868f947758c7a1138116f7fac3bc844f43ade1292e64"
 dependencies = [
  "windows-targets 0.48.5",
-]
-
-[[package]]
-name = "windows-core"
-version = "0.52.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33ab640c8d7e35bf8ba19b884ba838ceb4fba93a4e8c65a9059d08afcfc683d9"
-dependencies = [
- "windows-targets 0.52.4",
 ]
 
 [[package]]

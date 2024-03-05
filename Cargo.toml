@@ -31,8 +31,8 @@ pallet-jobs = { git = "https://github.com/webb-tools/tangle.git", branch = "main
 pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
 pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
+tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
 
-webb = { git = "https://github.com/webb-tools/webb-rs.git", default-features = false, branch = "main" }
 subxt-signer = { version = "0.31.0", default-features = false }
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }

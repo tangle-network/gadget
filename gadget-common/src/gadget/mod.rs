@@ -13,8 +13,8 @@ use parking_lot::RwLock;
 use sp_core::{ecdsa, keccak_256, sr25519};
 use std::sync::Arc;
 use std::time::Duration;
-use webb::substrate::subxt::utils::AccountId32;
-use webb::substrate::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
+use tangle_subxt::subxt::utils::AccountId32;
+use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
 
 pub mod message;
 pub mod network;

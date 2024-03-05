@@ -4,14 +4,14 @@ use auto_impl::auto_impl;
 use gadget_core::gadget::substrate::{Client, FinalityNotification};
 use sp_core::{ecdsa, ByteArray};
 use sp_core::{sr25519, Pair};
-use webb::substrate::subxt::utils::AccountId32;
-use webb::substrate::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
+use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
 
 use std::sync::Arc;
+use subxt::config::ExtrinsicParams;
 use subxt::tx::TxPayload;
+use subxt::utils::AccountId32;
 use subxt::OnlineClient;
-use webb::substrate::subxt;
-use webb::substrate::subxt::config::ExtrinsicParams;
+use tangle_subxt::subxt;
 
 pub struct JobsClient<C> {
     pub client: C,
@@ -467,7 +467,7 @@ where
             jobs::MaxProofLen,
         >,
     ) -> Result<(), crate::Error> {
-        let tx = webb::substrate::tangle_runtime::api::tx()
+        let tx = tangle_subxt::tangle_runtime::api::tx()
             .jobs()
             .submit_job_result(role_type, job_id, result);
         match self.submit(&tx).await {
@@ -537,8 +537,9 @@ where
 #[cfg(test)]
 mod tests {
 
-    use webb::substrate::{
+    use tangle_subxt::{
         subxt::{tx::Signer, utils::AccountId32, PolkadotConfig},
+        tangle_runtime::api,
         tangle_runtime::api::runtime_types::{
             bounded_collections::bounded_vec::BoundedVec,
             tangle_primitives::{jobs, roles},
@@ -572,9 +573,7 @@ mod tests {
                 __subxt_unused_type_params: std::marker::PhantomData,
             }),
         };
-        let tx = webb::substrate::tangle_runtime::api::tx()
-            .jobs()
-            .submit_job(dkg_phase_one);
+        let tx = api::tx().jobs().submit_job(dkg_phase_one);
         let _hash = pallet_tx.submit(&tx).await?;
         Ok(())
     }
