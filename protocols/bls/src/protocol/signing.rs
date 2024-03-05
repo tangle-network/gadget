@@ -1,14 +1,16 @@
 use crate::protocol::state_machine::Group;
-use gadget_common::client::{ClientWithApi, JobsApiForGadget};
-use gadget_common::config::{Network, ProvideRuntimeApi};
+use gadget_common::client::ClientWithApi;
+use gadget_common::config::Network;
 use gadget_common::full_protocol::FullProtocolConfig;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
+use gadget_common::prelude::*;
 use gadget_common::sp_core::{ecdsa, keccak_256, Pair};
+use gadget_common::webb::substrate::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use gadget_common::{
-    Backend, Block, BuiltExecutableJobWrapper, Error, JobBuilder, JobError, ProtocolWorkManager,
+    BuiltExecutableJobWrapper, Error, JobBuilder, JobError, ProtocolWorkManager,
     WorkManagerInterface,
 };
 use gennaro_dkg::{Participant, SecretParticipantImpl};
@@ -16,42 +18,29 @@ use itertools::Itertools;
 use round_based::Msg;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use tangle_primitives::jobs::{
-    DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobResult, JobType,
-};
-use tangle_primitives::roles::RoleType;
 
 #[derive(Clone)]
 pub struct BlsSigningAdditionalParams {
     i: u16,
     t: u16,
-    role_type: RoleType,
-    job_id: JobId,
+    role_type: roles::RoleType,
+    job_id: u64,
     key_bundle: Participant<SecretParticipantImpl<Group>, Group>,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
     input_data_to_sign: Vec<u8>,
 }
 
-pub async fn create_next_job<
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    N: Network,
-    KBE: KeystoreBackend,
->(
-    config: &crate::BlsSigningProtocol<B, BE, C, N, KBE>,
-    job: JobInitMetadata<B>,
+pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>(
+    config: &crate::BlsSigningProtocol<C, N, KBE>,
+    job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<BlsSigningAdditionalParams, Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<BlsSigningAdditionalParams, Error> {
     let job_id = job.job_id;
     let p1_job = job.phase1_job.expect("Should exist");
     let threshold = p1_job.clone().get_threshold().expect("Should exist") as u16;
     let role_type = p1_job.get_role_type();
     let participants = p1_job.get_participants().expect("Should exist");
-    let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
+    let jobs::JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
         panic!("Should be valid type")
     };
     let input_data_to_sign = p2_job.submission;
@@ -76,14 +65,14 @@ where
         let additional_params = BlsSigningAdditionalParams {
             i: participants
                 .iter()
-                .position(|p| p == &config.account_id)
+                .position(|p| p.0 == config.account_id.0)
                 .expect("Should exist") as u16,
             t: threshold,
             role_type,
             job_id,
             user_id_to_account_id_mapping,
             key_bundle,
-            input_data_to_sign: input_data_to_sign.to_vec(),
+            input_data_to_sign: input_data_to_sign.0,
         };
 
         Ok(additional_params)
@@ -94,30 +83,21 @@ where
     }
 }
 
-pub async fn generate_protocol_from<
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    N: Network,
-    KBE: KeystoreBackend,
->(
-    config: &crate::BlsSigningProtocol<B, BE, C, N, KBE>,
+pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreBackend>(
+    config: &crate::BlsSigningProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_rx: tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>,
     additional_params: BlsSigningAdditionalParams,
-) -> Result<BuiltExecutableJobWrapper, JobError>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<BuiltExecutableJobWrapper, JobError> {
     let threshold = additional_params.t;
     let network = config.clone();
     let result = Arc::new(tokio::sync::Mutex::new(None));
     let result_clone = result.clone();
     let client = config.get_jobs_client();
-    let role_type = additional_params.role_type;
+    let role_type = additional_params.role_type.clone();
     let job_id = additional_params.job_id;
     let logger = config.logger.clone();
     let id = config.key_store.pair().public();
@@ -244,15 +224,12 @@ where
             let signature = as_sig.as_bytes().to_vec();
 
             logger.info("BlsSigningProtocol finished verification stage");
-            let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
-                signature_scheme: DigitalSignatureScheme::Bls381,
-                data: additional_params
-                    .input_data_to_sign
-                    .clone()
-                    .try_into()
-                    .unwrap(),
-                signature: signature.try_into().unwrap(),
-                verifying_key: signing_key.try_into().unwrap(),
+            let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
+                signature_scheme: jobs::tss::DigitalSignatureScheme::Bls381,
+                data: BoundedVec(additional_params.input_data_to_sign.clone()),
+                signature: BoundedVec(signature),
+                verifying_key: BoundedVec(signing_key),
+                __subxt_unused_type_params: Default::default(),
             });
 
             *result.lock().await = Some(job_result);

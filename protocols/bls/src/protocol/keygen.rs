@@ -3,6 +3,7 @@ use crate::protocol::state_machine::BlsStateMachine;
 use gadget_common::gadget::message::UserID;
 use gadget_common::prelude::*;
 use gadget_common::sp_core::{ecdsa, keccak_256, ByteArray, Pair};
+use gadget_common::webb::substrate::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use itertools::Itertools;
 use round_based::Msg;
 use std::collections::{BTreeMap, HashMap};
@@ -39,7 +40,7 @@ pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>
     let additional_params = BlsKeygenAdditionalParams {
         i: (participants
             .iter()
-            .position(|p| p == &config.account_id)
+            .position(|p| p.0 == config.account_id.0)
             .expect("Should exist")
             + 1) as u16,
         t: threshold,
@@ -281,27 +282,23 @@ pub(crate) async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     let participants = user_id_to_account_id_mapping
         .iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1.to_raw_vec().try_into().unwrap())
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
+        .map(|r| BoundedVec(r.1.to_raw_vec()))
+        .collect::<Vec<_>>();
 
     let signatures = received_signatures
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1.try_into().unwrap())
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
+        .map(|r| BoundedVec(r.1))
+        .collect::<Vec<_>>();
 
     let key = uncompressed_public_key[1..].to_vec();
 
     Ok(jobs::JobResult::DKGPhaseOne(
         jobs::tss::DKGTSSKeySubmissionResult {
             signature_scheme: jobs::tss::DigitalSignatureScheme::Bls381,
-            key: key.try_into().unwrap(),
-            participants,
-            signatures,
+            key: BoundedVec(key),
+            participants: BoundedVec(participants),
+            signatures: BoundedVec(signatures),
             threshold: t as u8,
             __subxt_unused_type_params: Default::default(),
         },
