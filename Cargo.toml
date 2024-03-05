@@ -32,9 +32,8 @@ pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "polka
 pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "polkadot-v1.7.0" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "polkadot-v1.7.0" }
 tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", branch = "polkadot-v1.7.0" }
+subxt-signer = { version = "0.34.0", default-features = false, features =["native"] }
 
-webb = { git = "https://github.com/webb-tools/webb-rs.git", default-features = false, branch = "salman/polkadot-v1.7.0" }
-subxt-signer = { version = "0.34.0", default-features = false, features = ["subxt", "sr25519", "web"] }
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }
 

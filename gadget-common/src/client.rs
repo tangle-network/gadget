@@ -14,13 +14,10 @@ use sp_core::{ecdsa, ByteArray};
 use sp_runtime::traits::Block;
 
 use std::sync::Arc;
-use subxt::tx::TxPayload;
-use subxt::OnlineClient;
 use tangle_primitives::jobs::JobId;
 use tangle_primitives::jobs::{PhaseResult, RpcResponseJobsData};
 use tangle_primitives::roles::RoleType;
-use webb::substrate::subxt;
-use webb::substrate::subxt::config::ExtrinsicParams;
+use tangle_subxt::subxt::{self, config::ExtrinsicParams, tx::TxPayload, OnlineClient};
 
 pub struct JobsClient<B: Block, BE, C> {
     pub client: C,
@@ -383,6 +380,11 @@ where
     S: subxt::tx::Signer<C> + Send + Sync + 'static,
     C::AccountId: std::fmt::Display + Send + Sync + 'static,
     C::Hash: std::fmt::Display,
+    <C as subxt::Config>::Hash: subxt::Config,
+    <C as subxt::Config>::ExtrinsicParams:
+        subxt::config::ExtrinsicParams<<C as subxt::Config>::Hash>,
+    <<C as subxt::Config>::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams:
+        Default + Send + Sync + 'static,
     <C::ExtrinsicParams as ExtrinsicParams<C::Hash>>::OtherParams: Default + Send + Sync + 'static,
 {
     async fn submit_job_result(
@@ -391,7 +393,7 @@ where
         job_id: JobId,
         result: GadgetJobResult,
     ) -> Result<(), crate::Error> {
-        let tx = webb::substrate::tangle_runtime::api::tx()
+        let tx = tangle_subxt::tangle_runtime::api::tx()
             .jobs()
             .submit_job_result(
                 Decode::decode(&mut role_type.encode().as_slice()).expect("Should decode"),
@@ -427,6 +429,11 @@ where
     C: subxt::Config,
     C::AccountId: std::fmt::Display,
     S: subxt::tx::Signer<C>,
+    <C as subxt::Config>::Hash: subxt::Config,
+    <C as subxt::Config>::ExtrinsicParams:
+        subxt::config::ExtrinsicParams<<C as subxt::Config>::Hash>,
+    <<C as subxt::Config>::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams:
+        std::default::Default,
     <C::ExtrinsicParams as ExtrinsicParams<C::Hash>>::OtherParams: Default,
 {
     pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, crate::Error> {
@@ -478,7 +485,7 @@ where
 #[cfg(test)]
 mod tests {
 
-    use webb::substrate::{
+    use tangle_subxt::{
         subxt::{tx::Signer, utils::AccountId32, PolkadotConfig},
         tangle_runtime::api::runtime_types::{
             bounded_collections::bounded_vec::BoundedVec,
@@ -513,7 +520,7 @@ mod tests {
                 __subxt_unused_type_params: std::marker::PhantomData,
             }),
         };
-        let tx = webb::substrate::tangle_runtime::api::tx()
+        let tx = tangle_subxt::tangle_runtime::api::tx()
             .jobs()
             .submit_job(dkg_phase_one);
         let _hash = pallet_tx.submit(&tx).await?;
