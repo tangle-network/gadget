@@ -15,7 +15,7 @@ pub struct StubProtocol<C: ClientWithApi, N: Network, KBE: KeystoreBackend> {
 }
 
 #[async_trait]
-impl<C: ClientWithApi, N: Network, KBE: KeystoreBackend> FullProtocolConfig
+impl<C: ClientWithApi + 'static, N: Network, KBE: KeystoreBackend> FullProtocolConfig
     for StubProtocol<C, N, KBE>
 {
     type AsyncProtocolParameters = ();
@@ -29,7 +29,7 @@ impl<C: ClientWithApi, N: Network, KBE: KeystoreBackend> FullProtocolConfig
         pallet_tx: Arc<dyn PalletSubmitter>,
         network: Self::Network,
         logger: DebugLogger,
-        account_id: AccountId32,
+        account_id: sr25519::Public,
         key_store: ECDSAKeyStore<Self::KeystoreBackend>,
         prometheus_config: PrometheusConfig,
     ) -> Result<Self, Error> {
@@ -81,7 +81,10 @@ impl<C: ClientWithApi, N: Network, KBE: KeystoreBackend> FullProtocolConfig
         false
     }
 
-    fn phase_filter(&self, _job: jobs::JobType) -> bool {
+    fn phase_filter(
+        &self,
+        _job: jobs::JobType<AccountId32, jobs::MaxParticipants, jobs::MaxSubmissionLen>,
+    ) -> bool {
         false
     }
 
