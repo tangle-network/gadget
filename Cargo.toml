@@ -6,6 +6,7 @@ members = [
     "test-gadget",
     "protocols/dfns-cggmp21",
     "protocols/zk-saas",
+    "protocols/zcash-frost",
     "protocols/bls",
     "protocols/stub",
     "test-utils",
@@ -21,6 +22,7 @@ stub-protocol = { path = "./protocols/stub" }
 test-utils = { path = "./test-utils" }
 protocol-macros = { path = "./protocol-macros" }
 dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
+zcash-frost-protocol = { path = "./protocols/zcash-frost" }
 
 snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
@@ -29,14 +31,31 @@ pallet-jobs = { git = "https://github.com/webb-tools/tangle.git", branch = "polk
 pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "polkadot-v1.7.0" }
 pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "polkadot-v1.7.0" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "polkadot-v1.7.0" }
+tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", branch = "polkadot-v1.7.0" }
 
-webb = { git = "https://github.com/webb-tools/webb-rs.git", default-features = false, branch = "polkadot-v1.7.0" }
-subxt-signer = { version = "0.31.0", default-features = false }
+webb = { git = "https://github.com/webb-tools/webb-rs.git", default-features = false, branch = "salman/polkadot-v1.7.0" }
+subxt-signer = { version = "0.34.0", default-features = false, features = ["subxt", "sr25519", "web"] }
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }
+
+# Round-based dependencies
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
+round-based-21 = { package = "round-based", version = "0.2.1" }
+round-based-zengo = { package = "round-based", git = "https://github.com/ZenGo-X/round-based-protocol", features = ["derive"]}
+
+
 curv = { package = "curv-kzen", version = "0.10.0" }
+digest = "0.10"
 dfns-cggmp21 = { package = "cggmp21", version = "0.1.1", default-features = false }
+udigest = { version = "0.1", features = ["std", "derive"]}
+frost-core = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-ed25519 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-ed448 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-p256 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-p384 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-ristretto255 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-secp256k1 = { git = "https://github.com/LIT-Protocol/frost.git" }
+frost-rerandomized = { git = "https://github.com/LIT-Protocol/frost.git" }
 bls12_381_plus = "0.8.13"
 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
@@ -131,6 +150,9 @@ k256 = "0.13.2"
 anyhow = "1.0.79"
 libsecp256k1 = "0.7.1"
 rayon = { version = "1.8.0" }
+thiserror = { version = "1.0" }
 substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0" }
 lazy_static = "1.4.0"
 sqlx = "=0.7.3"
+postcard = "1.0.8"
+sha2 = "0.10.8"

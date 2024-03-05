@@ -26,7 +26,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           components: rustfmt
 
       - name: Check Formatting
@@ -42,8 +42,9 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           components: clippy
+
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: "true"
@@ -68,7 +69,7 @@ jobs:
       - name: install rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -86,7 +87,7 @@ jobs:
     runs-on: macos-latest
     strategy:
         matrix:
-            package: [gadget-core, gadget-common, zk-saas-protocol, dfns-cggmp21-protocol, threshold-bls-protocol]
+            package: [gadget-core, gadget-common, zk-saas-protocol, dfns-cggmp21-protocol, threshold-bls-protocol, zcash-frost-protocol]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -94,7 +95,7 @@ jobs:
       - name: install rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
 
       - uses: swatinem/rust-cache@v2
         with:

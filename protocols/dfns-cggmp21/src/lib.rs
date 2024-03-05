@@ -3,26 +3,11 @@ use crate::protocols::key_rotate::DfnsCGGMP21KeyRotateExtraParams;
 use crate::protocols::keygen::DfnsCGGMP21KeygenExtraParams;
 use crate::protocols::sign::DfnsCGGMP21SigningExtraParams;
 use async_trait::async_trait;
-use gadget_common::client::{AccountId, ClientWithApi, JobsClient, PalletSubmitter};
-use gadget_common::client::{GadgetJobType, JobsApiForGadget};
-use gadget_common::debug_logger::DebugLogger;
 use gadget_common::full_protocol::SharedOptional;
-use gadget_common::gadget::network::Network;
-use gadget_common::gadget::JobInitMetadata;
-use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::prelude::*;
-use gadget_common::prelude::{FullProtocolConfig, GadgetProtocolMessage, Mutex, WorkManager};
-use gadget_common::{generate_protocol, generate_setup_and_run_command, Error};
-use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
-use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use gadget_common::{generate_protocol, generate_setup_and_run_command};
 use protocol_macros::protocol;
-use sc_client_api::Backend;
-use sp_api::ProvideRuntimeApi;
-use sp_runtime::traits::Block;
-use std::sync::Arc;
-use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use test_utils::generate_signing_and_keygen_tss_tests;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 pub mod constants;
 pub mod error;
@@ -73,4 +58,29 @@ generate_setup_and_run_command!(
     DfnsKeyRotateProtocol
 );
 
-generate_signing_and_keygen_tss_tests!(2, 3, 4, ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1);
+mod secp256k1 {
+    super::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        4,
+        ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1
+    );
+}
+
+mod secp256r1 {
+    super::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        4,
+        ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1
+    );
+}
+
+mod stark {
+    super::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        4,
+        ThresholdSignatureRoleType::DfnsCGGMP21Stark
+    );
+}

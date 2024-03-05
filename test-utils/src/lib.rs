@@ -108,6 +108,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
                         let identities = (0..N).map(|i| id_to_sr25519_public(i as u8)).map(AccountId::from).collect::<Vec<_>>();
 
                         let submission = JobSubmission {
+                            fallback: gadget_common::prelude::FallbackOptions::Destroy,
                             expiry: 100,
                             ttl: 100,
                             job_type: JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
@@ -143,6 +144,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
                         let job_id = Jobs::next_job_id();
                         let identities = (0..N).map(|i| id_to_sr25519_public(i as u8)).map(AccountId::from).collect::<Vec<_>>();
                         let submission = JobSubmission {
+                            fallback: gadget_common::prelude::FallbackOptions::Destroy,
                             expiry: 100,
                             ttl: 100,
                             job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {

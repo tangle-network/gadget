@@ -36,11 +36,12 @@ hex = { workspace = true }
 bincode2 = { workspace = true }
 serde_bytes = { workspace = true }
 linked-hash-map = { workspace = true }
-webb = { workspace = true, default-features = false, features = ["substrate-runtime"] }
+tangle-subxt = { workspace = true }
 subxt-signer = { workspace = true, features = ["subxt", "sr25519"] }
 anyhow = { workspace = true }
 futures = { workspace = true }
 round-based = { workspace = true }
+round-based-21 = { workspace = true, features = ["derive"]}
 sp-api = { workspace = true }
 sp-io = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
