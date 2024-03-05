@@ -20,6 +20,8 @@ generate_protocol!(
     protocols::keygen::create_next_job,
     jobs::JobType::DKGTSSPhaseOne(_),
     roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark)
 );
 generate_protocol!(
     "DFNS-Signing-Protocol",
@@ -29,6 +31,8 @@ generate_protocol!(
     protocols::sign::create_next_job,
     jobs::JobType::DKGTSSPhaseTwo(_),
     roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark)
 );
 generate_protocol!(
     "DFNS-Refresh-Protocol",
@@ -38,6 +42,8 @@ generate_protocol!(
     protocols::key_refresh::create_next_job,
     jobs::JobType::DKGTSSPhaseThree(_),
     roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark)
 );
 generate_protocol!(
     "DFNS-Rotate-Protocol",
@@ -47,6 +53,8 @@ generate_protocol!(
     protocols::key_rotate::create_next_job,
     jobs::JobType::DKGTSSPhaseFour(_),
     roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark)
 );
 
 generate_setup_and_run_command!(

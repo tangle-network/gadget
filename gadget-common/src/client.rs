@@ -41,6 +41,19 @@ pub async fn create_client<C: ClientWithApi>(
     })
 }
 
+pub async fn exec_client_function<C: Clone, F, T>(client: &C, function: F) -> T
+where
+    for<'a> F: FnOnce(&'a C) -> T,
+    C: Send + Sync + 'static,
+    T: Send + 'static,
+    F: Send + 'static,
+{
+    let client = client.clone();
+    tokio::task::spawn_blocking(move || function(&client))
+        .await
+        .expect("Failed to spawn blocking task")
+}
+
 pub trait JobTypeExt {
     /// Checks if the job type is a phase one job.
     fn is_phase_one(&self) -> bool;
