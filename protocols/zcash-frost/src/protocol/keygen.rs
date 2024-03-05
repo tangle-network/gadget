@@ -123,7 +123,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
         additional_params.t,
         additional_params.n,
         additional_params.user_id_to_account_id_mapping,
-        additional_params.role_type,
+        additional_params.role_type.clone(),
     );
 
     let role = match role_type {
@@ -174,7 +174,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                         i,
                         t,
                         n,
-                        role,
+                        role.clone(),
                         &mut rng,
                         party
                     )
@@ -186,16 +186,16 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                         i,
                         t,
                         n,
-                        role,
+                        role.clone(),
                         &mut rng,
                         party
                     )
                 }
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostP256 => {
-                    run_threshold_keygen!(P256Sha256, &mut tracer, i, t, n, role, &mut rng, party)
+                    run_threshold_keygen!(P256Sha256, &mut tracer, i, t, n, role.clone(), &mut rng, party)
                 }
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostP384 => {
-                    run_threshold_keygen!(P384Sha384, &mut tracer, i, t, n, role, &mut rng, party)
+                    run_threshold_keygen!(P384Sha384, &mut tracer, i, t, n, role.clone(), &mut rng, party)
                 }
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
                     run_threshold_keygen!(
@@ -204,7 +204,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                         i,
                         t,
                         n,
-                        role,
+                        role.clone(),
                         &mut rng,
                         party
                     )

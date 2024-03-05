@@ -20,7 +20,7 @@ use round_based::{
 };
 use round_based_21 as round_based;
 use serde::{Deserialize, Serialize};
-use tangle_primitives::roles::ThresholdSignatureRoleType;
+use gadget_common::prelude::*;
 
 use super::{Error, IoError};
 
@@ -71,7 +71,7 @@ pub async fn run_threshold_keygen<C, R, M>(
     i: u16,
     t: u16,
     n: u16,
-    role: ThresholdSignatureRoleType,
+    role: roles::tss::ThresholdSignatureRoleType,
     rng: &mut R,
     party: M,
 ) -> Result<FrostKeyShare, Error<C>>
@@ -96,7 +96,7 @@ where
     // Round 1
     tracer.round_begins();
     tracer.stage("Compute round 1 dkg secret package");
-    let (round1_secret_package, round1_package) = dkg_part1(i + 1, t, n, role, rng)?;
+    let (round1_secret_package, round1_package) = dkg_part1(i + 1, t, n, role.clone(), rng)?;
     runtime.yield_now().await;
     tracer.send_msg();
     outgoings
@@ -127,7 +127,7 @@ where
     tracer.msgs_received();
     tracer.stage("Compute round 2 dkg secret package");
     let (round2_secret_package, round2_packages_map) =
-        dkg_part2(role, round1_secret_package, &round1_packages_map)?;
+        dkg_part2(role.clone(), round1_secret_package, &round1_packages_map)?;
 
     tracer.send_msg();
     for (receiver_identifier, round2_package) in round2_packages_map {
@@ -176,7 +176,7 @@ where
         })
         .collect();
     let (key_package, pubkey_package) = dkg_part3(
-        role,
+        role.clone(),
         &round2_secret_package,
         &round1_packages_map,
         &round2_packages_map,
@@ -190,7 +190,8 @@ where
     })
 }
 
-fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(), Error<C>> {
+fn validate_role<C: Ciphersuite>(role: roles::tss::ThresholdSignatureRoleType) -> Result<(), Error<C>> {
+    use roles::tss::ThresholdSignatureRoleType;
     match role {
         ThresholdSignatureRoleType::ZcashFrostEd25519
         | ThresholdSignatureRoleType::ZcashFrostEd448
@@ -208,7 +209,7 @@ pub fn dkg_part1<R, C>(
     i: u16,
     t: u16,
     n: u16,
-    role: ThresholdSignatureRoleType,
+    role: roles::tss::ThresholdSignatureRoleType,
     rng: R,
 ) -> Result<(round1::SecretPackage<C>, round1::Package<C>), Error<C>>
 where
@@ -228,7 +229,7 @@ where
 
 #[allow(clippy::type_complexity)]
 pub fn dkg_part2<C>(
-    role: ThresholdSignatureRoleType,
+    role: roles::tss::ThresholdSignatureRoleType,
     secret_package: round1::SecretPackage<C>,
     round1_packages: &BTreeMap<Identifier<C>, round1::Package<C>>,
 ) -> Result<
@@ -250,7 +251,7 @@ where
 }
 
 pub fn dkg_part3<C>(
-    role: ThresholdSignatureRoleType,
+    role: roles::tss::ThresholdSignatureRoleType,
     round2_secret_package: &round2::SecretPackage<C>,
     round1_packages: &BTreeMap<Identifier<C>, round1::Package<C>>,
     round2_packages: &BTreeMap<Identifier<C>, round2::Package<C>>,

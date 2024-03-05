@@ -41,6 +41,7 @@ generate_protocol!(
 
 generate_setup_and_run_command!(ZcashFrostKeygenProtocol, ZcashFrostSigningProtocol);
 
+#[cfg(test)]
 mod secp256k1 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -50,6 +51,7 @@ mod secp256k1 {
     );
 }
 
+#[cfg(test)]
 mod ristretto255 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -59,6 +61,7 @@ mod ristretto255 {
     );
 }
 
+#[cfg(test)]
 mod p256 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -68,6 +71,7 @@ mod p256 {
     );
 }
 
+#[cfg(test)]
 mod p384 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -77,6 +81,7 @@ mod p384 {
     );
 }
 
+#[cfg(test)]
 mod ed25519 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -86,6 +91,7 @@ mod ed25519 {
     );
 }
 
+#[cfg(test)]
 mod ed448 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,

@@ -13117,6 +13117,7 @@ dependencies = [
  "sp-api",
  "sp-core",
  "sp-io",
+ "tangle-primitives",
  "test-utils",
  "thiserror",
  "tokio",

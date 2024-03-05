@@ -28,9 +28,9 @@ serde = { version = "1.0.193", features = ["derive"] }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 hex = { workspace = true }
-test-utils = { workspace = true }
 parking_lot = { workspace = true }
 sha2 = { workspace = true }
 
 [dev-dependencies]
+test-utils = { workspace = true }
 tangle-primitives = { workspace = true }

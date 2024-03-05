@@ -156,6 +156,8 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
         }
     };
 
+    let role2 = role.clone();
+
     Ok(JobBuilder::new()
         .protocol(async move {
             let mut rng = rand::rngs::StdRng::from_entropy();
@@ -286,7 +288,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
             if let Some(signature) = protocol_output_clone.lock().await.take() {
                 // Compute the signature bytes by first converting the signature
                 // to a fixed byte array and then converting that to a Vec<u8>.
-                let (signature, signature_scheme) = match role {
+                let (signature, signature_scheme) = match role2 {
                     roles::tss::ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
                         let mut signature_bytes = [0u8; 65];
                         signature_bytes.copy_from_slice(&signature.group_signature);
