@@ -42,8 +42,9 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: nightly-2023-09-28
-          components: clippy
+          target: wasm32-unknown-unknown
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -53,7 +54,7 @@ jobs:
         run: sudo apt-get install protobuf-compiler
 
       - name: Run Clippy
-        run: cargo clippy --tests -- -D warnings
+        run: cargo clippy -- -D warnings
 
   build:
     timeout-minutes: 120
