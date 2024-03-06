@@ -3,7 +3,6 @@ use bytes::Bytes;
 use futures_util::sink::SinkExt;
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::StreamExt;
-use gadget_common::client::AccountId;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_core::job_manager::WorkManagerInterface;
 use mpc_net::multi::WrappedStream;
@@ -11,7 +10,7 @@ use mpc_net::prod::{CertToDer, RustlsCertificate};
 use mpc_net::MpcNetError;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use sp_core::ecdsa;
+use sp_core::{ecdsa, sr25519};
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::net::SocketAddr;
@@ -40,7 +39,7 @@ pub enum ZkNetworkService {
     },
     Client {
         king_registry_addr: SocketAddr,
-        king_registry_id: Option<RegistantId>,
+        king_registry_id: Arc<parking_lot::Mutex<Option<RegistantId>>>,
         registry_id: RegistantId,
         cert_der: Vec<u8>,
         local_to_outbound_tx: UnboundedSender<RegistryPacket>,
@@ -206,7 +205,7 @@ impl ZkNetworkService {
         let mut this = ZkNetworkService::Client {
             king_registry_addr,
             local_to_outbound_tx,
-            king_registry_id: None,
+            king_registry_id: Arc::new(parking_lot::Mutex::new(None)),
             registry_id: registrant_id,
             cert_der,
             inbound_messages: Arc::new(Mutex::new(from_registry)),
@@ -258,7 +257,7 @@ impl ZkNetworkService {
                             });
                         }
 
-                        *king_registry_id = Some(king_id);
+                        *king_registry_id.lock() = Some(king_id);
                     }
                     _ => {
                         return Err(Error::RegistryCreateError {
@@ -283,7 +282,7 @@ impl ZkNetworkService {
             Self::King { registry_id, .. } => Some(*registry_id),
             Self::Client {
                 king_registry_id, ..
-            } => *king_registry_id,
+            } => *king_registry_id.lock(),
         }
     }
 
@@ -519,7 +518,14 @@ impl Network for ZkNetworkService {
                     king_registry_id,
                     ..
                 } => {
-                    if to != king_registry_id.expect("Should exist") {
+                    let king_registry_id =
+                        king_registry_id
+                            .lock()
+                            .ok_or_else(|| Error::RegistrySendError {
+                                err: "No king registry id".to_string(),
+                            })?;
+
+                    if to != king_registry_id {
                         return Err(Error::RegistrySendError {
                             err: "Cannot send message to non-king as client".to_string(),
                         });
@@ -581,6 +587,6 @@ pub struct ZkProtocolNetworkConfig<KBE: KeystoreBackend> {
     pub public_identity_der: Vec<u8>,
     pub private_identity_der: Vec<u8>,
     pub client_only_king_public_identity_der: Option<Vec<u8>>,
-    pub account_id: AccountId,
+    pub account_id: sr25519::Public,
     pub key_store: ECDSAKeyStore<KBE>,
 }

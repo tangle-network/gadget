@@ -35,11 +35,6 @@ futures = { workspace = true }
 
 sp-runtime = { workspace = true }
 sp-core = { workspace = true }
-sp-api = { workspace = true }
-
-sc-client-api = { workspace = true }
-
-pallet-jobs-rpc-runtime-api = { workspace = true }
 tangle-primitives = { workspace = true, features = ["verifying"] }
 
 ark-serialize = { workspace = true, default-features = false }

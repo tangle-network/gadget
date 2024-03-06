@@ -3,6 +3,7 @@ use crate::protocol::state_machine::BlsStateMachine;
 use gadget_common::gadget::message::UserID;
 use gadget_common::prelude::*;
 use gadget_common::sp_core::{ecdsa, keccak_256, ByteArray, Pair};
+use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use itertools::Itertools;
 use round_based::Msg;
 use std::collections::{BTreeMap, HashMap};
@@ -12,25 +13,16 @@ pub struct BlsKeygenAdditionalParams {
     pub i: u16,
     pub t: u16,
     pub n: u16,
-    pub role_type: RoleType,
-    pub job_id: JobId,
+    pub role_type: roles::RoleType,
+    pub job_id: u64,
     pub user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
-pub async fn create_next_job<
-    B: Block,
-    BE: Backend<B>,
-    C: ClientWithApi<B, BE>,
-    N: Network,
-    KBE: KeystoreBackend,
->(
-    config: &crate::BlsKeygenProtocol<B, BE, C, N, KBE>,
-    job: JobInitMetadata<B>,
+pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>(
+    config: &crate::BlsKeygenProtocol<C, N, KBE>,
+    job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<BlsKeygenAdditionalParams, Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<BlsKeygenAdditionalParams, Error> {
     let job_id = job.job_id;
     let p1_job = job.job_type;
     let threshold = p1_job.clone().get_threshold().expect("Should exist") as u16;
@@ -48,7 +40,7 @@ where
     let additional_params = BlsKeygenAdditionalParams {
         i: (participants
             .iter()
-            .position(|p| p == &config.account_id)
+            .position(|p| p.0 == config.account_id.0)
             .expect("Should exist")
             + 1) as u16,
         t: threshold,
@@ -61,24 +53,15 @@ where
     Ok(additional_params)
 }
 
-pub async fn generate_protocol_from<
-    B: Block,
-    BE: Backend<B>,
-    C: ClientWithApi<B, BE>,
-    N: Network,
-    KBE: KeystoreBackend,
->(
-    config: &crate::BlsKeygenProtocol<B, BE, C, N, KBE>,
+pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreBackend>(
+    config: &crate::BlsKeygenProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
     additional_params: BlsKeygenAdditionalParams,
-) -> Result<BuiltExecutableJobWrapper, JobError>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<BuiltExecutableJobWrapper, JobError> {
     let network = config.clone();
     let result = Arc::new(tokio::sync::Mutex::new(None));
     let result_clone = result.clone();
@@ -191,7 +174,16 @@ pub(crate) async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     tx: &UnboundedSender<Msg<RoundPayload>>,
     rx: &mut UnboundedReceiver<Msg<RoundPayload>>,
     user_id_to_account_id_mapping: &Arc<HashMap<UserID, ecdsa::Public>>,
-) -> Result<GadgetJobResult, JobError> {
+) -> Result<
+    jobs::JobResult<
+        jobs::MaxParticipants,
+        jobs::MaxKeyLen,
+        jobs::MaxSignatureLen,
+        jobs::MaxDataLen,
+        jobs::MaxProofLen,
+    >,
+    JobError,
+> {
     let mut received_pk_shares = BTreeMap::new();
     let mut received_signatures = BTreeMap::new();
     received_pk_shares.insert(i, public_key_share.clone());
@@ -290,26 +282,25 @@ pub(crate) async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     let participants = user_id_to_account_id_mapping
         .iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1.to_raw_vec().try_into().unwrap())
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
+        .map(|r| BoundedVec(r.1.to_raw_vec()))
+        .collect::<Vec<_>>();
 
     let signatures = received_signatures
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1.try_into().unwrap())
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
+        .map(|r| BoundedVec(r.1))
+        .collect::<Vec<_>>();
 
     let key = uncompressed_public_key[1..].to_vec();
 
-    Ok(JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
-        signature_scheme: DigitalSignatureScheme::Bls381,
-        key: key.try_into().unwrap(),
-        participants,
-        signatures,
-        threshold: t as u8,
-    }))
+    Ok(jobs::JobResult::DKGPhaseOne(
+        jobs::tss::DKGTSSKeySubmissionResult {
+            signature_scheme: jobs::tss::DigitalSignatureScheme::Bls381,
+            key: BoundedVec(key),
+            participants: BoundedVec(participants),
+            signatures: BoundedVec(signatures),
+            threshold: t as u8,
+            __subxt_unused_type_params: Default::default(),
+        },
+    ))
 }

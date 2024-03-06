@@ -14,8 +14,8 @@ generate_protocol!(
     BlsKeygenAdditionalParams,
     protocol::keygen::generate_protocol_from,
     protocol::keygen::create_next_job,
-    GadgetJobType::DKGTSSPhaseOne(_),
-    RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381)
+    jobs::JobType::DKGTSSPhaseOne(_),
+    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::GennaroDKGBls381)
 );
 generate_protocol!(
     "BLS-Signing-Protocol",
@@ -23,10 +23,12 @@ generate_protocol!(
     BlsSigningAdditionalParams,
     protocol::signing::generate_protocol_from,
     protocol::signing::create_next_job,
-    GadgetJobType::DKGTSSPhaseTwo(_),
-    RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381)
+    jobs::JobType::DKGTSSPhaseTwo(_),
+    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::GennaroDKGBls381)
 );
 generate_setup_and_run_command!(BlsKeygenProtocol, BlsSigningProtocol);
+
+#[cfg(test)]
 test_utils::generate_signing_and_keygen_tss_tests!(
     2,
     3,

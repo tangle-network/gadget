@@ -12,9 +12,7 @@ use digest::typenum::U32;
 use digest::Digest;
 use futures::channel::mpsc::{TryRecvError, UnboundedSender};
 use futures::StreamExt;
-use gadget_common::client::{
-    ClientWithApi, GadgetJobResult, JobsApiForGadget, MaxKeyLen, MaxParticipants, MaxSignatureLen,
-};
+use gadget_common::client::ClientWithApi;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::full_protocol::FullProtocolConfig;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -22,51 +20,34 @@ use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
-use gadget_common::Block;
+use gadget_common::{prelude::*, utils};
+use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
-use pallet_dkg::signatures_schemes::ecdsa::verify_signer_from_set_ecdsa;
-use pallet_dkg::signatures_schemes::to_slice_33;
 use rand::rngs::{OsRng, StdRng};
 use rand::{CryptoRng, RngCore, SeedableRng};
 use round_based_21::{Delivery, Incoming, MpcParty, Outgoing};
-use sc_client_api::Backend;
 use serde::Serialize;
-use sp_api::ProvideRuntimeApi;
-use sp_application_crypto::sp_core::keccak_256;
+use sp_core::keccak_256;
 use sp_core::{ecdsa, Pair};
-use sp_runtime::DeserializeOwned;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use tangle_primitives::jobs::{
-    DKGTSSKeySubmissionResult, DigitalSignatureScheme, JobId, JobResult, JobType,
-};
-use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
 use gadget_common::channels::PublicKeyGossipMessage;
 
-pub async fn create_next_job<
-    B: Block,
-    BE: Backend<B> + 'static,
-    KBE: KeystoreBackend,
-    C: ClientWithApi<B, BE>,
-    N: Network,
->(
-    config: &crate::DfnsKeygenProtocol<B, BE, C, N, KBE>,
-    job: JobInitMetadata<B>,
+pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
+    config: &crate::DfnsKeygenProtocol<C, N, KBE>,
+    job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<DfnsCGGMP21KeygenExtraParams, gadget_common::Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<DfnsCGGMP21KeygenExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
     let role_type = job.job_type.get_role_type();
 
     // We can safely make this assumption because we are only creating jobs for phase one
-    let JobType::DKGTSSPhaseOne(p1_job) = job.job_type else {
+    let jobs::JobType::DKGTSSPhaseOne(p1_job) = job.job_type else {
         panic!("Should be valid type")
     };
 
@@ -84,8 +65,9 @@ where
 
     let i = p1_job
         .participants
+        .0
         .iter()
-        .position(|p| p == &config.account_id)
+        .position(|p| p.0 == config.account_id.0)
         .expect("Should exist") as u16;
 
     let params = DfnsCGGMP21KeygenExtraParams {
@@ -105,8 +87,8 @@ pub struct DfnsCGGMP21KeygenExtraParams {
     i: u16,
     t: u16,
     n: u16,
-    job_id: JobId,
-    role_type: RoleType,
+    job_id: u64,
+    role_type: roles::RoleType,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
@@ -229,7 +211,7 @@ where
     N: Network,
     L: SecurityLevel,
     E: Curve,
-    M: Serialize + DeserializeOwned + Send + Sync + 'static,
+    M: Serialize + serde::de::DeserializeOwned + Send + Sync + 'static,
 {
     let (tx_to_outbound, rx_async_proto, broadcast_tx_to_outbound, broadcast_rx_from_gadget) =
         gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io::<
@@ -256,24 +238,15 @@ where
     )
 }
 
-pub async fn generate_protocol_from<
-    B: Block,
-    BE: Backend<B> + 'static,
-    KBE: KeystoreBackend,
-    C: ClientWithApi<B, BE>,
-    N: Network,
->(
-    config: &crate::DfnsKeygenProtocol<B, BE, C, N, KBE>,
+pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
+    config: &crate::DfnsKeygenProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
     additional_params: DfnsCGGMP21KeygenExtraParams,
-) -> Result<BuiltExecutableJobWrapper, JobError>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<BuiltExecutableJobWrapper, JobError> {
     let key_store = config.key_store.clone();
     let key_store2 = config.key_store.clone();
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
@@ -287,7 +260,7 @@ where
         additional_params.i,
         additional_params.t,
         additional_params.n,
-        additional_params.role_type,
+        additional_params.role_type.clone(),
         additional_params.user_id_to_account_id_mapping,
     );
 
@@ -309,7 +282,9 @@ where
 
             let (key_share, serialized_public_key, tx2, rx2) =
                 match role_type {
-                    RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
+                    roles::RoleType::Tss(
+                        roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
+                    ) => {
                         run_full_keygen_protocol::<
                             Secp256k1,
                             DefaultSecurityLevel,
@@ -339,7 +314,9 @@ where
                         )
                         .await?
                     }
-                    RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
+                    roles::RoleType::Tss(
+                        roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1,
+                    ) => {
                         run_full_keygen_protocol::<
                             Secp256r1,
                             DefaultSecurityLevel,
@@ -369,7 +346,9 @@ where
                         )
                         .await?
                     }
-                    RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+                    roles::RoleType::Tss(
+                        roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark,
+                    ) => {
                         run_full_keygen_protocol::<
                             Stark,
                             DefaultSecurityLevel,
@@ -457,7 +436,16 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     i: u16,
     broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
-) -> Result<GadgetJobResult, JobError> {
+) -> Result<
+    jobs::JobResult<
+        jobs::MaxParticipants,
+        jobs::MaxKeyLen,
+        jobs::MaxSignatureLen,
+        jobs::MaxDataLen,
+        jobs::MaxProofLen,
+    >,
+    JobError,
+> {
     let key_hashed = keccak_256(serialized_public_key);
     let signature = key_store.pair().sign_prehashed(&key_hashed).0.to_vec();
     let my_id = key_store.pair().public();
@@ -523,16 +511,14 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     let signatures = received_keys
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1.try_into().unwrap())
+        .map(|r| BoundedVec(r.1))
         .collect::<Vec<_>>();
 
     let participants = received_participants
         .into_iter()
         .sorted_by_key(|x| x.0)
-        .map(|r| r.1 .0.to_vec().try_into().unwrap())
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
+        .map(|(_, p)| BoundedVec(p.0.to_vec()))
+        .collect::<Vec<_>>();
 
     if signatures.len() < t as usize {
         return Err(JobError {
@@ -544,32 +530,38 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
         });
     }
 
-    let res = DKGTSSKeySubmissionResult {
-        signature_scheme: DigitalSignatureScheme::Ecdsa,
-        key: serialized_public_key.to_vec().try_into().unwrap(),
-        participants,
-        signatures: signatures.try_into().unwrap(),
+    let res = jobs::tss::DKGTSSKeySubmissionResult {
+        signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
+        key: BoundedVec(serialized_public_key.to_vec()),
+        participants: BoundedVec(participants),
+        signatures: BoundedVec(signatures),
         threshold: t as _,
+        __subxt_unused_type_params: Default::default(),
     };
     verify_generated_dkg_key_ecdsa(res.clone(), logger);
-    Ok(JobResult::DKGPhaseOne(res))
+    Ok(jobs::JobResult::DKGPhaseOne(res))
 }
 
 fn verify_generated_dkg_key_ecdsa(
-    data: DKGTSSKeySubmissionResult<MaxKeyLen, MaxParticipants, MaxSignatureLen>,
+    data: jobs::tss::DKGTSSKeySubmissionResult<
+        jobs::MaxKeyLen,
+        jobs::MaxParticipants,
+        jobs::MaxSignatureLen,
+    >,
     logger: &DebugLogger,
 ) {
     // Ensure participants and signatures are not empty
-    assert!(!data.participants.is_empty(), "NoParticipantsFound",);
-    assert!(!data.signatures.is_empty(), "NoSignaturesFound");
+    assert!(!data.participants.0.is_empty(), "NoParticipantsFound",);
+    assert!(!data.signatures.0.is_empty(), "NoSignaturesFound");
 
     // Generate the required ECDSA signers
     let maybe_signers = data
         .participants
+        .0
         .iter()
         .map(|x| {
             ecdsa::Public(
-                to_slice_33(x)
+                utils::to_slice_33(&x.0)
                     .unwrap_or_else(|| panic!("Failed to convert input to ecdsa public key")),
             )
         })
@@ -579,10 +571,10 @@ fn verify_generated_dkg_key_ecdsa(
 
     let mut known_signers: Vec<ecdsa::Public> = Default::default();
 
-    for signature in data.signatures {
+    for signature in data.signatures.0 {
         // Ensure the required signer signature exists
         let (maybe_authority, success) =
-            verify_signer_from_set_ecdsa(maybe_signers.clone(), &data.key, &signature);
+            utils::verify_signer_from_set_ecdsa(maybe_signers.clone(), &data.key.0, &signature.0);
 
         if success {
             let authority = maybe_authority.expect("CannotRetreiveSigner");
@@ -671,7 +663,7 @@ async fn run_full_keygen_protocol<
     logger: &DebugLogger,
     job_id_bytes: &[u8],
     key_store: &ECDSAKeyStore<KBE>,
-    role_type: RoleType,
+    role_type: roles::RoleType,
 ) -> Result<
     (
         Vec<u8>,

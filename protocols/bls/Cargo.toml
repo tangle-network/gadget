@@ -12,7 +12,6 @@ async-trait = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true }
 protocol-macros = { workspace = true }
-tangle-primitives = { workspace = true }
 gennaro-dkg = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 bincode2 = { workspace = true }
@@ -23,4 +22,9 @@ log = { workspace = true }
 bls12_381_plus = { workspace = true }
 snowbridge-milagro-bls = { workspace = true }
 parking_lot = { workspace = true }
+sp-core = { workspace = true }
+
+
+[dev-dependencies]
 test-utils = { workspace = true }
+tangle-primitives = { workspace = true }

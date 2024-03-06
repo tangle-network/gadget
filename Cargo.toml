@@ -31,13 +31,8 @@ pallet-jobs = { git = "https://github.com/webb-tools/tangle.git", branch = "main
 pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
 pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
-# pallet-jobs-rpc-runtime-api = { path = "../tangle/pallets/jobs/rpc/runtime-api" }
-# pallet-jobs = { path = "../tangle/pallets/jobs" }
-# pallet-dkg = { path = "../tangle/pallets/dkg" }
-# pallet-zksaas = { path = "../tangle/pallets/zksaas" }
-# tangle-primitives = { path = "../tangle/primitives" }
+tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", branch = "main", default-features = false }
 
-webb = { git = "https://github.com/webb-tools/webb-rs.git", default-features = false, branch = "main" }
 subxt-signer = { version = "0.31.0", default-features = false }
 
 multi-party-ecdsa = { git = "https://github.com/webb-tools/cggmp-threshold-ecdsa/" }

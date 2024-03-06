@@ -8,7 +8,7 @@ mod tests {
     };
     use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
     use tangle_primitives::AccountId;
-    use test_utils::mock::{id_to_sr25519_public, Jobs, MockBackend, RuntimeOrigin};
+    use test_utils::mock::{id_to_sr25519_public, Jobs, RuntimeOrigin};
     use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
     #[tokio::test(flavor = "multi_thread")]
     async fn test_externalities_keyrefresh() {
@@ -228,15 +228,15 @@ mod tests {
 
     async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
         test_utils::mock::new_test_ext::<N, 4, _, _, _>((), |node_input| async move {
-            let clients = node_input.mock_clients;
-            let networks = node_input.mock_networks;
+            let clients = node_input.clients;
+            let networks = node_input.networks;
             let account_id = node_input.account_id;
             let logger = node_input.logger.clone();
             let prometheus_config = node_input.prometheus_config.clone();
 
             let (pallet_tx, key_store) = (node_input.pallet_tx, node_input.keystore);
             logger.info("Starting gadget");
-            if let Err(err) = dfns_cggmp21_protocol::run::<_, MockBackend, _, _, _>(
+            if let Err(err) = dfns_cggmp21_protocol::run(
                 clients,
                 pallet_tx,
                 networks,
