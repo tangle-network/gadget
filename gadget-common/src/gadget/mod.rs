@@ -1,25 +1,20 @@
-use crate::client::{AccountId, ClientWithApi, GadgetJobType, JobsApiForGadget, JobsClient};
+use crate::client::{ClientWithApi, JobsClient};
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
 use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
 use crate::Error;
 use async_trait::async_trait;
-use gadget_core::gadget::substrate::SubstrateGadgetModule;
+use gadget_core::gadget::substrate::{FinalityNotification, SubstrateGadgetModule};
 use gadget_core::job::BuiltExecutableJobWrapper;
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerInterface};
 use network::Network;
 use parking_lot::RwLock;
-use sc_client_api::{Backend, BlockImportNotification, FinalityNotification};
-use sp_api::ProvideRuntimeApi;
-use sp_core::{ecdsa, keccak_256};
-use sp_runtime::traits::{Block, Header};
-use sp_runtime::SaturatedConversion;
-use std::marker::PhantomData;
+use sp_core::{ecdsa, keccak_256, sr25519};
 use std::sync::Arc;
 use std::time::Duration;
-use tangle_primitives::jobs::JobId;
-use tangle_primitives::roles::RoleType;
+use tangle_subxt::subxt::utils::AccountId32;
+use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
 
 pub mod message;
 pub mod metrics;
@@ -27,12 +22,12 @@ pub mod network;
 pub mod work_manager;
 
 /// Used as a module to place inside the SubstrateGadget
-pub struct Module<B, C, N, M, BE> {
+pub struct Module<C, N, M> {
     protocol: M,
     network: N,
     job_manager: ProtocolWorkManager<WorkManager>,
     clock: Arc<RwLock<Option<u64>>>,
-    _pd: PhantomData<(B, C, BE)>,
+    _client: core::marker::PhantomData<C>,
 }
 
 const DEFAULT_MAX_ACTIVE_TASKS: usize = 4;
@@ -56,16 +51,7 @@ impl Default for WorkManagerConfig {
     }
 }
 
-impl<
-        C: ClientWithApi<B, BE>,
-        B: Block,
-        N: Network,
-        M: GadgetProtocol<B, BE, C>,
-        BE: Backend<B>,
-    > Module<B, C, N, M, BE>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> Module<C, N, M> {
     pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<WorkManager>) -> Self {
         let clock = job_manager.utility.clock.clone();
         Module {
@@ -73,38 +59,29 @@ where
             job_manager,
             network,
             clock,
-            _pd: Default::default(),
+            _client: Default::default(),
         }
     }
 }
 
-pub struct JobInitMetadata<B: Block> {
-    pub job_type: GadgetJobType,
-    pub role_type: RoleType,
+pub struct JobInitMetadata {
+    pub job_type: jobs::JobType<AccountId32, jobs::MaxParticipants, jobs::MaxSubmissionLen>,
+    pub role_type: roles::RoleType,
     /// This value only exists if this is a stage2 job
-    pub phase1_job: Option<GadgetJobType>,
+    pub phase1_job:
+        Option<jobs::JobType<AccountId32, jobs::MaxParticipants, jobs::MaxSubmissionLen>>,
     pub participants_role_ids: Vec<ecdsa::Public>,
     pub task_id: <WorkManager as WorkManagerInterface>::TaskID,
     pub retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-    pub job_id: JobId,
+    pub job_id: u64,
     pub now: <WorkManager as WorkManagerInterface>::Clock,
-    pub at: B::Hash,
+    pub at: [u8; 32],
 }
 
 #[async_trait]
-impl<
-        C: ClientWithApi<B, BE>,
-        B: Block,
-        N: Network,
-        M: GadgetProtocol<B, BE, C>,
-        BE: Backend<B>,
-    > SubstrateGadgetModule for Module<B, C, N, M, BE>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule for Module<C, N, M> {
     type Error = Error;
     type ProtocolMessage = GadgetProtocolMessage;
-    type Block = B;
     type Client = C;
 
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage> {
@@ -113,10 +90,9 @@ where
 
     async fn process_finality_notification(
         &self,
-        notification: FinalityNotification<B>,
+        notification: FinalityNotification,
     ) -> Result<(), Self::Error> {
-        let now_header = *notification.header.number();
-        let now: u64 = now_header.saturated_into();
+        let now: u64 = notification.number;
         *self.clock.write() = Some(now);
         self.protocol.logger().info(format!(
             "Processing finality notification at block number {now}",
@@ -125,7 +101,7 @@ where
         let jobs = self
             .protocol
             .client()
-            .query_jobs_by_validator(notification.hash, self.protocol.account_id().clone())
+            .query_jobs_by_validator(notification.hash, *self.protocol.account_id())
             .await?;
 
         self.protocol.logger().trace(format!(
@@ -136,21 +112,43 @@ where
 
         for job in jobs {
             // Job is expired.
-            if job.expiry < now_header {
+            if job.expiry < now {
                 self.protocol.logger().trace(format!(
                     "[{}] The job requested for initialization is expired, skipping submission",
                     self.protocol.name()
                 ));
                 continue;
             }
+            let role_type = match &job.job_type {
+                jobs::JobType::DKGTSSPhaseOne(p) => roles::RoleType::Tss(p.role_type.clone()),
+                jobs::JobType::DKGTSSPhaseTwo(p) => roles::RoleType::Tss(p.role_type.clone()),
+                jobs::JobType::DKGTSSPhaseThree(p) => roles::RoleType::Tss(p.role_type.clone()),
+                jobs::JobType::DKGTSSPhaseFour(p) => roles::RoleType::Tss(p.role_type.clone()),
+                jobs::JobType::ZkSaaSPhaseOne(p) => roles::RoleType::ZkSaaS(p.role_type.clone()),
+                jobs::JobType::ZkSaaSPhaseTwo(p) => roles::RoleType::ZkSaaS(p.role_type.clone()),
+            };
             // Job is not for this role
-            if !self.protocol.role_filter(job.job_type.get_role_type()) {
-                // self.protocol.logger().trace(format!("[{}] The job {} requested for initialization is not for this role {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type.get_role_type()));
+            if !self.protocol.role_filter(role_type.clone()) {
+                self.protocol.logger().trace(
+                    format!(
+                        "[{}] The job {} requested for initialization is not for this role {:?}, skipping submission",
+                        self.protocol.name(),
+                        job.job_id,
+                        role_type
+                    )
+                );
                 continue;
             }
             // Job is not for this phase
             if !self.protocol.phase_filter(job.job_type.clone()) {
-                // self.protocol.logger().trace(format!("[{}] The job {} requested for initialization is not for this phase {:?}, skipping submission", self.protocol.name(), job.job_id, job.job_type));
+                self.protocol.logger().trace(
+                    format!(
+                        "[{}] The job {} requested for initialization is not for this phase {:?}, skipping submission",
+                        self.protocol.name(),
+                        job.job_id,
+                        job.job_type
+                    )
+                );
                 continue;
             }
 
@@ -168,33 +166,44 @@ where
                 .map(|r| r + 1)
                 .unwrap_or(0);
 
-            let phase1_job = if job.job_type.is_phase_one() {
+            let is_phase_one = matches!(
+                job.job_type,
+                jobs::JobType::DKGTSSPhaseOne(_) | jobs::JobType::ZkSaaSPhaseOne(_)
+            );
+
+            let phase1_job = if is_phase_one {
                 None
             } else {
-                let phase_one_job_id = job
-                    .job_type
-                    .get_phase_one_id()
-                    .expect("Should exist for non phase 1 jobs");
+                let phase_one_job_id = match &job.job_type {
+                    jobs::JobType::DKGTSSPhaseOne(_) => unreachable!(),
+                    jobs::JobType::ZkSaaSPhaseOne(_) => unreachable!(),
+                    jobs::JobType::DKGTSSPhaseTwo(p) => p.phase_one_id,
+                    jobs::JobType::DKGTSSPhaseThree(p) => p.phase_one_id,
+                    jobs::JobType::DKGTSSPhaseFour(p) => p.phase_one_id,
+                    jobs::JobType::ZkSaaSPhaseTwo(p) => p.phase_one_id,
+                };
                 let phase1_job = self
                         .protocol
                         .client()
-                        .query_job_result(notification.hash, job.job_type.get_role_type(), phase_one_job_id)
+                        .query_job_result(notification.hash, role_type.clone(), phase_one_job_id)
                         .await?
                         .ok_or_else(|| Error::ClientError {
                             err: format!("Corresponding phase one job {phase_one_job_id} not found for phase two job {job_id}"),
                         })?;
                 Some(phase1_job.job_type)
             };
+
             let participants = match phase1_job {
-                Some(ref j) => j
-                    .clone()
-                    .get_participants()
-                    .expect("Should exist for phase 1 jobs"),
-                None => job
-                    .job_type
-                    .clone()
-                    .get_participants()
-                    .expect("Should exist for phase 1 jobs"),
+                Some(ref j) => match j {
+                    jobs::JobType::DKGTSSPhaseOne(p) => p.participants.0.clone(),
+                    jobs::JobType::ZkSaaSPhaseOne(p) => p.participants.0.clone(),
+                    _ => unreachable!(),
+                },
+                None => match &job.job_type {
+                    jobs::JobType::DKGTSSPhaseOne(p) => p.participants.0.clone(),
+                    jobs::JobType::ZkSaaSPhaseOne(p) => p.participants.0.clone(),
+                    _ => unreachable!(),
+                },
             };
 
             let participants_role_ids = {
@@ -203,7 +212,7 @@ where
                     let maybe_role_key = self
                         .protocol
                         .client()
-                        .query_restaker_role_key(notification.hash, p.clone())
+                        .query_restaker_role_key(notification.hash, sr25519::Public(p.0))
                         .await?;
                     if let Some(role_key) = maybe_role_key {
                         out.push(role_key);
@@ -216,7 +225,7 @@ where
                 out
             };
             relevant_jobs.push(JobInitMetadata {
-                role_type: job.job_type.get_role_type(),
+                role_type,
                 job_type: job.job_type,
                 phase1_job,
                 participants_role_ids,
@@ -293,15 +302,6 @@ where
         Ok(())
     }
 
-    async fn process_block_import_notification(
-        &self,
-        notification: BlockImportNotification<B>,
-    ) -> Result<(), Self::Error> {
-        self.protocol
-            .process_block_import_notification(notification, &self.job_manager)
-            .await
-    }
-
     async fn process_protocol_message(
         &self,
         message: Self::ProtocolMessage,
@@ -320,31 +320,21 @@ where
 pub type Job = (AsyncProtocolRemote, BuiltExecutableJobWrapper);
 
 #[async_trait]
-pub trait GadgetProtocol<B: Block, BE: Backend<B>, C: ClientWithApi<B, BE>>:
-    AsyncProtocol + Send + Sync
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+pub trait GadgetProtocol<C: ClientWithApi>: AsyncProtocol + Send + Sync {
     /// Given an input of a valid and relevant job, return the parameters needed to start the async protocol
     /// Note: the parameters returned must be relevant to the `AsyncProtocol` implementation of this protocol
     ///
     /// In case the participant is not selected for some reason, return an [`Error::ParticipantNotSelected`]
     async fn create_next_job(
         &self,
-        job: JobInitMetadata<B>,
+        job: JobInitMetadata,
         work_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error>;
 
-    /// Process a block import notification
-    async fn process_block_import_notification(
-        &self,
-        notification: BlockImportNotification<B>,
-        job_manager: &ProtocolWorkManager<WorkManager>,
-    ) -> Result<(), Error>;
     /// Process an error that may arise from the work manager, async protocol, or the executor
     async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WorkManager>);
     /// The account ID of this node. Jobs queried will be filtered by this account ID
-    fn account_id(&self) -> &AccountId;
+    fn account_id(&self) -> &sr25519::Public;
 
     /// The Protocol Name.
     /// Used for logging and debugging purposes
@@ -357,7 +347,7 @@ where
     ///   matches!(role, RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1))
     /// }
     /// ```
-    fn role_filter(&self, role: RoleType) -> bool;
+    fn role_filter(&self, role: roles::RoleType) -> bool;
 
     /// Filter queried jobs by Job type & Phase.
     /// ## Example
@@ -367,8 +357,11 @@ where
     ///   matches!(job, JobType::DKGTSSPhaseOne(_))
     /// }
     /// ```
-    fn phase_filter(&self, job: GadgetJobType) -> bool;
-    fn client(&self) -> JobsClient<B, BE, C>;
+    fn phase_filter(
+        &self,
+        job: jobs::JobType<AccountId32, jobs::MaxParticipants, jobs::MaxSubmissionLen>,
+    ) -> bool;
+    fn client(&self) -> JobsClient<C>;
     fn logger(&self) -> DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         Default::default()

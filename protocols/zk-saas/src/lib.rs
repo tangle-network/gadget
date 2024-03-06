@@ -1,18 +1,16 @@
 use crate::network::ZkNetworkService;
 use crate::protocol::ZkJobAdditionalParams;
 use async_trait::async_trait;
+use gadget_common::client::{ClientWithApi, JobsClient, PalletSubmitter};
+use gadget_common::debug_logger::DebugLogger;
 use gadget_common::full_protocol::SharedOptional;
 use gadget_common::prelude::*;
 use gadget_common::{generate_protocol, Error};
 use mpc_net::prod::RustlsCertificate;
 use network::ZkProtocolNetworkConfig;
 use protocol_macros::protocol;
-use sc_client_api::Backend;
-use sp_api::ProvideRuntimeApi;
 use sp_core::Pair;
-use sp_runtime::traits::Block;
 use std::sync::Arc;
-use tangle_primitives::roles::ZeroKnowledgeRoleType;
 use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
 
 pub mod network;
@@ -24,8 +22,8 @@ generate_protocol!(
     ZkJobAdditionalParams,
     protocol::generate_protocol_from,
     protocol::create_next_job,
-    GadgetJobType::ZkSaaSPhaseTwo(_),
-    RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16)
+    jobs::JobType::ZkSaaSPhaseTwo(_),
+    roles::RoleType::ZkSaaS(roles::zksaas::ZeroKnowledgeRoleType::ZkSaaSGroth16)
 );
 
 pub async fn create_zk_network<KBE: KeystoreBackend>(

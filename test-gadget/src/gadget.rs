@@ -61,17 +61,11 @@ pub struct TestFinalityNotification {
 #[async_trait]
 impl<B: Send + Sync + Clone + 'static> AbstractGadget for TestGadget<B> {
     type FinalityNotification = TestFinalityNotification;
-    type BlockImportNotification = ();
     type ProtocolMessage = TestProtocolMessage;
     type Error = TestError;
 
     async fn get_next_finality_notification(&self) -> Option<Self::FinalityNotification> {
         self.blockchain_connection.lock().await.recv().await.ok()
-    }
-
-    async fn get_next_block_import_notification(&self) -> Option<Self::BlockImportNotification> {
-        // We don't care to test block import notifications in this test gadget
-        futures::future::pending().await
     }
 
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage> {
@@ -107,13 +101,6 @@ impl<B: Send + Sync + Clone + 'static> AbstractGadget for TestGadget<B> {
         }
 
         Ok(())
-    }
-
-    async fn process_block_import_notification(
-        &self,
-        _notification: Self::BlockImportNotification,
-    ) -> Result<(), Self::Error> {
-        unreachable!("We don't care to test block import notifications in this test gadget")
     }
 
     async fn process_protocol_message(

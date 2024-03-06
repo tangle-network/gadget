@@ -16,13 +16,13 @@ generate_protocol!(
     ZcashFrostKeygenExtraParams,
     crate::protocol::keygen::generate_protocol_from,
     crate::protocol::keygen::create_next_job,
-    GadgetJobType::DKGTSSPhaseOne(_),
-    RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd25519)
-        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd448)
-        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP256)
-        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP384)
-        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1)
-        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255)
+    jobs::JobType::DKGTSSPhaseOne(_),
+    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostEd25519)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostEd448)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostP256)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostP384)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostSecp256k1)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255)
 );
 generate_protocol!(
     "Zcash-FROST-Signing-Protocol",
@@ -30,17 +30,18 @@ generate_protocol!(
     ZcashFrostSigningExtraParams,
     crate::protocol::sign::generate_protocol_from,
     crate::protocol::sign::create_next_job,
-    GadgetJobType::DKGTSSPhaseTwo(_),
-    RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd25519)
-        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd448)
-        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP256)
-        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP384)
-        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1)
-        | RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255)
+    jobs::JobType::DKGTSSPhaseTwo(_),
+    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostEd25519)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostEd448)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostP256)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostP384)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostSecp256k1)
+        | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255)
 );
 
 generate_setup_and_run_command!(ZcashFrostKeygenProtocol, ZcashFrostSigningProtocol);
 
+#[cfg(test)]
 mod secp256k1 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -50,6 +51,7 @@ mod secp256k1 {
     );
 }
 
+#[cfg(test)]
 mod ristretto255 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -59,6 +61,7 @@ mod ristretto255 {
     );
 }
 
+#[cfg(test)]
 mod p256 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -68,6 +71,7 @@ mod p256 {
     );
 }
 
+#[cfg(test)]
 mod p384 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -77,6 +81,7 @@ mod p384 {
     );
 }
 
+#[cfg(test)]
 mod ed25519 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -86,6 +91,7 @@ mod ed25519 {
     );
 }
 
+#[cfg(test)]
 mod ed448 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,

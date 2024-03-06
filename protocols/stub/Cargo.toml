@@ -9,6 +9,10 @@ async-trait = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true }
 protocol-macros = { workspace = true }
-tangle-primitives = { workspace = true }
 parking_lot = { workspace = true }
+sp-core = { workspace = true }
+
+
+[dev-dependencies]
 test-utils = { workspace = true }
+tangle-primitives = { workspace = true }

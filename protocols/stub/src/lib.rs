@@ -1,41 +1,25 @@
 use gadget_common::full_protocol::SharedOptional;
 use gadget_common::prelude::*;
+use sp_core::sr25519;
 
 #[protocol]
-pub struct StubProtocol<
-    B: Block,
-    BE: Backend<B> + 'static,
-    C: ClientWithApi<B, BE>,
-    N: Network,
-    KBE: KeystoreBackend,
-> where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+pub struct StubProtocol<C: ClientWithApi, N: Network, KBE: KeystoreBackend> {
     pallet_tx: Arc<dyn PalletSubmitter>,
     logger: DebugLogger,
     client: C,
     network: N,
-    account_id: AccountId,
+    account_id: sr25519::Public,
     key_store: ECDSAKeyStore<KBE>,
     prometheus_config: PrometheusConfig,
-    jobs_client: Arc<Mutex<Option<JobsClient<B, BE, C>>>>,
+    jobs_client: Arc<Mutex<Option<JobsClient<C>>>>,
 }
 
 #[async_trait]
-impl<
-        B: Block,
-        BE: Backend<B> + 'static,
-        C: ClientWithApi<B, BE>,
-        N: Network,
-        KBE: KeystoreBackend,
-    > FullProtocolConfig for StubProtocol<B, BE, C, N, KBE>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
+impl<C: ClientWithApi + 'static, N: Network, KBE: KeystoreBackend> FullProtocolConfig
+    for StubProtocol<C, N, KBE>
 {
     type AsyncProtocolParameters = ();
     type Client = C;
-    type Block = B;
-    type Backend = BE;
     type Network = N;
     type AdditionalNodeParameters = ();
     type KeystoreBackend = KBE;
@@ -45,7 +29,7 @@ where
         pallet_tx: Arc<dyn PalletSubmitter>,
         network: Self::Network,
         logger: DebugLogger,
-        account_id: AccountId,
+        account_id: sr25519::Public,
         key_store: ECDSAKeyStore<Self::KeystoreBackend>,
         prometheus_config: PrometheusConfig,
     ) -> Result<Self, Error> {
@@ -79,13 +63,13 @@ where
 
     async fn create_next_job(
         &self,
-        _job: JobInitMetadata<Self::Block>,
+        _job: JobInitMetadata,
         _work_manager: &ProtocolWorkManager<WorkManager>,
     ) -> Result<Self::AsyncProtocolParameters, Error> {
         Ok(())
     }
 
-    fn account_id(&self) -> &AccountId {
+    fn account_id(&self) -> &sr25519::Public {
         &self.account_id
     }
 
@@ -93,15 +77,18 @@ where
         "STUB-PROTOCOL".to_string()
     }
 
-    fn role_filter(&self, _role: RoleType) -> bool {
+    fn role_filter(&self, _role: roles::RoleType) -> bool {
         false
     }
 
-    fn phase_filter(&self, _job: GadgetJobType) -> bool {
+    fn phase_filter(
+        &self,
+        _job: jobs::JobType<AccountId32, jobs::MaxParticipants, jobs::MaxSubmissionLen>,
+    ) -> bool {
         false
     }
 
-    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Block, Self::Backend, Self::Client>> {
+    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Client>> {
         &self.jobs_client
     }
 

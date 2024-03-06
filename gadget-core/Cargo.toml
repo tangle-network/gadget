@@ -6,10 +6,7 @@ license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
 [features]
-substrate = [
-    "sp-runtime",
-    "sc-client-api",
-]
+substrate = []
 
 [dependencies]
 parking_lot = { workspace = true }
@@ -20,8 +17,5 @@ async-trait = { workspace = true }
 auto_impl = { workspace = true }
 futures = { workspace = true }
 
-sp-runtime = { optional = true, workspace = true }
-sc-client-api = { optional = true, workspace = true }
-
 [dev-dependencies]
-tokio = { workspace = true, features = ["macros"]}
+tokio = { workspace = true, features = ["macros"] }
