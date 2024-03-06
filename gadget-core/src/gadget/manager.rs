@@ -11,7 +11,6 @@ pub struct GadgetManager<'a> {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum GadgetError {
     FinalityNotificationStreamEnded,
-    BlockImportNotificationStreamEnded,
     ProtocolMessageStreamEnded,
 }
 
@@ -26,21 +25,15 @@ impl std::error::Error for GadgetError {}
 #[async_trait]
 pub trait AbstractGadget: Send + Sync {
     type FinalityNotification: Send;
-    type BlockImportNotification: Send;
     type ProtocolMessage: Send;
     type Error: Error + Send;
 
     async fn get_next_finality_notification(&self) -> Option<Self::FinalityNotification>;
-    async fn get_next_block_import_notification(&self) -> Option<Self::BlockImportNotification>;
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage>;
 
     async fn process_finality_notification(
         &self,
         notification: Self::FinalityNotification,
-    ) -> Result<(), Self::Error>;
-    async fn process_block_import_notification(
-        &self,
-        notification: Self::BlockImportNotification,
     ) -> Result<(), Self::Error>;
     async fn process_protocol_message(
         &self,
@@ -67,20 +60,6 @@ impl<'a> GadgetManager<'a> {
                 }
             };
 
-            let block_import_notification_task = async move {
-                loop {
-                    if let Some(notification) = gadget.get_next_block_import_notification().await {
-                        if let Err(err) =
-                            gadget.process_block_import_notification(notification).await
-                        {
-                            gadget.process_error(err).await;
-                        }
-                    } else {
-                        return Err(GadgetError::BlockImportNotificationStreamEnded);
-                    }
-                }
-            };
-
             let protocol_message_task = async move {
                 loop {
                     if let Some(message) = gadget.get_next_protocol_message().await {
@@ -95,8 +74,7 @@ impl<'a> GadgetManager<'a> {
 
             tokio::select! {
                 res0 = finality_notification_task => res0,
-                res1 = block_import_notification_task => res1,
-                res2 = protocol_message_task => res2
+                res1 = protocol_message_task => res1
             }
         };
 

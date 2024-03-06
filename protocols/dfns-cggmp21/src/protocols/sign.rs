@@ -1,61 +1,44 @@
+use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
 use dfns_cggmp21::generic_ec::coords::HasAffineX;
 use dfns_cggmp21::generic_ec::{Curve, Point};
 use dfns_cggmp21::round_based::{Delivery, MpcParty};
 use dfns_cggmp21::security_level::SecurityLevel;
 use dfns_cggmp21::signing::msg::Msg;
-
+use dfns_cggmp21::signing::SigningBuilder;
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 use dfns_cggmp21::{DataToSign, KeyShare};
-use gadget_common::client::{ClientWithApi, JobsApiForGadget};
+use digest::typenum::U32;
+use digest::Digest;
+use gadget_common::client::ClientWithApi;
 use gadget_common::config::DebugLogger;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
+use gadget_common::prelude::*;
 use gadget_common::prelude::{FullProtocolConfig, Network};
-use gadget_common::Block;
+use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::{CryptoRng, RngCore, SeedableRng};
-
-use sc_client_api::Backend;
-
-use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
-use dfns_cggmp21::signing::SigningBuilder;
-use digest::typenum::U32;
-use digest::Digest;
-use sp_api::ProvideRuntimeApi;
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tangle_primitives::jobs::{
-    DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobResult, JobType,
-};
-use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::keygen::create_party;
 
-pub async fn create_next_job<
-    B: Block,
-    BE: Backend<B> + 'static,
-    KBE: KeystoreBackend,
-    C: ClientWithApi<B, BE>,
-    N: Network,
->(
-    config: &crate::DfnsSigningProtocol<B, BE, C, N, KBE>,
-    job: JobInitMetadata<B>,
+pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
+    config: &crate::DfnsSigningProtocol<C, N, KBE>,
+    job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<DfnsCGGMP21SigningExtraParams, gadget_common::Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<DfnsCGGMP21SigningExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
 
-    let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
+    let jobs::JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
         panic!("Should be valid type")
     };
-    let input_data_to_sign = p2_job.submission.to_vec();
+    let input_data_to_sign = p2_job.submission.0.to_vec();
     let previous_job_id = p2_job.phase_one_id;
 
     let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
@@ -101,8 +84,8 @@ pub struct DfnsCGGMP21SigningExtraParams {
     i: u16,
     t: u16,
     signers: Vec<u16>,
-    job_id: JobId,
-    role_type: RoleType,
+    job_id: u64,
+    role_type: roles::RoleType,
     serialized_key_share: Vec<u8>,
     input_data_to_sign: Vec<u8>,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
@@ -152,24 +135,15 @@ where
     Ok(ret.to_vec())
 }
 
-pub async fn generate_protocol_from<
-    B: Block,
-    BE: Backend<B> + 'static,
-    KBE: KeystoreBackend,
-    C: ClientWithApi<B, BE>,
-    N: Network,
->(
-    config: &crate::DfnsSigningProtocol<B, BE, C, N, KBE>,
+pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
+    config: &crate::DfnsSigningProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
     additional_params: DfnsCGGMP21SigningExtraParams,
-) -> Result<BuiltExecutableJobWrapper, JobError>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<BuiltExecutableJobWrapper, JobError> {
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
@@ -183,7 +157,7 @@ where
         additional_params.signers,
         additional_params.t,
         additional_params.serialized_key_share,
-        additional_params.role_type,
+        additional_params.role_type.clone(),
         additional_params.input_data_to_sign.clone(),
         additional_params.user_id_to_account_id_mapping.clone(),
     );
@@ -207,7 +181,9 @@ where
             let data_hash = keccak_256(&input_data_to_sign);
 
             let signature = match role_type {
-                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
+                roles::RoleType::Tss(
+                    roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
+                ) => {
                     run_signing::<Secp256k1, DefaultSecurityLevel, DefaultCryptoHasher, _>(
                         data_hash,
                         protocol_message_channel,
@@ -226,7 +202,9 @@ where
                     )
                     .await?
                 }
-                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
+                roles::RoleType::Tss(
+                    roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1,
+                ) => {
                     run_signing::<Secp256r1, DefaultSecurityLevel, DefaultCryptoHasher, _>(
                         data_hash,
                         protocol_message_channel,
@@ -245,7 +223,7 @@ where
                     )
                     .await?
                 }
-                RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+                roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
                     run_signing::<Stark, DefaultSecurityLevel, DefaultCryptoHasher, _>(
                         data_hash,
                         protocol_message_channel,
@@ -284,11 +262,12 @@ where
                     &public_key,
                 );
 
-                let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
-                    signature_scheme: DigitalSignatureScheme::Ecdsa,
-                    data: additional_params.input_data_to_sign.try_into().unwrap(),
-                    signature: signature.to_vec().try_into().unwrap(),
-                    verifying_key: public_key.try_into().unwrap(),
+                let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
+                    signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
+                    data: BoundedVec(additional_params.input_data_to_sign),
+                    signature: BoundedVec(signature.to_vec()),
+                    verifying_key: BoundedVec(public_key),
+                    __subxt_unused_type_params: Default::default(),
                 });
 
                 client
@@ -309,23 +288,23 @@ where
 }
 
 pub fn get_public_key_from_serialized_key_share_bytes<S: SecurityLevel>(
-    role_type: &RoleType,
+    role_type: &roles::RoleType,
     serialized_key_share: &[u8],
 ) -> Result<Vec<u8>, JobError> {
     match role_type {
-        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
+        roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
             get_local_key_share_from_serialized_local_key_bytes::<Secp256k1, S>(
                 serialized_key_share,
             )
             .map(|key_share| key_share.shared_public_key().to_bytes(true).to_vec())
         }
-        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
+        roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
             get_local_key_share_from_serialized_local_key_bytes::<Secp256r1, S>(
                 serialized_key_share,
             )
             .map(|key_share| key_share.shared_public_key().to_bytes(true).to_vec())
         }
-        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+        roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
             get_local_key_share_from_serialized_local_key_bytes::<Stark, S>(serialized_key_share)
                 .map(|key_share| key_share.shared_public_key().to_bytes(true).to_vec())
         }

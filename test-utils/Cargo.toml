@@ -34,4 +34,5 @@ sp-externalities = { workspace = true }
 tangle-primitives = { workspace = true, features = ["verifying"] }
 scale-info = { workspace = true }
 parity-scale-codec = { workspace = true }
+serde = { workspace = true }
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }

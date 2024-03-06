@@ -103,7 +103,7 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
     let generated = quote! {
         #input_struct
 
-        pub struct #new_struct<C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B> + 'static, #generics_token_stream_unique_with_bounds>
+        pub struct #new_struct<C: gadget_common::config::ClientWithApi + 'static, #generics_token_stream_unique_with_bounds>
             #where_bounds {
             pub network: Option<<#struct_ident<#generics_token_stream> as gadget_common::config::NetworkAndProtocolSetup>::Network>,
             pub protocol: Option<<#struct_ident<#generics_token_stream> as gadget_common::config::NetworkAndProtocolSetup>::Protocol>,
@@ -112,10 +112,9 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
             pub pallet_tx: Arc<dyn gadget_common::client::PalletSubmitter>,
             pub logger: gadget_common::config::DebugLogger,
             pub prometheus_config: gadget_common::prometheus::PrometheusConfig,
-            _pd: std::marker::PhantomData<(B, BE)>,
         }
 
-        impl<C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B> + 'static, #generics_token_stream_unique_with_bounds> gadget_common::config::ProtocolConfig for #new_struct <C, B, BE, #generics_token_stream_unique>
+        impl<C: gadget_common::config::ClientWithApi + 'static, #generics_token_stream_unique_with_bounds> gadget_common::config::ProtocolConfig for #new_struct <C, #generics_token_stream_unique>
             #where_bounds
         {
             type Network = <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup>::Network;
@@ -131,7 +130,6 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
                     pallet_tx,
                     logger,
                     prometheus_config,
-                    _pd: std::marker::PhantomData,
                 }
             }
 
@@ -156,10 +154,10 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
-        impl<C: gadget_common::config::ClientWithApi<B, BE>, B: gadget_common::config::Block, BE: gadget_common::config::Backend<B> + 'static, #generics_token_stream_unique_with_bounds> #struct_ident <#generics_token_stream>
+        impl<C: gadget_common::config::ClientWithApi + 'static, #generics_token_stream_unique_with_bounds> #struct_ident <#generics_token_stream>
             #where_bounds
         {
-            pub fn setup(self) -> #new_struct <C, B, BE, #generics_token_stream_unique> {
+            pub fn setup(self) -> #new_struct <C, #generics_token_stream_unique> {
                 let pallet_tx = <Self as gadget_common::config::NetworkAndProtocolSetup>::pallet_tx(&self);
                 let logger = <Self as gadget_common::config::NetworkAndProtocolSetup>::logger(&self);
                 let prometheus_config = self.prometheus_config.clone();
@@ -172,7 +170,6 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
                     pallet_tx,
                     logger,
                     prometheus_config,
-                    _pd: std::marker::PhantomData,
                 }
             }
 

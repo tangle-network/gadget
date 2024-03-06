@@ -9,28 +9,23 @@ use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
 use ark_relations::r1cs::SynthesisError;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use futures_util::TryFutureExt;
-use gadget_common::client::{AccountId, ClientWithApi, JobsApiForGadget, MaxSubmissionLen};
+use gadget_common::prelude::*;
+use gadget_common::client::{ClientWithApi, JobTypeExt};
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::prelude::{KeystoreBackend, Network};
+use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::jobs::zksaas;
 use gadget_common::Error;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use groth16::proving_key::PackedProvingKeyShare;
 use mpc_net::{MpcNet, MultiplexedStreamID};
-use sc_client_api::Backend;
 use secret_sharing::pss::PackedSharingParams;
-use sp_api::ProvideRuntimeApi;
 use sp_core::ecdsa;
 use sp_core::Pair;
-use sp_runtime::traits::Block;
 use std::collections::HashMap;
-use tangle_primitives::jobs::{
-    ArkworksProofResult, HyperData, JobId, JobResult, JobType, ZkSaaSPhaseTwoRequest,
-    ZkSaaSProofResult, ZkSaaSSystem,
-};
-use tangle_primitives::roles::RoleType;
 use tangle_primitives::verifier::to_field_elements;
 use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -44,33 +39,30 @@ pub trait AdditionalProtocolParams: Send + Sync + Clone + 'static {
     fn party_id(&self) -> u32;
 }
 
-pub async fn create_next_job<B, C, BE, N: Network, KBE>(
-    config: &crate::ZkProtocol<B, BE, C, N, KBE>,
-    job: JobInitMetadata<B>,
+pub async fn create_next_job<C, N: Network, KBE>(
+    config: &crate::ZkProtocol<C, N, KBE>,
+    job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<ZkJobAdditionalParams, Error>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-    B: Block,
-    C: ClientWithApi<B, BE> + 'static,
-    BE: Backend<B> + 'static,
+    C: ClientWithApi + 'static,
     KBE: KeystoreBackend,
 {
     let (_now, job_id) = (job.now, job.job_id);
     let role_type = job.job_type.get_role_type();
-    let JobType::ZkSaaSPhaseTwo(phase_two) = job.job_type else {
+    let jobs::JobType::ZkSaaSPhaseTwo(phase_two) = job.job_type else {
         panic!("Should be valid")
     };
-    let JobType::ZkSaaSPhaseOne(phase_one) = job.phase1_job.expect("Should exist") else {
+    let jobs::JobType::ZkSaaSPhaseOne(phase_one) = job.phase1_job.expect("Should exist") else {
         panic!("Should be valid")
     };
 
-    let participants = phase_one.participants;
+    let participants = phase_one.participants.0;
     let params = ZkJobAdditionalParams {
         n_parties: participants.len(),
         party_id: participants
             .iter()
-            .position(|p| p == &config.account_id)
+            .position(|p| p.0 == config.account_id.0)
             .expect("Should exist") as _,
         job_id,
         role_type,
@@ -86,10 +78,10 @@ where
 pub struct ZkJobAdditionalParams {
     n_parties: usize,
     party_id: u32,
-    job_id: JobId,
-    role_type: RoleType,
-    system: ZkSaaSSystem<MaxSubmissionLen>,
-    request: ZkSaaSPhaseTwoRequest<MaxSubmissionLen>,
+    job_id: u64,
+    role_type: roles::RoleType,
+    system: zksaas::ZkSaaSSystem<jobs::MaxSubmissionLen>,
+    request: zksaas::ZkSaaSPhaseTwoRequest<jobs::MaxSubmissionLen>,
     participants_role_ids: Vec<ecdsa::Public>,
 }
 
@@ -102,8 +94,8 @@ impl AdditionalProtocolParams for ZkJobAdditionalParams {
     }
 }
 
-pub async fn generate_protocol_from<B, C, BE, N: Network, KBE>(
-    config: &crate::ZkProtocol<B, BE, C, N, KBE>,
+pub async fn generate_protocol_from<C, N: Network, KBE>(
+    config: &crate::ZkProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
@@ -112,10 +104,7 @@ pub async fn generate_protocol_from<B, C, BE, N: Network, KBE>(
     additional_params: ZkJobAdditionalParams,
 ) -> Result<BuiltExecutableJobWrapper, JobError>
 where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-    B: Block,
-    C: ClientWithApi<B, BE> + 'static,
-    BE: Backend<B> + 'static,
+    C: ClientWithApi + 'static,
     KBE: KeystoreBackend,
 {
     let pallet_tx = config.pallet_tx.clone();
@@ -128,7 +117,7 @@ where
         reason: format!("Failed to setup phase order participants: {err:?}"),
     })?;
 
-    let params = ZkAsyncProtocolParameters::<_, _, _, B, BE> {
+    let params = ZkAsyncProtocolParameters {
         associated_block_id,
         associated_retry_id,
         associated_session_id,
@@ -141,7 +130,6 @@ where
         network: config.clone(),
         client: config.client.clone(),
         extra_parameters: additional_params.clone(),
-        _pd: Default::default(),
     };
 
     Ok(JobBuilder::new()
@@ -151,64 +139,66 @@ where
                 params.extra_parameters.role_type,
                 params.extra_parameters.job_id
             );
-            let ZkSaaSSystem::Groth16(ref system) = params.extra_parameters.system;
-            let ZkSaaSPhaseTwoRequest::Groth16(ref job) = params.extra_parameters.request;
-            let HyperData::Raw(ref proving_key_bytes) = system.proving_key else {
+            let zksaas::ZkSaaSSystem::Groth16(ref system) = params.extra_parameters.system;
+            let zksaas::ZkSaaSPhaseTwoRequest::Groth16(ref job) = params.extra_parameters.request;
+            let zksaas::HyperData::Raw(ref proving_key_bytes) = system.proving_key else {
                 return Err(JobError {
                     reason: "Only raw proving key is supported".to_string(),
                 });
             };
 
-            let pk =
-                ProvingKey::<E>::deserialize_compressed(&proving_key_bytes[..]).map_err(|err| {
-                    JobError {
-                        reason: format!("Failed to deserialize proving key: {err:?}"),
-                    }
-                })?;
+            let pk = ProvingKey::<E>::deserialize_compressed(&proving_key_bytes.0[..]).map_err(
+                |err| JobError {
+                    reason: format!("Failed to deserialize proving key: {err:?}"),
+                },
+            )?;
             let l = params.n_parties / 4;
             let pp = PackedSharingParams::new(l);
             let crs_shares = PackedProvingKeyShare::<E>::pack_from_arkworks_proving_key(&pk, pp);
-            let our_qap_share = job
-                .qap_shares
-                .get(params.party_id as usize)
-                .ok_or_else(|| JobError {
-                    reason: "Failed to get our qap share".to_string(),
-                })?;
-            let HyperData::Raw(ref qap_a) = our_qap_share.a else {
+            let our_qap_share =
+                job.qap_shares
+                    .0
+                    .get(params.party_id as usize)
+                    .ok_or_else(|| JobError {
+                        reason: "Failed to get our qap share".to_string(),
+                    })?;
+            let zksaas::HyperData::Raw(ref qap_a) = our_qap_share.a else {
                 return Err(JobError {
                     reason: "Only raw qap_a is supported".to_string(),
                 });
             };
-            let HyperData::Raw(ref qap_b) = our_qap_share.b else {
+            let zksaas::HyperData::Raw(ref qap_b) = our_qap_share.b else {
                 return Err(JobError {
                     reason: "Only raw qap_b is supported".to_string(),
                 });
             };
-            let HyperData::Raw(ref qap_c) = our_qap_share.c else {
+            let zksaas::HyperData::Raw(ref qap_c) = our_qap_share.c else {
                 return Err(JobError {
                     reason: "Only raw qap_c is supported".to_string(),
                 });
             };
-            let our_a_share =
-                job.a_shares
-                    .get(params.party_id as usize)
-                    .ok_or_else(|| JobError {
-                        reason: "Failed to get our a share".to_string(),
-                    })?;
-            let HyperData::Raw(a_share_bytes) = our_a_share else {
+            let our_a_share = job
+                .a_shares
+                .0
+                .get(params.party_id as usize)
+                .ok_or_else(|| JobError {
+                    reason: "Failed to get our a share".to_string(),
+                })?;
+            let zksaas::HyperData::Raw(a_share_bytes) = our_a_share else {
                 return Err(JobError {
                     reason: "Only raw a_share is supported".to_string(),
                 });
             };
 
-            let our_ax_share =
-                job.ax_shares
-                    .get(params.party_id as usize)
-                    .ok_or_else(|| JobError {
-                        reason: "Failed to get our ax share".to_string(),
-                    })?;
+            let our_ax_share = job
+                .ax_shares
+                .0
+                .get(params.party_id as usize)
+                .ok_or_else(|| JobError {
+                    reason: "Failed to get our ax share".to_string(),
+                })?;
 
-            let HyperData::Raw(ax_share_bytes) = our_ax_share else {
+            let zksaas::HyperData::Raw(ax_share_bytes) = our_ax_share else {
                 return Err(JobError {
                     reason: "Only raw ax_share is supported".to_string(),
                 });
@@ -222,21 +212,21 @@ where
             let qap_share = groth16::qap::PackedQAPShare {
                 num_inputs: system.num_inputs as _,
                 num_constraints: system.num_constraints as _,
-                a: to_field_elements(qap_a).map_err(|err| JobError {
+                a: to_field_elements(&qap_a.0).map_err(|err| JobError {
                     reason: format!("Failed to convert a to field elements: {err:?}"),
                 })?,
-                b: to_field_elements(qap_b).map_err(|err| JobError {
+                b: to_field_elements(&qap_b.0).map_err(|err| JobError {
                     reason: format!("Failed to convert b to field elements: {err:?}"),
                 })?,
-                c: to_field_elements(qap_c).map_err(|err| JobError {
+                c: to_field_elements(&qap_c.0).map_err(|err| JobError {
                     reason: format!("Failed to convert c to field elements: {err:?}"),
                 })?,
                 domain,
             };
-            let a_share = to_field_elements(a_share_bytes).map_err(|err| JobError {
+            let a_share = to_field_elements(&a_share_bytes.0).map_err(|err| JobError {
                 reason: format!("Failed to convert a_share to field elements: {err:?}"),
             })?;
-            let ax_share = to_field_elements(ax_share_bytes).map_err(|err| JobError {
+            let ax_share = to_field_elements(&ax_share_bytes.0).map_err(|err| JobError {
                 reason: format!("Failed to convert ax_share to field elements: {err:?}"),
             })?;
             let crs_share = crs_shares
@@ -309,7 +299,7 @@ where
                 // Verify the proof
                 // convert the public inputs from string to bigints
                 let public_inputs =
-                    to_field_elements(&job.public_input).map_err(|err| JobError {
+                    to_field_elements(&job.public_input.0).map_err(|err| JobError {
                         reason: format!(
                             "Failed to convert public inputs to field elements: {err:?}"
                         ),
@@ -328,15 +318,16 @@ where
                 }
                 let mut proof_bytes = Vec::new();
                 proof.serialize_compressed(&mut proof_bytes).unwrap();
-                let result = ZkSaaSProofResult::Arkworks(ArkworksProofResult {
-                    proof: proof_bytes.try_into().unwrap(),
+                let result = zksaas::ZkSaaSProofResult::Arkworks(zksaas::ArkworksProofResult {
+                    proof: BoundedVec(proof_bytes),
+                    __subxt_unused_type_params: Default::default(),
                 });
 
                 pallet_tx
                     .submit_job_result(
                         params.extra_parameters.role_type,
                         params.extra_parameters.job_id,
-                        JobResult::ZkSaaSPhaseTwo(result),
+                        jobs::JobResult::ZkSaaSPhaseTwo(result),
                     )
                     .await
                     .map_err(|err| JobError {
@@ -404,10 +395,6 @@ async fn zk_setup_rxs(
         log::warn!("Async protocol message_rx died")
     });
     Ok(rxs)
-}
-
-pub trait ZkNetworkExt {
-    fn king_id(&self) -> Option<AccountId>;
 }
 
 fn zk_setup_phase_order_participants<N: Network>(

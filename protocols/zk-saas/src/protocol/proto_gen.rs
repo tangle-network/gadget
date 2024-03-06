@@ -1,21 +1,17 @@
 use crate::network::RegistantId;
 use async_trait::async_trait;
 use bytes::Bytes;
-use gadget_common::client::{ClientWithApi, JobsApiForGadget};
+use gadget_common::client::ClientWithApi;
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_core::job_manager::WorkManagerInterface;
 use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
-use sc_client_api::Backend;
 use serde::{Deserialize, Serialize};
-use sp_api::ProvideRuntimeApi;
-use sp_runtime::traits::Block;
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-pub struct ZkAsyncProtocolParameters<B, N, C, Bl, BE> {
+pub struct ZkAsyncProtocolParameters<P, N, C> {
     pub associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     pub associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     pub associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
@@ -25,11 +21,10 @@ pub struct ZkAsyncProtocolParameters<B, N, C, Bl, BE> {
     pub n_parties: usize,
     pub network: N,
     pub client: C,
-    pub extra_parameters: B,
+    pub extra_parameters: P,
     pub my_network_id: RegistantId,
     // Mapping from party_id to network_id, needed for routing messages
     pub other_network_ids: HashMap<u32, RegistantId>,
-    pub(crate) _pd: PhantomData<(Bl, BE)>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -40,11 +35,7 @@ pub(crate) struct MpcNetMessage {
 }
 
 #[async_trait]
-impl<B: Send + Sync, N: Network, C: ClientWithApi<Bl, BE>, Bl: Block, BE: Backend<Bl>> MpcNet
-    for ZkAsyncProtocolParameters<B, N, C, Bl, BE>
-where
-    <C as ProvideRuntimeApi<Bl>>::Api: JobsApiForGadget<Bl>,
-{
+impl<P: Send + Sync, N: Network, C: ClientWithApi> MpcNet for ZkAsyncProtocolParameters<P, N, C> {
     fn n_parties(&self) -> usize {
         self.n_parties
     }

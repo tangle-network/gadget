@@ -8,13 +8,13 @@ use rand_core::{CryptoRng, RngCore};
 use round_based::rounds_router::simple_store::RoundInput;
 use round_based_21 as round_based;
 
+use gadget_common::prelude::*;
 use round_based::rounds_router::RoundsRouter;
 use round_based::runtime::AsyncRuntime;
 use round_based::ProtocolMessage;
 use round_based::{Delivery, Mpc, MpcParty, Outgoing};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use tangle_primitives::roles::ThresholdSignatureRoleType;
 
 use super::{Error, IoError};
 
@@ -57,7 +57,7 @@ pub async fn run_threshold_sign<C, R, M>(
     signers: Vec<u16>,
     frost_keyshare: (KeyPackage<C>, PublicKeyPackage<C>),
     message_to_sign: &[u8],
-    role: ThresholdSignatureRoleType,
+    role: roles::tss::ThresholdSignatureRoleType,
     rng: &mut R,
     party: M,
 ) -> Result<FrostSignature, Error<C>>
@@ -81,7 +81,7 @@ where
     // Round 1
     tracer.round_begins();
     tracer.stage("Generate nonces and commitments for Round 1");
-    let (nonces, commitments) = participant_round1(role, &frost_keyshare.0, rng)?;
+    let (nonces, commitments) = participant_round1(role.clone(), &frost_keyshare.0, rng)?;
     runtime.yield_now().await;
     tracer.send_msg();
     let my_round1_msg = MsgRound1 {
@@ -179,7 +179,10 @@ where
     })
 }
 
-fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(), Error<C>> {
+fn validate_role<C: Ciphersuite>(
+    role: roles::tss::ThresholdSignatureRoleType,
+) -> Result<(), Error<C>> {
+    use roles::tss::ThresholdSignatureRoleType;
     match role {
         ThresholdSignatureRoleType::ZcashFrostEd25519
         | ThresholdSignatureRoleType::ZcashFrostEd448
@@ -195,7 +198,7 @@ fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(),
 
 /// Participant generates nonces and commitments for Round 1.
 fn participant_round1<R: RngCore + CryptoRng, C: Ciphersuite>(
-    role: ThresholdSignatureRoleType,
+    role: roles::tss::ThresholdSignatureRoleType,
     key_package: &KeyPackage<C>,
     rng: &mut R,
 ) -> Result<(SigningNonces<C>, SigningCommitments<C>), Error<C>> {
@@ -205,7 +208,7 @@ fn participant_round1<R: RngCore + CryptoRng, C: Ciphersuite>(
 
 /// Participant produces their signature share using the `SigningPackage` and their `SigningNonces` from Round 1.
 fn participant_round2<C: Ciphersuite>(
-    role: ThresholdSignatureRoleType,
+    role: roles::tss::ThresholdSignatureRoleType,
     signing_package: &SigningPackage<C>,
     nonces: &SigningNonces<C>,
     key_package: &KeyPackage<C>,
