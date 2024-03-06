@@ -39,7 +39,7 @@ pub enum ZkNetworkService {
     },
     Client {
         king_registry_addr: SocketAddr,
-        king_registry_id: Option<RegistantId>,
+        king_registry_id: Arc<parking_lot::Mutex<Option<RegistantId>>>,
         registry_id: RegistantId,
         cert_der: Vec<u8>,
         local_to_outbound_tx: UnboundedSender<RegistryPacket>,
@@ -205,7 +205,7 @@ impl ZkNetworkService {
         let mut this = ZkNetworkService::Client {
             king_registry_addr,
             local_to_outbound_tx,
-            king_registry_id: None,
+            king_registry_id: Arc::new(parking_lot::Mutex::new(None)),
             registry_id: registrant_id,
             cert_der,
             inbound_messages: Arc::new(Mutex::new(from_registry)),
@@ -257,7 +257,7 @@ impl ZkNetworkService {
                             });
                         }
 
-                        *king_registry_id = Some(king_id);
+                        *king_registry_id.lock() = Some(king_id);
                     }
                     _ => {
                         return Err(Error::RegistryCreateError {
@@ -282,7 +282,7 @@ impl ZkNetworkService {
             Self::King { registry_id, .. } => Some(*registry_id),
             Self::Client {
                 king_registry_id, ..
-            } => *king_registry_id,
+            } => *king_registry_id.lock(),
         }
     }
 
@@ -518,7 +518,14 @@ impl Network for ZkNetworkService {
                     king_registry_id,
                     ..
                 } => {
-                    if to != king_registry_id.expect("Should exist") {
+                    let king_registry_id =
+                        king_registry_id
+                            .lock()
+                            .ok_or_else(|| Error::RegistrySendError {
+                                err: "No king registry id".to_string(),
+                            })?;
+
+                    if to != king_registry_id {
                         return Err(Error::RegistrySendError {
                             err: "Cannot send message to non-king as client".to_string(),
                         });
