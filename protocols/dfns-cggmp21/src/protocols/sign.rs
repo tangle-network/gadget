@@ -260,7 +260,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                     signature,
                     &additional_params.input_data_to_sign,
                     &public_key,
-                );
+                )?;
 
                 let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
                     signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
@@ -326,7 +326,7 @@ pub fn convert_dfns_signature(
     signature: Vec<u8>,
     input_data_to_sign: &[u8],
     public_key_bytes: &[u8],
-) -> [u8; 65] {
+) -> Result<[u8; 65], JobError> {
     let mut signature_bytes = [0u8; 65];
     (signature_bytes[..64]).copy_from_slice(&signature[..64]);
     let data_hash = keccak_256(input_data_to_sign);
@@ -340,11 +340,21 @@ pub fn convert_dfns_signature(
         match res {
             Ok(key) if key[..32] == public_key_bytes[1..] => {
                 // Found the correct v
-                break;
+                signature_bytes[64] = v + 27;
+                return Ok(signature_bytes);
             }
             Ok(_) => {
                 // Found a key, but not the correct one
                 // Try the other v value
+                if v == 1 {
+                    // We tried both v values, but no key was found
+                    // This should never happen, but if it does, we will just
+                    // leave v as 1 and break
+                    return Err(JobError {
+                        reason: "Failed to recover signature (both v=[0,1] did not match)"
+                            .to_string(),
+                    });
+                }
                 v = 1;
                 continue;
             }
@@ -352,7 +362,11 @@ pub fn convert_dfns_signature(
                 // We tried both v values, but no key was found
                 // This should never happen, but if it does, we will just
                 // leave v as 1 and break
-                break;
+                return Err(JobError {
+                    reason:
+                        "Failed to recover signature (both v=[0,1] errored and/or did not match)"
+                            .to_string(),
+                });
             }
             Err(_) => {
                 // No key was found, try the other v value
@@ -361,8 +375,6 @@ pub fn convert_dfns_signature(
             }
         }
     }
-    signature_bytes[64] = v + 27;
-    signature_bytes
 }
 
 #[allow(clippy::too_many_arguments)]

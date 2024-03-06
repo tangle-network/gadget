@@ -118,6 +118,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();
+    let logger_clone = logger.clone();
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let client = config.get_jobs_client();
@@ -155,11 +156,11 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
 
     // We're signing over the hash of the new public key using the old public key
     let data_hash = keccak_256(&new_public_key);
-    let data_to_sign_bytes = data_hash.to_vec();
     Ok(JobBuilder::new()
         .protocol(async move {
             logger.info(format!(
-                "Starting Key Rotation Protocol with params: i={i}, t={t}"
+                "Starting Key Rotation Protocol with params: i={i}, t={t} | JobId: {}",
+                additional_params.job_id,
             ));
 
             let job_id_bytes = additional_params.job_id.to_be_bytes();
@@ -255,9 +256,9 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
             if let Some(signature) = protocol_output_clone.lock().await.take() {
                 let signature = super::sign::convert_dfns_signature(
                     signature,
-                    &data_to_sign_bytes,
                     &new_public_key,
-                );
+                    &public_key,
+                )?;
                 let job_result =
                     jobs::JobResult::DKGPhaseFour(jobs::tss::DKGTSSKeyRotationResult {
                         signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
@@ -271,7 +272,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
 
                 client
                     .submit_job_result(
-                        additional_params.role_type,
+                        additional_params.role_type.clone(),
                         additional_params.job_id,
                         job_result,
                     )
@@ -279,6 +280,11 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
                     .map_err(|err| JobError {
                         reason: format!("Failed to submit job result: {err:?}"),
                     })?;
+
+                logger_clone.info(
+                    format!("Successfully submitted keyrotation job result for job ID: {:?} | RoleType: {:?}",
+                additional_params.job_id, additional_params.role_type
+                ));
             }
 
             Ok(())
