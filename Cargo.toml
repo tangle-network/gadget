@@ -26,12 +26,12 @@ zcash-frost-protocol = { path = "./protocols/zcash-frost" }
 
 snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
-pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
-pallet-jobs = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
-pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
-pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
-tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
-tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", branch = "main", default-features = false }
+pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git", rev = "26bbeb5203a92ac9262302ffcd051742eb11ce49" }
+pallet-jobs = { git = "https://github.com/webb-tools/tangle.git", rev = "26bbeb5203a92ac9262302ffcd051742eb11ce49" }
+pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", rev = "26bbeb5203a92ac9262302ffcd051742eb11ce49" }
+pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", rev = "26bbeb5203a92ac9262302ffcd051742eb11ce49" }
+tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", rev = "26bbeb5203a92ac9262302ffcd051742eb11ce49" }
+tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", rev = "26bbeb5203a92ac9262302ffcd051742eb11ce49" }
 
 subxt-signer = { version = "0.31.0", default-features = false }
 
@@ -45,7 +45,8 @@ round-based-zengo = { package = "round-based", git = "https://github.com/ZenGo-X
 
 curv = { package = "curv-kzen", version = "0.10.0" }
 digest = "0.10"
-dfns-cggmp21 = { package = "cggmp21", version = "0.1.1", default-features = false }
+# dfns-cggmp21 = { package = "cggmp21", version = "0.1.1" }
+dfns-cggmp21 = { package = "cggmp21", git = "https://github.com/webb-tools/cggmp21", branch = "v0.1.1-fix" }
 udigest = { version = "0.1", features = ["std", "derive"]}
 frost-core = { git = "https://github.com/LIT-Protocol/frost.git" }
 frost-ed25519 = { git = "https://github.com/LIT-Protocol/frost.git" }

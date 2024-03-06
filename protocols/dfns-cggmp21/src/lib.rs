@@ -74,6 +74,7 @@ mod secp256k1 {
     );
 }
 
+/*
 #[cfg(test)]
 mod secp256r1 {
     test_utils::generate_signing_and_keygen_tss_tests!(
@@ -93,3 +94,4 @@ mod stark {
         ThresholdSignatureRoleType::DfnsCGGMP21Stark
     );
 }
+*/

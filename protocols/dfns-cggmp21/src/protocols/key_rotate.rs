@@ -1,6 +1,4 @@
-use crate::protocols::sign::run_and_serialize_signing;
 use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
-use dfns_cggmp21::signing::msg::Msg;
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 use gadget_common::client::ClientWithApi;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -19,13 +17,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use super::keygen::create_party;
-
 pub async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>(
     config: &crate::DfnsKeyRotateProtocol<C, N, KBE>,
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<DfnsCGGMP21KeyRotateExtraParams, gadget_common::Error> {
+) -> Result<DfnsCGGMP21KeyRotateExtraParams, Error> {
     let job_id = job.job_id;
 
     let jobs::JobType::DKGTSSPhaseFour(p4_job) = job.job_type else {
@@ -51,6 +47,12 @@ pub async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>
         .logger
         .info(format!("Mapping for network: {mapping:?}"));
 
+    if mapping[&(i as u32)] != my_id {
+        return Err(Error::ClientError {
+            err: format!("Invalid mapping for our id: {my_id:?}"),
+        });
+    }
+
     let new_key = config
         .key_store
         .get_job_result(new_phase_one_id)
@@ -73,11 +75,7 @@ pub async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>
             err: format!("No key found for job ID: {job_id:?}"),
         })?;
 
-    config.logger.info("RB4");
-
     let user_id_to_account_id_mapping = Arc::new(mapping);
-
-    config.logger.info("RB5");
 
     let params = DfnsCGGMP21KeyRotateExtraParams {
         i,
@@ -120,6 +118,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();
+    let logger_clone = logger.clone();
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let client = config.get_jobs_client();
@@ -157,139 +156,87 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
 
     // We're signing over the hash of the new public key using the old public key
     let data_hash = keccak_256(&new_public_key);
-    let data_to_sign_bytes = data_hash.to_vec();
     Ok(JobBuilder::new()
         .protocol(async move {
-            let mut rng = rand::rngs::StdRng::from_entropy();
-
             logger.info(format!(
-                "Starting Key Rotation Protocol with params: i={i}, t={t}"
+                "Starting Key Rotation Protocol with params: i={i}, t={t} | JobId: {}",
+                additional_params.job_id,
             ));
 
             let job_id_bytes = additional_params.job_id.to_be_bytes();
             let mix = keccak_256(b"dnfs-cggmp21-key-rotate");
             let eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
             let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
-            let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
+
             let signature = match role_type {
                 roles::RoleType::Tss(
                     roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
                 ) => {
-                    let data_to_sign = dfns_cggmp21::DataToSign::<Secp256k1>::from_scalar(
-                        dfns_cggmp21::generic_ec::Scalar::<Secp256k1>::from_be_bytes_mod_order(
-                            data_hash,
-                        ),
-                    );
-                    let (_, _, party) = create_party::<
+                    super::sign::run_signing::<
                         Secp256k1,
-                        _,
                         DefaultSecurityLevel,
-                        Msg<Secp256k1, DefaultCryptoHasher>,
+                        DefaultCryptoHasher,
+                        _,
                     >(
+                        data_hash,
                         protocol_message_channel,
                         associated_block_id,
                         associated_retry_id,
                         associated_session_id,
                         associated_task_id,
-                        mapping.clone(),
+                        mapping,
                         role_id,
-                        network.clone(),
-                        logger.clone(),
-                    );
-                    run_and_serialize_signing::<_, DefaultSecurityLevel, _, _, DefaultCryptoHasher>(
+                        network,
                         &logger,
-                        &mut tracer,
                         eid,
                         i,
                         signers,
-                        data_to_sign,
                         serialized_key_share,
-                        party,
-                        &mut rng,
                     )
                     .await?
                 }
                 roles::RoleType::Tss(
                     roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1,
                 ) => {
-                    let data_to_sign = dfns_cggmp21::DataToSign::<Secp256r1>::from_scalar(
-                        dfns_cggmp21::generic_ec::Scalar::<Secp256r1>::from_be_bytes_mod_order(
-                            data_hash,
-                        ),
-                    );
-                    let (_, _, party) = create_party::<
+                    super::sign::run_signing::<
                         Secp256r1,
-                        _,
                         DefaultSecurityLevel,
-                        Msg<Secp256r1, DefaultCryptoHasher>,
+                        DefaultCryptoHasher,
+                        _,
                     >(
+                        data_hash,
                         protocol_message_channel,
                         associated_block_id,
                         associated_retry_id,
                         associated_session_id,
                         associated_task_id,
-                        mapping.clone(),
+                        mapping,
                         role_id,
-                        network.clone(),
-                        logger.clone(),
-                    );
-                    run_and_serialize_signing::<
-                        Secp256r1,
-                        DefaultSecurityLevel,
-                        _,
-                        _,
-                        DefaultCryptoHasher,
-                    >(
+                        network,
                         &logger,
-                        &mut tracer,
                         eid,
                         i,
                         signers,
-                        data_to_sign,
                         serialized_key_share,
-                        party,
-                        &mut rng,
                     )
                     .await?
                 }
                 roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-                    let data_to_sign = dfns_cggmp21::DataToSign::<Stark>::from_scalar(
-                        dfns_cggmp21::generic_ec::Scalar::<Stark>::from_be_bytes_mod_order(
-                            data_hash,
-                        ),
-                    );
-                    let (_, _, party) = create_party::<
-                        Stark,
-                        _,
-                        DefaultSecurityLevel,
-                        Msg<Stark, DefaultCryptoHasher>,
-                    >(
+                    super::sign::run_signing::<Stark, DefaultSecurityLevel, DefaultCryptoHasher, _>(
+                        data_hash,
                         protocol_message_channel,
                         associated_block_id,
                         associated_retry_id,
                         associated_session_id,
                         associated_task_id,
-                        mapping.clone(),
+                        mapping,
                         role_id,
-                        network.clone(),
-                        logger.clone(),
-                    );
-                    run_and_serialize_signing::<
-                        Stark,
-                        DefaultSecurityLevel,
-                        _,
-                        _,
-                        DefaultCryptoHasher,
-                    >(
+                        network,
                         &logger,
-                        &mut tracer,
                         eid,
                         i,
                         signers,
-                        data_to_sign,
                         serialized_key_share,
-                        party,
-                        &mut rng,
                     )
                     .await?
                 }
@@ -299,6 +246,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
                     });
                 }
             };
+
             logger.debug("Finished AsyncProtocol - Key Rotation");
             *protocol_output.lock().await = Some(signature);
             Ok(())
@@ -308,9 +256,9 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
             if let Some(signature) = protocol_output_clone.lock().await.take() {
                 let signature = super::sign::convert_dfns_signature(
                     signature,
-                    &data_to_sign_bytes,
                     &new_public_key,
-                );
+                    &public_key,
+                )?;
                 let job_result =
                     jobs::JobResult::DKGPhaseFour(jobs::tss::DKGTSSKeyRotationResult {
                         signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
@@ -324,7 +272,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
 
                 client
                     .submit_job_result(
-                        additional_params.role_type,
+                        additional_params.role_type.clone(),
                         additional_params.job_id,
                         job_result,
                     )
@@ -332,6 +280,11 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
                     .map_err(|err| JobError {
                         reason: format!("Failed to submit job result: {err:?}"),
                     })?;
+
+                logger_clone.info(
+                    format!("Successfully submitted keyrotation job result for job ID: {:?} | RoleType: {:?}",
+                additional_params.job_id, additional_params.role_type
+                ));
             }
 
             Ok(())
