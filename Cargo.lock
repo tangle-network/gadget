@@ -2336,6 +2336,7 @@ dependencies = [
  "hex",
  "itertools 0.12.1",
  "log",
+ "p256 0.13.2",
  "parity-scale-codec 3.6.9",
  "parking_lot 0.12.1",
  "protocol-macros",
@@ -2346,6 +2347,7 @@ dependencies = [
  "sha2 0.10.8",
  "sp-core",
  "sp-io",
+ "starknet-crypto",
  "tangle-primitives",
  "test-utils",
  "tokio",
@@ -4027,8 +4029,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "190092ea657667030ac6a35e305e62fc4dd69fd98ac98631e5d3a2b1575a12b5"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -10749,6 +10753,58 @@ dependencies = [
  "primeorder 0.13.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "starknet-crypto"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33c03f5ac70f9b067f48db7d2d70bdf18ee0f731e8192b6cfa679136becfcdb0"
+dependencies = [
+ "crypto-bigint 0.5.5",
+ "hex",
+ "hmac 0.12.1",
+ "num-bigint 0.4.4",
+ "num-integer",
+ "num-traits",
+ "rfc6979 0.4.0",
+ "sha2 0.10.8",
+ "starknet-crypto-codegen",
+ "starknet-curve",
+ "starknet-ff",
+ "zeroize",
+]
+
+[[package]]
+name = "starknet-crypto-codegen"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af6527b845423542c8a16e060ea1bc43f67229848e7cd4c4d80be994a84220ce"
+dependencies = [
+ "starknet-curve",
+ "starknet-ff",
+ "syn 2.0.52",
+]
+
+[[package]]
+name = "starknet-curve"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63c454fecadfb3fe56ee82c405439d663c8a037667cc9d8e4acb1fb17e15b1af"
+dependencies = [
+ "starknet-ff",
+]
+
+[[package]]
+name = "starknet-ff"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "067419451efdea1ee968df8438369960c167e0e905c05b84afd074f50e1d6f3d"
+dependencies = [
+ "ark-ff",
+ "crypto-bigint 0.5.5",
+ "getrandom 0.2.12",
+ "hex",
 ]
 
 [[package]]

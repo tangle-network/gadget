@@ -31,6 +31,9 @@ hex = { workspace = true }
 parking_lot = { workspace = true }
 sha2 = { workspace = true }
 
+p256 = { workspace = true, default-features = false, features = ["arithmetic", "ecdsa"] }
+starknet-crypto = { workspace = true, default-features = false }
+
 [dev-dependencies]
 test-utils = { workspace = true }
 tangle-primitives = { workspace = true }
