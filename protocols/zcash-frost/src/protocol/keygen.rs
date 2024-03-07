@@ -14,6 +14,8 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::prelude::*;
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{MaxParticipants, MaxKeyLen, MaxProofLen, MaxDataLen, MaxSignatureLen};
+
 use gadget_common::{channels, utils};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
@@ -302,13 +304,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     broadcast_tx_to_outbound: futures::channel::mpsc::UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<
-    jobs::JobResult<
-        jobs::MaxParticipants,
-        jobs::MaxKeyLen,
-        jobs::MaxSignatureLen,
-        jobs::MaxDataLen,
-        jobs::MaxProofLen,
-    >,
+    jobs::JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
     JobError,
 > {
     let key_hashed = keccak_256(public_key_package);
@@ -430,11 +426,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
 }
 
 fn verify_generated_dkg_key_ecdsa(
-    data: jobs::tss::DKGTSSKeySubmissionResult<
-        jobs::MaxKeyLen,
-        jobs::MaxParticipants,
-        jobs::MaxSignatureLen,
-    >,
+    data: jobs::tss::DKGTSSKeySubmissionResult<MaxKeyLen, MaxParticipants, MaxSignatureLen>,
     logger: &DebugLogger,
 ) {
     // Ensure participants and signatures are not empty

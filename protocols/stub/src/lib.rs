@@ -1,5 +1,8 @@
 use gadget_common::full_protocol::SharedOptional;
 use gadget_common::prelude::*;
+use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{
+    MaxParticipants, MaxSubmissionLen,
+};
 use sp_core::sr25519;
 
 #[protocol]
@@ -83,7 +86,7 @@ impl<C: ClientWithApi + 'static, N: Network, KBE: KeystoreBackend> FullProtocolC
 
     fn phase_filter(
         &self,
-        _job: jobs::JobType<AccountId32, jobs::MaxParticipants, jobs::MaxSubmissionLen>,
+        _job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen>,
     ) -> bool {
         false
     }

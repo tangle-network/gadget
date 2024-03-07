@@ -4,14 +4,15 @@ use auto_impl::auto_impl;
 use gadget_core::gadget::substrate::{Client, FinalityNotification};
 use sp_core::{ecdsa, ByteArray};
 use sp_core::{sr25519, Pair};
-use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
-
 use std::sync::Arc;
-use subxt::config::ExtrinsicParams;
 use subxt::tx::TxPayload;
 use subxt::utils::AccountId32;
 use subxt::OnlineClient;
 use tangle_subxt::subxt;
+use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
+use tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{
+    MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen,
+};
 
 pub struct JobsClient<C> {
     pub client: C,
@@ -97,16 +98,7 @@ pub trait ClientWithApi: Client {
         at: [u8; 32],
         validator: AccountId32,
     ) -> Result<
-        Option<
-            Vec<
-                jobs::RpcResponseJobsData<
-                    AccountId32,
-                    u64,
-                    jobs::MaxParticipants,
-                    jobs::MaxSubmissionLen,
-                >,
-            >,
-        >,
+        Option<Vec<jobs::RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>>,
         crate::Error,
     >;
     /// Queries a job by its key and ID.
@@ -125,14 +117,7 @@ pub trait ClientWithApi: Client {
         role_type: roles::RoleType,
         job_id: u64,
     ) -> Result<
-        Option<
-            jobs::RpcResponseJobsData<
-                AccountId32,
-                u64,
-                jobs::MaxParticipants,
-                jobs::MaxSubmissionLen,
-            >,
-        >,
+        Option<jobs::RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>,
         crate::Error,
     >;
 
@@ -156,12 +141,12 @@ pub trait ClientWithApi: Client {
             jobs::PhaseResult<
                 AccountId32,
                 u64,
-                jobs::MaxParticipants,
-                jobs::MaxKeyLen,
-                jobs::MaxDataLen,
-                jobs::MaxSignatureLen,
-                jobs::MaxSubmissionLen,
-                jobs::MaxProofLen,
+                MaxParticipants,
+                MaxKeyLen,
+                MaxDataLen,
+                MaxSignatureLen,
+                MaxSubmissionLen,
+                MaxProofLen,
             >,
         >,
         crate::Error,
@@ -190,14 +175,7 @@ impl<C: ClientWithApi> JobsClient<C> {
         at: [u8; 32],
         validator: sr25519::Public,
     ) -> Result<
-        Vec<
-            jobs::RpcResponseJobsData<
-                AccountId32,
-                u64,
-                jobs::MaxParticipants,
-                jobs::MaxSubmissionLen,
-            >,
-        >,
+        Vec<jobs::RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>,
         crate::Error,
     > {
         Ok(self
@@ -226,14 +204,7 @@ impl<C: ClientWithApi> JobsClient<C> {
         role_type: roles::RoleType,
         job_id: u64,
     ) -> Result<
-        Option<
-            jobs::RpcResponseJobsData<
-                AccountId32,
-                u64,
-                jobs::MaxParticipants,
-                jobs::MaxSubmissionLen,
-            >,
-        >,
+        Option<jobs::RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>,
         crate::Error,
     > {
         self.client.query_job_by_id(at, role_type, job_id).await
@@ -249,12 +220,12 @@ impl<C: ClientWithApi> JobsClient<C> {
             jobs::PhaseResult<
                 AccountId32,
                 u64,
-                jobs::MaxParticipants,
-                jobs::MaxKeyLen,
-                jobs::MaxDataLen,
-                jobs::MaxSignatureLen,
-                jobs::MaxSubmissionLen,
-                jobs::MaxProofLen,
+                MaxParticipants,
+                MaxKeyLen,
+                MaxDataLen,
+                MaxSignatureLen,
+                MaxSubmissionLen,
+                MaxProofLen,
             >,
         >,
         crate::Error,
@@ -267,11 +238,11 @@ impl<C: ClientWithApi> JobsClient<C> {
         role_type: roles::RoleType,
         job_id: u64,
         result: jobs::JobResult<
-            jobs::MaxParticipants,
-            jobs::MaxKeyLen,
-            jobs::MaxSignatureLen,
-            jobs::MaxDataLen,
-            jobs::MaxProofLen,
+            MaxParticipants,
+            MaxKeyLen,
+            MaxSignatureLen,
+            MaxDataLen,
+            MaxProofLen,
         >,
     ) -> Result<(), crate::Error> {
         self.pallet_tx
@@ -427,11 +398,11 @@ pub trait PalletSubmitter: Send + Sync + 'static {
         job_id: u64,
 
         result: jobs::JobResult<
-            jobs::MaxParticipants,
-            jobs::MaxKeyLen,
-            jobs::MaxSignatureLen,
-            jobs::MaxDataLen,
-            jobs::MaxProofLen,
+            MaxParticipants,
+            MaxKeyLen,
+            MaxSignatureLen,
+            MaxDataLen,
+            MaxProofLen,
         >,
     ) -> Result<(), crate::Error>;
 }
@@ -453,18 +424,19 @@ where
     S: subxt::tx::Signer<C> + Send + Sync + 'static,
     C::AccountId: std::fmt::Display + Send + Sync + 'static,
     C::Hash: std::fmt::Display,
-    <C::ExtrinsicParams as ExtrinsicParams<C::Hash>>::OtherParams: Default + Send + Sync + 'static,
+    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams:
+        Default + Send + Sync + 'static,
 {
     async fn submit_job_result(
         &self,
         role_type: roles::RoleType,
         job_id: u64,
         result: jobs::JobResult<
-            jobs::MaxParticipants,
-            jobs::MaxKeyLen,
-            jobs::MaxSignatureLen,
-            jobs::MaxDataLen,
-            jobs::MaxProofLen,
+            MaxParticipants,
+            MaxKeyLen,
+            MaxSignatureLen,
+            MaxDataLen,
+            MaxProofLen,
         >,
     ) -> Result<(), crate::Error> {
         let tx = tangle_subxt::tangle_runtime::api::tx()
@@ -499,7 +471,8 @@ where
     C: subxt::Config,
     C::AccountId: std::fmt::Display,
     S: subxt::tx::Signer<C>,
-    <C::ExtrinsicParams as ExtrinsicParams<C::Hash>>::OtherParams: Default,
+    C::Hash: std::fmt::Display,
+    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams: Default,
 {
     pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, crate::Error> {
         let subxt_client =
@@ -565,6 +538,7 @@ mod tests {
         let dkg_phase_one = jobs::JobSubmission {
             expiry: 100u64,
             ttl: 100u64,
+            fallback: jobs::FallbackOptions::Destroy,
             job_type: jobs::JobType::DKGTSSPhaseOne(jobs::tss::DKGTSSPhaseOneJobType {
                 participants: BoundedVec::<AccountId32>(vec![alice_account_id, bob_account_id]),
                 threshold: 1u8,
