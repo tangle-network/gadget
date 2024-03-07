@@ -229,7 +229,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 data: BoundedVec(additional_params.input_data_to_sign.clone()),
                 signature: BoundedVec(signature),
                 verifying_key: BoundedVec(signing_key),
-                __subxt_unused_type_params: Default::default(),
+                __ignore: Default::default(),
             });
 
             *result.lock().await = Some(job_result);

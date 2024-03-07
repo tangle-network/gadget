@@ -142,6 +142,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                 id,
                 network.clone(),
                 logger.clone(),
+                i,
             );
 
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
@@ -183,7 +184,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                     data: BoundedVec(additional_params.input_data_to_sign),
                     signature: BoundedVec(signature.to_vec()),
                     verifying_key: BoundedVec(verifying_key.to_bytes().to_vec()),
-                    __subxt_unused_type_params: Default::default(),
+                    __ignore: Default::default(),
                 });
 
                 pallet_tx

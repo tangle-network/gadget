@@ -17,6 +17,7 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::prelude::{KeystoreBackend, Network};
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::jobs::zksaas;
+use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::MaxSubmissionLen;
 use gadget_common::Error;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
@@ -80,8 +81,8 @@ pub struct ZkJobAdditionalParams {
     party_id: u32,
     job_id: u64,
     role_type: roles::RoleType,
-    system: zksaas::ZkSaaSSystem<jobs::MaxSubmissionLen>,
-    request: zksaas::ZkSaaSPhaseTwoRequest<jobs::MaxSubmissionLen>,
+    system: zksaas::ZkSaaSSystem<MaxSubmissionLen>,
+    request: zksaas::ZkSaaSPhaseTwoRequest<MaxSubmissionLen>,
     participants_role_ids: Vec<ecdsa::Public>,
 }
 
@@ -320,7 +321,7 @@ where
                 proof.serialize_compressed(&mut proof_bytes).unwrap();
                 let result = zksaas::ZkSaaSProofResult::Arkworks(zksaas::ArkworksProofResult {
                     proof: BoundedVec(proof_bytes),
-                    __subxt_unused_type_params: Default::default(),
+                    __ignore: Default::default(),
                 });
 
                 pallet_tx

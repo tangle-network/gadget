@@ -41,6 +41,10 @@ pub mod prelude {
     pub use std::sync::Arc;
     pub use tangle_subxt::subxt::utils::AccountId32;
     pub use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
+    pub use tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{
+        MaxParticipants, MaxSubmissionLen,
+    };
+
     pub use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 }
 pub mod channels;
@@ -339,7 +343,7 @@ macro_rules! generate_protocol {
 
             fn phase_filter(
                 &self,
-                job: jobs::JobType<AccountId32, jobs::MaxParticipants, jobs::MaxSubmissionLen>,
+                job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen>,
             ) -> bool {
                 matches!(job, $phase_filter)
             }

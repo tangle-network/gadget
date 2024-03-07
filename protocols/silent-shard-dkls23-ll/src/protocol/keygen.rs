@@ -141,6 +141,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                 id,
                 network.clone(),
                 logger.clone(),
+                i,
             );
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
             let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);

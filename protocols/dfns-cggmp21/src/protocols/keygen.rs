@@ -22,6 +22,7 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::{prelude::*, utils};
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{MaxParticipants, MaxSignatureLen, MaxKeyLen, MaxDataLen, MaxProofLen};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
@@ -119,10 +120,10 @@ where
         .start(&mut rng, party)
         .await
         .map_err(|err| JobError {
-            reason: format!("Keygen protocol error: {err:?}"),
+            reason: format!("Keygen protocol error (run_and_serialize_keygen): {err:?}"),
         })?;
     bincode2::serialize(&incomplete_key_share).map_err(|err| JobError {
-        reason: format!("Keygen protocol error: {err:?}"),
+        reason: format!("Keygen protocol error (run_and_serialize_keygen - serde): {err:?}"),
     })
 }
 
@@ -148,9 +149,9 @@ where
     D: Delivery<aux_only::Msg<H, S>>,
 {
     let incomplete_key_share: dfns_cggmp21::key_share::Valid<
-        dfns_cggmp21::key_share::DirtyIncompleteKeyShare<_>,
+        dfns_cggmp21::key_share::DirtyIncompleteKeyShare<E>,
     > = bincode2::deserialize(&incomplete_key_share).map_err(|err| JobError {
-        reason: format!("Keygen protocol error: {err:?}"),
+        reason: format!("Keygen protocol error (run_and_serialize_keyrefresh): {err:?}"),
     })?;
 
     let aux_info_builder =
@@ -169,6 +170,14 @@ where
     logger.trace(format!("Aux info protocol report: {perf_report}"));
     logger.debug("Finished AsyncProtocol - Aux Info");
 
+    /*
+    let key_share: KeyShare<E, S> = DirtyKeyShare {
+        core: incomplete_key_share.into_inner(),
+        aux: aux_info.into_inner(),
+    }.validate().map_err(|err| JobError {
+        reason: format!("Keygen protocol validation error: {err:?}"),
+    })?;*/
+
     let key_share =
         dfns_cggmp21::KeyShare::<E, S>::make(incomplete_key_share, aux_info).map_err(|err| {
             JobError {
@@ -179,7 +188,7 @@ where
     bincode2::serialize(&key_share)
         .map(|ks| (ks, key_share.shared_public_key().to_bytes(true).to_vec()))
         .map_err(|err| JobError {
-            reason: format!("Keygen protocol error: {err:?}"),
+            reason: format!("Keygen protocol error (run_and_serialize_keyrefresh): {err:?}"),
         })
 }
 
@@ -206,6 +215,7 @@ pub fn create_party<E: Curve, N: Network, L: SecurityLevel, M>(
     id: ecdsa::Public,
     network: N,
     logger: DebugLogger,
+    i: u16,
 ) -> CreatePartyResult<M>
 where
     N: Network,
@@ -229,6 +239,7 @@ where
             id,
             network,
             logger,
+            i,
         );
     let delivery = (rx_async_proto, tx_to_outbound);
     (
@@ -450,13 +461,7 @@ pub async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<
-    jobs::JobResult<
-        jobs::MaxParticipants,
-        jobs::MaxKeyLen,
-        jobs::MaxSignatureLen,
-        jobs::MaxDataLen,
-        jobs::MaxProofLen,
-    >,
+    jobs::JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
     JobError,
 > {
     let key_hashed = keccak_256(serialized_public_key);
@@ -549,18 +554,14 @@ pub async fn handle_public_key_gossip<KBE: KeystoreBackend>(
         participants: BoundedVec(participants),
         signatures: BoundedVec(signatures),
         threshold: t as _,
-        __subxt_unused_type_params: Default::default(),
+        __ignore: Default::default(),
     };
     verify_generated_dkg_key_ecdsa(res.clone(), logger);
     Ok(jobs::JobResult::DKGPhaseOne(res))
 }
 
 fn verify_generated_dkg_key_ecdsa(
-    data: jobs::tss::DKGTSSKeySubmissionResult<
-        jobs::MaxKeyLen,
-        jobs::MaxParticipants,
-        jobs::MaxSignatureLen,
-    >,
+    data: jobs::tss::DKGTSSKeySubmissionResult<MaxKeyLen, MaxParticipants, MaxSignatureLen>,
     logger: &DebugLogger,
 ) {
     // Ensure participants and signatures are not empty
@@ -619,7 +620,7 @@ async fn handle_post_incomplete_keygen<S: SecurityLevel, KBE: KeystoreBackend>(
     key_store: &ECDSAKeyStore<KBE>,
 ) -> Result<(PerfProfiler, PregeneratedPrimes<S>), JobError> {
     let perf_report = tracer.get_report().map_err(|err| JobError {
-        reason: format!("Keygen protocol error: {err:?}"),
+        reason: format!("Keygen protocol error (handle_post_incomplete_keygen): {err:?}"),
     })?;
     logger.trace(format!("Incomplete Keygen protocol report: {perf_report}"));
     logger.debug("Finished AsyncProtocol - Incomplete Keygen");

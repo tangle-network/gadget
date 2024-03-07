@@ -19,6 +19,7 @@
 
 use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
+use crate::gadget::metrics::Metrics;
 use crate::gadget::network::Network;
 use crate::gadget::work_manager::WorkManager;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
@@ -30,9 +31,10 @@ use linked_hash_map::LinkedHashMap;
 use parking_lot::{Mutex, RwLock};
 use sc_network::{
     config, error, multiaddr, Event, NetworkEventStream, NetworkNotification, NetworkPeers,
-    NetworkService, NetworkStateInfo, PeerId, ProtocolName, SyncEventStream,
+    NetworkService, NetworkStateInfo, PeerId, ProtocolName,
 };
-use sc_network_common::sync::{Metrics, SyncEvent};
+use sc_network_sync::SyncEvent;
+use sc_network_sync::SyncEventStream;
 use sc_network_sync::SyncingService;
 use serde::{Deserialize, Serialize};
 use sp_core::{ecdsa, Pair};
@@ -89,18 +91,20 @@ impl<KBE: KeystoreBackend> NetworkGossipEngineBuilder<KBE> {
 
     /// Returns the configuration of the set to put in the network configuration.
     pub fn set_config(protocol_name: ProtocolName) -> config::NonDefaultSetConfig {
-        config::NonDefaultSetConfig {
-            handshake: None,
-            notifications_protocol: protocol_name,
-            fallback_names: Vec::new(),
-            max_notification_size: MAX_MESSAGE_SIZE,
-            set_config: config::SetConfig {
-                in_peers: 0,
-                out_peers: 0,
-                reserved_nodes: Vec::new(),
-                non_reserved_mode: config::NonReservedPeerMode::Deny,
+        let (non_default_set_config, _notification_service) = config::NonDefaultSetConfig::new(
+            protocol_name,
+            Vec::new(), // fallback_names is empty as we accept only reserved nodes
+            MAX_MESSAGE_SIZE,
+            None, // handshake is None
+            config::SetConfig {
+                in_peers: 0,                                          // Zero slots for in_peers
+                out_peers: 0,                                         // Zero slots for out_peers
+                reserved_nodes: Vec::new(),                           // Accepts only reserved nodes
+                non_reserved_mode: config::NonReservedPeerMode::Deny, // Denies non-reserved nodes
             },
-        }
+        );
+
+        non_default_set_config
     }
 
     /// Turns the builder into the actual handler. Returns a controller that allows controlling
