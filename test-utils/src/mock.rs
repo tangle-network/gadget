@@ -671,6 +671,10 @@ pub mod mock_wrapper_client {
     use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{
         jobs, roles,
     };
+    use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{
+        MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen,
+    };
+
     use gadget_core::gadget::substrate::{self, Client};
     use pallet_jobs_rpc_runtime_api::JobsApi;
     use parity_scale_codec::{Decode, Encode};
@@ -784,14 +788,7 @@ pub mod mock_wrapper_client {
             validator: AccountId32,
         ) -> Result<
             Option<
-                Vec<
-                    jobs::RpcResponseJobsData<
-                        AccountId32,
-                        u64,
-                        jobs::MaxParticipants,
-                        jobs::MaxSubmissionLen,
-                    >,
-                >,
+                Vec<jobs::RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>,
             >,
             gadget_common::Error,
         > {
@@ -819,14 +816,7 @@ pub mod mock_wrapper_client {
             role_type: roles::RoleType,
             job_id: u64,
         ) -> Result<
-            Option<
-                jobs::RpcResponseJobsData<
-                    AccountId32,
-                    u64,
-                    jobs::MaxParticipants,
-                    jobs::MaxSubmissionLen,
-                >,
-            >,
+            Option<jobs::RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>,
             gadget_common::Error,
         > {
             let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
@@ -852,12 +842,12 @@ pub mod mock_wrapper_client {
                 jobs::PhaseResult<
                     AccountId32,
                     u64,
-                    jobs::MaxParticipants,
-                    jobs::MaxKeyLen,
-                    jobs::MaxDataLen,
-                    jobs::MaxSignatureLen,
-                    jobs::MaxSubmissionLen,
-                    jobs::MaxProofLen,
+                    MaxParticipants,
+                    MaxKeyLen,
+                    MaxDataLen,
+                    MaxSignatureLen,
+                    MaxSubmissionLen,
+                    MaxProofLen,
                 >,
             >,
             gadget_common::Error,
@@ -953,11 +943,11 @@ pub mod mock_wrapper_client {
             role_type: roles::RoleType,
             job_id: JobId,
             result: jobs::JobResult<
-                jobs::MaxParticipants,
-                jobs::MaxKeyLen,
-                jobs::MaxSignatureLen,
-                jobs::MaxDataLen,
-                jobs::MaxProofLen,
+                MaxParticipants,
+                MaxKeyLen,
+                MaxSignatureLen,
+                MaxDataLen,
+                MaxProofLen,
             >,
         ) -> Result<(), gadget_common::Error> {
             let id = self.id.clone();

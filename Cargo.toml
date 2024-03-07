@@ -49,15 +49,6 @@ digest = "0.10"
 dfns-cggmp21 = { package = "cggmp21", git = "https://github.com/webb-tools/cggmp21", branch = "v0.1.1-fix" }
 udigest = { version = "0.1", features = ["std", "derive"]}
 
-# frost-core = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-ed25519 = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-ed448 = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-p256 = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-p384 = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-ristretto255 = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-secp256k1 = { git = "https://github.com/LIT-Protocol/frost.git" }
-# frost-rerandomized = { git = "https://github.com/LIT-Protocol/frost.git" }
-
 frost-core = { git = "https://github.com/salman01zp/frost", branch = "salman/bump-curve25519-dalek" }
 frost-ed25519 = { git = "https://github.com/salman01zp/frost", branch = "salman/bump-curve25519-dalek" }
 frost-ed448 = { git = "https://github.com/salman01zp/frost", branch = "salman/bump-curve25519-dalek" }

@@ -4,6 +4,7 @@ use gadget_common::gadget::message::UserID;
 use gadget_common::prelude::*;
 use gadget_common::sp_core::{ecdsa, keccak_256, ByteArray, Pair};
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{MaxParticipants, MaxProofLen, MaxDataLen, MaxSignatureLen, MaxKeyLen};
 use itertools::Itertools;
 use round_based::Msg;
 use std::collections::{BTreeMap, HashMap};
@@ -175,13 +176,7 @@ pub(crate) async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     rx: &mut UnboundedReceiver<Msg<RoundPayload>>,
     user_id_to_account_id_mapping: &Arc<HashMap<UserID, ecdsa::Public>>,
 ) -> Result<
-    jobs::JobResult<
-        jobs::MaxParticipants,
-        jobs::MaxKeyLen,
-        jobs::MaxSignatureLen,
-        jobs::MaxDataLen,
-        jobs::MaxProofLen,
-    >,
+    jobs::JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
     JobError,
 > {
     let mut received_pk_shares = BTreeMap::new();
