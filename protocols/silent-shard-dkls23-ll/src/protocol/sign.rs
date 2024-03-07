@@ -1,69 +1,52 @@
-use frame_support::BoundedVec;
-use frost_core::keys::{KeyPackage, PublicKeyPackage};
-use frost_ed25519::Ed25519Sha512;
-use frost_ed448::Ed448Shake256;
-use frost_p256::P256Sha256;
-use frost_p384::P384Sha384;
-use frost_ristretto255::Ristretto255Sha512;
-use frost_secp256k1::Secp256K1Sha256;
-use gadget_common::client::JobsApiForGadget;
-use gadget_common::client::{ClientWithApi, GadgetJobResult};
-use gadget_common::config::{Network, ProvideRuntimeApi};
-
+use derivation_path::DerivationPath;
+use gadget_common::client::{ClientWithApi};
+use gadget_common::config::{Network};
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
-
-use gadget_common::{channels, Block};
+use gadget_common::prelude::*;
+use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+use gadget_common::{channels};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
 use round_based_21::{Incoming, MpcParty, Outgoing};
-use sc_client_api::Backend;
+use k256::elliptic_curve::group::GroupEncoding;
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
-use tangle_primitives::jobs::{DKGTSSSignatureResult, DigitalSignatureScheme, JobId, JobType};
-use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::rounds;
-use crate::rounds::keygen::FrostKeyShare;
+use crate::rounds::keygen::SilentShardDKLS23KeyShare;
 use crate::rounds::sign::Msg;
 
 #[derive(Clone)]
-pub struct ZcashFrostSigningExtraParams {
+pub struct SilentShardDKLS23SigningExtraParams {
     pub i: u16,
     pub t: u16,
     pub signers: Vec<u16>,
-    pub job_id: JobId,
-    pub role_type: RoleType,
-    pub keyshare: FrostKeyShare,
+    pub job_id: u64,
+    pub role_type: roles::RoleType,
+    pub key_share: SilentShardDKLS23KeyShare,
+    pub derivation_path: DerivationPath,
     pub input_data_to_sign: Vec<u8>,
     pub user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
-pub async fn create_next_job<
-    B: Block,
-    BE: Backend<B>,
-    C: ClientWithApi<B, BE>,
-    N: Network,
-    KBE: KeystoreBackend,
->(
-    config: &crate::ZcashFrostSigningProtocol<B, BE, C, N, KBE>,
-    job: JobInitMetadata<B>,
+pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
+    config: &crate::SilentShardDKLS23SigningProtocol<C, N, KBE>,
+    job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<ZcashFrostSigningExtraParams, gadget_common::Error>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+) -> Result<SilentShardDKLS23SigningExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
 
-    let JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
+    let jobs::JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
         panic!("Should be valid type")
     };
-    let input_data_to_sign = p2_job.submission.into();
+    let input_data_to_sign = p2_job.submission.0.to_vec();
     let previous_job_id = p2_job.phase_one_id;
 
     let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
@@ -88,70 +71,29 @@ where
 
     let user_id_to_account_id_mapping = Arc::new(mapping);
 
-    let params = ZcashFrostSigningExtraParams {
+    let params = SilentShardDKLS23SigningExtraParams {
         i,
         t,
         signers,
         job_id,
         role_type: job.role_type,
-        keyshare: key,
+        key_share: key,
+        derivation_path: DerivationPath::from_str("m/0/0/0").unwrap(),
         input_data_to_sign,
         user_id_to_account_id_mapping,
     };
     Ok(params)
 }
 
-macro_rules! deserialize_and_run_threshold_sign {
-    ($impl_type:ty, $keyshare:expr, $tracer:expr, $i:expr, $signers:expr, $msg:expr, $role:expr, $rng:expr, $party:expr) => {{
-        let key_package =
-            KeyPackage::<$impl_type>::deserialize(&$keyshare.key_package).map_err(|err| {
-                JobError {
-                    reason: format!("Failed to deserialize key share: {err:?}"),
-                }
-            })?;
-
-        let public_key_package = PublicKeyPackage::<$impl_type>::deserialize(
-            &$keyshare.pubkey_package,
-        )
-        .map_err(|err| JobError {
-            reason: format!("Failed to deserialize public key package: {err:?}"),
-        })?;
-
-        rounds::sign::run_threshold_sign(
-            Some($tracer),
-            $i,
-            $signers,
-            (key_package, public_key_package),
-            $msg,
-            $role,
-            $rng,
-            $party,
-        )
-        .await
-        .map_err(|err| JobError {
-            reason: format!("Failed to run threshold sign: {err:?}"),
-        })?
-    }};
-}
-
-pub async fn generate_protocol_from<
-    B: Block,
-    BE: Backend<B>,
-    C: ClientWithApi<B, BE>,
-    N: Network,
-    KBE: KeystoreBackend,
->(
-    config: &crate::ZcashFrostSigningProtocol<B, BE, C, N, KBE>,
+pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
+    config: &crate::SilentShardDKLS23SigningProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
-    additional_params: ZcashFrostSigningExtraParams,
-) -> Result<BuiltExecutableJobWrapper, JobError>
-where
-    <C as ProvideRuntimeApi<B>>::Api: JobsApiForGadget<B>,
-{
+    additional_params: SilentShardDKLS23SigningExtraParams,
+) -> Result<BuiltExecutableJobWrapper, JobError> {
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
@@ -160,24 +102,18 @@ where
     let id = config.key_store.pair().public();
     let network = config.clone();
 
-    let (i, signers, t, keyshare, role_type, input_data_to_sign, mapping) = (
+    let (i, signers, t, key_share, derivation_path, role_type, input_data_to_sign, mapping) = (
         additional_params.i,
         additional_params.signers,
         additional_params.t,
-        additional_params.keyshare,
-        additional_params.role_type,
+        additional_params.key_share,
+        additional_params.derivation_path,
+        additional_params.role_type.clone(),
         additional_params.input_data_to_sign.clone(),
         additional_params.user_id_to_account_id_mapping.clone(),
     );
 
-    let role = match role_type {
-        RoleType::Tss(role) => role,
-        _ => {
-            return Err(JobError {
-                reason: "Invalid role type".to_string(),
-            })
-        }
-    };
+    let verifying_key = key_share.verifying_key.clone();
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -211,91 +147,20 @@ where
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
             let delivery = (signing_rx_async_proto, signing_tx_to_outbound);
             let party = MpcParty::connected(delivery);
-            let signature = match role {
-                ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
-                    deserialize_and_run_threshold_sign!(
-                        Secp256K1Sha256,
-                        keyshare,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role,
-                        &mut rng,
-                        party
-                    )
-                }
-                ThresholdSignatureRoleType::ZcashFrostEd25519 => {
-                    deserialize_and_run_threshold_sign!(
-                        Ed25519Sha512,
-                        keyshare,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role,
-                        &mut rng,
-                        party
-                    )
-                }
-                ThresholdSignatureRoleType::ZcashFrostEd448 => {
-                    deserialize_and_run_threshold_sign!(
-                        Ed448Shake256,
-                        keyshare,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role,
-                        &mut rng,
-                        party
-                    )
-                }
-                ThresholdSignatureRoleType::ZcashFrostP256 => {
-                    deserialize_and_run_threshold_sign!(
-                        P256Sha256,
-                        keyshare,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role,
-                        &mut rng,
-                        party
-                    )
-                }
-                ThresholdSignatureRoleType::ZcashFrostP384 => {
-                    deserialize_and_run_threshold_sign!(
-                        P384Sha384,
-                        keyshare,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role,
-                        &mut rng,
-                        party
-                    )
-                }
-                ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
-                    deserialize_and_run_threshold_sign!(
-                        Ristretto255Sha512,
-                        keyshare,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role,
-                        &mut rng,
-                        party
-                    )
-                }
-                _ => {
-                    return Err(JobError {
-                        reason: "Invalid role type".to_string(),
-                    })
-                }
-            };
+            let signature = rounds::sign::run_threshold_sign(
+                Some(&mut tracer),
+                i,
+                signers,
+                key_share,
+                derivation_path,
+                input_data_to_sign.as_slice(),
+                &mut rng,
+                party,
+            )
+            .await
+            .map_err(|err| JobError {
+                reason: format!("Signing protocol error: {err:?}"),
+            })?;
             let perf_report = tracer.get_report().map_err(|err| JobError {
                 reason: format!("Signing protocol error: {err:?}"),
             })?;
@@ -307,69 +172,18 @@ where
         .post(async move {
             // Submit the protocol output to the blockchain
             if let Some(signature) = protocol_output_clone.lock().await.take() {
-                // Compute the signature bytes by first converting the signature
-                // to a fixed byte array and then converting that to a Vec<u8>.
-                let (signature, signature_scheme) = match role {
-                    ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
-                        let mut signature_bytes = [0u8; 65];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec().try_into().unwrap(),
-                            DigitalSignatureScheme::SchnorrSecp256k1,
-                        )
-                    }
-                    ThresholdSignatureRoleType::ZcashFrostEd25519 => {
-                        let mut signature_bytes = [0u8; 64];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec().try_into().unwrap(),
-                            DigitalSignatureScheme::SchnorrEd25519,
-                        )
-                    }
-                    ThresholdSignatureRoleType::ZcashFrostEd448 => {
-                        let mut signature_bytes = [0u8; 114];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec().try_into().unwrap(),
-                            DigitalSignatureScheme::SchnorrEd448,
-                        )
-                    }
-                    ThresholdSignatureRoleType::ZcashFrostP256 => {
-                        let mut signature_bytes = [0u8; 65];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec().try_into().unwrap(),
-                            DigitalSignatureScheme::SchnorrP256,
-                        )
-                    }
-                    ThresholdSignatureRoleType::ZcashFrostP384 => {
-                        let mut signature_bytes = [0u8; 97];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec().try_into().unwrap(),
-                            DigitalSignatureScheme::SchnorrP384,
-                        )
-                    }
-                    ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
-                        let mut signature_bytes = [0u8; 64];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec().try_into().unwrap(),
-                            DigitalSignatureScheme::SchnorrRistretto255,
-                        )
-                    }
-                    _ => {
-                        return Err(JobError {
-                            reason: "Invalid role type".to_string(),
-                        })
-                    }
-                };
+                let signature = convert_ecdsa_signature(
+                    signature.group_signature.to_bytes().to_vec(),
+                    &additional_params.input_data_to_sign,
+                    &verifying_key.to_bytes(),
+                );
 
-                let job_result = GadgetJobResult::DKGPhaseTwo(DKGTSSSignatureResult {
-                    signature_scheme,
-                    data: additional_params.input_data_to_sign.try_into().unwrap(),
-                    signature,
-                    verifying_key: BoundedVec::new(),
+                let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
+                    signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
+                    data: BoundedVec(additional_params.input_data_to_sign),
+                    signature: BoundedVec(signature.to_vec()),
+                    verifying_key: BoundedVec(verifying_key.to_bytes().to_vec()),
+                    __subxt_unused_type_params: Default::default(),
                 });
 
                 pallet_tx
@@ -387,4 +201,47 @@ where
             Ok(())
         })
         .build())
+}
+
+pub fn convert_ecdsa_signature(
+    signature: Vec<u8>,
+    input_data_to_sign: &[u8],
+    public_key_bytes: &[u8],
+) -> [u8; 65] {
+    let mut signature_bytes = [0u8; 65];
+    (signature_bytes[..64]).copy_from_slice(&signature[..64]);
+    let data_hash = keccak_256(input_data_to_sign);
+    // To figure out the recovery ID, we need to try all possible values of v
+    // in our case, v can be 0 or 1
+    let mut v = 0u8;
+    loop {
+        let mut signature_bytes = signature_bytes;
+        signature_bytes[64] = v;
+        let res = sp_io::crypto::secp256k1_ecdsa_recover(&signature_bytes, &data_hash);
+        match res {
+            Ok(key) if key[..32] == public_key_bytes[1..] => {
+                // Found the correct v
+                break;
+            }
+            Ok(_) => {
+                // Found a key, but not the correct one
+                // Try the other v value
+                v = 1;
+                continue;
+            }
+            Err(_) if v == 1 => {
+                // We tried both v values, but no key was found
+                // This should never happen, but if it does, we will just
+                // leave v as 1 and break
+                break;
+            }
+            Err(_) => {
+                // No key was found, try the other v value
+                v = 1;
+                continue;
+            }
+        }
+    }
+    signature_bytes[64] = v + 27;
+    signature_bytes
 }

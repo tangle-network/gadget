@@ -1,3 +1,4 @@
+use frost_core::Ciphersuite;
 use round_based_21::rounds_router::{
     errors::{self as router_error, CompleteRoundError},
     simple_store::RoundInputError,
@@ -45,31 +46,25 @@ impl IoError {
 }
 
 #[derive(Debug, Error)]
-pub enum Error {
+pub enum Error<C: Ciphersuite> {
     #[error("i/o error")]
     IoError(#[source] IoError),
     #[error("unknown error")]
     SerializationError,
-    #[error("DKLS23 keygen error")]
-    DKLS23KeygenError(#[source] dkls23_ll::dkg::KeygenError),
-    #[error("DKLS23 signing error")]
-    DKLS23SigningError(#[source] dkls23_ll::dsg::SignError),
+    #[error("Frost keygen error")]
+    FrostError(#[source] frost_core::Error<C>),
+    #[error("Invalid frost protocol")]
+    InvalidFrostProtocol,
 }
 
-impl From<IoError> for Error {
+impl<C: Ciphersuite> From<IoError> for Error<C> {
     fn from(e: IoError) -> Self {
         Self::IoError(e)
     }
 }
 
-impl From<dkls23_ll::dkg::KeygenError> for Error {
-    fn from(e: dkls23_ll::dkg::KeygenError) -> Self {
-        Self::DKLS23KeygenError(e)
-    }
-}
-
-impl From<dkls23_ll::dsg::SignError> for Error {
-    fn from(e: dkls23_ll::dsg::SignError) -> Self {
-        Self::DKLS23SigningError(e)
+impl<C: Ciphersuite> From<frost_core::Error<C>> for Error<C> {
+    fn from(e: frost_core::Error<C>) -> Self {
+        Self::FrostError(e)
     }
 }

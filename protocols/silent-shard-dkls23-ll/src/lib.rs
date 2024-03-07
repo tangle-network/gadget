@@ -15,8 +15,8 @@ generate_protocol!(
     SilentShardDKLS23KeygenExtraParams,
     crate::protocol::keygen::generate_protocol_from,
     crate::protocol::keygen::create_next_job,
-    GadgetJobType::DKGTSSPhaseOne(_),
-    ThresholdSignatureRoleType::SilentShardDKLS23
+    jobs::JobType::DKGTSSPhaseOne(_),
+    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::SilentShardDKLS23Secpk256k1)
 );
 generate_protocol!(
     "Silent-Shared-DKLS23-Signing-Protocol",
@@ -24,11 +24,14 @@ generate_protocol!(
     SilentShardDKLS23SigningExtraParams,
     crate::protocol::sign::generate_protocol_from,
     crate::protocol::sign::create_next_job,
-    GadgetJobType::DKGTSSPhaseTwo(_),
-    ThresholdSignatureRoleType::SilentShardDKLS23
+    jobs::JobType::DKGTSSPhaseTwo(_),
+    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::SilentShardDKLS23Secpk256k1)
 );
 
-generate_setup_and_run_command!(SilentShardDKLS23KeygenProtocol, SilentShardDKLS23SigningProtocol);
+generate_setup_and_run_command!(
+    SilentShardDKLS23KeygenProtocol,
+    SilentShardDKLS23SigningProtocol
+);
 
 mod secp256k1 {
     test_utils::generate_signing_and_keygen_tss_tests!(

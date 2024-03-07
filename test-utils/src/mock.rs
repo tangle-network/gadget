@@ -15,6 +15,7 @@
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
 use async_trait::async_trait;
+use frame_support::pallet_prelude::*;
 use frame_support::traits::Hooks;
 use frame_support::{
     construct_runtime, parameter_types,
@@ -22,18 +23,17 @@ use frame_support::{
     PalletId,
 };
 use frame_system::EnsureSigned;
-use gadget_common::client::{
-    AccountId, MaxActiveJobsPerValidator, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
-    MaxSignatureLen, MaxSubmissionLen,
-};
 use pallet_jobs_rpc_runtime_api::BlockNumberOf;
 use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
+use serde::{Deserialize, Serialize};
 use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_core::{sr25519, ByteArray, Pair, H256};
+use sp_runtime::RuntimeDebug;
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
 use std::time::Duration;
+use tangle_primitives::AccountId;
 
 pub type Balance = u128;
 pub type BlockNumber = u64;
@@ -223,6 +223,36 @@ parameter_types! {
     pub const JobsPalletId: PalletId = PalletId(*b"py/jobss");
 }
 
+const KB: u32 = 1024;
+const MB: u32 = 1024 * KB;
+
+parameter_types! {
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxSubmissionLen: u32 = 64 * MB;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxParticipants: u32 = 10;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxKeyLen: u32 = 256;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxDataLen: u32 = 256;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxSignatureLen: u32 = 256;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxProofLen: u32 = 256;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxActiveJobsPerValidator: u32 = 100;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxRolesPerValidator: u32 = 100;
+}
+
 impl pallet_jobs::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
@@ -307,6 +337,18 @@ sp_api::mock_impl_runtime_apis! {
         fn query_job_result(role_type: RoleType, job_id: JobId) -> Option<PhaseResult<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxSubmissionLen, MaxProofLen>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
                 Jobs::query_job_result(role_type, job_id)
+            })
+        }
+
+        fn query_next_job_id() -> JobId {
+            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
+                Jobs::query_next_job_id()
+            })
+        }
+
+        fn query_restaker_role_key(address: AccountId) -> Option<Vec<u8>> {
+            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
+                MockRolesHandler::get_validator_role_key(address)
             })
         }
     }
@@ -473,9 +515,7 @@ pub async fn new_test_ext<
     const N: usize,
     const K: usize,
     D: Send + Clone + 'static,
-    F: Fn(
-        NodeInput<Block, MockBackend, MockClient<Runtime, Block>, MockNetwork, InMemoryBackend, D>,
-    ) -> Fut,
+    F: Fn(NodeInput<MockClient<Runtime, Block>, MockNetwork, InMemoryBackend, D>) -> Fut,
     Fut: SendFuture<'static, ()>,
 >(
     additional_params: D,
@@ -600,16 +640,15 @@ pub async fn new_test_ext<
         let prometheus_config = PrometheusConfig::Disabled;
 
         let input = NodeInput {
-            mock_clients,
-            mock_networks: networks,
-            account_id,
+            clients: mock_clients,
+            networks,
+            account_id: sr25519::Public(account_id.into()),
             logger,
             pallet_tx,
             keystore,
             node_index,
             additional_params: additional_params.clone(),
             prometheus_config,
-            _pd: Default::default(),
         };
 
         let task = f(input);
@@ -624,21 +663,28 @@ pub mod mock_wrapper_client {
     use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use async_trait::async_trait;
     use futures::StreamExt;
-    use gadget_common::client::{AccountId, GadgetJobResult, PalletSubmitter};
+    use gadget_common::client::{exec_client_function, PalletSubmitter};
+    use gadget_common::config::ClientWithApi;
     use gadget_common::locks::TokioMutexExt;
-    use gadget_common::Header;
-    use gadget_core::gadget::substrate::Client;
+    use gadget_common::tangle_subxt::subxt::utils::AccountId32;
+    use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{
+        jobs, roles,
+    };
+    use gadget_core::gadget::substrate::{self, Client};
+    use pallet_jobs_rpc_runtime_api::JobsApi;
+    use parity_scale_codec::{Decode, Encode};
     use sc_client_api::{
         BlockchainEvents, FinalityNotification, FinalityNotifications, ImportNotifications,
         StorageEventStream, StorageKey,
     };
     use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedSender};
-    use sp_api::{ApiRef, BlockT, ProvideRuntimeApi};
+    use sp_api::{ApiRef, ProvideRuntimeApi};
     use sp_runtime::traits::Block;
+    use sp_runtime::traits::Header;
     use std::sync::Arc;
     use std::time::Duration;
     use tangle_primitives::jobs::JobId;
-    use tangle_primitives::roles::RoleType;
+    use tangle_primitives::AccountId;
 
     #[derive(Clone)]
     pub struct MockClient<R, B: Block> {
@@ -675,8 +721,8 @@ pub mod mock_wrapper_client {
     }
 
     #[async_trait]
-    impl<R: Send + Sync, B: Block> Client<B> for MockClient<R, B> {
-        async fn get_next_finality_notification(&self) -> Option<FinalityNotification<B>> {
+    impl<R: Send + Sync + Clone, B: Block> Client for MockClient<R, B> {
+        async fn get_next_finality_notification(&self) -> Option<substrate::FinalityNotification> {
             let mut lock = self
                 .finality_notification_stream
                 .lock_timeout(Duration::from_millis(500))
@@ -687,20 +733,175 @@ pub mod mock_wrapper_client {
                 .latest_finality_notification
                 .lock_timeout(Duration::from_millis(500))
                 .await = next.clone();
-            next
+            next.map(|n| {
+                let mut hash = [0u8; 32];
+                hash.copy_from_slice(n.header.hash().as_ref());
+                let number =
+                    Decode::decode(&mut Encode::encode(&n.header.number()).as_slice()).unwrap();
+                substrate::FinalityNotification { hash, number }
+            })
         }
 
-        async fn get_latest_finality_notification(&self) -> Option<FinalityNotification<B>> {
+        async fn get_latest_finality_notification(
+            &self,
+        ) -> Option<substrate::FinalityNotification> {
             let lock = self
                 .latest_finality_notification
                 .lock_timeout(Duration::from_millis(500))
                 .await;
-            if let Some(latest) = lock.clone() {
-                Some(latest)
+            if let Some(n) = lock.clone() {
+                let mut hash = [0u8; 32];
+                hash.copy_from_slice(n.header.hash().as_ref());
+                let number =
+                    Decode::decode(&mut Encode::encode(&n.header.number()).as_slice()).unwrap();
+                Some(substrate::FinalityNotification { hash, number })
             } else {
                 drop(lock);
                 self.get_next_finality_notification().await
             }
+        }
+    }
+
+    #[async_trait]
+    impl<R: Send + Sync + Clone + 'static, B: Block> ClientWithApi for MockClient<R, B>
+    where
+        R: ProvideRuntimeApi<B>,
+        R::Api: pallet_jobs_rpc_runtime_api::JobsApi<
+            B,
+            ::tangle_primitives::AccountId,
+            super::MaxParticipants,
+            super::MaxSubmissionLen,
+            super::MaxKeyLen,
+            super::MaxDataLen,
+            super::MaxSignatureLen,
+            super::MaxProofLen,
+        >,
+    {
+        async fn query_jobs_by_validator(
+            &self,
+            at: [u8; 32],
+            validator: AccountId32,
+        ) -> Result<
+            Option<
+                Vec<
+                    jobs::RpcResponseJobsData<
+                        AccountId32,
+                        u64,
+                        jobs::MaxParticipants,
+                        jobs::MaxSubmissionLen,
+                    >,
+                >,
+            >,
+            gadget_common::Error,
+        > {
+            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
+            let validator = tangle_primitives::AccountId::from(validator.0);
+            exec_client_function(&self.runtime, move |r| {
+                r.runtime_api()
+                    .query_jobs_by_validator(at, validator)
+                    .map_err(|err| gadget_common::Error::ClientError {
+                        err: format!("{err:?}"),
+                    })
+                    .map(|r| {
+                        r.map(|r| {
+                            r.into_iter()
+                                .flat_map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()))
+                                .collect()
+                        })
+                    })
+            })
+            .await
+        }
+        async fn query_job_by_id(
+            &self,
+            at: [u8; 32],
+            role_type: roles::RoleType,
+            job_id: u64,
+        ) -> Result<
+            Option<
+                jobs::RpcResponseJobsData<
+                    AccountId32,
+                    u64,
+                    jobs::MaxParticipants,
+                    jobs::MaxSubmissionLen,
+                >,
+            >,
+            gadget_common::Error,
+        > {
+            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
+            let role_type = Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap();
+            exec_client_function(&self.runtime, move |r| {
+                r.runtime_api()
+                    .query_job_by_id(at, role_type, job_id)
+                    .map_err(|err| gadget_common::Error::ClientError {
+                        err: format!("{err:?}"),
+                    })
+                    .map(|r| r.map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()).unwrap()))
+            })
+            .await
+        }
+
+        async fn query_job_result(
+            &self,
+            at: [u8; 32],
+            role_type: roles::RoleType,
+            job_id: u64,
+        ) -> Result<
+            Option<
+                jobs::PhaseResult<
+                    AccountId32,
+                    u64,
+                    jobs::MaxParticipants,
+                    jobs::MaxKeyLen,
+                    jobs::MaxDataLen,
+                    jobs::MaxSignatureLen,
+                    jobs::MaxSubmissionLen,
+                    jobs::MaxProofLen,
+                >,
+            >,
+            gadget_common::Error,
+        > {
+            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
+            let role_type = Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap();
+            exec_client_function(&self.runtime, move |r| {
+                r.runtime_api()
+                    .query_job_result(at, role_type, job_id)
+                    .map_err(|err| gadget_common::Error::ClientError {
+                        err: format!("{err:?}"),
+                    })
+                    .map(|r| r.map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()).unwrap()))
+            })
+            .await
+        }
+
+        async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, gadget_common::Error> {
+            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
+            exec_client_function(&self.runtime, move |r| {
+                r.runtime_api().query_next_job_id(at).map_err(|err| {
+                    gadget_common::Error::ClientError {
+                        err: format!("{err:?}"),
+                    }
+                })
+            })
+            .await
+        }
+
+        async fn query_restaker_role_key(
+            &self,
+            at: [u8; 32],
+            address: AccountId32,
+        ) -> Result<Option<Vec<u8>>, gadget_common::Error> {
+            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
+            let address = tangle_primitives::AccountId::from(address.0);
+            exec_client_function(&self.runtime, move |r| {
+                r.runtime_api()
+                    .query_restaker_role_key(at, address)
+                    .map_err(|err| gadget_common::Error::ClientError {
+                        err: format!("{err:?}"),
+                    })
+                    .map(|r| r.map(|r| r.to_vec()))
+            })
+            .await
         }
     }
 
@@ -734,7 +935,7 @@ pub mod mock_wrapper_client {
             &self,
             _filter_keys: Option<&[StorageKey]>,
             _child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
-        ) -> sc_client_api::blockchain::Result<StorageEventStream<<B as BlockT>::Hash>> {
+        ) -> sc_client_api::blockchain::Result<StorageEventStream<<B as Block>::Hash>> {
             unimplemented!()
         }
     }
@@ -748,16 +949,26 @@ pub mod mock_wrapper_client {
     impl PalletSubmitter for TestExternalitiesPalletSubmitter {
         async fn submit_job_result(
             &self,
-            role_type: RoleType,
+            role_type: roles::RoleType,
             job_id: JobId,
-            result: GadgetJobResult,
+            result: jobs::JobResult<
+                jobs::MaxParticipants,
+                jobs::MaxKeyLen,
+                jobs::MaxSignatureLen,
+                jobs::MaxDataLen,
+                jobs::MaxProofLen,
+            >,
         ) -> Result<(), gadget_common::Error> {
             let id = self.id.clone();
             self.ext
                 .execute_with_async(move || {
                     let origin = RuntimeOrigin::signed(id);
-                    let res =
-                        crate::mock::Jobs::submit_job_result(origin, role_type, job_id, result);
+                    let res = crate::mock::Jobs::submit_job_result(
+                        origin,
+                        Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap(),
+                        job_id,
+                        Decode::decode(&mut Encode::encode(&result).as_slice()).unwrap(),
+                    );
                     if let Err(err) = res {
                         let err = format!("Pallet tx error: {err:?}");
                         if err.contains("JobNotFound") {

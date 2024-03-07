@@ -1,24 +1,28 @@
+use derivation_path::DerivationPath;
 use dfns_cggmp21::progress::Tracer;
-use frost_core::keys::{KeyPackage, PublicKeyPackage};
-use frost_core::round1::{SigningCommitments, SigningNonces};
-use frost_core::round2::{self, SignatureShare};
-use frost_core::{aggregate, round1, Ciphersuite, Field, Group, Identifier, SigningPackage};
+use dkls23_ll::dsg::{
+    combine_signatures, create_partial_signature, PartialSignature, PreSignature, SignError,
+    SignMsg1, SignMsg2, SignMsg3, SignMsg4, State,
+};
 use futures::SinkExt;
+use gadget_common::prelude::*;
+use k256::ecdsa::Signature;
 use rand_core::{CryptoRng, RngCore};
+use roles::tss::ThresholdSignatureRoleType;
 use round_based::rounds_router::simple_store::RoundInput;
-use round_based_21 as round_based;
-
 use round_based::rounds_router::RoundsRouter;
 use round_based::runtime::AsyncRuntime;
 use round_based::ProtocolMessage;
 use round_based::{Delivery, Mpc, MpcParty, Outgoing};
+use round_based_21 as round_based;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use tangle_primitives::roles::ThresholdSignatureRoleType;
 
+use crate::impl_digestable_for_msg_wrapper;
+
+use super::keygen::SilentShardDKLS23KeyShare;
 use super::{Error, IoError};
 
-/// Message of threshold FROST signing protocol
+/// Message of DKLS23 threshold ECDSA signing protocol
 #[derive(ProtocolMessage, Clone, Serialize, Deserialize)]
 #[serde(bound = "")]
 pub enum Msg {
@@ -26,46 +30,103 @@ pub enum Msg {
     Round1(MsgRound1),
     /// Round 2 message
     Round2(MsgRound2),
+    /// Round 3 message
+    Round3(MsgRound3),
+    /// Round 4 message
+    Round4(MsgRound4),
 }
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SignMsg1Wrapper(pub SignMsg1);
+impl_digestable_for_msg_wrapper!(SignMsg1Wrapper, SignMsg1);
 
 /// Message from round 1
-#[derive(Clone, Debug, Serialize, Deserialize, udigest::Digestable)]
+#[derive(Clone, Serialize, Deserialize, udigest::Digestable)]
 #[serde(bound = "")]
 #[udigest(bound = "")]
-#[udigest(tag = "zcash.frost.sign.threshold.round1")]
+#[udigest(tag = "silent.shard.dkls23.sign.threshold.round1")]
 pub struct MsgRound1 {
-    pub msg: Vec<u8>,
-}
-/// Message from round 2
-#[derive(Clone, Debug, Serialize, Deserialize, udigest::Digestable)]
-#[serde(bound = "")]
-#[udigest(bound = "")]
-#[udigest(tag = "zcash.frost.sign.threshold.round2")]
-pub struct MsgRound2 {
-    pub msg: Vec<u8>,
+    pub msg: SignMsg1Wrapper,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FrostSignature {
-    pub group_signature: Vec<u8>,
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SignMsg2Wrapper(pub SignMsg2);
+impl_digestable_for_msg_wrapper!(SignMsg2Wrapper, SignMsg2);
+
+/// Message from round 2
+#[derive(Clone, Serialize, Deserialize, udigest::Digestable)]
+#[serde(bound = "")]
+#[udigest(bound = "")]
+#[udigest(tag = "silent.shard.dkls23.sign.threshold.round2")]
+pub struct MsgRound2 {
+    pub msg: SignMsg2Wrapper,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SignMsg3Wrapper(pub SignMsg3);
+impl_digestable_for_msg_wrapper!(SignMsg3Wrapper, SignMsg3);
+
+/// Message from round 3
+#[derive(Clone, Serialize, Deserialize, udigest::Digestable)]
+#[serde(bound = "")]
+#[udigest(bound = "")]
+#[udigest(tag = "silent.shard.dkls23.sign.threshold.round3")]
+pub struct MsgRound3 {
+    pub msg: SignMsg3Wrapper,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PreSignatureWrapper(pub PreSignature);
+impl_digestable_for_msg_wrapper!(PreSignatureWrapper, PreSignature);
+
+impl Clone for PreSignatureWrapper {
+    fn clone(&self) -> Self {
+        Self(PreSignature {
+            from_id: self.0.from_id.clone(),
+            final_session_id: self.0.final_session_id.clone(),
+            public_key: self.0.public_key.clone(),
+            s_0: self.0.s_0.clone(),
+            s_1: self.0.s_1.clone(),
+            r: self.0.r.clone(),
+            phi_i: self.0.phi_i.clone(),
+        })
+    }
+}
+
+/// Message from round 4
+#[derive(Clone, Serialize, Deserialize, udigest::Digestable)]
+#[serde(bound = "")]
+#[udigest(bound = "")]
+#[udigest(tag = "silent.shard.dkls23.sign.threshold.round4")]
+pub struct MsgRound4 {
+    pub msg: PreSignatureWrapper,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SilentSharedDKLS23EcdsaSignature {
+    pub group_signature: Signature,
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn run_threshold_sign<C, R, M>(
+pub async fn run_threshold_sign<R, M>(
     mut tracer: Option<&mut dyn Tracer>,
     i: u16,
     signers: Vec<u16>,
-    frost_keyshare: (KeyPackage<C>, PublicKeyPackage<C>),
+    dkls_keyshare: SilentShardDKLS23KeyShare,
+    derivation_path: DerivationPath,
     message_to_sign: &[u8],
-    role: ThresholdSignatureRoleType,
     rng: &mut R,
     party: M,
-) -> Result<FrostSignature, Error<C>>
+) -> Result<SilentSharedDKLS23EcdsaSignature, Error>
 where
     R: RngCore + CryptoRng,
     M: Mpc<ProtocolMessage = Msg>,
-    C: Ciphersuite,
 {
+    if message_to_sign.len() != 32 {
+        return Err(Error::DKLS23SigningError(
+            dkls23_ll::dsg::SignError::FailedCheck("Message to sign must be 32 bytes long"),
+        ));
+    }
     tracer.protocol_begins();
 
     tracer.stage("Setup networking");
@@ -75,20 +136,25 @@ where
     let (incomings, mut outgoings) = delivery.split();
     let mut rounds = RoundsRouter::<Msg>::builder();
     let round1 = rounds.add_round(RoundInput::<MsgRound1>::broadcast(i, signers.len() as u16));
-    let round2 = rounds.add_round(RoundInput::<MsgRound2>::broadcast(i, signers.len() as u16));
+    let round2 = rounds.add_round(RoundInput::<MsgRound2>::p2p(i, signers.len() as u16));
+    let round3 = rounds.add_round(RoundInput::<MsgRound3>::p2p(i, signers.len() as u16));
+    let round4 = rounds.add_round(RoundInput::<MsgRound4>::broadcast(i, signers.len() as u16));
     let mut rounds = rounds.listen(incomings);
 
     // Round 1
     tracer.round_begins();
-    tracer.stage("Generate nonces and commitments for Round 1");
-    let (nonces, commitments) = participant_round1(role, &frost_keyshare.0, rng)?;
+    let mut p = State::new(rng, dkls_keyshare.key_share, &derivation_path)
+        .map_err(|e| SignError::FailedCheck("Failed to create state w/ derivation path"))?;
+
+    tracer.stage("Compute round 1 sign msg");
+    let partial_sign_msg1: SignMsg1 = p.generate_msg1();
     runtime.yield_now().await;
+    tracer.stage("Send round 1 sign msg");
     tracer.send_msg();
-    let my_round1_msg = MsgRound1 {
-        msg: commitments.serialize().unwrap_or_default(),
-    };
     outgoings
-        .send(Outgoing::broadcast(Msg::Round1(my_round1_msg.clone())))
+        .send(Outgoing::broadcast(Msg::Round1(MsgRound1 {
+            msg: partial_sign_msg1.into(),
+        })))
         .await
         .map_err(IoError::send_message)?;
     tracer.msg_sent();
@@ -97,119 +163,115 @@ where
     tracer.round_begins();
 
     tracer.receive_msgs();
-    let round1_msgs: Vec<MsgRound1> = rounds
+    let round1_msgs: Vec<SignMsg1> = rounds
         .complete(round1)
         .await
         .map_err(IoError::receive_message)?
-        .into_vec_including_me(my_round1_msg);
-
-    let round1_signing_commitments = round1_msgs
+        .into_vec_without_me()
         .into_iter()
-        .enumerate()
-        .map(|(party_inx, msg)| {
-            let participant_identifier = Identifier::<C>::try_from((party_inx + 1) as u16)
-                .expect("Failed to convert party index to identifier");
-            let msg = SigningCommitments::<C>::deserialize(&msg.msg)
-                .unwrap_or_else(|_| panic!("Failed to deserialize round 1 signing commitments"));
-            (participant_identifier, msg)
-        })
+        .map(|msg| msg.msg.0)
         .collect();
     tracer.msgs_received();
 
-    tracer.stage("Produce signature share using the Round 1 data");
-    let signing_package = SigningPackage::<C>::new(round1_signing_commitments, message_to_sign);
-    let signature_share: SignatureShare<C> =
-        participant_round2(role, &signing_package, &nonces, &frost_keyshare.0)?;
+    tracer.stage("Compute round 2 sign msg");
+    let partial_sign_msg2: Vec<SignMsg2> = p.handle_msg1(rng, round1_msgs)?;
     runtime.yield_now().await;
+
+    tracer.stage("Send round 2 sign msg");
+    tracer.send_msg();
+    for msg in partial_sign_msg2.into_iter() {
+        outgoings
+            .send(Outgoing::p2p(
+                msg.to_id as u16,
+                Msg::Round2(MsgRound2 {
+                    msg: SignMsg2Wrapper(msg),
+                }),
+            ))
+            .await
+            .map_err(IoError::send_message)?;
+    }
+    tracer.msg_sent();
+
+    // Round 3
+    tracer.round_begins();
+
+    tracer.receive_msgs();
+    let round2_msgs: Vec<SignMsg2> = rounds
+        .complete(round2)
+        .await
+        .map_err(IoError::receive_message)?
+        .into_vec_without_me()
+        .into_iter()
+        .map(|msg| msg.msg.0)
+        .collect();
+    tracer.msgs_received();
+
+    tracer.stage("Compute round 3 sign msg");
+    let partial_sign_msg3: Vec<SignMsg3> = p.handle_msg2(rng, round2_msgs)?;
+    runtime.yield_now().await;
+
+    tracer.stage("Send round 3 sign msg");
+    tracer.send_msg();
+    for msg in partial_sign_msg3.into_iter() {
+        outgoings
+            .send(Outgoing::p2p(
+                msg.to_id as u16,
+                Msg::Round3(MsgRound3 {
+                    msg: SignMsg3Wrapper(msg),
+                }),
+            ))
+            .await
+            .map_err(IoError::send_message)?;
+    }
+    tracer.msg_sent();
+
+    // Round 4
+    tracer.round_begins();
+
+    tracer.receive_msgs();
+    let round3_msgs: Vec<SignMsg3> = rounds
+        .complete(round3)
+        .await
+        .map_err(IoError::receive_message)?
+        .into_vec_without_me()
+        .into_iter()
+        .map(|msg| msg.msg.0)
+        .collect();
+    tracer.msgs_received();
+
+    tracer.stage("Compute round 4 sign msg");
+    let partial_sign_msg4 = PreSignatureWrapper(p.handle_msg3(round3_msgs)?);
+    let partial_signature = create_partial_signature(
+        partial_sign_msg4.clone().0,
+        message_to_sign.try_into().unwrap(),
+    );
+    tracer.stage("Send round 4 pre signature");
     tracer.send_msg();
     outgoings
-        .send(Outgoing::broadcast(Msg::Round2(MsgRound2 {
-            msg: signature_share.serialize().as_ref().to_vec(),
+        .send(Outgoing::broadcast(Msg::Round4(MsgRound4 {
+            msg: partial_sign_msg4,
         })))
         .await
         .map_err(IoError::send_message)?;
     tracer.msg_sent();
 
-    // Aggregation / output round
+    // Round 5
     tracer.round_begins();
 
     tracer.receive_msgs();
-    let round2_signature_shares: BTreeMap<Identifier<C>, SignatureShare<C>> = rounds
-        .complete(round2)
+    let round4_msgs: (Vec<PartialSignature>, Vec<SignMsg4>) = rounds
+        .complete(round4)
         .await
         .map_err(IoError::receive_message)?
-        .into_vec_including_me(MsgRound2 {
-            msg: signature_share.serialize().as_ref().to_vec(),
-        })
+        .into_vec_without_me()
         .into_iter()
-        .enumerate()
-        .map(|(party_inx, msg)| {
-            let participant_identifier = Identifier::<C>::try_from((party_inx + 1) as u16)
-                .expect("Failed to convert party index to identifier");
-            let ser = <<C::Group as Group>::Field as Field>::Serialization::try_from(msg.msg)
-                .map_err(|_e| Error::<C>::SerializationError)
-                .expect("Failed to deserialize round 2 signature share");
-            let sig_share = SignatureShare::<C>::deserialize(ser)
-                .unwrap_or_else(|_| panic!("Failed to deserialize round 2 signature share"));
-            (participant_identifier, sig_share)
-        })
-        .collect();
+        .map(|msg| create_partial_signature(msg.msg.0, message_to_sign.try_into().unwrap()))
+        .unzip::<_, _, Vec<_>, Vec<_>>();
+
     tracer.msgs_received();
 
-    tracer.stage("Aggregate signature shares");
-    let group_signature = aggregate(
-        &signing_package,
-        &round2_signature_shares,
-        &frost_keyshare.1,
-    )?;
+    tracer.stage("Compute group signature");
+    let group_signature: Signature = combine_signatures(partial_signature.0, round4_msgs.1)?;
 
-    if frost_keyshare
-        .1
-        .verifying_key()
-        .verify(message_to_sign, &group_signature)
-        .is_err()
-    {
-        return Err(frost_core::Error::<C>::InvalidSignature.into());
-    } else {
-        tracer.protocol_ends();
-    }
-
-    Ok(FrostSignature {
-        group_signature: group_signature.serialize().as_ref().to_vec(),
-    })
-}
-
-fn validate_role<C: Ciphersuite>(role: ThresholdSignatureRoleType) -> Result<(), Error<C>> {
-    match role {
-        ThresholdSignatureRoleType::ZcashFrostEd25519
-        | ThresholdSignatureRoleType::ZcashFrostEd448
-        | ThresholdSignatureRoleType::ZcashFrostSecp256k1
-        | ThresholdSignatureRoleType::ZcashFrostP256
-        | ThresholdSignatureRoleType::ZcashFrostP384
-        | ThresholdSignatureRoleType::ZcashFrostRistretto255 => {}
-        _ => Err(Error::InvalidFrostProtocol)?,
-    };
-
-    Ok(())
-}
-
-/// Participant generates nonces and commitments for Round 1.
-fn participant_round1<R: RngCore + CryptoRng, C: Ciphersuite>(
-    role: ThresholdSignatureRoleType,
-    key_package: &KeyPackage<C>,
-    rng: &mut R,
-) -> Result<(SigningNonces<C>, SigningCommitments<C>), Error<C>> {
-    validate_role::<C>(role)?;
-    Ok(round1::commit(key_package.signing_share(), rng))
-}
-
-/// Participant produces their signature share using the `SigningPackage` and their `SigningNonces` from Round 1.
-fn participant_round2<C: Ciphersuite>(
-    role: ThresholdSignatureRoleType,
-    signing_package: &SigningPackage<C>,
-    nonces: &SigningNonces<C>,
-    key_package: &KeyPackage<C>,
-) -> Result<SignatureShare<C>, Error<C>> {
-    validate_role::<C>(role)?;
-    Ok(round2::sign(signing_package, nonces, key_package)?)
+    Ok(SilentSharedDKLS23EcdsaSignature { group_signature })
 }

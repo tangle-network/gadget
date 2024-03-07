@@ -1,12 +1,12 @@
 use crate::mock::{Jobs, Runtime};
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
-use gadget_common::client::GadgetPhaseResult;
 pub use gadget_core::job_manager::SendFuture;
 pub use log;
 use pallet_jobs::{SubmittedJobs, SubmittedJobsRole};
 use std::time::Duration;
-use tangle_primitives::jobs::JobId;
+use tangle_primitives::jobs::{JobId, PhaseResult};
 use tangle_primitives::roles::RoleType;
+use tangle_primitives::AccountId;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -30,8 +30,17 @@ pub fn setup_log() {
 pub async fn wait_for_job_completion(
     ext: &MultiThreadedTestExternalities,
     role_type: RoleType,
-    job_id: JobId,
-) -> GadgetPhaseResult<mock::BlockNumber> {
+    job_id: u64,
+) -> PhaseResult<
+    AccountId,
+    mock::BlockNumber,
+    mock::MaxParticipants,
+    mock::MaxKeyLen,
+    mock::MaxDataLen,
+    mock::MaxSignatureLen,
+    mock::MaxSubmissionLen,
+    mock::MaxProofLen,
+> {
     loop {
         tokio::time::sleep(Duration::from_millis(100)).await;
         if let Some(ret) = ext
@@ -108,6 +117,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
                         let identities = (0..N).map(|i| id_to_sr25519_public(i as u8)).map(AccountId::from).collect::<Vec<_>>();
 
                         let submission = JobSubmission {
+                            fallback: tangle_primitives::jobs::FallbackOptions::Destroy,
                             expiry: 100,
                             ttl: 100,
                             job_type: JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
@@ -143,6 +153,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
                         let job_id = Jobs::next_job_id();
                         let identities = (0..N).map(|i| id_to_sr25519_public(i as u8)).map(AccountId::from).collect::<Vec<_>>();
                         let submission = JobSubmission {
+                            fallback: tangle_primitives::jobs::FallbackOptions::Destroy,
                             expiry: 100,
                             ttl: 100,
                             job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {

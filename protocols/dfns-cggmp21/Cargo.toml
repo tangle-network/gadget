@@ -11,22 +11,15 @@ protocol-macros = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
 dfns-cggmp21 = { workspace = true, features = ["all-curves"] }
+round-based-21 = { workspace = true }
 curv = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 bincode2 = { workspace = true }
-
-pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
-pallet-jobs = { workspace = true, features = ["std"] }
-tangle-primitives = { workspace = true, features = ["std"] }
+digest = { workspace = true }
 
 sp-core = { workspace = true, features = ["std"] }
 sp-io = { workspace = true, features = ["std"] }
-sp-api = { workspace = true, features = ["std"] }
-sp-runtime = { workspace = true, features = ["std"] }
-sp-application-crypto = { workspace = true, features = ["std"] }
-
-sc-client-api = { workspace = true }
 
 frame-support = { workspace = true  }
 parity-scale-codec = { workspace = true }
@@ -35,5 +28,9 @@ serde = { version = "1.0.193", features = ["derive"] }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 hex = { workspace = true }
-test-utils = { workspace = true }
 parking_lot = { workspace = true }
+sha2 = { workspace = true }
+
+[dev-dependencies]
+test-utils = { workspace = true }
+tangle-primitives = { workspace = true }

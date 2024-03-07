@@ -20,14 +20,14 @@ mod tests {
     use std::str::FromStr;
     use std::sync::Arc;
     use tangle_primitives::jobs::{
-        Groth16ProveRequest, Groth16System, HyperData, JobResult, JobSubmission, JobType, QAPShare,
-        ZkSaaSCircuitResult, ZkSaaSPhaseOneJobType, ZkSaaSPhaseTwoJobType, ZkSaaSPhaseTwoRequest,
-        ZkSaaSSystem,
+        FallbackOptions, Groth16ProveRequest, Groth16System, HyperData, JobResult, JobSubmission,
+        JobType, QAPShare, ZkSaaSCircuitResult, ZkSaaSPhaseOneJobType, ZkSaaSPhaseTwoJobType,
+        ZkSaaSPhaseTwoRequest, ZkSaaSSystem,
     };
     use tangle_primitives::roles::{RoleType, ZeroKnowledgeRoleType};
     use tangle_primitives::verifier::from_field_elements;
     use tangle_primitives::AccountId;
-    use test_utils::mock::{id_to_public, id_to_sr25519_public, Jobs, MockBackend, RuntimeOrigin};
+    use test_utils::mock::{id_to_public, id_to_sr25519_public, Jobs, RuntimeOrigin};
     use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use zk_saas_protocol::network::ZkProtocolNetworkConfig;
 
@@ -74,6 +74,7 @@ mod tests {
             let num_inputs = matrices.num_instance_variables;
             let num_constraints = matrices.num_constraints;
             let phase1_submission = JobSubmission {
+                fallback: FallbackOptions::Destroy,
                 expiry: 100,
                 ttl: 100,
                 job_type: JobType::ZkSaaSPhaseOne(ZkSaaSPhaseOneJobType {
@@ -126,6 +127,7 @@ mod tests {
             let public_input = from_field_elements::<Bn254Fr>(&[BigInt!("72587776472194017031617589674261467945970986113287823188107011979").into()]).unwrap().try_into().unwrap();
             let phase_two_id = Jobs::next_job_id();
             let phase2_submission = JobSubmission {
+                fallback: FallbackOptions::Destroy,
                 expiry: 100,
                 ttl: 100,
                 job_type: JobType::ZkSaaSPhaseTwo(ZkSaaSPhaseTwoJobType {
@@ -162,6 +164,7 @@ mod tests {
             rcgen::generate_simple_self_signed(vec!["localhost".into(), "127.0.0.1".into()])
                 .unwrap();
         let king_cert = Arc::new(king_cert);
+
         test_utils::mock::new_test_ext::<N, 1, _, _, _>(king_cert, |mut node_info| async move {
             let king_cert = node_info.additional_params;
             let king_public_identity_der = king_cert.serialize_der().expect("Should serialize");
@@ -192,12 +195,12 @@ mod tests {
             };
 
             let logger = node_info.logger.clone();
-            let client = node_info.mock_clients.pop().expect("Should have client");
+            let client = node_info.clients.pop().expect("Should have client");
             let pallet_tx = node_info.pallet_tx;
             let key_store = node_info.keystore;
 
             let network_cfg = ZkProtocolNetworkConfig {
-                account_id: node_info.account_id.clone(),
+                account_id: node_info.account_id,
                 king_bind_addr,
                 client_only_king_addr,
                 client_only_king_public_identity_der,
@@ -215,7 +218,7 @@ mod tests {
             let prometheus_config = node_info.prometheus_config.clone();
             log::info!(target: "gadget", "Started node {}", node_info.node_index);
             // ZkSaaS only requires 1 client and 1 network, no need to use the NodeInput's vectors
-            if let Err(err) = zk_saas_protocol::run::<_, MockBackend, _, _, _>(
+            if let Err(err) = zk_saas_protocol::run(
                 vec![client],
                 pallet_tx,
                 vec![network],

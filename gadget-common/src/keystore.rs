@@ -10,7 +10,6 @@ use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::{Pool, Row, Sqlite};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tangle_primitives::jobs::JobId;
 
 pub type ECDSAKeyStore<BE> = GenericKeyStore<BE, EcdsaPair>;
 pub type Sr25519KeyStore<BE> = GenericKeyStore<BE, Sr25519Pair>;
@@ -59,7 +58,7 @@ impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
 
     pub async fn get_job_result<T: DeserializeOwned>(
         &self,
-        job_id: JobId,
+        job_id: u64,
     ) -> Result<Option<T>, crate::Error> {
         let key = keccak_256(&job_id.to_be_bytes());
         self.get(&key).await
@@ -75,7 +74,7 @@ impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
 
     pub async fn set_job_result<T: Serialize + Send>(
         &self,
-        job_id: JobId,
+        job_id: u64,
         value: T,
     ) -> Result<(), crate::Error> {
         let key = keccak_256(&job_id.to_be_bytes());
