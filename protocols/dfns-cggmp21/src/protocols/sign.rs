@@ -25,6 +25,7 @@ use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
+use crate::protocols::util::SignatureVerifier;
 
 use super::keygen::create_party;
 
@@ -256,7 +257,8 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
         .post(async move {
             // Submit the protocol output to the blockchain
             if let Some(signature) = protocol_output_clone.lock().await.take() {
-                let signature = convert_dfns_signature(
+                let signature = convert_dfns_signature_for_role_type(
+                    &additional_params.role_type,
                     signature,
                     &additional_params.input_data_to_sign,
                     &public_key,
@@ -322,59 +324,44 @@ pub fn get_local_key_share_from_serialized_local_key_bytes<E: Curve, S: Security
     })
 }
 
-pub fn convert_dfns_signature(
+pub fn convert_dfns_signature_for_role_type(
+    role_type: &roles::RoleType,
     signature: Vec<u8>,
     input_data_to_sign: &[u8],
     public_key_bytes: &[u8],
 ) -> Result<[u8; 65], JobError> {
-    let mut signature_bytes = [0u8; 65];
-    (signature_bytes[..64]).copy_from_slice(&signature[..64]);
-    let data_hash = keccak_256(input_data_to_sign);
-    // To figure out the recovery ID, we need to try all possible values of v
-    // in our case, v can be 0 or 1
-    let mut v = 0u8;
-    loop {
-        let mut signature_bytes = signature_bytes;
-        signature_bytes[64] = v;
-        let res = sp_io::crypto::secp256k1_ecdsa_recover(&signature_bytes, &data_hash);
-        match res {
-            Ok(key) if key[..32] == public_key_bytes[1..] => {
-                // Found the correct v
-                signature_bytes[64] = v + 27;
-                return Ok(signature_bytes);
-            }
-            Ok(_) => {
-                // Found a key, but not the correct one
-                // Try the other v value
-                if v == 1 {
-                    // We tried both v values, but no key was found
-                    // This should never happen, but if it does, we will just
-                    // leave v as 1 and break
-                    return Err(JobError {
-                        reason: "Failed to recover signature (both v=[0,1] did not match)"
-                            .to_string(),
-                    });
-                }
-                v = 1;
-                continue;
-            }
-            Err(_) if v == 1 => {
-                // We tried both v values, but no key was found
-                // This should never happen, but if it does, we will just
-                // leave v as 1 and break
-                return Err(JobError {
-                    reason:
-                        "Failed to recover signature (both v=[0,1] errored and/or did not match)"
-                            .to_string(),
-                });
-            }
-            Err(_) => {
-                // No key was found, try the other v value
-                v = 1;
-                continue;
-            }
+    match role_type {
+        roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
+            convert_dfns_signature::<Secp256k1>(signature, input_data_to_sign, public_key_bytes)
         }
+        roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
+            convert_dfns_signature::<Secp256r1>(signature, input_data_to_sign, public_key_bytes)
+        }
+        roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+            convert_dfns_signature::<Stark>(signature, input_data_to_sign, public_key_bytes)
+        }
+        _ => Err(JobError {
+            reason: format!("Invalid role type: {role_type:?}"),
+        }),
     }
+}
+
+fn convert_dfns_signature<E: SignatureVerifier>(
+    signature: Vec<u8>,
+    input_data_to_sign: &[u8],
+    public_key_bytes: &[u8],
+) -> Result<[u8; 65], JobError> {
+    if signature.len() < 65 {
+        return Err(JobError {
+            reason: format!("Invalid signature length: {}", signature.len()),
+        });
+    }
+
+    let mut signature_bytes = [0u8; 65];
+    signature_bytes[..64].copy_from_slice(&signature[..64]);
+    let data_hash = keccak_256(input_data_to_sign);
+
+    E::verify_signature(signature_bytes, &data_hash, public_key_bytes)
 }
 
 #[allow(clippy::too_many_arguments)]

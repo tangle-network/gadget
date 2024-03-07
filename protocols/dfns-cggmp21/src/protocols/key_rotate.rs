@@ -254,7 +254,8 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
         .post(async move {
             // Submit the protocol output to the blockchain
             if let Some(signature) = protocol_output_clone.lock().await.take() {
-                let signature = super::sign::convert_dfns_signature(
+                let signature = super::sign::convert_dfns_signature_for_role_type(
+                    &additional_params.role_type,
                     signature,
                     &new_public_key,
                     &public_key,
