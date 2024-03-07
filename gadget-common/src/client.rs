@@ -5,7 +5,6 @@ use gadget_core::gadget::substrate::{Client, FinalityNotification};
 use sp_core::{ecdsa, ByteArray};
 use sp_core::{sr25519, Pair};
 use std::sync::Arc;
-use subxt::config::ExtrinsicParams;
 use subxt::tx::TxPayload;
 use subxt::utils::AccountId32;
 use subxt::OnlineClient;
@@ -425,7 +424,8 @@ where
     S: subxt::tx::Signer<C> + Send + Sync + 'static,
     C::AccountId: std::fmt::Display + Send + Sync + 'static,
     C::Hash: std::fmt::Display,
-    <C::ExtrinsicParams as ExtrinsicParams<C::Hash>>::OtherParams: Default + Send + Sync + 'static,
+    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams:
+        Default + Send + Sync + 'static,
 {
     async fn submit_job_result(
         &self,
@@ -471,7 +471,8 @@ where
     C: subxt::Config,
     C::AccountId: std::fmt::Display,
     S: subxt::tx::Signer<C>,
-    <C::ExtrinsicParams as ExtrinsicParams<C::Hash>>::OtherParams: Default,
+    C::Hash: std::fmt::Display,
+    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams: Default,
 {
     pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, crate::Error> {
         let subxt_client =
