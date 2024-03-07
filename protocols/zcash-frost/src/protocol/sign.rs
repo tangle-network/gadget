@@ -185,6 +185,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 id,
                 network.clone(),
                 logger.clone(),
+                i,
             );
 
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();

@@ -12,7 +12,7 @@ use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
-use sp_core::ecdsa::Signature;
+use sp_core::ecdsa::{Public, Signature};
 use sp_core::{keccak_256, sr25519};
 use sp_io::crypto::ecdsa_verify_prehashed;
 use std::sync::Arc;
@@ -199,6 +199,10 @@ impl<T: FullProtocolConfig> GadgetProtocol<T::Client> for T {
 
 #[async_trait]
 impl<T: FullProtocolConfig> Network for T {
+    fn greatest_authority_id(&self) -> Option<Public> {
+        T::internal_network(self).greatest_authority_id()
+    }
+
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         let mut message = T::internal_network(self).next_message().await?;
         if let Some(peer_public_key) = message.from_network_id {

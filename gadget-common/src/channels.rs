@@ -463,10 +463,30 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     my_account_id: ecdsa::Public,
     network: N,
     logger: DebugLogger,
+    i: u16,
 ) -> DuplexedChannel<O, I, C2> {
     let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
     let (tx_to_async_proto_2, rx_for_async_proto_2) = futures::channel::mpsc::unbounded();
     let logger_outgoing = logger.clone();
+    let mapping_clone = user_id_mapping.clone();
+
+    let my_user_id = user_id_mapping
+        .iter()
+        .find_map(|(user_id, account_id)| {
+            if *account_id == my_account_id {
+                Some(*user_id)
+            } else {
+                None
+            }
+        })
+        .expect("Failed to find my user id");
+
+    if my_user_id != i as u32 {
+        logger.error(format!(
+            "My user id is not equal to i: {} != {}",
+            my_user_id, i
+        ));
+    }
 
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
@@ -484,11 +504,23 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
             ) {
                 Ok(msg) => match msg {
                     MultiplexedChannelMessage::Channel1(msg) => {
-                        logger.info(format!(
+                        logger.trace(format!("Received message count: {id}", id = id + 1));
+                        logger.trace(format!(
                             "Received message from {} as {:?}",
                             msg_orig.from, msg_orig.to
                         ));
-                        let msg_type = if msg_orig.to.is_some() {
+                        let msg_type = if let Some(to) = msg_orig.to {
+                            if let Some(to_account_id) = mapping_clone.get(&to) {
+                                if *to_account_id != my_account_id {
+                                    logger.error("Invalid message received");
+                                    continue;
+                                }
+                            } else {
+                                logger
+                                    .error("Invalid message received (`to` not found in mapping)");
+                                continue;
+                            }
+
                             MessageType::P2P
                         } else {
                             MessageType::Broadcast
@@ -523,16 +555,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     let (tx_to_outbound_2, mut rx_to_outbound_2) = futures::channel::mpsc::unbounded::<C2>();
     let network_clone = network.clone();
     let user_id_mapping_clone = user_id_mapping.clone();
-    let my_user_id = user_id_mapping
-        .iter()
-        .find_map(|(user_id, account_id)| {
-            if *account_id == my_account_id {
-                Some(*user_id)
-            } else {
-                None
-            }
-        })
-        .expect("Failed to find my user id");
+
     // Take the messages from the async protocol and send them to the gadget
     tokio::task::spawn(async move {
         let logger = &logger_outgoing;
@@ -555,6 +578,8 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
                     logger.error(format!("Failed to send message to outbound: {err:?}"));
                 }
             }
+
+            logger.trace("Channel 1 outgoing task closing")
         };
 
         let channel_2_task = async move {
@@ -576,6 +601,8 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
                     logger.error(format!("Failed to send message to outbound: {err:?}"));
                 }
             }
+
+            logger.trace("Channel 2 outgoing task closing")
         };
 
         tokio::join!(channel_1_task, channel_2_task);
@@ -821,7 +848,7 @@ where
         associated_session_id,
         associated_retry_id,
         task_hash: associated_task_id,
-        from: from.as_user_id().unwrap_or(my_user_id),
+        from: my_user_id,
         to: to.as_user_id(),
         payload: bincode2::serialize(&message_multiplexed).expect("Failed to serialize message"),
         from_network_id: from_account_id,
