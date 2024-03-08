@@ -185,9 +185,11 @@ where
     tracer.msgs_received();
 
     tracer.stage("Compute round 2 dkg secret package");
+    println!("Compute round 2 dkg secret package");
     let keygen_msg2: Vec<KeygenMsg2> = p.handle_msg1(&mut rng, round1_packages)?;
 
     // Round 1 commitment phase
+    println!("Compute round 1 commitment after keygen msg2");
     tracer.stage("Compute round 1 commitment after keygen msg2");
     let commitment = p.calculate_commitment_2();
     tracer.send_msg();
@@ -204,12 +206,13 @@ where
         .complete(round1_comm)
         .await
         .map_err(IoError::receive_message)?
-        .into_vec_without_me()
+        .into_vec_including_me(MsgRound1Comm { msg: commitment })
         .into_iter()
         .map(|msg| msg.msg)
         .collect();
 
     // Round 2
+    println!("Send keygen msg2");
     tracer.stage("Send keygen msg2");
     tracer.send_msg();
     for msg in keygen_msg2 {
@@ -238,6 +241,7 @@ where
     tracer.msgs_received();
 
     tracer.stage("Compute round 3 dkg secret package");
+    println!("Compute round 3 dkg secret package");
     let keygen_msg3: Vec<KeygenMsg3> = p.handle_msg2(&mut rng, round2_packages)?;
 
     tracer.send_msg();
@@ -267,6 +271,15 @@ where
     tracer.msgs_received();
 
     tracer.stage("Compute round 4 dkg secret package");
+    println!("Compute round 4 dkg secret package");
+    println!(
+        "Round3 packages: {:?}",
+        round3_packages
+            .iter()
+            .map(|m| m.from_id)
+            .collect::<Vec<_>>()
+    );
+    println!("Commitments: {:?}", commitments);
     let keygen_msg4 = p.handle_msg3(&mut rng, round3_packages, &commitments)?;
 
     tracer.send_msg();
