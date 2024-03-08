@@ -133,6 +133,7 @@ tokio = "1.32.0"
 bincode2 = "2"
 futures-util = "0.3.30"
 serde = "1.0.188"
+url = { version = "2.5", default-features = false }
 async-trait = "0.1.73"
 log = "0.4.20"
 tracing = { version = "0.1", default-features = false }

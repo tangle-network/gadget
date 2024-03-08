@@ -18,6 +18,9 @@ async fn main() -> Result<()> {
             path: keystore_path,
             password: None,
         },
+        subxt: config::SubxtConfig {
+            endpoint: url::Url::parse("ws://127.0.0.1:9944")?,
+        },
     })
     .await?;
     Ok(())

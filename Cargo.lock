@@ -3994,9 +3994,11 @@ dependencies = [
  "sc-keystore",
  "sp-core",
  "sp-keystore",
+ "tangle-subxt",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.18",
+ "url",
 ]
 
 [[package]]
@@ -12433,6 +12435,7 @@ dependencies = [
  "form_urlencoded",
  "idna 0.5.0",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]

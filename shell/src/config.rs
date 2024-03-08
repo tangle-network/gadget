@@ -4,6 +4,13 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone)]
 pub struct ShellConfig {
     pub keystore: KeystoreConfig,
+    pub subxt: SubxtConfig,
+}
+
+#[derive(Debug, Clone)]
+pub struct SubxtConfig {
+    /// The URL of the Tangle Node.
+    pub endpoint: url::Url,
 }
 
 /// Configuration of the client keystore.

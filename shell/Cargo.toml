@@ -12,11 +12,14 @@ color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", 
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tokio = { workspace = true, features = ["full"] }
+url = { workspace = true, features = ["serde"] }
 
 sp-core = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true }
 
 sc-keystore = { workspace = true }
+
+tangle-subxt = { workspace = true }
 
 [dev-dependencies]
 
