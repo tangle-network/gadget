@@ -1,0 +1,13 @@
+[package]
+name = "gadget-shell"
+version = "0.1.0"
+authors = ["Shady Khalifa <dev+github@shadykhalifa.me>"]
+license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
+edition = "2021"
+
+[features]
+
+[dependencies]
+tokio = { workspace = true, features = ["macros"] }
+
+[dev-dependencies]

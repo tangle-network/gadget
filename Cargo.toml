@@ -1,28 +1,29 @@
 [workspace]
 resolver = "2"
 members = [
-    "gadget-core",
-    "gadget-common",
-    "test-gadget",
+    "core",
+    "common",
+    "shell",
     "protocols/dfns-cggmp21",
     "protocols/zk-saas",
     "protocols/zcash-frost",
     "protocols/bls",
     "protocols/stub",
+    "test-gadget",
     "test-utils",
     "protocol-macros",
 ]
 
 [workspace.dependencies]
-gadget-core = { path = "./gadget-core" }
-gadget-common = { path = "./gadget-common" }
+gadget-core = { path = "./core" }
+gadget-common = { path = "./common" }
 zk-saas-protocol = { path = "./protocols/zk-saas" }
 threshold-bls-protocol = { path = "./protocols/bls" }
 stub-protocol = { path = "./protocols/stub" }
-test-utils = { path = "./test-utils" }
-protocol-macros = { path = "./protocol-macros" }
 dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
 zcash-frost-protocol = { path = "./protocols/zcash-frost" }
+test-utils = { path = "./test-utils" }
+protocol-macros = { path = "./protocol-macros" }
 
 snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
@@ -47,7 +48,7 @@ curv = { package = "curv-kzen", version = "0.10.0" }
 digest = "0.10"
 # dfns-cggmp21 = { package = "cggmp21", version = "0.1.1" }
 dfns-cggmp21 = { package = "cggmp21", git = "https://github.com/webb-tools/cggmp21", branch = "v0.1.1-fix" }
-udigest = { version = "0.1", features = ["std", "derive"]}
+udigest = { version = "0.1", features = ["std", "derive"] }
 
 frost-core = { git = "https://github.com/salman01zp/frost", branch = "salman/bump-curve25519-dalek" }
 frost-ed25519 = { git = "https://github.com/salman01zp/frost", branch = "salman/bump-curve25519-dalek" }
@@ -141,7 +142,7 @@ uuid = "1.4.1"
 bytes = "1.5.0"
 serde_bytes = "0.11.12"
 itertools = "0.12.0"
-strum = "0.25.0"
+strum = "0.26"
 clap = "4.0.32"
 hex-literal = "0.4.1"
 rand = "0.8.5"
