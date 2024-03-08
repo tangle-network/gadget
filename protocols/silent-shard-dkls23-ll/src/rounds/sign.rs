@@ -15,6 +15,7 @@ use round_based::ProtocolMessage;
 use round_based::{Delivery, Mpc, MpcParty, Outgoing};
 use round_based_21 as round_based;
 use serde::{Deserialize, Serialize};
+use sp_core::keccak_256;
 
 use crate::impl_digestable_for_msg_wrapper;
 
@@ -121,11 +122,12 @@ where
     R: RngCore + CryptoRng,
     M: Mpc<ProtocolMessage = Msg>,
 {
-    if message_to_sign.len() != 32 {
-        return Err(Error::DKLS23SigningError(
-            dkls23_ll::dsg::SignError::FailedCheck("Message to sign must be 32 bytes long"),
-        ));
-    }
+    println!("Msg to sign: {:?}", message_to_sign);
+    let message_to_sign = if message_to_sign.len() != 32 {
+        keccak_256(message_to_sign)
+    } else {
+        message_to_sign.try_into().unwrap()
+    };
     tracer.protocol_begins();
 
     tracer.stage("Setup networking");
@@ -146,6 +148,7 @@ where
         .map_err(|_e| SignError::FailedCheck("Failed to create state w/ derivation path"))?;
 
     tracer.stage("Compute round 1 sign msg");
+    println!("Compute round 1 sign msg");
     let partial_sign_msg1: SignMsg1 = p.generate_msg1();
     runtime.yield_now().await;
     tracer.stage("Send round 1 sign msg");
@@ -160,7 +163,7 @@ where
 
     // Round 2
     tracer.round_begins();
-
+    println!("Round 2");
     tracer.receive_msgs();
     let round1_msgs: Vec<SignMsg1> = rounds
         .complete(round1)
@@ -173,10 +176,12 @@ where
     tracer.msgs_received();
 
     tracer.stage("Compute round 2 sign msg");
+    println!("Compute round 2 sign msg");
     let partial_sign_msg2: Vec<SignMsg2> = p.handle_msg1(rng, round1_msgs)?;
     runtime.yield_now().await;
 
     tracer.stage("Send round 2 sign msg");
+    println!("Send round 2 sign msg");
     tracer.send_msg();
     for msg in partial_sign_msg2.into_iter() {
         outgoings
@@ -206,10 +211,12 @@ where
     tracer.msgs_received();
 
     tracer.stage("Compute round 3 sign msg");
+    println!("Compute round 3 sign msg");
     let partial_sign_msg3: Vec<SignMsg3> = p.handle_msg2(rng, round2_msgs)?;
     runtime.yield_now().await;
 
     tracer.stage("Send round 3 sign msg");
+    println!("Send round 3 sign msg");
     tracer.send_msg();
     for msg in partial_sign_msg3.into_iter() {
         outgoings
@@ -239,12 +246,14 @@ where
     tracer.msgs_received();
 
     tracer.stage("Compute round 4 sign msg");
+    println!("Compute round 4 sign msg");
     let partial_sign_msg4 = PreSignatureWrapper(p.handle_msg3(round3_msgs)?);
     let partial_signature = create_partial_signature(
         partial_sign_msg4.clone().0,
         message_to_sign.try_into().unwrap(),
     );
     tracer.stage("Send round 4 pre signature");
+    println!("Send round 4 pre signature");
     tracer.send_msg();
     outgoings
         .send(Outgoing::broadcast(Msg::Round4(MsgRound4 {
@@ -271,6 +280,6 @@ where
 
     tracer.stage("Compute group signature");
     let group_signature: Signature = combine_signatures(partial_signature.0, round4_msgs.1)?;
-
+    println!("Group signature: {:?}", group_signature);
     Ok(SilentSharedDKLS23EcdsaSignature { group_signature })
 }
