@@ -8,6 +8,15 @@ edition = "2021"
 [features]
 
 [dependencies]
-tokio = { workspace = true, features = ["macros"] }
+color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
+tracing = { workspace = true, features = ["log"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tokio = { workspace = true, features = ["full"] }
+
+sp-core = { workspace = true, features = ["std"] }
+sp-keystore = { workspace = true }
+
+sc-keystore = { workspace = true }
 
 [dev-dependencies]
+
