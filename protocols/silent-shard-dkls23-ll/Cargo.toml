@@ -1,5 +1,5 @@
 [package]
-name = "silence-shard-dkls23-ll-protocol"
+name = "silent-shard-dkls23-ll-protocol"
 version = "0.1.0"
 edition = "2021"
 
@@ -26,6 +26,7 @@ k256 = { workspace = true }
 dkls23-ll = { workspace = true }
 derivation-path = { workspace = true }
 dfns-cggmp21-protocol = { workspace = true }
+tangle-primitives = { workspace = true }
 
 pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
 pallet-jobs = { workspace = true, features = ["std"] }

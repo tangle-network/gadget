@@ -38,6 +38,6 @@ mod secp256k1 {
         2,
         3,
         2,
-        ThresholdSignatureRoleType::SilentShardDKLS23
+        tangle_primitives::roles::ThresholdSignatureRoleType::SilentShardDKLS23Secp256k1
     );
 }
