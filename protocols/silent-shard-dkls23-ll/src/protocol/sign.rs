@@ -102,7 +102,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
     let id = config.key_store.pair().public();
     let network = config.clone();
 
-    let (i, signers, t, key_share, derivation_path, role_type, input_data_to_sign, mapping) = (
+    let (i, signers, t, key_share, derivation_path, _role_type, input_data_to_sign, mapping) = (
         additional_params.i,
         additional_params.signers,
         additional_params.t,
@@ -113,7 +113,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
         additional_params.user_id_to_account_id_mapping.clone(),
     );
 
-    let verifying_key = key_share.verifying_key.clone();
+    let verifying_key = key_share.verifying_key;
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -180,7 +180,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                 );
 
                 let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
-                    signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
+                    signature_scheme: jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
                     data: BoundedVec(additional_params.input_data_to_sign),
                     signature: BoundedVec(signature.to_vec()),
                     verifying_key: BoundedVec(verifying_key.to_bytes().to_vec()),

@@ -1,27 +1,24 @@
 use dfns_cggmp21_protocol::protocols::keygen::handle_public_key_gossip;
-use futures::StreamExt;
 use gadget_common::channels;
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
-use gadget_common::debug_logger::DebugLogger;
+
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
-use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
+use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::*;
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::jobs::tss::DigitalSignatureScheme;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use itertools::Itertools;
+
 use k256::elliptic_curve::group::GroupEncoding;
-use pallet_dkg::signatures_schemes::ecdsa::verify_signer_from_set_ecdsa;
-use pallet_dkg::signatures_schemes::to_slice_33;
+
 use rand::SeedableRng;
 use round_based_21::{Incoming, Outgoing};
-use sc_client_api::Backend;
-use sp_application_crypto::sp_core::keccak_256;
+
 use sp_core::{ecdsa, Pair};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -105,7 +102,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
         additional_params.role_type.clone(),
     );
 
-    let role = match role_type {
+    let _role = match role_type {
         roles::RoleType::Tss(role) => role,
         _ => {
             return Err(JobError {
@@ -161,7 +158,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                 key_store2,
                 &logger,
                 &key_share.verifying_key.to_bytes(),
-                DigitalSignatureScheme::Ecdsa,
+                DigitalSignatureScheme::EcdsaSecp256k1,
                 t,
                 i,
                 broadcast_tx_to_outbound,

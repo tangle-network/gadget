@@ -137,7 +137,7 @@ impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen> for Job
         }
     }
 
-    fn calculate_result_extension_fee(result: Vec<u8>, extension_time: BlockNumber) -> Balance {
+    fn calculate_result_extension_fee(_result: Vec<u8>, _extension_time: BlockNumber) -> Balance {
         20
     }
 }

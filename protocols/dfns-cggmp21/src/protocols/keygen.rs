@@ -397,12 +397,12 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             let sig_scheme = match role_type {
                 roles::RoleType::Tss(
                     roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
-                ) => jobs::tss::DigitalSignatureScheme::Ecdsa,
+                ) => jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
                 roles::RoleType::Tss(
                     roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1,
-                ) => jobs::tss::DigitalSignatureScheme::Ecdsa,
+                ) => jobs::tss::DigitalSignatureScheme::EcdsaSecp256r1,
                 roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-                    jobs::tss::DigitalSignatureScheme::Ecdsa
+                    jobs::tss::DigitalSignatureScheme::EcdsaStark
                 }
                 _ => unreachable!("Invalid role type"),
             };
@@ -549,7 +549,7 @@ pub async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     }
 
     let res = jobs::tss::DKGTSSKeySubmissionResult {
-        signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
+        signature_scheme: jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
         key: BoundedVec(serialized_public_key.to_vec()),
         participants: BoundedVec(participants),
         signatures: BoundedVec(signatures),

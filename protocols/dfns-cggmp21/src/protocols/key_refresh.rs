@@ -187,7 +187,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
             };
 
             let job_result = jobs::JobResult::DKGPhaseThree(jobs::tss::DKGTSSKeyRefreshResult {
-                signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
+                signature_scheme: jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
             });
 
             *protocol_output.lock().await = Some((key, job_result));

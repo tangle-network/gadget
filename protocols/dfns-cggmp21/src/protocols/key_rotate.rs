@@ -261,7 +261,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
                 )?;
                 let job_result =
                     jobs::JobResult::DKGPhaseFour(jobs::tss::DKGTSSKeyRotationResult {
-                        signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
+                        signature_scheme: jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
                         signature: BoundedVec(signature.to_vec()),
                         phase_one_id,
                         new_phase_one_id,

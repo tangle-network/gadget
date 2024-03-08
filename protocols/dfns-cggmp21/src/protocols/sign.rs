@@ -263,7 +263,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                 )?;
 
                 let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
-                    signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
+                    signature_scheme: jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
                     data: BoundedVec(additional_params.input_data_to_sign),
                     signature: BoundedVec(signature.to_vec()),
                     verifying_key: BoundedVec(public_key),

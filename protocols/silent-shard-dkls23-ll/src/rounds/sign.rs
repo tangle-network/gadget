@@ -5,10 +5,9 @@ use dkls23_ll::dsg::{
     SignMsg1, SignMsg2, SignMsg3, SignMsg4, State,
 };
 use futures::SinkExt;
-use gadget_common::prelude::*;
 use k256::ecdsa::Signature;
 use rand_core::{CryptoRng, RngCore};
-use roles::tss::ThresholdSignatureRoleType;
+
 use round_based::rounds_router::simple_store::RoundInput;
 use round_based::rounds_router::RoundsRouter;
 use round_based::runtime::AsyncRuntime;
@@ -82,13 +81,13 @@ impl_digestable_for_msg_wrapper!(PreSignatureWrapper, PreSignature);
 impl Clone for PreSignatureWrapper {
     fn clone(&self) -> Self {
         Self(PreSignature {
-            from_id: self.0.from_id.clone(),
-            final_session_id: self.0.final_session_id.clone(),
-            public_key: self.0.public_key.clone(),
-            s_0: self.0.s_0.clone(),
-            s_1: self.0.s_1.clone(),
-            r: self.0.r.clone(),
-            phi_i: self.0.phi_i.clone(),
+            from_id: self.0.from_id,
+            final_session_id: self.0.final_session_id,
+            public_key: self.0.public_key,
+            s_0: self.0.s_0,
+            s_1: self.0.s_1,
+            r: self.0.r,
+            phi_i: self.0.phi_i,
         })
     }
 }
@@ -144,7 +143,7 @@ where
     // Round 1
     tracer.round_begins();
     let mut p = State::new(rng, dkls_keyshare.key_share, &derivation_path)
-        .map_err(|e| SignError::FailedCheck("Failed to create state w/ derivation path"))?;
+        .map_err(|_e| SignError::FailedCheck("Failed to create state w/ derivation path"))?;
 
     tracer.stage("Compute round 1 sign msg");
     let partial_sign_msg1: SignMsg1 = p.generate_msg1();
