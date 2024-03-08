@@ -21,114 +21,117 @@
 
 use futures::{stream::FuturesUnordered, Future, Stream, StreamExt};
 use std::{
-	pin::Pin,
-	task::{Context, Poll, Waker},
+    pin::Pin,
+    task::{Context, Poll, Waker},
 };
 
 /// Wrapper around [`FuturesUnordered`] that wakes a task up automatically.
 pub struct FuturesStream<F> {
-	futures: FuturesUnordered<F>,
-	waker: Option<Waker>,
+    futures: FuturesUnordered<F>,
+    waker: Option<Waker>,
 }
 
 /// Surprizingly, `#[derive(Default)]` doesn't work on [`FuturesStream`].
 impl<F> Default for FuturesStream<F> {
-	fn default() -> FuturesStream<F> {
-		FuturesStream { futures: Default::default(), waker: None }
-	}
+    fn default() -> FuturesStream<F> {
+        FuturesStream {
+            futures: Default::default(),
+            waker: None,
+        }
+    }
 }
 
 impl<F> FuturesStream<F> {
-	/// Push a future for processing.
-	pub fn push(&mut self, future: F) {
-		self.futures.push(future);
+    /// Push a future for processing.
+    pub fn push(&mut self, future: F) {
+        self.futures.push(future);
 
-		if let Some(waker) = self.waker.take() {
-			waker.wake();
-		}
-	}
+        if let Some(waker) = self.waker.take() {
+            waker.wake();
+        }
+    }
 
-	/// The number of futures in the stream.
-	pub fn len(&self) -> usize {
-		self.futures.len()
-	}
+    /// The number of futures in the stream.
+    pub fn len(&self) -> usize {
+        self.futures.len()
+    }
 }
 
 impl<F: Future> Stream for FuturesStream<F> {
-	type Item = <F as Future>::Output;
+    type Item = <F as Future>::Output;
 
-	fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-		let Poll::Ready(Some(result)) = self.futures.poll_next_unpin(cx) else {
-			self.waker = Some(cx.waker().clone());
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let Poll::Ready(Some(result)) = self.futures.poll_next_unpin(cx) else {
+            self.waker = Some(cx.waker().clone());
 
-			return Poll::Pending
-		};
+            return Poll::Pending;
+        };
 
-		Poll::Ready(Some(result))
-	}
+        Poll::Ready(Some(result))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use futures::future::{BoxFuture, FutureExt};
+    use super::*;
+    use futures::future::{BoxFuture, FutureExt};
 
-	/// [`Stream`] implementation for [`FuturesStream`] relies on the undocumented
-	/// feature that [`FuturesUnordered`] can be polled and repeatedly yield
-	/// `Poll::Ready(None)` before any futures are added into it.
-	#[tokio::test]
-	async fn empty_futures_unordered_can_be_polled() {
-		let mut unordered = FuturesUnordered::<BoxFuture<()>>::default();
+    /// [`Stream`] implementation for [`FuturesStream`] relies on the undocumented
+    /// feature that [`FuturesUnordered`] can be polled and repeatedly yield
+    /// `Poll::Ready(None)` before any futures are added into it.
+    #[tokio::test]
+    async fn empty_futures_unordered_can_be_polled() {
+        let mut unordered = FuturesUnordered::<BoxFuture<()>>::default();
 
-		futures::future::poll_fn(|cx| {
-			assert_eq!(unordered.poll_next_unpin(cx), Poll::Ready(None));
-			assert_eq!(unordered.poll_next_unpin(cx), Poll::Ready(None));
+        futures::future::poll_fn(|cx| {
+            assert_eq!(unordered.poll_next_unpin(cx), Poll::Ready(None));
+            assert_eq!(unordered.poll_next_unpin(cx), Poll::Ready(None));
 
-			Poll::Ready(())
-		})
-		.await;
-	}
+            Poll::Ready(())
+        })
+        .await;
+    }
 
-	/// [`Stream`] implementation for [`FuturesStream`] relies on the undocumented
-	/// feature that [`FuturesUnordered`] can be polled and repeatedly yield
-	/// `Poll::Ready(None)` after all the futures in it have resolved.
-	#[tokio::test]
-	async fn deplenished_futures_unordered_can_be_polled() {
-		let mut unordered = FuturesUnordered::<BoxFuture<()>>::default();
+    /// [`Stream`] implementation for [`FuturesStream`] relies on the undocumented
+    /// feature that [`FuturesUnordered`] can be polled and repeatedly yield
+    /// `Poll::Ready(None)` after all the futures in it have resolved.
+    #[tokio::test]
+    async fn deplenished_futures_unordered_can_be_polled() {
+        let mut unordered = FuturesUnordered::<BoxFuture<()>>::default();
 
-		unordered.push(futures::future::ready(()).boxed());
-		assert_eq!(unordered.next().await, Some(()));
+        unordered.push(futures::future::ready(()).boxed());
+        assert_eq!(unordered.next().await, Some(()));
 
-		futures::future::poll_fn(|cx| {
-			assert_eq!(unordered.poll_next_unpin(cx), Poll::Ready(None));
-			assert_eq!(unordered.poll_next_unpin(cx), Poll::Ready(None));
+        futures::future::poll_fn(|cx| {
+            assert_eq!(unordered.poll_next_unpin(cx), Poll::Ready(None));
+            assert_eq!(unordered.poll_next_unpin(cx), Poll::Ready(None));
 
-			Poll::Ready(())
-		})
-		.await;
-	}
+            Poll::Ready(())
+        })
+        .await;
+    }
 
-	#[tokio::test]
-	async fn empty_futures_stream_yields_pending() {
-		let mut stream = FuturesStream::<BoxFuture<()>>::default();
+    #[tokio::test]
+    async fn empty_futures_stream_yields_pending() {
+        let mut stream = FuturesStream::<BoxFuture<()>>::default();
 
-		futures::future::poll_fn(|cx| {
-			assert_eq!(stream.poll_next_unpin(cx), Poll::Pending);
-			Poll::Ready(())
-		})
-		.await;
-	}
+        futures::future::poll_fn(|cx| {
+            assert_eq!(stream.poll_next_unpin(cx), Poll::Pending);
+            Poll::Ready(())
+        })
+        .await;
+    }
 
-	#[tokio::test]
-	async fn futures_stream_resolves_futures_and_yields_pending() {
-		let mut stream = FuturesStream::default();
-		stream.push(futures::future::ready(17));
+    #[tokio::test]
+    async fn futures_stream_resolves_futures_and_yields_pending() {
+        let mut stream = FuturesStream::default();
+        stream.push(futures::future::ready(17));
 
-		futures::future::poll_fn(|cx| {
-			assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(17)));
-			assert_eq!(stream.poll_next_unpin(cx), Poll::Pending);
-			Poll::Ready(())
-		})
-		.await;
-	}
+        futures::future::poll_fn(|cx| {
+            assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(17)));
+            assert_eq!(stream.poll_next_unpin(cx), Poll::Pending);
+            Poll::Ready(())
+        })
+        .await;
+    }
 }

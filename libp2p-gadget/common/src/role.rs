@@ -30,108 +30,108 @@ use codec::{self, Encode, EncodeLike, Input, Output};
 /// >			information known locally about that node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ObservedRole {
-	/// Full node.
-	Full,
-	/// Light node.
-	Light,
-	/// Third-party authority.
-	Authority,
+    /// Full node.
+    Full,
+    /// Light node.
+    Light,
+    /// Third-party authority.
+    Authority,
 }
 
 impl ObservedRole {
-	/// Returns `true` for `ObservedRole::Light`.
-	pub fn is_light(&self) -> bool {
-		matches!(self, Self::Light)
-	}
+    /// Returns `true` for `ObservedRole::Light`.
+    pub fn is_light(&self) -> bool {
+        matches!(self, Self::Light)
+    }
 }
 
 impl From<Roles> for ObservedRole {
-	fn from(roles: Roles) -> Self {
-		if roles.is_authority() {
-			ObservedRole::Authority
-		} else if roles.is_full() {
-			ObservedRole::Full
-		} else {
-			ObservedRole::Light
-		}
-	}
+    fn from(roles: Roles) -> Self {
+        if roles.is_authority() {
+            ObservedRole::Authority
+        } else if roles.is_full() {
+            ObservedRole::Full
+        } else {
+            ObservedRole::Light
+        }
+    }
 }
 
 /// Role of the local node.
 #[derive(Debug, Clone)]
 pub enum Role {
-	/// Regular full node.
-	Full,
-	/// Actual authority.
-	Authority,
+    /// Regular full node.
+    Full,
+    /// Actual authority.
+    Authority,
 }
 
 impl Role {
-	/// True for [`Role::Authority`].
-	pub fn is_authority(&self) -> bool {
-		matches!(self, Self::Authority)
-	}
+    /// True for [`Role::Authority`].
+    pub fn is_authority(&self) -> bool {
+        matches!(self, Self::Authority)
+    }
 }
 
 impl std::fmt::Display for Role {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::Full => write!(f, "FULL"),
-			Self::Authority => write!(f, "AUTHORITY"),
-		}
-	}
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Full => write!(f, "FULL"),
+            Self::Authority => write!(f, "AUTHORITY"),
+        }
+    }
 }
 
 bitflags::bitflags! {
-	/// Bitmask of the roles that a node fulfills.
-	pub struct Roles: u8 {
-		/// No network.
-		const NONE = 0b00000000;
-		/// Full node, does not participate in consensus.
-		const FULL = 0b00000001;
-		/// Light client node.
-		const LIGHT = 0b00000010;
-		/// Act as an authority
-		const AUTHORITY = 0b00000100;
-	}
+    /// Bitmask of the roles that a node fulfills.
+    pub struct Roles: u8 {
+        /// No network.
+        const NONE = 0b00000000;
+        /// Full node, does not participate in consensus.
+        const FULL = 0b00000001;
+        /// Light client node.
+        const LIGHT = 0b00000010;
+        /// Act as an authority
+        const AUTHORITY = 0b00000100;
+    }
 }
 
 impl Roles {
-	/// Does this role represents a client that holds full chain data locally?
-	pub fn is_full(&self) -> bool {
-		self.intersects(Self::FULL | Self::AUTHORITY)
-	}
+    /// Does this role represents a client that holds full chain data locally?
+    pub fn is_full(&self) -> bool {
+        self.intersects(Self::FULL | Self::AUTHORITY)
+    }
 
-	/// Does this role represents a client that does not participates in the consensus?
-	pub fn is_authority(&self) -> bool {
-		*self == Self::AUTHORITY
-	}
+    /// Does this role represents a client that does not participates in the consensus?
+    pub fn is_authority(&self) -> bool {
+        *self == Self::AUTHORITY
+    }
 
-	/// Does this role represents a client that does not hold full chain data locally?
-	pub fn is_light(&self) -> bool {
-		!self.is_full()
-	}
+    /// Does this role represents a client that does not hold full chain data locally?
+    pub fn is_light(&self) -> bool {
+        !self.is_full()
+    }
 }
 
 impl<'a> From<&'a Role> for Roles {
-	fn from(roles: &'a Role) -> Self {
-		match roles {
-			Role::Full => Self::FULL,
-			Role::Authority => Self::AUTHORITY,
-		}
-	}
+    fn from(roles: &'a Role) -> Self {
+        match roles {
+            Role::Full => Self::FULL,
+            Role::Authority => Self::AUTHORITY,
+        }
+    }
 }
 
 impl Encode for Roles {
-	fn encode_to<T: Output + ?Sized>(&self, dest: &mut T) {
-		dest.push_byte(self.bits())
-	}
+    fn encode_to<T: Output + ?Sized>(&self, dest: &mut T) {
+        dest.push_byte(self.bits())
+    }
 }
 
 impl EncodeLike for Roles {}
 
 impl codec::Decode for Roles {
-	fn decode<I: Input>(input: &mut I) -> Result<Self, codec::Error> {
-		Self::from_bits(input.read_byte()?).ok_or_else(|| codec::Error::from("Invalid bytes"))
-	}
+    fn decode<I: Input>(input: &mut I) -> Result<Self, codec::Error> {
+        Self::from_bits(input.read_byte()?).ok_or_else(|| codec::Error::from("Invalid bytes"))
+    }
 }

@@ -18,8 +18,8 @@
 
 #[derive(Debug)]
 pub struct Metrics {
-	pub pending_requests: u32,
-	pub active_requests: u32,
-	pub importing_requests: u32,
-	pub failed_requests: u32,
+    pub pending_requests: u32,
+    pub active_requests: u32,
+    pub importing_requests: u32,
+    pub failed_requests: u32,
 }

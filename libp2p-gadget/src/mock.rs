@@ -28,37 +28,37 @@ use std::collections::HashSet;
 pub struct MockPeerStore {}
 
 impl PeerStoreProvider for MockPeerStore {
-	fn is_banned(&self, _peer_id: &PeerId) -> bool {
-		// Make sure that the peer is not banned.
-		false
-	}
+    fn is_banned(&self, _peer_id: &PeerId) -> bool {
+        // Make sure that the peer is not banned.
+        false
+    }
 
-	fn register_protocol(&self, _protocol_handle: ProtocolHandle) {
-		// Make sure not to fail.
-	}
+    fn register_protocol(&self, _protocol_handle: ProtocolHandle) {
+        // Make sure not to fail.
+    }
 
-	fn report_disconnect(&mut self, _peer_id: PeerId) {
-		// Make sure not to fail.
-	}
+    fn report_disconnect(&mut self, _peer_id: PeerId) {
+        // Make sure not to fail.
+    }
 
-	fn report_peer(&mut self, _peer_id: PeerId, _change: ReputationChange) {
-		// Make sure not to fail.
-	}
+    fn report_peer(&mut self, _peer_id: PeerId, _change: ReputationChange) {
+        // Make sure not to fail.
+    }
 
-	fn peer_reputation(&self, _peer_id: &PeerId) -> i32 {
-		// Make sure that the peer is not banned.
-		0
-	}
+    fn peer_reputation(&self, _peer_id: &PeerId) -> i32 {
+        // Make sure that the peer is not banned.
+        0
+    }
 
-	fn peer_role(&self, _peer_id: &PeerId) -> Option<ObservedRole> {
-		None
-	}
+    fn peer_role(&self, _peer_id: &PeerId) -> Option<ObservedRole> {
+        None
+    }
 
-	fn set_peer_role(&mut self, _peer_id: &PeerId, _role: ObservedRole) {
-		unimplemented!();
-	}
+    fn set_peer_role(&mut self, _peer_id: &PeerId, _role: ObservedRole) {
+        unimplemented!();
+    }
 
-	fn outgoing_candidates(&self, _count: usize, _ignored: HashSet<&PeerId>) -> Vec<PeerId> {
-		unimplemented!()
-	}
+    fn outgoing_candidates(&self, _count: usize, _ignored: HashSet<&PeerId>) -> Vec<PeerId> {
+        unimplemented!()
+    }
 }

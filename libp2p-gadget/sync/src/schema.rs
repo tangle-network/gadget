@@ -19,5 +19,5 @@
 //! Include sources generated from protobuf definitions.
 
 pub(crate) mod v1 {
-	include!(concat!(env!("OUT_DIR"), "/api.v1.rs"));
+    include!(concat!(env!("OUT_DIR"), "/api.v1.rs"));
 }

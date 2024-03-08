@@ -20,9 +20,9 @@
 //! notifications substreams.
 
 pub use self::{
-	behaviour::{Notifications, NotificationsOut, ProtocolConfig},
-	handler::{NotificationsSink, NotifsHandlerError, Ready},
-	service::{notification_service, ProtocolHandlePair},
+    behaviour::{Notifications, NotificationsOut, ProtocolConfig},
+    handler::{NotificationsSink, NotifsHandlerError, Ready},
+    service::{notification_service, ProtocolHandlePair},
 };
 
 pub(crate) use self::service::{metrics, ProtocolHandle};

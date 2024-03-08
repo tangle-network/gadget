@@ -18,61 +18,61 @@
 
 use crate::transport::BandwidthSinks;
 use prometheus_endpoint::{
-	self as prometheus, Counter, CounterVec, Gauge, GaugeVec, HistogramOpts, MetricSource, Opts,
-	PrometheusError, Registry, SourcedCounter, SourcedGauge, U64,
+    self as prometheus, Counter, CounterVec, Gauge, GaugeVec, HistogramOpts, MetricSource, Opts,
+    PrometheusError, Registry, SourcedCounter, SourcedGauge, U64,
 };
 use std::{
-	str,
-	sync::{
-		atomic::{AtomicUsize, Ordering},
-		Arc,
-	},
+    str,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 
 pub use prometheus_endpoint::{Histogram, HistogramVec};
 
 /// Registers all networking metrics with the given registry.
 pub fn register(registry: &Registry, sources: MetricSources) -> Result<Metrics, PrometheusError> {
-	BandwidthCounters::register(registry, sources.bandwidth)?;
-	NumConnectedGauge::register(registry, sources.connected_peers)?;
-	Metrics::register(registry)
+    BandwidthCounters::register(registry, sources.bandwidth)?;
+    NumConnectedGauge::register(registry, sources.connected_peers)?;
+    Metrics::register(registry)
 }
 
 /// Predefined metric sources that are fed directly into prometheus.
 pub struct MetricSources {
-	pub bandwidth: Arc<BandwidthSinks>,
-	pub connected_peers: Arc<AtomicUsize>,
+    pub bandwidth: Arc<BandwidthSinks>,
+    pub connected_peers: Arc<AtomicUsize>,
 }
 
 /// Dedicated metrics.
 pub struct Metrics {
-	// This list is ordered alphabetically
-	pub connections_closed_total: CounterVec<U64>,
-	pub connections_opened_total: CounterVec<U64>,
-	pub distinct_peers_connections_closed_total: Counter<U64>,
-	pub distinct_peers_connections_opened_total: Counter<U64>,
-	pub incoming_connections_errors_total: CounterVec<U64>,
-	pub incoming_connections_total: Counter<U64>,
-	pub issued_light_requests: Counter<U64>,
-	pub kademlia_query_duration: HistogramVec,
-	pub kademlia_random_queries_total: Counter<U64>,
-	pub kademlia_records_count: Gauge<U64>,
-	pub kademlia_records_sizes_total: Gauge<U64>,
-	pub kbuckets_num_nodes: GaugeVec<U64>,
-	pub listeners_local_addresses: Gauge<U64>,
-	pub listeners_errors_total: Counter<U64>,
-	pub peerset_num_discovered: Gauge<U64>,
-	pub pending_connections: Gauge<U64>,
-	pub pending_connections_errors_total: CounterVec<U64>,
-	pub requests_in_failure_total: CounterVec<U64>,
-	pub requests_in_success_total: HistogramVec,
-	pub requests_out_failure_total: CounterVec<U64>,
-	pub requests_out_success_total: HistogramVec,
+    // This list is ordered alphabetically
+    pub connections_closed_total: CounterVec<U64>,
+    pub connections_opened_total: CounterVec<U64>,
+    pub distinct_peers_connections_closed_total: Counter<U64>,
+    pub distinct_peers_connections_opened_total: Counter<U64>,
+    pub incoming_connections_errors_total: CounterVec<U64>,
+    pub incoming_connections_total: Counter<U64>,
+    pub issued_light_requests: Counter<U64>,
+    pub kademlia_query_duration: HistogramVec,
+    pub kademlia_random_queries_total: Counter<U64>,
+    pub kademlia_records_count: Gauge<U64>,
+    pub kademlia_records_sizes_total: Gauge<U64>,
+    pub kbuckets_num_nodes: GaugeVec<U64>,
+    pub listeners_local_addresses: Gauge<U64>,
+    pub listeners_errors_total: Counter<U64>,
+    pub peerset_num_discovered: Gauge<U64>,
+    pub pending_connections: Gauge<U64>,
+    pub pending_connections_errors_total: CounterVec<U64>,
+    pub requests_in_failure_total: CounterVec<U64>,
+    pub requests_in_success_total: HistogramVec,
+    pub requests_out_failure_total: CounterVec<U64>,
+    pub requests_out_success_total: HistogramVec,
 }
 
 impl Metrics {
-	fn register(registry: &Registry) -> Result<Self, PrometheusError> {
-		Ok(Self {
+    fn register(registry: &Registry) -> Result<Self, PrometheusError> {
+        Ok(Self {
 			// This list is ordered alphabetically
 			connections_closed_total: prometheus::register(CounterVec::new(
 				Opts::new(
@@ -203,7 +203,7 @@ impl Metrics {
 				&["protocol"]
 			)?, registry)?,
 		})
-	}
+    }
 }
 
 /// The bandwidth counter metric.
@@ -211,29 +211,32 @@ impl Metrics {
 pub struct BandwidthCounters(Arc<BandwidthSinks>);
 
 impl BandwidthCounters {
-	/// Registers the `BandwidthCounters` metric whose values are
-	/// obtained from the given sinks.
-	fn register(registry: &Registry, sinks: Arc<BandwidthSinks>) -> Result<(), PrometheusError> {
-		prometheus::register(
-			SourcedCounter::new(
-				&Opts::new("substrate_sub_libp2p_network_bytes_total", "Total bandwidth usage")
-					.variable_label("direction"),
-				BandwidthCounters(sinks),
-			)?,
-			registry,
-		)?;
+    /// Registers the `BandwidthCounters` metric whose values are
+    /// obtained from the given sinks.
+    fn register(registry: &Registry, sinks: Arc<BandwidthSinks>) -> Result<(), PrometheusError> {
+        prometheus::register(
+            SourcedCounter::new(
+                &Opts::new(
+                    "substrate_sub_libp2p_network_bytes_total",
+                    "Total bandwidth usage",
+                )
+                .variable_label("direction"),
+                BandwidthCounters(sinks),
+            )?,
+            registry,
+        )?;
 
-		Ok(())
-	}
+        Ok(())
+    }
 }
 
 impl MetricSource for BandwidthCounters {
-	type N = u64;
+    type N = u64;
 
-	fn collect(&self, mut set: impl FnMut(&[&str], Self::N)) {
-		set(&["in"], self.0.total_inbound());
-		set(&["out"], self.0.total_outbound());
-	}
+    fn collect(&self, mut set: impl FnMut(&[&str], Self::N)) {
+        set(&["in"], self.0.total_inbound());
+        set(&["out"], self.0.total_outbound());
+    }
 }
 
 /// The connected peers metric.
@@ -241,25 +244,28 @@ impl MetricSource for BandwidthCounters {
 pub struct NumConnectedGauge(Arc<AtomicUsize>);
 
 impl NumConnectedGauge {
-	/// Registers the `MajorSyncingGauge` metric whose value is
-	/// obtained from the given `AtomicUsize`.
-	fn register(registry: &Registry, value: Arc<AtomicUsize>) -> Result<(), PrometheusError> {
-		prometheus::register(
-			SourcedGauge::new(
-				&Opts::new("substrate_sub_libp2p_peers_count", "Number of connected peers"),
-				NumConnectedGauge(value),
-			)?,
-			registry,
-		)?;
+    /// Registers the `MajorSyncingGauge` metric whose value is
+    /// obtained from the given `AtomicUsize`.
+    fn register(registry: &Registry, value: Arc<AtomicUsize>) -> Result<(), PrometheusError> {
+        prometheus::register(
+            SourcedGauge::new(
+                &Opts::new(
+                    "substrate_sub_libp2p_peers_count",
+                    "Number of connected peers",
+                ),
+                NumConnectedGauge(value),
+            )?,
+            registry,
+        )?;
 
-		Ok(())
-	}
+        Ok(())
+    }
 }
 
 impl MetricSource for NumConnectedGauge {
-	type N = u64;
+    type N = u64;
 
-	fn collect(&self, mut set: impl FnMut(&[&str], Self::N)) {
-		set(&[], self.0.load(Ordering::Relaxed) as u64);
-	}
+    fn collect(&self, mut set: impl FnMut(&[&str], Self::N)) {
+        set(&[], self.0.load(Ordering::Relaxed) as u64);
+    }
 }

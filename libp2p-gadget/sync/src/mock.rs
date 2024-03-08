@@ -27,19 +27,19 @@ use sc_network_common::sync::message::{BlockData, BlockRequest};
 use sp_runtime::traits::Block as BlockT;
 
 mockall::mock! {
-	pub BlockDownloader<Block: BlockT> {}
+    pub BlockDownloader<Block: BlockT> {}
 
-	#[async_trait::async_trait]
-	impl<Block: BlockT> BlockDownloaderT<Block> for BlockDownloader<Block> {
-		async fn download_blocks(
-			&self,
-			who: PeerId,
-			request: BlockRequest<Block>,
-		) -> Result<Result<(Vec<u8>, ProtocolName), RequestFailure>, oneshot::Canceled>;
-		fn block_response_into_blocks(
-			&self,
-			request: &BlockRequest<Block>,
-			response: Vec<u8>,
-		) -> Result<Vec<BlockData<Block>>, BlockResponseError>;
-	}
+    #[async_trait::async_trait]
+    impl<Block: BlockT> BlockDownloaderT<Block> for BlockDownloader<Block> {
+        async fn download_blocks(
+            &self,
+            who: PeerId,
+            request: BlockRequest<Block>,
+        ) -> Result<Result<(Vec<u8>, ProtocolName), RequestFailure>, oneshot::Canceled>;
+        fn block_response_into_blocks(
+            &self,
+            request: &BlockRequest<Block>,
+            response: Vec<u8>,
+        ) -> Result<Vec<BlockData<Block>>, BlockResponseError>;
+    }
 }

@@ -267,20 +267,20 @@ pub use event::{DhtEvent, Event};
 pub use libp2p::{multiaddr, Multiaddr, PeerId};
 pub use request_responses::{Config, IfDisconnected, RequestFailure};
 pub use sc_network_common::{
-	role::{ObservedRole, Roles},
-	types::ReputationChange,
+    role::{ObservedRole, Roles},
+    types::ReputationChange,
 };
 pub use service::{
-	signature::Signature,
-	traits::{
-		KademliaKey, MessageSink, NetworkBlock, NetworkDHTProvider, NetworkEventStream,
-		NetworkNotification, NetworkPeers, NetworkRequest, NetworkSigner, NetworkStateInfo,
-		NetworkStatus, NetworkStatusProvider, NetworkSyncForkRequest,
-		NotificationSender as NotificationSenderT, NotificationSenderError,
-		NotificationSenderReady, NotificationService,
-	},
-	DecodingError, Keypair, NetworkService, NetworkWorker, NotificationSender, OutboundFailure,
-	PublicKey,
+    signature::Signature,
+    traits::{
+        KademliaKey, MessageSink, NetworkBlock, NetworkDHTProvider, NetworkEventStream,
+        NetworkNotification, NetworkPeers, NetworkRequest, NetworkSigner, NetworkStateInfo,
+        NetworkStatus, NetworkStatusProvider, NetworkSyncForkRequest,
+        NotificationSender as NotificationSenderT, NotificationSenderError,
+        NotificationSenderReady, NotificationService,
+    },
+    DecodingError, Keypair, NetworkService, NetworkWorker, NotificationSender, OutboundFailure,
+    PublicKey,
 };
 pub use types::ProtocolName;
 
