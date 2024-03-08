@@ -83,7 +83,7 @@ where
             Self {
                 client,
                 request_receiver,
-                _block: PhantomData::default(),
+                _block: PhantomData,
             },
             protocol_config,
         )
