@@ -34,19 +34,14 @@ use std::{
     },
 };
 
+pub type ProcessedBlock<B, C> = (Result<BlockImportStatus<NumberFor<B>>, BlockImportError>, C);
+
 /// Commands send to `SyncingEngine`
 pub enum ToServiceCommand<B: BlockT> {
     SetSyncForkRequest(Vec<PeerId>, B::Hash, NumberFor<B>),
     RequestJustification(B::Hash, NumberFor<B>),
     ClearJustificationRequests,
-    BlocksProcessed(
-        usize,
-        usize,
-        Vec<(
-            Result<BlockImportStatus<NumberFor<B>>, BlockImportError>,
-            B::Hash,
-        )>,
-    ),
+    BlocksProcessed(usize, usize, Vec<ProcessedBlock<B, B::Hash>>),
     JustificationImported(PeerId, B::Hash, NumberFor<B>, bool),
     AnnounceBlock(B::Hash, Option<Vec<u8>>),
     NewBestBlockImported(B::Hash, NumberFor<B>),

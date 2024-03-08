@@ -60,6 +60,7 @@ use sp_runtime::{
     EncodedJustification, Justifications,
 };
 
+use crate::service::syncing_service::ProcessedBlock;
 use std::{
     collections::{HashMap, HashSet},
     ops::Range,
@@ -492,7 +493,6 @@ where
         }
     }
 
-    #[must_use]
     fn add_peer_inner(
         &mut self,
         peer_id: PeerId,
@@ -696,7 +696,6 @@ where
     }
 
     /// Submit a block response for processing.
-    #[must_use]
     fn on_block_data(
         &mut self,
         peer_id: &PeerId,
@@ -807,7 +806,7 @@ where
                         start,
                         state,
                     } => {
-                        let matching_hash = match (blocks.get(0), self.client.hash(*current)) {
+                        let matching_hash = match (blocks.first(), self.client.hash(*current)) {
                             (Some(block), Ok(maybe_our_block_hash)) => {
                                 trace!(
                                     target: LOG_TARGET,
@@ -955,7 +954,6 @@ where
     }
 
     /// Submit a justification response for processing.
-    #[must_use]
     fn on_block_justification(
         &mut self,
         peer_id: PeerId,
@@ -1727,7 +1725,6 @@ where
         None
     }
 
-    #[must_use]
     fn on_state_data(
         &mut self,
         peer_id: &PeerId,
@@ -1800,10 +1797,7 @@ where
         &mut self,
         imported: usize,
         count: usize,
-        results: Vec<(
-            Result<BlockImportStatus<NumberFor<B>>, BlockImportError>,
-            B::Hash,
-        )>,
+        results: Vec<ProcessedBlock<B, B::Hash>>,
     ) {
         trace!(target: LOG_TARGET, "Imported {imported} of {count}");
 
@@ -1942,7 +1936,6 @@ where
     }
 
     /// Get pending actions to perform.
-    #[must_use]
     pub fn actions(&mut self) -> impl Iterator<Item = ChainSyncAction<B>> {
         let block_requests = self
             .block_requests()
@@ -1967,7 +1960,6 @@ where
 
     /// A version of `actions()` that doesn't schedule extra requests. For testing only.
     #[cfg(test)]
-    #[must_use]
     fn take_actions(&mut self) -> impl Iterator<Item = ChainSyncAction<B>> {
         std::mem::take(&mut self.actions).into_iter()
     }
@@ -2065,6 +2057,7 @@ fn handle_ancestor_search_state<B: BlockT>(
 }
 
 /// Get a new block request for the peer if any.
+#[allow(clippy::too_many_arguments)]
 fn peer_block_request<B: BlockT>(
     id: &PeerId,
     peer: &PeerSync<B>,
@@ -2179,13 +2172,13 @@ fn fork_sync_request<B: BlockT>(
         true
     });
     for (hash, r) in targets {
-        if !r.peers.contains(&id) {
+        if !r.peers.contains(id) {
             continue;
         }
         // Download the fork only if it is behind or not too far ahead our tip of the chain
         // Otherwise it should be downloaded in full sync mode.
         if r.number <= best_num
-            || (r.number - best_num).saturated_into::<u32>() < max_blocks_per_request as u32
+            || (r.number - best_num).saturated_into::<u32>() < max_blocks_per_request
         {
             let parent_status = r
                 .parent_hash

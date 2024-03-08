@@ -166,10 +166,10 @@ pub struct OutgoingResponse {
     /// peer.
     ///
     /// > **Note**: Operating systems typically maintain a buffer of a few dozen kilobytes of
-    /// >			outgoing data for each TCP socket, and it is not possible for a user
-    /// >			application to inspect this buffer. This channel here is not actually notified
-    /// >			when the response has been fully sent out, but rather when it has fully been
-    /// >			written to the buffer managed by the operating system.
+    /// >        outgoing data for each TCP socket, and it is not possible for a user
+    /// >        application to inspect this buffer. This channel here is not actually notified
+    /// >        when the response has been fully sent out, but rather when it has fully been
+    /// >        written to the buffer managed by the operating system.
     pub sent_feedback: Option<oneshot::Sender<()>>,
 }
 
@@ -400,6 +400,7 @@ impl RequestResponsesBehaviour {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn send_request_inner(
         behaviour: &mut Behaviour<GenericCodec>,
         pending_requests: &mut HashMap<ProtocolRequestId, PendingRequest>,
@@ -601,7 +602,7 @@ impl NetworkBehaviour for RequestResponsesBehaviour {
     ) {
         let p_name = event.0;
         if let Some((proto, _)) = self.protocols.get_mut(p_name.as_str()) {
-            return proto.on_connection_handler_event(peer_id, connection_id, event.1);
+            proto.on_connection_handler_event(peer_id, connection_id, event.1)
         } else {
             log::warn!(
                 target: "sub-libp2p",
@@ -1156,7 +1157,8 @@ mod tests {
     struct TokioExecutor(tokio::runtime::Runtime);
     impl Executor for TokioExecutor {
         fn exec(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>) {
-            let _ = self.0.spawn(f);
+            let res = self.0.spawn(f);
+            drop(res);
         }
     }
 
@@ -1244,11 +1246,10 @@ mod tests {
             .spawn_obj({
                 async move {
                     loop {
-                        match swarm.select_next_some().await {
-                            SwarmEvent::Behaviour(Event::InboundRequest { result, .. }) => {
-                                result.unwrap();
-                            }
-                            _ => {}
+                        if let SwarmEvent::Behaviour(Event::InboundRequest { result, .. }) =
+                            swarm.select_next_some().await
+                        {
+                            result.unwrap();
                         }
                     }
                 }
@@ -1346,12 +1347,11 @@ mod tests {
             .spawn_obj({
                 async move {
                     loop {
-                        match swarm.select_next_some().await {
-                            SwarmEvent::Behaviour(Event::InboundRequest { result, .. }) => {
-                                assert!(result.is_ok());
-                                break;
-                            }
-                            _ => {}
+                        if let SwarmEvent::Behaviour(Event::InboundRequest { result, .. }) =
+                            swarm.select_next_some().await
+                        {
+                            result.unwrap();
+                            break;
                         }
                     }
                 }
@@ -1471,11 +1471,10 @@ mod tests {
             .spawn_obj(
                 async move {
                     loop {
-                        match swarm_2.select_next_some().await {
-                            SwarmEvent::Behaviour(Event::InboundRequest { result, .. }) => {
-                                result.unwrap();
-                            }
-                            _ => {}
+                        if let SwarmEvent::Behaviour(Event::InboundRequest { result, .. }) =
+                            swarm_2.select_next_some().await
+                        {
+                            result.unwrap();
                         }
                     }
                 }
@@ -1730,12 +1729,11 @@ mod tests {
                 IfDisconnected::ImmediateError,
             );
             loop {
-                match swarm.select_next_some().await {
-                    SwarmEvent::Behaviour(Event::RequestFinished { result, .. }) => {
-                        result.unwrap();
-                        break;
-                    }
-                    _ => {}
+                if let SwarmEvent::Behaviour(Event::RequestFinished { result, .. }) =
+                    swarm.select_next_some().await
+                {
+                    result.unwrap();
+                    break;
                 }
             }
             assert_eq!(
@@ -1756,15 +1754,14 @@ mod tests {
                 IfDisconnected::ImmediateError,
             );
             loop {
-                match swarm.select_next_some().await {
-                    SwarmEvent::Behaviour(Event::RequestFinished { result, .. }) => {
-                        assert_matches!(
-                            result.unwrap_err(),
-                            RequestFailure::Network(OutboundFailure::UnsupportedProtocols)
-                        );
-                        break;
-                    }
-                    _ => {}
+                if let SwarmEvent::Behaviour(Event::RequestFinished { result, .. }) =
+                    swarm.select_next_some().await
+                {
+                    assert_matches!(
+                        result.unwrap_err(),
+                        RequestFailure::Network(OutboundFailure::UnsupportedProtocols)
+                    );
+                    break;
                 }
             }
             assert!(response_receiver.await.unwrap().is_err());
@@ -1779,12 +1776,11 @@ mod tests {
                 IfDisconnected::ImmediateError,
             );
             loop {
-                match swarm.select_next_some().await {
-                    SwarmEvent::Behaviour(Event::RequestFinished { result, .. }) => {
-                        result.unwrap();
-                        break;
-                    }
-                    _ => {}
+                if let SwarmEvent::Behaviour(Event::RequestFinished { result, .. }) =
+                    swarm.select_next_some().await
+                {
+                    result.unwrap();
+                    break;
                 }
             }
             assert_eq!(

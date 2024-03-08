@@ -145,7 +145,7 @@ struct Metrics {
 
 impl Metrics {
     fn register(r: &Registry, major_syncing: Arc<AtomicBool>) -> Result<Self, PrometheusError> {
-        let _ = MajorSyncingGauge::register(r, major_syncing)?;
+        MajorSyncingGauge::register(r, major_syncing)?;
         Ok(Self {
             peers: {
                 let g = Gauge::new("substrate_sync_peers", "Number of peers we sync with")?;
@@ -331,6 +331,7 @@ where
         + Sync
         + 'static,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         roles: Roles,
         client: Arc<Client>,
@@ -660,8 +661,7 @@ where
                 };
 
                 self.last_notification_io = Instant::now();
-                let _ = self
-                    .notification_service
+                self.notification_service
                     .send_sync_notification(peer_id, message.encode());
             }
         }
@@ -1073,14 +1073,14 @@ where
 			})?;
 
         if handshake.genesis_hash != self.genesis_hash {
-            if self.important_peers.contains(&peer_id) {
+            if self.important_peers.contains(peer_id) {
                 log::error!(
                     target: LOG_TARGET,
                     "Reserved peer id `{peer_id}` is on a different chain (our genesis: {} theirs: {})",
                     self.genesis_hash,
                     handshake.genesis_hash,
                 );
-            } else if self.boot_node_ids.contains(&peer_id) {
+            } else if self.boot_node_ids.contains(peer_id) {
                 log::error!(
                     target: LOG_TARGET,
                     "Bootnode with peer id `{peer_id}` is on a different chain (our genesis: {} theirs: {})",
@@ -1125,7 +1125,7 @@ where
 
         let handshake = self.validate_handshake(peer_id, handshake)?;
 
-        if self.peers.contains_key(&peer_id) {
+        if self.peers.contains_key(peer_id) {
             log::error!(
                 target: LOG_TARGET,
                 "Called `validate_connection()` with already connected peer {peer_id}",
@@ -1134,7 +1134,7 @@ where
             return Err(false);
         }
 
-        let no_slot_peer = self.default_peers_set_no_slot_peers.contains(&peer_id);
+        let no_slot_peer = self.default_peers_set_no_slot_peers.contains(peer_id);
         let this_peer_reserved_slot: usize = if no_slot_peer { 1 } else { 0 };
 
         if handshake.roles.is_full()
@@ -1343,7 +1343,6 @@ where
                                 peer_id,
                                 self.block_announce_protocol_name.clone(),
                             );
-                            return;
                         }
                         Err(BlockResponseError::ExtractionFailed(e)) => {
                             debug!(
@@ -1353,7 +1352,6 @@ where
                                 e
                             );
                             self.network_service.report_peer(peer_id, rep::BAD_MESSAGE);
-                            return;
                         }
                     }
                 }

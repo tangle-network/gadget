@@ -26,8 +26,8 @@ use codec::{self, Encode, EncodeLike, Input, Output};
 /// knows about that peer.
 ///
 /// > **Note**: This enum is different from the `Role` enum. The `Role` enum indicates what a
-/// >			node says about itself, while `ObservedRole` is a `Role` merged with the
-/// >			information known locally about that node.
+/// >    node says about itself, while `ObservedRole` is a `Role` merged with the
+/// >    information known locally about that node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ObservedRole {
     /// Full node.

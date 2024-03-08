@@ -128,7 +128,7 @@ impl<B: BlockT> BlockCollection<B> {
         }
         // First block number that we need to download
         let first_different = common + <NumberFor<B>>::one();
-        let count = (count as u32).into();
+        let count = count.into();
         let (mut range, downloading) = {
             // Iterate through the ranges in `self.blocks` looking for a range to download
             let mut downloading_iter = self.blocks.iter().peekable();

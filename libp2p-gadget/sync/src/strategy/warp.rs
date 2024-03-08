@@ -662,7 +662,6 @@ where
     }
 
     /// Get actions that should be performed by the owner on [`WarpSync`]'s behalf
-    #[must_use]
     pub fn actions(&mut self) -> impl Iterator<Item = WarpSyncAction<B>> {
         let warp_proof_request = self
             .warp_proof_request()
@@ -854,6 +853,7 @@ mod test {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn enough_peers_are_used_in_tests() {
         // Tests below use 10 peers. Fail early if it's less than a threshold for warp sync.
         assert!(
@@ -1382,13 +1382,7 @@ mod test {
             BlockData::<Block> {
                 hash: target_block.header().hash(),
                 header: Some(target_block.header().clone()),
-                body: Some(
-                    target_block
-                        .extrinsics()
-                        .iter()
-                        .cloned()
-                        .collect::<Vec<_>>(),
-                ),
+                body: Some(target_block.extrinsics().to_vec()),
                 indexed_body: None,
                 receipt: None,
                 message_queue: None,
@@ -1398,7 +1392,7 @@ mod test {
             BlockData::<Block> {
                 hash: extra_block.header().hash(),
                 header: Some(extra_block.header().clone()),
-                body: Some(extra_block.extrinsics().iter().cloned().collect::<Vec<_>>()),
+                body: Some(extra_block.extrinsics().to_vec()),
                 indexed_body: None,
                 receipt: None,
                 message_queue: None,
@@ -1470,7 +1464,7 @@ mod test {
         let response = vec![BlockData::<Block> {
             hash: wrong_block.header().hash(),
             header: Some(wrong_block.header().clone()),
-            body: Some(wrong_block.extrinsics().iter().cloned().collect::<Vec<_>>()),
+            body: Some(wrong_block.extrinsics().to_vec()),
             indexed_body: None,
             receipt: None,
             message_queue: None,
@@ -1526,13 +1520,7 @@ mod test {
         let (peer_id, request) = warp_sync.target_block_request().unwrap();
 
         // Correct block received.
-        let body = Some(
-            target_block
-                .extrinsics()
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>(),
-        );
+        let body = Some(target_block.extrinsics().to_vec());
         let justifications = Some(Justifications::from((*b"FRNK", Vec::new())));
         let response = vec![BlockData::<Block> {
             hash: target_block.header().hash(),

@@ -140,8 +140,7 @@ pub struct Notifications {
     ///
     /// By design, we never remove elements from this list. Elements are removed only when the
     /// `Delay` triggers. As such, this stream may produce obsolete elements.
-    delays:
-        stream::FuturesUnordered<Pin<Box<dyn Future<Output = (DelayId, PeerId, SetId)> + Send>>>,
+    delays: stream::FuturesUnordered<DelaysT>,
 
     /// [`DelayId`] to assign to the next delay.
     next_delay_id: DelayId,
@@ -169,6 +168,9 @@ pub struct Notifications {
     /// Metrics for notifications.
     metrics: Option<metrics::Metrics>,
 }
+
+#[allow(private_interfaces)]
+pub type DelaysT = Pin<Box<dyn Future<Output = (DelayId, PeerId, SetId)> + Send>>;
 
 /// Configuration for a notifications protocol.
 #[derive(Debug, Clone)]
@@ -445,7 +447,7 @@ impl Notifications {
         Self {
             notif_protocols,
             protocol_handles,
-            command_streams: StreamMap::from_iter(command_streams.into_iter()),
+            command_streams: StreamMap::from_iter(command_streams),
             protocol_controller_handles,
             from_protocol_controllers,
             peers: FnvHashMap::default(),
@@ -1022,6 +1024,7 @@ impl Notifications {
 
     /// Function that is called when the peerset wants us to accept a connection
     /// request from a peer.
+    #[allow(clippy::comparison_chain)]
     fn protocol_report_accept(&mut self, index: IncomingIndex) {
         let (pos, incoming) =
             if let Some(pos) = self.incoming.iter().position(|i| i.incoming_id == index) {
@@ -1186,6 +1189,7 @@ impl Notifications {
     }
 
     /// Function that is called when the peerset wants us to reject an incoming peer.
+    #[allow(clippy::comparison_chain)]
     fn report_reject(&mut self, index: IncomingIndex) -> Option<(SetId, PeerId)> {
         let incoming = if let Some(pos) = self.incoming.iter().position(|i| i.incoming_id == index)
         {
@@ -2407,7 +2411,7 @@ impl NetworkBehaviour for Notifications {
                     self.peerset_report_preaccept(index);
                 }
                 Poll::Ready(Some(Message::Reject(index))) => {
-                    let _ = self.peerset_report_reject(index);
+                    self.peerset_report_reject(index);
                 }
                 Poll::Ready(Some(Message::Connect {
                     peer_id, set_id, ..
@@ -2556,6 +2560,7 @@ mod tests {
     use std::{collections::HashSet, iter};
 
     impl PartialEq for ConnectionState {
+        #[allow(clippy::match_like_matches_macro)]
         fn eq(&self, other: &ConnectionState) -> bool {
             match (self, other) {
                 (ConnectionState::Closed, ConnectionState::Closed) => true,
@@ -3557,7 +3562,7 @@ mod tests {
         let mut conn_yielder = ConnectionYielder::new();
 
         // open two connections
-        for conn_id in vec![conn1, conn2] {
+        for conn_id in [conn1, conn2] {
             notif.on_swarm_event(FromSwarm::ConnectionEstablished(
                 libp2p::swarm::behaviour::ConnectionEstablished {
                     peer_id: peer,
@@ -3595,7 +3600,7 @@ mod tests {
         }
 
         // add two new substreams, one for each connection and verify that both are in open state
-        for conn in vec![conn1, conn2].iter() {
+        for conn in [conn1, conn2].iter() {
             notif.on_connection_handler_event(
                 peer,
                 *conn,
@@ -4042,7 +4047,7 @@ mod tests {
         };
 
         // open two connections
-        for conn_id in vec![conn1, conn2] {
+        for conn_id in [conn1, conn2] {
             notif.on_swarm_event(FromSwarm::ConnectionEstablished(
                 libp2p::swarm::behaviour::ConnectionEstablished {
                     peer_id: peer,
@@ -4103,7 +4108,7 @@ mod tests {
         };
 
         // open two connections
-        for conn_id in vec![conn1, conn2] {
+        for conn_id in [conn1, conn2] {
             notif.on_swarm_event(FromSwarm::ConnectionEstablished(
                 libp2p::swarm::behaviour::ConnectionEstablished {
                     peer_id: peer,
@@ -4168,7 +4173,7 @@ mod tests {
         let mut conn_yielder = ConnectionYielder::new();
 
         // open two connections
-        for conn_id in vec![conn1, conn2] {
+        for conn_id in [conn1, conn2] {
             notif.on_swarm_event(FromSwarm::ConnectionEstablished(
                 libp2p::swarm::behaviour::ConnectionEstablished {
                     peer_id: peer,
@@ -4435,7 +4440,7 @@ mod tests {
 
         assert!(notif.peers.get(&(peer, set_id)).is_some());
 
-        if tokio::time::timeout(Duration::from_secs(5), async {
+        let subroutine = async {
             let mut params = MockPollParams {
                 peer_id: PeerId::random(),
                 addr: Multiaddr::empty(),
@@ -4452,9 +4457,11 @@ mod tests {
                     break;
                 }
             }
-        })
-        .await
-        .is_err()
+        };
+
+        if tokio::time::timeout(Duration::from_secs(5), subroutine)
+            .await
+            .is_err()
         {
             panic!("backoff peer was not removed in time");
         }
@@ -4567,11 +4574,7 @@ mod tests {
             panic!("invalid state");
         };
 
-        // one of the peers has an active backoff timer so poll the notifications code until
-        // the timer has expired. Because the connection is still in the state of `Closing`,
-        // verify that the code continues to keep the peer disabled by resetting the timer
-        // after the first one expired.
-        if tokio::time::timeout(Duration::from_secs(5), async {
+        let subroutine = async {
             let mut params = MockPollParams {
                 peer_id: PeerId::random(),
                 addr: Multiaddr::empty(),
@@ -4599,9 +4602,15 @@ mod tests {
                     panic!("invalid state");
                 }
             }
-        })
-        .await
-        .is_err()
+        };
+
+        // one of the peers has an active backoff timer so poll the notifications code until
+        // the timer has expired. Because the connection is still in the state of `Closing`,
+        // verify that the code continues to keep the peer disabled by resetting the timer
+        // after the first one expired.
+        if tokio::time::timeout(Duration::from_secs(5), subroutine)
+            .await
+            .is_err()
         {
             panic!("backoff peer was not removed in time");
         }

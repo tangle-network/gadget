@@ -78,6 +78,7 @@ pub struct Protocol<B: BlockT> {
 
 impl<B: BlockT> Protocol<B> {
     /// Create a new instance.
+    #[allow(clippy::result_large_err)]
     pub(crate) fn new(
         roles: Roles,
         registry: &Option<Registry>,
@@ -135,7 +136,7 @@ impl<B: BlockT> Protocol<B> {
 
             let metrics = registry
                 .as_ref()
-                .and_then(|registry| metrics::register(&registry).ok());
+                .and_then(|registry| metrics::register(registry).ok());
             handles.iter_mut().for_each(|handle| {
                 handle.set_metrics(metrics.clone());
             });
@@ -193,10 +194,10 @@ impl<B: BlockT> Protocol<B> {
 
     /// Check if role is available for `peer_id` by attempt to decode the handshake to roles and if
     /// that fails, check if the role has been registered to `PeerStore`.
-    fn role_available(&self, peer_id: &PeerId, handshake: &Vec<u8>) -> bool {
+    fn role_available(&self, peer_id: &PeerId, handshake: &[u8]) -> bool {
         match Roles::decode_all(&mut &handshake[..]) {
             Ok(_) => true,
-            Err(_) => self.peer_store_handle.peer_role(&peer_id).is_some(),
+            Err(_) => self.peer_store_handle.peer_role(peer_id).is_some(),
         }
     }
 }

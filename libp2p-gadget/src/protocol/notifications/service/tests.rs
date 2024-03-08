@@ -44,7 +44,7 @@ async fn validate_and_accept_substream() {
     {
         assert_eq!(peer_id, peer);
         assert_eq!(handshake, vec![1, 3, 3, 7]);
-        let _ = result_tx.send(ValidationResult::Accept).unwrap();
+        result_tx.send(ValidationResult::Accept).unwrap();
     } else {
         panic!("invalid event received");
     }
@@ -102,7 +102,7 @@ async fn send_sync_notification() {
     {
         assert_eq!(peer_id, peer);
         assert_eq!(handshake, vec![1, 3, 3, 7]);
-        let _ = result_tx.send(ValidationResult::Accept).unwrap();
+        result_tx.send(ValidationResult::Accept).unwrap();
     } else {
         panic!("invalid event received");
     }
@@ -160,7 +160,7 @@ async fn send_async_notification() {
     {
         assert_eq!(peer_id, peer);
         assert_eq!(handshake, vec![1, 3, 3, 7]);
-        let _ = result_tx.send(ValidationResult::Accept).unwrap();
+        result_tx.send(ValidationResult::Accept).unwrap();
     } else {
         panic!("invalid event received");
     }
@@ -248,7 +248,7 @@ async fn receive_notification() {
     {
         assert_eq!(peer_id, peer);
         assert_eq!(handshake, vec![1, 3, 3, 7]);
-        let _ = result_tx.send(ValidationResult::Accept).unwrap();
+        result_tx.send(ValidationResult::Accept).unwrap();
     } else {
         panic!("invalid event received");
     }
@@ -312,7 +312,7 @@ async fn backpressure_works() {
     {
         assert_eq!(peer_id, peer);
         assert_eq!(handshake, vec![1, 3, 3, 7]);
-        let _ = result_tx.send(ValidationResult::Accept).unwrap();
+        result_tx.send(ValidationResult::Accept).unwrap();
     } else {
         panic!("invalid event received");
     }
@@ -384,7 +384,7 @@ async fn peer_disconnects_then_sync_notification_is_sent() {
     {
         assert_eq!(peer_id, peer);
         assert_eq!(handshake, vec![1, 3, 3, 7]);
-        let _ = result_tx.send(ValidationResult::Accept).unwrap();
+        result_tx.send(ValidationResult::Accept).unwrap();
     } else {
         panic!("invalid event received");
     }
@@ -442,7 +442,7 @@ async fn peer_disconnects_then_async_notification_is_sent() {
     {
         assert_eq!(peer_id, peer);
         assert_eq!(handshake, vec![1, 3, 3, 7]);
-        let _ = result_tx.send(ValidationResult::Accept).unwrap();
+        result_tx.send(ValidationResult::Accept).unwrap();
     } else {
         panic!("invalid event received");
     }
@@ -508,7 +508,7 @@ async fn cloned_service_opening_substream_works() {
     {
         assert_eq!(peer_id, peer);
         assert_eq!(handshake, vec![1, 3, 3, 7]);
-        let _ = result_tx.send(ValidationResult::Accept).unwrap();
+        result_tx.send(ValidationResult::Accept).unwrap();
     } else {
         panic!("invalid event received");
     }
@@ -551,7 +551,7 @@ async fn cloned_service_one_service_rejects_substream() {
         panic!("peerset not enabled");
     };
 
-    for notif in vec![&mut notif1, &mut notif2] {
+    for notif in [&mut notif1, &mut notif2] {
         if let Some(NotificationEvent::ValidateInboundSubstream {
             peer,
             handshake,
@@ -560,7 +560,7 @@ async fn cloned_service_one_service_rejects_substream() {
         {
             assert_eq!(peer_id, peer);
             assert_eq!(handshake, vec![1, 3, 3, 7]);
-            let _ = result_tx.send(ValidationResult::Accept).unwrap();
+            result_tx.send(ValidationResult::Accept).unwrap();
         } else {
             panic!("invalid event received");
         }
@@ -577,7 +577,7 @@ async fn cloned_service_one_service_rejects_substream() {
     {
         assert_eq!(peer_id, peer);
         assert_eq!(handshake, vec![1, 3, 3, 7]);
-        let _ = result_tx.send(ValidationResult::Reject).unwrap();
+        result_tx.send(ValidationResult::Reject).unwrap();
     } else {
         panic!("invalid event received");
     }
@@ -601,7 +601,7 @@ async fn cloned_service_opening_substream_sending_and_receiving_notifications_wo
         panic!("peerset not enabled");
     };
 
-    for notif in vec![&mut notif1, &mut notif2, &mut notif3] {
+    for notif in [&mut notif1, &mut notif2, &mut notif3] {
         // accept the inbound substream for all services
         if let Some(NotificationEvent::ValidateInboundSubstream {
             peer,
@@ -611,7 +611,7 @@ async fn cloned_service_opening_substream_sending_and_receiving_notifications_wo
         {
             assert_eq!(peer_id, peer);
             assert_eq!(handshake, vec![1, 3, 3, 7]);
-            let _ = result_tx.send(ValidationResult::Accept).unwrap();
+            result_tx.send(ValidationResult::Accept).unwrap();
         } else {
             panic!("invalid event received");
         }
@@ -623,7 +623,7 @@ async fn cloned_service_opening_substream_sending_and_receiving_notifications_wo
         .report_substream_opened(peer_id, Direction::Inbound, vec![1, 3, 3, 7], None, sink)
         .unwrap();
 
-    for notif in vec![&mut notif1, &mut notif2, &mut notif3] {
+    for notif in [&mut notif1, &mut notif2, &mut notif3] {
         if let Some(NotificationEvent::NotificationStreamOpened {
             peer,
             negotiated_fallback,
@@ -644,7 +644,7 @@ async fn cloned_service_opening_substream_sending_and_receiving_notifications_wo
         .report_notification_received(peer_id, vec![1, 3, 3, 8])
         .unwrap();
 
-    for notif in vec![&mut notif1, &mut notif2, &mut notif3] {
+    for notif in [&mut notif1, &mut notif2, &mut notif3] {
         if let Some(NotificationEvent::NotificationReceived { peer, notification }) =
             notif.next_event().await
         {
@@ -655,10 +655,7 @@ async fn cloned_service_opening_substream_sending_and_receiving_notifications_wo
         }
     }
 
-    for (i, notif) in vec![&mut notif1, &mut notif2, &mut notif3]
-        .iter()
-        .enumerate()
-    {
+    for (i, notif) in [&mut notif1, &mut notif2, &mut notif3].iter().enumerate() {
         // send notification from each service and verify peer receives it
         notif.send_sync_notification(&peer_id, vec![1, 3, 3, i as u8]);
         assert_eq!(
@@ -672,7 +669,7 @@ async fn cloned_service_opening_substream_sending_and_receiving_notifications_wo
     // close the substream for peer and verify all services receive the event
     handle.report_substream_closed(peer_id).unwrap();
 
-    for notif in vec![&mut notif1, &mut notif2, &mut notif3] {
+    for notif in [&mut notif1, &mut notif2, &mut notif3] {
         if let Some(NotificationEvent::NotificationStreamClosed { peer }) = notif.next_event().await
         {
             assert_eq!(peer_id, peer);
@@ -705,7 +702,7 @@ async fn sending_notifications_using_notifications_sink_works() {
     {
         assert_eq!(peer_id, peer);
         assert_eq!(handshake, vec![1, 3, 3, 7]);
-        let _ = result_tx.send(ValidationResult::Accept).unwrap();
+        result_tx.send(ValidationResult::Accept).unwrap();
     } else {
         panic!("invalid event received");
     }
@@ -736,8 +733,7 @@ async fn sending_notifications_using_notifications_sink_works() {
     sink.send_sync_notification(vec![1, 3, 3, 6]);
 
     // send an asynchronous notification using the acquired notifications sink.
-    let _ = sink
-        .send_async_notification(vec![1, 3, 3, 7])
+    sink.send_async_notification(vec![1, 3, 3, 7])
         .await
         .unwrap();
 
@@ -804,7 +800,7 @@ async fn notification_sink_replaced() {
     {
         assert_eq!(peer_id, peer);
         assert_eq!(handshake, vec![1, 3, 3, 7]);
-        let _ = result_tx.send(ValidationResult::Accept).unwrap();
+        result_tx.send(ValidationResult::Accept).unwrap();
     } else {
         panic!("invalid event received");
     }
@@ -835,8 +831,7 @@ async fn notification_sink_replaced() {
     sink.send_sync_notification(vec![1, 3, 3, 6]);
 
     // send an asynchronous notification using the acquired notifications sink.
-    let _ = sink
-        .send_async_notification(vec![1, 3, 3, 7])
+    sink.send_async_notification(vec![1, 3, 3, 7])
         .await
         .unwrap();
 
@@ -917,8 +912,7 @@ async fn notification_sink_replaced() {
     sink.send_sync_notification(vec![1, 3, 3, 6]);
 
     // send an asynchronous notification using the acquired notifications sink.
-    let _ = sink
-        .send_async_notification(vec![1, 3, 3, 7])
+    sink.send_async_notification(vec![1, 3, 3, 7])
         .await
         .unwrap();
 

@@ -19,7 +19,6 @@
 use futures::channel::oneshot;
 use libp2p::{Multiaddr, PeerId};
 
-use sc_consensus::{BlockImportError, BlockImportStatus};
 use sc_network::{
     config::MultiaddrWithPeerId,
     request_responses::{IfDisconnected, RequestFailure},
@@ -49,7 +48,7 @@ mockall::mock! {
             &mut self,
             imported: usize,
             count: usize,
-            results: Vec<(Result<BlockImportStatus<NumberFor<B>>, BlockImportError>, B::Hash)>,
+            results: Vec<crate::service::syncing_service::ProcessedBlock<B, B::Hash>>,
         );
         fn justification_imported(
             &mut self,

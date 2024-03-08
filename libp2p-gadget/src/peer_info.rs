@@ -186,7 +186,7 @@ impl<'a> Node<'a> {
     ///
     /// Returns `None` if we are disconnected from the node.
     pub fn endpoint(&self) -> Option<&'a ConnectedPoint> {
-        self.0.endpoints.get(0)
+        self.0.endpoints.first()
     }
 
     /// Returns the latest version information we know of.

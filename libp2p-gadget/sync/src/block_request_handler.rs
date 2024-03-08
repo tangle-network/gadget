@@ -158,6 +158,7 @@ where
     Client: HeaderBackend<B> + BlockBackend<B> + Send + Sync + 'static,
 {
     /// Create a new [`BlockRequestHandler`].
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(
         network: NetworkServiceHandle,
         protocol_id: &ProtocolId,
@@ -477,7 +478,7 @@ where
 
             blocks.push(block_data);
 
-            if blocks.len() >= max_blocks as usize {
+            if blocks.len() >= max_blocks {
                 break;
             }
 

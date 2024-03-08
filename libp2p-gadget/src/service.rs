@@ -149,6 +149,7 @@ where
     /// Returns a `NetworkWorker` that implements `Future` and must be regularly polled in order
     /// for the network processing to advance. From it, you can extract a `NetworkService` using
     /// `worker.service()`. The `NetworkService` can be shared through the codebase.
+    #[allow(clippy::result_large_err)]
     pub fn new(params: Params<B>) -> Result<Self, Error> {
         let FullNetworkConfiguration {
             notification_protocols,
@@ -161,16 +162,13 @@ where
         let local_public = local_identity.public();
         let local_peer_id = local_public.to_peer_id();
 
-        network_config.boot_nodes = network_config
+        network_config
             .boot_nodes
-            .into_iter()
-            .filter(|boot_node| boot_node.peer_id != local_peer_id)
-            .collect();
-        network_config.default_peers_set.reserved_nodes = network_config
+            .retain(|boot_node| boot_node.peer_id != local_peer_id);
+        network_config
             .default_peers_set
             .reserved_nodes
-            .into_iter()
-            .filter(|reserved_node| {
+            .retain(|reserved_node| {
                 if reserved_node.peer_id == local_peer_id {
                     warn!(
                         target: "sub-libp2p",
@@ -181,8 +179,7 @@ where
                 } else {
                     true
                 }
-            })
-            .collect();
+            });
 
         // Ensure the listen addresses are consistent with the transport.
         ensure_addresses_consistent_with_transport(
@@ -627,7 +624,7 @@ where
 							swarm.behaviour_mut(),
 							ConnectionId::new_unchecked(0), // dummy value
 							Some(*peer_id),
-							&vec![],
+							&[],
 							Endpoint::Listener,
 						) {
 						addrs.into_iter().collect()
@@ -678,7 +675,7 @@ where
 							swarm.behaviour_mut(),
 							ConnectionId::new_unchecked(0), // dummy value
 							Some(peer_id),
-							&vec![],
+							&[],
 							Endpoint::Listener,
 						) {
 						addrs.into_iter().collect()
@@ -1121,7 +1118,7 @@ where
     ) {
         let _ = self.to_worker.unbounded_send(ServiceToWorkerMsg::Request {
             target,
-            protocol: protocol.into(),
+            protocol,
             request,
             fallback_request,
             pending_response: tx,
@@ -1381,6 +1378,7 @@ where
     }
 
     /// Process the next event coming from `Swarm`.
+    #[allow(clippy::collapsible_match)]
     fn handle_swarm_event(&mut self, event: SwarmEvent<BehaviourOut, THandlerErr<Behaviour<B>>>) {
         match event {
             SwarmEvent::Behaviour(BehaviourOut::InboundRequest {
@@ -1836,6 +1834,7 @@ where
 {
 }
 
+#[allow(clippy::result_large_err)]
 fn ensure_addresses_consistent_with_transport<'a>(
     addresses: impl Iterator<Item = &'a Multiaddr>,
     transport: &TransportConfig,

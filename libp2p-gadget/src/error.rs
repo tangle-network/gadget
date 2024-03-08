@@ -28,6 +28,7 @@ use std::fmt;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Error type for the network.
+#[allow(clippy::large_enum_variant)]
 #[derive(thiserror::Error)]
 pub enum Error {
     /// Io error

@@ -1018,11 +1018,13 @@ mod tests {
     struct TokioExecutor(tokio::runtime::Runtime);
     impl Executor for TokioExecutor {
         fn exec(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>) {
-            let _ = self.0.spawn(f);
+            let res = self.0.spawn(f);
+            drop(res);
         }
     }
 
     #[test]
+    #[allow(clippy::single_match)]
     fn discovery_working() {
         let mut first_swarm_peer_id_and_addr = None;
 

@@ -61,7 +61,7 @@ impl Deref for ProtocolName {
     fn deref(&self) -> &str {
         match self {
             Self::Static(name) => name,
-            Self::OnHeap(name) => &name,
+            Self::OnHeap(name) => name,
         }
     }
 }
@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn protocol_name_keys_are_equivalent_to_str_keys() {
-        const PROTOCOL: &'static str = "/some/protocol/1";
+        const PROTOCOL: &str = "/some/protocol/1";
         let static_protocol_name = ProtocolName::from(PROTOCOL);
         let on_heap_protocol_name = ProtocolName::from(String::from(PROTOCOL));
 
@@ -129,11 +129,11 @@ mod tests {
 
     #[test]
     fn different_protocol_names_do_not_compare_equal() {
-        const PROTOCOL1: &'static str = "/some/protocol/1";
+        const PROTOCOL1: &str = "/some/protocol/1";
         let static_protocol_name1 = ProtocolName::from(PROTOCOL1);
         let on_heap_protocol_name1 = ProtocolName::from(String::from(PROTOCOL1));
 
-        const PROTOCOL2: &'static str = "/some/protocol/2";
+        const PROTOCOL2: &str = "/some/protocol/2";
         let static_protocol_name2 = ProtocolName::from(PROTOCOL2);
         let on_heap_protocol_name2 = ProtocolName::from(String::from(PROTOCOL2));
 

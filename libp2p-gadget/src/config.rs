@@ -97,7 +97,7 @@ impl fmt::Debug for ProtocolId {
 /// # use libp2p::{Multiaddr, PeerId};
 /// use sc_network::config::parse_str_addr;
 /// let (peer_id, addr) = parse_str_addr(
-/// 	"/ip4/198.51.100.19/tcp/30333/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV"
+///     "/ip4/198.51.100.19/tcp/30333/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV"
 /// ).unwrap();
 /// assert_eq!(peer_id, "QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV".parse::<PeerId>().unwrap());
 /// assert_eq!(addr, "/ip4/198.51.100.19/tcp/30333".parse::<Multiaddr>().unwrap());
@@ -129,7 +129,7 @@ pub fn parse_addr(mut addr: Multiaddr) -> Result<(PeerId, Multiaddr), ParseErr> 
 /// # use libp2p::{Multiaddr, PeerId};
 /// use sc_network::config::MultiaddrWithPeerId;
 /// let addr: MultiaddrWithPeerId =
-/// 	"/ip4/198.51.100.19/tcp/30333/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV".parse().unwrap();
+///     "/ip4/198.51.100.19/tcp/30333/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV".parse().unwrap();
 /// assert_eq!(addr.peer_id.to_base58(), "QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV");
 /// assert_eq!(addr.multiaddr.to_string(), "/ip4/198.51.100.19/tcp/30333");
 /// ```
@@ -461,7 +461,7 @@ impl Default for SetConfig {
 /// Extension to [`SetConfig`] for sets that aren't the default set.
 ///
 /// > **Note**: As new fields might be added in the future, please consider using the `new` method
-/// >			and modifiers instead of creating this struct manually.
+/// >        and modifiers instead of creating this struct manually.
 #[derive(Debug)]
 pub struct NonDefaultSetConfig {
     /// Name of the notifications protocols of this set. A substream on this set will be
@@ -742,7 +742,7 @@ pub struct Params<Block: BlockT> {
     pub role: Role,
 
     /// How to spawn background tasks.
-    pub executor: Box<dyn Fn(Pin<Box<dyn Future<Output = ()> + Send>>) + Send>,
+    pub executor: Box<ExecutorT>,
 
     /// Network layer configuration.
     pub network_config: FullNetworkConfiguration,
@@ -766,6 +766,9 @@ pub struct Params<Block: BlockT> {
     /// Block announce protocol configuration
     pub block_announce_config: NonDefaultSetConfig,
 }
+
+/// Alias for the execution of a future
+pub type ExecutorT = dyn Fn(Pin<Box<dyn Future<Output = ()> + Send>>) + Send;
 
 /// Full network configuration.
 pub struct FullNetworkConfiguration {
@@ -819,9 +822,7 @@ mod tests {
             .expect("ed25519 keypair")
             .secret()
             .as_ref()
-            .iter()
-            .cloned()
-            .collect()
+            .to_vec()
     }
 
     #[test]

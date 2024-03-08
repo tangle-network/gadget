@@ -47,7 +47,8 @@ use std::{
 struct TokioExecutor(tokio::runtime::Runtime);
 impl Executor for TokioExecutor {
     fn exec(&self, f: Pin<Box<dyn Future<Output = ()> + Send>>) {
-        let _ = self.0.spawn(f);
+        let res = self.0.spawn(f);
+        drop(res);
     }
 }
 
@@ -276,6 +277,7 @@ impl NetworkBehaviour for CustomProtoWithAddr {
 }
 
 #[test]
+#[allow(clippy::nonminimal_bool)]
 fn reconnect_after_disconnect() {
     // We connect two nodes together, then force a disconnect (through the API of the `Service`),
     // check that the disconnect worked, and finally check whether they successfully reconnect.

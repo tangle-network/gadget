@@ -165,7 +165,7 @@ impl NotifsHandler {
             endpoint,
             when_connection_open: Instant::now(),
             events_queue: VecDeque::with_capacity(16),
-            metrics: metrics.map_or(None, |metrics| Some(Arc::new(metrics))),
+            metrics: metrics.map(Arc::new),
         }
     }
 }
@@ -232,12 +232,7 @@ enum State {
         /// We use two different channels in order to have two different channel sizes, but from
         /// the receiving point of view, the two channels are the same.
         /// The receivers are fused in case the user drops the [`NotificationsSink`] entirely.
-        notifications_sink_rx: stream::Peekable<
-            stream::Select<
-                stream::Fuse<mpsc::Receiver<NotificationsSinkMessage>>,
-                stream::Fuse<mpsc::Receiver<NotificationsSinkMessage>>,
-            >,
-        >,
+        notifications_sink_rx: stream::Peekable<NotificationsSinkRx>,
 
         /// Outbound substream that has been accepted by the remote.
         ///
@@ -254,6 +249,11 @@ enum State {
         in_substream: Option<NotificationsInSubstream<NegotiatedSubstream>>,
     },
 }
+
+pub type NotificationsSinkRx = stream::Select<
+    stream::Fuse<mpsc::Receiver<NotificationsSinkMessage>>,
+    stream::Fuse<mpsc::Receiver<NotificationsSinkMessage>>,
+>;
 
 /// Event that can be received by a `NotifsHandler`.
 #[derive(Debug, Clone)]
@@ -552,7 +552,6 @@ impl ConnectionHandler for NotifsHandler {
                         // in mind that it is invalid for the remote to open multiple such
                         // substreams, and therefore sending a "RST" is the most correct thing
                         // to do.
-                        return;
                     }
                     State::Opening {
                         ref mut in_substream,
@@ -970,15 +969,15 @@ pub mod tests {
     use unsigned_varint::codec::UviBytes;
 
     struct OpenSubstream {
-        notifications: stream::Peekable<
-            stream::Select<
-                stream::Fuse<futures::channel::mpsc::Receiver<NotificationsSinkMessage>>,
-                stream::Fuse<futures::channel::mpsc::Receiver<NotificationsSinkMessage>>,
-            >,
-        >,
+        notifications: stream::Peekable<NotificationsSubstream>,
         _in_substream: MockSubstream,
         _out_substream: MockSubstream,
     }
+
+    type NotificationsSubstream = stream::Select<
+        stream::Fuse<futures::channel::mpsc::Receiver<NotificationsSinkMessage>>,
+        stream::Fuse<futures::channel::mpsc::Receiver<NotificationsSinkMessage>>,
+    >;
 
     pub struct ConnectionYielder {
         connections: HashMap<(PeerId, usize), OpenSubstream>,
@@ -1035,11 +1034,7 @@ pub mod tests {
 
         /// Attempt to get next pending event from one of the notification sinks.
         pub async fn get_next_event(&mut self, peer: PeerId, set: usize) -> Option<Vec<u8>> {
-            let substream = if let Some(info) = self.connections.get_mut(&(peer, set)) {
-                info
-            } else {
-                return None;
-            };
+            let substream = self.connections.get_mut(&(peer, set))?;
 
             futures::future::poll_fn(|cx| match substream.notifications.poll_next_unpin(cx) {
                 Poll::Ready(Some(NotificationsSinkMessage::Notification { message })) => {

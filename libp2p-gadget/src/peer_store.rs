@@ -291,7 +291,7 @@ impl PeerStoreInner {
     }
 
     fn peer_role(&self, peer_id: &PeerId) -> Option<ObservedRole> {
-        self.peers.get(peer_id).map_or(None, |info| info.role)
+        self.peers.get(peer_id).and_then(|info| info.role)
     }
 
     fn outgoing_candidates(&self, count: usize, ignored: HashSet<&PeerId>) -> Vec<PeerId> {
@@ -415,8 +415,10 @@ mod tests {
     fn decaying_positive_reputation_decreases_it() {
         const INITIAL_REPUTATION: i32 = 100;
 
-        let mut peer_info = PeerInfo::default();
-        peer_info.reputation = INITIAL_REPUTATION;
+        let mut peer_info = PeerInfo {
+            reputation: INITIAL_REPUTATION,
+            ..Default::default()
+        };
 
         peer_info.decay_reputation(1);
         assert!(peer_info.reputation >= 0);
@@ -427,8 +429,10 @@ mod tests {
     fn decaying_negative_reputation_increases_it() {
         const INITIAL_REPUTATION: i32 = -100;
 
-        let mut peer_info = PeerInfo::default();
-        peer_info.reputation = INITIAL_REPUTATION;
+        let mut peer_info = PeerInfo {
+            reputation: INITIAL_REPUTATION,
+            ..Default::default()
+        };
 
         peer_info.decay_reputation(1);
         assert!(peer_info.reputation <= 0);
@@ -440,8 +444,10 @@ mod tests {
         const INITIAL_REPUTATION: i32 = i32::MAX;
         const SECONDS: u64 = 1000;
 
-        let mut peer_info = PeerInfo::default();
-        peer_info.reputation = INITIAL_REPUTATION;
+        let mut peer_info = PeerInfo {
+            reputation: INITIAL_REPUTATION,
+            ..Default::default()
+        };
 
         peer_info.decay_reputation(SECONDS / 2);
         assert!(peer_info.reputation > 0);
@@ -455,8 +461,10 @@ mod tests {
         const INITIAL_REPUTATION: i32 = i32::MIN;
         const SECONDS: u64 = 1000;
 
-        let mut peer_info = PeerInfo::default();
-        peer_info.reputation = INITIAL_REPUTATION;
+        let mut peer_info = PeerInfo {
+            reputation: INITIAL_REPUTATION,
+            ..Default::default()
+        };
 
         peer_info.decay_reputation(SECONDS / 2);
         assert!(peer_info.reputation < 0);

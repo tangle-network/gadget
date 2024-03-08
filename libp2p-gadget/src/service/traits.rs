@@ -419,10 +419,10 @@ pub trait NetworkNotification {
     /// [`NetworkNotification::notification_sender`] instead.
     ///
     /// > **Note**: The reason why this is a no-op in the situation where we have no channel is
-    /// >			that we don't guarantee message delivery anyway. Networking issues can cause
-    /// >			connections to drop at any time, and higher-level logic shouldn't differentiate
-    /// >			between the remote voluntarily closing a substream or a network error
-    /// >			preventing the message from being delivered.
+    /// >        that we don't guarantee message delivery anyway. Networking issues can cause
+    /// >        connections to drop at any time, and higher-level logic shouldn't differentiate
+    /// >        between the remote voluntarily closing a substream or a network error
+    /// >        preventing the message from being delivered.
     ///
     /// The protocol must have been registered with
     /// `crate::config::NetworkConfiguration::notifications_protocols`.
@@ -465,11 +465,11 @@ pub trait NetworkNotification {
     /// ```ignore
     /// // Do NOT do this
     /// for peer in peers {
-    /// 	if let Ok(n) = network.notification_sender(peer, ...) {
-    /// 			if let Ok(s) = n.ready().await {
-    /// 				let _ = s.send(...);
-    /// 			}
-    /// 	}
+    ///    if let Ok(n) = network.notification_sender(peer, ...) {
+    ///        if let Ok(s) = n.ready().await {
+    ///            let _ = s.send(...);
+    ///        }
+    ///    }
     /// }
     /// ```
     ///
@@ -798,6 +798,7 @@ pub trait NotificationService: Debug + Send {
     ///
     /// Technically the function can return an error if the channel to `Notifications` is closed
     /// but that doesn't happen under normal operation.
+    #[allow(clippy::result_unit_err)]
     fn try_set_handshake(&mut self, handshake: Vec<u8>) -> Result<(), ()>;
 
     /// Get next event from the `Notifications` event stream.
@@ -805,6 +806,7 @@ pub trait NotificationService: Debug + Send {
 
     /// Make a copy of the object so it can be shared between protocol components
     /// who wish to have access to the same underlying notification protocol.
+    #[allow(clippy::result_unit_err)]
     fn clone(&mut self) -> Result<Box<dyn NotificationService>, ()>;
 
     /// Get protocol name of the `NotificationService`.

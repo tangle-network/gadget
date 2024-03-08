@@ -96,12 +96,13 @@ pub(crate) struct BlockAnnounceValidator<B: BlockT> {
     /// A type to check incoming block announcements.
     validator: Box<dyn sp_consensus::block_validation::BlockAnnounceValidator<B> + Send>,
     /// All block announcements that are currently being validated.
-    validations: FuturesStream<
-        Pin<Box<dyn Future<Output = BlockAnnounceValidationResult<B::Header>> + Send>>,
-    >,
+    validations: FuturesStream<Validations<B::Header>>,
     /// Number of concurrent block announce validations per peer.
     validations_per_peer: HashMap<PeerId, usize>,
 }
+
+pub(crate) type Validations<B> =
+    Pin<Box<dyn Future<Output = BlockAnnounceValidationResult<B>> + Send>>;
 
 impl<B: BlockT> BlockAnnounceValidator<B> {
     pub(crate) fn new(

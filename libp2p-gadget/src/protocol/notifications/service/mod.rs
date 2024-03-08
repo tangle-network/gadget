@@ -66,7 +66,7 @@ impl MessageSink for NotificationSink {
     fn send_sync_notification(&self, notification: Vec<u8>) {
         let sink = self.lock();
 
-        metrics::register_notification_sent(&sink.0.metrics(), &sink.1, notification.len());
+        metrics::register_notification_sent(sink.0.metrics(), &sink.1, notification.len());
         sink.0.send_sync_notification(notification);
     }
 
@@ -90,7 +90,7 @@ impl MessageSink for NotificationSink {
             .send(notification)
             .map_err(|_| error::Error::ChannelClosed)
             .map(|res| {
-                metrics::register_notification_sent(&sink.0.metrics(), &sink.1, notification_len);
+                metrics::register_notification_sent(sink.0.metrics(), &sink.1, notification_len);
                 res
             })
     }
@@ -240,14 +240,14 @@ impl NotificationService for NotificationHandle {
 
     /// Send synchronous `notification` to `peer`.
     fn send_sync_notification(&self, peer: &PeerId, notification: Vec<u8>) {
-        if let Some(info) = self.peers.get(&peer) {
+        if let Some(info) = self.peers.get(peer) {
             metrics::register_notification_sent(
-                &info.sink.metrics(),
+                info.sink.metrics(),
                 &self.protocol,
                 notification.len(),
             );
 
-            let _ = info.sink.send_sync_notification(notification);
+            info.sink.send_sync_notification(notification);
         }
     }
 
@@ -260,7 +260,7 @@ impl NotificationService for NotificationHandle {
         let notification_len = notification.len();
         let sink = &self
             .peers
-            .get(&peer)
+            .get(peer)
             .ok_or_else(|| error::Error::PeerDoesntExist(*peer))?
             .sink;
 
@@ -271,7 +271,7 @@ impl NotificationService for NotificationHandle {
             .map_err(|_| error::Error::ChannelClosed)
             .map(|res| {
                 metrics::register_notification_sent(
-                    &sink.metrics(),
+                    sink.metrics(),
                     &self.protocol,
                     notification_len,
                 );
@@ -546,7 +546,7 @@ impl ProtocolHandle {
                 }
             }
 
-            return tx.send(ValidationResult::Accept);
+            tx.send(ValidationResult::Accept)
         });
 
         Ok(ValidationCallResult::WaitForValidation(rx))

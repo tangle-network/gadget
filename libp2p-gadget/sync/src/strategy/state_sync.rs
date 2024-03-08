@@ -104,12 +104,14 @@ pub struct StateSync<B: BlockT, Client> {
     target_body: Option<Vec<B::Extrinsic>>,
     target_justifications: Option<Justifications>,
     last_key: SmallVec<[Vec<u8>; 2]>,
-    state: HashMap<Vec<u8>, (Vec<(Vec<u8>, Vec<u8>)>, Vec<Vec<u8>>)>,
+    state: HashMap<Vec<u8>, StateSyncInner>,
     complete: bool,
     client: Arc<Client>,
     imported_bytes: u64,
     skip_proof: bool,
 }
+
+pub type StateSyncInner = (Vec<(Vec<u8>, Vec<u8>)>, Vec<Vec<u8>>);
 
 impl<B, Client> StateSync<B, Client>
 where
@@ -210,7 +212,7 @@ where
                     values.key_values
                 };
                 let entry = self.state.entry(values.state_root).or_default();
-                if entry.0.len() > 0 && entry.1.len() > 1 {
+                if !entry.0.is_empty() && entry.1.len() > 1 {
                     // Already imported child_trie with same root.
                     // Warning this will not work with parallel download.
                 } else if entry.0.is_empty() {
@@ -256,7 +258,7 @@ where
                 }
                 let is_top = state.state_root.is_empty();
                 let entry = self.state.entry(state.state_root).or_default();
-                if entry.0.len() > 0 && entry.1.len() > 1 {
+                if !entry.0.is_empty() && entry.1.len() > 1 {
                     // Already imported child trie with same root.
                 } else {
                     let mut child_roots = Vec::new();
@@ -321,8 +323,8 @@ where
     fn progress(&self) -> StateSyncProgress {
         let cursor = *self
             .last_key
-            .get(0)
-            .and_then(|last| last.get(0))
+            .first()
+            .and_then(|last| last.first())
             .unwrap_or(&0u8);
         let percent_done = cursor as u32 * 100 / 256;
         StateSyncProgress {

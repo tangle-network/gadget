@@ -259,11 +259,11 @@ where
                 "StateResponse contains {} keys, {}, proof nodes, from {:?} to {:?}",
                 response.entries.len(),
                 response.proof.len(),
-                response.entries.get(0).and_then(|top| top
+                response.entries.first().and_then(|top| top
                     .entries
                     .first()
                     .map(|e| sp_core::hexdisplay::HexDisplay::from(&e.key))),
-                response.entries.get(0).and_then(|top| top
+                response.entries.first().and_then(|top| top
                     .entries
                     .last()
                     .map(|e| sp_core::hexdisplay::HexDisplay::from(&e.key))),

@@ -18,6 +18,7 @@
 
 //! State sync strategy.
 
+use crate::service::syncing_service::ProcessedBlock;
 use crate::{
     schema::v1::StateResponse,
     strategy::state_sync::{ImportResult, StateSync, StateSyncProvider},
@@ -27,7 +28,7 @@ use crate::{
 use libp2p::PeerId;
 use log::{debug, error, trace};
 use sc_client_api::ProofProvider;
-use sc_consensus::{BlockImportError, BlockImportStatus, IncomingBlock};
+use sc_consensus::IncomingBlock;
 use sc_network_common::sync::message::BlockAnnounce;
 use sp_consensus::BlockOrigin;
 use sp_runtime::{
@@ -259,10 +260,7 @@ impl<B: BlockT> StateStrategy<B> {
         &mut self,
         imported: usize,
         count: usize,
-        results: Vec<(
-            Result<BlockImportStatus<NumberFor<B>>, BlockImportError>,
-            B::Hash,
-        )>,
+        results: Vec<ProcessedBlock<B, B::Hash>>,
     ) {
         trace!(target: LOG_TARGET, "State sync: imported {imported} of {count}.");
 
@@ -370,7 +368,6 @@ impl<B: BlockT> StateStrategy<B> {
     }
 
     /// Get actions that should be performed by the owner on [`WarpSync`]'s behalf
-    #[must_use]
     pub fn actions(&mut self) -> impl Iterator<Item = StateStrategyAction<B>> {
         let state_request = self
             .state_request()
@@ -398,7 +395,7 @@ mod test {
     use codec::Decode;
     use sc_block_builder::BlockBuilderBuilder;
     use sc_client_api::KeyValueStates;
-    use sc_consensus::{ImportedAux, ImportedState};
+    use sc_consensus::{BlockImportError, BlockImportStatus, ImportedAux, ImportedState};
     use sp_runtime::traits::Zero;
     use substrate_test_runtime_client::{
         runtime::{Block, Hash},
@@ -577,7 +574,7 @@ mod test {
         // Manually set the peer's state.
         state_strategy.peers.get_mut(&peer_id).unwrap().state = PeerState::DownloadingState;
 
-        let dummy_response = OpaqueStateResponse(Box::new(StateResponse::default()));
+        let dummy_response = OpaqueStateResponse(Box::<StateResponse>::default());
         state_strategy.on_state_response(peer_id, dummy_response);
 
         assert!(state_strategy
@@ -601,7 +598,7 @@ mod test {
             StateStrategy::new_with_provider(Box::new(state_sync_provider), initial_peers);
         // Manually set the peer's state.
         state_strategy.peers.get_mut(&peer_id).unwrap().state = PeerState::DownloadingState;
-        let dummy_response = OpaqueStateResponse(Box::new(StateResponse::default()));
+        let dummy_response = OpaqueStateResponse(Box::<StateResponse>::default());
         // Receiving response drops the peer.
         assert!(matches!(
             state_strategy.on_state_response_inner(peer_id, dummy_response),
@@ -623,7 +620,7 @@ mod test {
         // Manually set the peer's state .
         state_strategy.peers.get_mut(&peer_id).unwrap().state = PeerState::DownloadingState;
 
-        let dummy_response = OpaqueStateResponse(Box::new(StateResponse::default()));
+        let dummy_response = OpaqueStateResponse(Box::<StateResponse>::default());
         state_strategy.on_state_response(peer_id, dummy_response);
 
         // No actions generated.
@@ -645,7 +642,7 @@ mod test {
         let block = block_builder.build().unwrap().block;
         let header = block.header().clone();
         let hash = header.hash();
-        let body = Some(block.extrinsics().iter().cloned().collect::<Vec<_>>());
+        let body = Some(block.extrinsics().to_vec());
         let state = ImportedState {
             block: hash,
             state: KeyValueStates(Vec::new()),
@@ -690,7 +687,7 @@ mod test {
         state_strategy.peers.get_mut(&peer_id).unwrap().state = PeerState::DownloadingState;
 
         // Receive response.
-        let dummy_response = OpaqueStateResponse(Box::new(StateResponse::default()));
+        let dummy_response = OpaqueStateResponse(Box::<StateResponse>::default());
         state_strategy.on_state_response(peer_id, dummy_response);
 
         assert_eq!(state_strategy.actions.len(), 1);

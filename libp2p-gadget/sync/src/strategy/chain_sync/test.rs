@@ -302,7 +302,7 @@ fn do_ancestor_search_when_common_block_to_best_qeued_gap_is_to_big() {
         let request = get_block_request(
             &mut sync,
             FromBlock::Number(max_blocks_to_request as u64 + best_block_num as u64),
-            max_blocks_to_request as u32,
+            max_blocks_to_request,
             &peer_id1,
         );
 
@@ -326,9 +326,9 @@ fn do_ancestor_search_when_common_block_to_best_qeued_gap_is_to_big() {
             ChainSyncAction::ImportBlocks{ origin: _, blocks } if blocks.len() == max_blocks_to_request as usize,
         ));
 
-        best_block_num += max_blocks_to_request as u32;
+        best_block_num += max_blocks_to_request;
 
-        let _ = sync.on_blocks_processed(
+        sync.on_blocks_processed(
             max_blocks_to_request as usize,
             max_blocks_to_request as usize,
             resp_blocks
@@ -395,7 +395,7 @@ fn do_ancestor_search_when_common_block_to_best_qeued_gap_is_to_big() {
     get_block_request(
         &mut sync,
         FromBlock::Number(peer1_from + max_blocks_to_request as u64),
-        max_blocks_to_request as u32,
+        max_blocks_to_request,
         &peer_id2,
     );
 }
@@ -420,7 +420,7 @@ fn can_sync_huge_fork() {
     let fork_blocks = {
         let mut client = Arc::new(TestClientBuilder::new().build());
         let fork_blocks = blocks[..MAX_BLOCKS_TO_LOOK_BACKWARDS as usize * 2]
-            .into_iter()
+            .iter()
             .inspect(|b| block_on(client.import(BlockOrigin::Own, (*b).clone())).unwrap())
             .cloned()
             .collect::<Vec<_>>();
@@ -487,7 +487,7 @@ fn can_sync_huge_fork() {
                     peer_id: _,
                     request,
                 } => request.clone(),
-                action @ _ => panic!("Unexpected action: {action:?}"),
+                action => panic!("Unexpected action: {action:?}"),
             }
         };
 
@@ -501,7 +501,7 @@ fn can_sync_huge_fork() {
         let request = get_block_request(
             &mut sync,
             FromBlock::Number(max_blocks_to_request as u64 + best_block_num as u64),
-            max_blocks_to_request as u32,
+            max_blocks_to_request,
             &peer_id1,
         );
 
@@ -522,7 +522,7 @@ fn can_sync_huge_fork() {
             ChainSyncAction::ImportBlocks{ origin: _, blocks } if blocks.len() == sync.max_blocks_per_request as usize
         ));
 
-        best_block_num += sync.max_blocks_per_request as u32;
+        best_block_num += sync.max_blocks_per_request;
 
         sync.on_blocks_processed(
             max_blocks_to_request as usize,
@@ -573,7 +573,7 @@ fn syncs_fork_without_duplicate_requests() {
     let fork_blocks = {
         let mut client = Arc::new(TestClientBuilder::new().build());
         let fork_blocks = blocks[..MAX_BLOCKS_TO_LOOK_BACKWARDS as usize * 2]
-            .into_iter()
+            .iter()
             .inspect(|b| block_on(client.import(BlockOrigin::Own, (*b).clone())).unwrap())
             .cloned()
             .collect::<Vec<_>>();
@@ -640,7 +640,7 @@ fn syncs_fork_without_duplicate_requests() {
                     peer_id: _,
                     request,
                 } => request.clone(),
-                action @ _ => panic!("Unexpected action: {action:?}"),
+                action => panic!("Unexpected action: {action:?}"),
             }
         };
 
@@ -654,7 +654,7 @@ fn syncs_fork_without_duplicate_requests() {
     let mut request = get_block_request(
         &mut sync,
         FromBlock::Number(max_blocks_to_request as u64 + best_block_num as u64),
-        max_blocks_to_request as u32,
+        max_blocks_to_request,
         &peer_id1,
     );
     let last_block_num = *fork_blocks.last().unwrap().header().number() as u32 - 1;
@@ -679,7 +679,7 @@ fn syncs_fork_without_duplicate_requests() {
             ChainSyncAction::ImportBlocks{ origin: _, blocks } if blocks.len() == max_blocks_to_request as usize
         ));
 
-        best_block_num += max_blocks_to_request as u32;
+        best_block_num += max_blocks_to_request;
 
         if best_block_num < last_block_num {
             // make sure we're not getting a duplicate request in the time before the blocks are
@@ -687,7 +687,7 @@ fn syncs_fork_without_duplicate_requests() {
             request = get_block_request(
                 &mut sync,
                 FromBlock::Number(max_blocks_to_request as u64 + best_block_num as u64),
-                max_blocks_to_request as u32,
+                max_blocks_to_request,
                 &peer_id1,
             );
         }
@@ -711,13 +711,13 @@ fn syncs_fork_without_duplicate_requests() {
         // this here by splitting the batch into 2 notifications.
         let max_blocks_to_request = sync.max_blocks_per_request;
         let second_batch = notify_imported.split_off(notify_imported.len() / 2);
-        let _ = sync.on_blocks_processed(
+        sync.on_blocks_processed(
             max_blocks_to_request as usize,
             max_blocks_to_request as usize,
             notify_imported,
         );
 
-        let _ = sync.on_blocks_processed(
+        sync.on_blocks_processed(
             max_blocks_to_request as usize,
             max_blocks_to_request as usize,
             second_batch,
@@ -763,8 +763,8 @@ fn removes_target_fork_on_disconnect() {
     send_block_announce(header, peer_id1, &mut sync);
     assert!(sync.fork_targets.len() == 1);
 
-    let _ = sync.remove_peer(&peer_id1);
-    assert!(sync.fork_targets.len() == 0);
+    sync.remove_peer(&peer_id1);
+    assert!(sync.fork_targets.is_empty());
 }
 
 #[test]
@@ -815,7 +815,7 @@ fn sync_restart_removes_block_but_not_justification_requests() {
     let mut client = Arc::new(TestClientBuilder::new().build());
     let mut sync = ChainSync::new(ChainSyncMode::Full, client.clone(), 1, 64, None).unwrap();
 
-    let peers = vec![PeerId::random(), PeerId::random()];
+    let peers = [PeerId::random(), PeerId::random()];
 
     let mut new_blocks = |n| {
         for _ in 0..n {
@@ -882,14 +882,14 @@ fn sync_restart_removes_block_but_not_justification_requests() {
     for action in actions.iter() {
         match action {
             ChainSyncAction::CancelBlockRequest { peer_id } => {
-                pending_responses.remove(&peer_id);
+                pending_responses.remove(peer_id);
             }
             ChainSyncAction::SendBlockRequest { peer_id, .. } => {
                 // we drop obsolete response, but don't register a new request, it's checked in
                 // the `assert!` below
-                pending_responses.remove(&peer_id);
+                pending_responses.remove(peer_id);
             }
-            action @ _ => panic!("Unexpected action: {action:?}"),
+            action => panic!("Unexpected action: {action:?}"),
         }
     }
     assert!(actions.iter().any(|action| {
@@ -905,7 +905,7 @@ fn sync_restart_removes_block_but_not_justification_requests() {
         sync.peers.get(&peers[1]).unwrap().state,
         PeerSyncState::DownloadingJustification(b1_hash),
     );
-    let _ = sync.remove_peer(&peers[1]);
+    sync.remove_peer(&peers[1]);
     pending_responses.remove(&peers[1]);
     assert_eq!(pending_responses.len(), 0);
 }
@@ -928,7 +928,7 @@ fn request_across_forks() {
     let fork_a_blocks = {
         let mut client = Arc::new(TestClientBuilder::new().build());
         let mut fork_blocks = blocks[..]
-            .into_iter()
+            .iter()
             .inspect(|b| {
                 assert!(matches!(client.block(*b.header.parent_hash()), Ok(Some(_))));
                 block_on(client.import(BlockOrigin::Own, (*b).clone())).unwrap()
@@ -944,7 +944,7 @@ fn request_across_forks() {
     let fork_b_blocks = {
         let mut client = Arc::new(TestClientBuilder::new().build());
         let mut fork_blocks = blocks[..]
-            .into_iter()
+            .iter()
             .inspect(|b| {
                 assert!(matches!(client.block(*b.header.parent_hash()), Ok(Some(_))));
                 block_on(client.import(BlockOrigin::Own, (*b).clone())).unwrap()
@@ -976,7 +976,7 @@ fn request_across_forks() {
 
     // Peer 1 announces 107 from fork 1, 100-107 get downloaded.
     {
-        let block = (&fork_a_blocks[106]).clone();
+        let block = fork_a_blocks[106].clone();
         let peer = peer_id1;
         log::trace!(target: LOG_TARGET, "<1> {peer} announces from fork 1");
         send_block_announce(block.header().clone(), peer, &mut sync);
@@ -997,7 +997,7 @@ fn request_across_forks() {
         ));
         assert_eq!(sync.best_queued_number, 107);
         assert_eq!(sync.best_queued_hash, block.hash());
-        assert!(sync.is_known(&block.header.parent_hash()));
+        assert!(sync.is_known(block.header.parent_hash()));
     }
 
     // Peer 2 also announces 107 from fork 1.
@@ -1006,8 +1006,8 @@ fn request_across_forks() {
         let prev_best_hash = sync.best_queued_hash;
         let peer = peer_id2;
         log::trace!(target: LOG_TARGET, "<2> {peer} announces from fork 1");
-        for i in 100..107 {
-            let block = (&fork_a_blocks[i]).clone();
+        for block in fork_a_blocks.iter().take(107).skip(100) {
+            let block = block.clone();
             send_block_announce(block.header().clone(), peer, &mut sync);
             assert!(sync.block_requests().is_empty());
         }
@@ -1018,7 +1018,7 @@ fn request_across_forks() {
     // Peer 2 undergoes reorg, announces 108 from fork 2, gets downloaded even though we
     // don't have the parent from fork 2.
     {
-        let block = (&fork_b_blocks[107]).clone();
+        let block = fork_b_blocks[107].clone();
         let peer = peer_id2;
         log::trace!(target: LOG_TARGET, "<3> {peer} announces from fork 2");
         send_block_announce(block.header().clone(), peer, &mut sync);
@@ -1040,6 +1040,6 @@ fn request_across_forks() {
             &actions[0],
             ChainSyncAction::ImportBlocks{ origin: _, blocks } if blocks.len() == 1_usize
         ));
-        assert!(sync.is_known(&block.header.parent_hash()));
+        assert!(sync.is_known(block.header.parent_hash()));
     }
 }

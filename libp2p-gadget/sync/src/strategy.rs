@@ -24,6 +24,7 @@ mod state;
 pub mod state_sync;
 pub mod warp;
 
+use crate::service::syncing_service::ProcessedBlock;
 use crate::{
     types::{BadPeer, OpaqueStateRequest, OpaqueStateResponse, SyncStatus},
     LOG_TARGET,
@@ -33,7 +34,7 @@ use libp2p::PeerId;
 use log::{error, info};
 use prometheus_endpoint::Registry;
 use sc_client_api::{BlockBackend, ProofProvider};
-use sc_consensus::{BlockImportError, BlockImportStatus, IncomingBlock};
+use sc_consensus::IncomingBlock;
 use sc_network_common::sync::{
     message::{BlockAnnounce, BlockData, BlockRequest},
     SyncMode,
@@ -296,10 +297,7 @@ where
         &mut self,
         imported: usize,
         count: usize,
-        results: Vec<(
-            Result<BlockImportStatus<NumberFor<B>>, BlockImportError>,
-            B::Hash,
-        )>,
+        results: Vec<ProcessedBlock<B, B::Hash>>,
     ) {
         match self {
             SyncingStrategy::WarpSyncStrategy(_) => {}

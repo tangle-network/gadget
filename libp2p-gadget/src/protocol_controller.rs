@@ -96,7 +96,7 @@ pub struct ProtoSetConfig {
     /// Lists of nodes we should always be connected to.
     ///
     /// > **Note**: Keep in mind that the networking has to know an address for these nodes,
-    /// >			otherwise it will not be able to connect to them.
+    /// >           otherwise it will not be able to connect to them.
     pub reserved_nodes: HashSet<PeerId>,
 
     /// If true, we only accept nodes in [`ProtoSetConfig::reserved_nodes`].
@@ -250,11 +250,12 @@ enum Direction {
 }
 
 /// Status of a connection with a peer.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 enum PeerState {
     /// We are connected to the peer.
     Connected(Direction),
     /// We are not connected.
+    #[default]
     NotConnected,
 }
 
@@ -262,12 +263,6 @@ impl PeerState {
     /// Returns true if we are connected with the node.
     fn is_connected(&self) -> bool {
         matches!(self, PeerState::Connected(_))
-    }
-}
-
-impl Default for PeerState {
-    fn default() -> PeerState {
-        PeerState::NotConnected
     }
 }
 
@@ -944,7 +939,7 @@ mod tests {
         controller.alloc_slots();
 
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
         assert_eq!(messages.len(), 2);
@@ -1071,7 +1066,7 @@ mod tests {
         controller.alloc_slots();
 
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
 
@@ -1093,7 +1088,7 @@ mod tests {
         controller.alloc_slots();
 
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
 
@@ -1144,7 +1139,7 @@ mod tests {
         controller.alloc_slots();
 
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
 
@@ -1207,7 +1202,7 @@ mod tests {
         controller.alloc_slots();
 
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
         assert_eq!(messages.len(), 4);
@@ -1273,7 +1268,7 @@ mod tests {
         controller.alloc_slots();
 
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
 
@@ -1312,7 +1307,7 @@ mod tests {
         controller.alloc_slots();
 
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
 
@@ -1382,7 +1377,7 @@ mod tests {
         controller.on_incoming_connection(peer, incoming_index);
 
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
 
@@ -1433,7 +1428,7 @@ mod tests {
         controller.on_set_reserved_only(false);
 
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
 
@@ -1486,7 +1481,7 @@ mod tests {
         controller.alloc_slots();
 
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
         assert_eq!(messages.len(), 3);
@@ -1517,7 +1512,7 @@ mod tests {
         controller.on_set_reserved_only(true);
 
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
         assert_eq!(messages.len(), 2);
@@ -1595,7 +1590,7 @@ mod tests {
         // Initiate connections.
         controller.alloc_slots();
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
         assert_eq!(messages.len(), 2);
@@ -1658,7 +1653,7 @@ mod tests {
         controller.on_incoming_connection(peer1, IncomingIndex(1));
         controller.alloc_slots();
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
         assert_eq!(messages.len(), 2);
@@ -1719,7 +1714,7 @@ mod tests {
         controller.alloc_slots();
         controller.on_incoming_connection(peer2, IncomingIndex(1));
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
         assert_eq!(messages.len(), 2);
@@ -1770,7 +1765,7 @@ mod tests {
         controller.alloc_slots();
         controller.on_incoming_connection(peer2, IncomingIndex(1));
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
         assert_eq!(messages.len(), 2);
@@ -1850,7 +1845,7 @@ mod tests {
         controller.on_incoming_connection(reserved1, IncomingIndex(1));
         controller.alloc_slots();
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
         assert_eq!(messages.len(), 2);
@@ -1919,7 +1914,7 @@ mod tests {
         controller.alloc_slots();
         controller.on_incoming_connection(peer2, IncomingIndex(1));
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
         assert_eq!(messages.len(), 2);
@@ -1985,7 +1980,7 @@ mod tests {
         controller.on_incoming_connection(reserved1, IncomingIndex(1));
         controller.alloc_slots();
         let mut messages = Vec::new();
-        while let Some(message) = rx.try_recv().ok() {
+        while let Ok(message) = rx.try_recv() {
             messages.push(message);
         }
         assert_eq!(messages.len(), 2);
