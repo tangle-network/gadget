@@ -167,6 +167,10 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             })?;
             logger.trace(format!("Signing protocol report: {perf_report}"));
             logger.debug("Finished AsyncProtocol - Signing");
+            println!(
+                "Signature: {:?}",
+                signature.group_signature.to_bytes().to_vec()
+            );
             *protocol_output.lock().await = Some(signature);
             Ok(())
         })
@@ -176,8 +180,10 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                 let signature = convert_ecdsa_signature(
                     signature.group_signature.to_bytes().to_vec(),
                     &additional_params.input_data_to_sign,
-                    &verifying_key.to_bytes(),
+                    &verifying_key.to_bytes().to_vec(),
                 );
+
+                println!("Submitting signature: {:?}", signature.to_vec());
 
                 let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
                     signature_scheme: jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
@@ -186,6 +192,8 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                     verifying_key: BoundedVec(verifying_key.to_bytes().to_vec()),
                     __ignore: Default::default(),
                 });
+
+                println!("Submitting job result: {:?}", job_result);
 
                 pallet_tx
                     .submit_job_result(
@@ -197,6 +205,8 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                     .map_err(|err| JobError {
                         reason: format!("Failed to submit job result: {err:?}"),
                     })?;
+            } else {
+                println!("No signature was found");
             }
 
             Ok(())
