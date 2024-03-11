@@ -12,7 +12,9 @@ members = [
     "test-gadget",
     "test-utils",
     "protocol-macros",
-    "libp2p-gadget"
+    "libp2p-gadget",
+    "libp2p-gadget/sync",
+    "libp2p-gadget/common",
 ]
 
 [workspace.dependencies]
@@ -26,6 +28,8 @@ zcash-frost-protocol = { path = "./protocols/zcash-frost" }
 test-utils = { path = "./test-utils" }
 protocol-macros = { path = "./protocol-macros" }
 libp2p-gadget = { path = "./libp2p-gadget" }
+sc-network-common = { path = "./libp2p-gadget/common"  }
+sc-network-sync = { path = "./libp2p-gadget/sync" }
 
 snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
@@ -90,9 +94,6 @@ sc-basic-authorship = { git = "https://github.com/paritytech/polkadot-sdk", bran
 sc-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
 sc-consensus-grandpa = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
 sc-executor = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
-sc-network = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
-sc-network-common = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
-sc-network-sync = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
 sc-service = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
 sc-keystore = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
 sc-telemetry = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }

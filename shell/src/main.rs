@@ -1,19 +1,54 @@
 use color_eyre::Result;
+use libp2p_gadget::config::MultiaddrWithPeerId;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use structopt::StructOpt;
 
-mod config;
-mod keystore;
-mod shell;
-mod tangle;
+#[derive(Debug, StructOpt)]
+#[structopt(
+    name = "Gadget",
+    about = "An MPC executor that connects to the Tangle network to perform work"
+)]
+struct Opt {
+    /// Input file
+    #[structopt(parse(from_os_str), short = "c", long = "config")]
+    config: PathBuf,
+}
+
+#[derive(Serialize, Deserialize)]
+struct TomlConfig {
+    bind_ip: String,
+    bind_port: u16,
+    bootnodes: Vec<String>,
+    // The genesis hash in hex format
+    genesis_hash: String,
+    keystore_path: String,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
     setup_logger(3, "gadget_shell")?;
+    let opt = Opt::from_args();
+    let config_contents = std::fs::read_to_string(opt.config)?;
+    let config: TomlConfig = toml::from_str(&config_contents)?;
+    /*
     // Hardcoded paths for now.
     let keystore_path = std::path::PathBuf::from(format!(
         "{}../../target/tangle/chains/local_testnet/keystore",
         env!("CARGO_MANIFEST_DIR")
-    ));
+    ));*/
+    let keystore_path = std::path::PathBuf::from(config.keystore_path);
+
+    let mut bootnodes = vec![];
+    for bootnode in config.bootnodes.iter() {
+        let addr: MultiaddrWithPeerId = bootnode.parse()?;
+        bootnodes.push(addr);
+    }
+
+    let decoded_genesis_hash = hex::decode(config.genesis_hash)
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to parse genesis hash: {e}"))?;
+
     shell::run_forever(config::ShellConfig {
         keystore: config::KeystoreConfig::Path {
             path: keystore_path,
@@ -22,6 +57,11 @@ async fn main() -> Result<()> {
         subxt: config::SubxtConfig {
             endpoint: url::Url::parse("ws://127.0.0.1:9944")?,
         },
+        bind_ip: config.bind_ip,
+        bind_port: config.bind_port,
+        bootnodes,
+        genesis_hash: <[u8; 32]>::try_from(decoded_genesis_hash.as_slice())
+            .map_err(|e| color_eyre::eyre::eyre!("Failed to parse genesis hash: {e}"))?,
     })
     .await?;
     Ok(())
@@ -62,3 +102,8 @@ pub fn setup_logger(verbosity: i32, filter: &str) -> Result<()> {
     logger.init();
     Ok(())
 }
+
+mod config;
+mod keystore;
+mod shell;
+mod tangle;

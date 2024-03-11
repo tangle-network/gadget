@@ -1,3 +1,4 @@
+use libp2p_gadget::config::MultiaddrWithPeerId;
 use sp_core::crypto::SecretString;
 use std::path::{Path, PathBuf};
 
@@ -7,6 +8,8 @@ pub struct ShellConfig {
     pub subxt: SubxtConfig,
     pub bind_ip: String,
     pub bind_port: u16,
+    pub bootnodes: Vec<MultiaddrWithPeerId>,
+    pub genesis_hash: [u8; 32],
 }
 
 #[derive(Debug, Clone)]

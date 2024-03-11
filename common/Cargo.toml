@@ -35,15 +35,14 @@ sp-application-crypto = { workspace = true, optional = true }
 sp-runtime = { workspace = true, optional = true }
 sc-service = { workspace = true, optional = true }
 sc-client-api = { workspace = true, optional = true }
-sc-network = { workspace = true, optional = true }
-sc-network-common = { workspace = true, optional = true }
-sc-network-sync = { workspace = true, optional = true }
 substrate-prometheus-endpoint = { workspace = true, optional = true }
 frame-support = { workspace = true, optional = true }
 linked-hash-map = { workspace = true, optional = true }
 
 parity-scale-codec = { workspace = true, optional = true }
 scale-info = { workspace = true, optional = true }
+libp2p-gadget = { workspace = true, optional = true }
+sc-network-sync = { workspace = true, optional = true }
 
 
 [features]
@@ -59,9 +58,8 @@ substrate = [
   "sp-application-crypto",
   "sc-service",
   "sc-client-api",
-  "sc-network",
-  "sc-network-common",
-  "sc-network-sync",
+  "libp2p-gadget",
+    "sc-network-sync",
   "frame-support",
   "linked-hash-map",
   "substrate-prometheus-endpoint",

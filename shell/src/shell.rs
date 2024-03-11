@@ -10,8 +10,8 @@ use gadget_common::{
     full_protocol::NodeInput,
     keystore::{ECDSAKeyStore, InMemoryBackend},
 };
-use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedSender};
-use sp_application_crypto::Ss58Codec;
+use sc_utils::mpsc::tracing_unbounded;
+use sp_application_crypto::{AppCrypto, Ss58Codec};
 use sp_core::{crypto::KeyTypeId, ecdsa, ed25519, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
 
@@ -21,12 +21,11 @@ use gadget_common::gadget::network::gossip::{GossipHandlerController, NetworkGos
 use gadget_common::prelude::{Block, KeystoreBackend, SyncingService};
 use libp2p_gadget::config::ed25519::SecretKey;
 use libp2p_gadget::config::{
-    FullNetworkConfiguration, MultiaddrWithPeerId, NetworkConfiguration, NodeKeyConfig,
-    NonDefaultSetConfig, Params, Role, Secret, SetConfig,
+    FullNetworkConfiguration, NetworkConfiguration, NodeKeyConfig, NonDefaultSetConfig, Params,
+    Role, Secret, SetConfig,
 };
-use libp2p_gadget::multiaddr::multihash::Sha2_256;
-use libp2p_gadget::peer_store::{PeerStore, PeerStoreHandle};
-use libp2p_gadget::{Multiaddr, NetworkService};
+use libp2p_gadget::peer_store::PeerStore;
+use libp2p_gadget::{NetworkWorker, ProtocolName};
 use tangle_subxt::subxt;
 
 const KEY_TYPE: KeyTypeId = KeyTypeId(*b"test");
@@ -45,12 +44,14 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     let pallet_tx_submitter =
         SubxtPalletSubmitter::with_client(subxt_client, pair_signer, logger.clone());
     let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
-    let genesis_hash = 0x00;
-    let gossip_network = setup_network(
+
+    let genesis_hash = config.genesis_hash;
+    let gossip_network = setup_network::<InMemoryBackend, _>(
         wrapped_keystore.clone(),
         logger.clone(),
         genesis_hash,
         network_key,
+        &config,
     )?;
 
     let node_input = NodeInput {
@@ -112,8 +113,15 @@ pub fn load_keys_from_keystore(
         .key_pair::<crypto::acco::Pair>(&account_public_key)?
         .ok_or_eyre("Failed to load key `acco` from keystore")?
         .into_inner();
+
+    let ed25519_public_key =
+        <sp_application_crypto::ed25519::AppPair as AppCrypto>::Public::from_slice(
+            ed25519_public_key.as_slice(),
+        )
+        .map_err(|_| color_eyre::eyre::eyre!("Failed to parse public key from keystore"))?;
+
     let ed25519_key = keystore
-        .key_pair::<ed25519::Pair>(&ed25519_public_key)?
+        .key_pair::<sp_application_crypto::ed25519::AppPair>(&ed25519_public_key)?
         .ok_or_eyre("Failed to load key `acco` from keystore")?
         .into_inner();
     tracing::debug!(%role_public_key, "Loaded key from keystore");
@@ -130,19 +138,23 @@ fn setup_network<KBE: KeystoreBackend, B: Block + 'static>(
     logger: DebugLogger,
     genesis_hash: B::Hash,
     identity: ed25519::Pair,
-    bootnodes: Vec<MultiaddrWithPeerId>,
     config: &ShellConfig,
 ) -> color_eyre::Result<GossipHandlerController> {
     // Step 1: Derive Secret Key from Identity
-    let secret_key = SecretKey::from(identity);
+    let secret_key_bytes = identity.seed().to_vec();
+    let secret_key = SecretKey::try_from_bytes(secret_key_bytes)
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to create secret key from identity: {e}"))?;
     let node_key = NodeKeyConfig::Ed25519(Secret::Input(secret_key));
     let node_name = identity.public().to_ss58check();
-    let protocol_name = PROTOCOL_NAME.to_string().into();
+    let protocol_name: ProtocolName = PROTOCOL_NAME.to_string().into();
     let fork_id = FORK_ID.to_string();
 
     // Step 2: Create Network Configuration
     let mut network_config = NetworkConfiguration::new(node_name, CLIENT_VERSION, node_key, None);
-    let listen_addr = format!("/ip4/{}/tcp/{}", config.bind_ip, config.bind_port)
+    /*let listen_addr = format!("/ip4/{}/tcp/{}", config.bind_ip, config.bind_port)
+    .parse()
+    .unwrap();*/
+    let listen_addr = format!("/ip4/{}/udp/{}/quic-v1", config.bind_ip, config.bind_port)
         .parse()
         .unwrap();
     network_config.listen_addresses = vec![listen_addr];
@@ -159,7 +171,8 @@ fn setup_network<KBE: KeystoreBackend, B: Block + 'static>(
         None,
         set_config,
     );
-    let bootnodes = bootnodes.iter().map(|addr| addr.peer_id).collect();
+
+    let bootnodes = config.bootnodes.iter().map(|addr| addr.peer_id).collect();
     let peer_store = PeerStore::new(bootnodes);
 
     let params = Params::<B> {
@@ -167,14 +180,16 @@ fn setup_network<KBE: KeystoreBackend, B: Block + 'static>(
         executor: Box::new(tokio_executor),
         network_config: full_network_config,
         peer_store: peer_store.handle(),
-        protocol_id: protocol_name.clone(),
+        protocol_id: PROTOCOL_NAME.into(),
         genesis_hash,
         fork_id: Some(fork_id),
         metrics_registry: None,
         block_announce_config,
     };
 
-    let network_service = Arc::new(NetworkService::<B, Sha2_256>::new(params));
+    let network_worker = NetworkWorker::<B, B::Hash>::new(params)
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to create network worker: {e}"))?;
+    let network_service = network_worker.service().clone();
     let (tx, rx) = tracing_unbounded("gossip", 1024);
     drop(rx);
 
@@ -183,12 +198,8 @@ fn setup_network<KBE: KeystoreBackend, B: Block + 'static>(
         Arc::new(Default::default()),
         Arc::new(Default::default()),
     );
-    let (_, controller) = NetworkGossipEngineBuilder::new(protocol_name, key_store).build(
-        network_service,
-        Arc::new(syncing_service),
-        None,
-        logger,
-    )?;
+    let (_, controller) = NetworkGossipEngineBuilder::new(PROTOCOL_NAME.into(), key_store)
+        .build::<B>(network_service, Arc::new(syncing_service), None, logger)?;
     controller.set_gossip_enabled(true);
 
     Ok(controller)

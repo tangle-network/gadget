@@ -2712,7 +2712,7 @@ dependencies = [
  "regex",
  "syn 2.0.52",
  "termcolor",
- "toml 0.8.10",
+ "toml 0.8.11",
  "walkdir",
 ]
 
@@ -4117,6 +4117,7 @@ dependencies = [
  "gadget-core",
  "hex",
  "lazy_static",
+ "libp2p-gadget",
  "linked-hash-map",
  "log",
  "parity-scale-codec 3.6.9",
@@ -4125,9 +4126,7 @@ dependencies = [
  "round-based 0.1.7",
  "round-based 0.2.1",
  "sc-client-api",
- "sc-network",
- "sc-network-common 0.33.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0)",
- "sc-network-sync 0.33.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0)",
+ "sc-network-sync 0.33.0",
  "sc-service",
  "scale-info",
  "serde",
@@ -4165,16 +4164,21 @@ dependencies = [
  "color-eyre",
  "gadget-common",
  "gadget-core",
+ "hex",
  "libp2p-gadget",
  "parity-scale-codec 3.6.9",
  "sc-keystore",
  "sc-utils",
  "scale-info",
+ "serde",
+ "sha2 0.10.8",
  "sp-application-crypto",
  "sp-core",
  "sp-keystore",
+ "structopt",
  "tangle-subxt",
  "tokio",
+ "toml 0.8.11",
  "tracing",
  "tracing-subscriber 0.3.18",
  "url",
@@ -11998,7 +12002,7 @@ dependencies = [
  "sp-maybe-compressed-blob",
  "strum 0.24.1",
  "tempfile",
- "toml 0.8.10",
+ "toml 0.8.11",
  "walkdir",
  "wasm-opt",
 ]
@@ -12611,14 +12615,14 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.8.10"
+version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a9aad4a3066010876e8dcf5a8a06e70a558751117a145c6ce2b82c2e2054290"
+checksum = "af06656561d28735e9c1cd63dfd57132c8155426aa6af24f36a00a351f88c48e"
 dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "toml_edit 0.22.6",
+ "toml_edit 0.22.7",
 ]
 
 [[package]]
@@ -12654,9 +12658,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.22.6"
+version = "0.22.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c1b5fd4128cc8d3e0cb74d4ed9a9cc7c7284becd4df68f5f940e1ad123606f6"
+checksum = "18769cd1cec395d70860ceb4d932812a0b4d06b1a4bb336745a4d21b9496e992"
 dependencies = [
  "indexmap 2.2.5",
  "serde",

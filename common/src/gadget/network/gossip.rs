@@ -1,4 +1,4 @@
-//! A Gossip Engine that uses [`sc_network::NetworkService`] as a backend.
+//! A Gossip Engine that uses [`libp2p_gadget::NetworkService`] as a backend.
 //!
 //! In a nutshell, it works as follows:
 //!
@@ -27,12 +27,12 @@ use crate::Error;
 use async_trait::async_trait;
 use futures::StreamExt;
 use gadget_core::job_manager::WorkManagerInterface;
-use linked_hash_map::LinkedHashMap;
-use parking_lot::{Mutex, RwLock};
-use sc_network::{
+use libp2p_gadget::{
     config, error, multiaddr, Event, NetworkEventStream, NetworkNotification, NetworkPeers,
     NetworkService, NetworkStateInfo, PeerId, ProtocolName,
 };
+use linked_hash_map::LinkedHashMap;
+use parking_lot::{Mutex, RwLock};
 use sc_network_sync::SyncEvent;
 use sc_network_sync::SyncEventStream;
 use sc_network_sync::SyncingService;
@@ -167,7 +167,7 @@ impl<KBE: KeystoreBackend> NetworkGossipEngineBuilder<KBE> {
 
 #[allow(unused)]
 mod rep {
-    use sc_network::ReputationChange as Rep;
+    use libp2p_gadget::ReputationChange as Rep;
     /// Reputation change when a peer sends us a message that we didn't know about.
     pub const GOOD_MESSAGE: Rep = Rep::new(1 << 7, "Good message");
     /// We received an unexpected message packet.
