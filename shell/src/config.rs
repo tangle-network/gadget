@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 pub struct ShellConfig {
     pub keystore: KeystoreConfig,
     pub subxt: SubxtConfig,
+    pub bind_ip: String,
+    pub bind_port: u16,
 }
 
 #[derive(Debug, Clone)]

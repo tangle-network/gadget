@@ -29,5 +29,8 @@ tangle-subxt = { workspace = true }
 scale-info = { workspace = true }
 parity-scale-codec = { workspace = true }
 
+libp2p-gadget = { workspace = true }
+sc-utils = { workspace = true }
+
 [dev-dependencies]
 

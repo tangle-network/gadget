@@ -37,6 +37,8 @@ pub mod prelude {
     pub use gadget_core::job_manager::SendFuture;
     pub use parking_lot::Mutex;
     pub use protocol_macros::protocol;
+    pub use sc_network_sync::SyncingService;
+    pub use sp_runtime::traits::Block;
     pub use std::pin::Pin;
     pub use std::sync::Arc;
     pub use tangle_subxt::subxt::utils::AccountId32;
