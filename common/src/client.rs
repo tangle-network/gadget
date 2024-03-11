@@ -481,12 +481,17 @@ where
                 .map_err(|err| crate::Error::ClientError {
                     err: format!("Failed to setup api: {err:?}"),
                 })?;
-        Ok(Self {
+        Ok(Self::with_client(subxt_client, signer, logger))
+    }
+
+    pub fn with_client(subxt_client: OnlineClient<C>, signer: S, logger: DebugLogger) -> Self {
+        Self {
             subxt_client,
             signer,
             logger,
-        })
+        }
     }
+
     async fn submit<Call: TxPayload>(&self, call: &Call) -> anyhow::Result<C::Hash> {
         if let Some(details) = call.validation_details() {
             self.logger.trace(format!(
