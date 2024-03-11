@@ -3990,7 +3990,10 @@ dependencies = [
 name = "gadget-shell"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "color-eyre",
+ "gadget-common",
+ "gadget-core",
  "sc-keystore",
  "sp-core",
  "sp-keystore",

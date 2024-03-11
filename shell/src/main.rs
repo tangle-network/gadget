@@ -3,6 +3,7 @@ use color_eyre::Result;
 mod config;
 mod keystore;
 mod shell;
+mod tangle;
 
 #[tokio::main]
 async fn main() -> Result<()> {

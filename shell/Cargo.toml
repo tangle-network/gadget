@@ -9,10 +9,14 @@ edition = "2021"
 
 [dependencies]
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
+async-trait = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
 tokio = { workspace = true, features = ["full"] }
 url = { workspace = true, features = ["serde"] }
+
+gadget-core = { workspace = true }
+gadget-common = { workspace = true }
 
 sp-core = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true }
