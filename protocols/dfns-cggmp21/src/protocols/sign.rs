@@ -131,7 +131,8 @@ where
     })?;
     logger.trace(format!("Signing protocol report: {perf_report}"));
     // Normalize the signature
-    let mut ret = [0u8; 65];
+    signature.normalize_s();
+    let mut ret = [0u8; 64];
     signature.write_to_slice(&mut ret);
     Ok(ret.to_vec())
 }
@@ -329,7 +330,7 @@ pub fn convert_dfns_signature_for_role_type(
     signature: Vec<u8>,
     input_data_to_sign: &[u8],
     public_key_bytes: &[u8],
-) -> Result<[u8; 65], JobError> {
+) -> Result<[u8; 64], JobError> {
     match role_type {
         roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
             convert_dfns_signature::<Secp256k1>(signature, input_data_to_sign, public_key_bytes)
@@ -350,15 +351,15 @@ fn convert_dfns_signature<E: SignatureVerifier>(
     signature: Vec<u8>,
     input_data_to_sign: &[u8],
     public_key_bytes: &[u8],
-) -> Result<[u8; 65], JobError> {
-    if signature.len() < 65 {
+) -> Result<[u8; 64], JobError> {
+    if signature.len() != 64 {
         return Err(JobError {
             reason: format!("Invalid signature length: {}", signature.len()),
         });
     }
 
-    let mut signature_bytes = [0u8; 65];
-    signature_bytes[..64].copy_from_slice(&signature[..64]);
+    let mut signature_bytes = [0u8; 64];
+    signature_bytes[..63].copy_from_slice(&signature[..63]);
     let data_hash = keccak_256(input_data_to_sign);
 
     E::verify_signature(signature_bytes, &data_hash, public_key_bytes)

@@ -1,7 +1,8 @@
-use dfns_cggmp21::supported_curves::Secp256k1;
+use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 use gadget_common::gadget::message::UserID;
 use gadget_core::job::JobError;
 use rand::prelude::SliceRandom;
+use signature::hazmat::PrehashVerifier;
 use sp_core::ecdsa;
 use sp_core::ecdsa::Public;
 use std::collections::HashMap;
@@ -63,68 +64,105 @@ pub fn choose_signers<R: rand::Rng>(
 
 pub trait SignatureVerifier {
     fn verify_signature(
-        signature_bytes: [u8; 65],
+        signature_bytes: [u8; 64],
         data_hash: &[u8; 32],
         public_key_bytes: &[u8],
-    ) -> Result<[u8; 65], JobError>;
+    ) -> Result<[u8; 64], JobError>;
 }
 
 impl SignatureVerifier for Secp256k1 {
     fn verify_signature(
-        mut signature_bytes: [u8; 65],
+        signature_bytes: [u8; 64],
         data_hash: &[u8; 32],
         public_key_bytes: &[u8],
-    ) -> Result<[u8; 65], JobError> {
+    ) -> Result<[u8; 64], JobError> {
+        use k256::elliptic_curve::group::GroupEncoding;
+
+        let affine_point = k256::AffinePoint::from_bytes(public_key_bytes.into())
+            .expect("Failed to convert public key to affine point");
+        let verifying_key =
+            k256::ecdsa::VerifyingKey::from_affine(affine_point).map_err(|_| JobError {
+                reason: "Failed to convert public key to verifying key".to_string(),
+            })?;
+        let signature =
+            k256::ecdsa::Signature::from_slice(&signature_bytes).map_err(|_| JobError {
+                reason: "Failed to convert signature to verifying key".to_string(),
+            })?;
+
+        verifying_key
+            .verify_prehash(data_hash, &signature)
+            .map(|_| signature_bytes)
+            .map_err(|e| JobError {
+                reason: format!("Failed to verify signature: {:?}", e),
+            })
+    }
+}
+
+impl SignatureVerifier for Secp256r1 {
+    fn verify_signature(
+        signature_bytes: [u8; 64],
+        data_hash: &[u8; 32],
+        public_key_bytes: &[u8],
+    ) -> Result<[u8; 64], JobError> {
+        use p256::elliptic_curve::group::GroupEncoding;
+
+        let affine_point = p256::AffinePoint::from_bytes(public_key_bytes.into())
+            .expect("Failed to convert public key to affine point");
+        let verifying_key =
+            p256::ecdsa::VerifyingKey::from_affine(affine_point).map_err(|_| JobError {
+                reason: "Failed to convert public key to verifying key".to_string(),
+            })?;
+        let signature =
+            p256::ecdsa::Signature::from_slice(&signature_bytes).map_err(|_| JobError {
+                reason: "Failed to convert signature to verifying key".to_string(),
+            })?;
+
+        verifying_key
+            .verify_prehash(data_hash, &signature)
+            .map(|_| signature_bytes)
+            .map_err(|e| JobError {
+                reason: format!("Failed to verify signature: {:?}", e),
+            })
+    }
+}
+
+impl SignatureVerifier for Stark {
+    fn verify_signature(
+        signature_bytes: [u8; 64],
+        data_hash: &[u8; 32],
+        public_key_bytes: &[u8],
+    ) -> Result<[u8; 64], JobError> {
         if public_key_bytes.is_empty() {
             return Err(JobError {
                 reason: "Public key is empty".to_string(),
             });
         }
 
-        // To figure out the recovery ID, we need to try all possible values of v
-        // in our case, v can be 0 or 1
-        let mut v = 0u8;
-        loop {
-            let mut signature_bytes = signature_bytes;
-            signature_bytes[64] = v;
-            let res = sp_io::crypto::secp256k1_ecdsa_recover(&signature_bytes, &data_hash);
-            match res {
-                Ok(key) if key[..32] == public_key_bytes[1..] => {
-                    // Found the correct v
-                    signature_bytes[64] = v + 27;
-                    return Ok(signature_bytes);
-                }
-                Ok(_) => {
-                    // Found a key, but not the correct one
-                    // Try the other v value
-                    if v == 1 {
-                        // We tried both v values, but no key was found
-                        // This should never happen, but if it does, we will just
-                        // leave v as 1 and break
-                        return Err(JobError {
-                            reason: "Failed to recover signature (both v=[0,1] did not match)"
-                                .to_string(),
-                        });
-                    }
-                    v = 1;
-                    continue;
-                }
-                Err(_) if v == 1 => {
-                    // We tried both v values, but no key was found
-                    // This should never happen, but if it does, we will just
-                    // leave v as 1 and break
-                    return Err(JobError {
-                        reason:
-                        "Failed to recover signature (both v=[0,1] errored and/or did not match)"
-                            .to_string(),
-                    });
-                }
-                Err(_) => {
-                    // No key was found, try the other v value
-                    v = 1;
-                    continue;
-                }
-            }
+        let public_key = convert_stark_scalar(public_key_bytes)?;
+        let message = convert_stark_scalar(data_hash)?;
+        let r = convert_stark_scalar(&signature_bytes[..32])?;
+        let s = convert_stark_scalar(&signature_bytes[32..])?;
+
+        let success =
+            starknet_crypto::verify(&public_key, &message, &r, &s).map_err(|_| JobError {
+                reason: "Failed to verify signature".to_string(),
+            })?;
+
+        if success {
+            Ok(signature_bytes)
+        } else {
+            Err(JobError {
+                reason: "Failed to verify signature".to_string(),
+            })
         }
     }
+}
+
+pub fn convert_stark_scalar(x: &[u8]) -> Result<starknet_crypto::FieldElement, JobError> {
+    debug_assert_eq!(x.len(), 32);
+    let mut buffer = [0u8; 32];
+    buffer.copy_from_slice(x);
+    starknet_crypto::FieldElement::from_bytes_be(&buffer).map_err(|_| JobError {
+        reason: "Failed to convert scalar to field element".to_string(),
+    })
 }

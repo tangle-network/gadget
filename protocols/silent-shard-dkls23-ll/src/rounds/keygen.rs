@@ -3,7 +3,6 @@ use dkls23_ll::dkg::{KeygenMsg1, KeygenMsg2, KeygenMsg3, KeygenMsg4, Keyshare, P
 use futures::SinkExt;
 
 use super::{Error, IoError};
-use k256::AffinePoint;
 use rand_core::{CryptoRng, RngCore};
 use round_based::{
     rounds_router::{simple_store::RoundInput, RoundsRouter},
@@ -115,7 +114,7 @@ pub struct MsgRound4 {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SilentShardDKLS23KeyShare {
     pub key_share: Keyshare,
-    pub verifying_key: AffinePoint,
+    pub verifying_key: k256::AffinePoint,
 }
 
 pub async fn run_threshold_keygen<R, M>(

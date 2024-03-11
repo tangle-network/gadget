@@ -11,9 +11,7 @@ use gadget_common::prelude::*;
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::jobs::tss::DigitalSignatureScheme;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-
 use k256::elliptic_curve::group::GroupEncoding;
-
 use rand::SeedableRng;
 use round_based_21::{Incoming, Outgoing};
 
@@ -157,7 +155,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             let job_result = handle_public_key_gossip(
                 key_store2,
                 &logger,
-                &key_share.verifying_key.to_bytes(),
+                &key_share.verifying_key.to_bytes().to_vec(),
                 DigitalSignatureScheme::EcdsaSecp256k1,
                 t,
                 i,

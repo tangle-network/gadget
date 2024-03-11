@@ -114,7 +114,7 @@ pub async fn run_threshold_sign<R, M>(
     signers: Vec<u16>,
     dkls_keyshare: SilentShardDKLS23KeyShare,
     derivation_path: DerivationPath,
-    message_to_sign: &[u8],
+    pre_hashed_msg: &[u8],
     rng: &mut R,
     party: M,
 ) -> Result<SilentSharedDKLS23EcdsaSignature, Error>
@@ -122,11 +122,10 @@ where
     R: RngCore + CryptoRng,
     M: Mpc<ProtocolMessage = Msg>,
 {
-    println!("Msg to sign: {:?}", message_to_sign);
-    let message_to_sign = if message_to_sign.len() != 32 {
-        keccak_256(message_to_sign)
+    let pre_hashed_msg = if pre_hashed_msg.len() != 32 {
+        keccak_256(pre_hashed_msg)
     } else {
-        message_to_sign.try_into().unwrap()
+        pre_hashed_msg.try_into().unwrap()
     };
     tracer.protocol_begins();
 
@@ -250,7 +249,7 @@ where
     let partial_sign_msg4 = PreSignatureWrapper(p.handle_msg3(round3_msgs)?);
     let partial_signature = create_partial_signature(
         partial_sign_msg4.clone().0,
-        message_to_sign.try_into().unwrap(),
+        pre_hashed_msg.try_into().unwrap(),
     );
     tracer.stage("Send round 4 pre signature");
     println!("Send round 4 pre signature");
@@ -273,7 +272,7 @@ where
         .map_err(IoError::receive_message)?
         .into_vec_without_me()
         .into_iter()
-        .map(|msg| create_partial_signature(msg.msg.0, message_to_sign.try_into().unwrap()))
+        .map(|msg| create_partial_signature(msg.msg.0, pre_hashed_msg.try_into().unwrap()))
         .unzip::<_, _, Vec<_>, Vec<_>>();
 
     tracer.msgs_received();

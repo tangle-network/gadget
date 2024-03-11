@@ -1,18 +1,20 @@
 use derivation_path::DerivationPath;
-use gadget_common::client::{ClientWithApi};
-use gadget_common::config::{Network};
+use dfns_cggmp21_protocol::protocols::util::SignatureVerifier;
+use dfns_cggmp21::supported_curves::Secp256k1;
+use gadget_common::client::ClientWithApi;
+use gadget_common::config::Network;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::*;
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-use gadget_common::{channels};
+use gadget_common::channels;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use k256::elliptic_curve::group::GroupEncoding;
 use rand::SeedableRng;
 use round_based_21::{Incoming, MpcParty, Outgoing};
-use k256::elliptic_curve::group::GroupEncoding;
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -148,13 +150,14 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
             let delivery = (signing_rx_async_proto, signing_tx_to_outbound);
             let party = MpcParty::connected(delivery);
+            let data_hash = keccak_256(input_data_to_sign.as_slice());
             let signature = rounds::sign::run_threshold_sign(
                 Some(&mut tracer),
                 i,
                 signers,
                 key_share,
                 derivation_path,
-                input_data_to_sign.as_slice(),
+                &data_hash,
                 &mut rng,
                 party,
             )
@@ -167,33 +170,35 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             })?;
             logger.trace(format!("Signing protocol report: {perf_report}"));
             logger.debug("Finished AsyncProtocol - Signing");
-            println!(
-                "Signature: {:?}",
-                signature.group_signature.to_bytes().to_vec()
-            );
             *protocol_output.lock().await = Some(signature);
             Ok(())
         })
         .post(async move {
             // Submit the protocol output to the blockchain
             if let Some(signature) = protocol_output_clone.lock().await.take() {
-                let signature = convert_ecdsa_signature(
-                    signature.group_signature.to_bytes().to_vec(),
-                    &additional_params.input_data_to_sign,
-                    &verifying_key.to_bytes().to_vec(),
-                );
-
-                println!("Submitting signature: {:?}", signature.to_vec());
-
                 let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
                     signature_scheme: jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
-                    data: BoundedVec(additional_params.input_data_to_sign),
-                    signature: BoundedVec(signature.to_vec()),
+                    data: BoundedVec(
+                        keccak_256(&additional_params.input_data_to_sign.clone()).to_vec(),
+                    ),
+                    signature: BoundedVec(signature.group_signature.to_bytes().to_vec()),
                     verifying_key: BoundedVec(verifying_key.to_bytes().to_vec()),
                     __ignore: Default::default(),
                 });
 
-                println!("Submitting job result: {:?}", job_result);
+                println!(
+                    "Verifying sig: {:#?}",
+                    <Secp256k1 as SignatureVerifier>::verify_signature(
+                        signature
+                            .group_signature
+                            .to_bytes()
+                            .to_vec()
+                            .try_into()
+                            .unwrap(),
+                        &keccak_256(&additional_params.input_data_to_sign),
+                        &verifying_key.to_bytes().to_vec(),
+                    )
+                );
 
                 pallet_tx
                     .submit_job_result(
