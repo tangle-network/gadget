@@ -25,6 +25,7 @@ use super::{Error, IoError};
 /// Message of DKLS23 threshold ECDSA signing protocol
 #[derive(ProtocolMessage, Clone, Serialize, Deserialize)]
 #[serde(bound = "")]
+#[allow(clippy::large_enum_variant)]
 pub enum Msg {
     /// Round 1 message
     Round1(MsgRound1),
