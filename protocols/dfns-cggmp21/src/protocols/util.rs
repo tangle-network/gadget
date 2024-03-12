@@ -67,7 +67,7 @@ pub trait SignatureVerifier {
         signature_bytes: [u8; 64],
         data_hash: &[u8; 32],
         public_key_bytes: &[u8],
-    ) -> Result<[u8; 64], JobError>;
+    ) -> Result<(), JobError>;
 }
 
 impl SignatureVerifier for Secp256k1 {
@@ -75,26 +75,29 @@ impl SignatureVerifier for Secp256k1 {
         signature_bytes: [u8; 64],
         data_hash: &[u8; 32],
         public_key_bytes: &[u8],
-    ) -> Result<[u8; 64], JobError> {
-        use k256::elliptic_curve::group::GroupEncoding;
-
-        let affine_point = k256::AffinePoint::from_bytes(public_key_bytes.into())
-            .expect("Failed to convert public key to affine point");
-        let verifying_key =
-            k256::ecdsa::VerifyingKey::from_affine(affine_point).map_err(|_| JobError {
-                reason: "Failed to convert public key to verifying key".to_string(),
+    ) -> Result<(), JobError> {
+        println!("Public key bytes: {:?}", public_key_bytes);
+        let public_key =
+            secp256k1::PublicKey::from_slice(public_key_bytes).map_err(|e| JobError {
+                reason: format!("Failed to convert public key to secp256k1: {:?}", e),
             })?;
+        println!("Public key: {:?}", public_key);
+        let message = secp256k1::Message::from_slice(data_hash).map_err(|e| JobError {
+            reason: format!("Failed to convert data hash to secp256k1: {:?}", e),
+        })?;
+        println!("Message: {:?}", message);
         let signature =
-            k256::ecdsa::Signature::from_slice(&signature_bytes).map_err(|_| JobError {
-                reason: "Failed to convert signature".to_string(),
+            secp256k1::ecdsa::Signature::from_compact(&signature_bytes).map_err(|e| JobError {
+                reason: format!("Failed to convert signature to compact: {:?}", e),
             })?;
-
-        verifying_key
-            .verify_prehash(data_hash, &signature)
-            .map(|_| signature_bytes)
+        println!("Signature: {:?}", signature);
+        signature
+            .verify(&message, &public_key)
             .map_err(|e| JobError {
                 reason: format!("Failed to verify signature: {:?}", e),
-            })
+            })?;
+
+        Ok(())
     }
 }
 
@@ -103,7 +106,7 @@ impl SignatureVerifier for Secp256r1 {
         signature_bytes: [u8; 64],
         data_hash: &[u8; 32],
         public_key_bytes: &[u8],
-    ) -> Result<[u8; 64], JobError> {
+    ) -> Result<(), JobError> {
         use p256::elliptic_curve::group::GroupEncoding;
 
         let affine_point = p256::AffinePoint::from_bytes(public_key_bytes.into())
@@ -122,7 +125,9 @@ impl SignatureVerifier for Secp256r1 {
             .map(|_| signature_bytes)
             .map_err(|e| JobError {
                 reason: format!("Failed to verify signature: {:?}", e),
-            })
+            })?;
+
+        Ok(())
     }
 }
 
@@ -131,7 +136,7 @@ impl SignatureVerifier for Stark {
         signature_bytes: [u8; 64],
         data_hash: &[u8; 32],
         public_key_bytes: &[u8],
-    ) -> Result<[u8; 64], JobError> {
+    ) -> Result<(), JobError> {
         if public_key_bytes.is_empty() {
             return Err(JobError {
                 reason: "Public key is empty".to_string(),
@@ -149,7 +154,7 @@ impl SignatureVerifier for Stark {
             })?;
 
         if success {
-            Ok(signature_bytes)
+            Ok(())
         } else {
             Err(JobError {
                 reason: "Failed to verify signature".to_string(),

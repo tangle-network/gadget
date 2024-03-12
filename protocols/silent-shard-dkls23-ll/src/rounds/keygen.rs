@@ -1,6 +1,7 @@
 use dfns_cggmp21::progress::Tracer;
 use dkls23_ll::dkg::{KeygenMsg1, KeygenMsg2, KeygenMsg3, KeygenMsg4, Keyshare, Party, State};
 use futures::SinkExt;
+use k256::AffinePoint;
 
 use super::{Error, IoError};
 use rand_core::{CryptoRng, RngCore};
@@ -114,7 +115,7 @@ pub struct MsgRound4 {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SilentShardDKLS23KeyShare {
     pub key_share: Keyshare,
-    pub verifying_key: k256::AffinePoint,
+    pub verifying_key: AffinePoint,
 }
 
 pub async fn run_threshold_keygen<R, M>(
@@ -291,7 +292,7 @@ where
     let key_share = p.handle_msg4(round4_packages)?;
     tracer.protocol_ends();
 
-    let public_key = key_share.public_key;
+    let public_key: AffinePoint = key_share.public_key;
     Ok(SilentShardDKLS23KeyShare {
         key_share,
         verifying_key: public_key,

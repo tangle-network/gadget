@@ -18,6 +18,7 @@ use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::*;
 use gadget_common::prelude::{FullProtocolConfig, Network};
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::jobs::tss::DigitalSignatureScheme;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::{CryptoRng, RngCore, SeedableRng};
@@ -131,7 +132,7 @@ where
     })?;
     logger.trace(format!("Signing protocol report: {perf_report}"));
     // Normalize the signature
-    signature.normalize_s();
+    let signature = signature.normalize_s();
     let mut ret = [0u8; 64];
     signature.write_to_slice(&mut ret);
     Ok(ret.to_vec())
@@ -258,16 +259,16 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
         .post(async move {
             // Submit the protocol output to the blockchain
             if let Some(signature) = protocol_output_clone.lock().await.take() {
-                let signature = convert_dfns_signature_for_role_type(
+                let (signature_scheme, data_hash) = validate_dfns_signature_by_role(
                     &additional_params.role_type,
-                    signature,
+                    &signature,
                     &additional_params.input_data_to_sign,
                     &public_key,
                 )?;
 
                 let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
-                    signature_scheme: jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
-                    data: BoundedVec(additional_params.input_data_to_sign),
+                    signature_scheme,
+                    data: BoundedVec(data_hash.to_vec()),
                     signature: BoundedVec(signature.to_vec()),
                     verifying_key: BoundedVec(public_key),
                     __ignore: Default::default(),
@@ -296,19 +297,15 @@ pub fn get_public_key_from_serialized_key_share_bytes<S: SecurityLevel>(
 ) -> Result<Vec<u8>, JobError> {
     match role_type {
         roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-            get_local_key_share_from_serialized_local_key_bytes::<Secp256k1, S>(
-                serialized_key_share,
-            )
-            .map(|key_share| key_share.shared_public_key().to_bytes(true).to_vec())
+            get_key_share::<Secp256k1, S>(serialized_key_share)
+                .map(|key_share| key_share.shared_public_key().to_bytes(true).to_vec())
         }
         roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-            get_local_key_share_from_serialized_local_key_bytes::<Secp256r1, S>(
-                serialized_key_share,
-            )
-            .map(|key_share| key_share.shared_public_key().to_bytes(true).to_vec())
+            get_key_share::<Secp256r1, S>(serialized_key_share)
+                .map(|key_share| key_share.shared_public_key().to_bytes(true).to_vec())
         }
         roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-            get_local_key_share_from_serialized_local_key_bytes::<Stark, S>(serialized_key_share)
+            get_key_share::<Stark, S>(serialized_key_share)
                 .map(|key_share| key_share.shared_public_key().to_bytes(true).to_vec())
         }
         _ => Err(JobError {
@@ -317,29 +314,41 @@ pub fn get_public_key_from_serialized_key_share_bytes<S: SecurityLevel>(
     }
 }
 
-pub fn get_local_key_share_from_serialized_local_key_bytes<E: Curve, S: SecurityLevel>(
-    local_key_serialized: &[u8],
+pub fn get_key_share<E: Curve, S: SecurityLevel>(
+    serialized_key_share: &[u8],
 ) -> Result<KeyShare<E, S>, JobError> {
-    bincode2::deserialize::<KeyShare<E, S>>(local_key_serialized).map_err(|err| JobError {
+    bincode2::deserialize::<KeyShare<E, S>>(serialized_key_share).map_err(|err| JobError {
         reason: format!("Signing protocol error: {err:?}"),
     })
 }
 
-pub fn convert_dfns_signature_for_role_type(
+pub fn validate_dfns_signature_by_role(
     role_type: &roles::RoleType,
-    signature: Vec<u8>,
+    signature: &[u8],
     input_data_to_sign: &[u8],
     public_key_bytes: &[u8],
-) -> Result<[u8; 64], JobError> {
+) -> Result<(DigitalSignatureScheme, [u8; 32]), JobError> {
     match role_type {
         roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) => {
-            convert_dfns_signature::<Secp256k1>(signature, input_data_to_sign, public_key_bytes)
+            let data_hash = validate_dfns_signature::<Secp256k1>(
+                signature,
+                input_data_to_sign,
+                public_key_bytes,
+            )?;
+            Ok((DigitalSignatureScheme::EcdsaSecp256k1, data_hash))
         }
         roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) => {
-            convert_dfns_signature::<Secp256r1>(signature, input_data_to_sign, public_key_bytes)
+            let data_hash = validate_dfns_signature::<Secp256r1>(
+                signature,
+                input_data_to_sign,
+                public_key_bytes,
+            )?;
+            Ok((DigitalSignatureScheme::EcdsaSecp256r1, data_hash))
         }
         roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-            convert_dfns_signature::<Stark>(signature, input_data_to_sign, public_key_bytes)
+            let data_hash =
+                validate_dfns_signature::<Stark>(signature, input_data_to_sign, public_key_bytes)?;
+            Ok((DigitalSignatureScheme::EcdsaStark, data_hash))
         }
         _ => Err(JobError {
             reason: format!("Invalid role type: {role_type:?}"),
@@ -347,11 +356,11 @@ pub fn convert_dfns_signature_for_role_type(
     }
 }
 
-fn convert_dfns_signature<E: SignatureVerifier>(
-    signature: Vec<u8>,
+fn validate_dfns_signature<E: SignatureVerifier>(
+    signature: &[u8],
     input_data_to_sign: &[u8],
     public_key_bytes: &[u8],
-) -> Result<[u8; 64], JobError> {
+) -> Result<[u8; 32], JobError> {
     if signature.len() != 64 {
         return Err(JobError {
             reason: format!("Invalid signature length: {}", signature.len()),
@@ -362,7 +371,9 @@ fn convert_dfns_signature<E: SignatureVerifier>(
     signature_bytes[..64].copy_from_slice(&signature[..64]);
     let data_hash = keccak_256(input_data_to_sign);
 
-    E::verify_signature(signature_bytes, &data_hash, public_key_bytes)
+    E::verify_signature(signature_bytes, &data_hash, public_key_bytes)?;
+
+    Ok(data_hash)
 }
 
 #[allow(clippy::too_many_arguments)]

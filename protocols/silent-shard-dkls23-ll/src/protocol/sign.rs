@@ -1,6 +1,5 @@
 use derivation_path::DerivationPath;
-use dfns_cggmp21_protocol::protocols::util::SignatureVerifier;
-use dfns_cggmp21::supported_curves::Secp256k1;
+
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -12,6 +11,8 @@ use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_col
 use gadget_common::channels;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use k256::ecdsa::signature::hazmat::PrehashVerifier;
+use k256::ecdsa::{Signature, VerifyingKey};
 use k256::elliptic_curve::group::GroupEncoding;
 use rand::SeedableRng;
 use round_based_21::{Incoming, MpcParty, Outgoing};
@@ -116,6 +117,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
     );
 
     let verifying_key = key_share.verifying_key;
+    let input_data_to_sign2 = input_data_to_sign.clone();
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -176,29 +178,31 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
         .post(async move {
             // Submit the protocol output to the blockchain
             if let Some(signature) = protocol_output_clone.lock().await.take() {
+                // let (signature, data_hash) = convert_ecdsa_signature(
+                //     signature.group_signature.to_bytes().to_vec(),
+                //     &input_data_to_sign2,
+                //     &verifying_key.to_bytes(),
+                // );
+                let data_hash = keccak_256(input_data_to_sign2.as_slice());
+                let signature = signature.group_signature.to_bytes().to_vec();
+                println!("Verifying key: {:?}", verifying_key);
+                let res = VerifyingKey::from_affine(verifying_key)
+                    .map(|vk| {
+                        vk.verify_prehash(&data_hash, &Signature::from_slice(&signature).unwrap())
+                    })
+                    .map_err(|e| JobError {
+                        reason: format!("Failed to verify signature: {e:?}"),
+                    })?;
+                println!("Signature verification result: {:?}", res);
+
+                println!("Signature: {:?}", signature);
                 let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
                     signature_scheme: jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
-                    data: BoundedVec(
-                        keccak_256(&additional_params.input_data_to_sign.clone()).to_vec(),
-                    ),
-                    signature: BoundedVec(signature.group_signature.to_bytes().to_vec()),
+                    data: BoundedVec(data_hash.to_vec()),
+                    signature: BoundedVec(signature.to_vec()),
                     verifying_key: BoundedVec(verifying_key.to_bytes().to_vec()),
                     __ignore: Default::default(),
                 });
-
-                println!(
-                    "Verifying sig: {:#?}",
-                    <Secp256k1 as SignatureVerifier>::verify_signature(
-                        signature
-                            .group_signature
-                            .to_bytes()
-                            .to_vec()
-                            .try_into()
-                            .unwrap(),
-                        &keccak_256(&additional_params.input_data_to_sign),
-                        &verifying_key.to_bytes(),
-                    )
-                );
 
                 pallet_tx
                     .submit_job_result(
@@ -221,12 +225,12 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 
 pub fn convert_ecdsa_signature(
     signature: Vec<u8>,
-    input_data_to_sign: &[u8],
+    data: &[u8],
     public_key_bytes: &[u8],
-) -> [u8; 65] {
+) -> ([u8; 65], [u8; 32]) {
     let mut signature_bytes = [0u8; 65];
     (signature_bytes[..64]).copy_from_slice(&signature[..64]);
-    let data_hash = keccak_256(input_data_to_sign);
+    let data_hash = keccak_256(data);
     // To figure out the recovery ID, we need to try all possible values of v
     // in our case, v can be 0 or 1
     let mut v = 0u8;
@@ -259,5 +263,5 @@ pub fn convert_ecdsa_signature(
         }
     }
     signature_bytes[64] = v + 27;
-    signature_bytes
+    (signature_bytes, data_hash)
 }

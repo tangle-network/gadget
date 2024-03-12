@@ -155,7 +155,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             let job_result = handle_public_key_gossip(
                 key_store2,
                 &logger,
-                &key_share.verifying_key.to_bytes().to_vec(),
+                &key_share.verifying_key.to_bytes(),
                 DigitalSignatureScheme::EcdsaSecp256k1,
                 t,
                 i,

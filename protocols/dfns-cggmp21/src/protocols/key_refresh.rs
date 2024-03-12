@@ -242,10 +242,7 @@ async fn handle_key_refresh<
     network: N,
 ) -> Result<Vec<u8>, JobError> {
     let mut rng = rand::rngs::StdRng::from_entropy();
-    let local_key_share: KeyShare<E, S> =
-        super::sign::get_local_key_share_from_serialized_local_key_bytes::<E, S>(
-            serialized_key_share,
-        )?;
+    let local_key_share: KeyShare<E, S> = super::sign::get_key_share::<E, S>(serialized_key_share)?;
     let i = local_key_share.i;
     let n = local_key_share.public_shares.len() as u16;
     let t = local_key_share

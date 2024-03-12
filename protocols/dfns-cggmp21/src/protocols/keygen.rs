@@ -418,16 +418,15 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                 rx2,
             )
             .await?;
-
             *protocol_output.lock().await = Some((key_share, job_result));
             Ok(())
         })
         .post(async move {
             // TODO: handle protocol blames
             // Store the keys locally, as well as submitting them to the blockchain
-            if let Some((local_key, job_result)) = protocol_output_clone.lock().await.take() {
+            if let Some((key_share, job_result)) = protocol_output_clone.lock().await.take() {
                 key_store2
-                    .set_job_result(additional_params.job_id, local_key)
+                    .set_job_result(additional_params.job_id, key_share)
                     .await
                     .map_err(|err| JobError {
                         reason: format!("Failed to store key: {err:?}"),
@@ -455,7 +454,7 @@ pub async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     key_store: ECDSAKeyStore<KBE>,
     logger: &DebugLogger,
     serialized_public_key: &[u8],
-    _digital_signature_scheme: jobs::tss::DigitalSignatureScheme,
+    digital_signature_scheme: jobs::tss::DigitalSignatureScheme,
     t: u16,
     i: u16,
     broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
@@ -549,7 +548,7 @@ pub async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     }
 
     let res = jobs::tss::DKGTSSKeySubmissionResult {
-        signature_scheme: jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
+        signature_scheme: digital_signature_scheme,
         key: BoundedVec(serialized_public_key.to_vec()),
         participants: BoundedVec(participants),
         signatures: BoundedVec(signatures),
