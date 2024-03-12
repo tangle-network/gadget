@@ -108,5 +108,6 @@ pub fn setup_logger(verbosity: i32, filter: &str) -> Result<()> {
 
 mod config;
 mod keystore;
+mod protocols;
 mod shell;
 mod tangle;

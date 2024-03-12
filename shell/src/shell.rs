@@ -11,7 +11,6 @@ use gadget_common::{
     client::{PairSigner, SubxtPalletSubmitter},
     config::{ClientWithApi, DebugLogger, PrometheusConfig},
     full_protocol::NodeInput,
-    gadget::network::gossip,
     keystore::{ECDSAKeyStore, InMemoryBackend},
 };
 use sp_application_crypto::Ss58Codec;
@@ -19,16 +18,17 @@ use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
 
 use crate::config::ShellConfig;
+use crate::protocols::dfns;
 use crate::tangle::crypto;
-use gadget_common::gadget::network::gossip::NetworkGossipEngineBuilder;
+use gadget_common::gadget::network::gossip::{GossipHandler, GossipHandlerController};
 use gadget_common::prelude::KeystoreBackend;
 use libp2p_gadget::config::{
     FullNetworkConfiguration, NetworkConfiguration, NodeKeyConfig, Params, Role, Secret,
     TransportConfig,
 };
 use libp2p_gadget::peer_store::PeerStore;
-use libp2p_gadget::NetworkWorker;
 use libp2p_gadget::{config::ed25519::SecretKey, NetworkService};
+use libp2p_gadget::{NetworkWorker, NotificationService};
 use tangle_subxt::subxt;
 
 /// Start the shell and run it forever
@@ -47,7 +47,8 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
 
     let genesis_hash = config.genesis_hash;
-    let (network_worker, peer_store) = setup_network_worker(genesis_hash, network_key, &config)?;
+    let (network_worker, peer_store) =
+        setup_network_worker(genesis_hash, network_key, &config, dfns::configurator)?;
 
     let network = network_worker.service().clone();
 
@@ -67,6 +68,7 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
         logger,
         pallet_tx,
         wrapped_keystore,
+        dfns::gossip_builder,
     );
     let ctrl_c = tokio::signal::ctrl_c();
     tokio::select! {
@@ -99,48 +101,29 @@ pub async fn start_dfns_cggmp21_protocol<C, KBE>(
     logger: DebugLogger,
     pallet_tx: Arc<SubxtPalletSubmitter<TangleConfig, PairSigner<TangleConfig>>>,
     keystore: ECDSAKeyStore<KBE>,
+    protocol_specific_gossip_builder: impl FnOnce(
+        ECDSAKeyStore<KBE>,
+        Arc<NetworkService>,
+        DebugLogger,
+    ) -> color_eyre::Result<(
+        Vec<GossipHandler<KBE>>,
+        Vec<GossipHandlerController>,
+    )>,
 ) -> color_eyre::Result<()>
 where
     C: ClientWithApi + 'static,
     KBE: KeystoreBackend,
 {
     // Networks
-    let (network_keygen_handler, network_keygen_controller) = NetworkGossipEngineBuilder::new(
-        dfns_cggmp21_protocol::constants::DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME.into(),
-        keystore.clone(),
-    )
-    .build(network.clone(), None, logger.clone())?;
+    let (gossip_handlers, networks) =
+        protocol_specific_gossip_builder(keystore.clone(), network.clone(), logger.clone())?;
 
-    let (network_signing_handler, network_signing_controller) = NetworkGossipEngineBuilder::new(
-        dfns_cggmp21_protocol::constants::DFNS_CGGMP21_SIGNING_PROTOCOL_NAME.into(),
-        keystore.clone(),
-    )
-    .build(network.clone(), None, logger.clone())?;
-
-    let (network_key_refresh_handler, network_key_refresh_controller) =
-        NetworkGossipEngineBuilder::new(
-            dfns_cggmp21_protocol::constants::DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME.into(),
-            keystore.clone(),
-        )
-        .build(network.clone(), None, logger.clone())?;
-
-    let (network_key_rotate_handler, network_key_rotate_controller) =
-        NetworkGossipEngineBuilder::new(
-            dfns_cggmp21_protocol::constants::DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME.into(),
-            keystore.clone(),
-        )
-        .build(network.clone(), None, logger.clone())?;
+    let mut spawn_handles = vec![];
     // Run the network handlers in the background
-    let keygen_network_task = tokio::spawn(network_keygen_handler.run());
-    let signing_network_task = tokio::spawn(network_signing_handler.run());
-    let key_refresh_network_task = tokio::spawn(network_key_refresh_handler.run());
-    let key_rotate_network_task = tokio::spawn(network_key_rotate_handler.run());
-    let networks = vec![
-        network_keygen_controller,
-        network_signing_controller,
-        network_key_refresh_controller,
-        network_key_rotate_controller,
-    ];
+    for gossip_handler in gossip_handlers {
+        spawn_handles.push(tokio::spawn(gossip_handler.run()));
+    }
+
     let node_input = NodeInput {
         clients,
         account_id,
@@ -156,10 +139,10 @@ where
     // Wait for the protocol to finish
     protocol_task.await?;
     // if the protocol finishes, we should cancel the network tasks
-    keygen_network_task.abort();
-    signing_network_task.abort();
-    key_refresh_network_task.abort();
-    key_rotate_network_task.abort();
+    for handle in spawn_handles {
+        handle.abort();
+    }
+
     Ok(())
 }
 
@@ -210,6 +193,9 @@ fn setup_network_worker(
     genesis_hash: [u8; 32],
     identity: ed25519::Pair,
     config: &ShellConfig,
+    protocol_specific_configurator: impl FnOnce(
+        &mut FullNetworkConfiguration,
+    ) -> Vec<Box<dyn NotificationService>>,
 ) -> color_eyre::Result<(NetworkWorker, PeerStore)> {
     // Step 1: Derive Secret Key from Identity
     let secret_key_bytes = identity.seed().to_vec();
@@ -232,28 +218,7 @@ fn setup_network_worker(
 
     // Step 3: Create Full Network Configuration
     let mut full_network_config = FullNetworkConfiguration::new(&network_config);
-    // DFNS-CGGMP21.
-    {
-        let (set_config, notification_service) = gossip::set_config(
-            dfns_cggmp21_protocol::constants::DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME.into(),
-        );
-        full_network_config.add_notification_protocol(set_config);
-
-        let (set_config, notification_service) = gossip::set_config(
-            dfns_cggmp21_protocol::constants::DFNS_CGGMP21_SIGNING_PROTOCOL_NAME.into(),
-        );
-        full_network_config.add_notification_protocol(set_config);
-
-        let (set_config, notification_service) = gossip::set_config(
-            dfns_cggmp21_protocol::constants::DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME.into(),
-        );
-        full_network_config.add_notification_protocol(set_config);
-
-        let (set_config, notification_service) = gossip::set_config(
-            dfns_cggmp21_protocol::constants::DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME.into(),
-        );
-        full_network_config.add_notification_protocol(set_config);
-    }
+    let _notification_services = protocol_specific_configurator(&mut full_network_config);
     let bootnodes = config.bootnodes.iter().map(|addr| addr.peer_id).collect();
     let peer_store = PeerStore::new(bootnodes);
 
