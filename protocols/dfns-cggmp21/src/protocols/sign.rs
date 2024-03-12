@@ -359,7 +359,7 @@ fn convert_dfns_signature<E: SignatureVerifier>(
     }
 
     let mut signature_bytes = [0u8; 64];
-    signature_bytes[..63].copy_from_slice(&signature[..63]);
+    signature_bytes[..64].copy_from_slice(&signature[..64]);
     let data_hash = keccak_256(input_data_to_sign);
 
     E::verify_signature(signature_bytes, &data_hash, public_key_bytes)
