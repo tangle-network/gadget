@@ -3578,10 +3578,6 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.3"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "byteorder",
  "debugless-unwrap",
@@ -3621,10 +3617,6 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "curve25519-dalek 4.1.2",
  "frost-core 0.6.3",
@@ -3650,10 +3642,6 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "ed448-goldilocks-plus 0.11.2 (git+https://github.com/webb-tools/Ed448-Goldilocks)",
  "frost-core 0.6.3",
@@ -3679,10 +3667,6 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "frost-core 0.6.3",
  "p256 0.13.2",
@@ -3708,10 +3692,6 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "frost-core 0.6.3",
  "p384",
@@ -3748,10 +3728,6 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "curve25519-dalek 4.1.2",
  "frost-core 0.6.3",
@@ -3777,10 +3753,6 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "frost-core 0.6.3",
  "k256",
@@ -6748,10 +6720,6 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.3"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "digest 0.10.7",
  "ecdsa 0.16.9",
@@ -6797,10 +6765,6 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.3"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6817,10 +6781,6 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.3"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -6852,10 +6812,6 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.3"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10536,11 +10492,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-<<<<<<< HEAD
-source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
-=======
 source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -10603,11 +10555,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-<<<<<<< HEAD
-source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
-=======
 source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10628,11 +10576,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
-<<<<<<< HEAD
-source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
-=======
 source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "environmental",
  "parity-scale-codec 3.6.9",
@@ -10809,11 +10753,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
-<<<<<<< HEAD
-source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
-=======
 source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -10845,11 +10785,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
-<<<<<<< HEAD
-source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
-=======
 source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "Inflector",
  "expander",
@@ -10942,11 +10878,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-<<<<<<< HEAD
-source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
-=======
 source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
->>>>>>> bb6b23d (fix dkls23 tests)
 
 [[package]]
 name = "sp-storage"
@@ -10964,11 +10896,7 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
-<<<<<<< HEAD
-source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
-=======
 source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "impl-serde",
  "parity-scale-codec 3.6.9",
@@ -11006,11 +10934,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
-<<<<<<< HEAD
-source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
-=======
 source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk)",
@@ -11111,11 +11035,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
-<<<<<<< HEAD
-source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
-=======
 source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "anyhow",
  "impl-trait-for-tuples",
@@ -11835,10 +11755,6 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.3"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -11848,10 +11764,6 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.3"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -11879,10 +11791,6 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "0.6.3"
-<<<<<<< HEAD
-=======
-source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
->>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
