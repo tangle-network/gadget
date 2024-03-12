@@ -247,10 +247,7 @@ where
     tracer.stage("Compute round 4 sign msg");
     println!("Compute round 4 sign msg");
     let partial_sign_msg4 = PreSignatureWrapper(p.handle_msg3(round3_msgs)?);
-    let partial_signature = create_partial_signature(
-        partial_sign_msg4.clone().0,
-        pre_hashed_msg,
-    );
+    let partial_signature = create_partial_signature(partial_sign_msg4.clone().0, pre_hashed_msg);
     tracer.stage("Send round 4 pre signature");
     println!("Send round 4 pre signature");
     tracer.send_msg();
