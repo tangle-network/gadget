@@ -33,6 +33,7 @@ generate_setup_and_run_command!(
     SilentShardDKLS23SigningProtocol
 );
 
+#[cfg(test)]
 mod secp256k1 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,

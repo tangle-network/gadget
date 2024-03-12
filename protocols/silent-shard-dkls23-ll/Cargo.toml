@@ -47,4 +47,7 @@ serde = { workspace = true }
 rand = { workspace = true }
 hex = { workspace = true }
 parking_lot = { workspace = true }
+
+[dev-dependencies]
 test-utils = { workspace = true }
+tangle-primitives = { workspace = true }

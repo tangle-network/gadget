@@ -147,9 +147,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.80"
+version = "1.0.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ad32ce52e4161730f7098c077cd2ed6229b5804ccf99e5366be1ab72a98b4e1"
+checksum = "0952808a6c2afd1aa8947271f3a60f1a6763c7b912d210184c5149b5cf147247"
 
 [[package]]
 name = "approx"
@@ -685,9 +685,9 @@ dependencies = [
 
 [[package]]
 name = "async-io"
-version = "2.3.1"
+version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f97ab0c5b00a7cdbe5a371b9a782ee7be1316095885c8a4ea1daf490eb0ef65"
+checksum = "dcccb0f599cfa2f8ace422d3555572f47424da5648a4382a9dd0310ff8210884"
 dependencies = [
  "async-lock 3.3.0",
  "cfg-if",
@@ -1164,9 +1164,9 @@ dependencies = [
 
 [[package]]
 name = "blake3"
-version = "1.5.0"
+version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0231f06152bf547e9c2b5194f247cd97aacf6dcd8b15d8e5ec0663f64580da87"
+checksum = "30cca6d3674597c30ddf2c587bf8d9d65c9a84d2326d941cc79c9842dfe0ef52"
 dependencies = [
  "arrayref",
  "arrayvec 0.7.4",
@@ -1334,9 +1334,9 @@ dependencies = [
 
 [[package]]
 name = "bytemuck_derive"
-version = "1.5.0"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "965ab7eb5f8f97d2a083c799f3a1b994fc397b2fe2da5d1da1626ce15a39f2b1"
+checksum = "4da9a32f3fed317401fa3c862968128267c3106685286e15d5aaa3d7389c2f60"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1645,9 +1645,9 @@ checksum = "68d13f542d70e5b339bf46f6f74704ac052cfd526c58cd87996bd1ef4615b9a0"
 
 [[package]]
 name = "const-hex"
-version = "1.11.1"
+version = "1.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efbd12d49ab0eaf8193ba9175e45f56bbc2e4b27d57b8cfe62aa47942a46b9a9"
+checksum = "5ba00838774b4ab0233e355d26710fbfc8327a05c017f6dc4873f876d1f79f78"
 dependencies = [
  "cfg-if",
  "cpufeatures",
@@ -2624,7 +2624,7 @@ dependencies = [
  "regex",
  "syn 2.0.52",
  "termcolor",
- "toml 0.8.10",
+ "toml 0.8.11",
  "walkdir",
 ]
 
@@ -3100,7 +3100,7 @@ dependencies = [
  "rlp",
  "serde",
  "serde_json",
- "strum 0.26.1",
+ "strum 0.26.2",
  "tempfile",
  "thiserror",
  "tiny-keccak",
@@ -3578,6 +3578,10 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.3"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "byteorder",
  "debugless-unwrap",
@@ -3617,6 +3621,10 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "curve25519-dalek 4.1.2",
  "frost-core 0.6.3",
@@ -3642,6 +3650,10 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "ed448-goldilocks-plus 0.11.2 (git+https://github.com/webb-tools/Ed448-Goldilocks)",
  "frost-core 0.6.3",
@@ -3667,6 +3679,10 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "frost-core 0.6.3",
  "p256 0.13.2",
@@ -3692,6 +3708,10 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "frost-core 0.6.3",
  "p384",
@@ -3728,6 +3748,10 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "curve25519-dalek 4.1.2",
  "frost-core 0.6.3",
@@ -3753,6 +3777,10 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "frost-core 0.6.3",
  "k256",
@@ -6673,7 +6701,7 @@ dependencies = [
  "rand_core 0.6.4",
  "rug",
  "serde",
- "serde_with 3.6.1",
+ "serde_with 3.7.0",
  "thiserror",
 ]
 
@@ -6720,6 +6748,10 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.3"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "digest 0.10.7",
  "ecdsa 0.16.9",
@@ -6747,7 +6779,7 @@ dependencies = [
  "rand_core 0.6.4",
  "scale-info",
  "serde",
- "serde_with 3.6.1",
+ "serde_with 3.7.0",
  "serdect",
  "sha2 0.10.8",
  "snowbridge-milagro-bls",
@@ -6765,6 +6797,10 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.3"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6781,6 +6817,10 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.3"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -6812,6 +6852,10 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.3"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7187,24 +7231,24 @@ dependencies = [
 
 [[package]]
 name = "polkavm-common"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92c99f7eee94e7be43ba37eef65ad0ee8cbaf89b7c00001c3f6d2be985cb1817"
+checksum = "1d9428a5cfcc85c5d7b9fc4b6a18c4b802d0173d768182a51cc7751640f08b92"
 
 [[package]]
 name = "polkavm-derive"
-version = "0.8.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79fa916f7962348bd1bb1a65a83401675e6fc86c51a0fdbcf92a3108e58e6125"
+checksum = "ae8c4bea6f3e11cd89bb18bcdddac10bd9a24015399bd1c485ad68a985a19606"
 dependencies = [
  "polkavm-derive-impl-macro",
 ]
 
 [[package]]
 name = "polkavm-derive-impl"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c10b2654a8a10a83c260bfb93e97b262cf0017494ab94a65d389e0eda6de6c9c"
+checksum = "5c4fdfc49717fb9a196e74a5d28e0bc764eb394a2c803eb11133a31ac996c60c"
 dependencies = [
  "polkavm-common",
  "proc-macro2",
@@ -7214,9 +7258,9 @@ dependencies = [
 
 [[package]]
 name = "polkavm-derive-impl-macro"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15e85319a0d5129dc9f021c62607e0804f5fb777a05cdda44d750ac0732def66"
+checksum = "8ba81f7b5faac81e528eb6158a6f3c9e0bb1008e0ffa19653bc8dea925ecb429"
 dependencies = [
  "polkavm-derive-impl",
  "syn 2.0.52",
@@ -7450,9 +7494,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.78"
+version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2422ad645d89c99f8f3e6b88a9fdeca7fabeac836b1002371c4367c8f984aae"
+checksum = "e835ff2298f5721608eb1a980ecaee1aef2c132bf95ecc026a11b7bf3c01c02e"
 dependencies = [
  "unicode-ident",
 ]
@@ -9399,9 +9443,9 @@ dependencies = [
 
 [[package]]
 name = "scale-info"
-version = "2.10.0"
+version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f7d66a1128282b7ef025a8ead62a4a9fcf017382ec53b8ffbf4d7bf77bd3c60"
+checksum = "2ef2175c2907e7c8bc0a9c3f86aeb5ec1f3b275300ad58a44d0c3ae379a5e52e"
 dependencies = [
  "bitvec 1.0.1",
  "cfg-if",
@@ -9413,9 +9457,9 @@ dependencies = [
 
 [[package]]
 name = "scale-info-derive"
-version = "2.10.0"
+version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abf2c68b89cafb3b8d918dd07b42be0da66ff202cf1155c5739a4e0c1ea0dc19"
+checksum = "634d9b8eb8fd61c5cdd3390d9b2132300a7e7618955b98b8416f118c1b4e144f"
 dependencies = [
  "proc-macro-crate 1.1.3",
  "proc-macro2",
@@ -9728,13 +9772,13 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "3.6.1"
+version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15d167997bd841ec232f5b2b8e0e26606df2e7caa4c31b95ea9ca52b200bd270"
+checksum = "ee80b0e361bbf88fd2f6e242ccd19cfda072cb0faa6ae694ecee08199938569a"
 dependencies = [
  "serde",
  "serde_derive",
- "serde_with_macros 3.6.1",
+ "serde_with_macros 3.7.0",
 ]
 
 [[package]]
@@ -9751,9 +9795,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "3.6.1"
+version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "865f9743393e638991566a8b7a479043c2c8da94a33e0a31f18214c9cae0a64d"
+checksum = "6561dc161a9224638a31d876ccdfefbc1df91d3f3a8342eddb35f055d48c7655"
 dependencies = [
  "darling 0.20.8",
  "proc-macro2",
@@ -10492,7 +10536,11 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
+<<<<<<< HEAD
 source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
+=======
+source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -10555,7 +10603,11 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
+<<<<<<< HEAD
 source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
+=======
+source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10576,7 +10628,11 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
+<<<<<<< HEAD
 source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
+=======
+source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "environmental",
  "parity-scale-codec 3.6.9",
@@ -10753,7 +10809,11 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
+<<<<<<< HEAD
 source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
+=======
+source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -10785,7 +10845,11 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
+<<<<<<< HEAD
 source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
+=======
+source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "Inflector",
  "expander",
@@ -10878,7 +10942,11 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 [[package]]
 name = "sp-std"
 version = "14.0.0"
+<<<<<<< HEAD
 source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
+=======
+source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+>>>>>>> bb6b23d (fix dkls23 tests)
 
 [[package]]
 name = "sp-storage"
@@ -10896,7 +10964,11 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
+<<<<<<< HEAD
 source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
+=======
+source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "impl-serde",
  "parity-scale-codec 3.6.9",
@@ -10934,7 +11006,11 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
+<<<<<<< HEAD
 source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
+=======
+source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk)",
@@ -11035,7 +11111,11 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
+<<<<<<< HEAD
 source = "git+https://github.com/paritytech/polkadot-sdk#1fe3c5f23b9c057a2ff1926daf4ecfd5b022da45"
+=======
+source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "anyhow",
  "impl-trait-for-tuples",
@@ -11489,11 +11569,11 @@ dependencies = [
 
 [[package]]
 name = "strum"
-version = "0.26.1"
+version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "723b93e8addf9aa965ebe2d11da6d7540fa2283fcea14b3371ff055f7ba13f5f"
+checksum = "5d8cec3501a5194c432b2b7976db6b7d10ec95c253208b45f83f7136aa985e29"
 dependencies = [
- "strum_macros 0.26.1",
+ "strum_macros 0.26.2",
 ]
 
 [[package]]
@@ -11511,9 +11591,9 @@ dependencies = [
 
 [[package]]
 name = "strum_macros"
-version = "0.26.1"
+version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a3417fc93d76740d974a01654a09777cb500428cc874ca9f45edfe0c4d4cd18"
+checksum = "c6cf59daf282c0a494ba14fd21610a0325f9f90ec9d1231dea26bcb1d696c946"
 dependencies = [
  "heck 0.4.1",
  "proc-macro2",
@@ -11755,6 +11835,10 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.3"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -11764,6 +11848,10 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.3"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -11791,6 +11879,10 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "0.6.3"
+<<<<<<< HEAD
+=======
+source = "git+https://github.com/webb-tools/tangle.git?branch=drew/sig-schemes-and-dkls#64d93b3b307dde2b9fe935b8724e17d5eeb70515"
+>>>>>>> bb6b23d (fix dkls23 tests)
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -12144,14 +12236,14 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.8.10"
+version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a9aad4a3066010876e8dcf5a8a06e70a558751117a145c6ce2b82c2e2054290"
+checksum = "af06656561d28735e9c1cd63dfd57132c8155426aa6af24f36a00a351f88c48e"
 dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "toml_edit 0.22.6",
+ "toml_edit 0.22.7",
 ]
 
 [[package]]
@@ -12187,9 +12279,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.22.6"
+version = "0.22.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c1b5fd4128cc8d3e0cb74d4ed9a9cc7c7284becd4df68f5f940e1ad123606f6"
+checksum = "18769cd1cec395d70860ceb4d932812a0b4d06b1a4bb336745a4d21b9496e992"
 dependencies = [
  "indexmap 2.2.5",
  "serde",
@@ -13387,9 +13479,9 @@ dependencies = [
 
 [[package]]
 name = "whoami"
-version = "1.5.0"
+version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fec781d48b41f8163426ed18e8fc2864c12937df9ce54c88ede7bd47270893e"
+checksum = "a44ab49fad634e88f55bf8f9bb3abd2f27d7204172a112c7c9987e01c1c94ea9"
 dependencies = [
  "redox_syscall 0.4.1",
  "wasite",
