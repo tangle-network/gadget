@@ -1,8 +1,10 @@
 bind_ip = "127.0.0.1"
-bind_port = 30334
+bind_port = 30556
 bootnodes = [
-    "/ip4/17.0.0.1/tcp/30333/p2p/12D3KooWRdvZ3PRteq8DC78Z3z5ZiehipKrKhHDRpgvCjc8XSeQx",
-    "/ip4/17.0.0.1/tcp/30335/p2p/12D3KooWRdvZ3PRteq8DC78Z3z5ZiehipKrKhHDRpgvCjc8XSeQx",
+    "/ip4/127.0.0.1/tcp/30555/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN",
+    "/ip4/127.0.0.1/tcp/30557/p2p/12D3KooWHdiAxVd8uMQR1hGWXccidmfCwLqcMpGwR6QcTP6QRMuD",
 ]
-genesis_hash = "0x00fff"
-keystore_path = "./target/tangle/chains/local_testnet/keystore"
+genesis_hash = "0000000000000000000000000000000000000000000000000000000000000000"
+# 12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
+node_key = "0000000000000000000000000000000000000000000000000000000000000001"
+keystore_path = "../tangle/tmp/bob/chains/local_testnet/keystore"

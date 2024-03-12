@@ -29,16 +29,12 @@ use futures::StreamExt;
 use gadget_core::job_manager::WorkManagerInterface;
 use libp2p_gadget::{
     config, error, multiaddr, Event, NetworkEventStream, NetworkNotification, NetworkPeers,
-    NetworkService, NetworkStateInfo, PeerId, ProtocolName,
+    NetworkService, NetworkStateInfo, NotificationService, PeerId, ProtocolName,
 };
 use linked_hash_map::LinkedHashMap;
 use parking_lot::{Mutex, RwLock};
-use sc_network_sync::SyncEvent;
-use sc_network_sync::SyncEventStream;
-use sc_network_sync::SyncingService;
 use serde::{Deserialize, Serialize};
 use sp_core::{ecdsa, Pair};
-use sp_runtime::traits::Block;
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
@@ -80,6 +76,26 @@ pub struct HandshakeMessage {
     pub account_id: ecdsa::Public,
 }
 
+/// Returns the configuration of the set to put in the network configuration.
+pub fn set_config(
+    protocol_name: ProtocolName,
+) -> (config::NonDefaultSetConfig, Box<dyn NotificationService>) {
+    let (non_default_set_config, notification_service) = config::NonDefaultSetConfig::new(
+        protocol_name,
+        Vec::new(), // fallback_names is empty as we accept only reserved nodes
+        MAX_MESSAGE_SIZE,
+        None, // handshake is None
+        config::SetConfig {
+            in_peers: 0,                                            // Zero slots for in_peers
+            out_peers: 0,                                           // Zero slots for out_peers
+            reserved_nodes: Vec::new(),                             // Accepts only reserved nodes
+            non_reserved_mode: config::NonReservedPeerMode::Accept, // Denies non-reserved nodes
+        },
+    );
+
+    (non_default_set_config, notification_service)
+}
+
 impl<KBE: KeystoreBackend> NetworkGossipEngineBuilder<KBE> {
     /// Create a new network gossip engine.
     pub fn new(protocol_name: ProtocolName, keystore: ECDSAKeyStore<KBE>) -> Self {
@@ -89,47 +105,26 @@ impl<KBE: KeystoreBackend> NetworkGossipEngineBuilder<KBE> {
         }
     }
 
-    /// Returns the configuration of the set to put in the network configuration.
-    pub fn set_config(protocol_name: ProtocolName) -> config::NonDefaultSetConfig {
-        let (non_default_set_config, _notification_service) = config::NonDefaultSetConfig::new(
-            protocol_name,
-            Vec::new(), // fallback_names is empty as we accept only reserved nodes
-            MAX_MESSAGE_SIZE,
-            None, // handshake is None
-            config::SetConfig {
-                in_peers: 0,                                          // Zero slots for in_peers
-                out_peers: 0,                                         // Zero slots for out_peers
-                reserved_nodes: Vec::new(),                           // Accepts only reserved nodes
-                non_reserved_mode: config::NonReservedPeerMode::Deny, // Denies non-reserved nodes
-            },
-        );
-
-        non_default_set_config
-    }
-
     /// Turns the builder into the actual handler. Returns a controller that allows controlling
     /// the behaviour of the handler while it's running.
     ///
-    /// Important: the gossip mechanism is initially disabled and doesn't gossip messages.
-    /// You must call [`GossipHandlerController::set_gossip_enabled`] to enable it.
     ///
     /// The returned values are:
     /// - a [`GossipHandler`] that is a simple background task that should run indefinitely, and
     /// - a [`GossipHandlerController`] that can be used to control that background task.
-    pub fn build<B: Block>(
+    pub fn build(
         self,
-        service: Arc<NetworkService<B, B::Hash>>,
-        sync_service: Arc<SyncingService<B>>,
+        service: Arc<NetworkService>,
         metrics: Option<Metrics>,
         logger: DebugLogger,
-    ) -> error::Result<(GossipHandler<B, KBE>, GossipHandlerController)> {
+    ) -> error::Result<(GossipHandler<KBE>, GossipHandlerController)> {
         // Here we need to create few channels to communicate back and forth between the
         // background task and the controller.
         // since we have two things here we will need two channels:
         // 1. a channel to send commands to the background task (Controller -> Background).
         let (handler_channel, handler_channel_rx) = tokio::sync::mpsc::unbounded_channel();
         let (message_channel_tx, message_channel_rx) = tokio::sync::mpsc::unbounded_channel();
-        let gossip_enabled = Arc::new(AtomicBool::new(false));
+        let gossip_enabled = Arc::new(AtomicBool::new(true));
         let authority_id_to_peer_id = Arc::new(RwLock::new(HashMap::new()));
         let handler = GossipHandler {
             keystore: self.keystore,
@@ -142,7 +137,6 @@ impl<KBE: KeystoreBackend> NetworkGossipEngineBuilder<KBE> {
             authority_id_to_peer_id: authority_id_to_peer_id.clone(),
             gossip_enabled: gossip_enabled.clone(),
             service,
-            sync_service,
             peers: Arc::new(RwLock::new(HashMap::new())),
             logger: logger.clone(),
             metrics: Arc::new(metrics),
@@ -276,7 +270,7 @@ impl GossipHandlerController {
 /// Handler for gossiping messages. Call [`GossipHandler::run`] to start the processing.
 ///
 /// This is a background task that handles all the messages.
-pub struct GossipHandler<B: Block + 'static, KBE: KeystoreBackend> {
+pub struct GossipHandler<KBE: KeystoreBackend> {
     /// The Protocol Name, should be unique.
     ///
     /// Used as an identifier for the gossip protocol.
@@ -292,8 +286,7 @@ pub struct GossipHandler<B: Block + 'static, KBE: KeystoreBackend> {
     /// multiple times concurrently.
     pending_messages_peers: Arc<RwLock<LruHashMap<Vec<u8>, HashSet<PeerId>>>>,
     /// Network service to use to send messages and manage peers.
-    service: Arc<NetworkService<B, B::Hash>>,
-    sync_service: Arc<SyncingService<B>>,
+    service: Arc<NetworkService>,
     // All connected peers
     peers: Arc<RwLock<HashMap<PeerId, Peer>>>,
     /// A mapping from authority id to peer id.
@@ -307,7 +300,7 @@ pub struct GossipHandler<B: Block + 'static, KBE: KeystoreBackend> {
     metrics: Arc<Option<Metrics>>,
 }
 
-impl<B: Block + 'static, KBE: KeystoreBackend> Clone for GossipHandler<B, KBE> {
+impl<KBE: KeystoreBackend> Clone for GossipHandler<KBE> {
     fn clone(&self) -> Self {
         Self {
             protocol_name: self.protocol_name.clone(),
@@ -316,7 +309,6 @@ impl<B: Block + 'static, KBE: KeystoreBackend> Clone for GossipHandler<B, KBE> {
             incoming_messages_stream: self.incoming_messages_stream.clone(),
             pending_messages_peers: self.pending_messages_peers.clone(),
             service: self.service.clone(),
-            sync_service: self.sync_service.clone(),
             peers: self.peers.clone(),
             authority_id_to_peer_id: self.authority_id_to_peer_id.clone(),
             gossip_enabled: self.gossip_enabled.clone(),
@@ -345,7 +337,7 @@ struct Peer {
     authority_id: Option<ecdsa::Public>,
 }
 
-impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
+impl<KBE: KeystoreBackend> GossipHandler<KBE> {
     /// Turns the [`GossipHandler`] into a future that should run forever and not be
     /// interrupted.
     pub async fn run(self) {
@@ -355,7 +347,6 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
             .take()
             .expect("incoming message stream already taken");
         let mut event_stream = self.service.event_stream("dkg-handler");
-        let mut sync_event_stream = self.sync_service.event_stream("dkg-handler");
 
         self.logger.debug("Starting the Gossip Handler");
 
@@ -397,13 +388,6 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                 self2.handle_network_event(event).await;
             }
         });
-        // third task, handles the incoming events from the sync stream.
-        let mut self3 = self.clone();
-        let sync_events_task = tokio::spawn(async move {
-            while let Some(event) = sync_event_stream.next().await {
-                self3.handle_sync_event(event).await;
-            }
-        });
         // wait for the first task to finish or error out.
         //
         // The reason why we wait for the first one to finish, is that it is a critical error
@@ -420,39 +404,10 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
         // events   task should have finished as well.
         // 3. The timer task, however, will never finish, unless the node is shutting down, in which
         //  case the network events task should have finished as well.
-        let _result = futures::future::select_all(vec![
-            network_events_task,
-            incoming_messages_task,
-            sync_events_task,
-        ])
-        .await;
+        let _result =
+            futures::future::select_all(vec![network_events_task, incoming_messages_task]).await;
         self.logger
             .error("The Gossip Handler has finished!!".to_string());
-    }
-
-    async fn handle_sync_event(&mut self, event: SyncEvent) {
-        match event {
-            SyncEvent::PeerConnected(remote) => {
-                let addr = iter::once(multiaddr::Protocol::P2p(remote.into()))
-                    .collect::<multiaddr::Multiaddr>();
-                let result = self
-                    .service
-                    .add_peers_to_reserved_set(self.protocol_name.clone(), HashSet::from([addr]));
-                if let Err(err) = result {
-                    self.logger
-                        .error(format!("Add reserved peer failed: {err}"));
-                }
-            }
-            SyncEvent::PeerDisconnected(remote) => {
-                if let Err(err) = self.service.remove_peers_from_reserved_set(
-                    self.protocol_name.clone(),
-                    iter::once(remote).collect(),
-                ) {
-                    self.logger
-                        .error(format!("Remove reserved peer failed: {err}"));
-                }
-            }
-        }
     }
 
     async fn handle_network_event(&self, event: Event) {
@@ -463,6 +418,16 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
             } if protocol == self.protocol_name => {
                 self.logger
                     .debug(format!("Peer {remote} connected to gossip protocol"));
+
+                let addr = iter::once(multiaddr::Protocol::P2p(remote.into()))
+                    .collect::<multiaddr::Multiaddr>();
+                let result = self
+                    .service
+                    .add_peers_to_reserved_set(self.protocol_name.clone(), HashSet::from([addr]));
+                if let Err(err) = result {
+                    self.logger
+                        .error(format!("Add reserved peer failed: {err}"));
+                }
                 // Send our Handshake message to that peer.
                 self.send_handshake_message(remote).await;
                 let mut lock = self.peers.write();
@@ -486,6 +451,13 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
             Event::NotificationStreamClosed { remote, protocol }
                 if protocol == self.protocol_name =>
             {
+                if let Err(err) = self.service.remove_peers_from_reserved_set(
+                    self.protocol_name.clone(),
+                    iter::once(remote).collect(),
+                ) {
+                    self.logger
+                        .error(format!("Remove reserved peer failed: {err}"));
+                }
                 let mut lock = self.peers.write();
                 let peer = lock.remove(&remote);
                 debug_assert!(peer.is_some());
@@ -537,8 +509,18 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                     };
                 }
             }
-            Event::NotificationStreamOpened { .. } => {}
-            Event::NotificationStreamClosed { .. } => {}
+            Event::NotificationStreamOpened {
+                protocol, remote, ..
+            } => {
+                self.logger
+                    .debug(format!("NotificationStreamOpened {protocol} {remote}",));
+            }
+            Event::NotificationStreamClosed {
+                protocol, remote, ..
+            } => {
+                self.logger
+                    .debug(format!("NotificationStreamClosed {protocol} {remote}",));
+            }
         }
     }
 
@@ -702,8 +684,9 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
         };
         if peer_ids.is_empty() {
             let message_hash = message.hash();
+            let h = hex::encode(message_hash);
             self.logger
-                .warn(format!("No peers to gossip message {message_hash:?}"));
+                .warn(format!("No peers to gossip message 0x{h}"));
             return;
         }
         for peer in peer_ids {

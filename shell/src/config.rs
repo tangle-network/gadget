@@ -10,6 +10,7 @@ pub struct ShellConfig {
     pub bind_port: u16,
     pub bootnodes: Vec<MultiaddrWithPeerId>,
     pub genesis_hash: [u8; 32],
+    pub node_key: [u8; 32],
 }
 
 #[derive(Debug, Clone)]

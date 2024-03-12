@@ -2447,7 +2447,7 @@ impl NetworkBehaviour for Notifications {
                     }
                 },
                 Poll::Ready(None) => {
-                    error!(target: LOG_TARGET, "Protocol command streams have been shut down");
+                    trace!(target: LOG_TARGET, "Protocol command streams have been shut down");
                     break;
                 }
                 Poll::Pending => break,

@@ -75,18 +75,13 @@ use log::{debug, error, info, trace, warn};
 use metrics::{Histogram, MetricSources, Metrics};
 use parking_lot::Mutex;
 
-use sc_network_common::{
-    role::{ObservedRole, Roles},
-    ExHashT,
-};
+use sc_network_common::role::{ObservedRole, Roles};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
-use sp_runtime::traits::Block as BlockT;
 
 use std::{
     cmp,
     collections::{HashMap, HashSet},
     fs, iter,
-    marker::PhantomData,
     num::NonZeroUsize,
     pin::Pin,
     str,
@@ -107,7 +102,7 @@ pub mod signature;
 pub mod traits;
 
 /// Substrate network service. Handles network IO and manages connectivity.
-pub struct NetworkService<B: BlockT + 'static, H: ExHashT> {
+pub struct NetworkService {
     /// Number of peers we're connected to.
     num_connected: Arc<AtomicUsize>,
     /// The local external addresses.
@@ -130,27 +125,16 @@ pub struct NetworkService<B: BlockT + 'static, H: ExHashT> {
     /// Handles to manage peer connections on notification protocols. The vector never changes
     /// after initialization.
     protocol_handles: Vec<protocol_controller::ProtocolHandle>,
-    /// Shortcut to sync protocol handle (`protocol_handles[0]`).
-    sync_protocol_handle: protocol_controller::ProtocolHandle,
-    /// Marker to pin the `H` generic. Serves no purpose except to not break backwards
-    /// compatibility.
-    _marker: PhantomData<H>,
-    /// Marker for block type
-    _block: PhantomData<B>,
 }
 
-impl<B, H> NetworkWorker<B, H>
-where
-    B: BlockT + 'static,
-    H: ExHashT,
-{
+impl NetworkWorker {
     /// Creates the network service.
     ///
     /// Returns a `NetworkWorker` that implements `Future` and must be regularly polled in order
     /// for the network processing to advance. From it, you can extract a `NetworkService` using
     /// `worker.service()`. The `NetworkService` can be shared through the codebase.
     #[allow(clippy::result_large_err)]
-    pub fn new(params: Params<B>) -> Result<Self, Error> {
+    pub fn new(params: Params) -> Result<Self, Error> {
         let FullNetworkConfiguration {
             notification_protocols,
             request_response_protocols,
@@ -306,9 +290,6 @@ where
             })
             .unzip();
 
-        // Shortcut to default (sync) peer set protocol handle.
-        let sync_protocol_handle = protocol_handles[0].clone();
-
         // Spawn `ProtocolController` runners.
         protocol_controllers
             .into_iter()
@@ -316,12 +297,11 @@ where
 
         // Protocol name to protocol id mapping. The first protocol is always block announce (sync)
         // protocol, aka default (hardcoded) peer set.
-        let notification_protocol_ids: HashMap<ProtocolName, SetId> =
-            iter::once(&params.block_announce_config)
-                .chain(notification_protocols.iter())
-                .enumerate()
-                .map(|(index, protocol)| (protocol.protocol_name().clone(), SetId::from(index)))
-                .collect();
+        let notification_protocol_ids: HashMap<ProtocolName, SetId> = notification_protocols
+            .iter()
+            .enumerate()
+            .map(|(index, protocol)| (protocol.protocol_name().clone(), SetId::from(index)))
+            .collect();
 
         let known_addresses = {
             // Collect all reserved nodes and bootnodes addresses.
@@ -389,14 +369,13 @@ where
             From::from(&params.role),
             &params.metrics_registry,
             notification_protocols,
-            params.block_announce_config,
             params.peer_store.clone(),
             protocol_handles.clone(),
             from_protocol_controllers,
         )?;
 
         // Build the swarm.
-        let (mut swarm, bandwidth): (Swarm<Behaviour<B>>, _) = {
+        let (mut swarm, bandwidth): (Swarm<Behaviour>, _) = {
             let user_agent = format!(
                 "{} ({})",
                 network_config.client_version, network_config.node_name
@@ -502,14 +481,14 @@ where
 
         // Listen on multiaddresses.
         for addr in &network_config.listen_addresses {
-            if let Err(err) = Swarm::<Behaviour<B>>::listen_on(&mut swarm, addr.clone()) {
+            if let Err(err) = Swarm::<Behaviour>::listen_on(&mut swarm, addr.clone()) {
                 warn!(target: "sub-libp2p", "Can't listen on {} because: {:?}", addr, err)
             }
         }
 
         // Add external addresses.
         for addr in &network_config.public_addresses {
-            Swarm::<Behaviour<B>>::add_external_address(
+            Swarm::<Behaviour>::add_external_address(
                 &mut swarm,
                 addr.clone(),
                 AddressScore::Infinite,
@@ -528,10 +507,7 @@ where
             to_worker,
             notification_protocol_ids,
             protocol_handles,
-            sync_protocol_handle,
             peer_store_handle: params.peer_store.clone(),
-            _marker: PhantomData,
-            _block: Default::default(),
         });
 
         Ok(NetworkWorker {
@@ -546,8 +522,6 @@ where
             reported_invalid_boot_nodes: Default::default(),
             peer_store_handle: params.peer_store,
             notif_protocol_handles,
-            _marker: Default::default(),
-            _block: Default::default(),
         })
     }
 
@@ -587,20 +561,20 @@ where
 
     /// Return a `NetworkService` that can be shared through the code base and can be used to
     /// manipulate the worker.
-    pub fn service(&self) -> &Arc<NetworkService<B, H>> {
+    pub fn service(&self) -> &Arc<NetworkService> {
         &self.service
     }
 
     /// Returns the local `PeerId`.
     pub fn local_peer_id(&self) -> &PeerId {
-        Swarm::<Behaviour<B>>::local_peer_id(&self.network_service)
+        Swarm::<Behaviour>::local_peer_id(&self.network_service)
     }
 
     /// Returns the list of addresses we are listening on.
     ///
     /// Does **NOT** include a trailing `/p2p/` with our `PeerId`.
     pub fn listen_addresses(&self) -> impl Iterator<Item = &Multiaddr> {
-        Swarm::<Behaviour<B>>::listeners(&self.network_service)
+        Swarm::<Behaviour>::listeners(&self.network_service)
     }
 
     /// Get network state.
@@ -702,7 +676,7 @@ where
 				.collect()
         };
 
-        let peer_id = Swarm::<Behaviour<B>>::local_peer_id(swarm).to_base58();
+        let peer_id = Swarm::<Behaviour>::local_peer_id(swarm).to_base58();
         let listened_addresses = swarm.listeners().cloned().collect();
         let external_addresses = swarm
             .external_addresses()
@@ -735,7 +709,7 @@ where
     }
 }
 
-impl<B: BlockT + 'static, H: ExHashT> NetworkService<B, H> {
+impl NetworkService {
     /// Get network state.
     ///
     /// **Note**: Use this only for debugging. This API is unstable. There are warnings literally
@@ -756,18 +730,6 @@ impl<B: BlockT + 'static, H: ExHashT> NetworkService<B, H> {
             // The channel can only be closed if the network worker no longer exists.
             Err(_) => Err(()),
         }
-    }
-
-    /// Get the list of reserved peers.
-    ///
-    /// Returns an error if the `NetworkWorker` is no longer running.
-    pub async fn reserved_peers(&self) -> Result<Vec<PeerId>, ()> {
-        let (tx, rx) = oneshot::channel();
-
-        self.sync_protocol_handle.reserved_peers(tx);
-
-        // The channel can only be closed if `ProtocolController` no longer exists.
-        rx.await.map_err(|_| ())
     }
 
     /// Utility function to extract `PeerId` from each `Multiaddr` for peer set updates.
@@ -799,11 +761,7 @@ impl<B: BlockT + 'static, H: ExHashT> NetworkService<B, H> {
     }
 }
 
-impl<B, H> NetworkStateInfo for NetworkService<B, H>
-where
-    B: sp_runtime::traits::Block,
-    H: ExHashT,
-{
+impl NetworkStateInfo for NetworkService {
     /// Returns the local external addresses.
     fn external_addresses(&self) -> Vec<Multiaddr> {
         self.external_addresses.lock().iter().cloned().collect()
@@ -820,21 +778,13 @@ where
     }
 }
 
-impl<B, H> NetworkSigner for NetworkService<B, H>
-where
-    B: sp_runtime::traits::Block,
-    H: ExHashT,
-{
+impl NetworkSigner for NetworkService {
     fn sign_with_local_identity(&self, msg: impl AsRef<[u8]>) -> Result<Signature, SigningError> {
         Signature::sign_message(msg.as_ref(), &self.local_identity)
     }
 }
 
-impl<B, H> NetworkDHTProvider for NetworkService<B, H>
-where
-    B: BlockT + 'static,
-    H: ExHashT,
-{
+impl NetworkDHTProvider for NetworkService {
     /// Start getting a value from the DHT.
     ///
     /// This will generate either a `ValueFound` or a `ValueNotFound` event and pass it as an
@@ -857,11 +807,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<B, H> NetworkStatusProvider for NetworkService<B, H>
-where
-    B: BlockT + 'static,
-    H: ExHashT,
-{
+impl NetworkStatusProvider for NetworkService {
     async fn status(&self) -> Result<NetworkStatus, ()> {
         let (tx, rx) = oneshot::channel();
 
@@ -879,18 +825,10 @@ where
     }
 }
 
-impl<B, H> NetworkPeers for NetworkService<B, H>
-where
-    B: BlockT + 'static,
-    H: ExHashT,
-{
-    fn set_authorized_peers(&self, peers: HashSet<PeerId>) {
-        self.sync_protocol_handle.set_reserved_peers(peers);
-    }
+impl NetworkPeers for NetworkService {
+    fn set_authorized_peers(&self, _peers: HashSet<PeerId>) {}
 
-    fn set_authorized_only(&self, reserved_only: bool) {
-        self.sync_protocol_handle.set_reserved_only(reserved_only);
-    }
+    fn set_authorized_only(&self, _reserved_only: bool) {}
 
     fn add_known_address(&self, peer_id: PeerId, addr: Multiaddr) {
         let _ = self
@@ -914,13 +852,9 @@ where
             .unbounded_send(ServiceToWorkerMsg::DisconnectPeer(peer_id, protocol));
     }
 
-    fn accept_unreserved_peers(&self) {
-        self.sync_protocol_handle.set_reserved_only(false);
-    }
+    fn accept_unreserved_peers(&self) {}
 
-    fn deny_unreserved_peers(&self) {
-        self.sync_protocol_handle.set_reserved_only(true);
-    }
+    fn deny_unreserved_peers(&self) {}
 
     fn add_reserved_peer(&self, peer: MultiaddrWithPeerId) -> Result<(), String> {
         // Make sure the local peer ID is never added as a reserved peer.
@@ -934,13 +868,10 @@ where
                 peer.peer_id,
                 peer.multiaddr,
             ));
-        self.sync_protocol_handle.add_reserved_peer(peer.peer_id);
         Ok(())
     }
 
-    fn remove_reserved_peer(&self, peer_id: PeerId) {
-        self.sync_protocol_handle.remove_reserved_peer(peer_id);
-    }
+    fn remove_reserved_peer(&self, _peer_id: PeerId) {}
 
     fn set_reserved_peers(
         &self,
@@ -1044,11 +975,7 @@ where
     }
 }
 
-impl<B, H> NetworkEventStream for NetworkService<B, H>
-where
-    B: BlockT + 'static,
-    H: ExHashT,
-{
+impl NetworkEventStream for NetworkService {
     fn event_stream(&self, name: &'static str) -> Pin<Box<dyn Stream<Item = Event> + Send>> {
         let (tx, rx) = out_events::channel(name, 100_000);
         let _ = self
@@ -1058,11 +985,7 @@ where
     }
 }
 
-impl<B, H> NetworkNotification for NetworkService<B, H>
-where
-    B: BlockT + 'static,
-    H: ExHashT,
-{
+impl NetworkNotification for NetworkService {
     fn write_notification(&self, _target: PeerId, _protocol: ProtocolName, _message: Vec<u8>) {
         unimplemented!();
     }
@@ -1081,11 +1004,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<B, H> NetworkRequest for NetworkService<B, H>
-where
-    B: BlockT + 'static,
-    H: ExHashT,
-{
+impl NetworkRequest for NetworkService {
     async fn request(
         &self,
         target: PeerId,
@@ -1223,19 +1142,15 @@ enum ServiceToWorkerMsg {
 ///
 /// You are encouraged to poll this in a separate background thread or task.
 #[must_use = "The NetworkWorker must be polled in order for the network to advance"]
-pub struct NetworkWorker<B, H>
-where
-    B: BlockT + 'static,
-    H: ExHashT,
-{
+pub struct NetworkWorker {
     /// Updated by the `NetworkWorker` and loaded by the `NetworkService`.
     listen_addresses: Arc<Mutex<HashSet<Multiaddr>>>,
     /// Updated by the `NetworkWorker` and loaded by the `NetworkService`.
     num_connected: Arc<AtomicUsize>,
     /// The network service that can be extracted and shared through the codebase.
-    service: Arc<NetworkService<B, H>>,
+    service: Arc<NetworkService>,
     /// The *actual* network.
-    network_service: Swarm<Behaviour<B>>,
+    network_service: Swarm<Behaviour>,
     /// Messages from the [`NetworkService`] that must be processed.
     from_service: TracingUnboundedReceiver<ServiceToWorkerMsg>,
     /// Senders for events that happen on the network.
@@ -1250,18 +1165,9 @@ where
     peer_store_handle: PeerStoreHandle,
     /// Notification protocol handles.
     notif_protocol_handles: Vec<protocol::ProtocolHandle>,
-    /// Marker to pin the `H` generic. Serves no purpose except to not break backwards
-    /// compatibility.
-    _marker: PhantomData<H>,
-    /// Marker for block type
-    _block: PhantomData<B>,
 }
 
-impl<B, H> NetworkWorker<B, H>
-where
-    B: BlockT + 'static,
-    H: ExHashT,
-{
+impl NetworkWorker {
     /// Run the network.
     pub async fn run(mut self) {
         while self.next_action().await {}
@@ -1379,7 +1285,7 @@ where
 
     /// Process the next event coming from `Swarm`.
     #[allow(clippy::collapsible_match)]
-    fn handle_swarm_event(&mut self, event: SwarmEvent<BehaviourOut, THandlerErr<Behaviour<B>>>) {
+    fn handle_swarm_event(&mut self, event: SwarmEvent<BehaviourOut, THandlerErr<Behaviour>>) {
         match event {
             SwarmEvent::Behaviour(BehaviourOut::InboundRequest {
                 protocol, result, ..
@@ -1827,12 +1733,7 @@ where
     }
 }
 
-impl<B, H> Unpin for NetworkWorker<B, H>
-where
-    B: BlockT + 'static,
-    H: ExHashT,
-{
-}
+impl Unpin for NetworkWorker {}
 
 #[allow(clippy::result_large_err)]
 fn ensure_addresses_consistent_with_transport<'a>(

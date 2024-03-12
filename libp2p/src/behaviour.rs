@@ -36,7 +36,6 @@ use libp2p::{
 };
 
 use parking_lot::Mutex;
-use sp_runtime::traits::Block as BlockT;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 
 pub use crate::request_responses::{InboundFailure, OutboundFailure, ResponseFailure};
@@ -44,9 +43,9 @@ pub use crate::request_responses::{InboundFailure, OutboundFailure, ResponseFail
 /// General behaviour of the network. Combines all protocols together.
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "BehaviourOut")]
-pub struct Behaviour<B: BlockT> {
+pub struct Behaviour {
     /// All the substrate-specific protocols.
-    substrate: Protocol<B>,
+    substrate: Protocol,
     /// Periodically pings and identifies the nodes we are connected to, and store information in a
     /// cache.
     peer_info: peer_info::PeerInfoBehaviour,
@@ -169,10 +168,10 @@ pub enum BehaviourOut {
     None,
 }
 
-impl<B: BlockT> Behaviour<B> {
+impl Behaviour {
     /// Builds a new `Behaviour`.
     pub fn new(
-        substrate: Protocol<B>,
+        substrate: Protocol,
         user_agent: String,
         local_public_key: PublicKey,
         disco_config: DiscoveryConfig,
@@ -252,12 +251,12 @@ impl<B: BlockT> Behaviour<B> {
     }
 
     /// Returns a shared reference to the user protocol.
-    pub fn user_protocol(&self) -> &Protocol<B> {
+    pub fn user_protocol(&self) -> &Protocol {
         &self.substrate
     }
 
     /// Returns a mutable reference to the user protocol.
-    pub fn user_protocol_mut(&mut self) -> &mut Protocol<B> {
+    pub fn user_protocol_mut(&mut self) -> &mut Protocol {
         &mut self.substrate
     }
 

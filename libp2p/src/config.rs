@@ -48,8 +48,6 @@ pub use sc_network_common::{
     ExHashT,
 };
 
-use sp_runtime::traits::Block as BlockT;
-
 use std::{
     error::Error,
     fmt, fs,
@@ -714,7 +712,7 @@ impl NetworkConfiguration {
 }
 
 /// Network initialization parameters.
-pub struct Params<Block: BlockT> {
+pub struct Params {
     /// Assigned role for our node (full, light, ...).
     pub role: Role,
 
@@ -731,7 +729,7 @@ pub struct Params<Block: BlockT> {
     pub protocol_id: ProtocolId,
 
     /// Genesis hash of the chain
-    pub genesis_hash: Block::Hash,
+    pub genesis_hash: [u8; 32],
 
     /// Fork ID to distinguish protocols of different hard forks. Part of the standard protocol
     /// name on the wire.
@@ -739,9 +737,6 @@ pub struct Params<Block: BlockT> {
 
     /// Registry for recording prometheus metrics to.
     pub metrics_registry: Option<Registry>,
-
-    /// Block announce protocol configuration
-    pub block_announce_config: NonDefaultSetConfig,
 }
 
 /// Alias for the execution of a future

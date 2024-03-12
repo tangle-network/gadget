@@ -78,6 +78,7 @@ pub trait PhaseResultExt {
 }
 
 #[async_trait]
+#[auto_impl(Arc)]
 pub trait ClientWithApi: Client {
     /// Query jobs associated with a specific validator.
     ///

@@ -39,9 +39,8 @@ use codec::DecodeAll;
 use prometheus_endpoint::Registry;
 use sc_network_common::role::Roles;
 use sc_utils::mpsc::TracingUnboundedReceiver;
-use sp_runtime::traits::Block as BlockT;
 
-use std::{collections::HashSet, iter, task::Poll};
+use std::{collections::HashSet, task::Poll};
 
 use notifications::{metrics, Notifications, NotificationsOut};
 
@@ -63,7 +62,7 @@ pub(crate) const BLOCK_ANNOUNCES_TRANSACTIONS_SUBSTREAM_SIZE: u64 = 16 * 1024 * 
 const HARDCODED_PEERSETS_SYNC: SetId = SetId::from(0);
 
 // Lock must always be taken in order declared here.
-pub struct Protocol<B: BlockT> {
+pub struct Protocol {
     /// Handles opening the unique substream and sending and receiving raw messages.
     behaviour: Notifications,
     /// List of notifications protocols that have been registered.
@@ -73,66 +72,43 @@ pub struct Protocol<B: BlockT> {
     /// Streams for peers whose handshake couldn't be determined.
     bad_handshake_streams: HashSet<PeerId>,
     sync_handle: ProtocolHandle,
-    _marker: std::marker::PhantomData<B>,
 }
 
-impl<B: BlockT> Protocol<B> {
+impl Protocol {
     /// Create a new instance.
     #[allow(clippy::result_large_err)]
     pub(crate) fn new(
         roles: Roles,
         registry: &Option<Registry>,
         notification_protocols: Vec<config::NonDefaultSetConfig>,
-        block_announces_protocol: config::NonDefaultSetConfig,
         peer_store_handle: PeerStoreHandle,
         protocol_controller_handles: Vec<protocol_controller::ProtocolHandle>,
         from_protocol_controllers: TracingUnboundedReceiver<protocol_controller::Message>,
     ) -> error::Result<(Self, Vec<ProtocolHandle>)> {
         let (behaviour, notification_protocols, handles) = {
-            let installed_protocols = iter::once(block_announces_protocol.protocol_name().clone())
-                .chain(
-                    notification_protocols
-                        .iter()
-                        .map(|p| p.protocol_name().clone()),
-                )
+            let installed_protocols = notification_protocols
+                .iter()
+                .map(|p| p.protocol_name().clone())
                 .collect::<Vec<_>>();
 
-            // NOTE: Block announcement protocol is still very much hardcoded into
-            // `Protocol`. 	This protocol must be the first notification protocol given to
-            // `Notifications`
-            let (protocol_configs, mut handles): (Vec<_>, Vec<_>) = iter::once({
-                let config = notifications::ProtocolConfig {
-                    name: block_announces_protocol.protocol_name().clone(),
-                    fallback_names: block_announces_protocol.fallback_names().cloned().collect(),
-                    handshake: block_announces_protocol
-                        .handshake()
-                        .as_ref()
-                        .unwrap()
-                        .to_vec(),
-                    max_notification_size: block_announces_protocol.max_notification_size(),
-                };
+            let (protocol_configs, mut handles): (Vec<_>, Vec<_>) = notification_protocols
+                .into_iter()
+                .map(|s| {
+                    let config = notifications::ProtocolConfig {
+                        name: s.protocol_name().clone(),
+                        fallback_names: s.fallback_names().cloned().collect(),
+                        handshake: s
+                            .handshake()
+                            .as_ref()
+                            .map_or(roles.encode(), |h| (*h).to_vec()),
+                        max_notification_size: s.max_notification_size(),
+                    };
 
-                let (handle, command_stream) =
-                    block_announces_protocol.take_protocol_handle().split();
+                    let (handle, command_stream) = s.take_protocol_handle().split();
 
-                ((config, handle.clone(), command_stream), handle)
-            })
-            .chain(notification_protocols.into_iter().map(|s| {
-                let config = notifications::ProtocolConfig {
-                    name: s.protocol_name().clone(),
-                    fallback_names: s.fallback_names().cloned().collect(),
-                    handshake: s
-                        .handshake()
-                        .as_ref()
-                        .map_or(roles.encode(), |h| (*h).to_vec()),
-                    max_notification_size: s.max_notification_size(),
-                };
-
-                let (handle, command_stream) = s.take_protocol_handle().split();
-
-                ((config, handle.clone(), command_stream), handle)
-            }))
-            .unzip();
+                    ((config, handle.clone(), command_stream), handle)
+                })
+                .unzip();
 
             let metrics = registry
                 .as_ref()
@@ -159,8 +135,6 @@ impl<B: BlockT> Protocol<B> {
             peer_store_handle,
             notification_protocols,
             bad_handshake_streams: HashSet::new(),
-            // TODO: remove when `BlockAnnouncesHandshake` is moved away from `Protocol`
-            _marker: Default::default(),
         };
 
         Ok((protocol, handles))
@@ -247,7 +221,7 @@ pub enum CustomMessageOutcome {
     },
 }
 
-impl<B: BlockT> NetworkBehaviour for Protocol<B> {
+impl NetworkBehaviour for Protocol {
     type ConnectionHandler = <Notifications as NetworkBehaviour>::ConnectionHandler;
     type OutEvent = CustomMessageOutcome;
 

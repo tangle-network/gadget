@@ -20,8 +20,10 @@ struct TomlConfig {
     bind_ip: String,
     bind_port: u16,
     bootnodes: Vec<String>,
-    // The genesis hash in hex format
+    /// The genesis hash in hex format
     genesis_hash: String,
+    /// The node key in hex format
+    node_key: String,
     keystore_path: String,
 }
 
@@ -48,6 +50,8 @@ async fn main() -> Result<()> {
 
     let decoded_genesis_hash = hex::decode(config.genesis_hash)
         .map_err(|e| color_eyre::eyre::eyre!("Failed to parse genesis hash: {e}"))?;
+    let decoded_node_key = hex::decode(config.node_key)
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to parse node key: {e}"))?;
 
     shell::run_forever(config::ShellConfig {
         keystore: config::KeystoreConfig::Path {
@@ -62,6 +66,8 @@ async fn main() -> Result<()> {
         bootnodes,
         genesis_hash: <[u8; 32]>::try_from(decoded_genesis_hash.as_slice())
             .map_err(|e| color_eyre::eyre::eyre!("Failed to parse genesis hash: {e}"))?,
+        node_key: <[u8; 32]>::try_from(decoded_node_key.as_slice())
+            .map_err(|e| color_eyre::eyre::eyre!("Failed to parse node key: {e}"))?,
     })
     .await?;
     Ok(())
@@ -84,15 +90,12 @@ pub fn setup_logger(verbosity: i32, filter: &str) -> Result<()> {
         3 => Level::DEBUG,
         _ => Level::TRACE,
     };
-    let directive_1 = format!("{filter}={log_level}")
-        .parse()
-        .expect("valid log level");
-    let directive_2 = format!("gadget={log_level}")
-        .parse()
-        .expect("valid log level");
     let env_filter = tracing_subscriber::EnvFilter::from_default_env()
-        .add_directive(directive_1)
-        .add_directive(directive_2);
+        .add_directive(format!("{filter}={log_level}").parse()?)
+        .add_directive(format!("sync={log_level}").parse()?)
+        .add_directive(format!("peerset={log_level}").parse()?)
+        .add_directive(format!("sub-libp2p={log_level}").parse()?)
+        .add_directive(format!("gadget={log_level}").parse()?);
     let logger = tracing_subscriber::fmt()
         .with_target(true)
         .with_max_level(log_level)

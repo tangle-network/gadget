@@ -4162,6 +4162,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "color-eyre",
+ "dfns-cggmp21-protocol",
  "gadget-common",
  "gadget-core",
  "hex",
