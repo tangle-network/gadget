@@ -56,7 +56,7 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
 
     let network_worker_handle = tokio::spawn(network_worker.run());
     let peer_store_handle = tokio::spawn(peer_store.run());
-    let dfns_cggmp21_protocol = start_dfns_cggmp21_protocol(
+    let dfns_cggmp21_protocol = start_protocol(
         vec![
             TangleRuntime::new(subxt_client.clone()),
             TangleRuntime::new(subxt_client.clone()),
@@ -94,7 +94,7 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     Ok(())
 }
 
-pub async fn start_dfns_cggmp21_protocol<C, KBE>(
+pub async fn start_protocol<C, KBE>(
     clients: Vec<C>,
     network: Arc<NetworkService>,
     account_id: sr25519::Public,
@@ -118,11 +118,10 @@ where
     let (gossip_handlers, networks) =
         protocol_specific_gossip_builder(keystore.clone(), network.clone(), logger.clone())?;
 
-    let mut spawn_handles = vec![];
-    // Run the network handlers in the background
-    for gossip_handler in gossip_handlers {
-        spawn_handles.push(tokio::spawn(gossip_handler.run()));
-    }
+    let spawn_handles = gossip_handlers
+        .into_iter()
+        .map(|r| tokio::spawn(r.run()))
+        .collect::<Vec<_>>();
 
     let node_input = NodeInput {
         clients,
