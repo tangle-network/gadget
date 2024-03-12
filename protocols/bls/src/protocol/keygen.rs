@@ -295,7 +295,7 @@ pub(crate) async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
             participants: BoundedVec(participants),
             signatures: BoundedVec(signatures),
             threshold: t as u8,
-            __subxt_unused_type_params: Default::default(),
+            __ignore: Default::default(),
         },
     ))
 }

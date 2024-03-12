@@ -419,7 +419,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
         participants,
         signatures: BoundedVec(signatures),
         threshold: t as _,
-        __subxt_unused_type_params: Default::default(),
+        __ignore: Default::default(),
     };
     verify_generated_dkg_key_ecdsa(res.clone(), logger);
     Ok(jobs::JobResult::DKGPhaseOne(res))

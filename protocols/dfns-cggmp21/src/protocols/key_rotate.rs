@@ -17,6 +17,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 
+use super::sign::validate_dfns_signature_by_role;
+
 pub async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>(
     config: &crate::DfnsKeyRotateProtocol<C, N, KBE>,
     job: JobInitMetadata,
@@ -254,20 +256,21 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
         .post(async move {
             // Submit the protocol output to the blockchain
             if let Some(signature) = protocol_output_clone.lock().await.take() {
-                let signature = super::sign::convert_dfns_signature(
-                    signature,
+                validate_dfns_signature_by_role(
+                    &additional_params.role_type,
+                    &signature,
                     &new_public_key,
                     &public_key,
                 )?;
                 let job_result =
                     jobs::JobResult::DKGPhaseFour(jobs::tss::DKGTSSKeyRotationResult {
-                        signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
-                        signature: BoundedVec(signature.to_vec()),
+                        signature_scheme: jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
+                        signature: BoundedVec(signature),
                         phase_one_id,
                         new_phase_one_id,
                         new_key: BoundedVec(new_public_key),
                         key: BoundedVec(public_key),
-                        __subxt_unused_type_params: Default::default(),
+                        __ignore: Default::default(),
                     });
 
                 client

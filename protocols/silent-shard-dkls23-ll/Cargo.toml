@@ -1,5 +1,5 @@
 [package]
-name = "zcash-frost-protocol"
+name = "silent-shard-dkls23-ll-protocol"
 version = "0.1.0"
 edition = "2021"
 
@@ -21,30 +21,33 @@ sha2 = { workspace = true }
 rand_core = { workspace = true }
 rand_chacha = { workspace = true }
 dfns-cggmp21 = { workspace = true }
-
 udigest = { workspace = true }
-frost-core = { workspace = true, features = ["cheater-detection"] }
-frost-ed25519 = { workspace = true }
-frost-ed448 = { workspace = true }
-frost-p256 = { workspace = true }
-frost-p384 = { workspace = true }
-frost-ristretto255 = { workspace = true }
-frost-secp256k1 = { workspace = true }
-frost-rerandomized = { workspace = true }
+k256 = { workspace = true }
+dkls23-ll = { workspace = true }
+derivation-path = { workspace = true }
+dfns-cggmp21-protocol = { workspace = true }
+tangle-primitives = { workspace = true }
+
+pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
+pallet-jobs = { workspace = true, features = ["std"] }
+pallet-dkg = { workspace = true, features = ["std"] }
 
 sp-core = { workspace = true, features = ["std"] }
 sp-io = { workspace = true, features = ["std"] }
 sp-api = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+sp-application-crypto = { workspace = true, features = ["std"] }
+
+sc-client-api = { workspace = true }
+
 frame-support = { workspace = true  }
 parity-scale-codec = { workspace = true }
-
+serde_json = { workspace = true }
 serde = { workspace = true }
 rand = { workspace = true }
 hex = { workspace = true }
 parking_lot = { workspace = true }
 
-
 [dev-dependencies]
 test-utils = { workspace = true }
 tangle-primitives = { workspace = true }
-
