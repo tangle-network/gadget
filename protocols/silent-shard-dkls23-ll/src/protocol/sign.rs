@@ -80,7 +80,7 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
         job_id,
         role_type: job.role_type,
         key_share: key,
-        derivation_path: DerivationPath::from_str("m/0/0/0").unwrap(),
+        derivation_path: DerivationPath::from_str("m").unwrap(),
         input_data_to_sign,
         user_id_to_account_id_mapping,
     };
@@ -196,7 +196,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                             .try_into()
                             .unwrap(),
                         &keccak_256(&additional_params.input_data_to_sign),
-                        &verifying_key.to_bytes().to_vec(),
+                        &verifying_key.to_bytes(),
                     )
                 );
 

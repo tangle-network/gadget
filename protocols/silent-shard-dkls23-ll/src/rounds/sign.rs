@@ -249,7 +249,7 @@ where
     let partial_sign_msg4 = PreSignatureWrapper(p.handle_msg3(round3_msgs)?);
     let partial_signature = create_partial_signature(
         partial_sign_msg4.clone().0,
-        pre_hashed_msg.try_into().unwrap(),
+        pre_hashed_msg,
     );
     tracer.stage("Send round 4 pre signature");
     println!("Send round 4 pre signature");
@@ -272,7 +272,7 @@ where
         .map_err(IoError::receive_message)?
         .into_vec_without_me()
         .into_iter()
-        .map(|msg| create_partial_signature(msg.msg.0, pre_hashed_msg.try_into().unwrap()))
+        .map(|msg| create_partial_signature(msg.msg.0, pre_hashed_msg))
         .unzip::<_, _, Vec<_>, Vec<_>>();
 
     tracer.msgs_received();
