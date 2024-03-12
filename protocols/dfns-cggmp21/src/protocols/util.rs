@@ -86,7 +86,7 @@ impl SignatureVerifier for Secp256k1 {
             })?;
         let signature =
             k256::ecdsa::Signature::from_slice(&signature_bytes).map_err(|_| JobError {
-                reason: "Failed to convert signature to verifying key".to_string(),
+                reason: "Failed to convert signature".to_string(),
             })?;
 
         verifying_key
@@ -114,7 +114,7 @@ impl SignatureVerifier for Secp256r1 {
             })?;
         let signature =
             p256::ecdsa::Signature::from_slice(&signature_bytes).map_err(|_| JobError {
-                reason: "Failed to convert signature to verifying key".to_string(),
+                reason: "Failed to convert signature".to_string(),
             })?;
 
         verifying_key
