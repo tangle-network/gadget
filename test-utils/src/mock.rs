@@ -157,7 +157,15 @@ impl RolesHandler<AccountId> for MockRolesHandler {
         Ok(())
     }
 
-    fn is_restaker(address: AccountId, _role_type: RoleType) -> bool {
+    fn is_restaker(address: AccountId) -> bool {
+        let restakers = (0..8)
+            .map(id_to_sr25519_public)
+            .map(Into::into)
+            .collect::<Vec<_>>();
+        restakers.contains(&address)
+    }
+
+    fn is_restaker_with_role(address: AccountId, _role: RoleType) -> bool {
         let restakers = (0..8)
             .map(id_to_sr25519_public)
             .map(Into::into)
