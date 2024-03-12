@@ -202,10 +202,6 @@ impl<T: FullProtocolConfig> GadgetProtocol<T::Client> for T {
 
 #[async_trait]
 impl<T: FullProtocolConfig> Network for T {
-    fn greatest_authority_id(&self) -> Option<Public> {
-        T::internal_network(self).greatest_authority_id()
-    }
-
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
         let mut message = T::internal_network(self).next_message().await?;
         if let Some(peer_public_key) = message.from_network_id {
@@ -254,6 +250,10 @@ impl<T: FullProtocolConfig> Network for T {
         message.payload = serialized_message;
         crate::prometheus::BYTES_SENT.inc_by(message.payload.len() as u64);
         T::internal_network(self).send_message(message).await
+    }
+
+    fn greatest_authority_id(&self) -> Option<Public> {
+        T::internal_network(self).greatest_authority_id()
     }
 }
 

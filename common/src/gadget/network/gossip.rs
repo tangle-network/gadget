@@ -860,9 +860,9 @@ impl SingleReceiverNotificationHandle {
 #[async_trait]
 impl Network for SingleReceiverNotificationHandle {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        if let Some(mut lock) = self.receiver.try_lock().ok() {
+        if let Ok(mut lock) = self.receiver.try_lock() {
             let message = lock.recv().await?;
-            if let Some(deserialized) = bincode2::deserialize(&message).ok() {
+            if let Ok(deserialized) = bincode2::deserialize(&message) {
                 Some(deserialized)
             } else {
                 self.logger

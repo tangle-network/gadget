@@ -103,6 +103,7 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn start_protocol<C, KBE>(
     clients: Vec<C>,
     networks: Vec<SingleReceiverNotificationHandle>,

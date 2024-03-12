@@ -486,6 +486,7 @@ impl ProtocolHandle {
     ///
     /// Return `oneshot::Receiver` which allows `Notifications` to poll for the validation result
     /// from protocol.
+    #[allow(clippy::result_unit_err)]
     pub fn report_incoming_substream(
         &self,
         peer: PeerId,
@@ -554,6 +555,7 @@ impl ProtocolHandle {
 
     /// Report to the protocol that a substream has been opened and that it can now use the handle
     /// to send notifications to the remote peer.
+    #[allow(clippy::result_unit_err)]
     pub fn report_substream_opened(
         &mut self,
         peer: PeerId,
@@ -584,6 +586,7 @@ impl ProtocolHandle {
     }
 
     /// Substream was closed.
+    #[allow(clippy::result_unit_err)]
     pub fn report_substream_closed(&mut self, peer: PeerId) -> Result<(), ()> {
         metrics::register_substream_closed(&self.metrics, &self.protocol);
 
@@ -601,6 +604,7 @@ impl ProtocolHandle {
     }
 
     /// Notification was received from the substream.
+    #[allow(clippy::result_unit_err)]
     pub fn report_notification_received(
         &mut self,
         peer: PeerId,
@@ -624,6 +628,7 @@ impl ProtocolHandle {
     }
 
     /// Notification sink was replaced.
+    #[allow(clippy::result_unit_err)]
     pub fn report_notification_sink_replaced(
         &mut self,
         peer: PeerId,
