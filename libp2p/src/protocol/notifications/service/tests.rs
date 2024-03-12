@@ -536,7 +536,8 @@ async fn cloned_service_opening_substream_works() {
 
 #[tokio::test]
 async fn cloned_service_one_service_rejects_substream() {
-    let (proto, mut notif1) = notification_service("/proto/1".into());
+    let (proto, notif1) = notification_service("/proto/1".into());
+    let mut notif1 = Box::new(notif1) as Box<dyn NotificationService>;
     let (_sink, _async_rx, _) = NotificationsSink::new(PeerId::random());
     let (handle, _stream) = proto.split();
     let mut notif2 = notif1.clone().unwrap();
@@ -586,8 +587,9 @@ async fn cloned_service_one_service_rejects_substream() {
 
 #[tokio::test]
 async fn cloned_service_opening_substream_sending_and_receiving_notifications_work() {
-    let (proto, mut notif1) = notification_service("/proto/1".into());
+    let (proto, notif1) = notification_service("/proto/1".into());
     let (sink, _, mut sync_rx) = NotificationsSink::new(PeerId::random());
+    let mut notif1 = Box::new(notif1) as Box<dyn NotificationService>;
     let (mut handle, _stream) = proto.split();
     let mut notif2 = notif1.clone().unwrap();
     let mut notif3 = notif1.clone().unwrap();

@@ -50,7 +50,7 @@ pub use notifications::{
     notification_service, NotificationsSink, NotifsHandlerError, ProtocolHandlePair, Ready,
 };
 
-mod notifications;
+pub mod notifications;
 
 pub mod message;
 

@@ -4,12 +4,11 @@ use gadget_common::gadget::network::gossip::{
 };
 use gadget_common::prelude::{DebugLogger, ECDSAKeyStore, KeystoreBackend};
 use libp2p_gadget::config::FullNetworkConfiguration;
-use libp2p_gadget::{NetworkService, NotificationService};
+use libp2p_gadget::protocol::notifications::NotificationHandle;
+use libp2p_gadget::NetworkService;
 use std::sync::Arc;
 
-pub fn configurator(
-    full_network_config: &mut FullNetworkConfiguration,
-) -> Vec<Box<dyn NotificationService>> {
+pub fn configurator(full_network_config: &mut FullNetworkConfiguration) -> Vec<NotificationHandle> {
     let (set_config, notification_service_0) = gossip::set_config(
         dfns_cggmp21_protocol::constants::DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME.into(),
     );

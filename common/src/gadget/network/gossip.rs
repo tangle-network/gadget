@@ -27,9 +27,11 @@ use crate::Error;
 use async_trait::async_trait;
 use futures::StreamExt;
 use gadget_core::job_manager::WorkManagerInterface;
+use libp2p_gadget::protocol::notifications::NotificationHandle;
+use libp2p_gadget::service::traits::NotificationEvent;
 use libp2p_gadget::{
-    config, error, multiaddr, Event, NetworkEventStream, NetworkNotification, NetworkPeers,
-    NetworkService, NetworkStateInfo, NotificationService, PeerId, ProtocolName,
+    config, error, multiaddr, Event, MessageSink, NetworkEventStream, NetworkNotification,
+    NetworkPeers, NetworkService, NetworkStateInfo, NotificationService, PeerId, ProtocolName,
 };
 use linked_hash_map::LinkedHashMap;
 use parking_lot::{Mutex, RwLock};
@@ -79,7 +81,7 @@ pub struct HandshakeMessage {
 /// Returns the configuration of the set to put in the network configuration.
 pub fn set_config(
     protocol_name: ProtocolName,
-) -> (config::NonDefaultSetConfig, Box<dyn NotificationService>) {
+) -> (config::NonDefaultSetConfig, NotificationHandle) {
     let (non_default_set_config, notification_service) = config::NonDefaultSetConfig::new(
         protocol_name,
         Vec::new(), // fallback_names is empty as we accept only reserved nodes
@@ -758,5 +760,141 @@ impl<T: Hash + Eq> LruHashSet<T> {
     /// Inserting the same element will update its LRU position.
     pub fn insert(&mut self, e: T) -> bool {
         self.set.insert(e, ())
+    }
+}
+
+#[derive(Clone)]
+pub struct SingleReceiverNotificationHandle {
+    /// Important: While this implementation is cloneable, it is expected that there is only a single
+    /// callee that calls the `recv` function. In other words, only a single point in the program can
+    /// receive messages. All other instances of this struct should be used to send messages only.
+    receiver: Arc<tokio::sync::Mutex<UnboundedReceiver<Vec<u8>>>>,
+    mapping: Arc<tokio::sync::Mutex<HashMap<PeerId, Box<dyn MessageSink>>>>,
+    logger: DebugLogger,
+}
+
+impl SingleReceiverNotificationHandle {
+    pub fn new(mut handle: NotificationHandle, logger: DebugLogger) -> Self {
+        let (tx_inbound, rx_inbound) = tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
+        let mapping = Arc::new(tokio::sync::Mutex::new(HashMap::<
+            PeerId,
+            Box<dyn MessageSink>,
+        >::new()));
+
+        let mapping_background = mapping.clone();
+        let logger_background = logger.clone();
+
+        let task = async move {
+            let logger_background = &logger_background;
+            let mapping_background = &mapping_background;
+
+            let receive_task = async move {
+                while let Some(event) = handle.next_event().await {
+                    match event {
+                        NotificationEvent::ValidateInboundSubstream { .. } => {}
+                        NotificationEvent::NotificationStreamOpened { peer, .. } => {
+                            logger_background
+                                .debug(format!("Notification stream opened for peer {peer}"));
+                            if let Some(message_sink) = handle.message_sink(&peer) {
+                                mapping_background.lock().await.insert(peer, message_sink);
+                            } else {
+                                logger_background
+                                    .warn(format!("Failed to create message sink for peer {peer}"));
+                            }
+                        }
+                        NotificationEvent::NotificationStreamClosed { peer, .. } => {
+                            logger_background
+                                .warn(format!("Notification stream closed for peer {peer}"));
+                            mapping_background.lock().await.remove(&peer);
+                        }
+                        NotificationEvent::NotificationReceived {
+                            peer: _,
+                            notification,
+                        } => {
+                            tx_inbound
+                                .send(notification)
+                                .map_err(|err| Error::NetworkError {
+                                    err: format!(
+                                        "Failed to send message to receive handler: {err:?}"
+                                    ),
+                                })?;
+                        }
+                    }
+                }
+
+                Err::<(), _>(Error::NetworkError {
+                    err: "Notification handle rx has been dropped".to_string(),
+                })
+            };
+
+            if let Err(err) = receive_task.await {
+                logger_background.error(format!("Notification receive task failed: {err:?}"));
+            }
+        };
+
+        tokio::task::spawn(task);
+
+        Self {
+            receiver: Arc::new(tokio::sync::Mutex::new(rx_inbound)),
+            mapping,
+            logger,
+        }
+    }
+
+    pub async fn send(&self, recipient: PeerId, payload: Vec<u8>) -> Result<(), Error> {
+        if let Some(message_sink) = self.mapping.lock().await.get(&recipient) {
+            message_sink
+                .send_async_notification(payload)
+                .await
+                .map_err(|err| Error::NetworkError {
+                    err: format!("Failed to send notification: {err:?}"),
+                })
+        } else {
+            Err(Error::NetworkError {
+                err: format!("Peer does not exist for transmission: {recipient}"),
+            })
+        }
+    }
+}
+
+#[async_trait]
+impl Network for SingleReceiverNotificationHandle {
+    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+        if let Some(mut lock) = self.receiver.try_lock().ok() {
+            let message = lock.recv().await?;
+            if let Some(deserialized) = bincode2::deserialize(&message).ok() {
+                Some(deserialized)
+            } else {
+                self.logger
+                    .error("Failed to deserialize message".to_string());
+                self.next_message().await
+            }
+        } else {
+            self.logger.error(
+                "There can only be a single receiver for a multiplexed notification handle"
+                    .to_string(),
+            );
+            None
+        }
+    }
+
+    async fn send_message(
+        &self,
+        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
+    ) -> Result<(), Error> {
+        let recipient = message.to_network_id.ok_or_else(|| Error::NetworkError {
+            err: "Improperly constructed message due to no associated account IDs".to_string(),
+        })?;
+        let pk_of_recipient_bytes = recipient.0;
+        let recipient =
+            PeerId::from_bytes(&pk_of_recipient_bytes).map_err(|err| Error::NetworkError {
+                err: format!("Failed to convert public key to peer id: {err:?}"),
+            })?;
+
+        self.send(
+            recipient,
+            bincode2::serialize(&message).expect("Failed to serialize message"),
+        )
+        .await
     }
 }

@@ -22,6 +22,7 @@ impl KeystoreContainer {
     }
 
     /// Returns a shared reference to a dynamic `Keystore` trait implementation.
+    #[allow(dead_code)]
     pub fn keystore(&self) -> KeystorePtr {
         self.0.clone()
     }

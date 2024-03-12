@@ -40,7 +40,7 @@ use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnbound
 
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
-pub(crate) mod metrics;
+pub mod metrics;
 
 #[cfg(test)]
 mod tests;
@@ -433,7 +433,7 @@ impl ProtocolHandlePair {
 /// Handle that is passed on to `Notifications` and allows it to directly communicate
 /// with the protocol.
 #[derive(Debug, Clone)]
-pub(crate) struct ProtocolHandle {
+pub struct ProtocolHandle {
     /// Protocol name.
     protocol: ProtocolName,
 
@@ -450,7 +450,7 @@ pub(crate) struct ProtocolHandle {
     metrics: Option<metrics::Metrics>,
 }
 
-pub(crate) enum ValidationCallResult {
+pub enum ValidationCallResult {
     WaitForValidation(oneshot::Receiver<ValidationResult>),
     Delegated,
 }
@@ -658,20 +658,13 @@ impl ProtocolHandle {
 /// Create new (protocol, notification) handle pair.
 ///
 /// Handle pair allows `Notifications` and the protocol to communicate with each other directly.
-pub fn notification_service(
-    protocol: ProtocolName,
-) -> (ProtocolHandlePair, Box<dyn NotificationService>) {
+pub fn notification_service(protocol: ProtocolName) -> (ProtocolHandlePair, NotificationHandle) {
     let (cmd_tx, cmd_rx) = mpsc::channel(COMMAND_QUEUE_SIZE);
     let (event_tx, event_rx) = tracing_unbounded("mpsc-notification-to-protocol", 100_000);
     let subscribers = Arc::new(Mutex::new(vec![event_tx]));
 
     (
         ProtocolHandlePair::new(protocol.clone(), subscribers.clone(), cmd_rx),
-        Box::new(NotificationHandle::new(
-            protocol.clone(),
-            cmd_tx,
-            event_rx,
-            subscribers,
-        )),
+        NotificationHandle::new(protocol.clone(), cmd_tx, event_rx, subscribers),
     )
 }

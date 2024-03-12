@@ -2644,7 +2644,7 @@ mod tests {
                 )),
             ),
             controller,
-            notif_service,
+            Box::new(notif_service),
         )
     }
 

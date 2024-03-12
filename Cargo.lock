@@ -5438,6 +5438,7 @@ dependencies = [
  "async-channel 1.9.0",
  "async-trait",
  "asynchronous-codec",
+ "auto_impl",
  "bytes",
  "either",
  "fnv",

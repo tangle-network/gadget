@@ -1460,7 +1460,7 @@ where
             }
         };
 
-        NonDefaultSetConfig::new(
+        let (cfg, handle) = NonDefaultSetConfig::new(
             block_announces_protocol.into(),
             iter::once(format!("/{}/block-announces/1", protocol_id.as_ref()).into()).collect(),
             MAX_BLOCK_ANNOUNCE_SIZE,
@@ -1475,7 +1475,8 @@ where
                 reserved_nodes: Vec::new(),
                 non_reserved_mode: NonReservedPeerMode::Deny,
             },
-        )
+        );
+        (cfg, Box::new(handle))
     }
 
     /// Import blocks.

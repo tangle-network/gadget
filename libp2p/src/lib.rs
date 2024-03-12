@@ -17,7 +17,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![warn(unused_extern_crates)]
-#![warn(missing_docs)]
 
 //! Substrate-specific P2P networking.
 //!
@@ -243,7 +242,7 @@
 //! More precise usage details are still being worked on and will likely change in the future.
 
 mod behaviour;
-mod protocol;
+pub mod protocol;
 
 #[cfg(test)]
 mod mock;
@@ -261,6 +260,8 @@ pub mod service;
 pub mod transport;
 pub mod types;
 pub mod utils;
+
+pub use libp2p::identity::PublicKey as LibP2PPublicKey;
 
 pub use event::{DhtEvent, Event};
 #[doc(inline)]

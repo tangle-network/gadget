@@ -20,15 +20,18 @@ use sp_keystore::Keystore;
 use crate::config::ShellConfig;
 use crate::protocols::dfns;
 use crate::tangle::crypto;
-use gadget_common::gadget::network::gossip::{GossipHandler, GossipHandlerController};
+use gadget_common::gadget::network::gossip::{
+    GossipHandler, GossipHandlerController, SingleReceiverNotificationHandle,
+};
 use gadget_common::prelude::KeystoreBackend;
 use libp2p_gadget::config::{
     FullNetworkConfiguration, NetworkConfiguration, NodeKeyConfig, Params, Role, Secret,
     TransportConfig,
 };
 use libp2p_gadget::peer_store::PeerStore;
+use libp2p_gadget::protocol::notifications::NotificationHandle;
+use libp2p_gadget::NetworkWorker;
 use libp2p_gadget::{config::ed25519::SecretKey, NetworkService};
-use libp2p_gadget::{NetworkWorker, NotificationService};
 use tangle_subxt::subxt;
 
 /// Start the shell and run it forever
@@ -47,10 +50,15 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
 
     let genesis_hash = config.genesis_hash;
-    let (network_worker, peer_store) =
+    let (network_worker, peer_store, notification_handles) =
         setup_network_worker(genesis_hash, network_key, &config, dfns::configurator)?;
 
-    let network = network_worker.service().clone();
+    let network_service = network_worker.service().clone();
+
+    let networks = notification_handles
+        .into_iter()
+        .map(|handle| SingleReceiverNotificationHandle::new(handle, logger.clone()))
+        .collect::<Vec<_>>();
 
     let pallet_tx = Arc::new(pallet_tx_submitter);
 
@@ -63,7 +71,8 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
             TangleRuntime::new(subxt_client.clone()),
             TangleRuntime::new(subxt_client.clone()),
         ],
-        network.clone(),
+        networks,
+        network_service,
         acco_key.public(),
         logger,
         pallet_tx,
@@ -96,7 +105,8 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
 
 pub async fn start_protocol<C, KBE>(
     clients: Vec<C>,
-    network: Arc<NetworkService>,
+    networks: Vec<SingleReceiverNotificationHandle>,
+    network_service: Arc<NetworkService>,
     account_id: sr25519::Public,
     logger: DebugLogger,
     pallet_tx: Arc<SubxtPalletSubmitter<TangleConfig, PairSigner<TangleConfig>>>,
@@ -115,8 +125,8 @@ where
     KBE: KeystoreBackend,
 {
     // Networks
-    let (gossip_handlers, networks) =
-        protocol_specific_gossip_builder(keystore.clone(), network.clone(), logger.clone())?;
+    let (gossip_handlers, _controllers) =
+        protocol_specific_gossip_builder(keystore.clone(), network_service, logger.clone())?;
 
     let spawn_handles = gossip_handlers
         .into_iter()
@@ -194,8 +204,8 @@ fn setup_network_worker(
     config: &ShellConfig,
     protocol_specific_configurator: impl FnOnce(
         &mut FullNetworkConfiguration,
-    ) -> Vec<Box<dyn NotificationService>>,
-) -> color_eyre::Result<(NetworkWorker, PeerStore)> {
+    ) -> Vec<NotificationHandle>,
+) -> color_eyre::Result<(NetworkWorker, PeerStore, Vec<NotificationHandle>)> {
     // Step 1: Derive Secret Key from Identity
     let secret_key_bytes = identity.seed().to_vec();
     let secret_key = SecretKey::try_from_bytes(secret_key_bytes)
@@ -217,7 +227,7 @@ fn setup_network_worker(
 
     // Step 3: Create Full Network Configuration
     let mut full_network_config = FullNetworkConfiguration::new(&network_config);
-    let _notification_services = protocol_specific_configurator(&mut full_network_config);
+    let notification_handles = protocol_specific_configurator(&mut full_network_config);
     let bootnodes = config.bootnodes.iter().map(|addr| addr.peer_id).collect();
     let peer_store = PeerStore::new(bootnodes);
 
@@ -235,7 +245,7 @@ fn setup_network_worker(
     let network_worker = NetworkWorker::new(params)
         .map_err(|e| color_eyre::eyre::eyre!("Failed to create network worker: {e}"))?;
 
-    Ok((network_worker, peer_store))
+    Ok((network_worker, peer_store, notification_handles))
 }
 
 fn tokio_executor(future: Pin<Box<dyn Future<Output = ()> + Send>>) {

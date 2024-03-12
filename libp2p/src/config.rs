@@ -48,6 +48,7 @@ pub use sc_network_common::{
     ExHashT,
 };
 
+use crate::protocol::notifications::service::NotificationHandle;
 use std::{
     error::Error,
     fmt, fs,
@@ -486,7 +487,7 @@ impl NonDefaultSetConfig {
         max_notification_size: u64,
         handshake: Option<NotificationHandshake>,
         set_config: SetConfig,
-    ) -> (Self, Box<dyn NotificationService>) {
+    ) -> (Self, NotificationHandle) {
         let (protocol_handle_pair, notification_service) =
             notification_service(protocol_name.clone());
         (

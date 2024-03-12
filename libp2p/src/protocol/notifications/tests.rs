@@ -23,6 +23,7 @@ use crate::{
     protocol::notifications::{Notifications, NotificationsOut, ProtocolConfig},
     protocol_controller::{ProtoSetConfig, ProtocolController, SetId},
     service::traits::{NotificationEvent, ValidationResult},
+    NotificationService,
 };
 
 use futures::{future::BoxFuture, prelude::*};
@@ -78,8 +79,9 @@ fn build_nodes() -> (Swarm<CustomProtoWithAddr>, Swarm<CustomProtoWithAddr>) {
             .timeout(Duration::from_secs(20))
             .boxed();
 
-        let (protocol_handle_pair, mut notif_service) =
+        let (protocol_handle_pair, notif_service) =
             crate::protocol::notifications::service::notification_service("/foo".into());
+        let mut notif_service = Box::new(notif_service) as Box<dyn NotificationService>;
         let peer_store = PeerStore::new(if index == 0 {
             keypairs
                 .iter()
