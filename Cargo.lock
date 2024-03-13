@@ -1325,9 +1325,9 @@ dependencies = [
 
 [[package]]
 name = "bytemuck"
-version = "1.14.3"
+version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2ef034f05691a48569bd920a96c81b9d91bbad1ab5ac7c4616c1f6ef36cb79f"
+checksum = "5d6d68c57235a3a081186990eca2867354726650f42f7516ca50c28d6281fd15"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -3579,7 +3579,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "byteorder",
  "debugless-unwrap",
@@ -3632,7 +3632,7 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "curve25519-dalek 4.1.2",
  "frost-core 0.6.3",
@@ -3658,7 +3658,7 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "ed448-goldilocks-plus 0.11.2 (git+https://github.com/webb-tools/Ed448-Goldilocks)",
  "frost-core 0.6.3",
@@ -3684,7 +3684,7 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "frost-core 0.6.3",
  "p256 0.13.2",
@@ -3710,7 +3710,7 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "frost-core 0.6.3",
  "p384",
@@ -3747,7 +3747,7 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "curve25519-dalek 4.1.2",
  "frost-core 0.6.3",
@@ -3773,7 +3773,7 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "frost-core 0.6.3",
  "k256",
@@ -6728,7 +6728,7 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "digest 0.10.7",
  "ecdsa 0.16.9",
@@ -6774,7 +6774,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6791,7 +6791,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -6823,7 +6823,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10523,7 +10523,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -10586,7 +10586,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10607,7 +10607,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
 dependencies = [
  "environmental",
  "parity-scale-codec 3.6.9",
@@ -10784,7 +10784,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -10816,7 +10816,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
 dependencies = [
  "Inflector",
  "expander",
@@ -10909,7 +10909,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
 
 [[package]]
 name = "sp-storage"
@@ -10927,7 +10927,7 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
 dependencies = [
  "impl-serde",
  "parity-scale-codec 3.6.9",
@@ -10965,7 +10965,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk)",
@@ -11066,7 +11066,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#a756baf3b211efc57ca4a0089b7ceba4c20b9f12"
+source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
 dependencies = [
  "anyhow",
  "impl-trait-for-tuples",
@@ -11786,7 +11786,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -11796,7 +11796,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -11824,7 +11824,7 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#62835122cb10aef6ab35f0b9aa2311532e2d8b1c"
+source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
