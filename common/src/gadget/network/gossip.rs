@@ -28,7 +28,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use gadget_core::job_manager::WorkManagerInterface;
 use libp2p_gadget::protocol::notifications::NotificationHandle;
-use libp2p_gadget::service::traits::NotificationEvent;
+use libp2p_gadget::service::traits::{NotificationEvent, ValidationResult};
 use libp2p_gadget::{
     config, error, multiaddr, Event, MessageSink, NetworkEventStream, NetworkNotification,
     NetworkPeers, NetworkService, NetworkStateInfo, NotificationService, PeerId, ProtocolName,
@@ -36,7 +36,7 @@ use libp2p_gadget::{
 use linked_hash_map::LinkedHashMap;
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
-use sp_core::{ecdsa, Pair};
+use sp_core::{ecdsa, keccak_256, Pair};
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
@@ -791,12 +791,25 @@ impl SingleReceiverNotificationHandle {
             let receive_task = async move {
                 while let Some(event) = handle.next_event().await {
                     match event {
-                        NotificationEvent::ValidateInboundSubstream { .. } => {}
+                        NotificationEvent::ValidateInboundSubstream {
+                            peer, result_tx, ..
+                        } => {
+                            // We accept all inbound substreams.
+                            if let Err(e) = result_tx.send(ValidationResult::Accept) {
+                                logger_background
+                                    .error(format!("Failed to send validation result: {e:?}"));
+                            } else {
+                                logger_background
+                                    .debug(format!("Accepted inbound substream from peer {peer}"));
+                            }
+                        }
                         NotificationEvent::NotificationStreamOpened { peer, .. } => {
                             logger_background
                                 .debug(format!("Notification stream opened for peer {peer}"));
                             if let Some(message_sink) = handle.message_sink(&peer) {
                                 mapping_background.lock().await.insert(peer, message_sink);
+                                logger_background
+                                    .debug(format!("Created message sink for peer {peer}"));
                             } else {
                                 logger_background
                                     .warn(format!("Failed to create message sink for peer {peer}"));
@@ -843,6 +856,10 @@ impl SingleReceiverNotificationHandle {
 
     pub async fn send(&self, recipient: PeerId, payload: Vec<u8>) -> Result<(), Error> {
         if let Some(message_sink) = self.mapping.lock().await.get(&recipient) {
+            let hash = hex::encode(keccak_256(&payload));
+            self.logger.trace(format!(
+                "Sending notification (0x{hash}) to peer {recipient}"
+            ));
             message_sink
                 .send_async_notification(payload)
                 .await
@@ -882,19 +899,51 @@ impl Network for SingleReceiverNotificationHandle {
         &self,
         message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
-        let recipient = message.to_network_id.ok_or_else(|| Error::NetworkError {
-            err: "Improperly constructed message due to no associated account IDs".to_string(),
-        })?;
-        let pk_of_recipient_bytes = recipient.0;
-        let recipient =
-            PeerId::from_bytes(&pk_of_recipient_bytes).map_err(|err| Error::NetworkError {
-                err: format!("Failed to convert public key to peer id: {err:?}"),
-            })?;
+        let maybe_recipient = message.to_network_id;
+        match maybe_recipient {
+            Some(recipient) => {
+                let pk_of_recipient_bytes = recipient.0;
+                let recipient = PeerId::from_bytes(&pk_of_recipient_bytes).map_err(|err| {
+                    Error::NetworkError {
+                        err: format!("Failed to convert public key to peer id: {err:?}"),
+                    }
+                })?;
 
-        self.send(
-            recipient,
-            bincode2::serialize(&message).expect("Failed to serialize message"),
-        )
-        .await
+                self.send(
+                    recipient,
+                    bincode2::serialize(&message).expect("Failed to serialize message"),
+                )
+                .await
+            }
+            None => {
+                // broadcast message
+                let mapping = self.mapping.lock().await;
+                let peers = mapping.keys().cloned().collect::<Vec<_>>();
+                // drop the lock early, to avoid waiting for the send to finish.
+                drop(mapping);
+
+                if peers.is_empty() {
+                    let message_hash = message.hash();
+                    let h = hex::encode(message_hash);
+                    self.logger
+                        .warn(format!("No peers to gossip message 0x{h}"));
+                    return Ok(());
+                }
+                let mut errors = Vec::new();
+                let message = bincode2::serialize(&message).expect("Failed to serialize message");
+                for peer in peers.into_iter() {
+                    if let Err(err) = self.send(peer, message.clone()).await {
+                        errors.push((peer, err));
+                    }
+                }
+                if errors.is_empty() {
+                    Ok(())
+                } else {
+                    Err(Error::NetworkError {
+                        err: format!("Failed to send message to some peers: {errors:?}"),
+                    })
+                }
+            }
+        }
     }
 }

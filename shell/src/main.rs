@@ -13,6 +13,8 @@ struct Opt {
     /// Input file
     #[structopt(parse(from_os_str), short = "c", long = "config")]
     config: PathBuf,
+    #[structopt(long, short = "v", parse(from_occurrences))]
+    verbose: i32,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -30,8 +32,8 @@ struct TomlConfig {
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
-    setup_logger(3, "gadget_shell")?;
     let opt = Opt::from_args();
+    setup_logger(opt.verbose, "gadget_shell")?;
     let config_contents = std::fs::read_to_string(opt.config)?;
     let config: TomlConfig = toml::from_str(&config_contents)?;
     /*
