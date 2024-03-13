@@ -1,5 +1,6 @@
 use dfns_cggmp21::generic_ec::coords::HasAffineX;
 use dfns_cggmp21::generic_ec::{Point, Scalar};
+use dfns_cggmp21::signing::Signature;
 use dfns_cggmp21::supported_curves::{Secp256k1, Secp256r1, Stark};
 use gadget_common::gadget::message::UserID;
 use gadget_core::job::JobError;
@@ -140,18 +141,24 @@ impl SignatureVerifier for Stark {
                 reason: "Public key is empty".to_string(),
             });
         }
-        let public_key_x: Scalar<Stark> = Point::from_bytes(public_key_bytes).map_err(|_| JobError {
-            reason: "Failed to convert public key to point".to_string(),
-        })?
+        let signature =
+            Signature::<Stark>::read_from_slice(&signature_bytes).ok_or_else(|| JobError {
+                reason: "Failed to construct signature from bytes".to_string(),
+            })?;
+        let public_key_x: Scalar<Stark> = Point::from_bytes(public_key_bytes)
+            .map_err(|_| JobError {
+                reason: "Failed to convert public key to point".to_string(),
+            })?
             .x()
             .ok_or(JobError {
                 reason: "Failed to convert public key to point".to_string(),
             })?
             .to_scalar();
-        let public_key = convert_stark_scalar(&public_key_x.to_be_bytes())?;
-        let message = convert_stark_scalar(data_hash)?;
-        let r = convert_stark_scalar(&signature_bytes[..32])?;
-        let s = convert_stark_scalar(&signature_bytes[32..])?;
+
+        let public_key = convert_stark_scalar(&public_key_x)?;
+        let message = convert_stark_scalar(&Scalar::<Stark>::from_be_bytes_mod_order(data_hash))?;
+        let r = convert_stark_scalar(&signature.r)?;
+        let s = convert_stark_scalar(&signature.s)?;
 
         let success =
             starknet_crypto::verify(&public_key, &message, &r, &s).map_err(|_| JobError {
@@ -168,10 +175,11 @@ impl SignatureVerifier for Stark {
     }
 }
 
-pub fn convert_stark_scalar(x: &[u8]) -> Result<starknet_crypto::FieldElement, JobError> {
-    debug_assert_eq!(x.len(), 32);
+pub fn convert_stark_scalar(x: &Scalar<Stark>) -> Result<starknet_crypto::FieldElement, JobError> {
+    let bytes = x.to_be_bytes();
+    debug_assert_eq!(bytes.len(), 32);
     let mut buffer = [0u8; 32];
-    buffer.copy_from_slice(x);
+    buffer.copy_from_slice(bytes.as_bytes());
     starknet_crypto::FieldElement::from_bytes_be(&buffer).map_err(|e| JobError {
         reason: format!("Failed to convert scalar: {:?}", e),
     })
