@@ -872,6 +872,10 @@ impl SingleReceiverNotificationHandle {
             })
         }
     }
+
+    pub async fn n_peers(&self) -> usize {
+        self.mapping.lock().await.len()
+    }
 }
 
 #[async_trait]

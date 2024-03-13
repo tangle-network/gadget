@@ -1,6 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::{
     keystore::KeystoreContainer,
@@ -64,6 +65,10 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
 
     let network_worker_handle = tokio::spawn(network_worker.run());
     let peer_store_handle = tokio::spawn(peer_store.run());
+
+    // Now with the network running, wait for all the bootnodes to connect to us
+    wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
+
     let dfns_cggmp21_protocol = start_protocol(
         vec![
             TangleRuntime::new(subxt_client.clone()),
@@ -251,4 +256,31 @@ fn setup_network_worker(
 
 fn tokio_executor(future: Pin<Box<dyn Future<Output = ()> + Send>>) {
     tokio::spawn(future);
+}
+
+async fn wait_for_connection_to_bootnodes(
+    config: &ShellConfig,
+    handles: &Vec<SingleReceiverNotificationHandle>,
+    logger: &DebugLogger,
+) -> color_eyre::Result<()> {
+    let n_required = config.bootnodes.len();
+    let n_networks = handles.len();
+    logger.debug(format!(
+        "Waiting for {n_required} peers to show up across {n_networks} networks"
+    ));
+
+    for (id, handle) in handles.iter().enumerate() {
+        'inner: loop {
+            let n_connected = handle.n_peers().await;
+            if n_connected >= n_required {
+                break 'inner;
+            } else {
+                logger.debug(format!("We currently have {n_connected}/{n_required} peers connected to network {id}/{n_networks}"))
+            }
+
+            tokio::time::sleep(Duration::from_millis(1000)).await;
+        }
+    }
+
+    Ok(())
 }
