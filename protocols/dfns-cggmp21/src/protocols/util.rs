@@ -145,6 +145,7 @@ impl SignatureVerifier for Stark {
             Signature::<Stark>::read_from_slice(&signature_bytes).ok_or_else(|| JobError {
                 reason: "Failed to construct signature from bytes".to_string(),
             })?;
+
         let public_key_x: Scalar<Stark> = Point::from_bytes(public_key_bytes)
             .map_err(|_| JobError {
                 reason: "Failed to convert public key to point".to_string(),

@@ -28,18 +28,18 @@ silent-shard-dkls23-ll-protocol = { path = "./protocols/silent-shard-dkls23-ll" 
 
 snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
-# pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git" }
-# pallet-jobs = { git = "https://github.com/webb-tools/tangle.git" }
-# pallet-dkg = { git = "https://github.com/webb-tools/tangle.git" }
-# pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git" }
-# tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
-# tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", default-features = false }
-pallet-jobs-rpc-runtime-api = { path = "../tangle/pallets/jobs/rpc/runtime-api" }
-pallet-jobs = { path = "../tangle/pallets/jobs" }
-pallet-dkg = { path = "../tangle/pallets/dkg" }
-pallet-zksaas = { path = "../tangle/pallets/zksaas" }
-tangle-primitives = { path = "../tangle/primitives" }
-tangle-subxt = { path = "../tangle/tangle-subxt", default-features = false }
+pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git" }
+pallet-jobs = { git = "https://github.com/webb-tools/tangle.git" }
+pallet-dkg = { git = "https://github.com/webb-tools/tangle.git" }
+pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git" }
+tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
+tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", default-features = false }
+# pallet-jobs-rpc-runtime-api = { path = "../tangle/pallets/jobs/rpc/runtime-api" }
+# pallet-jobs = { path = "../tangle/pallets/jobs" }
+# pallet-dkg = { path = "../tangle/pallets/dkg" }
+# pallet-zksaas = { path = "../tangle/pallets/zksaas" }
+# tangle-primitives = { path = "../tangle/primitives" }
+# tangle-subxt = { path = "../tangle/tangle-subxt", default-features = false }
 subxt-signer = { version = "0.34.0", default-features = false, features = ["native"] }
 
 # Round-based dependencies
