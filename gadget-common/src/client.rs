@@ -11,7 +11,8 @@ use subxt::OnlineClient;
 use tangle_subxt::subxt;
 use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
 use tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{
-    MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen,
+    MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen,
+    MaxSubmissionLen,
 };
 
 pub struct JobsClient<C> {
@@ -98,7 +99,17 @@ pub trait ClientWithApi: Client {
         at: [u8; 32],
         validator: AccountId32,
     ) -> Result<
-        Option<Vec<jobs::RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>>,
+        Option<
+            Vec<
+                jobs::RpcResponseJobsData<
+                    AccountId32,
+                    u64,
+                    MaxParticipants,
+                    MaxSubmissionLen,
+                    MaxAdditionalParamsLen,
+                >,
+            >,
+        >,
         crate::Error,
     >;
     /// Queries a job by its key and ID.
@@ -117,7 +128,15 @@ pub trait ClientWithApi: Client {
         role_type: roles::RoleType,
         job_id: u64,
     ) -> Result<
-        Option<jobs::RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>,
+        Option<
+            jobs::RpcResponseJobsData<
+                AccountId32,
+                u64,
+                MaxParticipants,
+                MaxSubmissionLen,
+                MaxAdditionalParamsLen,
+            >,
+        >,
         crate::Error,
     >;
 
@@ -147,6 +166,7 @@ pub trait ClientWithApi: Client {
                 MaxSignatureLen,
                 MaxSubmissionLen,
                 MaxProofLen,
+                MaxAdditionalParamsLen,
             >,
         >,
         crate::Error,
@@ -175,7 +195,15 @@ impl<C: ClientWithApi> JobsClient<C> {
         at: [u8; 32],
         validator: sr25519::Public,
     ) -> Result<
-        Vec<jobs::RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>,
+        Vec<
+            jobs::RpcResponseJobsData<
+                AccountId32,
+                u64,
+                MaxParticipants,
+                MaxSubmissionLen,
+                MaxAdditionalParamsLen,
+            >,
+        >,
         crate::Error,
     > {
         Ok(self
@@ -204,7 +232,15 @@ impl<C: ClientWithApi> JobsClient<C> {
         role_type: roles::RoleType,
         job_id: u64,
     ) -> Result<
-        Option<jobs::RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>,
+        Option<
+            jobs::RpcResponseJobsData<
+                AccountId32,
+                u64,
+                MaxParticipants,
+                MaxSubmissionLen,
+                MaxAdditionalParamsLen,
+            >,
+        >,
         crate::Error,
     > {
         self.client.query_job_by_id(at, role_type, job_id).await
@@ -226,6 +262,7 @@ impl<C: ClientWithApi> JobsClient<C> {
                 MaxSignatureLen,
                 MaxSubmissionLen,
                 MaxProofLen,
+                MaxAdditionalParamsLen,
             >,
         >,
         crate::Error,
@@ -243,6 +280,7 @@ impl<C: ClientWithApi> JobsClient<C> {
             MaxSignatureLen,
             MaxDataLen,
             MaxProofLen,
+            MaxAdditionalParamsLen,
         >,
     ) -> Result<(), crate::Error> {
         self.pallet_tx
@@ -252,7 +290,7 @@ impl<C: ClientWithApi> JobsClient<C> {
 }
 
 impl<MaxParticipants, MaxSubmissionLen> JobTypeExt
-    for jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen>
+    for jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>
 {
     fn is_phase_one(&self) -> bool {
         use jobs::JobType::*;
@@ -318,6 +356,7 @@ impl<
         MaxSignatureLen,
         MaxSubmissionLen,
         MaxProofLen,
+        MaxAdditionalParamsLen,
     > PhaseResultExt
     for jobs::PhaseResult<
         AccountId32,
@@ -328,6 +367,7 @@ impl<
         MaxSignatureLen,
         MaxSubmissionLen,
         MaxProofLen,
+        MaxAdditionalParamsLen,
     >
 {
     fn participants(&self) -> Option<Vec<AccountId32>> {
@@ -403,6 +443,7 @@ pub trait PalletSubmitter: Send + Sync + 'static {
             MaxSignatureLen,
             MaxDataLen,
             MaxProofLen,
+            MaxAdditionalParamsLen,
         >,
     ) -> Result<(), crate::Error>;
 }
@@ -437,6 +478,7 @@ where
             MaxSignatureLen,
             MaxDataLen,
             MaxProofLen,
+            MaxAdditionalParamsLen,
         >,
     ) -> Result<(), crate::Error> {
         let tx = tangle_subxt::tangle_runtime::api::tx()

@@ -19,7 +19,7 @@ use std::sync::Arc;
 use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
 use tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{
-    MaxParticipants, MaxSubmissionLen,
+    MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen,
 };
 use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -79,7 +79,7 @@ pub trait FullProtocolConfig: Clone + Send + Sync + Sized + 'static {
 
     fn phase_filter(
         &self,
-        job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen>,
+        job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     ) -> bool;
 
     fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Client>>;
@@ -182,7 +182,7 @@ impl<T: FullProtocolConfig> GadgetProtocol<T::Client> for T {
 
     fn phase_filter(
         &self,
-        job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen>,
+        job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     ) -> bool {
         T::phase_filter(self, job)
     }

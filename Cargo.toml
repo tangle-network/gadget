@@ -28,12 +28,12 @@ silent-shard-dkls23-ll-protocol = { path = "./protocols/silent-shard-dkls23-ll" 
 
 snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
-pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git" }
-pallet-jobs = { git = "https://github.com/webb-tools/tangle.git" }
-pallet-dkg = { git = "https://github.com/webb-tools/tangle.git" }
-pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git" }
-tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
-tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", default-features = false }
+pallet-jobs-rpc-runtime-api = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
+pallet-jobs = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
+pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
+pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
+tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
+tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", default-features = false, branch = "main" }
 # pallet-jobs-rpc-runtime-api = { path = "../tangle/pallets/jobs/rpc/runtime-api" }
 # pallet-jobs = { path = "../tangle/pallets/jobs" }
 # pallet-dkg = { path = "../tangle/pallets/dkg" }
@@ -50,7 +50,7 @@ round-based-zengo = { package = "round-based", git = "https://github.com/ZenGo-X
 curv = { package = "curv-kzen", version = "0.10.0" }
 digest = "0.10"
 # dfns-cggmp21 = { package = "cggmp21", version = "0.1.1" }
-dfns-cggmp21 = { package = "cggmp21", git = "https://github.com/webb-tools/cggmp21", branch = "v0.1.1-fix" }
+dfns-cggmp21 = { package = "cggmp21", git = "https://github.com/dfns/cggmp21" }
 udigest = { version = "0.1", features = ["std", "derive"]}
 
 frost-core = { git = "https://github.com/salman01zp/frost", branch = "salman/bump-curve25519-dalek" }

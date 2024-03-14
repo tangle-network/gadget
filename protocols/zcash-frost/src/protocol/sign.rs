@@ -347,6 +347,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
 
                 let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
                     signature_scheme,
+                    derivation_path: None,
                     data: BoundedVec(additional_params.input_data_to_sign),
                     signature: BoundedVec(signature),
                     verifying_key: BoundedVec(Default::default()),

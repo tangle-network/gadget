@@ -1,6 +1,8 @@
+use dfns_cggmp21::key_share::Validate;
+use dfns_cggmp21::KeyShare;
 use dfns_cggmp21::generic_ec::Curve;
 use dfns_cggmp21::key_refresh::msg::aux_only;
-
+use dfns_cggmp21::key_share::DirtyKeyShare;
 use dfns_cggmp21::key_refresh::AuxInfoGenerationBuilder;
 use dfns_cggmp21::keygen::msg::threshold::Msg;
 use dfns_cggmp21::keygen::KeygenBuilder;
@@ -170,23 +172,24 @@ where
     logger.trace(format!("Aux info protocol report: {perf_report}"));
     logger.debug("Finished AsyncProtocol - Aux Info");
 
-    /*
     let key_share: KeyShare<E, S> = DirtyKeyShare {
         core: incomplete_key_share.into_inner(),
         aux: aux_info.into_inner(),
-    }.validate().map_err(|err| JobError {
+    }
+    .validate()
+    .map_err(|err| JobError {
         reason: format!("Keygen protocol validation error: {err:?}"),
-    })?;*/
+    })?;
 
-    let key_share =
-        dfns_cggmp21::KeyShare::<E, S>::make(incomplete_key_share, aux_info).map_err(|err| {
-            JobError {
-                reason: format!("Key share error: {err:?}"),
-            }
-        })?;
+    // let key_share =
+    //     dfns_cggmp21::KeyShare::<E, S>::make(incomplete_key_share, aux_info).map_err(|err| {
+    //         JobError {
+    //             reason: format!("Key share error: {err:?}"),
+    //         }
+    //     })?;
     // Serialize the key share and the public key
     bincode2::serialize(&key_share)
-        .map(|ks| (ks, key_share.shared_public_key().to_bytes(true).to_vec()))
+        .map(|ks| (ks, key_share.shared_public_key.to_bytes(true).to_vec()))
         .map_err(|err| JobError {
             reason: format!("Keygen protocol error (run_and_serialize_keyrefresh): {err:?}"),
         })
@@ -460,7 +463,14 @@ pub async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<
-    jobs::JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
+    jobs::JobResult<
+        MaxParticipants,
+        MaxKeyLen,
+        MaxSignatureLen,
+        MaxDataLen,
+        MaxProofLen,
+        MaxAdditionalParamsLen,
+    >,
     JobError,
 > {
     let key_hashed = keccak_256(serialized_public_key);

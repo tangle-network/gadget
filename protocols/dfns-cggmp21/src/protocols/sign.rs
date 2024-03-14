@@ -1,4 +1,5 @@
 use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
+use dfns_cggmp21::key_share::AnyKeyShare;
 use dfns_cggmp21::generic_ec::coords::HasAffineX;
 use dfns_cggmp21::generic_ec::{Curve, Point};
 use dfns_cggmp21::round_based::{Delivery, MpcParty};
@@ -25,10 +26,24 @@ use rand::{CryptoRng, RngCore, SeedableRng};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::str::FromStr;
 use tokio::sync::mpsc::UnboundedReceiver;
+use derivation_path::DerivationPath;
 use crate::protocols::util::SignatureVerifier;
+use crate::protocols::keygen::create_party;
 
-use super::keygen::create_party;
+#[derive(Clone)]
+pub struct DfnsCGGMP21SigningExtraParams {
+    pub i: u16,
+    pub t: u16,
+    pub signers: Vec<u16>,
+    pub job_id: u64,
+    pub role_type: roles::RoleType,
+    pub serialized_key_share: Vec<u8>,
+    pub input_data_to_sign: Vec<u8>,
+    pub derivation_path: Option<BoundedVec<u8>>,
+    pub user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+}
 
 pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
     config: &crate::DfnsSigningProtocol<C, N, KBE>,
@@ -41,6 +56,7 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
         panic!("Should be valid type")
     };
     let input_data_to_sign = p2_job.submission.0.to_vec();
+    let derivation_path = p2_job.derivation_path;
     let previous_job_id = p2_job.phase_one_id;
 
     let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
@@ -76,21 +92,71 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
         role_type: job.role_type,
         serialized_key_share: key,
         input_data_to_sign,
+        derivation_path,
         user_id_to_account_id_mapping,
     };
     Ok(params)
 }
 
-#[derive(Clone)]
-pub struct DfnsCGGMP21SigningExtraParams {
+#[allow(clippy::too_many_arguments)]
+pub async fn run_signing<
+    'a,
+    E: Curve,
+    S: SecurityLevel,
+    H: Digest<OutputSize = U32> + Clone + Send + 'static,
+    N: Network,
+>(
+    data_to_sign: [u8; 32],
+    protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
+    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
+    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
+    associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+    mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+    my_role_id: ecdsa::Public,
+    network: N,
+    logger: &DebugLogger,
+    eid: dfns_cggmp21::ExecutionId<'a>,
     i: u16,
-    t: u16,
     signers: Vec<u16>,
-    job_id: u64,
-    role_type: roles::RoleType,
     serialized_key_share: Vec<u8>,
-    input_data_to_sign: Vec<u8>,
-    user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+    derivation_path: Option<BoundedVec<u8>>,
+) -> Result<Vec<u8>, JobError>
+where
+    Point<E>: HasAffineX<E>,
+{
+    let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
+    let mut rng = rand::rngs::StdRng::from_entropy();
+
+    let data_to_sign = DataToSign::<E>::from_scalar(
+        dfns_cggmp21::generic_ec::Scalar::<E>::from_be_bytes_mod_order(data_to_sign),
+    );
+
+    let (_, _, party) = create_party::<E, _, S, Msg<E, H>>(
+        protocol_message_channel,
+        associated_block_id,
+        associated_retry_id,
+        associated_session_id,
+        associated_task_id,
+        mapping.clone(),
+        my_role_id,
+        network.clone(),
+        logger.clone(),
+        i,
+    );
+    run_and_serialize_signing::<E, S, _, _, H>(
+        logger,
+        &mut tracer,
+        eid,
+        i,
+        signers,
+        data_to_sign,
+        serialized_key_share,
+        derivation_path,
+        party,
+        &mut rng,
+    )
+    .await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -102,6 +168,7 @@ pub async fn run_and_serialize_signing<'r, E, L, R, D, H>(
     signers: Vec<u16>,
     msg: DataToSign<E>,
     key: Vec<u8>,
+    derivation_path: Option<BoundedVec<u8>>,
     party: MpcParty<Msg<E, H>, D>,
     rng: &mut R,
 ) -> Result<Vec<u8>, JobError>
@@ -117,8 +184,24 @@ where
         reason: format!("Signing protocol error: {err:?}"),
     })?;
     let signing_builder = SigningBuilder::<E, L, H>::new(eid, i, &signers, &key);
+    // Deserialize the derivation path as an ascii string
+    let derivation_path_str = derivation_path
+        .as_ref()
+        .map(|path| path.0.to_vec())
+        .map(|path| String::from_utf8(path).unwrap_or_default())
+        .unwrap_or_else(|| "m".to_string());
+    let derivation_path = DerivationPath::from_str(&derivation_path_str).unwrap();
+    let non_hardened_indices: Vec<u32> = derivation_path
+        .path()
+        .iter()
+        .map(|index| index.to_u32())
+        .collect();
     let signature = signing_builder
         .set_progress_tracer(tracer)
+        .set_derivation_path(non_hardened_indices)
+        .map_err(|e| JobError {
+            reason: format!("Derivation path set error: {e:?}"),
+        })?
         .sign(rng, party, msg)
         .await
         .map_err(|err| JobError {
@@ -155,13 +238,23 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
     let my_role_id = config.key_store.pair().public();
     let network = config.clone();
 
-    let (i, signers, t, serialized_key_share, role_type, input_data_to_sign, mapping) = (
+    let (
+        i,
+        signers,
+        t,
+        serialized_key_share,
+        role_type,
+        input_data_to_sign,
+        derivation_path,
+        mapping,
+    ) = (
         additional_params.i,
         additional_params.signers,
         additional_params.t,
         additional_params.serialized_key_share,
         additional_params.role_type.clone(),
         additional_params.input_data_to_sign.clone(),
+        additional_params.derivation_path.clone(),
         additional_params.user_id_to_account_id_mapping.clone(),
     );
 
@@ -169,6 +262,8 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
         &role_type,
         &serialized_key_share,
     )?;
+
+    let derivation_path2 = derivation_path.clone();
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -201,7 +296,8 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                         eid,
                         i,
                         signers,
-                        serialized_key_share,
+                        serialized_key_share.to_vec(),
+                        derivation_path,
                     )
                     .await?
                 }
@@ -222,7 +318,8 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                         eid,
                         i,
                         signers,
-                        serialized_key_share,
+                        serialized_key_share.to_vec(),
+                        derivation_path,
                     )
                     .await?
                 }
@@ -241,7 +338,8 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                         eid,
                         i,
                         signers,
-                        serialized_key_share,
+                        serialized_key_share.to_vec(),
+                        derivation_path,
                     )
                     .await?
                 }
@@ -268,6 +366,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 
                 let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
                     signature_scheme,
+                    derivation_path: derivation_path2,
                     data: BoundedVec(data_hash.to_vec()),
                     signature: BoundedVec(signature.to_vec()),
                     verifying_key: BoundedVec(public_key),
@@ -374,63 +473,4 @@ fn validate_dfns_signature<E: SignatureVerifier>(
     E::verify_signature(signature_bytes, &data_hash, public_key_bytes)?;
 
     Ok(data_hash)
-}
-
-#[allow(clippy::too_many_arguments)]
-pub async fn run_signing<
-    'a,
-    E: Curve,
-    S: SecurityLevel,
-    H: Digest<OutputSize = U32> + Clone + Send + 'static,
-    N: Network,
->(
-    data_to_sign: [u8; 32],
-    protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
-    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-    associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    mapping: Arc<HashMap<UserID, ecdsa::Public>>,
-    my_role_id: ecdsa::Public,
-    network: N,
-    logger: &DebugLogger,
-    eid: dfns_cggmp21::ExecutionId<'a>,
-    i: u16,
-    signers: Vec<u16>,
-    serialized_key_share: Vec<u8>,
-) -> Result<Vec<u8>, JobError>
-where
-    Point<E>: HasAffineX<E>,
-{
-    let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
-    let mut rng = rand::rngs::StdRng::from_entropy();
-
-    let data_to_sign = DataToSign::<E>::from_scalar(
-        dfns_cggmp21::generic_ec::Scalar::<E>::from_be_bytes_mod_order(data_to_sign),
-    );
-
-    let (_, _, party) = create_party::<E, _, S, Msg<E, H>>(
-        protocol_message_channel,
-        associated_block_id,
-        associated_retry_id,
-        associated_session_id,
-        associated_task_id,
-        mapping.clone(),
-        my_role_id,
-        network.clone(),
-        logger.clone(),
-        i,
-    );
-    run_and_serialize_signing::<E, S, _, _, H>(
-        logger,
-        &mut tracer,
-        eid,
-        i,
-        signers,
-        data_to_sign,
-        serialized_key_share,
-        party,
-        &mut rng,
-    )
-    .await
 }

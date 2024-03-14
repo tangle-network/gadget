@@ -1427,14 +1427,16 @@ checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
 
 [[package]]
 name = "cggmp21"
-version = "0.1.1"
-source = "git+https://github.com/webb-tools/cggmp21?branch=v0.1.1-fix#702e6c76ff2062b7e13a59fd4d6515668a9f09d5"
+version = "0.2.0"
+source = "git+https://github.com/dfns/cggmp21#c5324e51fc26a212051f686d62b31e6ca2a5c7a8"
 dependencies = [
+ "cggmp21-keygen",
  "digest 0.10.7",
  "futures",
- "generic-ec",
- "generic-ec-zkp",
+ "generic-ec 0.2.0",
+ "generic-ec-zkp 0.2.0",
  "hex",
+ "key-share",
  "paillier-zk",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
@@ -1442,6 +1444,28 @@ dependencies = [
  "serde",
  "serde_with 2.3.3",
  "sha2 0.10.8",
+ "slip-10",
+ "thiserror",
+ "udigest",
+]
+
+[[package]]
+name = "cggmp21-keygen"
+version = "0.1.0"
+source = "git+https://github.com/dfns/cggmp21#c5324e51fc26a212051f686d62b31e6ca2a5c7a8"
+dependencies = [
+ "digest 0.10.7",
+ "futures",
+ "generic-ec 0.2.0",
+ "generic-ec-zkp 0.2.0",
+ "hex",
+ "key-share",
+ "rand_core 0.6.4",
+ "round-based 0.2.1",
+ "serde",
+ "serde_with 2.3.3",
+ "sha2 0.10.8",
+ "slip-10",
  "thiserror",
  "udigest",
 ]
@@ -2428,6 +2452,7 @@ dependencies = [
  "async-trait",
  "bincode2",
  "cggmp21",
+ "derivation-path",
  "digest 0.10.7",
  "frame-support",
  "futures",
@@ -3579,7 +3604,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "byteorder",
  "debugless-unwrap",
@@ -3619,6 +3644,19 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
+dependencies = [
+ "curve25519-dalek 4.1.2",
+ "frost-core 0.6.3",
+ "parity-scale-codec 3.6.9",
+ "rand_core 0.6.4",
+ "sha2 0.10.8",
+ "subtle 2.5.0",
+]
+
+[[package]]
+name = "frost-ed25519"
+version = "1.0.0-rc.0"
 source = "git+https://github.com/salman01zp/frost?branch=salman/bump-curve25519-dalek#a4a518733237dc5097579258eefcf04821099446"
 dependencies = [
  "curve25519-dalek-ml",
@@ -3630,15 +3668,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-ed25519"
+name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
- "curve25519-dalek 4.1.2",
+ "ed448-goldilocks-plus 0.11.2 (git+https://github.com/webb-tools/Ed448-Goldilocks)",
  "frost-core 0.6.3",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
- "sha2 0.10.8",
+ "sha3 0.10.8",
  "subtle 2.5.0",
 ]
 
@@ -3656,15 +3694,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-ed448"
+name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
- "ed448-goldilocks-plus 0.11.2 (git+https://github.com/webb-tools/Ed448-Goldilocks)",
  "frost-core 0.6.3",
+ "p256 0.13.2",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
- "sha3 0.10.8",
+ "sha2 0.10.8",
  "subtle 2.5.0",
 ]
 
@@ -3682,12 +3720,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "frost-p256"
+name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "frost-core 0.6.3",
- "p256 0.13.2",
+ "p384",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -3705,19 +3743,6 @@ dependencies = [
  "p384",
  "rand_core 0.6.4",
  "sha2 0.10.8",
-]
-
-[[package]]
-name = "frost-p384"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
-dependencies = [
- "frost-core 0.6.3",
- "p384",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle 2.5.0",
 ]
 
 [[package]]
@@ -3734,23 +3759,36 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/salman01zp/frost?branch=salman/bump-curve25519-dalek#a4a518733237dc5097579258eefcf04821099446"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "curve25519-dalek 4.1.2",
- "document-features",
- "frost-core 1.0.0-rc.0",
- "frost-rerandomized",
+ "frost-core 0.6.3",
+ "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
+ "subtle 2.5.0",
 ]
 
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
+source = "git+https://github.com/salman01zp/frost?branch=salman/bump-curve25519-dalek#a4a518733237dc5097579258eefcf04821099446"
 dependencies = [
  "curve25519-dalek 4.1.2",
+ "document-features",
+ "frost-core 1.0.0-rc.0",
+ "frost-rerandomized",
+ "rand_core 0.6.4",
+ "sha2 0.10.8",
+]
+
+[[package]]
+name = "frost-secp256k1"
+version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
+dependencies = [
  "frost-core 0.6.3",
+ "k256",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -3768,19 +3806,6 @@ dependencies = [
  "k256",
  "rand_core 0.6.4",
  "sha2 0.10.8",
-]
-
-[[package]]
-name = "frost-secp256k1"
-version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
-dependencies = [
- "frost-core 0.6.3",
- "k256",
- "parity-scale-codec 3.6.9",
- "rand_core 0.6.4",
- "sha2 0.10.8",
- "subtle 2.5.0",
 ]
 
 [[package]]
@@ -4054,6 +4079,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "generic-ec"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f315ffeaae6a05691c5a27028b4ae960d3a430e406d0109ff8502e2f84ae97b"
+dependencies = [
+ "generic-ec-core",
+ "generic-ec-curves",
+ "hex",
+ "phantom-type 0.4.2",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_with 2.3.3",
+ "subtle 2.5.0",
+ "udigest",
+ "zeroize",
+]
+
+[[package]]
 name = "generic-ec-core"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4091,7 +4134,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aba23d4bd116ecc034402603a3d12c7032dd6c3476c6075b69eeae58d8054fa9"
 dependencies = [
  "generic-array 0.14.7",
- "generic-ec",
+ "generic-ec 0.1.4",
+ "rand_core 0.6.4",
+ "serde",
+ "subtle 2.5.0",
+ "udigest",
+]
+
+[[package]]
+name = "generic-ec-zkp"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9b631ea71fa0294e80d479c5b952e276776c9abf1b1a542b48e66b83fe1828c"
+dependencies = [
+ "generic-array 0.14.7",
+ "generic-ec 0.2.0",
  "rand_core 0.6.4",
  "serde",
  "subtle 2.5.0",
@@ -5068,6 +5125,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
 dependencies = [
  "cpufeatures",
+]
+
+[[package]]
+name = "key-share"
+version = "0.2.0"
+source = "git+https://github.com/dfns/cggmp21#c5324e51fc26a212051f686d62b31e6ca2a5c7a8"
+dependencies = [
+ "generic-ec 0.2.0",
+ "generic-ec-zkp 0.2.0",
+ "hex",
+ "serde",
+ "serde_with 2.3.3",
+ "slip-10",
+ "thiserror",
 ]
 
 [[package]]
@@ -6671,13 +6742,13 @@ dependencies = [
 
 [[package]]
 name = "paillier-zk"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4956496b1cb7ecf45e86844ae50a5c0ade430dd4d491de8d020adb95ca6f328"
+checksum = "390990e7d2f9a189043a2ce042cce3107955046561d5a89ae717dfc31b9c1ca4"
 dependencies = [
  "digest 0.10.7",
  "fast-paillier",
- "generic-ec",
+ "generic-ec 0.2.0",
  "rand_core 0.6.4",
  "rug",
  "serde",
@@ -6728,7 +6799,7 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "digest 0.10.7",
  "ecdsa 0.16.9",
@@ -6736,14 +6807,15 @@ dependencies = [
  "frame-support",
  "frame-system",
  "frost-core 0.6.3",
- "frost-ed25519 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git)",
- "frost-ed448 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git)",
- "frost-p256 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git)",
- "frost-p384 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git)",
- "frost-ristretto255 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git)",
- "frost-secp256k1 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git)",
- "generic-ec",
- "generic-ec-zkp",
+ "frost-ed25519 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
+ "frost-ed448 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
+ "frost-p256 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
+ "frost-p384 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
+ "frost-ristretto255 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
+ "frost-secp256k1 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
+ "generic-array 0.14.7",
+ "generic-ec 0.1.4",
+ "generic-ec-zkp 0.1.2",
  "hex",
  "k256",
  "malachite-base",
@@ -6774,7 +6846,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6791,7 +6863,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -6823,7 +6895,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10074,6 +10146,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "826167069c09b99d56f31e9ae5c99049e932a98c9dc2dac47645b08dbbf76ba7"
 
 [[package]]
+name = "slip-10"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f20f0918d675ab26ca9fa3e2c42548356f54b7a09fb4633313756522ddd59f75"
+dependencies = [
+ "generic-array 0.14.7",
+ "generic-ec 0.2.0",
+ "hmac 0.12.1",
+ "sha2 0.10.8",
+ "subtle 2.5.0",
+]
+
+[[package]]
 name = "smallvec"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10523,7 +10608,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
+source = "git+https://github.com/paritytech/polkadot-sdk#3c6ebd9e9bfda58f199cba6ec3023e0d12d6b506"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -10586,7 +10671,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
+source = "git+https://github.com/paritytech/polkadot-sdk#3c6ebd9e9bfda58f199cba6ec3023e0d12d6b506"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10607,7 +10692,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
+source = "git+https://github.com/paritytech/polkadot-sdk#3c6ebd9e9bfda58f199cba6ec3023e0d12d6b506"
 dependencies = [
  "environmental",
  "parity-scale-codec 3.6.9",
@@ -10784,7 +10869,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
+source = "git+https://github.com/paritytech/polkadot-sdk#3c6ebd9e9bfda58f199cba6ec3023e0d12d6b506"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -10816,7 +10901,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
+source = "git+https://github.com/paritytech/polkadot-sdk#3c6ebd9e9bfda58f199cba6ec3023e0d12d6b506"
 dependencies = [
  "Inflector",
  "expander",
@@ -10909,7 +10994,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
+source = "git+https://github.com/paritytech/polkadot-sdk#3c6ebd9e9bfda58f199cba6ec3023e0d12d6b506"
 
 [[package]]
 name = "sp-storage"
@@ -10927,7 +11012,7 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
+source = "git+https://github.com/paritytech/polkadot-sdk#3c6ebd9e9bfda58f199cba6ec3023e0d12d6b506"
 dependencies = [
  "impl-serde",
  "parity-scale-codec 3.6.9",
@@ -10965,7 +11050,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
+source = "git+https://github.com/paritytech/polkadot-sdk#3c6ebd9e9bfda58f199cba6ec3023e0d12d6b506"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk)",
@@ -11066,7 +11151,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#256546b7b9033ea99eb22b92c1d4cdec64c56516"
+source = "git+https://github.com/paritytech/polkadot-sdk#3c6ebd9e9bfda58f199cba6ec3023e0d12d6b506"
 dependencies = [
  "anyhow",
  "impl-trait-for-tuples",
@@ -11338,9 +11423,9 @@ dependencies = [
 
 [[package]]
 name = "ss58-registry"
-version = "1.46.0"
+version = "1.47.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1114ee5900b8569bbc8b1a014a942f937b752af4b44f4607430b5f86cedaac0"
+checksum = "4743ce898933fbff7bbf414f497c459a782d496269644b3d650a398ae6a487ba"
 dependencies = [
  "Inflector",
  "num-format",
@@ -11786,7 +11871,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -11796,7 +11881,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -11824,7 +11909,7 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git#768aa634ae267177bacbee1344490101b094f8db"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",

@@ -86,7 +86,7 @@ impl<C: ClientWithApi + 'static, N: Network, KBE: KeystoreBackend> FullProtocolC
 
     fn phase_filter(
         &self,
-        _job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen>,
+        _job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     ) -> bool {
         false
     }

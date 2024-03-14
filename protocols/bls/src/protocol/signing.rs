@@ -226,6 +226,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
             logger.info("BlsSigningProtocol finished verification stage");
             let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
                 signature_scheme: jobs::tss::DigitalSignatureScheme::Bls381,
+                derivation_path: None,
                 data: BoundedVec(additional_params.input_data_to_sign.clone()),
                 signature: BoundedVec(signature),
                 verifying_key: BoundedVec(signing_key),

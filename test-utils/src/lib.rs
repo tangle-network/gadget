@@ -40,6 +40,7 @@ pub async fn wait_for_job_completion(
     mock::MaxSignatureLen,
     mock::MaxSubmissionLen,
     mock::MaxProofLen,
+    mock::MaxAdditionalParamsLen,
 > {
     loop {
         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -159,6 +160,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
                             job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
                                 phase_one_id: keygen_job_id,
                                 submission: Vec::from("Hello, world!").try_into().unwrap(),
+                                derivation_path: None,
                                 role_type: $threshold_sig_ty,
                             }),
                         };

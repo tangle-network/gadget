@@ -10,7 +10,7 @@ gadget-core = { workspace = true }
 protocol-macros = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
-dfns-cggmp21 = { workspace = true, features = ["all-curves"] }
+dfns-cggmp21 = { workspace = true, features = ["all-curves", "hd-wallets"] }
 round-based-21 = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
@@ -29,7 +29,7 @@ rand_chacha = { workspace = true }
 hex = { workspace = true }
 parking_lot = { workspace = true }
 sha2 = { workspace = true }
-
+derivation-path = { workspace = true }
 signature = { workspace = true }
 k256 = { workspace = true, features = ["arithmetic"] }
 secp256k1 = { version = "0.26", features = ["global-context", "bitcoin-hashes"] }
