@@ -213,9 +213,9 @@ macro_rules! generate_setup_and_run_command {
         }
 
         pub async fn run<C: ClientWithApi + 'static, N: Network, KBE: $crate::keystore::KeystoreBackend>(
-            mut client: Vec<C>,
+            client: Vec<C>,
             pallet_tx: Arc<dyn PalletSubmitter>,
-            mut network: Vec<N>,
+            networks: Vec<N>,
             logger: DebugLogger,
             account_id: sp_core::sr25519::Public,
             key_store: ECDSAKeyStore<KBE>,
@@ -224,9 +224,11 @@ macro_rules! generate_setup_and_run_command {
         {
             use futures::TryStreamExt;
             let futures = futures::stream::FuturesUnordered::new();
+            let mut networks: std::collections::VecDeque<_> = networks.into_iter().collect();
+            let mut clients: std::collections::VecDeque<_> = client.into_iter().collect();
 
             $(
-                let config = crate::$config::new(client.pop().expect("Not enough clients"), pallet_tx.clone(), network.pop().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone(), prometheus_config.clone()).await?;
+                let config = crate::$config::new(clients.pop_front().expect("Not enough clients"), pallet_tx.clone(), networks.pop_front().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone(), prometheus_config.clone()).await?;
                 futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), $crate::Error>>>>);
             )*
 
