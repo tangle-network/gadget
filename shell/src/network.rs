@@ -420,7 +420,7 @@ mod tests {
                 node_key: [0u8; 32],
             };
 
-            let role_key = ecdsa::Public::from_raw([x as u8; 33]);
+            let role_key = get_dummy_role_key_from_index(x);
 
             let (handles, _) = setup_network(
                 identity,
@@ -440,6 +440,14 @@ mod tests {
                 .unwrap();
         }
 
+        /*
+           We must test the following:
+           * Broadcast send
+           * Broadcast receive
+           * P2P send
+           * P2P receive
+        */
+
         // Now, send broadcast messages through each topic
         for _network in &networks {
             for (handles, _, _) in &all_handles {
@@ -455,10 +463,49 @@ mod tests {
         // Next, receive these broadcasted messages
         for _network in &networks {
             for (handles, _, logger) in &all_handles {
-                logger.debug("Waiting to receive messages ...");
+                logger.debug("Waiting to receive broadcast messages ...");
                 for handle in handles {
                     let message = handle.next_message().await.unwrap();
                     assert_eq!(message.payload, b"Hello, world");
+                    assert_eq!(message.to_network_id, None);
+                }
+            }
+        }
+
+        let send_idxs = vec![0, 1, 2];
+        // Next, send P2P messages: everybody sends a message to everybody
+        for _network in networks.iter() {
+            for (handles, _, _) in all_handles.iter() {
+                for (my_idx, handle) in handles.iter().enumerate() {
+                    let send_idxs = send_idxs
+                        .iter()
+                        .filter(|&&idx| idx != my_idx)
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    for i in send_idxs {
+                        handle
+                            .send_message(dummy_message_p2p(b"Hello, world".to_vec(), i))
+                            .await
+                            .unwrap();
+                    }
+                }
+            }
+        }
+
+        // Finally, receive P2P messages: everybody should receive a message from everybody else
+        for _network in networks.iter() {
+            for (handles, _, logger) in all_handles.iter() {
+                logger.debug("Waiting to receive P2P messages ...");
+                for (my_idx, handle) in handles.iter().enumerate() {
+                    // Each party should receive two messages
+                    for _ in 0..2 {
+                        let message = handle.next_message().await.unwrap();
+                        assert_eq!(message.payload, b"Hello, world");
+                        assert_eq!(
+                            message.to_network_id,
+                            Some(get_dummy_role_key_from_index(my_idx))
+                        );
+                    }
                 }
             }
         }
@@ -466,6 +513,21 @@ mod tests {
 
     fn dummy_message_broadcast(
         input: Vec<u8>,
+    ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
+        dummy_message_inner(input, None)
+    }
+
+    fn dummy_message_p2p(
+        input: Vec<u8>,
+        to_idx: usize,
+    ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
+        let dummy_role_key = get_dummy_role_key_from_index(to_idx);
+        dummy_message_inner(input, Some(dummy_role_key))
+    }
+
+    fn dummy_message_inner(
+        input: Vec<u8>,
+        to_network_id: Option<ecdsa::Public>,
     ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
         GadgetProtocolMessage {
             associated_block_id: 0,
@@ -476,7 +538,11 @@ mod tests {
             to: None,
             payload: input,
             from_network_id: None,
-            to_network_id: None,
+            to_network_id,
         }
+    }
+
+    fn get_dummy_role_key_from_index(index: usize) -> ecdsa::Public {
+        ecdsa::Public::from_raw([index as u8; 33])
     }
 }
