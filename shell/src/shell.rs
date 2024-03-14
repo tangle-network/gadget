@@ -1,5 +1,3 @@
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -19,20 +17,13 @@ use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
 
 use crate::config::ShellConfig;
-use crate::protocols::dfns;
+use crate::network::GossipHandle;
 use crate::tangle::crypto;
-use gadget_common::gadget::network::gossip::{
-    GossipHandler, GossipHandlerController, SingleReceiverNotificationHandle,
+use dfns_cggmp21_protocol::constants::{
+    DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
+    DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME, DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
 };
 use gadget_common::prelude::KeystoreBackend;
-use libp2p_gadget::config::{
-    FullNetworkConfiguration, NetworkConfiguration, NodeKeyConfig, Params, Role, Secret,
-    TransportConfig,
-};
-use libp2p_gadget::peer_store::PeerStore;
-use libp2p_gadget::protocol::notifications::NotificationHandle;
-use libp2p_gadget::NetworkWorker;
-use libp2p_gadget::{config::ed25519::SecretKey, NetworkService};
 use tangle_subxt::subxt;
 
 /// Start the shell and run it forever
@@ -50,24 +41,27 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
         SubxtPalletSubmitter::with_client(subxt_client.clone(), pair_signer, logger.clone());
     let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
 
-    let genesis_hash = config.genesis_hash;
-    let (network_worker, peer_store, notification_handles) =
-        setup_network_worker(genesis_hash, network_key, &config, dfns::configurator)?;
+    let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))?;
 
-    let network_service = network_worker.service().clone();
+    let (networks, network_task) = crate::network::setup_network(
+        libp2p_key,
+        &config,
+        logger.clone(),
+        vec![
+            DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
+            DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
+            DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
+            DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
+        ],
+    )
+    .await
+    .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
-    let networks = notification_handles
-        .into_iter()
-        .map(|handle| SingleReceiverNotificationHandle::new(handle, logger.clone()))
-        .collect::<Vec<_>>();
+    logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
+    wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
 
     let pallet_tx = Arc::new(pallet_tx_submitter);
-
-    let network_worker_handle = tokio::spawn(network_worker.run());
-    let peer_store_handle = tokio::spawn(peer_store.run());
-
-    // Now with the network running, wait for all the bootnodes to connect to us
-    wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
 
     let dfns_cggmp21_protocol = start_protocol(
         vec![
@@ -77,14 +71,14 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
             TangleRuntime::new(subxt_client.clone()),
         ],
         networks,
-        network_service,
         acco_key.public(),
         logger,
         pallet_tx,
         wrapped_keystore,
-        dfns::gossip_builder,
     );
+
     let ctrl_c = tokio::signal::ctrl_c();
+
     tokio::select! {
         _ = ctrl_c => {
             tracing::info!("Received Ctrl-C, shutting down");
@@ -94,51 +88,27 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
                 tracing::error!(?e, "DFNS-CGGMP21 protocol failed");
             }
         }
-        network_worker = network_worker_handle => {
-            if let Err(e) = network_worker {
-                tracing::error!(?e, "Network worker failed");
-            }
-        }
-        peer_store = peer_store_handle => {
-            if let Err(e) = peer_store {
-                tracing::error!(?e, "Peer store failed");
-            }
+
+        _ = network_task => {
+            tracing::error!("Network task unexpectedly shutdown")
         }
     }
+
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn start_protocol<C, KBE>(
     clients: Vec<C>,
-    networks: Vec<SingleReceiverNotificationHandle>,
-    network_service: Arc<NetworkService>,
+    networks: Vec<GossipHandle>,
     account_id: sr25519::Public,
     logger: DebugLogger,
     pallet_tx: Arc<SubxtPalletSubmitter<TangleConfig, PairSigner<TangleConfig>>>,
     keystore: ECDSAKeyStore<KBE>,
-    protocol_specific_gossip_builder: impl FnOnce(
-        ECDSAKeyStore<KBE>,
-        Arc<NetworkService>,
-        DebugLogger,
-    ) -> color_eyre::Result<(
-        Vec<GossipHandler<KBE>>,
-        Vec<GossipHandlerController>,
-    )>,
 ) -> color_eyre::Result<()>
 where
     C: ClientWithApi + 'static,
     KBE: KeystoreBackend,
 {
-    // Networks
-    let (gossip_handlers, _controllers) =
-        protocol_specific_gossip_builder(keystore.clone(), network_service, logger.clone())?;
-
-    let spawn_handles = gossip_handlers
-        .into_iter()
-        .map(|r| tokio::spawn(r.run()))
-        .collect::<Vec<_>>();
-
     let node_input = NodeInput {
         clients,
         account_id,
@@ -150,15 +120,11 @@ where
         prometheus_config: PrometheusConfig::Disabled,
         networks,
     };
-    let protocol_task = tokio::spawn(dfns_cggmp21_protocol::setup_node(node_input));
-    // Wait for the protocol to finish
-    protocol_task.await?;
-    // if the protocol finishes, we should cancel the network tasks
-    for handle in spawn_handles {
-        handle.abort();
-    }
 
-    Ok(())
+    // Wait for the protocol to finish
+    dfns_cggmp21_protocol::setup_node(node_input).await;
+
+    Err(color_eyre::eyre::eyre!("Protocol finished unexpectedly"))
 }
 
 pub fn load_keys_from_keystore(
@@ -204,63 +170,9 @@ pub fn load_keys_from_keystore(
 
 pub const CLIENT_VERSION: &str = "0.0.1";
 
-fn setup_network_worker(
-    genesis_hash: [u8; 32],
-    identity: ed25519::Pair,
+pub async fn wait_for_connection_to_bootnodes(
     config: &ShellConfig,
-    protocol_specific_configurator: impl FnOnce(
-        &mut FullNetworkConfiguration,
-    ) -> Vec<NotificationHandle>,
-) -> color_eyre::Result<(NetworkWorker, PeerStore, Vec<NotificationHandle>)> {
-    // Step 1: Derive Secret Key from Identity
-    let secret_key_bytes = identity.seed().to_vec();
-    let secret_key = SecretKey::try_from_bytes(secret_key_bytes)
-        .map_err(|e| color_eyre::eyre::eyre!("Failed to create secret key from identity: {e}"))?;
-    let node_key = NodeKeyConfig::Ed25519(Secret::Input(secret_key));
-    let node_name = identity.public().to_ss58check();
-
-    // Step 2: Create Network Configuration
-    let mut network_config = NetworkConfiguration::new(node_name, CLIENT_VERSION, node_key, None);
-    let listen_addr = format!("/ip4/{}/tcp/{}", config.bind_ip, config.bind_port).parse()?;
-    network_config.listen_addresses = vec![listen_addr];
-    network_config.boot_nodes = config.bootnodes.clone();
-    if cfg!(debug_assertions) {
-        network_config.transport = TransportConfig::Normal {
-            enable_mdns: true,
-            allow_private_ip: true,
-        };
-    }
-
-    // Step 3: Create Full Network Configuration
-    let mut full_network_config = FullNetworkConfiguration::new(&network_config);
-    let notification_handles = protocol_specific_configurator(&mut full_network_config);
-    let bootnodes = config.bootnodes.iter().map(|addr| addr.peer_id).collect();
-    let peer_store = PeerStore::new(bootnodes);
-
-    let params = Params {
-        role: Role::Authority,
-        executor: Box::new(tokio_executor),
-        network_config: full_network_config,
-        peer_store: peer_store.handle(),
-        protocol_id: "/tangle/gadget-shell/1".into(),
-        genesis_hash,
-        fork_id: None,
-        metrics_registry: None,
-    };
-
-    let network_worker = NetworkWorker::new(params)
-        .map_err(|e| color_eyre::eyre::eyre!("Failed to create network worker: {e}"))?;
-
-    Ok((network_worker, peer_store, notification_handles))
-}
-
-fn tokio_executor(future: Pin<Box<dyn Future<Output = ()> + Send>>) {
-    tokio::spawn(future);
-}
-
-async fn wait_for_connection_to_bootnodes(
-    config: &ShellConfig,
-    handles: &Vec<SingleReceiverNotificationHandle>,
+    handles: &Vec<GossipHandle>,
     logger: &DebugLogger,
 ) -> color_eyre::Result<()> {
     let n_required = config.bootnodes.len();
@@ -271,7 +183,7 @@ async fn wait_for_connection_to_bootnodes(
 
     for (id, handle) in handles.iter().enumerate() {
         'inner: loop {
-            let n_connected = handle.n_peers().await;
+            let n_connected = handle.connected_peers();
             if n_connected >= n_required {
                 break 'inner;
             } else {

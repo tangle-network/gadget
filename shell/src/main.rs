@@ -1,5 +1,5 @@
 use color_eyre::Result;
-use libp2p_gadget::config::MultiaddrWithPeerId;
+use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -46,7 +46,7 @@ async fn main() -> Result<()> {
 
     let mut bootnodes = vec![];
     for bootnode in config.bootnodes.iter() {
-        let addr: MultiaddrWithPeerId = bootnode.parse()?;
+        let addr: Multiaddr = bootnode.parse()?;
         bootnodes.push(addr);
     }
 
@@ -110,6 +110,7 @@ pub fn setup_logger(verbosity: i32, filter: &str) -> Result<()> {
 
 mod config;
 mod keystore;
+mod network;
 mod protocols;
 mod shell;
 mod tangle;

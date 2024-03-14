@@ -177,6 +177,7 @@ lazy_static = "1.4.0"
 sqlx = "=0.7.3"
 postcard = "1.0.8"
 sha2 = "0.10.8"
+libp2p = { git = "https://github.com/libp2p/rust-libp2p/", rev = "3644879956b6ab93b8d23553a33e8fdb838f576f" }
 
 
 [profile.dev.package.backtrace]
