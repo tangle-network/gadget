@@ -39,9 +39,9 @@ pub async fn setup_network(
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
         .with_tokio()
         /*.with_tcp(
-            tcp::Config::default(),
-            noise::Config::new,
-            yamux::Config::default,
+            libp2p::tcp::Config::default(),
+            libp2p::noise::Config::new,
+            libp2p::yamux::Config::default,
         )?*/
         .with_quic()
         .with_behaviour(|key| {
@@ -125,7 +125,7 @@ pub async fn setup_network(
 
     swarm
         .listen_on(format!("/ip4/{}/udp/{}/quic-v1", config.bind_ip, config.bind_port).parse()?)?;
-    // swarm.listen_on(format!("/ip4/{}/tcp/{}", config.bind_ip, config.bind_port).parse()?)?;
+    //swarm.listen_on(format!("/ip4/{}/tcp/{}", config.bind_ip, config.bind_port).parse()?)?;
 
     // Dial all bootnodes
     for bootnode in &config.bootnodes {
@@ -441,19 +441,32 @@ mod tests {
         }
 
         // Now, send broadcast messages through each topic
-        for _network in networks {
+        for _network in &networks {
             for (handles, _, _) in &all_handles {
                 for handle in handles {
                     handle
-                        .send_message(dummy_message(b"Hello, world".to_vec()))
+                        .send_message(dummy_message_broadcast(b"Hello, world".to_vec()))
                         .await
                         .unwrap();
                 }
             }
         }
+
+        // Next, receive these broadcasted messages
+        for _network in &networks {
+            for (handles, _, logger) in &all_handles {
+                logger.debug("Waiting to receive messages ...");
+                for handle in handles {
+                    let message = handle.next_message().await.unwrap();
+                    assert_eq!(message.payload, b"Hello, world");
+                }
+            }
+        }
     }
 
-    fn dummy_message(input: Vec<u8>) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
+    fn dummy_message_broadcast(
+        input: Vec<u8>,
+    ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
         GadgetProtocolMessage {
             associated_block_id: 0,
             associated_session_id: 0,
