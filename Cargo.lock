@@ -1457,6 +1457,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
+name = "cbor4ii"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59b4c883b9cc4757b061600d39001d4d0232bece4a3174696cf8f58a14db107d"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.90"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4015,6 +4024,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures-bounded"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1e2774cc104e198ef3d3e1ff4ab40f86fa3245d6cb6a3a46174f21463cee173"
+dependencies = [
+ "futures-timer",
+ "futures-util",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5495,7 +5514,7 @@ dependencies = [
  "libp2p-noise 0.42.2",
  "libp2p-ping",
  "libp2p-quic 0.7.0-alpha.3",
- "libp2p-request-response",
+ "libp2p-request-response 0.24.1",
  "libp2p-swarm 0.42.2",
  "libp2p-tcp 0.39.0",
  "libp2p-wasm-ext",
@@ -5526,6 +5545,7 @@ dependencies = [
  "libp2p-metrics 0.14.1",
  "libp2p-noise 0.44.0",
  "libp2p-quic 0.10.2",
+ "libp2p-request-response 0.26.2",
  "libp2p-swarm 0.44.2",
  "libp2p-tcp 0.41.0",
  "libp2p-upnp",
@@ -6030,6 +6050,27 @@ dependencies = [
  "libp2p-swarm 0.42.2",
  "rand 0.8.5",
  "smallvec",
+]
+
+[[package]]
+name = "libp2p-request-response"
+version = "0.26.2"
+source = "git+https://github.com/libp2p/rust-libp2p/?rev=3644879956b6ab93b8d23553a33e8fdb838f576f#3644879956b6ab93b8d23553a33e8fdb838f576f"
+dependencies = [
+ "async-trait",
+ "cbor4ii",
+ "futures",
+ "futures-bounded",
+ "futures-timer",
+ "instant",
+ "libp2p-core 0.41.2",
+ "libp2p-identity 0.2.8",
+ "libp2p-swarm 0.44.2",
+ "rand 0.8.5",
+ "serde",
+ "smallvec",
+ "tracing",
+ "void",
 ]
 
 [[package]]

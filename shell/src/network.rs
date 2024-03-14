@@ -4,7 +4,12 @@ use futures::stream::StreamExt;
 use gadget_common::prelude::{DebugLogger, Network, WorkManager};
 use gadget_core::job_manager::WorkManagerInterface;
 use libp2p::gossipsub::IdentTopic;
-use libp2p::{gossipsub, mdns, swarm::NetworkBehaviour, swarm::SwarmEvent};
+use libp2p::{
+    gossipsub, mdns, request_response, swarm::NetworkBehaviour, swarm::SwarmEvent, PeerId,
+    StreamProtocol,
+};
+use serde::{Deserialize, Serialize};
+use sp_core::ecdsa;
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
@@ -21,13 +26,14 @@ use tokio::{io, select};
 struct MyBehaviour {
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::tokio::Behaviour,
+    p2p: request_response::cbor::Behaviour<GossipMessage, GossipMessage>,
 }
 
 pub async fn setup_network(
     identity: libp2p::identity::Keypair,
     config: &ShellConfig,
     logger: DebugLogger,
-    networks: Vec<&str>,
+    networks: Vec<&'static str>,
 ) -> Result<(Vec<GossipHandle>, JoinHandle<()>), Box<dyn Error>> {
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
         .with_tokio()
@@ -53,15 +59,36 @@ pub async fn setup_network(
                 .build()
                 .map_err(|msg| io::Error::new(io::ErrorKind::Other, msg))?; // Temporary hack because `build` does not return a proper `std::error::Error`.
 
-            // build a gossipsub network behaviour
+            // Setup gossipsub network behaviour for broadcasting
             let gossipsub = gossipsub::Behaviour::new(
                 gossipsub::MessageAuthenticity::Signed(key.clone()),
                 gossipsub_config,
             )?;
 
+            // Setup mDNS for peer discovery
             let mdns =
                 mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
-            Ok(MyBehaviour { gossipsub, mdns })
+
+            // Setup request-response for direct messaging
+            let p2p_config = request_response::Config::default();
+            // StreamProtocols MUST begin with a forward slash
+            let protocols = networks
+                .iter()
+                .map(|n| {
+                    (
+                        StreamProtocol::new(n),
+                        request_response::ProtocolSupport::Full,
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            let p2p = request_response::Behaviour::new(protocols, p2p_config);
+
+            Ok(MyBehaviour {
+                gossipsub,
+                mdns,
+                p2p,
+            })
         })?
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
         .build();
@@ -70,6 +97,11 @@ pub async fn setup_network(
     let mut inbound_mapping = Vec::new();
     let (tx_to_outbound, mut rx_to_outbound) =
         tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
+    let ecdsa_peer_id_to_libp2p_id =
+        Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::<
+            ecdsa::Public,
+            PeerId,
+        >::new()));
     let mut handles_ret = vec![];
 
     for network in networks {
@@ -85,6 +117,7 @@ pub async fn setup_network(
             tx_to_outbound: tx_to_outbound.clone(),
             rx_from_inbound: Arc::new(Mutex::new(inbound_rx)),
             logger: logger.clone(),
+            ecdsa_peer_id_to_libp2p_id: ecdsa_peer_id_to_libp2p_id.clone(),
         })
     }
 
@@ -93,22 +126,54 @@ pub async fn setup_network(
     // swarm.listen_on(format!("/ip4/{}/tcp/{}", config.bind_ip, config.bind_port).parse()?)?;
 
     // Dial all bootnodes
-    /*
     for bootnode in &config.bootnodes {
         swarm.dial(bootnode.clone())?;
-    }*/
+    }
 
     let worker = async move {
         loop {
             select! {
+                // Setup outbound channel
                 Some(payload) = rx_to_outbound.recv() => {
-                    if let Err(e) = swarm
-                        .behaviour_mut().gossipsub
-                        .publish(payload.topic, payload.payload) {
-                        logger.error(format!("Publish error: {e:?}"));
+                    let message: IntraNodePayload = payload;
+                    match message.message_type {
+                        MessageType::Broadcast => {
+                            let gossip_message = bincode2::serialize(&message.payload).expect("Should serialize");
+                            if let Err(e) = swarm
+                                .behaviour_mut().gossipsub
+                                .publish(message.topic, gossip_message) {
+                                logger.error(format!("Publish error: {e:?}"));
+                            }
+                        },
+
+                        MessageType::P2P(peer_id) => {
+                            // Send the outer payload in order to attach the topic to it
+                            // "Requests are sent using Behaviour::send_request and the responses
+                            // received as Message::Response via Event::Message."
+                            swarm.behaviour_mut().p2p.send_request(&peer_id, message.payload);
+                        }
                     }
                 }
                 event = swarm.select_next_some() => match event {
+                    // Handle P2P messages (all are of type "response" when using the request-response protocol)
+                    SwarmEvent::Behaviour(MyBehaviourEvent::P2p(request_response::Event::Message { peer: peer_id, message: request_response::Message::Response {request_id: _, response  } })) => {
+                        match response {
+                            GossipMessage::Handshake { ecdsa_public_key } => {
+                                logger.debug(format!("Got handshake from peer: {peer_id}"));
+                                ecdsa_peer_id_to_libp2p_id.write().await.insert(ecdsa_public_key, peer_id);
+                            },
+                            GossipMessage::Message { topic, raw_payload } => {
+                                let topic = IdentTopic::new(topic);
+                                if let Some((_, tx, _)) = inbound_mapping.iter().find(|r| r.0.to_string() == topic.to_string()) {
+                                    if let Err(e) = tx.send(raw_payload) {
+                                        logger.error(format!("Failed to send message to worker: {e}"));
+                                    }
+                                } else {
+                                    logger.error(format!("No registered worker for topic: {topic}!"));
+                                }
+                            }
+                        }
+                    }
                     SwarmEvent::Behaviour(MyBehaviourEvent::Gossipsub(gossipsub::Event::Subscribed { peer_id, topic })) => {
                         let topic = IdentTopic::new(topic.into_string());
                         logger.debug(format!("Subscribed to topic: {topic} with peer: {peer_id}"));
@@ -143,6 +208,8 @@ pub async fn setup_network(
                             swarm.behaviour_mut().gossipsub.remove_explicit_peer(&peer_id);
                         }
                     },
+
+                    // Handle inbound broadcast messages
                     SwarmEvent::Behaviour(MyBehaviourEvent::Gossipsub(gossipsub::Event::Message {
                         propagation_source: peer_id,
                         message_id: id,
@@ -151,14 +218,28 @@ pub async fn setup_network(
                         logger.debug(format!(
                             "Got message: with id: {id} from peer: {peer_id}",
                         ));
-                        let topic = IdentTopic::new(message.topic.into_string());
 
-                        if let Some((_, tx, _)) = inbound_mapping.iter().find(|r| r.0.to_string() == topic.to_string()) {
-                            if let Err(e) = tx.send(message.data) {
-                                logger.error(format!("Failed to send message to worker: {e}"));
+                        match bincode2::deserialize::<GossipMessage>(&message.data) {
+                            Ok(message) => {
+                                match message {
+                                    GossipMessage::Handshake { ecdsa_public_key } => {
+                                        logger.debug(format!("Got handshake from peer: {peer_id}"));
+                                        ecdsa_peer_id_to_libp2p_id.write().await.insert(ecdsa_public_key, peer_id);
+                                    },
+                                    GossipMessage::Message { topic, raw_payload } => {
+                                        if let Some((_, tx, _)) = inbound_mapping.iter().find(|r| r.0.to_string() == topic) {
+                                            if let Err(e) = tx.send(raw_payload) {
+                                                logger.error(format!("Failed to send message to worker: {e}"));
+                                            }
+                                        } else {
+                                            logger.error(format!("No registered worker for topic: {topic}!"));
+                                        }
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                logger.error(format!("Failed to deserialize message: {e}"));
                             }
-                        } else {
-                            logger.error(format!("No registered worker for topic: {}!", &topic));
                         }
                     }
                     SwarmEvent::NewListenAddr { address, .. } => {
@@ -181,6 +262,8 @@ pub struct GossipHandle {
     rx_from_inbound: Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
     logger: DebugLogger,
     connected_peers: Arc<AtomicU32>,
+    ecdsa_peer_id_to_libp2p_id:
+        Arc<tokio::sync::RwLock<std::collections::HashMap<ecdsa::Public, PeerId>>>,
 }
 
 impl GossipHandle {
@@ -192,7 +275,19 @@ impl GossipHandle {
 
 pub struct IntraNodePayload {
     topic: IdentTopic,
-    payload: Vec<u8>,
+    payload: GossipMessage,
+    message_type: MessageType,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum GossipMessage {
+    Message { topic: String, raw_payload: Vec<u8> },
+    Handshake { ecdsa_public_key: ecdsa::Public },
+}
+
+enum MessageType {
+    Broadcast,
+    P2P(PeerId),
 }
 
 #[async_trait]
@@ -219,9 +314,33 @@ impl Network for GossipHandle {
         &self,
         message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), gadget_common::Error> {
+        let message_type = if let Some(to) = message.to_network_id {
+            let libp2p_id = self
+                .ecdsa_peer_id_to_libp2p_id
+                .read()
+                .await
+                .get(&to)
+                .cloned()
+                .ok_or_else(|| gadget_common::Error::NetworkError {
+                    err: format!(
+                        "No libp2p ID found for ecdsa public key: {to}. No handshake happened?"
+                    ),
+                })?;
+
+            MessageType::P2P(libp2p_id)
+        } else {
+            MessageType::Broadcast
+        };
+
+        let payload_inner = GossipMessage::Message {
+            topic: self.topic.to_string(),
+            raw_payload: bincode2::serialize(&message).expect("Should serialize"),
+        };
+
         let payload = IntraNodePayload {
             topic: self.topic.clone(),
-            payload: bincode2::serialize(&message).expect("Should serialize"),
+            payload: payload_inner,
+            message_type,
         };
 
         self.tx_to_outbound
@@ -237,14 +356,15 @@ mod tests {
     use crate::config::{KeystoreConfig, ShellConfig, SubxtConfig};
     use crate::network::setup_network;
     use crate::shell::wait_for_connection_to_bootnodes;
-    use gadget_common::prelude::DebugLogger;
+    use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, Network, WorkManager};
+    use gadget_core::job_manager::WorkManagerInterface;
 
     #[tokio::test]
     async fn test_gossip_network() {
         color_eyre::install().unwrap();
         test_utils::setup_log();
         const N_PEERS: usize = 3;
-        let networks = vec!["test-network"];
+        let networks = vec!["/test-network"];
         let mut all_handles = Vec::new();
         for x in 0..N_PEERS {
             let identity = libp2p::identity::Keypair::generate_ed25519();
@@ -257,24 +377,24 @@ mod tests {
                 (
                     30555,
                     vec![
-                        "/ip4/127.0.0.1/tcp/30556".parse().unwrap(),
-                        "/ip4/127.0.0.1/tcp/30557".parse().unwrap(),
+                        "/ip4/0.0.0.0/tcp/30556".parse().unwrap(),
+                        "/ip4/0.0.0.0/tcp/30557".parse().unwrap(),
                     ],
                 )
             } else if x == 1 {
                 (
                     30556,
                     vec![
-                        "/ip4/127.0.0.1/tcp/30555".parse().unwrap(),
-                        "/ip4/127.0.0.1/tcp/30557".parse().unwrap(),
+                        "/ip4/0.0.0.0/tcp/30555".parse().unwrap(),
+                        "/ip4/0.0.0.0/tcp/30557".parse().unwrap(),
                     ],
                 )
             } else if x == 2 {
                 (
                     30557,
                     vec![
-                        "/ip4/127.0.0.1/tcp/30555".parse().unwrap(),
-                        "/ip4/127.0.0.1/tcp/30556".parse().unwrap(),
+                        "/ip4/0.0.0.0/tcp/30555".parse().unwrap(),
+                        "/ip4/0.0.0.0/tcp/30556".parse().unwrap(),
                     ],
                 )
             } else {
@@ -286,7 +406,7 @@ mod tests {
                 subxt: SubxtConfig {
                     endpoint: url::Url::from_directory_path("/").unwrap(),
                 },
-                bind_ip: "127.0.0.1".to_string(),
+                bind_ip: "0.0.0.0".to_string(),
                 bind_port,
                 bootnodes,
                 genesis_hash: [0u8; 32],
@@ -300,10 +420,36 @@ mod tests {
             all_handles.push((handles, shell_config, logger));
         }
 
-        for (handles, shell_config, logger) in all_handles {
-            wait_for_connection_to_bootnodes(&shell_config, &handles, &logger)
+        for (handles, shell_config, logger) in &all_handles {
+            wait_for_connection_to_bootnodes(shell_config, handles, logger)
                 .await
                 .unwrap();
+        }
+
+        // Now, send broadcast messages through each topic
+        for _network in networks {
+            for (handles, _, _) in &all_handles {
+                for handle in handles {
+                    handle
+                        .send_message(dummy_message(b"Hello, world".to_vec()))
+                        .await
+                        .unwrap();
+                }
+            }
+        }
+    }
+
+    fn dummy_message(input: Vec<u8>) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
+        GadgetProtocolMessage {
+            associated_block_id: 0,
+            associated_session_id: 0,
+            associated_retry_id: 0,
+            task_hash: [0u8; 32],
+            from: 0,
+            to: None,
+            payload: input,
+            from_network_id: None,
+            to_network_id: None,
         }
     }
 }
