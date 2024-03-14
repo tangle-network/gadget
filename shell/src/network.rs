@@ -34,6 +34,7 @@ pub async fn setup_network(
     config: &ShellConfig,
     logger: DebugLogger,
     networks: Vec<&'static str>,
+    role_key: ecdsa::Public,
 ) -> Result<(Vec<GossipHandle>, JoinHandle<()>), Box<dyn Error>> {
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
         .with_tokio()
@@ -97,6 +98,7 @@ pub async fn setup_network(
     let mut inbound_mapping = Vec::new();
     let (tx_to_outbound, mut rx_to_outbound) =
         tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
+    // TODO: move ecdsa_peer_id_to_libp2p_id into the loop below, make it network-specific
     let ecdsa_peer_id_to_libp2p_id =
         Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::<
             ecdsa::Public,
@@ -159,7 +161,7 @@ pub async fn setup_network(
                     SwarmEvent::Behaviour(MyBehaviourEvent::P2p(request_response::Event::Message { peer: peer_id, message: request_response::Message::Response {request_id: _, response  } })) => {
                         match response {
                             GossipMessage::Handshake { ecdsa_public_key } => {
-                                logger.debug(format!("Got handshake from peer: {peer_id}"));
+                                logger.debug(format!("Received handshake from peer: {peer_id}"));
                                 ecdsa_peer_id_to_libp2p_id.write().await.insert(ecdsa_public_key, peer_id);
                             },
                             GossipMessage::Message { topic, raw_payload } => {
@@ -182,6 +184,10 @@ pub async fn setup_network(
                         } else {
                             logger.error(format!("No registered worker for topic: {topic}!"));
                         }
+
+                        // Send a handshake message directly to the peer that just joined the gossipsub
+                        let handshake_message = GossipMessage::Handshake { ecdsa_public_key: role_key };
+                        swarm.behaviour_mut().p2p.send_request(&peer_id, handshake_message);
                     },
                     SwarmEvent::Behaviour(MyBehaviourEvent::Gossipsub(gossipsub::Event::Unsubscribed { peer_id, topic })) => {
                         let topic = IdentTopic::new(topic.into_string());
@@ -358,6 +364,7 @@ mod tests {
     use crate::shell::wait_for_connection_to_bootnodes;
     use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, Network, WorkManager};
     use gadget_core::job_manager::WorkManagerInterface;
+    use sp_core::ecdsa;
 
     #[tokio::test]
     async fn test_gossip_network() {
@@ -413,10 +420,17 @@ mod tests {
                 node_key: [0u8; 32],
             };
 
-            let (handles, _) =
-                setup_network(identity, &shell_config, logger.clone(), networks.clone())
-                    .await
-                    .unwrap();
+            let role_key = ecdsa::Public::from_raw([x as u8; 33]);
+
+            let (handles, _) = setup_network(
+                identity,
+                &shell_config,
+                logger.clone(),
+                networks.clone(),
+                role_key,
+            )
+            .await
+            .unwrap();
             all_handles.push((handles, shell_config, logger));
         }
 

@@ -54,6 +54,7 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
             DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
             DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
         ],
+        role_key.public(),
     )
     .await
     .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
