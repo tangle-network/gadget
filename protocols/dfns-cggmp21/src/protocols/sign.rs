@@ -472,6 +472,6 @@ fn validate_dfns_signature<E: SignatureVerifier>(
     let data_hash = keccak_256(input_data_to_sign);
 
     E::verify_signature(signature_bytes, &data_hash, public_key_bytes)?;
-    println!("Signature is valid");
+
     Ok(data_hash)
 }
