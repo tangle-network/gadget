@@ -2450,7 +2450,7 @@ name = "dfns-cggmp21-protocol"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bincode2",
+ "bincode",
  "cggmp21",
  "derivation-path",
  "digest 0.10.7",
@@ -2471,6 +2471,7 @@ dependencies = [
  "round-based 0.2.1",
  "secp256k1 0.26.0",
  "serde",
+ "serde_json",
  "sha2 0.10.8",
  "signature 2.2.0",
  "sp-core",
@@ -3604,7 +3605,6 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "byteorder",
  "debugless-unwrap",
@@ -3644,7 +3644,6 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "curve25519-dalek 4.1.2",
  "frost-core 0.6.3",
@@ -3670,7 +3669,6 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "ed448-goldilocks-plus 0.11.2 (git+https://github.com/webb-tools/Ed448-Goldilocks)",
  "frost-core 0.6.3",
@@ -3696,7 +3694,6 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "frost-core 0.6.3",
  "p256 0.13.2",
@@ -3722,7 +3719,6 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "frost-core 0.6.3",
  "p384",
@@ -3759,7 +3755,6 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "curve25519-dalek 4.1.2",
  "frost-core 0.6.3",
@@ -3785,7 +3780,6 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "frost-core 0.6.3",
  "k256",
@@ -3992,7 +3986,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "auto_impl",
- "bincode2",
+ "bincode",
  "frame-support",
  "futures",
  "futures-util",
@@ -4014,6 +4008,7 @@ dependencies = [
  "scale-info",
  "serde",
  "serde_bytes",
+ "serde_json",
  "sp-api",
  "sp-application-crypto",
  "sp-core",
@@ -6799,7 +6794,6 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "digest 0.10.7",
  "ecdsa 0.16.9",
@@ -6807,12 +6801,12 @@ dependencies = [
  "frame-support",
  "frame-system",
  "frost-core 0.6.3",
- "frost-ed25519 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
- "frost-ed448 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
- "frost-p256 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
- "frost-p384 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
- "frost-ristretto255 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
- "frost-secp256k1 1.0.0-rc.0 (git+https://github.com/webb-tools/tangle.git?branch=main)",
+ "frost-ed25519 1.0.0-rc.0",
+ "frost-ed448 1.0.0-rc.0",
+ "frost-p256 1.0.0-rc.0",
+ "frost-p384 1.0.0-rc.0",
+ "frost-ristretto255 1.0.0-rc.0",
+ "frost-secp256k1 1.0.0-rc.0",
  "generic-array 0.14.7",
  "generic-ec 0.1.4",
  "generic-ec-zkp 0.1.2",
@@ -6827,6 +6821,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
  "scale-info",
+ "secp256k1 0.26.0",
  "serde",
  "serde_with 3.7.0",
  "serdect",
@@ -6846,7 +6841,6 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6863,7 +6857,6 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -6895,7 +6888,6 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10005,7 +9997,7 @@ name = "silent-shard-dkls23-ll-protocol"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bincode2",
+ "bincode",
  "cggmp21",
  "curv-kzen",
  "derivation-path",
@@ -11871,7 +11863,6 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -11881,7 +11872,6 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -11909,7 +11899,6 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "0.6.3"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#1c49ca065ac1aec892a7b1f108be92b0a2b56b4a"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -11965,7 +11954,7 @@ dependencies = [
  "ark-poly",
  "ark-std",
  "async-trait",
- "bincode2",
+ "bincode",
  "bytes",
  "dist-primitives",
  "futures",
@@ -11977,6 +11966,7 @@ dependencies = [
  "parking_lot 0.12.1",
  "secret-sharing",
  "serde",
+ "serde_json",
  "tokio",
  "tracing-subscriber 0.3.18",
 ]
@@ -12081,7 +12071,7 @@ name = "threshold-bls-protocol"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bincode2",
+ "bincode",
  "bls12_381_plus",
  "futures",
  "gadget-common",
@@ -12093,6 +12083,7 @@ dependencies = [
  "rand 0.8.5",
  "round-based 0.1.7",
  "serde",
+ "serde_json",
  "snowbridge-milagro-bls",
  "sp-core",
  "tangle-primitives",
@@ -13948,7 +13939,7 @@ name = "zcash-frost-protocol"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bincode2",
+ "bincode",
  "cggmp21",
  "curv-kzen",
  "digest 0.10.7",
@@ -13975,6 +13966,7 @@ dependencies = [
  "rand_core 0.6.4",
  "round-based 0.2.1",
  "serde",
+ "serde_json",
  "sha2 0.10.8",
  "sp-api",
  "sp-core",
@@ -14041,7 +14033,7 @@ dependencies = [
  "ark-serialize",
  "ark-std",
  "async-trait",
- "bincode2",
+ "bincode",
  "bytes",
  "dist-primitives",
  "fflonk",
@@ -14060,6 +14052,7 @@ dependencies = [
  "secret-sharing",
  "serde",
  "serde_bytes",
+ "serde_json",
  "sp-core",
  "sp-runtime",
  "tangle-primitives",

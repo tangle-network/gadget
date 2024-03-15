@@ -22,6 +22,7 @@ use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
+use gadget_common::utils::{deserialize, serialize};
 use gadget_common::{prelude::*, utils};
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{MaxParticipants, MaxSignatureLen, MaxKeyLen, MaxDataLen, MaxProofLen};
@@ -124,7 +125,7 @@ where
         .map_err(|err| JobError {
             reason: format!("Keygen protocol error (run_and_serialize_keygen): {err:?}"),
         })?;
-    bincode2::serialize(&incomplete_key_share).map_err(|err| JobError {
+    serialize(&incomplete_key_share).map_err(|err| JobError {
         reason: format!("Keygen protocol error (run_and_serialize_keygen - serde): {err:?}"),
     })
 }
@@ -152,7 +153,7 @@ where
 {
     let incomplete_key_share: dfns_cggmp21::key_share::Valid<
         dfns_cggmp21::key_share::DirtyIncompleteKeyShare<E>,
-    > = bincode2::deserialize(&incomplete_key_share).map_err(|err| JobError {
+    > = deserialize(&incomplete_key_share).map_err(|err| JobError {
         reason: format!("Keygen protocol error (run_and_serialize_keyrefresh): {err:?}"),
     })?;
 
@@ -188,7 +189,7 @@ where
     //         }
     //     })?;
     // Serialize the key share and the public key
-    bincode2::serialize(&key_share)
+    serialize(&key_share)
         .map(|ks| (ks, key_share.shared_public_key.to_bytes(true).to_vec()))
         .map_err(|err| JobError {
             reason: format!("Keygen protocol error (run_and_serialize_keyrefresh): {err:?}"),

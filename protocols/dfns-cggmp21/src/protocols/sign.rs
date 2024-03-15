@@ -20,6 +20,7 @@ use gadget_common::prelude::*;
 use gadget_common::prelude::{FullProtocolConfig, Network};
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::jobs::tss::DigitalSignatureScheme;
+use gadget_common::utils::deserialize;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::{CryptoRng, RngCore, SeedableRng};
@@ -180,7 +181,7 @@ where
     D: Delivery<Msg<E, H>>,
     H: Digest<OutputSize = U32> + Clone + Send + 'static,
 {
-    let key: KeyShare<E, L> = bincode2::deserialize(&key).map_err(|err| JobError {
+    let key: KeyShare<E, L> = deserialize(&key).map_err(|err| JobError {
         reason: format!("Signing protocol error: {err:?}"),
     })?;
     let signing_builder = SigningBuilder::<E, L, H>::new(eid, i, &signers, &key);
@@ -416,7 +417,7 @@ pub fn get_public_key_from_serialized_key_share_bytes<S: SecurityLevel>(
 pub fn get_key_share<E: Curve, S: SecurityLevel>(
     serialized_key_share: &[u8],
 ) -> Result<KeyShare<E, S>, JobError> {
-    bincode2::deserialize::<KeyShare<E, S>>(serialized_key_share).map_err(|err| JobError {
+    deserialize::<KeyShare<E, S>>(serialized_key_share).map_err(|err| JobError {
         reason: format!("Signing protocol error: {err:?}"),
     })
 }
@@ -471,6 +472,6 @@ fn validate_dfns_signature<E: SignatureVerifier>(
     let data_hash = keccak_256(input_data_to_sign);
 
     E::verify_signature(signature_bytes, &data_hash, public_key_bytes)?;
-
+    println!("Signature is valid");
     Ok(data_hash)
 }

@@ -14,7 +14,7 @@ dfns-cggmp21 = { workspace = true, features = ["all-curves", "hd-wallets"] }
 round-based-21 = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
-bincode2 = { workspace = true }
+bincode = { workspace = true }
 digest = { workspace = true }
 
 sp-core = { workspace = true, features = ["std"] }
@@ -23,7 +23,8 @@ sp-io = { workspace = true, features = ["std"] }
 frame-support = { workspace = true  }
 parity-scale-codec = { workspace = true }
 
-serde = { version = "1.0.193", features = ["derive"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 hex = { workspace = true }

@@ -23,6 +23,7 @@ use crate::gadget::metrics::Metrics;
 use crate::gadget::network::Network;
 use crate::gadget::work_manager::WorkManager;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
+use crate::utils::{deserialize, serialize};
 use crate::Error;
 use async_trait::async_trait;
 use futures::StreamExt;
@@ -517,8 +518,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                     }
                     self.logger
                         .debug(format!("Received message from {remote} from gossiping"));
-                    let maybe_dkg_network_message =
-                        bincode2::deserialize::<GossipNetworkMessage>(&message);
+                    let maybe_dkg_network_message = deserialize::<GossipNetworkMessage>(&message);
                     let m = match maybe_dkg_network_message {
                         Ok(m) => m,
                         Err(e) => {
@@ -547,7 +547,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
         let handshake_message = GossipNetworkMessage::Handshake(HandshakeMessage {
             account_id: self.keystore.pair().public(),
         });
-        let msg = bincode2::serialize(&handshake_message).expect("Failed to serialize message");
+        let msg = serialize(&handshake_message).expect("Failed to serialize message");
         self.service
             .write_notification(to_who, self.protocol_name.clone(), msg);
     }
@@ -657,7 +657,7 @@ impl<B: Block + 'static, KBE: KeystoreBackend> GossipHandler<B, KBE> {
                 return;
             }
             let message = GossipNetworkMessage::Protocol(message);
-            let msg = bincode2::serialize(&message).expect("Failed to serialize message");
+            let msg = serialize(&message).expect("Failed to serialize message");
             self.service
                 .write_notification(to_who, self.protocol_name.clone(), msg);
 

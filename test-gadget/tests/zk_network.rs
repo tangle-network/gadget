@@ -88,7 +88,7 @@ mod tests {
             tokio::task::spawn(async move {
                 while let Some(message) = params.protocol_message_rx.recv().await {
                     let deserialized: MpcNetMessage =
-                        bincode2::deserialize(&message.payload).expect("Failed to deser message");
+                        deserialize(&message.payload).expect("Failed to deser message");
                     let txs = &txs[&deserialized.source];
                     let tx = &txs[deserialized.sid as usize];
                     tx.send(deserialized).expect("Failed to send");
@@ -104,8 +104,8 @@ mod tests {
                 MultiplexedStreamID::One,
                 MultiplexedStreamID::Two,
             ] {
-                let message = bincode2::serialize(&params.test_bundle.party_id)
-                    .expect("Failed to serialize message");
+                let message =
+                    serialize(&params.test_bundle.party_id).expect("Failed to serialize message");
                 let king_response = if let Some(messages) = network
                     .client_send_or_king_receive(&message, sid, TIMEOUT)
                     .await
@@ -119,7 +119,7 @@ mod tests {
                     let mut sum = 0;
                     for message in messages.into_iter() {
                         let peer_id: UserID =
-                            bincode2::deserialize(&message).expect("Failed to deserialize message");
+                            deserialize(&message).expect("Failed to deserialize message");
                         sum += peer_id
                     }
                     assert_eq!(
@@ -127,9 +127,7 @@ mod tests {
                         "Sum of peer IDs should be equal to sum of all peer IDs"
                     );
 
-                    let sum = Bytes::from(
-                        bincode2::serialize(&sum).expect("Failed to serialize message"),
-                    );
+                    let sum = Bytes::from(serialize(&sum).expect("Failed to serialize message"));
                     Some(
                         (0..params.test_bundle.n_peers)
                             .map(|_| sum.clone())
@@ -143,8 +141,7 @@ mod tests {
                     .client_receive_or_king_send(king_response, sid)
                     .await
                     .expect("Failed to receive");
-                let sum: UserID =
-                    bincode2::deserialize(&sum).expect("Failed to deserialize message");
+                let sum: UserID = deserialize(&sum).expect("Failed to deserialize message");
                 assert_eq!(
                     sum, expected_sum,
                     "Sum of peer IDs should be equal to sum of all peer IDs"
@@ -215,8 +212,7 @@ mod tests {
             source: network.party_id,
         };
 
-        let serialized =
-            bincode2::serialize(&mpc_net_payload).expect("Failed to serialize message");
+        let serialized = serialize(&mpc_net_payload).expect("Failed to serialize message");
 
         let gadget_protocol_message = TestProtocolMessage {
             payload: serialized,

@@ -17,6 +17,7 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::*;
 use gadget_common::prelude::{DebugLogger, FullProtocolConfig};
+use gadget_common::utils::serialize;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
@@ -319,7 +320,7 @@ async fn handle_key_refresh<
     logger.trace(format!("KeyRefresh protocol report: {perf_report}"));
 
     logger.debug("Finished AsyncProtocol - KeyRefresh");
-    let serialized_local_key = bincode2::serialize(&key).map_err(|err| JobError {
+    let serialized_local_key = serialize(&key).map_err(|err| JobError {
         reason: format!("KeyRefresh protocol error: {err:?}"),
     })?;
     Ok(serialized_local_key)
