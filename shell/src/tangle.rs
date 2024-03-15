@@ -10,6 +10,7 @@ use tangle_subxt::subxt::ext::futures::TryFutureExt;
 use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::subxt::{self, PolkadotConfig};
 use tangle_subxt::tangle_runtime::api;
+use tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::MaxAdditionalParamsLen;
 use tangle_subxt::tangle_runtime::api::runtime_types::{
     tangle_primitives::jobs::{PhaseResult, RpcResponseJobsData},
     tangle_primitives::roles::RoleType,
@@ -131,7 +132,17 @@ impl ClientWithApi for TangleRuntime {
         at: [u8; 32],
         validator: AccountId32,
     ) -> core::result::Result<
-        Option<Vec<RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>>,
+        Option<
+            Vec<
+                RpcResponseJobsData<
+                    AccountId32,
+                    u64,
+                    MaxParticipants,
+                    MaxSubmissionLen,
+                    MaxAdditionalParamsLen,
+                >,
+            >,
+        >,
         gadget_common::Error,
     > {
         let q = api::apis().jobs_api().query_jobs_by_validator(validator);
@@ -147,7 +158,15 @@ impl ClientWithApi for TangleRuntime {
         role_type: RoleType,
         job_id: u64,
     ) -> core::result::Result<
-        Option<RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>,
+        Option<
+            RpcResponseJobsData<
+                AccountId32,
+                u64,
+                MaxParticipants,
+                MaxSubmissionLen,
+                MaxAdditionalParamsLen,
+            >,
+        >,
         gadget_common::Error,
     > {
         let q = api::apis().jobs_api().query_job_by_id(role_type, job_id);
@@ -173,6 +192,7 @@ impl ClientWithApi for TangleRuntime {
                 MaxSignatureLen,
                 MaxSubmissionLen,
                 MaxProofLen,
+                MaxAdditionalParamsLen,
             >,
         >,
         gadget_common::Error,

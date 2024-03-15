@@ -122,11 +122,19 @@ impl pallet_timestamp::Config for Runtime {
 
 pub struct JobToFeeHandler;
 
-impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen> for JobToFeeHandler {
+impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>
+    for JobToFeeHandler
+{
     type Balance = Balance;
 
     fn job_to_fee(
-        job: &JobSubmission<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen>,
+        job: &JobSubmission<
+            AccountId,
+            BlockNumber,
+            MaxParticipants,
+            MaxSubmissionLen,
+            MaxAdditionalParamsLen,
+        >,
     ) -> Balance {
         match job.job_type {
             JobType::DKGTSSPhaseOne(_)
@@ -135,6 +143,10 @@ impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen> for Job
             | JobType::DKGTSSPhaseFour(_) => Dkg::job_to_fee(job),
             JobType::ZkSaaSPhaseOne(_) | JobType::ZkSaaSPhaseTwo(_) => ZkSaaS::job_to_fee(job),
         }
+    }
+
+    fn calculate_result_extension_fee(_result: Vec<u8>, _extension_time: BlockNumber) -> Balance {
+        20
     }
 }
 
@@ -153,7 +165,15 @@ impl RolesHandler<AccountId> for MockRolesHandler {
         Ok(())
     }
 
-    fn is_restaker(address: AccountId, _role_type: RoleType) -> bool {
+    fn is_restaker(address: AccountId) -> bool {
+        let restakers = (0..8)
+            .map(id_to_sr25519_public)
+            .map(Into::into)
+            .collect::<Vec<_>>();
+        restakers.contains(&address)
+    }
+
+    fn is_restaker_with_role(address: AccountId, _role: RoleType) -> bool {
         let restakers = (0..8)
             .map(id_to_sr25519_public)
             .map(Into::into)
@@ -185,6 +205,7 @@ impl
         MaxDataLen,
         MaxSignatureLen,
         MaxProofLen,
+        MaxAdditionalParamsLen,
     > for MockMPCHandler
 {
     fn verify(
@@ -196,6 +217,7 @@ impl
             MaxDataLen,
             MaxSignatureLen,
             MaxProofLen,
+            MaxAdditionalParamsLen,
         >,
     ) -> DispatchResult {
         match data.result {
@@ -252,6 +274,9 @@ parameter_types! {
     #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
     #[derive(Serialize, Deserialize)]
     pub const MaxRolesPerValidator: u32 = 100;
+    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
+    pub const MaxAdditionalParamsLen: u32 = 64 * MB;
 }
 
 impl pallet_jobs::Config for Runtime {
@@ -271,6 +296,7 @@ impl pallet_jobs::Config for Runtime {
     type PalletId = JobsPalletId;
     type WeightInfo = ();
     type MisbehaviorHandler = MockMisbehaviorHandler;
+    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
 }
 
 pub struct MockMisbehaviorHandler;
@@ -292,6 +318,7 @@ impl pallet_dkg::Config for Runtime {
     type MaxKeyLen = MaxKeyLen;
     type MaxProofLen = MaxProofLen;
     type WeightInfo = ();
+    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
 }
 
 impl pallet_zksaas::Config for Runtime {
@@ -307,6 +334,7 @@ impl pallet_zksaas::Config for Runtime {
     type MaxKeyLen = MaxKeyLen;
     type MaxProofLen = MaxProofLen;
     type WeightInfo = ();
+    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
 }
 
 construct_runtime!(
@@ -322,20 +350,20 @@ construct_runtime!(
 );
 
 sp_api::mock_impl_runtime_apis! {
-    impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen> for Runtime {
-        fn query_jobs_by_validator(&self, validator: AccountId) -> Option<Vec<RpcResponseJobsData<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxSubmissionLen>>> {
+    impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen, MaxAdditionalParamsLen> for Runtime {
+        fn query_jobs_by_validator(&self, validator: AccountId) -> Option<Vec<RpcResponseJobsData<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
                 Jobs::query_jobs_by_validator(validator)
             })
         }
 
-        fn query_job_by_id(role_type: RoleType, job_id: JobId) -> Option<RpcResponseJobsData<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxSubmissionLen>> {
+        fn query_job_by_id(role_type: RoleType, job_id: JobId) -> Option<RpcResponseJobsData<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
                 Jobs::query_job_by_id(role_type, job_id)
             })
         }
 
-        fn query_job_result(role_type: RoleType, job_id: JobId) -> Option<PhaseResult<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxSubmissionLen, MaxProofLen>> {
+        fn query_job_result(role_type: RoleType, job_id: JobId) -> Option<PhaseResult<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxSubmissionLen, MaxProofLen, MaxAdditionalParamsLen>> {
             TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
                 Jobs::query_job_result(role_type, job_id)
             })
@@ -675,6 +703,7 @@ pub mod mock_wrapper_client {
         MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen,
     };
 
+    use gadget_common::prelude::MaxAdditionalParamsLen;
     use gadget_core::gadget::substrate::{self, Client};
     use pallet_jobs_rpc_runtime_api::JobsApi;
     use parity_scale_codec::{Decode, Encode};
@@ -780,6 +809,7 @@ pub mod mock_wrapper_client {
             super::MaxDataLen,
             super::MaxSignatureLen,
             super::MaxProofLen,
+            super::MaxAdditionalParamsLen,
         >,
     {
         async fn query_jobs_by_validator(
@@ -788,7 +818,15 @@ pub mod mock_wrapper_client {
             validator: AccountId32,
         ) -> Result<
             Option<
-                Vec<jobs::RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>,
+                Vec<
+                    jobs::RpcResponseJobsData<
+                        AccountId32,
+                        u64,
+                        MaxParticipants,
+                        MaxSubmissionLen,
+                        MaxAdditionalParamsLen,
+                    >,
+                >,
             >,
             gadget_common::Error,
         > {
@@ -816,7 +854,15 @@ pub mod mock_wrapper_client {
             role_type: roles::RoleType,
             job_id: u64,
         ) -> Result<
-            Option<jobs::RpcResponseJobsData<AccountId32, u64, MaxParticipants, MaxSubmissionLen>>,
+            Option<
+                jobs::RpcResponseJobsData<
+                    AccountId32,
+                    u64,
+                    MaxParticipants,
+                    MaxSubmissionLen,
+                    MaxAdditionalParamsLen,
+                >,
+            >,
             gadget_common::Error,
         > {
             let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
@@ -848,6 +894,7 @@ pub mod mock_wrapper_client {
                     MaxSignatureLen,
                     MaxSubmissionLen,
                     MaxProofLen,
+                    MaxAdditionalParamsLen,
                 >,
             >,
             gadget_common::Error,
@@ -948,6 +995,7 @@ pub mod mock_wrapper_client {
                 MaxSignatureLen,
                 MaxDataLen,
                 MaxProofLen,
+                MaxAdditionalParamsLen,
             >,
         ) -> Result<(), gadget_common::Error> {
             let id = self.id.clone();

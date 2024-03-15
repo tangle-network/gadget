@@ -304,7 +304,14 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     broadcast_tx_to_outbound: futures::channel::mpsc::UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<
-    jobs::JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
+    jobs::JobResult<
+        MaxParticipants,
+        MaxKeyLen,
+        MaxSignatureLen,
+        MaxDataLen,
+        MaxProofLen,
+        MaxAdditionalParamsLen,
+    >,
     JobError,
 > {
     let key_hashed = keccak_256(public_key_package);
@@ -419,7 +426,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
         participants,
         signatures: BoundedVec(signatures),
         threshold: t as _,
-        __subxt_unused_type_params: Default::default(),
+        __ignore: Default::default(),
     };
     verify_generated_dkg_key_ecdsa(res.clone(), logger);
     Ok(jobs::JobResult::DKGPhaseOne(res))

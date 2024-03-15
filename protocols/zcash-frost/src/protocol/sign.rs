@@ -34,7 +34,7 @@ pub struct ZcashFrostSigningExtraParams {
     pub signers: Vec<u16>,
     pub job_id: u64,
     pub role_type: roles::RoleType,
-    pub keyshare: FrostKeyShare,
+    pub key_share: FrostKeyShare,
     pub input_data_to_sign: Vec<u8>,
     pub user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
@@ -80,7 +80,7 @@ pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>
         signers,
         job_id,
         role_type: job.role_type,
-        keyshare: key,
+        key_share: key,
         input_data_to_sign,
         user_id_to_account_id_mapping,
     };
@@ -88,16 +88,16 @@ pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>
 }
 
 macro_rules! deserialize_and_run_threshold_sign {
-    ($impl_type:ty, $keyshare:expr, $tracer:expr, $i:expr, $signers:expr, $msg:expr, $role:expr, $rng:expr, $party:expr) => {{
+    ($impl_type:ty, $key_share:expr, $tracer:expr, $i:expr, $signers:expr, $msg:expr, $role:expr, $rng:expr, $party:expr) => {{
         let key_package =
-            KeyPackage::<$impl_type>::deserialize(&$keyshare.key_package).map_err(|err| {
+            KeyPackage::<$impl_type>::deserialize(&$key_share.key_package).map_err(|err| {
                 JobError {
                     reason: format!("Failed to deserialize key share: {err:?}"),
                 }
             })?;
 
         let public_key_package = PublicKeyPackage::<$impl_type>::deserialize(
-            &$keyshare.pubkey_package,
+            &$key_share.pubkey_package,
         )
         .map_err(|err| JobError {
             reason: format!("Failed to deserialize public key package: {err:?}"),
@@ -137,11 +137,11 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
     let id = config.key_store.pair().public();
     let network = config.clone();
 
-    let (i, signers, t, keyshare, role_type, input_data_to_sign, mapping) = (
+    let (i, signers, t, key_share, role_type, input_data_to_sign, mapping) = (
         additional_params.i,
         additional_params.signers,
         additional_params.t,
-        additional_params.keyshare,
+        additional_params.key_share,
         additional_params.role_type.clone(),
         additional_params.input_data_to_sign.clone(),
         additional_params.user_id_to_account_id_mapping.clone(),
@@ -195,7 +195,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
                     deserialize_and_run_threshold_sign!(
                         Secp256K1Sha256,
-                        keyshare,
+                        key_share,
                         &mut tracer,
                         i,
                         signers,
@@ -208,7 +208,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostEd25519 => {
                     deserialize_and_run_threshold_sign!(
                         Ed25519Sha512,
-                        keyshare,
+                        key_share,
                         &mut tracer,
                         i,
                         signers,
@@ -221,7 +221,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostEd448 => {
                     deserialize_and_run_threshold_sign!(
                         Ed448Shake256,
-                        keyshare,
+                        key_share,
                         &mut tracer,
                         i,
                         signers,
@@ -234,7 +234,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostP256 => {
                     deserialize_and_run_threshold_sign!(
                         P256Sha256,
-                        keyshare,
+                        key_share,
                         &mut tracer,
                         i,
                         signers,
@@ -247,7 +247,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostP384 => {
                     deserialize_and_run_threshold_sign!(
                         P384Sha384,
-                        keyshare,
+                        key_share,
                         &mut tracer,
                         i,
                         signers,
@@ -260,7 +260,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
                     deserialize_and_run_threshold_sign!(
                         Ristretto255Sha512,
-                        keyshare,
+                        key_share,
                         &mut tracer,
                         i,
                         signers,
@@ -350,7 +350,8 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                     data: BoundedVec(additional_params.input_data_to_sign),
                     signature: BoundedVec(signature),
                     verifying_key: BoundedVec(Default::default()),
-                    __subxt_unused_type_params: Default::default(),
+                    derivation_path: None,
+                    __ignore: Default::default(),
                 });
 
                 pallet_tx

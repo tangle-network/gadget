@@ -16,7 +16,7 @@ use std::time::Duration;
 use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
 use tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{
-    MaxParticipants, MaxSubmissionLen,
+    MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen,
 };
 
 pub mod message;
@@ -68,10 +68,13 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> Module<C, N, M> {
 }
 
 pub struct JobInitMetadata {
-    pub job_type: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen>,
+    pub job_type:
+        jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     pub role_type: roles::RoleType,
     /// This value only exists if this is a stage2 job
-    pub phase1_job: Option<jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen>>,
+    pub phase1_job: Option<
+        jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
+    >,
     pub participants_role_ids: Vec<ecdsa::Public>,
     pub task_id: <WorkManager as WorkManagerInterface>::TaskID,
     pub retry_id: <WorkManager as WorkManagerInterface>::RetryID,
@@ -365,7 +368,7 @@ pub trait GadgetProtocol<C: ClientWithApi>: AsyncProtocol + Send + Sync {
     /// ```
     fn phase_filter(
         &self,
-        job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen>,
+        job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     ) -> bool;
     fn client(&self) -> JobsClient<C>;
     fn logger(&self) -> DebugLogger;

@@ -321,7 +321,7 @@ where
                 proof.serialize_compressed(&mut proof_bytes).unwrap();
                 let result = zksaas::ZkSaaSProofResult::Arkworks(zksaas::ArkworksProofResult {
                     proof: BoundedVec(proof_bytes),
-                    __subxt_unused_type_params: Default::default(),
+                    __ignore: Default::default(),
                 });
 
                 pallet_tx

@@ -176,7 +176,14 @@ pub(crate) async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
     rx: &mut UnboundedReceiver<Msg<RoundPayload>>,
     user_id_to_account_id_mapping: &Arc<HashMap<UserID, ecdsa::Public>>,
 ) -> Result<
-    jobs::JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
+    jobs::JobResult<
+        MaxParticipants,
+        MaxKeyLen,
+        MaxSignatureLen,
+        MaxDataLen,
+        MaxProofLen,
+        MaxAdditionalParamsLen,
+    >,
     JobError,
 > {
     let mut received_pk_shares = BTreeMap::new();
@@ -295,7 +302,7 @@ pub(crate) async fn handle_public_key_broadcast<KBE: KeystoreBackend>(
             participants: BoundedVec(participants),
             signatures: BoundedVec(signatures),
             threshold: t as u8,
-            __subxt_unused_type_params: Default::default(),
+            __ignore: Default::default(),
         },
     ))
 }

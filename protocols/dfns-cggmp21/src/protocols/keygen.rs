@@ -321,7 +321,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                             &logger,
                             &job_id_bytes,
                             &key_store,
-                            role_type,
+                            role_type.clone(),
                         )
                         .await?
                     }
@@ -353,7 +353,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                             &logger,
                             &job_id_bytes,
                             &key_store,
-                            role_type,
+                            role_type.clone(),
                         )
                         .await?
                     }
@@ -385,7 +385,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                             &logger,
                             &job_id_bytes,
                             &key_store,
-                            role_type,
+                            role_type.clone(),
                         )
                         .await?
                     }
@@ -394,27 +394,39 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 
             logger.debug("Finished AsyncProtocol - Keygen");
 
+            let sig_scheme = match role_type {
+                roles::RoleType::Tss(
+                    roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
+                ) => jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
+                roles::RoleType::Tss(
+                    roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1,
+                ) => jobs::tss::DigitalSignatureScheme::EcdsaSecp256r1,
+                roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
+                    jobs::tss::DigitalSignatureScheme::EcdsaStark
+                }
+                _ => unreachable!("Invalid role type"),
+            };
+
             let job_result = handle_public_key_gossip(
                 key_store,
                 &logger,
-                &key_share,
                 &serialized_public_key,
+                sig_scheme,
                 t,
                 i,
                 tx2,
                 rx2,
             )
             .await?;
-
             *protocol_output.lock().await = Some((key_share, job_result));
             Ok(())
         })
         .post(async move {
             // TODO: handle protocol blames
             // Store the keys locally, as well as submitting them to the blockchain
-            if let Some((local_key, job_result)) = protocol_output_clone.lock().await.take() {
+            if let Some((key_share, job_result)) = protocol_output_clone.lock().await.take() {
                 key_store2
-                    .set_job_result(additional_params.job_id, local_key)
+                    .set_job_result(additional_params.job_id, key_share)
                     .await
                     .map_err(|err| JobError {
                         reason: format!("Failed to store key: {err:?}"),
@@ -438,17 +450,24 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn handle_public_key_gossip<KBE: KeystoreBackend>(
+pub async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     key_store: ECDSAKeyStore<KBE>,
     logger: &DebugLogger,
-    _local_key: &[u8],
     serialized_public_key: &[u8],
+    digital_signature_scheme: jobs::tss::DigitalSignatureScheme,
     t: u16,
     i: u16,
     broadcast_tx_to_outbound: UnboundedSender<PublicKeyGossipMessage>,
     mut broadcast_rx_from_gadget: futures::channel::mpsc::UnboundedReceiver<PublicKeyGossipMessage>,
 ) -> Result<
-    jobs::JobResult<MaxParticipants, MaxKeyLen, MaxSignatureLen, MaxDataLen, MaxProofLen>,
+    jobs::JobResult<
+        MaxParticipants,
+        MaxKeyLen,
+        MaxSignatureLen,
+        MaxDataLen,
+        MaxProofLen,
+        MaxAdditionalParamsLen,
+    >,
     JobError,
 > {
     let key_hashed = keccak_256(serialized_public_key);
@@ -533,12 +552,12 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     }
 
     let res = jobs::tss::DKGTSSKeySubmissionResult {
-        signature_scheme: jobs::tss::DigitalSignatureScheme::Ecdsa,
+        signature_scheme: digital_signature_scheme,
         key: BoundedVec(serialized_public_key.to_vec()),
         participants: BoundedVec(participants),
         signatures: BoundedVec(signatures),
         threshold: t as _,
-        __subxt_unused_type_params: Default::default(),
+        __ignore: Default::default(),
     };
     verify_generated_dkg_key_ecdsa(res.clone(), logger);
     Ok(jobs::JobResult::DKGPhaseOne(res))
