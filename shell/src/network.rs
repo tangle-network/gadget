@@ -34,6 +34,10 @@ struct MyBehaviour {
     p2p: request_response::cbor::Behaviour<MyBehaviourRequest, MyBehaviourResponse>,
     identify: libp2p::identify::Behaviour,
     kadmelia: libp2p::kad::Behaviour<MemoryStore>,
+    dcutr: libp2p::dcutr::Behaviour,
+    relay: libp2p::relay::Behaviour,
+    relay_client: libp2p::relay::client::Behaviour,
+    ping: libp2p::ping::Behaviour,
 }
 
 pub async fn setup_network(
@@ -43,18 +47,23 @@ pub async fn setup_network(
     networks: Vec<&'static str>,
     role_key: ecdsa::Public,
 ) -> Result<(Vec<GossipHandle>, JoinHandle<()>), Box<dyn Error>> {
+    // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
         .with_tokio()
-        /*.with_tcp(
-            libp2p::tcp::Config::default(),
+        .with_tcp(
+            libp2p::tcp::Config::default()
+                .port_reuse(true)
+                .nodelay(true), // Allow port reuse for TCP-hole punching
             libp2p::noise::Config::new,
             libp2p::yamux::Config::default,
-        )?*/
+        )?
         .with_quic_config(|mut config| {
             config.handshake_timeout = Duration::from_secs(30);
             config
         })
-        .with_behaviour(|key| {
+        .with_dns()?
+        .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
+        .with_behaviour(|key, relay_client| {
             // Set a custom gossipsub configuration
             let gossipsub_config = gossipsub::ConfigBuilder::default()
                 .protocol_id_prefix("/tangle/gadget-shell/meshsub")
@@ -99,12 +108,29 @@ pub async fn setup_network(
             let memory_db = MemoryStore::new(key.public().to_peer_id());
             let kadmelia = libp2p::kad::Behaviour::new(key.public().to_peer_id(), memory_db);
 
+            // Setup dcutr for upgrading existing connections to use relay against the bootnodes when necessary
+            // This also provided hole-punching capabilities to attempt to seek a direct connection, and fallback to relaying
+            // otherwise.
+            // dcutr = direct connection upgrade through relay
+            let dcutr = libp2p::dcutr::Behaviour::new(key.public().to_peer_id());
+
+            // Setup relay for using the dcutr-upgraded connections to relay messages for other peers when required
+            let relay_config = libp2p::relay::Config::default();
+            let relay = libp2p::relay::Behaviour::new(key.public().to_peer_id(), relay_config);
+
+            // Setup ping for liveness checks between connections
+            let ping = libp2p::ping::Behaviour::new(libp2p::ping::Config::default());
+
             Ok(MyBehaviour {
                 gossipsub,
                 mdns,
                 p2p,
                 identify,
                 kadmelia,
+                dcutr,
+                relay,
+                relay_client,
+                ping,
             })
         })?
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
@@ -116,7 +142,6 @@ pub async fn setup_network(
         tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
     let ecdsa_peer_id_to_libp2p_id = Arc::new(RwLock::new(HashMap::new()));
     let mut handles_ret = vec![];
-
     for network in networks {
         let topic = IdentTopic::new(network);
         swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
@@ -136,7 +161,7 @@ pub async fn setup_network(
 
     swarm
         .listen_on(format!("/ip4/{}/udp/{}/quic-v1", config.bind_ip, config.bind_port).parse()?)?;
-    //swarm.listen_on(format!("/ip4/{}/tcp/{}", config.bind_ip, config.bind_port).parse()?)?;
+    swarm.listen_on(format!("/ip4/{}/tcp/{}", config.bind_ip, config.bind_port).parse()?)?;
 
     // Dial all bootnodes
     for bootnode in &config.bootnodes {
@@ -314,7 +339,7 @@ impl<'a> NetworkService<'a> {
     async fn handle_p2p_response(
         &mut self,
         peer: PeerId,
-        request_id: request_response::OutboundRequestId,
+        _request_id: request_response::OutboundRequestId,
         message: MyBehaviourResponse,
     ) {
         use MyBehaviourResponse::*;
@@ -443,15 +468,15 @@ impl<'a> NetworkService<'a> {
     #[tracing::instrument(
         skip(self, message),
         fields(
-            %message_id,
-            %propagation_source,
+            %_message_id,
+            %_propagation_source,
             source = ?message.source
         )
     )]
     async fn handle_gossip_message(
         &mut self,
-        propagation_source: PeerId,
-        message_id: gossipsub::MessageId,
+        _propagation_source: PeerId,
+        _message_id: gossipsub::MessageId,
         message: gossipsub::Message,
     ) {
         let Some(origin) = message.source else {
@@ -530,6 +555,7 @@ impl<'a> NetworkService<'a> {
                 self.logger.debug(format!(
                     "Received identify event from peer: {peer_id} with info: {info_lines}"
                 ));
+                self.swarm.add_external_address(info.observed_addr);
             }
             Sent { peer_id } => {
                 self.logger
@@ -561,7 +587,7 @@ impl<'a> NetworkService<'a> {
     }
 
     #[tracing::instrument(skip(self))]
-    async fn handle_connection_established(&mut self, peer_id: PeerId, num_established: u32) {
+    async fn handle_connection_established(&mut self, peer_id: PeerId, _num_established: u32) {
         self.logger.debug("Connection established");
         // TODO: Sign the handshake message.
         let handshake = MyBehaviourRequest::Handshake {
@@ -581,8 +607,8 @@ impl<'a> NetworkService<'a> {
     async fn handle_connection_closed(
         &mut self,
         peer_id: PeerId,
-        num_established: u32,
-        cause: Option<libp2p::swarm::ConnectionError>,
+        _num_established: u32,
+        _cause: Option<libp2p::swarm::ConnectionError>,
     ) {
         self.logger.debug("Connection closed");
         self.swarm
@@ -594,9 +620,9 @@ impl<'a> NetworkService<'a> {
     #[tracing::instrument(skip(self))]
     async fn handle_incoming_connection(
         &mut self,
-        connection_id: libp2p::swarm::ConnectionId,
-        local_addr: libp2p::Multiaddr,
-        send_back_addr: libp2p::Multiaddr,
+        _connection_id: libp2p::swarm::ConnectionId,
+        _local_addr: libp2p::Multiaddr,
+        _send_back_addr: libp2p::Multiaddr,
     ) {
         self.logger.debug("Incoming connection");
     }
@@ -605,7 +631,7 @@ impl<'a> NetworkService<'a> {
     async fn handle_outgoing_connection(
         &mut self,
         peer_id: PeerId,
-        connection_id: libp2p::swarm::ConnectionId,
+        _connection_id: libp2p::swarm::ConnectionId,
     ) {
         self.logger
             .debug(format!("Outgoing connection to peer: {peer_id}",));
@@ -614,9 +640,9 @@ impl<'a> NetworkService<'a> {
     #[tracing::instrument(skip(self, error))]
     async fn handle_incoming_connection_error(
         &mut self,
-        connection_id: libp2p::swarm::ConnectionId,
-        local_addr: libp2p::Multiaddr,
-        send_back_addr: libp2p::Multiaddr,
+        _connection_id: libp2p::swarm::ConnectionId,
+        _local_addr: libp2p::Multiaddr,
+        _send_back_addr: libp2p::Multiaddr,
         error: libp2p::swarm::ListenError,
     ) {
         self.logger
@@ -626,12 +652,32 @@ impl<'a> NetworkService<'a> {
     #[tracing::instrument(skip(self, error))]
     async fn handle_outgoing_connection_error(
         &mut self,
-        connection_id: libp2p::swarm::ConnectionId,
-        peer_id: Option<PeerId>,
+        _connection_id: libp2p::swarm::ConnectionId,
+        _peer_id: Option<PeerId>,
         error: libp2p::swarm::DialError,
     ) {
         self.logger
             .error(format!("Outgoing connection error: {error}",));
+    }
+
+    #[tracing::instrument(skip(self, event))]
+    async fn handle_dcutr_event(&mut self, event: libp2p::dcutr::Event) {
+        self.logger.debug(format!("DCUTR event: {event:?}"));
+    }
+
+    #[tracing::instrument(skip(self, event))]
+    async fn handle_relay_event(&mut self, event: libp2p::relay::Event) {
+        self.logger.debug(format!("Relay event: {event:?}"));
+    }
+
+    #[tracing::instrument(skip(self, event))]
+    async fn handle_relay_client_event(&mut self, event: libp2p::relay::client::Event) {
+        self.logger.debug(format!("Relay client event: {event:?}"));
+    }
+
+    #[tracing::instrument(skip(self, event))]
+    async fn handle_ping_event(&mut self, event: libp2p::ping::Event) {
+        self.logger.debug(format!("Ping event: {event:?}"));
     }
 
     async fn handle_swarm_event(&mut self, event: SwarmEvent<MyBehaviourEvent>) {
@@ -653,6 +699,18 @@ impl<'a> NetworkService<'a> {
             }
             Behaviour(Kadmelia(event)) => {
                 self.logger.trace(format!("Kadmelia event: {event:?}"));
+            }
+            Behaviour(Dcutr(event)) => {
+                self.handle_dcutr_event(event).await;
+            }
+            Behaviour(Relay(event)) => {
+                self.handle_relay_event(event).await;
+            }
+            Behaviour(RelayClient(event)) => {
+                self.handle_relay_client_event(event).await;
+            }
+            Behaviour(Ping(event)) => {
+                self.handle_ping_event(event).await;
             }
 
             NewListenAddr {
