@@ -1,6 +1,6 @@
 ## How to run the shell locally
 
-To be able run the demo locally, you will need tangle node and this repository.
+To be able to run the demo locally, you will need a tangle node and this repository.
 
 ### Setup Tangle Node
 
@@ -49,16 +49,16 @@ cargo build --release
 
 ### Polkadot JS Apps
 
-You may also want to run a local instance of Polkadot JS Apps to interact with the node and to create jobs, etc.
+Additionally, you may also want to run a local instance of Polkadot JS Apps to interact with the node, create jobs, etc.
 Go to https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9944 and connect to the local node.
 
-### Send Jobs Using Playground Script
+### Send Jobs Using a Playground Script
 
 You can also use the `playground` script to send jobs to the network. To do this, you will need to have the `tangle` binary running and the `gadget-shell` running.
-then in tangle repo, enter `types` directory and run the following command:
+Then, in the tangle repo, enter the `types` directory and run the following command:
 
 ```bash
 ts-node playground.ts
 ```
 
-This will create profiles for `Alice`, `Bob` and `Charlie`, and send a DKG Phase One job to the network. You can then use the Polkadot JS Apps to see the job being processed.
+This will create profiles for `Alice`, `Bob` and `Charlie`, and send a DKG Phase One job to the network. You can then use the Polkadot JS apps to see the job being processed.
