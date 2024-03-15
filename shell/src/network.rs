@@ -1,9 +1,11 @@
 use crate::config::ShellConfig;
+use crate::shell::CLIENT_VERSION;
 use async_trait::async_trait;
 use futures::stream::StreamExt;
 use gadget_common::prelude::{DebugLogger, Network, WorkManager};
 use gadget_core::job_manager::WorkManagerInterface;
 use libp2p::gossipsub::IdentTopic;
+use libp2p::kad::store::MemoryStore;
 use libp2p::{
     gossipsub, mdns, request_response, swarm::NetworkBehaviour, swarm::SwarmEvent, PeerId,
     StreamProtocol,
@@ -27,6 +29,8 @@ struct MyBehaviour {
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::tokio::Behaviour,
     p2p: request_response::cbor::Behaviour<GossipMessage, GossipMessage>,
+    identify: libp2p::identify::Behaviour,
+    kadmelia: libp2p::kad::Behaviour<MemoryStore>,
 }
 
 pub async fn setup_network(
@@ -85,10 +89,22 @@ pub async fn setup_network(
 
             let p2p = request_response::Behaviour::new(protocols, p2p_config);
 
+            // Setup the identify protocol for peers to exchange information about each other, a requirement for kadmelia DHT
+            let identify = libp2p::identify::Behaviour::new(libp2p::identify::Config::new(
+                CLIENT_VERSION.to_string(),
+                key.public(),
+            ));
+
+            // Setup kadmelia for DHT for peer discovery over a larger network
+            let memory_db = MemoryStore::new(key.public().to_peer_id());
+            let kadmelia = libp2p::kad::Behaviour::new(key.public().to_peer_id(), memory_db);
+
             Ok(MyBehaviour {
                 gossipsub,
                 mdns,
                 p2p,
+                identify,
+                kadmelia,
             })
         })?
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
@@ -251,7 +267,9 @@ pub async fn setup_network(
                     SwarmEvent::NewListenAddr { address, .. } => {
                         logger.debug(format!("Local node is listening on {address}"));
                     }
-                    _ => {}
+                    evt => {
+                        logger.warn(format!("TODO: Received unhandled event from libp2p: {evt:?}"))
+                    }
                 }
             }
         }
