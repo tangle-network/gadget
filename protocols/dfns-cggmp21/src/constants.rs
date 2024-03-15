@@ -1,8 +1,8 @@
 // ================= Common ======================== //
-pub const DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME: &str = "/tangle/dfns-cggmp21/keygen/1";
-pub const DFNS_CGGMP21_SIGNING_PROTOCOL_NAME: &str = "/tangle/dfns-cggmp21/signing/1";
-pub const DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME: &str = "/tangle/dfns-cggmp21/keyrefresh/1";
-pub const DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME: &str = "/tangle/dfns-cggmp21/keyrotate/1";
+pub const DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME: &str = "/tangle/dfns-cggmp21/keygen/1.0.0";
+pub const DFNS_CGGMP21_SIGNING_PROTOCOL_NAME: &str = "/tangle/dfns-cggmp21/signing/1.0.0";
+pub const DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME: &str = "/tangle/dfns-cggmp21/keyrefresh/1.0.0";
+pub const DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME: &str = "/tangle/dfns-cggmp21/keyrotate/1.0.0";
 
 // ============= Signing Protocol ======================= //
 

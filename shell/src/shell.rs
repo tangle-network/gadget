@@ -12,7 +12,6 @@ use gadget_common::{
     full_protocol::NodeInput,
     keystore::{ECDSAKeyStore, InMemoryBackend},
 };
-use sp_application_crypto::Ss58Codec;
 use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
 
@@ -23,8 +22,12 @@ use dfns_cggmp21_protocol::constants::{
     DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
     DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME, DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
 };
-use gadget_common::prelude::KeystoreBackend;
+use gadget_common::keystore::KeystoreBackend;
 use tangle_subxt::subxt;
+
+/// The version of the shell
+pub const AGENT_VERSION: &str = "tangle/gadget-shell/1.0.0";
+pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Start the shell and run it forever
 #[tracing::instrument(skip(config))]
@@ -33,9 +36,7 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     let network_key = ed25519::Pair::from_seed(&config.node_key);
     let subxt_client =
         subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&config.subxt.endpoint).await?;
-    let logger = DebugLogger {
-        peer_id: role_key.public().to_ss58check(),
-    };
+    let logger = DebugLogger::default();
     let pair_signer = PairSigner::new(acco_key.clone());
     let pallet_tx_submitter =
         SubxtPalletSubmitter::with_client(subxt_client.clone(), pair_signer, logger.clone());
@@ -169,11 +170,9 @@ pub fn load_keys_from_keystore(
     Ok((role_key, acco_key))
 }
 
-pub const CLIENT_VERSION: &str = "0.0.1";
-
 pub async fn wait_for_connection_to_bootnodes(
     config: &ShellConfig,
-    handles: &Vec<GossipHandle>,
+    handles: &[GossipHandle],
     logger: &DebugLogger,
 ) -> color_eyre::Result<()> {
     let n_required = config.bootnodes.len();
@@ -182,18 +181,28 @@ pub async fn wait_for_connection_to_bootnodes(
         "Waiting for {n_required} peers to show up across {n_networks} networks"
     ));
 
-    for (id, handle) in handles.iter().enumerate() {
+    let mut tasks = tokio::task::JoinSet::new();
+
+    // For each network, we start a task that checks if we have enough peers connected
+    // and then we wait for all of them to finish.
+
+    let wait_for_peers = |handle: GossipHandle, n_required, logger: DebugLogger| async move {
         'inner: loop {
             let n_connected = handle.connected_peers();
             if n_connected >= n_required {
                 break 'inner;
-            } else {
-                logger.debug(format!("We currently have {n_connected}/{n_required} peers connected to network {id}/{n_networks}"))
             }
-
+            let topic = handle.topic();
+            logger.debug(format!("`{topic}`: We currently have {n_connected}/{n_required} peers connected to network"));
             tokio::time::sleep(Duration::from_millis(1000)).await;
         }
+    };
+
+    for handle in handles.iter() {
+        tasks.spawn(wait_for_peers(handle.clone(), n_required, logger.clone()));
     }
+    // Wait for all tasks to finish
+    while (tasks.join_next().await).is_some() {}
 
     Ok(())
 }

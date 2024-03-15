@@ -1,10 +1,6 @@
-bind_ip = "127.0.0.1"
+bind_ip = "0.0.0.0"
 bind_port = 30555
-bootnodes = [
-    "/ip4/127.0.0.1/tcp/30556/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
-    "/ip4/127.0.0.1/tcp/30557/p2p/12D3KooWHdiAxVd8uMQR1hGWXccidmfCwLqcMpGwR6QcTP6QRMuD",
-]
-genesis_hash = "0000000000000000000000000000000000000000000000000000000000000000"
+bootnodes = []
 # 12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN
 node_key = "0000000000000000000000000000000000000000000000000000000000000000"
 keystore_path = "../tangle/tmp/alice/chains/local_testnet/keystore"

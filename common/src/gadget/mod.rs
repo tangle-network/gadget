@@ -96,7 +96,7 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
     ) -> Result<(), Self::Error> {
         let now: u64 = notification.number;
         *self.clock.write() = Some(now);
-        self.protocol.logger().info(format!(
+        self.protocol.logger().trace(format!(
             "Processing finality notification at block number {now}",
         ));
 
@@ -158,7 +158,11 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
             let task_id = job_id.to_be_bytes();
             let task_id = keccak_256(&task_id);
             if self.job_manager.job_exists(&task_id) {
-                // log::warn!(target: "gadget", "The job requested for initialization is already running or enqueued, skipping submission");
+                self.protocol.logger().trace(format!(
+                    "[{}] The job {} is already running or enqueued, skipping submission",
+                    self.protocol.name(),
+                    job.job_id,
+                ));
                 continue;
             }
 
@@ -242,7 +246,7 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
         for relevant_job in relevant_jobs {
             let task_id = relevant_job.task_id;
             let retry_id = relevant_job.retry_id;
-            self.protocol.logger().trace(format!(
+            self.protocol.logger().info(format!(
                 "Creating job for task {task_id} with retry id {retry_id}",
                 task_id = hex::encode(task_id),
                 retry_id = retry_id

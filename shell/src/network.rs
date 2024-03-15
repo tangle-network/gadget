@@ -1,34 +1,37 @@
 use crate::config::ShellConfig;
-use crate::shell::CLIENT_VERSION;
+use crate::shell::{AGENT_VERSION, CLIENT_VERSION};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
 use gadget_common::prelude::{DebugLogger, Network, WorkManager};
 use gadget_core::job_manager::WorkManagerInterface;
-use libp2p::gossipsub::IdentTopic;
+use libp2p::gossipsub::{IdentTopic, TopicHash};
 use libp2p::kad::store::MemoryStore;
+use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::{
     gossipsub, mdns, request_response, swarm::NetworkBehaviour, swarm::SwarmEvent, PeerId,
     StreamProtocol,
 };
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
-use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::error::Error;
-use std::hash::{Hash, Hasher};
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use tokio::task::JoinHandle;
 use tokio::{io, select};
+
+/// Maximum allowed size for a Signed Message.
+pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
 
 // We create a custom network behaviour that combines Gossipsub and Mdns.
 #[derive(NetworkBehaviour)]
 struct MyBehaviour {
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::tokio::Behaviour,
-    p2p: request_response::cbor::Behaviour<GossipMessage, GossipMessage>,
+    p2p: request_response::cbor::Behaviour<MyBehaviourRequest, MyBehaviourResponse>,
     identify: libp2p::identify::Behaviour,
     kadmelia: libp2p::kad::Behaviour<MemoryStore>,
 }
@@ -47,20 +50,17 @@ pub async fn setup_network(
             libp2p::noise::Config::new,
             libp2p::yamux::Config::default,
         )?*/
-        .with_quic()
+        .with_quic_config(|mut config| {
+            config.handshake_timeout = Duration::from_secs(30);
+            config
+        })
         .with_behaviour(|key| {
-            // To content-address message, we can take the hash of message and use it as an ID.
-            let message_id_fn = |message: &gossipsub::Message| {
-                let mut s = DefaultHasher::new();
-                message.data.hash(&mut s);
-                gossipsub::MessageId::from(s.finish().to_string())
-            };
-
             // Set a custom gossipsub configuration
             let gossipsub_config = gossipsub::ConfigBuilder::default()
-                .heartbeat_interval(Duration::from_secs(10)) // This is set to aid debugging by not cluttering the log space
+                .protocol_id_prefix("/tangle/gadget-shell/meshsub")
+                .max_transmit_size(MAX_MESSAGE_SIZE)
+                .validate_messages()
                 .validation_mode(gossipsub::ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
-                .message_id_fn(message_id_fn) // content-address messages. No two messages of the same content will be propagated.
                 .build()
                 .map_err(|msg| io::Error::new(io::ErrorKind::Other, msg))?; // Temporary hack because `build` does not return a proper `std::error::Error`.
 
@@ -90,10 +90,10 @@ pub async fn setup_network(
             let p2p = request_response::Behaviour::new(protocols, p2p_config);
 
             // Setup the identify protocol for peers to exchange information about each other, a requirement for kadmelia DHT
-            let identify = libp2p::identify::Behaviour::new(libp2p::identify::Config::new(
-                CLIENT_VERSION.to_string(),
-                key.public(),
-            ));
+            let identify = libp2p::identify::Behaviour::new(
+                libp2p::identify::Config::new(CLIENT_VERSION.into(), key.public())
+                    .with_agent_version(AGENT_VERSION.into()),
+            );
 
             // Setup kadmelia for DHT for peer discovery over a larger network
             let memory_db = MemoryStore::new(key.public().to_peer_id());
@@ -114,12 +114,7 @@ pub async fn setup_network(
     let mut inbound_mapping = Vec::new();
     let (tx_to_outbound, mut rx_to_outbound) =
         tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
-    // TODO: move ecdsa_peer_id_to_libp2p_id into the loop below, make it network-specific
-    let ecdsa_peer_id_to_libp2p_id =
-        Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::<
-            ecdsa::Public,
-            PeerId,
-        >::new()));
+    let ecdsa_peer_id_to_libp2p_id = Arc::new(RwLock::new(HashMap::new()));
     let mut handles_ret = vec![];
 
     for network in networks {
@@ -145,131 +140,31 @@ pub async fn setup_network(
 
     // Dial all bootnodes
     for bootnode in &config.bootnodes {
-        swarm.dial(bootnode.clone())?;
+        swarm.dial(
+            DialOpts::unknown_peer_id()
+                .address(bootnode.clone())
+                .build(),
+        )?;
     }
 
     let worker = async move {
+        let span = tracing::debug_span!("network_worker");
+        let _enter = span.enter();
+        let service = NetworkServiceWithoutSwarm {
+            logger: &logger,
+            inbound_mapping: &inbound_mapping,
+            ecdsa_peer_id_to_libp2p_id,
+            role_key: &role_key,
+            span: tracing::debug_span!(parent: &span, "network_service"),
+        };
         loop {
             select! {
                 // Setup outbound channel
-                Some(payload) = rx_to_outbound.recv() => {
-                    let message: IntraNodePayload = payload;
-                    match message.message_type {
-                        MessageType::Broadcast => {
-                            let gossip_message = bincode2::serialize(&message.payload).expect("Should serialize");
-                            if let Err(e) = swarm
-                                .behaviour_mut().gossipsub
-                                .publish(message.topic, gossip_message) {
-                                logger.error(format!("Publish error: {e:?}"));
-                            }
-                        },
-
-                        MessageType::P2P(peer_id) => {
-                            // Send the outer payload in order to attach the topic to it
-                            // "Requests are sent using Behaviour::send_request and the responses
-                            // received as Message::Response via Event::Message."
-                            swarm.behaviour_mut().p2p.send_request(&peer_id, message.payload);
-                        }
-                    }
+                Some(msg) = rx_to_outbound.recv() => {
+                    service.with_swarm(&mut swarm).handle_intra_node_payload(msg);
                 }
-                event = swarm.select_next_some() => match event {
-                    // Handle P2P messages (all are of type "response" when using the request-response protocol)
-                    SwarmEvent::Behaviour(MyBehaviourEvent::P2p(request_response::Event::Message { peer: peer_id, message: request_response::Message::Response {request_id: _, response  } })) => {
-                        match response {
-                            GossipMessage::Handshake { ecdsa_public_key } => {
-                                logger.debug(format!("Received handshake from peer: {peer_id}"));
-                                ecdsa_peer_id_to_libp2p_id.write().await.insert(ecdsa_public_key, peer_id);
-                            },
-                            GossipMessage::Message { topic, raw_payload } => {
-                                let topic = IdentTopic::new(topic);
-                                if let Some((_, tx, _)) = inbound_mapping.iter().find(|r| r.0.to_string() == topic.to_string()) {
-                                    if let Err(e) = tx.send(raw_payload) {
-                                        logger.error(format!("Failed to send message to worker: {e}"));
-                                    }
-                                } else {
-                                    logger.error(format!("No registered worker for topic: {topic}!"));
-                                }
-                            }
-                        }
-                    }
-                    SwarmEvent::Behaviour(MyBehaviourEvent::Gossipsub(gossipsub::Event::Subscribed { peer_id, topic })) => {
-                        let topic = IdentTopic::new(topic.into_string());
-                        logger.debug(format!("Subscribed to topic: {topic} with peer: {peer_id}"));
-                        if let Some((_, _, connected_peers)) = inbound_mapping.iter().find(|r| r.0.to_string() == topic.to_string()) {
-                            connected_peers.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        } else {
-                            logger.error(format!("No registered worker for topic: {topic}!"));
-                        }
-
-                        // Send a handshake message directly to the peer that just joined the gossipsub
-                        let handshake_message = GossipMessage::Handshake { ecdsa_public_key: role_key };
-                        swarm.behaviour_mut().p2p.send_request(&peer_id, handshake_message);
-                    },
-                    SwarmEvent::Behaviour(MyBehaviourEvent::Gossipsub(gossipsub::Event::Unsubscribed { peer_id, topic })) => {
-                        let topic = IdentTopic::new(topic.into_string());
-                        logger.debug(format!("Unsubscribed from topic: {topic} with peer: {peer_id}"));
-                        if let Some((_, _, connected_peers)) = inbound_mapping.iter().find(|r| r.0.to_string() == topic.to_string()) {
-                            connected_peers.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
-                        } else {
-                            logger.error(format!("No registered worker for topic: {topic}!"));
-                        }
-
-                    },
-                    SwarmEvent::Behaviour(MyBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
-                        for (peer_id, multiaddr) in list {
-                            logger.debug(format!("mDNS discovered a new peer: {peer_id}"));
-                            swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
-                            if let Err(err) = swarm.dial(multiaddr) {
-                                logger.error(format!("Failed to dial peer: {err}"));
-                            }
-                        }
-                    },
-                    SwarmEvent::Behaviour(MyBehaviourEvent::Mdns(mdns::Event::Expired(list))) => {
-                        for (peer_id, _multiaddr) in list {
-                            logger.debug(format!("mDNS discover peer has expired: {peer_id}"));
-                            swarm.behaviour_mut().gossipsub.remove_explicit_peer(&peer_id);
-                        }
-                    },
-
-                    // Handle inbound broadcast messages
-                    SwarmEvent::Behaviour(MyBehaviourEvent::Gossipsub(gossipsub::Event::Message {
-                        propagation_source: peer_id,
-                        message_id: id,
-                        message,
-                    })) => {
-                        logger.debug(format!(
-                            "Got message: with id: {id} from peer: {peer_id}",
-                        ));
-
-                        match bincode2::deserialize::<GossipMessage>(&message.data) {
-                            Ok(message) => {
-                                match message {
-                                    GossipMessage::Handshake { ecdsa_public_key } => {
-                                        logger.debug(format!("Got handshake from peer: {peer_id}"));
-                                        ecdsa_peer_id_to_libp2p_id.write().await.insert(ecdsa_public_key, peer_id);
-                                    },
-                                    GossipMessage::Message { topic, raw_payload } => {
-                                        if let Some((_, tx, _)) = inbound_mapping.iter().find(|r| r.0.to_string() == topic) {
-                                            if let Err(e) = tx.send(raw_payload) {
-                                                logger.error(format!("Failed to send message to worker: {e}"));
-                                            }
-                                        } else {
-                                            logger.error(format!("No registered worker for topic: {topic}!"));
-                                        }
-                                    }
-                                }
-                            },
-                            Err(e) => {
-                                logger.error(format!("Failed to deserialize message: {e}"));
-                            }
-                        }
-                    }
-                    SwarmEvent::NewListenAddr { address, .. } => {
-                        logger.debug(format!("Local node is listening on {address}"));
-                    }
-                    evt => {
-                        logger.warn(format!("TODO: Received unhandled event from libp2p: {evt:?}"))
-                    }
+                event = swarm.select_next_some() => {
+                    service.with_swarm(&mut swarm).handle_swarm_event(event).await;
                 }
             }
         }
@@ -279,6 +174,594 @@ pub async fn setup_network(
     Ok((handles_ret, spawn_handle))
 }
 
+type InboundMapping = (IdentTopic, UnboundedSender<Vec<u8>>, Arc<AtomicU32>);
+
+struct NetworkServiceWithoutSwarm<'a> {
+    logger: &'a DebugLogger,
+    inbound_mapping: &'a [InboundMapping],
+    ecdsa_peer_id_to_libp2p_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
+    role_key: &'a ecdsa::Public,
+    span: tracing::Span,
+}
+
+impl<'a> NetworkServiceWithoutSwarm<'a> {
+    fn with_swarm(&'a self, swarm: &'a mut libp2p::Swarm<MyBehaviour>) -> NetworkService<'a> {
+        NetworkService {
+            swarm,
+            logger: self.logger,
+            inbound_mapping: self.inbound_mapping,
+            ecdsa_peer_id_to_libp2p_id: &self.ecdsa_peer_id_to_libp2p_id,
+            role_key: self.role_key,
+            span: &self.span,
+        }
+    }
+}
+
+struct NetworkService<'a> {
+    swarm: &'a mut libp2p::Swarm<MyBehaviour>,
+    logger: &'a DebugLogger,
+    inbound_mapping: &'a [InboundMapping],
+    ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
+    role_key: &'a ecdsa::Public,
+    span: &'a tracing::Span,
+}
+
+impl<'a> NetworkService<'a> {
+    fn handle_intra_node_payload(&mut self, msg: IntraNodePayload) {
+        let _enter = self.span.enter();
+        match (msg.message_type, msg.payload) {
+            (MessageType::Broadcast, GossipOrRequestResponse::Gossip(payload)) => {
+                let gossip_message = bincode2::serialize(&payload).expect("Should serialize");
+                if let Err(e) = self
+                    .swarm
+                    .behaviour_mut()
+                    .gossipsub
+                    .publish(msg.topic, gossip_message)
+                {
+                    self.logger.error(format!("Publish error: {e:?}"));
+                }
+            }
+
+            (MessageType::P2P(peer_id), GossipOrRequestResponse::Request(req)) => {
+                // Send the outer payload in order to attach the topic to it
+                // "Requests are sent using Behaviour::send_request and the responses
+                // received as Message::Response via Event::Message."
+                self.swarm.behaviour_mut().p2p.send_request(&peer_id, req);
+            }
+            (MessageType::Broadcast, GossipOrRequestResponse::Request(_)) => {
+                self.logger.error("Broadcasting a request is not supported");
+            }
+            (MessageType::Broadcast, GossipOrRequestResponse::Response(_)) => {
+                self.logger
+                    .error("Broadcasting a response is not supported");
+            }
+            (MessageType::P2P(_), GossipOrRequestResponse::Gossip(_)) => {
+                self.logger
+                    .error("P2P message should be a request or response");
+            }
+            (MessageType::P2P(_), GossipOrRequestResponse::Response(_)) => {
+                // TODO: Send the response to the peer.
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self, event))]
+    async fn handle_p2p(
+        &mut self,
+        event: request_response::Event<MyBehaviourRequest, MyBehaviourResponse>,
+    ) {
+        use request_response::Event::*;
+        match event {
+            Message { peer, message } => {
+                self.logger
+                    .debug(format!("Received P2P message from: {peer}"));
+                self.handle_p2p_message(peer, message).await;
+            }
+            OutboundFailure {
+                peer,
+                request_id,
+                error,
+            } => {
+                self.logger.error(format!("Failed to send message to peer: {peer} with request_id: {request_id} and error: {error}"));
+            }
+            InboundFailure {
+                peer,
+                request_id,
+                error,
+            } => {
+                self.logger.error(format!("Failed to receive message from peer: {peer} with request_id: {request_id} and error: {error}"));
+            }
+            ResponseSent { peer, request_id } => {
+                self.logger.debug(format!(
+                    "Sent response to peer: {peer} with request_id: {request_id}"
+                ));
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self, message))]
+    async fn handle_p2p_message(
+        &mut self,
+        peer: PeerId,
+        message: request_response::Message<MyBehaviourRequest, MyBehaviourResponse>,
+    ) {
+        use request_response::Message::*;
+        match message {
+            Request {
+                request,
+                channel,
+                request_id,
+            } => {
+                self.logger.debug(format!(
+                    "Received request with request_id: {request_id} from peer: {peer}"
+                ));
+                self.handle_p2p_request(peer, request_id, request, channel)
+                    .await;
+            }
+            Response {
+                response,
+                request_id,
+            } => {
+                self.logger.debug(format!(
+                    "Received response from peer: {peer} with request_id: {request_id}"
+                ));
+                self.handle_p2p_response(peer, request_id, response).await;
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self, message))]
+    async fn handle_p2p_response(
+        &mut self,
+        peer: PeerId,
+        request_id: request_response::OutboundRequestId,
+        message: MyBehaviourResponse,
+    ) {
+        use MyBehaviourResponse::*;
+        match message {
+            Handshaked { ecdsa_public_key } => {
+                // Their response to our handshake request.
+                // we should add them to our mapping.
+                // TODO: Add signature verification here.
+                self.ecdsa_peer_id_to_libp2p_id
+                    .write()
+                    .await
+                    .insert(ecdsa_public_key, peer);
+            }
+            MessageHandled => {}
+        }
+    }
+
+    #[tracing::instrument(skip(self, req, channel))]
+    async fn handle_p2p_request(
+        &mut self,
+        peer: PeerId,
+        request_id: request_response::InboundRequestId,
+        req: MyBehaviourRequest,
+        channel: request_response::ResponseChannel<MyBehaviourResponse>,
+    ) {
+        use MyBehaviourRequest::*;
+        let result = match req {
+            Handshake { ecdsa_public_key } => {
+                self.logger
+                    .debug(format!("Received handshake from peer: {peer}"));
+                self.ecdsa_peer_id_to_libp2p_id
+                    .write()
+                    .await
+                    .insert(ecdsa_public_key, peer);
+                self.swarm.behaviour_mut().p2p.send_response(
+                    channel,
+                    MyBehaviourResponse::Handshaked {
+                        ecdsa_public_key: *self.role_key,
+                    },
+                )
+            }
+            Message { topic, raw_payload } => {
+                let topic = IdentTopic::new(topic);
+                if let Some((_, tx, _)) = self
+                    .inbound_mapping
+                    .iter()
+                    .find(|r| r.0.to_string() == topic.to_string())
+                {
+                    if let Err(e) = tx.send(raw_payload) {
+                        self.logger
+                            .error(format!("Failed to send message to worker: {e}"));
+                    }
+                } else {
+                    self.logger
+                        .error(format!("No registered worker for topic: {topic}!"));
+                }
+                self.swarm
+                    .behaviour_mut()
+                    .p2p
+                    .send_response(channel, MyBehaviourResponse::MessageHandled)
+            }
+        };
+        if result.is_err() {
+            self.logger
+                .error(format!("Failed to send response for {request_id}"));
+        }
+    }
+
+    #[tracing::instrument(skip(self, event))]
+    async fn handle_gossip(&mut self, event: gossipsub::Event) {
+        use gossipsub::Event::*;
+        let with_connected_peers = |topic: &TopicHash, f: fn(&Arc<AtomicU32>)| {
+            let maybe_mapping = self
+                .inbound_mapping
+                .iter()
+                .find(|r| r.0.to_string() == topic.to_string());
+            match maybe_mapping {
+                Some((_, _, connected_peers)) => {
+                    f(connected_peers);
+                    true
+                }
+                None => false,
+            }
+        };
+        match event {
+            Message {
+                propagation_source,
+                message_id,
+                message,
+            } => {
+                self.handle_gossip_message(propagation_source, message_id, message)
+                    .await;
+            }
+            Subscribed { peer_id, topic } => {
+                let added = with_connected_peers(&topic, |connected_peers| {
+                    connected_peers.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                });
+                if added {
+                    self.logger
+                        .trace(format!("{peer_id} subscribed to {topic}",));
+                } else {
+                    self.logger
+                        .error(format!("{peer_id} subscribed to unknown topic: {topic}"));
+                }
+            }
+            Unsubscribed { peer_id, topic } => {
+                let removed = with_connected_peers(&topic, |connected_peers| {
+                    connected_peers.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                });
+                if removed {
+                    self.logger
+                        .trace(format!("{peer_id} unsubscribed from {topic}",));
+                } else {
+                    self.logger.error(format!(
+                        "{peer_id} unsubscribed from unknown topic: {topic}"
+                    ));
+                }
+            }
+            GossipsubNotSupported { peer_id } => {
+                self.logger
+                    .trace(format!("{peer_id} does not support gossipsub!"));
+            }
+        }
+    }
+
+    #[tracing::instrument(
+        skip(self, message),
+        fields(
+            %message_id,
+            %propagation_source,
+            source = ?message.source
+        )
+    )]
+    async fn handle_gossip_message(
+        &mut self,
+        propagation_source: PeerId,
+        message_id: gossipsub::MessageId,
+        message: gossipsub::Message,
+    ) {
+        let Some(origin) = message.source else {
+            self.logger
+                .error("Got message from unknown peer".to_string());
+            return;
+        };
+        self.logger
+            .debug(format!("Got message from peer: {origin}",));
+        match bincode2::deserialize::<GossipMessage>(&message.data) {
+            Ok(GossipMessage { topic, raw_payload }) => {
+                if let Some((_, tx, _)) = self
+                    .inbound_mapping
+                    .iter()
+                    .find(|r| r.0.to_string() == topic)
+                {
+                    if let Err(e) = tx.send(raw_payload) {
+                        self.logger
+                            .error(format!("Failed to send message to worker: {e}"));
+                    }
+                } else {
+                    self.logger
+                        .error(format!("No registered worker for topic: {topic}!"));
+                }
+            }
+            Err(e) => {
+                self.logger
+                    .error(format!("Failed to deserialize message: {e}"));
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self, event))]
+    async fn handle_mdns_event(&mut self, event: mdns::Event) {
+        use mdns::Event::*;
+        match event {
+            Discovered(list) => {
+                for (peer_id, multiaddr) in list {
+                    self.logger
+                        .debug(format!("discovered a new peer: {peer_id} on {multiaddr}"));
+                    self.swarm
+                        .behaviour_mut()
+                        .gossipsub
+                        .add_explicit_peer(&peer_id);
+                    if let Err(err) = self.swarm.dial(multiaddr) {
+                        self.logger.error(format!("Failed to dial peer: {err}"));
+                    }
+                }
+            }
+            Expired(list) => {
+                for (peer_id, multiaddr) in list {
+                    self.logger.debug(format!(
+                        "discover peer has expired: {peer_id} with {multiaddr}"
+                    ));
+                    self.swarm
+                        .behaviour_mut()
+                        .gossipsub
+                        .remove_explicit_peer(&peer_id);
+                }
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self, event))]
+    async fn handle_identify_event(&mut self, event: libp2p::identify::Event) {
+        use libp2p::identify::Event::*;
+        match event {
+            Received { peer_id, info } => {
+                // TODO: Verify the peer info, for example the protocol version, agent version, etc.
+                let info_lines = vec![
+                    format!("Protocol Version: {}", info.protocol_version),
+                    format!("Agent Version: {}", info.agent_version),
+                    format!("Supported Protocols: {:?}", info.protocols),
+                ];
+                let info_lines = info_lines.join(", ");
+                self.logger.debug(format!(
+                    "Received identify event from peer: {peer_id} with info: {info_lines}"
+                ));
+            }
+            Sent { peer_id } => {
+                self.logger
+                    .trace(format!("Sent identify event to peer: {peer_id}"));
+            }
+            Pushed { peer_id, info } => {
+                let info_lines = vec![
+                    format!("Protocol Version: {}", info.protocol_version),
+                    format!("Agent Version: {}", info.agent_version),
+                    format!("Supported Protocols: {:?}", info.protocols),
+                ];
+                let info_lines = info_lines.join(", ");
+                self.logger.debug(format!(
+                    "Pushed identify event to peer: {peer_id} with info: {info_lines}"
+                ));
+            }
+            Error { peer_id, error } => {
+                self.logger.error(format!(
+                    "Identify error from peer: {peer_id} with error: {error}"
+                ));
+            }
+        }
+    }
+
+    #[tracing::instrument(skip(self, event))]
+    async fn handle_kadmelia_event(&mut self, event: libp2p::kad::Event) {
+        // TODO: Handle kadmelia events
+        self.logger.trace(format!("Kadmelia event: {event:?}"));
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn handle_connection_established(&mut self, peer_id: PeerId, num_established: u32) {
+        self.logger.debug("Connection established");
+        // TODO: Sign the handshake message.
+        let handshake = MyBehaviourRequest::Handshake {
+            ecdsa_public_key: *self.role_key,
+        };
+        self.swarm
+            .behaviour_mut()
+            .p2p
+            .send_request(&peer_id, handshake);
+        self.swarm
+            .behaviour_mut()
+            .gossipsub
+            .add_explicit_peer(&peer_id);
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn handle_connection_closed(
+        &mut self,
+        peer_id: PeerId,
+        num_established: u32,
+        cause: Option<libp2p::swarm::ConnectionError>,
+    ) {
+        self.logger.debug("Connection closed");
+        self.swarm
+            .behaviour_mut()
+            .gossipsub
+            .remove_explicit_peer(&peer_id);
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn handle_incoming_connection(
+        &mut self,
+        connection_id: libp2p::swarm::ConnectionId,
+        local_addr: libp2p::Multiaddr,
+        send_back_addr: libp2p::Multiaddr,
+    ) {
+        self.logger.debug("Incoming connection");
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn handle_outgoing_connection(
+        &mut self,
+        peer_id: PeerId,
+        connection_id: libp2p::swarm::ConnectionId,
+    ) {
+        self.logger
+            .debug(format!("Outgoing connection to peer: {peer_id}",));
+    }
+
+    #[tracing::instrument(skip(self, error))]
+    async fn handle_incoming_connection_error(
+        &mut self,
+        connection_id: libp2p::swarm::ConnectionId,
+        local_addr: libp2p::Multiaddr,
+        send_back_addr: libp2p::Multiaddr,
+        error: libp2p::swarm::ListenError,
+    ) {
+        self.logger
+            .error(format!("Incoming connection error: {error}",));
+    }
+
+    #[tracing::instrument(skip(self, error))]
+    async fn handle_outgoing_connection_error(
+        &mut self,
+        connection_id: libp2p::swarm::ConnectionId,
+        peer_id: Option<PeerId>,
+        error: libp2p::swarm::DialError,
+    ) {
+        self.logger
+            .error(format!("Outgoing connection error: {error}",));
+    }
+
+    async fn handle_swarm_event(&mut self, event: SwarmEvent<MyBehaviourEvent>) {
+        use MyBehaviourEvent::*;
+        use SwarmEvent::*;
+        let _enter = self.span.enter();
+        match event {
+            Behaviour(P2p(event)) => {
+                self.handle_p2p(event).await;
+            }
+            Behaviour(Gossipsub(event)) => {
+                self.handle_gossip(event).await;
+            }
+            Behaviour(Mdns(event)) => {
+                self.handle_mdns_event(event).await;
+            }
+            Behaviour(Identify(event)) => {
+                self.handle_identify_event(event).await;
+            }
+            Behaviour(Kadmelia(event)) => {
+                self.logger.trace(format!("Kadmelia event: {event:?}"));
+            }
+
+            NewListenAddr {
+                address,
+                listener_id,
+            } => {
+                self.logger
+                    .debug(format!("{listener_id} has a new address: {address}"));
+            }
+            ConnectionEstablished {
+                peer_id,
+                num_established,
+                ..
+            } => {
+                self.handle_connection_established(peer_id, num_established.get())
+                    .await;
+            }
+            ConnectionClosed {
+                peer_id,
+                num_established,
+                cause,
+                ..
+            } => {
+                self.handle_connection_closed(peer_id, num_established, cause)
+                    .await;
+            }
+            IncomingConnection {
+                connection_id,
+                local_addr,
+                send_back_addr,
+            } => {
+                self.handle_incoming_connection(connection_id, local_addr, send_back_addr)
+                    .await;
+            }
+            IncomingConnectionError {
+                connection_id,
+                local_addr,
+                send_back_addr,
+                error,
+            } => {
+                self.handle_incoming_connection_error(
+                    connection_id,
+                    local_addr,
+                    send_back_addr,
+                    error,
+                )
+                .await;
+            }
+            OutgoingConnectionError {
+                connection_id,
+                peer_id,
+                error,
+            } => {
+                self.handle_outgoing_connection_error(connection_id, peer_id, error)
+                    .await;
+            }
+            ExpiredListenAddr {
+                listener_id,
+                address,
+            } => {
+                self.logger
+                    .trace(format!("{listener_id} has an expired address: {address}"));
+            }
+            ListenerClosed {
+                listener_id,
+                addresses,
+                reason,
+            } => {
+                self.logger.trace(format!(
+                    "{listener_id} on {addresses:?} has been closed: {reason:?}"
+                ));
+            }
+            ListenerError { listener_id, error } => {
+                self.logger
+                    .error(format!("{listener_id} has an error: {error}"));
+            }
+            Dialing {
+                peer_id,
+                connection_id,
+            } => {
+                self.logger.debug(format!(
+                    "Dialing peer: {peer_id:?} with connection_id: {connection_id}"
+                ));
+            }
+            NewExternalAddrCandidate { address } => {
+                self.logger
+                    .trace(format!("New external address candidate: {address}"));
+            }
+            ExternalAddrConfirmed { address } => {
+                self.logger
+                    .trace(format!("External address confirmed: {address}"));
+            }
+            ExternalAddrExpired { address } => {
+                self.logger
+                    .trace(format!("External address expired: {address}"));
+            }
+            NewExternalAddrOfPeer { peer_id, address } => {
+                self.logger.trace(format!(
+                    "New external address of peer: {peer_id} with address: {address}"
+                ));
+            }
+            unknown => {
+                self.logger
+                    .warn(format!("Unknown swarm event: {unknown:?}"));
+            }
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct GossipHandle {
     topic: IdentTopic,
@@ -286,8 +769,7 @@ pub struct GossipHandle {
     rx_from_inbound: Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
     logger: DebugLogger,
     connected_peers: Arc<AtomicU32>,
-    ecdsa_peer_id_to_libp2p_id:
-        Arc<tokio::sync::RwLock<std::collections::HashMap<ecdsa::Public, PeerId>>>,
+    ecdsa_peer_id_to_libp2p_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
 }
 
 impl GossipHandle {
@@ -295,18 +777,41 @@ impl GossipHandle {
         self.connected_peers
             .load(std::sync::atomic::Ordering::Relaxed) as usize
     }
+
+    pub fn topic(&self) -> IdentTopic {
+        self.topic.clone()
+    }
 }
 
 pub struct IntraNodePayload {
     topic: IdentTopic,
-    payload: GossipMessage,
+    payload: GossipOrRequestResponse,
     message_type: MessageType,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum GossipMessage {
-    Message { topic: String, raw_payload: Vec<u8> },
+pub enum GossipOrRequestResponse {
+    Gossip(GossipMessage),
+    Request(MyBehaviourRequest),
+    Response(MyBehaviourResponse),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GossipMessage {
+    topic: String,
+    raw_payload: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum MyBehaviourRequest {
     Handshake { ecdsa_public_key: ecdsa::Public },
+    Message { topic: String, raw_payload: Vec<u8> },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum MyBehaviourResponse {
+    Handshaked { ecdsa_public_key: ecdsa::Public },
+    MessageHandled,
 }
 
 enum MessageType {
@@ -356,9 +861,15 @@ impl Network for GossipHandle {
             MessageType::Broadcast
         };
 
-        let payload_inner = GossipMessage::Message {
-            topic: self.topic.to_string(),
-            raw_payload: bincode2::serialize(&message).expect("Should serialize"),
+        let payload_inner = match message_type {
+            MessageType::Broadcast => GossipOrRequestResponse::Gossip(GossipMessage {
+                topic: self.topic.to_string(),
+                raw_payload: bincode2::serialize(&message).expect("Should serialize"),
+            }),
+            MessageType::P2P(_) => GossipOrRequestResponse::Request(MyBehaviourRequest::Message {
+                topic: self.topic.to_string(),
+                raw_payload: bincode2::serialize(&message).expect("Should serialize"),
+            }),
         };
 
         let payload = IntraNodePayload {
@@ -434,7 +945,6 @@ mod tests {
                 bind_ip: "0.0.0.0".to_string(),
                 bind_port,
                 bootnodes,
-                genesis_hash: [0u8; 32],
                 node_key: [0u8; 32],
             };
 
@@ -490,7 +1000,7 @@ mod tests {
             }
         }
 
-        let send_idxs = vec![0, 1, 2];
+        let send_idxs = [0, 1, 2];
         // Next, send P2P messages: everybody sends a message to everybody
         for _network in networks.iter() {
             for (handles, _, _) in all_handles.iter() {
