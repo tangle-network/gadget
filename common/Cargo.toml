@@ -43,10 +43,12 @@ parity-scale-codec = { workspace = true, optional = true }
 scale-info = { workspace = true, optional = true }
 libp2p-gadget = { workspace = true, optional = true }
 sc-network-sync = { workspace = true, optional = true }
-
+bincode = { workspace = true }
 
 [features]
-default = ["substrate"]
+default = ["substrate", "tangle-testnet"]
+tangle-testnet = []
+tangle-mainnet = []
 substrate = [
   "gadget-core/substrate",
   "tangle-subxt",

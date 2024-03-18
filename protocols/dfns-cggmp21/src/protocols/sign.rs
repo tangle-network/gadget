@@ -1,7 +1,10 @@
+use crate::protocols::keygen::create_party;
+use crate::protocols::util::SignatureVerifier;
 use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
-use dfns_cggmp21::key_share::AnyKeyShare;
+use derivation_path::DerivationPath;
 use dfns_cggmp21::generic_ec::coords::HasAffineX;
 use dfns_cggmp21::generic_ec::{Curve, Point};
+use dfns_cggmp21::key_share::AnyKeyShare;
 use dfns_cggmp21::round_based::{Delivery, MpcParty};
 use dfns_cggmp21::security_level::SecurityLevel;
 use dfns_cggmp21::signing::msg::Msg;
@@ -18,20 +21,16 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::*;
 use gadget_common::prelude::{FullProtocolConfig, Network};
-use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::jobs::tss::DigitalSignatureScheme;
+use gadget_common::tangle_runtime::*;
 use gadget_common::utils::deserialize;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::{CryptoRng, RngCore, SeedableRng};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::str::FromStr;
+use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
-use derivation_path::DerivationPath;
-use crate::protocols::util::SignatureVerifier;
-use crate::protocols::keygen::create_party;
 
 #[derive(Clone)]
 pub struct DfnsCGGMP21SigningExtraParams {
@@ -371,8 +370,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                     data: BoundedVec(data_hash.to_vec()),
                     signature: BoundedVec(signature.to_vec()),
                     verifying_key: BoundedVec(public_key),
-                    derivation_path: None,
-                    __ignore: Default::default(),
+                    __subxt_unused_type_params: Default::default(),
                 });
 
                 client

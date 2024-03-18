@@ -41,14 +41,39 @@ pub mod prelude {
     pub use sp_runtime::traits::Block;
     pub use std::pin::Pin;
     pub use std::sync::Arc;
-    pub use tangle_subxt::subxt::utils::AccountId32;
-    pub use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
-    pub use tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{
-        MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen,
-    };
-
     pub use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 }
+
+#[cfg(feature = "tangle-testnet")]
+pub mod tangle_runtime {
+    pub use tangle_subxt::subxt::utils::AccountId32;
+    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{
+        jobs, roles,
+    };
+    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{
+        MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen,
+        MaxSubmissionLen,
+    };
+    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::jobs::zksaas;
+    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::jobs::tss::DigitalSignatureScheme;
+}
+
+#[cfg(feature = "tangle-mainnet")]
+pub mod tangle_runtime {
+    pub use tangle_subxt::subxt::utils::AccountId32;
+    pub use tangle_subxt::tangle_mainnet_runtime::api::runtime_types::tangle_primitives::{
+        jobs, roles,
+    };
+    pub use tangle_subxt::tangle_mainnet_runtime::api::runtime_types::tangle_runtime::{
+        MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen,
+        MaxSubmissionLen,
+    };
+    pub use tangle_subxt::tangle_mainnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+    pub use tangle_subxt::tangle_mainnet_runtime::api::runtime_types::tangle_primitives::jobs::zksaas;
+    pub use tangle_subxt::tangle_mainnet_runtime::api::runtime_types::tangle_primitives::jobs::tss::DigitalSignatureScheme;
+}
+
 pub mod channels;
 pub mod client;
 pub mod config;

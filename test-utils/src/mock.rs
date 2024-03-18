@@ -319,7 +319,6 @@ impl pallet_dkg::Config for Runtime {
     type MaxProofLen = MaxProofLen;
     type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
     type WeightInfo = ();
-    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
 }
 
 impl pallet_zksaas::Config for Runtime {
@@ -336,7 +335,6 @@ impl pallet_zksaas::Config for Runtime {
     type MaxProofLen = MaxProofLen;
     type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
     type WeightInfo = ();
-    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
 }
 
 construct_runtime!(
@@ -698,15 +696,13 @@ pub mod mock_wrapper_client {
     use gadget_common::config::ClientWithApi;
     use gadget_common::locks::TokioMutexExt;
     use gadget_common::tangle_subxt::subxt::utils::AccountId32;
-    use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{
+    use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{
         jobs, roles,
     };
-    use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{
+    use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{
         MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
         MaxSignatureLen, MaxSubmissionLen,
     };
-
-    use gadget_common::prelude::MaxAdditionalParamsLen;
     use gadget_core::gadget::substrate::{self, Client};
     use pallet_jobs_rpc_runtime_api::JobsApi;
     use parity_scale_codec::{Decode, Encode};

@@ -1,5 +1,6 @@
 use derivation_path::DerivationPath;
 
+use gadget_common::channels;
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
 use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
@@ -7,8 +8,7 @@ use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::*;
-use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-use gadget_common::channels;
+use gadget_common::tangle_runtime::*;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use k256::ecdsa::signature::hazmat::PrehashVerifier;
@@ -208,7 +208,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                             data: BoundedVec(data_hash.to_vec()),
                             signature: BoundedVec(signature.to_vec()),
                             verifying_key: BoundedVec(verifying_key.to_bytes().to_vec()),
-                            __ignore: Default::default(),
+                            __subxt_unused_type_params: Default::default(),
                         });
 
                     pallet_tx

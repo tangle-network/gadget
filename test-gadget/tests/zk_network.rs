@@ -88,7 +88,7 @@ mod tests {
             tokio::task::spawn(async move {
                 while let Some(message) = params.protocol_message_rx.recv().await {
                     let deserialized: MpcNetMessage =
-                        deserialize(&message.payload).expect("Failed to deser message");
+                        bincode::deserialize(&message.payload).expect("Failed to deser message");
                     let txs = &txs[&deserialized.source];
                     let tx = &txs[deserialized.sid as usize];
                     tx.send(deserialized).expect("Failed to send");
@@ -104,8 +104,8 @@ mod tests {
                 MultiplexedStreamID::One,
                 MultiplexedStreamID::Two,
             ] {
-                let message =
-                    serialize(&params.test_bundle.party_id).expect("Failed to serialize message");
+                let message = bincode::serialize(&params.test_bundle.party_id)
+                    .expect("Failed to serialize message");
                 let king_response = if let Some(messages) = network
                     .client_send_or_king_receive(&message, sid, TIMEOUT)
                     .await

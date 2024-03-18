@@ -17,6 +17,7 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::*;
 use gadget_common::prelude::{DebugLogger, FullProtocolConfig};
+use gadget_common::tangle_runtime::*;
 use gadget_common::utils::serialize;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
