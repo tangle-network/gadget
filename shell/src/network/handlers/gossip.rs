@@ -1,5 +1,5 @@
 use crate::network::gossip::{GossipMessage, NetworkService};
-use libp2p::gossipsub::Event::{GossipsubNotSupported, Message, Subscribed, Unsubscribed};
+
 use libp2p::gossipsub::TopicHash;
 use libp2p::{gossipsub, PeerId};
 use std::sync::atomic::AtomicU32;

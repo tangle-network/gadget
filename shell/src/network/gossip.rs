@@ -1,8 +1,7 @@
 use async_trait::async_trait;
-use futures::stream::StreamExt;
 use gadget_common::prelude::{DebugLogger, Network, WorkManager};
 use gadget_core::job_manager::WorkManagerInterface;
-use libp2p::gossipsub::{IdentTopic, TopicHash};
+use libp2p::gossipsub::IdentTopic;
 use libp2p::kad::store::MemoryStore;
 use libp2p::{
     gossipsub, mdns, request_response, swarm::NetworkBehaviour, swarm::SwarmEvent, PeerId,
@@ -10,7 +9,7 @@ use libp2p::{
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 use std::collections::HashMap;
-use std::error::Error;
+
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;

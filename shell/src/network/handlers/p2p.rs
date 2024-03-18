@@ -1,9 +1,6 @@
-use crate::network::gossip::MyBehaviourRequest::Handshake;
-use crate::network::gossip::MyBehaviourResponse::{Handshaked, MessageHandled};
 use crate::network::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
 use libp2p::gossipsub::IdentTopic;
-use libp2p::request_response::Event::{InboundFailure, Message, OutboundFailure, ResponseSent};
-use libp2p::request_response::Message::{Request, Response};
+
 use libp2p::{request_response, PeerId};
 
 impl NetworkService<'_> {

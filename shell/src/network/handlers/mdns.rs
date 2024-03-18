@@ -1,6 +1,5 @@
 use crate::network::gossip::NetworkService;
 use libp2p::mdns;
-use libp2p::mdns::Event::{Discovered, Expired};
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
