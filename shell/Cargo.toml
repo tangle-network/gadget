@@ -1,0 +1,64 @@
+[package]
+name = "gadget-shell"
+version = "0.1.0"
+authors = ["Shady Khalifa <dev+github@shadykhalifa.me>"]
+license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
+edition = "2021"
+
+[features]
+
+[dependencies]
+color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
+async-trait = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
+tokio = { workspace = true, features = ["full"] }
+url = { workspace = true, features = ["serde"] }
+
+gadget-core = { workspace = true }
+gadget-common = { workspace = true }
+
+sp-core = { workspace = true, features = ["std"] }
+sp-keystore = { workspace = true }
+sp-application-crypto = { workspace = true }
+
+sc-keystore = { workspace = true }
+
+tangle-subxt = { workspace = true }
+
+scale-info = { workspace = true }
+parity-scale-codec = { workspace = true }
+
+structopt = "0.3.26"
+toml = "0.8.11"
+serde = { workspace = true }
+hex = { workspace = true }
+sha2 = "0.10.8"
+futures = { workspace = true }
+bincode = { workspace = true }
+# Protocols
+dfns-cggmp21-protocol = { workspace = true }
+
+[dependencies.libp2p]
+workspace = true
+features = [
+  "tokio",
+  "gossipsub",
+  "mdns",
+  "noise",
+  "macros",
+  "yamux",
+  "tcp",
+  "quic",
+  "request-response",
+  "cbor",
+  "identify",
+  "kad",
+    "dcutr",
+    "relay",
+    "ping",
+    "dns"
+]
+
+[dev-dependencies]
+test-utils = { workspace = true }

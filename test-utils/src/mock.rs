@@ -319,6 +319,7 @@ impl pallet_dkg::Config for Runtime {
     type MaxProofLen = MaxProofLen;
     type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
     type WeightInfo = ();
+    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
 }
 
 impl pallet_zksaas::Config for Runtime {
@@ -335,6 +336,7 @@ impl pallet_zksaas::Config for Runtime {
     type MaxProofLen = MaxProofLen;
     type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
     type WeightInfo = ();
+    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
 }
 
 construct_runtime!(
@@ -704,6 +706,7 @@ pub mod mock_wrapper_client {
         MaxSignatureLen, MaxSubmissionLen,
     };
 
+    use gadget_common::prelude::MaxAdditionalParamsLen;
     use gadget_core::gadget::substrate::{self, Client};
     use pallet_jobs_rpc_runtime_api::JobsApi;
     use parity_scale_codec::{Decode, Encode};

@@ -493,7 +493,9 @@ pub async fn handle_public_key_gossip<KBE: KeystoreBackend>(
             reason: format!("Failed to send public key: {err:?}"),
         })?;
 
-    for _ in 0..t {
+    logger.debug(format!("Needs to receive {} signatures", t - 1));
+
+    for _ in 0..(t - 1) {
         let message = broadcast_rx_from_gadget
             .next()
             .await
@@ -528,11 +530,7 @@ pub async fn handle_public_key_gossip<KBE: KeystoreBackend>(
 
         received_keys.insert(from as u16, message.signature);
         received_participants.insert(from as u16, message.id);
-        logger.debug(format!(
-            "Received {}/{} signatures",
-            received_keys.len(),
-            t + 1
-        ));
+        logger.debug(format!("Received {}/{t} signatures", received_keys.len()));
     }
 
     // Order and collect the map to ensure symmetric submission to blockchain
@@ -551,9 +549,8 @@ pub async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     if signatures.len() < t as usize {
         return Err(JobError {
             reason: format!(
-                "Received {} signatures, expected at least {}",
+                "Received {} signatures, expected at least {t}",
                 signatures.len(),
-                t + 1,
             ),
         });
     }
@@ -613,13 +610,13 @@ fn verify_generated_dkg_key_ecdsa(
 
     // Ensure a sufficient number of unique signers are present
     assert!(
-        known_signers.len() > data.threshold as usize,
+        known_signers.len() >= data.threshold as usize,
         "NotEnoughSigners"
     );
     logger.debug(format!(
         "Verified {}/{} signatures",
         known_signers.len(),
-        data.threshold + 1
+        data.threshold
     ));
 }
 

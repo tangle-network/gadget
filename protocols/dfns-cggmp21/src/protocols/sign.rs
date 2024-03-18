@@ -371,6 +371,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                     data: BoundedVec(data_hash.to_vec()),
                     signature: BoundedVec(signature.to_vec()),
                     verifying_key: BoundedVec(public_key),
+                    derivation_path: None,
                     __ignore: Default::default(),
                 });
 
