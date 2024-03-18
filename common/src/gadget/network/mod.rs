@@ -4,8 +4,6 @@ use async_trait::async_trait;
 use gadget_core::job_manager::WorkManagerInterface;
 use sp_core::ecdsa;
 
-pub mod gossip;
-
 #[async_trait]
 pub trait Network: Send + Sync + Clone + 'static {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage>;
