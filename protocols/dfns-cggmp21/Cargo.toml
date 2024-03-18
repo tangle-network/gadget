@@ -14,7 +14,6 @@ dfns-cggmp21 = { workspace = true, features = ["all-curves", "hd-wallets"] }
 round-based-21 = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
-bincode = { workspace = true }
 digest = { workspace = true }
 
 sp-core = { workspace = true, features = ["std"] }

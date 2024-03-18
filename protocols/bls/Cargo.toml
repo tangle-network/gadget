@@ -15,7 +15,6 @@ protocol-macros = { workspace = true }
 gennaro-dkg = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-bincode = { workspace = true }
 round-based = { workspace = true, features = ["dev"] }
 rand = { workspace = true }
 itertools = { workspace = true }

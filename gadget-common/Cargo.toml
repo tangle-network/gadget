@@ -17,7 +17,6 @@ log = { workspace = true }
 parking_lot = { workspace = true }
 futures-util = { workspace = true }
 hex = { workspace = true }
-bincode = { workspace = true }
 serde_bytes = { workspace = true }
 anyhow = { workspace = true }
 futures = { workspace = true }

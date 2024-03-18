@@ -2450,7 +2450,6 @@ name = "dfns-cggmp21-protocol"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bincode",
  "cggmp21",
  "derivation-path",
  "digest 0.10.7",
@@ -3986,7 +3985,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "auto_impl",
- "bincode",
  "frame-support",
  "futures",
  "futures-util",
@@ -9977,7 +9975,6 @@ name = "silent-shard-dkls23-ll-protocol"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bincode",
  "cggmp21",
  "curv-kzen",
  "derivation-path",
@@ -11934,7 +11931,6 @@ dependencies = [
  "ark-poly",
  "ark-std",
  "async-trait",
- "bincode",
  "bytes",
  "dist-primitives",
  "futures",
@@ -12051,7 +12047,6 @@ name = "threshold-bls-protocol"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bincode",
  "bls12_381_plus",
  "futures",
  "gadget-common",
@@ -13919,7 +13914,6 @@ name = "zcash-frost-protocol"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bincode",
  "cggmp21",
  "curv-kzen",
  "digest 0.10.7",
@@ -14013,7 +14007,6 @@ dependencies = [
  "ark-serialize",
  "ark-std",
  "async-trait",
- "bincode",
  "bytes",
  "dist-primitives",
  "fflonk",
