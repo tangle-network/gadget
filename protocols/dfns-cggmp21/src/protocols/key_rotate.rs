@@ -270,6 +270,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
                         new_phase_one_id,
                         new_key: BoundedVec(new_public_key),
                         key: BoundedVec(public_key),
+                        derivation_path: None,
                         __ignore: Default::default(),
                     });
 

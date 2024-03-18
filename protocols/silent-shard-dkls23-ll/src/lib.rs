@@ -16,7 +16,7 @@ generate_protocol!(
     crate::protocol::keygen::generate_protocol_from,
     crate::protocol::keygen::create_next_job,
     jobs::JobType::DKGTSSPhaseOne(_),
-    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::SilentShardDKLS23Secpk256k1)
+    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::SilentShardDKLS23Secp256k1)
 );
 generate_protocol!(
     "Silent-Shared-DKLS23-Signing-Protocol",
@@ -25,7 +25,7 @@ generate_protocol!(
     crate::protocol::sign::generate_protocol_from,
     crate::protocol::sign::create_next_job,
     jobs::JobType::DKGTSSPhaseTwo(_),
-    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::SilentShardDKLS23Secpk256k1)
+    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::SilentShardDKLS23Secp256k1)
 );
 
 generate_setup_and_run_command!(

@@ -1,0 +1,6 @@
+bind_ip = "0.0.0.0"
+bind_port = 30557
+bootnodes = []
+# 12D3KooWHdiAxVd8uMQR1hGWXccidmfCwLqcMpGwR6QcTP6QRMuD
+node_key = "0000000000000000000000000000000000000000000000000000000000000002"
+keystore_path = "../tangle/tmp/charlie/chains/local_testnet/keystore"
