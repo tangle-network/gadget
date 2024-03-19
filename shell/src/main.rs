@@ -1,7 +1,7 @@
 use color_eyre::Result;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, net::Ipv4Addr, path::PathBuf, str::FromStr};
+use std::{fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
 use structopt::StructOpt;
 
 mod config;
@@ -48,7 +48,7 @@ struct TomlConfig {
     /// The IP address to bind to for the libp2p node.
     #[structopt(long = "bind-ip", short = "i", default_value = defaults::BIND_IP)]
     #[serde(default = "defaults::bind_ip")]
-    bind_ip: Ipv4Addr,
+    bind_ip: IpAddr,
     /// The port to bind to for the libp2p node.
     #[structopt(long = "port", short = "p", default_value = defaults::BIND_PORT)]
     #[serde(default = "defaults::bind_port")]
@@ -170,7 +170,7 @@ mod defaults {
         url::Url::parse(RPC_URL).expect("Default RPC URL is valid")
     }
 
-    pub fn bind_ip() -> std::net::Ipv4Addr {
+    pub fn bind_ip() -> std::net::IpAddr {
         BIND_IP.parse().expect("Default bind IP is valid")
     }
 
