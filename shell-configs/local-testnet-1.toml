@@ -3,4 +3,5 @@ bind_port = 30556
 bootnodes = []
 # 12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
 node_key = "0000000000000000000000000000000000000000000000000000000000000001"
-keystore_path = "../tangle/tmp/bob/chains/local_testnet/keystore"
+chain = "local_testnet"
+base_path = "../tangle/tmp/bob"
