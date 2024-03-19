@@ -41,9 +41,6 @@ linked-hash-map = { workspace = true, optional = true }
 
 parity-scale-codec = { workspace = true, optional = true }
 scale-info = { workspace = true, optional = true }
-libp2p-gadget = { workspace = true, optional = true }
-sc-network-sync = { workspace = true, optional = true }
-bincode = { workspace = true }
 
 [features]
 default = ["substrate", "tangle-testnet"]
@@ -60,8 +57,6 @@ substrate = [
   "sp-application-crypto",
   "sc-service",
   "sc-client-api",
-  "libp2p-gadget",
-    "sc-network-sync",
   "frame-support",
   "linked-hash-map",
   "substrate-prometheus-endpoint",

@@ -16,7 +16,7 @@ use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
 
 use crate::config::ShellConfig;
-use crate::network::GossipHandle;
+use crate::network::gossip::GossipHandle;
 use crate::tangle::crypto;
 use dfns_cggmp21_protocol::constants::{
     DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
@@ -45,7 +45,7 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
         .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))?;
 
-    let (networks, network_task) = crate::network::setup_network(
+    let (networks, network_task) = crate::network::setup::setup_libp2p_network(
         libp2p_key,
         &config,
         logger.clone(),

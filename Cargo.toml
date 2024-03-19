@@ -13,9 +13,6 @@ members = [
     "test-gadget",
     "test-utils",
     "protocol-macros",
-    "libp2p",
-    "libp2p/sync",
-    "libp2p/common",
 ]
 
 [workspace.dependencies]
@@ -29,9 +26,6 @@ zcash-frost-protocol = { path = "./protocols/zcash-frost" }
 silent-shard-dkls23-ll-protocol = { path = "./protocols/silent-shard-dkls23-ll" }
 test-utils = { path = "./test-utils" }
 protocol-macros = { path = "./protocol-macros" }
-libp2p-gadget = { path = "./libp2p" }
-sc-network-common = { path = "./libp2p/common"  }
-sc-network-sync = { path = "./libp2p/sync" }
 
 snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false }
