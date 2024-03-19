@@ -428,9 +428,10 @@ mod tests {
                 subxt: SubxtConfig {
                     endpoint: url::Url::from_directory_path("/").unwrap(),
                 },
-                bind_ip: "0.0.0.0".to_string(),
+                bind_ip: "0.0.0.0".parse().unwrap(),
                 bind_port,
                 bootnodes,
+                base_path: std::path::PathBuf::new(),
                 node_key: [0u8; 32],
             };
 

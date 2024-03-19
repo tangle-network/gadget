@@ -4102,6 +4102,7 @@ dependencies = [
  "hex",
  "libp2p 0.53.2",
  "parity-scale-codec 3.6.9",
+ "rand 0.8.5",
  "sc-keystore",
  "scale-info",
  "serde",
