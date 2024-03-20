@@ -12,8 +12,7 @@ pub fn deserialize<'a, T>(data: &'a [u8]) -> Result<T, serde_json::Error>
 where
     T: Deserialize<'a>,
 {
-    let msg = std::str::from_utf8(data).unwrap();
-    serde_json::from_str::<T>(msg)
+    serde_json::from_slice::<T>(data)
 }
 
 // shorthand for the above when `T` isn't needed in the function body
