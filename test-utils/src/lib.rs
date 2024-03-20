@@ -161,7 +161,6 @@ macro_rules! generate_signing_and_keygen_tss_tests {
                                 phase_one_id: keygen_job_id,
                                 derivation_path: None,
                                 submission: Vec::from("Hello, world!").try_into().unwrap(),
-                                derivation_path: None,
                                 role_type: $threshold_sig_ty,
                             }),
                         };
