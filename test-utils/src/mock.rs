@@ -699,10 +699,7 @@ pub mod mock_wrapper_client {
     use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{
         jobs, roles,
     };
-    use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{
-        MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
-        MaxSignatureLen, MaxSubmissionLen,
-    };
+    use gadget_common::tangle_runtime::*;
     use gadget_core::gadget::substrate::{self, Client};
     use pallet_jobs_rpc_runtime_api::JobsApi;
     use parity_scale_codec::{Decode, Encode};
