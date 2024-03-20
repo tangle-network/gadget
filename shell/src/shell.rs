@@ -15,12 +15,10 @@ use gadget_common::{
     keystore::{ECDSAKeyStore, InMemoryBackend},
 };
 use gadget_core::gadget::substrate::Client;
+use parity_scale_codec::Encode;
 use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
-use tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
-use tangle_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
-use tangle_subxt::subxt;
-use tangle_subxt::tangle_testnet_runtime as tangle_runtime;
+use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
 
 use crate::config::ShellConfig;
 use crate::network::gossip::GossipHandle;
@@ -30,15 +28,8 @@ use dfns_cggmp21_protocol::constants::{
     DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
     DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME, DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
 };
-use silent_shard_dkls23_ll_protocol::constants::{
-    SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME, SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME,
-};
-use threshold_bls_protocol::constants::{
-    GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME, GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
-};
-use zcash_frost_protocol::constants::{
-    ZCASH_FROST_KEYGEN_PROTOCOL_NAME, ZCASH_FROST_SIGNING_PROTOCOL_NAME,
-};
+use gadget_common::keystore::KeystoreBackend;
+use tangle_subxt::{subxt, tangle_runtime::api::runtime_types::tangle_primitives::roles::RoleType};
 
 /// The version of the shell
 pub const AGENT_VERSION: &str = "tangle/gadget-shell/1.0.0";
@@ -109,7 +100,7 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
 pub fn start_protocol_by_role<KBE>(
     role: RoleType,
     runtime: TangleRuntime,
-    networks: HashMap<&'static str, GossipHandle>,
+    networks: Vec<GossipHandle>,
     account_id: sr25519::Public,
     logger: DebugLogger,
     pallet_tx: Arc<SubxtPalletSubmitter<TangleConfig, PairSigner<TangleConfig>>>,
@@ -122,7 +113,7 @@ where
     use ThresholdSignatureRoleType::*;
     let handle = match role {
         Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
-            tokio::spawn(dfns_cggmp21_protocol::setup_node(NodeInput {
+            let node_input = NodeInput {
                 clients: vec![
                     TangleRuntime::new(runtime.client()),
                     TangleRuntime::new(runtime.client()),
@@ -136,114 +127,15 @@ where
                 node_index: 0,
                 additional_params: (),
                 prometheus_config: PrometheusConfig::Disabled,
-                networks: vec![
-                    networks
-                        .get(DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                    networks
-                        .get(DFNS_CGGMP21_SIGNING_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                    networks
-                        .get(DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                    networks
-                        .get(DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                ],
-            }))
-        }
+                networks,
+            };
 
-        Tss(ZcashFrostEd25519)
-        | Tss(ZcashFrostEd448)
-        | Tss(ZcashFrostP256)
-        | Tss(ZcashFrostP384)
-        | Tss(ZcashFrostSecp256k1)
-        | Tss(ZcashFrostRistretto255) => {
-            tokio::spawn(zcash_frost_protocol::setup_node(NodeInput {
-                clients: vec![
-                    TangleRuntime::new(runtime.client()),
-                    TangleRuntime::new(runtime.client()),
-                ],
-                account_id,
-                logger,
-                pallet_tx,
-                keystore,
-                node_index: 0,
-                additional_params: (),
-                prometheus_config: PrometheusConfig::Disabled,
-                networks: vec![
-                    networks
-                        .get(ZCASH_FROST_KEYGEN_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                    networks
-                        .get(ZCASH_FROST_SIGNING_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                ],
-            }))
+            tokio::spawn(dfns_cggmp21_protocol::setup_node(node_input))
         }
-
-        Tss(SilentShardDKLS23Secp256k1) => {
-            tokio::spawn(silent_shard_dkls23_ll_protocol::setup_node(NodeInput {
-                clients: vec![
-                    TangleRuntime::new(runtime.client()),
-                    TangleRuntime::new(runtime.client()),
-                ],
-                account_id,
-                logger,
-                pallet_tx,
-                keystore,
-                node_index: 0,
-                additional_params: (),
-                prometheus_config: PrometheusConfig::Disabled,
-                networks: vec![
-                    networks
-                        .get(SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                    networks
-                        .get(SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                ],
-            }))
-        }
-        Tss(GennaroDKGBls381) => tokio::spawn(threshold_bls_protocol::setup_node(NodeInput {
-            clients: vec![
-                TangleRuntime::new(runtime.client()),
-                TangleRuntime::new(runtime.client()),
-            ],
-            account_id,
-            logger,
-            pallet_tx,
-            keystore,
-            node_index: 0,
-            additional_params: (),
-            prometheus_config: PrometheusConfig::Disabled,
-            networks: vec![
-                networks
-                    .get(GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME)
-                    .cloned()
-                    .unwrap(),
-                networks
-                    .get(GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME)
-                    .cloned()
-                    .unwrap(),
-            ],
-        })),
-        ZkSaaS(_) => {
+        _ => {
             return Err(color_eyre::eyre::eyre!(
-                "ZkSaaS is not supported by the shell",
-            ))
-        }
-        LightClientRelaying => {
-            return Err(color_eyre::eyre::eyre!(
-                "LightClientRelaying is not supported by the shell",
+                "Role {:?} is not supported by the shell",
+                role
             ))
         }
     };
@@ -253,7 +145,7 @@ where
 
 pub async fn start_required_protocols<KBE>(
     subxt_config: &crate::config::SubxtConfig,
-    networks: HashMap<&'static str, GossipHandle>,
+    networks: Vec<GossipHandle>,
     acco_key: sr25519::Pair,
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
@@ -262,9 +154,9 @@ where
     KBE: KeystoreBackend,
 {
     let sub_account_id = subxt::utils::AccountId32(acco_key.public().0);
-    // Create a loop that listens to new finality notifications,
-    // queries the chain for the current restaking roles,
-    // and then starts the required protocols based on the roles.
+    // create a loop that listen to new finality notifications
+    // then it queries the chain for the current account roles
+    // and then it starts the required protocols based on the roles.
     let mut current_roles = Vec::new();
     let mut running_protocols = HashMap::<HashedRoleTypeWrapper, tokio::task::AbortHandle>::new();
 
@@ -280,9 +172,7 @@ where
         let roles = runtime
             .query_restaker_roles(notification.hash, sub_account_id.clone())
             .await?;
-        logger.trace(format!("Got roles: {roles:?}"));
         if roles == current_roles {
-            logger.trace("Roles have not changed, skipping");
             continue;
         }
         let diff = vec_diff(
@@ -290,14 +180,11 @@ where
             roles.iter().cloned().map(HashedRoleTypeWrapper),
         );
         if diff.is_empty() {
-            logger.trace("No roles diff, skipping");
             continue;
         }
-        logger.trace(format!("Roles diff: {diff:?}"));
         for d in diff {
             match d {
                 Diff::Added(role) => {
-                    logger.debug(format!("Trying to start protocol for role {:?}", role.0));
                     let handle = start_protocol_by_role(
                         role.0.clone(),
                         TangleRuntime::new(runtime.client()),
@@ -411,48 +298,12 @@ enum Diff<T> {
     Removed(T),
 }
 
-#[derive(Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 struct HashedRoleTypeWrapper(RoleType);
-
-impl std::fmt::Debug for HashedRoleTypeWrapper {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
-
-impl PartialEq for HashedRoleTypeWrapper {
-    fn eq(&self, other: &Self) -> bool {
-        use std::hash::Hasher;
-        let mut hasher = std::hash::DefaultHasher::new();
-        Self::hash(self, &mut hasher);
-        let lhs = hasher.finish();
-        let mut hasher = std::hash::DefaultHasher::new();
-        Self::hash(other, &mut hasher);
-        let rhs = hasher.finish();
-        lhs == rhs
-    }
-}
 
 impl Hash for HashedRoleTypeWrapper {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        use RoleType::*;
-        use ThresholdSignatureRoleType::*;
-        match self.0 {
-            Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
-                "DfnsCGGMP21".hash(state)
-            }
-            Tss(ZcashFrostEd25519)
-            | Tss(ZcashFrostEd448)
-            | Tss(ZcashFrostP256)
-            | Tss(ZcashFrostP384)
-            | Tss(ZcashFrostSecp256k1)
-            | Tss(ZcashFrostRistretto255) => "ZcashFrost".hash(state),
-
-            Tss(SilentShardDKLS23Secp256k1) => "SilentShardDKLS23Secp256k1".hash(state),
-            Tss(GennaroDKGBls381) => "GennaroDKGBls381".hash(state),
-            ZkSaaS(_) => "ZkSaaS".hash(state),
-            LightClientRelaying => "LightClientRelaying".hash(state),
-        }
+        self.0.encode().hash(state);
     }
 }
 
@@ -472,17 +323,4 @@ fn vec_diff<T: PartialEq + Eq + Hash + Clone, I: Iterator<Item = T>>(a: I, b: I)
         .map(Diff::Added)
         .collect::<Vec<_>>();
     [removed, added].concat()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn diff() {
-        let a = [1, 2, 3, 4];
-        let b = [2, 3, 4, 5];
-        let diff = vec_diff(a.iter().cloned(), b.iter().cloned());
-        assert_eq!(diff, vec![Diff::Removed(1), Diff::Added(5)]);
-    }
 }
