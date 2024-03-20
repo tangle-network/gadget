@@ -25,7 +25,7 @@ pub async fn setup_libp2p_network(
     config: &ShellConfig,
     logger: DebugLogger,
     networks: Vec<&'static str>,
-    role_key: ecdsa::Public,
+    role_key: ecdsa::Pair,
 ) -> Result<(Vec<GossipHandle>, JoinHandle<()>), Box<dyn Error>> {
     // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
