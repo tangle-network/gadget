@@ -144,7 +144,7 @@ where
     let sub_account_id = subxt::utils::AccountId32(acco_key.public().0);
     // Create a loop that listens to new finality notifications,
     // queries the chain for the current restaking roles,
-    // and then it starts the required protocols based on the roles.
+    // and then starts the required protocols based on the roles.
     let mut current_roles = Vec::new();
     let mut running_protocols = HashMap::<HashedRoleTypeWrapper, tokio::task::AbortHandle>::new();
 
