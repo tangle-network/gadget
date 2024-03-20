@@ -142,7 +142,7 @@ where
     KBE: KeystoreBackend,
 {
     let sub_account_id = subxt::utils::AccountId32(acco_key.public().0);
-    // create a loop that listen to new finality notifications
+    // Create a loop that listens to new finality notifications,
     // then it queries the chain for the current account roles
     // and then it starts the required protocols based on the roles.
     let mut current_roles = Vec::new();
