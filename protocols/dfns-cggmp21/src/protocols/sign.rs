@@ -190,23 +190,29 @@ where
         .map(|path| path.0.to_vec())
         .map(|path| String::from_utf8(path).unwrap_or_default())
         .unwrap_or_else(|| "m".to_string());
-    let derivation_path = DerivationPath::from_str(&derivation_path_str).unwrap();
-    let non_hardened_indices: Vec<u32> = derivation_path
-        .path()
-        .iter()
-        .map(|index| index.to_u32())
-        .collect();
-    let signature = signing_builder
-        .set_progress_tracer(tracer)
-        .set_derivation_path(non_hardened_indices)
-        .map_err(|e| JobError {
-            reason: format!("Derivation path set error: {e:?}"),
-        })?
-        .sign(rng, party, msg)
-        .await
-        .map_err(|err| JobError {
-            reason: format!("Signing protocol error: {err:?}"),
-        })?;
+    let path = DerivationPath::from_str(&derivation_path_str).unwrap();
+    let non_hardened_indices: Vec<u32> = path.path().iter().map(|index| index.to_u32()).collect();
+    let signature = if derivation_path.is_some() {
+        signing_builder
+            .set_progress_tracer(tracer)
+            .set_derivation_path(non_hardened_indices)
+            .map_err(|e| JobError {
+                reason: format!("Derivation path set error: {e:?}"),
+            })?
+            .sign(rng, party, msg)
+            .await
+            .map_err(|err| JobError {
+                reason: format!("Signing protocol error: {err:?}"),
+            })?
+    } else {
+        signing_builder
+            .set_progress_tracer(tracer)
+            .sign(rng, party, msg)
+            .await
+            .map_err(|err| JobError {
+                reason: format!("Signing protocol error: {err:?}"),
+            })?
+    };
 
     logger.info("Done signing");
 
