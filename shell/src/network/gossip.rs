@@ -568,7 +568,6 @@ mod tests {
     }
 
     fn get_dummy_role_key_from_index(index: usize) -> ecdsa::Pair {
-        let seed = [0xcd + index as u8; 32];
-        ecdsa::Pair::from_seed_slice(&seed).expect("valid seed")
+        ecdsa::Pair::from_seed(&[index as u8; 32])
     }
 }
