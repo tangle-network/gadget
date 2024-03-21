@@ -38,7 +38,7 @@ pub struct NetworkServiceWithoutSwarm<'a> {
     pub logger: &'a DebugLogger,
     pub inbound_mapping: &'a [InboundMapping],
     pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
-    pub role_key: &'a ecdsa::Public,
+    pub role_key: &'a ecdsa::Pair,
     pub span: tracing::Span,
 }
 
@@ -63,7 +63,7 @@ pub struct NetworkService<'a> {
     pub logger: &'a DebugLogger,
     pub inbound_mapping: &'a [InboundMapping],
     pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
-    pub role_key: &'a ecdsa::Public,
+    pub role_key: &'a ecdsa::Pair,
     pub span: &'a tracing::Span,
 }
 
@@ -290,13 +290,22 @@ pub struct GossipMessage {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourRequest {
-    Handshake { ecdsa_public_key: ecdsa::Public },
-    Message { topic: String, raw_payload: Vec<u8> },
+    Handshake {
+        ecdsa_public_key: ecdsa::Public,
+        signature: ecdsa::Signature,
+    },
+    Message {
+        topic: String,
+        raw_payload: Vec<u8>,
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourResponse {
-    Handshaked { ecdsa_public_key: ecdsa::Public },
+    Handshaked {
+        ecdsa_public_key: ecdsa::Public,
+        signature: ecdsa::Signature,
+    },
     MessageHandled,
 }
 
@@ -379,7 +388,7 @@ mod tests {
     use crate::shell::wait_for_connection_to_bootnodes;
     use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, Network, WorkManager};
     use gadget_core::job_manager::WorkManagerInterface;
-    use sp_core::ecdsa;
+    use sp_core::{ecdsa, Pair};
 
     #[tokio::test]
     async fn test_gossip_network() {
@@ -518,7 +527,7 @@ mod tests {
                         assert_eq!(message.payload, b"Hello, world");
                         assert_eq!(
                             message.to_network_id,
-                            Some(get_dummy_role_key_from_index(my_idx))
+                            Some(get_dummy_role_key_from_index(my_idx).public())
                         );
                     }
                 }
@@ -537,7 +546,7 @@ mod tests {
         to_idx: usize,
     ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
         let dummy_role_key = get_dummy_role_key_from_index(to_idx);
-        dummy_message_inner(input, Some(dummy_role_key))
+        dummy_message_inner(input, Some(dummy_role_key.public()))
     }
 
     fn dummy_message_inner(
@@ -557,7 +566,7 @@ mod tests {
         }
     }
 
-    fn get_dummy_role_key_from_index(index: usize) -> ecdsa::Public {
-        ecdsa::Public::from_raw([index as u8; 33])
+    fn get_dummy_role_key_from_index(index: usize) -> ecdsa::Pair {
+        ecdsa::Pair::from_seed(&[index as u8; 32])
     }
 }
