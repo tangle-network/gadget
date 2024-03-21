@@ -2,6 +2,8 @@ use crate::network::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkSer
 use libp2p::gossipsub::IdentTopic;
 
 use libp2p::{request_response, PeerId};
+use sp_core::{keccak_256, Pair};
+use sp_io::crypto::ecdsa_verify_prehashed;
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
@@ -78,10 +80,24 @@ impl NetworkService<'_> {
     ) {
         use crate::network::gossip::MyBehaviourResponse::*;
         match message {
-            Handshaked { ecdsa_public_key } => {
-                // Their response to our handshake request.
-                // we should add them to our mapping.
-                // TODO: Add signature verification here.
+            Handshaked {
+                ecdsa_public_key,
+                signature,
+            } => {
+                let msg = peer.to_bytes();
+                let hash = keccak_256(&msg);
+                let valid = ecdsa_verify_prehashed(&signature, &hash, &ecdsa_public_key);
+                if !valid {
+                    self.logger
+                        .warn(format!("Invalid signature from peer: {peer}"));
+                    // TODO: report this peer.
+                    self.ecdsa_peer_id_to_libp2p_id
+                        .write()
+                        .await
+                        .remove(&ecdsa_public_key);
+                    let _ = self.swarm.disconnect_peer_id(peer);
+                    return;
+                }
                 self.ecdsa_peer_id_to_libp2p_id
                     .write()
                     .await
@@ -101,17 +117,36 @@ impl NetworkService<'_> {
     ) {
         use crate::network::gossip::MyBehaviourRequest::*;
         let result = match req {
-            Handshake { ecdsa_public_key } => {
+            Handshake {
+                ecdsa_public_key,
+                signature,
+            } => {
                 self.logger
                     .debug(format!("Received handshake from peer: {peer}"));
+                // Verify the signature
+                let msg = peer.to_bytes();
+                let hash = keccak_256(&msg);
+                let valid = ecdsa_verify_prehashed(&signature, &hash, &ecdsa_public_key);
+                if !valid {
+                    self.logger
+                        .warn(format!("Invalid signature from peer: {peer}"));
+                    let _ = self.swarm.disconnect_peer_id(peer);
+                    return;
+                }
                 self.ecdsa_peer_id_to_libp2p_id
                     .write()
                     .await
                     .insert(ecdsa_public_key, peer);
+                // Send response with our public key
+                let my_peer_id = self.swarm.local_peer_id();
+                let msg = my_peer_id.to_bytes();
+                let hash = keccak_256(&msg);
+                let signature = self.role_key.sign_prehashed(&hash);
                 self.swarm.behaviour_mut().p2p.send_response(
                     channel,
                     MyBehaviourResponse::Handshaked {
-                        ecdsa_public_key: *self.role_key,
+                        ecdsa_public_key: self.role_key.public(),
+                        signature,
                     },
                 )
             }
