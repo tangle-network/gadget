@@ -1,29 +1,97 @@
+use crate::protocols::keygen::K;
 use crate::protocols::util::{FrostMessage, FrostState};
 use futures::{SinkExt, StreamExt};
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
+use gadget_common::gadget::message::UserID;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
+use gadget_common::prelude::jobs::tss::{
+    DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, DKGTSSSignatureResult, DigitalSignatureScheme,
+};
+use gadget_common::prelude::jobs::{JobResult, JobType};
+use gadget_common::prelude::roles::tss::ThresholdSignatureRoleType;
+use gadget_common::prelude::roles::RoleType;
 use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, WorkManager};
 use gadget_common::{
-    BuiltExecutableJobWrapper, JobError, ProtocolWorkManager, WorkManagerInterface,
+    BuiltExecutableJobWrapper, JobBuilder, JobError, ProtocolWorkManager, WorkManagerInterface,
 };
 use hashbrown::HashMap;
 use itertools::Itertools;
+use rand::rngs::ThreadRng;
 use rand::{CryptoRng, RngCore};
+use sp_core::{ecdsa, Pair};
+use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 use wsts::common::Signature;
 use wsts::traits::Aggregator;
 use wsts::v2::Party;
 
 #[derive(Clone)]
-pub struct WstsSigningExtraParams {}
+pub struct WstsSigningExtraParams {
+    user_id_mapping: Arc<std::collections::HashMap<UserID, ecdsa::Public>>,
+    my_id: ecdsa::Public,
+    keygen_state: FrostState,
+    message_to_sign: Vec<u8>,
+    k: u32,
+    t: u32,
+    job_id: u64,
+}
 
 pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
     config: &crate::WstsSigningProtocol<C, N, KBE>,
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<WstsSigningExtraParams, gadget_common::Error> {
+    let job_id = job.job_id;
+    if let Some(JobType::DKGTSSPhaseOne(JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
+        participants,
+        threshold,
+        permitted_caller: _,
+        role_type: _,
+        ..
+    }))) = job.phase1_job
+    {
+        let user_id_mapping = Arc::new(
+            participants
+                .clone()
+                .into_iter()
+                .enumerate()
+                .map(|r| (r.0 as UserID, r.1))
+                .collect(),
+        );
+
+        let JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
+            phase_one_id,
+            submission,
+            derivation_path: _,
+            role_type: _,
+            __subxt_unused_type_params,
+        }) = job.job_type
+        else {
+            panic!("Invalid job type for WSTS signing")
+        };
+        let my_id = config.key_store.pair().public();
+        let keygen_state = config
+            .key_store
+            .get_job_result(phase_one_id)
+            .await?
+            .ok_or_else(|| gadget_common::Error::JobError {
+                err: format!("Unable to find stored job result for previous job {phase_one_id}"),
+            })?;
+
+        Ok(WstsSigningExtraParams {
+            user_id_mapping,
+            my_id,
+            keygen_state,
+            message_to_sign: submission.0,
+            k: K,
+            t: threshold,
+            job_id,
+        })
+    } else {
+        Err(gadget_common::Error::new("Invalid job result"))
+    }
 }
 
 pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
@@ -35,6 +103,83 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
     additional_params: WstsSigningExtraParams,
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
+    let result = Arc::new(tokio::sync::Mutex::new(None));
+    let result_clone = result.clone();
+    let network = config.clone();
+    let logger = config.logger.clone();
+    let client = config.pallet_tx.clone();
+
+    let WstsSigningExtraParams {
+        user_id_mapping,
+        my_id,
+        keygen_state,
+        message_to_sign,
+        k,
+        t,
+        job_id,
+    } = additional_params;
+
+    let data_to_sign = message_to_sign.clone();
+    let verifying_key = keygen_state.public_key.clone();
+
+    Ok(JobBuilder::new()
+        .protocol(async move {
+            let (tx0, rx0, tx1, rx1) =
+                gadget_common::channels::create_job_manager_to_async_protocol_channel_split::<
+                    _,
+                    FrostMessage,
+                    FrostMessage,
+                >(
+                    protocol_message_channel,
+                    associated_block_id,
+                    associated_retry_id,
+                    associated_session_id,
+                    associated_task_id,
+                    user_id_mapping,
+                    my_id,
+                    network,
+                    logger.clone(),
+                );
+
+            let rng = &mut ThreadRng::default();
+            let signature = run_signing(
+                keygen_state,
+                rng,
+                &message_to_sign,
+                k,
+                t,
+                tx0,
+                rx0,
+                tx1,
+                rx1,
+            )
+            .await?;
+            result.lock().await.replace(signature);
+        })
+        .post(async move {
+            if let Some(signature) = result_clone.lock().await.take() {
+                // TOOD: when writing pallet code, use bincode to deserialize
+                let serialized_signature = bincode2::serialize(&signature).unwrap();
+                let serialized_verifying_key = bincode2::serialize(&verifying_key).unwrap();
+                let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
+                    signature_scheme: DigitalSignatureScheme::Wsts,
+                    derivation_path: None,
+                    data: data_to_sign.try_into().unwrap(),
+                    signature: serialized_signature.try_into().unwrap(),
+                    verifying_key: serialized_verifying_key.try_into().unwrap(),
+                    __subxt_unused_type_params: Default::default(),
+                });
+
+                client
+                    .submit_job_result(
+                        RoleType::Tss(ThresholdSignatureRoleType::Wsts),
+                        job_id,
+                        job_result,
+                    )
+                    .await?;
+            }
+        })
+        .build())
 }
 
 /// `threshold`: Should be the number of participants in this round, since we stop looking for
@@ -47,9 +192,9 @@ pub async fn run_signing<RNG: RngCore + CryptoRng>(
     num_keys: u32,
     threshold: u32,
     mut tx_to_network: futures::channel::mpsc::UnboundedSender<FrostMessage>,
-    mut rx_from_network: futures::channel::mpsc::UnboundedReceiver<FrostMessage>,
-    mut tx_to_network_final: futures::channel::mpsc::UnboundedSender<FrostMessage>,
-    mut rx_from_network_final: futures::channel::mpsc::UnboundedReceiver<FrostMessage>,
+    mut rx_from_network: futures::channel::mpsc::UnboundedReceiver<std::io::Result<FrostMessage>>,
+    mut tx_to_network_final: tokio::sync::mpsc::UnboundedSender<FrostMessage>,
+    mut rx_from_network_final: tokio::sync::mpsc::UnboundedReceiver<FrostMessage>,
     logger: &DebugLogger,
 ) -> Result<Signature, JobError> {
     let mut signer = Party::load(&state.party);

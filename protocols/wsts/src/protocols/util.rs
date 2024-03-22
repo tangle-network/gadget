@@ -1,7 +1,9 @@
 use gadget_common::channels::{MaybeReceiver, MaybeSender, MaybeSenderReceiver};
 use gadget_common::JobError;
 use hashbrown::HashMap;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use sp_core::ecdsa::Signature;
 use wsts::common::{PolyCommitment, PublicNonce, SignatureShare};
 use wsts::curve::scalar::Scalar;
 use wsts::v2::PartyState;
@@ -26,6 +28,7 @@ pub enum FrostMessage {
     PublicKeyBroadcast {
         party_id: u32,
         public_key: HashMap<u32, PolyCommitment>,
+        signature_of_public_key: Signature,
     },
 }
 
@@ -50,7 +53,7 @@ pub struct FrostState {
 }
 
 pub fn validate_parameters(n: u32, k: u32, t: u32) -> Result<(), JobError> {
-    if k & n != 0 {
+    if k % n != 0 {
         return Err(JobError {
             reason: "K % N != 0".to_string(),
         });
@@ -109,4 +112,19 @@ impl MaybeSenderReceiver for FrostMessage {
         // All messages are broadcasted for this protocol
         MaybeReceiver::Broadcast
     }
+}
+
+pub fn combine_public_key(public_keys: &HashMap<u32, PolyCommitment>) -> Vec<u8> {
+    let public_key_to_sign = public_keys
+        .iter()
+        .sorted_by_key(|k| k.0)
+        .map(|r| r.1)
+        .collect::<Vec<_>>();
+    public_key_to_sign
+        .into_iter()
+        .fold(Vec::new(), |mut combined, poly| {
+            let serialized = bincode2::serialize(poly).unwrap();
+            combined.extend_from_slice(&serialized);
+            combined
+        })
 }

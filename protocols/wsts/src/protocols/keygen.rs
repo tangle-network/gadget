@@ -1,5 +1,5 @@
 use crate::protocols::util::{
-    generate_party_key_ids, validate_parameters, FrostMessage, FrostState,
+    combine_public_key, generate_party_key_ids, validate_parameters, FrostMessage, FrostState,
 };
 use futures::{SinkExt, StreamExt};
 use gadget_common::client::ClientWithApi;
@@ -8,17 +8,19 @@ use gadget_common::gadget::message::UserID;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::jobs::tss::{DKGTSSKeySubmissionResult, DigitalSignatureScheme};
-use gadget_common::prelude::jobs::JobResult;
+use gadget_common::prelude::jobs::{JobResult, JobType};
 use gadget_common::prelude::roles::tss::ThresholdSignatureRoleType;
 use gadget_common::prelude::roles::RoleType;
-use gadget_common::prelude::JobError;
 use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, WorkManager};
+use gadget_common::prelude::{ECDSAKeyStore, JobError};
+use gadget_common::utils::recover_ecdsa_pub_key;
 use gadget_common::{
     BuiltExecutableJobWrapper, JobBuilder, ProtocolWorkManager, WorkManagerInterface,
 };
 use hashbrown::HashMap;
 use rand::{CryptoRng, RngCore};
-use sp_core::ecdsa;
+use sp_core::ecdsa::Signature;
+use sp_core::{ecdsa, ByteArray, Pair};
 use std::sync::Arc;
 use tangle_primitives::jobs::JobId;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -26,6 +28,8 @@ use tokio::sync::Mutex;
 use wsts::common::PolyCommitment;
 use wsts::curve::scalar::Scalar;
 use wsts::v2::Party;
+
+pub const K: u32 = 1;
 
 #[derive(Clone)]
 pub struct WstsKeygenExtraParams {
@@ -43,6 +47,40 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<WstsKeygenExtraParams, gadget_common::Error> {
+    if let JobType::DKGTSSPhaseOne(p1_job) = job.job_type {
+        let participants = p1_job.participants.clone();
+        let user_id_mapping = Arc::new(
+            participants
+                .clone()
+                .into_iter()
+                .enumerate()
+                .map(|r| (r.0 as UserID, r.1))
+                .collect(),
+        );
+
+        let i = p1_job
+            .participants
+            .0
+            .iter()
+            .position(|p| p.0 == config.account_id.0)
+            .expect("Should exist") as u16;
+
+        let t = p1_job.threshold;
+
+        Ok(WstsKeygenExtraParams {
+            job_id: job.job_id,
+            n: p1_job.participants.len(),
+            i,
+            k: K, // Each party will own exactly one key for this protocol
+            t,
+            user_id_mapping: Arc::new(user_id_mapping),
+            my_id: config.key_store.pair().public(),
+        })
+    } else {
+        Err(gadget_common::Error::JobError {
+            err: "The supplied job is not a phase 1 job".to_string(),
+        })
+    }
 }
 
 pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
@@ -59,6 +97,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
     let logger = config.logger.clone();
     let network = config.clone();
     let keystore = config.key_store.clone();
+    let keystore_clone = keystore.clone();
     let client = config.pallet_tx.clone();
     let WstsKeygenExtraParams {
         job_id,
@@ -69,6 +108,12 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
         user_id_mapping,
         my_id,
     } = additional_params;
+
+    let participants = user_id_mapping
+        .keys()
+        .copied()
+        .map(|r| r as u8)
+        .collect::<Vec<u8>>();
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -88,12 +133,11 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                     network,
                     logger.clone(),
                 );
-            let output = protocol(n, i, k, t, tx0, rx0, tx1, rx1, &logger).await?;
+            let output = protocol(n, i, k, t, tx0, rx0, tx1, rx1, &logger, &keystore_clone).await?;
             result.lock().await.replace(output);
         })
         .post(async move {
-            if let Some(state) = result_clone.lock().await.take() {
-                let public_key = state.public_key.clone();
+            if let Some((state, signature, public_key)) = result_clone.lock().await.take() {
                 keystore
                     .set_job_result(job_id, state)
                     .await
@@ -103,15 +147,19 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 
                 let job_result_for_pallet = JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
                     signature_scheme: DigitalSignatureScheme::EcdsaSecp256k1,
-                    key: BoundedVec(),
-                    participants: BoundedVec(),
-                    signatures: BoundedVec(),
+                    key: public_key.try_into().unwrap(),
+                    participants: participants.try_into().unwrap(),
+                    signatures: signature.as_slice().to_vec().try_into().unwrap(),
                     threshold: t,
                     __subxt_unused_type_params: Default::default(),
                 });
 
                 client
-                    .submit_job_result(RoleType::Tss(ThresholdSignatureRoleType::Wsts))
+                    .submit_job_result(
+                        RoleType::Tss(ThresholdSignatureRoleType::Wsts),
+                        job_id,
+                        job_result_for_pallet,
+                    )
                     .await
                     .map_err(|err| JobError {
                         reason: err.to_string(),
@@ -127,7 +175,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 /// Returns the state of the party after the protocol has finished. This should be saved to the keystore and
 /// later used for signing
 #[allow(clippy::too_many_arguments)]
-pub async fn protocol(
+pub async fn protocol<KBE: KeystoreBackend>(
     n: u32,
     party_id: u32,
     k: u32,
@@ -135,9 +183,10 @@ pub async fn protocol(
     tx_to_network: futures::channel::mpsc::UnboundedSender<FrostMessage>,
     rx_from_network: futures::channel::mpsc::UnboundedReceiver<std::io::Result<FrostMessage>>,
     mut tx_to_network_broadcast: tokio::sync::mpsc::UnboundedSender<FrostMessage>,
-    rx_from_network_broadcast: tokio::sync::mpsc::UnboundedReceiver<FrostMessage>,
+    mut rx_from_network_broadcast: tokio::sync::mpsc::UnboundedReceiver<FrostMessage>,
     logger: &DebugLogger,
-) -> Result<FrostState, JobError> {
+    key_store: &ECDSAKeyStore<KBE>,
+) -> Result<(FrostState, Signature, Vec<u8>), JobError> {
     validate_parameters(n, k, t)?;
 
     let mut rng = rand::rngs::OsRng;
@@ -157,10 +206,16 @@ pub async fn protocol(
     )
     .await?;
 
+    let our_combined_public_key = combine_public_key(&public_key);
+
+    // Sign this public key using our ECDSA key
+    let signature_of_public_key = key_store.pair().sign(&our_combined_public_key);
+
     // Gossip the public key
     let pkey_message = FrostMessage::PublicKeyBroadcast {
         party_id,
         public_key: public_key.clone(),
+        signature_of_public_key: signature_of_public_key.clone(),
     };
 
     let party = party.save();
@@ -173,10 +228,52 @@ pub async fn protocol(
             reason: format!("Error sending FROST message: {err:?}"),
         })?;
 
+    let mut received = 0;
+    // We normally need t+1, however, we aren't verifying our own signature, thus collect t keys
+    while received < t {
+        let next_message = rx_from_network_broadcast
+            .recv()
+            .await
+            .ok_or_else(|| JobError {
+                reason: "broadcast stream died",
+            })?;
+        match next_message {
+            FrostMessage::PublicKeyBroadcast {
+                party_id,
+                public_key,
+                signature_of_public_key,
+            } => {
+                let combined_public_key = combine_public_key(&public_key);
+
+                // Make sure their public key is equivalent to ours
+                if combined_public_key.as_slice() != our_combined_public_key.as_slice() {
+                    return Err(JobError { reason: format!("The received public key from party {party_id} does not match our public key. Aborting") });
+                }
+
+                // Verify the public key signature
+                recover_ecdsa_pub_key(&our_combined_public_key, signature_of_public_key.as_slice())
+                    .map_err(|err| JobError {
+                        reason: format!(
+                            "Failed to verify signature from party {party_id}: {err:?}"
+                        ),
+                    })?;
+                received += 1;
+            }
+
+            message => {
+                logger.warn(format!("Received improper message: {message:?}"));
+            }
+        }
+    }
+
     // TODO: Handle verification of gossiped public keys and save the hashmap of the public key
     let frost_state = FrostState { public_key, party };
 
-    Ok(frost_state)
+    Ok((
+        frost_state,
+        signature_of_public_key,
+        our_combined_public_key,
+    ))
 }
 
 pub async fn run_dkg<RNG: RngCore + CryptoRng>(
