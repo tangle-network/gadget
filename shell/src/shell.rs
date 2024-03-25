@@ -15,7 +15,6 @@ use gadget_common::{
     keystore::{ECDSAKeyStore, InMemoryBackend},
 };
 use gadget_core::gadget::substrate::Client;
-use parity_scale_codec::Encode;
 use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
 use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
@@ -279,7 +278,9 @@ where
         let roles = runtime
             .query_restaker_roles(notification.hash, sub_account_id.clone())
             .await?;
+        logger.trace(format!("Got roles: {roles:?}"));
         if roles == current_roles {
+            logger.trace("Roles have not changed, skipping");
             continue;
         }
         let diff = vec_diff(
@@ -287,11 +288,14 @@ where
             roles.iter().cloned().map(HashedRoleTypeWrapper),
         );
         if diff.is_empty() {
+            logger.trace("No roles diff, skipping");
             continue;
         }
+        logger.trace(format!("Roles diff: {diff:?}"));
         for d in diff {
             match d {
                 Diff::Added(role) => {
+                    logger.debug(format!("Trying to start protocol for role {:?}", role.0));
                     let handle = start_protocol_by_role(
                         role.0.clone(),
                         TangleRuntime::new(runtime.client()),
@@ -405,12 +409,48 @@ enum Diff<T> {
     Removed(T),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Eq, Clone)]
 struct HashedRoleTypeWrapper(RoleType);
+
+impl std::fmt::Debug for HashedRoleTypeWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+impl PartialEq for HashedRoleTypeWrapper {
+    fn eq(&self, other: &Self) -> bool {
+        use std::hash::Hasher;
+        let mut hasher = std::hash::DefaultHasher::new();
+        Self::hash(self, &mut hasher);
+        let lhs = hasher.finish();
+        let mut hasher = std::hash::DefaultHasher::new();
+        Self::hash(other, &mut hasher);
+        let rhs = hasher.finish();
+        lhs == rhs
+    }
+}
 
 impl Hash for HashedRoleTypeWrapper {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.encode().hash(state);
+        use RoleType::*;
+        use ThresholdSignatureRoleType::*;
+        match self.0 {
+            Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
+                "DfnsCGGMP21".hash(state)
+            }
+            Tss(ZcashFrostEd25519)
+            | Tss(ZcashFrostEd448)
+            | Tss(ZcashFrostP256)
+            | Tss(ZcashFrostP384)
+            | Tss(ZcashFrostSecp256k1)
+            | Tss(ZcashFrostRistretto255) => "ZcashFrost".hash(state),
+
+            Tss(SilentShardDKLS23Secp256k1) => "SilentShardDKLS23Secp256k1".hash(state),
+            Tss(GennaroDKGBls381) => "GennaroDKGBls381".hash(state),
+            ZkSaaS(_) => "ZkSaaS".hash(state),
+            LightClientRelaying => "LightClientRelaying".hash(state),
+        }
     }
 }
 
