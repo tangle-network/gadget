@@ -1,9 +1,12 @@
 use gadget_common::channels::{MaybeReceiver, MaybeSender, MaybeSenderReceiver};
+use gadget_common::prelude::AccountId32;
 use gadget_common::JobError;
 use hashbrown::HashMap;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use sp_core::ecdsa;
 use sp_core::ecdsa::Signature;
+use std::sync::Arc;
 use wsts::common::{PolyCommitment, PublicNonce, SignatureShare};
 use wsts::curve::scalar::Scalar;
 use wsts::v2::PartyState;
@@ -43,13 +46,13 @@ impl FrostMessage {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 /// Used for preserving the state of the Keygen. Should be stored in a keystore.
 ///
 /// Used in signing
 pub struct FrostState {
     pub public_key: HashMap<u32, PolyCommitment>,
-    pub party: PartyState,
+    pub party: Arc<PartyState>,
 }
 
 pub fn validate_parameters(n: u32, k: u32, t: u32) -> Result<(), JobError> {
@@ -127,4 +130,11 @@ pub fn combine_public_key(public_keys: &HashMap<u32, PolyCommitment>) -> Vec<u8>
             combined.extend_from_slice(&serialized);
             combined
         })
+}
+
+pub fn account_id_32_to_ecdsa_33(account_id: AccountId32) -> ecdsa::Public {
+    let mut ret = [0u8; 33];
+    let subset = &mut ret[1..];
+    subset.copy_from_slice(account_id.0.as_slice());
+    ecdsa::Public(ret)
 }

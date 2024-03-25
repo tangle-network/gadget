@@ -1,6 +1,4 @@
-use crate::protocols::util::{
-    combine_public_key, generate_party_key_ids, validate_parameters, FrostMessage, FrostState,
-};
+use crate::protocols::util::{combine_public_key, generate_party_key_ids, validate_parameters, FrostMessage, FrostState, account_id_32_to_ecdsa_33};
 use futures::{SinkExt, StreamExt};
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
@@ -28,6 +26,7 @@ use tokio::sync::Mutex;
 use wsts::common::PolyCommitment;
 use wsts::curve::scalar::Scalar;
 use wsts::v2::Party;
+use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 
 pub const K: u32 = 1;
 
@@ -49,14 +48,13 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
 ) -> Result<WstsKeygenExtraParams, gadget_common::Error> {
     if let JobType::DKGTSSPhaseOne(p1_job) = job.job_type {
         let participants = p1_job.participants.clone();
-        let user_id_mapping = Arc::new(
-            participants
-                .clone()
-                .into_iter()
-                .enumerate()
-                .map(|r| (r.0 as UserID, r.1))
-                .collect(),
-        );
+        let user_id_mapping = participants
+            .clone()
+            .0
+            .into_iter()
+            .enumerate()
+            .map(|r| (r.0 as UserID, account_id_32_to_ecdsa_33(r.1)))
+            .collect::<std::collections::HashMap<UserID, _>>();
 
         let i = p1_job
             .participants
@@ -69,15 +67,15 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
 
         Ok(WstsKeygenExtraParams {
             job_id: job.job_id,
-            n: p1_job.participants.len(),
-            i,
+            n: p1_job.participants.0.len() as u32,
+            i: i as _,
             k: K, // Each party will own exactly one key for this protocol
-            t,
+            t: t as _,
             user_id_mapping: Arc::new(user_id_mapping),
             my_id: config.key_store.pair().public(),
         })
     } else {
-        Err(gadget_common::Error::JobError {
+        Err(gadget_common::Error::ClientError {
             err: "The supplied job is not a phase 1 job".to_string(),
         })
     }
@@ -135,6 +133,8 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                 );
             let output = protocol(n, i, k, t, tx0, rx0, tx1, rx1, &logger, &keystore_clone).await?;
             result.lock().await.replace(output);
+
+            Ok(())
         })
         .post(async move {
             if let Some((state, signature, public_key)) = result_clone.lock().await.take() {
@@ -147,16 +147,16 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 
                 let job_result_for_pallet = JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
                     signature_scheme: DigitalSignatureScheme::EcdsaSecp256k1,
-                    key: public_key.try_into().unwrap(),
-                    participants: participants.try_into().unwrap(),
-                    signatures: signature.as_slice().to_vec().try_into().unwrap(),
-                    threshold: t,
+                    key: BoundedVec(public_key),
+                    participants: BoundedVec(vec![BoundedVec(participants)]),
+                    signatures: BoundedVec(vec![BoundedVec(signature.to_raw_vec())]),
+                    threshold: t as _,
                     __subxt_unused_type_params: Default::default(),
                 });
 
                 client
                     .submit_job_result(
-                        RoleType::Tss(ThresholdSignatureRoleType::Wsts),
+                        RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1),
                         job_id,
                         job_result_for_pallet,
                     )
@@ -165,6 +165,8 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                         reason: err.to_string(),
                     })?;
             }
+
+            Ok(())
         })
         .build())
 }
@@ -182,7 +184,7 @@ pub async fn protocol<KBE: KeystoreBackend>(
     t: u32,
     tx_to_network: futures::channel::mpsc::UnboundedSender<FrostMessage>,
     rx_from_network: futures::channel::mpsc::UnboundedReceiver<std::io::Result<FrostMessage>>,
-    mut tx_to_network_broadcast: tokio::sync::mpsc::UnboundedSender<FrostMessage>,
+    tx_to_network_broadcast: tokio::sync::mpsc::UnboundedSender<FrostMessage>,
     mut rx_from_network_broadcast: tokio::sync::mpsc::UnboundedReceiver<FrostMessage>,
     logger: &DebugLogger,
     key_store: &ECDSAKeyStore<KBE>,
@@ -223,7 +225,6 @@ pub async fn protocol<KBE: KeystoreBackend>(
     // Gossip the public key
     tx_to_network_broadcast
         .send(pkey_message)
-        .await
         .map_err(|err| JobError {
             reason: format!("Error sending FROST message: {err:?}"),
         })?;
@@ -235,7 +236,7 @@ pub async fn protocol<KBE: KeystoreBackend>(
             .recv()
             .await
             .ok_or_else(|| JobError {
-                reason: "broadcast stream died",
+                reason: "broadcast stream died".to_string(),
             })?;
         match next_message {
             FrostMessage::PublicKeyBroadcast {
@@ -252,10 +253,8 @@ pub async fn protocol<KBE: KeystoreBackend>(
 
                 // Verify the public key signature
                 recover_ecdsa_pub_key(&our_combined_public_key, signature_of_public_key.as_slice())
-                    .map_err(|err| JobError {
-                        reason: format!(
-                            "Failed to verify signature from party {party_id}: {err:?}"
-                        ),
+                    .map_err(|_| JobError {
+                        reason: format!("Failed to verify signature from party {party_id}"),
                     })?;
                 received += 1;
             }
@@ -267,7 +266,10 @@ pub async fn protocol<KBE: KeystoreBackend>(
     }
 
     // TODO: Handle verification of gossiped public keys and save the hashmap of the public key
-    let frost_state = FrostState { public_key, party };
+    let frost_state = FrostState {
+        public_key,
+        party: Arc::new(party),
+    };
 
     Ok((
         frost_state,
@@ -312,12 +314,12 @@ pub async fn run_dkg<RNG: RngCore + CryptoRng>(
     // Wait for n_signers to send their messages to us
     while received_shares.len() < n_signers {
         match rx_from_network.next().await {
-            Some(FrostMessage::Keygen {
+            Some(Ok(FrostMessage::Keygen {
                 party_id,
                 shares,
                 key_ids,
                 poly_commitment,
-            }) => {
+            })) => {
                 if party_id != signer.party_id {
                     received_shares.insert(party_id, shares);
                     received_key_ids.insert(party_id, key_ids);

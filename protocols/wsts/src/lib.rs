@@ -12,7 +12,7 @@ generate_protocol!(
     protocols::keygen::generate_protocol_from,
     protocols::keygen::create_next_job,
     jobs::JobType::DKGTSSPhaseOne(_),
-    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::Wsts)
+    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostSecp256k1)
 );
 
 generate_protocol!(
@@ -22,12 +22,17 @@ generate_protocol!(
     protocols::signing::generate_protocol_from,
     protocols::signing::create_next_job,
     jobs::JobType::DKGTSSPhaseTwo(_),
-    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::Wsts)
+    roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostSecp256k1)
 );
 
 generate_setup_and_run_command!(WstsKeygenProtocol, WstsSigningProtocol);
 
 #[cfg(test)]
 mod wsts {
-    test_utils::generate_signing_and_keygen_tss_tests!(2, 3, 4, ThresholdSignatureRoleType::Wsts);
+    test_utils::generate_signing_and_keygen_tss_tests!(
+        2,
+        3,
+        4,
+        ThresholdSignatureRoleType::ZcashFrostSecp256k1
+    );
 }
