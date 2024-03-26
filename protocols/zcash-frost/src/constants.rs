@@ -1,6 +1,6 @@
 // ================= Common ======================== //
-pub const ZCASH_FROST_KEYGEN_PROTOCOL_NAME: &str = "/tangle/zcash-frost/keygen/1";
-pub const ZCASH_FROST_SIGNING_PROTOCOL_NAME: &str = "/tangle/zcash-frost/signing/1";
+pub const ZCASH_FROST_KEYGEN_PROTOCOL_NAME: &str = "/tangle/zcash-frost/keygen/1.0.0";
+pub const ZCASH_FROST_SIGNING_PROTOCOL_NAME: &str = "/tangle/zcash-frost/signing/1.0.0";
 
 // ============= Signing Protocol ======================= //
 
