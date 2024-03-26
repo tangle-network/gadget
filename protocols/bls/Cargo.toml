@@ -12,7 +12,7 @@ async-trait = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true }
 protocol-macros = { workspace = true }
-gennaro-dkg = { workspace = true }
+gennaro-dkg = { workspace = true, features = ["curve25519"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 round-based = { workspace = true, features = ["dev"] }
