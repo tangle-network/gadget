@@ -25,8 +25,8 @@ pub async fn setup_libp2p_network(
     config: &ShellConfig,
     logger: DebugLogger,
     networks: Vec<&'static str>,
-    role_key: ecdsa::Public,
-) -> Result<(Vec<GossipHandle>, JoinHandle<()>), Box<dyn Error>> {
+    role_key: ecdsa::Pair,
+) -> Result<(HashMap<&'static str, GossipHandle>, JoinHandle<()>), Box<dyn Error>> {
     // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
         .with_tokio()
@@ -121,7 +121,7 @@ pub async fn setup_libp2p_network(
     let (tx_to_outbound, mut rx_to_outbound) =
         tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
     let ecdsa_peer_id_to_libp2p_id = Arc::new(RwLock::new(HashMap::new()));
-    let mut handles_ret = vec![];
+    let mut handles_ret = HashMap::with_capacity(networks.len());
     for network in networks {
         let topic = IdentTopic::new(network);
         swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
@@ -129,14 +129,17 @@ pub async fn setup_libp2p_network(
         let connected_peers = Arc::new(AtomicU32::new(0));
         inbound_mapping.push((topic.clone(), inbound_tx, connected_peers.clone()));
 
-        handles_ret.push(GossipHandle {
-            connected_peers,
-            topic,
-            tx_to_outbound: tx_to_outbound.clone(),
-            rx_from_inbound: Arc::new(Mutex::new(inbound_rx)),
-            logger: logger.clone(),
-            ecdsa_peer_id_to_libp2p_id: ecdsa_peer_id_to_libp2p_id.clone(),
-        })
+        handles_ret.insert(
+            network,
+            GossipHandle {
+                connected_peers,
+                topic,
+                tx_to_outbound: tx_to_outbound.clone(),
+                rx_from_inbound: Arc::new(Mutex::new(inbound_rx)),
+                logger: logger.clone(),
+                ecdsa_peer_id_to_libp2p_id: ecdsa_peer_id_to_libp2p_id.clone(),
+            },
+        );
     }
 
     swarm

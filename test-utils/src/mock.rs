@@ -937,6 +937,14 @@ pub mod mock_wrapper_client {
             })
             .await
         }
+
+        async fn query_restaker_roles(
+            &self,
+            _at: [u8; 32],
+            _address: AccountId32,
+        ) -> Result<Vec<roles::RoleType>, gadget_common::Error> {
+            Ok(Default::default())
+        }
     }
 
     impl<R: ProvideRuntimeApi<B>, B: Block> ProvideRuntimeApi<B> for MockClient<R, B> {

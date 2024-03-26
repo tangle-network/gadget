@@ -7,6 +7,7 @@ use gadget_common::tangle_runtime::*;
 use gadget_common::{generate_protocol, generate_setup_and_run_command};
 use protocol_macros::protocol;
 
+pub mod constants;
 pub mod protocol;
 pub mod rounds;
 

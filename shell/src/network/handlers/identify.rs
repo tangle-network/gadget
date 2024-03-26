@@ -7,7 +7,7 @@ impl NetworkService<'_> {
         match event {
             Received { peer_id, info } => {
                 // TODO: Verify the peer info, for example the protocol version, agent version, etc.
-                let info_lines = vec![
+                let info_lines = [
                     format!("Protocol Version: {}", info.protocol_version),
                     format!("Agent Version: {}", info.agent_version),
                     format!("Supported Protocols: {:?}", info.protocols),
@@ -23,7 +23,7 @@ impl NetworkService<'_> {
                     .trace(format!("Sent identify event to peer: {peer_id}"));
             }
             Pushed { peer_id, info } => {
-                let info_lines = vec![
+                let info_lines = [
                     format!("Protocol Version: {}", info.protocol_version),
                     format!("Agent Version: {}", info.agent_version),
                     format!("Supported Protocols: {:?}", info.protocols),

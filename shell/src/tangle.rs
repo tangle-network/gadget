@@ -50,6 +50,10 @@ impl TangleRuntime {
         }
     }
 
+    pub fn client(&self) -> subxt::OnlineClient<PolkadotConfig> {
+        self.client.clone()
+    }
+
     /// Initialize the TangleRuntime instance by listening for finality notifications.
     /// This method must be called before using the instance.
     async fn initialize(&self) -> Result<()> {
@@ -214,6 +218,22 @@ impl ClientWithApi for TangleRuntime {
         let q = api::apis().jobs_api().query_restaker_role_key(address);
         self.runtime_api(at)
             .call(q)
+            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
+            .await
+    }
+
+    async fn query_restaker_roles(
+        &self,
+        at: [u8; 32],
+        address: AccountId32,
+    ) -> std::result::Result<Vec<RoleType>, gadget_common::Error> {
+        let storage_address = api::storage().roles().account_roles_mapping(address);
+        let block_ref = BlockRef::from_hash(sp_core::hash::H256::from_slice(&at));
+        self.client
+            .storage()
+            .at(block_ref)
+            .fetch_or_default(&storage_address)
+            .map_ok(|v| v.0)
             .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
             .await
     }

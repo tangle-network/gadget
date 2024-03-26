@@ -19,6 +19,7 @@ gadget-core = { workspace = true }
 gadget-common = { workspace = true }
 
 sp-core = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, features = ["std"] }
 sp-keystore = { workspace = true }
 sp-application-crypto = { workspace = true }
 
@@ -32,12 +33,17 @@ parity-scale-codec = { workspace = true }
 structopt = "0.3.26"
 toml = "0.8.11"
 serde = { workspace = true }
+rand = { workspace = true }
 hex = { workspace = true }
 sha2 = "0.10.8"
 futures = { workspace = true }
 bincode = { workspace = true }
 # Protocols
 dfns-cggmp21-protocol = { workspace = true }
+zcash-frost-protocol = { workspace = true }
+silent-shard-dkls23-ll-protocol = { workspace = true }
+threshold-bls-protocol = { workspace = true }
+zk-saas-protocol = { workspace = true, features = ["parallel"] }
 
 [dependencies.libp2p]
 workspace = true
@@ -54,10 +60,10 @@ features = [
   "cbor",
   "identify",
   "kad",
-    "dcutr",
-    "relay",
-    "ping",
-    "dns"
+  "dcutr",
+  "relay",
+  "ping",
+  "dns"
 ]
 
 [dev-dependencies]

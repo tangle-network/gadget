@@ -1,40 +1,49 @@
 use crate::network::gossip::{MyBehaviourRequest, NetworkService};
 use libp2p::PeerId;
+use sp_core::{keccak_256, Pair};
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self))]
     pub(crate) async fn handle_connection_established(
         &mut self,
         peer_id: PeerId,
-        _num_established: u32,
+        num_established: u32,
     ) {
         self.logger.debug("Connection established");
-        // TODO: Sign the handshake message.
-        let handshake = MyBehaviourRequest::Handshake {
-            ecdsa_public_key: *self.role_key,
-        };
-        self.swarm
-            .behaviour_mut()
-            .p2p
-            .send_request(&peer_id, handshake);
-        self.swarm
-            .behaviour_mut()
-            .gossipsub
-            .add_explicit_peer(&peer_id);
+        if num_established == 1 {
+            let my_peer_id = self.swarm.local_peer_id();
+            let msg = my_peer_id.to_bytes();
+            let hash = keccak_256(&msg);
+            let signature = self.role_key.sign_prehashed(&hash);
+            let handshake = MyBehaviourRequest::Handshake {
+                ecdsa_public_key: self.role_key.public(),
+                signature,
+            };
+            self.swarm
+                .behaviour_mut()
+                .p2p
+                .send_request(&peer_id, handshake);
+            self.swarm
+                .behaviour_mut()
+                .gossipsub
+                .add_explicit_peer(&peer_id);
+        }
     }
 
     #[tracing::instrument(skip(self))]
     pub(crate) async fn handle_connection_closed(
         &mut self,
         peer_id: PeerId,
-        _num_established: u32,
+        num_established: u32,
         _cause: Option<libp2p::swarm::ConnectionError>,
     ) {
         self.logger.debug("Connection closed");
-        self.swarm
-            .behaviour_mut()
-            .gossipsub
-            .remove_explicit_peer(&peer_id);
+        if num_established == 0 {
+            self.swarm
+                .behaviour_mut()
+                .gossipsub
+                .remove_explicit_peer(&peer_id);
+        }
     }
 
     #[tracing::instrument(skip(self))]
