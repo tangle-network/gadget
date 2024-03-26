@@ -1,4 +1,4 @@
-use crate::protocols::util::{combine_public_key, generate_party_key_ids, validate_parameters, FrostMessage, FrostState, account_id_32_to_ecdsa_33};
+use crate::protocols::util::{combine_public_key, generate_party_key_ids, validate_parameters, FrostMessage, FrostState};
 use futures::{SinkExt, StreamExt};
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
@@ -26,6 +26,7 @@ use tokio::sync::Mutex;
 use wsts::common::PolyCommitment;
 use wsts::curve::scalar::Scalar;
 use wsts::v2::Party;
+use wsts::traits::Signer;
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 
 pub const K: u32 = 1;
@@ -47,14 +48,15 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
     _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<WstsKeygenExtraParams, gadget_common::Error> {
     if let JobType::DKGTSSPhaseOne(p1_job) = job.job_type {
-        let participants = p1_job.participants.clone();
-        let user_id_mapping = participants
-            .clone()
-            .0
-            .into_iter()
-            .enumerate()
-            .map(|r| (r.0 as UserID, account_id_32_to_ecdsa_33(r.1)))
-            .collect::<std::collections::HashMap<UserID, _>>();
+        let participants = job.participants_role_ids.clone();
+        let user_id_to_account_id_mapping = Arc::new(
+            participants
+                .clone()
+                .into_iter()
+                .enumerate()
+                .map(|r| (r.0 as UserID, r.1))
+                .collect(),
+        );
 
         let i = p1_job
             .participants
@@ -64,14 +66,15 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
             .expect("Should exist") as u16;
 
         let t = p1_job.threshold;
+        let n = p1_job.participants.0.len() as u32;
 
         Ok(WstsKeygenExtraParams {
             job_id: job.job_id,
-            n: p1_job.participants.0.len() as u32,
+            n,
             i: i as _,
-            k: K, // Each party will own exactly one key for this protocol
+            k: n, // Each party will own exactly n keys for this protocol
             t: t as _,
-            user_id_mapping: Arc::new(user_id_mapping),
+            user_id_mapping: user_id_to_account_id_mapping,
             my_id: config.key_store.pair().public(),
         })
     } else {
@@ -185,7 +188,7 @@ pub async fn protocol<KBE: KeystoreBackend>(
     tx_to_network: futures::channel::mpsc::UnboundedSender<FrostMessage>,
     rx_from_network: futures::channel::mpsc::UnboundedReceiver<std::io::Result<FrostMessage>>,
     tx_to_network_broadcast: tokio::sync::mpsc::UnboundedSender<FrostMessage>,
-    mut rx_from_network_broadcast: tokio::sync::mpsc::UnboundedReceiver<FrostMessage>,
+    mut rx_from_network_broadcast: UnboundedReceiver<FrostMessage>,
     logger: &DebugLogger,
     key_store: &ECDSAKeyStore<KBE>,
 ) -> Result<(FrostState, Signature, Vec<u8>), JobError> {
@@ -290,7 +293,10 @@ pub async fn run_dkg<RNG: RngCore + CryptoRng>(
     let party_id = signer.party_id;
     let shares: HashMap<u32, Scalar> = signer.get_shares().into_iter().collect();
     let key_ids = signer.key_ids.clone();
-    let poly_commitment = signer.get_poly_commitment(rng);
+    logger.error(format!("Our party ID: {party_id} | Our key IDS: {key_ids:?}"));
+    let poly_commitment = signer.get_poly_commitment(rng).ok_or_else(|| JobError {
+        reason: "Failed to get poly commitment".to_string(),
+    })?;
     let message = FrostMessage::Keygen {
         party_id,
         shares: shares.clone(),
@@ -321,6 +327,7 @@ pub async fn run_dkg<RNG: RngCore + CryptoRng>(
                 poly_commitment,
             })) => {
                 if party_id != signer.party_id {
+                    logger.error(format!("Received shares from {party_id} with key ids: {key_ids:?}"));
                     received_shares.insert(party_id, shares);
                     received_key_ids.insert(party_id, key_ids);
                     received_poly_commitments.insert(party_id, poly_commitment);
@@ -337,26 +344,12 @@ pub async fn run_dkg<RNG: RngCore + CryptoRng>(
         }
     }
 
-    // Generate the party_shares: for each key id we own, we take our received key share at that
-    // index
-    let party_shares = signer
-        .key_ids
-        .iter()
-        .copied()
-        .map(|key_id| {
-            let mut key_shares = HashMap::new();
+    logger.error(format!("PRE: received shares: {:?}", received_shares.keys().collect::<Vec<_>>()));
 
-            for (id, shares) in &received_shares {
-                key_shares.insert(*id, shares[&key_id]);
-            }
-
-            (key_id, key_shares.into_iter().collect())
-        })
-        .collect();
     signer
-        .compute_secret(&party_shares, &received_poly_commitments)
-        .map_err(|err| JobError {
-            reason: err.to_string(),
+        .compute_secrets(&received_shares, &received_poly_commitments)
+        .map_err(|_err| JobError {
+            reason: "Failed to compute secret".to_string(),
         })?;
 
     Ok(received_poly_commitments)

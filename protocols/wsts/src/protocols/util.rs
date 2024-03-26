@@ -9,7 +9,7 @@ use sp_core::ecdsa::Signature;
 use std::sync::Arc;
 use wsts::common::{PolyCommitment, PublicNonce, SignatureShare};
 use wsts::curve::scalar::Scalar;
-use wsts::v2::PartyState;
+use wsts::traits::SignerState;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum FrostMessage {
@@ -52,7 +52,7 @@ impl FrostMessage {
 /// Used in signing
 pub struct FrostState {
     pub public_key: HashMap<u32, PolyCommitment>,
-    pub party: Arc<PartyState>,
+    pub party: Arc<SignerState>,
 }
 
 pub fn validate_parameters(n: u32, k: u32, t: u32) -> Result<(), JobError> {

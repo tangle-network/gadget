@@ -1,5 +1,4 @@
-use crate::protocols::keygen::K;
-use crate::protocols::util::{account_id_32_to_ecdsa_33, FrostMessage, FrostState};
+use crate::protocols::util::{FrostMessage, FrostState};
 use futures::{SinkExt, StreamExt};
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
@@ -23,7 +22,7 @@ use sp_core::{ecdsa, Pair};
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 use wsts::common::Signature;
-use wsts::traits::Aggregator;
+use wsts::traits::{Aggregator, Signer};
 use wsts::v2::Party;
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 
@@ -45,21 +44,22 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
 ) -> Result<WstsSigningExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
     if let Some(JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
-        participants,
+        participants: _,
         threshold,
         permitted_caller: _,
         role_type: _,
         ..
     })) = job.phase1_job
     {
-        let user_id_mapping = Arc::new(
+        let participants = job.participants_role_ids.clone();
+        let n = participants.len();
+        let user_id_to_account_id_mapping = Arc::new(
             participants
                 .clone()
-                .0
                 .into_iter()
                 .enumerate()
-                .map(|r| (r.0 as UserID, account_id_32_to_ecdsa_33(r.1)))
-                .collect::<std::collections::HashMap<_, _>>(),
+                .map(|r| (r.0 as UserID, r.1))
+                .collect(),
         );
 
         let JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
@@ -82,11 +82,11 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
             })?;
 
         Ok(WstsSigningExtraParams {
-            user_id_mapping,
+            user_id_mapping: user_id_to_account_id_mapping,
             my_id,
             keygen_state,
             message_to_sign: submission.0,
-            k: K,
+            k: n as _,
             t: threshold as _,
             job_id,
         })

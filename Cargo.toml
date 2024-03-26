@@ -67,7 +67,7 @@ frost-rerandomized = { git = "https://github.com/salman01zp/frost", branch = "sa
 
 bls12_381_plus = "0.8.13"
 dkls23-ll = { git = "https://github.com/drewstone/silent-shard-dkls23-ll.git", branch = "drew/thiserror-dep" }
-wsts = "8.1.0"
+wsts = "9.0.0"
 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
