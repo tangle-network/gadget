@@ -4107,6 +4107,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sha2 0.10.8",
+ "silent-shard-dkls23-ll-protocol",
  "sp-application-crypto",
  "sp-core",
  "sp-io",
@@ -4114,11 +4115,14 @@ dependencies = [
  "structopt",
  "tangle-subxt",
  "test-utils",
+ "threshold-bls-protocol",
  "tokio",
  "toml 0.8.11",
  "tracing",
  "tracing-subscriber 0.3.18",
  "url",
+ "zcash-frost-protocol",
+ "zk-saas-protocol",
 ]
 
 [[package]]
