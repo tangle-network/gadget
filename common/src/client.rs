@@ -187,6 +187,16 @@ pub trait ClientWithApi: Client {
         at: [u8; 32],
         address: AccountId32,
     ) -> Result<Option<Vec<u8>>, gadget_io::Error>;
+
+    /// Queries restaker's roles
+    ///
+    /// # Returns
+    /// List of roles enabled for restaker
+    async fn query_restaker_roles(
+        &self,
+        at: [u8; 32],
+        address: AccountId32,
+    ) -> Result<Vec<roles::RoleType>, gadget_io::Error>;
 }
 
 impl<C: ClientWithApi> JobsClient<C> {

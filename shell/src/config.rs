@@ -4,9 +4,10 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct ShellConfig {
+    pub base_path: PathBuf,
     pub keystore: KeystoreConfig,
     pub subxt: SubxtConfig,
-    pub bind_ip: String,
+    pub bind_ip: std::net::IpAddr,
     pub bind_port: u16,
     pub bootnodes: Vec<Multiaddr>,
     pub node_key: [u8; 32],
