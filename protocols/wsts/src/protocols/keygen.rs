@@ -17,8 +17,7 @@ use gadget_common::{
 };
 use hashbrown::HashMap;
 use rand::{CryptoRng, RngCore};
-use sp_core::ecdsa::Signature;
-use sp_core::{ecdsa, ByteArray, Pair};
+use sp_core::{ecdsa, ByteArray, Pair, keccak_256};
 use std::sync::Arc;
 use itertools::Itertools;
 use tangle_primitives::jobs::JobId;
@@ -96,6 +95,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
     let result = Arc::new(Mutex::new(None));
     let result_clone = result.clone();
     let logger = config.logger.clone();
+    let logger_clone = logger.clone();
     let network = config.clone();
     let keystore = config.key_store.clone();
     let keystore_clone = keystore.clone();
@@ -140,7 +140,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             Ok(())
         })
         .post(async move {
-            if let Some((state, signature, public_key)) = result_clone.lock().await.take() {
+            if let Some((state, public_key, signatures)) = result_clone.lock().await.take() {
                 keystore
                     .set_job_result(job_id, state)
                     .await
@@ -148,18 +148,25 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                         reason: err.to_string(),
                     })?;
 
+                logger_clone.error(format!(
+                    "Public key len: {} | signatures_len: {} | n: {} | t: {}",
+                    public_key.len(),
+                    signatures.len(),
+                    n,
+                    t
+                ));
                 let job_result_for_pallet = JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
-                    signature_scheme: DigitalSignatureScheme::EcdsaSecp256k1,
+                    signature_scheme: DigitalSignatureScheme::SchnorrSecp256k1,
                     key: BoundedVec(public_key),
                     participants: BoundedVec(vec![BoundedVec(participants)]),
-                    signatures: BoundedVec(vec![BoundedVec(signature.to_raw_vec())]),
+                    signatures: BoundedVec(signatures),
                     threshold: t as _,
                     __subxt_unused_type_params: Default::default(),
                 });
 
                 client
                     .submit_job_result(
-                        RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1),
+                        RoleType::Tss(ThresholdSignatureRoleType::WstsV2),
                         job_id,
                         job_result_for_pallet,
                     )
@@ -169,6 +176,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                     })?;
             }
 
+            logger_clone.info("Finished AsyncProtocol - WSTS Keygen");
             Ok(())
         })
         .build())
@@ -191,7 +199,7 @@ pub async fn protocol<KBE: KeystoreBackend>(
     mut rx_from_network_broadcast: UnboundedReceiver<FrostMessage>,
     logger: &DebugLogger,
     key_store: &ECDSAKeyStore<KBE>,
-) -> Result<(FrostState, Signature, Vec<u8>), JobError> {
+) -> Result<(FrostState, Vec<u8>, Vec<BoundedVec<u8>>), JobError> {
     validate_parameters(n, k, t)?;
 
     let mut rng = rand::rngs::OsRng;
@@ -214,7 +222,8 @@ pub async fn protocol<KBE: KeystoreBackend>(
     let our_combined_public_key = combine_public_key(&public_key);
 
     // Sign this public key using our ECDSA key
-    let signature_of_public_key = key_store.pair().sign(&our_combined_public_key);
+    let hash_of_public_key = keccak_256(&our_combined_public_key);
+    let signature_of_public_key = key_store.pair().sign_prehashed(&hash_of_public_key);
 
     // Gossip the public key
     let pkey_message = FrostMessage::PublicKeyBroadcast {
@@ -233,6 +242,9 @@ pub async fn protocol<KBE: KeystoreBackend>(
         })?;
 
     let mut received = 0;
+    let mut received_signatures = HashMap::new();
+    received_signatures.insert(party_id, signature_of_public_key.clone());
+
     // We normally need t+1, however, we aren't verifying our own signature, thus collect t keys
     while received < t {
         let next_message = rx_from_network_broadcast
@@ -259,6 +271,8 @@ pub async fn protocol<KBE: KeystoreBackend>(
                     .map_err(|_| JobError {
                         reason: format!("Failed to verify signature from party {party_id}"),
                     })?;
+
+                received_signatures.insert(party_id, signature_of_public_key);
                 received += 1;
             }
 
@@ -268,17 +282,20 @@ pub async fn protocol<KBE: KeystoreBackend>(
         }
     }
 
-    // TODO: Handle verification of gossiped public keys and save the hashmap of the public key
+    let signatures = received_signatures
+        .into_iter()
+        .sorted_by_key(|k| k.0)
+        .map(|r| BoundedVec(r.1 .0.to_vec()))
+        .collect_vec();
+
+    logger.info("Finished public key gossip");
+
     let frost_state = FrostState {
         public_key,
         party: Arc::new(party),
     };
 
-    Ok((
-        frost_state,
-        signature_of_public_key,
-        our_combined_public_key,
-    ))
+    Ok((frost_state, our_combined_public_key, signatures))
 }
 
 pub async fn run_dkg<RNG: RngCore + CryptoRng>(
@@ -293,7 +310,7 @@ pub async fn run_dkg<RNG: RngCore + CryptoRng>(
     let party_id = signer.party_id;
     let shares: HashMap<u32, Scalar> = signer.get_shares().into_iter().collect();
     let key_ids = signer.key_ids.clone();
-    logger.error(format!(
+    logger.info(format!(
         "Our party ID: {party_id} | Our key IDS: {key_ids:?}"
     ));
     let poly_commitment = signer.get_poly_commitment(rng);
@@ -347,8 +364,8 @@ pub async fn run_dkg<RNG: RngCore + CryptoRng>(
         }
     }
 
-    logger.error(format!(
-        "PRE: received shares: {:?}",
+    logger.trace(format!(
+        "Received shares: {:?}",
         received_shares.keys().collect::<Vec<_>>()
     ));
     // Generate the party_shares: for each key id we own, we take our received key share at that
@@ -379,6 +396,6 @@ pub async fn run_dkg<RNG: RngCore + CryptoRng>(
             reason: err.to_string(),
         })?;
 
-    logger.error("Keygen finished computing secret");
+    logger.info("Keygen finished computing secret");
     Ok(received_poly_commitments)
 }

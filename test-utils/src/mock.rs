@@ -258,7 +258,7 @@ parameter_types! {
     pub const MaxParticipants: u32 = 10;
     #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
     #[derive(Serialize, Deserialize)]
-    pub const MaxKeyLen: u32 = 256;
+    pub const MaxKeyLen: u32 = 2048;
     #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
     #[derive(Serialize, Deserialize)]
     pub const MaxDataLen: u32 = 256;
