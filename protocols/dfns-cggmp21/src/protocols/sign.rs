@@ -41,7 +41,7 @@ pub struct DfnsCGGMP21SigningExtraParams {
     pub role_type: roles::RoleType,
     pub serialized_key_share: Vec<u8>,
     pub input_data_to_sign: Vec<u8>,
-    pub derivation_path: Option<BoundedVec<u8>>,
+    pub derivation_path: Option<DerivationPath>,
     pub user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
@@ -56,7 +56,12 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
         panic!("Should be valid type")
     };
     let input_data_to_sign = p2_job.submission.0.to_vec();
-    let derivation_path = p2_job.derivation_path;
+    // should be a valid derivation path, otherwise it will be None
+    let derivation_path = p2_job
+        .derivation_path
+        .and_then(|v| String::from_utf8(v.0).ok())
+        .and_then(|v| DerivationPath::from_str(&v).ok());
+
     let previous_job_id = p2_job.phase_one_id;
 
     let phase1_job = job.phase1_job.expect("Should exist for a phase 2 job");
@@ -120,7 +125,7 @@ pub async fn run_signing<
     i: u16,
     signers: Vec<u16>,
     serialized_key_share: Vec<u8>,
-    derivation_path: Option<BoundedVec<u8>>,
+    derivation_path: Option<DerivationPath>,
 ) -> Result<Vec<u8>, JobError>
 where
     Point<E>: HasAffineX<E>,
@@ -168,7 +173,7 @@ pub async fn run_and_serialize_signing<'r, E, L, R, D, H>(
     signers: Vec<u16>,
     msg: DataToSign<E>,
     key: Vec<u8>,
-    derivation_path: Option<BoundedVec<u8>>,
+    derivation_path: Option<DerivationPath>,
     party: MpcParty<Msg<E, H>, D>,
     rng: &mut R,
 ) -> Result<Vec<u8>, JobError>
@@ -185,33 +190,29 @@ where
     })?;
     let signing_builder = SigningBuilder::<E, L, H>::new(eid, i, &signers, &key);
     // Deserialize the derivation path as an ascii string
-    let derivation_path_str = derivation_path
-        .as_ref()
-        .map(|path| path.0.to_vec())
-        .map(|path| String::from_utf8(path).unwrap_or_default())
-        .unwrap_or_else(|| "m".to_string());
-    let path = DerivationPath::from_str(&derivation_path_str).unwrap();
-    let non_hardened_indices: Vec<u32> = path.path().iter().map(|index| index.to_u32()).collect();
-    let signature = if derivation_path.is_some() {
-        signing_builder
-            .set_progress_tracer(tracer)
-            .set_derivation_path(non_hardened_indices)
-            .map_err(|e| JobError {
-                reason: format!("Derivation path set error: {e:?}"),
-            })?
-            .sign(rng, party, msg)
-            .await
-            .map_err(|err| JobError {
-                reason: format!("Signing protocol error: {err:?}"),
-            })?
-    } else {
-        signing_builder
+    let signature = match derivation_path {
+        Some(d) => {
+            let non_hardened_indices: Vec<u32> =
+                d.path().iter().map(|index| index.to_u32()).collect();
+            signing_builder
+                .set_progress_tracer(tracer)
+                .set_derivation_path(non_hardened_indices)
+                .map_err(|e| JobError {
+                    reason: format!("Derivation path set error: {e:?}"),
+                })?
+                .sign(rng, party, msg)
+                .await
+                .map_err(|err| JobError {
+                    reason: format!("Signing protocol error: {err:?}"),
+                })?
+        }
+        None => signing_builder
             .set_progress_tracer(tracer)
             .sign(rng, party, msg)
             .await
             .map_err(|err| JobError {
                 reason: format!("Signing protocol error: {err:?}"),
-            })?
+            })?,
     };
 
     logger.info("Done signing");
@@ -270,6 +271,8 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
     )?;
 
     let derivation_path2 = derivation_path.clone();
+    let role_type2 = role_type.clone();
+    let serialized_key_share2 = serialized_key_share.clone();
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -361,6 +364,52 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             Ok(())
         })
         .post(async move {
+            let public_key = if let Some(path) = &derivation_path2 {
+                let non_hardened_indices = path
+                    .path()
+                    .iter()
+                    .map(|index| index.to_u32())
+                    .collect::<Vec<_>>();
+                match role_type2 {
+                    roles::RoleType::Tss(
+                        roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
+                    ) => get_key_share::<Secp256k1, DefaultSecurityLevel>(&serialized_key_share2)?
+                        .derive_child_public_key(non_hardened_indices)
+                        .map_err(|e| JobError {
+                            reason: format!("Failed to derive_child_public_key: {e}"),
+                        })?
+                        .public_key
+                        .to_bytes(true)
+                        .to_vec(),
+                    roles::RoleType::Tss(
+                        roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1,
+                    ) => get_key_share::<Secp256r1, DefaultSecurityLevel>(&serialized_key_share2)?
+                        .derive_child_public_key(non_hardened_indices)
+                        .map_err(|e| JobError {
+                            reason: format!("Failed to derive_child_public_key: {e}"),
+                        })?
+                        .public_key
+                        .to_bytes(true)
+                        .to_vec(),
+                    roles::RoleType::Tss(
+                        roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark,
+                    ) => get_key_share::<Stark, DefaultSecurityLevel>(&serialized_key_share2)?
+                        .derive_child_public_key(non_hardened_indices)
+                        .map_err(|e| JobError {
+                            reason: format!("Failed to derive_child_public_key: {e}"),
+                        })?
+                        .public_key
+                        .to_bytes(true)
+                        .to_vec(),
+                    _ => {
+                        return Err(JobError {
+                            reason: format!("Invalid role type: {role_type2:?}"),
+                        })
+                    }
+                }
+            } else {
+                public_key
+            };
             // Submit the protocol output to the blockchain
             if let Some(signature) = protocol_output_clone.lock().await.take() {
                 let (signature_scheme, data_hash) = validate_dfns_signature_by_role(
@@ -372,7 +421,9 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 
                 let job_result = jobs::JobResult::DKGPhaseTwo(jobs::tss::DKGTSSSignatureResult {
                     signature_scheme,
-                    derivation_path: derivation_path2,
+                    derivation_path: derivation_path2
+                        .map(|v| v.to_string().as_bytes().to_vec())
+                        .map(BoundedVec),
                     data: BoundedVec(data_hash.to_vec()),
                     signature: BoundedVec(signature.to_vec()),
                     verifying_key: BoundedVec(public_key),

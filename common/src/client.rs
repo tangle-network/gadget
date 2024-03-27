@@ -561,8 +561,8 @@ mod tests {
 
     use tangle_subxt::{
         subxt::{tx::Signer, utils::AccountId32, PolkadotConfig},
-        tangle_runtime::api,
-        tangle_runtime::api::runtime_types::{
+        tangle_testnet_runtime::api,
+        tangle_testnet_runtime::api::runtime_types::{
             bounded_collections::bounded_vec::BoundedVec,
             tangle_primitives::{jobs, roles},
         },

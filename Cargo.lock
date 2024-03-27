@@ -12694,6 +12694,7 @@ dependencies = [
  "bytes",
  "dist-primitives",
  "futures",
+ "gadget-common",
  "gadget-core",
  "hex",
  "log",

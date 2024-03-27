@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use gadget_common::utils::*;
     use gadget_core::job_manager::SendFuture;
     use std::collections::HashMap;
     use std::error::Error;
