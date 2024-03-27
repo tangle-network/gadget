@@ -7372,9 +7372,9 @@ dependencies = [
 
 [[package]]
 name = "p256k1"
-version = "7.1.0"
+version = "5.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a40a031a559eb38c35a14096f21c366254501a06d41c4b327d2a7515d713a5b7"
+checksum = "22e81c2cb5a1936d3f26278f9d698932239d03ddf0d5818392d91cd5f98ffc79"
 dependencies = [
  "bindgen 0.64.0",
  "bitvec 1.0.1",
@@ -14631,11 +14631,10 @@ dependencies = [
 
 [[package]]
 name = "wsts"
-version = "9.0.0"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c80d57a61294350ed91e91eb20a6c34da084ec8f15d039bab79ce3efabbd1a4"
+checksum = "08b241e8440197fcd6e214a26fcaac82d7cdfde3ae964586f4b1a7c41a21ba6f"
 dependencies = [
- "aes-gcm",
  "bs58 0.5.0",
  "hashbrown 0.14.3",
  "hex",
@@ -14647,8 +14646,6 @@ dependencies = [
  "serde",
  "sha2 0.10.8",
  "thiserror",
- "tracing",
- "tracing-subscriber 0.3.18",
 ]
 
 [[package]]

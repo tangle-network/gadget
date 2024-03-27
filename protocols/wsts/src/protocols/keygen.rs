@@ -20,13 +20,13 @@ use rand::{CryptoRng, RngCore};
 use sp_core::ecdsa::Signature;
 use sp_core::{ecdsa, ByteArray, Pair};
 use std::sync::Arc;
+use itertools::Itertools;
 use tangle_primitives::jobs::JobId;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::Mutex;
 use wsts::common::PolyCommitment;
-use wsts::curve::scalar::Scalar;
+use wsts::Scalar;
 use wsts::v2::Party;
-use wsts::traits::Signer;
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 
 pub const K: u32 = 1;
@@ -293,10 +293,11 @@ pub async fn run_dkg<RNG: RngCore + CryptoRng>(
     let party_id = signer.party_id;
     let shares: HashMap<u32, Scalar> = signer.get_shares().into_iter().collect();
     let key_ids = signer.key_ids.clone();
-    logger.error(format!("Our party ID: {party_id} | Our key IDS: {key_ids:?}"));
-    let poly_commitment = signer.get_poly_commitment(rng).ok_or_else(|| JobError {
-        reason: "Failed to get poly commitment".to_string(),
-    })?;
+    logger.error(format!(
+        "Our party ID: {party_id} | Our key IDS: {key_ids:?}"
+    ));
+    let poly_commitment = signer.get_poly_commitment(rng);
+
     let message = FrostMessage::Keygen {
         party_id,
         shares: shares.clone(),
@@ -327,7 +328,9 @@ pub async fn run_dkg<RNG: RngCore + CryptoRng>(
                 poly_commitment,
             })) => {
                 if party_id != signer.party_id {
-                    logger.error(format!("Received shares from {party_id} with key ids: {key_ids:?}"));
+                    logger.error(format!(
+                        "Received shares from {party_id} with key ids: {key_ids:?}"
+                    ));
                     received_shares.insert(party_id, shares);
                     received_key_ids.insert(party_id, key_ids);
                     received_poly_commitments.insert(party_id, poly_commitment);
@@ -344,13 +347,38 @@ pub async fn run_dkg<RNG: RngCore + CryptoRng>(
         }
     }
 
-    logger.error(format!("PRE: received shares: {:?}", received_shares.keys().collect::<Vec<_>>()));
+    logger.error(format!(
+        "PRE: received shares: {:?}",
+        received_shares.keys().collect::<Vec<_>>()
+    ));
+    // Generate the party_shares: for each key id we own, we take our received key share at that
+    // index
+    let party_shares = signer
+        .key_ids
+        .iter()
+        .copied()
+        .map(|key_id| {
+            let mut key_shares = HashMap::new();
+
+            for (id, shares) in &received_shares {
+                key_shares.insert(*id, shares[&key_id]);
+            }
+
+            (key_id, key_shares.into_iter().collect())
+        })
+        .collect();
+    let polys = received_poly_commitments
+        .iter()
+        .sorted_by(|a, b| a.0.cmp(b.0))
+        .map(|r| r.1.clone())
+        .collect_vec();
 
     signer
-        .compute_secrets(&received_shares, &received_poly_commitments)
-        .map_err(|_err| JobError {
-            reason: "Failed to compute secret".to_string(),
+        .compute_secret(&party_shares, &polys)
+        .map_err(|err| JobError {
+            reason: err.to_string(),
         })?;
 
+    logger.error("Keygen finished computing secret");
     Ok(received_poly_commitments)
 }

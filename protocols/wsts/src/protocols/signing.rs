@@ -20,10 +20,11 @@ use itertools::Itertools;
 use rand::rngs::ThreadRng;
 use sp_core::{ecdsa, Pair};
 use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::UnboundedReceiver;
 use wsts::common::Signature;
-use wsts::traits::{Aggregator, Signer};
-use wsts::v2::Party;
+use wsts::{Point, Scalar};
+use wsts::v2::{Party, SignatureAggregator};
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 
 #[derive(Clone)]
@@ -161,8 +162,19 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
         })
         .post(async move {
             if let Some(signature) = result_clone.lock().await.take() {
+                #[derive(Serialize, Deserialize)]
+                #[allow(non_snake_case)]
+                struct IntermediateSerializableSignature {
+                    R: Point,
+                    z: Scalar,
+                }
+
+                let serializable_form = IntermediateSerializableSignature {
+                    R: signature.R,
+                    z: signature.z,
+                };
                 // TOOD: when writing pallet code, use bincode to deserialize
-                let serialized_signature = bincode2::serialize(&signature).unwrap();
+                let serialized_signature = bincode2::serialize(&serializable_form).unwrap();
                 let serialized_verifying_key = bincode2::serialize(&verifying_key).unwrap();
                 let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
                     signature_scheme: DigitalSignatureScheme::SchnorrSecp256k1,
@@ -319,10 +331,20 @@ pub async fn run_signing(
         .map(|r| r.1)
         .collect_vec();
 
-    let mut sig_agg = wsts::v2::Aggregator::new(num_keys, threshold);
-    sig_agg.init(&public_key).map_err(|err| JobError {
+    let public_key = public_key
+        .into_iter()
+        .sorted_by(|r1, r2| r1.0.cmp(&r2.0))
+        .map(|r| r.1)
+        .collect_vec();
+
+    // Aggregate and sign to generate the signature
+    let mut sig_agg =
+        SignatureAggregator::new(num_keys, threshold, public_key).map_err(|err| JobError {
+            reason: err.to_string(),
+        })?;
+    /*sig_agg.init(&public_key).map_err(|err| JobError {
         reason: err.to_string(),
-    })?;
+    })?; Commented out for use in later versions of WSTS*/
 
     sig_agg
         .sign(msg, &party_nonces, &signature_shares, &party_key_ids)
