@@ -8,9 +8,8 @@ use std::sync::Arc;
 use subxt::tx::TxPayload;
 use subxt::utils::AccountId32;
 use subxt::OnlineClient;
-use tangle_subxt::subxt;
-use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
-use tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{
     MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen,
     MaxSubmissionLen,
 };
@@ -35,7 +34,7 @@ pub async fn create_client<C: ClientWithApi>(
     client: C,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
-) -> Result<JobsClient<C>, crate::Error> {
+) -> Result<JobsClient<C>, gadget_io::Error> {
     Ok(JobsClient {
         client,
         logger,
@@ -111,7 +110,7 @@ pub trait ClientWithApi: Client {
                 >,
             >,
         >,
-        crate::Error,
+        gadget_io::Error,
     >;
     /// Queries a job by its key and ID.
     ///
@@ -138,7 +137,7 @@ pub trait ClientWithApi: Client {
                 MaxAdditionalParamsLen,
             >,
         >,
-        crate::Error,
+        gadget_io::Error,
     >;
 
     /// Queries the result of a job by its role_type and ID.
@@ -170,14 +169,14 @@ pub trait ClientWithApi: Client {
                 MaxAdditionalParamsLen,
             >,
         >,
-        crate::Error,
+        gadget_io::Error,
     >;
 
     /// Queries next job ID.
     ///
     ///  # Returns
     ///  Next job ID.
-    async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, crate::Error>;
+    async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, gadget_io::Error>;
 
     /// Queries restaker's role key
     ///
@@ -187,7 +186,7 @@ pub trait ClientWithApi: Client {
         &self,
         at: [u8; 32],
         address: AccountId32,
-    ) -> Result<Option<Vec<u8>>, crate::Error>;
+    ) -> Result<Option<Vec<u8>>, gadget_io::Error>;
 }
 
 impl<C: ClientWithApi> JobsClient<C> {
@@ -205,7 +204,7 @@ impl<C: ClientWithApi> JobsClient<C> {
                 MaxAdditionalParamsLen,
             >,
         >,
-        crate::Error,
+        gadget_io::Error,
     > {
         Ok(self
             .client
@@ -220,7 +219,7 @@ impl<C: ClientWithApi> JobsClient<C> {
         &self,
         at: [u8; 32],
         address: sr25519::Public,
-    ) -> Result<Option<ecdsa::Public>, crate::Error> {
+    ) -> Result<Option<ecdsa::Public>, gadget_io::Error> {
         self.client
             .query_restaker_role_key(at, AccountId32::from(address.0))
             .await
@@ -242,7 +241,7 @@ impl<C: ClientWithApi> JobsClient<C> {
                 MaxAdditionalParamsLen,
             >,
         >,
-        crate::Error,
+        gadget_io::Error,
     > {
         self.client.query_job_by_id(at, role_type, job_id).await
     }
@@ -266,7 +265,7 @@ impl<C: ClientWithApi> JobsClient<C> {
                 MaxAdditionalParamsLen,
             >,
         >,
-        crate::Error,
+        gadget_io::Error,
     > {
         self.client.query_job_result(at, role_type, job_id).await
     }
@@ -283,7 +282,7 @@ impl<C: ClientWithApi> JobsClient<C> {
             MaxProofLen,
             MaxAdditionalParamsLen,
         >,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), gadget_io::Error> {
         self.pallet_tx
             .submit_job_result(role_type, job_id, result)
             .await
@@ -446,7 +445,7 @@ pub trait PalletSubmitter: Send + Sync + 'static {
             MaxProofLen,
             MaxAdditionalParamsLen,
         >,
-    ) -> Result<(), crate::Error>;
+    ) -> Result<(), gadget_io::Error>;
 }
 
 pub struct SubxtPalletSubmitter<C, S>
@@ -481,8 +480,8 @@ where
             MaxProofLen,
             MaxAdditionalParamsLen,
         >,
-    ) -> Result<(), crate::Error> {
-        let tx = tangle_subxt::tangle_runtime::api::tx()
+    ) -> Result<(), gadget_io::Error> {
+        let tx = tangle_subxt::tangle_testnet_runtime::api::tx()
             .jobs()
             .submit_job_result(role_type, job_id, result);
         match self.submit(&tx).await {
@@ -501,7 +500,7 @@ where
                 Ok(())
             }
             Err(err) => {
-                return Err(crate::Error::ClientError {
+                return Err(gadget_io::Error::ClientError {
                     err: format!("Failed to submit job result: {err:?}"),
                 })
             }
@@ -517,11 +516,11 @@ where
     C::Hash: std::fmt::Display,
     <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams: Default,
 {
-    pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, crate::Error> {
+    pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, gadget_io::Error> {
         let subxt_client =
             OnlineClient::<C>::new()
                 .await
-                .map_err(|err| crate::Error::ClientError {
+                .map_err(|err| gadget_io::Error::ClientError {
                     err: format!("Failed to setup api: {err:?}"),
                 })?;
         Ok(Self::with_client(subxt_client, signer, logger))

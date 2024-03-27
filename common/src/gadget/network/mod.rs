@@ -1,7 +1,7 @@
 use crate::gadget::work_manager::WorkManager;
-use crate::Error;
 use async_trait::async_trait;
 use gadget_core::job_manager::WorkManagerInterface;
+use gadget_io::Error;
 use sp_core::ecdsa;
 
 #[async_trait]

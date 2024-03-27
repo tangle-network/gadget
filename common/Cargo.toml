@@ -5,11 +5,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 gadget-core = { workspace = true }
+gadget-io = { workspace = true, default-features = false }
 protocol-macros = { workspace = true }
 tokio = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+serde = { workspace = true }
 auto_impl = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
@@ -20,40 +24,49 @@ bincode2 = { workspace = true }
 serde_bytes = { workspace = true }
 anyhow = { workspace = true }
 futures = { workspace = true }
-round-based = { workspace = true }
-round-based-21 = { workspace = true, features = ["derive"]}
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
+round-based = { workspace = true, optional = true }
+round-based-21 = { workspace = true, optional = true, features = ["derive"]}
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
 lazy_static = { workspace = true }
+getrandom = { workspace = true }
+tracing = { workspace = true, default-features = false, features = ["alloc"] }
+tracing-subscriber = { workspace = true, default-features = false, features = ["alloc"] }
+tracing-core = { workspace = true, default-features = false, features = ["alloc"] }
+wasm-bindgen = { workspace = true }
 
 # Substrate
-tangle-subxt = { workspace = true, optional = true }
-subxt-signer = { workspace = true, features = ["subxt", "sr25519"], optional = true }
-sp-api = { workspace = true, optional = true }
-sp-io = { workspace = true, optional = true }
-sp-core = { workspace = true, optional = true }
-sp-application-crypto = { workspace = true, optional = true }
-sp-runtime = { workspace = true, optional = true }
-sc-service = { workspace = true, optional = true }
-sc-client-api = { workspace = true, optional = true }
-substrate-prometheus-endpoint = { workspace = true, optional = true }
-frame-support = { workspace = true, optional = true }
-linked-hash-map = { workspace = true, optional = true }
+tangle-subxt = { workspace = true, optional = true, default-features = false }
+subxt-signer = { workspace = true, default-features = false, features = ["subxt", "sr25519", "web"], optional = true }
+subxt = { workspace = true, optional = true, default-features = false, features = ["web"] }
+sp-api = { workspace = true, optional = true, default-features = false }
+sp-io = { workspace = true, optional = true, default-features = false }
+sp-core = { workspace = true, optional = true, default-features = false }
+sp-application-crypto = { workspace = true, optional = true, default-features = false }
+sp-runtime = { workspace = true, optional = true, default-features = false }
+sp-tracing = { workspace = true, optional = true, default-features = false }
+sc-service = { workspace = true, optional = true, default-features = false }
+sc-client-api = { workspace = true, optional = true, default-features = false }
+substrate-prometheus-endpoint = { workspace = true, optional = true, default-features = false }
+frame-support = { workspace = true, optional = true, default-features = false }
+linked-hash-map = { workspace = true, optional = true, default-features = false }
 
-parity-scale-codec = { workspace = true, optional = true }
-scale-info = { workspace = true, optional = true }
-
+parity-scale-codec = { workspace = true, optional = true, default-features = false }
+scale-info = { workspace = true, optional = true, default-features = false }
 
 [features]
-default = ["substrate"]
+default = ["wasm"]#["substrate", "std"]
 substrate = [
   "gadget-core/substrate",
-  "tangle-subxt",
+  "tangle-subxt/std",
   "subxt-signer",
-  "sp-api",
-  "sp-io",
-  "sp-core",
-  "sp-runtime",
-  "sp-application-crypto",
+  "subxt/native",
+  "subxt/jsonrpsee",
+  "sp-api/std",
+  "sp-io/std",
+  "sp-core/std",
+  "sp-runtime/std",
+  "sp-application-crypto/std",
+  "sp-tracing/std",
   "sc-service",
   "sc-client-api",
   "frame-support",
@@ -62,4 +75,42 @@ substrate = [
   "parity-scale-codec",
   "scale-info",
 ]
+std = [
+  "sqlx",
+  "serde/std",
+  "serde_bytes/std",
+  "tracing/std",
+  "tracing/attributes",
+  "round-based",
+  "round-based-21",
+]
+wasm = [
+  "gadget-io/wasm",
+  "round-based",
+  "round-based-21",
+  "serde/alloc",
+  "serde/derive",
+  "serde_bytes/alloc",
+  "tracing/alloc",
+  "getrandom/js",
+  "gadget-core/substrate",
+  "tangle-subxt/wasm",
+  "subxt-signer",
+  "subxt/web",
+  "subxt/jsonrpsee",
+  "sp-api",
+  "sp-io/disable_panic_handler",
+  "sp-core/serde",
+  "sp-core/full_crypto",
+  "sp-runtime/serde",
+  "sp-application-crypto/serde",
+  "sp-application-crypto/full_crypto",
+  "frame-support",
+  "linked-hash-map",
+  "parity-scale-codec",
+  "scale-info",
+]
 testing = []
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.34"

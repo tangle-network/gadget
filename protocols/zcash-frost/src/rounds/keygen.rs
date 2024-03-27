@@ -1,6 +1,7 @@
+#[cfg(not(feature = "wasm"))]
 use std::collections::BTreeMap;
 
-use dfns_cggmp21::progress::Tracer;
+use dfns_cggmp21::Tracer;
 use frost_core::{
     keys::{
         dkg::{round1, round2},

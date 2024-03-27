@@ -5,13 +5,16 @@ authors = ["Thomas P Braun"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [features]
 substrate = []
 
 [dependencies]
 parking_lot = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "macros", "rt"] }
-hex = { workspace = true }
+hex = { workspace = true, features = ["alloc"] }
 log = { workspace = true }
 async-trait = { workspace = true }
 auto_impl = { workspace = true }

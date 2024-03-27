@@ -826,7 +826,7 @@ async fn wrap_message_and_forward_to_network<
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     splitter: impl FnOnce(M) -> MultiplexedChannelMessage<C1, C2, C3>,
     logger: &DebugLogger,
-) -> Result<(), crate::Error>
+) -> Result<(), gadget_io::Error>
 where
     M: MaybeSenderReceiver + Send + 'static,
 {

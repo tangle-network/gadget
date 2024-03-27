@@ -1,3 +1,4 @@
+#[cfg(not(feature = "wasm"))]
 use frost_core::keys::{KeyPackage, PublicKeyPackage};
 use frost_ed25519::Ed25519Sha512;
 use frost_ed448::Ed448Shake256;
@@ -188,7 +189,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 i,
             );
 
-            let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
+            let mut tracer = dfns_cggmp21::PerfProfiler::new();
             let delivery = (signing_rx_async_proto, signing_tx_to_outbound);
             let party = MpcParty::connected(delivery);
             let signature = match role {

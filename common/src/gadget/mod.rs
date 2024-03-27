@@ -3,19 +3,19 @@ use crate::debug_logger::DebugLogger;
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
 use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
-use crate::Error;
 use async_trait::async_trait;
 use gadget_core::gadget::substrate::{FinalityNotification, SubstrateGadgetModule};
 use gadget_core::job::BuiltExecutableJobWrapper;
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerInterface};
+use gadget_io::Error;
 use network::Network;
 use parking_lot::RwLock;
 use sp_core::{ecdsa, keccak_256, sr25519};
 use std::sync::Arc;
 use std::time::Duration;
 use tangle_subxt::subxt::utils::AccountId32;
-use tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
-use tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{
     MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen,
 };
 
@@ -291,7 +291,7 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
                 }
 
                 Err(Error::ParticipantNotSelected { id, reason }) => {
-                    self.protocol.logger().debug(format!("Participant {id} not selected for job {task_id} with retry id {retry_id} because {reason}", id = id, task_id = hex::encode(task_id), retry_id = retry_id, reason = reason));
+                    self.protocol.logger().debug(format!("Participant {id:?} not selected for job {task_id:?} with retry id {retry_id:?} because {reason:?}", id = id, task_id = hex::encode(task_id), retry_id = retry_id, reason = reason));
                 }
 
                 Err(err) => {

@@ -3,6 +3,9 @@ name = "dfns-cggmp21-protocol"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
 gadget-common = { workspace = true }
@@ -17,8 +20,8 @@ itertools = { workspace = true }
 bincode2 = { workspace = true }
 digest = { workspace = true }
 
-sp-core = { workspace = true, features = ["std"] }
-sp-io = { workspace = true, features = ["std"] }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
 
 frame-support = { workspace = true  }
 parity-scale-codec = { workspace = true }

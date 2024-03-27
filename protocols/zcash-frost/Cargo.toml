@@ -3,24 +3,27 @@ name = "zcash-frost-protocol"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
-gadget-common = { workspace = true }
+tokio = { workspace = true, features = ["macros", "time"] }
+gadget-common = {  path = "../../common" , default-features = false }
 gadget-core = { workspace = true }
 protocol-macros = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
-curv = { workspace = true }
+#curv = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 bincode2 = { workspace = true }
-round-based-21 = { workspace = true, features = ["derive"]}
+round-based-21 = { workspace = true, optional = true, features = ["derive"]}
 digest = { workspace = true }
 sha2 = { workspace = true }
 rand_core = { workspace = true }
 rand_chacha = { workspace = true }
-dfns-cggmp21 = { workspace = true }
+getrandom = { workspace = true, optional = true }
 
 udigest = { workspace = true }
 frost-core = { workspace = true, features = ["cheater-detection"] }
@@ -32,10 +35,10 @@ frost-ristretto255 = { workspace = true }
 frost-secp256k1 = { workspace = true }
 frost-rerandomized = { workspace = true }
 
-sp-core = { workspace = true, features = ["std"] }
-sp-io = { workspace = true, features = ["std"] }
-sp-api = { workspace = true, features = ["std"] }
-frame-support = { workspace = true  }
+sp-core = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false, optional = true }
+sp-api = { workspace = true, default-features = false, optional = true }
+frame-support = { workspace = true, optional = true }
 parity-scale-codec = { workspace = true }
 
 serde = { workspace = true }
@@ -43,6 +46,24 @@ rand = { workspace = true }
 hex = { workspace = true }
 parking_lot = { workspace = true }
 
+[features]
+default = ["wasm"]
+std = [
+    #    "gadget-common/std",
+    #    "gadget-common/substrate",
+    "round-based-21",
+    "sp-core/std",
+    "sp-io",
+    "sp-api",
+    "frame-support",
+    "tokio/rt-multi-thread",
+    "tokio/net",
+]
+wasm = [
+    "gadget-common/wasm",
+    "sp-core/serde",
+    "getrandom/js",
+]
 
 [dev-dependencies]
 test-utils = { workspace = true }

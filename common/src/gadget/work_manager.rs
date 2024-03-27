@@ -21,7 +21,7 @@ impl WorkManagerInterface for WorkManager {
     type UserID = UserID;
     type Clock = u64;
     type ProtocolMessage = GadgetProtocolMessage;
-    type Error = crate::Error;
+    type Error = gadget_io::Error;
     type SessionID = u64;
     type TaskID = [u8; 32];
 

@@ -1,3 +1,5 @@
+#[cfg(not(feature = "wasm"))]
+
 use frost_ed25519::Ed25519Sha512;
 use frost_ed448::Ed448Shake256;
 use frost_p256::P256Sha256;
@@ -166,7 +168,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 logger.clone(),
                 i,
             );
-            let mut tracer = dfns_cggmp21::progress::PerfProfiler::new();
+            let mut tracer = dfns_cggmp21::PerfProfiler::new();
             let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
             let party = round_based_21::MpcParty::connected(delivery);
             let frost_key_share_package = match role {

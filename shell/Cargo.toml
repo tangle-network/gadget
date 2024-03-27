@@ -5,6 +5,9 @@ authors = ["Shady Khalifa <dev+github@shadykhalifa.me>"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [features]
 
 [dependencies]

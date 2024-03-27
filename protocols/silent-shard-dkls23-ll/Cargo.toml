@@ -3,6 +3,9 @@ name = "silent-shard-dkls23-ll-protocol"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
@@ -28,15 +31,15 @@ derivation-path = { workspace = true }
 dfns-cggmp21-protocol = { workspace = true }
 tangle-primitives = { workspace = true }
 
-pallet-jobs-rpc-runtime-api = { workspace = true, features = ["std"] }
-pallet-jobs = { workspace = true, features = ["std"] }
-pallet-dkg = { workspace = true, features = ["std"] }
+pallet-jobs-rpc-runtime-api = { workspace = true }
+pallet-jobs = { workspace = true }
+pallet-dkg = { workspace = true }
 
-sp-core = { workspace = true, features = ["std"] }
-sp-io = { workspace = true, features = ["std"] }
-sp-api = { workspace = true, features = ["std"] }
-sp-runtime = { workspace = true, features = ["std"] }
-sp-application-crypto = { workspace = true, features = ["std"] }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+sp-api = { workspace = true }
+sp-runtime = { workspace = true }
+sp-application-crypto = { workspace = true }
 
 sc-client-api = { workspace = true }
 

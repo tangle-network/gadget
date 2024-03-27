@@ -3,6 +3,9 @@ name = "test-gadget"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -29,6 +32,6 @@ ark-ec = { version = "*"}
 ark-bls12-377 = { version = "*", features = ["curve"] }
 ark-ff = { version = "*"}
 ark-poly = { version = "*"}
-bincode2 = "2.0.1"
+bincode2 = { workspace = true }
 hex = "0.4.3"
 md5 = "0.7.0"

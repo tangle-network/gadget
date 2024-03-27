@@ -1,8 +1,5 @@
 use gadget_common::full_protocol::SharedOptional;
 use gadget_common::prelude::*;
-use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{
-    MaxParticipants, MaxSubmissionLen,
-};
 use sp_core::sr25519;
 
 #[protocol]
@@ -35,7 +32,7 @@ impl<C: ClientWithApi + 'static, N: Network, KBE: KeystoreBackend> FullProtocolC
         account_id: sr25519::Public,
         key_store: ECDSAKeyStore<Self::KeystoreBackend>,
         prometheus_config: PrometheusConfig,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, gadget_io::Error> {
         Ok(Self {
             pallet_tx,
             logger,
@@ -68,7 +65,7 @@ impl<C: ClientWithApi + 'static, N: Network, KBE: KeystoreBackend> FullProtocolC
         &self,
         _job: JobInitMetadata,
         _work_manager: &ProtocolWorkManager<WorkManager>,
-    ) -> Result<Self::AsyncProtocolParameters, Error> {
+    ) -> Result<Self::AsyncProtocolParameters, gadget_io::Error> {
         Ok(())
     }
 

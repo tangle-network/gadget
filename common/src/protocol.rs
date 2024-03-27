@@ -84,11 +84,11 @@ impl ProtocolRemote<WorkManager> for AsyncProtocolRemote {
         self.start_tx
             .lock()
             .take()
-            .ok_or_else(|| crate::Error::ProtocolRemoteError {
+            .ok_or_else(|| gadget_io::Error::ProtocolRemoteError {
                 err: "Protocol already started".to_string(),
             })?
             .send(())
-            .map_err(|_err| crate::Error::ProtocolRemoteError {
+            .map_err(|_err| gadget_io::Error::ProtocolRemoteError {
                 err: "Unable to start protocol".to_string(),
             })
     }
@@ -108,11 +108,11 @@ impl ProtocolRemote<WorkManager> for AsyncProtocolRemote {
         self.shutdown_tx
             .lock()
             .take()
-            .ok_or_else(|| crate::Error::ProtocolRemoteError {
+            .ok_or_else(|| gadget_io::Error::ProtocolRemoteError {
                 err: "Protocol already shutdown".to_string(),
             })?
             .send(reason)
-            .map_err(|reason| crate::Error::ProtocolRemoteError {
+            .map_err(|reason| gadget_io::Error::ProtocolRemoteError {
                 err: format!("Unable to shutdown protocol with status {reason:?}"),
             })
     }
@@ -127,7 +127,7 @@ impl ProtocolRemote<WorkManager> for AsyncProtocolRemote {
     ) -> Result<(), <WorkManager as WorkManagerInterface>::Error> {
         self.to_async_protocol
             .send(message)
-            .map_err(|err| crate::Error::ProtocolRemoteError {
+            .map_err(|err| gadget_io::Error::ProtocolRemoteError {
                 err: err.to_string(),
             })
     }

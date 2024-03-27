@@ -3,16 +3,34 @@ name = "stub-protocol"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
-gadget-common = { workspace = true }
+gadget-common = { workspace = true , default-features = false }
 async-trait = { workspace = true }
 futures = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, default-features = false }
 protocol-macros = { workspace = true }
 parking_lot = { workspace = true }
-sp-core = { workspace = true }
+sp-core = { workspace = true, default-features = false }
+tangle-subxt = { workspace = true, optional = true, default-features = false }
+getrandom = { workspace = true, default-features = false, features = ["js"] }
+
+[features]
+default = ["wasm"]
+std = [
+    "gadget-common/std",
+    "sp-core/std",
+    "tangle-subxt/std",
+]
+wasm = [
+    "gadget-common/wasm",
+    "sp-core/serde",
+    "tangle-subxt/wasm",
+]
 
 
 [dev-dependencies]
-test-utils = { workspace = true }
-tangle-primitives = { workspace = true }
+#test-utils = { workspace = true }
+#tangle-primitives = { workspace = true }
