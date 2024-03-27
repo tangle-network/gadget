@@ -2,7 +2,6 @@ use gadget_common::channels::{MaybeReceiver, MaybeSender, MaybeSenderReceiver};
 use gadget_common::prelude::AccountId32;
 use gadget_common::JobError;
 use hashbrown::HashMap;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 use sp_core::ecdsa::Signature;
@@ -30,7 +29,7 @@ pub enum FrostMessage {
     },
     PublicKeyBroadcast {
         party_id: u32,
-        public_key: HashMap<u32, PolyCommitment>,
+        combined_public_key: Vec<u8>,
         signature_of_public_key: Signature,
     },
 }
@@ -115,21 +114,6 @@ impl MaybeSenderReceiver for FrostMessage {
         // All messages are broadcasted for this protocol
         MaybeReceiver::Broadcast
     }
-}
-
-pub fn combine_public_key(public_keys: &HashMap<u32, PolyCommitment>) -> Vec<u8> {
-    let public_key_to_sign = public_keys
-        .iter()
-        .sorted_by_key(|k| k.0)
-        .map(|r| r.1)
-        .collect::<Vec<_>>();
-    public_key_to_sign
-        .into_iter()
-        .fold(Vec::new(), |mut combined, poly| {
-            let serialized = bincode2::serialize(poly).unwrap();
-            combined.extend_from_slice(&serialized);
-            combined
-        })
 }
 
 pub fn account_id_32_to_ecdsa_33(account_id: AccountId32) -> ecdsa::Public {

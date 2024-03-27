@@ -1,4 +1,4 @@
-use crate::protocols::util::{combine_public_key, generate_party_key_ids, validate_parameters, FrostMessage, FrostState};
+use crate::protocols::util::{generate_party_key_ids, validate_parameters, FrostMessage, FrostState};
 use futures::{SinkExt, StreamExt};
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
@@ -148,13 +148,6 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                         reason: err.to_string(),
                     })?;
 
-                logger_clone.error(format!(
-                    "Public key len: {} | signatures_len: {} | n: {} | t: {}",
-                    public_key.len(),
-                    signatures.len(),
-                    n,
-                    t
-                ));
                 let job_result_for_pallet = JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
                     signature_scheme: DigitalSignatureScheme::SchnorrSecp256k1,
                     key: BoundedVec(public_key),
@@ -219,7 +212,9 @@ pub async fn protocol<KBE: KeystoreBackend>(
     )
     .await?;
 
-    let our_combined_public_key = combine_public_key(&public_key);
+    let party = party.save();
+    logger.error(format!("Combined public key: {:?}", party.group_key));
+    let our_combined_public_key = bincode2::serialize(&party.group_key).unwrap();
 
     // Sign this public key using our ECDSA key
     let hash_of_public_key = keccak_256(&our_combined_public_key);
@@ -228,11 +223,9 @@ pub async fn protocol<KBE: KeystoreBackend>(
     // Gossip the public key
     let pkey_message = FrostMessage::PublicKeyBroadcast {
         party_id,
-        public_key: public_key.clone(),
+        combined_public_key: our_combined_public_key.clone(),
         signature_of_public_key: signature_of_public_key.clone(),
     };
-
-    let party = party.save();
 
     // Gossip the public key
     tx_to_network_broadcast
@@ -256,11 +249,9 @@ pub async fn protocol<KBE: KeystoreBackend>(
         match next_message {
             FrostMessage::PublicKeyBroadcast {
                 party_id,
-                public_key,
+                combined_public_key,
                 signature_of_public_key,
             } => {
-                let combined_public_key = combine_public_key(&public_key);
-
                 // Make sure their public key is equivalent to ours
                 if combined_public_key.as_slice() != our_combined_public_key.as_slice() {
                     return Err(JobError { reason: format!("The received public key from party {party_id} does not match our public key. Aborting") });

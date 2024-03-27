@@ -18,12 +18,11 @@ use gadget_common::{
 use hashbrown::HashMap;
 use itertools::Itertools;
 use rand::rngs::ThreadRng;
-use sp_core::{ecdsa, Pair};
+use sp_core::{ecdsa, keccak_256, Pair};
 use std::sync::Arc;
-use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::UnboundedReceiver;
 use wsts::common::Signature;
-use wsts::{Point, Scalar};
+use wsts::Point;
 use wsts::v2::{Party, SignatureAggregator};
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 
@@ -111,6 +110,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
     let result_clone = result.clone();
     let network = config.clone();
     let logger = config.logger.clone();
+    let logger_clone = logger.clone();
     let client = config.pallet_tx.clone();
 
     let WstsSigningExtraParams {
@@ -124,7 +124,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
     } = additional_params;
 
     let data_to_sign = message_to_sign.clone();
-    let verifying_key = keygen_state.public_key.clone();
+    // let verifying_key = keygen_state.public_key.clone();
 
     Ok(JobBuilder::new()
         .protocol(async move {
@@ -161,23 +161,20 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             Ok(())
         })
         .post(async move {
-            if let Some(signature) = result_clone.lock().await.take() {
-                #[derive(Serialize, Deserialize)]
-                #[allow(non_snake_case)]
-                struct IntermediateSerializableSignature {
-                    R: Point,
-                    z: Scalar,
-                }
+            if let Some((aggregated_public_key, signature)) = result_clone.lock().await.take() {
+                let serializable_form = (signature.R, signature.z);
 
-                let serializable_form = IntermediateSerializableSignature {
-                    R: signature.R,
-                    z: signature.z,
-                };
-                // TOOD: when writing pallet code, use bincode to deserialize
                 let serialized_signature = bincode2::serialize(&serializable_form).unwrap();
-                let serialized_verifying_key = bincode2::serialize(&verifying_key).unwrap();
+                // let serialized_verifying_key = bincode2::serialize(&verifying_key).unwrap();
+                let serialized_verifying_key = bincode2::serialize(&aggregated_public_key).unwrap();
+                logger_clone.info(format!(
+                    "Serialized public key Len: {} | First 3 bytes: {:?} | Last 3 bytes: {:?}",
+                    serialized_verifying_key.len(),
+                    &serialized_verifying_key[..3],
+                    &serialized_verifying_key[serialized_verifying_key.len() - 3..]
+                ));
                 let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
-                    signature_scheme: DigitalSignatureScheme::SchnorrSecp256k1,
+                    signature_scheme: DigitalSignatureScheme::WstsV2,
                     derivation_path: None,
                     data: BoundedVec(data_to_sign),
                     signature: BoundedVec(serialized_signature),
@@ -187,7 +184,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 
                 client
                     .submit_job_result(
-                        RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1),
+                        RoleType::Tss(ThresholdSignatureRoleType::WstsV2),
                         job_id,
                         job_result,
                     )
@@ -215,8 +212,9 @@ pub async fn run_signing(
     tx_to_network_final: tokio::sync::mpsc::UnboundedSender<FrostMessage>,
     mut rx_from_network_final: tokio::sync::mpsc::UnboundedReceiver<FrostMessage>,
     logger: &DebugLogger,
-) -> Result<Signature, JobError> {
+) -> Result<(Point, Signature), JobError> {
     let mut signer = Party::load(&state.party);
+    let public_key_point = state.party.group_key;
     let public_key = state.public_key;
     // Broadcast the party_id, key_ids, and nonce to each other
     let nonce = {
@@ -242,7 +240,8 @@ pub async fn run_signing(
     party_key_ids.insert(party_id, key_ids);
     party_nonces.insert(party_id, nonce);
 
-    while party_nonces.len() < threshold as usize {
+    // We need t+1 sigs
+    while party_nonces.len() < (threshold + 1) as usize {
         match rx_from_network.next().await {
             Some(Ok(FrostMessage::Signing {
                 party_id: party_id_recv,
@@ -284,8 +283,9 @@ pub async fn run_signing(
         .map(|r| r.1)
         .collect_vec();
 
-    // Generate our signature share
-    let signature_share = signer.sign(msg, &party_ids, &party_key_ids, &party_nonces);
+    // Generate our signature share. We sign a hash of the message
+    let msg = keccak_256(msg);
+    let signature_share = signer.sign(&msg, &party_ids, &party_key_ids, &party_nonces);
     let message = FrostMessage::SigningFinal {
         party_id,
         signature_share: signature_share.clone(),
@@ -298,8 +298,8 @@ pub async fn run_signing(
     let mut signature_shares = HashMap::new();
     signature_shares.insert(party_id, signature_share.clone());
 
-    // Receive n_signers number of shares
-    while signature_shares.len() < threshold as usize {
+    // Receive t + 1 number of shares
+    while signature_shares.len() < (threshold + 1) as usize {
         match rx_from_network_final.recv().await {
             Some(FrostMessage::SigningFinal {
                 party_id: party_id_recv,
@@ -347,8 +347,9 @@ pub async fn run_signing(
     })?; Commented out for use in later versions of WSTS*/
 
     sig_agg
-        .sign(msg, &party_nonces, &signature_shares, &party_key_ids)
+        .sign(&msg, &party_nonces, &signature_shares, &party_key_ids)
         .map_err(|err| JobError {
             reason: err.to_string(),
         })
+        .map(|r| (public_key_point, r))
 }
