@@ -20,8 +20,12 @@ use itertools::Itertools;
 use rand::rngs::ThreadRng;
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::sync::Arc;
+use frost_secp256k1::VerifyingKey;
+use k256::EncodedPoint;
+use k256::elliptic_curve::generic_array::GenericArray;
+use k256::elliptic_curve::ScalarPrimitive;
+use k256::elliptic_curve::sec1::FromEncodedPoint;
 use tokio::sync::mpsc::UnboundedReceiver;
-use wsts::common::Signature;
 use wsts::Point;
 use wsts::v2::{Party, SignatureAggregator};
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
@@ -110,7 +114,6 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
     let result_clone = result.clone();
     let network = config.clone();
     let logger = config.logger.clone();
-    let logger_clone = logger.clone();
     let client = config.pallet_tx.clone();
 
     let WstsSigningExtraParams {
@@ -161,24 +164,14 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             Ok(())
         })
         .post(async move {
-            if let Some((aggregated_public_key, signature)) = result_clone.lock().await.take() {
-                let serializable_form = (signature.R, signature.z);
-
-                let serialized_signature = bincode2::serialize(&serializable_form).unwrap();
-                // let serialized_verifying_key = bincode2::serialize(&verifying_key).unwrap();
-                let serialized_verifying_key = bincode2::serialize(&aggregated_public_key).unwrap();
-                logger_clone.info(format!(
-                    "Serialized public key Len: {} | First 3 bytes: {:?} | Last 3 bytes: {:?}",
-                    serialized_verifying_key.len(),
-                    &serialized_verifying_key[..3],
-                    &serialized_verifying_key[serialized_verifying_key.len() - 3..]
-                ));
+            if let Some((_aggregated_public_key, signature)) = result_clone.lock().await.take() {
+                let serialized_signature = signature.serialize().as_ref().to_vec();
                 let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
-                    signature_scheme: DigitalSignatureScheme::WstsV2,
+                    signature_scheme: DigitalSignatureScheme::SchnorrSecp256k1,
                     derivation_path: None,
                     data: BoundedVec(data_to_sign),
                     signature: BoundedVec(serialized_signature),
-                    verifying_key: BoundedVec(serialized_verifying_key),
+                    verifying_key: BoundedVec(Default::default()),
                     __subxt_unused_type_params: Default::default(),
                 });
 
@@ -201,7 +194,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 
 /// `threshold`: Should be the number of participants in this round, since we stop looking for
 /// messages after finding the first `t` messages
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, non_snake_case)]
 pub async fn run_signing(
     state: FrostState,
     msg: &[u8],
@@ -212,7 +205,7 @@ pub async fn run_signing(
     tx_to_network_final: tokio::sync::mpsc::UnboundedSender<FrostMessage>,
     mut rx_from_network_final: tokio::sync::mpsc::UnboundedReceiver<FrostMessage>,
     logger: &DebugLogger,
-) -> Result<(Point, Signature), JobError> {
+) -> Result<(Point, frost_secp256k1::Signature), JobError> {
     let mut signer = Party::load(&state.party);
     let public_key_point = state.party.group_key;
     let public_key = state.public_key;
@@ -346,10 +339,49 @@ pub async fn run_signing(
         reason: err.to_string(),
     })?; Commented out for use in later versions of WSTS*/
 
-    sig_agg
+    let wsts_sig = sig_agg
         .sign(&msg, &party_nonces, &signature_shares, &party_key_ids)
         .map_err(|err| JobError {
             reason: err.to_string(),
-        })
-        .map(|r| (public_key_point, r))
+        })?;
+
+    // Convert the signature to a FROST-compatible format for pallet-verification
+    let z_bigint = ScalarPrimitive::from_slice(&wsts_sig.z.to_bytes())
+        .expect("Should be a valid 32-byte scalar");
+    let z = k256::Scalar::from(&z_bigint);
+    let x_generic_array = GenericArray::from(wsts_sig.R.x().to_bytes());
+    let y_generic_array = GenericArray::from(wsts_sig.R.y().to_bytes());
+    let R_encoded_point =
+        EncodedPoint::from_affine_coordinates(&x_generic_array, &y_generic_array, true);
+    let R = k256::ProjectivePoint::from_encoded_point(&R_encoded_point)
+        .expect("Should be a valid encoded point");
+    let frost_signature = frost_secp256k1::Signature::new(R, z);
+
+    if state.public_key_frost_format.len() != 33 {
+        return Err(JobError {
+            reason: "Invalid public key length".to_string(),
+        });
+    }
+
+    let frost_verifying_key = VerifyingKey::deserialize(
+        state.public_key_frost_format.try_into().unwrap(),
+    )
+    .map_err(|err| JobError {
+        reason: format!("Invalid FROST verifying key: {}", err.to_string()),
+    })?;
+
+    // Now, verify it locally
+    if !frost_signature.is_valid() {
+        return Err(JobError {
+            reason: "Invalid FROST signature".to_string(),
+        });
+    }
+
+    frost_verifying_key
+        .verify(&msg, &frost_signature)
+        .map_err(|err| JobError {
+            reason: format!("Invalid FROST verification: {}", err.to_string()),
+        })?;
+
+    Ok((public_key_point, frost_signature))
 }

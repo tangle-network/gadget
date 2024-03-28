@@ -7464,7 +7464,6 @@ dependencies = [
 name = "pallet-dkg"
 version = "0.6.3"
 dependencies = [
- "bincode2",
  "digest 0.10.7",
  "ecdsa 0.16.9",
  "elliptic-curve 0.13.8",
@@ -7505,7 +7504,6 @@ dependencies = [
  "tangle-crypto-primitives",
  "tangle-primitives",
  "udigest",
- "wsts",
 ]
 
 [[package]]
@@ -14655,10 +14653,12 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bincode2",
+ "frost-secp256k1 1.0.0-rc.0 (git+https://github.com/salman01zp/frost?branch=salman/bump-curve25519-dalek)",
  "futures",
  "gadget-common",
  "hashbrown 0.14.3",
  "itertools 0.12.1",
+ "k256",
  "parking_lot 0.12.1",
  "protocol-macros",
  "rand 0.8.5",

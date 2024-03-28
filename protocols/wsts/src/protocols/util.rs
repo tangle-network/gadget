@@ -52,6 +52,7 @@ impl FrostMessage {
 pub struct FrostState {
     pub public_key: HashMap<u32, PolyCommitment>,
     pub party: Arc<PartyState>,
+    pub public_key_frost_format: Vec<u8>,
 }
 
 pub fn validate_parameters(n: u32, k: u32, t: u32) -> Result<(), JobError> {

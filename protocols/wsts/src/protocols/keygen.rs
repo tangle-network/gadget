@@ -19,7 +19,11 @@ use hashbrown::HashMap;
 use rand::{CryptoRng, RngCore};
 use sp_core::{ecdsa, ByteArray, Pair, keccak_256};
 use std::sync::Arc;
+use frost_secp256k1::VerifyingKey;
 use itertools::Itertools;
+use k256::elliptic_curve::generic_array::GenericArray;
+use k256::elliptic_curve::sec1::FromEncodedPoint;
+use k256::EncodedPoint;
 use tangle_primitives::jobs::JobId;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::Mutex;
@@ -140,9 +144,9 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             Ok(())
         })
         .post(async move {
-            if let Some((state, public_key, signatures)) = result_clone.lock().await.take() {
+            if let Some((state, signatures)) = result_clone.lock().await.take() {
                 keystore
-                    .set_job_result(job_id, state)
+                    .set_job_result(job_id, &state)
                     .await
                     .map_err(|err| JobError {
                         reason: err.to_string(),
@@ -150,7 +154,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 
                 let job_result_for_pallet = JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
                     signature_scheme: DigitalSignatureScheme::SchnorrSecp256k1,
-                    key: BoundedVec(public_key),
+                    key: BoundedVec(state.public_key_frost_format),
                     participants: BoundedVec(vec![BoundedVec(participants)]),
                     signatures: BoundedVec(signatures),
                     threshold: t as _,
@@ -192,7 +196,7 @@ pub async fn protocol<KBE: KeystoreBackend>(
     mut rx_from_network_broadcast: UnboundedReceiver<FrostMessage>,
     logger: &DebugLogger,
     key_store: &ECDSAKeyStore<KBE>,
-) -> Result<(FrostState, Vec<u8>, Vec<BoundedVec<u8>>), JobError> {
+) -> Result<(FrostState, Vec<BoundedVec<u8>>), JobError> {
     validate_parameters(n, k, t)?;
 
     let mut rng = rand::rngs::OsRng;
@@ -213,17 +217,27 @@ pub async fn protocol<KBE: KeystoreBackend>(
     .await?;
 
     let party = party.save();
-    logger.error(format!("Combined public key: {:?}", party.group_key));
-    let our_combined_public_key = bincode2::serialize(&party.group_key).unwrap();
+    logger.info(format!("Combined public key: {:?}", party.group_key));
+
+    // Convert the WSTS group key into a FROST-compatible format
+    let group_point = party.group_key;
+    let x_generic_array = GenericArray::from(group_point.x().to_bytes());
+    let y_generic_array = GenericArray::from(group_point.y().to_bytes());
+    let encoded_point =
+        EncodedPoint::from_affine_coordinates(&x_generic_array, &y_generic_array, true);
+    let projective_point = k256::ProjectivePoint::from_encoded_point(&encoded_point)
+        .expect("Should be a valid encoded point");
+    let verifying_key = VerifyingKey::new(projective_point);
+    let public_key_frost_format = verifying_key.serialize().as_ref().to_vec();
 
     // Sign this public key using our ECDSA key
-    let hash_of_public_key = keccak_256(&our_combined_public_key);
+    let hash_of_public_key = keccak_256(&public_key_frost_format);
     let signature_of_public_key = key_store.pair().sign_prehashed(&hash_of_public_key);
 
     // Gossip the public key
     let pkey_message = FrostMessage::PublicKeyBroadcast {
         party_id,
-        combined_public_key: our_combined_public_key.clone(),
+        combined_public_key: public_key_frost_format.clone(),
         signature_of_public_key: signature_of_public_key.clone(),
     };
 
@@ -253,12 +267,12 @@ pub async fn protocol<KBE: KeystoreBackend>(
                 signature_of_public_key,
             } => {
                 // Make sure their public key is equivalent to ours
-                if combined_public_key.as_slice() != our_combined_public_key.as_slice() {
+                if combined_public_key.as_slice() != public_key_frost_format.as_slice() {
                     return Err(JobError { reason: format!("The received public key from party {party_id} does not match our public key. Aborting") });
                 }
 
                 // Verify the public key signature
-                recover_ecdsa_pub_key(&our_combined_public_key, signature_of_public_key.as_slice())
+                recover_ecdsa_pub_key(&public_key_frost_format, signature_of_public_key.as_slice())
                     .map_err(|_| JobError {
                         reason: format!("Failed to verify signature from party {party_id}"),
                     })?;
@@ -283,10 +297,11 @@ pub async fn protocol<KBE: KeystoreBackend>(
 
     let frost_state = FrostState {
         public_key,
+        public_key_frost_format,
         party: Arc::new(party),
     };
 
-    Ok((frost_state, our_combined_public_key, signatures))
+    Ok((frost_state, signatures))
 }
 
 pub async fn run_dkg<RNG: RngCore + CryptoRng>(
@@ -336,7 +351,7 @@ pub async fn run_dkg<RNG: RngCore + CryptoRng>(
                 poly_commitment,
             })) => {
                 if party_id != signer.party_id {
-                    logger.error(format!(
+                    logger.trace(format!(
                         "Received shares from {party_id} with key ids: {key_ids:?}"
                     ));
                     received_shares.insert(party_id, shares);
