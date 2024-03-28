@@ -1,5 +1,3 @@
-use crate::mock::{Jobs, Runtime};
-use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 pub use gadget_core::job_manager::SendFuture;
 pub use log;
 use pallet_jobs::{SubmittedJobs, SubmittedJobsRole};
@@ -11,7 +9,15 @@ use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
 
+#[cfg(feature = "std")]
+use crate::{
+    mock::{Jobs, Runtime},
+    sync::substrate_test_channel::MultiThreadedTestExternalities,
+};
+
+#[cfg(feature = "std")]
 pub mod mock;
+#[cfg(feature = "std")]
 pub mod sync;
 
 /// Sets up the default logging as well as setting a panic hook for tests
@@ -27,6 +33,7 @@ pub fn setup_log() {
     }));
 }
 
+#[cfg(feature = "std")]
 pub async fn wait_for_job_completion(
     ext: &MultiThreadedTestExternalities,
     role_type: RoleType,
@@ -53,6 +60,7 @@ pub async fn wait_for_job_completion(
     }
 }
 
+#[cfg(feature = "std")]
 pub fn remove_job(role_type: RoleType, job_id: JobId) {
     SubmittedJobs::<Runtime>::remove(role_type, job_id);
     SubmittedJobsRole::<Runtime>::remove(job_id);
@@ -62,6 +70,7 @@ pub fn remove_job(role_type: RoleType, job_id: JobId) {
 /// When using this macro, the `generate_setup_and_run_command` macro should be used to generate the `setup_node` function.
 /// If not, you must manually create a function named `setup_node` in your crate's lib.rs that accepts a NodeInput and
 /// returns a future that runs the protocols.
+#[cfg(feature = "std")]
 #[allow(clippy::crate_in_macro_def)]
 macro_rules! generate_signing_and_keygen_tss_tests {
     ($t:expr, $n:expr, $proto_count:expr, $threshold_sig_ty:expr) => {

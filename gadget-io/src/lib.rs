@@ -5,10 +5,10 @@ use sp_core::ecdsa;
 use std::fmt::{Debug, Display, Formatter};
 use tokio::task::JoinError;
 
-#[cfg(not(feature = "wasm"))]
+#[cfg(not(target_family = "wasm"))]
 pub mod standard;
 
-#[cfg(feature = "wasm")]
+#[cfg(target_family = "wasm")]
 pub mod wasm;
 
 #[cfg(feature = "wasm")]
@@ -17,7 +17,7 @@ pub use wasm::{
     prometheus::{setup, PrometheusConfig, BYTES_RECEIVED, BYTES_SENT},
 };
 
-#[cfg(not(feature = "wasm"))]
+#[cfg(feature = "std")]
 pub use standard::{
     metrics::Metrics,
     prometheus::{setup, PrometheusConfig, BYTES_RECEIVED, BYTES_SENT, REGISTRY},

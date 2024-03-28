@@ -24,8 +24,8 @@ bincode2 = { workspace = true }
 serde_bytes = { workspace = true }
 anyhow = { workspace = true }
 futures = { workspace = true }
-round-based = { workspace = true, optional = true }
-round-based-21 = { workspace = true, optional = true, features = ["derive"]}
+round-based = { workspace = true }
+round-based-21 = { workspace = true, features = ["derive"]}
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
 lazy_static = { workspace = true }
 getrandom = { workspace = true }
@@ -36,8 +36,8 @@ wasm-bindgen = { workspace = true }
 
 # Substrate
 tangle-subxt = { workspace = true, optional = true, default-features = false }
-subxt-signer = { workspace = true, default-features = false, features = ["subxt", "sr25519", "web"], optional = true }
-subxt = { workspace = true, optional = true, default-features = false, features = ["web"] }
+subxt-signer = { workspace = true, default-features = false, features = ["subxt", "sr25519"], optional = true }
+subxt = { workspace = true, optional = true, default-features = false }
 sp-api = { workspace = true, optional = true, default-features = false }
 sp-io = { workspace = true, optional = true, default-features = false }
 sp-core = { workspace = true, optional = true, default-features = false }
@@ -54,11 +54,12 @@ parity-scale-codec = { workspace = true, optional = true, default-features = fal
 scale-info = { workspace = true, optional = true, default-features = false }
 
 [features]
-default = ["wasm"]#["substrate", "std"]
+default = ["substrate", "std"]
 substrate = [
   "gadget-core/substrate",
+  "gadget-io/default",
   "tangle-subxt/std",
-  "subxt-signer",
+  "subxt-signer/native",
   "subxt/native",
   "subxt/jsonrpsee",
   "sp-api/std",
@@ -81,13 +82,9 @@ std = [
   "serde_bytes/std",
   "tracing/std",
   "tracing/attributes",
-  "round-based",
-  "round-based-21",
 ]
 wasm = [
   "gadget-io/wasm",
-  "round-based",
-  "round-based-21",
   "serde/alloc",
   "serde/derive",
   "serde_bytes/alloc",
@@ -95,7 +92,7 @@ wasm = [
   "getrandom/js",
   "gadget-core/substrate",
   "tangle-subxt/wasm",
-  "subxt-signer",
+  "subxt-signer/web",
   "subxt/web",
   "subxt/jsonrpsee",
   "sp-api",

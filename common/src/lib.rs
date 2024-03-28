@@ -15,6 +15,7 @@ pub use sp_core;
 use std::sync::Arc;
 
 pub use subxt_signer;
+pub use tangle_subxt;
 
 #[allow(ambiguous_glob_reexports)]
 pub mod prelude {
@@ -268,7 +269,7 @@ macro_rules! generate_protocol {
                 associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
                 protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
                 additional_params: Self::AsyncProtocolParameters,
-            ) -> Result<BuiltExecutableJobWrapper, gadget_io::Error::JobError> {
+            ) -> Result<BuiltExecutableJobWrapper, JobError> {
                 $proto_gen_path(
                     self,
                     associated_block_id,

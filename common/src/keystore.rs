@@ -10,7 +10,7 @@ use sp_core::{keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-#[cfg(not(feature = "wasm"))]
+#[cfg(feature = "std")]
 use sqlx::{
     sqlite::SqlitePoolOptions,
     {Pool, Row, Sqlite},
@@ -34,7 +34,7 @@ impl<P: Pair> GenericKeyStore<InMemoryBackend, P> {
     }
 }
 
-#[cfg(not(feature = "wasm"))]
+#[cfg(feature = "std")]
 impl<P: Pair> GenericKeyStore<SqliteBackend, P> {
     pub async fn sqlite_in_memory(pair: P) -> Result<Self, Box<dyn std::error::Error>> {
         let backend = SqliteBackend::in_memory().await?;
@@ -150,11 +150,11 @@ impl KeystoreBackend for InMemoryBackend {
 }
 
 #[derive(Clone)]
-#[cfg(not(feature = "wasm"))]
+#[cfg(feature = "std")]
 pub struct SqliteBackend {
     pool: Pool<Sqlite>,
 }
-#[cfg(not(feature = "wasm"))]
+#[cfg(feature = "std")]
 impl SqliteBackend {
     pub async fn in_memory() -> Result<Self, Box<dyn std::error::Error>> {
         Self::new("sqlite://:memory:").await
@@ -179,7 +179,7 @@ impl SqliteBackend {
 }
 
 #[async_trait]
-#[cfg(not(feature = "wasm"))]
+#[cfg(feature = "std")]
 impl KeystoreBackend for SqliteBackend {
     async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, Error> {
         let key = key_to_string(key);
@@ -231,7 +231,7 @@ mod tests {
     use crate::prelude::KeystoreBackend;
 
     #[tokio::test]
-    #[cfg(not(feature = "wasm"))]
+    #[cfg(feature = "std")]
     async fn test_in_memory_kv_store() {
         let store = super::SqliteBackend::in_memory().await.unwrap();
         let key = [0u8; 32];

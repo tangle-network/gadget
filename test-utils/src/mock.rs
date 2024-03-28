@@ -47,7 +47,7 @@ use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::prelude::PrometheusConfig;
-use gadget_common::Error;
+use gadget_io::Error;
 use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
 use sp_core::ecdsa;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
@@ -828,14 +828,14 @@ pub mod mock_wrapper_client {
                     >,
                 >,
             >,
-            gadget_common::Error,
+            gadget_io::Error,
         > {
             let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
             let validator = tangle_primitives::AccountId::from(validator.0);
             exec_client_function(&self.runtime, move |r| {
                 r.runtime_api()
                     .query_jobs_by_validator(at, validator)
-                    .map_err(|err| gadget_common::Error::ClientError {
+                    .map_err(|err| gadget_io::Error::ClientError {
                         err: format!("{err:?}"),
                     })
                     .map(|r| {
@@ -863,14 +863,14 @@ pub mod mock_wrapper_client {
                     MaxAdditionalParamsLen,
                 >,
             >,
-            gadget_common::Error,
+            gadget_io::Error,
         > {
             let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
             let role_type = Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap();
             exec_client_function(&self.runtime, move |r| {
                 r.runtime_api()
                     .query_job_by_id(at, role_type, job_id)
-                    .map_err(|err| gadget_common::Error::ClientError {
+                    .map_err(|err| gadget_io::Error::ClientError {
                         err: format!("{err:?}"),
                     })
                     .map(|r| r.map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()).unwrap()))
@@ -897,14 +897,14 @@ pub mod mock_wrapper_client {
                     MaxAdditionalParamsLen,
                 >,
             >,
-            gadget_common::Error,
+            gadget_io::Error,
         > {
             let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
             let role_type = Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap();
             exec_client_function(&self.runtime, move |r| {
                 r.runtime_api()
                     .query_job_result(at, role_type, job_id)
-                    .map_err(|err| gadget_common::Error::ClientError {
+                    .map_err(|err| gadget_io::Error::ClientError {
                         err: format!("{err:?}"),
                     })
                     .map(|r| r.map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()).unwrap()))
@@ -912,11 +912,11 @@ pub mod mock_wrapper_client {
             .await
         }
 
-        async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, gadget_common::Error> {
+        async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, gadget_io::Error> {
             let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
             exec_client_function(&self.runtime, move |r| {
                 r.runtime_api().query_next_job_id(at).map_err(|err| {
-                    gadget_common::Error::ClientError {
+                    gadget_io::Error::ClientError {
                         err: format!("{err:?}"),
                     }
                 })
@@ -928,13 +928,13 @@ pub mod mock_wrapper_client {
             &self,
             at: [u8; 32],
             address: AccountId32,
-        ) -> Result<Option<Vec<u8>>, gadget_common::Error> {
+        ) -> Result<Option<Vec<u8>>, gadget_io::Error> {
             let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
             let address = tangle_primitives::AccountId::from(address.0);
             exec_client_function(&self.runtime, move |r| {
                 r.runtime_api()
                     .query_restaker_role_key(at, address)
-                    .map_err(|err| gadget_common::Error::ClientError {
+                    .map_err(|err| gadget_io::Error::ClientError {
                         err: format!("{err:?}"),
                     })
                     .map(|r| r.map(|r| r.to_vec()))
@@ -946,7 +946,7 @@ pub mod mock_wrapper_client {
             &self,
             _at: [u8; 32],
             _address: AccountId32,
-        ) -> Result<Vec<roles::RoleType>, gadget_common::Error> {
+        ) -> Result<Vec<roles::RoleType>, gadget_io::Error> {
             Ok(Default::default())
         }
     }
@@ -1005,7 +1005,7 @@ pub mod mock_wrapper_client {
                 MaxProofLen,
                 MaxAdditionalParamsLen,
             >,
-        ) -> Result<(), gadget_common::Error> {
+        ) -> Result<(), gadget_io::Error> {
             let id = self.id.clone();
             self.ext
                 .execute_with_async(move || {
@@ -1022,7 +1022,7 @@ pub mod mock_wrapper_client {
                             // Job has already been submitted (assumption only for tests)
                             Ok(())
                         } else {
-                            Err(gadget_common::Error::ClientError { err })
+                            Err(gadget_io::Error::ClientError { err })
                         }
                     } else {
                         Ok(())
