@@ -5,10 +5,10 @@ authors = ["Shady Khalifa <dev+github@shadykhalifa.me>"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
+#[lib]
+#crate-type = ["cdylib", "rlib"]
 
-[features]
+#[features]
 
 [dependencies]
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }

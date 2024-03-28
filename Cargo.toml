@@ -20,6 +20,7 @@ members = [
 gadget-core = { path = "./core" }
 gadget-common = { path = "./common", default-features = false }
 gadget-io = { path = "./gadget-io", default-features = false }
+gadget-shell = { path = "./shell", default-features = false }
 zk-saas-protocol = { path = "./protocols/zk-saas" }
 threshold-bls-protocol = { path = "./protocols/bls" }
 stub-protocol = { path = "./protocols/stub" }
@@ -54,7 +55,7 @@ round-based-zengo = { package = "round-based", git = "https://github.com/ZenGo-X
 curv = { package = "curv-kzen", version = "0.10.0" }
 digest = "0.10"
 # dfns-cggmp21 = { package = "cggmp21", version = "0.1.1" }
-dfns-cggmp21 = { package = "cggmp21", git = "https://github.com/webb-tools/cggmp21", branch = "v0.1.1-fix" }
+dfns-cggmp21 = { package = "cggmp21", git = "https://github.com/webb-tools/cggmp21", branch = "v0.1.1-fix",  default-features = false }
 udigest = { version = "0.1", features = ["std", "derive"] }
 
 frost-core = { git = "https://github.com/salman01zp/frost", branch = "salman/bump-curve25519-dalek" }
@@ -198,5 +199,7 @@ wasm-bindgen = {version = "0.2.92" }
 sp-wasm-interface = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0", default-features = false }
 wasmer = { version = "4.2.6", default-features = false }
 
-[profile.dev.package.backtrace]
-opt-level = 3
+#[profile.dev.package.backtrace]
+#opt-level = 3
+[profile.dev]
+opt-level = 's'

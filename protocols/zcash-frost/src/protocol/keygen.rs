@@ -1,5 +1,4 @@
-#[cfg(not(feature = "wasm"))]
-
+#[warn(unused_imports)]
 use frost_ed25519::Ed25519Sha512;
 use frost_ed448::Ed448Shake256;
 use frost_p256::P256Sha256;
@@ -7,27 +6,28 @@ use frost_p384::P384Sha384;
 use frost_ristretto255::Ristretto255Sha512;
 use frost_secp256k1::Secp256K1Sha256;
 use futures::StreamExt;
-use gadget_common::client::ClientWithApi;
-use gadget_common::config::Network;
-use gadget_common::debug_logger::DebugLogger;
-use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
-use gadget_common::gadget::work_manager::WorkManager;
-use gadget_common::gadget::JobInitMetadata;
-use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
+// use gadget_common::client::ClientWithApi;
+// use gadget_common::config::Network;
+// use gadget_common::debug_logger::DebugLogger;
+use gadget_common::gadget::message::UserID;//{GadgetProtocolMessage, UserID};
+// use gadget_common::gadget::work_manager::WorkManager;
+// use gadget_common::gadget::JobInitMetadata;
+// use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::prelude::*;
-use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::{MaxParticipants, MaxKeyLen, MaxProofLen, MaxDataLen, MaxSignatureLen};
+use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+// use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{MaxParticipants, MaxKeyLen, MaxProofLen, MaxDataLen, MaxSignatureLen};
+use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{MaxKeyLen, MaxProofLen, MaxDataLen, MaxSignatureLen};
 
 use gadget_common::{channels, utils};
-use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
-use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+// use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
+// use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
 use rand::SeedableRng;
 use round_based_21::{Incoming, Outgoing};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+// use std::sync::Arc;
+// use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::rounds;
 use crate::rounds::keygen::Msg;
@@ -47,7 +47,7 @@ pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>
     config: &crate::ZcashFrostKeygenProtocol<C, N, KBE>,
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<ZcashFrostKeygenExtraParams, gadget_common::Error> {
+) -> Result<ZcashFrostKeygenExtraParams, gadget_io::Error> {
     let job_id = job.job_id;
     let role_type = job.job_type.get_role_type();
 
@@ -168,7 +168,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 logger.clone(),
                 i,
             );
-            let mut tracer = dfns_cggmp21::PerfProfiler::new();
+            let mut tracer = crate::progress::PerfProfiler::new();
             let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
             let party = round_based_21::MpcParty::connected(delivery);
             let frost_key_share_package = match role {
@@ -428,7 +428,7 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
         participants,
         signatures: BoundedVec(signatures),
         threshold: t as _,
-        __ignore: Default::default(),
+        __subxt_unused_type_params: Default::default(),
     };
     verify_generated_dkg_key_ecdsa(res.clone(), logger);
     Ok(jobs::JobResult::DKGPhaseOne(res))
@@ -470,7 +470,7 @@ fn verify_generated_dkg_key_ecdsa(
             // Ensure no duplicate signatures
             assert!(!known_signers.contains(&authority), "DuplicateSignature");
 
-            logger.debug(format!("Verified signature from {}", authority));
+            logger.debug(format!("Verified signature from {:?}", authority));
             known_signers.push(authority);
         }
     }

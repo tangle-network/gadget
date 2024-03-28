@@ -1,4 +1,3 @@
-#[cfg(not(feature = "wasm"))]
 use frost_core::Ciphersuite;
 use round_based_21::rounds_router::{
     errors::{self as router_error, CompleteRoundError},

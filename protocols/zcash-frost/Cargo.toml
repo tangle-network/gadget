@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "time"] }
 gadget-common = {  path = "../../common" , default-features = false }
+gadget-io = { workspace = true, default-features = false }
 gadget-core = { workspace = true }
 protocol-macros = { workspace = true }
 async-trait = { workspace = true }
@@ -18,11 +19,13 @@ log = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 bincode2 = { workspace = true }
-round-based-21 = { workspace = true, optional = true, features = ["derive"]}
+round-based = { workspace = true }
+round-based-21 = { workspace = true, features = ["derive"] }
 digest = { workspace = true }
 sha2 = { workspace = true }
 rand_core = { workspace = true }
 rand_chacha = { workspace = true }
+dfns-cggmp21 = { workspace = true, optional = true, default-features = false }
 getrandom = { workspace = true, optional = true }
 
 udigest = { workspace = true }
@@ -36,9 +39,9 @@ frost-secp256k1 = { workspace = true }
 frost-rerandomized = { workspace = true }
 
 sp-core = { workspace = true, default-features = false }
-sp-io = { workspace = true, default-features = false, optional = true }
-sp-api = { workspace = true, default-features = false, optional = true }
-frame-support = { workspace = true, optional = true }
+sp-io = { workspace = true, default-features = false }
+sp-api = { workspace = true, optional = true, default-features = false }
+frame-support = { workspace = true, default-features = false }
 parity-scale-codec = { workspace = true }
 
 serde = { workspace = true }
@@ -47,21 +50,24 @@ hex = { workspace = true }
 parking_lot = { workspace = true }
 
 [features]
-default = ["wasm"]
+default = ["std"]
 std = [
-    #    "gadget-common/std",
-    #    "gadget-common/substrate",
-    "round-based-21",
-    "sp-core/std",
-    "sp-io",
-    "sp-api",
-    "frame-support",
+    "gadget-common/default",
+    "gadget-io/default",
+    "sp-core/default",
+    "sp-io/default",
+    "sp-api/default",
     "tokio/rt-multi-thread",
     "tokio/net",
+    "dfns-cggmp21",
 ]
 wasm = [
     "gadget-common/wasm",
+    "gadget-io/wasm",
     "sp-core/serde",
+    "sp-core/full_crypto",
+    "sp-io/disable_panic_handler",
+    "sp-api",
     "getrandom/js",
 ]
 

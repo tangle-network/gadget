@@ -1,4 +1,4 @@
-#[cfg(not(feature = "wasm"))]
+#[warn(unused_imports)]
 use frost_core::keys::{KeyPackage, PublicKeyPackage};
 use frost_ed25519::Ed25519Sha512;
 use frost_ed448::Ed448Shake256;
@@ -7,22 +7,22 @@ use frost_p384::P384Sha384;
 use frost_ristretto255::Ristretto255Sha512;
 use frost_secp256k1::Secp256K1Sha256;
 use gadget_common::channels;
-use gadget_common::client::ClientWithApi;
-use gadget_common::config::Network;
-use gadget_common::gadget::message::{GadgetProtocolMessage, UserID};
-use gadget_common::gadget::work_manager::WorkManager;
-use gadget_common::gadget::JobInitMetadata;
-use gadget_common::keystore::KeystoreBackend;
+// use gadget_common::client::ClientWithApi;
+// use gadget_common::config::Network;
+use gadget_common::gadget::message::UserID;//{GadgetProtocolMessage, UserID};
+// use gadget_common::gadget::work_manager::WorkManager;
+// use gadget_common::gadget::JobInitMetadata;
+// use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::*;
-use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
-use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+// use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
+// use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;
 use round_based_21::{Incoming, MpcParty, Outgoing};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+// use std::sync::Arc;
+// use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::rounds;
 use crate::rounds::keygen::FrostKeyShare;
@@ -44,7 +44,7 @@ pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>
     config: &crate::ZcashFrostSigningProtocol<C, N, KBE>,
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<ZcashFrostSigningExtraParams, gadget_common::Error> {
+) -> Result<ZcashFrostSigningExtraParams, gadget_io::Error> {
     let job_id = job.job_id;
 
     let jobs::JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
@@ -66,10 +66,10 @@ pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>
         .key_store
         .get_job_result(previous_job_id)
         .await
-        .map_err(|err| gadget_common::Error::ClientError {
+        .map_err(|err| gadget_io::Error::ClientError {
             err: err.to_string(),
         })?
-        .ok_or_else(|| gadget_common::Error::ClientError {
+        .ok_or_else(|| gadget_io::Error::ClientError {
             err: format!("No key found for job ID: {job_id:?}"),
         })?;
 
@@ -189,7 +189,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                 i,
             );
 
-            let mut tracer = dfns_cggmp21::PerfProfiler::new();
+            let mut tracer = crate::progress::PerfProfiler::new();
             let delivery = (signing_rx_async_proto, signing_tx_to_outbound);
             let party = MpcParty::connected(delivery);
             let signature = match role {
@@ -352,7 +352,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                     signature: BoundedVec(signature),
                     verifying_key: BoundedVec(Default::default()),
                     derivation_path: None,
-                    __ignore: Default::default(),
+                    __subxt_unused_type_params: Default::default(),
                 });
 
                 pallet_tx

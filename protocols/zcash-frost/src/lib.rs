@@ -1,3 +1,4 @@
+#[warn(unused_imports)]
 use crate::protocol::keygen::ZcashFrostKeygenExtraParams;
 use crate::protocol::sign::ZcashFrostSigningExtraParams;
 use async_trait::async_trait;
@@ -9,6 +10,7 @@ use protocol_macros::protocol;
 pub mod constants;
 pub mod protocol;
 pub mod rounds;
+pub mod progress;
 
 generate_protocol!(
     "Zcash-FROST-Keygen-Protocol",
@@ -42,6 +44,7 @@ generate_protocol!(
 generate_setup_and_run_command!(ZcashFrostKeygenProtocol, ZcashFrostSigningProtocol);
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod secp256k1 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -52,6 +55,7 @@ mod secp256k1 {
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod ristretto255 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -62,6 +66,7 @@ mod ristretto255 {
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod p256 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -72,6 +77,7 @@ mod p256 {
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod p384 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -82,6 +88,7 @@ mod p384 {
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod ed25519 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,
@@ -92,6 +99,7 @@ mod ed25519 {
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod ed448 {
     test_utils::generate_signing_and_keygen_tss_tests!(
         2,

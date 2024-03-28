@@ -1,5 +1,5 @@
-#[cfg(not(feature = "wasm"))]
-use dfns_cggmp21::Tracer;
+#[warn(unused_imports)]
+use crate::progress::Tracer;
 use frost_core::keys::{KeyPackage, PublicKeyPackage};
 use frost_core::round1::{SigningCommitments, SigningNonces};
 use frost_core::round2::{self, SignatureShare};

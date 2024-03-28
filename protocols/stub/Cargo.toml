@@ -20,9 +20,9 @@ getrandom = { workspace = true, default-features = false, features = ["js"] }
 [features]
 default = ["wasm"]
 std = [
-    "gadget-common/std",
-    "sp-core/std",
-    "tangle-subxt/std",
+    "gadget-common/default",
+    "sp-core/default",
+    "tangle-subxt/default",
 ]
 wasm = [
     "gadget-common/wasm",
