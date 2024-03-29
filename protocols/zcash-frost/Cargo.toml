@@ -41,7 +41,7 @@ frost-rerandomized = { workspace = true }
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 sp-api = { workspace = true, optional = true, default-features = false }
-frame-support = { workspace = true, default-features = false }
+frame-support = { workspace = true, optional = true, default-features = false }
 parity-scale-codec = { workspace = true }
 
 serde = { workspace = true }
@@ -59,6 +59,7 @@ std = [
     "sp-api/default",
     "tokio/rt-multi-thread",
     "tokio/net",
+    "frame-support/default",
     "dfns-cggmp21",
 ]
 wasm = [
@@ -68,10 +69,11 @@ wasm = [
     "sp-core/full_crypto",
     "sp-io/disable_panic_handler",
     "sp-api",
+    "frame-support",
     "getrandom/js",
 ]
 
 [dev-dependencies]
-test-utils = { workspace = true }
-tangle-primitives = { workspace = true }
+#test-utils = { workspace = true }
+#tangle-primitives = { workspace = true }
 

@@ -11,13 +11,13 @@ pub mod standard;
 #[cfg(target_family = "wasm")]
 pub mod wasm;
 
-#[cfg(feature = "wasm")]
+#[cfg(target_family = "wasm")]
 pub use wasm::{
     metrics::Metrics,
     prometheus::{setup, PrometheusConfig, BYTES_RECEIVED, BYTES_SENT},
 };
 
-#[cfg(feature = "std")]
+#[cfg(not(target_family = "wasm"))]
 pub use standard::{
     metrics::Metrics,
     prometheus::{setup, PrometheusConfig, BYTES_RECEIVED, BYTES_SENT, REGISTRY},

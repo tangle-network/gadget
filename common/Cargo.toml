@@ -51,7 +51,7 @@ frame-support = { workspace = true, optional = true, default-features = false }
 linked-hash-map = { workspace = true, optional = true, default-features = false }
 
 parity-scale-codec = { workspace = true, optional = true, default-features = false }
-scale-info = { workspace = true, optional = true, default-features = false }
+scale-info = { workspace = true, optional = true, default-features = false, features = ["derive"] }
 
 [features]
 default = ["substrate", "std"]
@@ -70,7 +70,7 @@ substrate = [
   "sp-tracing/std",
   "sc-service",
   "sc-client-api",
-  "frame-support",
+  "frame-support/std",
   "linked-hash-map",
   "substrate-prometheus-endpoint",
   "parity-scale-codec",

@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod tests {
     use gadget_core::job_manager::SendFuture;
     use std::collections::HashMap;

@@ -1,6 +1,8 @@
+#![cfg(target_family = "wasm")]
 #[cfg(test)]
-#[cfg(not(target_family = "wasm"))]
 mod tests {
+    use wasm_bindgen_test::*;
+    wasm_bindgen_test_configure!(run_in_browser);
     use gadget_core::job::JobError;
     use gadget_core::job_manager::SendFuture;
     use std::error::Error;
@@ -22,7 +24,9 @@ mod tests {
 
     /// Test a basic gadget with a basic blockchain and a basic network.
     /// This test will run multiple async protocols, and will wait for them all to finish.
+
     #[tokio::test]
+    #[wasm_bindgen_test]
     async fn test_basic_async_protocol() -> Result<(), Box<dyn Error>> {
         setup_log();
         test_gadget::simulate_test(
@@ -32,7 +36,7 @@ mod tests {
             vec![0, 2, 4],
             async_proto_generator,
         )
-        .await
+            .await
     }
 
     fn async_proto_generator(

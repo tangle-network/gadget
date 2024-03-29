@@ -11,9 +11,12 @@ crate-type = ["cdylib", "rlib"]
 default = ["std"]
 std = [
     "substrate-prometheus-endpoint",
+    "sp-core/default",
 ]
 wasm = [
     "prometheus",
+    "sp-core/serde",
+    "sp-core/full_crypto",
 ]
 
 [dependencies]
@@ -22,7 +25,7 @@ lazy_static = { workspace = true }
 prometheus = { workspace = true, optional = true }
 tokio = { workspace = true }
 gadget-core = { workspace = true }
-sp-core = { workspace = true }
+sp-core = { workspace = true, default-features = false }
 
 
 [dev-dependencies]
