@@ -593,7 +593,8 @@ mod tests {
                 threshold: 1u8,
                 permitted_caller: None,
                 role_type: roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
-                __subxt_unused_type_params: Default::default(),
+                hd_wallet: false,
+                __ignore: Default::default(),
             }),
         };
         let tx = api::tx().jobs().submit_job(dkg_phase_one);

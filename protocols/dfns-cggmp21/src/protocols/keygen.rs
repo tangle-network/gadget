@@ -97,6 +97,7 @@ pub struct DfnsCGGMP21KeygenExtraParams {
     user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_and_serialize_keygen<
     'r,
     E: Curve,

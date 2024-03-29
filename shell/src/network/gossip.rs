@@ -409,24 +409,24 @@ mod tests {
                 (
                     30555,
                     vec![
-                        "/ip4/0.0.0.0/tcp/30556".parse().unwrap(),
-                        "/ip4/0.0.0.0/tcp/30557".parse().unwrap(),
+                        "/ip4/127.0.0.1/tcp/30556".parse().unwrap(),
+                        "/ip4/127.0.0.1/tcp/30557".parse().unwrap(),
                     ],
                 )
             } else if x == 1 {
                 (
                     30556,
                     vec![
-                        "/ip4/0.0.0.0/tcp/30555".parse().unwrap(),
-                        "/ip4/0.0.0.0/tcp/30557".parse().unwrap(),
+                        "/ip4/127.0.0.1/tcp/30555".parse().unwrap(),
+                        "/ip4/127.0.0.1/tcp/30557".parse().unwrap(),
                     ],
                 )
             } else if x == 2 {
                 (
                     30557,
                     vec![
-                        "/ip4/0.0.0.0/tcp/30555".parse().unwrap(),
-                        "/ip4/0.0.0.0/tcp/30556".parse().unwrap(),
+                        "/ip4/127.0.0.1/tcp/30555".parse().unwrap(),
+                        "/ip4/127.0.0.1/tcp/30556".parse().unwrap(),
                     ],
                 )
             } else {
@@ -438,7 +438,7 @@ mod tests {
                 subxt: SubxtConfig {
                     endpoint: url::Url::from_directory_path("/").unwrap(),
                 },
-                bind_ip: "0.0.0.0".parse().unwrap(),
+                bind_ip: "127.0.0.1".parse().unwrap(),
                 bind_port,
                 bootnodes,
                 base_path: std::path::PathBuf::new(),
@@ -568,6 +568,7 @@ mod tests {
     }
 
     fn get_dummy_role_key_from_index(index: usize) -> ecdsa::Pair {
-        ecdsa::Pair::from_seed(&[index as u8; 32])
+        let seed = [0xcd + index as u8; 32];
+        ecdsa::Pair::from_seed_slice(&seed).expect("valid seed")
     }
 }

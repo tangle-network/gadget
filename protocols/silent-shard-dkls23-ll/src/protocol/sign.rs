@@ -13,7 +13,6 @@ use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use k256::ecdsa::signature::hazmat::PrehashVerifier;
 use k256::ecdsa::{Signature, VerifyingKey};
-use k256::elliptic_curve::group::GroupEncoding;
 use rand::SeedableRng;
 use round_based_21::{Incoming, MpcParty, Outgoing};
 use sp_core::{ecdsa, keccak_256, Pair};
@@ -207,8 +206,9 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                             derivation_path: None,
                             data: BoundedVec(data_hash.to_vec()),
                             signature: BoundedVec(signature.to_vec()),
-                            verifying_key: BoundedVec(verifying_key.to_bytes().to_vec()),
-                            __subxt_unused_type_params: Default::default(),
+                            verifying_key: BoundedVec(Default::default()),
+                            chain_code: None,
+                            __ignore: Default::default(),
                         });
 
                     pallet_tx

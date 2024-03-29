@@ -351,7 +351,8 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                     data: BoundedVec(additional_params.input_data_to_sign),
                     signature: BoundedVec(signature),
                     verifying_key: BoundedVec(Default::default()),
-                    __subxt_unused_type_params: Default::default(),
+                    chain_code: None,
+                    __ignore: Default::default(),
                 });
 
                 pallet_tx
