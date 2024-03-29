@@ -55,6 +55,7 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
 
     let participants = job.participants_role_ids;
     let threshold = p1_job.threshold;
+    let hd_wallet = p1_job.hd_wallet;
 
     let user_id_to_account_id_mapping = Arc::new(
         participants
@@ -78,6 +79,7 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
         n: participants.len() as u16,
         role_type,
         job_id,
+        hd_wallet,
         user_id_to_account_id_mapping,
     };
 
@@ -90,6 +92,7 @@ pub struct DfnsCGGMP21KeygenExtraParams {
     t: u16,
     n: u16,
     job_id: u64,
+    hd_wallet: bool,
     role_type: roles::RoleType,
     user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
@@ -107,6 +110,7 @@ pub async fn run_and_serialize_keygen<
     i: u16,
     n: u16,
     t: u16,
+    hd_wallet: bool,
     party: MpcParty<Msg<E, S, H>, D>,
     mut rng: R,
 ) -> Result<Vec<u8>, JobError>
@@ -118,6 +122,7 @@ where
     let incomplete_key_share = builder
         .set_progress_tracer(tracer)
         .set_threshold(t)
+        .hd_wallet(hd_wallet)
         .start(&mut rng, party)
         .await
         .map_err(|err| JobError {
@@ -285,6 +290,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             ));
 
             let job_id_bytes = additional_params.job_id.to_be_bytes();
+            let hd_wallet = additional_params.hd_wallet;
             let mix = keccak_256(b"dnfs-cggmp21-keygen");
             let eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
             let eid = dfns_cggmp21::ExecutionId::new(&eid_bytes);
@@ -319,6 +325,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                             i,
                             n,
                             t,
+                            hd_wallet,
                             rng,
                             &logger,
                             &job_id_bytes,
@@ -351,6 +358,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                             i,
                             n,
                             t,
+                            hd_wallet,
                             rng,
                             &logger,
                             &job_id_bytes,
@@ -383,6 +391,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                             i,
                             n,
                             t,
+                            hd_wallet,
                             rng,
                             &logger,
                             &job_id_bytes,
@@ -409,10 +418,49 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                 _ => unreachable!("Invalid role type"),
             };
 
+            let chain_code = if additional_params.hd_wallet {
+                match role_type {
+                    roles::RoleType::Tss(
+                        roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
+                    ) => {
+                        deserialize::<KeyShare<Secp256k1, DefaultSecurityLevel>>(&key_share)
+                            .map_err(|err| JobError {
+                                reason: format!("Failed to deserialize key share: {err:?}"),
+                            })?
+                            .core
+                            .chain_code
+                    }
+                    roles::RoleType::Tss(
+                        roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1,
+                    ) => {
+                        deserialize::<KeyShare<Secp256r1, DefaultSecurityLevel>>(&key_share)
+                            .map_err(|err| JobError {
+                                reason: format!("Failed to deserialize key share: {err:?}"),
+                            })?
+                            .core
+                            .chain_code
+                    }
+                    roles::RoleType::Tss(
+                        roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Stark,
+                    ) => {
+                        deserialize::<KeyShare<Stark, DefaultSecurityLevel>>(&key_share)
+                            .map_err(|err| JobError {
+                                reason: format!("Failed to deserialize key share: {err:?}"),
+                            })?
+                            .core
+                            .chain_code
+                    }
+                    _ => unreachable!("Invalid role type"),
+                }
+            } else {
+                None
+            };
             let job_result = handle_public_key_gossip(
                 key_store,
                 &logger,
                 &serialized_public_key,
+                hd_wallet,
+                chain_code,
                 sig_scheme,
                 t,
                 i,
@@ -456,6 +504,8 @@ pub async fn handle_public_key_gossip<KBE: KeystoreBackend>(
     key_store: ECDSAKeyStore<KBE>,
     logger: &DebugLogger,
     serialized_public_key: &[u8],
+    hd_wallet: bool,
+    chain_code: Option<[u8; 32]>,
     digital_signature_scheme: jobs::tss::DigitalSignatureScheme,
     t: u16,
     i: u16,
@@ -559,7 +609,8 @@ pub async fn handle_public_key_gossip<KBE: KeystoreBackend>(
         participants: BoundedVec(participants),
         signatures: BoundedVec(signatures),
         threshold: t as _,
-        __subxt_unused_type_params: Default::default(),
+        chain_code: if hd_wallet { chain_code } else { None },
+        __ignore: Default::default(),
     };
     verify_generated_dkg_key_ecdsa(res.clone(), logger);
     Ok(jobs::JobResult::DKGPhaseOne(res))
@@ -678,6 +729,7 @@ async fn run_full_keygen_protocol<
     i: u16,
     n: u16,
     t: u16,
+    hd_wallet: bool,
     rng: StdRng,
     logger: &DebugLogger,
     job_id_bytes: &[u8],
@@ -706,9 +758,17 @@ async fn run_full_keygen_protocol<
         );
     let delivery = (rx0, tx0);
     let party = MpcParty::<Msg<E, S, H>, _, _>::connected(delivery);
-    let incomplete_key_share =
-        run_and_serialize_keygen::<E, S, H, _, _>(&mut tracer, eid, i, n, t, party, rng.clone())
-            .await?;
+    let incomplete_key_share = run_and_serialize_keygen::<E, S, H, _, _>(
+        &mut tracer,
+        eid,
+        i,
+        n,
+        t,
+        hd_wallet,
+        party,
+        rng.clone(),
+    )
+    .await?;
     let (mut tracer, pregenerated_primes) =
         handle_post_incomplete_keygen::<S, KBE>(&tracer, logger, job_id_bytes, key_store).await?;
 

@@ -426,8 +426,10 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                         .map(BoundedVec),
                     data: BoundedVec(data_hash.to_vec()),
                     signature: BoundedVec(signature.to_vec()),
-                    verifying_key: BoundedVec(public_key),
-                    __subxt_unused_type_params: Default::default(),
+                    // These are filled for us on-chain
+                    verifying_key: BoundedVec(vec![]),
+                    chain_code: None,
+                    __ignore: Default::default(),
                 });
 
                 client

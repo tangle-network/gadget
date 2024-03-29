@@ -10,11 +10,27 @@ const N: usize = 3;
 const T: usize = 2;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn signing_with_derivation() {
+async fn signing_with_derivation_secp256k1() {
+    let threshold_sig_ty = ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1;
+    signing_with_derivation(threshold_sig_ty).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn signing_with_derivation_secp256r1() {
+    let threshold_sig_ty = ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1;
+    signing_with_derivation(threshold_sig_ty).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn signing_with_derivation_stark() {
+    let threshold_sig_ty = ThresholdSignatureRoleType::DfnsCGGMP21Stark;
+    signing_with_derivation(threshold_sig_ty).await;
+}
+
+async fn signing_with_derivation(threshold_sig_ty: ThresholdSignatureRoleType) {
     test_utils::setup_log();
 
     let ext = new_test_ext::<N>().await;
-    let threshold_sig_ty = ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1;
     let keygen_job_id = wait_for_keygen::<N, T>(&ext, threshold_sig_ty).await;
     assert_eq!(
         wait_for_signing::<N>(&ext, keygen_job_id, threshold_sig_ty).await,
@@ -42,6 +58,7 @@ async fn wait_for_keygen<const N: usize, const T: usize>(
                     participants: identities.clone().try_into().unwrap(),
                     threshold: T as _,
                     permitted_caller: None,
+                    hd_wallet: true,
                     role_type: threshold_sig_ty,
                 }),
             };

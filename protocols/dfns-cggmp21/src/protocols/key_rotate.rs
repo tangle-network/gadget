@@ -274,7 +274,8 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
                         new_phase_one_id,
                         new_key: BoundedVec(new_public_key),
                         key: BoundedVec(public_key),
-                        __subxt_unused_type_params: Default::default(),
+                        chain_code: None,
+                        __ignore: Default::default(),
                     });
 
                 client
