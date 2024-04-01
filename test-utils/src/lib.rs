@@ -125,6 +125,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
                                 participants: identities.clone().try_into().unwrap(),
                                 threshold: T as _,
                                 permitted_caller: None,
+                                hd_wallet: false,
                                 role_type: $threshold_sig_ty,
                             }),
                         };
