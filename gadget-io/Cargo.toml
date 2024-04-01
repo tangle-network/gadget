@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["std"]
+default = ["wasm"]
 std = [
     "substrate-prometheus-endpoint",
     "sp-core/default",
@@ -26,6 +26,9 @@ prometheus = { workspace = true, optional = true }
 tokio = { workspace = true }
 gadget-core = { workspace = true }
 sp-core = { workspace = true, default-features = false }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+getrandom = { workspace = true, features = ["js"] }
 
 
 [dev-dependencies]

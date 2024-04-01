@@ -1,6 +1,7 @@
 use libp2p::Multiaddr;
-use sp_core::crypto::SecretString;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+
+pub use gadget_io::KeystoreConfig;
 
 #[derive(Debug, Clone)]
 pub struct ShellConfig {
@@ -17,30 +18,4 @@ pub struct ShellConfig {
 pub struct SubxtConfig {
     /// The URL of the Tangle Node.
     pub endpoint: url::Url,
-}
-
-/// Configuration of the client keystore.
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub enum KeystoreConfig {
-    /// Keystore at a path on-disk. Recommended for native gadgets.
-    Path {
-        /// The path of the keystore.
-        path: PathBuf,
-        /// keystore's password.
-        password: Option<SecretString>,
-    },
-    /// In-memory keystore.
-    InMemory,
-}
-
-impl KeystoreConfig {
-    /// Returns the path for the keystore.
-    #[allow(dead_code)]
-    pub fn path(&self) -> Option<&Path> {
-        match self {
-            Self::Path { path, .. } => Some(path),
-            Self::InMemory => None,
-        }
-    }
 }
