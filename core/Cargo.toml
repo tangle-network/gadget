@@ -20,5 +20,12 @@ async-trait = { workspace = true }
 auto_impl = { workspace = true }
 futures = { workspace = true }
 
+[target.'cfg(target_family = "wasm")'.dependencies]
+wasm-bindgen-test = "0.3.34"
+getrandom = { workspace = true, features = ["js"] }
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros"] }
+
+[target.'cfg(target_family = "wasm")'.dev-dependencies]
+wasm-bindgen-test = "0.3.34"

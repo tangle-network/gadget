@@ -222,7 +222,13 @@ impl JobBuilder {
 mod tests {
     use crate::job::ExecutableJob;
 
+    #[cfg(target_family = "wasm")]
+    use wasm_bindgen_test::*;
+    #[cfg(target_family = "wasm")]
+    wasm_bindgen_test_configure!(run_in_browser);
+
     #[tokio::test]
+    #[wasm_bindgen_test]
     async fn test_executable_job_wrapper_proceed() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
@@ -252,6 +258,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[wasm_bindgen_test]
     async fn test_executable_job_wrapper_no_proceed() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
@@ -281,6 +288,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[wasm_bindgen_test]
     async fn test_job_builder() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
@@ -307,6 +315,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[wasm_bindgen_test]
     async fn test_job_builder_no_pre() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
@@ -329,6 +338,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[wasm_bindgen_test]
     async fn test_job_builder_no_post() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
@@ -350,6 +360,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[wasm_bindgen_test]
     async fn test_job_builder_no_pre_no_post() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
@@ -367,6 +378,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[wasm_bindgen_test]
     async fn test_protocol_err_catch_performs_increment() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
