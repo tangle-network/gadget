@@ -386,6 +386,7 @@ mod tests {
     use crate::config::{KeystoreConfig, ShellConfig, SubxtConfig};
     use crate::network::setup::setup_libp2p_network;
     use crate::shell::wait_for_connection_to_bootnodes;
+    use gadget_common::config::Network;
     use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, WorkManager};
     use gadget_core::job_manager::WorkManagerInterface;
     use sp_core::{ecdsa, Pair};
@@ -567,6 +568,7 @@ mod tests {
     }
 
     fn get_dummy_role_key_from_index(index: usize) -> ecdsa::Pair {
-        ecdsa::Pair::from_seed(&[index as u8; 32])
+        let seed = [0xcd + index as u8; 32];
+        ecdsa::Pair::from_seed_slice(&seed).expect("valid seed")
     }
 }
