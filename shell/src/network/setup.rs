@@ -165,9 +165,8 @@ pub async fn setup_libp2p_network(
 
     for addr in ips_to_bind_to {
         let ip_label = if addr.is_ipv4() { "ip4" } else { "ip6" };
-        swarm
-            .listen_on(format!("/{ip_label}/{}/udp/{}/quic-v1", addr, config.bind_port).parse()?)?;
-        swarm.listen_on(format!("/{ip_label}/{}/tcp/{}", addr, config.bind_port).parse()?)?;
+        swarm.listen_on(format!("/{ip_label}/{addr}/udp/{}/quic-v1", config.bind_port).parse()?)?;
+        swarm.listen_on(format!("/{ip_label}/{addr}/tcp/{}", config.bind_port).parse()?)?;
     }
 
     // Dial all bootnodes
