@@ -13,7 +13,7 @@ members = [
     "protocols/stub",
     "test-gadget",
     "test-utils",
-    "protocol-macros",
+    "protocol-macros", "web-shell",
 ]
 
 [workspace.dependencies]

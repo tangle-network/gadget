@@ -1,5 +1,4 @@
 use libp2p::Multiaddr;
-use sp_core::crypto::SecretString;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
@@ -23,24 +22,21 @@ pub struct SubxtConfig {
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub enum KeystoreConfig {
-    /// Keystore at a path on-disk. Recommended for native gadgets.
-    Path {
-        /// The path of the keystore.
-        path: PathBuf,
-        /// keystore's password.
-        password: Option<SecretString>,
-    },
+    // Keystore at a path on-disk. Recommended for native gadgets.
+    // Path {
+    //     /// The path of the keystore.
+    //     path: PathBuf,
+    //     /// keystore's password.
+    //     password: Option<SecretString>,
+    // },
     /// In-memory keystore.
     InMemory,
 }
 
 impl KeystoreConfig {
-    /// Returns the path for the keystore.
+    /// Returns None. Keystore other than InMemory not yet implemented for Web
     #[allow(dead_code)]
     pub fn path(&self) -> Option<&Path> {
-        match self {
-            Self::Path { path, .. } => Some(path),
-            Self::InMemory => None,
-        }
+        None
     }
 }

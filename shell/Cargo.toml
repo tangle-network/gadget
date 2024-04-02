@@ -5,69 +5,45 @@ authors = ["Shady Khalifa <dev+github@shadykhalifa.me>"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
-#[lib]
-#crate-type = ["cdylib", "rlib"]
-
-[features]
-default = ["wasm"]
-std = [
-#  "tangle-subxt/default",
-#  "gadget-common/default",
-#  "sp-core/std",
-#  "sp-io/std",
-#  "tokio/full",
-]
-wasm = [
-#  "tangle-subxt/wasm",
-#  "gadget-common/wasm",
-#  "sp-core/serde",
-#  "sp-core/full_crypto",
-#  "sp-io/disable_panic_handler",
-#  "tokio/rt",
-#  "tokio/macros",
-#  "tokio/sync",
-#  "tokio/time",
-]
+#[features]
 
 [dependencies]
-getrandom = { workspace = true, features = ["js"] }
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
 async-trait = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
-tokio = { workspace = true, default-features = false, features = ["sync", "time", "macros", "rt"] }
+tokio = { workspace = true, features = ["full"] }
 url = { workspace = true, features = ["serde"] }
 
-gadget-io = { workspace = true, features = ["wasm"] }
-#gadget-core = { workspace = true }
-#gadget-common = { workspace = true, default-features = false }
-#
-sp-core = { workspace = true }
-#sp-io = { workspace = true }
-sp-keystore = { workspace = true, default-features = false }
-#sp-application-crypto = { workspace = true }
-#
-#sc-keystore = { workspace = true }
-#
-tangle-subxt = { workspace = true, default-features = false, features = ["wasm"] }
-#
-#scale-info = { workspace = true }
-#parity-scale-codec = { workspace = true }
+gadget-core = { workspace = true }
+gadget-common = { workspace = true, features = ["std", "substrate"] }
+
+sp-core = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, features = ["std"] }
+sp-keystore = { workspace = true }
+sp-application-crypto = { workspace = true }
+
+sc-keystore = { workspace = true }
+
+tangle-subxt = { workspace = true }
+
+scale-info = { workspace = true }
+parity-scale-codec = { workspace = true }
 
 structopt = "0.3.26"
 toml = "0.8.11"
 serde = { workspace = true }
 rand = { workspace = true }
 hex = { workspace = true }
-#sha2 = "0.10.8"
-#futures = { workspace = true }
-#bincode2 = { workspace = true }
+sha2 = "0.10.8"
+futures = { workspace = true }
+bincode2 = { workspace = true }
 # Protocols
-#dfns-cggmp21-protocol = { workspace = true }
-#zcash-frost-protocol = { workspace = true }
-#silent-shard-dkls23-ll-protocol = { workspace = true }
-#threshold-bls-protocol = { workspace = true }
-#zk-saas-protocol = { workspace = true, features = ["parallel"] }
+dfns-cggmp21-protocol = { workspace = true }
+zcash-frost-protocol = { workspace = true }
+silent-shard-dkls23-ll-protocol = { workspace = true }
+threshold-bls-protocol = { workspace = true }
+zk-saas-protocol = { workspace = true, features = ["parallel"] }
 
 [dependencies.libp2p]
 workspace = true
@@ -92,6 +68,3 @@ features = [
 
 [dev-dependencies]
 test-utils = { workspace = true }
-
-[target.'cfg(target_family = "wasm")'.dev-dependencies]
-wasm-bindgen-test = "0.3.34"

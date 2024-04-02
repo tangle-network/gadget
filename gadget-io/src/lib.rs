@@ -15,14 +15,12 @@ pub mod wasm;
 pub use wasm::{
     metrics::Metrics,
     prometheus::{setup, PrometheusConfig, BYTES_RECEIVED, BYTES_SENT},
-    shell::KeystoreConfig,
 };
 
 #[cfg(not(target_family = "wasm"))]
 pub use standard::{
     metrics::Metrics,
     prometheus::{setup, PrometheusConfig, BYTES_RECEIVED, BYTES_SENT, REGISTRY},
-    shell::KeystoreConfig,
 };
 
 #[derive(Debug)]
