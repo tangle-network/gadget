@@ -45,10 +45,10 @@ impl FrostMessage {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
 /// Used for preserving the state of the Keygen. Should be stored in a keystore.
 ///
 /// Used in signing
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FrostState {
     pub public_key: HashMap<u32, PolyCommitment>,
     pub party: Arc<PartyState>,
