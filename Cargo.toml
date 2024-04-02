@@ -48,9 +48,7 @@ subxt-signer = { version = "0.34.0", default-features = false, features = ["nati
 # Round-based dependencies
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [] }
 round-based-21 = { package = "round-based", version = "0.2.1" }
-round-based-zengo = { package = "round-based", git = "https://github.com/ZenGo-X/round-based-protocol", features = [
-    "derive",
-] }
+round-based-zengo = { package = "round-based", git = "https://github.com/ZenGo-X/round-based-protocol", features = ["derive"] }
 
 curv = { package = "curv-kzen", version = "0.10.0" }
 digest = "0.10"
