@@ -8,7 +8,7 @@ use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::*;
-use gadget_common::tangle_subxt::tangle_runtime::api::runtime_types::tangle_primitives::jobs::tss::DigitalSignatureScheme;
+use gadget_common::tangle_runtime::*;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use k256::elliptic_curve::group::GroupEncoding;
@@ -27,6 +27,7 @@ pub struct SilentShardDKLS23KeygenExtraParams {
     pub i: u16,
     pub t: u16,
     pub n: u16,
+    pub hd_wallet: bool,
     pub job_id: u64,
     pub role_type: roles::RoleType,
     pub user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
@@ -47,6 +48,7 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
 
     let participants = job.participants_role_ids;
     let threshold = p1_job.threshold;
+    let hd_wallet = p1_job.hd_wallet;
 
     let user_id_to_account_id_mapping = Arc::new(
         participants
@@ -66,6 +68,7 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
             .expect("Should exist") as u16,
         t: threshold as u16,
         n: participants.len() as u16,
+        hd_wallet,
         role_type,
         job_id,
         user_id_to_account_id_mapping,
@@ -91,6 +94,8 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
     let id = config.key_store.pair().public();
     let logger = config.logger.clone();
     let network = config.clone();
+
+    let hd_wallet = additional_params.hd_wallet;
 
     let (i, t, n, mapping, role_type) = (
         additional_params.i,
@@ -152,10 +157,15 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
             logger.trace(format!("Incomplete Keygen protocol report: {perf_report}"));
             logger.debug("Finished AsyncProtocol - Incomplete Keygen");
 
+            // This is private in the dkls23 code, we need to make it public.
+            // let chain_code = key_share.key_share.root_chain_code;
+            let chain_code = None;
             let job_result = handle_public_key_gossip(
                 key_store2,
                 &logger,
                 &key_share.verifying_key.to_bytes(),
+                hd_wallet,
+                chain_code,
                 DigitalSignatureScheme::EcdsaSecp256k1,
                 t,
                 i,

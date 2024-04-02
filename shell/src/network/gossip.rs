@@ -73,7 +73,7 @@ impl<'a> NetworkService<'a> {
         let _enter = self.span.enter();
         match (msg.message_type, msg.payload) {
             (MessageType::Broadcast, GossipOrRequestResponse::Gossip(payload)) => {
-                let gossip_message = bincode2::serialize(&payload).expect("Should serialize");
+                let gossip_message = bincode::serialize(&payload).expect("Should serialize");
                 if let Err(e) = self
                     .swarm
                     .behaviour_mut()
@@ -323,7 +323,7 @@ impl Network for GossipHandle {
             .expect("There should be only a single caller for `next_message`");
 
         let message = lock.recv().await?;
-        match bincode2::deserialize(&message) {
+        match bincode::deserialize(&message) {
             Ok(message) => Some(message),
             Err(e) => {
                 self.logger
@@ -359,11 +359,11 @@ impl Network for GossipHandle {
         let payload_inner = match message_type {
             MessageType::Broadcast => GossipOrRequestResponse::Gossip(GossipMessage {
                 topic: self.topic.to_string(),
-                raw_payload: bincode2::serialize(&message).expect("Should serialize"),
+                raw_payload: bincode::serialize(&message).expect("Should serialize"),
             }),
             MessageType::P2P(_) => GossipOrRequestResponse::Request(MyBehaviourRequest::Message {
                 topic: self.topic.to_string(),
-                raw_payload: bincode2::serialize(&message).expect("Should serialize"),
+                raw_payload: bincode::serialize(&message).expect("Should serialize"),
             }),
         };
 
@@ -408,24 +408,24 @@ mod tests {
                 (
                     30555,
                     vec![
-                        "/ip4/0.0.0.0/tcp/30556".parse().unwrap(),
-                        "/ip4/0.0.0.0/tcp/30557".parse().unwrap(),
+                        "/ip4/127.0.0.1/tcp/30556".parse().unwrap(),
+                        "/ip4/127.0.0.1/tcp/30557".parse().unwrap(),
                     ],
                 )
             } else if x == 1 {
                 (
                     30556,
                     vec![
-                        "/ip4/0.0.0.0/tcp/30555".parse().unwrap(),
-                        "/ip4/0.0.0.0/tcp/30557".parse().unwrap(),
+                        "/ip4/127.0.0.1/tcp/30555".parse().unwrap(),
+                        "/ip4/127.0.0.1/tcp/30557".parse().unwrap(),
                     ],
                 )
             } else if x == 2 {
                 (
                     30557,
                     vec![
-                        "/ip4/0.0.0.0/tcp/30555".parse().unwrap(),
-                        "/ip4/0.0.0.0/tcp/30556".parse().unwrap(),
+                        "/ip4/127.0.0.1/tcp/30555".parse().unwrap(),
+                        "/ip4/127.0.0.1/tcp/30556".parse().unwrap(),
                     ],
                 )
             } else {
@@ -437,7 +437,7 @@ mod tests {
                 subxt: SubxtConfig {
                     endpoint: url::Url::from_directory_path("/").unwrap(),
                 },
-                bind_ip: "0.0.0.0".parse().unwrap(),
+                bind_ip: "127.0.0.1".parse().unwrap(),
                 bind_port,
                 bootnodes,
                 base_path: std::path::PathBuf::new(),
@@ -500,7 +500,7 @@ mod tests {
         // Next, send P2P messages: everybody sends a message to everybody
         for _network in networks.iter() {
             for (handles, _, _) in all_handles.iter() {
-                for (my_idx, (_, handle)) in handles.iter().enumerate() {
+                for (my_idx, handle) in handles.values().enumerate() {
                     let send_idxs = send_idxs
                         .iter()
                         .filter(|&&idx| idx != my_idx)
@@ -520,7 +520,7 @@ mod tests {
         for _network in networks.iter() {
             for (handles, _, logger) in all_handles.iter() {
                 logger.debug("Waiting to receive P2P messages ...");
-                for (my_idx, (_, handle)) in handles.iter().enumerate() {
+                for (my_idx, handle) in handles.values().enumerate() {
                     // Each party should receive two messages
                     for _ in 0..2 {
                         let message = handle.next_message().await.unwrap();
@@ -567,6 +567,7 @@ mod tests {
     }
 
     fn get_dummy_role_key_from_index(index: usize) -> ecdsa::Pair {
-        ecdsa::Pair::from_seed(&[index as u8; 32])
+        let seed = [0xcd + index as u8; 32];
+        ecdsa::Pair::from_seed_slice(&seed).expect("valid seed")
     }
 }
