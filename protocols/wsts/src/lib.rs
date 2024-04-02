@@ -1,6 +1,8 @@
 use crate::protocols::signing::WstsSigningExtraParams;
+use gadget_common::full_protocol::SharedOptional;
 use gadget_common::generate_protocol;
 use gadget_common::prelude::*;
+use gadget_common::tangle_runtime::*;
 use protocols::keygen::WstsKeygenExtraParams;
 
 pub mod protocols;

@@ -5,13 +5,10 @@ use gadget_common::config::Network;
 use gadget_common::gadget::message::UserID;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
-use gadget_common::prelude::jobs::tss::{DKGTSSKeySubmissionResult, DigitalSignatureScheme};
-use gadget_common::prelude::jobs::{JobResult, JobType};
-use gadget_common::prelude::roles::tss::ThresholdSignatureRoleType;
-use gadget_common::prelude::roles::RoleType;
 use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, WorkManager};
 use gadget_common::prelude::{ECDSAKeyStore, JobError};
 use gadget_common::utils::recover_ecdsa_pub_key;
+use gadget_common::tangle_runtime::*;
 use gadget_common::{
     BuiltExecutableJobWrapper, JobBuilder, ProtocolWorkManager, WorkManagerInterface,
 };
@@ -24,7 +21,6 @@ use itertools::Itertools;
 use k256::elliptic_curve::generic_array::GenericArray;
 use k256::elliptic_curve::sec1::FromEncodedPoint;
 use k256::EncodedPoint;
-use tangle_primitives::jobs::JobId;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::Mutex;
 use wsts::common::PolyCommitment;
@@ -36,7 +32,7 @@ pub const K: u32 = 1;
 
 #[derive(Clone)]
 pub struct WstsKeygenExtraParams {
-    job_id: JobId,
+    job_id: u64,
     n: u32,
     i: u32,
     k: u32,
@@ -50,7 +46,7 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<WstsKeygenExtraParams, gadget_common::Error> {
-    if let JobType::DKGTSSPhaseOne(p1_job) = job.job_type {
+    if let jobs::JobType::DKGTSSPhaseOne(p1_job) = job.job_type {
         let participants = job.participants_role_ids.clone();
         let user_id_to_account_id_mapping = Arc::new(
             participants
@@ -152,18 +148,20 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
                         reason: err.to_string(),
                     })?;
 
-                let job_result_for_pallet = JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
-                    signature_scheme: DigitalSignatureScheme::SchnorrSecp256k1,
-                    key: BoundedVec(state.public_key_frost_format),
-                    participants: BoundedVec(vec![BoundedVec(participants)]),
-                    signatures: BoundedVec(signatures),
-                    threshold: t as _,
-                    __subxt_unused_type_params: Default::default(),
-                });
+                let job_result_for_pallet =
+                    jobs::JobResult::DKGPhaseOne(DKGTSSKeySubmissionResult {
+                        signature_scheme: DigitalSignatureScheme::SchnorrSecp256k1,
+                        key: BoundedVec(state.public_key_frost_format),
+                        participants: BoundedVec(vec![BoundedVec(participants)]),
+                        signatures: BoundedVec(signatures),
+                        threshold: t as _,
+                        chain_code: None,
+                        __ignore: Default::default(),
+                    });
 
                 client
                     .submit_job_result(
-                        RoleType::Tss(ThresholdSignatureRoleType::WstsV2),
+                        RoleType::Tss(roles::tss::ThresholdSignatureRoleType::WstsV2),
                         job_id,
                         job_result_for_pallet,
                     )

@@ -1,5 +1,5 @@
 use gadget_common::channels::{MaybeReceiver, MaybeSender, MaybeSenderReceiver};
-use gadget_common::prelude::AccountId32;
+use gadget_common::tangle_runtime::AccountId32;
 use gadget_common::JobError;
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};

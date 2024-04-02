@@ -5,12 +5,7 @@ use gadget_common::config::Network;
 use gadget_common::gadget::message::UserID;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
-use gadget_common::prelude::jobs::tss::{
-    DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, DKGTSSSignatureResult, DigitalSignatureScheme,
-};
-use gadget_common::prelude::jobs::{JobResult, JobType};
-use gadget_common::prelude::roles::tss::ThresholdSignatureRoleType;
-use gadget_common::prelude::roles::RoleType;
+use gadget_common::tangle_runtime::*;
 use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, WorkManager};
 use gadget_common::{
     BuiltExecutableJobWrapper, JobBuilder, JobError, ProtocolWorkManager, WorkManagerInterface,
@@ -47,7 +42,7 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
     _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<WstsSigningExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
-    if let Some(JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
+    if let Some(jobs::JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
         participants: _,
         threshold,
         permitted_caller: _,
@@ -66,12 +61,10 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
                 .collect(),
         );
 
-        let JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
+        let jobs::JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
             phase_one_id,
             submission,
-            derivation_path: _,
-            role_type: _,
-            __subxt_unused_type_params,
+            ..
         }) = job.job_type
         else {
             panic!("Invalid job type for WSTS signing")
@@ -166,18 +159,19 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
         .post(async move {
             if let Some((_aggregated_public_key, signature)) = result_clone.lock().await.take() {
                 let serialized_signature = signature.serialize().as_ref().to_vec();
-                let job_result = JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
+                let job_result = jobs::JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
                     signature_scheme: DigitalSignatureScheme::SchnorrSecp256k1,
                     derivation_path: None,
                     data: BoundedVec(data_to_sign),
                     signature: BoundedVec(serialized_signature),
                     verifying_key: BoundedVec(Default::default()),
-                    __subxt_unused_type_params: Default::default(),
+                    chain_code: None,
+                    __ignore: Default::default(),
                 });
 
                 client
                     .submit_job_result(
-                        RoleType::Tss(ThresholdSignatureRoleType::WstsV2),
+                        RoleType::Tss(roles::tss::ThresholdSignatureRoleType::WstsV2),
                         job_id,
                         job_result,
                     )
@@ -367,7 +361,7 @@ pub async fn run_signing(
         state.public_key_frost_format.try_into().unwrap(),
     )
     .map_err(|err| JobError {
-        reason: format!("Invalid FROST verifying key: {}", err.to_string()),
+        reason: format!("Invalid FROST verifying key: {}", err),
     })?;
 
     // Now, verify it locally
@@ -380,7 +374,7 @@ pub async fn run_signing(
     frost_verifying_key
         .verify(&msg, &frost_signature)
         .map_err(|err| JobError {
-            reason: format!("Invalid FROST verification: {}", err.to_string()),
+            reason: format!("Invalid FROST verification: {}", err),
         })?;
 
     Ok((public_key_point, frost_signature))

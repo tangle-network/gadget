@@ -236,6 +236,11 @@ where
                     .unwrap(),
             ],
         })),
+        Tss(WstsV2) => {
+            return Err(color_eyre::eyre::eyre!(
+                "WstsV2 is not supported by the shell",
+            ))
+        }
         ZkSaaS(_) => {
             return Err(color_eyre::eyre::eyre!(
                 "ZkSaaS is not supported by the shell",
@@ -447,7 +452,7 @@ impl Hash for HashedRoleTypeWrapper {
             | Tss(ZcashFrostP384)
             | Tss(ZcashFrostSecp256k1)
             | Tss(ZcashFrostRistretto255) => "ZcashFrost".hash(state),
-
+            Tss(WstsV2) => "WstsV2".hash(state),
             Tss(SilentShardDKLS23Secp256k1) => "SilentShardDKLS23Secp256k1".hash(state),
             Tss(GennaroDKGBls381) => "GennaroDKGBls381".hash(state),
             ZkSaaS(_) => "ZkSaaS".hash(state),
