@@ -16,7 +16,7 @@ use hashbrown::HashMap;
 use rand::{CryptoRng, RngCore};
 use sp_core::{ecdsa, ByteArray, Pair, keccak_256};
 use std::sync::Arc;
-use frost_secp256k1::VerifyingKey;
+use frost_taproot::VerifyingKey;
 use itertools::Itertools;
 use k256::elliptic_curve::generic_array::GenericArray;
 use k256::elliptic_curve::sec1::FromEncodedPoint;
@@ -219,13 +219,11 @@ pub async fn protocol<KBE: KeystoreBackend>(
 
     // Convert the WSTS group key into a FROST-compatible format
     let group_point = party.group_key;
-    let x_generic_array = GenericArray::from(group_point.x().to_bytes());
-    let y_generic_array = GenericArray::from(group_point.y().to_bytes());
-    let encoded_point =
-        EncodedPoint::from_affine_coordinates(&x_generic_array, &y_generic_array, true);
-    let projective_point = k256::ProjectivePoint::from_encoded_point(&encoded_point)
-        .expect("Should be a valid encoded point");
-    let verifying_key = VerifyingKey::new(projective_point);
+    let compressed_group_point = group_point.compress();
+    let verifying_key =
+        VerifyingKey::deserialize(compressed_group_point.data).map_err(|e| JobError {
+            reason: format!("Failed to convert group key to VerifyingKey: {e}"),
+        })?;
     let public_key_frost_format = verifying_key.serialize().as_ref().to_vec();
 
     // Sign this public key using our ECDSA key

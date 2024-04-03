@@ -62,6 +62,7 @@ frost-ed448 = { git = "https://github.com/LIT-protocol/frost" }
 frost-p256 = { git = "https://github.com/LIT-protocol/frost" }
 frost-p384 = { git = "https://github.com/LIT-protocol/frost" }
 frost-ristretto255 = { git = "https://github.com/LIT-protocol/frost" }
+frost-taproot = { git = "https://github.com/LIT-protocol/frost" }
 frost-secp256k1 = { git = "https://github.com/LIT-protocol/frost" }
 frost-rerandomized = { git = "https://github.com/LIT-protocol/frost" }
 

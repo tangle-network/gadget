@@ -13,11 +13,13 @@ use gadget_common::{
 use hashbrown::HashMap;
 use itertools::Itertools;
 use rand::rngs::ThreadRng;
+use serde::Deserialize;
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::sync::Arc;
-use frost_secp256k1::VerifyingKey;
+use frost_taproot::{Ciphersuite, VerifyingKey};
 use k256::EncodedPoint;
 use k256::elliptic_curve::generic_array::GenericArray;
+use k256::ecdsa::signature::hazmat::PrehashVerifier;
 use k256::elliptic_curve::ScalarPrimitive;
 use k256::elliptic_curve::sec1::FromEncodedPoint;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -199,7 +201,7 @@ pub async fn run_signing(
     tx_to_network_final: tokio::sync::mpsc::UnboundedSender<FrostMessage>,
     mut rx_from_network_final: tokio::sync::mpsc::UnboundedReceiver<FrostMessage>,
     logger: &DebugLogger,
-) -> Result<(Point, frost_secp256k1::Signature), JobError> {
+) -> Result<(Point, frost_taproot::Signature), JobError> {
     let mut signer = Party::load(&state.party);
     let public_key_point = state.party.group_key;
     let public_key = state.public_key;
@@ -318,7 +320,7 @@ pub async fn run_signing(
         .map(|r| r.1)
         .collect_vec();
 
-    let public_key = public_key
+    let public_key_comm = public_key
         .into_iter()
         .sorted_by(|r1, r2| r1.0.cmp(&r2.0))
         .map(|r| r.1)
@@ -326,7 +328,7 @@ pub async fn run_signing(
 
     // Aggregate and sign to generate the signature
     let mut sig_agg =
-        SignatureAggregator::new(num_keys, threshold, public_key).map_err(|err| JobError {
+        SignatureAggregator::new(num_keys, threshold, public_key_comm).map_err(|err| JobError {
             reason: err.to_string(),
         })?;
     /*sig_agg.init(&public_key).map_err(|err| JobError {
@@ -339,17 +341,33 @@ pub async fn run_signing(
             reason: err.to_string(),
         })?;
 
+    let compressed_public_key = p256k1::point::Compressed::try_from(
+        state.public_key_frost_format.as_slice(),
+    )
+    .map_err(|_| JobError {
+        reason: format!("Invalid Compressed public key"),
+    })?;
+    let wsts_public_key =
+        p256k1::point::Point::try_from(&compressed_public_key).map_err(|_| JobError {
+            reason: format!("Invalid WSTS Compressed public key"),
+        })?;
+    if wsts_sig.verify(&wsts_public_key, &msg) {
+        logger.info("WSTS Signature verified successfully");
+    } else {
+        return Err(JobError {
+            reason: "Invalid WSTS Signature".to_string(),
+        });
+    }
+
     // Convert the signature to a FROST-compatible format for pallet-verification
-    let z_bigint = ScalarPrimitive::from_slice(&wsts_sig.z.to_bytes())
-        .expect("Should be a valid 32-byte scalar");
-    let z = k256::Scalar::from(&z_bigint);
-    let x_generic_array = GenericArray::from(wsts_sig.R.x().to_bytes());
-    let y_generic_array = GenericArray::from(wsts_sig.R.y().to_bytes());
-    let R_encoded_point =
-        EncodedPoint::from_affine_coordinates(&x_generic_array, &y_generic_array, true);
-    let R = k256::ProjectivePoint::from_encoded_point(&R_encoded_point)
-        .expect("Should be a valid encoded point");
-    let frost_signature = frost_secp256k1::Signature::new(R, z);
+    let mut signature_bytes = [0u8; 33 + 32];
+    let R = wsts_sig.R.compress();
+    signature_bytes[0..33].copy_from_slice(&R.data);
+    signature_bytes[33..].copy_from_slice(&wsts_sig.z.to_bytes());
+    let frost_signature =
+        frost_taproot::Signature::deserialize(signature_bytes).map_err(|err| JobError {
+            reason: format!("Invalid FROST signature: {err:?}"),
+        })?;
 
     if state.public_key_frost_format.len() != 33 {
         return Err(JobError {
@@ -371,8 +389,7 @@ pub async fn run_signing(
         });
     }
 
-    frost_verifying_key
-        .verify(&msg, &frost_signature)
+    frost_taproot::Secp256K1Taproot::verify_signature(&msg, &frost_signature, &frost_verifying_key)
         .map_err(|err| JobError {
             reason: format!("Invalid FROST verification: {}", err),
         })?;

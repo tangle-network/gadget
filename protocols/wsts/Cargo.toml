@@ -18,8 +18,10 @@ wsts = { workspace = true }
 serde = { workspace = true }
 itertools = { workspace = true }
 hashbrown = {  version = "0.14.3", features = ["serde"] }
-frost-secp256k1 = { workspace = true }
+frost-taproot = { workspace = true }
 k256 = { workspace = true }
+p256k1 = "5.4"
+hex = { workspace = true }
 
 [dev-dependencies]
 test-utils = { workspace = true }
