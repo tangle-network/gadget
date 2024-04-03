@@ -1,4 +1,4 @@
-# Gadget: A Powerful MPC and Restaking Service Framework
+# Gadget: A Powerful distributed MPC Framework
 
 <p align="center">
   <img src="https://github.com/webb-tools/dkg-substrate/raw/master/assets/webb_banner_light.png" alt="Gadget Logo">
