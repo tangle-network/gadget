@@ -1,7 +1,7 @@
 # Gadget: A Powerful MPC and Restaking Service Framework
 
 <p align="center">
-  <img src="https://github.com/webb-tools/dkg-substrate/raw/master/assets/webb_banner_light.png" alt="Gadget Logo" width="200">
+  <img src="https://github.com/webb-tools/dkg-substrate/raw/master/assets/webb_banner_light.png" alt="Gadget Logo">
 </p>
 
 [![Validate PR](https://github.com/webb-tools/gadget/actions/workflows/validate_pr.yml/badge.svg)](https://github.com/webb-tools/gadget/actions/workflows/validate_pr.yml)
