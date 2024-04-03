@@ -18,6 +18,7 @@ Gadget is a comprehensive framework for building multi-party computation (MPC) a
     - [x] [Threshold BLS](https://github.com/mikelodder7/blsful)
     - [x] [LIT Protocol fork of ZCash Frost](https://github.com/LIT-Protocol/frost)
     - [x] [Groth16 ZK-SaaS](https://github.com/webb-tools/zk-SaaS)
+    - [x] [DKLS](https://github.com/silence-laboratories/silent-shard-dkls23-ll)
 - Integration with Substrate blockchain logic and networking
 - Standardized job allocation, completion, and submission mechanisms
 - Protocol-specific blockchain connections, networking layers, and application logic
@@ -62,7 +63,7 @@ Copy the contents of the protocols/stub directory into your new protocol directo
 Modify the `Cargo.toml` file in your protocol directory to include the necessary dependencies.
 Implement the protocol-specific logic in the src directory of your protocol.
 Update the tests in the tests directory to validate your protocol implementation.
-For more detailed instructions on creating a new protocol, refer to the README.md file in the protocols/stub directory.
+For more detailed instructions on creating a new protocol, refer to the [README.md](./protocols/stub/README.md) file in the protocols/stub directory.
 
 ## Testing
 This repository contains unit tests and integration tests to validate the functionality of the Gadget framework and its interaction with the blockchain.
@@ -126,6 +127,7 @@ We would like to thank the following projects for their inspiration and contribu
 * [DFNS CGGMP21](https://github.com/dfns/cggmp21/)
 * [Threshold BLS](https://github.com/mikelodder7/blsful)
 * [LIT Protocol fork of ZCash Frost](https://github.com/LIT-Protocol/frost)
+* [DKLS](https://github.com/silence-laboratories/silent-shard-dkls23-ll)
 
 ## Contact
 If you have any questions or need further information, please contact the developers [here](https://webb.tools/)
