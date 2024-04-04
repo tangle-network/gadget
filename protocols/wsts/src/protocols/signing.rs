@@ -14,7 +14,7 @@ use gadget_common::{
 use hashbrown::HashMap;
 use itertools::Itertools;
 use rand::rngs::ThreadRng;
-use sp_core::{ecdsa, keccak_256, Pair};
+use sp_core::{ecdsa, Pair};
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 use wsts::v2::{Party, SignatureAggregator};

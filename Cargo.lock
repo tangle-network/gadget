@@ -3685,7 +3685,8 @@ dependencies = [
 
 [[package]]
 name = "frost-core"
-version = "0.6.6"
+version = "0.6.7"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
  "byteorder",
  "debugless-unwrap",
@@ -3725,9 +3726,10 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
  "curve25519-dalek 4.1.2",
- "frost-core 0.6.6",
+ "frost-core 0.6.7",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -3750,9 +3752,10 @@ dependencies = [
 [[package]]
 name = "frost-ed448"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
  "ed448-goldilocks-plus 0.11.2 (git+https://github.com/webb-tools/Ed448-Goldilocks)",
- "frost-core 0.6.6",
+ "frost-core 0.6.7",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha3 0.10.8",
@@ -3775,8 +3778,9 @@ dependencies = [
 [[package]]
 name = "frost-p256"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
- "frost-core 0.6.6",
+ "frost-core 0.6.7",
  "p256 0.13.2",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
@@ -3800,8 +3804,9 @@ dependencies = [
 [[package]]
 name = "frost-p384"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
- "frost-core 0.6.6",
+ "frost-core 0.6.7",
  "p384",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
@@ -3836,9 +3841,10 @@ dependencies = [
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
  "curve25519-dalek 4.1.2",
- "frost-core 0.6.6",
+ "frost-core 0.6.7",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -3861,8 +3867,9 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
- "frost-core 0.6.6",
+ "frost-core 0.6.7",
  "k256",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
@@ -3886,8 +3893,9 @@ dependencies = [
 [[package]]
 name = "frost-taproot"
 version = "1.0.0-rc.0"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
- "frost-core 0.6.6",
+ "frost-core 0.6.7",
  "k256",
  "parity-scale-codec 3.6.9",
  "rand_core 0.6.4",
@@ -7541,7 +7549,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-dkg"
-version = "0.6.6"
+version = "0.6.7"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
  "derivation-path",
  "digest 0.10.7",
@@ -7549,7 +7558,7 @@ dependencies = [
  "elliptic-curve 0.13.8",
  "frame-support",
  "frame-system",
- "frost-core 0.6.6",
+ "frost-core 0.6.7",
  "frost-ed25519 1.0.0-rc.0",
  "frost-ed448 1.0.0-rc.0",
  "frost-p256 1.0.0-rc.0",
@@ -7590,7 +7599,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-jobs"
-version = "0.6.6"
+version = "0.6.7"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7606,7 +7616,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
-version = "0.6.6"
+version = "0.6.7"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "sp-api",
@@ -7637,7 +7648,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-zksaas"
-version = "0.6.6"
+version = "0.6.7"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -12691,7 +12703,8 @@ dependencies = [
 
 [[package]]
 name = "tangle-crypto-primitives"
-version = "0.6.6"
+version = "0.6.7"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -12700,7 +12713,8 @@ dependencies = [
 
 [[package]]
 name = "tangle-primitives"
-version = "0.6.6"
+version = "0.6.7"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -12711,7 +12725,7 @@ dependencies = [
  "ark-std",
  "ethabi 15.0.0",
  "frame-support",
- "frost-core 0.6.6",
+ "frost-core 0.6.7",
  "log",
  "parity-scale-codec 3.6.9",
  "scale-info",
@@ -12727,7 +12741,8 @@ dependencies = [
 
 [[package]]
 name = "tangle-subxt"
-version = "0.6.6"
+version = "0.6.7"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
