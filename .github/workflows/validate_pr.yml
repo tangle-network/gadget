@@ -69,7 +69,6 @@ jobs:
               dfns-cggmp21-protocol,
               threshold-bls-protocol,
               zcash-frost-protocol,
-              silent-shard-dkls23-ll-protocol,
             ]
     steps:
       - name: checkout code
@@ -103,7 +102,6 @@ jobs:
               dfns-cggmp21-protocol,
               threshold-bls-protocol,
               zcash-frost-protocol,
-              silent-shard-dkls23-ll-protocol,
             ]
     steps:
       - name: checkout code

@@ -5,7 +5,6 @@ members = [
     "common",
     "shell",
     "protocols/dfns-cggmp21",
-    "protocols/silent-shard-dkls23-ll",
     "protocols/zk-saas",
     "protocols/zcash-frost",
     "protocols/bls",
@@ -23,7 +22,6 @@ threshold-bls-protocol = { path = "./protocols/bls" }
 stub-protocol = { path = "./protocols/stub" }
 dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
 zcash-frost-protocol = { path = "./protocols/zcash-frost" }
-silent-shard-dkls23-ll-protocol = { path = "./protocols/silent-shard-dkls23-ll" }
 test-utils = { path = "./test-utils" }
 protocol-macros = { path = "./protocol-macros" }
 
@@ -50,7 +48,6 @@ round-based-zengo = { package = "round-based", git = "https://github.com/ZenGo-X
 
 curv = { package = "curv-kzen", version = "0.10.0" }
 digest = "0.10"
-# dfns-cggmp21 = { package = "cggmp21", version = "0.1.1" }
 dfns-cggmp21 = { package = "cggmp21", git = "https://github.com/dfns/cggmp21" }
 udigest = { version = "0.1", features = ["std", "derive"]}
 
@@ -64,7 +61,6 @@ frost-secp256k1 = { git = "https://github.com/LIT-protocol/frost" }
 frost-rerandomized = { git = "https://github.com/LIT-protocol/frost" }
 
 bls12_381_plus = "0.8.13"
-dkls23-ll = { git = "https://github.com/drewstone/silent-shard-dkls23-ll.git", branch = "drew/thiserror-dep" }
 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"  }
