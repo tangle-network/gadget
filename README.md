@@ -18,7 +18,7 @@ Gadget is a comprehensive framework for building multi-party computation (MPC) a
     - [x] [Threshold BLS](https://github.com/mikelodder7/blsful)
     - [x] [LIT Protocol fork of ZCash Frost](https://github.com/LIT-Protocol/frost)
     - [x] [Groth16 ZK-SaaS](https://github.com/webb-tools/zk-SaaS)
-    - [x] [DKLS](https://github.com/silence-laboratories/silent-shard-dkls23-ll)
+    - [x] [DKLS](https://github.com/webb-tools/silent-shard-dkls23-gadget)
 - Integration with Substrate blockchain logic and networking
 - Standardized job allocation, completion, and submission mechanisms
 - Protocol-specific blockchain connections, networking layers, and application logic
