@@ -1,4 +1,7 @@
-use crate::protocols::util::{generate_party_key_ids, validate_parameters, FrostMessage, FrostState};
+use crate::protocols::util::{
+    generate_party_key_ids, validate_parameters, FrostMessage, FrostState,
+};
+use frost_taproot::VerifyingKey;
 use futures::{SinkExt, StreamExt};
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
@@ -7,26 +10,21 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, WorkManager};
 use gadget_common::prelude::{ECDSAKeyStore, JobError};
-use gadget_common::utils::recover_ecdsa_pub_key;
 use gadget_common::tangle_runtime::*;
+use gadget_common::utils::recover_ecdsa_pub_key;
 use gadget_common::{
     BuiltExecutableJobWrapper, JobBuilder, ProtocolWorkManager, WorkManagerInterface,
 };
 use hashbrown::HashMap;
-use rand::{CryptoRng, RngCore};
-use sp_core::{ecdsa, ByteArray, Pair, keccak_256};
-use std::sync::Arc;
-use frost_taproot::VerifyingKey;
 use itertools::Itertools;
-use k256::elliptic_curve::generic_array::GenericArray;
-use k256::elliptic_curve::sec1::FromEncodedPoint;
-use k256::EncodedPoint;
+use rand::{CryptoRng, RngCore};
+use sp_core::{ecdsa, keccak_256, ByteArray, Pair};
+use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::Mutex;
 use wsts::common::PolyCommitment;
-use wsts::Scalar;
 use wsts::v2::Party;
-use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+use wsts::Scalar;
 
 pub const K: u32 = 1;
 
@@ -215,7 +213,7 @@ pub async fn protocol<KBE: KeystoreBackend>(
     .await?;
 
     let party = party.save();
-    logger.info(format!("Combined public key: {:?}", party.group_key));
+    logger.debug(format!("Combined public key: {:?}", party.group_key));
 
     // Convert the WSTS group key into a FROST-compatible format
     let group_point = party.group_key;

@@ -1,31 +1,24 @@
 use crate::protocols::util::{FrostMessage, FrostState};
+use frost_taproot::{Ciphersuite, Secp256K1Taproot, VerifyingKey};
 use futures::{SinkExt, StreamExt};
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
 use gadget_common::gadget::message::UserID;
 use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::KeystoreBackend;
-use gadget_common::tangle_runtime::*;
 use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, WorkManager};
+use gadget_common::tangle_runtime::*;
 use gadget_common::{
     BuiltExecutableJobWrapper, JobBuilder, JobError, ProtocolWorkManager, WorkManagerInterface,
 };
 use hashbrown::HashMap;
 use itertools::Itertools;
 use rand::rngs::ThreadRng;
-use serde::Deserialize;
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::sync::Arc;
-use frost_taproot::{Ciphersuite, VerifyingKey};
-use k256::EncodedPoint;
-use k256::elliptic_curve::generic_array::GenericArray;
-use k256::ecdsa::signature::hazmat::PrehashVerifier;
-use k256::elliptic_curve::ScalarPrimitive;
-use k256::elliptic_curve::sec1::FromEncodedPoint;
 use tokio::sync::mpsc::UnboundedReceiver;
-use wsts::Point;
 use wsts::v2::{Party, SignatureAggregator};
-use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+use wsts::Point;
 
 #[derive(Clone)]
 pub struct WstsSigningExtraParams {
@@ -44,13 +37,8 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
     _work_manager: &ProtocolWorkManager<WorkManager>,
 ) -> Result<WstsSigningExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
-    if let Some(jobs::JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
-        participants: _,
-        threshold,
-        permitted_caller: _,
-        role_type: _,
-        ..
-    })) = job.phase1_job
+    if let Some(jobs::JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType { threshold, .. })) =
+        job.phase1_job
     {
         let participants = job.participants_role_ids.clone();
         let n = participants.len();
@@ -122,6 +110,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
     } = additional_params;
 
     let data_to_sign = message_to_sign.clone();
+    let data_to_sign2 = message_to_sign.clone();
     // let verifying_key = keygen_state.public_key.clone();
 
     Ok(JobBuilder::new()
@@ -145,7 +134,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 
             let signature = run_signing(
                 keygen_state,
-                &message_to_sign,
+                &data_to_sign,
                 k,
                 t,
                 tx0,
@@ -160,12 +149,11 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
         })
         .post(async move {
             if let Some((_aggregated_public_key, signature)) = result_clone.lock().await.take() {
-                let serialized_signature = signature.serialize().as_ref().to_vec();
                 let job_result = jobs::JobResult::DKGPhaseTwo(DKGTSSSignatureResult {
-                    signature_scheme: DigitalSignatureScheme::SchnorrSecp256k1,
+                    signature_scheme: DigitalSignatureScheme::SchnorrTaproot,
                     derivation_path: None,
-                    data: BoundedVec(data_to_sign),
-                    signature: BoundedVec(serialized_signature),
+                    data: BoundedVec(data_to_sign2),
+                    signature: BoundedVec(signature),
                     verifying_key: BoundedVec(Default::default()),
                     chain_code: None,
                     __ignore: Default::default(),
@@ -201,7 +189,7 @@ pub async fn run_signing(
     tx_to_network_final: tokio::sync::mpsc::UnboundedSender<FrostMessage>,
     mut rx_from_network_final: tokio::sync::mpsc::UnboundedReceiver<FrostMessage>,
     logger: &DebugLogger,
-) -> Result<(Point, frost_taproot::Signature), JobError> {
+) -> Result<(Point, Vec<u8>), JobError> {
     let mut signer = Party::load(&state.party);
     let public_key_point = state.party.group_key;
     let public_key = state.public_key;
@@ -272,8 +260,6 @@ pub async fn run_signing(
         .map(|r| r.1)
         .collect_vec();
 
-    // Generate our signature share. We sign a hash of the message
-    let msg = keccak_256(msg);
     let signature_share = signer.sign(&msg, &party_ids, &party_key_ids, &party_nonces);
     let message = FrostMessage::SigningFinal {
         party_id,
@@ -389,10 +375,17 @@ pub async fn run_signing(
         });
     }
 
-    frost_taproot::Secp256K1Taproot::verify_signature(&msg, &frost_signature, &frost_verifying_key)
+    frost_verifying_key
+        .verify(&msg, &frost_signature)
         .map_err(|err| JobError {
-            reason: format!("Invalid FROST verification: {}", err),
+            reason: format!("Invalid FROST verification: {}!", err),
         })?;
 
-    Ok((public_key_point, frost_signature))
+    Secp256K1Taproot::verify_signature(&msg, &frost_signature, &frost_verifying_key).map_err(
+        |err| JobError {
+            reason: format!("Invalid FROST verification: {}!!", err),
+        },
+    )?;
+
+    Ok((public_key_point, signature_bytes.to_vec()))
 }
