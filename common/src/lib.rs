@@ -14,6 +14,7 @@ use parking_lot::RwLock;
 pub use sp_core;
 use std::sync::Arc;
 
+pub use gadget_io::Error as Error;
 pub use subxt_signer;
 pub use tangle_subxt;
 

@@ -54,7 +54,7 @@ parity-scale-codec = { workspace = true, optional = true, default-features = fal
 scale-info = { workspace = true, optional = true, default-features = false, features = ["derive"] }
 
 [features]
-default = ["substrate", "std"]
+default = ["wasm"]#substrate", "std"]
 substrate = [
   "gadget-core/substrate",
   "gadget-io/default",
@@ -97,6 +97,8 @@ wasm = [
   "subxt/jsonrpsee",
   "sp-api",
   "sp-io/disable_panic_handler",
+  "sp-io/disable_oom",
+  "sp-io/disable_allocator",
   "sp-core/serde",
   "sp-core/full_crypto",
   "sp-runtime/serde",
