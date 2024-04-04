@@ -65,9 +65,6 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
             // zcash-frost
             ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
             ZCASH_FROST_SIGNING_PROTOCOL_NAME,
-            // silent-shared-dkls23
-            SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME,
-            SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME,
             // gennaro-dkg-bls381
             GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
             GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
