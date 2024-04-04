@@ -13,6 +13,8 @@ use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::error::Error;
 use std::io;
+use std::net::IpAddr;
+use std::str::FromStr;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,6 +22,7 @@ use tokio::select;
 use tokio::sync::{Mutex, RwLock};
 use tokio::task::JoinHandle;
 
+#[allow(clippy::collapsible_else_if)]
 pub async fn setup_libp2p_network(
     identity: libp2p::identity::Keypair,
     config: &ShellConfig,
@@ -142,9 +145,29 @@ pub async fn setup_libp2p_network(
         );
     }
 
-    swarm
-        .listen_on(format!("/ip4/{}/udp/{}/quic-v1", config.bind_ip, config.bind_port).parse()?)?;
-    swarm.listen_on(format!("/ip4/{}/tcp/{}", config.bind_ip, config.bind_port).parse()?)?;
+    let bind_ip = config.bind_ip;
+
+    let mut ips_to_bind_to = vec![bind_ip];
+
+    if let IpAddr::V6(v6_addr) = bind_ip {
+        if v6_addr.is_loopback() {
+            ips_to_bind_to.push(IpAddr::from_str("127.0.0.1").unwrap());
+        } else {
+            ips_to_bind_to.push(IpAddr::from_str("0.0.0.0").unwrap());
+        }
+    } else {
+        if bind_ip.is_loopback() {
+            ips_to_bind_to.push(IpAddr::from_str("::1").unwrap());
+        } else {
+            ips_to_bind_to.push(IpAddr::from_str("::").unwrap());
+        }
+    }
+
+    for addr in ips_to_bind_to {
+        let ip_label = if addr.is_ipv4() { "ip4" } else { "ip6" };
+        swarm.listen_on(format!("/{ip_label}/{addr}/udp/{}/quic-v1", config.bind_port).parse()?)?;
+        swarm.listen_on(format!("/{ip_label}/{addr}/tcp/{}", config.bind_port).parse()?)?;
+    }
 
     // Dial all bootnodes
     for bootnode in &config.bootnodes {
