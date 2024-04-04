@@ -2,28 +2,27 @@ use std::collections::{HashMap, HashSet};
 // use std::time::Duration;
 use std::{hash::Hash, sync::Arc};
 
-// use crate::{
-//     keystore::KeystoreContainer,
-// //     tangle::{TangleConfig, TangleRuntime},
-// };
+use crate::{
+    // keystore::KeystoreContainer,
+    tangle::{TangleConfig, TangleRuntime, crypto},
+    //network::gossip::GossipHandle,
+    config::ShellConfig,
+};
 use color_eyre::eyre::OptionExt;
-// use gadget_common::keystore::KeystoreBackend;
-use gadget_common::config::DebugLogger;
-// use gadget_common::{
-//     client::{PairSigner, SubxtPalletSubmitter},
-//     config::{ClientWithApi, DebugLogger, PrometheusConfig},
-//     full_protocol::NodeInput,
-//     keystore::{ECDSAKeyStore, InMemoryBackend},
-// };
+use gadget_common::keystore::KeystoreBackend;
+use gadget_common::{
+    client::{PairSigner, SubxtPalletSubmitter},
+    config::{ClientWithApi, DebugLogger, PrometheusConfig},
+    full_protocol::NodeInput,
+    keystore::{ECDSAKeyStore, InMemoryBackend},
+};
 // use gadget_core::gadget::substrate::Client;
 use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 // use sp_keystore::Keystore;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
 use tangle_subxt::{subxt, tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType};
 
-use crate::config::ShellConfig;
-// use crate::network::gossip::GossipHandle;
-// use crate::tangle::crypto;
+use crate::log;
 
 // use dfns_cggmp21_protocol::constants::{
 //     DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
@@ -47,12 +46,12 @@ pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[tracing::instrument(skip(config))]
 pub async fn run_forever(config: ShellConfig) -> Result<(), Box<dyn std::error::Error>> {
     // let (role_key, acco_key) = load_keys_from_keystore(&config.keystore).unwrap();
-    // let network_key = ed25519::Pair::from_seed(&config.node_key);
-    // let logger = DebugLogger::default();
+    let network_key = ed25519::Pair::from_seed(&config.node_key);
+    let logger = DebugLogger::default();
     // let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
 
-    // let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
-    //     .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}")).unwrap();
+    let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}")).unwrap();
 
     // let (networks, network_task) = crate::network::setup::setup_libp2p_network(
     //     libp2p_key,
@@ -78,13 +77,13 @@ pub async fn run_forever(config: ShellConfig) -> Result<(), Box<dyn std::error::
     // )
     //     .await
     //     .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
-    //
-    // logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
+
+    logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
     // wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
-    //
+
     // let protocols =
     //     start_required_protocols(&config.subxt, networks, acco_key, logger, wrapped_keystore);
-    //
+
     // let ctrl_c = tokio::signal::ctrl_c();
     //
     // tokio::select! {
@@ -101,7 +100,7 @@ pub async fn run_forever(config: ShellConfig) -> Result<(), Box<dyn std::error::
     //         tracing::error!("Network task unexpectedly shutdown")
     //     }
     // }
-    // log(&format!("Shell Checkpoint with key {:?}!", libp2p_key));
+    log(&format!("Shell Checkpoint with key {:?}!", libp2p_key));
 
     Ok(())
 }

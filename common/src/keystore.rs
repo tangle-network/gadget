@@ -229,7 +229,7 @@ fn key_to_string(key: &[u8; 32]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::KeystoreBackend;
+    use crate::keystore::KeystoreBackend;
 
     #[tokio::test]
     #[cfg(feature = "std")]

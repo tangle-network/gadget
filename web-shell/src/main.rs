@@ -5,10 +5,12 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
 use structopt::StructOpt;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures;
 
 mod config;
-// mod keystore;
+mod keystore;
 mod shell;
+mod tangle;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -222,27 +224,29 @@ impl Display for SupportedChains {
 
 #[wasm_bindgen(module = "/js-utils.js")]
 extern "C" {
-    fn name() -> String;
+    fn webPrompt(message: &str) -> String;
 
-    type MyClass;
-
-    #[wasm_bindgen(constructor)]
-    fn new() -> MyClass;
-
-    #[wasm_bindgen(method, getter)]
-    fn number(this: &MyClass) -> u32;
-    #[wasm_bindgen(method, setter)]
-    fn set_number(this: &MyClass, number: u32) -> MyClass;
-    #[wasm_bindgen(method)]
-    fn render(this: &MyClass) -> String;
+    fn setConsoleInput();
 }
 
-// lifted from the `console_log` example
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     fn log(s: &str);
 }
+
+// async fn get_from_js() -> Result<JsValue, JsValue> {
+//     let promise = getUserFile();//js_sys::Promise::resolve(&42.into());
+//     let result = wasm_bindgen_futures::JsFuture::from(promise).await?;
+//     Ok(result)
+// }
+
+
+// #[wasm_bindgen(module = "/async-js-utils.js")]
+// extern "C" {
+//     #[wasm_bindgen(catch)]
+//     async fn getUserFile() -> Result<JsValue, JsValue>;
+// }
 
 // #[wasm_bindgen(start)]
 // fn run() {
@@ -263,6 +267,7 @@ mod tests {
 
     #[wasm_bindgen_test]
     async fn test_main() -> Result<()> {
+        setConsoleInput();
         // color_eyre::install().expect("Failed to install color_eyre");
         // let opt = Opt::from_args();
         let opt = Opt {
@@ -288,34 +293,26 @@ mod tests {
             opt.options
         };
         log(&format!("Resulting config: {:?}.", config));
-        // shell::run_forever(config::ShellConfig {
-        //     keystore: config::KeystoreConfig::InMemory,
-        //     // {
-        //     //     path: config
-        //     //         .base_path
-        //     //         .join("chains")
-        //     //         .join(config.chain.to_string())
-        //     //         .join("keystore"),
-        //     //     password: config.keystore_password.map(|s| s.into()),
-        //     // },
-        //     subxt: config::SubxtConfig {
-        //         endpoint: config.url,
-        //     },
-        //     base_path: config.base_path,
-        //     bind_ip: config.bind_ip,
-        //     bind_port: config.bind_port,
-        //     bootnodes: config.bootnodes,
-        //     node_key: hex::decode(
-        //         config
-        //             .node_key
-        //             .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
-        //     )?
-        //         .try_into()
-        //         .map_err(|_| {
-        //             color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
-        //         })?,
-        // })
-        //     .await.unwrap();
+        shell::run_forever(config::ShellConfig {
+            keystore: config::KeystoreConfig::InMemory,
+            subxt: config::SubxtConfig {
+                endpoint: config.url,
+            },
+            base_path: config.base_path,
+            bind_ip: config.bind_ip,
+            bind_port: config.bind_port,
+            bootnodes: config.bootnodes,
+            node_key: hex::decode(
+                config
+                    .node_key
+                    .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
+            )?
+                .try_into()
+                .map_err(|_| {
+                    color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
+                })?,
+        })
+            .await.unwrap();
         Ok(())
     }
 
@@ -350,6 +347,17 @@ mod tests {
     //     assert_eq!(x.number(), 42);
     //     x.set_number(10);
     //     log(&x.render());
+    // }
+
+    // #[wasm_bindgen_test]
+    // fn test_prompt() {
+    //     log(&format!("Input was {}!", webPrompt("Does this question appear?")));
+    // }
+
+    // #[wasm_bindgen_test]
+    // async fn test_file_input() {
+    //     log(&format!("File Success? {:?}!", get_from_js().await));
+    //     //log(&format!("Input was {}!", webPrompt("Does this question appear?")));
     // }
 
 }

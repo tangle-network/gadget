@@ -25,7 +25,7 @@ zk-saas-protocol = { path = "./protocols/zk-saas" }
 threshold-bls-protocol = { path = "./protocols/bls" }
 stub-protocol = { path = "./protocols/stub" }
 dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
-zcash-frost-protocol = { path = "./protocols/zcash-frost" }
+zcash-frost-protocol = { path = "./protocols/zcash-frost", default-features = false }
 silent-shard-dkls23-ll-protocol = { path = "./protocols/silent-shard-dkls23-ll" }
 test-utils = { path = "./test-utils" }
 protocol-macros = { path = "./protocol-macros" }
