@@ -214,6 +214,12 @@ where
                 "LightClientRelaying is not supported by the shell",
             ))
         }
+        _ => {
+            return Err(color_eyre::eyre::eyre!(
+                "Role {:?} is not supported by the shell",
+                role
+            ))
+        }
     };
 
     Ok(handle.abort_handle())
