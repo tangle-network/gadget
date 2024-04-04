@@ -91,9 +91,9 @@ jobs:
         run: cargo build --workspace --package ${{ matrix.package }}
 
   testing:
-    timeout-minutes: 120
+    timeout-minutes: 90
     name: cargo test
-    runs-on: macos-latest
+    runs-on: macos-14
     strategy:
         matrix:
             package: [
@@ -119,7 +119,12 @@ jobs:
           cache-on-failure: "true"
 
       - name: install protobuf
-        run: brew install protobuf
+        run: brew install protobuf gmp
+
+      - name: Set Relevant M1 env vars
+        run: |
+          export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
+          export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
 
       - name: install cargo-nextest
         run: cargo install cargo-nextest --locked
