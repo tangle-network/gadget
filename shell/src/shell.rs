@@ -30,9 +30,6 @@ use dfns_cggmp21_protocol::constants::{
     DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
     DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME, DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
 };
-use silent_shard_dkls23_ll_protocol::constants::{
-    SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME, SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME,
-};
 use threshold_bls_protocol::constants::{
     GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME, GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
 };
@@ -182,32 +179,6 @@ where
                         .unwrap(),
                     networks
                         .get(ZCASH_FROST_SIGNING_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                ],
-            }))
-        }
-
-        Tss(SilentShardDKLS23Secp256k1) => {
-            tokio::spawn(silent_shard_dkls23_ll_protocol::setup_node(NodeInput {
-                clients: vec![
-                    TangleRuntime::new(runtime.client()),
-                    TangleRuntime::new(runtime.client()),
-                ],
-                account_id,
-                logger,
-                pallet_tx,
-                keystore,
-                node_index: 0,
-                additional_params: (),
-                prometheus_config: PrometheusConfig::Disabled,
-                networks: vec![
-                    networks
-                        .get(SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                    networks
-                        .get(SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME)
                         .cloned()
                         .unwrap(),
                 ],
