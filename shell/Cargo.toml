@@ -41,7 +41,6 @@ bincode = { workspace = true }
 # Protocols
 dfns-cggmp21-protocol = { workspace = true }
 zcash-frost-protocol = { workspace = true }
-silent-shard-dkls23-ll-protocol = { workspace = true }
 threshold-bls-protocol = { workspace = true }
 zk-saas-protocol = { workspace = true, features = ["parallel"] }
 

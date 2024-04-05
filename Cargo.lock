@@ -2664,24 +2664,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dkls23-ll"
-version = "1.0.1"
-source = "git+https://github.com/drewstone/silent-shard-dkls23-ll.git?branch=drew/thiserror-dep#fc779abfcc9fba96cc1254705e8a582ac4b85dbb"
-dependencies = [
- "bytemuck",
- "derivation-path",
- "k256",
- "merlin",
- "rand 0.8.5",
- "serde",
- "sha2 0.10.8",
- "sl-mpc-mate",
- "sl-oblivious",
- "thiserror",
- "zeroize",
-]
-
-[[package]]
 name = "dleq_vrf"
 version = "0.0.2"
 source = "git+https://github.com/w3f/ring-vrf?rev=e9782f9#e9782f938629c90f3adb3fff2358bc8d1386af3e"
@@ -2806,7 +2788,6 @@ dependencies = [
  "digest 0.10.7",
  "elliptic-curve 0.13.8",
  "rfc6979 0.4.0",
- "serdect",
  "signature 2.2.0",
  "spki 0.7.3",
 ]
@@ -4182,7 +4163,6 @@ dependencies = [
  "scale-info",
  "serde",
  "sha2 0.10.8",
- "silent-shard-dkls23-ll-protocol",
  "sp-application-crypto",
  "sp-core",
  "sp-io",
@@ -5322,7 +5302,6 @@ dependencies = [
  "ecdsa 0.16.9",
  "elliptic-curve 0.13.8",
  "once_cell",
- "serdect",
  "sha2 0.10.8",
  "signature 2.2.0",
 ]
@@ -9137,15 +9116,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ripemd"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd124222d17ad93a644ed9d011a40f4fb64aa54275c08cc216524a9ea82fb09f"
-dependencies = [
- "digest 0.10.7",
-]
-
-[[package]]
 name = "rkyv"
 version = "0.7.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10587,15 +10557,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_arrays"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38636132857f68ec3d5f3eb121166d2af33cb55174c4d5ff645db6165cbef0fd"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "serde_bare"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10842,51 +10803,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "silent-shard-dkls23-ll-protocol"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "cggmp21",
- "curv-kzen",
- "derivation-path",
- "dfns-cggmp21-protocol",
- "digest 0.10.7",
- "dkls23-ll",
- "frame-support",
- "futures",
- "gadget-common",
- "gadget-core",
- "hex",
- "itertools 0.12.1",
- "k256",
- "log",
- "pallet-dkg",
- "pallet-jobs",
- "pallet-jobs-rpc-runtime-api",
- "parity-scale-codec 3.6.9",
- "parking_lot 0.12.1",
- "protocol-macros",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rand_core 0.6.4",
- "round-based 0.2.1",
- "sc-client-api",
- "serde",
- "serde_json",
- "sha2 0.10.8",
- "sp-api",
- "sp-application-crypto",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "tangle-primitives",
- "test-utils",
- "thiserror",
- "tokio",
- "udigest",
-]
-
-[[package]]
 name = "simba"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10921,54 +10837,6 @@ name = "siphasher"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
-
-[[package]]
-name = "sl-mpc-mate"
-version = "0.1.0"
-source = "git+https://github.com/silence-laboratories/sl-crypto.git?rev=0a68953767e44e92af6629bfb6178ee2b900e1f3#0a68953767e44e92af6629bfb6178ee2b900e1f3"
-dependencies = [
- "aead",
- "base64 0.21.7",
- "bs58 0.4.0",
- "chacha20",
- "chacha20poly1305",
- "derivation-path",
- "ed25519-dalek",
- "elliptic-curve 0.13.8",
- "futures-util",
- "generic-array 0.14.7",
- "hex",
- "hmac 0.12.1",
- "k256",
- "rand 0.8.5",
- "rand_core 0.6.4",
- "rayon",
- "ripemd",
- "serde",
- "sha2 0.10.8",
- "subtle 2.5.0",
- "thiserror",
- "x25519-dalek 2.0.1",
- "zeroize",
-]
-
-[[package]]
-name = "sl-oblivious"
-version = "0.1.0"
-source = "git+https://github.com/silence-laboratories/sl-crypto.git?rev=0a68953767e44e92af6629bfb6178ee2b900e1f3#0a68953767e44e92af6629bfb6178ee2b900e1f3"
-dependencies = [
- "bytemuck",
- "elliptic-curve 0.13.8",
- "k256",
- "merlin",
- "rand 0.8.5",
- "rayon",
- "serde",
- "serde_arrays",
- "thiserror",
- "x25519-dalek 2.0.1",
- "zeroize",
-]
 
 [[package]]
 name = "slab"
