@@ -260,7 +260,7 @@ pub async fn run_signing(
         .map(|r| r.1)
         .collect_vec();
 
-    let signature_share = signer.sign(&msg, &party_ids, &party_key_ids, &party_nonces);
+    let signature_share = signer.sign(msg, &party_ids, &party_key_ids, &party_nonces);
     let message = FrostMessage::SigningFinal {
         party_id,
         signature_share: signature_share.clone(),
@@ -322,7 +322,7 @@ pub async fn run_signing(
     })?; Commented out for use in later versions of WSTS*/
 
     let wsts_sig = sig_agg
-        .sign(&msg, &party_nonces, &signature_shares, &party_key_ids)
+        .sign(msg, &party_nonces, &signature_shares, &party_key_ids)
         .map_err(|err| JobError {
             reason: err.to_string(),
         })?;
@@ -331,13 +331,13 @@ pub async fn run_signing(
         state.public_key_frost_format.as_slice(),
     )
     .map_err(|_| JobError {
-        reason: format!("Invalid Compressed public key"),
+        reason: "Invalid Compressed public key".to_string(),
     })?;
     let wsts_public_key =
         p256k1::point::Point::try_from(&compressed_public_key).map_err(|_| JobError {
-            reason: format!("Invalid WSTS Compressed public key"),
+            reason: "Invalid WSTS Compressed public key".to_string(),
         })?;
-    if wsts_sig.verify(&wsts_public_key, &msg) {
+    if wsts_sig.verify(&wsts_public_key, msg) {
         logger.info("WSTS Signature verified successfully");
     } else {
         return Err(JobError {
@@ -376,12 +376,12 @@ pub async fn run_signing(
     }
 
     frost_verifying_key
-        .verify(&msg, &frost_signature)
+        .verify(msg, &frost_signature)
         .map_err(|err| JobError {
             reason: format!("Invalid FROST verification: {}!", err),
         })?;
 
-    Secp256K1Taproot::verify_signature(&msg, &frost_signature, &frost_verifying_key).map_err(
+    Secp256K1Taproot::verify_signature(msg, &frost_signature, &frost_verifying_key).map_err(
         |err| JobError {
             reason: format!("Invalid FROST verification: {}!!", err),
         },
