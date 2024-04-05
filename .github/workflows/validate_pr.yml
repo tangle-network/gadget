@@ -99,7 +99,6 @@ jobs:
             package: [
               gadget-core,
               gadget-common,
-              zk-saas-protocol,
               dfns-cggmp21-protocol,
               threshold-bls-protocol,
               zcash-frost-protocol,
@@ -130,5 +129,4 @@ jobs:
         run: cargo install cargo-nextest --locked
 
       - name: tests
-        if: ${{ matrix.package != 'zk-saas-protocol' }}
         run: cargo nextest run --release --nocapture --package ${{ matrix.package }}
