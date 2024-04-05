@@ -106,9 +106,6 @@ jobs:
               silent-shard-dkls23-ll-protocol,
             ]
     steps:
-      - name: Skip zk-saas-protocol
-        if: ${{ matrix.package == 'zk-saas-protocol' }}
-        run: exit 0
       - name: checkout code
         uses: actions/checkout@v2
 
@@ -135,7 +132,3 @@ jobs:
       - name: tests
         if: ${{ matrix.package != 'zk-saas-protocol' }}
         run: cargo nextest run --release --nocapture --package ${{ matrix.package }}
-
-      - name: tests (parallel enabled)
-        if: ${{ matrix.package == 'zk-saas-protocol' }}
-        run: cargo nextest run --features=parallel --release --nocapture --package ${{ matrix.package }}
