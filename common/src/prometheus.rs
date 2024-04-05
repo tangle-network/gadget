@@ -27,11 +27,9 @@ lazy_static! {
             .expect("metric can be created");
     pub static ref TOKIO_ACTIVE_TASKS: Gauge =
         Gauge::new("tokio_tasks", "Number of active tasks").expect("metric can be created");
-    pub static ref JOB_RUN_TIME: Histogram = Histogram::with_opts(
-        HistogramOpts::new("job_runtime", "Job Runtime (s)")
-            .variable_labels(vec!["Seconds".to_string()])
-    )
-    .expect("metric can be created");
+    pub static ref JOB_RUN_TIME: Histogram =
+        Histogram::with_opts(HistogramOpts::new("job_runtime", "Job Runtime (s)"))
+            .expect("metric can be created");
 }
 
 #[derive(Debug, Clone)]
