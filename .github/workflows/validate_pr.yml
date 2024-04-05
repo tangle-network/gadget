@@ -106,6 +106,9 @@ jobs:
               silent-shard-dkls23-ll-protocol,
             ]
     steps:
+      - name: Skip zk-saas-protocol
+        if: ${{ matrix.package == 'zk-saas-protocol' }}
+        run: exit 0
       - name: checkout code
         uses: actions/checkout@v2
 

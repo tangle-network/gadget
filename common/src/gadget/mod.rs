@@ -7,10 +7,10 @@ use crate::tangle_runtime::*;
 use crate::Error;
 use async_trait::async_trait;
 use gadget_core::gadget::substrate::{FinalityNotification, SubstrateGadgetModule};
-use gadget_core::job::BuiltExecutableJobWrapper;
+use gadget_core::job::{BuiltExecutableJobWrapper, ExecutableJob, JobBuilder};
 use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerInterface};
 use network::Network;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use sp_core::{ecdsa, keccak_256, sr25519};
 use std::sync::Arc;
 use std::time::Duration;
@@ -263,6 +263,8 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
                     {
                         Ok(job) => {
                             let (remote, protocol) = job;
+                            let protocol = protocol.with_metrics();
+
                             if let Err(err) = self.job_manager.push_task(
                                 task_id,
                                 false,
@@ -372,3 +374,51 @@ pub trait GadgetProtocol<C: ClientWithApi>: AsyncProtocol + Send + Sync {
         Default::default()
     }
 }
+
+trait MetricizedJob: ExecutableJob {
+    fn with_metrics(self) -> BuiltExecutableJobWrapper
+    where
+        Self: Sized,
+    {
+        let job = Arc::new(tokio::sync::Mutex::new(self));
+        let job2 = job.clone();
+        let job3 = job.clone();
+        let job4 = job.clone();
+        let tokio_metrics = tokio::runtime::Handle::current().metrics();
+        crate::prometheus::TOKIO_ACTIVE_TASKS.set(tokio_metrics.active_tasks_count() as f64);
+        let now_init = Arc::new(Mutex::new(None));
+        let now_clone = now_init.clone();
+        let now_clone2 = now_init.clone();
+
+        JobBuilder::default()
+            .pre(async move {
+                now_init.lock().replace(std::time::Instant::now());
+                job.lock().await.pre_job_hook().await
+            })
+            .protocol(async move {
+                // At this point, we know the job will be executed
+                crate::prometheus::JOBS_STARTED.inc();
+                crate::prometheus::JOBS_RUNNING.inc();
+                job2.lock().await.job().await
+            })
+            .post(async move {
+                // Run the job's post hook
+                job3.lock().await.post_job_hook().await?;
+                crate::prometheus::JOBS_COMPLETED_SUCCESS.inc();
+                crate::prometheus::JOBS_RUNNING.dec();
+                let elapsed = now_clone.lock().take().unwrap().elapsed();
+                crate::prometheus::JOB_RUN_TIME.observe(elapsed.as_secs_f64());
+                Ok(())
+            })
+            .catch(async move {
+                job4.lock().await.catch().await;
+                crate::prometheus::JOBS_COMPLETED_FAILED.inc();
+                crate::prometheus::JOBS_RUNNING.dec();
+                let elapsed = now_clone2.lock().take().unwrap().elapsed();
+                crate::prometheus::JOB_RUN_TIME.observe(elapsed.as_secs_f64());
+            })
+            .build()
+    }
+}
+
+impl<T: ExecutableJob> MetricizedJob for T {}
