@@ -4,12 +4,13 @@ use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{JobInitMetadata, WorkManagerConfig};
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
+use crate::prometheus::PrometheusConfig;
 use crate::protocol::AsyncProtocol;
+use crate::Error;
 use async_trait::async_trait;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use gadget_io::Error;
-use gadget_io::PrometheusConfig;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
 use sp_core::ecdsa::{Public, Signature};
@@ -21,7 +22,6 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{
     MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen,
 };
-use tokio::sync::mpsc::UnboundedReceiver;
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 
@@ -215,7 +215,7 @@ impl<T: FullProtocolConfig> Network for T {
                     &peer_public_key,
                 ) {
                     message.payload = payload_and_signature.payload;
-                    gadget_io::BYTES_RECEIVED.inc_by(message.payload.len() as u64);
+                    crate::prometheus::BYTES_RECEIVED.inc_by(message.payload.len() as u64);
                     return Some(message);
                 } else {
                     self.logger()
@@ -248,7 +248,7 @@ impl<T: FullProtocolConfig> Network for T {
 
         let serialized_message = Encode::encode(&payload_and_signature);
         message.payload = serialized_message;
-        gadget_io::BYTES_SENT.inc_by(message.payload.len() as u64);
+        crate::prometheus::BYTES_SENT.inc_by(message.payload.len() as u64);
         T::internal_network(self).send_message(message).await
     }
 

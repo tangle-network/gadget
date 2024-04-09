@@ -8,28 +8,25 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["wasm"]
+default = ["std"]
 std = [
-    "substrate-prometheus-endpoint",
-    "sp-core/default",
+
 ]
 wasm = [
-    "prometheus",
-    "sp-core/serde",
-    "sp-core/full_crypto",
+
 ]
 
 [dependencies]
-substrate-prometheus-endpoint = { workspace = true, optional = true }
-lazy_static = { workspace = true }
-prometheus = { workspace = true, optional = true }
-tokio = { workspace = true }
-gadget-core = { workspace = true }
-sp-core = { workspace = true, default-features = false }
+#sp-core = { workspace = true, default-features = false }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 getrandom = { workspace = true, features = ["js"] }
+tokio = { workspace = true }
+#tokio_wasm = { package = "tokio", version = "=1.24.2", git = "https://github.com/wasix-org/tokio.git", branch = "wasix-1.24.2-fixed", features = [
+#    "full",
+#] }
 
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+tokio = { workspace = true }
 
 [dev-dependencies]
-

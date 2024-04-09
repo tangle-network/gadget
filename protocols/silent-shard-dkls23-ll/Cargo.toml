@@ -8,8 +8,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
+#tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
 gadget-common = { workspace = true }
+gadget-io = { workspace = true, default-features = false }
 gadget-core = { workspace = true }
 protocol-macros = { workspace = true }
 async-trait = { workspace = true }

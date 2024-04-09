@@ -25,7 +25,7 @@ dist-primitives = { workspace = true }
 groth16 = { workspace = true }
 gadget-core = { workspace = true }
 bincode2 = { workspace = true }
-tokio = { workspace = true }
+gadget-io = { workspace = true, default-features = false }
 futures-util = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_bytes = { workspace = true }

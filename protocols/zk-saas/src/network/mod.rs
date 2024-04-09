@@ -16,10 +16,10 @@ use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::net::TcpStream;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use tokio::sync::Mutex;
+use gadget_io::tokio::io::{AsyncRead, AsyncWrite};
+use gadget_io::tokio::net::TcpStream;
+use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use gadget_io::tokio::sync::Mutex;
 use tokio_rustls::rustls::server::NoClientAuth;
 use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{rustls, TlsAcceptor, TlsStream};
@@ -82,14 +82,14 @@ async fn retry_connect(addr: SocketAddr, timeout: Duration) -> Result<TcpStream,
                 Ok(stream) => return Ok(stream),
                 Err(err) => {
                     if err.kind() == ErrorKind::ConnectionRefused {
-                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        gadget_io::tokio::time::sleep(Duration::from_secs(1)).await;
                     }
                 }
             }
         }
     };
 
-    tokio::time::timeout(timeout, conn_subroutine)
+    gadget_io::tokio::time::timeout(timeout, conn_subroutine)
         .await
         .map_err(|err| Error::RegistryCreateError {
             err: err.to_string(),
@@ -106,13 +106,13 @@ impl ZkNetworkService {
     ) -> Result<Self, Error> {
         let bind_addr = to_addr(bind_addr)?;
 
-        let listener = tokio::net::TcpListener::bind(bind_addr)
+        let listener = gadget_io::tokio::net::TcpListener::bind(bind_addr)
             .await
             .map_err(|err| Error::RegistryCreateError {
                 err: err.to_string(),
             })?;
         let registrants = Arc::new(Mutex::new(HashMap::new()));
-        let (to_gadget, from_registry) = tokio::sync::mpsc::unbounded_channel();
+        let (to_gadget, from_registry) = gadget_io::tokio::sync::mpsc::unbounded_channel();
         let to_outbound_txs = Arc::new(RwLock::new(HashMap::new()));
 
         let this = ZkNetworkService::King {
@@ -136,7 +136,7 @@ impl ZkNetworkService {
             panic!("Should be king")
         };
 
-        tokio::task::spawn(async move {
+        gadget_io::tokio::task::spawn(async move {
             let tls_acceptor = create_server_tls_acceptor(identity.clone()).map_err(|err| {
                 Error::RegistryCreateError {
                     err: format!("{err:?}"),
@@ -195,8 +195,8 @@ impl ZkNetworkService {
                 err: err.to_string(),
             })?;
 
-        let (to_gadget, from_registry) = tokio::sync::mpsc::unbounded_channel();
-        let (local_to_outbound_tx, local_to_outbound_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (to_gadget, from_registry) = gadget_io::tokio::sync::mpsc::unbounded_channel();
+        let (local_to_outbound_tx, local_to_outbound_rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
 
         let connection = TlsStream::Client(connection);
 
@@ -305,11 +305,11 @@ fn to_addr<T: std::net::ToSocketAddrs>(addr: T) -> Result<SocketAddr, Error> {
 fn handle_single_connection(
     connection: TlsStream<TcpStream>,
     mut local_to_outbound_rx: UnboundedReceiver<RegistryPacket>,
-    inbound_to_local_tx: tokio::sync::mpsc::UnboundedSender<RegistryPacket>,
+    inbound_to_local_tx: gadget_io::tokio::sync::mpsc::UnboundedSender<RegistryPacket>,
 ) {
     let (mut sink, mut stream) = mpc_net::multi::wrap_stream(connection).split();
     // Now, take the sink and spawn a task to listen for messages that need to be sent outbound
-    tokio::task::spawn(async move {
+    gadget_io::tokio::task::spawn(async move {
         while let Some(outbound_message) = local_to_outbound_rx.recv().await {
             if let Err(err) = send_stream(&mut sink, outbound_message).await {
                 log::error!("[Registry] Failed to send message to king: {err:?}");
@@ -318,7 +318,7 @@ fn handle_single_connection(
     });
 
     // Now, the stream will be used to receive messages from the king
-    tokio::task::spawn(async move {
+    gadget_io::tokio::task::spawn(async move {
         loop {
             match recv_stream(&mut stream).await {
                 Ok(message) => {
@@ -366,7 +366,7 @@ fn handle_stream_as_king(
     to_gadget: UnboundedSender<RegistryPacket>,
     king_registry_id: RegistantId,
 ) {
-    tokio::task::spawn(async move {
+    gadget_io::tokio::task::spawn(async move {
         let stream = match tls_acceptor.accept(stream).await {
             Ok(stream) => stream,
             Err(err) => {
@@ -378,11 +378,11 @@ fn handle_stream_as_king(
         let stream = TlsStream::Server(stream);
         let wrapped_stream = mpc_net::multi::wrap_stream(stream);
         let (mut sink, mut stream) = wrapped_stream.split();
-        let (to_outbound_tx, mut to_outbound_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (to_outbound_tx, mut to_outbound_rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
         let mut peer_id = None;
 
         // Spawn a task allowing the king to send messages to the peer from the gadget
-        tokio::task::spawn(async move {
+        gadget_io::tokio::task::spawn(async move {
             while let Some(message) = to_outbound_rx.recv().await {
                 if let Err(err) = send_stream(&mut sink, message).await {
                     log::error!("[Registry] Failed to send message to peer {peer_addr}: {err:?}");

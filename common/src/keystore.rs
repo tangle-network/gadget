@@ -9,7 +9,6 @@ use sp_core::sr25519::Pair as Sr25519Pair;
 use sp_core::{keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::prelude::gadget_io::Error;
 
 #[cfg(feature = "std")]
 use sqlx::{
@@ -59,14 +58,14 @@ impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
     pub async fn get<T: DeserializeOwned>(
         &self,
         key: &[u8; 32],
-    ) -> Result<Option<T>, gadget_io::Error> {
+    ) -> Result<Option<T>, crate::Error> {
         self.backend.get(key).await
     }
 
     pub async fn get_job_result<T: DeserializeOwned>(
         &self,
         job_id: u64,
-    ) -> Result<Option<T>, gadget_io::Error> {
+    ) -> Result<Option<T>, crate::Error> {
         let key = keccak_256(&job_id.to_be_bytes());
         self.get(&key).await
     }
@@ -75,7 +74,7 @@ impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
         &self,
         key: &[u8; 32],
         value: T,
-    ) -> Result<(), gadget_io::Error> {
+    ) -> Result<(), crate::Error> {
         self.backend.set(key, value).await
     }
 
@@ -83,7 +82,7 @@ impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
         &self,
         job_id: u64,
         value: T,
-    ) -> Result<(), gadget_io::Error> {
+    ) -> Result<(), crate::Error> {
         let key = keccak_256(&job_id.to_be_bytes());
         self.set(&key, value).await
     }
@@ -91,13 +90,8 @@ impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
 
 #[async_trait]
 pub trait KeystoreBackend: Clone + Send + Sync + 'static {
-    async fn get<T: DeserializeOwned>(&self, key: &[u8; 32])
-        -> Result<Option<T>, gadget_io::Error>;
-    async fn set<T: Serialize + Send>(
-        &self,
-        key: &[u8; 32],
-        value: T,
-    ) -> Result<(), gadget_io::Error>;
+    async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, crate::Error>;
+    async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), crate::Error>;
 }
 
 #[derive(Clone)]
@@ -121,13 +115,10 @@ impl InMemoryBackend {
 
 #[async_trait]
 impl KeystoreBackend for InMemoryBackend {
-    async fn get<T: DeserializeOwned>(
-        &self,
-        key: &[u8; 32],
-    ) -> Result<Option<T>, gadget_io::Error> {
+    async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, crate::Error> {
         if let Some(bytes) = self.map.read().get(key).cloned() {
             let value: T =
-                bincode2::deserialize(&bytes).map_err(|rr| gadget_io::Error::KeystoreError {
+                bincode2::deserialize(&bytes).map_err(|rr| crate::Error::KeystoreError {
                     err: format!("Failed to deserialize value: {:?}", rr),
                 })?;
             Ok(Some(value))
@@ -136,15 +127,10 @@ impl KeystoreBackend for InMemoryBackend {
         }
     }
 
-    async fn set<T: Serialize + Send>(
-        &self,
-        key: &[u8; 32],
-        value: T,
-    ) -> Result<(), gadget_io::Error> {
-        let serialized =
-            bincode2::serialize(&value).map_err(|rr| gadget_io::Error::KeystoreError {
-                err: format!("Failed to serialize value: {:?}", rr),
-            })?;
+    async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), crate::Error> {
+        let serialized = bincode2::serialize(&value).map_err(|rr| crate::Error::KeystoreError {
+            err: format!("Failed to serialize value: {:?}", rr),
+        })?;
         self.map.write().insert(*key, serialized);
         Ok(())
     }
@@ -231,7 +217,7 @@ fn key_to_string(key: &[u8; 32]) -> String {
 mod tests {
     use crate::keystore::KeystoreBackend;
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     #[cfg(feature = "std")]
     async fn test_in_memory_kv_store() {
         let store = super::SqliteBackend::in_memory().await.unwrap();

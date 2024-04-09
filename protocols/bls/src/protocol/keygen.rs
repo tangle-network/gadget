@@ -64,7 +64,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
     additional_params: BlsKeygenAdditionalParams,
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let network = config.clone();
-    let result = Arc::new(tokio::sync::Mutex::new(None));
+    let result = Arc::new(gadget_io::tokio::sync::Mutex::new(None));
     let result_clone = result.clone();
     let keystore = config.key_store.clone();
     let keystore_clone = keystore.clone();

@@ -12,7 +12,8 @@ crate-type = ["cdylib", "rlib"]
 gadget-core = { workspace = true }
 gadget-io = { workspace = true, default-features = false }
 protocol-macros = { workspace = true }
-tokio = { workspace = true }
+#tokio = { workspace = true }
+prometheus = { workspace = true, default-features = false }
 serde = { workspace = true }
 auto_impl = { workspace = true }
 async-trait = { workspace = true }
@@ -32,7 +33,7 @@ getrandom = { workspace = true }
 tracing = { workspace = true, default-features = false, features = ["alloc"] }
 tracing-subscriber = { workspace = true, default-features = false, features = ["alloc"] }
 tracing-core = { workspace = true, default-features = false, features = ["alloc"] }
-wasm-bindgen = { workspace = true }
+#wasm-bindgen = { workspace = true }
 
 # Substrate
 tangle-subxt = { workspace = true, optional = true, default-features = false }
@@ -59,7 +60,7 @@ substrate = [
   "gadget-core/substrate",
   "gadget-io/default",
   "tangle-subxt/std",
-  "subxt-signer/native",
+#  "subxt-signer/native",
   "subxt/native",
   "subxt/jsonrpsee",
   "sp-api/std",

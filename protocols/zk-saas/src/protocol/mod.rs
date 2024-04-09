@@ -28,7 +28,7 @@ use sp_core::ecdsa;
 use sp_core::Pair;
 use std::collections::HashMap;
 use tangle_primitives::verifier::to_field_elements;
-use tokio::sync::mpsc::UnboundedReceiver;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 
 pub mod proto_gen;
 
@@ -344,7 +344,7 @@ async fn zk_setup_rxs(
     n_parties: usize,
     mut protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
 ) -> Result<
-    HashMap<u32, Vec<tokio::sync::Mutex<UnboundedReceiver<proto_gen::MpcNetMessage>>>>,
+    HashMap<u32, Vec<gadget_io::tokio::sync::Mutex<UnboundedReceiver<proto_gen::MpcNetMessage>>>>,
     JobError,
 > {
     let mut txs = HashMap::new();
@@ -354,16 +354,16 @@ async fn zk_setup_rxs(
         let mut txs_for_this_peer = vec![];
         let mut rxs_for_this_peer = vec![];
         for _ in 0..3 {
-            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+            let (tx, rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
             txs_for_this_peer.push(tx);
-            rxs_for_this_peer.push(tokio::sync::Mutex::new(rx));
+            rxs_for_this_peer.push(gadget_io::tokio::sync::Mutex::new(rx));
         }
 
         txs.insert(peer_id as u32, txs_for_this_peer);
         rxs.insert(peer_id as u32, rxs_for_this_peer);
     }
 
-    tokio::task::spawn(async move {
+    gadget_io::tokio::task::spawn(async move {
         while let Some(message) = protocol_message_rx.recv().await {
             let message: GadgetProtocolMessage = message;
             match bincode2::deserialize::<proto_gen::MpcNetMessage>(&message.payload) {

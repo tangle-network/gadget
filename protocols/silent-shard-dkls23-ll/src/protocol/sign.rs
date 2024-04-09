@@ -20,7 +20,7 @@ use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::rounds;
 use crate::rounds::keygen::SilentShardDKLS23KeyShare;
@@ -99,7 +99,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();
-    let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
+    let protocol_output = Arc::new(gadget_io::tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let pallet_tx = config.pallet_tx.clone();
     let id = config.key_store.pair().public();

@@ -3,8 +3,8 @@ use crate::client::{create_client, JobsClient, PalletSubmitter};
 pub use crate::debug_logger::DebugLogger;
 pub use crate::gadget::network::Network;
 pub use crate::gadget::GadgetProtocol;
+pub use crate::prometheus::PrometheusConfig;
 use async_trait::async_trait;
-pub use gadget_io::PrometheusConfig;
 use std::sync::Arc;
 
 #[async_trait]
@@ -28,7 +28,7 @@ where
     ) -> <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client;
     fn prometheus_config(&self) -> PrometheusConfig;
 
-    async fn build(&self) -> Result<Self, gadget_io::Error> {
+    async fn build(&self) -> Result<Self, crate::Error> {
         let jobs_client = self.params().build_jobs_client().await?;
         let (network, protocol) = self
             .params()
@@ -68,7 +68,7 @@ where
         self.params().logger()
     }
 
-    async fn run(self) -> Result<(), gadget_io::Error> {
+    async fn run(self) -> Result<(), crate::Error> {
         crate::run_protocol(self).await
     }
 }
@@ -79,14 +79,14 @@ pub trait NetworkAndProtocolSetup {
     type Protocol;
     type Client: ClientWithApi;
 
-    async fn build_jobs_client(&self) -> Result<JobsClient<Self::Client>, gadget_io::Error> {
+    async fn build_jobs_client(&self) -> Result<JobsClient<Self::Client>, crate::Error> {
         create_client(self.client(), self.logger(), self.pallet_tx()).await
     }
 
     async fn build_network_and_protocol(
         &self,
         jobs_client: JobsClient<Self::Client>,
-    ) -> Result<(Self::Network, Self::Protocol), gadget_io::Error>;
+    ) -> Result<(Self::Network, Self::Protocol), crate::Error>;
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
     fn logger(&self) -> DebugLogger;
     fn client(&self) -> Self::Client;

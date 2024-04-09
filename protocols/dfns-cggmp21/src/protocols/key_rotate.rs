@@ -15,7 +15,7 @@ use rand::SeedableRng;
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 
 use super::sign::validate_dfns_signature_by_role;
 
@@ -121,7 +121,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();
     let logger_clone = logger.clone();
-    let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
+    let protocol_output = Arc::new(gadget_io::tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let client = config.get_jobs_client();
     let role_id = config.key_store.pair().public();

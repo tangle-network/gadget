@@ -21,6 +21,7 @@ use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 // use sp_keystore::Keystore;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
 use tangle_subxt::{subxt, tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType};
+use gadget_io::keystore::{KeystoreConfig, SubstrateKeystore};
 
 use crate::log;
 
@@ -45,10 +46,10 @@ pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Start the shell and run it forever
 #[tracing::instrument(skip(config))]
 pub async fn run_forever(config: ShellConfig) -> Result<(), Box<dyn std::error::Error>> {
-    // let (role_key, acco_key) = load_keys_from_keystore(&config.keystore).unwrap();
+    let (role_key, acco_key) = load_keys_from_keystore(&config.keystore).unwrap();
     let network_key = ed25519::Pair::from_seed(&config.node_key);
     let logger = DebugLogger::default();
-    // let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
+    let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
 
     let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
         .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}")).unwrap();
@@ -325,48 +326,13 @@ pub async fn run_forever(config: ShellConfig) -> Result<(), Box<dyn std::error::
 //     }
 //     Ok(())
 // }
-//
-// pub fn load_keys_from_keystore(
-//     keystore_config: &crate::config::KeystoreConfig,
-// ) -> color_eyre::Result<(ecdsa::Pair, sr25519::Pair)> {
-//     let keystore_container = KeystoreContainer::new(keystore_config)?;
-//     let keystore = keystore_container.local_keystore();
-//     tracing::debug!("Loaded keystore from path");
-//     let ecdsa_keys = keystore.ecdsa_public_keys(crypto::role::KEY_TYPE);
-//     let sr25519_keys = keystore.sr25519_public_keys(crypto::acco::KEY_TYPE);
-//
-//     if ecdsa_keys.len() != 1 {
-//         color_eyre::eyre::bail!(
-//             "`role`: Expected exactly one key in ECDSA keystore, found {}",
-//             ecdsa_keys.len()
-//         );
-//     }
-//
-//     if sr25519_keys.len() != 1 {
-//         color_eyre::eyre::bail!(
-//             "`acco`: Expected exactly one key in SR25519 keystore, found {}",
-//             sr25519_keys.len()
-//         );
-//     }
-//
-//     let role_public_key = crypto::role::Public::from_slice(&ecdsa_keys[0].0)
-//         .map_err(|_| color_eyre::eyre::eyre!("Failed to parse public key from keystore"))?;
-//     let account_public_key = crypto::acco::Public::from_slice(&sr25519_keys[0].0)
-//         .map_err(|_| color_eyre::eyre::eyre!("Failed to parse public key from keystore"))?;
-//     let role_key = keystore
-//         .key_pair::<crypto::role::Pair>(&role_public_key)?
-//         .ok_or_eyre("Failed to load key `role` from keystore")?
-//         .into_inner();
-//     let acco_key = keystore
-//         .key_pair::<crypto::acco::Pair>(&account_public_key)?
-//         .ok_or_eyre("Failed to load key `acco` from keystore")?
-//         .into_inner();
-//
-//     tracing::debug!(%role_public_key, "Loaded key from keystore");
-//     tracing::debug!(%account_public_key, "Loaded key from keystore");
-//     Ok((role_key, acco_key))
-// }
-//
+
+pub fn load_keys_from_keystore<T: SubstrateKeystore> (
+    keystore_config: T,
+) -> color_eyre::Result<(ecdsa::Pair, sr25519::Pair)> {
+    Ok((keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?))
+}
+
 // pub async fn wait_for_connection_to_bootnodes(
 //     config: &ShellConfig,
 //     handles: &HashMap<&'static str, GossipHandle>,

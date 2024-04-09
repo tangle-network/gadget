@@ -5,21 +5,28 @@ authors = ["Shady Khalifa <dev+github@shadykhalifa.me>"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
-#[features]
+[features]
+default = ["std"]
+std = [
+  "gadget-common/default",
+]
+wasm = [
+  "gadget-common/wasm",
+]
 
 [dependencies]
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
 async-trait = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
-tokio = { workspace = true, features = ["full"] }
 url = { workspace = true, features = ["serde"] }
+gadget-io = { workspace = true, default-features = false }
 
 gadget-core = { workspace = true }
-gadget-common = { workspace = true, features = ["std", "substrate"] }
+gadget-common = { workspace = true, default-features = false }
 
-sp-core = { workspace = true, features = ["std"] }
-sp-io = { workspace = true, features = ["std"] }
+sp-core = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false }
 sp-keystore = { workspace = true }
 sp-application-crypto = { workspace = true }
 

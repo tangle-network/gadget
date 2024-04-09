@@ -13,7 +13,7 @@ substrate = []
 
 [dependencies]
 parking_lot = { workspace = true }
-tokio = { workspace = true, features = ["sync", "time", "macros", "rt"] }
+gadget-io = { workspace = true, default-features = false }
 hex = { workspace = true, features = ["alloc"] }
 log = { workspace = true }
 async-trait = { workspace = true }
@@ -24,8 +24,8 @@ futures = { workspace = true }
 wasm-bindgen-test = "0.3.34"
 getrandom = { workspace = true, features = ["js"] }
 
-[dev-dependencies]
-tokio = { workspace = true, features = ["macros"] }
+#[dev-dependencies]
+#tokio = { workspace = true, features = ["macros"] }
 
 [target.'cfg(target_family = "wasm")'.dev-dependencies]
 wasm-bindgen-test = "0.3.34"

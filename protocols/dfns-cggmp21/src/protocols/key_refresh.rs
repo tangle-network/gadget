@@ -22,7 +22,7 @@ use round_based_21::{Incoming, Outgoing};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 
 pub(crate) async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>(
     config: &crate::DfnsKeyRefreshProtocol<C, N, KBE>,
@@ -103,7 +103,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
     additional_params: DfnsCGGMP21KeyRefreshExtraParams,
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let key_store = config.key_store.clone();
-    let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
+    let protocol_output = Arc::new(gadget_io::tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let client = config.get_jobs_client();
     let role_id = config.key_store.pair().public();

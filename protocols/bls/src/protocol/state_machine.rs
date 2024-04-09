@@ -274,7 +274,7 @@ mod tests {
     use gadget_common::config::DebugLogger;
     use round_based::dev::AsyncSimulation;
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_bls_state_machine() {
         const T: u16 = 2;
         const N: u16 = 3;

@@ -6,6 +6,7 @@ use crate::gadget::work_manager::WorkManager;
 use crate::prelude::DebugLogger;
 use futures::StreamExt;
 use gadget_core::job_manager::WorkManagerInterface;
+use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use round_based::Msg;
 use round_based_21::{Incoming, MessageDestination, MessageType, MsgId, Outgoing, PartyIndex};
 use serde::de::DeserializeOwned;
@@ -13,7 +14,6 @@ use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 #[allow(clippy::too_many_arguments)]
 pub fn create_job_manager_to_async_protocol_channel_split<
@@ -37,10 +37,11 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     UnboundedReceiver<C2>,
 ) {
     let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
-    let (tx_to_async_proto_2, rx_for_async_proto_2) = tokio::sync::mpsc::unbounded_channel();
+    let (tx_to_async_proto_2, rx_for_async_proto_2) =
+        gadget_io::tokio::sync::mpsc::unbounded_channel();
     let logger_outgoing = logger.clone();
     // Take the messages from the gadget and send them to the async protocol
-    tokio::task::spawn(async move {
+    gadget_io::tokio::task::spawn(async move {
         while let Some(msg) = rx_gadget.recv().await {
             match bincode2::deserialize::<MultiplexedChannelMessage<C1, C2>>(&msg.payload) {
                 Ok(msg) => match msg {
@@ -67,7 +68,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     });
 
     let (tx_to_outbound_1, mut rx_to_outbound_1) = futures::channel::mpsc::unbounded::<C1>();
-    let (tx_to_outbound_2, mut rx_to_outbound_2) = tokio::sync::mpsc::unbounded_channel::<C2>();
+    let (tx_to_outbound_2, mut rx_to_outbound_2) =
+        gadget_io::tokio::sync::mpsc::unbounded_channel::<C2>();
     let network_clone = network.clone();
     let user_id_mapping_clone = user_id_mapping.clone();
     let my_user_id = user_id_mapping
@@ -82,7 +84,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
         .expect("Failed to find my user id");
 
     // Take the messages the async protocol sends to the outbound channel and send them to the gadget
-    tokio::task::spawn(async move {
+    gadget_io::tokio::task::spawn(async move {
         let logger = &logger_outgoing;
         let channel_1_task = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
@@ -126,7 +128,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
             }
         };
 
-        tokio::join!(channel_1_task, channel_2_task);
+        gadget_io::tokio::join!(channel_1_task, channel_2_task);
     });
 
     (
@@ -489,7 +491,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     }
 
     // Take the messages from the gadget and send them to the async protocol
-    tokio::task::spawn(async move {
+    gadget_io::tokio::task::spawn(async move {
         let mut id = 0;
         while let Some(msg_orig) = rx_gadget.recv().await {
             if msg_orig.payload.is_empty() {
@@ -557,7 +559,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     let user_id_mapping_clone = user_id_mapping.clone();
 
     // Take the messages from the async protocol and send them to the gadget
-    tokio::task::spawn(async move {
+    gadget_io::tokio::task::spawn(async move {
         let logger = &logger_outgoing;
         let channel_1_task = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
@@ -605,7 +607,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
             logger.trace("Channel 2 outgoing task closing")
         };
 
-        tokio::join!(channel_1_task, channel_2_task);
+        gadget_io::tokio::join!(channel_1_task, channel_2_task);
     });
 
     (
@@ -650,7 +652,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
 
     let logger_outgoing = logger.clone();
     // Take the messages from the gadget and send them to the async protocol
-    tokio::task::spawn(async move {
+    gadget_io::tokio::task::spawn(async move {
         let mut id = 0;
         while let Some(msg_orig) = rx_gadget.recv().await {
             if msg_orig.payload.is_empty() {
@@ -725,7 +727,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
         })
         .expect("Failed to find my user id");
     // Take the messages from the async protocol and send them to the gadget
-    tokio::task::spawn(async move {
+    gadget_io::tokio::task::spawn(async move {
         let user_id_mapping = &user_id_mapping;
         let network = &network;
         let logger = &logger_outgoing;
@@ -795,7 +797,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
             }
         };
 
-        tokio::join!(task0, task1, task2);
+        gadget_io::tokio::join!(task0, task1, task2);
     });
 
     (
@@ -826,7 +828,7 @@ async fn wrap_message_and_forward_to_network<
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     splitter: impl FnOnce(M) -> MultiplexedChannelMessage<C1, C2, C3>,
     logger: &DebugLogger,
-) -> Result<(), gadget_io::Error>
+) -> Result<(), crate::Error>
 where
     M: MaybeSenderReceiver + Send + 'static,
 {

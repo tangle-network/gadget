@@ -89,12 +89,12 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    protocol_message_rx: tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>,
+    protocol_message_rx: gadget_io::tokio::sync::mpsc::UnboundedReceiver<GadgetProtocolMessage>,
     additional_params: BlsSigningAdditionalParams,
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let threshold = additional_params.t;
     let network = config.clone();
-    let result = Arc::new(tokio::sync::Mutex::new(None));
+    let result = Arc::new(gadget_io::tokio::sync::Mutex::new(None));
     let result_clone = result.clone();
     let client = config.get_jobs_client();
     let role_type = additional_params.role_type.clone();

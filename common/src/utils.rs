@@ -1,8 +1,8 @@
 use futures::Stream;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use sp_core::ecdsa;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 pub const ECDSA_SIGNATURE_LENGTH: usize = 65;
 
@@ -11,7 +11,7 @@ pub const ECDSA_SIGNATURE_LENGTH: usize = 65;
 /// On the second clone, the original channel will stop receiving new messages
 /// and the new channel will start receiving any new messages after the clone.
 pub struct CloneableUnboundedReceiver<T> {
-    rx: Arc<tokio::sync::Mutex<UnboundedReceiver<T>>>,
+    rx: Arc<gadget_io::tokio::sync::Mutex<UnboundedReceiver<T>>>,
     is_in_use: Arc<AtomicBool>,
 }
 
@@ -31,7 +31,7 @@ impl<T: Clone> Clone for CloneableUnboundedReceiver<T> {
 impl<T> From<UnboundedReceiver<T>> for CloneableUnboundedReceiver<T> {
     fn from(rx: UnboundedReceiver<T>) -> Self {
         Self {
-            rx: Arc::new(tokio::sync::Mutex::new(rx)),
+            rx: Arc::new(gadget_io::tokio::sync::Mutex::new(rx)),
             is_in_use: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -51,7 +51,7 @@ impl<T> Stream for CloneableUnboundedReceiver<T> {
             Err(_) => return std::task::Poll::Pending,
         };
         let rx = &mut *rx;
-        tokio::pin!(rx);
+        gadget_io::tokio::pin!(rx);
         rx.poll_recv(cx)
     }
 }

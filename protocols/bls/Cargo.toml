@@ -12,7 +12,7 @@ crate-type = ["cdylib", "rlib"]
 gadget-common = { workspace = true }
 async-trait = { workspace = true }
 futures = { workspace = true }
-tokio = { workspace = true }
+gadget-io = { workspace = true, default-features = false }
 protocol-macros = { workspace = true }
 gennaro-dkg = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

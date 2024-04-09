@@ -4,12 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
 use structopt::StructOpt;
 
-mod config;
-mod keystore;
-mod network;
-mod protocols;
-mod shell;
-mod tangle;
+pub use gadget_shell::*;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -92,7 +87,7 @@ struct TomlConfig {
     chain: SupportedChains,
 }
 
-#[tokio::main]
+#[gadget_io::tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
     let opt = Opt::from_args();

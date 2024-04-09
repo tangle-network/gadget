@@ -4,20 +4,21 @@ use crate::gadget::Job;
 use async_trait::async_trait;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolRemote, ShutdownReason, WorkManagerInterface};
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 pub struct AsyncProtocolRemote {
-    pub start_tx: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
-    pub shutdown_tx: Mutex<Option<tokio::sync::oneshot::Sender<ShutdownReason>>>,
+    pub start_tx: Mutex<Option<gadget_io::tokio::sync::oneshot::Sender<()>>>,
+    pub shutdown_tx: Mutex<Option<gadget_io::tokio::sync::oneshot::Sender<ShutdownReason>>>,
     pub associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     pub associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     pub associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     pub associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    pub to_async_protocol:
-        tokio::sync::mpsc::UnboundedSender<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
+    pub to_async_protocol: gadget_io::tokio::sync::mpsc::UnboundedSender<
+        <WorkManager as WorkManagerInterface>::ProtocolMessage,
+    >,
     pub is_done: Arc<AtomicBool>,
 }
 
@@ -43,9 +44,10 @@ pub trait AsyncProtocol {
         additional_params: Self::AdditionalParams,
     ) -> Result<Job, JobError> {
         let is_done = Arc::new(AtomicBool::new(false));
-        let (to_async_protocol, protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (start_tx, start_rx) = tokio::sync::oneshot::channel();
-        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+        let (to_async_protocol, protocol_message_rx) =
+            gadget_io::tokio::sync::mpsc::unbounded_channel();
+        let (start_tx, start_rx) = gadget_io::tokio::sync::oneshot::channel();
+        let (shutdown_tx, shutdown_rx) = gadget_io::tokio::sync::oneshot::channel();
         let async_protocol = self
             .generate_protocol_from(
                 now,
@@ -84,11 +86,11 @@ impl ProtocolRemote<WorkManager> for AsyncProtocolRemote {
         self.start_tx
             .lock()
             .take()
-            .ok_or_else(|| gadget_io::Error::ProtocolRemoteError {
+            .ok_or_else(|| crate::Error::ProtocolRemoteError {
                 err: "Protocol already started".to_string(),
             })?
             .send(())
-            .map_err(|_err| gadget_io::Error::ProtocolRemoteError {
+            .map_err(|_err| crate::Error::ProtocolRemoteError {
                 err: "Unable to start protocol".to_string(),
             })
     }
@@ -108,11 +110,11 @@ impl ProtocolRemote<WorkManager> for AsyncProtocolRemote {
         self.shutdown_tx
             .lock()
             .take()
-            .ok_or_else(|| gadget_io::Error::ProtocolRemoteError {
+            .ok_or_else(|| crate::Error::ProtocolRemoteError {
                 err: "Protocol already shutdown".to_string(),
             })?
             .send(reason)
-            .map_err(|reason| gadget_io::Error::ProtocolRemoteError {
+            .map_err(|reason| crate::Error::ProtocolRemoteError {
                 err: format!("Unable to shutdown protocol with status {reason:?}"),
             })
     }
@@ -127,7 +129,7 @@ impl ProtocolRemote<WorkManager> for AsyncProtocolRemote {
     ) -> Result<(), <WorkManager as WorkManagerInterface>::Error> {
         self.to_async_protocol
             .send(message)
-            .map_err(|err| gadget_io::Error::ProtocolRemoteError {
+            .map_err(|err| crate::Error::ProtocolRemoteError {
                 err: err.to_string(),
             })
     }

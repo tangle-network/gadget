@@ -25,7 +25,7 @@ use rand::{CryptoRng, RngCore, SeedableRng};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use crate::protocols::util::SignatureVerifier;
 
 use super::keygen::create_party;
@@ -149,7 +149,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();
-    let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
+    let protocol_output = Arc::new(gadget_io::tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let client = config.get_jobs_client();
     let my_role_id = config.key_store.pair().public();

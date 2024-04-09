@@ -34,7 +34,7 @@ pub async fn create_client<C: ClientWithApi>(
     client: C,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
-) -> Result<JobsClient<C>, gadget_io::Error> {
+) -> Result<JobsClient<C>, crate::Error> {
     Ok(JobsClient {
         client,
         logger,
@@ -50,7 +50,7 @@ where
     F: Send + 'static,
 {
     let client = client.clone();
-    tokio::task::spawn_blocking(move || function(&client))
+    gadget_io::tokio::task::spawn_blocking(move || function(&client))
         .await
         .expect("Failed to spawn blocking task")
 }
@@ -110,7 +110,7 @@ pub trait ClientWithApi: Client {
                 >,
             >,
         >,
-        gadget_io::Error,
+        crate::Error,
     >;
     /// Queries a job by its key and ID.
     ///
@@ -137,7 +137,7 @@ pub trait ClientWithApi: Client {
                 MaxAdditionalParamsLen,
             >,
         >,
-        gadget_io::Error,
+        crate::Error,
     >;
 
     /// Queries the result of a job by its role_type and ID.
@@ -169,14 +169,14 @@ pub trait ClientWithApi: Client {
                 MaxAdditionalParamsLen,
             >,
         >,
-        gadget_io::Error,
+        crate::Error,
     >;
 
     /// Queries next job ID.
     ///
     ///  # Returns
     ///  Next job ID.
-    async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, gadget_io::Error>;
+    async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, crate::Error>;
 
     /// Queries restaker's role key
     ///
@@ -186,7 +186,7 @@ pub trait ClientWithApi: Client {
         &self,
         at: [u8; 32],
         address: AccountId32,
-    ) -> Result<Option<Vec<u8>>, gadget_io::Error>;
+    ) -> Result<Option<Vec<u8>>, crate::Error>;
 
     /// Queries restaker's roles
     ///
@@ -196,7 +196,7 @@ pub trait ClientWithApi: Client {
         &self,
         at: [u8; 32],
         address: AccountId32,
-    ) -> Result<Vec<roles::RoleType>, gadget_io::Error>;
+    ) -> Result<Vec<roles::RoleType>, crate::Error>;
 }
 
 impl<C: ClientWithApi> JobsClient<C> {
@@ -214,7 +214,7 @@ impl<C: ClientWithApi> JobsClient<C> {
                 MaxAdditionalParamsLen,
             >,
         >,
-        gadget_io::Error,
+        crate::Error,
     > {
         Ok(self
             .client
@@ -229,7 +229,7 @@ impl<C: ClientWithApi> JobsClient<C> {
         &self,
         at: [u8; 32],
         address: sr25519::Public,
-    ) -> Result<Option<ecdsa::Public>, gadget_io::Error> {
+    ) -> Result<Option<ecdsa::Public>, crate::Error> {
         self.client
             .query_restaker_role_key(at, AccountId32::from(address.0))
             .await
@@ -251,7 +251,7 @@ impl<C: ClientWithApi> JobsClient<C> {
                 MaxAdditionalParamsLen,
             >,
         >,
-        gadget_io::Error,
+        crate::Error,
     > {
         self.client.query_job_by_id(at, role_type, job_id).await
     }
@@ -275,7 +275,7 @@ impl<C: ClientWithApi> JobsClient<C> {
                 MaxAdditionalParamsLen,
             >,
         >,
-        gadget_io::Error,
+        crate::Error,
     > {
         self.client.query_job_result(at, role_type, job_id).await
     }
@@ -292,7 +292,7 @@ impl<C: ClientWithApi> JobsClient<C> {
             MaxProofLen,
             MaxAdditionalParamsLen,
         >,
-    ) -> Result<(), gadget_io::Error> {
+    ) -> Result<(), crate::Error> {
         self.pallet_tx
             .submit_job_result(role_type, job_id, result)
             .await
@@ -455,7 +455,7 @@ pub trait PalletSubmitter: Send + Sync + 'static {
             MaxProofLen,
             MaxAdditionalParamsLen,
         >,
-    ) -> Result<(), gadget_io::Error>;
+    ) -> Result<(), crate::Error>;
 }
 
 pub struct SubxtPalletSubmitter<C, S>
@@ -490,7 +490,7 @@ where
             MaxProofLen,
             MaxAdditionalParamsLen,
         >,
-    ) -> Result<(), gadget_io::Error> {
+    ) -> Result<(), crate::Error> {
         let tx = tangle_subxt::tangle_testnet_runtime::api::tx()
             .jobs()
             .submit_job_result(role_type, job_id, result);
@@ -510,7 +510,7 @@ where
                 Ok(())
             }
             Err(err) => {
-                return Err(gadget_io::Error::ClientError {
+                return Err(crate::Error::ClientError {
                     err: format!("Failed to submit job result: {err:?}"),
                 })
             }
@@ -526,11 +526,11 @@ where
     C::Hash: std::fmt::Display,
     <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams: Default,
 {
-    pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, gadget_io::Error> {
+    pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, crate::Error> {
         let subxt_client =
             OnlineClient::<C>::new()
                 .await
-                .map_err(|err| gadget_io::Error::ClientError {
+                .map_err(|err| crate::Error::ClientError {
                     err: format!("Failed to setup api: {err:?}"),
                 })?;
         Ok(Self::with_client(subxt_client, signer, logger))
@@ -578,7 +578,7 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     #[ignore = "This test requires a running substrate node"]
     async fn subxt_pallet_submitter() -> anyhow::Result<()> {
         let logger = DebugLogger {

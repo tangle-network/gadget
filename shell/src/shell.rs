@@ -42,6 +42,8 @@ use zcash_frost_protocol::constants::{
 pub const AGENT_VERSION: &str = "tangle/gadget-shell/1.0.0";
 pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub struct WasmKeystore;
+
 /// Start the shell and run it forever
 #[tracing::instrument(skip(config))]
 pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
@@ -84,9 +86,9 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     let protocols =
         start_required_protocols(&config.subxt, networks, acco_key, logger, wrapped_keystore);
 
-    let ctrl_c = tokio::signal::ctrl_c();
+    let ctrl_c = gadget_io::tokio::signal::ctrl_c();
 
-    tokio::select! {
+    gadget_io::tokio::select! {
         _ = ctrl_c => {
             tracing::info!("Received Ctrl-C, shutting down");
         }
@@ -112,7 +114,7 @@ pub fn start_protocol_by_role<KBE>(
     logger: DebugLogger,
     pallet_tx: Arc<SubxtPalletSubmitter<TangleConfig, PairSigner<TangleConfig>>>,
     keystore: ECDSAKeyStore<KBE>,
-) -> color_eyre::Result<tokio::task::AbortHandle>
+) -> color_eyre::Result<gadget_io::tokio::task::AbortHandle>
 where
     KBE: KeystoreBackend,
 {
@@ -120,7 +122,7 @@ where
     use ThresholdSignatureRoleType::*;
     let handle = match role {
         Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
-            tokio::spawn(dfns_cggmp21_protocol::setup_node(NodeInput {
+            gadget_io::tokio::spawn(dfns_cggmp21_protocol::setup_node(NodeInput {
                 clients: vec![
                     TangleRuntime::new(runtime.client()),
                     TangleRuntime::new(runtime.client()),
@@ -161,7 +163,7 @@ where
         | Tss(ZcashFrostP384)
         | Tss(ZcashFrostSecp256k1)
         | Tss(ZcashFrostRistretto255) => {
-            tokio::spawn(zcash_frost_protocol::setup_node(NodeInput {
+            gadget_io::tokio::spawn(zcash_frost_protocol::setup_node(NodeInput {
                 clients: vec![
                     TangleRuntime::new(runtime.client()),
                     TangleRuntime::new(runtime.client()),
@@ -187,7 +189,7 @@ where
         }
 
         Tss(SilentShardDKLS23Secp256k1) => {
-            tokio::spawn(silent_shard_dkls23_ll_protocol::setup_node(NodeInput {
+            gadget_io::tokio::spawn(silent_shard_dkls23_ll_protocol::setup_node(NodeInput {
                 clients: vec![
                     TangleRuntime::new(runtime.client()),
                     TangleRuntime::new(runtime.client()),
@@ -211,7 +213,7 @@ where
                 ],
             }))
         }
-        Tss(GennaroDKGBls381) => tokio::spawn(threshold_bls_protocol::setup_node(NodeInput {
+        Tss(GennaroDKGBls381) => gadget_io::tokio::spawn(threshold_bls_protocol::setup_node(NodeInput {
             clients: vec![
                 TangleRuntime::new(runtime.client()),
                 TangleRuntime::new(runtime.client()),
@@ -264,7 +266,7 @@ where
     // queries the chain for the current restaking roles,
     // and then starts the required protocols based on the roles.
     let mut current_roles = Vec::new();
-    let mut running_protocols = HashMap::<HashedRoleTypeWrapper, tokio::task::AbortHandle>::new();
+    let mut running_protocols = HashMap::<HashedRoleTypeWrapper, gadget_io::tokio::task::AbortHandle>::new();
 
     let subxt_client =
         subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&subxt_config.endpoint).await?;
@@ -325,45 +327,70 @@ where
     Ok(())
 }
 
-pub fn load_keys_from_keystore(
-    keystore_config: &crate::config::KeystoreConfig,
+pub trait SubstrateKeystore {
+    fn ecdsa_key(&self) -> color_eyre::Result<ecdsa::Pair>;
+
+    fn sr25519_key(&self) -> color_eyre::Result<sr25519::Pair>;
+}
+
+impl SubstrateKeystore for crate::config::KeystoreConfig {
+    fn ecdsa_key(&self) -> color_eyre::Result<ecdsa::Pair> {
+        let keystore_container = KeystoreContainer::new(self)?;
+        let keystore = keystore_container.local_keystore();
+        tracing::debug!("Loaded keystore from path");
+        let ecdsa_keys = keystore.ecdsa_public_keys(crypto::role::KEY_TYPE);
+
+        if ecdsa_keys.len() != 1 {
+            color_eyre::eyre::bail!(
+				"`role`: Expected exactly one key in ECDSA keystore, found {}",
+				ecdsa_keys.len()
+			);
+        }
+
+        let role_public_key = crypto::role::Public::from_slice(&ecdsa_keys[0].0)
+            .map_err(|_| color_eyre::eyre::eyre!("Failed to parse public key from keystore"))?;
+
+        let role_key = keystore
+            .key_pair::<crypto::role::Pair>(&role_public_key)?
+            .ok_or_eyre("Failed to load key `role` from keystore")?
+            .into_inner();
+
+
+        tracing::debug!(%role_public_key, "Loaded key from keystore");
+
+        Ok(role_key)
+    }
+
+    fn sr25519_key(&self) -> color_eyre::Result<sr25519::Pair> {
+        let keystore_container = KeystoreContainer::new(self)?;
+        let keystore = keystore_container.local_keystore();
+        tracing::debug!("Loaded keystore from path");
+        let sr25519_keys = keystore.sr25519_public_keys(crypto::acco::KEY_TYPE);
+
+        if sr25519_keys.len() != 1 {
+            color_eyre::eyre::bail!(
+                "`acco`: Expected exactly one key in SR25519 keystore, found {}",
+                sr25519_keys.len()
+            );
+        }
+
+        let account_public_key = crypto::acco::Public::from_slice(&sr25519_keys[0].0)
+            .map_err(|_| color_eyre::eyre::eyre!("Failed to parse public key from keystore"))?;
+
+        let acco_key = keystore
+            .key_pair::<crypto::acco::Pair>(&account_public_key)?
+            .ok_or_eyre("Failed to load key `acco` from keystore")?
+            .into_inner();
+
+        tracing::debug!(%account_public_key, "Loaded key from keystore");
+        Ok(acco_key)
+    }
+}
+
+pub fn load_keys_from_keystore<T: SubstrateKeystore> (
+    keystore_config: T,
 ) -> color_eyre::Result<(ecdsa::Pair, sr25519::Pair)> {
-    let keystore_container = KeystoreContainer::new(keystore_config)?;
-    let keystore = keystore_container.local_keystore();
-    tracing::debug!("Loaded keystore from path");
-    let ecdsa_keys = keystore.ecdsa_public_keys(crypto::role::KEY_TYPE);
-    let sr25519_keys = keystore.sr25519_public_keys(crypto::acco::KEY_TYPE);
-
-    if ecdsa_keys.len() != 1 {
-        color_eyre::eyre::bail!(
-            "`role`: Expected exactly one key in ECDSA keystore, found {}",
-            ecdsa_keys.len()
-        );
-    }
-
-    if sr25519_keys.len() != 1 {
-        color_eyre::eyre::bail!(
-            "`acco`: Expected exactly one key in SR25519 keystore, found {}",
-            sr25519_keys.len()
-        );
-    }
-
-    let role_public_key = crypto::role::Public::from_slice(&ecdsa_keys[0].0)
-        .map_err(|_| color_eyre::eyre::eyre!("Failed to parse public key from keystore"))?;
-    let account_public_key = crypto::acco::Public::from_slice(&sr25519_keys[0].0)
-        .map_err(|_| color_eyre::eyre::eyre!("Failed to parse public key from keystore"))?;
-    let role_key = keystore
-        .key_pair::<crypto::role::Pair>(&role_public_key)?
-        .ok_or_eyre("Failed to load key `role` from keystore")?
-        .into_inner();
-    let acco_key = keystore
-        .key_pair::<crypto::acco::Pair>(&account_public_key)?
-        .ok_or_eyre("Failed to load key `acco` from keystore")?
-        .into_inner();
-
-    tracing::debug!(%role_public_key, "Loaded key from keystore");
-    tracing::debug!(%account_public_key, "Loaded key from keystore");
-    Ok((role_key, acco_key))
+    Ok((keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?))
 }
 
 pub async fn wait_for_connection_to_bootnodes(
@@ -377,7 +404,7 @@ pub async fn wait_for_connection_to_bootnodes(
         "Waiting for {n_required} peers to show up across {n_networks} networks"
     ));
 
-    let mut tasks = tokio::task::JoinSet::new();
+    let mut tasks = gadget_io::tokio::task::JoinSet::new();
 
     // For each network, we start a task that checks if we have enough peers connected
     // and then we wait for all of them to finish.
@@ -390,7 +417,7 @@ pub async fn wait_for_connection_to_bootnodes(
             }
             let topic = handle.topic();
             logger.debug(format!("`{topic}`: We currently have {n_connected}/{n_required} peers connected to network"));
-            tokio::time::sleep(Duration::from_millis(1000)).await;
+            gadget_io::tokio::time::sleep(Duration::from_millis(1000)).await;
         }
     };
 

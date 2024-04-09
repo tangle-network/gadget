@@ -18,7 +18,7 @@ use round_based_21::{Incoming, Outgoing};
 use sp_core::{ecdsa, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::rounds::keygen::{run_threshold_keygen, Msg};
 
@@ -85,7 +85,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let key_store = config.key_store.clone();
     let key_store2 = config.key_store.clone();
-    let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
+    let protocol_output = Arc::new(gadget_io::tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let pallet_tx = config.pallet_tx.clone();
     let id = config.key_store.pair().public();

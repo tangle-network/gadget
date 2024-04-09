@@ -2,19 +2,21 @@ use crate::client::ClientWithApi;
 use crate::config::ProtocolConfig;
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{GadgetProtocol, Module};
-use crate::prelude::PrometheusConfig;
+use crate::prometheus::PrometheusConfig;
 use gadget::network::Network;
-use gadget_core::gadget::manager::{AbstractGadget, GadgetManager};
+use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, FinalityNotification, SubstrateGadget};
 pub use gadget_core::job::JobError;
 pub use gadget_core::job::*;
 pub use gadget_core::job_manager::WorkManagerInterface;
 pub use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
+use gadget_io::tokio::task::JoinError;
 use parking_lot::RwLock;
 pub use sp_core;
+use sp_core::ecdsa;
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
-pub use gadget_io::Error as Error;
 pub use subxt_signer;
 pub use tangle_subxt;
 
@@ -33,6 +35,7 @@ pub mod prelude {
     pub use async_trait::async_trait;
     pub use gadget_core::job_manager::ProtocolWorkManager;
     pub use gadget_core::job_manager::SendFuture;
+    pub use gadget_core::job_manager::WorkManagerError;
     pub use parking_lot::Mutex;
     pub use protocol_macros::protocol;
     pub use sp_runtime::traits::Block;
@@ -47,7 +50,7 @@ pub mod prelude {
     };
 
     pub use gadget_io;
-    pub use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+    pub use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 }
 pub mod channels;
 pub mod client;
@@ -62,9 +65,43 @@ pub mod prometheus;
 pub mod protocol;
 pub mod utils;
 
-pub async fn run_protocol<T: ProtocolConfig>(
-    mut protocol_config: T,
-) -> Result<(), gadget_io::Error> {
+#[derive(Debug)]
+pub enum Error {
+    RegistryCreateError { err: String },
+    RegistrySendError { err: String },
+    RegistryRecvError { err: String },
+    RegistrySerializationError { err: String },
+    RegistryListenError { err: String },
+    GadgetManagerError { err: GadgetError },
+    InitError { err: String },
+    WorkManagerError { err: WorkManagerError },
+    ProtocolRemoteError { err: String },
+    ClientError { err: String },
+    JobError { err: JobError },
+    NetworkError { err: String },
+    KeystoreError { err: String },
+    MissingNetworkId,
+    PeerNotFound { id: ecdsa::Public },
+    JoinError { err: JoinError },
+    ParticipantNotSelected { id: ecdsa::Public, reason: String },
+    PrometheusError { err: String },
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+impl std::error::Error for Error {}
+
+impl From<JobError> for Error {
+    fn from(err: JobError) -> Self {
+        Error::JobError { err }
+    }
+}
+
+pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(), crate::Error> {
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
@@ -91,10 +128,10 @@ pub async fn run_protocol<T: ProtocolConfig>(
 
         GadgetManager::new(substrate_gadget)
             .await
-            .map_err(|err| gadget_io::Error::GadgetManagerError { err })
+            .map_err(|err| crate::Error::GadgetManagerError { err })
     };
 
-    if let Err(err) = gadget_io::setup(prometheus_config.clone()).await {
+    if let Err(err) = crate::prometheus::setup(prometheus_config.clone()).await {
         protocol_config
             .logger()
             .warn(format!("Error setting up prometheus: {err:?}"));
@@ -105,14 +142,14 @@ pub async fn run_protocol<T: ProtocolConfig>(
     }
 
     // Run both the network and the gadget together
-    tokio::try_join!(network_future, gadget_future).map(|_| ())
+    gadget_io::tokio::try_join!(network_future, gadget_future).map(|_| ())
 }
 
 /// Creates a work manager
 pub async fn create_work_manager<C: ClientWithApi, P: GadgetProtocol<C>>(
     latest_finality_notification: &FinalityNotification,
     protocol: &P,
-) -> Result<ProtocolWorkManager<WorkManager>, gadget_io::Error> {
+) -> Result<ProtocolWorkManager<WorkManager>, crate::Error> {
     let now: u64 = latest_finality_notification.number;
 
     let work_manager_config = protocol.get_work_manager_config();
@@ -141,11 +178,11 @@ pub async fn create_work_manager<C: ClientWithApi, P: GadgetProtocol<C>>(
 
 async fn get_latest_finality_notification_from_client<C: Client>(
     client: &C,
-) -> Result<FinalityNotification, gadget_io::Error> {
+) -> Result<FinalityNotification, crate::Error> {
     client
         .get_latest_finality_notification()
         .await
-        .ok_or_else(|| gadget_io::Error::InitError {
+        .ok_or_else(|| crate::Error::InitError {
             err: "No finality notification received".to_string(),
         })
 }
@@ -186,7 +223,7 @@ macro_rules! generate_setup_and_run_command {
             account_id: sp_core::sr25519::Public,
             key_store: ECDSAKeyStore<KBE>,
             prometheus_config: $crate::prometheus::PrometheusConfig,
-        ) -> Result<(), gadget_io::Error>
+        ) -> Result<(), crate::Error>
         {
             use futures::TryStreamExt;
             let futures = futures::stream::FuturesUnordered::new();
@@ -195,7 +232,7 @@ macro_rules! generate_setup_and_run_command {
 
             $(
                 let config = crate::$config::new(clients.pop_front().expect("Not enough clients"), pallet_tx.clone(), networks.pop_front().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone(), prometheus_config.clone()).await?;
-                futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), gadget_io::Error> >>>);
+                futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), crate::Error> >>>);
             )*
 
             futures.try_collect::<Vec<_>>().await.map(|_| ())
@@ -244,7 +281,7 @@ macro_rules! generate_protocol {
                 account_id: sp_core::sr25519::Public,
                 key_store: ECDSAKeyStore<Self::KeystoreBackend>,
                 prometheus_config: $crate::prometheus::PrometheusConfig,
-            ) -> Result<Self, gadget_io::Error> {
+            ) -> Result<Self, crate::Error> {
                 let logger = if logger.peer_id.is_empty() {
                     DebugLogger { peer_id: stringify!($name).replace("\"", "").into() }
                 } else {
@@ -291,7 +328,7 @@ macro_rules! generate_protocol {
                 &self,
                 job: JobInitMetadata,
                 work_manager: &ProtocolWorkManager<WorkManager>,
-            ) -> Result<Self::AsyncProtocolParameters, gadget_io::Error> {
+            ) -> Result<Self::AsyncProtocolParameters, crate::Error> {
                 $create_job_path(self, job, work_manager).await
             }
 

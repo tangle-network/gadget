@@ -34,7 +34,7 @@ use sp_core::keccak_256;
 use sp_core::{ecdsa, Pair};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
 use gadget_common::channels::PublicKeyGossipMessage;
@@ -260,7 +260,7 @@ pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: N
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let key_store = config.key_store.clone();
     let key_store2 = config.key_store.clone();
-    let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
+    let protocol_output = Arc::new(gadget_io::tokio::sync::Mutex::new(None));
     let protocol_output_clone = protocol_output.clone();
     let client = config.get_jobs_client();
     let my_role_id = key_store.pair().public();
@@ -631,8 +631,8 @@ async fn handle_post_incomplete_keygen<S: SecurityLevel, KBE: KeystoreBackend>(
 
     let pregenerated_primes_key =
         keccak_256(&[&b"dfns-cggmp21-keygen-primes"[..], job_id_bytes].concat());
-    let now = tokio::time::Instant::now();
-    let pregenerated_primes = tokio::task::spawn_blocking(|| {
+    let now = gadget_io::tokio::time::Instant::now();
+    let pregenerated_primes = gadget_io::tokio::task::spawn_blocking(|| {
         let mut rng = OsRng;
         dfns_cggmp21::PregeneratedPrimes::<S>::generate(&mut rng)
     })

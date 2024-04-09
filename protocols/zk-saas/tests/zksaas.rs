@@ -31,7 +31,7 @@ mod tests {
     use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use zk_saas_protocol::network::ZkProtocolNetworkConfig;
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[gadget_io::tokio::test(flavor = "multi_thread")]
     async fn test_zk_job() {
         test_utils::setup_log();
         const N: usize = 4;

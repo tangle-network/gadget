@@ -26,6 +26,8 @@ sp-core = { workspace = true, features = ["serde", "full_crypto"] }
 sp-io = { workspace = true, features = ["disable_panic_handler", "disable_oom", "disable_allocator"] }
 sp-keystore = { workspace = true }
 sp-application-crypto = { workspace = true, features = ["serde", "full_crypto"] }
+sp-std = { workspace = true, default-features = false }
+
 tangle-subxt = { workspace = true, features = ["wasm"] }
 scale-info = { workspace = true }
 parity-scale-codec = { workspace = true }

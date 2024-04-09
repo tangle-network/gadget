@@ -7,7 +7,8 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
+#tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
+gadget-io = { workspace = true, default-features = false }
 gadget-common = { workspace = true }
 gadget-core = { workspace = true }
 protocol-macros = { workspace = true }
