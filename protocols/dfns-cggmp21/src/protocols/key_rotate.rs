@@ -259,7 +259,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
         .post(async move {
             // Submit the protocol output to the blockchain
             if let Some(signature) = protocol_output_clone.lock().await.take() {
-                validate_dfns_signature_by_role(
+                let (signature_scheme, _) = validate_dfns_signature_by_role(
                     &additional_params.role_type,
                     &signature,
                     &new_public_key,
@@ -267,7 +267,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: N
                 )?;
                 let job_result =
                     jobs::JobResult::DKGPhaseFour(jobs::tss::DKGTSSKeyRotationResult {
-                        signature_scheme: jobs::tss::DigitalSignatureScheme::EcdsaSecp256k1,
+                        signature_scheme,
                         derivation_path: None,
                         signature: BoundedVec(signature),
                         phase_one_id,
