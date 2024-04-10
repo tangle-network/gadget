@@ -2269,7 +2269,6 @@ dependencies = [
  "platforms",
  "rand_core 0.6.4",
  "rustc_version",
- "serde",
  "subtle 2.5.0",
  "zeroize",
 ]
