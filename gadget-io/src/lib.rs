@@ -6,7 +6,7 @@ pub mod wasm;
 
 #[cfg(target_family = "wasm")]
 pub use wasm::{
-    keystore::{KeystoreConfig, SubstrateKeystore},
+    keystore::{KeystoreConfig, SubstrateKeystore, file_test},
 };
 
 #[cfg(not(target_family = "wasm"))]

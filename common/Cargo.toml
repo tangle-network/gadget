@@ -60,7 +60,7 @@ substrate = [
   "gadget-core/substrate",
   "gadget-io/default",
   "tangle-subxt/std",
-#  "subxt-signer/native",
+  "subxt-signer/native",
   "subxt/native",
   "subxt/jsonrpsee",
   "sp-api/std",

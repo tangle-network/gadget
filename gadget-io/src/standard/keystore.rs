@@ -1,9 +1,34 @@
-pub use crate::shared::keystore::{KeystoreConfig, SubstrateKeystore};
+pub use crate::shared::keystore::SubstrateKeystore;
 use tracing;
 use color_eyre;
 use std::path::{PathBuf, Path};
 use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair, crypto};
 
+/// Configuration of the client keystore.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub enum KeystoreConfig {
+    /// Keystore at a path on-disk. Recommended for native gadgets.
+    Path {
+        /// The path of the keystore.
+        path: PathBuf,
+        /// keystore's password.
+        password: Option<SecretString>,
+    },
+    /// In-memory keystore.
+    InMemory,
+}
+
+impl KeystoreConfig {
+    /// Returns the path for the keystore.
+    #[allow(dead_code)]
+    pub fn path(&self) -> Option<&Path> {
+        match self {
+            Self::Path { path, .. } => Some(path),
+            Self::InMemory => None,
+        }
+    }
+}
 
 impl SubstrateKeystore for KeystoreConfig {
     fn ecdsa_key(&self) -> color_eyre::Result<ecdsa::Pair> {
