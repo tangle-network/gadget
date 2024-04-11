@@ -130,26 +130,10 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
             };
             // Job is not for this role
             if !self.protocol.role_filter(role_type.clone()) {
-                self.protocol.logger().trace(
-                    format!(
-                        "[{}] The job {} requested for initialization is not for this role {:?}, skipping submission",
-                        self.protocol.name(),
-                        job.job_id,
-                        role_type
-                    )
-                );
                 continue;
             }
             // Job is not for this phase
             if !self.protocol.phase_filter(job.job_type.clone()) {
-                self.protocol.logger().trace(
-                    format!(
-                        "[{}] The job {} requested for initialization is not for this phase {:?}, skipping submission",
-                        self.protocol.name(),
-                        job.job_id,
-                        job.job_type
-                    )
-                );
                 continue;
             }
 

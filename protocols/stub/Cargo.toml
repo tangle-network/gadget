@@ -11,6 +11,9 @@ tokio = { workspace = true }
 protocol-macros = { workspace = true }
 parking_lot = { workspace = true }
 sp-core = { workspace = true }
+serde = { version = "1.0.197", features = ["derive"] }
+rand = { workspace = true }
+itertools = { workspace = true }
 
 
 [dev-dependencies]
