@@ -8,36 +8,42 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures;
 
 use gadget_io::file_test;
+use gadget_common::prelude::*;
+use gadget_common::ExecutableJob;
+use tsify::Tsify;
 
-mod config;
-mod keystore;
-mod shell;
-mod tangle;
-
-#[derive(Debug, StructOpt)]
-#[structopt(
-name = "Gadget",
-about = "An MPC executor that connects to the Tangle network to perform work"
-)]
+// mod config;
+// mod keystore;
+// mod shell;
+// mod tangle;
+//
+// #[derive(Debug, StructOpt)]
+// #[structopt(
+// name = "Gadget",
+// about = "An MPC executor that connects to the Tangle network to perform work"
+// )]
+#[derive(Serialize, Deserialize, Debug, Tsify)]
+#[tsify(from_wasm_abi)]
 struct Opt {
-    /// The path to the configuration file. If not provided, the default configuration will be used.
-    /// Note that if the configuration file is provided, the command line arguments will be ignored.
-    #[structopt(global = true, parse(from_os_str), short = "c", long = "config")]
+    // /// The path to the configuration file. If not provided, the default configuration will be used.
+    // /// Note that if the configuration file is provided, the command line arguments will be ignored.
+    // #[structopt(global = true, parse(from_os_str), short = "c", long = "config")]
     config: Option<PathBuf>,
-    /// The verbosity level, can be used multiple times
-    #[structopt(long, short = "v", global = true, parse(from_occurrences))]
+    // /// The verbosity level, can be used multiple times
+    // #[structopt(long, short = "v", global = true, parse(from_occurrences))]
     verbose: i32,
-    /// Whether to use pretty logging
-    #[structopt(global = true, long)]
+    // /// Whether to use pretty logging
+    // #[structopt(global = true, long)]
     pretty: bool,
-    /// The options for the shell
-    #[structopt(flatten)]
+    // /// The options for the shell
+    // #[structopt(flatten)]
     options: TomlConfig,
 }
 
-#[derive(Default, Debug, StructOpt, Serialize, Deserialize)]
-#[structopt(rename_all = "snake_case")]
+// #[structopt(rename_all = "snake_case")]
+#[derive(Default, Debug, StructOpt, Serialize, Deserialize, Tsify)]
 #[serde(rename_all = "snake_case")]
+#[tsify(from_wasm_abi)]
 enum SupportedChains {
     #[default]
     LocalTestnet,
@@ -46,57 +52,58 @@ enum SupportedChains {
     Mainnet,
 }
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, StructOpt, Serialize, Deserialize, Tsify)]
+#[tsify(from_wasm_abi)]
 struct TomlConfig {
-    /// The IP address to bind to for the libp2p node.
-    #[structopt(long = "bind-ip", short = "i", default_value = defaults::BIND_IP)]
-    #[serde(default = "defaults::bind_ip")]
-    bind_ip: IpAddr,
-    /// The port to bind to for the libp2p node.
-    #[structopt(long = "port", short = "p", default_value = defaults::BIND_PORT)]
+    // /// The IP address to bind to for the libp2p node.
+    // #[structopt(long = "bind-ip", short = "i", default_value = defaults::BIND_IP)]
+    // #[serde(default = "defaults::bind_ip")]
+    bind_ip: String,
+    // /// The port to bind to for the libp2p node.
+    // #[structopt(long = "port", short = "p", default_value = defaults::BIND_PORT)]
     #[serde(default = "defaults::bind_port")]
     bind_port: u16,
-    /// The RPC URL of the Tangle Node.
-    #[structopt(long = "url", parse(try_from_str = url::Url::parse), default_value = defaults::RPC_URL)]
-    #[serde(default = "defaults::rpc_url")]
-    url: url::Url,
-    /// The List of bootnodes to connect to
-    #[structopt(long = "bootnodes", parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
-    #[serde(default)]
-    bootnodes: Vec<Multiaddr>,
-    /// The node key in hex format. If not provided, a random node key will be generated.
-    #[structopt(long = "node-key", env, parse(try_from_str = parse_node_key))]
-    #[serde(skip_serializing)]
+    // /// The RPC URL of the Tangle Node.
+    // #[structopt(long = "url", parse(try_from_str = url::Url::parse), default_value = defaults::RPC_URL)]
+    // #[serde(default = "defaults::rpc_url")]
+    url: String,
+    // /// The List of bootnodes to connect to
+    // #[structopt(long = "bootnodes", parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
+    // #[serde(default)]
+    bootnodes: Vec<String>,
+    // /// The node key in hex format. If not provided, a random node key will be generated.
+    // #[structopt(long = "node-key", env, parse(try_from_str = parse_node_key))]
+    // #[serde(skip_serializing)]
     node_key: Option<String>,
-    /// The base path to store the shell data, and read data from the keystore.
-    #[structopt(
-    parse(from_os_str),
-    long,
-    short = "d",
-    required_unless = "config",
-    default_value_if("config", None, ".")
-    )]
+    // /// The base path to store the shell data, and read data from the keystore.
+    // #[structopt(
+    // parse(from_os_str),
+    // long,
+    // short = "d",
+    // required_unless = "config",
+    // default_value_if("config", None, ".")
+    // )]
     base_path: PathBuf,
-    /// Keystore Password, if not provided, the password will be read from the environment variable.
-    #[structopt(long = "keystore-password", env)]
+    // /// Keystore Password, if not provided, the password will be read from the environment variable.
+    // #[structopt(long = "keystore-password", env)]
     keystore_password: Option<String>,
-    /// The chain to connect to, must be one of the supported chains.
-    #[structopt(
-    long,
-    default_value,
-    possible_values = &[
-    "local_testnet",
-    "local_mainnet",
-    "testnet",
-    "mainnet"
-    ]
-    )]
+    // /// The chain to connect to, must be one of the supported chains.
+    // #[structopt(
+    // long,
+    // default_value,
+    // possible_values = &[
+    // "local_testnet",
+    // "local_mainnet",
+    // "testnet",
+    // "mainnet"
+    // ]
+    // )]
     #[serde(default)]
     chain: SupportedChains,
 }
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<()> {
+// #[tokio::main(flavor = "current_thread")]
+// async fn main() -> Result<()> {
     // color_eyre::install()?;
     // let opt = Opt::from_args();
     // setup_logger(&opt, "gadget_shell")?;
@@ -133,36 +140,84 @@ async fn main() -> Result<()> {
     //         })?,
     // })
     //     .await?;
-    Ok(())
+//     Ok(())
+// }
+
+#[wasm_bindgen]
+#[no_mangle]
+pub async fn web_main(config: TomlConfig, options: Opt) -> () {
+    // color_eyre::install()?;
+    // let opt = Opt::from_args();
+    // setup_logger(&opt, "gadget_shell")?;
+    // JobBuilder::default().build().execute().await.unwrap();
+    log(&log_rust(&format!("Hello from web_main in Rust!")));
+    log(&format!("TomlConfig: {:?}", config));
+    log(&format!("Options: {:?}", options));
+
+    // let config = if let Some(config) = opt.config {
+    //     let config_contents = std::fs::read_to_string(config)?;
+    //     toml::from_str(&config_contents)?
+    // } else {
+    //     opt.options
+    // };
+    // shell::run_forever(config::ShellConfig {
+    //     keystore: config::KeystoreConfig::Path {
+    //         path: config
+    //             .base_path
+    //             .join("chains")
+    //             .join(config.chain.to_string())
+    //             .join("keystore"),
+    //         password: config.keystore_password.map(|s| s.into()),
+    //     },
+    //     subxt: config::SubxtConfig {
+    //         endpoint: config.url,
+    //     },
+    //     base_path: config.base_path,
+    //     bind_ip: config.bind_ip,
+    //     bind_port: config.bind_port,
+    //     bootnodes: config.bootnodes,
+    //     node_key: hex::decode(
+    //         config
+    //             .node_key
+    //             .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
+    //     )?
+    //         .try_into()
+    //         .map_err(|_| {
+    //             color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
+    //         })?,
+    // })
+    //     .await?;
+    return;
 }
 
-/// Sets up the logger for the shell, based on the verbosity level passed in.
-fn setup_logger(opt: &Opt, filter: &str) -> Result<()> {
-    use tracing::Level;
-    let log_level = match opt.verbose {
-        0 => Level::ERROR,
-        1 => Level::WARN,
-        2 => Level::INFO,
-        3 => Level::DEBUG,
-        _ => Level::TRACE,
-    };
-    let env_filter = tracing_subscriber::EnvFilter::from_default_env()
-        .add_directive(format!("{filter}={log_level}").parse()?)
-        .add_directive(format!("gadget={log_level}").parse()?);
-    let logger = tracing_subscriber::fmt()
-        .with_target(false)
-        .with_level(true)
-        .with_line_number(false)
-        .without_time()
-        .with_max_level(log_level)
-        .with_env_filter(env_filter);
-    if opt.pretty {
-        logger.pretty().init();
-    } else {
-        logger.compact().init();
-    }
-    Ok(())
-}
+// /// Sets up the logger for the shell, based on the verbosity level passed in.
+// #[wasm_bindgen]
+// pub fn setup_logger(opt: &Opt, filter: &str) -> Result<()> {
+//     use tracing::Level;
+//     let log_level = match opt.verbose {
+//         0 => Level::ERROR,
+//         1 => Level::WARN,
+//         2 => Level::INFO,
+//         3 => Level::DEBUG,
+//         _ => Level::TRACE,
+//     };
+//     let env_filter = tracing_subscriber::EnvFilter::from_default_env()
+//         .add_directive(format!("{filter}={log_level}").parse()?)
+//         .add_directive(format!("gadget={log_level}").parse()?);
+//     let logger = tracing_subscriber::fmt()
+//         .with_target(false)
+//         .with_level(true)
+//         .with_line_number(false)
+//         .without_time()
+//         .with_max_level(log_level)
+//         .with_env_filter(env_filter);
+//     if opt.pretty {
+//         logger.pretty().init();
+//     } else {
+//         logger.compact().init();
+//     }
+//     Ok(())
+// }
 
 mod defaults {
     pub const BIND_PORT: &str = "30555";
@@ -181,23 +236,23 @@ mod defaults {
         BIND_PORT.parse().expect("Default bind port is valid")
     }
 
-    /// Generates a random node key
-    pub fn generate_node_key() -> [u8; 32] {
-        use rand::Rng;
-
-        let mut rng = rand::thread_rng();
-        let mut array = [0u8; 32];
-        rng.fill(&mut array);
-        array
-    }
+    // /// Generates a random node key
+    // pub fn generate_node_key() -> [u8; 32] {
+    //     use rand::Rng;
+    //
+    //     let mut rng = rand::thread_rng();
+    //     let mut array = [0u8; 32];
+    //     rng.fill(&mut array);
+    //     array
+    // }
 }
 
-fn parse_node_key(s: &str) -> Result<String> {
-    let result: [u8; 32] = hex::decode(s.replace("0x", ""))?.try_into().map_err(|_| {
-        color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
-    })?;
-    Ok(hex::encode(result))
-}
+// fn parse_node_key(s: &str) -> Result<String> {
+//     let result: [u8; 32] = hex::decode(s.replace("0x", ""))?.try_into().map_err(|_| {
+//         color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
+//     })?;
+//     Ok(hex::encode(result))
+// }
 
 impl FromStr for SupportedChains {
     type Err = String;
@@ -229,6 +284,8 @@ extern "C" {
     fn webPrompt(message: &str) -> String;
 
     fn setConsoleInput();
+
+    fn log_rust(s: &str) -> String;
 }
 
 #[wasm_bindgen]
@@ -259,23 +316,23 @@ extern "C" {
 //     x.set_number(10);
 //     log(&x.render());
 // }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use wasm_bindgen_test::wasm_bindgen_test_configure;
-    use wasm_bindgen_test::wasm_bindgen_test;
-    wasm_bindgen_test_configure!(run_in_browser);
-
-    #[wasm_bindgen_test]
-    async fn test_main() -> Result<()> {
+//
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use wasm_bindgen_test::wasm_bindgen_test_configure;
+//     use wasm_bindgen_test::wasm_bindgen_test;
+//     wasm_bindgen_test_configure!(run_in_browser);
+//
+    // #[wasm_bindgen_test]
+    // async fn test_main() -> Result<()> {
         // setConsoleInput();
-        file_test().await;
-
+        // file_test().await;
+        //
         // color_eyre::install().expect("Failed to install color_eyre");
         // let opt = Opt::from_args();
-
-
+        //
+        //
         // let opt = Opt {
         //     config: None,
         //     verbose: 0,
@@ -319,8 +376,8 @@ mod tests {
         //         })?,
         // })
         //     .await.unwrap();
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     // #[wasm_bindgen_test]
     // pub fn color_eyre_simple() {
@@ -365,5 +422,5 @@ mod tests {
     //     log(&format!("File Success? {:?}!", get_from_js().await));
     //     //log(&format!("Input was {}!", webPrompt("Does this question appear?")));
     // }
-
-}
+//
+// }

@@ -2,6 +2,15 @@ export function webPrompt(message) {
     return prompt(message);
 }
 
+export function getKeys() {
+    return;
+}
+
+export function log_rust(message) {
+    console.log(message);
+    return ("message is " + message);
+}
+
 export function setConsoleInput() {
     Object.defineProperties(window, {
         startshell: {

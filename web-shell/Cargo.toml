@@ -6,14 +6,15 @@ edition = "2021"
 
 #[features]
 
-#[lib]
-#crate-type = ["cdylib"]#, "rlib"]
+[lib]
+crate-type = ["cdylib"]#, "rlib"]
 
 [dependencies]
 # WASM-specific
 wasm-bindgen = { version = "0.2.92" }
 getrandom = { workspace = true, features = ["js"] }
 wasm-bindgen-futures = { version = "0.4.42" }
+tsify = { version = "0.4.5" }
 
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
 async-trait = { workspace = true }
