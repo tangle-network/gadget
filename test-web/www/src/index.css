@@ -1,0 +1,22 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+h1 {
+    font-size: 20px;
+}
+
+h2 {
+    font-size: 14px;
+    margin-top: 20px;
+    margin-bottom: 0;
+}
+
+p {
+    font-size: 12px;
+}
+
+canvas {
+    border: 1px solid black;
+    padding: 1px;
+}
