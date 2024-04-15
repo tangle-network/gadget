@@ -1,20 +1,22 @@
-use color_eyre::*;
 use color_eyre::eyre::WrapErr;
+use color_eyre::*;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
 use structopt::StructOpt;
+use url::Url;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 use wasm_bindgen_futures;
 
-use gadget_io::file_test;
+// use gadget_io::file_test;
 use gadget_common::prelude::*;
 use gadget_common::ExecutableJob;
 use tsify::Tsify;
 
-// mod config;
+mod config;
 // mod keystore;
-// mod shell;
+mod shell;
 // mod tangle;
 //
 // #[derive(Debug, StructOpt)]
@@ -104,48 +106,52 @@ struct TomlConfig {
 
 // #[tokio::main(flavor = "current_thread")]
 // async fn main() -> Result<()> {
-    // color_eyre::install()?;
-    // let opt = Opt::from_args();
-    // setup_logger(&opt, "gadget_shell")?;
-    // let config = if let Some(config) = opt.config {
-    //     let config_contents = std::fs::read_to_string(config)?;
-    //     toml::from_str(&config_contents)?
-    // } else {
-    //     opt.options
-    // };
-    // shell::run_forever(config::ShellConfig {
-    //     keystore: config::KeystoreConfig::Path {
-    //         path: config
-    //             .base_path
-    //             .join("chains")
-    //             .join(config.chain.to_string())
-    //             .join("keystore"),
-    //         password: config.keystore_password.map(|s| s.into()),
-    //     },
-    //     subxt: config::SubxtConfig {
-    //         endpoint: config.url,
-    //     },
-    //     base_path: config.base_path,
-    //     bind_ip: config.bind_ip,
-    //     bind_port: config.bind_port,
-    //     bootnodes: config.bootnodes,
-    //     node_key: hex::decode(
-    //         config
-    //             .node_key
-    //             .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
-    //     )?
-    //         .try_into()
-    //         .map_err(|_| {
-    //             color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
-    //         })?,
-    // })
-    //     .await?;
+// color_eyre::install()?;
+// let opt = Opt::from_args();
+// setup_logger(&opt, "gadget_shell")?;
+// let config = if let Some(config) = opt.config {
+//     let config_contents = std::fs::read_to_string(config)?;
+//     toml::from_str(&config_contents)?
+// } else {
+//     opt.options
+// };
+// shell::run_forever(config::ShellConfig {
+//     keystore: config::KeystoreConfig::Path {
+//         path: config
+//             .base_path
+//             .join("chains")
+//             .join(config.chain.to_string())
+//             .join("keystore"),
+//         password: config.keystore_password.map(|s| s.into()),
+//     },
+//     subxt: config::SubxtConfig {
+//         endpoint: config.url,
+//     },
+//     base_path: config.base_path,
+//     bind_ip: config.bind_ip,
+//     bind_port: config.bind_port,
+//     bootnodes: config.bootnodes,
+//     node_key: hex::decode(
+//         config
+//             .node_key
+//             .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
+//     )?
+//         .try_into()
+//         .map_err(|_| {
+//             color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
+//         })?,
+// })
+//     .await?;
 //     Ok(())
 // }
 
+pub fn into_js_error(err: impl std::error::Error) -> JsValue {
+    js_sys::Error::new(&err.to_string()).into()
+}
+
 #[wasm_bindgen]
 #[no_mangle]
-pub async fn web_main(config: TomlConfig, options: Opt) -> () {
+pub async fn web_main(config: TomlConfig, options: Opt) -> Result<JsValue, JsValue> {
     // color_eyre::install()?;
     // let opt = Opt::from_args();
     // setup_logger(&opt, "gadget_shell")?;
@@ -160,34 +166,75 @@ pub async fn web_main(config: TomlConfig, options: Opt) -> () {
     // } else {
     //     opt.options
     // };
-    // shell::run_forever(config::ShellConfig {
-    //     keystore: config::KeystoreConfig::Path {
-    //         path: config
-    //             .base_path
-    //             .join("chains")
-    //             .join(config.chain.to_string())
-    //             .join("keystore"),
-    //         password: config.keystore_password.map(|s| s.into()),
-    //     },
-    //     subxt: config::SubxtConfig {
-    //         endpoint: config.url,
-    //     },
-    //     base_path: config.base_path,
-    //     bind_ip: config.bind_ip,
-    //     bind_port: config.bind_port,
-    //     bootnodes: config.bootnodes,
-    //     node_key: hex::decode(
-    //         config
-    //             .node_key
-    //             .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
-    //     )?
-    //         .try_into()
-    //         .map_err(|_| {
-    //             color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
-    //         })?,
-    // })
-    //     .await?;
-    return;
+    let TomlConfig {
+        bind_ip,
+        bind_port,
+        url,
+        bootnodes,
+        node_key,
+        base_path,
+        keystore_password,
+        chain,
+    } = config;
+
+    let Opt {
+        config,
+        verbose,
+        pretty,
+        options,
+    } = options;
+    let endpoint = Url::parse(&url).map_err(into_js_error)?;
+    log(&format!("Endpoint: {:?}", endpoint));
+
+    let bind_ip = IpAddr::from_str(&bind_ip).map_err(into_js_error)?;
+    log(&format!("Bind IP: {:?}", bind_ip));
+
+    let bootnodes: Vec<Multiaddr> = bootnodes
+        .iter()
+        .map(|s| Multiaddr::from_str(&s))
+        .filter_map(|x| x.ok())
+        .collect();
+    log(&format!("Bootnodes: {:?}", bootnodes));
+
+    let node_key: [u8; 32] = if let Some(node_key) = node_key {
+        hex::decode(&node_key)
+        // .map_err(into_js_error)?
+        // .as_slice()
+        // .try_into()
+        // .map_err(into_js_error)?;
+    } else {
+        hex::decode("0000000000000000000000000000000000000000000000000000000000000001")
+        // .map_err(into_js_error)?
+        // .as_slice()
+        // .try_into()
+        // .map_err(into_js_error)?;
+    }
+    .map_err(into_js_error)?
+    .as_slice()
+    .try_into()
+    .map_err(into_js_error)?;
+    log(&format!("Node Key: {:?}", node_key));
+
+    // let node_key: [u8; 32] = hex::decode("0000000000000000000000000000000000000000000000000000000000000001")
+    //     .map_err(into_js_error)?
+    //     .as_slice()
+    //     .try_into()
+    //     .map_err(into_js_error)?;
+
+    shell::run_forever(config::ShellConfig {
+        keystore: config::KeystoreConfig::InMemory,
+        subxt: config::SubxtConfig {
+            endpoint,
+        },
+        base_path,
+        bind_ip,
+        bind_port,
+        bootnodes,
+        node_key,
+    })
+        .await
+    //let result = serde_wasm_bindgen::to_value("success message").map_err(into_js_error)?;
+    //Ok(result)
 }
 
 // /// Sets up the logger for the shell, based on the verbosity level passed in.
@@ -300,7 +347,6 @@ extern "C" {
 //     Ok(result)
 // }
 
-
 // #[wasm_bindgen(module = "/async-js-utils.js")]
 // extern "C" {
 //     #[wasm_bindgen(catch)]
@@ -324,103 +370,103 @@ extern "C" {
 //     use wasm_bindgen_test::wasm_bindgen_test;
 //     wasm_bindgen_test_configure!(run_in_browser);
 //
-    // #[wasm_bindgen_test]
-    // async fn test_main() -> Result<()> {
-        // setConsoleInput();
-        // file_test().await;
-        //
-        // color_eyre::install().expect("Failed to install color_eyre");
-        // let opt = Opt::from_args();
-        //
-        //
-        // let opt = Opt {
-        //     config: None,
-        //     verbose: 0,
-        //     pretty: false,
-        //     options: TomlConfig {
-        //         bind_ip: defaults::bind_ip(),
-        //         bind_port: 30555,
-        //         url: defaults::rpc_url(),
-        //         bootnodes: [].to_vec(),
-        //         node_key: Some("0000000000000000000000000000000000000000000000000000000000000000".to_string()),
-        //         base_path: "../tangle/tmp/alice".into(),
-        //         keystore_password: None,
-        //         chain: SupportedChains::LocalTestnet,
-        //     },
-        // };
-        // setup_logger(&opt, "gadget_web_shell").unwrap();
-        // let config = if let Some(config) = opt.config {
-        //     let config_contents = std::fs::read_to_string(config).unwrap();
-        //     toml::from_str(&config_contents).unwrap()
-        // } else {
-        //     opt.options
-        // };
-        // log(&format!("Resulting config: {:?}.", config));
-        // shell::run_forever(config::ShellConfig {
-        //     keystore: config::KeystoreConfig::InMemory,
-        //     subxt: config::SubxtConfig {
-        //         endpoint: config.url,
-        //     },
-        //     base_path: config.base_path,
-        //     bind_ip: config.bind_ip,
-        //     bind_port: config.bind_port,
-        //     bootnodes: config.bootnodes,
-        //     node_key: hex::decode(
-        //         config
-        //             .node_key
-        //             .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
-        //     )?
-        //         .try_into()
-        //         .map_err(|_| {
-        //             color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
-        //         })?,
-        // })
-        //     .await.unwrap();
-    //     Ok(())
-    // }
+// #[wasm_bindgen_test]
+// async fn test_main() -> Result<()> {
+// setConsoleInput();
+// file_test().await;
+//
+// color_eyre::install().expect("Failed to install color_eyre");
+// let opt = Opt::from_args();
+//
+//
+// let opt = Opt {
+//     config: None,
+//     verbose: 0,
+//     pretty: false,
+//     options: TomlConfig {
+//         bind_ip: defaults::bind_ip(),
+//         bind_port: 30555,
+//         url: defaults::rpc_url(),
+//         bootnodes: [].to_vec(),
+//         node_key: Some("0000000000000000000000000000000000000000000000000000000000000000".to_string()),
+//         base_path: "../tangle/tmp/alice".into(),
+//         keystore_password: None,
+//         chain: SupportedChains::LocalTestnet,
+//     },
+// };
+// setup_logger(&opt, "gadget_web_shell").unwrap();
+// let config = if let Some(config) = opt.config {
+//     let config_contents = std::fs::read_to_string(config).unwrap();
+//     toml::from_str(&config_contents).unwrap()
+// } else {
+//     opt.options
+// };
+// log(&format!("Resulting config: {:?}.", config));
+// shell::run_forever(config::ShellConfig {
+//     keystore: config::KeystoreConfig::InMemory,
+//     subxt: config::SubxtConfig {
+//         endpoint: config.url,
+//     },
+//     base_path: config.base_path,
+//     bind_ip: config.bind_ip,
+//     bind_port: config.bind_port,
+//     bootnodes: config.bootnodes,
+//     node_key: hex::decode(
+//         config
+//             .node_key
+//             .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
+//     )?
+//         .try_into()
+//         .map_err(|_| {
+//             color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
+//         })?,
+// })
+//     .await.unwrap();
+//     Ok(())
+// }
 
-    // #[wasm_bindgen_test]
-    // pub fn color_eyre_simple() {
-    //     use color_eyre::eyre::WrapErr;
-    //     use color_eyre::*;
-    //
-    //     install().expect("Failed to install color_eyre");
-    //     let err_str = format!(
-    //         "{:?}",
-    //         Err::<(), Report>(eyre::eyre!("Base Error"))
-    //             .note("A note")
-    //             .suggestion("A suggestion")
-    //             .wrap_err("A wrapped error")
-    //             .unwrap_err()
-    //     );
-    //     // Print it out so if people run with `-- --nocapture`, they
-    //     // can see the full message.
-    //     println!("Error String is:\n\n{}", err_str);
-    //     assert!(err_str.contains("A wrapped error"));
-    //     assert!(err_str.contains("A suggestion"));
-    //     assert!(err_str.contains("A note"));
-    //     assert!(err_str.contains("Base Error"));
-    // }
+// #[wasm_bindgen_test]
+// pub fn color_eyre_simple() {
+//     use color_eyre::eyre::WrapErr;
+//     use color_eyre::*;
+//
+//     install().expect("Failed to install color_eyre");
+//     let err_str = format!(
+//         "{:?}",
+//         Err::<(), Report>(eyre::eyre!("Base Error"))
+//             .note("A note")
+//             .suggestion("A suggestion")
+//             .wrap_err("A wrapped error")
+//             .unwrap_err()
+//     );
+//     // Print it out so if people run with `-- --nocapture`, they
+//     // can see the full message.
+//     println!("Error String is:\n\n{}", err_str);
+//     assert!(err_str.contains("A wrapped error"));
+//     assert!(err_str.contains("A suggestion"));
+//     assert!(err_str.contains("A note"));
+//     assert!(err_str.contains("Base Error"));
+// }
 
-    // #[wasm_bindgen_test]
-    // fn test_js() {
-    //     log(&format!("Hello from {}!", name())); // should output "Hello from Rust!"
-    //
-    //     let x = MyClass::new();
-    //     assert_eq!(x.number(), 42);
-    //     x.set_number(10);
-    //     log(&x.render());
-    // }
+// #[wasm_bindgen_test]
+// fn test_js() {
+//     log(&format!("Hello from {}!", name())); // should output "Hello from Rust!"
+//
+//     let x = MyClass::new();
+//     assert_eq!(x.number(), 42);
+//     x.set_number(10);
+//     log(&x.render());
+// }
 
-    // #[wasm_bindgen_test]
-    // fn test_prompt() {
-    //     log(&format!("Input was {}!", webPrompt("Does this question appear?")));
-    // }
+// #[wasm_bindgen_test]
+// fn test_prompt() {
+//     log(&format!("Input was {}!", webPrompt("Does this question appear?")));
+// }
 
-    // #[wasm_bindgen_test]
-    // async fn test_file_input() {
-    //     log(&format!("File Success? {:?}!", get_from_js().await));
-    //     //log(&format!("Input was {}!", webPrompt("Does this question appear?")));
-    // }
+// #[wasm_bindgen_test]
+// async fn test_file_input() {
+//     log(&format!("File Success? {:?}!", get_from_js().await));
+//     //log(&format!("Input was {}!", webPrompt("Does this question appear?")));
+// }
 //
 // }

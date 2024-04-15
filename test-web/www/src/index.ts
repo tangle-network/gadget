@@ -1,14 +1,16 @@
 import './index.css';
 
 import * as we from 'wasm_examples';
-// import { memory } from 'wasm_examples/wasm_examples_bg.wasm';
+import { memory } from 'wasm_examples/wasm_examples_bg.wasm';
 import $ from 'cash-dom';
-import * as shell from "web-shell";
+import init, { web_main, TomlConfig, Opt } from 'web-shell';
+// import * as shell from "web-shell";
 
 
 $(async () => {
     // Initialize our Wasm package
     we.run();
+    await init();
 //     shell.initSync();
 
     $('#fileSelect').on('click', () => we.sayHello());
@@ -16,24 +18,25 @@ $(async () => {
     $('#sendRustStructs').on('click', async () => {
         console.log("Starting Rust Web Main Function");
 
-        const config: shell.TomlConfig = {
+        const config: TomlConfig = {
             bind_ip: "0.0.0.0",
             bind_port: 8081,
-            url: "localhost",
-            bootnodes: ["0.0.0.1","0.0.0.2","0.0.0.3"],
+            url: "https://github.com/webb-tools/gadget",
+            bootnodes: ["/ip4/127.0.0.1/udp/1234", "foo", "/ip4/127.0.0.1/udp/1235","/ip4/127.0.0.1/udp/1236"],
             node_key: "0000000000000000000000000000000000000000000000000000000000000001",
             base_path: "test/path/to/",
             keystore_password: null,
             chain: "local_testnet",
         };
 
-        const options: shell.Opt = {
+        const options: Opt = {
             config: null,
             verbose: 0,
             pretty: false,
             options: config,
         };
-        await shell.web_main(config, options);
+        const message = await web_main(config, options);
+        console.log(message);
 
         console.log("Ending Rust Web Main Function");
 

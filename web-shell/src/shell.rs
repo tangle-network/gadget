@@ -4,7 +4,7 @@ use std::{hash::Hash, sync::Arc};
 
 use crate::{
     // keystore::KeystoreContainer,
-    tangle::{TangleConfig, TangleRuntime, crypto},
+    // tangle::{TangleConfig, TangleRuntime, crypto},
     //network::gossip::GossipHandle,
     config::ShellConfig,
 };
@@ -19,11 +19,16 @@ use gadget_common::{
 // use gadget_core::gadget::substrate::Client;
 use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 // use sp_keystore::Keystore;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
-use tangle_subxt::{subxt, tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType};
 use gadget_io::{KeystoreConfig, SubstrateKeystore};
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
+use tangle_subxt::{
+    subxt, tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType,
+};
 
 use crate::log;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
+use wasm_bindgen_futures;
 
 // use dfns_cggmp21_protocol::constants::{
 //     DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
@@ -45,7 +50,8 @@ pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Start the shell and run it forever
 #[tracing::instrument(skip(config))]
-pub async fn run_forever(config: ShellConfig) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_forever(config: ShellConfig) -> Result<JsValue, JsValue> {
+    log(&format!("Shell Config: {:?}", config));
     // let (role_key, acco_key) = load_keys_from_keystore(&config.keystore).unwrap();
     // let network_key = ed25519::Pair::from_seed(&config.node_key);
     // let logger = DebugLogger::default();
@@ -102,8 +108,8 @@ pub async fn run_forever(config: ShellConfig) -> Result<(), Box<dyn std::error::
     //     }
     // }
     // log(&format!("Shell Checkpoint with key {:?}!", libp2p_key));
-
-    Ok(())
+    let result = serde_wasm_bindgen::to_value("success message").map_err(crate::into_js_error)?;
+    Ok(result)
 }
 //
 // pub fn start_protocol_by_role<KBE>(
