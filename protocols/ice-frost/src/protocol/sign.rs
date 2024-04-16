@@ -1,10 +1,4 @@
-use frost_core::keys::{KeyPackage, PublicKeyPackage};
-use frost_ed25519::Ed25519Sha512;
-use frost_ed448::Ed448Shake256;
-use frost_p256::P256Sha256;
-use frost_p384::P384Sha384;
-use frost_ristretto255::Ristretto255Sha512;
-use frost_secp256k1::Secp256K1Sha256;
+use crate::curves::Secp256k1Sha256;
 use gadget_common::channels;
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
@@ -90,34 +84,11 @@ pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>
 
 macro_rules! deserialize_and_run_threshold_sign {
     ($impl_type:ty, $key_share:expr, $tracer:expr, $i:expr, $signers:expr, $msg:expr, $role:expr, $rng:expr, $party:expr) => {{
-        let key_package =
-            KeyPackage::<$impl_type>::deserialize(&$key_share.key_package).map_err(|err| {
-                JobError {
-                    reason: format!("Failed to deserialize key share: {err:?}"),
-                }
-            })?;
-
-        let public_key_package = PublicKeyPackage::<$impl_type>::deserialize(
-            &$key_share.pubkey_package,
-        )
-        .map_err(|err| JobError {
-            reason: format!("Failed to deserialize public key package: {err:?}"),
-        })?;
-
-        rounds::sign::run_threshold_sign(
-            Some($tracer),
-            $i,
-            $signers,
-            (key_package, public_key_package),
-            $msg,
-            $role,
-            $rng,
-            $party,
-        )
-        .await
-        .map_err(|err| JobError {
-            reason: format!("Failed to run threshold sign: {err:?}"),
-        })?
+        rounds::sign::run_threshold_sign(Some($tracer), $i, $signers, (), $msg, $role, $rng, $party)
+            .await
+            .map_err(|err| JobError {
+                reason: format!("Failed to run threshold sign: {err:?}"),
+            })?
     }};
 }
 
@@ -195,72 +166,7 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
             let signature = match role {
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
                     deserialize_and_run_threshold_sign!(
-                        Secp256K1Sha256,
-                        key_share,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostEd25519 => {
-                    deserialize_and_run_threshold_sign!(
-                        Ed25519Sha512,
-                        key_share,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostEd448 => {
-                    deserialize_and_run_threshold_sign!(
-                        Ed448Shake256,
-                        key_share,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostP256 => {
-                    deserialize_and_run_threshold_sign!(
-                        P256Sha256,
-                        key_share,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostP384 => {
-                    deserialize_and_run_threshold_sign!(
-                        P384Sha384,
-                        key_share,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
-                    deserialize_and_run_threshold_sign!(
-                        Ristretto255Sha512,
+                        Secp256k1Sha256,
                         key_share,
                         &mut tracer,
                         i,

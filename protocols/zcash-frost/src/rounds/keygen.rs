@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use dfns_cggmp21::progress::Tracer;
 use frost_core::{
     keys::{
         dkg::{round1, round2},
@@ -10,6 +9,7 @@ use frost_core::{
 };
 use futures::SinkExt;
 use gadget_common::tangle_runtime::*;
+use gadget_common::tracer::Tracer;
 use rand_core::{CryptoRng, RngCore};
 use round_based::{
     rounds_router::{

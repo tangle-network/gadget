@@ -41,6 +41,7 @@ linked-hash-map = { workspace = true, optional = true }
 
 parity-scale-codec = { workspace = true, optional = true }
 scale-info = { workspace = true, optional = true }
+thiserror = { workspace = true }
 
 [features]
 default = ["substrate", "tangle-testnet"]

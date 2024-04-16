@@ -1,10 +1,10 @@
-use dfns_cggmp21::progress::Tracer;
 use frost_core::keys::{KeyPackage, PublicKeyPackage};
 use frost_core::round1::{SigningCommitments, SigningNonces};
 use frost_core::round2::{self, SignatureShare};
 use frost_core::{aggregate, round1, Ciphersuite, Field, Group, Identifier, SigningPackage};
 use futures::SinkExt;
 use gadget_common::tangle_runtime::*;
+use gadget_common::tracer::Tracer;
 use rand_core::{CryptoRng, RngCore};
 use round_based::rounds_router::simple_store::RoundInput;
 use round_based::rounds_router::RoundsRouter;

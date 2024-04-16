@@ -1,5 +1,5 @@
 [package]
-name = "zcash-frost-protocol"
+name = "ice-frost-protocol"
 version = "0.1.0"
 edition = "2021"
 
@@ -19,16 +19,16 @@ digest = { workspace = true }
 sha2 = { workspace = true }
 rand_core = { workspace = true }
 rand_chacha = { workspace = true }
+aes-gcm = { workspace = true }
+zeroize = { workspace = true }
+bincode = { workspace = true }
 
 udigest = { workspace = true }
-frost-core = { workspace = true, features = ["cheater-detection"] }
-frost-ed25519 = { workspace = true }
-frost-ed448 = { workspace = true }
-frost-p256 = { workspace = true }
-frost-p384 = { workspace = true }
-frost-ristretto255 = { workspace = true }
-frost-secp256k1 = { workspace = true }
-frost-rerandomized = { workspace = true }
+ice-frost = { workspace = true }
+ark-secp256k1 = { workspace = true }
+ark-ff = { workspace = true }
+ark-ec = { workspace = true }
+ark-serialize = { workspace = true, features = ["derive"] }
 
 sp-core = { workspace = true, features = ["std"] }
 sp-io = { workspace = true, features = ["std"] }

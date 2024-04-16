@@ -1,9 +1,18 @@
-use frost_ed25519::Ed25519Sha512;
-use frost_ed448::Ed448Shake256;
-use frost_p256::P256Sha256;
-use frost_p384::P384Sha384;
-use frost_ristretto255::Ristretto255Sha512;
-use frost_secp256k1::Secp256K1Sha256;
+use ark_ec::Group;
+use ark_ff::UniformRand;
+use gadget_common::tracer::PerfProfiler;
+use ice_frost::keys::{DiffieHellmanPrivateKey, GroupVerifyingKey, IndividualSigningKey};
+use rand::rngs::OsRng;
+
+use ice_frost::CipherSuite;
+
+use ice_frost::dkg::{DistributedKeyGeneration, EncryptedSecretShare, Participant, RoundOne};
+use ice_frost::parameters::ThresholdParameters;
+use ice_frost::sign::{
+    generate_commitment_share_lists, PublicCommitmentShareList, SecretCommitmentShareList,
+};
+
+use crate::curves::Secp256k1Sha256;
 use futures::StreamExt;
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
@@ -14,10 +23,10 @@ use gadget_common::gadget::JobInitMetadata;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::prelude::*;
 use gadget_common::tangle_runtime::*;
-use gadget_common::tracer::PerfProfiler;
 use gadget_common::{channels, utils};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use ice_frost::sign::SignatureAggregator;
 use itertools::Itertools;
 use rand::SeedableRng;
 use round_based_21::{Incoming, Outgoing};
@@ -169,69 +178,9 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
             let delivery = (keygen_rx_async_proto, keygen_tx_to_outbound);
             let party = round_based_21::MpcParty::connected(delivery);
             let frost_key_share_package = match role {
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostEd25519 => {
-                    run_threshold_keygen!(
-                        Ed25519Sha512,
-                        &mut tracer,
-                        i,
-                        t,
-                        n,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostEd448 => {
-                    run_threshold_keygen!(
-                        Ed448Shake256,
-                        &mut tracer,
-                        i,
-                        t,
-                        n,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostP256 => {
-                    run_threshold_keygen!(
-                        P256Sha256,
-                        &mut tracer,
-                        i,
-                        t,
-                        n,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostP384 => {
-                    run_threshold_keygen!(
-                        P384Sha384,
-                        &mut tracer,
-                        i,
-                        t,
-                        n,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
-                    run_threshold_keygen!(
-                        Ristretto255Sha512,
-                        &mut tracer,
-                        i,
-                        t,
-                        n,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
                     run_threshold_keygen!(
-                        Secp256K1Sha256,
+                        Secp256k1Sha256,
                         &mut tracer,
                         i,
                         t,
