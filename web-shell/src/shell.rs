@@ -29,6 +29,9 @@ use crate::log;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures;
+use gadget_io::*;
+use gadget_io::into_js_error as into_js_error;
+
 
 // use dfns_cggmp21_protocol::constants::{
 //     DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
@@ -52,14 +55,14 @@ pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[tracing::instrument(skip(config))]
 pub async fn run_forever(config: ShellConfig) -> Result<JsValue, JsValue> {
     log(&format!("Shell Config: {:?}", config));
-    // let (role_key, acco_key) = load_keys_from_keystore(&config.keystore).unwrap();
+    let (role_key, acco_key) = load_keys_from_keystore(config.keystore).map_err(|err| Err(format!("{:?}", err))).map_err(into_js_error)?;
     // let network_key = ed25519::Pair::from_seed(&config.node_key);
     // let logger = DebugLogger::default();
     // let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
     //
     // let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
     //     .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}")).unwrap();
-    //
+
     // let (networks, network_task) = crate::network::setup::setup_libp2p_network(
     //     libp2p_key,
     //     &config,
@@ -108,7 +111,7 @@ pub async fn run_forever(config: ShellConfig) -> Result<JsValue, JsValue> {
     //     }
     // }
     // log(&format!("Shell Checkpoint with key {:?}!", libp2p_key));
-    let result = serde_wasm_bindgen::to_value("success message").map_err(crate::into_js_error)?;
+    let result = serde_wasm_bindgen::to_value("success message").map_err(into_js_error)?;
     Ok(result)
 }
 //
@@ -333,11 +336,11 @@ pub async fn run_forever(config: ShellConfig) -> Result<JsValue, JsValue> {
 //     Ok(())
 // }
 
-// pub fn load_keys_from_keystore<T: SubstrateKeystore> (
-//     keystore_config: T,
-// ) -> color_eyre::Result<(ecdsa::Pair, sr25519::Pair)> {
-//     Ok((keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?))
-// }
+pub fn load_keys_from_keystore<T: SubstrateKeystore> (
+    keystore_config: T,
+) -> color_eyre::Result<(ecdsa::Pair, sr25519::Pair)> {
+    Ok((keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?))
+}
 
 // pub async fn wait_for_connection_to_bootnodes(
 //     config: &ShellConfig,

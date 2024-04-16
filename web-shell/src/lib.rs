@@ -8,6 +8,10 @@ use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures;
+use console_error_panic_hook;
+use std::panic;
+use gadget_io::into_js_error as into_js_error;
+use gadget_io::KeystoreConfig;
 
 // use gadget_io::file_test;
 use gadget_common::prelude::*;
@@ -104,6 +108,24 @@ struct TomlConfig {
     chain: SupportedChains,
 }
 
+// #[derive(Serialize, Deserialize, Debug, Tsify)]
+// #[tsify(from_wasm_abi)]
+// struct WebKeys {
+//     // /// The path to the configuration file. If not provided, the default configuration will be used.
+//     // /// Note that if the configuration file is provided, the command line arguments will be ignored.
+//     // #[structopt(global = true, parse(from_os_str), short = "c", long = "config")]
+//     config: Option<PathBuf>,
+//     // /// The verbosity level, can be used multiple times
+//     // #[structopt(long, short = "v", global = true, parse(from_occurrences))]
+//     verbose: i32,
+//     // /// Whether to use pretty logging
+//     // #[structopt(global = true, long)]
+//     pretty: bool,
+//     // /// The options for the shell
+//     // #[structopt(flatten)]
+//     options: TomlConfig,
+// }
+
 // #[tokio::main(flavor = "current_thread")]
 // async fn main() -> Result<()> {
 // color_eyre::install()?;
@@ -145,17 +167,17 @@ struct TomlConfig {
 //     Ok(())
 // }
 
-pub fn into_js_error(err: impl std::error::Error) -> JsValue {
-    js_sys::Error::new(&err.to_string()).into()
+fn web_init() {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
 }
 
 #[wasm_bindgen]
 #[no_mangle]
 pub async fn web_main(config: TomlConfig, options: Opt) -> Result<JsValue, JsValue> {
+    web_init();
     // color_eyre::install()?;
     // let opt = Opt::from_args();
     // setup_logger(&opt, "gadget_shell")?;
-    // JobBuilder::default().build().execute().await.unwrap();
     log(&log_rust(&format!("Hello from web_main in Rust!")));
     log(&format!("TomlConfig: {:?}", config));
     log(&format!("Options: {:?}", options));
@@ -222,7 +244,7 @@ pub async fn web_main(config: TomlConfig, options: Opt) -> Result<JsValue, JsVal
     //     .map_err(into_js_error)?;
 
     shell::run_forever(config::ShellConfig {
-        keystore: config::KeystoreConfig::InMemory,
+        keystore: KeystoreConfig::InMemory{ keystore: "0000000000000000000000000000000000000000000000000000000000000001".to_string() },
         subxt: config::SubxtConfig {
             endpoint,
         },

@@ -17,6 +17,8 @@ wasm-bindgen-futures = { version = "0.4.42" }
 tsify = { version = "0.4.5" }
 serde-wasm-bindgen = "0.6.5"
 js-sys = "0.3.69"
+console_error_panic_hook = "0.1.7"
+anyhow = "1.0.81"
 
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
 async-trait = { workspace = true }
