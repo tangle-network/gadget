@@ -50,7 +50,7 @@ cargo build --release
 The gadget shell is a standalone application that provides a command-line interface for interacting with the Gadget and the blockchain. To run the shell, use the following command:
 
 ```bash
-./target/release/gadget-shell --config shell-configs/local-testnet-1.toml -vvv
+./target/release/gadget-shell-sdk --config shell-sdk-configs/local-testnet-1.toml -vvv
 ```
 
 Before running that command, make sure that a [tangle](https://github.com/webb-tools/tangle/) node is running, otherwise, the shell will fail.
@@ -85,9 +85,9 @@ bash ./scripts/run-standalone-local.sh --clean
 
 2. In three separate terminals, run the shells from the root of this gadget repo:
 ```bash
-cargo r -- --config shell-configs/local-testnet-0.toml -vvv
-cargo r -- --config shell-configs/local-testnet-1.toml -vvv
-cargo r -- --config shell-configs/local-testnet-2.toml -vvv 
+cargo r -- --config shell-sdk-configs/local-testnet-0.toml -vvv
+cargo r -- --config shell-sdk-configs/local-testnet-1.toml -vvv
+cargo r -- --config shell-sdk-configs/local-testnet-2.toml -vvv 
 ```
 
 3. Once the shells are running, open a separate terminal, navigate to the tangle directory, and run:

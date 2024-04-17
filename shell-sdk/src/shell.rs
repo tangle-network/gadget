@@ -37,11 +37,11 @@ use zcash_frost_protocol::constants::{
     ZCASH_FROST_KEYGEN_PROTOCOL_NAME, ZCASH_FROST_SIGNING_PROTOCOL_NAME,
 };
 
-/// The version of the shell
-pub const AGENT_VERSION: &str = "tangle/gadget-shell/1.0.0";
+/// The version of the shell-sdk
+pub const AGENT_VERSION: &str = "tangle/gadget-shell-sdk/1.0.0";
 pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Start the shell and run it forever
+/// Start the shell-sdk and run it forever
 #[tracing::instrument(skip(config))]
 pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     let (role_key, acco_key) = load_keys_from_keystore(&config.keystore)?;
@@ -206,22 +206,22 @@ where
         })),
         Tss(WstsV2) => {
             return Err(color_eyre::eyre::eyre!(
-                "WstsV2 is not supported by the shell",
+                "WstsV2 is not supported by the shell-sdk",
             ))
         }
         ZkSaaS(_) => {
             return Err(color_eyre::eyre::eyre!(
-                "ZkSaaS is not supported by the shell",
+                "ZkSaaS is not supported by the shell-sdk",
             ))
         }
         LightClientRelaying => {
             return Err(color_eyre::eyre::eyre!(
-                "LightClientRelaying is not supported by the shell",
+                "LightClientRelaying is not supported by the shell-sdk",
             ))
         }
         _ => {
             return Err(color_eyre::eyre::eyre!(
-                "Role {:?} is not supported by the shell",
+                "Role {:?} is not supported by the shell-sdk",
                 role
             ))
         }

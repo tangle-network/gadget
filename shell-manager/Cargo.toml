@@ -1,0 +1,20 @@
+[package]
+name = "shell-manager"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+shell-sdk = { workspace = true }
+color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
+libp2p = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
+rand = { workspace = true }
+structopt = { workspace = true }
+toml = "0.8.11"
+hex = { workspace = true }
+tokio = { workspace = true }
+url = { workspace = true, features = ["serde"] }
