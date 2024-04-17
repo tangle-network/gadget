@@ -1,10 +1,4 @@
-use frost_core::keys::{KeyPackage, PublicKeyPackage};
-use frost_ed25519::Ed25519Sha512;
-use frost_ed448::Ed448Shake256;
-use frost_p256::P256Sha256;
-use frost_p384::P384Sha384;
-use frost_ristretto255::Ristretto255Sha512;
-use frost_secp256k1::Secp256K1Sha256;
+use crate::curves::Secp256k1Sha256;
 use gadget_common::channels;
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::Network;
@@ -17,6 +11,9 @@ use gadget_common::tangle_runtime::*;
 use gadget_common::tracer::PerfProfiler;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use ice_frost::keys::GroupVerifyingKey;
+use ice_frost::keys::IndividualSigningKey;
+use ice_frost::FromBytes;
 use rand::SeedableRng;
 use round_based_21::{Incoming, MpcParty, Outgoing};
 use sp_core::{ecdsa, keccak_256, Pair};
@@ -25,26 +22,27 @@ use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::rounds;
-use crate::rounds::keygen::FrostKeyShare;
+use crate::rounds::keygen::IceFrostKeyShare;
 use crate::rounds::sign::Msg;
 
 #[derive(Clone)]
-pub struct ZcashFrostSigningExtraParams {
+pub struct IceFrostSigningExtraParams {
     pub i: u16,
     pub t: u16,
+    pub n: u16,
     pub signers: Vec<u16>,
     pub job_id: u64,
     pub role_type: roles::RoleType,
-    pub key_share: FrostKeyShare,
+    pub key_share: IceFrostKeyShare,
     pub input_data_to_sign: Vec<u8>,
     pub user_id_to_account_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
 }
 
 pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>(
-    config: &crate::ZcashFrostSigningProtocol<C, N, KBE>,
+    config: &crate::IceFrostSigningProtocol<C, N, KBE>,
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<ZcashFrostSigningExtraParams, gadget_common::Error> {
+) -> Result<IceFrostSigningExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
 
     let jobs::JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
@@ -75,9 +73,10 @@ pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>
 
     let user_id_to_account_id_mapping = Arc::new(mapping);
 
-    let params = ZcashFrostSigningExtraParams {
+    let params = IceFrostSigningExtraParams {
         i,
         t,
+        n: participants.len() as u16,
         signers,
         job_id,
         role_type: job.role_type,
@@ -89,26 +88,27 @@ pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>
 }
 
 macro_rules! deserialize_and_run_threshold_sign {
-    ($impl_type:ty, $key_share:expr, $tracer:expr, $i:expr, $signers:expr, $msg:expr, $role:expr, $rng:expr, $party:expr) => {{
-        let key_package =
-            KeyPackage::<$impl_type>::deserialize(&$key_share.key_package).map_err(|err| {
-                JobError {
+    ($impl_type:ty, $key_share:expr, $tracer:expr, $i:expr, $n:expr, $signers:expr, $msg:expr, $role:expr, $rng:expr, $party:expr) => {{
+        let key_share: (
+            IndividualSigningKey<$impl_type>,
+            GroupVerifyingKey<$impl_type>,
+        ) = (
+            IndividualSigningKey::<$impl_type>::from_bytes($key_share.signing_key.as_slice())
+                .map_err(|err| JobError {
                     reason: format!("Failed to deserialize key share: {err:?}"),
-                }
-            })?;
-
-        let public_key_package = PublicKeyPackage::<$impl_type>::deserialize(
-            &$key_share.pubkey_package,
-        )
-        .map_err(|err| JobError {
-            reason: format!("Failed to deserialize public key package: {err:?}"),
-        })?;
+                })?,
+            GroupVerifyingKey::<$impl_type>::from_bytes($key_share.verifying_key.as_slice())
+                .map_err(|err| JobError {
+                    reason: format!("Failed to deserialize key share: {err:?}"),
+                })?,
+        );
 
         rounds::sign::run_threshold_sign(
             Some($tracer),
             $i,
+            $n,
             $signers,
-            (key_package, public_key_package),
+            key_share,
             $msg,
             $role,
             $rng,
@@ -122,13 +122,13 @@ macro_rules! deserialize_and_run_threshold_sign {
 }
 
 pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreBackend>(
-    config: &crate::ZcashFrostSigningProtocol<C, N, KBE>,
+    config: &crate::IceFrostSigningProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
-    additional_params: ZcashFrostSigningExtraParams,
+    additional_params: IceFrostSigningExtraParams,
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();
@@ -138,10 +138,11 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
     let id = config.key_store.pair().public();
     let network = config.clone();
 
-    let (i, signers, t, key_share, role_type, input_data_to_sign, mapping) = (
+    let (i, signers, t, n, key_share, role_type, input_data_to_sign, mapping) = (
         additional_params.i,
         additional_params.signers,
         additional_params.t,
+        additional_params.n,
         additional_params.key_share,
         additional_params.role_type.clone(),
         additional_params.input_data_to_sign.clone(),
@@ -195,75 +196,11 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
             let signature = match role {
                 roles::tss::ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
                     deserialize_and_run_threshold_sign!(
-                        Secp256K1Sha256,
+                        Secp256k1Sha256,
                         key_share,
                         &mut tracer,
                         i,
-                        signers,
-                        &input_data_to_sign,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostEd25519 => {
-                    deserialize_and_run_threshold_sign!(
-                        Ed25519Sha512,
-                        key_share,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostEd448 => {
-                    deserialize_and_run_threshold_sign!(
-                        Ed448Shake256,
-                        key_share,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostP256 => {
-                    deserialize_and_run_threshold_sign!(
-                        P256Sha256,
-                        key_share,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostP384 => {
-                    deserialize_and_run_threshold_sign!(
-                        P384Sha384,
-                        key_share,
-                        &mut tracer,
-                        i,
-                        signers,
-                        &input_data_to_sign,
-                        role.clone(),
-                        &mut rng,
-                        party
-                    )
-                }
-                roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
-                    deserialize_and_run_threshold_sign!(
-                        Ristretto255Sha512,
-                        key_share,
-                        &mut tracer,
-                        i,
+                        n,
                         signers,
                         &input_data_to_sign,
                         role.clone(),
@@ -297,46 +234,6 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                         (
                             signature_bytes.to_vec(),
                             jobs::tss::DigitalSignatureScheme::SchnorrSecp256k1,
-                        )
-                    }
-                    roles::tss::ThresholdSignatureRoleType::ZcashFrostEd25519 => {
-                        let mut signature_bytes = [0u8; 64];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec(),
-                            jobs::tss::DigitalSignatureScheme::SchnorrEd25519,
-                        )
-                    }
-                    roles::tss::ThresholdSignatureRoleType::ZcashFrostEd448 => {
-                        let mut signature_bytes = [0u8; 114];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec(),
-                            jobs::tss::DigitalSignatureScheme::SchnorrEd448,
-                        )
-                    }
-                    roles::tss::ThresholdSignatureRoleType::ZcashFrostP256 => {
-                        let mut signature_bytes = [0u8; 65];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec(),
-                            jobs::tss::DigitalSignatureScheme::SchnorrP256,
-                        )
-                    }
-                    roles::tss::ThresholdSignatureRoleType::ZcashFrostP384 => {
-                        let mut signature_bytes = [0u8; 97];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec(),
-                            jobs::tss::DigitalSignatureScheme::SchnorrP384,
-                        )
-                    }
-                    roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
-                        let mut signature_bytes = [0u8; 64];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec(),
-                            jobs::tss::DigitalSignatureScheme::SchnorrRistretto255,
                         )
                     }
                     _ => {

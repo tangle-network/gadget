@@ -96,6 +96,7 @@ pub mod keystore;
 pub mod locks;
 pub mod prometheus;
 pub mod protocol;
+pub mod tracer;
 pub mod utils;
 
 #[derive(Debug)]

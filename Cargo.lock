@@ -80,6 +80,7 @@ dependencies = [
  "ctr",
  "ghash",
  "subtle 2.5.0",
+ "zeroize",
 ]
 
 [[package]]
@@ -307,6 +308,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-curve25519"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ab653b3eff27100f7dcb06b94785f2fbe0d1230408df55d543ee0ef48cd8760"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-std",
+]
+
+[[package]]
 name = "ark-ec"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -371,6 +383,18 @@ dependencies = [
  "ark-ed-on-bls12-381-bandersnatch",
  "ark-ff",
  "ark-models-ext",
+ "ark-std",
+]
+
+[[package]]
+name = "ark-ed25519"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c7ed5162ef7c978cfefffcd08cd8393d174836ae1c9fc8fa2dfcd5c2f03a4a9"
+dependencies = [
+ "ark-curve25519",
+ "ark-ec",
+ "ark-ff",
  "ark-std",
 ]
 
@@ -485,6 +509,17 @@ dependencies = [
  "ark-std",
  "parity-scale-codec 3.6.9",
  "scale-info",
+]
+
+[[package]]
+name = "ark-secp256k1"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c02e954eaeb4ddb29613fee20840c2bbc85ca4396d53e33837e11905363c5f2"
+dependencies = [
+ "ark-ec",
+ "ark-ff",
+ "ark-std",
 ]
 
 [[package]]
@@ -4127,6 +4162,7 @@ dependencies = [
  "substrate-prometheus-endpoint",
  "subxt-signer",
  "tangle-subxt",
+ "thiserror",
  "tokio",
 ]
 
@@ -4804,6 +4840,68 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "ice-frost"
+version = "0.1.0"
+source = "git+https://github.com/topos-protocol/ice-frost.git#6d587f6305973b976289eca60cb9700bb2a91f85"
+dependencies = [
+ "aead",
+ "aes-gcm",
+ "ark-ec",
+ "ark-ff",
+ "ark-secp256k1",
+ "ark-serialize",
+ "digest 0.10.7",
+ "getrandom 0.2.12",
+ "hkdf",
+ "rand 0.8.5",
+ "sha2 0.10.8",
+ "zeroize",
+]
+
+[[package]]
+name = "ice-frost-protocol"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "ark-ec",
+ "ark-ed25519",
+ "ark-ff",
+ "ark-secp256k1",
+ "ark-serialize",
+ "async-trait",
+ "bincode",
+ "curv-kzen",
+ "digest 0.10.7",
+ "frame-support",
+ "futures",
+ "gadget-common",
+ "gadget-core",
+ "hex",
+ "ice-frost",
+ "itertools 0.12.1",
+ "log",
+ "parity-scale-codec 3.6.9",
+ "parking_lot 0.12.1",
+ "protocol-macros",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+ "round-based 0.2.1",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "sp-api",
+ "sp-core",
+ "sp-io",
+ "tangle-primitives",
+ "test-utils",
+ "thiserror",
+ "tokio",
+ "udigest",
+ "zeroize",
 ]
 
 [[package]]
@@ -14779,7 +14877,6 @@ name = "zcash-frost-protocol"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "cggmp21",
  "curv-kzen",
  "digest 0.10.7",
  "frame-support",
