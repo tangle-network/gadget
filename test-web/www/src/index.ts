@@ -35,7 +35,11 @@ $(async () => {
             pretty: false,
             options: config,
         };
-        const message = await web_main(config, options);
+
+        var keys: string[] = ["0000000000000000000000000000000000000000000000000000000000000001", "0000000000000000000000000000000000000000000000000000000000000002"]
+
+
+        const message = await web_main(config, options, keys);
         console.log(message);
 
         console.log("Ending Rust Web Main Function");

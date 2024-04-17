@@ -25,6 +25,7 @@ wasm-bindgen = { version = "0.2.92" }
 wasm-bindgen-futures = { version = "0.4.42" }
 js-sys = "0.3.69"
 anyhow = "1.0.81"
+hex = { workspace = true }
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
 sp-core = { workspace = true, features = ["serde", "full_crypto"] }
 tracing = { workspace = true, features = ["log", "attributes"] }

@@ -58,7 +58,7 @@ pub enum KeystoreConfig {
     // },
     /// In-memory keystore.
     InMemory {
-        keystore: String,
+        keystore: Vec<String>,
     },
 }
 
@@ -91,10 +91,14 @@ impl SubstrateKeystore for KeystoreConfig {
             }
         };
         log(&format!("ECDSA KEY LIST: {:?}", keys));
-        let ecdsa_key = ecdsa::Pair::from_seed_slice(keys.as_bytes()).map_err(|e| Error::msg(format!("{:?}", e))).unwrap();
+        let key = hex::decode(keys[0].clone())?;
+        let ecdsa_key = key.as_slice().try_into()?;
+        // let ecdsa_key = ecdsa::Pair::from_seed_slice(keys.as_bytes()).map_err(|e| Error::msg(format!("{:?}", e))).unwrap();
+        let ecdsa_key = ecdsa::Pair::from_seed_slice(ecdsa_key).map_err(|e| color_eyre::eyre::eyre!("{e:?}"))?;
+
             // .into_inner();
             // .map_err(Error::msg)?;
-        // log(&format!("ECDSA KEY PAIR?: {:?}", ecdsa_key));
+        log(&format!("ECDSA KEY PAIR?: {:?}", ecdsa_key.to_raw_vec()));
         Ok(ecdsa_key)
         // let role_public_key = crypto::role::Public::from_slice(&ecdsa_key)
         //     .map_err(into_js_error)?;
@@ -140,10 +144,14 @@ impl SubstrateKeystore for KeystoreConfig {
             }
         };
         log(&format!("SR25519 KEY LIST: {:?}", keys));
-        let sr25519_key = sr25519::Pair::from_seed_slice(keys.as_bytes()).map_err(|e| Error::msg(format!("{:?}", e))).unwrap();
+        // let sr25519_key = sr25519::Pair::from_seed_slice(keys.as_bytes()).map_err(|e| Error::msg(format!("{:?}", e))).unwrap();
+        let key = hex::decode(keys[1].clone())?;
+        let sr25519_key = key.as_slice().try_into()?;
+
+        let sr25519_key = sr25519::Pair::from_seed_slice(sr25519_key).map_err(|e| color_eyre::eyre::eyre!("{e:?}"))?;
             // .into_inner();
             // .map_err(Error::msg)?;
-        // log(&format!("SR25519 KEY PAIR?: {:?}", sr25519_key));
+        log(&format!("SR25519 KEY PAIR?: {:?}", sr25519_key.to_raw_vec()));
         Ok(sr25519_key)
 
         // let keystore_container = KeystoreContainer::new(self)?;

@@ -173,9 +173,9 @@ fn web_init() {
 
 #[wasm_bindgen]
 #[no_mangle]
-pub async fn web_main(config: TomlConfig, options: Opt) -> Result<JsValue, JsValue> {
+pub async fn web_main(config: TomlConfig, options: Opt, keys: Vec<String>) -> Result<JsValue, JsValue> {
     web_init();
-    // color_eyre::install()?;
+    color_eyre::install().map_err(|e| js_sys::Error::new(&e.to_string()))?;
     // let opt = Opt::from_args();
     // setup_logger(&opt, "gadget_shell")?;
     log(&log_rust(&format!("Hello from web_main in Rust!")));
@@ -237,6 +237,8 @@ pub async fn web_main(config: TomlConfig, options: Opt) -> Result<JsValue, JsVal
     .map_err(into_js_error)?;
     log(&format!("Node Key: {:?}", node_key));
 
+    //let keys: [u8; 32] = hex::decode("0000000000000000000000000000000000000000000000000000000000000001").map_err(into_js_error)?.as_slice().try_into().map_err(into_js_error)?;
+
     // let node_key: [u8; 32] = hex::decode("0000000000000000000000000000000000000000000000000000000000000001")
     //     .map_err(into_js_error)?
     //     .as_slice()
@@ -244,7 +246,7 @@ pub async fn web_main(config: TomlConfig, options: Opt) -> Result<JsValue, JsVal
     //     .map_err(into_js_error)?;
 
     shell::run_forever(config::ShellConfig {
-        keystore: KeystoreConfig::InMemory{ keystore: "0000000000000000000000000000000000000000000000000000000000000001".to_string() },
+        keystore: KeystoreConfig::InMemory{ keystore: keys }, //"0000000000000000000000000000000000000000000000000000000000000001".to_string() },
         subxt: config::SubxtConfig {
             endpoint,
         },

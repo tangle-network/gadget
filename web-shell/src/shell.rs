@@ -55,7 +55,8 @@ pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[tracing::instrument(skip(config))]
 pub async fn run_forever(config: ShellConfig) -> Result<JsValue, JsValue> {
     log(&format!("Shell Config: {:?}", config));
-    let (role_key, acco_key) = load_keys_from_keystore(config.keystore).map_err(|err| Err(format!("{:?}", err))).map_err(into_js_error)?;
+    let (role_key, acco_key) = load_keys_from_keystore(config.keystore).map_err(|e| js_sys::Error::new(&e.to_string()))?;//.map_err(|err| Err(format!("{:?}", err))).map_err(into_js_error)?;
+
     // let network_key = ed25519::Pair::from_seed(&config.node_key);
     // let logger = DebugLogger::default();
     // let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
