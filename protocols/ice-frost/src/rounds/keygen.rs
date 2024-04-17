@@ -1,23 +1,17 @@
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_serialize::CanonicalDeserialize;
 use futures::SinkExt;
 use gadget_common::tangle_runtime::*;
 use gadget_common::tracer::Tracer;
+use ice_frost::ToBytes;
 use ice_frost::{
-    dkg::{
-        Coefficients, DistributedKeyGeneration, EncryptedSecretShare, NizkPokOfSecretKey,
-        Participant, RoundOne,
-    },
+    dkg::{Coefficients, DistributedKeyGeneration, EncryptedSecretShare, Participant, RoundOne},
     keys::DiffieHellmanPrivateKey,
     parameters::ThresholdParameters,
     CipherSuite,
 };
 use rand_core::{CryptoRng, RngCore};
 use round_based::{
-    rounds_router::{
-        simple_store::{RoundInput, RoundMsgs},
-        RoundsRouter,
-    },
-    runtime::AsyncRuntime,
+    rounds_router::{simple_store::RoundInput, RoundsRouter},
     Delivery, Mpc, MpcParty, Outgoing, ProtocolMessage,
 };
 use round_based_21 as round_based;
@@ -62,9 +56,8 @@ pub struct MsgRound3 {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FrostKeyShare {
-    pub key_package: Vec<u8>,
-    pub pubkey_package: Vec<u8>,
+pub struct IceFrostKeyShare {
+    pub signing_key: Vec<u8>,
     pub verifying_key: Vec<u8>,
 }
 
@@ -73,21 +66,19 @@ pub async fn run_threshold_keygen<C, R, M>(
     i: u16,
     t: u16,
     n: u16,
-    role: roles::tss::ThresholdSignatureRoleType,
+    _role: roles::tss::ThresholdSignatureRoleType,
     rng: &mut R,
     party: M,
-) -> Result<FrostKeyShare, Error<C>>
+) -> Result<IceFrostKeyShare, Error<C>>
 where
-    R: RngCore + CryptoRng,
+    R: RngCore + CryptoRng + Clone,
     M: Mpc<ProtocolMessage = Msg>,
     C: CipherSuite,
 {
     tracer.protocol_begins();
 
     tracer.stage("Setup networking");
-    let MpcParty {
-        delivery, runtime, ..
-    } = party.into_party();
+    let MpcParty { delivery, .. } = party.into_party();
     let (incomings, mut outgoings) = delivery.split();
 
     let mut rounds = RoundsRouter::<Msg>::builder();
@@ -100,15 +91,13 @@ where
     tracer.stage("Compute round 1 dkg dealer");
     let params = ThresholdParameters::new(n as u32, t as u32)?;
     let (p, p_coeffs, p_dh_sk): (Participant<C>, Coefficients<C>, DiffieHellmanPrivateKey<C>) =
-        Participant::<C>::new_dealer(params, 1, rng)?;
-    let mut encoded_participant = Vec::new();
-    p.serialize_compressed(&mut encoded_participant).unwrap();
+        Participant::<C>::new_dealer(params, 1, rng.clone())?;
 
     tracer.send_msg();
     tracer.stage("Send proof of knowledge of the DH private key.");
     outgoings
         .send(Outgoing::broadcast(Msg::Round1(MsgRound1 {
-            msg: encoded_participant.clone(),
+            msg: p.to_bytes()?,
         })))
         .await
         .map_err(IoError::send_message)?;
@@ -123,15 +112,13 @@ where
         .complete(round1)
         .await
         .map_err(IoError::receive_message)?
-        .into_vec_including_me(MsgRound1 {
-            msg: encoded_participant,
-        })
+        .into_vec_including_me(MsgRound1 { msg: p.to_bytes()? })
         .into_iter()
         .map(|msg| {
             let p_i = Participant::<C>::deserialize_compressed(msg.msg.as_slice())
                 .map_err(|_| Error::SerializationError)?;
 
-            if let Some(key) = p_i.public_key() {
+            if let Some(key) = p_i.clone().public_key() {
                 match p_i.proof_of_dh_private_key.verify(p_i.index, key) {
                     Ok(_) => {}
                     Err(e) => {
@@ -139,7 +126,7 @@ where
                     }
                 };
 
-                if let Some(proof) = p_i.proof_of_secret_key {
+                if let Some(proof) = p_i.clone().proof_of_secret_key {
                     match proof.verify(p_i.index, key) {
                         Ok(_) => {}
                         Err(e) => {
@@ -153,10 +140,9 @@ where
         })
         .collect();
 
-    let participants: Vec<Participant<C>> = vec![];
+    let mut participants: Vec<Participant<C>> = vec![];
     for participant_result in participant_results {
-        let participant = participant_result?;
-        participants.push(participant);
+        participants.push(participant_result?);
     }
 
     tracer.msgs_received();
@@ -167,7 +153,7 @@ where
         p.index,
         &p_coeffs,
         &participants,
-        rng,
+        rng.clone(),
     )?;
     let p_their_encrypted_secret_shares: &BTreeMap<u32, EncryptedSecretShare<C>> =
         p_state.their_encrypted_secret_shares().unwrap();
@@ -175,15 +161,11 @@ where
     tracer.send_msg();
     tracer.stage("Send each participant their secret encrypted share");
     for (receiver_index, encrypted_secret_share) in p_their_encrypted_secret_shares.iter() {
-        let mut encoded_encryption = Vec::new();
-        encrypted_secret_share
-            .serialize_compressed(&mut encrypted_secret_share)
-            .map_err(|_| Error::SerializationError)?;
         outgoings
             .send(Outgoing::p2p(
                 *receiver_index as u16,
                 Msg::Round2(MsgRound2 {
-                    msg: encoded_encryption,
+                    msg: encrypted_secret_share.to_bytes()?,
                 }),
             ))
             .await
@@ -197,16 +179,12 @@ where
     tracer.receive_msgs();
     tracer.stage("Receive encrypted secret shares from other participants.");
     let my_encrypted_secret_share = p_their_encrypted_secret_shares.get(&p.index).unwrap();
-    let mut my_encoded_share = Vec::new();
-    my_encrypted_secret_share
-        .serialize_compressed(&mut my_encoded_share)
-        .unwrap();
     let encryption_results: Vec<Result<EncryptedSecretShare<C>, Error<C>>> = rounds
         .complete(round2)
         .await
         .map_err(IoError::receive_message)?
         .into_vec_including_me(MsgRound2 {
-            msg: encoded_participant,
+            msg: my_encrypted_secret_share.to_bytes()?,
         })
         .into_iter()
         .map(|msg| {
@@ -217,8 +195,7 @@ where
 
     let mut my_encrypted_secret_shares = Vec::new();
     for encryption_result in encryption_results.into_iter() {
-        let encrypted_secret_share = encryption_result?;
-        my_encrypted_secret_shares.push(encrypted_secret_share);
+        my_encrypted_secret_shares.push(encryption_result?);
     }
 
     tracer.msgs_received();
@@ -234,12 +211,11 @@ where
     }
 
     tracer.stage("Compute key share");
-    let (group_key, p1_sk) = p_state.finish().unwrap();
+    let (group_key, p1_sk) = p_state.finish()?;
 
     tracer.protocol_ends();
-    Ok(FrostKeyShare {
-        key_package: vec![],
-        pubkey_package: vec![],
-        verifying_key: vec![],
+    Ok(IceFrostKeyShare {
+        signing_key: p1_sk.to_bytes()?,
+        verifying_key: group_key.to_bytes()?,
     })
 }

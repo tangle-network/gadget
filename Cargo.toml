@@ -145,6 +145,7 @@ ark-circom = { git = "https://github.com/webb-tools/ark-circom.git" }
 # ARK curves
 ark-bn254 = { version = "0.4", default-features = false, features = ["curve"] }
 ark-secp256k1 = { version = "0.4", default-features = false }
+ark-ed25519 = { version = "0.4", default-features = false }
 
 tokio-rustls = "0.24.1"
 tokio = "1.32.0"

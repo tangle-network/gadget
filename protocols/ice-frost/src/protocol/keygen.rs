@@ -1,16 +1,4 @@
-use ark_ec::Group;
-use ark_ff::UniformRand;
 use gadget_common::tracer::PerfProfiler;
-use ice_frost::keys::{DiffieHellmanPrivateKey, GroupVerifyingKey, IndividualSigningKey};
-use rand::rngs::OsRng;
-
-use ice_frost::CipherSuite;
-
-use ice_frost::dkg::{DistributedKeyGeneration, EncryptedSecretShare, Participant, RoundOne};
-use ice_frost::parameters::ThresholdParameters;
-use ice_frost::sign::{
-    generate_commitment_share_lists, PublicCommitmentShareList, SecretCommitmentShareList,
-};
 
 use crate::curves::Secp256k1Sha256;
 use futures::StreamExt;
@@ -26,7 +14,7 @@ use gadget_common::tangle_runtime::*;
 use gadget_common::{channels, utils};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use ice_frost::sign::SignatureAggregator;
+
 use itertools::Itertools;
 use rand::SeedableRng;
 use round_based_21::{Incoming, Outgoing};
@@ -40,7 +28,7 @@ use crate::rounds::keygen::Msg;
 use gadget_common::channels::PublicKeyGossipMessage;
 
 #[derive(Clone)]
-pub struct ZcashFrostKeygenExtraParams {
+pub struct IceFrostKeygenExtraParams {
     pub i: u16,
     pub t: u16,
     pub n: u16,
@@ -50,10 +38,10 @@ pub struct ZcashFrostKeygenExtraParams {
 }
 
 pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>(
-    config: &crate::ZcashFrostKeygenProtocol<C, N, KBE>,
+    config: &crate::IceFrostKeygenProtocol<C, N, KBE>,
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<ZcashFrostKeygenExtraParams, gadget_common::Error> {
+) -> Result<IceFrostKeygenExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
     let role_type = job.job_type.get_role_type();
 
@@ -76,7 +64,7 @@ pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>
 
     let id = config.key_store.pair().public();
 
-    let params = ZcashFrostKeygenExtraParams {
+    let params = IceFrostKeygenExtraParams {
         i: participants
             .iter()
             .position(|p| p == &id)
@@ -111,13 +99,13 @@ macro_rules! run_threshold_keygen {
 }
 
 pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreBackend>(
-    config: &crate::ZcashFrostKeygenProtocol<C, N, KBE>,
+    config: &crate::IceFrostKeygenProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
-    additional_params: ZcashFrostKeygenExtraParams,
+    additional_params: IceFrostKeygenExtraParams,
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let key_store = config.key_store.clone();
     let key_store2 = config.key_store.clone();

@@ -1,5 +1,5 @@
-use crate::protocol::keygen::ZcashFrostKeygenExtraParams;
-use crate::protocol::sign::ZcashFrostSigningExtraParams;
+use crate::protocol::keygen::IceFrostKeygenExtraParams;
+use crate::protocol::sign::IceFrostSigningExtraParams;
 use async_trait::async_trait;
 use gadget_common::full_protocol::SharedOptional;
 use gadget_common::prelude::*;
@@ -14,8 +14,8 @@ pub mod rounds;
 
 generate_protocol!(
     "Ice-FROST-Keygen-Protocol",
-    ZcashFrostKeygenProtocol,
-    ZcashFrostKeygenExtraParams,
+    IceFrostKeygenProtocol,
+    IceFrostKeygenExtraParams,
     crate::protocol::keygen::generate_protocol_from,
     crate::protocol::keygen::create_next_job,
     jobs::JobType::DKGTSSPhaseOne(_),
@@ -28,8 +28,8 @@ generate_protocol!(
 );
 generate_protocol!(
     "Ice-FROST-Signing-Protocol",
-    ZcashFrostSigningProtocol,
-    ZcashFrostSigningExtraParams,
+    IceFrostSigningProtocol,
+    IceFrostSigningExtraParams,
     crate::protocol::sign::generate_protocol_from,
     crate::protocol::sign::create_next_job,
     jobs::JobType::DKGTSSPhaseTwo(_),
@@ -41,7 +41,7 @@ generate_protocol!(
         | roles::RoleType::Tss(roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255)
 );
 
-generate_setup_and_run_command!(ZcashFrostKeygenProtocol, ZcashFrostSigningProtocol);
+generate_setup_and_run_command!(IceFrostKeygenProtocol, IceFrostSigningProtocol);
 
 #[cfg(test)]
 mod secp256k1 {

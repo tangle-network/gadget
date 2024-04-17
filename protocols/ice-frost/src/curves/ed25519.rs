@@ -8,10 +8,10 @@ use zeroize::Zeroize;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default, Zeroize)]
 /// An example instance of ICE-FROST over Secp256k1 with SHA-256 as underlying hasher.
-pub struct Secp256k1Sha256;
+pub struct Ed25519Sha256;
 
-impl CipherSuite for Secp256k1Sha256 {
-    type G = ark_secp256k1::Projective;
+impl CipherSuite for Ed25519Sha256 {
+    type G = ark_ed25519::EdwardsProjective;
 
     type HashOutput = [u8; 32];
 
@@ -20,6 +20,6 @@ impl CipherSuite for Secp256k1Sha256 {
     type Cipher = Aes128Gcm;
 
     fn context_string() -> String {
-        "ICE-FROST_SECP256K1_SHA256".to_owned()
+        "ICE-FROST_ED25519_SHA256".to_owned()
     }
 }

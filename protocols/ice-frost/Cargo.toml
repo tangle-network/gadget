@@ -25,10 +25,13 @@ bincode = { workspace = true }
 
 udigest = { workspace = true }
 ice-frost = { workspace = true }
-ark-secp256k1 = { workspace = true }
 ark-ff = { workspace = true }
 ark-ec = { workspace = true }
 ark-serialize = { workspace = true, features = ["derive"] }
+
+ark-secp256k1 = { workspace = true }
+ark-ed25519 = { workspace = true }
+
 
 sp-core = { workspace = true, features = ["std"] }
 sp-io = { workspace = true, features = ["std"] }

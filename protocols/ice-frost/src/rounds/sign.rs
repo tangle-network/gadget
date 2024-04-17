@@ -1,19 +1,22 @@
 use futures::SinkExt;
 use gadget_common::tangle_runtime::*;
 use gadget_common::tracer::Tracer;
-use ice_frost::keys::{DiffieHellmanPrivateKey, GroupVerifyingKey};
+use ice_frost::keys::{GroupVerifyingKey, IndividualSigningKey};
 use ice_frost::parameters::ThresholdParameters;
-use ice_frost::sign::generate_commitment_share_lists;
+use ice_frost::sign::{
+    generate_commitment_share_lists, PartialThresholdSignature, PublicCommitmentShareList,
+    SignatureAggregator,
+};
 use ice_frost::CipherSuite;
+use ice_frost::{FromBytes, ToBytes};
 use rand_core::{CryptoRng, RngCore};
 use round_based::rounds_router::simple_store::RoundInput;
 use round_based::rounds_router::RoundsRouter;
-use round_based::runtime::AsyncRuntime;
+
 use round_based::ProtocolMessage;
 use round_based::{Delivery, Mpc, MpcParty, Outgoing};
 use round_based_21 as round_based;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 use super::{Error, IoError};
 
@@ -53,10 +56,11 @@ pub struct FrostSignature {
 pub async fn run_threshold_sign<C, R, M>(
     mut tracer: Option<&mut dyn Tracer>,
     i: u16,
+    n: u16,
     signers: Vec<u16>,
-    frost_keyshare: (DiffieHellmanPrivateKey<C>, GroupVerifyingKey<C>),
+    key_share: (IndividualSigningKey<C>, GroupVerifyingKey<C>),
     message_to_sign: &[u8],
-    role: roles::tss::ThresholdSignatureRoleType,
+    _role: roles::tss::ThresholdSignatureRoleType,
     rng: &mut R,
     party: M,
 ) -> Result<FrostSignature, Error<C>>
@@ -68,9 +72,7 @@ where
     tracer.protocol_begins();
 
     tracer.stage("Setup networking");
-    let MpcParty {
-        delivery, runtime, ..
-    } = party.into_party();
+    let MpcParty { delivery, .. } = party.into_party();
     let (incomings, mut outgoings) = delivery.split();
     let mut rounds = RoundsRouter::<Msg>::builder();
     let round1 = rounds.add_round(RoundInput::<MsgRound1>::broadcast(i, signers.len() as u16));
@@ -81,47 +83,61 @@ where
 
     // Round 1
     tracer.stage("Round 1");
-    let params = ThresholdParameters::new(n as u32, t as u32);
-    let mut aggregator = SignatureAggregator::new(params, group_key, &message_to_sign[..]);
-    let (p_sk, group_key) = frost_keyshare;
+    let params = ThresholdParameters::new(n as u32, signers.len() as u32)?;
+    let (p_sk, group_key) = key_share;
+    let mut aggregator = SignatureAggregator::new(params, group_key, message_to_sign);
     let (p_public_comshares, mut p_secret_comshares) =
-        generate_commitment_share_lists(&mut OsRng, &p_sk, 1)?;
+        generate_commitment_share_lists(rng, &p_sk, 1)?;
 
     tracer.send_msg();
     outgoings
-        .send(
-            (
-                round1,
-                Msg::Round1(MsgRound1 {
-                    msg: p_public_comshares.to_bytes(),
-                }),
-            )
-                .into(),
-        )
+        .send(Outgoing::broadcast(Msg::Round1(MsgRound1 {
+            msg: p_public_comshares.to_bytes()?,
+        })))
         .await
         .map_err(IoError::send_message)?;
     tracer.msg_sent();
 
     // Round 2
     tracer.stage("Round 2");
-    tracer.receive_msg();
-    let received_comshares = rounds
+    tracer.receive_msgs();
+    let received_comshares_results = rounds
         .complete(round1)
         .await
         .map_err(IoError::receive_message)?
         .into_vec_including_me(MsgRound1 {
-            msg: p_public_comshares.to_bytes(),
+            msg: p_public_comshares.to_bytes()?,
         })
-        .collect::<Vec<_>>();
-    tracer.msg_received();
+        .into_iter()
+        .map(|msg| PublicCommitmentShareList::<C>::from_bytes(&msg.msg).map_err(Error::from))
+        .collect::<Vec<Result<PublicCommitmentShareList<C>, Error<C>>>>();
+
+    let mut received_comshares = Vec::<PublicCommitmentShareList<C>>::new();
+    for received_comshare_result in received_comshares_results {
+        received_comshares.push(received_comshare_result?);
+    }
+    tracer.msgs_received();
+
+    tracer.stage("Process received comshares");
+    for (index, received_comshare) in received_comshares.iter().enumerate() {
+        if index + 1 == i as usize {
+            continue;
+        }
+
+        aggregator.include_signer(
+            (index + 1) as u32,
+            received_comshare.commitments[0],
+            &p_sk.to_public(),
+        );
+    }
 
     tracer.stage("Compute partial signature");
-    let message_hash = C::h4(&message_to_sign[..]);
+    let signers = aggregator.get_signers();
     let partial_sig = p_sk
         .sign(
-            &message_hash,
+            message_to_sign,
             &group_key,
-            &mut received_comshares,
+            &mut p_secret_comshares,
             0,
             signers,
         )
@@ -129,39 +145,32 @@ where
 
     tracer.send_msg();
     outgoings
-        .send(
-            (
-                round2,
-                Msg::Round2(MsgRound2 {
-                    msg: partial_sig.to_bytes(),
-                }),
-            )
-                .into(),
-        )
+        .send(Outgoing::broadcast(Msg::Round2(MsgRound2 {
+            msg: partial_sig.to_bytes()?,
+        })))
         .await
         .map_err(IoError::send_message)?;
     tracer.msg_sent();
 
     // Round 3
     tracer.stage("Round 3");
-    tracer.receive_msg();
+    tracer.receive_msgs();
     let received_partial_sigs = rounds
         .complete(round2)
         .await
         .map_err(IoError::receive_message)?
-        .into_vec_without_me()
-        .collect::<Vec<_>>();
-    tracer.msg_received();
+        .into_vec_without_me();
+    tracer.msgs_received();
 
     tracer.stage("Aggregate partial signatures");
     aggregator.include_partial_signature(&partial_sig);
     for received_partial_sig in received_partial_sigs {
-        let p_sig = PartialSignature::from_bytes(&received_partial_sig.msg).unwrap();
-        aggregator.include_partial_signature(p_sig);
+        let p_sig = PartialThresholdSignature::from_bytes(&received_partial_sig.msg).unwrap();
+        aggregator.include_partial_signature(&p_sig);
     }
 
     let aggregator = aggregator.finalize()?;
-    let threshold_signature = aggregator.aggregate()?;
+    let _threshold_signature = aggregator.aggregate()?;
 
     Ok(FrostSignature {
         group_signature: vec![],
