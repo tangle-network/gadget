@@ -5,7 +5,7 @@ use std::{hash::Hash, sync::Arc};
 use crate::{
     // keystore::KeystoreContainer,
     // tangle::{TangleConfig, TangleRuntime, crypto},
-    //network::gossip::GossipHandle,
+    network::gossip::GossipHandle,
     config::ShellConfig,
 };
 use color_eyre::eyre::OptionExt;
@@ -55,39 +55,43 @@ pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[tracing::instrument(skip(config))]
 pub async fn run_forever(config: ShellConfig) -> Result<JsValue, JsValue> {
     log(&format!("Shell Config: {:?}", config));
-    let (role_key, acco_key) = load_keys_from_keystore(config.keystore).map_err(|e| js_sys::Error::new(&e.to_string()))?;//.map_err(|err| Err(format!("{:?}", err))).map_err(into_js_error)?;
+    let (role_key, acco_key) = load_keys_from_keystore(config.keystore.clone()).map_err(|e| js_sys::Error::new(&e.to_string()))?;//.map_err(|err| Err(format!("{:?}", err))).map_err(into_js_error)?;
 
-    // let network_key = ed25519::Pair::from_seed(&config.node_key);
-    // let logger = DebugLogger::default();
-    // let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
-    //
-    // let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
-    //     .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}")).unwrap();
+    let network_key = ed25519::Pair::from_seed(&config.node_key);
+    log(&format!("NETWORK (ED25519) KEY PAIR?: {:?}", network_key.to_raw_vec()));
 
-    // let (networks, network_task) = crate::network::setup::setup_libp2p_network(
-    //     libp2p_key,
-    //     &config,
-    //     logger.clone(),
-    //     vec![
-    //         // dfns-cggmp21
-    //         DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
-    //         DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
-    //         DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
-    //         DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
-    //         // zcash-frost
-    //         ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
-    //         ZCASH_FROST_SIGNING_PROTOCOL_NAME,
-    //         // silent-shared-dkls23
-    //         SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME,
-    //         SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME,
-    //         // gennaro-dkg-bls381
-    //         GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
-    //         GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
-    //     ],
-    //     role_key,
-    // )
-    //     .await
-    //     .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
+    let logger = DebugLogger::default();
+    let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
+
+    let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
+        .map_err(|e| js_sys::Error::new(&e.to_string()))?;
+    log(&format!("LIBP2P KEY PAIR?: {:?}", libp2p_key));
+
+    let (networks, network_task) = crate::network::setup::setup_libp2p_network(
+        libp2p_key,
+        &config,
+        logger.clone(),
+        vec![
+            // // dfns-cggmp21
+            // DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
+            // DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
+            // DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
+            // DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
+            // // zcash-frost
+            // ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
+            // ZCASH_FROST_SIGNING_PROTOCOL_NAME,
+            // // silent-shared-dkls23
+            // SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME,
+            // SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME,
+            // // gennaro-dkg-bls381
+            // GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
+            // GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
+        ],
+        role_key,
+    )
+        .await
+        .map_err(|e| js_sys::Error::new(&e.to_string()))?;
+        // .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
     // logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
     // wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;

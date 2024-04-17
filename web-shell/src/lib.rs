@@ -18,6 +18,7 @@ use gadget_common::prelude::*;
 use gadget_common::ExecutableJob;
 use tsify::Tsify;
 
+mod network;
 mod config;
 // mod keystore;
 mod shell;

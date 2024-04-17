@@ -185,7 +185,7 @@ starknet-crypto = "0.6.1"
 anyhow = "1.0.79"
 libsecp256k1 = "0.7.1"
 rayon = { version = "1.8.0" }
-thiserror = { version = "=1.0.57" }
+thiserror = { version = "1.0.58" }
 substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0", default-features = false }
 prometheus = { version = "0.13.0", default-features = false }
 lazy_static = "1.4.0"
@@ -193,7 +193,8 @@ sqlx = { version = "=0.7.3" }
 postcard = "1.0.8"
 sha2 = "0.10.8"
 derivation-path = "0.2.0"
-libp2p = { git = "https://github.com/libp2p/rust-libp2p/", rev = "3644879956b6ab93b8d23553a33e8fdb838f576f" }
+libp2p = { version = "0.53.2" }
+#libp2p = { git = "https://github.com/libp2p/rust-libp2p/" }#, rev = "3644879956b6ab93b8d23553a33e8fdb838f576f" }
 
 # WebAssembly
 wasmtime = { version = "8.0.1", default-features = false }

@@ -19,6 +19,12 @@ serde-wasm-bindgen = "0.6.5"
 js-sys = "0.3.69"
 console_error_panic_hook = "0.1.7"
 anyhow = "1.0.81"
+libp2p-webrtc-websys = "0.3.0-alpha"
+libp2p-core = "0.41.2"
+libp2p-identity = "0.2.8"
+libp2p-webrtc-utils = "0.2.0"
+tracing-wasm = "0.2.1"
+web-sys = { version = "0.3.69", features = ['Document', 'Element', 'HtmlElement', 'Node', 'Response', 'Window'] }
 
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
 async-trait = { workspace = true }
@@ -62,22 +68,24 @@ parking_lot = { workspace = true }
 [dependencies.libp2p]
 workspace = true
 features = [
-    "tokio",
-    "gossipsub",
-    "mdns",
-    "noise",
-    "macros",
-    "yamux",
-    "tcp",
-    "quic",
+    "tokio", #
+    "gossipsub", #
+#    "mdns",
+    "noise", #
+    "macros", #
+    "yamux", #
+    "tcp", #
+    "quic", #
     "request-response",
     "cbor",
     "identify",
     "kad",
-    "dcutr",
-    "relay",
-    "ping",
-    "dns"
+    "dcutr", #
+    "relay", #
+    "ping", #
+    "dns", #
+    "wasm-bindgen", #
+    "ed25519" #
 ]
 
 [dev-dependencies]

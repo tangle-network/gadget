@@ -8,9 +8,9 @@ use gadget_common::config::DebugLogger;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::dial_opts::DialOpts;
-use libp2p::{gossipsub, mdns, request_response, StreamProtocol};
+// use libp2p::{gossipsub, mdns, request_response, StreamProtocol};
 use libp2p::{gossipsub, request_response, StreamProtocol};
-use sp_core::ecdsa;
+use sp_core::{ecdsa, Pair};
 use std::collections::HashMap;
 use std::error::Error;
 use std::io;
@@ -21,6 +21,14 @@ use gadget_io::tokio::select;
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use gadget_io::tokio::task::JoinHandle;
 
+use js_sys::Date;
+use libp2p::core::Multiaddr;
+use libp2p::ping;
+use libp2p::swarm::SwarmEvent;
+use libp2p_webrtc_websys as webrtc_websys;
+use wasm_bindgen::prelude::*;
+use web_sys::{Document, HtmlElement};
+
 pub async fn setup_libp2p_network(
     identity: libp2p::identity::Keypair,
     config: &ShellConfig,
@@ -29,20 +37,24 @@ pub async fn setup_libp2p_network(
     role_key: ecdsa::Pair,
 ) -> Result<(HashMap<&'static str, GossipHandle>, JoinHandle<()>), Box<dyn Error>> {
     // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
-    let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
-        .with_tokio()
-        .with_tcp(
-            libp2p::tcp::Config::default()
-                .port_reuse(true)
-                .nodelay(true), // Allow port reuse for TCP-hole punching
-            libp2p::noise::Config::new,
-            libp2p::yamux::Config::default,
-        )?
-        .with_quic_config(|mut config| {
-            config.handshake_timeout = Duration::from_secs(30);
-            config
-        })
-        .with_dns()?
+    let mut swarm = libp2p::SwarmBuilder::with_new_identity()//with_existing_identity(identity)
+        .with_wasm_bindgen()
+        .with_other_transport(|key| {
+            webrtc_websys::Transport::new(webrtc_websys::Config::new(&key))
+        })?
+        // .with_tokio()
+        // .with_tcp(
+        //     libp2p::tcp::Config::default()
+        //         .port_reuse(true)
+        //         .nodelay(true), // Allow port reuse for TCP-hole punching
+        //     libp2p::noise::Config::new,
+        //     libp2p::yamux::Config::default,
+        // )?
+        // .with_quic_config(|mut config| {
+        //     config.handshake_timeout = Duration::from_secs(30);
+        //     config
+        // })
+        // .with_dns()?
         .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
         .with_behaviour(|key, relay_client| {
             // Set a custom gossipsub configuration
@@ -61,8 +73,8 @@ pub async fn setup_libp2p_network(
             )?;
 
             // Setup mDNS for peer discovery
-            let mdns =
-                mdns::gadget_io::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
+            // let mdns =
+            //     mdns::gadget_io::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
 
             // Setup request-response for direct messaging
             let p2p_config = request_response::Config::default();
@@ -104,7 +116,7 @@ pub async fn setup_libp2p_network(
 
             Ok(MyBehaviour {
                 gossipsub,
-                mdns,
+                // mdns,
                 p2p,
                 identify,
                 kadmelia,
@@ -143,9 +155,12 @@ pub async fn setup_libp2p_network(
         );
     }
 
-    swarm
-        .listen_on(format!("/ip4/{}/udp/{}/quic-v1", config.bind_ip, config.bind_port).parse()?)?;
-    swarm.listen_on(format!("/ip4/{}/tcp/{}", config.bind_ip, config.bind_port).parse()?)?;
+    let public_key_string = String::from_utf8(role_key.to_raw_vec())?;
+    swarm.listen_on(format!("/ip4/{}/udp/{}/webrtc/p2p/{}", config.bind_ip, config.bind_port, public_key_string).parse()?)?;
+
+    // swarm
+    //     .listen_on(format!("/ip4/{}/udp/{}/quic-v1", config.bind_ip, config.bind_port).parse()?)?;
+    // swarm.listen_on(format!("/ip4/{}/tcp/{}", config.bind_ip, config.bind_port).parse()?)?;
 
     // Dial all bootnodes
     for bootnode in &config.bootnodes {
