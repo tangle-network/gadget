@@ -338,21 +338,6 @@ async fn handle_public_key_gossip<KBE: KeystoreBackend>(
 
     let res = jobs::tss::DKGTSSKeySubmissionResult {
         signature_scheme: match role {
-            roles::tss::ThresholdSignatureRoleType::ZcashFrostEd25519 => {
-                jobs::tss::DigitalSignatureScheme::SchnorrEd25519
-            }
-            roles::tss::ThresholdSignatureRoleType::ZcashFrostEd448 => {
-                jobs::tss::DigitalSignatureScheme::SchnorrEd448
-            }
-            roles::tss::ThresholdSignatureRoleType::ZcashFrostP256 => {
-                jobs::tss::DigitalSignatureScheme::SchnorrP256
-            }
-            roles::tss::ThresholdSignatureRoleType::ZcashFrostP384 => {
-                jobs::tss::DigitalSignatureScheme::SchnorrP384
-            }
-            roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
-                jobs::tss::DigitalSignatureScheme::SchnorrRistretto255
-            }
             roles::tss::ThresholdSignatureRoleType::ZcashFrostSecp256k1 => {
                 jobs::tss::DigitalSignatureScheme::SchnorrSecp256k1
             }

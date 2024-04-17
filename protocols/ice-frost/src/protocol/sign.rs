@@ -236,46 +236,6 @@ pub async fn generate_protocol_from<C: ClientWithApi, N: Network, KBE: KeystoreB
                             jobs::tss::DigitalSignatureScheme::SchnorrSecp256k1,
                         )
                     }
-                    roles::tss::ThresholdSignatureRoleType::ZcashFrostEd25519 => {
-                        let mut signature_bytes = [0u8; 64];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec(),
-                            jobs::tss::DigitalSignatureScheme::SchnorrEd25519,
-                        )
-                    }
-                    roles::tss::ThresholdSignatureRoleType::ZcashFrostEd448 => {
-                        let mut signature_bytes = [0u8; 114];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec(),
-                            jobs::tss::DigitalSignatureScheme::SchnorrEd448,
-                        )
-                    }
-                    roles::tss::ThresholdSignatureRoleType::ZcashFrostP256 => {
-                        let mut signature_bytes = [0u8; 65];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec(),
-                            jobs::tss::DigitalSignatureScheme::SchnorrP256,
-                        )
-                    }
-                    roles::tss::ThresholdSignatureRoleType::ZcashFrostP384 => {
-                        let mut signature_bytes = [0u8; 97];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec(),
-                            jobs::tss::DigitalSignatureScheme::SchnorrP384,
-                        )
-                    }
-                    roles::tss::ThresholdSignatureRoleType::ZcashFrostRistretto255 => {
-                        let mut signature_bytes = [0u8; 64];
-                        signature_bytes.copy_from_slice(&signature.group_signature);
-                        (
-                            signature_bytes.to_vec(),
-                            jobs::tss::DigitalSignatureScheme::SchnorrRistretto255,
-                        )
-                    }
                     _ => {
                         return Err(JobError {
                             reason: "Invalid role type".to_string(),
