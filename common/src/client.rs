@@ -573,9 +573,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "This test requires a running substrate node"]
     async fn subxt_pallet_submitter() -> anyhow::Result<()> {
-        let logger = DebugLogger {
-            peer_id: "test".into(),
-        };
+        let logger = DebugLogger { id: "test".into() };
         let alice = subxt_signer::sr25519::dev::alice();
         let bob = subxt_signer::sr25519::dev::bob();
         let alice_account_id =

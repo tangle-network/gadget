@@ -287,7 +287,7 @@ mod tests {
                     T,
                     N,
                     DebugLogger {
-                        peer_id: "1".to_string(),
+                        id: "1".to_string(),
                     },
                 )
                 .unwrap(),
@@ -298,7 +298,7 @@ mod tests {
                     T,
                     N,
                     DebugLogger {
-                        peer_id: "2".to_string(),
+                        id: "2".to_string(),
                     },
                 )
                 .unwrap(),
@@ -309,7 +309,7 @@ mod tests {
                     T,
                     N,
                     DebugLogger {
-                        peer_id: "3".to_string(),
+                        id: "3".to_string(),
                     },
                 )
                 .unwrap(),

@@ -1,11 +1,12 @@
-use std::net::IpAddr;
 use libp2p::Multiaddr;
-use sp_core::crypto::SecretString;
-use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
+use sp_core::crypto::SecretString;
 use std::fmt::Display;
+use std::net::IpAddr;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use structopt::StructOpt;
+use tangle_subxt::tangle_mainnet_runtime::api::jobs::events::job_refunded::RoleType;
 
 #[derive(Debug, Clone)]
 pub struct ShellConfig {
@@ -16,6 +17,7 @@ pub struct ShellConfig {
     pub bind_port: u16,
     pub bootnodes: Vec<Multiaddr>,
     pub node_key: [u8; 32],
+    pub role_types: Vec<RoleType>,
 }
 
 #[derive(Debug, Clone)]
@@ -51,11 +53,12 @@ impl KeystoreConfig {
 }
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
-struct TomlConfig {
+/// All shells should expect this as CLI input. The Shell Manager will be responsible for passing these values to the shell.
+pub struct ShellTomlConfig {
     /// The IP address to bind to for the libp2p node.
     #[structopt(long = "bind-ip", short = "i", default_value = defaults::BIND_IP)]
     #[serde(default = "defaults::bind_ip")]
-    bind_ip: IpAddr,
+    pub bind_ip: IpAddr,
     /// The port to bind to for the libp2p node.
     #[structopt(long = "port", short = "p", default_value = defaults::BIND_PORT)]
     #[serde(default = "defaults::bind_port")]
@@ -63,27 +66,27 @@ struct TomlConfig {
     /// The RPC URL of the Tangle Node.
     #[structopt(long = "url", parse(try_from_str = url::Url::parse), default_value = defaults::RPC_URL)]
     #[serde(default = "defaults::rpc_url")]
-    url: url::Url,
+    pub url: url::Url,
     /// The List of bootnodes to connect to
     #[structopt(long = "bootnodes", parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
     #[serde(default)]
-    bootnodes: Vec<Multiaddr>,
+    pub bootnodes: Vec<Multiaddr>,
     /// The node key in hex format. If not provided, a random node key will be generated.
     #[structopt(long = "node-key", env, parse(try_from_str = parse_node_key))]
     #[serde(skip_serializing)]
-    node_key: Option<String>,
+    pub node_key: Option<String>,
     /// The base path to store the shell-sdk data, and read data from the keystore.
     #[structopt(
-    parse(from_os_str),
-    long,
-    short = "d",
-    required_unless = "config",
-    default_value_if("config", None, ".")
+        parse(from_os_str),
+        long,
+        short = "d",
+        required_unless = "config",
+        default_value_if("config", None, ".")
     )]
-    base_path: PathBuf,
+    pub base_path: PathBuf,
     /// Keystore Password, if not provided, the password will be read from the environment variable.
     #[structopt(long = "keystore-password", env)]
-    keystore_password: Option<String>,
+    pub keystore_password: Option<String>,
     /// The chain to connect to, must be one of the supported chains.
     #[structopt(
     long,
@@ -96,7 +99,7 @@ struct TomlConfig {
     ]
     )]
     #[serde(default)]
-    chain: SupportedChains,
+    pub chain: SupportedChains,
 }
 
 #[derive(Default, Debug, StructOpt, Serialize, Deserialize)]

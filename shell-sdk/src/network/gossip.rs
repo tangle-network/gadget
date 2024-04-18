@@ -401,7 +401,7 @@ mod tests {
             let identity = libp2p::identity::Keypair::generate_ed25519();
 
             let logger = DebugLogger {
-                peer_id: identity.public().to_peer_id().to_string(),
+                id: identity.public().to_peer_id().to_string(),
             };
 
             let (bind_port, bootnodes) = if x == 0 {
