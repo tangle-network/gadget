@@ -6,6 +6,7 @@ use std::path::{PathBuf, Path};
 use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair, crypto};
 use color_eyre::eyre::OptionExt;
 
+use k256::ecdsa::{SigningKey as SecretKey, VerifyingKey};
 
 use color_eyre::Result;
 // use sp_keystore::{Error, KeystorePtr, Keystore};
@@ -92,13 +93,19 @@ impl SubstrateKeystore for KeystoreConfig {
         };
         log(&format!("ECDSA KEY LIST: {:?}", keys));
         let key = hex::decode(keys[0].clone())?;
-        let ecdsa_key = key.as_slice().try_into()?;
+        let ecdsa_seed: &[u8] = key.as_slice().try_into()?;
         // let ecdsa_key = ecdsa::Pair::from_seed_slice(keys.as_bytes()).map_err(|e| Error::msg(format!("{:?}", e))).unwrap();
-        let ecdsa_key = ecdsa::Pair::from_seed_slice(ecdsa_key).map_err(|e| color_eyre::eyre::eyre!("{e:?}"))?;
+        let ecdsa_key = ecdsa::Pair::from_seed_slice(ecdsa_seed.clone()).map_err(|e| color_eyre::eyre::eyre!("{e:?}"))?;
 
             // .into_inner();
             // .map_err(Error::msg)?;
+        let supposed_public_key = VerifyingKey::from(SecretKey::from_slice(ecdsa_seed)?);
+        log(&format!("SUPPOSED ECDSA PUBLIC KEY - VERIFYING?: {:?}", supposed_public_key));
+
         log(&format!("ECDSA KEY PAIR?: {:?}", ecdsa_key.to_raw_vec()));
+        log(&format!("ECDSA PUBLIC KEY?: {:?}", ecdsa_key.public()));
+        log(&format!("ECDSA SEED?: {:?}", ecdsa_key.seed()));
+
         Ok(ecdsa_key)
         // let role_public_key = crypto::role::Public::from_slice(&ecdsa_key)
         //     .map_err(into_js_error)?;

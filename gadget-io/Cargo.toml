@@ -30,6 +30,8 @@ color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", 
 sp-core = { workspace = true, features = ["serde", "full_crypto"] }
 tracing = { workspace = true, features = ["log", "attributes"] }
 tokio = { workspace = true }
+
+k256 = { version = "0.13.3", features = ["alloc", "ecdsa"], default-features = false }
 #tokio_wasm = { package = "tokio", version = "=1.24.2", git = "https://github.com/wasix-org/tokio.git", branch = "wasix-1.24.2-fixed", features = [
 #    "full",
 #] }

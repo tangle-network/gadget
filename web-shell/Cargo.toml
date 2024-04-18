@@ -21,7 +21,9 @@ console_error_panic_hook = "0.1.7"
 anyhow = "1.0.81"
 libp2p-webrtc-websys = "0.3.0-alpha"
 libp2p-core = "0.41.2"
-libp2p-identity = "0.2.8"
+libp2p-identity = { version = "0.2.8", features = ["ecdsa"] }
+k256 = { version = "0.13.3", features = ["alloc", "ecdsa"], default-features = false }
+#p256 = { version = "0.14.0-pre.0", features = ["alloc", "ecdsa"], default-features = false }
 libp2p-webrtc-utils = "0.2.0"
 tracing-wasm = "0.2.1"
 web-sys = { version = "0.3.69", features = ['Document', 'Element', 'HtmlElement', 'Node', 'Response', 'Window'] }

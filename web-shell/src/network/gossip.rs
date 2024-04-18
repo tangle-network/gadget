@@ -71,181 +71,182 @@ pub struct NetworkService<'a> {
 impl<'a> NetworkService<'a> {
     /// Handle local requests that are meant to be sent to the network.
     pub(crate) fn handle_intra_node_payload(&mut self, msg: IntraNodePayload) {
-        let _enter = self.span.enter();
-        match (msg.message_type, msg.payload) {
-            (MessageType::Broadcast, GossipOrRequestResponse::Gossip(payload)) => {
-                let gossip_message = bincode2::serialize(&payload).expect("Should serialize");
-                if let Err(e) = self
-                    .swarm
-                    .behaviour_mut()
-                    .gossipsub
-                    .publish(msg.topic, gossip_message)
-                {
-                    self.logger.error(format!("Publish error: {e:?}"));
-                }
-            }
-
-            (MessageType::P2P(peer_id), GossipOrRequestResponse::Request(req)) => {
-                // Send the outer payload in order to attach the topic to it
-                // "Requests are sent using Behaviour::send_request and the responses
-                // received as Message::Response via Event::Message."
-                self.swarm.behaviour_mut().p2p.send_request(&peer_id, req);
-            }
-            (MessageType::Broadcast, GossipOrRequestResponse::Request(_)) => {
-                self.logger.error("Broadcasting a request is not supported");
-            }
-            (MessageType::Broadcast, GossipOrRequestResponse::Response(_)) => {
-                self.logger
-                    .error("Broadcasting a response is not supported");
-            }
-            (MessageType::P2P(_), GossipOrRequestResponse::Gossip(_)) => {
-                self.logger
-                    .error("P2P message should be a request or response");
-            }
-            (MessageType::P2P(_), GossipOrRequestResponse::Response(_)) => {
-                // TODO: Send the response to the peer.
-            }
-        }
+        // let _enter = self.span.enter();
+        // match (msg.message_type, msg.payload) {
+        //     (MessageType::Broadcast, GossipOrRequestResponse::Gossip(payload)) => {
+        //         let gossip_message = bincode2::serialize(&payload).expect("Should serialize");
+        //         if let Err(e) = self
+        //             .swarm
+        //             .behaviour_mut()
+        //             .gossipsub
+        //             .publish(msg.topic, gossip_message)
+        //         {
+        //             self.logger.error(format!("Publish error: {e:?}"));
+        //         }
+        //     }
+        //
+        //     (MessageType::P2P(peer_id), GossipOrRequestResponse::Request(req)) => {
+        //         // Send the outer payload in order to attach the topic to it
+        //         // "Requests are sent using Behaviour::send_request and the responses
+        //         // received as Message::Response via Event::Message."
+        //         self.swarm.behaviour_mut().p2p.send_request(&peer_id, req);
+        //     }
+        //     (MessageType::Broadcast, GossipOrRequestResponse::Request(_)) => {
+        //         self.logger.error("Broadcasting a request is not supported");
+        //     }
+        //     (MessageType::Broadcast, GossipOrRequestResponse::Response(_)) => {
+        //         self.logger
+        //             .error("Broadcasting a response is not supported");
+        //     }
+        //     (MessageType::P2P(_), GossipOrRequestResponse::Gossip(_)) => {
+        //         self.logger
+        //             .error("P2P message should be a request or response");
+        //     }
+        //     (MessageType::P2P(_), GossipOrRequestResponse::Response(_)) => {
+        //         // TODO: Send the response to the peer.
+        //     }
+        // }
     }
 
     /// Handle inbound events from the networking layer
     pub(crate) async fn handle_swarm_event(&mut self, event: SwarmEvent<MyBehaviourEvent>) {
-        use MyBehaviourEvent::*;
-        use SwarmEvent::*;
-        let _enter = self.span.enter();
-        match event {
-            Behaviour(P2p(event)) => {
-                self.handle_p2p(event).await;
-            }
-            Behaviour(Gossipsub(event)) => {
-                self.handle_gossip(event).await;
-            }
-            // Behaviour(Mdns(event)) => {
-            //     self.handle_mdns_event(event).await;
-            // }
-            Behaviour(Identify(event)) => {
-                self.handle_identify_event(event).await;
-            }
-            Behaviour(Kadmelia(event)) => {
-                self.logger.trace(format!("Kadmelia event: {event:?}"));
-            }
-            Behaviour(Dcutr(event)) => {
-                self.handle_dcutr_event(event).await;
-            }
-            Behaviour(Relay(event)) => {
-                self.handle_relay_event(event).await;
-            }
-            Behaviour(RelayClient(event)) => {
-                self.handle_relay_client_event(event).await;
-            }
-            Behaviour(Ping(event)) => {
-                self.handle_ping_event(event).await;
-            }
-
-            NewListenAddr {
-                address,
-                listener_id,
-            } => {
-                self.logger
-                    .debug(format!("{listener_id} has a new address: {address}"));
-            }
-            ConnectionEstablished {
-                peer_id,
-                num_established,
-                ..
-            } => {
-                self.handle_connection_established(peer_id, num_established.get())
-                    .await;
-            }
-            ConnectionClosed {
-                peer_id,
-                num_established,
-                cause,
-                ..
-            } => {
-                self.handle_connection_closed(peer_id, num_established, cause)
-                    .await;
-            }
-            IncomingConnection {
-                connection_id,
-                local_addr,
-                send_back_addr,
-            } => {
-                self.handle_incoming_connection(connection_id, local_addr, send_back_addr)
-                    .await;
-            }
-            IncomingConnectionError {
-                connection_id,
-                local_addr,
-                send_back_addr,
-                error,
-            } => {
-                self.handle_incoming_connection_error(
-                    connection_id,
-                    local_addr,
-                    send_back_addr,
-                    error,
-                )
-                .await;
-            }
-            OutgoingConnectionError {
-                connection_id,
-                peer_id,
-                error,
-            } => {
-                self.handle_outgoing_connection_error(connection_id, peer_id, error)
-                    .await;
-            }
-            ExpiredListenAddr {
-                listener_id,
-                address,
-            } => {
-                self.logger
-                    .trace(format!("{listener_id} has an expired address: {address}"));
-            }
-            ListenerClosed {
-                listener_id,
-                addresses,
-                reason,
-            } => {
-                self.logger.trace(format!(
-                    "{listener_id} on {addresses:?} has been closed: {reason:?}"
-                ));
-            }
-            ListenerError { listener_id, error } => {
-                self.logger
-                    .error(format!("{listener_id} has an error: {error}"));
-            }
-            Dialing {
-                peer_id,
-                connection_id,
-            } => {
-                self.logger.debug(format!(
-                    "Dialing peer: {peer_id:?} with connection_id: {connection_id}"
-                ));
-            }
-            NewExternalAddrCandidate { address } => {
-                self.logger
-                    .trace(format!("New external address candidate: {address}"));
-            }
-            ExternalAddrConfirmed { address } => {
-                self.logger
-                    .trace(format!("External address confirmed: {address}"));
-            }
-            ExternalAddrExpired { address } => {
-                self.logger
-                    .trace(format!("External address expired: {address}"));
-            }
-            // NewExternalAddrOfPeer { peer_id, address } => {
-            //     self.logger.trace(format!(
-            //         "New external address of peer: {peer_id} with address: {address}"
-            //     ));
-            // }
-            unknown => {
-                self.logger
-                    .warn(format!("Unknown swarm event: {unknown:?}"));
-            }
-        }
+    //     use MyBehaviourEvent::*;
+    //     use SwarmEvent::*;
+    //     // let _enter = self.span.enter();
+    //     self.span.enter();
+    //     match event {
+    //         Behaviour(P2p(event)) => {
+    //             self.handle_p2p(event).await;
+    //         }
+    //         Behaviour(Gossipsub(event)) => {
+    //             self.handle_gossip(event).await;
+    //         }
+    //         // Behaviour(Mdns(event)) => {
+    //         //     self.handle_mdns_event(event).await;
+    //         // }
+    //         Behaviour(Identify(event)) => {
+    //             self.handle_identify_event(event).await;
+    //         }
+    //         Behaviour(Kadmelia(event)) => {
+    //             self.logger.trace(format!("Kadmelia event: {event:?}"));
+    //         }
+    //         Behaviour(Dcutr(event)) => {
+    //             self.handle_dcutr_event(event).await;
+    //         }
+    //         Behaviour(Relay(event)) => {
+    //             self.handle_relay_event(event).await;
+    //         }
+    //         Behaviour(RelayClient(event)) => {
+    //             self.handle_relay_client_event(event).await;
+    //         }
+    //         Behaviour(Ping(event)) => {
+    //             self.handle_ping_event(event).await;
+    //         }
+    //
+    //         NewListenAddr {
+    //             address,
+    //             listener_id,
+    //         } => {
+    //             self.logger
+    //                 .debug(format!("{listener_id} has a new address: {address}"));
+    //         }
+    //         ConnectionEstablished {
+    //             peer_id,
+    //             num_established,
+    //             ..
+    //         } => {
+    //             self.handle_connection_established(peer_id, num_established.get())
+    //                 .await;
+    //         }
+    //         ConnectionClosed {
+    //             peer_id,
+    //             num_established,
+    //             cause,
+    //             ..
+    //         } => {
+    //             self.handle_connection_closed(peer_id, num_established, cause)
+    //                 .await;
+    //         }
+    //         IncomingConnection {
+    //             connection_id,
+    //             local_addr,
+    //             send_back_addr,
+    //         } => {
+    //             self.handle_incoming_connection(connection_id, local_addr, send_back_addr)
+    //                 .await;
+    //         }
+    //         IncomingConnectionError {
+    //             connection_id,
+    //             local_addr,
+    //             send_back_addr,
+    //             error,
+    //         } => {
+    //             self.handle_incoming_connection_error(
+    //                 connection_id,
+    //                 local_addr,
+    //                 send_back_addr,
+    //                 error,
+    //             )
+    //             .await;
+    //         }
+    //         OutgoingConnectionError {
+    //             connection_id,
+    //             peer_id,
+    //             error,
+    //         } => {
+    //             self.handle_outgoing_connection_error(connection_id, peer_id, error)
+    //                 .await;
+    //         }
+    //         ExpiredListenAddr {
+    //             listener_id,
+    //             address,
+    //         } => {
+    //             self.logger
+    //                 .trace(format!("{listener_id} has an expired address: {address}"));
+    //         }
+    //         ListenerClosed {
+    //             listener_id,
+    //             addresses,
+    //             reason,
+    //         } => {
+    //             self.logger.trace(format!(
+    //                 "{listener_id} on {addresses:?} has been closed: {reason:?}"
+    //             ));
+    //         }
+    //         ListenerError { listener_id, error } => {
+    //             self.logger
+    //                 .error(format!("{listener_id} has an error: {error}"));
+    //         }
+    //         Dialing {
+    //             peer_id,
+    //             connection_id,
+    //         } => {
+    //             self.logger.debug(format!(
+    //                 "Dialing peer: {peer_id:?} with connection_id: {connection_id}"
+    //             ));
+    //         }
+    //         NewExternalAddrCandidate { address } => {
+    //             self.logger
+    //                 .trace(format!("New external address candidate: {address}"));
+    //         }
+    //         ExternalAddrConfirmed { address } => {
+    //             self.logger
+    //                 .trace(format!("External address confirmed: {address}"));
+    //         }
+    //         ExternalAddrExpired { address } => {
+    //             self.logger
+    //                 .trace(format!("External address expired: {address}"));
+    //         }
+    //         // NewExternalAddrOfPeer { peer_id, address } => {
+    //         //     self.logger.trace(format!(
+    //         //         "New external address of peer: {peer_id} with address: {address}"
+    //         //     ));
+    //         // }
+    //         unknown => {
+    //             self.logger
+    //                 .warn(format!("Unknown swarm event: {unknown:?}"));
+    //         }
+    //     }
     }
 }
 
