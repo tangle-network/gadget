@@ -38,6 +38,7 @@ dfns-cggmp21-protocol = { workspace = true }
 zcash-frost-protocol = { workspace = true }
 threshold-bls-protocol = { workspace = true }
 zk-saas-protocol = { workspace = true, features = ["parallel"] }
+wsts-protocol = { workspace = true }
 structopt = { workspace = true }
 rand = { workspace = true }
 hex = { workspace = true }
@@ -60,7 +61,8 @@ features = [
   "dcutr",
   "relay",
   "ping",
-  "dns"
+  "dns",
+    "autonat"
 ]
 
 [dev-dependencies]

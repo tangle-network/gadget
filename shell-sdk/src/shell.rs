@@ -7,6 +7,8 @@ use crate::{
     tangle::{TangleConfig, TangleRuntime},
 };
 use color_eyre::eyre::OptionExt;
+use futures::stream::FuturesOrdered;
+use futures::StreamExt;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::{
     client::{PairSigner, SubxtPalletSubmitter},
@@ -15,12 +17,13 @@ use gadget_common::{
     keystore::{ECDSAKeyStore, InMemoryBackend},
 };
 use gadget_core::gadget::substrate::Client;
-use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
+use sp_core::{ecdsa, ed25519, keccak_256, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 use tangle_subxt::subxt;
 use tangle_subxt::tangle_testnet_runtime as tangle_runtime;
+use tokio::task::JoinHandle;
 
 use crate::config::ShellConfig;
 use crate::network::gossip::GossipHandle;
@@ -52,23 +55,22 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
         .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))?;
 
+    // Create a network for each subprotocol in the protocol (e.g., keygen, signing, refresh, rotate, = 4 total subprotocols = n_protocols)
+    let network_ids = (0..config.n_protocols)
+        .iter()
+        .map(|(id, r)| format!("{:?}", config.role_types[0]))
+        .map(|r| keccak_256(r.as_bytes()))
+        .map(hex::encode)
+        .enumerate()
+        .map(|(id, r)| format!("/tangle/{r}-{id}/1.0.0"))
+        .sorted()
+        .collect::<Vec<_>>();
+
     let (networks, network_task) = crate::network::setup::setup_libp2p_network(
         libp2p_key,
         &config,
         logger.clone(),
-        vec![
-            // dfns-cggmp21
-            DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
-            DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
-            DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
-            DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
-            // zcash-frost
-            ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
-            ZCASH_FROST_SIGNING_PROTOCOL_NAME,
-            // gennaro-dkg-bls381
-            GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
-            GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
-        ],
+        network_ids,
         role_key,
     )
     .await
@@ -77,8 +79,14 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
     wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
 
-    let protocols =
-        start_required_protocols(&config.subxt, networks, acco_key, logger, wrapped_keystore);
+    let protocols = start_required_protocols(
+        &config.subxt,
+        networks,
+        acco_key,
+        logger,
+        wrapped_keystore,
+        config.role_types.clone(),
+    );
 
     let ctrl_c = tokio::signal::ctrl_c();
 
@@ -103,26 +111,30 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
 pub fn start_protocol_by_role<KBE>(
     role: RoleType,
     runtime: TangleRuntime,
-    networks: HashMap<&'static str, GossipHandle>,
+    networks: HashMap<String, GossipHandle>,
     account_id: sr25519::Public,
     logger: DebugLogger,
     pallet_tx: Arc<SubxtPalletSubmitter<TangleConfig, PairSigner<TangleConfig>>>,
     keystore: ECDSAKeyStore<KBE>,
-) -> color_eyre::Result<tokio::task::AbortHandle>
+) -> color_eyre::Result<JoinHandle<()>>
 where
     KBE: KeystoreBackend,
 {
     use RoleType::*;
     use ThresholdSignatureRoleType::*;
+    let networks = networks
+        .into_iter()
+        .sorted()
+        .map(|r| r.1)
+        .collect::<Vec<_>>();
+    let clients = (0..networks.len())
+        .map(|_| TangleRuntime::new(runtime.client()))
+        .collect::<Vec<_>>();
+    // TODO: Cleanup loagic below
     let handle = match role {
         Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
             tokio::spawn(dfns_cggmp21_protocol::setup_node(NodeInput {
-                clients: vec![
-                    TangleRuntime::new(runtime.client()),
-                    TangleRuntime::new(runtime.client()),
-                    TangleRuntime::new(runtime.client()),
-                    TangleRuntime::new(runtime.client()),
-                ],
+                clients,
                 account_id,
                 logger,
                 pallet_tx,
@@ -130,24 +142,7 @@ where
                 node_index: 0,
                 additional_params: (),
                 prometheus_config: PrometheusConfig::Disabled,
-                networks: vec![
-                    networks
-                        .get(DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                    networks
-                        .get(DFNS_CGGMP21_SIGNING_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                    networks
-                        .get(DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                    networks
-                        .get(DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                ],
+                networks,
             }))
         }
 
@@ -158,10 +153,7 @@ where
         | Tss(ZcashFrostSecp256k1)
         | Tss(ZcashFrostRistretto255) => {
             tokio::spawn(zcash_frost_protocol::setup_node(NodeInput {
-                clients: vec![
-                    TangleRuntime::new(runtime.client()),
-                    TangleRuntime::new(runtime.client()),
-                ],
+                clients,
                 account_id,
                 logger,
                 pallet_tx,
@@ -169,23 +161,11 @@ where
                 node_index: 0,
                 additional_params: (),
                 prometheus_config: PrometheusConfig::Disabled,
-                networks: vec![
-                    networks
-                        .get(ZCASH_FROST_KEYGEN_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                    networks
-                        .get(ZCASH_FROST_SIGNING_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                ],
+                networks,
             }))
         }
         Tss(GennaroDKGBls381) => tokio::spawn(threshold_bls_protocol::setup_node(NodeInput {
-            clients: vec![
-                TangleRuntime::new(runtime.client()),
-                TangleRuntime::new(runtime.client()),
-            ],
+            clients,
             account_id,
             logger,
             pallet_tx,
@@ -193,27 +173,30 @@ where
             node_index: 0,
             additional_params: (),
             prometheus_config: PrometheusConfig::Disabled,
-            networks: vec![
-                networks
-                    .get(GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME)
-                    .cloned()
-                    .unwrap(),
-                networks
-                    .get(GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME)
-                    .cloned()
-                    .unwrap(),
-            ],
+            networks,
         })),
-        Tss(WstsV2) => {
-            return Err(color_eyre::eyre::eyre!(
-                "WstsV2 is not supported by the shell-sdk",
-            ))
-        }
-        ZkSaaS(_) => {
-            return Err(color_eyre::eyre::eyre!(
-                "ZkSaaS is not supported by the shell-sdk",
-            ))
-        }
+        Tss(WstsV2) => tokio::spawn(wsts_protocol::setup_node(NodeInput {
+            clients,
+            account_id,
+            logger,
+            pallet_tx,
+            keystore,
+            node_index: 0,
+            additional_params: (),
+            prometheus_config: PrometheusConfig::Disabled,
+            networks,
+        })),
+        ZkSaaS(_) => tokio::task::spawn(zk_saas_protocol::setup_node(NodeInput {
+            clients,
+            account_id,
+            logger,
+            pallet_tx,
+            keystore,
+            node_index: 0,
+            additional_params: (),
+            prometheus_config: PrometheusConfig::Disabled,
+            networks,
+        })),
         LightClientRelaying => {
             return Err(color_eyre::eyre::eyre!(
                 "LightClientRelaying is not supported by the shell-sdk",
@@ -232,10 +215,11 @@ where
 
 pub async fn start_required_protocols<KBE>(
     subxt_config: &crate::config::SubxtConfig,
-    networks: HashMap<&'static str, GossipHandle>,
+    networks: HashMap<String, GossipHandle>,
     acco_key: sr25519::Pair,
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
+    roles: Vec<RoleType>,
 ) -> color_eyre::Result<()>
 where
     KBE: KeystoreBackend,
@@ -255,54 +239,24 @@ where
         SubxtPalletSubmitter::with_client(subxt_client.clone(), pair_signer, logger.clone());
     let pallet_tx = Arc::new(pallet_tx_submitter);
     let runtime = TangleRuntime::new(subxt_client);
-    while let Some(notification) = runtime.get_next_finality_notification().await {
-        let roles = runtime
-            .query_restaker_roles(notification.hash, sub_account_id.clone())
-            .await?;
-        logger.trace(format!("Got roles: {roles:?}"));
-        if roles == current_roles {
-            logger.trace("Roles have not changed, skipping");
-            continue;
-        }
-        let diff = vec_diff(
-            current_roles.iter().cloned().map(HashedRoleTypeWrapper),
-            roles.iter().cloned().map(HashedRoleTypeWrapper),
-        );
-        if diff.is_empty() {
-            logger.trace("No roles diff, skipping");
-            continue;
-        }
-        logger.trace(format!("Roles diff: {diff:?}"));
-        for d in diff {
-            match d {
-                Diff::Added(role) => {
-                    logger.debug(format!("Trying to start protocol for role {:?}", role.0));
-                    let handle = start_protocol_by_role(
-                        role.0.clone(),
-                        TangleRuntime::new(runtime.client()),
-                        networks.clone(),
-                        acco_key.public(),
-                        logger.clone(),
-                        pallet_tx.clone(),
-                        keystore.clone(),
-                    )?;
-                    running_protocols.insert(role, handle);
-                }
-                Diff::Removed(role) => {
-                    logger.debug(format!("Trying to stop protocol for role {:?}", role.0));
-                    let maybe_handle = running_protocols.remove(&role);
-                    if let Some(handle) = maybe_handle {
-                        handle.abort();
-                        logger.warn(format!(
-                            "Aborted protocol for role {:?}. Reason: Role Removed from profile",
-                            role.0
-                        ));
-                    }
-                }
-            }
-        }
-        current_roles = roles;
+    logger.trace(format!("Got roles: {roles:?}"));
+    let mut futures = FuturesOrdered::new();
+    for role in roles {
+        let handle = start_protocol_by_role(
+            role,
+            TangleRuntime::new(runtime.client()),
+            networks.clone(),
+            acco_key.public(),
+            logger.clone(),
+            pallet_tx.clone(),
+            keystore.clone(),
+        )?;
+
+        futures.push_back(handle);
     }
+
+    futures.collect::<()>().await;
+
     Ok(())
 }
 
@@ -349,7 +303,7 @@ pub fn load_keys_from_keystore(
 
 pub async fn wait_for_connection_to_bootnodes(
     config: &ShellConfig,
-    handles: &HashMap<&'static str, GossipHandle>,
+    handles: &HashMap<String, GossipHandle>,
     logger: &DebugLogger,
 ) -> color_eyre::Result<()> {
     let n_required = config.bootnodes.len();
@@ -379,7 +333,7 @@ pub async fn wait_for_connection_to_bootnodes(
         tasks.spawn(wait_for_peers(handle.clone(), n_required, logger.clone()));
     }
     // Wait for all tasks to finish
-    while (tasks.join_next().await).is_some() {}
+    while tasks.join_next().await.is_some() {}
 
     Ok(())
 }

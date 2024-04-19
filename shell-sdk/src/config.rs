@@ -18,6 +18,7 @@ pub struct ShellConfig {
     pub bootnodes: Vec<Multiaddr>,
     pub node_key: [u8; 32],
     pub role_types: Vec<RoleType>,
+    pub n_protocols: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -62,7 +63,7 @@ pub struct ShellTomlConfig {
     /// The port to bind to for the libp2p node.
     #[structopt(long = "port", short = "p", default_value = defaults::BIND_PORT)]
     #[serde(default = "defaults::bind_port")]
-    bind_port: u16,
+    pub(crate) bind_port: u16,
     /// The RPC URL of the Tangle Node.
     #[structopt(long = "url", parse(try_from_str = url::Url::parse), default_value = defaults::RPC_URL)]
     #[serde(default = "defaults::rpc_url")]
@@ -100,6 +101,12 @@ pub struct ShellTomlConfig {
     )]
     #[serde(default)]
     pub chain: SupportedChains,
+    /// The verbosity level, can be used multiple times
+    #[structopt(long, short = "v", global = true, parse(from_occurrences))]
+    pub(crate) verbose: i32,
+    /// Whether to use pretty logging
+    #[structopt(global = true, long)]
+    pub(crate) pretty: bool,
 }
 
 #[derive(Default, Debug, StructOpt, Serialize, Deserialize)]

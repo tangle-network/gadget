@@ -5569,6 +5569,7 @@ dependencies = [
  "getrandom 0.2.14",
  "instant",
  "libp2p-allow-block-list 0.3.0",
+ "libp2p-autonat",
  "libp2p-connection-limits 0.3.1",
  "libp2p-core 0.41.2",
  "libp2p-dcutr",
@@ -5615,6 +5616,26 @@ dependencies = [
  "libp2p-identity 0.2.8",
  "libp2p-swarm 0.44.2",
  "void",
+]
+
+[[package]]
+name = "libp2p-autonat"
+version = "0.12.0"
+source = "git+https://github.com/libp2p/rust-libp2p/?rev=3644879956b6ab93b8d23553a33e8fdb838f576f#3644879956b6ab93b8d23553a33e8fdb838f576f"
+dependencies = [
+ "async-trait",
+ "asynchronous-codec 0.7.0",
+ "futures",
+ "futures-timer",
+ "instant",
+ "libp2p-core 0.41.2",
+ "libp2p-identity 0.2.8",
+ "libp2p-request-response 0.26.2",
+ "libp2p-swarm 0.44.2",
+ "quick-protobuf",
+ "quick-protobuf-codec 0.3.1",
+ "rand 0.8.5",
+ "tracing",
 ]
 
 [[package]]
@@ -11036,6 +11057,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber 0.3.18",
  "url",
+ "wsts-protocol",
  "zcash-frost-protocol",
  "zk-saas-protocol",
 ]

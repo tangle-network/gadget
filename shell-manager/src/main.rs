@@ -3,7 +3,10 @@ use crate::protocols::resolver::{load_global_config_file, ProtocolMetadata};
 use color_eyre::Result;
 use sha3::Digest;
 use shell_sdk::config::defaults;
-use shell_sdk::{DebugLogger, ShellTomlConfig};
+use shell_sdk::entry::keystore_from_base_path;
+use shell_sdk::shell::load_keys_from_keystore;
+use shell_sdk::tangle::TangleRuntime;
+use shell_sdk::{entry, ClientWithApi, DebugLogger, KeystoreConfig, ShellTomlConfig};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -14,6 +17,7 @@ use tangle_subxt::tangle_mainnet_runtime::api::jobs::events::job_refunded::RoleT
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 
 pub mod error;
 pub mod protocols;
@@ -23,7 +27,7 @@ pub mod protocols;
     name = "Shell Manager",
     about = "An MPC executor that connects to the Tangle network and runs protocols dynamically on the fly"
 )]
-struct Opt {
+struct ShellManagerOpts {
     /// The path to the shell configuration file
     #[structopt(global = true, parse(from_os_str), short = "s", long = "shell-config")]
     shell_config: PathBuf,
@@ -45,8 +49,8 @@ struct Opt {
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
-    let opt = Opt::from_args();
-    setup_logger(&opt, "gadget_shell")?;
+    let opt = ShellManagerOpts::from_args();
+    entry::setup_shell_logger(opt.verbose, opt.pretty, "gadget_shell")?;
     let shell_config_contents = std::fs::read_to_string(opt.shell_config)?;
     let shell_config: ShellTomlConfig = toml::from_str(&shell_config_contents)?;
     let global_protocols = load_global_config_file(opt.protocols_config)?;
@@ -59,18 +63,34 @@ async fn main() -> Result<()> {
         global_protocols.len()
     ));
 
-    let mut active_shells = Arc::new(Mutex::new(HashMap::<Vec<RoleType>, _>::new()));
+    let subxt_client =
+        subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&shell_config.url).await?;
+    let runtime = TangleRuntime::new(subxt_client);
 
-    loop {
-        let onchain_roles = get_roles().await;
-        let mut active_shells = active_shells.lock().await;
+    let keystore = keystore_from_base_path(
+        &shell_config.base_path,
+        shell_config.chain,
+        shell_config.keystore_password,
+    );
+    let (_role_key, acco_key) = load_keys_from_keystore(&keystore)?;
+    let sub_account_id = subxt::utils::AccountId32(acco_key.public().0);
+
+    let mut active_shells = HashMap::<String, RunningProtocolType>::new();
+
+    while let Some(notification) = runtime.get_next_finality_notification().await {
+        let onchain_roles = runtime
+            .query_restaker_roles(notification.hash, sub_account_id.clone())
+            .await?;
+        // Check to see if local does not have any running on-chain roles
         'inner: for role in onchain_roles {
-            if !active_shells.contains_key(&role) {
+            let role_str = format!("{role:?}");
+            if !active_shells.contains(&role_str) {
                 // Add in the protocol
                 for global_protocol in &global_protocols {
-                    if global_protocol.role_types() == &role {
+                    if global_protocol.role_types().contains(&role.clone().into()) {
                         match global_protocol {
-                            ProtocolMetadata::Internal { .. } => {}
+                            ProtocolMetadata::Internal { role_types } => {}
+
                             ProtocolMetadata::External {
                                 git,
                                 rev,
@@ -123,6 +143,8 @@ async fn main() -> Result<()> {
                                     ),
                                     format!("--base-path={}", shell_config.base_path.display()),
                                     format!("--chain={}", shell_config.chain.to_string()),
+                                    format!("--verbose={}", opt.verbose),
+                                    format!("--pretty={}", opt.pretty),
                                 ];
 
                                 if let Some(keystore_password) = &shell_config.keystore_password {
@@ -130,14 +152,21 @@ async fn main() -> Result<()> {
                                         .push(format!("--keystore-password={}", keystore_password));
                                 }
 
+                                logger.info(format!("Starting protocol: {role_str}"));
+
                                 // Now that the file is loaded, spawn the shell
                                 let process_handle =
                                     tokio::process::Command::new(&binary_download_path)
                                         .kill_on_drop(true)
+                                        .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
+                                        .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
                                         .args(arguments)
                                         .spawn()?;
 
-                                active_shells.insert(role, process_handle);
+                                active_shells.insert(
+                                    role_str,
+                                    RunningProtocolType::External(process_handle),
+                                );
                             }
                         }
                         break 'inner;
@@ -146,17 +175,44 @@ async fn main() -> Result<()> {
             }
         }
 
-        // Sleep for 1 block (6 seconds) before polling again for new potential shells to spawn/manage
-        tokio::time::sleep(Duration::from_secs(6));
+        // Check to see if local is running protocols that are not on-chain
+        let mut to_remove = vec![];
+        for (role, process_handle) in &mut active_shells {
+            if !onchain_roles.contains(&role.clone().into()) {
+                logger.warn(format!("Killing protocol: {role}"));
+                let _ = process_handle.kill().await;
+                to_remove.push(role.clone());
+            }
+        }
+
+        for role in to_remove {
+            active_shells.remove(&role);
+        }
+    }
+
+    Err("Finality Notification stream died")
+}
+
+enum RunningProtocolType {
+    Internal(JoinHandle<()>),
+    External(tokio::process::Child),
+}
+
+impl RunningProtocolType {
+    async fn kill(&mut self) {
+        match self {
+            RunningProtocolType::Internal(handle) => {
+                handle.abort();
+            }
+            RunningProtocolType::External(child) => {
+                let _ = child.kill().await;
+            }
+        }
     }
 }
 
 async fn file_exists(path: &str) -> bool {
     tokio::fs::metadata(path).await.is_ok()
-}
-
-async fn get_roles() -> Vec<Vec<RoleType>> {
-    unimplemented!()
 }
 
 fn get_formatted_os_string() -> String {
@@ -187,90 +243,4 @@ fn get_download_url<T: Into<String>>(git: T, rev: &str) -> String {
 
     // https://github.com/webb-tools/protocol-template/releases/download/protocol-x86_64-apple-darwin/protocol-6fa01cb5cf684e2d0272252f00ea81d6f269f3d7
     format!("{git}releases/download/protocol-{arch}-{os}/protocol-{rev}")
-}
-
-/*
-#[tokio::main]
-async fn main() -> Result<()> {
-    color_eyre::install()?;
-    let opt = Opt::from_args();
-    setup_logger(&opt, "gadget_shell")?;
-    let config: shell_sdk::config::TomlConfig = if let Some(config) = opt.config {
-        let config_contents = std::fs::read_to_string(config)?;
-        toml::from_str(&config_contents)?
-    } else {
-        opt.options
-    };
-
-    // Setup the client to allow polling the chain for active roles
-    let subxt_client =
-        subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&config.url).await?;
-
-    let mut active_shells = HashMap::new();
-
-    // Periodically (every block) poll the chain for active roles, see if we need to run any, and run them
-    loop {
-        subxt_client.runtime_api().at_latest().await?.
-        tokio::time::sleep(Duration::from_secs(6));
-    }
-
-    //
-    let open_port = TcpListener::bind("0.0.0.0:0").await?.local_addr()?.port();
-
-    shell_sdk::run_forever(shell_sdk::ShellConfig {
-        keystore: shell_sdk::KeystoreConfig::Path {
-            path: config
-                .base_path
-                .join("chains")
-                .join(config.chain.to_string())
-                .join("keystore"),
-            password: config.keystore_password.map(|s| s.into()),
-        },
-        subxt: shell_sdk::SubxtConfig {
-            endpoint: config.url,
-        },
-        base_path: config.base_path,
-        bind_ip: config.bind_ip,
-        bind_port: open_port,
-        bootnodes: config.bootnodes,
-        node_key: hex::decode(
-            config
-                .node_key
-                .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
-        )?
-        .try_into()
-        .map_err(|_| {
-            color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
-        })?,
-    })
-    .await?;
-    Ok(())
-}
-*/
-/// Sets up the logger for the shell-sdk, based on the verbosity level passed in.
-fn setup_logger(opt: &Opt, filter: &str) -> Result<()> {
-    use tracing::Level;
-    let log_level = match opt.verbose {
-        0 => Level::ERROR,
-        1 => Level::WARN,
-        2 => Level::INFO,
-        3 => Level::DEBUG,
-        _ => Level::TRACE,
-    };
-    let env_filter = tracing_subscriber::EnvFilter::from_default_env()
-        .add_directive(format!("{filter}={log_level}").parse()?)
-        .add_directive(format!("gadget={log_level}").parse()?);
-    let logger = tracing_subscriber::fmt()
-        .with_target(false)
-        .with_level(true)
-        .with_line_number(false)
-        .without_time()
-        .with_max_level(log_level)
-        .with_env_filter(env_filter);
-    if opt.pretty {
-        logger.pretty().init();
-    } else {
-        logger.compact().init();
-    }
-    Ok(())
 }
