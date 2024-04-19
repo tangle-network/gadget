@@ -19,7 +19,7 @@ $(async () => {
         console.log("Starting Rust Web Main Function");
 
         const config: TomlConfig = {
-            bind_ip: "0.0.0.0",
+            bind_ip: "127.0.0.1",
             bind_port: 8081,
             url: "https://github.com/webb-tools/gadget",
             bootnodes: ["/ip4/127.0.0.1/udp/1234", "foo", "/ip4/127.0.0.1/udp/1235","/ip4/127.0.0.1/udp/1236"],

@@ -17,20 +17,28 @@ use std::io;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
+use std::str::FromStr;
+use std::net::{Ipv4Addr, SocketAddr};
 use gadget_io::tokio::select;
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use gadget_io::tokio::task::JoinHandle;
 
 use js_sys::Date;
-use libp2p::core::Multiaddr;
+// use libp2p::core::Multiaddr;
 use libp2p::ping;
 use libp2p::swarm::SwarmEvent;
 use libp2p_webrtc_websys as webrtc_websys;
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, HtmlElement};
+use libp2p_webtransport_websys as webtransport_websys;
 
 use k256::ecdsa::{SigningKey as SecretKey, VerifyingKey};
 // use p256::ecdsa::{SigningKey as SecretKey, VerifyingKey};
+
+use libp2p::{
+    multiaddr::{Multiaddr, Protocol},
+    identity::PeerId,
+};
 
 use crate::log;
 
@@ -43,10 +51,11 @@ pub async fn setup_libp2p_network(
 ) -> Result<(HashMap<&'static str, GossipHandle>, JoinHandle<()>), Box<dyn Error>> {
     // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
     log(&format!("Setup Libp2p Network - About to build Swarm"));
-    let mut swarm = libp2p::SwarmBuilder::with_new_identity()//with_existing_identity(identity)
+
+    let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
         .with_wasm_bindgen()
         .with_other_transport(|key| {
-            webrtc_websys::Transport::new(webrtc_websys::Config::new(&key))
+            webtransport_websys::Transport::new(webtransport_websys::Config::new(&key))
         })?
         // .with_tokio()
         // .with_tcp(
@@ -164,38 +173,23 @@ pub async fn setup_libp2p_network(
     }
     log(&format!("Setup Libp2p Network - Network Loop Completed"));
 
-    let ecdsa_seed: &[u8] = &role_key.seed();
-    let supposed_public_key = VerifyingKey::from(SecretKey::from_slice(ecdsa_seed)?);
-    log(&format!("Setup Libp2p Network - PubKey: {:?}", supposed_public_key));
+    // log(&format!("/ip4/{}/udp/{}/webrtc/p2p/{:?}", config.bind_ip, config.bind_port, peer_id));
+    // let webrtc_multiaddr = format!("/ip4/{}/udp/{}/webrtc-direct/p2p/{:?}", config.bind_ip, config.bind_port, "QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N").parse()?;
+    // let webrtc_multiaddr = format!("/ip4/{}/udp/{}/quic/webtransport/certhash/QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N", config.bind_ip, config.bind_port).parse()?;
+    // log(&format!("Setup Libp2p Network - Webrtc Multiaddr: {}", webrtc_multiaddr));
+    // let webrtc_multiaddr = Multiaddr::from(config.bind_ip)
+    //     .with(Protocol::Udp(config.bind_port))
+    //     .with(Protocol::WebRTCDirect);
+        // .with(Protocol::P2p(PeerId::from_str("QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N")?));
+    // let webtransport_multiaddr = Multiaddr::from(config.bind_ip)
+    //     .with(Protocol::Udp(config.bind_port))
+    //     .with(Protocol::QuicV1)
+    //     .with(Protocol::WebTransport)
+    //     .with(Protocol::Certhash(multihash::Multihash::from_bytes("b2uaraocy6yrdblb4sfptaddgimjmmpy".as_bytes())?));
 
-    // let public_key_string = format!("{:?}", role_key.public());
-    // log(&format!("Public Key: {:?}", public_key_string));
-    //
-    // // let public_key_string = String::from_utf8(role_key.to_raw_vec())?;
-    // let public_key_string = format!("{:?}", role_key.public());
-    // log(&format!("Public Key: {:?}", public_key_string));
-    // log(&format!("Public Key as bytes: {:?}", public_key_string.as_bytes()));
-    // let public_key_string = libp2p_identity::ecdsa::PublicKey::try_from_bytes(public_key_string.as_bytes())?;
-    // log(&format!("Public Key As ECDSA Key: {:?}", public_key_string.to_bytes()));
-    // let pubkey_bytes = &supposed_public_key.to_sec1_bytes();
-    // log(&format!("Setup Libp2p Network - PubKey Bytes: {:?}", pubkey_bytes));
-
-
-    let key_bytes = &format!("{:?}",supposed_public_key);
-    log(&format!("Setup Libp2p Network - ECDSA KEY PRINTABLE FORMAT: {:?}", key_bytes));
-
-
-    let ecdsa_pubkey = libp2p_identity::ecdsa::PublicKey::try_from_bytes(key_bytes.as_bytes())?;
-
-    // let ecdsa_pubkey = libp2p_identity::ecdsa::PublicKey::try_from_bytes(pubkey_bytes)?;
-    log(&format!("Setup Libp2p Network - ECDSA Parsed Key: {:?}", ecdsa_pubkey));
-
-    let libp2p_key = libp2p_identity::PublicKey::from(ecdsa_pubkey);
-    let peer_id: libp2p::PeerId = libp2p_key.into();
-    log(&format!("/ip4/{}/udp/{}/webrtc/p2p/{:?}", config.bind_ip, config.bind_port, peer_id));
-    let webrtc_multiaddr = format!("/ip4/{}/udp/{}/webrtc/p2p/{:?}", config.bind_ip, config.bind_port, peer_id).parse()?;
-    log(&format!("Setup Libp2p Network - Webrtc Multiaddr: {}", webrtc_multiaddr));
-    swarm.listen_on(webrtc_multiaddr)?;
+    // swarm.listen_on(webtransport_multiaddr)?;
+    let webtransport_multiaddr = format!("/ip4/127.0.0.1/udp/8081/quic/webtransport/certhash/b2uaraocy6yrdblb4sfptaddgimjmmpy").parse()?;
+    swarm.listen_on(webtransport_multiaddr)?;
 
     log(&format!("Setup Libp2p Network - Swarm Listening for Webrtc"));
     // swarm

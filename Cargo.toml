@@ -178,8 +178,8 @@ getrandom = { version = "0.2.12", default-features = false }
 rand_chacha = { version = "0.3.1" }
 jsonrpsee = "0.16.2"
 linked-hash-map = { version = "0.5.6", default-features = false }
-k256 = "0.13.2"
-p256 = "0.13.2"
+k256 = { version = "0.13.2", default-features = false }
+p256 = { version = "0.13.2", default-features = false }
 signature = "2.2.0"
 starknet-crypto = "0.6.1"
 anyhow = "1.0.79"
