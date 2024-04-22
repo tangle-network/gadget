@@ -18,6 +18,11 @@ use gadget_common::prelude::*;
 use gadget_common::ExecutableJob;
 use tsify::Tsify;
 
+use futures::{select, FutureExt};
+use futures_timer::Delay;
+use matchbox_socket::{PeerState, WebRtcSocket};
+use std::time::Duration;
+
 mod network;
 mod config;
 // mod keystore;
@@ -473,15 +478,60 @@ extern "C" {
 //     assert!(err_str.contains("Base Error"));
 // }
 
-// #[wasm_bindgen_test]
-// fn test_js() {
-//     log(&format!("Hello from {}!", name())); // should output "Hello from Rust!"
-//
-//     let x = MyClass::new();
-//     assert_eq!(x.number(), 42);
-//     x.set_number(10);
-//     log(&x.render());
-// }
+#[wasm_bindgen_test]
+fn test_matchbox() {
+    // Setup logging
+    console_error_panic_hook::set_once();
+    console_log::init_with_level(log::Level::Debug).unwrap();
+
+    wasm_bindgen_futures::spawn_local(async_main());
+    wasm_bindgen_futures::spawn_local(async_main());
+}
+
+async fn async_main() {
+    log(&format!("Hello from Matchbox Test!"));
+    let (mut socket, loop_fut) = WebRtcSocket::new_reliable("ws://localhost:3536/");
+
+    let loop_fut = loop_fut.fuse();
+    futures::pin_mut!(loop_fut);
+
+    let timeout = Delay::new(Duration::from_millis(100));
+    futures::pin_mut!(timeout);
+
+    loop {
+        // Handle any new peers
+        for (peer, state) in socket.update_peers() {
+            match state {
+                PeerState::Connected => {
+                    info!("Peer joined: {peer}");
+                    let packet = "hello friend!".as_bytes().to_vec().into_boxed_slice();
+                    socket.send(packet, peer);
+                }
+                PeerState::Disconnected => {
+                    info!("Peer left: {peer}");
+                }
+            }
+        }
+
+        // Accept any messages incoming
+        for (peer, packet) in socket.receive() {
+            let message = String::from_utf8_lossy(&packet);
+            info!("Message from {peer}: {message:?}");
+        }
+
+        select! {
+            // Restart this loop every 100ms
+            _ = (&mut timeout).fuse() => {
+                timeout.reset(Duration::from_millis(100));
+            }
+
+            // Or break if the message loop ends (disconnected, closed, etc.)
+            _ = &mut loop_fut => {
+                break;
+            }
+        }
+    }
+}
 
 // #[wasm_bindgen_test]
 // fn test_prompt() {
