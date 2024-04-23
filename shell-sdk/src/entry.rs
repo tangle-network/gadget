@@ -1,5 +1,6 @@
 use crate::{defaults, ShellTomlConfig, SupportedChains};
-use tangle_subxt::tangle_mainnet_runtime::api::jobs::events::job_refunded::RoleType;
+use structopt::StructOpt;
+use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
 
 pub fn keystore_from_base_path(
     base_path: &std::path::PathBuf,
@@ -19,10 +20,10 @@ pub fn keystore_from_base_path(
 pub async fn run_shell_for_protocol(
     role_types: Vec<RoleType>,
     n_protocols: usize,
-) -> std::io::Result<()> {
+) -> color_eyre::Result<()> {
     color_eyre::install()?;
     // The args will be passed here by the shell-manager
-    let config: ShellTomlConfig = ShellTomlConfig::from_args()?;
+    let config: ShellTomlConfig = ShellTomlConfig::from_args();
     setup_shell_logger(config.verbose, config.pretty, "gadget_shell")?;
     let keystore =
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);

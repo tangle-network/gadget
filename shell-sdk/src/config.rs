@@ -6,7 +6,7 @@ use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use structopt::StructOpt;
-use tangle_subxt::tangle_mainnet_runtime::api::jobs::events::job_refunded::RoleType;
+use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
 
 #[derive(Debug, Clone)]
 pub struct ShellConfig {
@@ -109,7 +109,7 @@ pub struct ShellTomlConfig {
     pub(crate) pretty: bool,
 }
 
-#[derive(Default, Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum SupportedChains {

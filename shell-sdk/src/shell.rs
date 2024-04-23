@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::time::Duration;
 use std::{hash::Hash, sync::Arc};
 
@@ -8,15 +8,14 @@ use crate::{
 };
 use color_eyre::eyre::OptionExt;
 use futures::stream::FuturesOrdered;
-use futures::StreamExt;
+use futures::TryStreamExt;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::{
     client::{PairSigner, SubxtPalletSubmitter},
-    config::{ClientWithApi, DebugLogger, PrometheusConfig},
+    config::{DebugLogger, PrometheusConfig},
     full_protocol::NodeInput,
     keystore::{ECDSAKeyStore, InMemoryBackend},
 };
-use gadget_core::gadget::substrate::Client;
 use sp_core::{ecdsa, ed25519, keccak_256, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
@@ -28,17 +27,7 @@ use tokio::task::JoinHandle;
 use crate::config::ShellConfig;
 use crate::network::gossip::GossipHandle;
 use crate::tangle::crypto;
-
-use dfns_cggmp21_protocol::constants::{
-    DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
-    DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME, DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
-};
-use threshold_bls_protocol::constants::{
-    GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME, GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
-};
-use zcash_frost_protocol::constants::{
-    ZCASH_FROST_KEYGEN_PROTOCOL_NAME, ZCASH_FROST_SIGNING_PROTOCOL_NAME,
-};
+use itertools::Itertools;
 
 /// The version of the shell-sdk
 pub const AGENT_VERSION: &str = "tangle/gadget-shell-sdk/1.0.0";
@@ -57,8 +46,8 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
 
     // Create a network for each subprotocol in the protocol (e.g., keygen, signing, refresh, rotate, = 4 total subprotocols = n_protocols)
     let network_ids = (0..config.n_protocols)
-        .iter()
-        .map(|(id, r)| format!("{:?}", config.role_types[0]))
+        .into_iter()
+        .map(|_| format!("{:?}", config.role_types[0]))
         .map(|r| keccak_256(r.as_bytes()))
         .map(hex::encode)
         .enumerate()
@@ -124,7 +113,7 @@ where
     use ThresholdSignatureRoleType::*;
     let networks = networks
         .into_iter()
-        .sorted()
+        .sorted_by_key(|r| r.0.clone())
         .map(|r| r.1)
         .collect::<Vec<_>>();
     let clients = (0..networks.len())
@@ -210,7 +199,7 @@ where
         }
     };
 
-    Ok(handle.abort_handle())
+    Ok(handle)
 }
 
 pub async fn start_required_protocols<KBE>(
@@ -224,13 +213,6 @@ pub async fn start_required_protocols<KBE>(
 where
     KBE: KeystoreBackend,
 {
-    let sub_account_id = subxt::utils::AccountId32(acco_key.public().0);
-    // Create a loop that listens to new finality notifications,
-    // queries the chain for the current restaking roles,
-    // and then starts the required protocols based on the roles.
-    let mut current_roles = Vec::new();
-    let mut running_protocols = HashMap::<HashedRoleTypeWrapper, tokio::task::AbortHandle>::new();
-
     let subxt_client =
         subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&subxt_config.endpoint).await?;
 
@@ -255,9 +237,11 @@ where
         futures.push_back(handle);
     }
 
-    futures.collect::<()>().await;
+    let result = futures.try_collect::<Vec<_>>().await;
 
-    Ok(())
+    Err(color_eyre::Report::msg(format!(
+        "Protocol stream ended unexpectedly: {result:?}"
+    )))
 }
 
 pub fn load_keys_from_keystore(
@@ -338,12 +322,6 @@ pub async fn wait_for_connection_to_bootnodes(
     Ok(())
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-enum Diff<T> {
-    Added(T),
-    Removed(T),
-}
-
 #[derive(Eq, Clone)]
 struct HashedRoleTypeWrapper(RoleType);
 
@@ -386,36 +364,5 @@ impl Hash for HashedRoleTypeWrapper {
             ZkSaaS(_) => "ZkSaaS".hash(state),
             LightClientRelaying => "LightClientRelaying".hash(state),
         }
-    }
-}
-
-fn vec_diff<T: PartialEq + Eq + Hash + Clone, I: Iterator<Item = T>>(a: I, b: I) -> Vec<Diff<T>> {
-    let a_set = HashSet::<T, std::hash::RandomState>::from_iter(a);
-    let b_set = HashSet::from_iter(b);
-    // find the elements that are in a but not in b (removed)
-    let removed = a_set
-        .difference(&b_set)
-        .cloned()
-        .map(Diff::Removed)
-        .collect::<Vec<_>>();
-    // find the elements that are in b but not in a (added)
-    let added = b_set
-        .difference(&a_set)
-        .cloned()
-        .map(Diff::Added)
-        .collect::<Vec<_>>();
-    [removed, added].concat()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn diff() {
-        let a = [1, 2, 3, 4];
-        let b = [2, 3, 4, 5];
-        let diff = vec_diff(a.iter().cloned(), b.iter().cloned());
-        assert_eq!(diff, vec![Diff::Removed(1), Diff::Added(5)]);
     }
 }

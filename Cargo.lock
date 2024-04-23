@@ -11011,6 +11011,7 @@ name = "shell-manager"
 version = "0.1.0"
 dependencies = [
  "color-eyre",
+ "gadget-common",
  "hex",
  "libp2p 0.53.2",
  "rand 0.8.5",
@@ -11039,6 +11040,7 @@ dependencies = [
  "gadget-common",
  "gadget-core",
  "hex",
+ "itertools 0.12.1",
  "libp2p 0.53.2",
  "parity-scale-codec 3.6.9",
  "rand 0.8.5",

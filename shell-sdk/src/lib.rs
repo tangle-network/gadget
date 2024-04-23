@@ -8,6 +8,7 @@ pub mod tangle;
 pub use config::*;
 pub use entry::run_shell_for_protocol;
 pub use gadget_common::prelude::*;
+pub use gadget_core::gadget::substrate::Client;
 pub use shell::run_forever;
 
 /// Should be put inside the main.rs file of the protocol repository

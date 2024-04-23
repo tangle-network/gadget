@@ -42,6 +42,7 @@ wsts-protocol = { workspace = true }
 structopt = { workspace = true }
 rand = { workspace = true }
 hex = { workspace = true }
+itertools = { workspace = true }
 
 [dependencies.libp2p]
 workspace = true
