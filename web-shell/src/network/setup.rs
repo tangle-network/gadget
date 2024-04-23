@@ -40,7 +40,63 @@ use libp2p::{
     identity::PeerId,
 };
 
+use matchbox_socket::WebRtcSocket;
+use matchbox_socket::MessageLoopFuture;
+use matchbox_socket::SingleChannel;
+
 use crate::log;
+
+// pub async fn setup_matchbox_network() {
+//     //wasm_bindgen_futures::spawn_local(matchbox_listener());
+//     let (mut socket, loop_fut) = matchbox_listener().await;
+//
+// }
+
+pub async fn matchbox_listener(
+    // signal_server: SocketAddr,
+    // signal_port: u16,
+) {
+    log(&format!("Starting Matchbox Listener"));
+    let (mut socket, loop_fut) = WebRtcSocket::new_reliable("ws://localhost:3536/"); // Signaling Server Address
+
+    let loop_fut = loop_fut.fuse();
+    futures::pin_mut!(loop_fut);
+
+    let timeout = Delay::new(Duration::from_millis(100));
+    futures::pin_mut!(timeout);
+
+    loop {
+
+        for (peer, state) in socket.update_peers() {
+            match state {
+                PeerState::Connected => {
+                    // TODO: Handle any new peers
+                }
+                PeerState::Disconnected => {
+                    // TODO: Handle any disconnected peers
+                }
+            }
+        }
+
+        // Accept any messages incoming
+        for (peer, packet) in socket.receive() {
+            // TODO: Handle incoming packets
+        }
+
+        select! {
+            // Restart this loop every 100ms
+            _ = (&mut timeout).fuse() => {
+                timeout.reset(Duration::from_millis(100));
+            }
+
+            // Break if the message loop ends via Disconnect/Closure
+            _ = &mut loop_fut => {
+                // TODO: Gracefully close
+                break;
+            }
+        }
+    }
+}
 
 pub async fn setup_libp2p_network(
     identity: libp2p::identity::Keypair,
@@ -52,107 +108,107 @@ pub async fn setup_libp2p_network(
     // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
     log(&format!("Setup Libp2p Network - About to build Swarm"));
 
-    let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity.clone())
-        .with_wasm_bindgen()
-        .with_other_transport(|key| {
-            webrtc_websys::Transport::new(webrtc_websys::Config::new(&key))
-            // webtransport_websys::Transport::new(webtransport_websys::Config::new(&key))
-        })?
-        .with_behaviour(|_| ping::Behaviour::new(ping::Config::new()))?
-        .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
-        .build();
-
-    // let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
+    // let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity.clone())
     //     .with_wasm_bindgen()
     //     .with_other_transport(|key| {
-    //         webtransport_websys::Transport::new(webtransport_websys::Config::new(&key))
+    //         webrtc_websys::Transport::new(webrtc_websys::Config::new(&key))
+    //         // webtransport_websys::Transport::new(webtransport_websys::Config::new(&key))
     //     })?
-    //     // .with_tokio()
-    //     // .with_tcp(
-    //     //     libp2p::tcp::Config::default()
-    //     //         .port_reuse(true)
-    //     //         .nodelay(true), // Allow port reuse for TCP-hole punching
-    //     //     libp2p::noise::Config::new,
-    //     //     libp2p::yamux::Config::default,
-    //     // )?
-    //     // .with_quic_config(|mut config| {
-    //     //     config.handshake_timeout = Duration::from_secs(30);
-    //     //     config
-    //     // })
-    //     // .with_dns()?
-    //     .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
-    //     .with_behaviour(|key, relay_client| {
-    //         // Set a custom gossipsub configuration
-    //         let gossipsub_config = gossipsub::ConfigBuilder::default()
-    //             .protocol_id_prefix("/tangle/gadget-shell/meshsub")
-    //             .max_transmit_size(MAX_MESSAGE_SIZE)
-    //             .validate_messages()
-    //             .validation_mode(gossipsub::ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
-    //             .build()
-    //             .map_err(|msg| io::Error::new(io::ErrorKind::Other, msg))?; // Temporary hack because `build` does not return a proper `std::error::Error`.
-    //
-    //         // Setup gossipsub network behaviour for broadcasting
-    //         let gossipsub = gossipsub::Behaviour::new(
-    //             gossipsub::MessageAuthenticity::Signed(key.clone()),
-    //             gossipsub_config,
-    //         )?;
-    //
-    //         // Setup mDNS for peer discovery
-    //         // let mdns =
-    //         //     mdns::gadget_io::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
-    //
-    //         // Setup request-response for direct messaging
-    //         let p2p_config = request_response::Config::default();
-    //         // StreamProtocols MUST begin with a forward slash
-    //         let protocols = networks
-    //             .iter()
-    //             .map(|n| {
-    //                 (
-    //                     StreamProtocol::new(n),
-    //                     request_response::ProtocolSupport::Full,
-    //                 )
-    //             })
-    //             .collect::<Vec<_>>();
-    //
-    //         let p2p = request_response::Behaviour::new(protocols, p2p_config);
-    //
-    //         // Setup the identify protocol for peers to exchange information about each other, a requirement for kadmelia DHT
-    //         let identify = libp2p::identify::Behaviour::new(
-    //             libp2p::identify::Config::new(CLIENT_VERSION.into(), key.public())
-    //                 .with_agent_version(AGENT_VERSION.into()),
-    //         );
-    //
-    //         // Setup kadmelia for DHT for peer discovery over a larger network
-    //         let memory_db = MemoryStore::new(key.public().to_peer_id());
-    //         let kadmelia = libp2p::kad::Behaviour::new(key.public().to_peer_id(), memory_db);
-    //
-    //         // Setup dcutr for upgrading existing connections to use relay against the bootnodes when necessary
-    //         // This also provided hole-punching capabilities to attempt to seek a direct connection, and fallback to relaying
-    //         // otherwise.
-    //         // dcutr = direct connection upgrade through relay
-    //         let dcutr = libp2p::dcutr::Behaviour::new(key.public().to_peer_id());
-    //
-    //         // Setup relay for using the dcutr-upgraded connections to relay messages for other peers when required
-    //         let relay_config = libp2p::relay::Config::default();
-    //         let relay = libp2p::relay::Behaviour::new(key.public().to_peer_id(), relay_config);
-    //
-    //         // Setup ping for liveness checks between connections
-    //         let ping = libp2p::ping::Behaviour::new(libp2p::ping::Config::default());
-    //
-    //         Ok(MyBehaviour {
-    //             gossipsub,
-    //             // mdns,
-    //             p2p,
-    //             identify,
-    //             kadmelia,
-    //             dcutr,
-    //             relay,
-    //             relay_client,
-    //             ping,
-    //         })
-    //     })?
-    //     // .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
+    //     .with_behaviour(|_| ping::Behaviour::new(ping::Config::new()))?
+    //     .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
     //     .build();
+
+    let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
+        // .with_wasm_bindgen()
+        // .with_other_transport(|key| {
+        //     webtransport_websys::Transport::new(webtransport_websys::Config::new(&key))
+        // })?
+        .with_tokio()
+        .with_tcp(
+            libp2p::tcp::Config::default()
+                .port_reuse(true)
+                .nodelay(true), // Allow port reuse for TCP-hole punching
+            libp2p::noise::Config::new,
+            libp2p::yamux::Config::default,
+        )?
+        .with_quic_config(|mut config| {
+            config.handshake_timeout = Duration::from_secs(30);
+            config
+        })
+        .with_dns()?
+        .with_relay_client(libp2p::noise::Config::new, libp2p::yamux::Config::default)?
+        .with_behaviour(|key, relay_client| {
+            // Set a custom gossipsub configuration
+            let gossipsub_config = gossipsub::ConfigBuilder::default()
+                .protocol_id_prefix("/tangle/gadget-shell/meshsub")
+                .max_transmit_size(MAX_MESSAGE_SIZE)
+                .validate_messages()
+                .validation_mode(gossipsub::ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
+                .build()
+                .map_err(|msg| io::Error::new(io::ErrorKind::Other, msg))?; // Temporary hack because `build` does not return a proper `std::error::Error`.
+
+            // Setup gossipsub network behaviour for broadcasting
+            let gossipsub = gossipsub::Behaviour::new(
+                gossipsub::MessageAuthenticity::Signed(key.clone()),
+                gossipsub_config,
+            )?;
+
+            // Setup mDNS for peer discovery
+            // let mdns =
+            //     mdns::gadget_io::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
+
+            // Setup request-response for direct messaging
+            let p2p_config = request_response::Config::default();
+            // StreamProtocols MUST begin with a forward slash
+            let protocols = networks
+                .iter()
+                .map(|n| {
+                    (
+                        StreamProtocol::new(n),
+                        request_response::ProtocolSupport::Full,
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            let p2p = request_response::Behaviour::new(protocols, p2p_config);
+
+            // Setup the identify protocol for peers to exchange information about each other, a requirement for kadmelia DHT
+            let identify = libp2p::identify::Behaviour::new(
+                libp2p::identify::Config::new(CLIENT_VERSION.into(), key.public())
+                    .with_agent_version(AGENT_VERSION.into()),
+            );
+
+            // Setup kadmelia for DHT for peer discovery over a larger network
+            let memory_db = MemoryStore::new(key.public().to_peer_id());
+            let kadmelia = libp2p::kad::Behaviour::new(key.public().to_peer_id(), memory_db);
+
+            // Setup dcutr for upgrading existing connections to use relay against the bootnodes when necessary
+            // This also provided hole-punching capabilities to attempt to seek a direct connection, and fallback to relaying
+            // otherwise.
+            // dcutr = direct connection upgrade through relay
+            let dcutr = libp2p::dcutr::Behaviour::new(key.public().to_peer_id());
+
+            // Setup relay for using the dcutr-upgraded connections to relay messages for other peers when required
+            let relay_config = libp2p::relay::Config::default();
+            let relay = libp2p::relay::Behaviour::new(key.public().to_peer_id(), relay_config);
+
+            // Setup ping for liveness checks between connections
+            let ping = libp2p::ping::Behaviour::new(libp2p::ping::Config::default());
+
+            Ok(MyBehaviour {
+                gossipsub,
+                // mdns,
+                p2p,
+                identify,
+                kadmelia,
+                dcutr,
+                relay,
+                relay_client,
+                ping,
+            })
+        })?
+        // .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
+        .build();
     log(&format!("Setup Libp2p Network - Swarm Built"));
 
     // Subscribe to all networks

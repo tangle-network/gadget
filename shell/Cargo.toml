@@ -5,37 +5,82 @@ authors = ["Shady Khalifa <dev+github@shadykhalifa.me>"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib"]#, "rlib"]
+
 [features]
 default = ["std"]
 std = [
+  "tangle-subxt/default",
   "gadget-common/default",
+  "gadget-io/default",
+  "gadget-core/default",
+  "sc-keystore",
+  "sp-core/default",
+  "sp-io/default",
+  "sp-application-crypto/default",
+  "libp2p",
+
 ]
 wasm = [
+  "tangle-subxt/wasm",
   "gadget-common/wasm",
+  "gadget-io/wasm",
+  "gadget-core/wasm",
+  "sp-core/serde",
+  "sp-core/full_crypto",
+  "sp-io/disable_panic_handler",
+  "sp-io/disable_oom",
+  "sp-io/disable_allocator",
+  "sp-application-crypto/serde",
+  "sp-application-crypto/full_crypto",
+  "wasm-bindgen",
+  "getrandom/js",
+  "wasm-bindgen-futures",
+  "tsify",
+  "serde-wasm-bindgen",
+  "js-sys",
+  "console_error_panic_hook",
+  "anyhow",
 ]
 
 [dependencies]
+# WASM specific Dependencies
+wasm-bindgen = { version = "0.2.92", optional = true }
+getrandom = { workspace = true, optional = true }
+wasm-bindgen-futures = { version = "0.4.42", optional = true }
+tsify = { version = "0.4.5", optional = true }
+serde-wasm-bindgen = { version = "0.6.5", optional = true }
+js-sys = { version = "0.3.69", optional = true }
+console_error_panic_hook = { version = "0.1.7", optional = true }
+anyhow = { version = "1.0.81", optional = true }
+
+# STD Specific Dependencies
+sc-keystore = { workspace = true, optional = true }
+
+# Shared Dependencies
+matchbox_socket = "0.9.0"
+futures-timer = { version = "3.0.3", features = ["wasm-bindgen"]}
+log = { version = "0.4", default-features = false }
+gadget-core = { workspace = true, default = false }
+gadget-common = { workspace = true, default-features = false }
+gadget-io = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false }
+sp-keystore = { workspace = true }
+sp-application-crypto = { workspace = true, default-features = false }
+tangle-subxt = { workspace = true, default-features = false }
+scale-info = { workspace = true }
+parity-scale-codec = { workspace = true }
+
+# Potentially Shared Dependencies
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
 async-trait = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
 url = { workspace = true, features = ["serde"] }
-gadget-io = { workspace = true, default-features = false }
 
-gadget-core = { workspace = true }
-gadget-common = { workspace = true, default-features = false }
 
-sp-core = { workspace = true, default-features = false }
-sp-io = { workspace = true, default-features = false }
-sp-keystore = { workspace = true }
-sp-application-crypto = { workspace = true }
-
-sc-keystore = { workspace = true }
-
-tangle-subxt = { workspace = true }
-
-scale-info = { workspace = true }
-parity-scale-codec = { workspace = true }
 
 structopt = "0.3.26"
 toml = "0.8.11"
@@ -46,11 +91,11 @@ sha2 = "0.10.8"
 futures = { workspace = true }
 bincode2 = { workspace = true }
 # Protocols
-dfns-cggmp21-protocol = { workspace = true }
-zcash-frost-protocol = { workspace = true }
-silent-shard-dkls23-ll-protocol = { workspace = true }
-threshold-bls-protocol = { workspace = true }
-zk-saas-protocol = { workspace = true, features = ["parallel"] }
+#dfns-cggmp21-protocol = { workspace = true }
+#zcash-frost-protocol = { workspace = true }
+#silent-shard-dkls23-ll-protocol = { workspace = true }
+#threshold-bls-protocol = { workspace = true }
+#zk-saas-protocol = { workspace = true, features = ["parallel"] }
 
 [dependencies.libp2p]
 workspace = true
@@ -72,6 +117,7 @@ features = [
   "ping",
   "dns"
 ]
+optional = true
 
 [dev-dependencies]
 test-utils = { workspace = true }

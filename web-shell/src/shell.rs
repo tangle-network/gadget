@@ -93,29 +93,29 @@ pub async fn run_forever(config: ShellConfig) -> Result<JsValue, JsValue> {
         .map_err(|e| js_sys::Error::new(&e.to_string()))?;
         // .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
-    // logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
-    // wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
+    logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
+    wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
 
-    // let protocols =
-    //     start_required_protocols(&config.subxt, networks, acco_key, logger, wrapped_keystore);
+    let protocols =
+        start_required_protocols(&config.subxt, networks, acco_key, logger, wrapped_keystore);
 
-    // let ctrl_c = tokio::signal::ctrl_c();
-    //
-    // tokio::select! {
-    //     _ = ctrl_c => {
-    //         tracing::info!("Received Ctrl-C, shutting down");
-    //     }
-    //     res = protocols => {
-    //         if let Err(e) = res {
-    //             tracing::error!(error = ?e, "Protocols watcher task unexpectedly shutdown");
-    //         }
-    //     }
-    //
-    //     _ = network_task => {
-    //         tracing::error!("Network task unexpectedly shutdown")
-    //     }
-    // }
-    // log(&format!("Shell Checkpoint with key {:?}!", libp2p_key));
+    let ctrl_c = tokio::signal::ctrl_c();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            tracing::info!("Received Ctrl-C, shutting down");
+        }
+        res = protocols => {
+            if let Err(e) = res {
+                tracing::error!(error = ?e, "Protocols watcher task unexpectedly shutdown");
+            }
+        }
+
+        _ = network_task => {
+            tracing::error!("Network task unexpectedly shutdown")
+        }
+    }
+    log(&format!("Shell Checkpoint with key {:?}!", libp2p_key));
     let result = serde_wasm_bindgen::to_value("success message").map_err(into_js_error)?;
     Ok(result)
 }
@@ -265,81 +265,81 @@ pub async fn run_forever(config: ShellConfig) -> Result<JsValue, JsValue> {
 //     Ok(handle.abort_handle())
 // }
 //
-// pub async fn start_required_protocols<KBE>(
-//     subxt_config: &crate::config::SubxtConfig,
-//     networks: HashMap<&'static str, GossipHandle>,
-//     acco_key: sr25519::Pair,
-//     logger: DebugLogger,
-//     keystore: ECDSAKeyStore<KBE>,
-// ) -> color_eyre::Result<()>
-//     where
-//         KBE: KeystoreBackend,
-// {
-//     let sub_account_id = subxt::utils::AccountId32(acco_key.public().0);
-//     // Create a loop that listens to new finality notifications,
-//     // queries the chain for the current restaking roles,
-//     // and then starts the required protocols based on the roles.
-//     let mut current_roles = Vec::new();
-//     let mut running_protocols = HashMap::<HashedRoleTypeWrapper, tokio::task::AbortHandle>::new();
-//
-//     let subxt_client =
-//         subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&subxt_config.endpoint).await?;
-//
-//     let pair_signer = PairSigner::new(acco_key.clone());
-//     let pallet_tx_submitter =
-//         SubxtPalletSubmitter::with_client(subxt_client.clone(), pair_signer, logger.clone());
-//     let pallet_tx = Arc::new(pallet_tx_submitter);
-//     let runtime = TangleRuntime::new(subxt_client);
-//     while let Some(notification) = runtime.get_next_finality_notification().await {
-//         let roles = runtime
-//             .query_restaker_roles(notification.hash, sub_account_id.clone())
-//             .await?;
-//         logger.trace(format!("Got roles: {roles:?}"));
-//         if roles == current_roles {
-//             logger.trace("Roles have not changed, skipping");
-//             continue;
-//         }
-//         let diff = vec_diff(
-//             current_roles.iter().cloned().map(HashedRoleTypeWrapper),
-//             roles.iter().cloned().map(HashedRoleTypeWrapper),
-//         );
-//         if diff.is_empty() {
-//             logger.trace("No roles diff, skipping");
-//             continue;
-//         }
-//         logger.trace(format!("Roles diff: {diff:?}"));
-//         for d in diff {
-//             match d {
-//                 Diff::Added(role) => {
-//                     logger.debug(format!("Trying to start protocol for role {:?}", role.0));
-//                     let handle = start_protocol_by_role(
-//                         role.0.clone(),
-//                         TangleRuntime::new(runtime.client()),
-//                         networks.clone(),
-//                         acco_key.public(),
-//                         logger.clone(),
-//                         pallet_tx.clone(),
-//                         keystore.clone(),
-//                     )?;
-//                     running_protocols.insert(role, handle);
-//                 }
-//                 Diff::Removed(role) => {
-//                     logger.debug(format!("Trying to stop protocol for role {:?}", role.0));
-//                     let maybe_handle = running_protocols.remove(&role);
-//                     if let Some(handle) = maybe_handle {
-//                         handle.abort();
-//                         logger.warn(format!(
-//                             "Aborted protocol for role {:?}. Reason: Role Removed from profile",
-//                             role.0
-//                         ));
-//                     }
-//                 }
-//             }
-//         }
-//         current_roles = roles;
-//     }
-//     Ok(())
-// }
+pub async fn start_required_protocols<KBE>(
+    subxt_config: &crate::config::SubxtConfig,
+    networks: HashMap<&'static str, GossipHandle>,
+    acco_key: sr25519::Pair,
+    logger: DebugLogger,
+    keystore: ECDSAKeyStore<KBE>,
+) -> color_eyre::Result<()>
+    where
+        KBE: KeystoreBackend,
+{
+    let sub_account_id = subxt::utils::AccountId32(acco_key.public().0);
+    // Create a loop that listens to new finality notifications,
+    // queries the chain for the current restaking roles,
+    // and then starts the required protocols based on the roles.
+    let mut current_roles = Vec::new();
+    let mut running_protocols = HashMap::<HashedRoleTypeWrapper, tokio::task::AbortHandle>::new();
+
+    let subxt_client =
+        subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&subxt_config.endpoint).await?;
+
+    let pair_signer = PairSigner::new(acco_key.clone());
+    let pallet_tx_submitter =
+        SubxtPalletSubmitter::with_client(subxt_client.clone(), pair_signer, logger.clone());
+    let pallet_tx = Arc::new(pallet_tx_submitter);
+    let runtime = TangleRuntime::new(subxt_client);
+    while let Some(notification) = runtime.get_next_finality_notification().await {
+        let roles = runtime
+            .query_restaker_roles(notification.hash, sub_account_id.clone())
+            .await?;
+        logger.trace(format!("Got roles: {roles:?}"));
+        if roles == current_roles {
+            logger.trace("Roles have not changed, skipping");
+            continue;
+        }
+        let diff = vec_diff(
+            current_roles.iter().cloned().map(HashedRoleTypeWrapper),
+            roles.iter().cloned().map(HashedRoleTypeWrapper),
+        );
+        if diff.is_empty() {
+            logger.trace("No roles diff, skipping");
+            continue;
+        }
+        logger.trace(format!("Roles diff: {diff:?}"));
+        for d in diff {
+            match d {
+                Diff::Added(role) => {
+                    logger.debug(format!("Trying to start protocol for role {:?}", role.0));
+                    let handle = start_protocol_by_role(
+                        role.0.clone(),
+                        TangleRuntime::new(runtime.client()),
+                        networks.clone(),
+                        acco_key.public(),
+                        logger.clone(),
+                        pallet_tx.clone(),
+                        keystore.clone(),
+                    )?;
+                    running_protocols.insert(role, handle);
+                }
+                Diff::Removed(role) => {
+                    logger.debug(format!("Trying to stop protocol for role {:?}", role.0));
+                    let maybe_handle = running_protocols.remove(&role);
+                    if let Some(handle) = maybe_handle {
+                        handle.abort();
+                        logger.warn(format!(
+                            "Aborted protocol for role {:?}. Reason: Role Removed from profile",
+                            role.0
+                        ));
+                    }
+                }
+            }
+        }
+        current_roles = roles;
+    }
+    Ok(())
+}
 
 pub fn load_keys_from_keystore<T: SubstrateKeystore> (
     keystore_config: T,
@@ -347,42 +347,42 @@ pub fn load_keys_from_keystore<T: SubstrateKeystore> (
     Ok((keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?))
 }
 
-// pub async fn wait_for_connection_to_bootnodes(
-//     config: &ShellConfig,
-//     handles: &HashMap<&'static str, GossipHandle>,
-//     logger: &DebugLogger,
-// ) -> color_eyre::Result<()> {
-//     let n_required = config.bootnodes.len();
-//     let n_networks = handles.len();
-//     logger.debug(format!(
-//         "Waiting for {n_required} peers to show up across {n_networks} networks"
-//     ));
-//
-//     let mut tasks = tokio::task::JoinSet::new();
-//
-//     // For each network, we start a task that checks if we have enough peers connected
-//     // and then we wait for all of them to finish.
-//
-//     let wait_for_peers = |handle: GossipHandle, n_required, logger: DebugLogger| async move {
-//         'inner: loop {
-//             let n_connected = handle.connected_peers();
-//             if n_connected >= n_required {
-//                 break 'inner;
-//             }
-//             let topic = handle.topic();
-//             logger.debug(format!("`{topic}`: We currently have {n_connected}/{n_required} peers connected to network"));
-//             tokio::time::sleep(Duration::from_millis(1000)).await;
-//         }
-//     };
-//
-//     for handle in handles.values() {
-//         tasks.spawn(wait_for_peers(handle.clone(), n_required, logger.clone()));
-//     }
-//     // Wait for all tasks to finish
-//     while (tasks.join_next().await).is_some() {}
-//
-//     Ok(())
-// }
+pub async fn wait_for_connection_to_bootnodes(
+    config: &ShellConfig,
+    handles: &HashMap<&'static str, GossipHandle>,
+    logger: &DebugLogger,
+) -> color_eyre::Result<()> {
+    let n_required = config.bootnodes.len();
+    let n_networks = handles.len();
+    logger.debug(format!(
+        "Waiting for {n_required} peers to show up across {n_networks} networks"
+    ));
+
+    let mut tasks = tokio::task::JoinSet::new();
+
+    // For each network, we start a task that checks if we have enough peers connected
+    // and then we wait for all of them to finish.
+
+    let wait_for_peers = |handle: GossipHandle, n_required, logger: DebugLogger| async move {
+        'inner: loop {
+            let n_connected = handle.connected_peers();
+            if n_connected >= n_required {
+                break 'inner;
+            }
+            let topic = handle.topic();
+            logger.debug(format!("`{topic}`: We currently have {n_connected}/{n_required} peers connected to network"));
+            tokio::time::sleep(Duration::from_millis(1000)).await;
+        }
+    };
+
+    for handle in handles.values() {
+        tasks.spawn(wait_for_peers(handle.clone(), n_required, logger.clone()));
+    }
+    // Wait for all tasks to finish
+    while (tasks.join_next().await).is_some() {}
+
+    Ok(())
+}
 //
 // #[derive(Debug, PartialEq, Eq, Clone)]
 // enum Diff<T> {

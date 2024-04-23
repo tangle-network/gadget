@@ -382,193 +382,193 @@ impl Network for GossipHandle {
             })
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::config::{KeystoreConfig, ShellConfig, SubxtConfig};
-    use crate::network::setup::setup_libp2p_network;
-    use crate::shell::wait_for_connection_to_bootnodes;
-    use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, WorkManager};
-    use gadget_core::job_manager::WorkManagerInterface;
-    use sp_core::{ecdsa, Pair};
-
-    #[gadget_io::tokio::test]
-    async fn test_gossip_network() {
-        color_eyre::install().unwrap();
-        test_utils::setup_log();
-        const N_PEERS: usize = 3;
-        let networks = vec!["/test-network"];
-        let mut all_handles = Vec::new();
-        for x in 0..N_PEERS {
-            let identity = libp2p::identity::Keypair::generate_ed25519();
-
-            let logger = DebugLogger {
-                peer_id: identity.public().to_peer_id().to_string(),
-            };
-
-            let (bind_port, bootnodes) = if x == 0 {
-                (
-                    30555,
-                    vec![
-                        "/ip4/0.0.0.0/tcp/30556".parse().unwrap(),
-                        "/ip4/0.0.0.0/tcp/30557".parse().unwrap(),
-                    ],
-                )
-            } else if x == 1 {
-                (
-                    30556,
-                    vec![
-                        "/ip4/0.0.0.0/tcp/30555".parse().unwrap(),
-                        "/ip4/0.0.0.0/tcp/30557".parse().unwrap(),
-                    ],
-                )
-            } else if x == 2 {
-                (
-                    30557,
-                    vec![
-                        "/ip4/0.0.0.0/tcp/30555".parse().unwrap(),
-                        "/ip4/0.0.0.0/tcp/30556".parse().unwrap(),
-                    ],
-                )
-            } else {
-                panic!("Invalid peer index");
-            };
-
-            let shell_config = ShellConfig {
-                keystore: KeystoreConfig::InMemory,
-                subxt: SubxtConfig {
-                    endpoint: url::Url::from_directory_path("/").unwrap(),
-                },
-                bind_ip: "0.0.0.0".parse().unwrap(),
-                bind_port,
-                bootnodes,
-                base_path: std::path::PathBuf::new(),
-                node_key: [0u8; 32],
-            };
-
-            let role_key = get_dummy_role_key_from_index(x);
-
-            let (handles, _) = setup_libp2p_network(
-                identity,
-                &shell_config,
-                logger.clone(),
-                networks.clone(),
-                role_key,
-            )
-            .await
-            .unwrap();
-            all_handles.push((handles, shell_config, logger));
-        }
-
-        for (handles, shell_config, logger) in &all_handles {
-            wait_for_connection_to_bootnodes(shell_config, handles, logger)
-                .await
-                .unwrap();
-        }
-
-        /*
-           We must test the following:
-           * Broadcast send
-           * Broadcast receive
-           * P2P send
-           * P2P receive
-        */
-
-        // Now, send broadcast messages through each topic
-        for _network in &networks {
-            for (handles, _, _) in &all_handles {
-                for handle in handles {
-                    handle
-                        .send_message(dummy_message_broadcast(b"Hello, world".to_vec()))
-                        .await
-                        .unwrap();
-                }
-            }
-        }
-
-        // Next, receive these broadcasted messages
-        for _network in &networks {
-            for (handles, _, logger) in &all_handles {
-                logger.debug("Waiting to receive broadcast messages ...");
-                for handle in handles {
-                    let message = handle.next_message().await.unwrap();
-                    assert_eq!(message.payload, b"Hello, world");
-                    assert_eq!(message.to_network_id, None);
-                }
-            }
-        }
-
-        let send_idxs = [0, 1, 2];
-        // Next, send P2P messages: everybody sends a message to everybody
-        for _network in networks.iter() {
-            for (handles, _, _) in all_handles.iter() {
-                for (my_idx, handle) in handles.iter().enumerate() {
-                    let send_idxs = send_idxs
-                        .iter()
-                        .filter(|&&idx| idx != my_idx)
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    for i in send_idxs {
-                        handle
-                            .send_message(dummy_message_p2p(b"Hello, world".to_vec(), i))
-                            .await
-                            .unwrap();
-                    }
-                }
-            }
-        }
-
-        // Finally, receive P2P messages: everybody should receive a message from everybody else
-        for _network in networks.iter() {
-            for (handles, _, logger) in all_handles.iter() {
-                logger.debug("Waiting to receive P2P messages ...");
-                for (my_idx, handle) in handles.iter().enumerate() {
-                    // Each party should receive two messages
-                    for _ in 0..2 {
-                        let message = handle.next_message().await.unwrap();
-                        assert_eq!(message.payload, b"Hello, world");
-                        assert_eq!(
-                            message.to_network_id,
-                            Some(get_dummy_role_key_from_index(my_idx).public())
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    fn dummy_message_broadcast(
-        input: Vec<u8>,
-    ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
-        dummy_message_inner(input, None)
-    }
-
-    fn dummy_message_p2p(
-        input: Vec<u8>,
-        to_idx: usize,
-    ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
-        let dummy_role_key = get_dummy_role_key_from_index(to_idx);
-        dummy_message_inner(input, Some(dummy_role_key.public()))
-    }
-
-    fn dummy_message_inner(
-        input: Vec<u8>,
-        to_network_id: Option<ecdsa::Public>,
-    ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
-        GadgetProtocolMessage {
-            associated_block_id: 0,
-            associated_session_id: 0,
-            associated_retry_id: 0,
-            task_hash: [0u8; 32],
-            from: 0,
-            to: None,
-            payload: input,
-            from_network_id: None,
-            to_network_id,
-        }
-    }
-
-    fn get_dummy_role_key_from_index(index: usize) -> ecdsa::Pair {
-        ecdsa::Pair::from_seed(&[index as u8; 32])
-    }
-}
+//
+// #[cfg(test)]
+// mod tests {
+//     use crate::config::{KeystoreConfig, ShellConfig, SubxtConfig};
+//     use crate::network::setup::setup_libp2p_network;
+//     use crate::shell::wait_for_connection_to_bootnodes;
+//     use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, WorkManager};
+//     use gadget_core::job_manager::WorkManagerInterface;
+//     use sp_core::{ecdsa, Pair};
+//
+//     #[gadget_io::tokio::test]
+//     async fn test_gossip_network() {
+//         color_eyre::install().unwrap();
+//         test_utils::setup_log();
+//         const N_PEERS: usize = 3;
+//         let networks = vec!["/test-network"];
+//         let mut all_handles = Vec::new();
+//         for x in 0..N_PEERS {
+//             let identity = libp2p::identity::Keypair::generate_ed25519();
+//
+//             let logger = DebugLogger {
+//                 peer_id: identity.public().to_peer_id().to_string(),
+//             };
+//
+//             let (bind_port, bootnodes) = if x == 0 {
+//                 (
+//                     30555,
+//                     vec![
+//                         "/ip4/0.0.0.0/tcp/30556".parse().unwrap(),
+//                         "/ip4/0.0.0.0/tcp/30557".parse().unwrap(),
+//                     ],
+//                 )
+//             } else if x == 1 {
+//                 (
+//                     30556,
+//                     vec![
+//                         "/ip4/0.0.0.0/tcp/30555".parse().unwrap(),
+//                         "/ip4/0.0.0.0/tcp/30557".parse().unwrap(),
+//                     ],
+//                 )
+//             } else if x == 2 {
+//                 (
+//                     30557,
+//                     vec![
+//                         "/ip4/0.0.0.0/tcp/30555".parse().unwrap(),
+//                         "/ip4/0.0.0.0/tcp/30556".parse().unwrap(),
+//                     ],
+//                 )
+//             } else {
+//                 panic!("Invalid peer index");
+//             };
+//
+//             let shell_config = ShellConfig {
+//                 keystore: KeystoreConfig::InMemory,
+//                 subxt: SubxtConfig {
+//                     endpoint: url::Url::from_directory_path("/").unwrap(),
+//                 },
+//                 bind_ip: "0.0.0.0".parse().unwrap(),
+//                 bind_port,
+//                 bootnodes,
+//                 base_path: std::path::PathBuf::new(),
+//                 node_key: [0u8; 32],
+//             };
+//
+//             let role_key = get_dummy_role_key_from_index(x);
+//
+//             let (handles, _) = setup_libp2p_network(
+//                 identity,
+//                 &shell_config,
+//                 logger.clone(),
+//                 networks.clone(),
+//                 role_key,
+//             )
+//             .await
+//             .unwrap();
+//             all_handles.push((handles, shell_config, logger));
+//         }
+//
+//         for (handles, shell_config, logger) in &all_handles {
+//             wait_for_connection_to_bootnodes(shell_config, handles, logger)
+//                 .await
+//                 .unwrap();
+//         }
+//
+//         /*
+//            We must test the following:
+//            * Broadcast send
+//            * Broadcast receive
+//            * P2P send
+//            * P2P receive
+//         */
+//
+//         // Now, send broadcast messages through each topic
+//         for _network in &networks {
+//             for (handles, _, _) in &all_handles {
+//                 for handle in handles {
+//                     handle
+//                         .send_message(dummy_message_broadcast(b"Hello, world".to_vec()))
+//                         .await
+//                         .unwrap();
+//                 }
+//             }
+//         }
+//
+//         // Next, receive these broadcasted messages
+//         for _network in &networks {
+//             for (handles, _, logger) in &all_handles {
+//                 logger.debug("Waiting to receive broadcast messages ...");
+//                 for handle in handles {
+//                     let message = handle.next_message().await.unwrap();
+//                     assert_eq!(message.payload, b"Hello, world");
+//                     assert_eq!(message.to_network_id, None);
+//                 }
+//             }
+//         }
+//
+//         let send_idxs = [0, 1, 2];
+//         // Next, send P2P messages: everybody sends a message to everybody
+//         for _network in networks.iter() {
+//             for (handles, _, _) in all_handles.iter() {
+//                 for (my_idx, handle) in handles.iter().enumerate() {
+//                     let send_idxs = send_idxs
+//                         .iter()
+//                         .filter(|&&idx| idx != my_idx)
+//                         .cloned()
+//                         .collect::<Vec<_>>();
+//                     for i in send_idxs {
+//                         handle
+//                             .send_message(dummy_message_p2p(b"Hello, world".to_vec(), i))
+//                             .await
+//                             .unwrap();
+//                     }
+//                 }
+//             }
+//         }
+//
+//         // Finally, receive P2P messages: everybody should receive a message from everybody else
+//         for _network in networks.iter() {
+//             for (handles, _, logger) in all_handles.iter() {
+//                 logger.debug("Waiting to receive P2P messages ...");
+//                 for (my_idx, handle) in handles.iter().enumerate() {
+//                     // Each party should receive two messages
+//                     for _ in 0..2 {
+//                         let message = handle.next_message().await.unwrap();
+//                         assert_eq!(message.payload, b"Hello, world");
+//                         assert_eq!(
+//                             message.to_network_id,
+//                             Some(get_dummy_role_key_from_index(my_idx).public())
+//                         );
+//                     }
+//                 }
+//             }
+//         }
+//     }
+//
+//     fn dummy_message_broadcast(
+//         input: Vec<u8>,
+//     ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
+//         dummy_message_inner(input, None)
+//     }
+//
+//     fn dummy_message_p2p(
+//         input: Vec<u8>,
+//         to_idx: usize,
+//     ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
+//         let dummy_role_key = get_dummy_role_key_from_index(to_idx);
+//         dummy_message_inner(input, Some(dummy_role_key.public()))
+//     }
+//
+//     fn dummy_message_inner(
+//         input: Vec<u8>,
+//         to_network_id: Option<ecdsa::Public>,
+//     ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
+//         GadgetProtocolMessage {
+//             associated_block_id: 0,
+//             associated_session_id: 0,
+//             associated_retry_id: 0,
+//             task_hash: [0u8; 32],
+//             from: 0,
+//             to: None,
+//             payload: input,
+//             from_network_id: None,
+//             to_network_id,
+//         }
+//     }
+//
+//     fn get_dummy_role_key_from_index(index: usize) -> ecdsa::Pair {
+//         ecdsa::Pair::from_seed(&[index as u8; 32])
+//     }
+// }

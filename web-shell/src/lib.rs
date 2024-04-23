@@ -23,6 +23,9 @@ use futures_timer::Delay;
 use matchbox_socket::{PeerState, WebRtcSocket};
 use std::time::Duration;
 
+use wasm_bindgen_test::wasm_bindgen_test;
+use log::info;
+
 mod network;
 mod config;
 // mod keystore;
@@ -393,13 +396,13 @@ extern "C" {
 //     log(&x.render());
 // }
 //
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use wasm_bindgen_test::wasm_bindgen_test_configure;
-//     use wasm_bindgen_test::wasm_bindgen_test;
-//     wasm_bindgen_test_configure!(run_in_browser);
-//
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasm_bindgen_test::wasm_bindgen_test_configure;
+    use wasm_bindgen_test::wasm_bindgen_test;
+    wasm_bindgen_test_configure!(run_in_browser);
+
 // #[wasm_bindgen_test]
 // async fn test_main() -> Result<()> {
 // setConsoleInput();
@@ -407,8 +410,8 @@ extern "C" {
 //
 // color_eyre::install().expect("Failed to install color_eyre");
 // let opt = Opt::from_args();
-//
-//
+
+
 // let opt = Opt {
 //     config: None,
 //     verbose: 0,
@@ -478,60 +481,101 @@ extern "C" {
 //     assert!(err_str.contains("Base Error"));
 // }
 
+/// Tests Browser-to-Browser connection using Matchbox WebRTC. Requires example matchbox_server
+/// running as signal server
 #[wasm_bindgen_test]
-fn test_matchbox() {
-    // Setup logging
+fn test_matchbox_browser_to_browser() {
     console_error_panic_hook::set_once();
     console_log::init_with_level(log::Level::Debug).unwrap();
 
-    wasm_bindgen_futures::spawn_local(async_main());
-    wasm_bindgen_futures::spawn_local(async_main());
-}
-
-async fn async_main() {
-    log(&format!("Hello from Matchbox Test!"));
-    let (mut socket, loop_fut) = WebRtcSocket::new_reliable("ws://localhost:3536/");
-
-    let loop_fut = loop_fut.fuse();
-    futures::pin_mut!(loop_fut);
-
-    let timeout = Delay::new(Duration::from_millis(100));
-    futures::pin_mut!(timeout);
-
-    loop {
-        // Handle any new peers
-        for (peer, state) in socket.update_peers() {
-            match state {
-                PeerState::Connected => {
-                    info!("Peer joined: {peer}");
-                    let packet = "hello friend!".as_bytes().to_vec().into_boxed_slice();
-                    socket.send(packet, peer);
-                }
-                PeerState::Disconnected => {
-                    info!("Peer left: {peer}");
+    let peer_one = async move {
+        log(&format!("Peer One Beginning"));
+        let (mut socket, loop_fut) = matchbox_socket_tester().await;
+        let loop_fut = loop_fut.fuse();
+        futures::pin_mut!(loop_fut);
+        let timeout = Delay::new(Duration::from_millis(100));
+        futures::pin_mut!(timeout);
+        // Listening Loop
+        loop {
+            for (peer, state) in socket.update_peers() {
+                match state {
+                    PeerState::Connected => {
+                        log(&format!("Peer joined: {peer}"));
+                        let packet = "Message for Peer Two...".as_bytes().to_vec().into_boxed_slice();
+                        socket.send(packet, peer);
+                    }
+                    PeerState::Disconnected => {
+                        log(&format!("Peer {peer} Disconnected, Closing Socket"));
+                        socket.close();
+                    }
                 }
             }
-        }
-
-        // Accept any messages incoming
-        for (peer, packet) in socket.receive() {
-            let message = String::from_utf8_lossy(&packet);
-            info!("Message from {peer}: {message:?}");
-        }
-
-        select! {
-            // Restart this loop every 100ms
-            _ = (&mut timeout).fuse() => {
-                timeout.reset(Duration::from_millis(100));
+            for (peer, packet) in socket.receive() {
+                let message = String::from_utf8_lossy(&packet);
+                log(&format!("Message from {peer}: {message}"));
             }
-
-            // Or break if the message loop ends (disconnected, closed, etc.)
-            _ = &mut loop_fut => {
-                break;
+            select! {
+                // Loop every 100ms
+                _ = (&mut timeout).fuse() => {
+                    timeout.reset(Duration::from_millis(100));
+                }
+                // Break if the message loop ends via disconnect/closure
+                _ = &mut loop_fut => {
+                    break;
+                }
             }
         }
-    }
+    };
+
+    let peer_two = async move {
+        log(&format!("Peer Two Beginning"));
+        let (mut socket, loop_fut) = matchbox_socket_tester().await;
+        let loop_fut = loop_fut.fuse();
+        futures::pin_mut!(loop_fut);
+        let timeout = Delay::new(Duration::from_millis(100));
+        futures::pin_mut!(timeout);
+        // Listening Loop
+        loop {
+            for (peer, state) in socket.update_peers() {
+                match state {
+                    _ => continue
+                }
+            }
+            for (peer, packet) in socket.receive() {
+                let message = String::from_utf8_lossy(&packet);
+                log(&format!("Peer Two Received Message from {peer}: {message}"));
+                log(&format!("Peer Two Closing Socket"));
+                socket.close();
+            }
+
+            select! {
+                // Loop every 100ms
+                _ = (&mut timeout).fuse() => {
+                    timeout.reset(Duration::from_millis(100));
+                }
+                // Break if the message loop ends via disconnect/closure
+                _ = &mut loop_fut => {
+                    break;
+                }
+            }
+        }
+    };
+
+    wasm_bindgen_futures::spawn_local(peer_one);
+    wasm_bindgen_futures::spawn_local(peer_two);
 }
+
+async fn matchbox_socket_tester() -> (WebRtcSocket<SingleChannel>, MessageLoopFuture) {
+    log(&format!("Starting Matchbox Listener"));
+    let (mut socket, loop_fut) = WebRtcSocket::new_reliable("ws://localhost:3536/"); // Signaling Server Address
+    (socket, loop_fut)
+}
+
+// async fn async_main() {
+//     log(&format!("Hello from Matchbox Test!"));
+//     let (mut socket, loop_fut) = network::setup::matchbox_listener().await;
+//
+// }
 
 // #[wasm_bindgen_test]
 // fn test_prompt() {
@@ -543,5 +587,5 @@ async fn async_main() {
 //     log(&format!("File Success? {:?}!", get_from_js().await));
 //     //log(&format!("Input was {}!", webPrompt("Does this question appear?")));
 // }
-//
-// }
+
+}
