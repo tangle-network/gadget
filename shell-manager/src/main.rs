@@ -1,4 +1,5 @@
 use crate::protocols::resolver::{load_global_config_file, str_to_role_type, ProtocolMetadata};
+use gadget_common::prelude::InMemoryBackend;
 use gadget_common::sp_core::Pair;
 use sha3::Digest;
 use shell_sdk::config::defaults;
@@ -83,6 +84,8 @@ async fn main() -> color_eyre::Result<()> {
     let (_role_key, acco_key) = load_keys_from_keystore(&keystore)?;
     let sub_account_id = AccountId32(acco_key.public().0);
 
+    let keystore_backend = InMemoryBackend::default();
+
     let mut active_shells = HashMap::<String, RunningProtocolType>::new();
 
     let manager_task = async move {
@@ -110,7 +113,7 @@ async fn main() -> color_eyre::Result<()> {
                                         // BLS
                                         RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381) => {
                                             #[cfg(feature = "bls")] {
-                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 2, threshold_bls_protocol::setup_node));
+                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 2, keystore_backend.clone(), threshold_bls_protocol::setup_node));
                                                 active_shells.insert(
                                                     role_str,
                                                     RunningProtocolType::Internal(handle),
@@ -126,7 +129,7 @@ async fn main() -> color_eyre::Result<()> {
                                         RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) |
                                         RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
                                             #[cfg(feature = "dfns")] {
-                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 4, dfns_cggmp21_protocol::setup_node));
+                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 4, keystore_backend.clone(), dfns_cggmp21_protocol::setup_node));
                                                 active_shells.insert(
                                                     role_str,
                                                     RunningProtocolType::Internal(handle),
@@ -140,7 +143,7 @@ async fn main() -> color_eyre::Result<()> {
                                         // WSTSv2
                                         RoleType::Tss(ThresholdSignatureRoleType::WstsV2) => {
                                             #[cfg(feature = "wsts")] {
-                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 2, wsts_protocol::setup_node));
+                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 2, keystore_backend.clone(), wsts_protocol::setup_node));
                                                 active_shells.insert(
                                                     role_str,
                                                     RunningProtocolType::Internal(handle),
@@ -159,7 +162,7 @@ async fn main() -> color_eyre::Result<()> {
                                         RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1) |
                                         RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255) => {
                                             #[cfg(feature = "zcash-frost")] {
-                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 2, zcash_frost_protocol::setup_node));
+                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 2, keystore_backend.clone(), zcash_frost_protocol::setup_node));
                                                 active_shells.insert(
                                                     role_str,
                                                     RunningProtocolType::Internal(handle),
@@ -173,7 +176,7 @@ async fn main() -> color_eyre::Result<()> {
                                         // ZkSaaSGroth16
                                         RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16) => {
                                             #[cfg(feature = "zk-saas-groth")] {
-                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 1, zk_saas_protocol::setup_node));
+                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 1, keystore_backend.clone(), zk_saas_protocol::setup_node));
                                                 active_shells.insert(
                                                     role_str,
                                                     RunningProtocolType::Internal(handle),
