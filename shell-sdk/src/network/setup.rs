@@ -5,6 +5,7 @@ use crate::network::gossip::{
 use crate::shell::{AGENT_VERSION, CLIENT_VERSION};
 use futures::StreamExt;
 use gadget_common::config::DebugLogger;
+use gadget_common::prelude::KeystoreBackend;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::dial_opts::DialOpts;
@@ -23,9 +24,9 @@ use tokio::sync::{Mutex, RwLock};
 use tokio::task::JoinHandle;
 
 #[allow(clippy::collapsible_else_if)]
-pub async fn setup_libp2p_network(
+pub async fn setup_libp2p_network<KBE: KeystoreBackend>(
     identity: libp2p::identity::Keypair,
-    config: &ShellConfig,
+    config: &ShellConfig<KBE>,
     logger: DebugLogger,
     networks: Vec<String>,
     role_key: ecdsa::Pair,

@@ -9,7 +9,7 @@ use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
 
 #[derive(Debug, Clone)]
-pub struct ShellConfig {
+pub struct ShellConfig<KBE: Clone> {
     pub base_path: PathBuf,
     pub keystore: KeystoreConfig,
     pub subxt: SubxtConfig,
@@ -19,6 +19,7 @@ pub struct ShellConfig {
     pub node_key: [u8; 32],
     pub role_types: Vec<RoleType>,
     pub n_protocols: usize,
+    pub keystore_backend: KBE,
 }
 
 #[derive(Debug, Clone)]

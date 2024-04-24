@@ -13,7 +13,7 @@ use gadget_common::{
     client::{PairSigner, SubxtPalletSubmitter},
     config::{DebugLogger, PrometheusConfig},
     full_protocol::NodeInput,
-    keystore::{ECDSAKeyStore, InMemoryBackend},
+    keystore::ECDSAKeyStore,
 };
 use sp_core::{ecdsa, ed25519, keccak_256, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
@@ -36,20 +36,19 @@ pub type ShellNodeInput<KBE> = NodeInput<TangleRuntime, GossipHandle, KBE, ()>;
 
 /// Generates the NodeInput and handle to the networking layer for the given config.
 #[tracing::instrument(skip(config))]
-pub async fn generate_node_input(
-    config: ShellConfig,
-) -> color_eyre::Result<(ShellNodeInput<InMemoryBackend>, JoinHandle<()>)> {
+pub async fn generate_node_input<KBE: KeystoreBackend>(
+    config: ShellConfig<KBE>,
+) -> color_eyre::Result<(ShellNodeInput<KBE>, JoinHandle<()>)> {
     let (role_key, acco_key) = load_keys_from_keystore(&config.keystore)?;
     let network_key = ed25519::Pair::from_seed(&config.node_key);
     let logger = DebugLogger::default();
-    let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
+    let wrapped_keystore = ECDSAKeyStore::new(config.keystore_backend.clone(), role_key.clone());
 
     let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
         .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))?;
 
     // Create a network for each subprotocol in the protocol (e.g., keygen, signing, refresh, rotate, = 4 total subprotocols = n_protocols)
     let network_ids = (0..config.n_protocols)
-        .into_iter()
         .map(|_| format!("{:?}", config.role_types[0]))
         .map(|r| keccak_256(r.as_bytes()))
         .map(hex::encode)
@@ -184,8 +183,8 @@ pub fn load_keys_from_keystore(
     Ok((role_key, acco_key))
 }
 
-pub async fn wait_for_connection_to_bootnodes(
-    config: &ShellConfig,
+pub async fn wait_for_connection_to_bootnodes<KBE: KeystoreBackend>(
+    config: &ShellConfig<KBE>,
     handles: &HashMap<String, GossipHandle>,
     logger: &DebugLogger,
 ) -> color_eyre::Result<()> {

@@ -173,7 +173,7 @@ async fn main() -> color_eyre::Result<()> {
                                         // ZkSaaSGroth16
                                         RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16) => {
                                             #[cfg(feature = "zk-saas-groth")] {
-                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 2, zk_saas_protocol::setup_node));
+                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 1, zk_saas_protocol::setup_node));
                                                 active_shells.insert(
                                                     role_str,
                                                     RunningProtocolType::Internal(handle),

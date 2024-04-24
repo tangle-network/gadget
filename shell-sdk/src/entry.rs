@@ -1,12 +1,12 @@
 use crate::shell::ShellNodeInput;
 use crate::{defaults, ShellTomlConfig, SupportedChains};
-use gadget_common::prelude::InMemoryBackend;
+use gadget_common::prelude::KeystoreBackend;
 use gadget_core::job_manager::SendFuture;
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
 
 pub fn keystore_from_base_path(
-    base_path: &std::path::PathBuf,
+    base_path: &std::path::Path,
     chain: SupportedChains,
     keystore_password: Option<String>,
 ) -> crate::KeystoreConfig {
@@ -20,9 +20,10 @@ pub fn keystore_from_base_path(
 }
 
 /// Runs a shell for a given protocol.
-pub async fn run_shell_for_protocol<T: FnOnce(ShellNodeInput<InMemoryBackend>) -> F, F>(
+pub async fn run_shell_for_protocol<KBE: KeystoreBackend, T: FnOnce(ShellNodeInput<KBE>) -> F, F>(
     role_types: Vec<RoleType>,
     n_protocols: usize,
+    keystore_backend: KBE,
     executor: T,
 ) -> color_eyre::Result<()>
 where
@@ -36,6 +37,7 @@ where
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);
 
     let (node_input, network_handle) = crate::generate_node_input(crate::ShellConfig {
+        keystore_backend,
         role_types,
         keystore,
         subxt: crate::SubxtConfig {
