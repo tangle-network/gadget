@@ -1,19 +1,16 @@
 use color_eyre::eyre::WrapErr;
 use color_eyre::*;
+use console_error_panic_hook;
+use gadget_io::{into_js_error, log, KeystoreConfig, Opt, SupportedChains, TomlConfig};
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
+use std::panic;
 use std::{fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
 use structopt::StructOpt;
 use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures;
-use console_error_panic_hook;
-use std::panic;
-use gadget_io::{
-    into_js_error as into_js_error, log, KeystoreConfig,
-    TomlConfig, SupportedChains, Opt,
-};
 
 use crate::config;
 use crate::shell;
@@ -32,7 +29,11 @@ use log::info;
 
 #[wasm_bindgen]
 #[no_mangle]
-pub async fn run_web_shell(config: TomlConfig, options: Opt, keys: Vec<String>) -> Result<JsValue, JsValue> {
+pub async fn run_web_shell(
+    config: TomlConfig,
+    options: Opt,
+    keys: Vec<String>,
+) -> Result<JsValue, JsValue> {
     // web_init();
     // color_eyre::install().map_err(|e| js_sys::Error::new(&e.to_string()))?;
     // let opt = Opt::from_args();
@@ -76,12 +77,12 @@ pub async fn run_web_shell(config: TomlConfig, options: Opt, keys: Vec<String>) 
         hex::decode(&node_key)
     } else {
         hex::decode("0000000000000000000000000000000000000000000000000000000000000001")
-        // TODO: Should generate?
+        // TODO: Should generate
     }
-        .map_err(into_js_error)?
-        .as_slice()
-        .try_into()
-        .map_err(into_js_error)?;
+    .map_err(into_js_error)?
+    .as_slice()
+    .try_into()
+    .map_err(into_js_error)?;
     log(&format!("Node Key: {:?}", node_key));
 
     //let keys: [u8; 32] = hex::decode("0000000000000000000000000000000000000000000000000000000000000001").map_err(into_js_error)?.as_slice().try_into().map_err(into_js_error)?;
@@ -93,17 +94,16 @@ pub async fn run_web_shell(config: TomlConfig, options: Opt, keys: Vec<String>) 
     //     .map_err(into_js_error)?;
 
     shell::run_forever(config::ShellConfig {
-        keystore: KeystoreConfig::InMemory{ keystore: keys }, //"0000000000000000000000000000000000000000000000000000000000000001".to_string() },
-        subxt: config::SubxtConfig {
-            endpoint,
-        },
+        keystore: KeystoreConfig::InMemory { keystore: keys }, //"0000000000000000000000000000000000000000000000000000000000000001".to_string() },
+        subxt: config::SubxtConfig { endpoint },
         base_path,
         bind_ip,
         bind_port,
         bootnodes,
         node_key,
     })
-        .await.map_err(|e| js_sys::Error::new(&e.to_string()))?;
+    .await
+    .map_err(|e| js_sys::Error::new(&e.to_string()))?;
     let result = serde_wasm_bindgen::to_value("success message").map_err(into_js_error)?;
     Ok(result)
 }

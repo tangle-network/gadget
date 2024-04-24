@@ -19,6 +19,7 @@ use gadget_common::{
 // use gadget_core::gadget::substrate::Client;
 use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 // use sp_keystore::Keystore;
+use gadget_io::log;
 use gadget_io::{KeystoreConfig, SubstrateKeystore};
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
 use tangle_subxt::{
@@ -52,13 +53,21 @@ pub struct WasmKeystore;
 /// Start the shell and run it forever
 #[tracing::instrument(skip(config))]
 pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
-    // let (role_key, acco_key) = load_keys_from_keystore(&config.keystore)?;
-    // let network_key = ed25519::Pair::from_seed(&config.node_key);
-    // let logger = DebugLogger::default();
-    // let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
-    //
-    // let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
-    //     .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))?;
+    log(&format!("Shell Config: {:?}", config));
+    let (role_key, acco_key) = load_keys_from_keystore(config.keystore)?;
+
+    let network_key = ed25519::Pair::from_seed(&config.node_key);
+    log(&format!(
+        "NETWORK (ED25519) KEY PAIR?: {:?}",
+        network_key.to_raw_vec()
+    ));
+
+    let logger = DebugLogger::default();
+    let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
+
+    let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))?;
+    log(&format!("LIBP2P KEY PAIR?: {:?}", libp2p_key));
 
     // let (networks, network_task) = crate::network::setup::setup_libp2p_network(
     //     libp2p_key,
@@ -84,15 +93,15 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     // )
     // .await
     // .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
-    //
+
     // logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
     // wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
-
+    //
     // let protocols =
     //     start_required_protocols(&config.subxt, networks, acco_key, logger, wrapped_keystore);
-
+    //
     // let ctrl_c = gadget_io::tokio::signal::ctrl_c();
-
+    //
     // gadget_io::tokio::select! {
     //     _ = ctrl_c => {
     //         tracing::info!("Received Ctrl-C, shutting down");
@@ -107,7 +116,6 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     //         tracing::error!("Network task unexpectedly shutdown")
     //     }
     // }
-
     Ok(())
 }
 
@@ -331,7 +339,7 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
 //     }
 //     Ok(())
 // }
-//
+
 // pub trait SubstrateKeystore {
 //     fn ecdsa_key(&self) -> color_eyre::Result<ecdsa::Pair>;
 //
@@ -391,13 +399,13 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
 //         Ok(acco_key)
 //     }
 // }
-//
-// pub fn load_keys_from_keystore<T: SubstrateKeystore> (
-//     keystore_config: T,
-// ) -> color_eyre::Result<(ecdsa::Pair, sr25519::Pair)> {
-//     Ok((keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?))
-// }
-//
+
+pub fn load_keys_from_keystore<T: SubstrateKeystore>(
+    keystore_config: T,
+) -> color_eyre::Result<(ecdsa::Pair, sr25519::Pair)> {
+    Ok((keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?))
+}
+
 // pub async fn wait_for_connection_to_bootnodes(
 //     config: &ShellConfig,
 //     handles: &HashMap<&'static str, GossipHandle>,
