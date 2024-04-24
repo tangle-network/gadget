@@ -17,28 +17,39 @@ wasm = [
 ]
 
 [dependencies]
+tracing = { workspace = true, features = ["log", "attributes"] }
+hex = { workspace = true }
+anyhow = "1.0.81"
+scale-info = { workspace = true}
+parity-scale-codec = { workspace = true }
+serde = { workspace = true }
 #sp-core = { workspace = true, default-features = false }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 getrandom = { workspace = true, features = ["js"] }
 wasm-bindgen = { version = "0.2.92" }
 wasm-bindgen-futures = { version = "0.4.42" }
+tsify = { version = "0.4.5" }
+serde-wasm-bindgen = { version = "0.6.5" }
 js-sys = "0.3.69"
-anyhow = "1.0.81"
-hex = { workspace = true }
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
 sp-core = { workspace = true, features = ["serde", "full_crypto"] }
-tracing = { workspace = true, features = ["log", "attributes"] }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["sync", "macros", "io-util", "rt", "time"] }
 
-k256 = { workspace = true, features = ["alloc", "ecdsa"], default-features = false }
-#p256 = { workspace = true, features = ["alloc", "ecdsa"], default-features = false }
+#k256 = { workspace = true, features = ["alloc", "ecdsa"], default-features = false }
+p256 = { workspace = true, features = ["alloc", "ecdsa"], default-features = false }
 
 #tokio_wasm = { package = "tokio", version = "=1.24.2", git = "https://github.com/wasix-org/tokio.git", branch = "wasix-1.24.2-fixed", features = [
 #    "full",
 #] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-tokio = { workspace = true }
+color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
+sp-core = { workspace = true, features = ["default"] }
+sp-application-crypto = { workspace = true }
+sp-keystore = { workspace = true }
+sc-keystore = { workspace = true }
+structopt = "0.3.26"
+tokio = { workspace = true, features = ["full"] }
 
 [dev-dependencies]

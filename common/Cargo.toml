@@ -55,7 +55,7 @@ parity-scale-codec = { workspace = true, optional = true, default-features = fal
 scale-info = { workspace = true, optional = true, default-features = false, features = ["derive"] }
 
 [features]
-default = ["wasm"]#substrate", "std"]
+default = ["substrate", "std"]
 substrate = [
   "gadget-core/substrate",
   "gadget-io/default",

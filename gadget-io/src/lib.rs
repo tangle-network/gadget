@@ -7,11 +7,13 @@ pub mod wasm;
 #[cfg(target_family = "wasm")]
 pub use wasm::{
     keystore::{KeystoreConfig, SubstrateKeystore},
+    shell::{TomlConfig, Opt, SupportedChains}
 };
 
 #[cfg(not(target_family = "wasm"))]
 pub use standard::{
     keystore::{KeystoreConfig, SubstrateKeystore},
+    shell::{TomlConfig, Opt, SupportedChains}
 };
 
 #[cfg(target_family = "wasm")]
@@ -20,10 +22,15 @@ pub use tokio;
 #[cfg(not(target_family = "wasm"))]
 pub use tokio;
 
+#[cfg(target_family = "wasm")]
+use wasm_bindgen::{
+    prelude::*,
+    JsCast
+};
 
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
+#[cfg(target_family = "wasm")]
 use wasm_bindgen_futures;
+
 #[cfg(target_family = "wasm")]
 pub fn into_js_error(err: impl std::error::Error) -> JsValue {
     js_sys::Error::new(&err.to_string()).into()
@@ -33,5 +40,5 @@ pub fn into_js_error(err: impl std::error::Error) -> JsValue {
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
+    pub fn log(s: &str);
 }

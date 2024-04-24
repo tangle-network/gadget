@@ -2,16 +2,14 @@ pub use crate::shared::keystore::SubstrateKeystore;
 use tracing;
 use color_eyre;
 use std::path::{PathBuf, Path};
-use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair, crypto};
+use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 use color_eyre::eyre::OptionExt;
 
-
 use color_eyre::Result;
-use sc_keystore::LocalKeystore;
+use sc_keystore::{ LocalKeystore, Keystore };
 use sp_keystore::KeystorePtr;
 use std::sync::Arc;
 
-use crate::config::KeystoreConfig;
 
 /// Construct a local keystore shareable container
 pub struct KeystoreContainer(Arc<LocalKeystore>);
@@ -50,7 +48,7 @@ pub enum KeystoreConfig {
         /// The path of the keystore.
         path: PathBuf,
         /// keystore's password.
-        password: Option<SecretString>,
+        password: Option<sp_core::crypto::SecretString>,
     },
     /// In-memory keystore.
     InMemory,
@@ -64,6 +62,24 @@ impl KeystoreConfig {
             Self::Path { path, .. } => Some(path),
             Self::InMemory => None,
         }
+    }
+}
+
+pub mod crypto {
+    use sp_application_crypto::{app_crypto, ecdsa, sr25519};
+    pub mod acco {
+        use super::*;
+        pub use sp_core::crypto::key_types::ACCOUNT as KEY_TYPE;
+        app_crypto!(sr25519, KEY_TYPE);
+    }
+
+    pub mod role {
+        use super::*;
+        /// Key type for ROLE keys
+        pub const KEY_TYPE: sp_application_crypto::KeyTypeId =
+            sp_application_crypto::KeyTypeId(*b"role");
+
+        app_crypto!(ecdsa, KEY_TYPE);
     }
 }
 

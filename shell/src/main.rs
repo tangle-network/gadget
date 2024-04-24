@@ -4,90 +4,27 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
 use structopt::StructOpt;
 
-pub use gadget_shell::*;
+use gadget_io::*;//{TomlConfig, SupportedChains, Opt};
 
-#[derive(Debug, StructOpt)]
-#[structopt(
-    name = "Gadget",
-    about = "An MPC executor that connects to the Tangle network to perform work"
-)]
-struct Opt {
-    /// The path to the configuration file. If not provided, the default configuration will be used.
-    /// Note that if the configuration file is provided, the command line arguments will be ignored.
-    #[structopt(global = true, parse(from_os_str), short = "c", long = "config")]
-    config: Option<PathBuf>,
-    /// The verbosity level, can be used multiple times
-    #[structopt(long, short = "v", global = true, parse(from_occurrences))]
-    verbose: i32,
-    /// Whether to use pretty logging
-    #[structopt(global = true, long)]
-    pretty: bool,
-    /// The options for the shell
-    #[structopt(flatten)]
-    options: TomlConfig,
-}
+#[cfg(target_family = "wasm")]
+use wasm_bindgen::{
+    JsValue,
+    prelude::*,
+};
 
-#[derive(Default, Debug, StructOpt, Serialize, Deserialize)]
-#[structopt(rename_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-enum SupportedChains {
-    #[default]
-    LocalTestnet,
-    LocalMainnet,
-    Testnet,
-    Mainnet,
-}
+// pub use gadget_shell::*;
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
-struct TomlConfig {
-    /// The IP address to bind to for the libp2p node.
-    #[structopt(long = "bind-ip", short = "i", default_value = defaults::BIND_IP)]
-    #[serde(default = "defaults::bind_ip")]
-    bind_ip: IpAddr,
-    /// The port to bind to for the libp2p node.
-    #[structopt(long = "port", short = "p", default_value = defaults::BIND_PORT)]
-    #[serde(default = "defaults::bind_port")]
-    bind_port: u16,
-    /// The RPC URL of the Tangle Node.
-    #[structopt(long = "url", parse(try_from_str = url::Url::parse), default_value = defaults::RPC_URL)]
-    #[serde(default = "defaults::rpc_url")]
-    url: url::Url,
-    /// The List of bootnodes to connect to
-    #[structopt(long = "bootnodes", parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
-    #[serde(default)]
-    bootnodes: Vec<Multiaddr>,
-    /// The node key in hex format. If not provided, a random node key will be generated.
-    #[structopt(long = "node-key", env, parse(try_from_str = parse_node_key))]
-    #[serde(skip_serializing)]
-    node_key: Option<String>,
-    /// The base path to store the shell data, and read data from the keystore.
-    #[structopt(
-        parse(from_os_str),
-        long,
-        short = "d",
-        required_unless = "config",
-        default_value_if("config", None, ".")
-    )]
-    base_path: PathBuf,
-    /// Keystore Password, if not provided, the password will be read from the environment variable.
-    #[structopt(long = "keystore-password", env)]
-    keystore_password: Option<String>,
-    /// The chain to connect to, must be one of the supported chains.
-    #[structopt(
-        long,
-        default_value,
-        possible_values = &[
-            "local_testnet",
-            "local_mainnet",
-            "testnet",
-            "mainnet"
-        ]
-    )]
-    #[serde(default)]
-    chain: SupportedChains,
+#[cfg(target_family = "wasm")]
+async fn main() -> Result<JsValue, JsValue> {
+    color_eyre::install().map_err(|e| js_sys::Error::new(&e.to_string()))?;
+    // setup_logger(&opt, "gadget_shell")?;
+    // crate::web::run_web_shell()?;
+    let result = serde_wasm_bindgen::to_value("success message").map_err(into_js_error)?;
+    Ok(result)
 }
 
 #[gadget_io::tokio::main]
+#[cfg(not(target_family = "wasm"))]
 async fn main() -> Result<()> {
     color_eyre::install()?;
     let opt = Opt::from_args();
@@ -191,27 +128,203 @@ fn parse_node_key(s: &str) -> Result<String> {
     Ok(hex::encode(result))
 }
 
-impl FromStr for SupportedChains {
-    type Err = String;
+#[cfg(target_family = "wasm")]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasm_bindgen_test::wasm_bindgen_test_configure;
+    use wasm_bindgen_test::wasm_bindgen_test;
+    wasm_bindgen_test_configure!(run_in_browser);
 
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        match s {
-            "local_testnet" => Ok(SupportedChains::LocalTestnet),
-            "local_mainnet" => Ok(SupportedChains::LocalMainnet),
-            "testnet" => Ok(SupportedChains::Testnet),
-            "mainnet" => Ok(SupportedChains::Mainnet),
-            _ => Err(format!("Invalid chain: {}", s)),
-        }
-    }
-}
+    use futures::{select, FutureExt};
+    use futures_timer::Delay;
+    use matchbox_socket::{PeerState, WebRtcSocket, SingleChannel, MessageLoopFuture};
+    use std::time::Duration;
+    use gadget_io::log;
 
-impl Display for SupportedChains {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SupportedChains::LocalTestnet => write!(f, "local_testnet"),
-            SupportedChains::LocalMainnet => write!(f, "local_mainnet"),
-            SupportedChains::Testnet => write!(f, "testnet"),
-            SupportedChains::Mainnet => write!(f, "mainnet"),
-        }
+// #[wasm_bindgen_test]
+// async fn test_main() -> Result<()> {
+// setConsoleInput();
+// file_test().await;
+//
+// color_eyre::install().expect("Failed to install color_eyre");
+// let opt = Opt::from_args();
+
+
+// let opt = Opt {
+//     config: None,
+//     verbose: 0,
+//     pretty: false,
+//     options: TomlConfig {
+//         bind_ip: defaults::bind_ip(),
+//         bind_port: 30555,
+//         url: defaults::rpc_url(),
+//         bootnodes: [].to_vec(),
+//         node_key: Some("0000000000000000000000000000000000000000000000000000000000000000".to_string()),
+//         base_path: "../tangle/tmp/alice".into(),
+//         keystore_password: None,
+//         chain: SupportedChains::LocalTestnet,
+//     },
+// };
+// setup_logger(&opt, "gadget_web_shell").unwrap();
+// let config = if let Some(config) = opt.config {
+//     let config_contents = std::fs::read_to_string(config).unwrap();
+//     toml::from_str(&config_contents).unwrap()
+// } else {
+//     opt.options
+// };
+// log(&format!("Resulting config: {:?}.", config));
+// shell::run_forever(config::ShellConfig {
+//     keystore: config::KeystoreConfig::InMemory,
+//     subxt: config::SubxtConfig {
+//         endpoint: config.url,
+//     },
+//     base_path: config.base_path,
+//     bind_ip: config.bind_ip,
+//     bind_port: config.bind_port,
+//     bootnodes: config.bootnodes,
+//     node_key: hex::decode(
+//         config
+//             .node_key
+//             .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
+//     )?
+//         .try_into()
+//         .map_err(|_| {
+//             color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
+//         })?,
+// })
+//     .await.unwrap();
+//     Ok(())
+// }
+
+// #[wasm_bindgen_test]
+// pub fn color_eyre_simple() {
+//     use color_eyre::eyre::WrapErr;
+//     use color_eyre::*;
+//
+//     install().expect("Failed to install color_eyre");
+//     let err_str = format!(
+//         "{:?}",
+//         Err::<(), Report>(eyre::eyre!("Base Error"))
+//             .note("A note")
+//             .suggestion("A suggestion")
+//             .wrap_err("A wrapped error")
+//             .unwrap_err()
+//     );
+//     // Print it out so if people run with `-- --nocapture`, they
+//     // can see the full message.
+//     println!("Error String is:\n\n{}", err_str);
+//     assert!(err_str.contains("A wrapped error"));
+//     assert!(err_str.contains("A suggestion"));
+//     assert!(err_str.contains("A note"));
+//     assert!(err_str.contains("Base Error"));
+// }
+
+    /// Tests Browser-to-Browser connection using Matchbox WebRTC. Requires example matchbox_server
+    /// running as signal server
+    #[wasm_bindgen_test]
+    fn test_matchbox_browser_to_browser() {
+        console_error_panic_hook::set_once();
+        console_log::init_with_level(log::Level::Debug).unwrap();
+
+        let peer_one = async move {
+            log(&format!("Peer One Beginning"));
+            let (mut socket, loop_fut) = matchbox_socket_tester().await;
+            let loop_fut = loop_fut.fuse();
+            futures::pin_mut!(loop_fut);
+            let timeout = Delay::new(Duration::from_millis(100));
+            futures::pin_mut!(timeout);
+            // Listening Loop
+            loop {
+                for (peer, state) in socket.update_peers() {
+                    match state {
+                        PeerState::Connected => {
+                            log(&format!("Peer joined: {peer}"));
+                            let packet = "Message for Peer Two...".as_bytes().to_vec().into_boxed_slice();
+                            socket.send(packet, peer);
+                        }
+                        PeerState::Disconnected => {
+                            log(&format!("Peer {peer} Disconnected, Closing Socket"));
+                            socket.close();
+                        }
+                    }
+                }
+                for (peer, packet) in socket.receive() {
+                    let message = String::from_utf8_lossy(&packet);
+                    log(&format!("Message from {peer}: {message}"));
+                }
+                select! {
+                // Loop every 100ms
+                _ = (&mut timeout).fuse() => {
+                    timeout.reset(Duration::from_millis(100));
+                }
+                // Break if the message loop ends via disconnect/closure
+                _ = &mut loop_fut => {
+                    break;
+                }
+            }
+            }
+        };
+
+        let peer_two = async move {
+            log(&format!("Peer Two Beginning"));
+            let (mut socket, loop_fut) = matchbox_socket_tester().await;
+            let loop_fut = loop_fut.fuse();
+            futures::pin_mut!(loop_fut);
+            let timeout = Delay::new(Duration::from_millis(100));
+            futures::pin_mut!(timeout);
+            // Listening Loop
+            loop {
+                for (peer, state) in socket.update_peers() {
+                    match state {
+                        _ => continue
+                    }
+                }
+                for (peer, packet) in socket.receive() {
+                    let message = String::from_utf8_lossy(&packet);
+                    log(&format!("Peer Two Received Message from {peer}: {message}"));
+                    log(&format!("Peer Two Closing Socket"));
+                    socket.close();
+                }
+
+                select! {
+                // Loop every 100ms
+                _ = (&mut timeout).fuse() => {
+                    timeout.reset(Duration::from_millis(100));
+                }
+                // Break if the message loop ends via disconnect/closure
+                _ = &mut loop_fut => {
+                    break;
+                }
+            }
+            }
+        };
+
+        wasm_bindgen_futures::spawn_local(peer_one);
+        wasm_bindgen_futures::spawn_local(peer_two);
     }
+
+    async fn matchbox_socket_tester() -> (WebRtcSocket<SingleChannel>, MessageLoopFuture) {
+        log(&format!("Starting Matchbox Listener"));
+        let (mut socket, loop_fut) = WebRtcSocket::new_reliable("ws://localhost:3536/"); // Signaling Server Address
+        (socket, loop_fut)
+    }
+
+// async fn async_main() {
+//     log(&format!("Hello from Matchbox Test!"));
+//     let (mut socket, loop_fut) = network::setup::matchbox_listener().await;
+//
+// }
+
+// #[wasm_bindgen_test]
+// fn test_prompt() {
+//     log(&format!("Input was {}!", webPrompt("Does this question appear?")));
+// }
+
+// #[wasm_bindgen_test]
+// async fn test_file_input() {
+//     log(&format!("File Success? {:?}!", get_from_js().await));
+//     //log(&format!("Input was {}!", webPrompt("Does this question appear?")));
+// }
+
 }

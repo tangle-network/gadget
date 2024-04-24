@@ -23,7 +23,7 @@ use futures_timer::Delay;
 use matchbox_socket::{PeerState, WebRtcSocket};
 use std::time::Duration;
 
-use wasm_bindgen_test::wasm_bindgen_test;
+// use wasm_bindgen_test::wasm_bindgen_test;
 use log::info;
 
 mod network;

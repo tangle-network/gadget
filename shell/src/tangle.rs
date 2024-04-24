@@ -9,9 +9,9 @@ use tangle_subxt::subxt::blocks::{Block, BlockRef};
 use tangle_subxt::subxt::ext::futures::TryFutureExt;
 use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::subxt::{self, PolkadotConfig};
-use tangle_subxt::tangle_runtime::api;
-use tangle_subxt::tangle_runtime::api::runtime_types::tangle_testnet_runtime::MaxAdditionalParamsLen;
-use tangle_subxt::tangle_runtime::api::runtime_types::{
+use tangle_subxt::tangle_testnet_runtime::api;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxAdditionalParamsLen;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::{
     tangle_primitives::jobs::{PhaseResult, RpcResponseJobsData},
     tangle_primitives::roles::RoleType,
     tangle_testnet_runtime::{
@@ -23,24 +23,6 @@ pub type TangleConfig = subxt::PolkadotConfig;
 type TangleClient = subxt::OnlineClient<TangleConfig>;
 type TangleBlock = Block<TangleConfig, TangleClient>;
 type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
-
-pub mod crypto {
-    use sp_application_crypto::{app_crypto, ecdsa, sr25519};
-    pub mod acco {
-        use super::*;
-        pub use sp_core::crypto::key_types::ACCOUNT as KEY_TYPE;
-        app_crypto!(sr25519, KEY_TYPE);
-    }
-
-    pub mod role {
-        use super::*;
-        /// Key type for ROLE keys
-        pub const KEY_TYPE: sp_application_crypto::KeyTypeId =
-            sp_application_crypto::KeyTypeId(*b"role");
-
-        app_crypto!(ecdsa, KEY_TYPE);
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct TangleRuntime {
@@ -248,6 +230,7 @@ impl ClientWithApi for TangleRuntime {
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[cfg(test)]
 mod tests {
     use super::*;

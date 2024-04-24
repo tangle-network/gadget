@@ -193,7 +193,7 @@ sqlx = { version = "=0.7.3" }
 postcard = "1.0.8"
 sha2 = "0.10.8"
 derivation-path = "0.2.0"
-libp2p = { version = "0.53.2" }
+libp2p = { version = "0.53.2", default-features = false }
 #libp2p = { git = "https://github.com/libp2p/rust-libp2p/" }#, rev = "3644879956b6ab93b8d23553a33e8fdb838f576f" }
 
 # WebAssembly
