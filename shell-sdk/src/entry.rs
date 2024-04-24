@@ -1,4 +1,7 @@
+use crate::shell::ShellNodeInput;
 use crate::{defaults, ShellTomlConfig, SupportedChains};
+use gadget_common::prelude::InMemoryBackend;
+use gadget_core::job_manager::SendFuture;
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
 
@@ -17,10 +20,14 @@ pub fn keystore_from_base_path(
 }
 
 /// Runs a shell for a given protocol.
-pub async fn run_shell_for_protocol(
+pub async fn run_shell_for_protocol<T: FnOnce(ShellNodeInput<InMemoryBackend>) -> F, F>(
     role_types: Vec<RoleType>,
     n_protocols: usize,
-) -> color_eyre::Result<()> {
+    executor: T,
+) -> color_eyre::Result<()>
+where
+    F: SendFuture<'static, ()>,
+{
     color_eyre::install()?;
     // The args will be passed here by the shell-manager
     let config: ShellTomlConfig = ShellTomlConfig::from_args();
@@ -28,7 +35,7 @@ pub async fn run_shell_for_protocol(
     let keystore =
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);
 
-    crate::run_forever(crate::ShellConfig {
+    let (node_input, network_handle) = crate::generate_node_input(crate::ShellConfig {
         role_types,
         keystore,
         subxt: crate::SubxtConfig {
@@ -50,7 +57,23 @@ pub async fn run_shell_for_protocol(
         n_protocols,
     })
     .await?;
-    Ok(())
+
+    let protocol_future = tokio::task::spawn(executor(node_input));
+    let ctrlc_future = tokio::signal::ctrl_c();
+
+    tokio::select! {
+        res0 = protocol_future => {
+            Err(color_eyre::Report::msg(format!("Protocol future unexpectedly finished: {res0:?}")))
+        },
+
+        res1 = network_handle => {
+            Err(color_eyre::Report::msg(format!("Networking future unexpectedly finished: {res1:?}")))
+        },
+
+        _ = ctrlc_future => {
+            Ok(())
+        }
+    }
 }
 
 /// Sets up the logger for the shell-sdk, based on the verbosity level passed in.

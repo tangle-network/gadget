@@ -5,6 +5,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+all-internal-protocols = ["dfns", "bls", "wsts", "zcash-frost", "zk-saas-groth"]
+
+dfns = ["dfns-cggmp21-protocol"]
+bls = ["threshold-bls-protocol"]
+wsts = ["wsts-protocol"]
+zcash-frost = ["zcash-frost-protocol"]
+zk-saas-groth = ["zk-saas-protocol"]
+
 [dependencies]
 shell-sdk = { workspace = true }
 gadget-common = { workspace = true }
@@ -18,7 +27,14 @@ structopt = { workspace = true }
 tangle-subxt = { workspace = true }
 toml = "0.8.11"
 hex = { workspace = true }
-tokio = { workspace = true, features = ["process", "io-util"] }
+tokio = { workspace = true, features = ["process", "io-util", "signal"] }
 reqwest = { version = "0.12.3" }
 url = { workspace = true, features = ["serde"] }
 sha3 = "0.10.8"
+
+# Protocols
+dfns-cggmp21-protocol = { workspace = true, optional = true }
+zcash-frost-protocol = { workspace = true , optional = true}
+threshold-bls-protocol = { workspace = true, optional = true }
+zk-saas-protocol = { workspace = true, features = ["parallel"], optional = true }
+wsts-protocol = { workspace = true, optional = true }

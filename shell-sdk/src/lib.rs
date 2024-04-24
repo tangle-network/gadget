@@ -9,14 +9,14 @@ pub use config::*;
 pub use entry::run_shell_for_protocol;
 pub use gadget_common::prelude::*;
 pub use gadget_core::gadget::substrate::Client;
-pub use shell::run_forever;
+pub use shell::generate_node_input;
 
 /// Should be put inside the main.rs file of the protocol repository
 macro_rules! generate_shell_binary {
-    ($n_protocols:expr, $( $role_type:expr ),*) => {
+    ($entry_point:expr, $n_protocols:expr, $( $role_type:expr ),*) => {
         #[tokio::main]
         async fn main {
-            $crate::run_shell_for_protocol(vec![$($role_type),*], $n_protocols).await?;
+            $crate::run_shell_for_protocol(vec![$($role_type),*], $n_protocols, $entry_point).await?;
         }
     };
 }

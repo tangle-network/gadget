@@ -5,10 +5,9 @@ use std::{hash::Hash, sync::Arc};
 use crate::{
     keystore::KeystoreContainer,
     tangle::{TangleConfig, TangleRuntime},
+    SubxtConfig,
 };
 use color_eyre::eyre::OptionExt;
-use futures::stream::FuturesOrdered;
-use futures::TryStreamExt;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::{
     client::{PairSigner, SubxtPalletSubmitter},
@@ -33,9 +32,13 @@ use itertools::Itertools;
 pub const AGENT_VERSION: &str = "tangle/gadget-shell-sdk/1.0.0";
 pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Start the shell-sdk and run it forever
+pub type ShellNodeInput<KBE> = NodeInput<TangleRuntime, GossipHandle, KBE, ()>;
+
+/// Generates the NodeInput and handle to the networking layer for the given config.
 #[tracing::instrument(skip(config))]
-pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
+pub async fn generate_node_input(
+    config: ShellConfig,
+) -> color_eyre::Result<(ShellNodeInput<InMemoryBackend>, JoinHandle<()>)> {
     let (role_key, acco_key) = load_keys_from_keystore(&config.keystore)?;
     let network_key = ed25519::Pair::from_seed(&config.node_key);
     let logger = DebugLogger::default();
@@ -68,49 +71,29 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
     wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
 
-    let protocols = start_required_protocols(
+    let node_input = generate_node_input_for_required_protocols(
         &config.subxt,
         networks,
         acco_key,
         logger,
         wrapped_keystore,
-        config.role_types.clone(),
-    );
+    )
+    .await?;
 
-    let ctrl_c = tokio::signal::ctrl_c();
-
-    tokio::select! {
-        _ = ctrl_c => {
-            tracing::info!("Received Ctrl-C, shutting down");
-        }
-        res = protocols => {
-            if let Err(e) = res {
-                tracing::error!(error = ?e, "Protocols watcher task unexpectedly shutdown");
-            }
-        }
-
-        _ = network_task => {
-            tracing::error!("Network task unexpectedly shutdown")
-        }
-    }
-
-    Ok(())
+    Ok((node_input, network_task))
 }
 
-pub fn start_protocol_by_role<KBE>(
-    role: RoleType,
+pub fn generate_node_input_for_role_group<KBE>(
     runtime: TangleRuntime,
     networks: HashMap<String, GossipHandle>,
     account_id: sr25519::Public,
     logger: DebugLogger,
     pallet_tx: Arc<SubxtPalletSubmitter<TangleConfig, PairSigner<TangleConfig>>>,
     keystore: ECDSAKeyStore<KBE>,
-) -> color_eyre::Result<JoinHandle<()>>
+) -> color_eyre::Result<ShellNodeInput<KBE>>
 where
     KBE: KeystoreBackend,
 {
-    use RoleType::*;
-    use ThresholdSignatureRoleType::*;
     let networks = networks
         .into_iter()
         .sorted_by_key(|r| r.0.clone())
@@ -119,97 +102,26 @@ where
     let clients = (0..networks.len())
         .map(|_| TangleRuntime::new(runtime.client()))
         .collect::<Vec<_>>();
-    // TODO: Cleanup loagic below
-    let handle = match role {
-        Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
-            tokio::spawn(dfns_cggmp21_protocol::setup_node(NodeInput {
-                clients,
-                account_id,
-                logger,
-                pallet_tx,
-                keystore,
-                node_index: 0,
-                additional_params: (),
-                prometheus_config: PrometheusConfig::Disabled,
-                networks,
-            }))
-        }
-
-        Tss(ZcashFrostEd25519)
-        | Tss(ZcashFrostEd448)
-        | Tss(ZcashFrostP256)
-        | Tss(ZcashFrostP384)
-        | Tss(ZcashFrostSecp256k1)
-        | Tss(ZcashFrostRistretto255) => {
-            tokio::spawn(zcash_frost_protocol::setup_node(NodeInput {
-                clients,
-                account_id,
-                logger,
-                pallet_tx,
-                keystore,
-                node_index: 0,
-                additional_params: (),
-                prometheus_config: PrometheusConfig::Disabled,
-                networks,
-            }))
-        }
-        Tss(GennaroDKGBls381) => tokio::spawn(threshold_bls_protocol::setup_node(NodeInput {
-            clients,
-            account_id,
-            logger,
-            pallet_tx,
-            keystore,
-            node_index: 0,
-            additional_params: (),
-            prometheus_config: PrometheusConfig::Disabled,
-            networks,
-        })),
-        Tss(WstsV2) => tokio::spawn(wsts_protocol::setup_node(NodeInput {
-            clients,
-            account_id,
-            logger,
-            pallet_tx,
-            keystore,
-            node_index: 0,
-            additional_params: (),
-            prometheus_config: PrometheusConfig::Disabled,
-            networks,
-        })),
-        ZkSaaS(_) => tokio::task::spawn(zk_saas_protocol::setup_node(NodeInput {
-            clients,
-            account_id,
-            logger,
-            pallet_tx,
-            keystore,
-            node_index: 0,
-            additional_params: (),
-            prometheus_config: PrometheusConfig::Disabled,
-            networks,
-        })),
-        LightClientRelaying => {
-            return Err(color_eyre::eyre::eyre!(
-                "LightClientRelaying is not supported by the shell-sdk",
-            ))
-        }
-        _ => {
-            return Err(color_eyre::eyre::eyre!(
-                "Role {:?} is not supported by the shell-sdk",
-                role
-            ))
-        }
-    };
-
-    Ok(handle)
+    Ok(NodeInput {
+        clients,
+        account_id,
+        logger,
+        pallet_tx,
+        keystore,
+        node_index: 0,
+        additional_params: (),
+        prometheus_config: PrometheusConfig::Disabled,
+        networks,
+    })
 }
 
-pub async fn start_required_protocols<KBE>(
-    subxt_config: &crate::config::SubxtConfig,
+pub async fn generate_node_input_for_required_protocols<KBE>(
+    subxt_config: &SubxtConfig,
     networks: HashMap<String, GossipHandle>,
     acco_key: sr25519::Pair,
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
-    roles: Vec<RoleType>,
-) -> color_eyre::Result<()>
+) -> color_eyre::Result<ShellNodeInput<KBE>>
 where
     KBE: KeystoreBackend,
 {
@@ -221,27 +133,14 @@ where
         SubxtPalletSubmitter::with_client(subxt_client.clone(), pair_signer, logger.clone());
     let pallet_tx = Arc::new(pallet_tx_submitter);
     let runtime = TangleRuntime::new(subxt_client);
-    logger.trace(format!("Got roles: {roles:?}"));
-    let mut futures = FuturesOrdered::new();
-    for role in roles {
-        let handle = start_protocol_by_role(
-            role,
-            TangleRuntime::new(runtime.client()),
-            networks.clone(),
-            acco_key.public(),
-            logger.clone(),
-            pallet_tx.clone(),
-            keystore.clone(),
-        )?;
-
-        futures.push_back(handle);
-    }
-
-    let result = futures.try_collect::<Vec<_>>().await;
-
-    Err(color_eyre::Report::msg(format!(
-        "Protocol stream ended unexpectedly: {result:?}"
-    )))
+    generate_node_input_for_role_group(
+        TangleRuntime::new(runtime.client()),
+        networks.clone(),
+        acco_key.public(),
+        logger.clone(),
+        pallet_tx.clone(),
+        keystore.clone(),
+    )
 }
 
 pub fn load_keys_from_keystore(

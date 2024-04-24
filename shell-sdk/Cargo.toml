@@ -33,12 +33,6 @@ parity-scale-codec = { workspace = true }
 serde = { workspace = true }
 futures = { workspace = true }
 bincode = { workspace = true }
-# Protocols
-dfns-cggmp21-protocol = { workspace = true }
-zcash-frost-protocol = { workspace = true }
-threshold-bls-protocol = { workspace = true }
-zk-saas-protocol = { workspace = true, features = ["parallel"] }
-wsts-protocol = { workspace = true }
 structopt = { workspace = true }
 rand = { workspace = true }
 hex = { workspace = true }

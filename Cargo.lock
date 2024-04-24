@@ -11011,6 +11011,7 @@ name = "shell-manager"
 version = "0.1.0"
 dependencies = [
  "color-eyre",
+ "dfns-cggmp21-protocol",
  "gadget-common",
  "hex",
  "libp2p 0.53.2",
@@ -11021,11 +11022,15 @@ dependencies = [
  "shell-sdk",
  "structopt",
  "tangle-subxt",
+ "threshold-bls-protocol",
  "tokio",
  "toml 0.8.12",
  "tracing",
  "tracing-subscriber 0.3.18",
  "url",
+ "wsts-protocol",
+ "zcash-frost-protocol",
+ "zk-saas-protocol",
 ]
 
 [[package]]
@@ -11035,7 +11040,6 @@ dependencies = [
  "async-trait",
  "bincode",
  "color-eyre",
- "dfns-cggmp21-protocol",
  "futures",
  "gadget-common",
  "gadget-core",
@@ -11054,14 +11058,10 @@ dependencies = [
  "structopt",
  "tangle-subxt",
  "test-utils",
- "threshold-bls-protocol",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.18",
  "url",
- "wsts-protocol",
- "zcash-frost-protocol",
- "zk-saas-protocol",
 ]
 
 [[package]]

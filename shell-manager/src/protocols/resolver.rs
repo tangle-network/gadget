@@ -44,32 +44,31 @@ pub fn load_global_config_file<P: AsRef<Path>>(path: P) -> Result<Vec<ProtocolMe
             ret.push(ProtocolMetadata::Internal {
                 role_types: convert_str_vec_to_role_types(protocol.role_types)?,
             })
-        } else {
-            if let (Some(bin_hashes), Some(repository)) = (protocol.bin_hashes, protocol.repository)
-            {
-                if bin_hashes.is_empty() {
-                    return Err(Error::msg(
-                        "External protocol does not have any binaries hashes specified",
-                    ));
-                }
-                let git = repository.get("git").ok_or(Error::msg(
-                    "External protocol does not have a git repository specified",
-                ))?;
-                let rev = repository.get("rev").cloned().ok_or(Error::msg(
-                    "External protocol does not have a revision specified",
-                ))?;
-                ret.push(ProtocolMetadata::External {
-                    git: git.clone(),
-                    role_types: convert_str_vec_to_role_types(protocol.role_types)?,
-                    rev,
-                    bin_hashes,
-                })
-            } else {
-                return Err(Error::msg(format!(
-                    "External protocol does not have bin_hashes and a repository specified: {:?}",
-                    protocol.role_types
-                )));
+        } else if let (Some(bin_hashes), Some(repository)) =
+            (protocol.bin_hashes, protocol.repository)
+        {
+            if bin_hashes.is_empty() {
+                return Err(Error::msg(
+                    "External protocol does not have any binaries hashes specified",
+                ));
             }
+            let git = repository.get("git").ok_or(Error::msg(
+                "External protocol does not have a git repository specified",
+            ))?;
+            let rev = repository.get("rev").cloned().ok_or(Error::msg(
+                "External protocol does not have a revision specified",
+            ))?;
+            ret.push(ProtocolMetadata::External {
+                git: git.clone(),
+                role_types: convert_str_vec_to_role_types(protocol.role_types)?,
+                rev,
+                bin_hashes,
+            })
+        } else {
+            return Err(Error::msg(format!(
+                "External protocol does not have bin_hashes and a repository specified: {:?}",
+                protocol.role_types
+            )));
         }
     }
 
