@@ -94,6 +94,35 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     // .await
     // .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
+    let networks = crate::web::setup_matchbox_network(
+            // libp2p_key,
+            // &config,
+            // logger.clone(),
+            vec![
+                "test1",
+                "test2",
+                "test3",
+                "test4",
+                // // dfns-cggmp21
+                // DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
+                // DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
+                // DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
+                // DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
+                // // zcash-frost
+                // ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
+                // ZCASH_FROST_SIGNING_PROTOCOL_NAME,
+                // // silent-shared-dkls23
+                // SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME,
+                // SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME,
+                // // gennaro-dkg-bls381
+                // GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
+                // GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
+            ],
+            // role_key,
+        )
+        .await
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
+
     // logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
     // wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
     //
@@ -264,81 +293,82 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
 //     Ok(handle.abort_handle())
 // }
 //
-// pub async fn start_required_protocols<KBE>(
-//     subxt_config: &crate::config::SubxtConfig,
-//     networks: HashMap<&'static str, GossipHandle>,
-//     acco_key: sr25519::Pair,
-//     logger: DebugLogger,
-//     keystore: ECDSAKeyStore<KBE>,
-// ) -> color_eyre::Result<()>
-// where
-//     KBE: KeystoreBackend,
-// {
-//     let sub_account_id = subxt::utils::AccountId32(acco_key.public().0);
-//     // Create a loop that listens to new finality notifications,
-//     // queries the chain for the current restaking roles,
-//     // and then starts the required protocols based on the roles.
-//     let mut current_roles = Vec::new();
-//     let mut running_protocols = HashMap::<HashedRoleTypeWrapper, gadget_io::tokio::task::AbortHandle>::new();
-//
-//     let subxt_client =
-//         subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&subxt_config.endpoint).await?;
-//
-//     let pair_signer = PairSigner::new(acco_key.clone());
-//     let pallet_tx_submitter =
-//         SubxtPalletSubmitter::with_client(subxt_client.clone(), pair_signer, logger.clone());
-//     let pallet_tx = Arc::new(pallet_tx_submitter);
-//     let runtime = TangleRuntime::new(subxt_client);
-//     while let Some(notification) = runtime.get_next_finality_notification().await {
-//         let roles = runtime
-//             .query_restaker_roles(notification.hash, sub_account_id.clone())
-//             .await?;
-//         logger.trace(format!("Got roles: {roles:?}"));
-//         if roles == current_roles {
-//             logger.trace("Roles have not changed, skipping");
-//             continue;
-//         }
-//         let diff = vec_diff(
-//             current_roles.iter().cloned().map(HashedRoleTypeWrapper),
-//             roles.iter().cloned().map(HashedRoleTypeWrapper),
-//         );
-//         if diff.is_empty() {
-//             logger.trace("No roles diff, skipping");
-//             continue;
-//         }
-//         logger.trace(format!("Roles diff: {diff:?}"));
-//         for d in diff {
-//             match d {
-//                 Diff::Added(role) => {
-//                     logger.debug(format!("Trying to start protocol for role {:?}", role.0));
-//                     let handle = start_protocol_by_role(
-//                         role.0.clone(),
-//                         TangleRuntime::new(runtime.client()),
-//                         networks.clone(),
-//                         acco_key.public(),
-//                         logger.clone(),
-//                         pallet_tx.clone(),
-//                         keystore.clone(),
-//                     )?;
-//                     running_protocols.insert(role, handle);
-//                 }
-//                 Diff::Removed(role) => {
-//                     logger.debug(format!("Trying to stop protocol for role {:?}", role.0));
-//                     let maybe_handle = running_protocols.remove(&role);
-//                     if let Some(handle) = maybe_handle {
-//                         handle.abort();
-//                         logger.warn(format!(
-//                             "Aborted protocol for role {:?}. Reason: Role Removed from profile",
-//                             role.0
-//                         ));
-//                     }
-//                 }
-//             }
-//         }
-//         current_roles = roles;
-//     }
-//     Ok(())
-// }
+#[cfg(not(target_family = "wasm"))]
+pub async fn start_required_protocols<KBE>(
+    subxt_config: &crate::config::SubxtConfig,
+    networks: HashMap<&'static str, GossipHandle>,
+    acco_key: sr25519::Pair,
+    logger: DebugLogger,
+    keystore: ECDSAKeyStore<KBE>,
+) -> color_eyre::Result<()>
+where
+    KBE: KeystoreBackend,
+{
+    let sub_account_id = subxt::utils::AccountId32(acco_key.public().0);
+    // Create a loop that listens to new finality notifications,
+    // queries the chain for the current restaking roles,
+    // and then starts the required protocols based on the roles.
+    let mut current_roles = Vec::new();
+    let mut running_protocols = HashMap::<HashedRoleTypeWrapper, gadget_io::tokio::task::AbortHandle>::new();
+
+    let subxt_client =
+        subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&subxt_config.endpoint).await?;
+
+    let pair_signer = PairSigner::new(acco_key.clone());
+    let pallet_tx_submitter =
+        SubxtPalletSubmitter::with_client(subxt_client.clone(), pair_signer, logger.clone());
+    let pallet_tx = Arc::new(pallet_tx_submitter);
+    let runtime = TangleRuntime::new(subxt_client);
+    while let Some(notification) = runtime.get_next_finality_notification().await {
+        let roles = runtime
+            .query_restaker_roles(notification.hash, sub_account_id.clone())
+            .await?;
+        logger.trace(format!("Got roles: {roles:?}"));
+        if roles == current_roles {
+            logger.trace("Roles have not changed, skipping");
+            continue;
+        }
+        let diff = vec_diff(
+            current_roles.iter().cloned().map(HashedRoleTypeWrapper),
+            roles.iter().cloned().map(HashedRoleTypeWrapper),
+        );
+        if diff.is_empty() {
+            logger.trace("No roles diff, skipping");
+            continue;
+        }
+        logger.trace(format!("Roles diff: {diff:?}"));
+        for d in diff {
+            match d {
+                Diff::Added(role) => {
+                    logger.debug(format!("Trying to start protocol for role {:?}", role.0));
+                    let handle = start_protocol_by_role(
+                        role.0.clone(),
+                        TangleRuntime::new(runtime.client()),
+                        networks.clone(),
+                        acco_key.public(),
+                        logger.clone(),
+                        pallet_tx.clone(),
+                        keystore.clone(),
+                    )?;
+                    running_protocols.insert(role, handle);
+                }
+                Diff::Removed(role) => {
+                    logger.debug(format!("Trying to stop protocol for role {:?}", role.0));
+                    let maybe_handle = running_protocols.remove(&role);
+                    if let Some(handle) = maybe_handle {
+                        handle.abort();
+                        logger.warn(format!(
+                            "Aborted protocol for role {:?}. Reason: Role Removed from profile",
+                            role.0
+                        ));
+                    }
+                }
+            }
+        }
+        current_roles = roles;
+    }
+    Ok(())
+}
 
 // pub trait SubstrateKeystore {
 //     fn ecdsa_key(&self) -> color_eyre::Result<ecdsa::Pair>;

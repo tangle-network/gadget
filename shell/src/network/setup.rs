@@ -1,15 +1,21 @@
 use crate::config::ShellConfig;
+#[cfg(not(target_family = "wasm"))]
 use crate::network::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
 };
 use crate::shell::{AGENT_VERSION, CLIENT_VERSION};
 use futures::StreamExt;
 use gadget_common::config::DebugLogger;
-use libp2p::gossipsub::IdentTopic;
-use libp2p::kad::store::MemoryStore;
-use libp2p::swarm::dial_opts::DialOpts;
-use libp2p::{gossipsub, mdns, request_response, StreamProtocol};
-use libp2p::{gossipsub, request_response, StreamProtocol};
+
+#[cfg(not(target_family = "wasm"))]
+use libp2p::{
+    gossipsub::IdentTopic,
+    kad::store::MemoryStore,
+    swarm::dial_opts::DialOpts,
+    gossipsub, mdns, request_response, StreamProtocol
+};
+
+// use libp2p::{gossipsub, request_response, StreamProtocol};
 use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::error::Error;
@@ -21,6 +27,7 @@ use gadget_io::tokio::select;
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use gadget_io::tokio::task::JoinHandle;
 
+#[cfg(not(target_family = "wasm"))]
 pub async fn setup_libp2p_network(
     identity: libp2p::identity::Keypair,
     config: &ShellConfig,
