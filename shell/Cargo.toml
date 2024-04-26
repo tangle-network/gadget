@@ -9,7 +9,7 @@ edition = "2021"
 crate-type = ["cdylib"]#, "rlib"]
 
 [features]
-default = ["wasm"]
+default = ["std"]#wasm"]
 std = [
   "tangle-subxt/default",
   "gadget-common/default",
@@ -89,11 +89,11 @@ sha2 = "0.10.8"
 futures = { workspace = true }
 bincode2 = { workspace = true }
 # Protocols
-#dfns-cggmp21-protocol = { workspace = true }
-#zcash-frost-protocol = { workspace = true }
-#silent-shard-dkls23-ll-protocol = { workspace = true }
-#threshold-bls-protocol = { workspace = true }
-#zk-saas-protocol = { workspace = true, features = ["parallel"] }
+dfns-cggmp21-protocol = { workspace = true }
+zcash-frost-protocol = { workspace = true }
+silent-shard-dkls23-ll-protocol = { workspace = true }
+threshold-bls-protocol = { workspace = true }
+zk-saas-protocol = { workspace = true, features = ["parallel"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true

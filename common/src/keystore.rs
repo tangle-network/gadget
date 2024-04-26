@@ -9,6 +9,7 @@ use sp_core::sr25519::Pair as Sr25519Pair;
 use sp_core::{keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
+use crate::Error;
 
 #[cfg(feature = "std")]
 use sqlx::{

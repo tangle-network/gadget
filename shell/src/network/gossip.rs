@@ -10,10 +10,10 @@ use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 use std::collections::HashMap;
 
-use std::sync::atomic::AtomicU32;
-use std::sync::Arc;
 use gadget_io::tokio::sync::mpsc::UnboundedSender;
 use gadget_io::tokio::sync::{Mutex, RwLock};
+use std::sync::atomic::AtomicU32;
+use std::sync::Arc;
 
 /// Maximum allowed size for a Signed Message.
 pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;

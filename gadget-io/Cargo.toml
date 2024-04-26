@@ -51,5 +51,8 @@ sp-keystore = { workspace = true }
 sc-keystore = { workspace = true }
 structopt = "0.3.26"
 tokio = { workspace = true, features = ["full"] }
+url = { workspace = true, features = ["serde"] }
+libp2p = { workspace = true }
+rand = { workspace = true }
 
 [dev-dependencies]

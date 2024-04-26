@@ -9,13 +9,14 @@ use gadget_common::config::DebugLogger;
 
 #[cfg(not(target_family = "wasm"))]
 use libp2p::{
-    gossipsub::IdentTopic,
-    kad::store::MemoryStore,
-    swarm::dial_opts::DialOpts,
-    gossipsub, mdns, request_response, StreamProtocol
+    gossipsub, gossipsub::IdentTopic, kad::store::MemoryStore, mdns, request_response,
+    swarm::dial_opts::DialOpts, StreamProtocol,
 };
 
 // use libp2p::{gossipsub, request_response, StreamProtocol};
+use gadget_io::tokio::select;
+use gadget_io::tokio::sync::{Mutex, RwLock};
+use gadget_io::tokio::task::JoinHandle;
 use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::error::Error;
@@ -23,9 +24,6 @@ use std::io;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
-use gadget_io::tokio::select;
-use gadget_io::tokio::sync::{Mutex, RwLock};
-use gadget_io::tokio::task::JoinHandle;
 
 #[cfg(not(target_family = "wasm"))]
 pub async fn setup_libp2p_network(
@@ -68,8 +66,10 @@ pub async fn setup_libp2p_network(
             )?;
 
             // Setup mDNS for peer discovery
-            let mdns =
-                mdns::gadget_io::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
+            let mdns = mdns::gadget_io::tokio::Behaviour::new(
+                mdns::Config::default(),
+                key.public().to_peer_id(),
+            )?;
 
             // Setup request-response for direct messaging
             let p2p_config = request_response::Config::default();

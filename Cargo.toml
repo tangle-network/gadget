@@ -14,8 +14,8 @@ members = [
     "test-gadget",
     "test-utils",
     "protocol-macros",
-    "web-shell",
-    "test-web",
+#    "web-shell",
+#    "test-web",
 ]
 
 [workspace.dependencies]

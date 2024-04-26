@@ -1,16 +1,16 @@
 use color_eyre::eyre::WrapErr;
 use color_eyre::*;
 use console_error_panic_hook;
-use gadget_io::{into_js_error, log, KeystoreConfig, Opt, SupportedChains, TomlConfig};
 use gadget_io::tokio::sync::{Mutex, RwLock};
+use gadget_io::{into_js_error, log, KeystoreConfig, Opt, SupportedChains, TomlConfig};
 use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
-use std::panic;
-use std::{fmt::Display, net::IpAddr, path::PathBuf, str::FromStr, error::Error};
 use std::collections::HashMap;
+use std::panic;
 use std::sync::atomic::AtomicU32;
+use std::{error::Error, fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
 
 use tangle_subxt::{
     subxt, tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType,
@@ -53,15 +53,14 @@ impl MatchboxHandle {
             .load(std::sync::atomic::Ordering::Relaxed) as usize
     }
 
-    pub fn topic(&self) -> &str { self.network.clone() }
+    pub fn topic(&self) -> &str {
+        self.network.clone()
+    }
 }
 
 #[wasm_bindgen]
 #[no_mangle]
-pub async fn run_web_shell(
-    options: Opt,
-    keys: Vec<String>,
-) -> Result<JsValue, JsValue> {
+pub async fn run_web_shell(options: Opt, keys: Vec<String>) -> Result<JsValue, JsValue> {
     // web_init();
     // color_eyre::install().map_err(|e| js_sys::Error::new(&e.to_string()))?;
     // let opt = Opt::from_args();
@@ -150,7 +149,8 @@ pub async fn setup_matchbox_network(
     // Create Channels for Sending and Receiving from Worker
     // Subscribe to all networks
     let mut inbound_mapping = Vec::new();
-    let (tx_to_outbound, mut rx_to_outbound) = gadget_io::tokio::sync::mpsc::unbounded_channel::<String>();
+    let (tx_to_outbound, mut rx_to_outbound) =
+        gadget_io::tokio::sync::mpsc::unbounded_channel::<String>();
     let ecdsa_peer_id_to_matchbox_id = Arc::new(RwLock::new(HashMap::new()));
     let mut handles_ret = HashMap::with_capacity(networks.len());
     for network in networks {
@@ -223,20 +223,21 @@ pub async fn setup_matchbox_network(
                 let message = String::from_utf8_lossy(&packet);
             }
             select! {
-                    // Loop every 100ms
-                    _ = (&mut timeout).fuse() => {
-                        timeout.reset(Duration::from_millis(100));
-                    }
-                    // Break if the message loop ends via disconnect/closure
-                    _ = &mut loop_fut => {
-                        break;
-                    }
+                // Loop every 100ms
+                _ = (&mut timeout).fuse() => {
+                    timeout.reset(Duration::from_millis(100));
                 }
+                // Break if the message loop ends via disconnect/closure
+                _ = &mut loop_fut => {
+                    break;
+                }
+            }
         }
     };
     wasm_bindgen_futures::spawn_local(worker);
-    log(&format!("SETUP MATCHBOX NETWORK EXITING AFTER SPAWNING WORKER"));
-
+    log(&format!(
+        "SETUP MATCHBOX NETWORK EXITING AFTER SPAWNING WORKER"
+    ));
 
     Ok(handles_ret)
 }
@@ -248,8 +249,8 @@ pub async fn start_protocols_web<KBE>(
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
 ) -> color_eyre::Result<()>
-    where
-        KBE: KeystoreBackend,
+where
+    KBE: KeystoreBackend,
 {
     let sub_account_id = subxt::utils::AccountId32(acco_key.public().0);
     // Create a loop that listens to new finality notifications,
@@ -317,7 +318,6 @@ pub async fn start_protocols_web<KBE>(
     Ok(())
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -332,7 +332,8 @@ mod tests {
     use std::time::Duration;
 
     #[wasm_bindgen_test]
-    async fn test_web_main() { //-> Result<JsValue, JsValue> {
+    async fn test_web_main() {
+        //-> Result<JsValue, JsValue> {
         let config = TomlConfig {
             bind_ip: "127.0.0.1".to_string().into(),
             bind_port: 8081,
@@ -343,11 +344,12 @@ mod tests {
                 "/ip4/127.0.0.1/udp/1235",
                 "/ip4/127.0.0.1/udp/1236",
             ]
-                .iter()
-                .map(|&s| s.to_string())
-                .collect(),
-            node_key: Some("0000000000000000000000000000000000000000000000000000000000000001"
-                .to_string()),
+            .iter()
+            .map(|&s| s.to_string())
+            .collect(),
+            node_key: Some(
+                "0000000000000000000000000000000000000000000000000000000000000001".to_string(),
+            ),
             base_path: "test/path/to/".into(),
             keystore_password: None,
             chain: SupportedChains::LocalTestnet,
@@ -364,9 +366,9 @@ mod tests {
             "aaa88bec51838e7ec434d58f687b0c606b322f4e63ba9a9af2b6f1cb34f718be",
             "0000000000000000000000000000000000000000000000000000000000000002",
         ]
-            .iter()
-            .map(|&s| s.to_string())
-            .collect();
+        .iter()
+        .map(|&s| s.to_string())
+        .collect();
         run_web_shell(options, keys).await.unwrap();
     }
 
