@@ -230,11 +230,12 @@ impl ClientWithApi for TangleRuntime {
     }
 }
 
-#[cfg(not(target_family = "wasm"))]
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod tests {
     use super::*;
     use color_eyre::{eyre::OptionExt, Result};
+    use gadget_io::tokio;
 
     #[ignore = "requires a running node"]
     #[gadget_io::tokio::test]

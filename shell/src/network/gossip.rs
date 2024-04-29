@@ -22,7 +22,7 @@ pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
 #[derive(NetworkBehaviour)]
 pub struct MyBehaviour {
     pub gossipsub: gossipsub::Behaviour,
-    pub mdns: mdns::gadget_io::tokio::Behaviour,
+    pub mdns: mdns::tokio::Behaviour,
     pub p2p: request_response::cbor::Behaviour<MyBehaviourRequest, MyBehaviourResponse>,
     pub identify: libp2p::identify::Behaviour,
     pub kadmelia: libp2p::kad::Behaviour<MemoryStore>,
@@ -382,6 +382,7 @@ impl Network for GossipHandle {
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod tests {
     use crate::config::{KeystoreConfig, ShellConfig, SubxtConfig};
     use crate::network::setup::setup_libp2p_network;
@@ -389,6 +390,7 @@ mod tests {
     use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, WorkManager};
     use gadget_core::job_manager::WorkManagerInterface;
     use sp_core::{ecdsa, Pair};
+    use gadget_io::tokio;
 
     #[gadget_io::tokio::test]
     async fn test_gossip_network() {

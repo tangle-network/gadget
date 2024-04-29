@@ -2,7 +2,7 @@ pub use crate::shared::keystore::SubstrateKeystore;
 use tracing;
 use color_eyre;
 use std::path::{PathBuf, Path};
-use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
+use sp_core::{ecdsa, sr25519, ByteArray};
 use color_eyre::eyre::OptionExt;
 
 use color_eyre::Result;

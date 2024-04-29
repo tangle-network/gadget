@@ -66,7 +66,7 @@ pub async fn setup_libp2p_network(
             )?;
 
             // Setup mDNS for peer discovery
-            let mdns = mdns::gadget_io::tokio::Behaviour::new(
+            let mdns = mdns::tokio::Behaviour::new(
                 mdns::Config::default(),
                 key.public().to_peer_id(),
             )?;

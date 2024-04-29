@@ -155,7 +155,7 @@ pub async fn setup_libp2p_network(
 
             // Setup mDNS for peer discovery
             // let mdns =
-            //     mdns::gadget_io::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
+            //     mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?;
 
             // Setup request-response for direct messaging
             let p2p_config = request_response::Config::default();

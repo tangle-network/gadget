@@ -215,8 +215,10 @@ fn key_to_string(key: &[u8; 32]) -> String {
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod tests {
     use crate::keystore::KeystoreBackend;
+    use gadget_io::tokio;
 
     #[gadget_io::tokio::test]
     #[cfg(feature = "std")]

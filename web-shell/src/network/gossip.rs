@@ -23,7 +23,7 @@ pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
 #[derive(NetworkBehaviour)]
 pub struct MyBehaviour {
     pub gossipsub: gossipsub::Behaviour,
-    // pub mdns: mdns::gadget_io::tokio::Behaviour,
+    // pub mdns: mdns::tokio::Behaviour,
     pub p2p: request_response::cbor::Behaviour<MyBehaviourRequest, MyBehaviourResponse>,
     pub identify: libp2p::identify::Behaviour,
     pub kadmelia: libp2p::kad::Behaviour<MemoryStore>,

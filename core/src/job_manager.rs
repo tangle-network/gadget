@@ -668,6 +668,7 @@ fn should_deliver<WM: WorkManagerInterface>(
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod tests {
     use super::*;
     use crate::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
@@ -675,6 +676,7 @@ mod tests {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
     use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+    use gadget_io::tokio;
 
     #[derive(Debug, Eq, PartialEq)]
     struct TestWorkManager;
@@ -1503,7 +1505,6 @@ mod tests {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_range_above() {
         let current_block: u64 = 10;
         const TOL: u64 = 5;
@@ -1526,7 +1527,6 @@ mod tests {
     }
 
     #[test]
-    #[wasm_bindgen_test]
     fn test_range_below() {
         let current_block: u64 = 10;
         const TOL: u64 = 5;
