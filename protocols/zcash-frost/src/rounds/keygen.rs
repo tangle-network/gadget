@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use crate::progress::Tracer;
 use frost_core::{
     keys::{
         dkg::{round1, round2},
@@ -9,7 +8,8 @@ use frost_core::{
     Ciphersuite, Identifier,
 };
 use futures::SinkExt;
-use gadget_common::prelude::*;
+use gadget_common::tangle_runtime::*;
+use gadget_common::tracer::Tracer;
 use rand_core::{CryptoRng, RngCore};
 use round_based::{
     rounds_router::{

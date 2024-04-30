@@ -2,7 +2,7 @@ use crate::client::ClientWithApi;
 use crate::config::ProtocolConfig;
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::{GadgetProtocol, Module};
-use crate::prometheus::PrometheusConfig;
+use crate::prelude::PrometheusConfig;
 use gadget::network::Network;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
 use gadget_core::gadget::substrate::{Client, FinalityNotification, SubstrateGadget};
@@ -41,17 +41,52 @@ pub mod prelude {
     pub use sp_runtime::traits::Block;
     pub use std::pin::Pin;
     pub use std::sync::Arc;
-    pub use tangle_subxt::subxt::utils::AccountId32;
-    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{
-        jobs, roles,
-    };
-    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{
-        MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen,
-    };
-
     pub use gadget_io;
     pub use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 }
+
+#[cfg(feature = "tangle-testnet")]
+pub mod tangle_runtime {
+    pub use tangle_subxt::subxt::utils::AccountId32;
+    pub use tangle_subxt::tangle_testnet_runtime::api;
+    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::{
+        bounded_collections::bounded_vec::BoundedVec,
+        tangle_primitives::jobs::{
+            self,
+            tss::{self, *},
+            zksaas::{self, *},
+            JobType::*,
+            PhaseResult, RpcResponseJobsData,
+        },
+        tangle_primitives::roles::{self, RoleType},
+        tangle_testnet_runtime::{
+            MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
+            MaxSignatureLen, MaxSubmissionLen,
+        },
+    };
+}
+
+#[cfg(feature = "tangle-mainnet")]
+pub mod tangle_runtime {
+    pub use tangle_subxt::subxt::utils::AccountId32;
+    pub use tangle_subxt::tangle_mainnet_runtime::api;
+    pub use tangle_subxt::tangle_mainnet_runtime::api::runtime_types::{
+        bounded_collections::bounded_vec::BoundedVec,
+        tangle_primitives::jobs::{
+            self,
+            tss::{self, *},
+            zksaas::{self, *},
+            JobType::*,
+            PhaseResult,
+        },
+        tangle_primitives::roles::{self, RoleType},
+        tangle_runtime::{
+            MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
+            MaxSignatureLen, MaxSubmissionLen,
+        },
+    };
+}
+
 pub mod channels;
 pub mod client;
 pub mod config;
@@ -63,6 +98,7 @@ pub mod keystore;
 pub mod locks;
 pub mod prometheus;
 pub mod protocol;
+pub mod tracer;
 pub mod utils;
 
 #[derive(Debug)]
@@ -101,7 +137,7 @@ impl From<JobError> for Error {
     }
 }
 
-pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(), crate::Error> {
+pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(), Error> {
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
@@ -128,10 +164,10 @@ pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(
 
         GadgetManager::new(substrate_gadget)
             .await
-            .map_err(|err| crate::Error::GadgetManagerError { err })
+            .map_err(|err| Error::GadgetManagerError { err })
     };
 
-    if let Err(err) = crate::prometheus::setup(prometheus_config.clone()).await {
+    if let Err(err) = prometheus::setup(prometheus_config.clone()).await {
         protocol_config
             .logger()
             .warn(format!("Error setting up prometheus: {err:?}"));
@@ -149,7 +185,7 @@ pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(
 pub async fn create_work_manager<C: ClientWithApi, P: GadgetProtocol<C>>(
     latest_finality_notification: &FinalityNotification,
     protocol: &P,
-) -> Result<ProtocolWorkManager<WorkManager>, crate::Error> {
+) -> Result<ProtocolWorkManager<WorkManager>, Error> {
     let now: u64 = latest_finality_notification.number;
 
     let work_manager_config = protocol.get_work_manager_config();
@@ -178,11 +214,11 @@ pub async fn create_work_manager<C: ClientWithApi, P: GadgetProtocol<C>>(
 
 async fn get_latest_finality_notification_from_client<C: Client>(
     client: &C,
-) -> Result<FinalityNotification, crate::Error> {
+) -> Result<FinalityNotification, Error> {
     client
         .get_latest_finality_notification()
         .await
-        .ok_or_else(|| crate::Error::InitError {
+        .ok_or_else(|| Error::InitError {
             err: "No finality notification received".to_string(),
         })
 }
@@ -223,7 +259,7 @@ macro_rules! generate_setup_and_run_command {
             account_id: sp_core::sr25519::Public,
             key_store: ECDSAKeyStore<KBE>,
             prometheus_config: $crate::prometheus::PrometheusConfig,
-        ) -> Result<(), crate::Error>
+        ) -> Result<(), Error>
         {
             use futures::TryStreamExt;
             let futures = futures::stream::FuturesUnordered::new();
@@ -232,7 +268,7 @@ macro_rules! generate_setup_and_run_command {
 
             $(
                 let config = crate::$config::new(clients.pop_front().expect("Not enough clients"), pallet_tx.clone(), networks.pop_front().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone(), prometheus_config.clone()).await?;
-                futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), crate::Error> >>>);
+                futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), $crate::Error>>>>);
             )*
 
             futures.try_collect::<Vec<_>>().await.map(|_| ())
@@ -281,7 +317,7 @@ macro_rules! generate_protocol {
                 account_id: sp_core::sr25519::Public,
                 key_store: ECDSAKeyStore<Self::KeystoreBackend>,
                 prometheus_config: $crate::prometheus::PrometheusConfig,
-            ) -> Result<Self, crate::Error> {
+            ) -> Result<Self, Error> {
                 let logger = if logger.peer_id.is_empty() {
                     DebugLogger { peer_id: stringify!($name).replace("\"", "").into() }
                 } else {
@@ -328,7 +364,7 @@ macro_rules! generate_protocol {
                 &self,
                 job: JobInitMetadata,
                 work_manager: &ProtocolWorkManager<WorkManager>,
-            ) -> Result<Self::AsyncProtocolParameters, crate::Error> {
+            ) -> Result<Self::AsyncProtocolParameters, Error> {
                 $create_job_path(self, job, work_manager).await
             }
 

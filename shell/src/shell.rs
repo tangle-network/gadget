@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-// use std::time::Duration;
+use std::time::Duration;
 use std::{hash::Hash, sync::Arc};
 
 use crate::{
@@ -22,24 +22,25 @@ use sp_keystore::Keystore;
 #[cfg(target_family = "wasm")]
 use gadget_io::log;
 use gadget_io::{KeystoreConfig, SubstrateKeystore, KeystoreContainer};
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
-use tangle_subxt::{
-    subxt, tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType,
-};
+use tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
+use tangle_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
+use tangle_subxt::subxt;
+use tangle_subxt::tangle_testnet_runtime as tangle_runtime;
 
-// use dfns_cggmp21_protocol::constants::{
-//     DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
-//     DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME, DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
-// };
-// use silent_shard_dkls23_ll_protocol::constants::{
-//     SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME, SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME,
-// };
-// use threshold_bls_protocol::constants::{
-//     GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME, GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
-// };
-// use zcash_frost_protocol::constants::{
-//     ZCASH_FROST_KEYGEN_PROTOCOL_NAME, ZCASH_FROST_SIGNING_PROTOCOL_NAME,
-// };
+use crate::config::ShellConfig;
+use crate::network::gossip::GossipHandle;
+use crate::tangle::crypto;
+
+use dfns_cggmp21_protocol::constants::{
+    DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
+    DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME, DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
+};
+use threshold_bls_protocol::constants::{
+    GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME, GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
+};
+use zcash_frost_protocol::constants::{
+    ZCASH_FROST_KEYGEN_PROTOCOL_NAME, ZCASH_FROST_SIGNING_PROTOCOL_NAME,
+};
 
 /// The version of the shell
 pub const AGENT_VERSION: &str = "tangle/gadget-shell/1.0.0";
@@ -79,9 +80,6 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
             // // zcash-frost
             // ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
             // ZCASH_FROST_SIGNING_PROTOCOL_NAME,
-            // // silent-shared-dkls23
-            // SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME,
-            // SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME,
             // // gennaro-dkg-bls381
             // GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
             // GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
@@ -228,33 +226,7 @@ where
                 ],
             }))
         }
-
-        Tss(SilentShardDKLS23Secp256k1) => {
-            gadget_io::tokio::spawn(silent_shard_dkls23_ll_protocol::setup_node(NodeInput {
-                clients: vec![
-                    TangleRuntime::new(runtime.client()),
-                    TangleRuntime::new(runtime.client()),
-                ],
-                account_id,
-                logger,
-                pallet_tx,
-                keystore,
-                node_index: 0,
-                additional_params: (),
-                prometheus_config: PrometheusConfig::Disabled,
-                networks: vec![
-                    networks
-                        .get(SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                    networks
-                        .get(SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                ],
-            }))
-        }
-        Tss(GennaroDKGBls381) => gadget_io::tokio::spawn(threshold_bls_protocol::setup_node(NodeInput {
+        Tss(GennaroDKGBls381) => tokio::spawn(threshold_bls_protocol::setup_node(NodeInput {
             clients: vec![
                 TangleRuntime::new(runtime.client()),
                 TangleRuntime::new(runtime.client()),
@@ -277,6 +249,11 @@ where
                     .unwrap(),
             ],
         })),
+        Tss(WstsV2) => {
+            return Err(color_eyre::eyre::eyre!(
+                "WstsV2 is not supported by the shell",
+            ))
+        }
         ZkSaaS(_) => {
             return Err(color_eyre::eyre::eyre!(
                 "ZkSaaS is not supported by the shell",
@@ -285,6 +262,12 @@ where
         LightClientRelaying => {
             return Err(color_eyre::eyre::eyre!(
                 "LightClientRelaying is not supported by the shell",
+            ))
+        }
+        _ => {
+            return Err(color_eyre::eyre::eyre!(
+                "Role {:?} is not supported by the shell",
+                role
             ))
         }
     };
@@ -515,7 +498,7 @@ impl Hash for HashedRoleTypeWrapper {
             | Tss(ZcashFrostP384)
             | Tss(ZcashFrostSecp256k1)
             | Tss(ZcashFrostRistretto255) => "ZcashFrost".hash(state),
-
+            Tss(WstsV2) => "WstsV2".hash(state),
             Tss(SilentShardDKLS23Secp256k1) => "SilentShardDKLS23Secp256k1".hash(state),
             Tss(GennaroDKGBls381) => "GennaroDKGBls381".hash(state),
             ZkSaaS(_) => "ZkSaaS".hash(state),

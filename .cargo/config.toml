@@ -1,2 +1,6 @@
 [target.aarch64-apple-darwin]
 linker = "clang++"
+
+[build]
+# For access to tokio metrics
+rustflags = ["--cfg", "tokio_unstable"]

@@ -14,10 +14,10 @@ use gadget_common::client::{ClientWithApi, JobTypeExt};
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
+use gadget_common::prelude::*;
 use gadget_common::prelude::{KeystoreBackend, Network};
-use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::jobs::zksaas;
-use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::MaxSubmissionLen;
+use gadget_common::tangle_runtime::*;
+use gadget_common::utils::deserialize;
 use gadget_common::Error;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
@@ -366,7 +366,7 @@ async fn zk_setup_rxs(
     gadget_io::tokio::task::spawn(async move {
         while let Some(message) = protocol_message_rx.recv().await {
             let message: GadgetProtocolMessage = message;
-            match bincode2::deserialize::<proto_gen::MpcNetMessage>(&message.payload) {
+            match deserialize::<proto_gen::MpcNetMessage>(&message.payload) {
                 Ok(deserialized) => {
                     let (source, sid) = (deserialized.source, deserialized.sid);
                     if let Some(txs) = txs.get(&source) {

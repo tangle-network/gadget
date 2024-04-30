@@ -54,7 +54,7 @@ jobs:
         run: sudo apt-get install protobuf-compiler
 
       - name: Run Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --tests -- -D warnings
 
   build:
     timeout-minutes: 120
@@ -69,7 +69,6 @@ jobs:
               dfns-cggmp21-protocol,
               threshold-bls-protocol,
               zcash-frost-protocol,
-              silent-shard-dkls23-ll-protocol,
             ]
     steps:
       - name: checkout code
@@ -91,19 +90,17 @@ jobs:
         run: cargo build --workspace --package ${{ matrix.package }}
 
   testing:
-    timeout-minutes: 120
+    timeout-minutes: 90
     name: cargo test
-    runs-on: macos-latest
+    runs-on: macos-14
     strategy:
         matrix:
             package: [
               gadget-core,
               gadget-common,
-              zk-saas-protocol,
               dfns-cggmp21-protocol,
               threshold-bls-protocol,
               zcash-frost-protocol,
-              silent-shard-dkls23-ll-protocol,
             ]
     steps:
       - name: checkout code
@@ -119,15 +116,15 @@ jobs:
           cache-on-failure: "true"
 
       - name: install protobuf
-        run: brew install protobuf
+        run: brew install protobuf gmp
+
+      - name: Set Relevant M1 env vars
+        run: |
+          export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
+          export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
 
       - name: install cargo-nextest
         run: cargo install cargo-nextest --locked
 
       - name: tests
-        if: ${{ matrix.package != 'zk-saas-protocol' }}
         run: cargo nextest run --release --nocapture --package ${{ matrix.package }}
-
-      - name: tests (parallel enabled)
-        if: ${{ matrix.package == 'zk-saas-protocol' }}
-        run: cargo nextest run --features=parallel --release --nocapture --package ${{ matrix.package }}

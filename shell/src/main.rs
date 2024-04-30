@@ -4,6 +4,11 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
 use structopt::StructOpt;
 
+// mod config;
+// mod keystore;
+// mod network;
+// mod shell;
+// mod tangle;
 use gadget_io::*; //{TomlConfig, SupportedChains, Opt};
 
 #[cfg(target_family = "wasm")]

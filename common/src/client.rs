@@ -1,18 +1,12 @@
 use crate::debug_logger::DebugLogger;
+use crate::tangle_runtime::*;
 use async_trait::async_trait;
 use auto_impl::auto_impl;
 use gadget_core::gadget::substrate::{Client, FinalityNotification};
 use sp_core::{ecdsa, ByteArray};
 use sp_core::{sr25519, Pair};
 use std::sync::Arc;
-use subxt::tx::TxPayload;
-use subxt::utils::AccountId32;
-use subxt::OnlineClient;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{
-    MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen,
-    MaxSubmissionLen,
-};
+use tangle_subxt::subxt::{self, tx::TxPayload, OnlineClient};
 
 pub struct JobsClient<C> {
     pub client: C,
@@ -325,8 +319,6 @@ impl<MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen> JobTypeExt
     }
 
     fn get_role_type(&self) -> roles::RoleType {
-        use jobs::JobType::*;
-        use roles::RoleType;
         match self {
             DKGTSSPhaseOne(job) => RoleType::Tss(job.role_type.clone()),
             ZkSaaSPhaseOne(job) => RoleType::ZkSaaS(job.role_type.clone()),
@@ -491,7 +483,7 @@ where
             MaxAdditionalParamsLen,
         >,
     ) -> Result<(), crate::Error> {
-        let tx = tangle_subxt::tangle_testnet_runtime::api::tx()
+        let tx = api::tx()
             .jobs()
             .submit_job_result(role_type, job_id, result);
         match self.submit(&tx).await {

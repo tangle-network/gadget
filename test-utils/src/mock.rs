@@ -47,7 +47,7 @@ use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::prelude::PrometheusConfig;
-use gadget_io::Error;
+use gadget_common::Error;
 use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
 use sp_core::ecdsa;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
@@ -258,7 +258,7 @@ parameter_types! {
     pub const MaxParticipants: u32 = 10;
     #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
     #[derive(Serialize, Deserialize)]
-    pub const MaxKeyLen: u32 = 256;
+    pub const MaxKeyLen: u32 = 2048;
     #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
     #[derive(Serialize, Deserialize)]
     pub const MaxDataLen: u32 = 256;
@@ -276,7 +276,7 @@ parameter_types! {
     pub const MaxRolesPerValidator: u32 = 100;
     #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
     #[derive(Serialize, Deserialize)]
-    pub const MaxAdditionalParamsLen: u32 = 64 * MB;
+    pub const MaxAdditionalParamsLen: u32 = 256;
 }
 
 impl pallet_jobs::Config for Runtime {
@@ -293,10 +293,10 @@ impl pallet_jobs::Config for Runtime {
     type MaxKeyLen = MaxKeyLen;
     type MaxProofLen = MaxProofLen;
     type MaxActiveJobsPerValidator = MaxActiveJobsPerValidator;
-    type PalletId = JobsPalletId;
-    type WeightInfo = ();
-    type MisbehaviorHandler = MockMisbehaviorHandler;
     type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
+    type PalletId = JobsPalletId;
+    type MisbehaviorHandler = MockMisbehaviorHandler;
+    type WeightInfo = ();
 }
 
 pub struct MockMisbehaviorHandler;
@@ -317,8 +317,8 @@ impl pallet_dkg::Config for Runtime {
     type MaxDataLen = MaxDataLen;
     type MaxKeyLen = MaxKeyLen;
     type MaxProofLen = MaxProofLen;
-    type WeightInfo = ();
     type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
+    type WeightInfo = ();
 }
 
 impl pallet_zksaas::Config for Runtime {
@@ -333,8 +333,8 @@ impl pallet_zksaas::Config for Runtime {
     type MaxDataLen = MaxDataLen;
     type MaxKeyLen = MaxKeyLen;
     type MaxProofLen = MaxProofLen;
-    type WeightInfo = ();
     type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
+    type WeightInfo = ();
 }
 
 construct_runtime!(
@@ -699,11 +699,7 @@ pub mod mock_wrapper_client {
     use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{
         jobs, roles,
     };
-    use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{
-        MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen, MaxSignatureLen, MaxSubmissionLen,
-    };
-
-    use gadget_common::prelude::MaxAdditionalParamsLen;
+    use gadget_common::tangle_runtime::*;
     use gadget_core::gadget::substrate::{self, Client};
     use pallet_jobs_rpc_runtime_api::JobsApi;
     use parity_scale_codec::{Decode, Encode};
@@ -828,14 +824,14 @@ pub mod mock_wrapper_client {
                     >,
                 >,
             >,
-            gadget_io::Error,
+            gadget_common::Error,
         > {
             let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
             let validator = tangle_primitives::AccountId::from(validator.0);
             exec_client_function(&self.runtime, move |r| {
                 r.runtime_api()
                     .query_jobs_by_validator(at, validator)
-                    .map_err(|err| gadget_io::Error::ClientError {
+                    .map_err(|err| gadget_common::Error::ClientError {
                         err: format!("{err:?}"),
                     })
                     .map(|r| {
@@ -863,14 +859,14 @@ pub mod mock_wrapper_client {
                     MaxAdditionalParamsLen,
                 >,
             >,
-            gadget_io::Error,
+            gadget_common::Error,
         > {
             let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
             let role_type = Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap();
             exec_client_function(&self.runtime, move |r| {
                 r.runtime_api()
                     .query_job_by_id(at, role_type, job_id)
-                    .map_err(|err| gadget_io::Error::ClientError {
+                    .map_err(|err| gadget_common::Error::ClientError {
                         err: format!("{err:?}"),
                     })
                     .map(|r| r.map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()).unwrap()))
@@ -897,14 +893,14 @@ pub mod mock_wrapper_client {
                     MaxAdditionalParamsLen,
                 >,
             >,
-            gadget_io::Error,
+            gadget_common::Error,
         > {
             let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
             let role_type = Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap();
             exec_client_function(&self.runtime, move |r| {
                 r.runtime_api()
                     .query_job_result(at, role_type, job_id)
-                    .map_err(|err| gadget_io::Error::ClientError {
+                    .map_err(|err| gadget_common::Error::ClientError {
                         err: format!("{err:?}"),
                     })
                     .map(|r| r.map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()).unwrap()))
@@ -912,11 +908,11 @@ pub mod mock_wrapper_client {
             .await
         }
 
-        async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, gadget_io::Error> {
+        async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, gadget_common::Error> {
             let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
             exec_client_function(&self.runtime, move |r| {
                 r.runtime_api().query_next_job_id(at).map_err(|err| {
-                    gadget_io::Error::ClientError {
+                    gadget_common::Error::ClientError {
                         err: format!("{err:?}"),
                     }
                 })
@@ -928,13 +924,13 @@ pub mod mock_wrapper_client {
             &self,
             at: [u8; 32],
             address: AccountId32,
-        ) -> Result<Option<Vec<u8>>, gadget_io::Error> {
+        ) -> Result<Option<Vec<u8>>, gadget_common::Error> {
             let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
             let address = tangle_primitives::AccountId::from(address.0);
             exec_client_function(&self.runtime, move |r| {
                 r.runtime_api()
                     .query_restaker_role_key(at, address)
-                    .map_err(|err| gadget_io::Error::ClientError {
+                    .map_err(|err| gadget_common::Error::ClientError {
                         err: format!("{err:?}"),
                     })
                     .map(|r| r.map(|r| r.to_vec()))
@@ -946,7 +942,7 @@ pub mod mock_wrapper_client {
             &self,
             _at: [u8; 32],
             _address: AccountId32,
-        ) -> Result<Vec<roles::RoleType>, gadget_io::Error> {
+        ) -> Result<Vec<roles::RoleType>, gadget_common::Error> {
             Ok(Default::default())
         }
     }
@@ -1005,7 +1001,7 @@ pub mod mock_wrapper_client {
                 MaxProofLen,
                 MaxAdditionalParamsLen,
             >,
-        ) -> Result<(), gadget_io::Error> {
+        ) -> Result<(), gadget_common::Error> {
             let id = self.id.clone();
             self.ext
                 .execute_with_async(move || {
@@ -1022,7 +1018,7 @@ pub mod mock_wrapper_client {
                             // Job has already been submitted (assumption only for tests)
                             Ok(())
                         } else {
-                            Err(gadget_io::Error::ClientError { err })
+                            Err(gadget_common::Error::ClientError { err })
                         }
                     } else {
                         Ok(())

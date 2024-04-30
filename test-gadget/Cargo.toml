@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 gadget-core = { workspace = true }
+gadget-common = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -23,27 +24,20 @@ wasm-bindgen = "0.2.0"
 
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["macros", "rt"] }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
-bincode2 = { workspace = true }
-hex = "0.4.3"
-md5 = "0.7.0"
-#dist-primitives = { workspace = true }
-#secret-sharing = { workspace = true }
-bytes = { version = "1.5.0", features = ["serde"]}
-wasm-bindgen-test = "0.3.40"
-
-[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread"] }
 
 # zk deps
 mpc-net = { workspace = true }
+dist-primitives = { workspace = true }
+secret-sharing = { workspace = true }
+bytes = { version = "1.5.0", features = ["serde"]}
 ark-std = { version = "*", features = [ "print-trace", "std" ]}
 ark-ec = { version = "*"}
 ark-bls12-377 = { version = "*", features = ["curve"] }
 ark-ff = { version = "*"}
 ark-poly = { version = "*"}
-
-
-#[target.'cfg(target_family = "wasm")'.dev-dependencies]
-
+bincode = { workspace = true }
+serde_json = { workspace = true }
+hex = "0.4.3"
+md5 = "0.7.0"

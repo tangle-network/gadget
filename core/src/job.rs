@@ -42,7 +42,13 @@ pub trait ExecutableJob: Send + 'static {
     async fn execute(&mut self) -> Result<(), JobError> {
         match self.pre_job_hook().await? {
             ProceedWithExecution::True => match self.job().await {
-                Ok(_) => self.post_job_hook().await,
+                Ok(_) => match self.post_job_hook().await {
+                    Ok(_) => Ok(()),
+                    Err(err) => {
+                        self.catch().await;
+                        Err(err)
+                    }
+                },
                 Err(err) => {
                     self.catch().await;
                     Err(err)

@@ -1,10 +1,24 @@
 use futures::Stream;
+use serde::{Deserialize, Serialize};
 use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use sp_core::ecdsa;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 pub const ECDSA_SIGNATURE_LENGTH: usize = 65;
+
+// constrain output types to have the `Deserialize` trait
+pub fn deserialize<'a, T>(data: &'a [u8]) -> Result<T, serde_json::Error>
+where
+    T: Deserialize<'a>,
+{
+    serde_json::from_slice::<T>(data)
+}
+
+// shorthand for the above when `T` isn't needed in the function body
+pub fn serialize(object: &impl Serialize) -> Result<Vec<u8>, serde_json::Error> {
+    serde_json::to_vec(object)
+}
 
 /// A Channel Receiver that can be cloned.
 ///

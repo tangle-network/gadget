@@ -12,16 +12,15 @@ crate-type = ["cdylib", "rlib"]
 gadget-core = { workspace = true }
 gadget-io = { workspace = true, default-features = false }
 protocol-macros = { workspace = true }
-#tokio = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 prometheus = { workspace = true, default-features = false }
-serde = { workspace = true }
 auto_impl = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
 parking_lot = { workspace = true }
 futures-util = { workspace = true }
 hex = { workspace = true }
-bincode2 = { workspace = true }
 serde_bytes = { workspace = true }
 anyhow = { workspace = true }
 futures = { workspace = true }
@@ -53,9 +52,12 @@ linked-hash-map = { workspace = true, optional = true, default-features = false 
 
 parity-scale-codec = { workspace = true, optional = true, default-features = false }
 scale-info = { workspace = true, optional = true, default-features = false, features = ["derive"] }
+thiserror = { workspace = true }
 
 [features]
-default = ["substrate", "std"]
+default = ["substrate", "std", "tangle-testnet"]
+tangle-testnet = []
+tangle-mainnet = []
 substrate = [
   "gadget-core/substrate",
   "gadget-io/default",
