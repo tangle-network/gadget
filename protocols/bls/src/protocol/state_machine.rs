@@ -269,10 +269,12 @@ impl IsCritical for BlsStateMachineError {
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod tests {
     use crate::protocol::state_machine::BlsStateMachine;
     use gadget_common::config::DebugLogger;
     use round_based::dev::AsyncSimulation;
+    use gadget_io::tokio;
 
     #[gadget_io::tokio::test]
     async fn test_bls_state_machine() {

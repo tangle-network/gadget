@@ -5,13 +5,13 @@ members = [
     "common",
     "gadget-io",
     "shell",
-    "protocols/dfns-cggmp21",
-    "protocols/silent-shard-dkls23-ll",
-    "protocols/zk-saas",
-    "protocols/zcash-frost",
+#    "protocols/dfns-cggmp21",
+#    "protocols/silent-shard-dkls23-ll",
+#    "protocols/zk-saas",
+#    "protocols/zcash-frost",
     "protocols/bls",
     "protocols/stub",
-    "test-gadget",
+#    "test-gadget",
     "test-utils",
     "protocol-macros",
 #    "web-shell",
@@ -204,5 +204,5 @@ wasmer = { version = "4.2.6", default-features = false }
 
 #[profile.dev.package.backtrace]
 #opt-level = 3
-[profile.dev]
-opt-level = 's'
+#[profile.dev]
+#opt-level = 3 #'s'

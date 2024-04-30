@@ -9,10 +9,10 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-gadget-common = { workspace = true }
+gadget-common = { workspace = true, features = ["default"] }
 async-trait = { workspace = true }
 futures = { workspace = true }
-gadget-io = { workspace = true, default-features = false }
+gadget-io = { workspace = true, features = ["default"] }
 protocol-macros = { workspace = true }
 gennaro-dkg = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -24,9 +24,9 @@ log = { workspace = true }
 bls12_381_plus = { workspace = true }
 snowbridge-milagro-bls = { workspace = true }
 parking_lot = { workspace = true }
-sp-core = { workspace = true }
+sp-core = { workspace = true, features = ["default"] }
 
 
-[dev-dependencies]
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 test-utils = { workspace = true }
 tangle-primitives = { workspace = true }
