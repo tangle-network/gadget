@@ -11,6 +11,13 @@ pub use gadget_common::prelude::*;
 pub use gadget_core::gadget::substrate::Client;
 pub use shell::generate_node_input;
 
+pub use pallet_dkg;
+pub use pallet_jobs;
+pub use pallet_jobs_rpc_runtime_api;
+pub use pallet_zksaas;
+pub use tangle_primitives;
+pub use tangle_subxt;
+
 /// Should be put inside the main.rs file of the protocol repository
 #[macro_export]
 macro_rules! generate_shell_binary {
