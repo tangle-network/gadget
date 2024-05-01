@@ -9,6 +9,7 @@ use gadget_common::keystore::KeystoreBackend;
 use gadget_common::prelude::FullProtocolConfig;
 use gadget_common::prelude::*;
 use gadget_common::tangle_runtime::*;
+use gadget_common::Error;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use rand::SeedableRng;

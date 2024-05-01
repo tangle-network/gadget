@@ -6,6 +6,7 @@ use gadget_common::full_protocol::SharedOptional;
 use gadget_common::prelude::*;
 use gadget_common::tangle_runtime::*;
 use gadget_common::{generate_protocol, generate_setup_and_run_command};
+use gadget_common::Error;
 use protocol_macros::protocol;
 
 pub mod constants;

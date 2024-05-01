@@ -173,7 +173,7 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
                 }
             }
 
-            pub async fn execute(self) -> Result<(), gadget_io::Error> {
+            pub async fn execute(self) -> Result<(), Error> {
                 use gadget_common::config::ProtocolConfig;
                 self.setup().build().await?.run().await
             }

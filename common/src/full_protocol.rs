@@ -18,7 +18,6 @@ use sp_core::ecdsa::{Public, Signature};
 use sp_core::{keccak_256, sr25519};
 use sp_io::crypto::ecdsa_verify_prehashed;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 

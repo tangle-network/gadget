@@ -21,15 +21,11 @@ use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
 #[cfg(target_family = "wasm")]
 use gadget_io::log;
-use gadget_io::{KeystoreConfig, SubstrateKeystore, KeystoreContainer};
+use gadget_io::{KeystoreConfig, SubstrateKeystore};
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 use tangle_subxt::subxt;
 use tangle_subxt::tangle_testnet_runtime as tangle_runtime;
-
-use crate::config::ShellConfig;
-use crate::network::gossip::GossipHandle;
-use crate::tangle::crypto;
 
 use dfns_cggmp21_protocol::constants::{
     DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
@@ -72,17 +68,17 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
         &config,
         logger.clone(),
         vec![
-            // // dfns-cggmp21
-            // DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
-            // DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
-            // DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
-            // DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
-            // // zcash-frost
-            // ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
-            // ZCASH_FROST_SIGNING_PROTOCOL_NAME,
-            // // gennaro-dkg-bls381
-            // GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
-            // GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
+            // dfns-cggmp21
+            DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
+            DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
+            DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
+            DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
+            // zcash-frost
+            ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
+            ZCASH_FROST_SIGNING_PROTOCOL_NAME,
+            // gennaro-dkg-bls381
+            GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
+            GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
         ],
         role_key,
     )
@@ -226,7 +222,7 @@ where
                 ],
             }))
         }
-        Tss(GennaroDKGBls381) => tokio::spawn(threshold_bls_protocol::setup_node(NodeInput {
+        Tss(GennaroDKGBls381) => gadget_io::tokio::spawn(threshold_bls_protocol::setup_node(NodeInput {
             clients: vec![
                 TangleRuntime::new(runtime.client()),
                 TangleRuntime::new(runtime.client()),

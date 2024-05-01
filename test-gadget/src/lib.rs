@@ -25,10 +25,10 @@ pub async fn simulate_test<T: AsyncProtocolGenerator<TestBundle> + 'static + Clo
     async_proto_gen: T,
 ) -> Result<(), Box<dyn Error>> {
     let (network, recv_handles) = InMemoryNetwork::new(n_peers);
-    let (bc_tx, _bc_rx) = tokio::sync::broadcast::channel(5000);
+    let (bc_tx, _bc_rx) = gadget_io::tokio::sync::broadcast::channel(5000);
     let gadget_futures = FuturesUnordered::new();
     let run_tests_at = Arc::new(run_tests_at);
-    let (count_finished_tx, mut count_finished_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (count_finished_tx, mut count_finished_rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
 
     for (party_id, network_handle) in recv_handles.into_iter().enumerate() {
         // Create a TestGadget
@@ -50,7 +50,7 @@ pub async fn simulate_test<T: AsyncProtocolGenerator<TestBundle> + 'static + Clo
         );
 
         gadget_futures.push(async move {
-            tokio::task::spawn(async move {
+            gadget_io::tokio::task::spawn(async move {
                 GadgetManager::new(gadget).await.map_err(|err| TestError {
                     reason: format!("{err:?}"),
                 })
@@ -86,7 +86,7 @@ pub async fn simulate_test<T: AsyncProtocolGenerator<TestBundle> + 'static + Clo
     // The finished future will end when all gadgets have finished their async protocols properly
     // Thus, select all three futures
 
-    tokio::select! {
+    gadget_io::tokio::select! {
             res0 = blockchain_future => {
                 res0?;
             },
@@ -103,7 +103,7 @@ pub async fn simulate_test<T: AsyncProtocolGenerator<TestBundle> + 'static + Clo
 
 #[derive(Clone)]
 pub struct TestBundle {
-    pub count_finished_tx: tokio::sync::mpsc::UnboundedSender<()>,
+    pub count_finished_tx: gadget_io::tokio::sync::mpsc::UnboundedSender<()>,
     pub network: InMemoryNetwork,
     pub n_peers: usize,
     pub party_id: UserID,

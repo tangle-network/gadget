@@ -17,7 +17,7 @@ parallel = [
 
 [dependencies]
 protocol-macros = { workspace = true }
-gadget-common = { workspace = true }
+gadget-common = { workspace = true, features = ["default"] }
 tokio-rustls = { workspace = true }
 mpc-net = { workspace = true }
 secret-sharing = { workspace = true }
@@ -25,7 +25,7 @@ dist-primitives = { workspace = true }
 groth16 = { workspace = true }
 gadget-core = { workspace = true }
 bincode2 = { workspace = true }
-gadget-io = { workspace = true, default-features = false }
+gadget-io = { workspace = true, features = ["default"] }
 futures-util = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -38,8 +38,8 @@ fflonk = { git = "https://github.com/w3f/fflonk", features = ["std"] }
 futures = { workspace = true }
 
 
-sp-runtime = { workspace = true }
-sp-core = { workspace = true }
+sp-runtime = { workspace = true, features = ["default"] }
+sp-core = { workspace = true, features = ["default"] }
 tangle-primitives = { workspace = true, features = ["verifying"] }
 
 ark-serialize = { workspace = true, default-features = false }
@@ -57,7 +57,7 @@ rayon = { workspace = true, optional = true }
 
 [dev-dependencies]
 ark-std = { workspace = true, default-features = false }
-frame-support = { workspace = true }
+frame-support = { workspace = true, features = ["default"] }
 test-utils = { workspace = true }
 rcgen = "0.12.0"
 gadget-common = { workspace = true, features = ["testing"] }

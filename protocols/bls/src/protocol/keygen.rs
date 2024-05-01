@@ -4,6 +4,7 @@ use gadget_common::gadget::message::UserID;
 use gadget_common::prelude::*;
 use gadget_common::sp_core::{ecdsa, keccak_256, ByteArray, Pair};
 use gadget_common::tangle_runtime::*;
+use gadget_common::Error;
 use itertools::Itertools;
 use round_based::Msg;
 use std::collections::{BTreeMap, HashMap};

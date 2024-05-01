@@ -22,7 +22,7 @@ mod tests {
 
     /// Test a basic gadget with a basic blockchain and a basic network.
     /// This test will run multiple async protocols, and will wait for them all to finish.
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_basic_async_protocol() -> Result<(), Box<dyn Error>> {
         setup_log();
         test_gadget::simulate_test(

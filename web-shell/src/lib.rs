@@ -135,7 +135,7 @@ struct TomlConfig {
 //     options: TomlConfig,
 // }
 
-// #[tokio::main(flavor = "current_thread")]
+// #[gadget_io::tokio::main(flavor = "current_thread")]
 // async fn main() -> Result<()> {
 // color_eyre::install()?;
 // let opt = Opt::from_args();

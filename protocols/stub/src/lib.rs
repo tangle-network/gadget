@@ -160,7 +160,7 @@ generate_setup_and_run_command!(StubProtocol, StubProtocol);
 //         account_id: sr25519::Public,
 //         key_store: ECDSAKeyStore<Self::KeystoreBackend>,
 //         prometheus_config: PrometheusConfig,
-//     ) -> Result<Self, gadget_io::Error> {
+//     ) -> Result<Self, Error> {
 //         Ok(Self {
 //             pallet_tx,
 //             logger,
@@ -193,7 +193,7 @@ generate_setup_and_run_command!(StubProtocol, StubProtocol);
 //         &self,
 //         _job: JobInitMetadata,
 //         _work_manager: &ProtocolWorkManager<WorkManager>,
-//     ) -> Result<Self::AsyncProtocolParameters, gadget_io::Error> {
+//     ) -> Result<Self::AsyncProtocolParameters, Error> {
 //         Ok(())
 //     }
 //

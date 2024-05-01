@@ -43,7 +43,7 @@ pub async fn wait_for_job_completion(
     mock::MaxAdditionalParamsLen,
 > {
     loop {
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
         if let Some(ret) = ext
             .execute_with_async(move || Jobs::known_results(role_type, job_id))
             .await
@@ -77,7 +77,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
             use test_utils::mock::{id_to_public, id_to_sr25519_public, Jobs, MockBackend, RuntimeOrigin};
             use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
 
-            #[tokio::test(flavor = "multi_thread")]
+            #[gadget_io::tokio::test(flavor = "multi_thread")]
             async fn test_externalities_gadget_starts() {
                 test_utils::setup_log();
                 new_test_ext::<1>()
@@ -88,7 +88,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
                     .await
             }
 
-            #[tokio::test(flavor = "multi_thread")]
+            #[gadget_io::tokio::test(flavor = "multi_thread")]
             async fn test_externalities_keygen() {
                 test_utils::setup_log();
                 const N: usize = $n;
@@ -98,7 +98,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
                 assert_eq!(wait_for_keygen::<N, T>(&ext).await, 0);
             }
 
-            #[tokio::test(flavor = "multi_thread")]
+            #[gadget_io::tokio::test(flavor = "multi_thread")]
             async fn test_externalities_signing() {
                 test_utils::setup_log();
                 const N: usize = $n;
@@ -241,7 +241,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
 //     mock::MaxAdditionalParamsLen,
 // > {
 //     loop {
-//         tokio::time::sleep(Duration::from_millis(100)).await;
+//         gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
 //         if let Some(ret) = ext
 //             .execute_with_async(move || Jobs::known_results(role_type, job_id))
 //             .await
@@ -277,7 +277,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
 //             use test_utils::mock::{id_to_public, id_to_sr25519_public, Jobs, MockBackend, RuntimeOrigin};
 //             use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
 //
-//             #[tokio::test(flavor = "multi_thread")]
+//             #[gadget_io::tokio::test(flavor = "multi_thread")]
 //             async fn test_externalities_gadget_starts() {
 //                 test_utils::setup_log();
 //                 new_test_ext::<1>()
@@ -288,7 +288,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
 //                     .await
 //             }
 //
-//             #[tokio::test(flavor = "multi_thread")]
+//             #[gadget_io::tokio::test(flavor = "multi_thread")]
 //             async fn test_externalities_keygen() {
 //                 test_utils::setup_log();
 //                 const N: usize = $n;
@@ -298,7 +298,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
 //                 assert_eq!(wait_for_keygen::<N, T>(&ext).await, 0);
 //             }
 //
-//             #[tokio::test(flavor = "multi_thread")]
+//             #[gadget_io::tokio::test(flavor = "multi_thread")]
 //             async fn test_externalities_signing() {
 //                 test_utils::setup_log();
 //                 const N: usize = $n;

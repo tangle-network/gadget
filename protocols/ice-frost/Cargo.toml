@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 thiserror = { workspace = true }
 #tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
-gadget-common = { workspace = true }
-gadget-io = { workspace = true, default-features = false }
+gadget-common = { workspace = true, features = ["default"] }
+gadget-io = { workspace = true, default-features = false, features = ["default"] }
 gadget-core = { workspace = true }
 protocol-macros = { workspace = true }
 async-trait = { workspace = true }
@@ -34,13 +34,13 @@ ark-secp256k1 = { workspace = true }
 ark-ed25519 = { workspace = true }
 
 
-sp-core = { workspace = true, features = ["std"] }
-sp-io = { workspace = true, features = ["std"] }
-sp-api = { workspace = true, features = ["std"] }
-frame-support = { workspace = true  }
-parity-scale-codec = { workspace = true }
+sp-core = { workspace = true, features = ["default"] }
+sp-io = { workspace = true, features = ["default"] }
+sp-api = { workspace = true, features = ["default"] }
+frame-support = { workspace = true, features = ["default"] }
+parity-scale-codec = { workspace = true, features = ["default"] }
 
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 rand = { workspace = true }
 hex = { workspace = true }

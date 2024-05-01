@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 thiserror = { workspace = true }
 #tokio = { workspace = true, features = ["macros", "time"] }
-gadget-common = {  path = "../../common" , default-features = false }
+gadget-common = { workspace = true, default-features = false }
 gadget-io = { workspace = true, default-features = false }
 gadget-core = { workspace = true }
 protocol-macros = { workspace = true }
@@ -24,7 +24,7 @@ digest = { workspace = true }
 sha2 = { workspace = true }
 rand_core = { workspace = true }
 rand_chacha = { workspace = true }
-dfns-cggmp21 = { workspace = true, optional = true, default-features = false }
+dfns-cggmp21 = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true }
 
 udigest = { workspace = true }
@@ -57,8 +57,6 @@ std = [
     "sp-core/default",
     "sp-io/default",
     "sp-api/default",
-#    "tokio/rt-multi-thread",
-#    "tokio/net",
     "frame-support/default",
     "dfns-cggmp21",
 ]

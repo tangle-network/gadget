@@ -16,6 +16,7 @@ use gadget_common::prelude::*;
 use gadget_common::tangle_runtime::*;
 use gadget_common::tracer::PerfProfiler;
 use gadget_common::{channels, utils};
+use gadget_common::Error;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use itertools::Itertools;
@@ -24,7 +25,7 @@ use round_based_21::{Incoming, Outgoing};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::rounds;
 use crate::rounds::keygen::Msg;
@@ -44,7 +45,7 @@ pub async fn create_next_job<C: ClientWithApi, N: Network, KBE: KeystoreBackend>
     config: &crate::ZcashFrostKeygenProtocol<C, N, KBE>,
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<ZcashFrostKeygenExtraParams, gadget_io::Error> {
+) -> Result<ZcashFrostKeygenExtraParams, Error> {
     let job_id = job.job_id;
     let role_type = job.job_type.get_role_type();
 

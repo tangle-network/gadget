@@ -6,16 +6,17 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gadget-common = { workspace = true }
+gadget-common = { workspace = true, features = ["default"] }
+gadget-io = { workspace = true, features = ["default"] }
 async-trait = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true }
 protocol-macros = { workspace = true }
 parking_lot = { workspace = true }
-sp-core = { workspace = true }
+sp-core = { workspace = true, features = ["default"] }
 rand = { workspace = true }
 wsts = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 itertools = { workspace = true }
 hashbrown = {  version = "0.14.3", features = ["serde"] }
 frost-taproot = { workspace = true }

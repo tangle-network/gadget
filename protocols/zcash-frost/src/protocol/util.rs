@@ -2,6 +2,7 @@
 //! When delivering messages to an async protocol, we want to make sure we don't mix up voting and public key gossip messages
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
 use gadget_common::gadget::message::UserID;
+use gadget_common::Error;
 use rand::seq::SliceRandom;
 use sp_core::ecdsa::Public;
 use std::collections::HashMap;
@@ -12,7 +13,7 @@ use std::collections::HashMap;
 ///
 /// # Errors
 /// If we are not selected to sign the message it will return an error
-/// [`gadget_io::Error::ParticipantNotSelected`].
+/// [`Error::ParticipantNotSelected`].
 ///
 /// # Panics
 /// If the current participant is not in the list of participants it will panic.
@@ -21,7 +22,7 @@ pub fn choose_signers<R: rand::Rng>(
     my_account_id: &Public,
     participants: &[Public],
     t: u16,
-) -> Result<(u16, Vec<u16>, HashMap<UserID, Public>), gadget_io::Error> {
+) -> Result<(u16, Vec<u16>, HashMap<UserID, Public>), Error> {
     let selected_participants = participants
         .choose_multiple(rng, t as usize)
         .cloned()
@@ -54,7 +55,7 @@ pub fn choose_signers<R: rand::Rng>(
         .iter()
         .position(|p| p == &j)
         .map(|i| i as u16)
-        .ok_or_else(|| gadget_io::Error::ParticipantNotSelected {
+        .ok_or_else(|| Error::ParticipantNotSelected {
             id: *my_account_id,
             reason: String::from("we are not selected to sign"),
         })?;

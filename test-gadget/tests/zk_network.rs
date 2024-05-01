@@ -19,7 +19,7 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use test_gadget::message::{TestProtocolMessage, UserID};
     use test_gadget::test_network::InMemoryNetwork;
-    use tokio::sync::Mutex;
+    use gadget_io::tokio::sync::Mutex;
 
     const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60 * 10);
 
@@ -30,7 +30,7 @@ mod tests {
             .try_init();
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[gadget_io::tokio::test(flavor = "multi_thread")]
     async fn test_zk_network() -> Result<(), Box<dyn Error>> {
         setup_log();
         test_gadget::simulate_test(
@@ -67,7 +67,7 @@ mod tests {
                 let mut txs_for_this_peer = vec![];
                 let mut rxs_for_this_peer = vec![];
                 for _ in 0..3 {
-                    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+                    let (tx, rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
                     txs_for_this_peer.push(tx);
                     rxs_for_this_peer.push(Mutex::new(rx));
                 }
@@ -87,7 +87,7 @@ mod tests {
                 associated_task_id: params.associated_task_id,
             };
 
-            tokio::task::spawn(async move {
+            gadget_io::tokio::task::spawn(async move {
                 while let Some(message) = params.protocol_message_rx.recv().await {
                     let deserialized: MpcNetMessage =
                         bincode::deserialize(&message.payload).expect("Failed to deser message");
@@ -157,7 +157,7 @@ mod tests {
 
     struct ZkNetworkOverGadgetNetwork {
         gadget_network: InMemoryNetwork,
-        rxs: HashMap<u32, Vec<Mutex<tokio::sync::mpsc::UnboundedReceiver<MpcNetMessage>>>>,
+        rxs: HashMap<u32, Vec<Mutex<gadget_io::tokio::sync::mpsc::UnboundedReceiver<MpcNetMessage>>>>,
         n_peers: usize,
         party_id: u32,
         associated_block_id: u64,

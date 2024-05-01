@@ -7,7 +7,8 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use tokio::sync::mpsc::{Receiver, Sender};
+use gadget_io::tokio::sync::mpsc::{Receiver, Sender};
+use gadget_io::tokio;
 
 pub struct TrackedCallbackChannel<T, R> {
     inner: Arc<TrackedCallbackChannelInner<T, R>>,
@@ -191,6 +192,7 @@ impl<T, R> Stream for CallbackReceiver<T, R> {
 mod tests {
     use crate::sync::tracked_callback_channel::{TrackedCallbackChannel, TrackedCallbackError};
     use futures::StreamExt;
+    use gadget_io::tokio;
 
     #[tokio::test]
     async fn test_tracked_callback() {
