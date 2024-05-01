@@ -16,7 +16,6 @@ pub mod misc;
 pub mod prelude {
     pub use crate::async_trait;
     pub use crate::protocol;
-    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles;
     pub use crate::BuiltExecutableJobWrapper;
     pub use crate::ClientWithApi;
     pub use crate::DebugLogger;
@@ -46,6 +45,7 @@ pub mod prelude {
     pub use gadget_common::Error;
     pub use gadget_common::{generate_protocol, generate_setup_and_run_command};
     pub use std::sync::Arc;
+    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles;
 
     pub use color_eyre;
     pub use pallet_dkg;
