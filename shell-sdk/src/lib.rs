@@ -14,10 +14,11 @@ pub use shell::generate_node_input;
 /// Should be put inside the main.rs file of the protocol repository
 #[macro_export]
 macro_rules! generate_shell_binary {
-    ($entry_point:expr, $keystore:expr, $n_protocols:expr, $( $role_type:expr ),*) => {
+    ($entry_point:path, $keystore:path, $n_protocols:expr, $( $role_type:pat ),*) => {
         #[tokio::main]
-        async fn main {
+        async fn main() -> Result<(), gadget_common::Error> {
             $crate::run_shell_for_protocol(vec![$($role_type),*], $n_protocols, $keystore, $entry_point).await?;
+            Ok(())
         }
     };
 }

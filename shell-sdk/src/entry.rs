@@ -23,19 +23,27 @@ pub fn keystore_from_base_path(
 }
 
 /// Runs a shell for a given protocol.
-pub async fn run_shell_for_protocol<KBE: KeystoreBackend, T: FnOnce(ShellNodeInput<KBE>) -> F, F>(
+pub async fn run_shell_for_protocol<
+    KBE: KeystoreBackend,
+    T: FnOnce(ShellNodeInput<KBE>) -> F,
+    F,
+    T2: FnOnce() -> F2,
+    F2: SendFuture<'static, KBE>,
+>(
     role_types: Vec<RoleType>,
     n_protocols: usize,
-    keystore_backend: KBE,
+    keystore_backend: T2,
     executor: T,
 ) -> color_eyre::Result<()>
 where
     F: SendFuture<'static, ()>,
 {
     // The args will be passed here by the shell-manager
-    let args = std::env::args().into_iter().collect::<Vec<String>>();
+    // let args = std::env::args().into_iter().collect::<Vec<String>>();
+    let args = std::env::args();
     println!("Args: {args:?}");
     let config: ShellTomlConfig = ShellTomlConfig::from_iter(args);
+    let keystore_backend = keystore_backend().await;
     // setup_shell_logger(config.verbose, config.pretty, "gadget_shell")?;
     let keystore =
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);
