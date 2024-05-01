@@ -11,8 +11,6 @@ pub use gadget_common::prelude::*;
 pub use gadget_core::gadget::substrate::Client;
 pub use shell::generate_node_input;
 
-pub mod misc;
-
 pub mod prelude {
     pub use crate::async_trait;
     pub use crate::protocol;
@@ -61,7 +59,7 @@ pub mod prelude {
 macro_rules! generate_shell_binary {
     ($entry_point:path, $keystore:path, $n_protocols:expr, $($role_type:expr),*) => {
         #[tokio::main]
-        async fn main() -> Result<(), color_eyre::Report> {
+        async fn main() -> color_eyre::Result<()> {
             $crate::run_shell_for_protocol(vec![$($role_type),*], $n_protocols, $keystore, $entry_point).await?;
             Ok(())
         }
