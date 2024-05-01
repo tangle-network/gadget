@@ -10,7 +10,7 @@ git clone https://github.com/webb-tools/tangle.git
 ```
 2. Checkout the `shady/gadget-shell-testing` branch
 ```bash
-git checkout shady/gadget-shell-testing
+git checkout shady/gadget-shell-sdk-testing
 ```
 3. Compile tangle in release mode.
 ```bash
@@ -30,7 +30,7 @@ cargo build --release
 2. Run the `target/release/gadget-shell` binary using the following command:
 
 ```bash
-./target/release/gadget-shell --config shell-configs/local-testnet-0.toml -vvv
+./target/release/gadget-shell-sdk --config shell-sdk-configs/local-testnet-0.toml -vvv
 ```
 
 > Note: The `--config` flag is used to specify the configuration file to use. In this case, we are using the `local-testnet-0.toml` configuration file.
@@ -38,11 +38,11 @@ cargo build --release
 3. Run different shells with different configurations to simulate a network of shells.
 
 ```bash
-./target/release/gadget-shell --config shell-configs/local-testnet-1.toml -vvv
+./target/release/gadget-shell-sdk --config shell-sdk-configs/local-testnet-1.toml -vvv
 ```
 
 ```bash
-./target/release/gadget-shell --config shell-configs/local-testnet-2.toml -vvv
+./target/release/gadget-shell-sdk --config shell-sdk-configs/local-testnet-2.toml -vvv
 ```
 
 > Note: You will notice they automatically connect to each other and start exchanging messages.

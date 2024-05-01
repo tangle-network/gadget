@@ -657,7 +657,7 @@ pub async fn new_test_ext<
         let account_id: AccountId = pair.public().into();
 
         let logger = DebugLogger {
-            peer_id: format!("Peer {node_index}"),
+            id: format!("Peer {node_index}"),
         };
 
         let pallet_tx = Arc::new(TestExternalitiesPalletSubmitter {

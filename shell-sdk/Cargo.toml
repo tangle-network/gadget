@@ -1,7 +1,7 @@
 [package]
-name = "gadget-shell"
+name = "shell-sdk"
 version = "0.1.0"
-authors = ["Shady Khalifa <dev+github@shadykhalifa.me>"]
+authors = ["Thomas Braun <tbraun96@gmail.com>"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
@@ -14,6 +14,7 @@ tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
 tokio = { workspace = true, features = ["full"] }
 url = { workspace = true, features = ["serde"] }
+log = { workspace = true }
 
 gadget-core = { workspace = true }
 gadget-common = { workspace = true }
@@ -30,19 +31,13 @@ tangle-subxt = { workspace = true }
 scale-info = { workspace = true }
 parity-scale-codec = { workspace = true }
 
-structopt = "0.3.26"
-toml = "0.8.11"
 serde = { workspace = true }
-rand = { workspace = true }
-hex = { workspace = true }
-sha2 = "0.10.8"
 futures = { workspace = true }
 bincode = { workspace = true }
-# Protocols
-dfns-cggmp21-protocol = { workspace = true }
-zcash-frost-protocol = { workspace = true }
-threshold-bls-protocol = { workspace = true }
-zk-saas-protocol = { workspace = true, features = ["parallel"] }
+structopt = { workspace = true }
+rand = { workspace = true }
+hex = { workspace = true }
+itertools = { workspace = true }
 
 [dependencies.libp2p]
 workspace = true
@@ -62,7 +57,8 @@ features = [
   "dcutr",
   "relay",
   "ping",
-  "dns"
+  "dns",
+    "autonat"
 ]
 
 [dev-dependencies]

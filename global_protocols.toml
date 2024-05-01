@@ -1,0 +1,25 @@
+#[[protocols]]
+#internal = true
+#role_types = ["GennaroDKGBls381"]
+
+#[[protocols]]
+#internal = true
+#role_types = ["DfnsCGGMP21Secp256k1", "DfnsCGGMP21Secp256r1", "DfnsCGGMP21Stark"]
+
+#[[protocols]]
+#internal = true
+#role_types = ["WstsV2"]
+
+#[[protocols]]
+#internal = true
+#role_types = ["ZcashFrostEd25519", "ZcashFrostEd448", "ZcashFrostP256", "ZcashFrostP384", "ZcashFrostSecp256k1", "ZcashFrostRistretto255"]
+
+#[[protocols]]
+#internal = true
+#role_types = ["ZkSaaSGroth16"]
+
+[[protocols]]
+internal = false
+repository = { git = "https://github.com/webb-tools/silent-shard-dkls23-gadget", rev = "1234" }
+role_types = ["SilentShardDKLS23Secp256k1"]
+bin_hashes = { linux-x86_64="SomeHash", darwin-x86_64="SomeOtherHash", apple-darwin="AnotherHash" }

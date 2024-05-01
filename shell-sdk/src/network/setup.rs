@@ -5,6 +5,7 @@ use crate::network::gossip::{
 use crate::shell::{AGENT_VERSION, CLIENT_VERSION};
 use futures::StreamExt;
 use gadget_common::config::DebugLogger;
+use gadget_common::prelude::KeystoreBackend;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::dial_opts::DialOpts;
@@ -23,13 +24,13 @@ use tokio::sync::{Mutex, RwLock};
 use tokio::task::JoinHandle;
 
 #[allow(clippy::collapsible_else_if)]
-pub async fn setup_libp2p_network(
+pub async fn setup_libp2p_network<KBE: KeystoreBackend>(
     identity: libp2p::identity::Keypair,
-    config: &ShellConfig,
+    config: &ShellConfig<KBE>,
     logger: DebugLogger,
-    networks: Vec<&'static str>,
+    networks: Vec<String>,
     role_key: ecdsa::Pair,
-) -> Result<(HashMap<&'static str, GossipHandle>, JoinHandle<()>), Box<dyn Error>> {
+) -> Result<(HashMap<String, GossipHandle>, JoinHandle<()>), Box<dyn Error>> {
     // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
         .with_tokio()
@@ -49,7 +50,7 @@ pub async fn setup_libp2p_network(
         .with_behaviour(|key, relay_client| {
             // Set a custom gossipsub configuration
             let gossipsub_config = gossipsub::ConfigBuilder::default()
-                .protocol_id_prefix("/tangle/gadget-shell/meshsub")
+                .protocol_id_prefix("/tangle/gadget-shell-sdk/meshsub")
                 .max_transmit_size(MAX_MESSAGE_SIZE)
                 .validate_messages()
                 .validation_mode(gossipsub::ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)
@@ -73,7 +74,7 @@ pub async fn setup_libp2p_network(
                 .iter()
                 .map(|n| {
                     (
-                        StreamProtocol::new(n),
+                        StreamProtocol::try_from_owned(n.clone()).expect("Invalid network name"),
                         request_response::ProtocolSupport::Full,
                     )
                 })
@@ -126,7 +127,7 @@ pub async fn setup_libp2p_network(
     let ecdsa_peer_id_to_libp2p_id = Arc::new(RwLock::new(HashMap::new()));
     let mut handles_ret = HashMap::with_capacity(networks.len());
     for network in networks {
-        let topic = IdentTopic::new(network);
+        let topic = IdentTopic::new(network.clone());
         swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
         let (inbound_tx, inbound_rx) = tokio::sync::mpsc::unbounded_channel();
         let connected_peers = Arc::new(AtomicU32::new(0));

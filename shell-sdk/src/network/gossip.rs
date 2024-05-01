@@ -386,22 +386,24 @@ mod tests {
     use crate::config::{KeystoreConfig, ShellConfig, SubxtConfig};
     use crate::network::setup::setup_libp2p_network;
     use crate::shell::wait_for_connection_to_bootnodes;
+    use gadget_common::keystore::InMemoryBackend;
     use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, Network, WorkManager};
     use gadget_core::job_manager::WorkManagerInterface;
     use sp_core::{ecdsa, Pair};
+    use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 
     #[tokio::test]
     async fn test_gossip_network() {
         color_eyre::install().unwrap();
         test_utils::setup_log();
         const N_PEERS: usize = 3;
-        let networks = vec!["/test-network"];
+        let networks = vec!["/test-network".to_string()];
         let mut all_handles = Vec::new();
         for x in 0..N_PEERS {
             let identity = libp2p::identity::Keypair::generate_ed25519();
 
             let logger = DebugLogger {
-                peer_id: identity.public().to_peer_id().to_string(),
+                id: identity.public().to_peer_id().to_string(),
             };
 
             let (bind_port, bootnodes) = if x == 0 {
@@ -442,6 +444,9 @@ mod tests {
                 bootnodes,
                 base_path: std::path::PathBuf::new(),
                 node_key: [0u8; 32],
+                role_types: vec![RoleType::LightClientRelaying], // Dummy value
+                n_protocols: 1,
+                keystore_backend: InMemoryBackend::default(),
             };
 
             let role_key = get_dummy_role_key_from_index(x);
