@@ -123,6 +123,9 @@ pub fn str_to_role_type<T: AsRef<str>>(role_type: T) -> Option<RoleType> {
         // BLS
         "GennaroDKGBls381" => Some(RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381)),
 
+        // WSTS
+        "WstsV2" => Some(RoleType::Tss(ThresholdSignatureRoleType::WstsV2)),
+
         // Relaying
         "LightClientRelaying" => Some(RoleType::LightClientRelaying),
 

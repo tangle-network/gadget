@@ -1,7 +1,6 @@
 use crate::protocols::resolver::{load_global_config_file, str_to_role_type, ProtocolMetadata};
-use gadget_common::prelude::InMemoryBackend;
 use gadget_common::sp_core::Pair;
-use sha3::Digest;
+use sha2::Digest;
 use shell_sdk::config::defaults;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::shell::load_keys_from_keystore;
@@ -30,23 +29,18 @@ pub mod protocols;
 )]
 struct ShellManagerOpts {
     /// The path to the shell configuration file
-    #[structopt(global = true, parse(from_os_str), short = "s", long = "shell-config")]
+    #[structopt(parse(from_os_str), short = "s", long = "shell-config")]
     shell_config: PathBuf,
-    #[structopt(
-        global = true,
-        parse(from_os_str),
-        short = "p",
-        long = "protocols-config"
-    )]
+    #[structopt(parse(from_os_str), short = "p", long = "protocols-config")]
     protocols_config: PathBuf,
     /// The verbosity level, can be used multiple times
-    #[structopt(long, short = "v", global = true, parse(from_occurrences))]
+    #[structopt(long, short = "v", parse(from_occurrences))]
     verbose: i32,
     /// Whether to use pretty logging
-    #[structopt(global = true, long)]
+    #[structopt(long)]
     pretty: bool,
     /// Wether this is debug mode or not
-    #[structopt(global = true, long)]
+    #[structopt(long, short = "t")]
     test: bool,
 }
 
@@ -55,8 +49,9 @@ async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
     let opt = &ShellManagerOpts::from_args();
     let test_mode = opt.test;
-    entry::setup_shell_logger(opt.verbose, opt.pretty, "gadget_shell")
-        .map_err(|err| msg_to_error(err.to_string()))?;
+    //    entry::setup_shell_logger(opt.verbose, opt.pretty, "gadget")
+    //        .map_err(|err| msg_to_error(err.to_string()))?;
+    entry::setup_log();
     let shell_config_contents = std::fs::read_to_string(opt.shell_config.clone())?;
     let shell_config: ShellTomlConfig =
         toml::from_str(&shell_config_contents).map_err(|err| msg_to_error(err.to_string()))?;
@@ -67,7 +62,7 @@ async fn main() -> color_eyre::Result<()> {
     };
 
     logger.info(format!(
-        "Starting Gadget Shell Manager with {} possible protocols",
+        "Initializing with {} possible protocols",
         global_protocols.len()
     ));
 
@@ -84,12 +79,19 @@ async fn main() -> color_eyre::Result<()> {
     let (_role_key, acco_key) = load_keys_from_keystore(&keystore)?;
     let sub_account_id = AccountId32(acco_key.public().0);
 
-    let keystore_backend = InMemoryBackend::default();
-
+    #[cfg(any(
+        feature = "bls",
+        feature = "dfns",
+        feature = "wsts",
+        feature = "zk-saas-groth",
+        feature = "zcash-frost"
+    ))]
+    let keystore_backend = gadget_common::prelude::InMemoryBackend::default();
     let mut active_shells = HashMap::<String, RunningProtocolType>::new();
 
     let manager_task = async move {
         while let Some(notification) = runtime.get_next_finality_notification().await {
+            println!("Received notification {}", notification.number);
             let onchain_roles = get_subscribed_role_types(
                 &runtime,
                 notification.hash,
@@ -98,9 +100,10 @@ async fn main() -> color_eyre::Result<()> {
                 test_mode,
             )
             .await?;
+            println!("OnChain roles: {onchain_roles:?}");
             // Check to see if local does not have any running on-chain roles
             'inner: for role in &onchain_roles {
-                let role_str = format!("{role:?}");
+                let role_str = get_role_type_str(role);
                 if !active_shells.contains_key(&role_str) {
                     // Add in the protocol
                     for global_protocol in &global_protocols {
@@ -113,15 +116,16 @@ async fn main() -> color_eyre::Result<()> {
                                         // BLS
                                         RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381) => {
                                             #[cfg(feature = "bls")] {
+                                                println!("Running BLS protocol");
                                                 let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 2, keystore_backend.clone(), threshold_bls_protocol::setup_node));
                                                 active_shells.insert(
                                                     role_str,
                                                     RunningProtocolType::Internal(handle),
                                                 );
-
-                                                logger.warn(format!("Unable to run internal protocol {role_types:?} since the `bls` feature is not activated"));
-                                                continue 'inner;
                                             }
+
+                                            logger.warn(format!("Unable to run internal protocol {role_types:?} since the `bls` feature is not activated"));
+                                            continue 'inner;
                                         },
 
                                         // DFNS
@@ -199,10 +203,12 @@ async fn main() -> color_eyre::Result<()> {
                                     bin_hashes,
                                     ..
                                 } => {
-                                    // The hash is sha3_256 of the binary
-                                    let expected_hash = bin_hashes
-                                        .get(&get_formatted_os_string())
-                                        .ok_or_else(|| msg_to_error("No hash for this OS"))?;
+                                    // The hash is sha_256 of the binary
+                                    let host_os = get_formatted_os_string();
+                                    let expected_hash =
+                                        bin_hashes.get(&host_os).ok_or_else(|| {
+                                            msg_to_error(format!("No hash for this OS ({host_os})"))
+                                        })?;
                                     let binary_download_path = format!("protocol-{rev}");
 
                                     // Check if the binary exists, if not download it
@@ -237,12 +243,17 @@ async fn main() -> color_eyre::Result<()> {
 
                                     logger.info(format!("Starting protocol: {role_str}"));
 
+                                    // Spawn the process
+
                                     // Now that the file is loaded, spawn the shell
                                     let process_handle =
                                         tokio::process::Command::new(&binary_download_path)
                                             .kill_on_drop(true)
                                             .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
                                             .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
+                                            .stdin(std::process::Stdio::null())
+                                            .current_dir(&std::env::current_dir()?)
+                                            .envs(std::env::vars().collect::<Vec<_>>())
                                             .args(arguments)
                                             .spawn()?;
 
@@ -355,7 +366,7 @@ async fn generate_process_arguments(
 }
 
 fn hash_bytes_to_hex<T: AsRef<[u8]>>(input: T) -> String {
-    let mut hasher = sha3::Sha3_256::default();
+    let mut hasher = sha2::Sha256::default();
     hasher.update(input);
     hex::encode(hasher.finalize())
 }
@@ -420,4 +431,12 @@ fn get_download_url<T: Into<String>>(git: T, rev: &str) -> String {
 
 fn msg_to_error<T: Into<String>>(msg: T) -> color_eyre::Report {
     color_eyre::Report::msg(msg.into())
+}
+
+fn get_role_type_str(role_type: &RoleType) -> String {
+    match role_type {
+        RoleType::Tss(tss) => format!("{tss:?}"),
+        RoleType::ZkSaaS(zksaas) => format!("{zksaas:?}"),
+        RoleType::LightClientRelaying => format!("{role_type:?}"),
+    }
 }

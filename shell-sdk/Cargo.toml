@@ -1,7 +1,7 @@
 [package]
 name = "shell-sdk"
 version = "0.1.0"
-authors = ["Shady Khalifa <dev+github@shadykhalifa.me>"]
+authors = ["Thomas Braun <tbraun96@gmail.com>"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
@@ -14,6 +14,7 @@ tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
 tokio = { workspace = true, features = ["full"] }
 url = { workspace = true, features = ["serde"] }
+log = { workspace = true }
 
 gadget-core = { workspace = true }
 gadget-common = { workspace = true }

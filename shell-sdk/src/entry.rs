@@ -4,6 +4,9 @@ use gadget_common::prelude::KeystoreBackend;
 use gadget_core::job_manager::SendFuture;
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
+use tracing_subscriber::fmt::SubscriberBuilder;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::EnvFilter;
 
 pub fn keystore_from_base_path(
     base_path: &std::path::Path,
@@ -29,10 +32,11 @@ pub async fn run_shell_for_protocol<KBE: KeystoreBackend, T: FnOnce(ShellNodeInp
 where
     F: SendFuture<'static, ()>,
 {
-    color_eyre::install()?;
     // The args will be passed here by the shell-manager
-    let config: ShellTomlConfig = ShellTomlConfig::from_args();
-    setup_shell_logger(config.verbose, config.pretty, "gadget_shell")?;
+    let args = std::env::args().into_iter().collect::<Vec<String>>();
+    println!("Args: {args:?}");
+    let config: ShellTomlConfig = ShellTomlConfig::from_iter(args);
+    // setup_shell_logger(config.verbose, config.pretty, "gadget_shell")?;
     let keystore =
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);
 
@@ -104,4 +108,14 @@ pub fn setup_shell_logger(verbose: i32, pretty: bool, filter: &str) -> color_eyr
         logger.compact().init();
     }
     Ok(())
+}
+pub fn setup_log() {
+    let _ = SubscriberBuilder::default()
+        .with_env_filter(EnvFilter::from_default_env())
+        .finish()
+        .try_init();
+
+    std::panic::set_hook(Box::new(|info| {
+        log::error!(target: "gadget", "Panic occurred: {info:?}");
+    }));
 }
