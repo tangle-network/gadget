@@ -16,7 +16,8 @@ use libp2p::{
 // use libp2p::{gossipsub, request_response, StreamProtocol};
 use gadget_io::tokio::select;
 use gadget_io::tokio::sync::{Mutex, RwLock};
-use gadget_io::tokio::task::JoinHandle;
+use gadget_io::tokio::task::{JoinHandle, spawn};
+use gadget_io::tokio;
 use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::error::Error;
@@ -128,13 +129,13 @@ pub async fn setup_libp2p_network(
     // Subscribe to all networks
     let mut inbound_mapping = Vec::new();
     let (tx_to_outbound, mut rx_to_outbound) =
-        gadget_io::tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
+        tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
     let ecdsa_peer_id_to_libp2p_id = Arc::new(RwLock::new(HashMap::new()));
     let mut handles_ret = HashMap::with_capacity(networks.len());
     for network in networks {
         let topic = IdentTopic::new(network);
         swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
-        let (inbound_tx, inbound_rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
+        let (inbound_tx, inbound_rx) = tokio::sync::mpsc::unbounded_channel();
         let connected_peers = Arc::new(AtomicU32::new(0));
         inbound_mapping.push((topic.clone(), inbound_tx, connected_peers.clone()));
 
@@ -207,6 +208,6 @@ pub async fn setup_libp2p_network(
         }
     };
 
-    let spawn_handle = gadget_io::tokio::task::spawn(worker);
+    let spawn_handle = spawn(worker);
     Ok((handles_ret, spawn_handle))
 }

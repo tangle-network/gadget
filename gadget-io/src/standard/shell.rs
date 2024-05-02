@@ -85,7 +85,7 @@ pub struct TomlConfig {
     pub chain: SupportedChains,
 }
 
-mod defaults {
+pub mod defaults {
     pub const BIND_PORT: &str = "30555";
     pub const BIND_IP: &str = "0.0.0.0";
     pub const RPC_URL: &str = "ws://127.0.0.1:9944";

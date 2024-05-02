@@ -1,14 +1,5 @@
-
-use lazy_static::lazy_static;
 use prometheus::IntCounter;
 use std::net::SocketAddr;
-
-lazy_static! {
-    pub static ref BYTES_RECEIVED: IntCounter =
-        IntCounter::new("bytes_received", "Bytes Received").expect("metric can be created");
-    pub static ref BYTES_SENT: IntCounter =
-        IntCounter::new("bytes_sent", "Bytes Sent").expect("metric can be created");
-}
 
 #[derive(Debug, Clone)]
 pub enum PrometheusConfig {

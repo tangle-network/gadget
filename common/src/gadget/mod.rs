@@ -289,7 +289,7 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>> SubstrateGadgetModule f
                 }
 
                 Err(Error::ParticipantNotSelected { id, reason }) => {
-                    self.protocol.logger().debug(format!("Participant {id} not selected for job {task_id} with retry id {retry_id} because {reason}", id = id, task_id = hex::encode(task_id), retry_id = retry_id, reason = reason));
+                    self.protocol.logger().debug(format!("Participant {id:?} not selected for job {task_id} with retry id {retry_id} because {reason}", id = id, task_id = hex::encode(task_id), retry_id = retry_id, reason = reason));
                 }
 
                 Err(err) => {

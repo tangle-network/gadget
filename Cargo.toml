@@ -5,18 +5,18 @@ members = [
     "common",
     "gadget-io",
     "shell",
-#    "protocols/dfns-cggmp21",
-#    "protocols/zk-saas",
-#    "protocols/zcash-frost",
-#    "protocols/ice-frost",
-#    "protocols/bls",
-#    "protocols/stub",
+    "protocols/dfns-cggmp21",
+    "protocols/zk-saas",
+    "protocols/zcash-frost",
+    "protocols/ice-frost",
+    "protocols/bls",
+    "protocols/stub",
 #    "test-gadget",
     "test-utils",
     "protocol-macros",
 #    "web-shell",
 #    "test-web",
-#    "protocols/wsts",
+    "protocols/wsts",
 ]
 
 [workspace.dependencies]
@@ -165,9 +165,12 @@ serde_json = "1.0"
 url = { version = "2.5", default-features = false }
 async-trait = "0.1.73"
 log = "0.4.20"
-tracing = { git = "https://github.com/tokio-rs/tracing", default-features = false }
-tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", default-features = false }
-tracing-core = { git = "https://github.com/tokio-rs/tracing", default-features = false }
+#tracing = { git = "https://github.com/tokio-rs/tracing", default-features = false }
+#tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", default-features = false }
+#tracing-core = { git = "https://github.com/tokio-rs/tracing", default-features = false }
+tracing = { version = "0.1", default-features = false }
+tracing-subscriber = { version = "0.3", default-features = false }
+tracing-core = { version = "0.1.32", default-features = false }
 parking_lot = "0.12.1"
 futures = "0.3.30"
 hex = { version = "0.4.3", default-features = false }
@@ -202,8 +205,8 @@ sqlx = "=0.7.3"
 postcard = "1.0.8"
 sha2 = "0.10.8"
 derivation-path = "0.2.0"
-libp2p = { version = "0.53.2", default-features = false }
-#libp2p = { git = "https://github.com/libp2p/rust-libp2p/" }#, rev = "3644879956b6ab93b8d23553a33e8fdb838f576f" }
+#libp2p = { version = "0.53.2", default-features = false }
+libp2p = { git = "https://github.com/libp2p/rust-libp2p/", default-features = false, rev = "3644879956b6ab93b8d23553a33e8fdb838f576f" }
 
 # WebAssembly
 wasmtime = { version = "8.0.1", default-features = false }
@@ -213,5 +216,10 @@ wasmer = { version = "4.2.6", default-features = false }
 
 #[profile.dev.package.backtrace]
 #opt-level = 3
+#[profile.dev]
+#opt-level = 3 #'s'
 [profile.dev]
-opt-level = 3 #'s'
+opt-level = 's'
+debug = 1
+#[profile.dev.package."*"]
+#opt-level = 3

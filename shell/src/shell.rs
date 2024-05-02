@@ -48,7 +48,7 @@ pub struct WasmKeystore;
 #[tracing::instrument(skip(config))]
 pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     // log(&format!("Shell Config: {:?}", config));
-    let (role_key, acco_key) = load_keys_from_keystore(config.keystore)?;
+    let (role_key, acco_key) = load_keys_from_keystore(config.keystore.clone())?;
 
     let network_key = ed25519::Pair::from_seed(&config.node_key);
     // log(&format!(

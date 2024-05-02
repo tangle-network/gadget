@@ -76,6 +76,7 @@ macro_rules! generate_signing_and_keygen_tss_tests {
             use gadget_common::full_protocol::FullProtocolConfig;
             use test_utils::mock::{id_to_public, id_to_sr25519_public, Jobs, MockBackend, RuntimeOrigin};
             use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
+            use gadget_io::tokio;
 
             #[gadget_io::tokio::test(flavor = "multi_thread")]
             async fn test_externalities_gadget_starts() {
