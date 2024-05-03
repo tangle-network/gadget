@@ -5,9 +5,10 @@ use std::{hash::Hash, sync::Arc};
 use crate::{
     keystore::KeystoreContainer,
     tangle::{TangleConfig, TangleRuntime, crypto},
-    network::gossip::GossipHandle,
     config::ShellConfig,
 };
+#[cfg(not(target_family = "wasm"))]
+use crate::network::gossip::GossipHandle;
 use color_eyre::eyre::OptionExt;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::{
@@ -19,21 +20,20 @@ use gadget_common::{
 use gadget_core::gadget::substrate::Client;
 use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
-#[cfg(target_family = "wasm")]
-use gadget_io::log;
 use gadget_io::{KeystoreConfig, SubstrateKeystore};
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 use tangle_subxt::subxt;
 use tangle_subxt::tangle_testnet_runtime as tangle_runtime;
 
-use dfns_cggmp21_protocol::constants::{
-    DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
-    DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME, DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
-};
-use threshold_bls_protocol::constants::{
-    GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME, GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
-};
+
+// use dfns_cggmp21_protocol::constants::{
+//     DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
+//     DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME, DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
+// };
+// use threshold_bls_protocol::constants::{
+//     GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME, GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
+// };
 use zcash_frost_protocol::constants::{
     ZCASH_FROST_KEYGEN_PROTOCOL_NAME, ZCASH_FROST_SIGNING_PROTOCOL_NAME,
 };
@@ -63,84 +63,85 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
         .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))?;
     // log(&format!("LIBP2P KEY PAIR?: {:?}", libp2p_key));
 
-    let (networks, network_task) = crate::network::setup::setup_libp2p_network(
-        libp2p_key,
-        &config,
-        logger.clone(),
-        vec![
-            // dfns-cggmp21
-            DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
-            DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
-            DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
-            DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
-            // zcash-frost
-            ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
-            ZCASH_FROST_SIGNING_PROTOCOL_NAME,
-            // gennaro-dkg-bls381
-            GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
-            GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
-        ],
-        role_key,
-    )
-    .await
-    .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
-
-    // let networks = crate::web::setup_matchbox_network(
-    //     // libp2p_key,
-    //     // &config,
-    //     // logger.clone(),
+    // let (networks, network_task) = crate::network::setup::setup_libp2p_network(
+    //     libp2p_key,
+    //     &config,
+    //     logger.clone(),
     //     vec![
-    //         "test1", "test2", "test3",
-    //         "test4",
-    //         // // dfns-cggmp21
-    //         // DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
-    //         // DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
-    //         // DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
-    //         // DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
-    //         // // zcash-frost
-    //         // ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
-    //         // ZCASH_FROST_SIGNING_PROTOCOL_NAME,
-    //         // // silent-shared-dkls23
-    //         // SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME,
-    //         // SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME,
-    //         // // gennaro-dkg-bls381
-    //         // GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
-    //         // GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
+    //         // dfns-cggmp21
+    //         DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
+    //         DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
+    //         DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
+    //         DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
+    //         // zcash-frost
+    //         ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
+    //         ZCASH_FROST_SIGNING_PROTOCOL_NAME,
+    //         // gennaro-dkg-bls381
+    //         GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
+    //         GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
     //     ],
-    //     // role_key,
+    //     role_key,
     // )
     // .await
     // .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
+    let networks = crate::web::setup_matchbox_network(
+        // libp2p_key,
+        // &config,
+        // logger.clone(),
+        vec![
+            // "test1", "test2", "test3",
+            // "test4",
+            // // dfns-cggmp21
+            // DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
+            // DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
+            // DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
+            // DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
+            // zcash-frost
+            ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
+            ZCASH_FROST_SIGNING_PROTOCOL_NAME,
+            // // silent-shared-dkls23
+            // SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME,
+            // SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME,
+            // // gennaro-dkg-bls381
+            // GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
+            // GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
+        ],
+        // role_key,
+    )
+    .await
+    .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
+
     logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
-    wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
+    // wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
 
-    let protocols =
-        start_required_protocols(&config.subxt, networks, acco_key, logger, wrapped_keystore);
+    // let protocols =
+    //     start_required_protocols(&config.subxt, networks, acco_key, logger, wrapped_keystore);
 
 
-    // let protocols = crate::web::start_protocols_web(&config.subxt, networks, acco_key, logger, wrapped_keystore)
-    //     .await
-    //     .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;;
+    let protocols = crate::web::start_protocols_web(&config.subxt, networks, acco_key, logger, wrapped_keystore)
+        .await
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;;
 
-    let ctrl_c = gadget_io::tokio::signal::ctrl_c();
-
-    gadget_io::tokio::select! {
-        // _ = ctrl_c => {
-        //     tracing::info!("Received Ctrl-C, shutting down");
-        // }
-        res = protocols => {
-            if let Err(e) = res {
-                tracing::error!(error = ?e, "Protocols watcher task unexpectedly shutdown");
-            }
-        }
-        _ = network_task => {
-            tracing::error!("Network task unexpectedly shutdown")
-        }
-    }
+    // let ctrl_c = gadget_io::tokio::signal::ctrl_c();
+    //
+    // gadget_io::tokio::select! {
+    //     // _ = ctrl_c => {
+    //     //     tracing::info!("Received Ctrl-C, shutting down");
+    //     // }
+    //     res = protocols => {
+    //         if let Err(e) = res {
+    //             tracing::error!(error = ?e, "Protocols watcher task unexpectedly shutdown");
+    //         }
+    //     }
+    //     _ = network_task => {
+    //         tracing::error!("Network task unexpectedly shutdown")
+    //     }
+    // }
     Ok(())
 }
 
+#[cfg(not(target_family = "wasm"))]
 pub fn start_protocol_by_role<KBE>(
     role: RoleType,
     runtime: TangleRuntime,
@@ -415,6 +416,7 @@ pub fn load_keys_from_keystore<T: SubstrateKeystore>(
     Ok((keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?))
 }
 
+#[cfg(not(target_family = "wasm"))]
 pub async fn wait_for_connection_to_bootnodes(
     config: &ShellConfig,
     handles: &HashMap<&'static str, GossipHandle>,
@@ -453,13 +455,13 @@ pub async fn wait_for_connection_to_bootnodes(
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-enum Diff<T> {
+pub enum Diff<T> {
     Added(T),
     Removed(T),
 }
 
 #[derive(Eq, Clone)]
-struct HashedRoleTypeWrapper(RoleType);
+pub struct HashedRoleTypeWrapper(pub RoleType);
 
 impl std::fmt::Debug for HashedRoleTypeWrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -485,25 +487,26 @@ impl Hash for HashedRoleTypeWrapper {
         use RoleType::*;
         use ThresholdSignatureRoleType::*;
         match self.0 {
-            Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
-                "DfnsCGGMP21".hash(state)
-            }
+            // Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
+            //     "DfnsCGGMP21".hash(state)
+            // }
             Tss(ZcashFrostEd25519)
             | Tss(ZcashFrostEd448)
             | Tss(ZcashFrostP256)
             | Tss(ZcashFrostP384)
             | Tss(ZcashFrostSecp256k1)
             | Tss(ZcashFrostRistretto255) => "ZcashFrost".hash(state),
-            Tss(WstsV2) => "WstsV2".hash(state),
-            Tss(SilentShardDKLS23Secp256k1) => "SilentShardDKLS23Secp256k1".hash(state),
-            Tss(GennaroDKGBls381) => "GennaroDKGBls381".hash(state),
+            // Tss(WstsV2) => "WstsV2".hash(state),
+            // Tss(SilentShardDKLS23Secp256k1) => "SilentShardDKLS23Secp256k1".hash(state),
+            // Tss(GennaroDKGBls381) => "GennaroDKGBls381".hash(state),
             ZkSaaS(_) => "ZkSaaS".hash(state),
             LightClientRelaying => "LightClientRelaying".hash(state),
+            _ => "none".hash(state)
         }
     }
 }
 
-fn vec_diff<T: PartialEq + Eq + Hash + Clone, I: Iterator<Item = T>>(a: I, b: I) -> Vec<Diff<T>> {
+pub fn vec_diff<T: PartialEq + Eq + Hash + Clone, I: Iterator<Item = T>>(a: I, b: I) -> Vec<Diff<T>> {
     let a_set = HashSet::<T, std::hash::RandomState>::from_iter(a);
     let b_set = HashSet::from_iter(b);
     // find the elements that are in a but not in b (removed)

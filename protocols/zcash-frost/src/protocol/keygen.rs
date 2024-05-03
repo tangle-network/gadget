@@ -469,7 +469,7 @@ fn verify_generated_dkg_key_ecdsa(
             // Ensure no duplicate signatures
             assert!(!known_signers.contains(&authority), "DuplicateSignature");
 
-            logger.debug(format!("Verified signature from {}", authority));
+            logger.debug(format!("Verified signature from {:?}", authority));
             known_signers.push(authority);
         }
     }

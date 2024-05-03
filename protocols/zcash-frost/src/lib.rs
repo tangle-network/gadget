@@ -1,4 +1,3 @@
-#[warn(unused_imports)]
 use crate::protocol::keygen::ZcashFrostKeygenExtraParams;
 use crate::protocol::sign::ZcashFrostSigningExtraParams;
 use async_trait::async_trait;

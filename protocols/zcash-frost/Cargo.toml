@@ -9,13 +9,13 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 thiserror = { workspace = true }
 #tokio = { workspace = true, features = ["macros", "time"] }
-gadget-common = { workspace = true, default-features = false }
+gadget-common = { workspace = true, default-features = false, features = ["tangle-testnet"] }
 gadget-io = { workspace = true, default-features = false }
 gadget-core = { workspace = true }
 protocol-macros = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
-curv = { workspace = true }
+#curv = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 round-based = { workspace = true }
@@ -50,7 +50,7 @@ hex = { workspace = true }
 parking_lot = { workspace = true }
 
 [features]
-default = ["std"]
+default = ["wasm"]
 std = [
     "gadget-common/default",
     "gadget-io/default",
@@ -71,7 +71,7 @@ wasm = [
     "getrandom/js",
 ]
 
-[dev-dependencies]
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 test-utils = { workspace = true }
 tangle-primitives = { workspace = true }
 

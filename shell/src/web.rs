@@ -12,9 +12,10 @@ use std::panic;
 use std::sync::atomic::AtomicU32;
 use std::{error::Error, fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
 
-use tangle_subxt::{
-    subxt, tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType,
-};
+use tangle_subxt::subxt;
+use tangle_subxt::tangle_testnet_runtime as tangle_runtime;
+use tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
+use tangle_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 
 use structopt::StructOpt;
 use url::Url;
@@ -25,25 +26,29 @@ use wasm_bindgen_futures;
 use crate::config;
 use crate::config::ShellConfig;
 use crate::shell;
+use crate::shell::{HashedRoleTypeWrapper, vec_diff, Diff};
+use crate::tangle::{TangleRuntime, TangleConfig};
 
 use gadget_common::prelude::*;
 use gadget_common::ExecutableJob;
+use gadget_core::gadget::substrate::Client;
 use tsify::Tsify;
 
 use futures::{select, FutureExt};
 use futures_timer::Delay;
-use matchbox_socket::{PeerState, WebRtcSocket};
+use matchbox_socket::{PeerId, PeerState, WebRtcSocket};
 use std::time::Duration;
 
 // use wasm_bindgen_test::wasm_bindgen_test;
 use log::info;
+use zcash_frost_protocol::constants::{ZCASH_FROST_KEYGEN_PROTOCOL_NAME, ZCASH_FROST_SIGNING_PROTOCOL_NAME};
 
 #[derive(Clone)]
 pub struct MatchboxHandle {
     pub network: &'static str,
     pub connected_peers: Arc<AtomicU32>,
-    pub tx_to_outbound: gadget_io::tokio::sync::mpsc::UnboundedSender<String>,
-    pub rx_from_inbound: Arc<Mutex<UnboundedReceiver<String>>>,
+    pub tx_to_outbound: gadget_io::tokio::sync::mpsc::UnboundedSender<IntraNodePayload>,
+    pub rx_from_inbound: Arc<Mutex<UnboundedReceiver<Vec<u8>>>>,
     pub ecdsa_peer_id_to_matchbox_id: Arc<RwLock<HashMap<ecdsa::Public, matchbox_socket::PeerId>>>,
 }
 
@@ -55,6 +60,118 @@ impl MatchboxHandle {
 
     pub fn topic(&self) -> &str {
         self.network.clone()
+    }
+}
+
+pub struct IntraNodePayload {
+    topic: String,
+    payload: MatchboxGossipOrRequestResponse,
+    message_type: MessageType,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum MatchboxGossipOrRequestResponse {
+    Gossip(MatchboxMessage),
+    Request(MyBehaviourRequest),
+    Response(MyBehaviourResponse),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MatchboxMessage {
+    pub topic: String,
+    pub raw_payload: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum MyBehaviourRequest {
+    Handshake {
+        ecdsa_public_key: ecdsa::Public,
+        signature: ecdsa::Signature,
+    },
+    Message {
+        topic: String,
+        raw_payload: Vec<u8>,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum MyBehaviourResponse {
+    Handshaked {
+        ecdsa_public_key: ecdsa::Public,
+        signature: ecdsa::Signature,
+    },
+    MessageHandled,
+}
+
+enum MessageType {
+    Broadcast,
+    P2P(PeerId),
+}
+
+#[async_trait]
+impl Network for MatchboxHandle {
+    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+        let mut lock = self
+            .rx_from_inbound
+            .try_lock()
+            .expect("There should be only a single caller for `next_message`");
+
+        let message = lock.recv().await?;
+        match bincode::deserialize(&message) {
+            Ok(message) => Some(message),
+            Err(e) => {
+                // self.logger
+                //     .error(format!("Failed to deserialize message: {e}"));
+                drop(lock);
+                self.next_message().await
+            }
+        }
+    }
+
+    async fn send_message(
+        &self,
+        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
+    ) -> Result<(), gadget_common::Error> {
+        let message_type = if let Some(to) = message.to_network_id {
+            let matchbox_id = self
+                .ecdsa_peer_id_to_matchbox_id
+                .read()
+                .await
+                .get(&to)
+                .cloned()
+                .ok_or_else(|| gadget_common::Error::NetworkError {
+                    err: format!(
+                        "No Matchbox ID found for ecdsa public key: {to:?}. No handshake happened?"
+                    ),
+                })?;
+
+            MessageType::P2P(matchbox_id)
+        } else {
+            MessageType::Broadcast
+        };
+
+        let payload_inner = match message_type {
+            MessageType::Broadcast => MatchboxGossipOrRequestResponse::Gossip(MatchboxMessage {
+                topic: self.topic().to_string(),
+                raw_payload: bincode::serialize(&message).expect("Should serialize"),
+            }),
+            MessageType::P2P(_) => MatchboxGossipOrRequestResponse::Request(MyBehaviourRequest::Message {
+                topic: self.topic().to_string(),
+                raw_payload: bincode::serialize(&message).expect("Should serialize"),
+            }),
+        };
+
+        let payload = IntraNodePayload {
+            topic: self.topic().to_string().clone(),
+            payload: payload_inner,
+            message_type,
+        };
+
+        self.tx_to_outbound
+            .send(payload)
+            .map_err(|e| gadget_common::Error::NetworkError {
+                err: format!("Failed to send intra-node payload: {e}"),
+            })
     }
 }
 
@@ -150,12 +267,12 @@ pub async fn setup_matchbox_network(
     // Subscribe to all networks
     let mut inbound_mapping = Vec::new();
     let (tx_to_outbound, mut rx_to_outbound) =
-        gadget_io::tokio::sync::mpsc::unbounded_channel::<String>();
+        gadget_io::tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
     let ecdsa_peer_id_to_matchbox_id = Arc::new(RwLock::new(HashMap::new()));
     let mut handles_ret = HashMap::with_capacity(networks.len());
     for network in networks {
         log(&format!("MATCHBOX NETWORK LOOP ITERATION: {:?}", network));
-        let (inbound_tx, inbound_rx) = gadget_io::tokio::sync::mpsc::unbounded_channel::<String>();
+        let (inbound_tx, inbound_rx) = gadget_io::tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
         let connected_peers = Arc::new(AtomicU32::new(0));
         inbound_mapping.push((network.clone(), inbound_tx, connected_peers.clone()));
         handles_ret.insert(
@@ -252,70 +369,162 @@ pub async fn start_protocols_web<KBE>(
 where
     KBE: KeystoreBackend,
 {
+    log(&format!("ENTERING START PROTOCOLS WEB"));
     let sub_account_id = subxt::utils::AccountId32(acco_key.public().0);
     // Create a loop that listens to new finality notifications,
     // queries the chain for the current restaking roles,
     // and then starts the required protocols based on the roles.
-    // let mut current_roles = Vec::new();
-    // let mut running_protocols = HashMap::<HashedRoleTypeWrapper, gadget_io::tokio::task::AbortHandle>::new();
-    //
-    // let subxt_client =
-    //     subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&subxt_config.endpoint).await?;
-    //
-    // let pair_signer = PairSigner::new(acco_key.clone());
-    // let pallet_tx_submitter =
-    //     SubxtPalletSubmitter::with_client(subxt_client.clone(), pair_signer, logger.clone());
-    // let pallet_tx = Arc::new(pallet_tx_submitter);
-    // let runtime = TangleRuntime::new(subxt_client);
-    // while let Some(notification) = runtime.get_next_finality_notification().await {
-    //     let roles = runtime
-    //         .query_restaker_roles(notification.hash, sub_account_id.clone())
-    //         .await?;
-    //     logger.trace(format!("Got roles: {roles:?}"));
-    //     if roles == current_roles {
-    //         logger.trace("Roles have not changed, skipping");
-    //         continue;
-    //     }
-    //     let diff = vec_diff(
-    //         current_roles.iter().cloned().map(HashedRoleTypeWrapper),
-    //         roles.iter().cloned().map(HashedRoleTypeWrapper),
-    //     );
-    //     if diff.is_empty() {
-    //         logger.trace("No roles diff, skipping");
-    //         continue;
-    //     }
-    //     logger.trace(format!("Roles diff: {diff:?}"));
-    //     for d in diff {
-    //         match d {
-    //             Diff::Added(role) => {
-    //                 logger.debug(format!("Trying to start protocol for role {:?}", role.0));
-    //                 let handle = start_protocol_by_role(
-    //                     role.0.clone(),
-    //                     TangleRuntime::new(runtime.client()),
-    //                     networks.clone(),
-    //                     acco_key.public(),
-    //                     logger.clone(),
-    //                     pallet_tx.clone(),
-    //                     keystore.clone(),
-    //                 )?;
-    //                 running_protocols.insert(role, handle);
-    //             }
-    //             Diff::Removed(role) => {
-    //                 logger.debug(format!("Trying to stop protocol for role {:?}", role.0));
-    //                 let maybe_handle = running_protocols.remove(&role);
-    //                 if let Some(handle) = maybe_handle {
-    //                     handle.abort();
-    //                     logger.warn(format!(
-    //                         "Aborted protocol for role {:?}. Reason: Role Removed from profile",
-    //                         role.0
-    //                     ));
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     current_roles = roles;
-    // }
+    log(&format!("INITIALIZING VEC AND MAP"));
+    let mut current_roles = Vec::new();
+    let mut running_protocols = HashMap::<HashedRoleTypeWrapper, gadget_io::tokio::task::AbortHandle>::new();
+
+    log(&format!("CREATING SUBXT CLIENT"));
+    let subxt_client =
+        subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&subxt_config.endpoint).await?;
+
+    log(&format!("CREATING PAIR SIGNER"));
+    let pair_signer = PairSigner::new(acco_key.clone());
+    log(&format!("CREATING PALLET TX SUBMITTER"));
+    let pallet_tx_submitter =
+        SubxtPalletSubmitter::with_client(subxt_client.clone(), pair_signer, logger.clone());
+    log(&format!("CREATING PALLET TX"));
+    let pallet_tx = Arc::new(pallet_tx_submitter);
+    log(&format!("CREATING RUNTIME"));
+    let runtime = TangleRuntime::new(subxt_client);
+    log(&format!("WEB PROTOCOLS ABOUT TO ENTER NOTIFICATION LOOP"));
+    while let Some(notification) = runtime.get_next_finality_notification().await {
+        log(&format!("WEB PROTOCOLS NOTIFICATION LOOP ITERATION: {notification:?}"));
+        let roles = runtime
+            .query_restaker_roles(notification.hash, sub_account_id.clone())
+            .await?;
+        logger.trace(format!("Got roles: {roles:?}"));
+        if roles == current_roles {
+            logger.trace("Roles have not changed, skipping");
+            continue;
+        }
+        let diff = vec_diff(
+            current_roles.iter().cloned().map(HashedRoleTypeWrapper),
+            roles.iter().cloned().map(HashedRoleTypeWrapper),
+        );
+        if diff.is_empty() {
+            logger.trace("No roles diff, skipping");
+            continue;
+        }
+        logger.trace(format!("Roles diff: {diff:?}"));
+        // for d in diff {
+        //     match d {
+        //         Diff::Added(role) => {
+        //             logger.debug(format!("Trying to start protocol for role {:?}", role.0));
+        //             let handle = start_web_protocol_by_role(
+        //                 role.0.clone(),
+        //                 TangleRuntime::new(runtime.client()),
+        //                 networks.clone(),
+        //                 acco_key.public(),
+        //                 logger.clone(),
+        //                 pallet_tx.clone(),
+        //                 keystore.clone(),
+        //             )?;
+        //             running_protocols.insert(role, handle);
+        //         }
+        //         Diff::Removed(role) => {
+        //             logger.debug(format!("Trying to stop protocol for role {:?}", role.0));
+        //             let maybe_handle = running_protocols.remove(&role);
+        //             if let Some(handle) = maybe_handle {
+        //                 handle.abort();
+        //                 logger.warn(format!(
+        //                     "Aborted protocol for role {:?}. Reason: Role Removed from profile",
+        //                     role.0
+        //                 ));
+        //             }
+        //         }
+        //     }
+        // }
+        // current_roles = roles;
+    }
+    log(&format!("WEB PROTOCOLS COMPLETED... EXITING START PROTOCOLS WEB"));
     Ok(())
+}
+
+pub fn start_web_protocol_by_role<KBE>(
+    role: RoleType,
+    runtime: TangleRuntime,
+    networks: HashMap<&'static str, MatchboxHandle>,
+    account_id: sr25519::Public,
+    logger: DebugLogger,
+    pallet_tx: Arc<SubxtPalletSubmitter<TangleConfig, PairSigner<TangleConfig>>>,
+    keystore: ECDSAKeyStore<KBE>,
+) -> color_eyre::Result<gadget_io::tokio::task::AbortHandle>
+    where
+        KBE: KeystoreBackend,
+{
+    use RoleType::*;
+    use ThresholdSignatureRoleType::*;
+    let handle = match role {
+        Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
+            return Err(color_eyre::eyre::eyre!(
+                "DfnsCGGMP21 is not supported by the wb shell",
+            ))
+        }
+
+        Tss(ZcashFrostEd25519)
+        | Tss(ZcashFrostEd448)
+        | Tss(ZcashFrostP256)
+        | Tss(ZcashFrostP384)
+        | Tss(ZcashFrostSecp256k1)
+        | Tss(ZcashFrostRistretto255) => {
+            gadget_io::tokio::spawn(zcash_frost_protocol::setup_node(NodeInput {
+                clients: vec![
+                    TangleRuntime::new(runtime.client()),
+                    TangleRuntime::new(runtime.client()),
+                ],
+                account_id,
+                logger,
+                pallet_tx,
+                keystore,
+                node_index: 0,
+                additional_params: (),
+                prometheus_config: PrometheusConfig::Disabled,
+                networks: vec![
+                    networks
+                        .get(ZCASH_FROST_KEYGEN_PROTOCOL_NAME)
+                        .cloned()
+                        .unwrap(),
+                    networks
+                        .get(ZCASH_FROST_SIGNING_PROTOCOL_NAME)
+                        .cloned()
+                        .unwrap(),
+                ],
+            }))
+        }
+        Tss(GennaroDKGBls381) => {
+            return Err(color_eyre::eyre::eyre!(
+                "GennaroDKGBls381 is not supported by the web shell",
+            ))
+        }
+        Tss(WstsV2) => {
+            return Err(color_eyre::eyre::eyre!(
+                "WstsV2 is not supported by the web shell",
+            ))
+        }
+        ZkSaaS(_) => {
+            return Err(color_eyre::eyre::eyre!(
+                "ZkSaaS is not supported by the web shell",
+            ))
+        }
+        LightClientRelaying => {
+            return Err(color_eyre::eyre::eyre!(
+                "LightClientRelaying is not supported by the web shell",
+            ))
+        }
+        _ => {
+            return Err(color_eyre::eyre::eyre!(
+                "Role {:?} is not supported by the web shell",
+                role
+            ))
+        }
+    };
+
+    Ok(handle.abort_handle())
 }
 
 #[cfg(test)]
@@ -335,14 +544,14 @@ mod tests {
     async fn test_web_main() {
         //-> Result<JsValue, JsValue> {
         let config = TomlConfig {
-            bind_ip: "127.0.0.1".to_string().into(),
-            bind_port: 8081,
-            url: "https://github.com/webb-tools/gadget".to_string(),
+            bind_ip: "0.0.0.0".to_string().into(),
+            bind_port: 30556,
+            url: "ws://127.0.0.1:9944".to_string(),//"https://github.com/webb-tools/gadget".to_string(),
             bootnodes: vec![
-                "/ip4/127.0.0.1/udp/1234",
+                // "/ip4/127.0.0.1/udp/1234",
                 "foo",
-                "/ip4/127.0.0.1/udp/1235",
-                "/ip4/127.0.0.1/udp/1236",
+                // "/ip4/127.0.0.1/udp/1235",
+                // "/ip4/127.0.0.1/udp/1236",
             ]
             .iter()
             .map(|&s| s.to_string())
@@ -350,7 +559,7 @@ mod tests {
             node_key: Some(
                 "0000000000000000000000000000000000000000000000000000000000000001".to_string(),
             ),
-            base_path: "test/path/to/".into(),
+            base_path: "../../tangle/tmp/bob".into(),
             keystore_password: None,
             chain: SupportedChains::LocalTestnet,
         };
@@ -363,8 +572,10 @@ mod tests {
         };
 
         let keys = vec![
-            "aaa88bec51838e7ec434d58f687b0c606b322f4e63ba9a9af2b6f1cb34f718be",
-            "0000000000000000000000000000000000000000000000000000000000000002",
+            "398f0c28f98885e046333d4a41c19cee4c37368a9832c6502f6cfd182e2aef89",
+            "79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf",
+            //"aaa88bec51838e7ec434d58f687b0c606b322f4e63ba9a9af2b6f1cb34f718be",
+            // "0000000000000000000000000000000000000000000000000000000000000002",
         ]
         .iter()
         .map(|&s| s.to_string())

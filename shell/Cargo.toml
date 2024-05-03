@@ -9,7 +9,7 @@ edition = "2021"
 crate-type = ["cdylib"]#, "rlib"]
 
 [features]
-default = ["wasm"]#std", "all-internal-protocols"]
+default = ["wasm", "zcash-frost-protocol"]#std", "all-internal-protocols"]
 std = [
   "tangle-subxt/default",
   "gadget-common/default",

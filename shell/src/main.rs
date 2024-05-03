@@ -10,6 +10,7 @@ mod network;
 mod shell;
 mod tangle;
 use gadget_io::*; //{TomlConfig, SupportedChains, Opt};
+mod web;
 
 #[cfg(target_family = "wasm")]
 use wasm_bindgen::{prelude::*, JsValue};
