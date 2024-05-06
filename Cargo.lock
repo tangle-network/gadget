@@ -4404,6 +4404,7 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasmtimer",
 ]
 
 [[package]]
@@ -4443,6 +4444,7 @@ dependencies = [
  "tangle-subxt",
  "test-utils",
  "threshold-bls-protocol",
+ "tokio_with_wasm",
  "toml 0.8.12",
  "tracing 0.1.40",
  "tracing-subscriber 0.3.18",
@@ -13552,6 +13554,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio_with_wasm"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9e6a955eb27969f01cdc13784eb46dbadda5f75dee2de887bd538ba987a87b8"
+dependencies = [
+ "futures-channel",
+ "js-sys",
+ "tokio",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "toml"
 version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14915,6 +14931,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasmtimer"
+version = "0.2.0"
+source = "git+https://github.com/whizsid/wasmtimer-rs.git#fc507844b02d7f8abac107e3a46f404d75753e8e"
+dependencies = [
+ "futures",
+ "js-sys",
+ "parking_lot 0.12.1",
+ "pin-utils",
+ "slab",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "wast"
 version = "206.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15758,7 +15787,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "cggmp21",
- "curv-kzen",
  "digest 0.10.7",
  "frame-support",
  "frost-core 1.0.0",

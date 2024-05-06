@@ -19,8 +19,15 @@ pub use standard::{
 #[cfg(target_family = "wasm")]
 pub use tokio;
 // pub use tokio_wasm as tokio;
+
 #[cfg(not(target_family = "wasm"))]
 pub use tokio;
+
+#[cfg(target_family = "wasm")]
+pub use wasmtimer::tokio as time;
+
+#[cfg(not(target_family = "wasm"))]
+pub use tokio::time as time;
 
 #[cfg(target_family = "wasm")]
 use wasm_bindgen::{

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use gadget_io::tokio::sync::MutexGuard;
-use gadget_io::tokio::time::error::Elapsed;
+use gadget_io::time::error::Elapsed;
 
 #[async_trait]
 pub trait TokioMutexExt<T: Send> {
@@ -21,6 +21,6 @@ impl<T: Send> TokioMutexExt<T> for gadget_io::tokio::sync::Mutex<T> {
         &self,
         timeout: std::time::Duration,
     ) -> Result<MutexGuard<T>, Elapsed> {
-        gadget_io::tokio::time::timeout(timeout, self.lock()).await
+        gadget_io::time::timeout(timeout, self.lock()).await
     }
 }

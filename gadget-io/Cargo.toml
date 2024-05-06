@@ -35,6 +35,7 @@ js-sys = "0.3.69"
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
 sp-core = { workspace = true, features = ["serde", "full_crypto"] }
 tokio = { workspace = true, features = ["sync", "macros", "io-util", "rt", "time"] }
+wasmtimer = { git = "https://github.com/whizsid/wasmtimer-rs.git" }
 
 p256 = { workspace = true, features = ["alloc", "ecdsa"], default-features = false }
 

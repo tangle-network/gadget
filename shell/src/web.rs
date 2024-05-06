@@ -34,13 +34,14 @@ use gadget_common::ExecutableJob;
 use gadget_core::gadget::substrate::Client;
 use tsify::Tsify;
 
-use futures::{select, FutureExt};
+use futures::{select, FutureExt, SinkExt};
 use futures_timer::Delay;
 use matchbox_socket::{PeerId, PeerState, WebRtcSocket};
 use std::time::Duration;
 
 // use wasm_bindgen_test::wasm_bindgen_test;
 use log::info;
+use gadget_io::tokio::sync::oneshot::Sender;
 use zcash_frost_protocol::constants::{ZCASH_FROST_KEYGEN_PROTOCOL_NAME, ZCASH_FROST_SIGNING_PROTOCOL_NAME};
 
 #[derive(Clone)]
@@ -376,7 +377,7 @@ where
     // and then starts the required protocols based on the roles.
     log(&format!("INITIALIZING VEC AND MAP"));
     let mut current_roles = Vec::new();
-    let mut running_protocols = HashMap::<HashedRoleTypeWrapper, gadget_io::tokio::task::AbortHandle>::new();
+    let mut running_protocols = HashMap::<HashedRoleTypeWrapper, Sender<()>>::new();
 
     log(&format!("CREATING SUBXT CLIENT"));
     let subxt_client =
@@ -411,35 +412,35 @@ where
             continue;
         }
         logger.trace(format!("Roles diff: {diff:?}"));
-        // for d in diff {
-        //     match d {
-        //         Diff::Added(role) => {
-        //             logger.debug(format!("Trying to start protocol for role {:?}", role.0));
-        //             let handle = start_web_protocol_by_role(
-        //                 role.0.clone(),
-        //                 TangleRuntime::new(runtime.client()),
-        //                 networks.clone(),
-        //                 acco_key.public(),
-        //                 logger.clone(),
-        //                 pallet_tx.clone(),
-        //                 keystore.clone(),
-        //             )?;
-        //             running_protocols.insert(role, handle);
-        //         }
-        //         Diff::Removed(role) => {
-        //             logger.debug(format!("Trying to stop protocol for role {:?}", role.0));
-        //             let maybe_handle = running_protocols.remove(&role);
-        //             if let Some(handle) = maybe_handle {
-        //                 handle.abort();
-        //                 logger.warn(format!(
-        //                     "Aborted protocol for role {:?}. Reason: Role Removed from profile",
-        //                     role.0
-        //                 ));
-        //             }
-        //         }
-        //     }
-        // }
-        // current_roles = roles;
+        for d in diff {
+            match d {
+                Diff::Added(role) => {
+                    logger.debug(format!("Trying to start protocol for role {:?}", role.0));
+                    let protocol_tx = start_web_protocol_by_role(
+                        role.0.clone(),
+                        TangleRuntime::new(runtime.client()),
+                        networks.clone(),
+                        acco_key.public(),
+                        logger.clone(),
+                        pallet_tx.clone(),
+                        keystore.clone(),
+                    )?;
+                    running_protocols.insert(role, protocol_tx);
+                }
+                Diff::Removed(role) => {
+                    logger.debug(format!("Trying to stop protocol for role {:?}", role.0));
+                    let maybe_abort_tx = running_protocols.remove(&role);
+                    if let Some(mut abort_tx) = maybe_abort_tx {
+                        let _ = abort_tx.send(());
+                        logger.warn(format!(
+                            "Aborted protocol for role {:?}. Reason: Role Removed from profile",
+                            role.0
+                        ));
+                    }
+                }
+            }
+        }
+        current_roles = roles;
     }
     log(&format!("WEB PROTOCOLS COMPLETED... EXITING START PROTOCOLS WEB"));
     Ok(())
@@ -453,16 +454,18 @@ pub fn start_web_protocol_by_role<KBE>(
     logger: DebugLogger,
     pallet_tx: Arc<SubxtPalletSubmitter<TangleConfig, PairSigner<TangleConfig>>>,
     keystore: ECDSAKeyStore<KBE>,
-) -> color_eyre::Result<gadget_io::tokio::task::AbortHandle>
+) -> color_eyre::Result<Sender<()>>
     where
         KBE: KeystoreBackend,
 {
     use RoleType::*;
     use ThresholdSignatureRoleType::*;
-    let handle = match role {
+    let (abort_tx, abort_rx) = gadget_io::tokio::sync::oneshot::channel();
+
+    match role {
         Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
             return Err(color_eyre::eyre::eyre!(
-                "DfnsCGGMP21 is not supported by the wb shell",
+                "DfnsCGGMP21 is not supported by the web shell",
             ))
         }
 
@@ -472,29 +475,45 @@ pub fn start_web_protocol_by_role<KBE>(
         | Tss(ZcashFrostP384)
         | Tss(ZcashFrostSecp256k1)
         | Tss(ZcashFrostRistretto255) => {
-            gadget_io::tokio::spawn(zcash_frost_protocol::setup_node(NodeInput {
-                clients: vec![
-                    TangleRuntime::new(runtime.client()),
-                    TangleRuntime::new(runtime.client()),
-                ],
-                account_id,
-                logger,
-                pallet_tx,
-                keystore,
-                node_index: 0,
-                additional_params: (),
-                prometheus_config: PrometheusConfig::Disabled,
-                networks: vec![
-                    networks
-                        .get(ZCASH_FROST_KEYGEN_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                    networks
-                        .get(ZCASH_FROST_SIGNING_PROTOCOL_NAME)
-                        .cloned()
-                        .unwrap(),
-                ],
-            }))
+            log(&format!("Starting ZcashFrost protocol"));
+            let protocol_task = async {
+                log(&format!("Random Filler Log"));
+                ()
+            };
+            // let protocol_task = zcash_frost_protocol::setup_node(NodeInput {
+            //     clients: vec![
+            //         TangleRuntime::new(runtime.client()),
+            //         TangleRuntime::new(runtime.client()),
+            //     ],
+            //     account_id,
+            //     logger,
+            //     pallet_tx,
+            //     keystore,
+            //     node_index: 0,
+            //     additional_params: (),
+            //     prometheus_config: PrometheusConfig::Disabled,
+            //     networks: vec![
+            //         networks
+            //             .get(ZCASH_FROST_KEYGEN_PROTOCOL_NAME)
+            //             .cloned()
+            //             .unwrap(),
+            //         networks
+            //             .get(ZCASH_FROST_SIGNING_PROTOCOL_NAME)
+            //             .cloned()
+            //             .unwrap(),
+            //     ],
+            // });
+            wasm_bindgen_futures::spawn_local(async {
+                gadget_io::tokio::select! {
+                    _ = protocol_task => {
+                        log(&format!("ZcashFrost protocol ended unexpectedly"));
+                    },
+                    _ = abort_rx => {
+                        log(&format!("Aborting ZcashFrost protocol"));
+                    }
+
+                }
+            })
         }
         Tss(GennaroDKGBls381) => {
             return Err(color_eyre::eyre::eyre!(
@@ -523,8 +542,7 @@ pub fn start_web_protocol_by_role<KBE>(
             ))
         }
     };
-
-    Ok(handle.abort_handle())
+    Ok(abort_tx)
 }
 
 #[cfg(test)]
