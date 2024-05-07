@@ -3,16 +3,9 @@ resolver = "2"
 members = [
     "core",
     "common",
-    "protocols/dfns-cggmp21",
-    "protocols/zk-saas",
-    "protocols/zcash-frost",
-    "protocols/ice-frost",
-    "protocols/bls",
-    "protocols/stub",
     "test-gadget",
     "test-utils",
     "protocol-macros",
-    "protocols/wsts",
     "shell-manager",
     "shell-sdk",
 ]
@@ -20,13 +13,6 @@ members = [
 [workspace.dependencies]
 gadget-core = { path = "./core" }
 gadget-common = { path = "./common" }
-zk-saas-protocol = { path = "./protocols/zk-saas" }
-threshold-bls-protocol = { path = "./protocols/bls" }
-stub-protocol = { path = "./protocols/stub" }
-dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
-zcash-frost-protocol = { path = "./protocols/zcash-frost" }
-ice-frost-protocol = { path = "./protocols/ice-frost" }
-wsts-protocol = { path = "./protocols/wsts" }
 test-utils = { path = "./test-utils" }
 protocol-macros = { path = "./protocol-macros" }
 shell-sdk = { path = "./shell-sdk" }
@@ -55,23 +41,7 @@ round-based-zengo = { package = "round-based", git = "https://github.com/ZenGo-X
 
 curv = { package = "curv-kzen", version = "0.10.0" }
 digest = "0.10"
-dfns-cggmp21 = { package = "cggmp21", git = "https://github.com/dfns/cggmp21" }
 udigest = { version = "0.1", features = ["std", "derive"] }
-
-frost-core = { git = "https://github.com/LIT-protocol/frost" }
-frost-ed25519 = { git = "https://github.com/LIT-protocol/frost" }
-frost-ed448 = { git = "https://github.com/LIT-protocol/frost" }
-frost-p256 = { git = "https://github.com/LIT-protocol/frost" }
-frost-p384 = { git = "https://github.com/LIT-protocol/frost" }
-frost-ristretto255 = { git = "https://github.com/LIT-protocol/frost" }
-frost-secp256k1 = { git = "https://github.com/LIT-protocol/frost" }
-frost-rerandomized = { git = "https://github.com/LIT-protocol/frost" }
-frost-taproot = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
-# frost-taproot = { path = "../tangle/pallets/dkg/frost/frost-taproot" }
-
-bls12_381_plus = "0.8.13"
-wsts = "3.0.0"
-ice-frost = { git = "https://github.com/topos-protocol/ice-frost.git" }
 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0" }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0" }

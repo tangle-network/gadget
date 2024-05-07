@@ -1,25 +1,35 @@
-#[[protocols]]
-#internal = true
-#role_types = ["GennaroDKGBls381"]
-
-#[[protocols]]
-#internal = true
-#role_types = ["DfnsCGGMP21Secp256k1", "DfnsCGGMP21Secp256r1", "DfnsCGGMP21Stark"]
-
-#[[protocols]]
-#internal = true
-#role_types = ["WstsV2"]
-
-#[[protocols]]
-#internal = true
-#role_types = ["ZcashFrostEd25519", "ZcashFrostEd448", "ZcashFrostP256", "ZcashFrostP384", "ZcashFrostSecp256k1", "ZcashFrostRistretto255"]
-
-#[[protocols]]
-#internal = true
-#role_types = ["ZkSaaSGroth16"]
+[[protocols]]
+package = "threshold-bls-protocol"
+repository = { git = "https://github.com/webb-tools/protocols", rev = "d1cc78ee4652696a2228f62b735e55ef23bf3f8e" }
+role_types = ["GennaroDKGBls381"]
+bin_hashes = { linux-x86_64="SomeHash", darwin-x86_64="SomeOtherHash", apple-darwin="AnotherHash" }
 
 [[protocols]]
-internal = false
+package = "dfns-cggmp21-protocol"
+repository = { git = "https://github.com/webb-tools/protocols", rev = "d1cc78ee4652696a2228f62b735e55ef23bf3f8e" }
+bin_hashes = { linux-x86_64="SomeHash", darwin-x86_64="SomeOtherHash", apple-darwin="AnotherHash" }
+role_types = ["DfnsCGGMP21Secp256k1", "DfnsCGGMP21Secp256r1", "DfnsCGGMP21Stark"]
+
+[[protocols]]
+package = "wsts-protocol"
+repository = { git = "https://github.com/webb-tools/protocols", rev = "d1cc78ee4652696a2228f62b735e55ef23bf3f8e" }
+bin_hashes = { linux-x86_64="SomeHash", darwin-x86_64="SomeOtherHash", apple-darwin="AnotherHash" }
+role_types = ["WstsV2"]
+
+[[protocols]]
+package = "zcash-frost-protocol"
+repository = { git = "https://github.com/webb-tools/protocols", rev = "d1cc78ee4652696a2228f62b735e55ef23bf3f8e" }
+bin_hashes = { linux-x86_64="SomeHash", darwin-x86_64="SomeOtherHash", apple-darwin="AnotherHash" }
+role_types = ["ZcashFrostEd25519", "ZcashFrostEd448", "ZcashFrostP256", "ZcashFrostP384", "ZcashFrostSecp256k1", "ZcashFrostRistretto255"]
+
+[[protocols]]
+package = "zk-saas-protocol"
+repository = { git = "https://github.com/webb-tools/protocols", rev = "d1cc78ee4652696a2228f62b735e55ef23bf3f8e" }
+bin_hashes = { linux-x86_64="SomeHash", darwin-x86_64="SomeOtherHash", apple-darwin="AnotherHash" }
+role_types = ["ZkSaaSGroth16"]
+
+[[protocols]]
+package = "silent-shard-dkls23-ll-protocol"
 repository = { git = "https://github.com/webb-tools/silent-shard-dkls23-gadget", rev = "1234" }
 role_types = ["SilentShardDKLS23Secp256k1"]
 bin_hashes = { linux-x86_64="SomeHash", darwin-x86_64="SomeOtherHash", apple-darwin="AnotherHash" }

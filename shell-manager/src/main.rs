@@ -13,11 +13,8 @@ use structopt::StructOpt;
 use tangle_subxt::subxt;
 use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::zksaas::ZeroKnowledgeRoleType;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
-use tokio::task::JoinHandle;
 
 pub mod error;
 pub mod protocols;
@@ -79,15 +76,7 @@ async fn main() -> color_eyre::Result<()> {
     let (_role_key, acco_key) = load_keys_from_keystore(&keystore)?;
     let sub_account_id = AccountId32(acco_key.public().0);
 
-    #[cfg(any(
-        feature = "bls",
-        feature = "dfns",
-        feature = "wsts",
-        feature = "zk-saas-groth",
-        feature = "zcash-frost"
-    ))]
-    let keystore_backend = gadget_common::prelude::InMemoryBackend::default();
-    let mut active_shells = HashMap::<String, RunningProtocolType>::new();
+    let mut active_shells = HashMap::<String, tokio::process::Child>::new();
 
     let manager_task = async move {
         while let Some(notification) = runtime.get_next_finality_notification().await {
@@ -108,161 +97,66 @@ async fn main() -> color_eyre::Result<()> {
                     // Add in the protocol
                     for global_protocol in &global_protocols {
                         if global_protocol.role_types().contains(&role.clone()) {
-                            match global_protocol {
-                                ProtocolMetadata::Internal { role_types } => {
-                                    // We are only interested in the first role type, since this is a service group
-                                    let role_type = role_types.first().expect("Should exist");
-                                    match role_type {
-                                        // BLS
-                                        RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381) => {
-                                            #[cfg(feature = "bls")] {
-                                                println!("Running BLS protocol");
-                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 2, keystore_backend.clone(), threshold_bls_protocol::setup_node));
-                                                active_shells.insert(
-                                                    role_str,
-                                                    RunningProtocolType::Internal(handle),
-                                                );
-                                            }
+                            let ProtocolMetadata { role_types, git, rev, package, bin_hashes } = global_protocol;
+                            // The hash is sha_256 of the binary
+                            let host_os = get_formatted_os_string();
+                            let expected_hash =
+                                bin_hashes.get(&host_os).ok_or_else(|| {
+                                    msg_to_error(format!("No hash for this OS ({host_os})"))
+                                })?;
+                            let binary_download_path = format!("protocol-{rev}");
 
-                                            logger.warn(format!("Unable to run internal protocol {role_types:?} since the `bls` feature is not activated"));
-                                            continue 'inner;
-                                        },
+                            // Check if the binary exists, if not download it
+                            if !valid_file_exists(&binary_download_path, expected_hash)
+                                .await
+                            {
+                                let url = get_download_url(git, rev, package);
+                                let download = reqwest::get(&url)
+                                    .await
+                                    .map_err(|err| msg_to_error(err.to_string()))?
+                                    .bytes()
+                                    .await
+                                    .map_err(|err| msg_to_error(err.to_string()))?;
+                                let retrieved_hash = hash_bytes_to_hex(&download);
 
-                                        // DFNS
-                                        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1) |
-                                        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1) |
-                                        RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark) => {
-                                            #[cfg(feature = "dfns")] {
-                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 4, keystore_backend.clone(), dfns_cggmp21_protocol::setup_node));
-                                                active_shells.insert(
-                                                    role_str,
-                                                    RunningProtocolType::Internal(handle),
-                                                );
-
-                                                logger.warn(format!("Unable to run internal protocol {role_types:?} since the `bls` feature is not activated"));
-                                                continue 'inner;
-                                            }
-                                        },
-
-                                        // WSTSv2
-                                        RoleType::Tss(ThresholdSignatureRoleType::WstsV2) => {
-                                            #[cfg(feature = "wsts")] {
-                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 2, keystore_backend.clone(), wsts_protocol::setup_node));
-                                                active_shells.insert(
-                                                    role_str,
-                                                    RunningProtocolType::Internal(handle),
-                                                );
-
-                                                logger.warn(format!("Unable to run internal protocol {role_types:?} since the `bls` feature is not activated"));
-                                                continue 'inner;
-                                            }
-                                        },
-
-                                        // ZCash FROST
-                                        RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd25519) |
-                                        RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd448) |
-                                        RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP256) |
-                                        RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP384) |
-                                        RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostSecp256k1) |
-                                        RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostRistretto255) => {
-                                            #[cfg(feature = "zcash-frost")] {
-                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 2, keystore_backend.clone(), zcash_frost_protocol::setup_node));
-                                                active_shells.insert(
-                                                    role_str,
-                                                    RunningProtocolType::Internal(handle),
-                                                );
-
-                                                logger.warn(format!("Unable to run internal protocol {role_types:?} since the `bls` feature is not activated"));
-                                                continue 'inner;
-                                            }
-                                        },
-
-                                        // ZkSaaSGroth16
-                                        RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16) => {
-                                            #[cfg(feature = "zk-saas-groth")] {
-                                                let handle = tokio::task::spawn(shell_sdk::run_shell_for_protocol(role_types.clone(), 1, keystore_backend.clone(), zk_saas_protocol::setup_node));
-                                                active_shells.insert(
-                                                    role_str,
-                                                    RunningProtocolType::Internal(handle),
-                                                );
-
-                                                logger.warn(format!("Unable to run internal protocol {role_types:?} since the `bls` feature is not activated"));
-                                                continue 'inner;
-                                            }
-                                        },
-
-                                        r => {
-                                            logger.warn(format!("Cannot start protocol {r:?} since it is not currently supported by the shell manager"))
-                                        }
-                                    }
+                                if retrieved_hash != *expected_hash {
+                                    logger.error(format!(
+                                        "Binary hash mismatch for protocol: {}",
+                                        retrieved_hash
+                                    ));
+                                    continue;
                                 }
 
-                                ProtocolMetadata::External {
-                                    git,
-                                    rev,
-                                    bin_hashes,
-                                    ..
-                                } => {
-                                    // The hash is sha_256 of the binary
-                                    let host_os = get_formatted_os_string();
-                                    let expected_hash =
-                                        bin_hashes.get(&host_os).ok_or_else(|| {
-                                            msg_to_error(format!("No hash for this OS ({host_os})"))
-                                        })?;
-                                    let binary_download_path = format!("protocol-{rev}");
-
-                                    // Check if the binary exists, if not download it
-                                    if !valid_file_exists(&binary_download_path, expected_hash)
-                                        .await
-                                    {
-                                        let url = get_download_url(git, rev);
-                                        let download = reqwest::get(&url)
-                                            .await
-                                            .map_err(|err| msg_to_error(err.to_string()))?
-                                            .bytes()
-                                            .await
-                                            .map_err(|err| msg_to_error(err.to_string()))?;
-                                        let retrieved_hash = hash_bytes_to_hex(&download);
-
-                                        if retrieved_hash != *expected_hash {
-                                            logger.error(format!(
-                                                "Binary hash mismatch for protocol: {}",
-                                                retrieved_hash
-                                            ));
-                                            continue;
-                                        }
-
-                                        // Write the binary to disk
-                                        let mut file =
-                                            tokio::fs::File::create(&binary_download_path).await?;
-                                        file.write_all(&download).await?;
-                                    }
-
-                                    let arguments =
-                                        generate_process_arguments(&shell_config, opt).await?;
-
-                                    logger.info(format!("Starting protocol: {role_str}"));
-
-                                    // Spawn the process
-
-                                    // Now that the file is loaded, spawn the shell
-                                    let process_handle =
-                                        tokio::process::Command::new(&binary_download_path)
-                                            .kill_on_drop(true)
-                                            .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
-                                            .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
-                                            .stdin(std::process::Stdio::null())
-                                            .current_dir(&std::env::current_dir()?)
-                                            .envs(std::env::vars().collect::<Vec<_>>())
-                                            .args(arguments)
-                                            .spawn()?;
-
-                                    active_shells.insert(
-                                        role_str,
-                                        RunningProtocolType::External(process_handle),
-                                    );
-                                }
+                                // Write the binary to disk
+                                let mut file =
+                                    tokio::fs::File::create(&binary_download_path).await?;
+                                file.write_all(&download).await?;
                             }
+
+                            let arguments =
+                                generate_process_arguments(&shell_config, opt).await?;
+
+                            logger.info(format!("Starting protocol: {role_str}"));
+
+                            // Spawn the process
+
+                            // Now that the file is loaded, spawn the shell
+                            let process_handle =
+                                tokio::process::Command::new(&binary_download_path)
+                                    .kill_on_drop(true)
+                                    .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
+                                    .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
+                                    .stdin(std::process::Stdio::null())
+                                    .current_dir(&std::env::current_dir()?)
+                                    .envs(std::env::vars().collect::<Vec<_>>())
+                                    .args(arguments)
+                                    .spawn()?;
+
+                            active_shells.insert(
+                                role_str,
+                                process_handle,
+                            );
+
                             break 'inner;
                         }
                     }
@@ -371,25 +265,6 @@ fn hash_bytes_to_hex<T: AsRef<[u8]>>(input: T) -> String {
     hex::encode(hasher.finalize())
 }
 
-#[allow(dead_code)]
-enum RunningProtocolType {
-    Internal(JoinHandle<color_eyre::Result<()>>),
-    External(tokio::process::Child),
-}
-
-impl RunningProtocolType {
-    async fn kill(&mut self) {
-        match self {
-            RunningProtocolType::Internal(handle) => {
-                handle.abort();
-            }
-            RunningProtocolType::External(child) => {
-                let _ = child.kill().await;
-            }
-        }
-    }
-}
-
 async fn valid_file_exists(path: &str, expected_hash: &str) -> bool {
     // The hash is sha3_256 of the binary
     if let Ok(file) = tokio::fs::read(path).await {
@@ -412,7 +287,7 @@ fn get_formatted_os_string() -> String {
     }
 }
 
-fn get_download_url<T: Into<String>>(git: T, rev: &str) -> String {
+fn get_download_url<T: Into<String>>(git: T, rev: &str, package: &str) -> String {
     let os = get_formatted_os_string();
     let arch = std::env::consts::ARCH;
 
@@ -426,7 +301,7 @@ fn get_download_url<T: Into<String>>(git: T, rev: &str) -> String {
     }
 
     // https://github.com/webb-tools/protocol-template/releases/download/protocol-x86_64-apple-darwin/protocol-6fa01cb5cf684e2d0272252f00ea81d6f269f3d7
-    format!("{git}releases/download/protocol-{arch}-{os}/protocol-{rev}")
+    format!("{git}releases/download/protocol-{arch}-{os}/protocol-{package}-{rev}")
 }
 
 fn msg_to_error<T: Into<String>>(msg: T) -> color_eyre::Report {
