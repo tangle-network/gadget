@@ -76,9 +76,10 @@ impl Client for TangleRuntime {
     async fn get_next_finality_notification(&self) -> Option<FinalityNotification> {
         let mut lock = self
             .finality_notification_stream
-            .try_lock_timeout(Duration::from_millis(500))
-            .await
-            .ok()?;
+            // .try_lock_timeout(Duration::from_millis(500))
+            .lock()
+            .await;
+            // .ok()?;
         match lock.as_mut() {
             Some(stream) => {
                 let block = stream.next().await?.ok()?;
@@ -88,7 +89,8 @@ impl Client for TangleRuntime {
                 };
                 let mut lock2 = self
                     .latest_finality_notification
-                    .lock_timeout(Duration::from_millis(500))
+                    // .lock_timeout(Duration::from_millis(500))
+                    .lock()
                     .await;
                 *lock2 = Some(notification.clone());
                 Some(notification)
@@ -106,9 +108,10 @@ impl Client for TangleRuntime {
     async fn get_latest_finality_notification(&self) -> Option<FinalityNotification> {
         let lock = self
             .latest_finality_notification
-            .try_lock_timeout(Duration::from_millis(500))
-            .await
-            .ok()?;
+            // .try_lock_timeout(Duration::from_millis(500))
+            .lock()
+            .await;
+            // .ok()?;
         match &*lock {
             Some(notification) => Some(notification.clone()),
             None => {
