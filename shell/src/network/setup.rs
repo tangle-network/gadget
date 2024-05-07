@@ -14,10 +14,10 @@ use libp2p::{
 };
 
 // use libp2p::{gossipsub, request_response, StreamProtocol};
+use gadget_io::tokio;
 use gadget_io::tokio::select;
 use gadget_io::tokio::sync::{Mutex, RwLock};
-use gadget_io::tokio::task::{JoinHandle, spawn};
-use gadget_io::tokio;
+use gadget_io::tokio::task::{spawn, JoinHandle};
 use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::error::Error;

@@ -79,7 +79,7 @@ impl Client for TangleRuntime {
             // .try_lock_timeout(Duration::from_millis(500))
             .lock()
             .await;
-            // .ok()?;
+        // .ok()?;
         match lock.as_mut() {
             Some(stream) => {
                 let block = stream.next().await?.ok()?;
@@ -111,7 +111,7 @@ impl Client for TangleRuntime {
             // .try_lock_timeout(Duration::from_millis(500))
             .lock()
             .await;
-            // .ok()?;
+        // .ok()?;
         match &*lock {
             Some(notification) => Some(notification.clone()),
             None => {

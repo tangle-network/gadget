@@ -1,4 +1,4 @@
-pub use gadget_io::{KeystoreConfig, SubstrateKeystore, KeystoreContainer};
+pub use gadget_io::{KeystoreConfig, KeystoreContainer, SubstrateKeystore};
 
 // use color_eyre::Result;
 // use sc_keystore::LocalKeystore;

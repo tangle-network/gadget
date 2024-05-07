@@ -12,10 +12,10 @@ use std::panic;
 use std::sync::atomic::AtomicU32;
 use std::{error::Error, fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
 
-use tangle_subxt::subxt;
-use tangle_subxt::tangle_testnet_runtime as tangle_runtime;
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
+use tangle_subxt::subxt;
+use tangle_subxt::tangle_testnet_runtime as tangle_runtime;
 
 use structopt::StructOpt;
 use url::Url;
@@ -26,8 +26,8 @@ use wasm_bindgen_futures;
 use crate::config;
 use crate::config::ShellConfig;
 use crate::shell;
-use crate::shell::{HashedRoleTypeWrapper, vec_diff, Diff};
-use crate::tangle::{TangleRuntime, TangleConfig};
+use crate::shell::{vec_diff, Diff, HashedRoleTypeWrapper};
+use crate::tangle::{TangleConfig, TangleRuntime};
 
 use gadget_common::prelude::*;
 use gadget_common::ExecutableJob;
@@ -40,9 +40,11 @@ use matchbox_socket::{PeerId, PeerState, WebRtcSocket};
 use std::time::Duration;
 
 // use wasm_bindgen_test::wasm_bindgen_test;
-use log::info;
 use gadget_io::tokio::sync::oneshot::Sender;
-use zcash_frost_protocol::constants::{ZCASH_FROST_KEYGEN_PROTOCOL_NAME, ZCASH_FROST_SIGNING_PROTOCOL_NAME};
+use log::info;
+use zcash_frost_protocol::constants::{
+    ZCASH_FROST_KEYGEN_PROTOCOL_NAME, ZCASH_FROST_SIGNING_PROTOCOL_NAME,
+};
 
 #[derive(Clone)]
 pub struct MatchboxHandle {
@@ -156,10 +158,12 @@ impl Network for MatchboxHandle {
                 topic: self.topic().to_string(),
                 raw_payload: bincode::serialize(&message).expect("Should serialize"),
             }),
-            MessageType::P2P(_) => MatchboxGossipOrRequestResponse::Request(MyBehaviourRequest::Message {
-                topic: self.topic().to_string(),
-                raw_payload: bincode::serialize(&message).expect("Should serialize"),
-            }),
+            MessageType::P2P(_) => {
+                MatchboxGossipOrRequestResponse::Request(MyBehaviourRequest::Message {
+                    topic: self.topic().to_string(),
+                    raw_payload: bincode::serialize(&message).expect("Should serialize"),
+                })
+            }
         };
 
         let payload = IntraNodePayload {
@@ -377,7 +381,8 @@ where
     // and then starts the required protocols based on the roles.
     log(&format!("INITIALIZING VEC AND MAP"));
     let mut current_roles = Vec::new();
-    let mut running_protocols = HashMap::<HashedRoleTypeWrapper, gadget_io::tokio::task::AbortHandle>::new();
+    let mut running_protocols =
+        HashMap::<HashedRoleTypeWrapper, gadget_io::tokio::task::AbortHandle>::new();
 
     log(&format!("CREATING SUBXT CLIENT"));
     let subxt_client =
@@ -394,7 +399,9 @@ where
     let runtime = TangleRuntime::new(subxt_client);
     log(&format!("WEB PROTOCOLS ABOUT TO ENTER NOTIFICATION LOOP"));
     while let Some(notification) = runtime.get_next_finality_notification().await {
-        log(&format!("WEB PROTOCOLS NOTIFICATION LOOP ITERATION: {notification:?}"));
+        log(&format!(
+            "WEB PROTOCOLS NOTIFICATION LOOP ITERATION: {notification:?}"
+        ));
         let roles = runtime
             .query_restaker_roles(notification.hash, sub_account_id.clone())
             .await?;
@@ -442,7 +449,9 @@ where
         }
         current_roles = roles;
     }
-    log(&format!("WEB PROTOCOLS COMPLETED... EXITING START PROTOCOLS WEB"));
+    log(&format!(
+        "WEB PROTOCOLS COMPLETED... EXITING START PROTOCOLS WEB"
+    ));
     Ok(())
 }
 
@@ -455,8 +464,8 @@ pub fn start_web_protocol_by_role<KBE>(
     pallet_tx: Arc<SubxtPalletSubmitter<TangleConfig, PairSigner<TangleConfig>>>,
     keystore: ECDSAKeyStore<KBE>,
 ) -> color_eyre::Result<gadget_io::tokio::task::AbortHandle>
-    where
-        KBE: KeystoreBackend,
+where
+    KBE: KeystoreBackend,
 {
     use RoleType::*;
     use ThresholdSignatureRoleType::*;
@@ -549,7 +558,7 @@ mod tests {
         let config = TomlConfig {
             bind_ip: "0.0.0.0".to_string().into(),
             bind_port: 30556,
-            url: "ws://127.0.0.1:9944".to_string(),//"https://github.com/webb-tools/gadget".to_string(),
+            url: "ws://127.0.0.1:9944".to_string(), //"https://github.com/webb-tools/gadget".to_string(),
             bootnodes: vec![
                 // "/ip4/127.0.0.1/udp/1234",
                 "foo",

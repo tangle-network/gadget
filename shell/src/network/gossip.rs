@@ -389,8 +389,8 @@ mod tests {
     use crate::shell::wait_for_connection_to_bootnodes;
     use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, Network, WorkManager};
     use gadget_core::job_manager::WorkManagerInterface;
-    use sp_core::{ecdsa, Pair};
     use gadget_io::tokio;
+    use sp_core::{ecdsa, Pair};
 
     #[gadget_io::tokio::test]
     async fn test_gossip_network() {

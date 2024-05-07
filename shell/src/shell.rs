@@ -2,13 +2,13 @@ use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use std::{hash::Hash, sync::Arc};
 
-use crate::{
-    keystore::KeystoreContainer,
-    tangle::{TangleConfig, TangleRuntime, crypto},
-    config::ShellConfig,
-};
 #[cfg(not(target_family = "wasm"))]
 use crate::network::gossip::GossipHandle;
+use crate::{
+    config::ShellConfig,
+    keystore::KeystoreContainer,
+    tangle::{crypto, TangleConfig, TangleRuntime},
+};
 use color_eyre::eyre::OptionExt;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::{
@@ -18,14 +18,13 @@ use gadget_common::{
     keystore::{ECDSAKeyStore, InMemoryBackend},
 };
 use gadget_core::gadget::substrate::Client;
+use gadget_io::{KeystoreConfig, SubstrateKeystore};
 use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
-use gadget_io::{KeystoreConfig, SubstrateKeystore};
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 use tangle_subxt::subxt;
 use tangle_subxt::tangle_testnet_runtime as tangle_runtime;
-
 
 // use dfns_cggmp21_protocol::constants::{
 //     DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
@@ -118,10 +117,15 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     // let protocols =
     //     start_required_protocols(&config.subxt, networks, acco_key, logger, wrapped_keystore);
 
-
-    let protocols = crate::web::start_protocols_web(&config.subxt, networks, acco_key, logger, wrapped_keystore)
-        .await
-        .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;;
+    let protocols = crate::web::start_protocols_web(
+        &config.subxt,
+        networks,
+        acco_key,
+        logger,
+        wrapped_keystore,
+    )
+    .await
+    .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
     // let ctrl_c = gadget_io::tokio::signal::ctrl_c();
     //
@@ -223,29 +227,31 @@ where
                 ],
             }))
         }
-        Tss(GennaroDKGBls381) => gadget_io::tokio::spawn(threshold_bls_protocol::setup_node(NodeInput {
-            clients: vec![
-                TangleRuntime::new(runtime.client()),
-                TangleRuntime::new(runtime.client()),
-            ],
-            account_id,
-            logger,
-            pallet_tx,
-            keystore,
-            node_index: 0,
-            additional_params: (),
-            prometheus_config: PrometheusConfig::Disabled,
-            networks: vec![
-                networks
-                    .get(GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME)
-                    .cloned()
-                    .unwrap(),
-                networks
-                    .get(GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME)
-                    .cloned()
-                    .unwrap(),
-            ],
-        })),
+        Tss(GennaroDKGBls381) => {
+            gadget_io::tokio::spawn(threshold_bls_protocol::setup_node(NodeInput {
+                clients: vec![
+                    TangleRuntime::new(runtime.client()),
+                    TangleRuntime::new(runtime.client()),
+                ],
+                account_id,
+                logger,
+                pallet_tx,
+                keystore,
+                node_index: 0,
+                additional_params: (),
+                prometheus_config: PrometheusConfig::Disabled,
+                networks: vec![
+                    networks
+                        .get(GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME)
+                        .cloned()
+                        .unwrap(),
+                    networks
+                        .get(GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME)
+                        .cloned()
+                        .unwrap(),
+                ],
+            }))
+        }
         Tss(WstsV2) => {
             return Err(color_eyre::eyre::eyre!(
                 "WstsV2 is not supported by the shell",
@@ -501,12 +507,15 @@ impl Hash for HashedRoleTypeWrapper {
             // Tss(GennaroDKGBls381) => "GennaroDKGBls381".hash(state),
             ZkSaaS(_) => "ZkSaaS".hash(state),
             LightClientRelaying => "LightClientRelaying".hash(state),
-            _ => "none".hash(state)
+            _ => "none".hash(state),
         }
     }
 }
 
-pub fn vec_diff<T: PartialEq + Eq + Hash + Clone, I: Iterator<Item = T>>(a: I, b: I) -> Vec<Diff<T>> {
+pub fn vec_diff<T: PartialEq + Eq + Hash + Clone, I: Iterator<Item = T>>(
+    a: I,
+    b: I,
+) -> Vec<Diff<T>> {
     let a_set = HashSet::<T, std::hash::RandomState>::from_iter(a);
     let b_set = HashSet::from_iter(b);
     // find the elements that are in a but not in b (removed)
