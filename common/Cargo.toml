@@ -9,6 +9,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+libsecp256k1 = { version = "0.7" }
 gadget-core = { workspace = true }
 gadget-io = { workspace = true, default-features = false }
 protocol-macros = { workspace = true }
@@ -44,6 +45,7 @@ sp-core = { workspace = true, optional = true, default-features = false }
 sp-application-crypto = { workspace = true, optional = true, default-features = false }
 sp-runtime = { workspace = true, optional = true, default-features = false }
 sp-tracing = { workspace = true, optional = true, default-features = false }
+sp-runtime-interface = { workspace = true, default-features = false}
 sc-service = { workspace = true, optional = true, default-features = false }
 sc-client-api = { workspace = true, optional = true, default-features = false }
 substrate-prometheus-endpoint = { workspace = true, optional = true, default-features = false }
@@ -65,12 +67,12 @@ substrate = [
   "subxt-signer/native",
   "subxt/native",
   "subxt/jsonrpsee",
-  "sp-api/std",
-  "sp-io/std",
-  "sp-core/std",
-  "sp-runtime/std",
-  "sp-application-crypto/std",
-  "sp-tracing/std",
+  "sp-api/default",
+  "sp-io/default",
+  "sp-core/default",
+  "sp-runtime/default",
+  "sp-application-crypto/default",
+  "sp-tracing/default",
   "sc-service",
   "sc-client-api",
   "frame-support/std",

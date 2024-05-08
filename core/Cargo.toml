@@ -9,6 +9,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [features]
+default = ["substrate"]
 substrate = []
 
 [dependencies]
