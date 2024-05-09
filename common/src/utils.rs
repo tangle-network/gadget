@@ -4,6 +4,7 @@ use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use sp_core::ecdsa;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use sp_io::EcdsaVerifyError;
 
 pub const ECDSA_SIGNATURE_LENGTH: usize = 65;
 
@@ -91,7 +92,21 @@ pub fn recover_ecdsa_pub_key(
 
         let hash = sp_core::keccak_256(data);
 
-        let pub_key = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &hash)?;
+        // let pub_key = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &hash)?;
+
+        let msg = hash;
+        let rid = libsecp256k1::RecoveryId::parse(
+            if sig[64] > 26 { sig[64] - 27 } else { sig[64] } as u8,
+        )
+            .map_err(|_| EcdsaVerifyError::BadV)?;
+        let sig = libsecp256k1::Signature::parse_overflowing_slice(&sig[..64])
+            .map_err(|_| EcdsaVerifyError::BadRS)?;
+        let msg = libsecp256k1::Message::parse(&msg);
+        let pubkey =
+            libsecp256k1::recover(&msg, &sig, &rid).map_err(|_| EcdsaVerifyError::BadSignature)?;
+        let mut pub_key = [0u8; 64];
+        pub_key.copy_from_slice(&pubkey.serialize()[1..65]);
+
         return Ok(pub_key.to_vec());
     }
     Err(sp_io::EcdsaVerifyError::BadSignature)

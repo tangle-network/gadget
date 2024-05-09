@@ -205,7 +205,7 @@ impl<T: FullProtocolConfig> Network for T {
                 <PayloadAndSignature as Decode>::decode(&mut message.payload.as_slice())
             {
                 let hashed_message = keccak_256(&payload_and_signature.payload);
-                if ecdsa_verify_prehashed(
+                if sp_core::ecdsa::Pair::verify_prehashed(
                     &payload_and_signature.signature,
                     &hashed_message,
                     &peer_public_key,
