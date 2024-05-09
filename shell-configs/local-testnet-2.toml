@@ -5,3 +5,5 @@ bootnodes = []
 node_key = "0000000000000000000000000000000000000000000000000000000000000002"
 chain = "local_testnet"
 base_path = "../tangle/tmp/charlie"
+verbose=1
+pretty=true
