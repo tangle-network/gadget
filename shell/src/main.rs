@@ -9,9 +9,10 @@ mod keystore;
 mod network;
 mod shell;
 mod tangle;
-use gadget_io::*; //{TomlConfig, SupportedChains, Opt};
+#[cfg(target_family = "wasm")]
 mod web;
 
+use gadget_io::*; //{TomlConfig, SupportedChains, Opt};
 #[cfg(target_family = "wasm")]
 use wasm_bindgen::{prelude::*, JsValue};
 

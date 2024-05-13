@@ -28,6 +28,8 @@ use crate::config::ShellConfig;
 use crate::shell;
 use crate::shell::{vec_diff, Diff, HashedRoleTypeWrapper};
 use crate::tangle::{TangleConfig, TangleRuntime};
+use crate::network::web::*;
+use crate::keystore::load_keys_from_keystore;
 
 use gadget_common::prelude::*;
 use gadget_common::ExecutableJob;
@@ -45,140 +47,6 @@ use log::info;
 use zcash_frost_protocol::constants::{
     ZCASH_FROST_KEYGEN_PROTOCOL_NAME, ZCASH_FROST_SIGNING_PROTOCOL_NAME,
 };
-
-#[derive(Clone)]
-pub struct MatchboxHandle {
-    pub network: &'static str,
-    pub connected_peers: Arc<AtomicU32>,
-    pub tx_to_outbound: gadget_io::tokio::sync::mpsc::UnboundedSender<IntraNodePayload>,
-    pub rx_from_inbound: Arc<Mutex<UnboundedReceiver<Vec<u8>>>>,
-    pub ecdsa_peer_id_to_matchbox_id: Arc<RwLock<HashMap<ecdsa::Public, matchbox_socket::PeerId>>>,
-}
-
-impl MatchboxHandle {
-    pub fn connected_peers(&self) -> usize {
-        self.connected_peers
-            .load(std::sync::atomic::Ordering::Relaxed) as usize
-    }
-
-    pub fn topic(&self) -> &str {
-        self.network.clone()
-    }
-}
-
-pub struct IntraNodePayload {
-    topic: String,
-    payload: MatchboxGossipOrRequestResponse,
-    message_type: MessageType,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum MatchboxGossipOrRequestResponse {
-    Gossip(MatchboxMessage),
-    Request(MyBehaviourRequest),
-    Response(MyBehaviourResponse),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MatchboxMessage {
-    pub topic: String,
-    pub raw_payload: Vec<u8>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum MyBehaviourRequest {
-    Handshake {
-        ecdsa_public_key: ecdsa::Public,
-        signature: ecdsa::Signature,
-    },
-    Message {
-        topic: String,
-        raw_payload: Vec<u8>,
-    },
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum MyBehaviourResponse {
-    Handshaked {
-        ecdsa_public_key: ecdsa::Public,
-        signature: ecdsa::Signature,
-    },
-    MessageHandled,
-}
-
-enum MessageType {
-    Broadcast,
-    P2P(PeerId),
-}
-
-#[async_trait]
-impl Network for MatchboxHandle {
-    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        let mut lock = self
-            .rx_from_inbound
-            .try_lock()
-            .expect("There should be only a single caller for `next_message`");
-
-        let message = lock.recv().await?;
-        match bincode::deserialize(&message) {
-            Ok(message) => Some(message),
-            Err(e) => {
-                // self.logger
-                //     .error(format!("Failed to deserialize message: {e}"));
-                drop(lock);
-                self.next_message().await
-            }
-        }
-    }
-
-    async fn send_message(
-        &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), gadget_common::Error> {
-        let message_type = if let Some(to) = message.to_network_id {
-            let matchbox_id = self
-                .ecdsa_peer_id_to_matchbox_id
-                .read()
-                .await
-                .get(&to)
-                .cloned()
-                .ok_or_else(|| gadget_common::Error::NetworkError {
-                    err: format!(
-                        "No Matchbox ID found for ecdsa public key: {to:?}. No handshake happened?"
-                    ),
-                })?;
-
-            MessageType::P2P(matchbox_id)
-        } else {
-            MessageType::Broadcast
-        };
-
-        let payload_inner = match message_type {
-            MessageType::Broadcast => MatchboxGossipOrRequestResponse::Gossip(MatchboxMessage {
-                topic: self.topic().to_string(),
-                raw_payload: bincode::serialize(&message).expect("Should serialize"),
-            }),
-            MessageType::P2P(_) => {
-                MatchboxGossipOrRequestResponse::Request(MyBehaviourRequest::Message {
-                    topic: self.topic().to_string(),
-                    raw_payload: bincode::serialize(&message).expect("Should serialize"),
-                })
-            }
-        };
-
-        let payload = IntraNodePayload {
-            topic: self.topic().to_string().clone(),
-            payload: payload_inner,
-            message_type,
-        };
-
-        self.tx_to_outbound
-            .send(payload)
-            .map_err(|e| gadget_common::Error::NetworkError {
-                err: format!("Failed to send intra-node payload: {e}"),
-            })
-    }
-}
 
 #[wasm_bindgen]
 #[no_mangle]
@@ -243,17 +111,99 @@ pub async fn run_web_shell(options: Opt, keys: Vec<String>) -> Result<JsValue, J
     //     .try_into()
     //     .map_err(into_js_error)?;
 
-    shell::run_forever(config::ShellConfig {
-        keystore: KeystoreConfig::InMemory { keystore: keys }, //"0000000000000000000000000000000000000000000000000000000000000001".to_string() },
-        subxt: config::SubxtConfig { endpoint },
-        base_path,
-        bind_ip,
-        bind_port,
-        bootnodes,
-        node_key,
-    })
-    .await
-    .map_err(|e| js_sys::Error::new(&e.to_string()))?;
+    // shell::run_forever(config::ShellConfig {
+    //     keystore: KeystoreConfig::InMemory { keystore: keys }, //"0000000000000000000000000000000000000000000000000000000000000001".to_string() },
+    //     subxt: config::SubxtConfig { endpoint },
+    //     base_path,
+    //     bind_ip,
+    //     bind_port,
+    //     bootnodes,
+    //     node_key,
+    // })
+    // .await
+    // .map_err(|e| js_sys::Error::new(&e.to_string()))?;
+    let config = config::ShellConfig {
+            keystore: KeystoreConfig::InMemory { keystore: keys }, //"0000000000000000000000000000000000000000000000000000000000000001".to_string() },
+            subxt: config::SubxtConfig { endpoint },
+            base_path,
+            bind_ip,
+            bind_port,
+            bootnodes,
+            node_key,
+        };
+
+    // log(&format!("Shell Config: {:?}", config));
+    let (role_key, acco_key) = load_keys_from_keystore(config.keystore.clone()).map_err(|e| js_sys::Error::new(&e.to_string()))?;;
+
+    let network_key = ed25519::Pair::from_seed(&config.node_key);
+    // log(&format!(
+    //     "NETWORK (ED25519) KEY PAIR?: {:?}",
+    //     network_key.to_raw_vec()
+    // ));
+
+    let logger = DebugLogger::default();
+    let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
+
+    let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))
+        .map_err(|e| js_sys::Error::new(&e.to_string()))?;
+    // log(&format!("LIBP2P KEY PAIR?: {:?}", libp2p_key));
+
+    let web_networks = setup_matchbox_network(
+        // libp2p_key,
+        // &config,
+        // logger.clone(),
+        vec![
+            // "test1", "test2", "test3",
+            // "test4",
+            // // dfns-cggmp21
+            // DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
+            // DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
+            // DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
+            // DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
+            // zcash-frost
+            ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
+            ZCASH_FROST_SIGNING_PROTOCOL_NAME,
+            // // silent-shared-dkls23
+            // SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME,
+            // SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME,
+            // // gennaro-dkg-bls381
+            // GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
+            // GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
+        ],
+        // role_key,
+    )
+        .await
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))
+        .map_err(|e| js_sys::Error::new(&e.to_string()))?;
+
+    let protocols = crate::web::start_protocols_web(
+        &config.subxt,
+        web_networks,
+        acco_key,
+        logger,
+        wrapped_keystore,
+    )
+        .await
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))
+        .map_err(|e| js_sys::Error::new(&e.to_string()))?;
+
+    // let ctrl_c = gadget_io::tokio::signal::ctrl_c();
+
+    // gadget_io::tokio::select! {
+        // _ = ctrl_c => {
+        //     tracing::info!("Received Ctrl-C, shutting down");
+        // }
+        // res = protocols => {
+        //     if let Err(e) = res {
+        //         tracing::error!(error = ?e, "Protocols watcher task unexpectedly shutdown");
+        //     }
+        // }
+        // _ = network_task => {
+        //     tracing::error!("Network task unexpectedly shutdown")
+        // }
+    // }
+    // Ok(())
     let result = serde_wasm_bindgen::to_value("success message").map_err(into_js_error)?;
     Ok(result)
 }
@@ -264,7 +214,7 @@ pub async fn setup_matchbox_network(
     networks: Vec<&'static str>,
     // role_key: ecdsa::Pair,
 ) -> Result<HashMap<&'static str, MatchboxHandle>, Box<dyn Error>> {
-    log(&format!("SETUP MATCHBOX NETWORK"));
+    // log(&format!("SETUP MATCHBOX NETWORK"));
 
     let (mut socket, loop_fut) = WebRtcSocket::new_reliable("ws://localhost:3536/"); // Signaling Server Address
 
@@ -272,11 +222,11 @@ pub async fn setup_matchbox_network(
     // Subscribe to all networks
     let mut inbound_mapping = Vec::new();
     let (tx_to_outbound, mut rx_to_outbound) =
-        gadget_io::tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
+        gadget_io::tokio::sync::mpsc::unbounded_channel::<IntraNodeWebPayload>();
     let ecdsa_peer_id_to_matchbox_id = Arc::new(RwLock::new(HashMap::new()));
     let mut handles_ret = HashMap::with_capacity(networks.len());
     for network in networks {
-        log(&format!("MATCHBOX NETWORK LOOP ITERATION: {:?}", network));
+        // log(&format!("MATCHBOX NETWORK LOOP ITERATION: {:?}", network));
         let (inbound_tx, inbound_rx) = gadget_io::tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
         let connected_peers = Arc::new(AtomicU32::new(0));
         inbound_mapping.push((network.clone(), inbound_tx, connected_peers.clone()));
@@ -292,10 +242,10 @@ pub async fn setup_matchbox_network(
         );
     }
 
-    log(&format!("ALL NETWORKS READY"));
+    // log(&format!("ALL NETWORKS READY"));
 
     let worker = async move {
-        log(&format!("WORKER ASYNC MOVE ENTERED"));
+        // log(&format!("WORKER ASYNC MOVE ENTERED"));
 
         let span = tracing::debug_span!("network_worker");
         let _enter = span.enter();
@@ -324,7 +274,7 @@ pub async fn setup_matchbox_network(
         futures::pin_mut!(timeout);
         // Listening Loop
         loop {
-            log(&format!("MATCHBOX WORK LOOP ITERATION"));
+            // log(&format!("MATCHBOX WORK LOOP ITERATION"));
             // When a new peer is found through relay
             for (peer, state) in socket.update_peers() {
                 match state {
@@ -357,9 +307,9 @@ pub async fn setup_matchbox_network(
         }
     };
     wasm_bindgen_futures::spawn_local(worker);
-    log(&format!(
-        "SETUP MATCHBOX NETWORK EXITING AFTER SPAWNING WORKER"
-    ));
+    // log(&format!(
+    //     "SETUP MATCHBOX NETWORK EXITING AFTER SPAWNING WORKER"
+    // ));
 
     Ok(handles_ret)
 }
@@ -618,98 +568,98 @@ mod tests {
     //     assert!(err_str.contains("Base Error"));
     // }
 
-    /// Tests Browser-to-Browser connection using Matchbox WebRTC. Requires example matchbox_server
-    /// running as signal server
-    #[wasm_bindgen_test]
-    fn test_matchbox_browser_to_browser() {
-        console_error_panic_hook::set_once();
-        console_log::init_with_level(log::Level::Debug).unwrap();
-
-        let peer_one = async move {
-            log(&format!("Peer One Beginning"));
-            let (mut socket, loop_fut) = matchbox_socket_tester().await;
-            let loop_fut = loop_fut.fuse();
-            futures::pin_mut!(loop_fut);
-            let timeout = Delay::new(Duration::from_millis(100));
-            futures::pin_mut!(timeout);
-            // Listening Loop
-            loop {
-                for (peer, state) in socket.update_peers() {
-                    match state {
-                        PeerState::Connected => {
-                            log(&format!("Peer joined: {peer}"));
-                            let packet = "Message for Peer Two..."
-                                .as_bytes()
-                                .to_vec()
-                                .into_boxed_slice();
-                            socket.send(packet, peer);
-                        }
-                        PeerState::Disconnected => {
-                            log(&format!("Peer {peer} Disconnected, Closing Socket"));
-                            socket.close();
-                        }
-                    }
-                }
-                for (peer, packet) in socket.receive() {
-                    let message = String::from_utf8_lossy(&packet);
-                    log(&format!("Message from {peer}: {message}"));
-                }
-                select! {
-                    // Loop every 100ms
-                    _ = (&mut timeout).fuse() => {
-                        timeout.reset(Duration::from_millis(100));
-                    }
-                    // Break if the message loop ends via disconnect/closure
-                    _ = &mut loop_fut => {
-                        break;
-                    }
-                }
-            }
-        };
-
-        let peer_two = async move {
-            log(&format!("Peer Two Beginning"));
-            let (mut socket, loop_fut) = matchbox_socket_tester().await;
-            let loop_fut = loop_fut.fuse();
-            futures::pin_mut!(loop_fut);
-            let timeout = Delay::new(Duration::from_millis(100));
-            futures::pin_mut!(timeout);
-            // Listening Loop
-            loop {
-                for (peer, state) in socket.update_peers() {
-                    match state {
-                        _ => continue,
-                    }
-                }
-                for (peer, packet) in socket.receive() {
-                    let message = String::from_utf8_lossy(&packet);
-                    log(&format!("Peer Two Received Message from {peer}: {message}"));
-                    log(&format!("Peer Two Closing Socket"));
-                    socket.close();
-                }
-
-                select! {
-                    // Loop every 100ms
-                    _ = (&mut timeout).fuse() => {
-                        timeout.reset(Duration::from_millis(100));
-                    }
-                    // Break if the message loop ends via disconnect/closure
-                    _ = &mut loop_fut => {
-                        break;
-                    }
-                }
-            }
-        };
-
-        wasm_bindgen_futures::spawn_local(peer_one);
-        wasm_bindgen_futures::spawn_local(peer_two);
-    }
-
-    async fn matchbox_socket_tester() -> (WebRtcSocket<SingleChannel>, MessageLoopFuture) {
-        log(&format!("Starting Matchbox Listener"));
-        let (mut socket, loop_fut) = WebRtcSocket::new_reliable("ws://localhost:3536/"); // Signaling Server Address
-        (socket, loop_fut)
-    }
+    // /// Tests Browser-to-Browser connection using Matchbox WebRTC. Requires example matchbox_server
+    // /// running as signal server
+    // #[wasm_bindgen_test]
+    // fn test_matchbox_browser_to_browser() {
+    //     console_error_panic_hook::set_once();
+    //     console_log::init_with_level(log::Level::Debug).unwrap();
+    //
+    //     let peer_one = async move {
+    //         log(&format!("Peer One Beginning"));
+    //         let (mut socket, loop_fut) = matchbox_socket_tester().await;
+    //         let loop_fut = loop_fut.fuse();
+    //         futures::pin_mut!(loop_fut);
+    //         let timeout = Delay::new(Duration::from_millis(100));
+    //         futures::pin_mut!(timeout);
+    //         // Listening Loop
+    //         loop {
+    //             for (peer, state) in socket.update_peers() {
+    //                 match state {
+    //                     PeerState::Connected => {
+    //                         log(&format!("Peer joined: {peer}"));
+    //                         let packet = "Message for Peer Two..."
+    //                             .as_bytes()
+    //                             .to_vec()
+    //                             .into_boxed_slice();
+    //                         socket.send(packet, peer);
+    //                     }
+    //                     PeerState::Disconnected => {
+    //                         log(&format!("Peer {peer} Disconnected, Closing Socket"));
+    //                         socket.close();
+    //                     }
+    //                 }
+    //             }
+    //             for (peer, packet) in socket.receive() {
+    //                 let message = String::from_utf8_lossy(&packet);
+    //                 log(&format!("Message from {peer}: {message}"));
+    //             }
+    //             select! {
+    //                 // Loop every 100ms
+    //                 _ = (&mut timeout).fuse() => {
+    //                     timeout.reset(Duration::from_millis(100));
+    //                 }
+    //                 // Break if the message loop ends via disconnect/closure
+    //                 _ = &mut loop_fut => {
+    //                     break;
+    //                 }
+    //             }
+    //         }
+    //     };
+    //
+    //     let peer_two = async move {
+    //         log(&format!("Peer Two Beginning"));
+    //         let (mut socket, loop_fut) = matchbox_socket_tester().await;
+    //         let loop_fut = loop_fut.fuse();
+    //         futures::pin_mut!(loop_fut);
+    //         let timeout = Delay::new(Duration::from_millis(100));
+    //         futures::pin_mut!(timeout);
+    //         // Listening Loop
+    //         loop {
+    //             for (peer, state) in socket.update_peers() {
+    //                 match state {
+    //                     _ => continue,
+    //                 }
+    //             }
+    //             for (peer, packet) in socket.receive() {
+    //                 let message = String::from_utf8_lossy(&packet);
+    //                 log(&format!("Peer Two Received Message from {peer}: {message}"));
+    //                 log(&format!("Peer Two Closing Socket"));
+    //                 socket.close();
+    //             }
+    //
+    //             select! {
+    //                 // Loop every 100ms
+    //                 _ = (&mut timeout).fuse() => {
+    //                     timeout.reset(Duration::from_millis(100));
+    //                 }
+    //                 // Break if the message loop ends via disconnect/closure
+    //                 _ = &mut loop_fut => {
+    //                     break;
+    //                 }
+    //             }
+    //         }
+    //     };
+    //
+    //     wasm_bindgen_futures::spawn_local(peer_one);
+    //     wasm_bindgen_futures::spawn_local(peer_two);
+    // }
+    //
+    // async fn matchbox_socket_tester() -> (WebRtcSocket<SingleChannel>, MessageLoopFuture) {
+    //     log(&format!("Starting Matchbox Listener"));
+    //     let (mut socket, loop_fut) = WebRtcSocket::new_reliable("ws://localhost:3536/"); // Signaling Server Address
+    //     (socket, loop_fut)
+    // }
 
     // async fn async_main() {
     //     log(&format!("Hello from Matchbox Test!"));

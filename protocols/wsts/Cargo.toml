@@ -5,6 +5,20 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["std"]
+std = [
+    "gadget-common/default",
+    "gadget-io/default",
+    "sp-core/default",
+]
+wasm = [
+    "gadget-common/wasm",
+    "gadget-io/wasm",
+    "sp-core/serde",
+    "sp-core/full_crypto",
+]
+
 [dependencies]
 gadget-common = { workspace = true, features = ["default"] }
 gadget-io = { workspace = true, features = ["default"] }

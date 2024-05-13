@@ -6,8 +6,9 @@ use std::{hash::Hash, sync::Arc};
 use crate::network::gossip::GossipHandle;
 use crate::{
     config::ShellConfig,
-    keystore::KeystoreContainer,
+    keystore::{KeystoreContainer, load_keys_from_keystore},
     tangle::{crypto, TangleConfig, TangleRuntime},
+    network::web::*,
 };
 use color_eyre::eyre::OptionExt;
 use gadget_common::keystore::KeystoreBackend;
@@ -26,13 +27,15 @@ use tangle_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 use tangle_subxt::subxt;
 use tangle_subxt::tangle_testnet_runtime as tangle_runtime;
 
-// use dfns_cggmp21_protocol::constants::{
-//     DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
-//     DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME, DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
-// };
-// use threshold_bls_protocol::constants::{
-//     GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME, GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
-// };
+#[cfg(not(target_family = "wasm"))]
+use dfns_cggmp21_protocol::constants::{
+    DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME, DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
+    DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME, DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
+};
+#[cfg(not(target_family = "wasm"))]
+use threshold_bls_protocol::constants::{
+    GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME, GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
+};
 use zcash_frost_protocol::constants::{
     ZCASH_FROST_KEYGEN_PROTOCOL_NAME, ZCASH_FROST_SIGNING_PROTOCOL_NAME,
 };
@@ -45,6 +48,7 @@ pub struct WasmKeystore;
 
 /// Start the shell and run it forever
 #[tracing::instrument(skip(config))]
+#[cfg(not(target_family = "wasm"))]
 pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     // log(&format!("Shell Config: {:?}", config));
     let (role_key, acco_key) = load_keys_from_keystore(config.keystore.clone())?;
@@ -62,29 +66,29 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
         .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))?;
     // log(&format!("LIBP2P KEY PAIR?: {:?}", libp2p_key));
 
-    // let (networks, network_task) = crate::network::setup::setup_libp2p_network(
-    //     libp2p_key,
-    //     &config,
-    //     logger.clone(),
-    //     vec![
-    //         // dfns-cggmp21
-    //         DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
-    //         DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
-    //         DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
-    //         DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
-    //         // zcash-frost
-    //         ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
-    //         ZCASH_FROST_SIGNING_PROTOCOL_NAME,
-    //         // gennaro-dkg-bls381
-    //         GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
-    //         GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
-    //     ],
-    //     role_key,
-    // )
-    // .await
-    // .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
+    let (networks, network_task) = crate::network::setup::setup_libp2p_network(
+        libp2p_key,
+        &config,
+        logger.clone(),
+        vec![
+            // dfns-cggmp21
+            DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
+            DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
+            DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
+            DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
+            // zcash-frost
+            ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
+            ZCASH_FROST_SIGNING_PROTOCOL_NAME,
+            // gennaro-dkg-bls381
+            GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
+            GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
+        ],
+        role_key,
+    )
+    .await
+    .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
-    let networks = crate::web::setup_matchbox_network(
+    let (web_networks, web_network_task) = crate::network::setup::setup_matchbox_network(
         // libp2p_key,
         // &config,
         // logger.clone(),
@@ -112,36 +116,39 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
     logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
-    // wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
+    wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
 
-    // let protocols =
-    //     start_required_protocols(&config.subxt, networks, acco_key, logger, wrapped_keystore);
+    let protocols =
+        start_required_protocols(&config.subxt, networks, acco_key.clone(), logger.clone(), wrapped_keystore.clone());
 
-    let protocols = crate::web::start_protocols_web(
-        &config.subxt,
-        networks,
-        acco_key,
-        logger,
-        wrapped_keystore,
-    )
-    .await
-    .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
+    // let protocols = crate::web::start_protocols_web(
+    //     &config.subxt,
+    //     web_networks,
+    //     acco_key,
+    //     logger,
+    //     wrapped_keystore,
+    // )
+    // .await
+    // .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
-    // let ctrl_c = gadget_io::tokio::signal::ctrl_c();
-    //
-    // gadget_io::tokio::select! {
-    //     // _ = ctrl_c => {
-    //     //     tracing::info!("Received Ctrl-C, shutting down");
-    //     // }
-    //     res = protocols => {
-    //         if let Err(e) = res {
-    //             tracing::error!(error = ?e, "Protocols watcher task unexpectedly shutdown");
-    //         }
-    //     }
-    //     _ = network_task => {
-    //         tracing::error!("Network task unexpectedly shutdown")
-    //     }
-    // }
+    let ctrl_c = gadget_io::tokio::signal::ctrl_c();
+
+    gadget_io::tokio::select! {
+        _ = ctrl_c => {
+            tracing::info!("Received Ctrl-C, shutting down");
+        }
+        res = protocols => {
+            if let Err(e) = res {
+                tracing::error!(error = ?e, "Protocols watcher task unexpectedly shutdown");
+            }
+        }
+        _ = network_task => {
+            tracing::error!("Network task unexpectedly shutdown")
+        }
+        _ = web_network_task => {
+            tracing::error!("Web Network task unexpectedly shutdown")
+        }
+    }
     Ok(())
 }
 
@@ -415,12 +422,6 @@ where
 //         Ok(acco_key)
 //     }
 // }
-
-pub fn load_keys_from_keystore<T: SubstrateKeystore>(
-    keystore_config: T,
-) -> color_eyre::Result<(ecdsa::Pair, sr25519::Pair)> {
-    Ok((keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?))
-}
 
 #[cfg(not(target_family = "wasm"))]
 pub async fn wait_for_connection_to_bootnodes(

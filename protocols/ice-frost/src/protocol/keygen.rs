@@ -21,7 +21,8 @@ use round_based_21::{Incoming, Outgoing};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
+use gadget_io::tokio;
 
 use crate::rounds;
 use crate::rounds::keygen::Msg;

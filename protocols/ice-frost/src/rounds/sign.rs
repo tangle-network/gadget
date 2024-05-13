@@ -132,7 +132,7 @@ where
     }
 
     tracer.stage("Compute partial signature");
-    let signers = aggregator.get_signers();
+    let signers = aggregator.signers();
     let partial_sig = p_sk
         .sign(
             message_to_sign,

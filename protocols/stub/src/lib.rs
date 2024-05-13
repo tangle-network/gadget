@@ -1,6 +1,7 @@
 use gadget_common::full_protocol::SharedOptional;
 use gadget_common::prelude::*;
 use gadget_common::tangle_runtime::*;
+use gadget_common::Error;
 use sp_core::sr25519;
 
 #[protocol]

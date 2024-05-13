@@ -14,7 +14,7 @@ gadget-io = { workspace = true, default-features = false }
 protocol-macros = { workspace = true }
 parking_lot = { workspace = true }
 sp-core = { workspace = true, default-features = false }
-#tangle-subxt = { workspace = true, optional = true, default-features = false }
+tangle-subxt = { workspace = true, optional = true, default-features = false }
 getrandom = { workspace = true, default-features = false, optional = true }
 
 [features]
@@ -23,17 +23,17 @@ std = [
     "gadget-common/default",
     "gadget-io/default",
     "sp-core/default",
-#    "tangle-subxt/default",
+    "tangle-subxt/default",
 ]
 wasm = [
     "gadget-common/wasm",
     "gadget-io/wasm",
     "sp-core/serde",
     "getrandom/js",
-#    "tangle-subxt/wasm",
+    "tangle-subxt/wasm",
 ]
 
 
 [dev-dependencies]
-#test-utils = { workspace = true }
-#tangle-primitives = { workspace = true }
+test-utils = { workspace = true }
+tangle-primitives = { workspace = true }

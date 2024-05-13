@@ -50,7 +50,7 @@ hex = { workspace = true }
 parking_lot = { workspace = true }
 
 [features]
-default = ["wasm"]
+default = ["std"]
 std = [
     "gadget-common/default",
     "gadget-io/default",

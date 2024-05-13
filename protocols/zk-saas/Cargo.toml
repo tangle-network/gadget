@@ -8,16 +8,31 @@ crate-type = ["cdylib", "rlib"]
 
 
 [features]
-
+default = ["std"]
 parallel = [
     "ark-std/parallel",
     # "groth16/parallel",
     "rayon"
 ]
+std = [
+    "gadget-common/std",
+    "gadget-io/std",
+    "sp-runtime/default",
+    "sp-core/default",
+    "tangle-primitives/default",
+]
+wasm = [
+    "gadget-common/wasm",
+    "gadget-io/wasm",
+    "sp-runtime/serde",
+    "sp-core/serde",
+    "sp-core/full_crypto",
+#    "tangle-primitives/wasm",
+]
 
 [dependencies]
 protocol-macros = { workspace = true }
-gadget-common = { workspace = true, features = ["default"] }
+gadget-common = { workspace = true, default-features = false }
 tokio-rustls = { workspace = true }
 mpc-net = { workspace = true }
 secret-sharing = { workspace = true }
@@ -25,7 +40,7 @@ dist-primitives = { workspace = true }
 groth16 = { workspace = true }
 gadget-core = { workspace = true }
 bincode2 = { workspace = true }
-gadget-io = { workspace = true, features = ["default"] }
+gadget-io = { workspace = true, default-features = false }
 futures-util = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -38,9 +53,9 @@ fflonk = { git = "https://github.com/w3f/fflonk", features = ["std"] }
 futures = { workspace = true }
 
 
-sp-runtime = { workspace = true, features = ["default"] }
-sp-core = { workspace = true, features = ["default"] }
-tangle-primitives = { workspace = true, features = ["verifying"] }
+sp-runtime = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
+tangle-primitives = { workspace = true, default-features = false, features = ["verifying"] }
 
 ark-serialize = { workspace = true, default-features = false }
 ark-groth16 = { workspace = true, default-features = false }

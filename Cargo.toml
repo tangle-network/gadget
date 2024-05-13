@@ -12,7 +12,7 @@ members = [
     "protocols/bls",
     "protocols/stub",
 #    "test-gadget",
-    "test-utils",
+#    "test-utils",
     "protocol-macros",
 #    "web-shell",
 #    "test-web",
@@ -24,11 +24,11 @@ gadget-core = { path = "./core" }
 gadget-common = { path = "./common", default-features = false }
 gadget-io = { path = "./gadget-io", default-features = false }
 gadget-shell = { path = "./shell", default-features = false }
-zk-saas-protocol = { path = "./protocols/zk-saas" }
+zk-saas-protocol = { path = "./protocols/zk-saas", default-features = false }
 threshold-bls-protocol = { path = "./protocols/bls" }
 stub-protocol = { path = "./protocols/stub" }
 dfns-cggmp21-protocol = { path = "./protocols/dfns-cggmp21" }
-zcash-frost-protocol = { path = "./protocols/zcash-frost" }
+zcash-frost-protocol = { path = "./protocols/zcash-frost", default-features = false }
 ice-frost-protocol = { path = "./protocols/ice-frost" }
 wsts-protocol = { path = "./protocols/wsts" }
 test-utils = { path = "./test-utils" }
@@ -69,8 +69,8 @@ frost-p384 = { git = "https://github.com/LIT-protocol/frost" }
 frost-ristretto255 = { git = "https://github.com/LIT-protocol/frost" }
 frost-secp256k1 = { git = "https://github.com/LIT-protocol/frost" }
 frost-rerandomized = { git = "https://github.com/LIT-protocol/frost" }
-frost-taproot = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
-# frost-taproot = { path = "../tangle/pallets/dkg/frost/frost-taproot" }
+#frost-taproot = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
+ frost-taproot = { path = "../tangle/pallets/dkg/frost/frost-taproot" }
 
 bls12_381_plus = "0.8.13"
 wsts = "3.0.0"
@@ -220,7 +220,7 @@ wasmer = { version = "4.2.6", default-features = false }
 #[profile.dev]
 #opt-level = 3 #'s'
 [profile.dev]
-opt-level = 's'
+#opt-level = 's'
 debug = 1
 #[profile.dev.package."*"]
-#opt-level = 3
+opt-level = 3
