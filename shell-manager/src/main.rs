@@ -8,13 +8,12 @@ use shell_sdk::tangle::TangleRuntime;
 use shell_sdk::Client;
 use shell_sdk::{entry, ClientWithApi, DebugLogger, ShellTomlConfig};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use tangle_subxt::subxt;
 use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
 use tokio::io::AsyncWriteExt;
-use tokio::net::TcpListener;
 
 pub mod error;
 pub mod protocols;
@@ -81,6 +80,7 @@ async fn main() -> color_eyre::Result<()> {
     let manager_task = async move {
         while let Some(notification) = runtime.get_next_finality_notification().await {
             println!("Received notification {}", notification.number);
+            // TODO: Fetch blueprints instead of role types
             let onchain_roles = get_subscribed_role_types(
                 &runtime,
                 notification.hash,
@@ -97,50 +97,90 @@ async fn main() -> color_eyre::Result<()> {
                     // Add in the protocol
                     for global_protocol in &global_protocols {
                         if global_protocol.role_types().contains(&role.clone()) {
-                            let ProtocolMetadata { role_types, git, rev, package, bin_hashes } = global_protocol;
+                            let ProtocolMetadata {
+                                role_types: _,
+                                git,
+                                rev,
+                                package,
+                                bin_hashes,
+                            } = global_protocol;
                             // The hash is sha_256 of the binary
                             let host_os = get_formatted_os_string();
-                            let expected_hash =
-                                bin_hashes.get(&host_os).ok_or_else(|| {
-                                    msg_to_error(format!("No hash for this OS ({host_os})"))
-                                })?;
-                            let binary_download_path = format!("protocol-{rev}");
+                            let expected_hash = bin_hashes.get(&host_os).ok_or_else(|| {
+                                msg_to_error(format!("No hash for this OS ({host_os})"))
+                            })?;
+
+                            let sha_url = get_sha_download_url(git, rev, package);
+
+                            logger.info(format!("Downloading {role_str} SHA from {sha_url}"));
+                            let sha_downloaded = reqwest::get(&sha_url)
+                                .await
+                                .map_err(|err| msg_to_error(err.to_string()))?
+                                .text()
+                                .await
+                                .map_err(|err| msg_to_error(err.to_string()))?;
+
+                            if sha_downloaded.trim() != expected_hash.trim() {
+                                logger.error(format!(
+                                    "Retrieved hash {} mismatches the declared hash {} for protocol: {}",
+                                    sha_downloaded,
+                                    expected_hash,
+                                    role_str
+                                ));
+                                continue;
+                            }
+
+                            let current_dir = std::env::current_dir()?;
+                            let mut binary_download_path =
+                                format!("{}/protocol-{rev}", current_dir.display());
+                            if is_windows() {
+                                binary_download_path += ".exe"
+                            }
+
+                            logger.info(format!("Downloading to {binary_download_path}"));
 
                             // Check if the binary exists, if not download it
-                            if !valid_file_exists(&binary_download_path, expected_hash)
-                                .await
-                            {
-                                let url = get_download_url(git, rev, package);
-                                let download = reqwest::get(&url)
-                                    .await
-                                    .map_err(|err| msg_to_error(err.to_string()))?
-                                    .bytes()
-                                    .await
-                                    .map_err(|err| msg_to_error(err.to_string()))?;
-                                let retrieved_hash = hash_bytes_to_hex(&download);
+                            let retrieved_hash =
+                                if !valid_file_exists(&binary_download_path, expected_hash).await {
+                                    let url = get_download_url(git, rev, package);
 
-                                if retrieved_hash != *expected_hash {
+                                    let download = reqwest::get(&url)
+                                        .await
+                                        .map_err(|err| msg_to_error(err.to_string()))?
+                                        .bytes()
+                                        .await
+                                        .map_err(|err| msg_to_error(err.to_string()))?;
+                                    let retrieved_hash = hash_bytes_to_hex(&download);
+
+                                    // Write the binary to disk
+                                    let mut file =
+                                        tokio::fs::File::create(&binary_download_path).await?;
+                                    file.write_all(&download).await?;
+                                    file.flush().await?;
+                                    Some(retrieved_hash)
+                                } else {
+                                    None
+                                };
+
+                            if let Some(retrieved_hash) = retrieved_hash {
+                                if retrieved_hash.trim() != expected_hash.trim() {
                                     logger.error(format!(
-                                        "Binary hash mismatch for protocol: {}",
-                                        retrieved_hash
+                                        "Binary hash {} mismatched expected hash of {} for protocol: {}",
+                                        retrieved_hash,
+                                        expected_hash,
+                                        role_str
                                     ));
                                     continue;
                                 }
-
-                                // Write the binary to disk
-                                let mut file =
-                                    tokio::fs::File::create(&binary_download_path).await?;
-                                file.write_all(&download).await?;
                             }
 
-                            let arguments =
-                                generate_process_arguments(&shell_config, opt).await?;
+                            chmod_x_file(&binary_download_path).await?;
+
+                            let arguments = generate_process_arguments(&shell_config, opt)?;
 
                             logger.info(format!("Starting protocol: {role_str}"));
 
-                            // Spawn the process
-
-                            // Now that the file is loaded, spawn the shell
+                            // Now that the file is loaded, spawn the process
                             let process_handle =
                                 tokio::process::Command::new(&binary_download_path)
                                     .kill_on_drop(true)
@@ -152,10 +192,7 @@ async fn main() -> color_eyre::Result<()> {
                                     .args(arguments)
                                     .spawn()?;
 
-                            active_shells.insert(
-                                role_str,
-                                process_handle,
-                            );
+                            active_shells.insert(role_str, process_handle);
 
                             break 'inner;
                         }
@@ -217,18 +254,12 @@ async fn get_subscribed_role_types(
         .map_err(|err| msg_to_error(err.to_string()))
 }
 
-async fn generate_process_arguments(
+fn generate_process_arguments(
     shell_config: &ShellTomlConfig,
     opt: &ShellManagerOpts,
 ) -> color_eyre::Result<Vec<String>> {
-    let open_port = TcpListener::bind(format!("{}:0", shell_config.bind_ip))
-        .await?
-        .local_addr()?
-        .port();
-
     let mut arguments = vec![
         format!("--bind-ip={}", shell_config.bind_ip),
-        format!("--bind-port={open_port}"),
         format!("--url={}", shell_config.url),
         format!(
             "--bootnodes={}",
@@ -281,7 +312,7 @@ fn get_formatted_os_string() -> String {
 
     match os {
         "macos" => "apple-darwin".to_string(),
-        "windows" => "windows".to_string(),
+        "windows" => "pc-windows-msvc".to_string(),
         "linux" => "unknown-linux-gnu".to_string(),
         _ => os.to_string(),
     }
@@ -296,12 +327,22 @@ fn get_download_url<T: Into<String>>(git: T, rev: &str, package: &str) -> String
     // Ensure the first part of the url ends with `/`
     if git.ends_with(".git") {
         git = git.replace(".git", "/")
-    } else if !git.ends_with('/') {
+    }
+
+    if !git.ends_with('/') {
         git.push('/')
     }
 
-    // https://github.com/webb-tools/protocol-template/releases/download/protocol-x86_64-apple-darwin/protocol-6fa01cb5cf684e2d0272252f00ea81d6f269f3d7
-    format!("{git}releases/download/protocol-{arch}-{os}/protocol-{package}-{rev}")
+    let ext = if os == "windows" { ".exe" } else { "" };
+
+    // https://github.com/webb-tools/protocols/releases/download/protocol-aarch64-apple-darwin-d1cc78ee4652696a2228f62b735e55ef23bf3f8e/protocol-threshold-bls-protocol-d1cc78ee4652696a2228f62b735e55ef23bf3f8e.sha256
+    // https://github.com/webb-tools/protocols/releases/download/aarch64-apple-darwin-d1cc78ee4652696a2228f62b735e55ef23bf3f8e/protocol-threshold-bls-protocol-d1cc78ee4652696a2228f62b735e55ef23bf3f8e.sha256
+    format!("{git}releases/download/{arch}-{os}-{rev}/protocol-{package}-{rev}{ext}")
+}
+
+fn get_sha_download_url<T: Into<String>>(git: T, rev: &str, package: &str) -> String {
+    let base_url = get_download_url(git, rev, package);
+    format!("{base_url}.sha256")
 }
 
 fn msg_to_error<T: Into<String>>(msg: T) -> color_eyre::Report {
@@ -314,4 +355,28 @@ fn get_role_type_str(role_type: &RoleType) -> String {
         RoleType::ZkSaaS(zksaas) => format!("{zksaas:?}"),
         RoleType::LightClientRelaying => format!("{role_type:?}"),
     }
+}
+
+async fn chmod_x_file<P: AsRef<Path>>(path: P) -> color_eyre::Result<()> {
+    let success = tokio::process::Command::new("chmod")
+        .arg("+x")
+        .arg(format!("{}", path.as_ref().display()))
+        .spawn()?
+        .wait_with_output()
+        .await?
+        .status
+        .success();
+
+    if success {
+        Ok(())
+    } else {
+        Err(color_eyre::eyre::eyre!(
+            "Failed to chmod +x {}",
+            path.as_ref().display()
+        ))
+    }
+}
+
+fn is_windows() -> bool {
+    std::env::consts::OS == "windows"
 }

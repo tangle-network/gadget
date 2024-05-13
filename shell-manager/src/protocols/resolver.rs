@@ -8,11 +8,11 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
 
 #[derive(Debug)]
 pub struct ProtocolMetadata {
-    role_types: Vec<RoleType>,
-    git: String,
-    rev: String,
-    package: String,
-    bin_hashes: HashMap<String, String>,
+    pub role_types: Vec<RoleType>,
+    pub git: String,
+    pub rev: String,
+    pub package: String,
+    pub bin_hashes: HashMap<String, String>,
 }
 
 impl ProtocolMetadata {
@@ -33,9 +33,7 @@ pub fn load_global_config_file<P: AsRef<Path>>(path: P) -> Result<Vec<ProtocolMe
             ));
         }
 
-        if let (Some(bin_hashes), Some(repository)) =
-            (protocol.bin_hashes, protocol.repository)
-        {
+        if let (Some(bin_hashes), Some(repository)) = (protocol.bin_hashes, protocol.repository) {
             if bin_hashes.is_empty() {
                 return Err(Error::msg(
                     "External protocol does not have any binaries hashes specified",

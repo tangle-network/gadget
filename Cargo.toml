@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     "core",
     "common",
-    "test-gadget",
     "test-utils",
     "protocol-macros",
     "shell-manager",
@@ -99,11 +98,6 @@ frame-executive = { git = "https://github.com/paritytech/polkadot-sdk", branch =
 
 pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0" }
 pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0" }
-
-mpc-net = { git = "https://github.com/webb-tools/zk-SaaS/", rev = "769c49ad6cc98308da35db2e4e0752cbaacc3aa0" }
-dist-primitives = { git = "https://github.com/webb-tools/zk-SaaS/", rev = "769c49ad6cc98308da35db2e4e0752cbaacc3aa0" }
-secret-sharing = { git = "https://github.com/webb-tools/zk-SaaS/", rev = "769c49ad6cc98308da35db2e4e0752cbaacc3aa0" }
-groth16 = { git = "https://github.com/webb-tools/zk-SaaS/", rev = "769c49ad6cc98308da35db2e4e0752cbaacc3aa0" }
 
 # ARK Libraries
 ark-std = { version = "0.4.0", default-features = false, features = ["print-trace", "std"] }
