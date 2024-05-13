@@ -9,6 +9,8 @@ use shell_sdk::Client;
 use shell_sdk::{entry, ClientWithApi, DebugLogger, ShellTomlConfig};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use structopt::StructOpt;
 use tangle_subxt::subxt;
 use tangle_subxt::subxt::utils::AccountId32;
@@ -75,7 +77,7 @@ async fn main() -> color_eyre::Result<()> {
     let (_role_key, acco_key) = load_keys_from_keystore(&keystore)?;
     let sub_account_id = AccountId32(acco_key.public().0);
 
-    let mut active_shells = HashMap::<String, tokio::process::Child>::new();
+    let mut active_shells = HashMap::<String, _>::new();
 
     let manager_task = async move {
         while let Some(notification) = runtime.get_next_finality_notification().await {
@@ -192,7 +194,13 @@ async fn main() -> color_eyre::Result<()> {
                                     .args(arguments)
                                     .spawn()?;
 
-                            active_shells.insert(role_str, process_handle);
+                            let (status_handle, abort) = generate_running_process_status_handle(
+                                process_handle,
+                                logger,
+                                &role_str,
+                            );
+
+                            active_shells.insert(role_str, (status_handle, Some(abort)));
 
                             break 'inner;
                         }
@@ -207,7 +215,18 @@ async fn main() -> color_eyre::Result<()> {
                     .ok_or_else(|| msg_to_error(format!("Invalid role type: {role}")))?;
                 if !onchain_roles.contains(&role_type) {
                     logger.warn(format!("Killing protocol: {role}"));
-                    let _ = process_handle.kill().await;
+                    if let Some(abort_handle) = process_handle.1.take() {
+                        let _ = abort_handle.send(());
+                    }
+
+                    to_remove.push(role.clone());
+                }
+            }
+
+            // Check to see if any process handles have died
+            for (role, process_handle) in &mut active_shells {
+                if !process_handle.0.load(Ordering::Relaxed) {
+                    // By removing any killed processes, we will auto-restart them on the next finality notification if required
                     to_remove.push(role.clone());
                 }
             }
@@ -379,4 +398,32 @@ async fn chmod_x_file<P: AsRef<Path>>(path: P) -> color_eyre::Result<()> {
 
 fn is_windows() -> bool {
     std::env::consts::OS == "windows"
+}
+
+fn generate_running_process_status_handle(
+    process: tokio::process::Child,
+    logger: &DebugLogger,
+    role_type: &str,
+) -> (Arc<AtomicBool>, tokio::sync::oneshot::Sender<()>) {
+    let (stop_tx, stop_rx) = tokio::sync::oneshot::channel::<()>();
+    let status = Arc::new(AtomicBool::new(true));
+    let status_clone = status.clone();
+    let logger = logger.clone();
+    let role_type = role_type.to_string();
+
+    let task = async move {
+        let output = process.wait_with_output().await;
+        logger.warn(format!("Process for {role_type} exited: {output:?}"));
+        status_clone.store(false, Ordering::Relaxed);
+    };
+
+    let task = async move {
+        tokio::select! {
+            _ = stop_rx => {},
+            _ = task => {},
+        }
+    };
+
+    tokio::spawn(task);
+    (status, stop_tx)
 }
