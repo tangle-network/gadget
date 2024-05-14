@@ -36,10 +36,10 @@ pub async fn create_client<C: ClientWithApi>(
     })
 }
 
-pub async fn exec_client_function<C: Clone, F, T>(client: &C, function: F) -> T
+pub async fn exec_client_function<C, F, T>(client: &C, function: F) -> T
 where
     for<'a> F: FnOnce(&'a C) -> T,
-    C: Send + Sync + 'static,
+    C: Clone + Send + Sync + 'static,
     T: Send + 'static,
     F: Send + 'static,
 {
