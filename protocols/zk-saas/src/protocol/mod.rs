@@ -14,7 +14,6 @@ use gadget_common::client::{ClientWithApi, JobTypeExt};
 use gadget_common::gadget::message::GadgetProtocolMessage;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::gadget::JobInitMetadata;
-use gadget_common::prelude::*;
 use gadget_common::prelude::{KeystoreBackend, Network};
 use gadget_common::tangle_runtime::*;
 use gadget_common::utils::deserialize;

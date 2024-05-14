@@ -1,5 +1,4 @@
 use crate::utils::{deserialize, serialize};
-use crate::Error;
 use async_trait::async_trait;
 use parking_lot::RwLock;
 use serde::de::DeserializeOwned;
@@ -9,6 +8,7 @@ use sp_core::sr25519::Pair as Sr25519Pair;
 use sp_core::{keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
+use crate::Error;
 
 #[cfg(feature = "std")]
 use sqlx::{
@@ -165,7 +165,7 @@ impl SqliteBackend {
 }
 
 #[async_trait]
-#[cfg(feature = "std")]
+#[cfg(not(target_family = "wasm"))]
 impl KeystoreBackend for SqliteBackend {
     async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, Error> {
         let key = key_to_string(key);
@@ -207,6 +207,7 @@ impl KeystoreBackend for SqliteBackend {
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 fn key_to_string(key: &[u8; 32]) -> String {
     hex::encode(key)
 }

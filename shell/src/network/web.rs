@@ -7,7 +7,6 @@ use gadget_common::prelude::*;
 use gadget_io::tokio::sync::RwLock;
 use gadget_io::tokio::sync::Mutex;
 
-
 #[derive(Clone)]
 pub struct MatchboxHandle {
     pub network: &'static str,
@@ -24,7 +23,7 @@ impl MatchboxHandle {
     }
 
     pub fn topic(&self) -> &str {
-        self.network.clone()
+        self.network
     }
 }
 
@@ -84,9 +83,7 @@ impl Network for MatchboxHandle {
         let message = lock.recv().await?;
         match bincode::deserialize(&message) {
             Ok(message) => Some(message),
-            Err(e) => {
-                // self.logger
-                //     .error(format!("Failed to deserialize message: {e}"));
+            Err(_e) => {
                 drop(lock);
                 self.next_message().await
             }

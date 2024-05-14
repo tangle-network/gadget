@@ -1,6 +1,6 @@
-pub use gadget_io::{KeystoreConfig, SubstrateKeystore};
+pub use gadget_io::KeystoreConfig;
 use libp2p::Multiaddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct ShellConfig {

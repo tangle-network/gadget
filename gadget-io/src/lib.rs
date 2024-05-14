@@ -32,11 +32,11 @@ pub use tokio::time as time;
 #[cfg(target_family = "wasm")]
 use wasm_bindgen::{
     prelude::*,
-    JsCast
+    // JsCast
 };
 
-#[cfg(target_family = "wasm")]
-use wasm_bindgen_futures;
+// #[cfg(target_family = "wasm")]
+// use wasm_bindgen_futures;
 
 #[cfg(target_family = "wasm")]
 pub fn into_js_error(err: impl std::error::Error) -> JsValue {

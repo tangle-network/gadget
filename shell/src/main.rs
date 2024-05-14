@@ -1,8 +1,8 @@
 use color_eyre::Result;
-use libp2p::Multiaddr;
-use serde::{Deserialize, Serialize};
-use std::{fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
-use structopt::StructOpt;
+#[cfg(not(target_family = "wasm"))]
+use {
+    structopt::StructOpt,
+};
 
 mod config;
 mod keystore;

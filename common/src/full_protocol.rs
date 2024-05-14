@@ -16,7 +16,6 @@ use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
 use sp_core::ecdsa::{Public, Signature};
 use sp_core::{keccak_256, sr25519};
-use sp_io::crypto::ecdsa_verify_prehashed;
 use std::sync::Arc;
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;

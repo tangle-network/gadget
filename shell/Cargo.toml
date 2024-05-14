@@ -100,9 +100,9 @@ futures = { workspace = true }
 bincode = { workspace = true }
 tokio_with_wasm = "0.4.3"
 ## Protocols
-dfns-cggmp21-protocol = { workspace = true, optional = true, default-features = false }
+dfns-cggmp21-protocol = { workspace = true, optional = true }
 zcash-frost-protocol = { workspace = true, optional = true, default-features = false }
-threshold-bls-protocol = { workspace = true, optional = true, default-features = false }
+threshold-bls-protocol = { workspace = true, optional = true }
 zk-saas-protocol = { workspace = true, optional = true, default-features = false, features = ["parallel"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]

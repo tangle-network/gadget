@@ -217,11 +217,11 @@ pub async fn setup_libp2p_network(
 
 pub async fn setup_matchbox_network(
     // config: &ShellConfig,
-    // logger: DebugLogger,
+    logger: DebugLogger,
     networks: Vec<&'static str>,
     // role_key: ecdsa::Pair,
 ) -> Result<(HashMap<&'static str, MatchboxHandle>, JoinHandle<()>), Box<dyn Error>> {
-    // log(&format!("SETUP MATCHBOX NETWORK"));
+    logger.debug("Beginning initialization of Matchbox WebRTC network...");
 
     let (mut socket, loop_fut) = WebRtcSocket::new_reliable("ws://localhost:3536/"); // Signaling Server Address
 
@@ -236,7 +236,7 @@ pub async fn setup_matchbox_network(
         // log(&format!("MATCHBOX NETWORK LOOP ITERATION: {:?}", network));
         let (inbound_tx, inbound_rx) = gadget_io::tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
         let connected_peers = Arc::new(AtomicU32::new(0));
-        inbound_mapping.push((network.clone(), inbound_tx, connected_peers.clone()));
+        inbound_mapping.push((network, inbound_tx, connected_peers.clone()));
         handles_ret.insert(
             network,
             MatchboxHandle {
@@ -300,6 +300,7 @@ pub async fn setup_matchbox_network(
             // When a packet is received
             for (peer, packet) in socket.receive() {
                 let message = String::from_utf8_lossy(&packet);
+                logger.debug(format!("Received Packet from Peer {:?}: {:?}", peer, message));
             }
             select! {
                 // Loop every 100ms

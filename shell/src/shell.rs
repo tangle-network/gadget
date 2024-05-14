@@ -6,11 +6,9 @@ use std::{hash::Hash, sync::Arc};
 use crate::network::gossip::GossipHandle;
 use crate::{
     config::ShellConfig,
-    keystore::{KeystoreContainer, load_keys_from_keystore},
-    tangle::{crypto, TangleConfig, TangleRuntime},
-    network::web::*,
+    keystore::load_keys_from_keystore,
+    tangle::{ TangleConfig, TangleRuntime},
 };
-use color_eyre::eyre::OptionExt;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::{
     client::{PairSigner, SubxtPalletSubmitter},
@@ -19,9 +17,7 @@ use gadget_common::{
     keystore::{ECDSAKeyStore, InMemoryBackend},
 };
 use gadget_core::gadget::substrate::Client;
-use gadget_io::{KeystoreConfig, SubstrateKeystore};
-use sp_core::{ecdsa, ed25519, sr25519, ByteArray, Pair};
-use sp_keystore::Keystore;
+use sp_core::{ed25519, sr25519, Pair};
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
 use tangle_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 use tangle_subxt::subxt;
@@ -44,7 +40,7 @@ use zcash_frost_protocol::constants::{
 pub const AGENT_VERSION: &str = "tangle/gadget-shell/1.0.0";
 pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub struct WasmKeystore;
+// pub struct WasmKeystore;
 
 /// Start the shell and run it forever
 #[tracing::instrument(skip(config))]
@@ -91,7 +87,7 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     let (web_networks, web_network_task) = crate::network::setup::setup_matchbox_network(
         // libp2p_key,
         // &config,
-        // logger.clone(),
+        logger.clone(),
         vec![
             // "test1", "test2", "test3",
             // "test4",
