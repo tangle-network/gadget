@@ -98,9 +98,6 @@ jobs:
             package: [
               gadget-core,
               gadget-common,
-              dfns-cggmp21-protocol,
-              threshold-bls-protocol,
-              zcash-frost-protocol,
             ]
     steps:
       - name: checkout code

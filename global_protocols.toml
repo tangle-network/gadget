@@ -3,7 +3,7 @@ package = "threshold-bls-protocol"
 repository = { git = "https://github.com/webb-tools/protocols", rev = "d1cc78ee4652696a2228f62b735e55ef23bf3f8e" }
 role_types = ["GennaroDKGBls381"]
 bin_hashes = { linux-x86_64="52a145352552619681c9201d22d570cbc1ed94e3550987a562b21ff1df3cbb17", darwin-x86_64="23cead893b2e761f8d4dd28e65fd431be49d75271483b2c0ce01582a31633a97", apple-darwin="5d2234e284fbef4a5e71b5b39f779ffc96e5bbaabee65acc0a5d84b11e4498df" }
-
+r
 #[[protocols]]
 #package = "dfns-cggmp21-protocol"
 #repository = { git = "https://github.com/webb-tools/protocols", rev = "d1cc78ee4652696a2228f62b735e55ef23bf3f8e" }
