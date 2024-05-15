@@ -4,6 +4,7 @@ use sha2::Sha256;
 pub mod key_refresh;
 pub mod key_rotate;
 pub mod keygen;
+pub mod refresh_proposal;
 pub mod sign;
 pub mod util;
 
