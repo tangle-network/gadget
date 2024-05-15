@@ -33,7 +33,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 #[derive(Clone)]
-pub struct DfnsCGGMP21SigningExtraParams {
+pub struct PrivateBridgeSigningExtraParams {
     pub i: u16,
     pub t: u16,
     pub signers: Vec<u16>,
@@ -46,10 +46,10 @@ pub struct DfnsCGGMP21SigningExtraParams {
 }
 
 pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
-    config: &crate::DfnsSigningProtocol<C, N, KBE>,
+    config: &crate::PrivateBridgeSigningProtocol<C, N, KBE>,
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<DfnsCGGMP21SigningExtraParams, gadget_common::Error> {
+) -> Result<PrivateBridgeSigningExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
 
     let jobs::JobType::DKGTSSPhaseTwo(p2_job) = job.job_type else {
@@ -89,7 +89,7 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
 
     let user_id_to_account_id_mapping = Arc::new(mapping);
 
-    let params = DfnsCGGMP21SigningExtraParams {
+    let params = PrivateBridgeSigningExtraParams {
         i,
         t,
         signers,
@@ -229,13 +229,13 @@ where
 }
 
 pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
-    config: &crate::DfnsSigningProtocol<C, N, KBE>,
+    config: &crate::PrivateBridgeSigningProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
-    additional_params: DfnsCGGMP21SigningExtraParams,
+    additional_params: PrivateBridgeSigningExtraParams,
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();

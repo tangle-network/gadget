@@ -20,10 +20,10 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use super::sign::validate_dfns_signature_by_role;
 
 pub async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>(
-    config: &crate::DfnsKeyRotateProtocol<C, N, KBE>,
+    config: &crate::PrivateBirdgeKeyRotateProtocol<C, N, KBE>,
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<DfnsCGGMP21KeyRotateExtraParams, Error> {
+) -> Result<PrivateBridgeKeyRotateExtraParams, Error> {
     let job_id = job.job_id;
 
     let jobs::JobType::DKGTSSPhaseFour(p4_job) = job.job_type else {
@@ -79,7 +79,7 @@ pub async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>
 
     let user_id_to_account_id_mapping = Arc::new(mapping);
 
-    let params = DfnsCGGMP21KeyRotateExtraParams {
+    let params = PrivateBridgeKeyRotateExtraParams {
         i,
         t,
         signers,
@@ -96,7 +96,7 @@ pub async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>
 }
 
 #[derive(Clone)]
-pub struct DfnsCGGMP21KeyRotateExtraParams {
+pub struct PrivateBridgeKeyRotateExtraParams {
     i: u16,
     t: u16,
     signers: Vec<u16>,
@@ -110,13 +110,13 @@ pub struct DfnsCGGMP21KeyRotateExtraParams {
 }
 
 pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: Network>(
-    config: &crate::DfnsKeyRotateProtocol<C, N, KBE>,
+    config: &crate::PrivateBirdgeKeyRotateProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
-    additional_params: DfnsCGGMP21KeyRotateExtraParams,
+    additional_params: PrivateBridgeKeyRotateExtraParams,
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let debug_logger_post = config.logger.clone();
     let logger = debug_logger_post.clone();

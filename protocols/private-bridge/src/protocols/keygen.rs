@@ -41,10 +41,10 @@ use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
 use gadget_common::channels::PublicKeyGossipMessage;
 
 pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
-    config: &crate::DfnsKeygenProtocol<C, N, KBE>,
+    config: &crate::PrivateBridgeKeygenProtocol<C, N, KBE>,
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<DfnsCGGMP21KeygenExtraParams, gadget_common::Error> {
+) -> Result<PrivateBridgeKeygenExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
     let role_type = job.job_type.get_role_type();
 
@@ -73,7 +73,7 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
         .position(|p| p.0 == config.account_id.0)
         .expect("Should exist") as u16;
 
-    let params = DfnsCGGMP21KeygenExtraParams {
+    let params = PrivateBridgeKeygenExtraParams {
         i,
         t: threshold as u16,
         n: participants.len() as u16,
@@ -87,7 +87,7 @@ pub async fn create_next_job<KBE: KeystoreBackend, C: ClientWithApi, N: Network>
 }
 
 #[derive(Clone)]
-pub struct DfnsCGGMP21KeygenExtraParams {
+pub struct PrivateBridgeKeygenExtraParams {
     i: u16,
     t: u16,
     n: u16,
@@ -258,13 +258,13 @@ where
 }
 
 pub async fn generate_protocol_from<KBE: KeystoreBackend, C: ClientWithApi, N: Network>(
-    config: &crate::DfnsKeygenProtocol<C, N, KBE>,
+    config: &crate::PrivateBridgeKeygenProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
-    additional_params: DfnsCGGMP21KeygenExtraParams,
+    additional_params: PrivateBridgeKeygenExtraParams,
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let key_store = config.key_store.clone();
     let key_store2 = config.key_store.clone();

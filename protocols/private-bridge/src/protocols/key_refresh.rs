@@ -29,10 +29,10 @@ use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 pub(crate) async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>(
-    config: &crate::DfnsKeyRefreshProtocol<C, N, KBE>,
+    config: &crate::PrivateBirdgeKeyRefreshProtocol<C, N, KBE>,
     job: JobInitMetadata,
     _work_manager: &ProtocolWorkManager<WorkManager>,
-) -> Result<DfnsCGGMP21KeyRefreshExtraParams, gadget_common::Error> {
+) -> Result<PrivateBridgeKeyRefreshExtraParams, gadget_common::Error> {
     let job_id = job.job_id;
     let role_type = job.job_type.get_role_type();
 
@@ -75,7 +75,7 @@ pub(crate) async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: N
             ),
         })?;
 
-    let params = DfnsCGGMP21KeyRefreshExtraParams {
+    let params = PrivateBridgeKeyRefreshExtraParams {
         phase_one_id: p3_job.phase_one_id,
         key,
         pregenerated_primes,
@@ -88,7 +88,7 @@ pub(crate) async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: N
 }
 
 #[derive(Clone)]
-pub struct DfnsCGGMP21KeyRefreshExtraParams {
+pub struct PrivateBridgeKeyRefreshExtraParams {
     job_id: u64,
     phase_one_id: u64,
     role_type: roles::RoleType,
@@ -98,13 +98,13 @@ pub struct DfnsCGGMP21KeyRefreshExtraParams {
 }
 
 pub async fn generate_protocol_from<C: ClientWithApi, KBE: KeystoreBackend, N: Network>(
-    config: &crate::DfnsKeyRefreshProtocol<C, N, KBE>,
+    config: &crate::PrivateBirdgeKeyRefreshProtocol<C, N, KBE>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
     protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
-    additional_params: DfnsCGGMP21KeyRefreshExtraParams,
+    additional_params: PrivateBridgeKeyRefreshExtraParams,
 ) -> Result<BuiltExecutableJobWrapper, JobError> {
     let key_store = config.key_store.clone();
     let protocol_output = Arc::new(tokio::sync::Mutex::new(None));
