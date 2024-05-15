@@ -1,0 +1,41 @@
+[package]
+name = "private-bridge-protocol"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "net"] }
+gadget-common = { workspace = true }
+gadget-core = { workspace = true }
+protocol-macros = { workspace = true }
+async-trait = { workspace = true }
+log = { workspace = true }
+dfns-cggmp21 = { workspace = true, features = ["all-curves", "hd-wallets"] }
+round-based-21 = { workspace = true }
+futures = { workspace = true }
+itertools = { workspace = true }
+digest = { workspace = true }
+
+sp-core = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, features = ["std"] }
+
+frame-support = { workspace = true  }
+parity-scale-codec = { workspace = true }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+hex = { workspace = true }
+parking_lot = { workspace = true }
+sha2 = { workspace = true }
+derivation-path = { workspace = true }
+signature = { workspace = true }
+k256 = { workspace = true, features = ["arithmetic"] }
+secp256k1 = { version = "0.28.2", features = ["global-context"] }
+p256 = { workspace = true, features = ["arithmetic", "ecdsa"] }
+starknet-crypto = { workspace = true }
+
+[dev-dependencies]
+test-utils = { workspace = true }
+tangle-primitives = { workspace = true }

@@ -2269,7 +2269,6 @@ dependencies = [
  "platforms",
  "rand_core 0.6.4",
  "rustc_version",
- "serde",
  "subtle 2.5.0",
  "zeroize",
 ]
@@ -8214,6 +8213,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "private-bridge-protocol"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cggmp21",
+ "derivation-path",
+ "digest 0.10.7",
+ "frame-support",
+ "futures",
+ "gadget-common",
+ "gadget-core",
+ "hex",
+ "itertools 0.12.1",
+ "k256",
+ "log",
+ "p256 0.13.2",
+ "parity-scale-codec 3.6.9",
+ "parking_lot 0.12.1",
+ "protocol-macros",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "round-based 0.2.1",
+ "secp256k1 0.28.2",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "signature 2.2.0",
+ "sp-core",
+ "sp-io",
+ "starknet-crypto",
+ "tangle-primitives",
+ "test-utils",
+ "tokio",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "1.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12609,8 +12644,7 @@ dependencies = [
 
 [[package]]
 name = "tangle-subxt"
-version = "0.6.7"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#103bd9ffa4198a23925f1edf224011a8201e2fa9"
+version = "1.0.1"
 dependencies = [
  "parity-scale-codec 3.6.9",
  "scale-info",
