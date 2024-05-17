@@ -8,6 +8,7 @@ use std::{
     hash::{Hash, Hasher},
     sync::Arc,
 };
+use futures::StreamExt;
 
 #[cfg(target_family = "wasm")]
 use wasm_bindgen_test::*;
@@ -150,6 +151,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         max_enqueued_tasks: usize,
         poll_method: PollMethod,
     ) -> Self {
+        gadget_io::log(&format!("STARTING GENERATION OF PROTOCOL WORK MANAGER"));
         let this = Self {
             inner: Arc::new(RwLock::new(WorkManagerInner {
                 active_tasks: HashMap::new(),
@@ -163,27 +165,35 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
             poll_method: Arc::new(poll_method),
         };
 
+        gadget_io::log(&format!("CHECKING FOR INTERVAL POLL METHOD"));
         if let PollMethod::Interval { millis } = poll_method {
+            gadget_io::log(&format!("USING INTERVAL POLL METHOD WITH {} MILLIS", millis));
             let this_worker = this.clone();
             let logger = this_worker.utility.clone();
 
+            gadget_io::log(&format!("CREATING HANDLER IN WORK MANAGER"));
             let handler = async move {
+                gadget_io::log(&format!("CREATING PERIODIC POLLER FOR WORK MANAGER"));
                 let periodic_poller = async move {
-                    let mut interval =
-                        gadget_io::tokio::time::interval(std::time::Duration::from_millis(millis));
+                    gadget_io::log(&format!("PERIODIC POLLER"));
                     loop {
-                        interval.tick().await;
+                        gadget_io::log(&format!("PERIODIC POLLER LOOP ITERATION"));
+                        let _ = futures_timer::Delay::new(std::time::Duration::from_millis(millis)).await;
                         this_worker.poll();
                     }
                 };
 
+                gadget_io::log(&format!("AWAITING PERIODIC POLLER"));
                 periodic_poller.await;
                 logger.error("[worker] periodic_poller exited".to_string());
+                gadget_io::log(&format!("PERIODIC POLLER EXITED"));
             };
 
-            gadget_io::tokio::task::spawn(handler);
+            gadget_io::log(&format!("SPAWNING HANDLER IN WORK MANAGER"));
+            gadget_io::spawn(handler);
         }
 
+        gadget_io::log(&format!("WORK MANAGER READY"));
         this
     }
 

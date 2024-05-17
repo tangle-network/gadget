@@ -40,6 +40,7 @@ pub trait ExecutableJob: Send + 'static {
     async fn catch(&mut self);
 
     async fn execute(&mut self) -> Result<(), JobError> {
+        gadget_io::log(&format!("ENTERING EXECUTE FUNCTION"));
         match self.pre_job_hook().await? {
             ProceedWithExecution::True => match self.job().await {
                 Ok(_) => match self.post_job_hook().await {

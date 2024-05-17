@@ -28,7 +28,7 @@ use crate::config::ShellConfig;
 use crate::shell;
 use crate::shell::{vec_diff, Diff, HashedRoleTypeWrapper};
 use crate::tangle::{TangleConfig, TangleRuntime};
-use crate::network::web::*;
+use crate::network::matchbox::*;
 use crate::keystore::load_keys_from_keystore;
 
 use gadget_common::prelude::*;
@@ -36,7 +36,7 @@ use gadget_common::ExecutableJob;
 use gadget_core::gadget::substrate::Client;
 use tsify::Tsify;
 
-use futures::{select, FutureExt, SinkExt};
+use futures::{select, FutureExt, SinkExt, TryFutureExt, TryStreamExt};
 use futures_timer::Delay;
 use matchbox_socket::{PeerId, PeerState, WebRtcSocket};
 use std::time::Duration;
@@ -249,6 +249,7 @@ pub async fn setup_matchbox_network(
 
         let span = tracing::debug_span!("network_worker");
         let _enter = span.enter();
+
         // let service = NetworkServiceWithoutSwarm {
         //     logger: &logger,
         //     inbound_mapping: &inbound_mapping,
@@ -274,6 +275,7 @@ pub async fn setup_matchbox_network(
         futures::pin_mut!(timeout);
         // Listening Loop
         loop {
+            let _ = inbound_mapping.len();
             // log(&format!("MATCHBOX WORK LOOP ITERATION"));
             // When a new peer is found through relay
             for (peer, state) in socket.update_peers() {
@@ -294,7 +296,11 @@ pub async fn setup_matchbox_network(
             for (peer, packet) in socket.receive() {
                 let message = String::from_utf8_lossy(&packet);
             }
-            select! {
+            gadget_io::tokio::select! {
+                // Setup outbound channel
+                Some(msg) = rx_to_outbound.recv() => {
+                    log(&format!("Trying to send outbound message"));
+                }
                 // Loop every 100ms
                 _ = (&mut timeout).fuse() => {
                     timeout.reset(Duration::from_millis(100));
@@ -332,7 +338,7 @@ where
     log(&format!("INITIALIZING VEC AND MAP"));
     let mut current_roles = Vec::new();
     let mut running_protocols =
-        HashMap::<HashedRoleTypeWrapper, gadget_io::tokio::task::AbortHandle>::new();
+        HashMap::<HashedRoleTypeWrapper, ()>::new();
 
     log(&format!("CREATING SUBXT CLIENT"));
     let subxt_client =
@@ -355,6 +361,7 @@ where
         let roles = runtime
             .query_restaker_roles(notification.hash, sub_account_id.clone())
             .await?;
+        log(&format!("Got roles: {roles:?}"));
         logger.trace(format!("Got roles: {roles:?}"));
         if roles == current_roles {
             logger.trace("Roles have not changed, skipping");
@@ -386,14 +393,14 @@ where
                 }
                 Diff::Removed(role) => {
                     logger.debug(format!("Trying to stop protocol for role {:?}", role.0));
-                    let maybe_handle = running_protocols.remove(&role);
-                    if let Some(handle) = maybe_handle {
-                        handle.abort();
-                        logger.warn(format!(
-                            "Aborted protocol for role {:?}. Reason: Role Removed from profile",
-                            role.0
-                        ));
-                    }
+                    // let maybe_handle = running_protocols.remove(&role);
+                    // if let Some(handle) = maybe_handle {
+                    //     handle.abort();
+                    //     logger.warn(format!(
+                    //         "Aborted protocol for role {:?}. Reason: Role Removed from profile",
+                    //         role.0
+                    //     ));
+                    // }
                 }
             }
         }
@@ -413,7 +420,7 @@ pub fn start_web_protocol_by_role<KBE>(
     logger: DebugLogger,
     pallet_tx: Arc<SubxtPalletSubmitter<TangleConfig, PairSigner<TangleConfig>>>,
     keystore: ECDSAKeyStore<KBE>,
-) -> color_eyre::Result<gadget_io::tokio::task::AbortHandle>
+) -> color_eyre::Result<()>
 where
     KBE: KeystoreBackend,
 {
@@ -435,7 +442,7 @@ where
         | Tss(ZcashFrostSecp256k1)
         | Tss(ZcashFrostRistretto255) => {
             log(&format!("Starting ZcashFrost protocol"));
-            gadget_io::tokio::spawn(zcash_frost_protocol::setup_node(NodeInput {
+            wasm_bindgen_futures::spawn_local(zcash_frost_protocol::setup_node(NodeInput {
                 clients: vec![
                     TangleRuntime::new(runtime.client()),
                     TangleRuntime::new(runtime.client()),
@@ -486,7 +493,7 @@ where
             ))
         }
     };
-    Ok(handle.abort_handle())
+    Ok(handle)
 }
 
 #[cfg(test)]
@@ -534,10 +541,8 @@ mod tests {
         };
 
         let keys = vec![
-            "398f0c28f98885e046333d4a41c19cee4c37368a9832c6502f6cfd182e2aef89",
             "79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf",
-            //"aaa88bec51838e7ec434d58f687b0c606b322f4e63ba9a9af2b6f1cb34f718be",
-            // "0000000000000000000000000000000000000000000000000000000000000002",
+            "398f0c28f98885e046333d4a41c19cee4c37368a9832c6502f6cfd182e2aef89",
         ]
         .iter()
         .map(|&s| s.to_string())

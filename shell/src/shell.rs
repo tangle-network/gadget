@@ -62,6 +62,7 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
         .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))?;
     // log(&format!("LIBP2P KEY PAIR?: {:?}", libp2p_key));
 
+    logger.debug("Waiting while Libp2p Network is initialized...");
     let (networks, network_task) = crate::network::setup::setup_libp2p_network(
         libp2p_key,
         &config,
@@ -84,7 +85,8 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     .await
     .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
-    let (web_networks, web_network_task) = crate::network::setup::setup_matchbox_network(
+    logger.debug("Waiting while Matchbox Network is initialized...");
+    let (_web_networks, web_network_task) = crate::network::setup::setup_matchbox_network(
         // libp2p_key,
         // &config,
         logger.clone(),

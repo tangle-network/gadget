@@ -28,7 +28,7 @@ use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 use matchbox_socket::{PeerState, WebRtcSocket};
-use crate::network::web::*;
+use crate::network::matchbox::*;
 use futures_timer::Delay;
 
 #[allow(clippy::collapsible_else_if)]
@@ -225,10 +225,12 @@ pub async fn setup_matchbox_network(
 
     let (mut socket, loop_fut) = WebRtcSocket::new_reliable("ws://localhost:3536/"); // Signaling Server Address
 
+    logger.debug("Connected to WebRTC Signaling Server");
+
     // Create Channels for Sending and Receiving from Worker
     // Subscribe to all networks
     let mut inbound_mapping = Vec::new();
-    let (tx_to_outbound, mut rx_to_outbound) =
+    let (tx_to_outbound, _rx_to_outbound) =
         gadget_io::tokio::sync::mpsc::unbounded_channel::<IntraNodeWebPayload>();
     let ecdsa_peer_id_to_matchbox_id = Arc::new(RwLock::new(HashMap::new()));
     let mut handles_ret = HashMap::with_capacity(networks.len());

@@ -5,3 +5,4 @@ pub mod handlers;
 pub mod setup;
 
 pub mod web;
+pub mod matchbox;

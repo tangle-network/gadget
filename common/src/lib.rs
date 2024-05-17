@@ -138,20 +138,27 @@ impl From<JobError> for Error {
 }
 
 pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(), Error> {
+    gadget_io::log(&format!("PROTOCOL NOW RUNNING"));
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
 
     let prometheus_config = protocol_config.prometheus_config();
 
+    gadget_io::log(&format!("PROTOCOL - LATEST FINALITY NOTIFICATION"));
     // Before running, wait for the first finality notification we receive
     let latest_finality_notification =
         get_latest_finality_notification_from_client(&client).await?;
+    gadget_io::log(&format!("PROTOCOL - CREATING WORK MANAGER"));
     let work_manager = create_work_manager(&latest_finality_notification, &protocol).await?;
+    gadget_io::log(&format!("PROTOCOL - CREATING PROTOCOL MODULE"));
     let proto_module = Module::new(network.clone(), protocol, work_manager);
     // Plug the module into the substrate gadget to interface the WebbGadget with Substrate
+    gadget_io::log(&format!("PROTOCOL - CREATING SUBSTRATE GADGET"));
     let substrate_gadget = SubstrateGadget::new(client, proto_module);
+    gadget_io::log(&format!("PROTOCOL - CREATING NETWORK FUTURE"));
     let network_future = network.run();
+    gadget_io::log(&format!("PROTOCOL - CREATING GADGET FUTURE"));
     let gadget_future = async move {
         // Poll the first finality notification to ensure clients can execute without having to wait
         // for another block to be produced
@@ -167,16 +174,20 @@ pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(
             .map_err(|err| Error::GadgetManagerError { err })
     };
 
+    gadget_io::log(&format!("PROTOCOL - SETTING UP PROMETHEUS CONFIG"));
     if let Err(err) = prometheus::setup(prometheus_config.clone()).await {
+        gadget_io::log(&format!("PROTOCOL - PROMETHEUS CONFIG ERROR: {:?}", err));
         protocol_config
             .logger()
             .warn(format!("Error setting up prometheus: {err:?}"));
     } else if let PrometheusConfig::Enabled { bind_addr } = prometheus_config {
+        gadget_io::log(&format!("PROTOCOL - PROMETHEUS CONFIG ENABLED: {bind_addr}"));
         protocol_config
             .logger()
             .info(format!("Prometheus enabled on {bind_addr}"));
     }
 
+    gadget_io::log(&format!("PROTOCOL - JOINING NETWORK AND GADGET FUTURES"));
     // Run both the network and the gadget together
     gadget_io::tokio::try_join!(network_future, gadget_future).map(|_| ())
 }
@@ -186,17 +197,22 @@ pub async fn create_work_manager<C: ClientWithApi, P: GadgetProtocol<C>>(
     latest_finality_notification: &FinalityNotification,
     protocol: &P,
 ) -> Result<ProtocolWorkManager<WorkManager>, Error> {
+    gadget_io::log(&format!("WORK MANAGER - STARTING"));
     let now: u64 = latest_finality_notification.number;
 
+    gadget_io::log(&format!("WORK MANAGER - GETTING WORK MANAGER CONFIG"));
     let work_manager_config = protocol.get_work_manager_config();
 
+    gadget_io::log(&format!("WORK MANAGER - CREATING CLOCK"));
     let clock = Arc::new(RwLock::new(Some(now)));
 
+    gadget_io::log(&format!("WORK MANAGER - CREATING ZK JOB MANAGER"));
     let job_manager_zk = WorkManager {
         clock,
         logger: protocol.logger().clone(),
     };
 
+    gadget_io::log(&format!("WORK MANAGER - SETTING POLL METHOD"));
     let poll_method = match work_manager_config.interval {
         Some(interval) => PollMethod::Interval {
             millis: interval.as_millis() as u64,
@@ -204,6 +220,7 @@ pub async fn create_work_manager<C: ClientWithApi, P: GadgetProtocol<C>>(
         None => PollMethod::Manual,
     };
 
+    gadget_io::log(&format!("WORK MANAGER - RETURNING PROTOCOLWORKMANAGER"));
     Ok(ProtocolWorkManager::new(
         job_manager_zk,
         work_manager_config.max_active_tasks,
@@ -233,6 +250,7 @@ macro_rules! generate_setup_and_run_command {
         pub fn setup_node<C: ClientWithApi + 'static, N: Network, KBE: $crate::keystore::KeystoreBackend, D: Send + Clone + 'static>(node_input: NodeInput<C, N, KBE, D>) -> impl SendFuture<'static, ()>
         {
             async move {
+                gadget_io::log(&format!("SETUP NODE"));
                 if let Err(err) = run(
                     node_input.clients,
                     node_input.pallet_tx,
@@ -244,10 +262,12 @@ macro_rules! generate_setup_and_run_command {
                 )
                 .await
                 {
+                gadget_io::log(&format!("ERROR RUNNING GADGET: {:?}", err));
                     node_input
                         .logger
                         .error(format!("Error running gadget: {:?}", err));
                 }
+                gadget_io::log(&format!("SETUP NODE SUCCESSFUL"));
             }
         }
 
@@ -261,17 +281,27 @@ macro_rules! generate_setup_and_run_command {
             prometheus_config: $crate::prometheus::PrometheusConfig,
         ) -> Result<(), Error>
         {
+            gadget_io::log(&format!("ENTERING RUN FUNCTION"));
             use futures::TryStreamExt;
             let futures = futures::stream::FuturesUnordered::new();
             let mut networks: std::collections::VecDeque<_> = networks.into_iter().collect();
             let mut clients: std::collections::VecDeque<_> = client.into_iter().collect();
 
+            gadget_io::log(&format!("RUN MACRO START"));
             $(
                 let config = crate::$config::new(clients.pop_front().expect("Not enough clients"), pallet_tx.clone(), networks.pop_front().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone(), prometheus_config.clone()).await?;
+                gadget_io::log(&format!("PUSHING PROTOCOL FUTURE"));
                 futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), $crate::Error>>>>);
             )*
+            gadget_io::log(&format!("RUN MACRO END"));
 
-            futures.try_collect::<Vec<_>>().await.map(|_| ())
+            if let Err(err) = futures.try_collect::<Vec<_>>().await.map(|_| ()) {
+                gadget_io::log(&format!("ERROR COLLECTING RUN FUTURES: {:?}", err));
+                Err(err)
+            } else {
+                gadget_io::log(&format!("SUCCESSFULLY COLLECTED RUN FUTURES"));
+                Ok(())
+            }
         }
     };
 }
@@ -318,11 +348,13 @@ macro_rules! generate_protocol {
                 key_store: ECDSAKeyStore<Self::KeystoreBackend>,
                 prometheus_config: $crate::prometheus::PrometheusConfig,
             ) -> Result<Self, Error> {
+                gadget_io::log(&format!("NEW PROTOCOL {}", stringify!($name)));
                 let logger = if logger.peer_id.is_empty() {
                     DebugLogger { peer_id: stringify!($name).replace("\"", "").into() }
                 } else {
                     DebugLogger { peer_id: (logger.peer_id + " | " + stringify!($name)).replace("\"", "") }
                 };
+                gadget_io::log(&format!("NEW - LOGGER SUCCESSFULLY SET -> RETURNING"));
                 Ok(Self {
                     pallet_tx,
                     logger,

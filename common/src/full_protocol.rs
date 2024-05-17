@@ -198,21 +198,27 @@ impl<T: FullProtocolConfig> GadgetProtocol<T::Client> for T {
 #[async_trait]
 impl<T: FullProtocolConfig> Network for T {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+        gadget_io::log(&format!("FULL PROTOCOL - NEXT MESSAGE"));
         let mut message = T::internal_network(self).next_message().await?;
+        gadget_io::log(&format!("FULL PROTOCOL - GOT MESSAGE"));
         if let Some(peer_public_key) = message.from_network_id {
+            gadget_io::log(&format!("FULL PROTOCOL - HAS PEER PUBLIC KEY"));
             if let Ok(payload_and_signature) =
                 <PayloadAndSignature as Decode>::decode(&mut message.payload.as_slice())
             {
+                gadget_io::log(&format!("FULL PROTOCOL - PAYLOAD AND SIGNATURE OK"));
                 let hashed_message = keccak_256(&payload_and_signature.payload);
                 if sp_core::ecdsa::Pair::verify_prehashed(
                     &payload_and_signature.signature,
                     &hashed_message,
                     &peer_public_key,
                 ) {
+                    gadget_io::log(&format!("FULL PROTOCOL - VALID MESSAGE SIGNATURE"));
                     message.payload = payload_and_signature.payload;
                     crate::prometheus::BYTES_RECEIVED.inc_by(message.payload.len() as u64);
                     return Some(message);
                 } else {
+                    gadget_io::log(&format!("FULL PROTOCOL - INVALID MESSAGE SIGNATURE"));
                     self.logger()
                         .warn("Received a message with an invalid signature.")
                 }
@@ -225,6 +231,7 @@ impl<T: FullProtocolConfig> Network for T {
                 .warn("Received a message without a valid sender public key.")
         }
 
+        gadget_io::log(&format!("FULL PROTOCOL - POLLING NEXT MESSAGE DUE TO INVALID MESSAGE"));
         // This message was invalid. Thus, poll the next message
         self.next_message().await
     }

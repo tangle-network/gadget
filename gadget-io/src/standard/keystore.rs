@@ -105,9 +105,10 @@ impl SubstrateKeystore for KeystoreConfig {
             .ok_or_eyre("Failed to load key `role` from keystore")?
             .into_inner();
 
-
         tracing::debug!(%role_public_key, "Loaded key from keystore");
-
+        println!("ECDSA KEY: {:?}", role_public_key.to_string());
+        println!("ECDSA SEED: {:?}", role_key.seed());
+        println!("ECDSA RAW: {:?}", ecdsa_keys);
         Ok(role_key)
     }
 
@@ -133,6 +134,9 @@ impl SubstrateKeystore for KeystoreConfig {
             .into_inner();
 
         tracing::debug!(%account_public_key, "Loaded key from keystore");
+        println!("SR25519 KEY: {:?}", account_public_key.to_string());
+        println!("SR25519 SEED: {:?}", sr25519_keys[0].0);
+        println!("SR25519 RAW: {:?}", sr25519_keys);
         Ok(acco_key)
     }
 }

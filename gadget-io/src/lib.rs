@@ -13,21 +13,32 @@ pub use wasm::{
 #[cfg(not(target_family = "wasm"))]
 pub use standard::{
     keystore::{KeystoreConfig, SubstrateKeystore, KeystoreContainer},
-    shell::{TomlConfig, Opt, SupportedChains, defaults}
+    shell::{TomlConfig, Opt, SupportedChains, defaults},
 };
 
 #[cfg(target_family = "wasm")]
-pub use tokio;
+pub use {
+    tokio,
+    wasm_bindgen_futures::spawn_local as spawn,
+};
 // pub use tokio_wasm as tokio;
 
 #[cfg(not(target_family = "wasm"))]
-pub use tokio;
+pub use {
+    tokio,
+    tokio::task::spawn as spawn,
+};
 
 #[cfg(target_family = "wasm")]
 pub use wasmtimer::tokio as time;
 
 #[cfg(not(target_family = "wasm"))]
 pub use tokio::time as time;
+
+#[cfg(not(target_family = "wasm"))]
+pub fn log(s: &str) {
+    println!("{}", s);
+}
 
 #[cfg(target_family = "wasm")]
 use wasm_bindgen::{
