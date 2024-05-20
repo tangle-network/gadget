@@ -4,7 +4,7 @@ use structopt::StructOpt;
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "Shell Manager",
-    about = "An MPC executor that connects to the Tangle network and runs protocols dynamically on the fly"
+    about = "An program executor that connects to the Tangle network and runs protocols dynamically on the fly"
 )]
 pub struct ShellManagerOpts {
     /// The path to the shell configuration file
