@@ -1,6 +1,6 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
-use std::{hash::Hash, sync::Arc};
 
 use crate::{
     keystore::KeystoreContainer,
@@ -17,10 +17,7 @@ use gadget_common::{
 };
 use sp_core::{ecdsa, ed25519, keccak_256, sr25519, ByteArray, Pair};
 use sp_keystore::Keystore;
-use tangle_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
-use tangle_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 use tangle_subxt::subxt;
-use tangle_subxt::tangle_testnet_runtime as tangle_runtime;
 use tokio::task::JoinHandle;
 
 use crate::config::ShellConfig;
@@ -220,6 +217,7 @@ pub async fn wait_for_connection_to_bootnodes<KBE: KeystoreBackend>(
     Ok(())
 }
 
+/*
 #[derive(Eq, Clone)]
 struct HashedRoleTypeWrapper(RoleType);
 
@@ -264,3 +262,4 @@ impl Hash for HashedRoleTypeWrapper {
         }
     }
 }
+*/
