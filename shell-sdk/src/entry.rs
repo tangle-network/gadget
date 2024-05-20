@@ -1,6 +1,6 @@
 use crate::shell::ShellNodeInput;
 use crate::{defaults, ShellTomlConfig, SupportedChains};
-use gadget_common::prelude::KeystoreBackend;
+use gadget_common::prelude::{DebugLogger, KeystoreBackend};
 use gadget_core::job_manager::SendFuture;
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
@@ -38,15 +38,26 @@ pub async fn run_shell_for_protocol<
 where
     F: SendFuture<'static, ()>,
 {
-    // The args will be passed here by the shell-manager
-    // let args = std::env::args().into_iter().collect::<Vec<String>>();
     let args = std::env::args();
     println!("Args: {args:?}");
-    let config: ShellTomlConfig = ShellTomlConfig::from_iter(args);
+    let config = ShellTomlConfig::from_iter_safe(args);
+
+    if config.is_err() {
+        return Err(color_eyre::Report::msg(format!(
+            "Failed to parse shell config: {config:?}"
+        )));
+    }
+
+    let config = config.unwrap();
     let keystore_backend = keystore_backend().await;
-    // setup_shell_logger(config.verbose, config.pretty, "gadget_shell")?;
+    setup_shell_logger(config.verbose, config.pretty, "gadget")?;
     let keystore =
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);
+
+    let logger = DebugLogger {
+        id: "test".to_string(),
+    };
+    logger.info("Starting shell with config: {config:?}");
 
     let (node_input, network_handle) = crate::generate_node_input(crate::ShellConfig {
         keystore_backend,
@@ -100,9 +111,8 @@ pub fn setup_shell_logger(verbose: i32, pretty: bool, filter: &str) -> color_eyr
         3 => Level::DEBUG,
         _ => Level::TRACE,
     };
-    let env_filter = tracing_subscriber::EnvFilter::from_default_env()
-        .add_directive(format!("{filter}={log_level}").parse()?)
-        .add_directive(format!("gadget={log_level}").parse()?);
+    let env_filter =
+        EnvFilter::from_default_env().add_directive(format!("{filter}={log_level}").parse()?);
     let logger = tracing_subscriber::fmt()
         .with_target(false)
         .with_level(true)
@@ -111,10 +121,13 @@ pub fn setup_shell_logger(verbose: i32, pretty: bool, filter: &str) -> color_eyr
         .with_max_level(log_level)
         .with_env_filter(env_filter);
     if pretty {
-        logger.pretty().init();
+        let _ = logger.pretty().try_init();
     } else {
-        logger.compact().init();
+        let _ = logger.compact().try_init();
     }
+
+    //let _ = env_logger::try_init();
+
     Ok(())
 }
 pub fn setup_log() {
