@@ -1,8 +1,6 @@
 use color_eyre::Result;
 #[cfg(not(target_family = "wasm"))]
-use {
-    structopt::StructOpt,
-};
+use structopt::StructOpt;
 
 mod config;
 mod keystore;

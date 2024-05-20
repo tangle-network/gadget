@@ -49,6 +49,7 @@ use gadget_common::locks::TokioMutexExt;
 use gadget_common::prelude::PrometheusConfig;
 use gadget_common::Error;
 use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
+use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use sp_core::ecdsa;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
@@ -63,7 +64,6 @@ use tangle_primitives::roles::RoleType;
 use tangle_primitives::verifier::{
     arkworks::ArkworksVerifierGroth16Bn254, circom::CircomVerifierGroth16Bn254,
 };
-use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 /// Key type for DKG keys
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"role");
@@ -719,8 +719,10 @@ pub mod mock_wrapper_client {
     #[derive(Clone)]
     pub struct MockClient<R, B: Block> {
         runtime: Arc<R>,
-        finality_notification_stream: Arc<gadget_io::tokio::sync::Mutex<Option<FinalityNotifications<B>>>>,
-        latest_finality_notification: Arc<gadget_io::tokio::sync::Mutex<Option<FinalityNotification<B>>>>,
+        finality_notification_stream:
+            Arc<gadget_io::tokio::sync::Mutex<Option<FinalityNotifications<B>>>>,
+        latest_finality_notification:
+            Arc<gadget_io::tokio::sync::Mutex<Option<FinalityNotification<B>>>>,
         finality_notification_txs:
             Arc<parking_lot::Mutex<Vec<TracingUnboundedSender<FinalityNotification<B>>>>>,
     }

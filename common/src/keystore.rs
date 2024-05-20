@@ -1,4 +1,5 @@
 use crate::utils::{deserialize, serialize};
+use crate::Error;
 use async_trait::async_trait;
 use parking_lot::RwLock;
 use serde::de::DeserializeOwned;
@@ -8,7 +9,6 @@ use sp_core::sr25519::Pair as Sr25519Pair;
 use sp_core::{keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::Error;
 
 #[cfg(feature = "std")]
 use sqlx::{

@@ -5,11 +5,8 @@ authors = ["Shady Khalifa <dev+github@shadykhalifa.me>"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
-[lib]
-crate-type = ["cdylib"]#, "rlib"]
-
 [features]
-default = ["wasm", "zcash-frost-protocol"]#["std", "all-internal-protocols"]
+default = ["std", "all-internal-protocols"]
 std = [
   "tangle-subxt/default",
   "gadget-common/default",
@@ -20,8 +17,6 @@ std = [
   "sp-application-crypto/default",
   "zk-saas-protocol?/std",
   "zcash-frost-protocol?/std",
-#  "dfns-cggmp21-protocol?/std",
-#  "threshold-bls-protocol?/std",
 ]
 all-internal-protocols = ["dfns", "bls", "zcash-frost", "zk-saas-groth"]
 dfns = ["dfns-cggmp21-protocol"]
@@ -80,16 +75,11 @@ sp-application-crypto = { workspace = true, default-features = false }
 tangle-subxt = { workspace = true, default-features = false }
 scale-info = { workspace = true }
 parity-scale-codec = { workspace = true }
-
-## Potentially Shared Dependencies
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
 async-trait = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
 url = { workspace = true, features = ["serde"] }
-
-
-
 structopt = "0.3.26"
 toml = "0.8.11"
 serde = { workspace = true }
@@ -99,6 +89,7 @@ sha2 = "0.10.8"
 futures = { workspace = true }
 bincode = { workspace = true }
 tokio_with_wasm = "0.4.3"
+
 ## Protocols
 dfns-cggmp21-protocol = { workspace = true, optional = true }
 zcash-frost-protocol = { workspace = true, optional = true, default-features = false }

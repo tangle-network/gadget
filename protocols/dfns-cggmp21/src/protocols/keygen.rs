@@ -26,6 +26,7 @@ use gadget_common::utils::{deserialize, serialize};
 use gadget_common::{prelude::*, tangle_runtime::*, utils};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use itertools::Itertools;
 use rand::rngs::{OsRng, StdRng};
 use rand::{CryptoRng, RngCore, SeedableRng};
@@ -35,7 +36,6 @@ use sp_core::keccak_256;
 use sp_core::{ecdsa, Pair};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
 use gadget_common::channels::PublicKeyGossipMessage;

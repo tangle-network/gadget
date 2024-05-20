@@ -21,12 +21,12 @@ use gadget_common::tangle_runtime::*;
 use gadget_common::utils::serialize;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use rand::SeedableRng;
 use round_based_21::{Incoming, Outgoing};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::sync::Arc;
-use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 
 pub(crate) async fn create_next_job<C: ClientWithApi, KBE: KeystoreBackend, N: Network>(
     config: &crate::DfnsKeyRefreshProtocol<C, N, KBE>,

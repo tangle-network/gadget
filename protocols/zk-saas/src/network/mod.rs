@@ -6,6 +6,10 @@ use futures_util::StreamExt;
 use gadget_common::keystore::{ECDSAKeyStore, KeystoreBackend};
 use gadget_common::utils::{deserialize, serialize};
 use gadget_core::job_manager::WorkManagerInterface;
+use gadget_io::tokio::io::{AsyncRead, AsyncWrite};
+use gadget_io::tokio::net::TcpStream;
+use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use gadget_io::tokio::sync::Mutex;
 use mpc_net::multi::WrappedStream;
 use mpc_net::prod::{CertToDer, RustlsCertificate};
 use mpc_net::MpcNetError;
@@ -17,10 +21,6 @@ use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use gadget_io::tokio::io::{AsyncRead, AsyncWrite};
-use gadget_io::tokio::net::TcpStream;
-use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use gadget_io::tokio::sync::Mutex;
 use tokio_rustls::rustls::server::NoClientAuth;
 use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{rustls, TlsAcceptor, TlsStream};
@@ -197,7 +197,8 @@ impl ZkNetworkService {
             })?;
 
         let (to_gadget, from_registry) = gadget_io::tokio::sync::mpsc::unbounded_channel();
-        let (local_to_outbound_tx, local_to_outbound_rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
+        let (local_to_outbound_tx, local_to_outbound_rx) =
+            gadget_io::tokio::sync::mpsc::unbounded_channel();
 
         let connection = TlsStream::Client(connection);
 
@@ -379,7 +380,8 @@ fn handle_stream_as_king(
         let stream = TlsStream::Server(stream);
         let wrapped_stream = mpc_net::multi::wrap_stream(stream);
         let (mut sink, mut stream) = wrapped_stream.split();
-        let (to_outbound_tx, mut to_outbound_rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
+        let (to_outbound_tx, mut to_outbound_rx) =
+            gadget_io::tokio::sync::mpsc::unbounded_channel();
         let mut peer_id = None;
 
         // Spawn a task allowing the king to send messages to the peer from the gadget

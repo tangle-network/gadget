@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, path::PathBuf, str::FromStr};
-use wasm_bindgen::prelude::*;
 use tsify::Tsify;
-
+use wasm_bindgen::prelude::*;
 
 // #[derive(Debug, StructOpt)]
 // #[structopt(

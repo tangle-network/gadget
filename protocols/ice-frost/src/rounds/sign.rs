@@ -128,7 +128,7 @@ where
             (index + 1) as u32,
             received_comshare.commitments[0],
             &p_sk.to_public(),
-        );
+        )?;
     }
 
     tracer.stage("Compute partial signature");

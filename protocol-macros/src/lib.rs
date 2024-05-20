@@ -158,12 +158,10 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
             #where_bounds
         {
             pub fn setup(self) -> #new_struct <C, #generics_token_stream_unique> {
-                gadget_io::log(&format!("PROTOCOL SETUP FUNCTION"));
                 let pallet_tx = <Self as gadget_common::config::NetworkAndProtocolSetup>::pallet_tx(&self);
                 let logger = <Self as gadget_common::config::NetworkAndProtocolSetup>::logger(&self);
                 let prometheus_config = self.prometheus_config.clone();
 
-                gadget_io::log(&format!("GENERATING PROTOCOL NEW STRUCT"));
                 #new_struct {
                     network: None,
                     protocol: None,
@@ -176,7 +174,6 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
             }
 
             pub async fn execute(self) -> Result<(), Error> {
-                gadget_io::log(&format!("STARTING PROTOCOL EXECUTE"));
                 use gadget_common::config::ProtocolConfig;
                 self.setup().build().await?.run().await
             }

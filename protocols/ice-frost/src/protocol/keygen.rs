@@ -15,14 +15,14 @@ use gadget_common::{channels, utils};
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 
+use gadget_io::tokio;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use itertools::Itertools;
 use rand::SeedableRng;
 use round_based_21::{Incoming, Outgoing};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
-use gadget_io::tokio;
 
 use crate::rounds;
 use crate::rounds::keygen::Msg;

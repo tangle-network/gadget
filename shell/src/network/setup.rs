@@ -4,7 +4,7 @@ use crate::network::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
 };
 use crate::shell::{AGENT_VERSION, CLIENT_VERSION};
-use futures::{StreamExt, FutureExt};
+use futures::StreamExt;
 use gadget_common::config::DebugLogger;
 
 #[cfg(not(target_family = "wasm"))]
@@ -13,11 +13,10 @@ use libp2p::{
     swarm::dial_opts::DialOpts, StreamProtocol,
 };
 
-// use libp2p::{gossipsub, request_response, StreamProtocol};
 use gadget_io::tokio;
 use gadget_io::tokio::select;
 use gadget_io::tokio::sync::{Mutex, RwLock};
-use gadget_io::tokio::task::{spawn, JoinHandle, spawn_local};
+use gadget_io::tokio::task::{spawn, JoinHandle};
 use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::error::Error;
@@ -27,9 +26,6 @@ use std::str::FromStr;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
-use matchbox_socket::{PeerState, WebRtcSocket};
-use crate::network::matchbox::*;
-use futures_timer::Delay;
 
 #[allow(clippy::collapsible_else_if)]
 #[cfg(not(target_family = "wasm"))]
@@ -215,6 +211,7 @@ pub async fn setup_libp2p_network(
     Ok((handles_ret, spawn_handle))
 }
 
+/*
 pub async fn setup_matchbox_network(
     // config: &ShellConfig,
     logger: DebugLogger,
@@ -302,7 +299,10 @@ pub async fn setup_matchbox_network(
             // When a packet is received
             for (peer, packet) in socket.receive() {
                 let message = String::from_utf8_lossy(&packet);
-                logger.debug(format!("Received Packet from Peer {:?}: {:?}", peer, message));
+                logger.debug(format!(
+                    "Received Packet from Peer {:?}: {:?}",
+                    peer, message
+                ));
             }
             select! {
                 // Loop every 100ms
@@ -330,3 +330,4 @@ pub async fn setup_matchbox_network(
 
     Ok((handles_ret, spawn_handle))
 }
+*/

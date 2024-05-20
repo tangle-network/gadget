@@ -4,14 +4,14 @@ use async_trait::async_trait;
 use gadget_common::full_protocol::SharedOptional;
 use gadget_common::prelude::*;
 use gadget_common::tangle_runtime::*;
-use gadget_common::{generate_protocol, generate_setup_and_run_command};
 use gadget_common::Error;
+use gadget_common::{generate_protocol, generate_setup_and_run_command};
 use protocol_macros::protocol;
 
 pub mod constants;
+pub mod progress;
 pub mod protocol;
 pub mod rounds;
-pub mod progress;
 
 generate_protocol!(
     "Zcash-FROST-Keygen-Protocol",

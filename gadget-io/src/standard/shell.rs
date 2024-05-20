@@ -1,13 +1,13 @@
+use color_eyre::Result;
+use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
 use structopt::StructOpt;
-use libp2p::Multiaddr;
-use color_eyre::Result;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
-name = "Gadget",
-about = "An MPC executor that connects to the Tangle network to perform work"
+    name = "Gadget",
+    about = "An MPC executor that connects to the Tangle network to perform work"
 )]
 pub struct Opt {
     /// The path to the configuration file. If not provided, the default configuration will be used.
@@ -60,11 +60,11 @@ pub struct TomlConfig {
     pub node_key: Option<String>,
     /// The base path to store the shell data, and read data from the keystore.
     #[structopt(
-    parse(from_os_str),
-    long,
-    short = "d",
-    required_unless = "config",
-    default_value_if("config", None, ".")
+        parse(from_os_str),
+        long,
+        short = "d",
+        required_unless = "config",
+        default_value_if("config", None, ".")
     )]
     pub base_path: PathBuf,
     /// Keystore Password, if not provided, the password will be read from the environment variable.

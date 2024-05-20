@@ -7,7 +7,7 @@ use crate::network::gossip::GossipHandle;
 use crate::{
     config::ShellConfig,
     keystore::load_keys_from_keystore,
-    tangle::{ TangleConfig, TangleRuntime},
+    tangle::{TangleConfig, TangleRuntime},
 };
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::{
@@ -40,27 +40,20 @@ use zcash_frost_protocol::constants::{
 pub const AGENT_VERSION: &str = "tangle/gadget-shell/1.0.0";
 pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// pub struct WasmKeystore;
 
 /// Start the shell and run it forever
 #[tracing::instrument(skip(config))]
 #[cfg(not(target_family = "wasm"))]
 pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
-    // log(&format!("Shell Config: {:?}", config));
     let (role_key, acco_key) = load_keys_from_keystore(config.keystore.clone())?;
 
     let network_key = ed25519::Pair::from_seed(&config.node_key);
-    // log(&format!(
-    //     "NETWORK (ED25519) KEY PAIR?: {:?}",
-    //     network_key.to_raw_vec()
-    // ));
 
     let logger = DebugLogger::default();
     let wrapped_keystore = ECDSAKeyStore::new(InMemoryBackend::new(), role_key.clone());
 
     let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
         .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))?;
-    // log(&format!("LIBP2P KEY PAIR?: {:?}", libp2p_key));
 
     logger.debug("Waiting while Libp2p Network is initialized...");
     let (networks, network_task) = crate::network::setup::setup_libp2p_network(
@@ -85,49 +78,16 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
     .await
     .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
-    logger.debug("Waiting while Matchbox Network is initialized...");
-    let (_web_networks, web_network_task) = crate::network::setup::setup_matchbox_network(
-        // libp2p_key,
-        // &config,
-        logger.clone(),
-        vec![
-            // "test1", "test2", "test3",
-            // "test4",
-            // // dfns-cggmp21
-            // DFNS_CGGMP21_KEYGEN_PROTOCOL_NAME,
-            // DFNS_CGGMP21_SIGNING_PROTOCOL_NAME,
-            // DFNS_CGGMP21_KEYREFRESH_PROTOCOL_NAME,
-            // DFNS_CGGMP21_KEYROTATE_PROTOCOL_NAME,
-            // zcash-frost
-            ZCASH_FROST_KEYGEN_PROTOCOL_NAME,
-            ZCASH_FROST_SIGNING_PROTOCOL_NAME,
-            // // silent-shared-dkls23
-            // SILENT_SHARED_DKLS23_KEYGEN_PROTOCOL_NAME,
-            // SILENT_SHARED_DKLS23_SIGNING_PROTOCOL_NAME,
-            // // gennaro-dkg-bls381
-            // GENNARO_DKG_BLS_381_KEYGEN_PROTOCOL_NAME,
-            // GENNARO_DKG_BLS_381_SIGNING_PROTOCOL_NAME,
-        ],
-        // role_key,
-    )
-    .await
-    .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
-
     logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
     wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
 
-    let protocols =
-        start_required_protocols(&config.subxt, networks, acco_key.clone(), logger.clone(), wrapped_keystore.clone());
-
-    // let protocols = crate::web::start_protocols_web(
-    //     &config.subxt,
-    //     web_networks,
-    //     acco_key,
-    //     logger,
-    //     wrapped_keystore,
-    // )
-    // .await
-    // .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
+    let protocols = start_required_protocols(
+        &config.subxt,
+        networks,
+        acco_key.clone(),
+        logger.clone(),
+        wrapped_keystore.clone(),
+    );
 
     let ctrl_c = gadget_io::tokio::signal::ctrl_c();
 
@@ -142,9 +102,6 @@ pub async fn run_forever(config: ShellConfig) -> color_eyre::Result<()> {
         }
         _ = network_task => {
             tracing::error!("Network task unexpectedly shutdown")
-        }
-        _ = web_network_task => {
-            tracing::error!("Web Network task unexpectedly shutdown")
         }
     }
     Ok(())
@@ -361,66 +318,6 @@ where
     Ok(())
 }
 
-// pub trait SubstrateKeystore {
-//     fn ecdsa_key(&self) -> color_eyre::Result<ecdsa::Pair>;
-//
-//     fn sr25519_key(&self) -> color_eyre::Result<sr25519::Pair>;
-// }
-//
-// impl SubstrateKeystore for crate::config::KeystoreConfig {
-//     fn ecdsa_key(&self) -> color_eyre::Result<ecdsa::Pair> {
-//         let keystore_container = KeystoreContainer::new(self)?;
-//         let keystore = keystore_container.local_keystore();
-//         tracing::debug!("Loaded keystore from path");
-//         let ecdsa_keys = keystore.ecdsa_public_keys(crypto::role::KEY_TYPE);
-//
-//         if ecdsa_keys.len() != 1 {
-//             color_eyre::eyre::bail!(
-// 				"`role`: Expected exactly one key in ECDSA keystore, found {}",
-// 				ecdsa_keys.len()
-// 			);
-//         }
-//
-//         let role_public_key = crypto::role::Public::from_slice(&ecdsa_keys[0].0)
-//             .map_err(|_| color_eyre::eyre::eyre!("Failed to parse public key from keystore"))?;
-//
-//         let role_key = keystore
-//             .key_pair::<crypto::role::Pair>(&role_public_key)?
-//             .ok_or_eyre("Failed to load key `role` from keystore")?
-//             .into_inner();
-//
-//
-//         tracing::debug!(%role_public_key, "Loaded key from keystore");
-//
-//         Ok(role_key)
-//     }
-//
-//     fn sr25519_key(&self) -> color_eyre::Result<sr25519::Pair> {
-//         let keystore_container = KeystoreContainer::new(self)?;
-//         let keystore = keystore_container.local_keystore();
-//         tracing::debug!("Loaded keystore from path");
-//         let sr25519_keys = keystore.sr25519_public_keys(crypto::acco::KEY_TYPE);
-//
-//         if sr25519_keys.len() != 1 {
-//             color_eyre::eyre::bail!(
-//                 "`acco`: Expected exactly one key in SR25519 keystore, found {}",
-//                 sr25519_keys.len()
-//             );
-//         }
-//
-//         let account_public_key = crypto::acco::Public::from_slice(&sr25519_keys[0].0)
-//             .map_err(|_| color_eyre::eyre::eyre!("Failed to parse public key from keystore"))?;
-//
-//         let acco_key = keystore
-//             .key_pair::<crypto::acco::Pair>(&account_public_key)?
-//             .ok_or_eyre("Failed to load key `acco` from keystore")?
-//             .into_inner();
-//
-//         tracing::debug!(%account_public_key, "Loaded key from keystore");
-//         Ok(acco_key)
-//     }
-// }
-
 #[cfg(not(target_family = "wasm"))]
 pub async fn wait_for_connection_to_bootnodes(
     config: &ShellConfig,
@@ -492,21 +389,20 @@ impl Hash for HashedRoleTypeWrapper {
         use RoleType::*;
         use ThresholdSignatureRoleType::*;
         match self.0 {
-            // Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
-            //     "DfnsCGGMP21".hash(state)
-            // }
+            Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
+                "DfnsCGGMP21".hash(state)
+            }
             Tss(ZcashFrostEd25519)
             | Tss(ZcashFrostEd448)
             | Tss(ZcashFrostP256)
             | Tss(ZcashFrostP384)
             | Tss(ZcashFrostSecp256k1)
             | Tss(ZcashFrostRistretto255) => "ZcashFrost".hash(state),
-            // Tss(WstsV2) => "WstsV2".hash(state),
-            // Tss(SilentShardDKLS23Secp256k1) => "SilentShardDKLS23Secp256k1".hash(state),
-            // Tss(GennaroDKGBls381) => "GennaroDKGBls381".hash(state),
+            Tss(WstsV2) => "WstsV2".hash(state),
+            Tss(SilentShardDKLS23Secp256k1) => "SilentShardDKLS23Secp256k1".hash(state),
+            Tss(GennaroDKGBls381) => "GennaroDKGBls381".hash(state),
             ZkSaaS(_) => "ZkSaaS".hash(state),
             LightClientRelaying => "LightClientRelaying".hash(state),
-            _ => "none".hash(state),
         }
     }
 }

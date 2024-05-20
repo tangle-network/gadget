@@ -10,7 +10,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 gadget-core = { workspace = true }
-gadget-common = { workspace = true }
+gadget-common = { workspace = true, features = ["default"] }
+gadget-io = { workspace = true, features = ["default"] }
 log = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -21,7 +22,6 @@ async-trait = { workspace = true }
 [target.'cfg(target_family = "wasm")'.dependencies]
 getrandom = { workspace = true, features = ["js"] }
 wasm-bindgen = "0.2.0"
-
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }

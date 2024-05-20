@@ -15,6 +15,7 @@ mod tests {
     use ark_std::rand::SeedableRng;
     use ark_std::{cfg_chunks, cfg_into_iter};
     use frame_support::assert_ok;
+    use gadget_io::tokio;
     use secret_sharing::pss::PackedSharingParams;
     use std::net::SocketAddr;
     use std::str::FromStr;
@@ -30,7 +31,6 @@ mod tests {
     use test_utils::mock::{id_to_public, id_to_sr25519_public, Jobs, RuntimeOrigin};
     use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use zk_saas_protocol::network::ZkProtocolNetworkConfig;
-    use gadget_io::tokio;
 
     #[gadget_io::tokio::test(flavor = "multi_thread")]
     async fn test_zk_job() {

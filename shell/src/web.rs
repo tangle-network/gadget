@@ -25,11 +25,11 @@ use wasm_bindgen_futures;
 
 use crate::config;
 use crate::config::ShellConfig;
+use crate::keystore::load_keys_from_keystore;
+use crate::network::matchbox::*;
 use crate::shell;
 use crate::shell::{vec_diff, Diff, HashedRoleTypeWrapper};
 use crate::tangle::{TangleConfig, TangleRuntime};
-use crate::network::matchbox::*;
-use crate::keystore::load_keys_from_keystore;
 
 use gadget_common::prelude::*;
 use gadget_common::ExecutableJob;
@@ -123,17 +123,18 @@ pub async fn run_web_shell(options: Opt, keys: Vec<String>) -> Result<JsValue, J
     // .await
     // .map_err(|e| js_sys::Error::new(&e.to_string()))?;
     let config = config::ShellConfig {
-            keystore: KeystoreConfig::InMemory { keystore: keys }, //"0000000000000000000000000000000000000000000000000000000000000001".to_string() },
-            subxt: config::SubxtConfig { endpoint },
-            base_path,
-            bind_ip,
-            bind_port,
-            bootnodes,
-            node_key,
-        };
+        keystore: KeystoreConfig::InMemory { keystore: keys }, //"0000000000000000000000000000000000000000000000000000000000000001".to_string() },
+        subxt: config::SubxtConfig { endpoint },
+        base_path,
+        bind_ip,
+        bind_port,
+        bootnodes,
+        node_key,
+    };
 
     // log(&format!("Shell Config: {:?}", config));
-    let (role_key, acco_key) = load_keys_from_keystore(config.keystore.clone()).map_err(|e| js_sys::Error::new(&e.to_string()))?;;
+    let (role_key, acco_key) = load_keys_from_keystore(config.keystore.clone())
+        .map_err(|e| js_sys::Error::new(&e.to_string()))?;
 
     let network_key = ed25519::Pair::from_seed(&config.node_key);
     // log(&format!(
@@ -173,9 +174,9 @@ pub async fn run_web_shell(options: Opt, keys: Vec<String>) -> Result<JsValue, J
         ],
         // role_key,
     )
-        .await
-        .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))
-        .map_err(|e| js_sys::Error::new(&e.to_string()))?;
+    .await
+    .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))
+    .map_err(|e| js_sys::Error::new(&e.to_string()))?;
 
     let protocols = crate::web::start_protocols_web(
         &config.subxt,
@@ -184,24 +185,24 @@ pub async fn run_web_shell(options: Opt, keys: Vec<String>) -> Result<JsValue, J
         logger,
         wrapped_keystore,
     )
-        .await
-        .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))
-        .map_err(|e| js_sys::Error::new(&e.to_string()))?;
+    .await
+    .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))
+    .map_err(|e| js_sys::Error::new(&e.to_string()))?;
 
     // let ctrl_c = gadget_io::tokio::signal::ctrl_c();
 
     // gadget_io::tokio::select! {
-        // _ = ctrl_c => {
-        //     tracing::info!("Received Ctrl-C, shutting down");
-        // }
-        // res = protocols => {
-        //     if let Err(e) = res {
-        //         tracing::error!(error = ?e, "Protocols watcher task unexpectedly shutdown");
-        //     }
-        // }
-        // _ = network_task => {
-        //     tracing::error!("Network task unexpectedly shutdown")
-        // }
+    // _ = ctrl_c => {
+    //     tracing::info!("Received Ctrl-C, shutting down");
+    // }
+    // res = protocols => {
+    //     if let Err(e) = res {
+    //         tracing::error!(error = ?e, "Protocols watcher task unexpectedly shutdown");
+    //     }
+    // }
+    // _ = network_task => {
+    //     tracing::error!("Network task unexpectedly shutdown")
+    // }
     // }
     // Ok(())
     let result = serde_wasm_bindgen::to_value("success message").map_err(into_js_error)?;
@@ -337,8 +338,7 @@ where
     // and then starts the required protocols based on the roles.
     log(&format!("INITIALIZING VEC AND MAP"));
     let mut current_roles = Vec::new();
-    let mut running_protocols =
-        HashMap::<HashedRoleTypeWrapper, ()>::new();
+    let mut running_protocols = HashMap::<HashedRoleTypeWrapper, ()>::new();
 
     log(&format!("CREATING SUBXT CLIENT"));
     let subxt_client =

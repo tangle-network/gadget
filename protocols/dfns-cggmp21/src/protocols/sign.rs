@@ -25,12 +25,12 @@ use gadget_common::tangle_runtime::*;
 use gadget_common::utils::deserialize;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use rand::{CryptoRng, RngCore, SeedableRng};
 use sp_core::{ecdsa, keccak_256, Pair};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
-use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 
 #[derive(Clone)]
 pub struct DfnsCGGMP21SigningExtraParams {

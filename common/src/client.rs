@@ -560,6 +560,7 @@ where
 #[cfg(not(target_family = "wasm"))]
 mod tests {
 
+    use gadget_io::tokio;
     use tangle_subxt::{
         subxt::{tx::Signer, utils::AccountId32, PolkadotConfig},
         tangle_testnet_runtime::api,
@@ -568,7 +569,6 @@ mod tests {
             tangle_primitives::{jobs, roles},
         },
     };
-    use gadget_io::tokio;
 
     use super::*;
 

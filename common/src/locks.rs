@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use gadget_io::tokio::sync::MutexGuard;
 use gadget_io::time::error::Elapsed;
+use gadget_io::tokio::sync::MutexGuard;
 
 #[async_trait]
 pub trait TokioMutexExt<T: Send> {

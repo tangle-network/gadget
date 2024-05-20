@@ -6,17 +6,18 @@ use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::WorkManager;
 use gadget_common::{client::ClientWithApi, utils::serialize};
 use gadget_core::job_manager::WorkManagerInterface;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use mpc_net::{MpcNet, MpcNetError, MultiplexedStreamID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 
 pub struct ZkAsyncProtocolParameters<P, N, C> {
     pub associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     pub associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     pub associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
     pub associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    pub(crate) rxs: HashMap<u32, Vec<gadget_io::tokio::sync::Mutex<UnboundedReceiver<MpcNetMessage>>>>,
+    pub(crate) rxs:
+        HashMap<u32, Vec<gadget_io::tokio::sync::Mutex<UnboundedReceiver<MpcNetMessage>>>>,
     pub party_id: u32,
     pub n_parties: usize,
     pub network: N,

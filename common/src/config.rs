@@ -29,7 +29,6 @@ where
     fn prometheus_config(&self) -> PrometheusConfig;
 
     async fn build(&self) -> Result<Self, crate::Error> {
-        gadget_io::log(&format!("ENTERING BUILD FUNCTION"));
         let jobs_client = self.params().build_jobs_client().await?;
         let (network, protocol) = self
             .params()
@@ -70,7 +69,6 @@ where
     }
 
     async fn run(self) -> Result<(), crate::Error> {
-        gadget_io::log(&format!("RUNNING PROTOCOL"));
         crate::run_protocol(self).await
     }
 }

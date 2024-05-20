@@ -64,11 +64,9 @@ impl<'a> GadgetManager<'a> {
                 loop {
                     if let Some(message) = gadget.get_next_protocol_message().await {
                         if let Err(err) = gadget.process_protocol_message(message).await {
-                            gadget_io::log(&format!("PROTOCOL MESSAGE PROCESSING ERROR: {:?}", err));
                             gadget.process_error(err).await;
                         }
                     } else {
-                        gadget_io::log(&format!("PROTOCOL MESSAGE STREAM ENDED"));
                         return Err(GadgetError::ProtocolMessageStreamEnded);
                     }
                 }

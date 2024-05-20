@@ -1,30 +1,29 @@
-use std::{
-    sync::{Arc, atomic::AtomicU32},
-    collections::HashMap,
-};
-use serde::{Deserialize, Serialize};
-use sp_core::ecdsa;
-use gadget_common::{
-    debug_logger::DebugLogger,
-    prelude::*,
-};
+use crate::network::matchbox::MatchboxEvent::P2p;
+use gadget_common::{debug_logger::DebugLogger, prelude::*};
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use matchbox_socket::PeerId;
-use crate::network::matchbox::MatchboxEvent::P2p;
+use serde::{Deserialize, Serialize};
+use sp_core::ecdsa;
+use std::{
+    collections::HashMap,
+    sync::{atomic::AtomicU32, Arc},
+};
+use crate::network::network::NetworkHandle;
 
 pub type InboundMapping = (String, UnboundedSender<Vec<u8>>, Arc<AtomicU32>);
 
 pub struct MatchboxNetworkService<'a> {
     pub logger: &'a DebugLogger,
     pub inbound_mapping: &'a [InboundMapping],
-    pub ecdsa_peer_id_to_matchbox_id: &'a Arc<RwLock<HashMap<ecdsa::Public, matchbox_socket::PeerId>>>,
+    pub ecdsa_peer_id_to_matchbox_id:
+        &'a Arc<RwLock<HashMap<ecdsa::Public, matchbox_socket::PeerId>>>,
     pub role_key: &'a ecdsa::Pair,
     pub span: &'a tracing::Span,
 }
 
 impl<'a> MatchboxNetworkService<'a> {
     /// Handle local requests that are meant to be sent to the network.
-    pub(crate) fn handle_intra_node_payload(&mut self, msg: IntraNodeWebPayload) {
+    pub(crate) fn handle_intra_node_payload(&mut self, _msg: IntraNodeWebPayload) {
         // let _enter = self.span.enter();
         // match (msg.message_type, msg.payload) {
         //     (MessageType::Broadcast, MatchboxGossipOrRequestResponse::Gossip(payload)) => {
@@ -66,8 +65,7 @@ impl<'a> MatchboxNetworkService<'a> {
     pub(crate) async fn handle_matchbox_event(&mut self, event: MatchboxEvent) {
         let _enter = self.span.enter();
         match event {
-            P2p { peer_id } => {
-                gadget_io::log(&format!("NETWORK - P2P EVENT from {:?}", peer_id));
+            P2p { peer_id: _ } => {
             }
             unknown => {
                 self.logger
@@ -80,9 +78,7 @@ impl<'a> MatchboxNetworkService<'a> {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum MatchboxEvent {
-    P2p{
-        peer_id: matchbox_socket::PeerId,
-    },
+    P2p { peer_id: matchbox_socket::PeerId },
     Identify,
     // Ping,
     // NewListenAddr,
@@ -101,17 +97,6 @@ pub enum MatchboxEvent {
     // NewExternalAddrOfPeer,
 }
 
-// #[derive(Clone, Debug, Serialize, Deserialize)]
-// pub struct MatchboxPacket {
-//     pub topic: String,
-//
-//
-// }
-//
-// impl MatchboxPacket {
-//
-// }
-
 #[derive(Clone)]
 pub struct MatchboxHandle {
     pub network: &'static str,
@@ -121,13 +106,13 @@ pub struct MatchboxHandle {
     pub ecdsa_peer_id_to_matchbox_id: Arc<RwLock<HashMap<ecdsa::Public, matchbox_socket::PeerId>>>,
 }
 
-impl MatchboxHandle {
-    pub fn connected_peers(&self) -> usize {
+impl NetworkHandle for MatchboxHandle {
+    fn connected_peers(&self) -> usize {
         self.connected_peers
             .load(std::sync::atomic::Ordering::Relaxed) as usize
     }
 
-    pub fn topic(&self) -> &str {
+    fn topic(&self) -> &str {
         self.network
     }
 }
@@ -180,19 +165,15 @@ enum MessageType {
 #[async_trait]
 impl Network for MatchboxHandle {
     async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
-        gadget_io::log(&format!("MATCHBOX HANDLE NETWORK - TAKING LOCK"));
         let mut lock = self
             .rx_from_inbound
             .try_lock()
             .expect("There should be only a single caller for `next_message`");
 
-        gadget_io::log(&format!("MATCHBOX HANDLE NETWORK - RECEIVING MESSAGE FROM LOCK"));
         let message = lock.recv().await?;
-        gadget_io::log(&format!("MATCHBOX HANDLE NETWORK - DESERIALIZING MESSAGE"));
         match bincode::deserialize(&message) {
             Ok(message) => Some(message),
             Err(_e) => {
-                gadget_io::log(&format!("MATCHBOX HANDLE NETWORK - FAILED TO DESERIALIZE MESSAGE"));
                 drop(lock);
                 self.next_message().await
             }

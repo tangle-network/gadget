@@ -273,8 +273,8 @@ impl IsCritical for BlsStateMachineError {
 mod tests {
     use crate::protocol::state_machine::BlsStateMachine;
     use gadget_common::config::DebugLogger;
-    use round_based::dev::AsyncSimulation;
     use gadget_io::tokio;
+    use round_based::dev::AsyncSimulation;
 
     #[gadget_io::tokio::test]
     async fn test_bls_state_machine() {

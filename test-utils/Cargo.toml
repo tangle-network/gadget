@@ -3,41 +3,6 @@ name = "test-utils"
 version = "0.1.0"
 edition = "2021"
 
-#[dependencies]
-#parking_lot = { workspace = true }
-#futures = { workspace = true }
-#tokio = { workspace = true, features = ["sync", "rt-multi-thread", "macros"] }
-#sp-io = { workspace = true }
-#log = { workspace = true }
-#async-trait = { workspace = true }
-#frame-support = { workspace = true }
-#frame-system = { workspace = true }
-#gadget-common = { workspace = true }
-#gadget-core = { workspace = true }
-#pallet-jobs-rpc-runtime-api = { workspace = true }
-#sc-client-api = { workspace = true }
-#sc-utils = { workspace = true }
-#sp-api = { workspace = true }
-#sp-core = { workspace = true }
-#sp-runtime = { workspace = true }
-#sp-keystore = { workspace = true }
-#sp-std = { workspace = true }
-#sp-application-crypto = { workspace = true }
-#pallet-balances = { workspace = true }
-#pallet-timestamp = { workspace = true }
-#pallet-jobs = { workspace = true }
-#pallet-dkg = { workspace = true }
-#pallet-zksaas = { workspace = true }
-#sp-externalities = { workspace = true }
-#tangle-primitives = { workspace = true, features = ["verifying"] }
-#scale-info = { workspace = true }
-#parity-scale-codec = { workspace = true }
-#serde = { workspace = true }
-#tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
-
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
@@ -81,7 +46,6 @@ wasm = [
 getrandom = { workspace = true, optional = true, default-features = false }
 parking_lot = { workspace = true }
 futures = { workspace = true }
-#tokio = { workspace = true, default-features = false, features = ["sync", "macros"] }
 sp-io = { workspace = true, default-features = false }
 log = { workspace = true }
 async-trait = { workspace = true }

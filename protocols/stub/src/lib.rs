@@ -125,8 +125,6 @@ generate_setup_and_run_command!(StubProtocol, StubProtocol);
 //    ThresholdSignatureRoleType::GennaroDKGBls381
 //);
 
-
-
 // use gadget_common::full_protocol::SharedOptional;
 // use gadget_common::prelude::*;
 // use sp_core::sr25519;
@@ -251,4 +249,3 @@ generate_setup_and_run_command!(StubProtocol, StubProtocol);
 // //    3,
 // //    ThresholdSignatureRoleType::GennaroDKGBls381
 // //);
-

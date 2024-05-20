@@ -6,34 +6,28 @@ pub mod wasm;
 
 #[cfg(target_family = "wasm")]
 pub use wasm::{
-    keystore::{KeystoreConfig, SubstrateKeystore, KeystoreContainer},
-    shell::{TomlConfig, Opt, SupportedChains}
+    keystore::{KeystoreConfig, KeystoreContainer, SubstrateKeystore},
+    shell::{Opt, SupportedChains, TomlConfig},
 };
 
 #[cfg(not(target_family = "wasm"))]
 pub use standard::{
-    keystore::{KeystoreConfig, SubstrateKeystore, KeystoreContainer},
-    shell::{TomlConfig, Opt, SupportedChains, defaults},
+    keystore::{KeystoreConfig, KeystoreContainer, SubstrateKeystore},
+    shell::{defaults, Opt, SupportedChains, TomlConfig},
 };
 
 #[cfg(target_family = "wasm")]
-pub use {
-    tokio,
-    wasm_bindgen_futures::spawn_local as spawn,
-};
+pub use {tokio, wasm_bindgen_futures::spawn_local as spawn};
 // pub use tokio_wasm as tokio;
 
 #[cfg(not(target_family = "wasm"))]
-pub use {
-    tokio,
-    tokio::task::spawn as spawn,
-};
+pub use {tokio, tokio::task::spawn};
 
 #[cfg(target_family = "wasm")]
 pub use wasmtimer::tokio as time;
 
 #[cfg(not(target_family = "wasm"))]
-pub use tokio::time as time;
+pub use tokio::time;
 
 #[cfg(not(target_family = "wasm"))]
 pub fn log(s: &str) {

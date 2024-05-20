@@ -1,7 +1,7 @@
+use crate::prometheus::{BYTES_RECEIVED, BYTES_SENT, REGISTRY};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
-use crate::prometheus::{BYTES_RECEIVED, BYTES_SENT, REGISTRY};
 
 #[derive(Debug, Clone)]
 pub enum PrometheusConfig {

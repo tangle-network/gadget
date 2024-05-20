@@ -1,15 +1,14 @@
 pub use crate::shared::keystore::SubstrateKeystore;
-use tracing;
 use color_eyre;
-use std::path::{PathBuf, Path};
-use sp_core::{ecdsa, sr25519, ByteArray};
 use color_eyre::eyre::OptionExt;
+use sp_core::{ecdsa, sr25519, ByteArray};
+use std::path::{Path, PathBuf};
+use tracing;
 
 use color_eyre::Result;
-use sc_keystore::{ LocalKeystore, Keystore };
+use sc_keystore::{Keystore, LocalKeystore};
 use sp_keystore::KeystorePtr;
 use std::sync::Arc;
-
 
 /// Construct a local keystore shareable container
 pub struct KeystoreContainer(Arc<LocalKeystore>);
@@ -92,9 +91,9 @@ impl SubstrateKeystore for KeystoreConfig {
 
         if ecdsa_keys.len() != 1 {
             color_eyre::eyre::bail!(
-				"`role`: Expected exactly one key in ECDSA keystore, found {}",
-				ecdsa_keys.len()
-			);
+                "`role`: Expected exactly one key in ECDSA keystore, found {}",
+                ecdsa_keys.len()
+            );
         }
 
         let role_public_key = crypto::role::Public::from_slice(&ecdsa_keys[0].0)
