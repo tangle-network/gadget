@@ -657,7 +657,7 @@ pub async fn new_test_ext<
         let account_id: AccountId = pair.public().into();
 
         let logger = DebugLogger {
-            peer_id: format!("Peer {node_index}"),
+            id: format!("Peer {node_index}"),
         };
 
         let pallet_tx = Arc::new(TestExternalitiesPalletSubmitter {
@@ -761,10 +761,11 @@ pub mod mock_wrapper_client {
                 .await;
             let next = lock.as_mut().expect("Should exist").next().await;
             log::trace!(target: "gadget", "Latest Finality Notification: {:?}", next.as_ref().map(|r| r.header.number()));
-            *self
-                .latest_finality_notification
+            self.latest_finality_notification
                 .lock_timeout(Duration::from_millis(500))
-                .await = next.clone();
+                .await
+                .clone_from(&next);
+
             next.map(|n| {
                 let mut hash = [0u8; 32];
                 hash.copy_from_slice(n.header.hash().as_ref());

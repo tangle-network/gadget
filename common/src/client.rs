@@ -36,10 +36,10 @@ pub async fn create_client<C: ClientWithApi>(
     })
 }
 
-pub async fn exec_client_function<C: Clone, F, T>(client: &C, function: F) -> T
+pub async fn exec_client_function<C, F, T>(client: &C, function: F) -> T
 where
     for<'a> F: FnOnce(&'a C) -> T,
-    C: Send + Sync + 'static,
+    C: Clone + Send + Sync + 'static,
     T: Send + 'static,
     F: Send + 'static,
 {
@@ -575,9 +575,7 @@ mod tests {
     #[gadget_io::tokio::test]
     #[ignore = "This test requires a running substrate node"]
     async fn subxt_pallet_submitter() -> anyhow::Result<()> {
-        let logger = DebugLogger {
-            peer_id: "test".into(),
-        };
+        let logger = DebugLogger { id: "test".into() };
         let alice = subxt_signer::sr25519::dev::alice();
         let bob = subxt_signer::sr25519::dev::bob();
         let alice_account_id =

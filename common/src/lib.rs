@@ -322,10 +322,10 @@ macro_rules! generate_protocol {
                 key_store: ECDSAKeyStore<Self::KeystoreBackend>,
                 prometheus_config: $crate::prometheus::PrometheusConfig,
             ) -> Result<Self, Error> {
-                let logger = if logger.peer_id.is_empty() {
-                    DebugLogger { peer_id: stringify!($name).replace("\"", "").into() }
+                let logger = if logger.id.is_empty() {
+                    DebugLogger { id: stringify!($name).replace("\"", "").into() }
                 } else {
-                    DebugLogger { peer_id: (logger.peer_id + " | " + stringify!($name)).replace("\"", "") }
+                    DebugLogger { id: (logger.id + " | " + stringify!($name)).replace("\"", "") }
                 };
                 Ok(Self {
                     pallet_tx,
