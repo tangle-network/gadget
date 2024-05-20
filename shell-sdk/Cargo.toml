@@ -6,7 +6,7 @@ license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
 [features]
-default = ["std", "all-internal-protocols"]
+default = ["std"]
 std = [
   "tangle-subxt/default",
   "gadget-common/default",
@@ -15,14 +15,7 @@ std = [
   "sp-core/default",
   "sp-io/default",
   "sp-application-crypto/default",
-  "zk-saas-protocol?/std",
-  "zcash-frost-protocol?/std",
 ]
-all-internal-protocols = ["dfns", "bls", "zcash-frost", "zk-saas-groth"]
-dfns = ["dfns-cggmp21-protocol"]
-bls = ["threshold-bls-protocol"]
-zcash-frost = ["zcash-frost-protocol"]
-zk-saas-groth = ["zk-saas-protocol"]
 wasm = [
   "tangle-subxt/wasm",
   "gadget-common/wasm",
@@ -43,7 +36,6 @@ wasm = [
   "console_error_panic_hook",
   "console_log",
   "anyhow",
-  "zcash-frost-protocol?/wasm"
 ]
 
 [dependencies]
@@ -91,18 +83,12 @@ hex = { workspace = true }
 itertools = { workspace = true }
 env_logger = { workspace = true }
 
+# Pallets
 pallet-jobs-rpc-runtime-api = { workspace = true }
 pallet-jobs = { workspace = true }
 pallet-dkg = { workspace = true }
 pallet-zksaas = { workspace = true }
 tangle-primitives = { workspace = true }
-tangle-subxt = { workspace = true }
-
-## Protocols
-dfns-cggmp21-protocol = { workspace = true, optional = true }
-zcash-frost-protocol = { workspace = true, optional = true, default-features = false }
-threshold-bls-protocol = { workspace = true, optional = true }
-zk-saas-protocol = { workspace = true, optional = true, default-features = false, features = ["parallel"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
