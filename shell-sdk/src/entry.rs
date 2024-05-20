@@ -38,13 +38,11 @@ pub async fn run_shell_for_protocol<
 where
     F: SendFuture<'static, ()>,
 {
-    // The args will be passed here by the shell-manager
-    // let args = std::env::args().into_iter().collect::<Vec<String>>();
     let args = std::env::args();
     println!("Args: {args:?}");
     let config: ShellTomlConfig = ShellTomlConfig::from_iter(args);
     let keystore_backend = keystore_backend().await;
-    // setup_shell_logger(config.verbose, config.pretty, "gadget_shell")?;
+    setup_shell_logger(config.verbose, config.pretty, "gadget")?;
     let keystore =
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);
 
@@ -100,9 +98,8 @@ pub fn setup_shell_logger(verbose: i32, pretty: bool, filter: &str) -> color_eyr
         3 => Level::DEBUG,
         _ => Level::TRACE,
     };
-    let env_filter = tracing_subscriber::EnvFilter::from_default_env()
-        .add_directive(format!("{filter}={log_level}").parse()?)
-        .add_directive(format!("gadget={log_level}").parse()?);
+    let env_filter =
+        EnvFilter::from_default_env().add_directive(format!("{filter}={log_level}").parse()?);
     let logger = tracing_subscriber::fmt()
         .with_target(false)
         .with_level(true)
@@ -111,10 +108,13 @@ pub fn setup_shell_logger(verbose: i32, pretty: bool, filter: &str) -> color_eyr
         .with_max_level(log_level)
         .with_env_filter(env_filter);
     if pretty {
-        logger.pretty().init();
+        let _ = logger.pretty().try_init();
     } else {
-        logger.compact().init();
+        let _ = logger.compact().try_init();
     }
+
+    let _ = env_logger::try_init();
+
     Ok(())
 }
 pub fn setup_log() {

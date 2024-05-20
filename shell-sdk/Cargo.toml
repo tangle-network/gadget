@@ -36,6 +36,7 @@ structopt = { workspace = true }
 rand = { workspace = true }
 hex = { workspace = true }
 itertools = { workspace = true }
+env_logger = { workspace = true }
 
 pallet-jobs-rpc-runtime-api = { workspace = true }
 pallet-jobs = { workspace = true }

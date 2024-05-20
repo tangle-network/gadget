@@ -20,12 +20,12 @@ pub mod utils;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
-    color_eyre::install()?;
+    //color_eyre::install()?;
     let opt = &ShellManagerOpts::from_args();
     let test_mode = opt.test;
     //    entry::setup_shell_logger(opt.verbose, opt.pretty, "gadget")
     //        .map_err(|err| msg_to_error(err.to_string()))?;
-    entry::setup_log();
+    entry::setup_shell_logger(opt.verbose, opt.pretty, "gadget")?;
     let shell_config_contents = std::fs::read_to_string(opt.shell_config.clone())?;
     let shell_config: ShellTomlConfig = toml::from_str(&shell_config_contents)
         .map_err(|err| utils::msg_to_error(err.to_string()))?;
@@ -111,6 +111,7 @@ async fn main() -> color_eyre::Result<()> {
                             let current_dir = std::env::current_dir()?;
                             let mut binary_download_path =
                                 format!("{}/protocol-{rev}", current_dir.display());
+
                             if utils::is_windows() {
                                 binary_download_path += ".exe"
                             }
