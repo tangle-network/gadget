@@ -11,7 +11,7 @@ edition = "2021"
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
 async-trait = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
-tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
 tokio = { workspace = true, features = ["full"] }
 url = { workspace = true, features = ["serde"] }
 log = { workspace = true }

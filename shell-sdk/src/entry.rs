@@ -1,6 +1,6 @@
 use crate::shell::ShellNodeInput;
 use crate::{defaults, ShellTomlConfig, SupportedChains};
-use gadget_common::prelude::KeystoreBackend;
+use gadget_common::prelude::{DebugLogger, KeystoreBackend};
 use gadget_core::job_manager::SendFuture;
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
@@ -40,11 +40,24 @@ where
 {
     let args = std::env::args();
     println!("Args: {args:?}");
-    let config: ShellTomlConfig = ShellTomlConfig::from_iter(args);
+    let config = ShellTomlConfig::from_iter_safe(args);
+
+    if config.is_err() {
+        return Err(color_eyre::Report::msg(format!(
+            "Failed to parse shell config: {config:?}"
+        )));
+    }
+
+    let config = config.unwrap();
     let keystore_backend = keystore_backend().await;
     setup_shell_logger(config.verbose, config.pretty, "gadget")?;
     let keystore =
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);
+
+    let logger = DebugLogger {
+        id: "test".to_string(),
+    };
+    logger.info("Starting shell with config: {config:?}");
 
     let (node_input, network_handle) = crate::generate_node_input(crate::ShellConfig {
         keystore_backend,
@@ -113,7 +126,7 @@ pub fn setup_shell_logger(verbose: i32, pretty: bool, filter: &str) -> color_eyr
         let _ = logger.compact().try_init();
     }
 
-    let _ = env_logger::try_init();
+    //let _ = env_logger::try_init();
 
     Ok(())
 }
