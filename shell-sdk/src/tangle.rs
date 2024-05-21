@@ -73,7 +73,7 @@ impl TangleRuntime {
 
 #[async_trait::async_trait]
 impl Client for TangleRuntime {
-    async fn get_next_finality_notification(&self) -> Option<FinalityNotification> {
+    async fn next_event(&self) -> Option<FinalityNotification> {
         let mut lock = self
             .finality_notification_stream
             .try_lock_timeout(Duration::from_millis(500))
@@ -98,12 +98,12 @@ impl Client for TangleRuntime {
                 tracing::debug!("Finality notification stream is not initialized. Initializing...");
                 self.initialize().await.ok()?;
                 // Next time, the stream should be initialized.
-                self.get_next_finality_notification().await
+                self.next_event().await
             }
         }
     }
 
-    async fn get_latest_finality_notification(&self) -> Option<FinalityNotification> {
+    async fn latest_event(&self) -> Option<FinalityNotification> {
         let lock = self
             .latest_finality_notification
             .try_lock_timeout(Duration::from_millis(500))
@@ -114,7 +114,7 @@ impl Client for TangleRuntime {
             None => {
                 drop(lock);
                 tracing::debug!("Latest finality notification is not available. Fetching...");
-                self.get_next_finality_notification().await
+                self.next_event().await
             }
         }
     }
@@ -251,7 +251,7 @@ mod tests {
         let runtime = TangleRuntime::new(subxt_client);
 
         let notification = runtime
-            .get_next_finality_notification()
+            .next_event()
             .await
             .ok_or_eyre("Finality notification not found")?;
         let job_id = runtime.query_next_job_id(notification.hash).await?;

@@ -752,7 +752,7 @@ pub mod mock_wrapper_client {
 
     #[async_trait]
     impl<R: Send + Sync + Clone, B: Block> Client for MockClient<R, B> {
-        async fn get_next_finality_notification(&self) -> Option<substrate::FinalityNotification> {
+        async fn next_event(&self) -> Option<substrate::FinalityNotification> {
             let mut lock = self
                 .finality_notification_stream
                 .lock_timeout(Duration::from_millis(500))
@@ -773,7 +773,7 @@ pub mod mock_wrapper_client {
             })
         }
 
-        async fn get_latest_finality_notification(
+        async fn latest_event(
             &self,
         ) -> Option<substrate::FinalityNotification> {
             let lock = self
@@ -788,7 +788,7 @@ pub mod mock_wrapper_client {
                 Some(substrate::FinalityNotification { hash, number })
             } else {
                 drop(lock);
-                self.get_next_finality_notification().await
+                self.next_event().await
             }
         }
     }

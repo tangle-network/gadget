@@ -21,7 +21,7 @@ pub mod prelude {
     pub use crate::FullProtocolConfig;
     pub use crate::GadgetProtocolMessage;
     pub use crate::JobError;
-    pub use crate::JobInitMetadata;
+    pub use gadget_common::gadget::substrate::JobInitMetadata;
     pub use crate::JobsClient;
     pub use crate::KeystoreBackend;
     pub use crate::Mutex;

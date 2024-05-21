@@ -2,7 +2,7 @@ use crate::client::{ClientWithApi, JobsClient, PalletSubmitter};
 use crate::config::{DebugLogger, GadgetProtocol, Network, NetworkAndProtocolSetup};
 use crate::gadget::message::GadgetProtocolMessage;
 use crate::gadget::work_manager::WorkManager;
-use crate::gadget::{JobInitMetadata, WorkManagerConfig};
+use crate::gadget::WorkManagerConfig;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use crate::prometheus::PrometheusConfig;
 use crate::protocol::AsyncProtocol;
@@ -18,6 +18,7 @@ use sp_core::{keccak_256, sr25519};
 use sp_io::crypto::ecdsa_verify_prehashed;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
+use crate::gadget::substrate::JobInitMetadata;
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 

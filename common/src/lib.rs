@@ -1,11 +1,11 @@
 use crate::client::ClientWithApi;
 use crate::config::ProtocolConfig;
 use crate::gadget::work_manager::WorkManager;
-use crate::gadget::{GadgetProtocol, Module};
+use crate::gadget::{GadgetProtocol, GeneralModule};
 use crate::prelude::PrometheusConfig;
 use gadget::network::Network;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
-use gadget_core::gadget::substrate::{Client, FinalityNotification, SubstrateGadget};
+use gadget_core::gadget::substrate::{FinalityNotification};
 pub use gadget_core::job::JobError;
 pub use gadget_core::job::*;
 pub use gadget_core::job_manager::WorkManagerInterface;
@@ -19,6 +19,7 @@ use tokio::task::JoinError;
 
 pub use subxt_signer;
 pub use tangle_subxt;
+use gadget_core::gadget::general::{Client, GeneralGadget};
 
 #[allow(ambiguous_glob_reexports)]
 pub mod prelude {
@@ -27,7 +28,7 @@ pub mod prelude {
     pub use crate::full_protocol::{FullProtocolConfig, NodeInput};
     pub use crate::gadget::message::GadgetProtocolMessage;
     pub use crate::gadget::work_manager::WorkManager;
-    pub use crate::gadget::JobInitMetadata;
+    pub use crate::gadget::substrate::JobInitMetadata;
     pub use crate::gadget::WorkManagerConfig;
     pub use crate::generate_setup_and_run_command;
     pub use crate::keystore::{ECDSAKeyStore, InMemoryBackend, KeystoreBackend};
@@ -51,10 +52,10 @@ pub mod tangle_runtime {
         bounded_collections::bounded_vec::BoundedVec,
         tangle_primitives::jobs::{
             self,
-            tss::{self, *},
-            zksaas::{self, *},
             JobType::*,
-            PhaseResult, RpcResponseJobsData,
+            PhaseResult,
+            RpcResponseJobsData,
+            tss::{self, *}, zksaas::{self, *},
         },
         tangle_primitives::roles::{self, RoleType},
         tangle_testnet_runtime::{
@@ -72,10 +73,10 @@ pub mod tangle_runtime {
         bounded_collections::bounded_vec::BoundedVec,
         tangle_primitives::jobs::{
             self,
-            tss::{self, *},
-            zksaas::{self, *},
             JobType::*,
             PhaseResult,
+            tss::{self, *},
+            zksaas::{self, *},
         },
         tangle_primitives::roles::{self, RoleType},
         tangle_runtime::{
@@ -146,15 +147,15 @@ pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(
     let latest_finality_notification =
         get_latest_finality_notification_from_client(&client).await?;
     let work_manager = create_work_manager(&latest_finality_notification, &protocol).await?;
-    let proto_module = Module::new(network.clone(), protocol, work_manager);
-    // Plug the module into the substrate gadget to interface the WebbGadget with Substrate
-    let substrate_gadget = SubstrateGadget::new(client, proto_module);
+    let proto_module = GeneralModule::new(network.clone(), protocol, work_manager);
+    // Plug the module into the general gadget to interface the WebbGadget with Substrate
+    let substrate_gadget = GeneralGadget::new(client, proto_module);
     let network_future = network.run();
     let gadget_future = async move {
         // Poll the first finality notification to ensure clients can execute without having to wait
         // for another block to be produced
         if let Err(err) = substrate_gadget
-            .process_finality_notification(latest_finality_notification)
+            .on_event_received(latest_finality_notification)
             .await
         {
             substrate_gadget.process_error(err).await;
@@ -214,7 +215,7 @@ async fn get_latest_finality_notification_from_client<C: Client>(
     client: &C,
 ) -> Result<FinalityNotification, Error> {
     client
-        .get_latest_finality_notification()
+        .latest_event()
         .await
         .ok_or_else(|| Error::InitError {
             err: "No finality notification received".to_string(),

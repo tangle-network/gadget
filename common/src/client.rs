@@ -389,12 +389,12 @@ impl<
 
 #[async_trait]
 impl<C: Client> Client for JobsClient<C> {
-    async fn get_next_finality_notification(&self) -> Option<FinalityNotification> {
-        self.client.get_next_finality_notification().await
+    async fn next_event(&self) -> Option<FinalityNotification> {
+        self.client.next_event().await
     }
 
-    async fn get_latest_finality_notification(&self) -> Option<FinalityNotification> {
-        self.client.get_latest_finality_notification().await
+    async fn latest_event(&self) -> Option<FinalityNotification> {
+        self.client.latest_event().await
     }
 }
 /// A [`Signer`] implementation that can be constructed from an [`sp_core::Pair`].
@@ -571,7 +571,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    #[ignore = "This test requires a running substrate node"]
+    #[ignore = "This test requires a running general node"]
     async fn subxt_pallet_submitter() -> anyhow::Result<()> {
         let logger = DebugLogger { id: "test".into() };
         let alice = subxt_signer::sr25519::dev::alice();
