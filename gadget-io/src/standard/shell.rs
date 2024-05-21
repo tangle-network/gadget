@@ -22,10 +22,10 @@ pub struct Opt {
     pub pretty: bool,
     /// The options for the shell
     #[structopt(flatten)]
-    pub options: TomlConfig,
+    pub options: ShellTomlConfig,
 }
 
-#[derive(Default, Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, StructOpt, Serialize, Deserialize)]
 #[structopt(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum SupportedChains {
@@ -36,8 +36,34 @@ pub enum SupportedChains {
     Mainnet,
 }
 
+impl FromStr for SupportedChains {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "local_testnet" => Ok(SupportedChains::LocalTestnet),
+            "local_mainnet" => Ok(SupportedChains::LocalMainnet),
+            "testnet" => Ok(SupportedChains::Testnet),
+            "mainnet" => Ok(SupportedChains::Mainnet),
+            _ => Err(format!("Invalid chain: {}", s)),
+        }
+    }
+}
+
+impl Display for SupportedChains {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SupportedChains::LocalTestnet => write!(f, "local_testnet"),
+            SupportedChains::LocalMainnet => write!(f, "local_mainnet"),
+            SupportedChains::Testnet => write!(f, "testnet"),
+            SupportedChains::Mainnet => write!(f, "mainnet"),
+        }
+    }
+}
+
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
-pub struct TomlConfig {
+/// All shells should expect this as CLI input. The Shell Manager will be responsible for passing these values to the shell.
+pub struct ShellTomlConfig {
     /// The IP address to bind to for the libp2p node.
     #[structopt(long = "bind-ip", short = "i", default_value = defaults::BIND_IP)]
     #[serde(default = "defaults::bind_ip")]
@@ -58,7 +84,7 @@ pub struct TomlConfig {
     #[structopt(long = "node-key", env, parse(try_from_str = parse_node_key))]
     #[serde(skip_serializing)]
     pub node_key: Option<String>,
-    /// The base path to store the shell data, and read data from the keystore.
+    /// The base path to store the shell-sdk data, and read data from the keystore.
     #[structopt(
         parse(from_os_str),
         long,
@@ -72,17 +98,23 @@ pub struct TomlConfig {
     pub keystore_password: Option<String>,
     /// The chain to connect to, must be one of the supported chains.
     #[structopt(
-    long,
-    default_value,
-    possible_values = &[
-    "local_testnet",
-    "local_mainnet",
-    "testnet",
-    "mainnet"
-    ]
+        long,
+        default_value,
+        possible_values = &[
+        "local_testnet",
+        "local_mainnet",
+        "testnet",
+        "mainnet"
+        ]
     )]
     #[serde(default)]
     pub chain: SupportedChains,
+    /// The verbosity level, can be used multiple times
+    #[structopt(long, short = "v", global = true, parse(from_occurrences))]
+    pub verbose: i32,
+    /// Whether to use pretty logging
+    #[structopt(global = true, long)]
+    pub pretty: bool,
 }
 
 pub mod defaults {
@@ -118,29 +150,4 @@ fn parse_node_key(s: &str) -> Result<String> {
         color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
     })?;
     Ok(hex::encode(result))
-}
-
-impl FromStr for SupportedChains {
-    type Err = String;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        match s {
-            "local_testnet" => Ok(SupportedChains::LocalTestnet),
-            "local_mainnet" => Ok(SupportedChains::LocalMainnet),
-            "testnet" => Ok(SupportedChains::Testnet),
-            "mainnet" => Ok(SupportedChains::Mainnet),
-            _ => Err(format!("Invalid chain: {}", s)),
-        }
-    }
-}
-
-impl Display for SupportedChains {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SupportedChains::LocalTestnet => write!(f, "local_testnet"),
-            SupportedChains::LocalMainnet => write!(f, "local_mainnet"),
-            SupportedChains::Testnet => write!(f, "testnet"),
-            SupportedChains::Mainnet => write!(f, "mainnet"),
-        }
-    }
 }

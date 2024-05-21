@@ -3087,7 +3087,8 @@ dependencies = [
 
 [[package]]
 name = "frost-core"
-version = "0.6.7"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "byteorder",
  "debugless-unwrap",
@@ -3104,7 +3105,8 @@ dependencies = [
 
 [[package]]
 name = "frost-ed25519"
-version = "1.0.0-rc.0"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "curve25519-dalek 4.1.2",
  "frost-core",
@@ -3116,7 +3118,8 @@ dependencies = [
 
 [[package]]
 name = "frost-ed448"
-version = "1.0.0-rc.0"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "ed448-goldilocks-plus",
  "frost-core",
@@ -3128,7 +3131,8 @@ dependencies = [
 
 [[package]]
 name = "frost-p256"
-version = "1.0.0-rc.0"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "frost-core",
  "p256",
@@ -3140,7 +3144,8 @@ dependencies = [
 
 [[package]]
 name = "frost-p384"
-version = "1.0.0-rc.0"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "frost-core",
  "p384 0.13.0 (git+https://github.com/LIT-Protocol/elliptic-curves.git)",
@@ -3152,7 +3157,8 @@ dependencies = [
 
 [[package]]
 name = "frost-ristretto255"
-version = "1.0.0-rc.0"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "curve25519-dalek 4.1.2",
  "frost-core",
@@ -3164,7 +3170,8 @@ dependencies = [
 
 [[package]]
 name = "frost-secp256k1"
-version = "1.0.0-rc.0"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "frost-core",
  "k256",
@@ -3176,7 +3183,8 @@ dependencies = [
 
 [[package]]
 name = "frost-taproot"
-version = "1.0.0-rc.0"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "frost-core",
  "k256",
@@ -6767,7 +6775,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-dkg"
-version = "0.6.7"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "derivation-path",
  "digest 0.10.7",
@@ -6816,7 +6825,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-jobs"
-version = "0.6.7"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6832,7 +6842,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
-version = "0.6.7"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "sp-api",
@@ -6863,7 +6874,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-zksaas"
-version = "0.6.7"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9657,6 +9669,7 @@ version = "0.1.0"
 dependencies = [
  "color-eyre",
  "gadget-common",
+ "gadget-io",
  "hex",
  "libp2p 0.53.2",
  "rand",
@@ -11472,7 +11485,8 @@ dependencies = [
 
 [[package]]
 name = "tangle-crypto-primitives"
-version = "0.6.7"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "scale-info",
@@ -11481,7 +11495,8 @@ dependencies = [
 
 [[package]]
 name = "tangle-primitives"
-version = "0.6.7"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -11508,7 +11523,8 @@ dependencies = [
 
 [[package]]
 name = "tangle-subxt"
-version = "0.6.7"
+version = "1.0.3"
+source = "git+https://github.com/webb-tools/tangle.git?branch=donovan/browser-gadget#2d85854a994d2afa300a5c11901081c198f2c0a5"
 dependencies = [
  "getrandom 0.2.15",
  "parity-scale-codec 3.6.12",

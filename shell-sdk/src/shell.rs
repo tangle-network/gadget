@@ -3,11 +3,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::{
-    keystore::KeystoreContainer,
+    keystore::load_keys_from_keystore,
     tangle::{TangleConfig, TangleRuntime},
     SubxtConfig,
 };
-use color_eyre::eyre::OptionExt;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::{
     client::{PairSigner, SubxtPalletSubmitter},
@@ -15,14 +14,13 @@ use gadget_common::{
     full_protocol::NodeInput,
     keystore::ECDSAKeyStore,
 };
-use sp_core::{ecdsa, ed25519, keccak_256, sr25519, ByteArray, Pair};
-use sp_keystore::Keystore;
+use gadget_io::tokio;
+use gadget_io::tokio::task::JoinHandle;
+use sp_core::{ed25519, keccak_256, sr25519, Pair};
 use tangle_subxt::subxt;
-use tokio::task::JoinHandle;
 
 use crate::config::ShellConfig;
 use crate::network::gossip::GossipHandle;
-use crate::tangle::crypto;
 use itertools::Itertools;
 
 /// The version of the shell-sdk
@@ -137,47 +135,6 @@ where
         pallet_tx.clone(),
         keystore.clone(),
     )
-}
-
-pub fn load_keys_from_keystore(
-    keystore_config: &crate::config::KeystoreConfig,
-) -> color_eyre::Result<(ecdsa::Pair, sr25519::Pair)> {
-    let keystore_container = KeystoreContainer::new(keystore_config)?;
-    let keystore = keystore_container.local_keystore();
-    tracing::debug!("Loaded keystore from path");
-    let ecdsa_keys = keystore.ecdsa_public_keys(crypto::role::KEY_TYPE);
-    let sr25519_keys = keystore.sr25519_public_keys(crypto::acco::KEY_TYPE);
-
-    if ecdsa_keys.len() != 1 {
-        color_eyre::eyre::bail!(
-            "`role`: Expected exactly one key in ECDSA keystore, found {}",
-            ecdsa_keys.len()
-        );
-    }
-
-    if sr25519_keys.len() != 1 {
-        color_eyre::eyre::bail!(
-            "`acco`: Expected exactly one key in SR25519 keystore, found {}",
-            sr25519_keys.len()
-        );
-    }
-
-    let role_public_key = crypto::role::Public::from_slice(&ecdsa_keys[0].0)
-        .map_err(|_| color_eyre::eyre::eyre!("Failed to parse public key from keystore"))?;
-    let account_public_key = crypto::acco::Public::from_slice(&sr25519_keys[0].0)
-        .map_err(|_| color_eyre::eyre::eyre!("Failed to parse public key from keystore"))?;
-    let role_key = keystore
-        .key_pair::<crypto::role::Pair>(&role_public_key)?
-        .ok_or_eyre("Failed to load key `role` from keystore")?
-        .into_inner();
-    let acco_key = keystore
-        .key_pair::<crypto::acco::Pair>(&account_public_key)?
-        .ok_or_eyre("Failed to load key `acco` from keystore")?
-        .into_inner();
-
-    tracing::debug!(%role_public_key, "Loaded key from keystore");
-    tracing::debug!(%account_public_key, "Loaded key from keystore");
-    Ok((role_key, acco_key))
 }
 
 pub async fn wait_for_connection_to_bootnodes<KBE: KeystoreBackend>(

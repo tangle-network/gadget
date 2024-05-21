@@ -13,6 +13,7 @@ use libp2p::{
     swarm::dial_opts::DialOpts, StreamProtocol,
 };
 
+use gadget_common::prelude::KeystoreBackend;
 use gadget_io::tokio;
 use gadget_io::tokio::select;
 use gadget_io::tokio::sync::{Mutex, RwLock};
