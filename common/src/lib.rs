@@ -136,7 +136,7 @@ impl From<JobError> for Error {
     }
 }
 
-pub async fn run_protocol<T: ProtocolConfig>(mut protocol_config: T) -> Result<(), Error> {
+pub async fn run_protocol<AbstractGadgeT: AbstractGadget, T: ProtocolConfig<AbstractGadgeT>>(mut protocol_config: T) -> Result<(), Error> {
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
@@ -211,9 +211,9 @@ pub async fn create_work_manager<C: ClientWithApi, P: GadgetProtocol<C>>(
     ))
 }
 
-async fn get_latest_finality_notification_from_client<C: Client>(
+async fn get_latest_finality_notification_from_client<AbstractGadgetT: AbstractGadget, C: Client<AbstractGadgetT>>(
     client: &C,
-) -> Result<FinalityNotification, Error> {
+) -> Result<AbstractGadgetT::Event, Error> {
     client
         .latest_event()
         .await

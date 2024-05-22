@@ -4,20 +4,21 @@ use async_trait::async_trait;
 use sp_core::{ecdsa, keccak_256, sr25519};
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
 use gadget_core::gadget::substrate::FinalityNotification;
-use gadget_core::job_manager::{PollMethod, TaskID, WorkManagerInterface};
+use gadget_core::job_manager::{PollMethod, WorkManagerInterface};
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen};
+use gadget_core::gadget::manager::AbstractGadget;
 use crate::config::GadgetProtocol;
 use crate::gadget::{EventHandler, GeneralModule, MetricizedJob};
-use crate::prelude::{GadgetProtocolMessage, WorkManager};
+use crate::prelude::{ClientWithApi, GadgetProtocolMessage, WorkManager};
 use crate::protocol::AsyncProtocol;
 use crate::tangle_runtime::AccountId32;
 
 /// Endow the general module with event-handler specific code tailored towards interacting with substrate
-pub struct SubstrateGadgetEventHandler<C, N, M> {
+pub struct SubstrateGadget<C, N, M> {
     module: GeneralModule<C, N, M, FinalityNotification, GadgetProtocolMessage, crate::Error, Self>,
 }
 
-impl<C, N, M> Deref for SubstrateGadgetEventHandler<C, N, M> {
+impl<C, N, M> Deref for SubstrateGadget<C, N, M> {
     type Target = GeneralModule<C, N, M, FinalityNotification, GadgetProtocolMessage, crate::Error, Self>;
 
     fn deref(&self) -> &Self::Target {
@@ -25,14 +26,41 @@ impl<C, N, M> Deref for SubstrateGadgetEventHandler<C, N, M> {
     }
 }
 
-impl<C, N, M> From<GeneralModule<C, N, M, FinalityNotification, GadgetProtocolMessage, crate::Error, Self>> for SubstrateGadgetEventHandler<C, N, M> {
+impl<C, N, M> From<GeneralModule<C, N, M, FinalityNotification, GadgetProtocolMessage, crate::Error, Self>> for SubstrateGadget<C, N, M> {
     fn from(module: GeneralModule<C, N, M, FinalityNotification, GadgetProtocolMessage, crate::Error, Self>) -> Self {
-        SubstrateGadgetEventHandler { module }
+        SubstrateGadget { module }
     }
 }
 
 #[async_trait]
-impl<C, N, M> EventHandler<C, N, M, FinalityNotification, crate::Error> for SubstrateGadgetEventHandler<C, N, M> {
+impl<C: Send + ClientWithApi<Self> + 'static, N: Send + Sync + 'static, M: GadgetProtocol<Self, C> + Send + 'static> AbstractGadget for SubstrateGadget<C, N, M> {
+    type Event = FinalityNotification;
+    type ProtocolMessage = GadgetProtocolMessage;
+    type Error = crate::Error;
+
+    async fn next_event(&self) -> Option<Self::Event> {
+        todo!()
+    }
+
+    async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage> {
+        todo!()
+    }
+
+    async fn on_event_received(&self, notification: Self::Event) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    async fn process_protocol_message(&self, message: Self::ProtocolMessage) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    async fn process_error(&self, error: Self::Error) {
+        todo!()
+    }
+}
+
+#[async_trait]
+impl<C: Send + ClientWithApi<Self> + 'static, N: Send + Sync + 'static, M: GadgetProtocol<Self, C> + Send + 'static> EventHandler<C, N, M, FinalityNotification, crate::Error> for SubstrateGadget<C, N, M> {
     async fn process_event(
         &self,
         notification: FinalityNotification,

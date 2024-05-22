@@ -26,13 +26,13 @@ pub mod substrate;
 pub mod core;
 
 /// Used as a module to place inside the SubstrateGadget
-pub struct GeneralModule<C, N, M, Event, ProtocolMessage, Error, Evt> {
+pub struct GeneralModule<C, N, M, Event, ProtocolMessage, Error, AbstractGadgetT> {
     protocol: M,
     network: N,
     job_manager: ProtocolWorkManager<WorkManager>,
     clock: Arc<RwLock<Option<u64>>>,
-    event_handler: Evt,
-    _client: PhantomData<(C, Event, ProtocolMessage, Error)>,
+    event_handler: Box<dyn EventHandler<C, N, M, Event, Error>>,
+    _client: PhantomData<(ProtocolMessage, AbstractGadgetT)>,
 }
 
 const DEFAULT_MAX_ACTIVE_TASKS: usize = 4;
@@ -56,13 +56,13 @@ impl Default for WorkManagerConfig {
     }
 }
 
-impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>, Event, ProtocolMessage, Error, Evt> GeneralModule<C, N, M, Event, ProtocolMessage, Error, Evt> {
-    pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<WorkManager>, event_handler: Evt) -> Self {
+impl<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>, N: Network, M: GadgetProtocol<AbstractGadgetT, C>, Event, ProtocolMessage, Error> GeneralModule<C, N, M, Event, ProtocolMessage, Error, AbstractGadgetT> {
+    pub fn new<Evt: EventHandler<C, N, M, Event, Error>>(network: N, module: M, job_manager: ProtocolWorkManager<WorkManager>, event_handler: Evt) -> Self {
         let clock = job_manager.utility.clock.clone();
         GeneralModule {
             protocol: module,
             job_manager,
-            event_handler,
+            event_handler: Box::new(event_handler),
             network,
             clock,
             _client: Default::default(),
@@ -71,7 +71,7 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>, Event, ProtocolMessage,
 }
 
 #[async_trait]
-impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>, Event, ProtocolMessage, Error, Evt> AbstractGadget for GeneralModule<C, N, M, Event, ProtocolMessage, Error, Evt> 
+impl<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>, N: Network<AbstractGadgetT>, M: GadgetProtocol<AbstractGadgetT, C>, Event, ProtocolMessage, Error> AbstractGadget for GeneralModule<C, N, M, Event, ProtocolMessage, Error, AbstractGadgetT> 
     where Self: GadgetWithClient,
           Event: Send,
           ProtocolMessage: Send,
@@ -103,13 +103,13 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>, Event, ProtocolMessage,
 }
 
 #[async_trait]
-pub trait EventHandler<C, N, M, Event, Error> {
+pub trait EventHandler<C, N, M, Event, Error>: Send + Sync + 'static {
     async fn process_event(&self, notification: Event) -> Result<(), Error>;
 }
 
 
 #[async_trait]
-impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>, Event, Error, Evt> GadgetWithClient for GeneralModule<C, N, M, <Self as AbstractGadget>::Event, <Self as AbstractGadget>::ProtocolMessage, <Self as AbstractGadget>::Error, Evt>
+impl<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>, N: Network<AbstractGadgetT>, M: GadgetProtocol<AbstractGadgetT, C>, Event, Error, Evt> GadgetWithClient for GeneralModule<C, N, M, AbstractGadgetT::Event, AbstractGadgetT::ProtocolMessage, AbstractGadgetT::Error, Evt>
     where Evt: EventHandler<C, N, M, Event, Error> + Send {
     
     type Client = C;
@@ -144,7 +144,7 @@ impl<C: ClientWithApi, N: Network, M: GadgetProtocol<C>, Event, Error, Evt> Gadg
 pub type Job = (AsyncProtocolRemote, BuiltExecutableJobWrapper);
 
 #[async_trait]
-pub trait GadgetProtocol<C: ClientWithApi>: AsyncProtocol + Send + Sync {
+pub trait GadgetProtocol<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>>: AsyncProtocol + Send + Sync {
     /// Given an input of a valid and relevant job, return the parameters needed to start the async protocol
     /// Note: the parameters returned must be relevant to the `AsyncProtocol` implementation of this protocol
     ///
@@ -185,7 +185,7 @@ pub trait GadgetProtocol<C: ClientWithApi>: AsyncProtocol + Send + Sync {
         &self,
         job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     ) -> bool;
-    fn client(&self) -> JobsClient<C>;
+    fn client(&self) -> JobsClient<C, AbstractGadgetT>;
     fn logger(&self) -> DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         Default::default()

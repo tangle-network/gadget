@@ -6,18 +6,17 @@ pub use crate::gadget::GadgetProtocol;
 pub use crate::prometheus::PrometheusConfig;
 use async_trait::async_trait;
 use std::sync::Arc;
+use gadget_core::gadget::manager::AbstractGadget;
 
 #[async_trait]
-pub trait ProtocolConfig
+pub trait ProtocolConfig<AbstractGadgetT: AbstractGadget>
 where
     Self: Sized,
 {
     type Network: Network;
-    type Protocol: GadgetProtocol<
-        <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client,
-    >;
+    type Protocol: GadgetProtocol<AbstractGadgetT, <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<AbstractGadgetT>>::Client>;
     type ProtocolSpecificConfiguration: Clone
-        + NetworkAndProtocolSetup<Network = Self::Network, Protocol = Self::Protocol>
+        + NetworkAndProtocolSetup<AbstractGadgetT>
         + Sync;
     fn params(&self) -> &Self::ProtocolSpecificConfiguration;
 
@@ -25,7 +24,7 @@ where
     fn take_protocol(&mut self) -> Self::Protocol;
     fn take_client(
         &mut self,
-    ) -> <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client;
+    ) -> <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<AbstractGadgetT>>::Client;
     fn prometheus_config(&self) -> PrometheusConfig;
 
     async fn build(&self) -> Result<Self, crate::Error> {
@@ -53,7 +52,7 @@ where
 
     fn new(
         network: Self::Network,
-        client: <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup>::Client,
+        client: <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<AbstractGadgetT>>::Client,
         protocol: Self::Protocol,
         params: Self::ProtocolSpecificConfiguration,
         pallet_tx: Arc<dyn PalletSubmitter>,
@@ -74,18 +73,18 @@ where
 }
 
 #[async_trait]
-pub trait NetworkAndProtocolSetup {
+pub trait NetworkAndProtocolSetup<AbstractGadgetT: AbstractGadget> {
     type Network;
     type Protocol;
-    type Client: ClientWithApi;
+    type Client: ClientWithApi<AbstractGadgetT>;
 
-    async fn build_jobs_client(&self) -> Result<JobsClient<Self::Client>, crate::Error> {
+    async fn build_jobs_client(&self) -> Result<JobsClient<Self::Client, AbstractGadgetT>, crate::Error> {
         create_client(self.client(), self.logger(), self.pallet_tx()).await
     }
 
     async fn build_network_and_protocol(
         &self,
-        jobs_client: JobsClient<Self::Client>,
+        jobs_client: JobsClient<Self::Client, AbstractGadgetT>,
     ) -> Result<(Self::Network, Self::Protocol), crate::Error>;
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
     fn logger(&self) -> DebugLogger;

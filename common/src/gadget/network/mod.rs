@@ -1,15 +1,15 @@
 use crate::gadget::work_manager::WorkManager;
 use crate::Error;
 use async_trait::async_trait;
-use gadget_core::job_manager::WorkManagerInterface;
 use sp_core::ecdsa;
+use gadget_core::gadget::manager::AbstractGadget;
 
 #[async_trait]
-pub trait Network: Send + Sync + Clone + 'static {
-    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage>;
+pub trait Network<AbstractGadgetT: AbstractGadget>: Send + Sync + Clone + 'static {
+    async fn next_message(&self) -> Option<AbstractGadgetT::ProtocolMessage>;
     async fn send_message(
         &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
+        message: AbstractGadgetT::ProtocolMessage,
     ) -> Result<(), Error>;
 
     /// The ID of the king. Only relevant for ZkSaaS networks
