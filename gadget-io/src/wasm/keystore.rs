@@ -4,39 +4,13 @@ use color_eyre;
 use sp_core::{ecdsa, sr25519, Pair};
 use std::path::Path;
 
-// /// Construct a local keystore shareable container
+/// Construct a local keystore shareable container
 pub struct KeystoreContainer;
-
-// impl KeystoreContainer {
-// /// Construct KeystoreContainer
-// pub fn new() -> Result<Self> {
-//     let keystore = Arc::new(WasmKeystore);
-//     Ok(Self(keystore))
-// }
-//
-// /// Returns a shared reference to a dynamic `Keystore` trait implementation.
-// #[allow(dead_code)]
-// pub fn keystore(&self) -> KeystorePtr {
-//     self.0.clone()
-// }
-//
-// /// Returns a shared reference to the local keystore .
-// pub fn local_keystore(&self) -> Arc<WasmKeystore> {
-//     self.0.clone()
-// }
-// }
 
 /// Configuration of the client keystore.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub enum KeystoreConfig {
-    // /// Keystore at a path on-disk. Recommended for native gadgets.
-    // Path {
-    //     /// The path of the keystore.
-    //     path: PathBuf,
-    //     /// keystore's password.
-    //     password: Option<SecretString>,
-    // },
     /// In-memory keystore.
     InMemory { keystore: Vec<String> },
 }
@@ -48,12 +22,6 @@ impl KeystoreConfig {
         None
     }
 }
-
-// #[wasm_bindgen]
-// extern "C" {
-//     async fn get_ecdsa_keys();
-//     async fn get_sr25519_keys();
-// }
 
 impl SubstrateKeystore for KeystoreConfig {
     fn ecdsa_key(&self) -> color_eyre::Result<ecdsa::Pair> {

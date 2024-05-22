@@ -24,41 +24,7 @@ pub struct MatchboxNetworkService<'a> {
 impl<'a> MatchboxNetworkService<'a> {
     /// Handle local requests that are meant to be sent to the network.
     pub(crate) fn handle_intra_node_payload(&mut self, _msg: IntraNodeWebPayload) {
-        // let _enter = self.span.enter();
-        // match (msg.message_type, msg.payload) {
-        //     (MessageType::Broadcast, MatchboxGossipOrRequestResponse::Gossip(payload)) => {
-        //         let gossip_message = bincode::serialize(&payload).expect("Should serialize");
-        //         if let Err(e) = self
-        //             .swarm
-        //             .behaviour_mut()
-        //             .gossipsub
-        //             .publish(msg.topic, gossip_message)
-        //         {
-        //             self.logger.error(format!("Publish error: {e:?}"));
-        //         }
-        //     }
-        //
-        //     (MessageType::P2P(peer_id), MatchboxGossipOrRequestResponse::Request(req)) => {
-        //         // Send the outer payload in order to attach the topic to it
-        //         // "Requests are sent using Behaviour::send_request and the responses
-        //         // received as Message::Response via Event::Message."
-        //         self.swarm.behaviour_mut().p2p.send_request(&peer_id, req);
-        //     }
-        //     (MessageType::Broadcast, MatchboxGossipOrRequestResponse::Request(_)) => {
-        //         self.logger.error("Broadcasting a request is not supported");
-        //     }
-        //     (MessageType::Broadcast, MatchboxGossipOrRequestResponse::Response(_)) => {
-        //         self.logger
-        //             .error("Broadcasting a response is not supported");
-        //     }
-        //     (MessageType::P2P(_), MatchboxGossipOrRequestResponse::Gossip(_)) => {
-        //         self.logger
-        //             .error("P2P message should be a request or response");
-        //     }
-        //     (MessageType::P2P(_), MatchboxGossipOrRequestResponse::Response(_)) => {
-        //         // TODO: Send the response to the peer.
-        //     }
-        // }
+        // TODO: Handle Payload
     }
 
     /// Handle inbound events from the networking layer
@@ -79,21 +45,6 @@ impl<'a> MatchboxNetworkService<'a> {
 pub enum MatchboxEvent {
     P2p { peer_id: matchbox_socket::PeerId },
     Identify,
-    // Ping,
-    // NewListenAddr,
-    // ConnectionEstablished,
-    // ConnectionClosed,
-    // IncomingConnection,
-    // IncomingConnectionError,
-    // OutgoingConnectionError,
-    // ExpiredListenAddr,
-    // ListenerClosed,
-    // ListenerError,
-    // Dialing,
-    // NewExternalAddrCandidate,
-    // ExternalAddrConfirmed,
-    // ExternalAddrExpired,
-    // NewExternalAddrOfPeer,
 }
 
 #[derive(Clone)]

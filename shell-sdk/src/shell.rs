@@ -14,7 +14,6 @@ use gadget_common::{
     full_protocol::NodeInput,
     keystore::ECDSAKeyStore,
 };
-use gadget_io::tokio;
 use gadget_io::tokio::task::JoinHandle;
 use sp_core::{ed25519, keccak_256, sr25519, Pair};
 use tangle_subxt::subxt;
@@ -148,7 +147,7 @@ pub async fn wait_for_connection_to_bootnodes<KBE: KeystoreBackend>(
         "Waiting for {n_required} peers to show up across {n_networks} networks"
     ));
 
-    let mut tasks = tokio::task::JoinSet::new();
+    let mut tasks = gadget_io::tokio::task::JoinSet::new();
 
     // For each network, we start a task that checks if we have enough peers connected
     // and then we wait for all of them to finish.
@@ -161,7 +160,7 @@ pub async fn wait_for_connection_to_bootnodes<KBE: KeystoreBackend>(
             }
             let topic = handle.topic();
             logger.debug(format!("`{topic}`: We currently have {n_connected}/{n_required} peers connected to network"));
-            tokio::time::sleep(Duration::from_millis(1000)).await;
+            gadget_io::tokio::time::sleep(Duration::from_millis(1000)).await;
         }
     };
 
@@ -173,50 +172,3 @@ pub async fn wait_for_connection_to_bootnodes<KBE: KeystoreBackend>(
 
     Ok(())
 }
-
-/*
-#[derive(Eq, Clone)]
-struct HashedRoleTypeWrapper(RoleType);
-
-impl std::fmt::Debug for HashedRoleTypeWrapper {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
-
-impl PartialEq for HashedRoleTypeWrapper {
-    fn eq(&self, other: &Self) -> bool {
-        use std::hash::Hasher;
-        let mut hasher = std::hash::DefaultHasher::new();
-        Self::hash(self, &mut hasher);
-        let lhs = hasher.finish();
-        let mut hasher = std::hash::DefaultHasher::new();
-        Self::hash(other, &mut hasher);
-        let rhs = hasher.finish();
-        lhs == rhs
-    }
-}
-
-impl Hash for HashedRoleTypeWrapper {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        use RoleType::*;
-        use ThresholdSignatureRoleType::*;
-        match self.0 {
-            Tss(DfnsCGGMP21Stark) | Tss(DfnsCGGMP21Secp256r1) | Tss(DfnsCGGMP21Secp256k1) => {
-                "DfnsCGGMP21".hash(state)
-            }
-            Tss(ZcashFrostEd25519)
-            | Tss(ZcashFrostEd448)
-            | Tss(ZcashFrostP256)
-            | Tss(ZcashFrostP384)
-            | Tss(ZcashFrostSecp256k1)
-            | Tss(ZcashFrostRistretto255) => "ZcashFrost".hash(state),
-            Tss(WstsV2) => "WstsV2".hash(state),
-            Tss(SilentShardDKLS23Secp256k1) => "SilentShardDKLS23Secp256k1".hash(state),
-            Tss(GennaroDKGBls381) => "GennaroDKGBls381".hash(state),
-            ZkSaaS(_) => "ZkSaaS".hash(state),
-            LightClientRelaying => "LightClientRelaying".hash(state),
-        }
-    }
-}
-*/

@@ -15,6 +15,8 @@ std = [
   "sp-core/default",
   "sp-io/default",
   "sp-application-crypto/default",
+  "pallet-jobs/std",
+  "pallet-jobs-rpc-runtime-api/std",
 ]
 wasm = [
   "tangle-subxt/wasm",
@@ -36,10 +38,12 @@ wasm = [
   "console_error_panic_hook",
   "console_log",
   "anyhow",
+  "pallet-jobs/wasm",
+  "pallet-jobs-rpc-runtime-api/wasm",
 ]
 
 [dependencies]
-# WASM specific Dependencies
+# WASM Specific Dependencies
 wasm-bindgen = { version = "0.2.92", optional = true }
 getrandom = { workspace = true, optional = true }
 wasm-bindgen-futures = { version = "0.4.42", optional = true }
@@ -84,8 +88,8 @@ itertools = { workspace = true }
 env_logger = { workspace = true }
 
 # Pallets
-pallet-jobs-rpc-runtime-api = { workspace = true }
-pallet-jobs = { workspace = true }
+pallet-jobs-rpc-runtime-api = { workspace = true, default-features = false }
+pallet-jobs = { workspace = true, default-features = false }
 pallet-dkg = { workspace = true }
 pallet-zksaas = { workspace = true }
 tangle-primitives = { workspace = true }

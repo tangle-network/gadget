@@ -841,7 +841,6 @@ where
         logger,
     );
 
-    // let message_multiplexed = MultiplexedChannelMessage::<O::Inner, C2, C3>::Channel1(msg.inner_message());
     let message_multiplexed = splitter(msg);
 
     let msg = GadgetProtocolMessage {

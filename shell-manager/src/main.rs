@@ -12,14 +12,14 @@ use std::sync::atomic::Ordering;
 use structopt::StructOpt;
 use tangle_subxt::subxt;
 use tangle_subxt::subxt::utils::AccountId32;
-use tokio::io::AsyncWriteExt;
+use gadget_io::tokio::io::AsyncWriteExt;
 
 pub mod config;
 pub mod error;
 pub mod protocols;
 pub mod utils;
 
-#[tokio::main]
+#[gadget_io::tokio::main]
 async fn main() -> color_eyre::Result<()> {
     //color_eyre::install()?;
     let opt = &ShellManagerOpts::from_args();
@@ -136,7 +136,7 @@ async fn main() -> color_eyre::Result<()> {
 
                                     // Write the binary to disk
                                     let mut file =
-                                        tokio::fs::File::create(&binary_download_path).await?;
+                                        gadget_io::tokio::fs::File::create(&binary_download_path).await?;
                                     file.write_all(&download).await?;
                                     file.flush().await?;
                                     Some(retrieved_hash)
@@ -168,7 +168,7 @@ async fn main() -> color_eyre::Result<()> {
 
                             // Now that the file is loaded, spawn the process
                             let process_handle =
-                                tokio::process::Command::new(&binary_download_path)
+                                gadget_io::tokio::process::Command::new(&binary_download_path)
                                     .kill_on_drop(true)
                                     .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
                                     .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
@@ -222,9 +222,9 @@ async fn main() -> color_eyre::Result<()> {
         Err::<(), _>(utils::msg_to_error("Finality Notification stream died"))
     };
 
-    let ctrlc_task = tokio::signal::ctrl_c();
+    let ctrlc_task = gadget_io::tokio::signal::ctrl_c();
 
-    tokio::select! {
+    gadget_io::tokio::select! {
         res0 = manager_task => {
             Err(color_eyre::Report::msg(format!("Gadget Manager Closed Unexpectedly: {res0:?}")))
         },

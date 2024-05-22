@@ -18,7 +18,6 @@ pub use standard::{
 
 #[cfg(target_family = "wasm")]
 pub use {tokio, wasm_bindgen_futures::spawn_local as spawn};
-// pub use tokio_wasm as tokio;
 
 #[cfg(not(target_family = "wasm"))]
 pub use {tokio, tokio::task::spawn};
@@ -35,13 +34,7 @@ pub fn log(s: &str) {
 }
 
 #[cfg(target_family = "wasm")]
-use wasm_bindgen::{
-    prelude::*,
-    // JsCast
-};
-
-// #[cfg(target_family = "wasm")]
-// use wasm_bindgen_futures;
+use wasm_bindgen::prelude::*;
 
 #[cfg(target_family = "wasm")]
 pub fn into_js_error(err: impl std::error::Error) -> JsValue {

@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use prometheus::{Counter, Registry};
 
 pub struct Metrics {
