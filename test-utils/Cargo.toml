@@ -54,7 +54,7 @@ frame-system = { workspace = true, default-features = false }
 gadget-common = { workspace = true, default-features = false }
 gadget-core = { workspace = true }
 gadget-io = { workspace = true, default-features = false }
-pallet-jobs-rpc-runtime-api = { workspace = true, default-features = false }
+pallet-jobs-rpc-runtime-api = { workspace = true }
 sc-client-api = { workspace = true, optional = true, default-features = false }
 sc-utils = { workspace = true, optional = true, default-features = false }
 sp-api = { workspace = true, default-features = false }
@@ -63,13 +63,13 @@ sp-runtime = { workspace = true, default-features = false }
 sp-keystore = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-application-crypto = { workspace = true, default-features = false, features = ["full_crypto"] }
-pallet-balances = { workspace = true, default-features = false }
-pallet-timestamp = { workspace = true, default-features = false }
-pallet-jobs = { workspace = true, default-features = false }
-pallet-dkg = { workspace = true, default-features = false }
-pallet-zksaas = { workspace = true, default-features = false }
+pallet-balances = { workspace = true }
+pallet-timestamp = { workspace = true }
+pallet-jobs = { workspace = true }
+pallet-dkg = { workspace = true}
+pallet-zksaas = { workspace = true }
 sp-externalities = { workspace = true, default-features = false }
-tangle-primitives = { workspace = true, default-features = false, features = ["verifying"] }
+tangle-primitives = { workspace = true, features = ["verifying"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 parity-scale-codec = { workspace = true }
 serde = { workspace = true }

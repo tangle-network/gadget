@@ -1,6 +1,7 @@
 use crate::protocols::resolver::{load_global_config_file, str_to_role_type, ProtocolMetadata};
 use config::ShellManagerOpts;
 use gadget_common::sp_core::Pair;
+use gadget_io::tokio::io::AsyncWriteExt;
 use gadget_io::ShellTomlConfig;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::keystore::load_keys_from_keystore;
@@ -12,7 +13,6 @@ use std::sync::atomic::Ordering;
 use structopt::StructOpt;
 use tangle_subxt::subxt;
 use tangle_subxt::subxt::utils::AccountId32;
-use gadget_io::tokio::io::AsyncWriteExt;
 
 pub mod config;
 pub mod error;
@@ -136,7 +136,8 @@ async fn main() -> color_eyre::Result<()> {
 
                                     // Write the binary to disk
                                     let mut file =
-                                        gadget_io::tokio::fs::File::create(&binary_download_path).await?;
+                                        gadget_io::tokio::fs::File::create(&binary_download_path)
+                                            .await?;
                                     file.write_all(&download).await?;
                                     file.flush().await?;
                                     Some(retrieved_hash)

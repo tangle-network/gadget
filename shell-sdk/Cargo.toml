@@ -8,18 +8,14 @@ edition = "2021"
 [features]
 default = ["std"]
 std = [
-  "tangle-subxt/default",
   "gadget-common/default",
   "gadget-io/default",
   "sc-keystore",
   "sp-core/default",
   "sp-io/default",
   "sp-application-crypto/default",
-  "pallet-jobs/std",
-  "pallet-jobs-rpc-runtime-api/std",
 ]
 wasm = [
-  "tangle-subxt/wasm",
   "gadget-common/wasm",
   "gadget-io/wasm",
   "sp-core/serde",
@@ -38,8 +34,6 @@ wasm = [
   "console_error_panic_hook",
   "console_log",
   "anyhow",
-  "pallet-jobs/wasm",
-  "pallet-jobs-rpc-runtime-api/wasm",
 ]
 
 [dependencies]
@@ -68,7 +62,7 @@ sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 sp-keystore = { workspace = true }
 sp-application-crypto = { workspace = true, default-features = false }
-tangle-subxt = { workspace = true, default-features = false }
+tangle-subxt = { workspace = true }
 scale-info = { workspace = true }
 parity-scale-codec = { workspace = true }
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
@@ -88,8 +82,8 @@ itertools = { workspace = true }
 env_logger = { workspace = true }
 
 # Pallets
-pallet-jobs-rpc-runtime-api = { workspace = true, default-features = false }
-pallet-jobs = { workspace = true, default-features = false }
+pallet-jobs-rpc-runtime-api = { workspace = true, features = ["default"] }
+pallet-jobs = { workspace = true, features = ["default"] }
 pallet-dkg = { workspace = true }
 pallet-zksaas = { workspace = true }
 tangle-primitives = { workspace = true }
