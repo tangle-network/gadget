@@ -16,18 +16,15 @@
 // limitations under the License.
 
 use hyper::{
-	http::StatusCode,
-	server::Server,
-	service::{make_service_fn, service_fn},
-	Body, Request, Response,
+    http::StatusCode,
+    server::Server,
+    service::{make_service_fn, service_fn},
+    Body, Request, Response,
 };
 pub use prometheus::{
-	self,
-	core::{
-		AtomicU64 as U64, GenericCounter as Counter,
-	},
-	Error as PrometheusError,
-	Registry,
+    self,
+    core::{AtomicU64 as U64, GenericCounter as Counter},
+    Error as PrometheusError, Registry,
 };
 use prometheus::{core::Collector, Encoder, TextEncoder};
 use std::net::SocketAddr;
@@ -36,130 +33,137 @@ use std::net::SocketAddr;
 pub use super::sourced::{MetricSource, SourcedCounter, SourcedGauge, SourcedMetric};
 
 pub fn register<T: Clone + Collector + 'static>(
-	metric: T,
-	registry: &Registry,
+    metric: T,
+    registry: &Registry,
 ) -> Result<T, PrometheusError> {
-	registry.register(Box::new(metric.clone()))?;
-	Ok(metric)
+    registry.register(Box::new(metric.clone()))?;
+    Ok(metric)
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-	/// Hyper internal error.
-	#[error(transparent)]
-	Hyper(#[from] hyper::Error),
+    /// Hyper internal error.
+    #[error(transparent)]
+    Hyper(#[from] hyper::Error),
 
-	/// Http request error.
-	#[error(transparent)]
-	Http(#[from] hyper::http::Error),
+    /// Http request error.
+    #[error(transparent)]
+    Http(#[from] hyper::http::Error),
 
-	/// i/o error.
-	#[error(transparent)]
-	Io(#[from] std::io::Error),
+    /// i/o error.
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 
-	#[error("Prometheus port {0} already in use.")]
-	PortInUse(SocketAddr),
+    #[error("Prometheus port {0} already in use.")]
+    PortInUse(SocketAddr),
 }
 
 async fn request_metrics(req: Request<Body>, registry: Registry) -> Result<Response<Body>, Error> {
-	if req.uri().path() == "/metrics" {
-		let metric_families = registry.gather();
-		let mut buffer = vec![];
-		let encoder = TextEncoder::new();
-		encoder.encode(&metric_families, &mut buffer).unwrap();
+    if req.uri().path() == "/metrics" {
+        let metric_families = registry.gather();
+        let mut buffer = vec![];
+        let encoder = TextEncoder::new();
+        encoder.encode(&metric_families, &mut buffer).unwrap();
 
-		Response::builder()
-			.status(StatusCode::OK)
-			.header("Content-Type", encoder.format_type())
-			.body(Body::from(buffer))
-			.map_err(Error::Http)
-	} else {
-		Response::builder()
-			.status(StatusCode::NOT_FOUND)
-			.body(Body::from("Not found."))
-			.map_err(Error::Http)
-	}
+        Response::builder()
+            .status(StatusCode::OK)
+            .header("Content-Type", encoder.format_type())
+            .body(Body::from(buffer))
+            .map_err(Error::Http)
+    } else {
+        Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Body::from("Not found."))
+            .map_err(Error::Http)
+    }
 }
 
 /// Initializes the metrics context, and starts an HTTP server
 /// to serve metrics.
 pub async fn init_prometheus(prometheus_addr: SocketAddr, registry: Registry) -> Result<(), Error> {
-	let listener = tokio::net::TcpListener::bind(&prometheus_addr)
-		.await
-		.map_err(|_| Error::PortInUse(prometheus_addr))?;
+    let listener = tokio::net::TcpListener::bind(&prometheus_addr)
+        .await
+        .map_err(|_| Error::PortInUse(prometheus_addr))?;
 
-	init_prometheus_with_listener(listener, registry).await
+    init_prometheus_with_listener(listener, registry).await
 }
 
 /// Init prometheus using the given listener.
 async fn init_prometheus_with_listener(
-	listener: tokio::net::TcpListener,
-	registry: Registry,
+    listener: tokio::net::TcpListener,
+    registry: Registry,
 ) -> Result<(), Error> {
-	let listener = hyper::server::conn::AddrIncoming::from_listener(listener)?;
-	log::info!("〽️ Prometheus exporter started at {}", listener.local_addr());
+    let listener = hyper::server::conn::AddrIncoming::from_listener(listener)?;
+    log::info!(
+        "〽️ Prometheus exporter started at {}",
+        listener.local_addr()
+    );
 
-	let service = make_service_fn(move |_| {
-		let registry = registry.clone();
+    let service = make_service_fn(move |_| {
+        let registry = registry.clone();
 
-		async move {
-			Ok::<_, hyper::Error>(service_fn(move |req: Request<Body>| {
-				request_metrics(req, registry.clone())
-			}))
-		}
-	});
+        async move {
+            Ok::<_, hyper::Error>(service_fn(move |req: Request<Body>| {
+                request_metrics(req, registry.clone())
+            }))
+        }
+    });
 
-	let (signal, on_exit) = tokio::sync::oneshot::channel::<()>();
-	let server = Server::builder(listener).serve(service).with_graceful_shutdown(async {
-		let _ = on_exit.await;
-	});
+    let (signal, on_exit) = tokio::sync::oneshot::channel::<()>();
+    let server = Server::builder(listener)
+        .serve(service)
+        .with_graceful_shutdown(async {
+            let _ = on_exit.await;
+        });
 
-	let result = server.await.map_err(Into::into);
+    let result = server.await.map_err(Into::into);
 
-	// Gracefully shutdown server, otherwise the server does not stop if it has open connections
-	let _ = signal.send(());
+    // Gracefully shutdown server, otherwise the server does not stop if it has open connections
+    let _ = signal.send(());
 
-	result
+    result
 }
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use hyper::{Client, Uri};
+    use super::*;
+    use hyper::{Client, Uri};
 
-	#[test]
-	fn prometheus_works() {
-		const METRIC_NAME: &str = "test_test_metric_name_test_test";
+    #[test]
+    fn prometheus_works() {
+        const METRIC_NAME: &str = "test_test_metric_name_test_test";
 
-		let runtime = tokio::runtime::Runtime::new().expect("Creates the runtime");
+        let runtime = tokio::runtime::Runtime::new().expect("Creates the runtime");
 
-		let listener = runtime
-			.block_on(tokio::net::TcpListener::bind("127.0.0.1:0"))
-			.expect("Creates listener");
+        let listener = runtime
+            .block_on(tokio::net::TcpListener::bind("127.0.0.1:0"))
+            .expect("Creates listener");
 
-		let local_addr = listener.local_addr().expect("Returns the local addr");
+        let local_addr = listener.local_addr().expect("Returns the local addr");
 
-		let registry = Registry::default();
-		register(
-			prometheus::Counter::new(METRIC_NAME, "yeah").expect("Creates test counter"),
-			&registry,
-		)
-		.expect("Registers the test metric");
+        let registry = Registry::default();
+        let _ = register(
+            prometheus::Counter::new(METRIC_NAME, "yeah").expect("Creates test counter"),
+            &registry,
+        )
+        .expect("Registers the test metric");
 
-		runtime.spawn(init_prometheus_with_listener(listener, registry));
+        let _ = runtime.spawn(init_prometheus_with_listener(listener, registry));
 
-		runtime.block_on(async {
-			let client = Client::new();
+        runtime.block_on(async {
+            let client = Client::new();
 
-			let res = client
-				.get(Uri::try_from(&format!("http://{}/metrics", local_addr)).expect("Parses URI"))
-				.await
-				.expect("Requests metrics");
+            let res = client
+                .get(Uri::try_from(&format!("http://{local_addr}/metrics")).expect("Parses URI"))
+                .await
+                .expect("Requests metrics");
 
-			let buf = hyper::body::to_bytes(res).await.expect("Converts body to bytes");
+            let buf = hyper::body::to_bytes(res)
+                .await
+                .expect("Converts body to bytes");
 
-			let body = String::from_utf8(buf.to_vec()).expect("Converts body to String");
-			assert!(body.contains(&format!("{} 0", METRIC_NAME)));
-		});
-	}
+            let body = String::from_utf8(buf.to_vec()).expect("Converts body to String");
+            assert!(body.contains(&format!("{METRIC_NAME} 0")));
+        });
+    }
 }

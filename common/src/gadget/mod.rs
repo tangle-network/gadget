@@ -16,7 +16,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub mod message;
-pub mod metrics;
 pub mod network;
 pub mod work_manager;
 
