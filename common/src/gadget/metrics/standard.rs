@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-
 use substrate_prometheus_endpoint::{register, Counter, PrometheusError, Registry, U64};
 
 pub struct Metrics {

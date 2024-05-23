@@ -10,10 +10,10 @@ use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 use std::collections::HashMap;
 
+use gadget_io::tokio::sync::mpsc::UnboundedSender;
+use gadget_io::tokio::sync::{Mutex, RwLock};
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::{Mutex, RwLock};
 
 /// Maximum allowed size for a Signed Message.
 pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
@@ -252,7 +252,7 @@ impl<'a> NetworkService<'a> {
 pub struct GossipHandle {
     pub topic: IdentTopic,
     pub tx_to_outbound: UnboundedSender<IntraNodePayload>,
-    pub rx_from_inbound: Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
+    pub rx_from_inbound: Arc<Mutex<gadget_io::tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
     pub logger: DebugLogger,
     pub connected_peers: Arc<AtomicU32>,
     pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
@@ -382,6 +382,7 @@ impl Network for GossipHandle {
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod tests {
     use crate::config::{KeystoreConfig, ShellConfig, SubxtConfig};
     use crate::network::setup::setup_libp2p_network;
@@ -389,10 +390,11 @@ mod tests {
     use gadget_common::keystore::InMemoryBackend;
     use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, Network, WorkManager};
     use gadget_core::job_manager::WorkManagerInterface;
+    use gadget_io::tokio;
     use sp_core::{ecdsa, Pair};
     use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_gossip_network() {
         color_eyre::install().unwrap();
         test_utils::setup_log();

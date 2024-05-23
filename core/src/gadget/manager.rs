@@ -72,7 +72,7 @@ impl<'a> GadgetManager<'a> {
                 }
             };
 
-            tokio::select! {
+            gadget_io::tokio::select! {
                 res0 = finality_notification_task => res0,
                 res1 = protocol_message_task => res1
             }

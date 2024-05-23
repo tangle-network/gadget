@@ -44,7 +44,7 @@ where
     F: Send + 'static,
 {
     let client = client.clone();
-    tokio::task::spawn_blocking(move || function(&client))
+    gadget_io::tokio::task::spawn_blocking(move || function(&client))
         .await
         .expect("Failed to spawn blocking task")
 }
@@ -557,8 +557,10 @@ where
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod tests {
 
+    use gadget_io::tokio;
     use tangle_subxt::{
         subxt::{tx::Signer, utils::AccountId32, PolkadotConfig},
         tangle_testnet_runtime::api,
@@ -570,7 +572,7 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     #[ignore = "This test requires a running substrate node"]
     async fn subxt_pallet_submitter() -> anyhow::Result<()> {
         let logger = DebugLogger { id: "test".into() };
