@@ -1,0 +1,33 @@
+[package]
+name = "gadget-sdk"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+
+[dependencies]
+thiserror = { workspace = true }
+
+# Keystore deps
+k256 = { version = "0.13", default-features = false, features = ["arithmetic", "ecdsa", "precomputed-tables"], optional = true  }
+ed25519-zebra = { version = "4", default-features = false, features = [], optional = true }
+
+[features]
+default = ["full"]
+full = [
+  "keystore",
+]
+
+# Keystore features
+keystore = [
+  "keystore-ecdsa",
+  "keystore-sr25519",
+  "keystore-ed25519",
+  "keystore-bls381",
+]
+keystore-ecdsa = ["k256"]
+keystore-sr25519 = []
+keystore-ed25519 = ["ed25519-zebra"]
+keystore-bls381 = []

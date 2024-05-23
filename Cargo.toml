@@ -8,7 +8,15 @@ members = [
     "protocol-macros",
     "shell-manager",
     "shell-sdk",
+    "sdk",
 ]
+
+[workspace.package]
+authors = ["Webb Technologies Inc."]
+edition = "2021"
+license = "Unlicense"
+homepage = "https://tangle.tools"
+repository = "https://github.com/webb-tools/gadget"
 
 [workspace.dependencies]
 gadget-core = { path = "./core" }
