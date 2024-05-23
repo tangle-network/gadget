@@ -21,3 +21,6 @@ pub mod keystore;
 
 /// Metrics Module
 pub mod metrics;
+
+/// Logging Module
+pub mod logging;
