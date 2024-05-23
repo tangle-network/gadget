@@ -26,7 +26,11 @@ mod error;
 pub mod backend;
 
 /// ECDSA Support
+#[cfg(feature = "keystore-ecdsa")]
 mod ecdsa;
+/// Ed25519 Support
+#[cfg(feature = "keystore-ed25519")]
+mod ed25519;
 
 pub use error::Error;
 
@@ -118,20 +122,20 @@ pub trait KeystoreBackend {
     /// Returns the Keypair for the given [`sr25519::Public`] if it does exist, otherwise returns `None`.
     /// An `Err` will be returned if finding the key operation itself failed.
     #[cfg(feature = "keystore-sr25519")]
-    fn expose_sr25519_pair(&self, public: &sr25519::Public)
-        -> Result<Option<sr25519::Pair>, Error>;
+    fn expose_sr25519_secret(&self, public: &sr25519::Public)
+        -> Result<Option<sr25519::Secret>, Error>;
 
     /// Returns the [`ecdsa::Secret`] for the given [`ecdsa::Public`] if it does exist, otherwise returns `None`.
     /// An `Err` will be returned if finding the key operation itself failed.
     #[cfg(feature = "keystore-ecdsa")]
-    fn expose_ecdsa_pair(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error>;
-    /// Returns the Keypair for the given [`ed25519::Public`] if it does exist, otherwise returns `None`.
+    fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error>;
+    /// Returns the [`ed25519::Secret`] for the given [`ed25519::Public`] if it does exist, otherwise returns `None`.
     /// An `Err` will be returned if finding the key operation itself failed.
     #[cfg(feature = "keystore-ed25519")]
-    fn expose_ed25519_pair(&self, public: &ed25519::Public)
-        -> Result<Option<ed25519::Pair>, Error>;
-    /// Returns the Keypair for the given [`bls381::Public`] if it does exist, otherwise returns `None`.
+    fn expose_ed25519_secret(&self, public: &ed25519::Public)
+        -> Result<Option<ed25519::Secret>, Error>;
+    /// Returns the [`bls381::Secret`] for the given [`bls381::Public`] if it does exist, otherwise returns `None`.
     /// An `Err` will be returned if finding the key operation itself failed.
     #[cfg(feature = "keystore-bls381")]
-    fn expose_bls381_pair(&self, public: &bls381::Public) -> Result<Option<bls381::Pair>, Error>;
+    fn expose_bls381_secret(&self, public: &bls381::Public) -> Result<Option<bls381::Secret>, Error>;
 }
