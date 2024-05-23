@@ -32,29 +32,35 @@ mod ecdsa;
 #[cfg(feature = "keystore-ed25519")]
 mod ed25519;
 
+#[cfg(feature = "keystore-bls381")]
+use w3f_bls::TinyBLS381;
+
 pub use error::Error;
 
+/// The `KeystoreBackend` trait defines the necessary functions that a keystore backend
+/// must implement to support various cryptographic key operations such as key generation,
+/// signing, and public key retrieval.c
 pub trait KeystoreBackend {
     /// Generate a new sr25519 key pair with an optional seed.
     ///
-    /// Returns an `sr25519::Public` key of the generated key pair or an `Err` if
+    /// Returns an `schnorrkel::PublicKey` key of the generated key pair or an `Err` if
     /// something failed during key generation.
     #[cfg(feature = "keystore-sr25519")]
-    fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public, Error>;
+    fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<schnorrkel::PublicKey, Error>;
     /// Generate an sr25519 signature for a given message.
     ///
-    /// Receives an [`sr25519::Public`] key to be able to map
+    /// Receives an [`schnorrkel::PublicKey`] key to be able to map
     /// them to a private key that exists in the keystore.
     ///
-    /// Returns an [`sr25519::Signature`] or `None` in case the given
+    /// Returns an [`schnorrkel::Signature`] or `None` in case the given
     /// `public` doesn't exist in the keystore.
     /// An `Err` will be returned if generating the signature itself failed.
     #[cfg(feature = "keystore-sr25519")]
     fn sr25519_sign(
         &self,
-        public: &sr25519::Public,
+        public: &schnorrkel::PublicKey,
         msg: &[u8],
-    ) -> Result<Option<sr25519::Signature>, Error>;
+    ) -> Result<Option<schnorrkel::Signature>, Error>;
     /// Generate a new ed25519 key pair with an optional seed.
     ///
     /// Returns an `ed25519::Public` key of the generated key pair or an `Err` if
@@ -97,35 +103,38 @@ pub trait KeystoreBackend {
     ) -> Result<Option<ecdsa::Signature>, Error>;
     /// Generate a new bls381 key pair with an optional seed.
     ///
-    /// Returns an `bls381::Public` key of the generated key pair or an `Err` if
+    /// Returns an `w3f_bls::PublicKey<TinyBLS381>` key of the generated key pair or an `Err` if
     /// something failed during key generation.
     #[cfg(feature = "keystore-bls381")]
-    fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<bls381::Public, Error>;
+    fn bls381_generate_new(
+        &self,
+        seed: Option<&[u8]>,
+    ) -> Result<w3f_bls::PublicKey<TinyBLS381>, Error>;
     /// Generate an bls381 signature for a given message.
     ///
-    /// Receives an [`bls381::Public`] key to be able to map
+    /// Receives an [`w3f_bls::PublicKey<TinyBLS381>`] key to be able to map
     /// it to a private key that exists in the keystore.
     ///
-    /// Returns an [`bls381::Signature`] or `None` in case the given
+    /// Returns an [`w3f_bls::Signature<TinyBLS381>`] or `None` in case the given
     /// `public` doesn't exist in the keystore.
     /// An `Err` will be returned if generating the signature itself failed.
     #[cfg(feature = "keystore-bls381")]
     fn bls381_sign(
         &self,
-        public: &bls381::Public,
+        public: &w3f_bls::PublicKey<TinyBLS381>,
         msg: &[u8],
-    ) -> Result<Option<bls381::Signature>, Error>;
+    ) -> Result<Option<w3f_bls::Signature<TinyBLS381>>, Error>;
     /// Checks if the private key for the given public key exist.
     ///
     /// Returns `true` if the private key could be found.
     fn has_key(&self, public: &[u8]) -> bool;
-    /// Returns the Keypair for the given [`sr25519::Public`] if it does exist, otherwise returns `None`.
+    /// Returns the Keypair for the given [`schnorrkel::PublicKey`] if it does exist, otherwise returns `None`.
     /// An `Err` will be returned if finding the key operation itself failed.
     #[cfg(feature = "keystore-sr25519")]
     fn expose_sr25519_secret(
         &self,
-        public: &sr25519::Public,
-    ) -> Result<Option<sr25519::Secret>, Error>;
+        public: &schnorrkel::PublicKey,
+    ) -> Result<Option<schnorrkel::SecretKey>, Error>;
 
     /// Returns the [`ecdsa::Secret`] for the given [`ecdsa::Public`] if it does exist, otherwise returns `None`.
     /// An `Err` will be returned if finding the key operation itself failed.
@@ -138,11 +147,11 @@ pub trait KeystoreBackend {
         &self,
         public: &ed25519::Public,
     ) -> Result<Option<ed25519::Secret>, Error>;
-    /// Returns the [`bls381::Secret`] for the given [`bls381::Public`] if it does exist, otherwise returns `None`.
+    /// Returns the [`w3f_bls::SecretKey<TinyBLS381>:Secret`] for the given [`w3f_bls::PublicKey<TinyBLS381>`] if it does exist, otherwise returns `None`.
     /// An `Err` will be returned if finding the key operation itself failed.
     #[cfg(feature = "keystore-bls381")]
     fn expose_bls381_secret(
         &self,
-        public: &bls381::Public,
-    ) -> Result<Option<bls381::Secret>, Error>;
+        public: &w3f_bls::PublicKey<TinyBLS381>,
+    ) -> Result<Option<w3f_bls::SecretKey<TinyBLS381>>, Error>;
 }

@@ -3519,7 +3519,9 @@ version = "0.1.0"
 dependencies = [
  "ed25519-zebra 4.0.3",
  "k256",
+ "schnorrkel",
  "thiserror",
+ "w3f-bls",
 ]
 
 [[package]]
