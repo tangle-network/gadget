@@ -3518,9 +3518,13 @@ name = "gadget-sdk"
 version = "0.1.0"
 dependencies = [
  "ed25519-zebra 4.0.3",
+ "hyper 0.14.28",
  "k256",
+ "log",
+ "prometheus",
  "schnorrkel",
  "thiserror",
+ "tokio",
  "w3f-bls",
 ]
 

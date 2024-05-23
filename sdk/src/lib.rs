@@ -18,3 +18,6 @@
 
 /// Keystore Module
 pub mod keystore;
+
+/// Metrics Module
+pub mod metrics;
