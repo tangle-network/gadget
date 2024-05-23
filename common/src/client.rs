@@ -1,23 +1,23 @@
-use std::marker::PhantomData;
 use crate::debug_logger::DebugLogger;
 use crate::tangle_runtime::*;
 use async_trait::async_trait;
 use auto_impl::auto_impl;
-use sp_core::{ecdsa, ByteArray};
-use sp_core::{sr25519, Pair};
-use std::sync::Arc;
-use tangle_subxt::subxt::{self, tx::TxPayload, OnlineClient};
 use gadget_core::gadget::general::Client;
 use gadget_core::gadget::manager::AbstractGadget;
+use sp_core::{ecdsa, ByteArray};
+use sp_core::{sr25519, Pair};
+use std::marker::PhantomData;
+use std::sync::Arc;
+use tangle_subxt::subxt::{self, tx::TxPayload, OnlineClient};
 
-pub struct JobsClient<C, AbstractGadgetT> {
+pub struct JobsClient<C, Event> {
     pub client: C,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
-    _pd: PhantomData<AbstractGadgetT>,
+    _pd: PhantomData<Event>,
 }
 
-impl<C: Clone, AbstractGadgetT> Clone for JobsClient<C, AbstractGadgetT> {
+impl<Event: Send + Sync + 'static, C: Clone> Clone for JobsClient<C, Event> {
     fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
@@ -28,11 +28,11 @@ impl<C: Clone, AbstractGadgetT> Clone for JobsClient<C, AbstractGadgetT> {
     }
 }
 
-pub async fn create_client<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>>(
+pub async fn create_client<Event: Send + Sync + 'static, C: ClientWithApi<Event>>(
     client: C,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
-) -> Result<JobsClient<C, AbstractGadgetT>, crate::Error> {
+) -> Result<JobsClient<C, Event>, crate::Error> {
     Ok(JobsClient {
         client,
         logger,
@@ -78,7 +78,7 @@ pub trait PhaseResultExt {
 
 #[async_trait]
 #[auto_impl(Arc)]
-pub trait ClientWithApi<AbstractGadgetT: AbstractGadget>: Client<AbstractGadgetT> {
+pub trait ClientWithApi<Event>: Client<Event> {
     /// Query jobs associated with a specific validator.
     ///
     /// This function takes a `validator` parameter of type `AccountId` and attempts
@@ -198,7 +198,7 @@ pub trait ClientWithApi<AbstractGadgetT: AbstractGadget>: Client<AbstractGadgetT
     ) -> Result<Vec<roles::RoleType>, crate::Error>;
 }
 
-impl<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>> JobsClient<C, AbstractGadgetT> {
+impl<Event: Send + Sync + 'static, C: ClientWithApi<Event>> JobsClient<C, Event> {
     pub async fn query_jobs_by_validator(
         &self,
         at: [u8; 32],
@@ -393,12 +393,12 @@ impl<
 }
 
 #[async_trait]
-impl<AbstractGadgetT: AbstractGadget, C: Client<AbstractGadgetT>> Client<AbstractGadgetT> for JobsClient<C, AbstractGadgetT> {
-    async fn next_event(&self) -> Option<AbstractGadgetT::Event> {
+impl<Event: Send + Sync + 'static, C: Client<Event>> Client<Event> for JobsClient<C, Event> {
+    async fn next_event(&self) -> Option<Event> {
         self.client.next_event().await
     }
 
-    async fn latest_event(&self) -> Option<AbstractGadgetT::Event> {
+    async fn latest_event(&self) -> Option<Event> {
         self.client.latest_event().await
     }
 }

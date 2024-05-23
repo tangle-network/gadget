@@ -5,7 +5,7 @@ use crate::gadget::{GadgetProtocol, GeneralModule};
 use crate::prelude::PrometheusConfig;
 use gadget::network::Network;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
-use gadget_core::gadget::substrate::{FinalityNotification};
+use gadget_core::gadget::substrate::FinalityNotification;
 pub use gadget_core::job::JobError;
 pub use gadget_core::job::*;
 pub use gadget_core::job_manager::WorkManagerInterface;
@@ -19,6 +19,7 @@ use tokio::task::JoinError;
 
 pub use subxt_signer;
 pub use tangle_subxt;
+pub mod environments;
 use gadget_core::gadget::general::{Client, GeneralGadget};
 
 #[allow(ambiguous_glob_reexports)]
@@ -27,8 +28,8 @@ pub mod prelude {
     pub use crate::config::*;
     pub use crate::full_protocol::{FullProtocolConfig, NodeInput};
     pub use crate::gadget::message::GadgetProtocolMessage;
-    pub use crate::gadget::work_manager::WorkManager;
     pub use crate::gadget::substrate::JobInitMetadata;
+    pub use crate::gadget::work_manager::WorkManager;
     pub use crate::gadget::WorkManagerConfig;
     pub use crate::generate_setup_and_run_command;
     pub use crate::keystore::{ECDSAKeyStore, InMemoryBackend, KeystoreBackend};
@@ -52,10 +53,10 @@ pub mod tangle_runtime {
         bounded_collections::bounded_vec::BoundedVec,
         tangle_primitives::jobs::{
             self,
+            tss::{self, *},
+            zksaas::{self, *},
             JobType::*,
-            PhaseResult,
-            RpcResponseJobsData,
-            tss::{self, *}, zksaas::{self, *},
+            PhaseResult, RpcResponseJobsData,
         },
         tangle_primitives::roles::{self, RoleType},
         tangle_testnet_runtime::{
@@ -73,10 +74,10 @@ pub mod tangle_runtime {
         bounded_collections::bounded_vec::BoundedVec,
         tangle_primitives::jobs::{
             self,
-            JobType::*,
-            PhaseResult,
             tss::{self, *},
             zksaas::{self, *},
+            JobType::*,
+            PhaseResult,
         },
         tangle_primitives::roles::{self, RoleType},
         tangle_runtime::{
@@ -136,7 +137,9 @@ impl From<JobError> for Error {
     }
 }
 
-pub async fn run_protocol<AbstractGadgeT: AbstractGadget, T: ProtocolConfig<AbstractGadgeT>>(mut protocol_config: T) -> Result<(), Error> {
+pub async fn run_protocol<AbstractGadgetT: AbstractGadget, T: ProtocolConfig<AbstractGadgetT>>(
+    mut protocol_config: T,
+) -> Result<(), Error> {
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
@@ -144,8 +147,7 @@ pub async fn run_protocol<AbstractGadgeT: AbstractGadget, T: ProtocolConfig<Abst
     let prometheus_config = protocol_config.prometheus_config();
 
     // Before running, wait for the first finality notification we receive
-    let latest_finality_notification =
-        get_latest_finality_notification_from_client(&client).await?;
+    let latest_finality_notification = get_latest_event_from_client(&client).await?;
     let work_manager = create_work_manager(&latest_finality_notification, &protocol).await?;
     let proto_module = GeneralModule::new(network.clone(), protocol, work_manager);
     // Plug the module into the general gadget to interface the WebbGadget with Substrate
@@ -181,8 +183,12 @@ pub async fn run_protocol<AbstractGadgeT: AbstractGadget, T: ProtocolConfig<Abst
 }
 
 /// Creates a work manager
-pub async fn create_work_manager<C: ClientWithApi, P: GadgetProtocol<C>>(
-    latest_finality_notification: &FinalityNotification,
+pub async fn create_work_manager<
+    AbstractGadgetT: AbstractGadget,
+    C: ClientWithApi<AbstractGadgetT>,
+    P: GadgetProtocol<AbstractGadgetT, C>,
+>(
+    latest_event: &AbstractGadgetT::Event,
     protocol: &P,
 ) -> Result<ProtocolWorkManager<WorkManager>, Error> {
     let now: u64 = latest_finality_notification.number;
@@ -211,15 +217,15 @@ pub async fn create_work_manager<C: ClientWithApi, P: GadgetProtocol<C>>(
     ))
 }
 
-async fn get_latest_finality_notification_from_client<AbstractGadgetT: AbstractGadget, C: Client<AbstractGadgetT>>(
+async fn get_latest_event_from_client<
+    AbstractGadgetT: AbstractGadget,
+    C: Client<AbstractGadgetT::Event>,
+>(
     client: &C,
 ) -> Result<AbstractGadgetT::Event, Error> {
-    client
-        .latest_event()
-        .await
-        .ok_or_else(|| Error::InitError {
-            err: "No finality notification received".to_string(),
-        })
+    client.latest_event().await.ok_or_else(|| Error::InitError {
+        err: "No finality notification received".to_string(),
+    })
 }
 
 #[macro_export]

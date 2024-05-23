@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use crate::client::{ClientWithApi, JobsClient};
 use crate::debug_logger::DebugLogger;
 use crate::gadget::work_manager::WorkManager;
@@ -6,33 +5,34 @@ use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
 use crate::tangle_runtime::*;
 use crate::Error;
 use async_trait::async_trait;
+use gadget_core::gadget::general::GadgetWithClient;
+use gadget_core::gadget::manager::AbstractGadget;
 use gadget_core::job::{BuiltExecutableJobWrapper, ExecutableJob, JobBuilder};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use network::Network;
 use parking_lot::{Mutex, RwLock};
 use sp_core::sr25519;
+use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::Duration;
-use gadget_core::gadget::general::GadgetWithClient;
-use gadget_core::gadget::manager::AbstractGadget;
 use substrate::JobInitMetadata;
 
+pub mod core;
 pub mod message;
 pub mod metrics;
 pub mod network;
-pub mod work_manager;
 #[cfg(feature = "substrate")]
 pub mod substrate;
-pub mod core;
+pub mod work_manager;
 
 /// Used as a module to place inside the SubstrateGadget
-pub struct GeneralModule<C, N, M, Event, ProtocolMessage, Error, AbstractGadgetT> {
+pub struct GeneralModule<C, N, M, Event, ProtocolMessage, Error> {
     protocol: M,
     network: N,
     job_manager: ProtocolWorkManager<WorkManager>,
     clock: Arc<RwLock<Option<u64>>>,
     event_handler: Box<dyn EventHandler<C, N, M, Event, Error>>,
-    _client: PhantomData<(ProtocolMessage, AbstractGadgetT)>,
+    _client: PhantomData<ProtocolMessage>,
 }
 
 const DEFAULT_MAX_ACTIVE_TASKS: usize = 4;
@@ -56,8 +56,25 @@ impl Default for WorkManagerConfig {
     }
 }
 
-impl<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>, N: Network, M: GadgetProtocol<AbstractGadgetT, C>, Event, ProtocolMessage, Error> GeneralModule<C, N, M, Event, ProtocolMessage, Error, AbstractGadgetT> {
-    pub fn new<Evt: EventHandler<C, N, M, Event, Error>>(network: N, module: M, job_manager: ProtocolWorkManager<WorkManager>, event_handler: Evt) -> Self {
+impl<
+        C: ClientWithApi<Event>,
+        N: Network<ProtocolMessage>,
+        M: GadgetProtocol<Self, C>,
+        Event,
+        ProtocolMessage,
+        Error,
+    > GeneralModule<C, N, M, Event, ProtocolMessage, Error>
+where
+    Event: Send + Sync + 'static,
+    ProtocolMessage: Send + Sync + 'static,
+    Error: std::error::Error + Send + Sync + 'static,
+{
+    pub fn new<Evt: EventHandler<C, N, M, Event, Error>>(
+        network: N,
+        module: M,
+        job_manager: ProtocolWorkManager<WorkManager>,
+        event_handler: Evt,
+    ) -> Self {
         let clock = job_manager.utility.clock.clone();
         GeneralModule {
             protocol: module,
@@ -71,12 +88,20 @@ impl<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>, N: Netw
 }
 
 #[async_trait]
-impl<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>, N: Network<AbstractGadgetT>, M: GadgetProtocol<AbstractGadgetT, C>, Event, ProtocolMessage, Error> AbstractGadget for GeneralModule<C, N, M, Event, ProtocolMessage, Error, AbstractGadgetT> 
-    where Self: GadgetWithClient,
-          Event: Send,
-          ProtocolMessage: Send,
-          Error: std::error::Error + Send {
-    
+impl<
+        C: ClientWithApi<Event>,
+        N: Network<ProtocolMessage>,
+        M: GadgetProtocol<Self, C>,
+        Event,
+        ProtocolMessage,
+        Error,
+    > AbstractGadget for GeneralModule<C, N, M, Event, ProtocolMessage, Error>
+where
+    Self: GadgetWithClient<ProtocolMessage, Event, Error>,
+    Event: Send + Sync + 'static,
+    ProtocolMessage: Send + Sync + 'static,
+    Error: std::error::Error + Send + Sync + 'static,
+{
     type Event = Event;
     type ProtocolMessage = ProtocolMessage;
     type Error = Error;
@@ -86,19 +111,26 @@ impl<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>, N: Netw
     }
 
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage> {
-        self.network.next_message().await
+        <Self as GadgetWithClient<ProtocolMessage, Event, Error>>::get_next_protocol_message(self)
+            .await
     }
 
     async fn on_event_received(&self, notification: Self::Event) -> Result<(), Self::Error> {
-        <Self as GadgetWithClient>::process_event(self, notification).await
+        self.event_handler.process_event(notification).await
     }
 
-    async fn process_protocol_message(&self, message: Self::ProtocolMessage) -> Result<(), Self::Error> {
-        <Self as GadgetWithClient>::process_protocol_message(self, message).await
+    async fn process_protocol_message(
+        &self,
+        message: Self::ProtocolMessage,
+    ) -> Result<(), Self::Error> {
+        <Self as GadgetWithClient<ProtocolMessage, Event, Error>>::process_protocol_message(
+            self, message,
+        )
+        .await
     }
 
     async fn process_error(&self, error: Self::Error) {
-        <Self as GadgetWithClient>::process_error(self, error).await
+        <Self as GadgetWithClient<ProtocolMessage, Event, Error>>::process_error(self, error).await
     }
 }
 
@@ -107,24 +139,24 @@ pub trait EventHandler<C, N, M, Event, Error>: Send + Sync + 'static {
     async fn process_event(&self, notification: Event) -> Result<(), Error>;
 }
 
-
+/*
 #[async_trait]
-impl<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>, N: Network<AbstractGadgetT>, M: GadgetProtocol<AbstractGadgetT, C>, Event, Error, Evt> GadgetWithClient for GeneralModule<C, N, M, AbstractGadgetT::Event, AbstractGadgetT::ProtocolMessage, AbstractGadgetT::Error, Evt>
-    where Evt: EventHandler<C, N, M, Event, Error> + Send {
-    
+impl<Event, Error, ProtocolMessage, C: ClientWithApi<Event>, N: Network<ProtocolMessage>, M: GadgetProtocol<Self, C>> GadgetWithClient<ProtocolMessage, Event, Error> for GeneralModule<C, N, M, Event, ProtocolMessage, Error>
+    where Self: AbstractGadget<Event = Event, Error = Error, ProtocolMessage = ProtocolMessage>{
+
     type Client = C;
 
-    async fn get_next_protocol_message(&self) -> Option<<Self as AbstractGadget>::ProtocolMessage> {
+    async fn get_next_protocol_message(&self) -> Option<ProtocolMessage> {
         self.network.next_message().await
     }
 
-    async fn process_event(&self, notification: <Self as AbstractGadget>::Event) -> Result<(), <Self as AbstractGadget>::Error> {
-        Evt::process_event(self, notification).await
+    async fn process_event(&self, notification: Event) -> Result<(), Error> {
+        self.event_handler.process_event(notification).await
     }
 
     async fn process_protocol_message(
         &self,
-        message: Self::ProtocolMessage,
+        message: ProtocolMessage,
     ) -> Result<(), crate::Error> {
         self.job_manager
             .deliver_message(message)
@@ -135,16 +167,14 @@ impl<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>, N: Netw
     async fn process_error(&self, error: crate::Error) {
         self.protocol.process_error(error, &self.job_manager).await
     }
-
-    fn client(&self) -> &Self::Client {
-        &self.protocol.client().client
-    }
-}
+}*/
 
 pub type Job = (AsyncProtocolRemote, BuiltExecutableJobWrapper);
 
 #[async_trait]
-pub trait GadgetProtocol<AbstractGadgetT: AbstractGadget, C: ClientWithApi<AbstractGadgetT>>: AsyncProtocol + Send + Sync {
+pub trait GadgetProtocol<Event: Send + Sync + 'static, C: ClientWithApi<Event>>:
+    AsyncProtocol + Send + Sync
+{
     /// Given an input of a valid and relevant job, return the parameters needed to start the async protocol
     /// Note: the parameters returned must be relevant to the `AsyncProtocol` implementation of this protocol
     ///
@@ -185,7 +215,7 @@ pub trait GadgetProtocol<AbstractGadgetT: AbstractGadget, C: ClientWithApi<Abstr
         &self,
         job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     ) -> bool;
-    fn client(&self) -> JobsClient<C, AbstractGadgetT>;
+    fn client(&self) -> JobsClient<C, Event>;
     fn logger(&self) -> DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         Default::default()

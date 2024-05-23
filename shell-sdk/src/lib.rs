@@ -21,7 +21,6 @@ pub mod prelude {
     pub use crate::FullProtocolConfig;
     pub use crate::GadgetProtocolMessage;
     pub use crate::JobError;
-    pub use gadget_common::gadget::substrate::JobInitMetadata;
     pub use crate::JobsClient;
     pub use crate::KeystoreBackend;
     pub use crate::Mutex;
@@ -34,6 +33,7 @@ pub mod prelude {
     pub use crate::WorkManager;
     pub use crate::WorkManagerInterface;
     pub use gadget_common::full_protocol::SharedOptional;
+    pub use gadget_common::gadget::substrate::JobInitMetadata;
     pub use gadget_common::prelude::InMemoryBackend;
     pub use gadget_common::tangle_runtime::AccountId32;
     pub use gadget_common::tangle_runtime::MaxAdditionalParamsLen;

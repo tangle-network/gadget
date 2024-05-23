@@ -6,39 +6,36 @@ use std::sync::Arc;
 
 /// Endows the abstract gadget with a client
 #[async_trait]
-pub trait GadgetWithClient<AbstractGadgetT: AbstractGadget>: Send + Sync + Sized {
-    type Client: Client<AbstractGadgetT>;
+pub trait GadgetWithClient<ProtocolMessage, Event, Error>: Send + Sync + 'static {
+    type Client: Client<Event>;
 
-    async fn get_next_protocol_message(&self) -> Option<AbstractGadgetT::ProtocolMessage>;
-    async fn process_event(
-        &self,
-        notification: AbstractGadgetT::Event,
-    ) -> Result<(), AbstractGadgetT::Error>;
-    async fn process_protocol_message(
-        &self,
-        message: AbstractGadgetT::ProtocolMessage,
-    ) -> Result<(), AbstractGadgetT::Error>;
-    async fn process_error(&self, error: AbstractGadgetT::Error);
-    fn client(&self) -> &Self::Client;
+    async fn get_next_protocol_message(&self) -> Option<ProtocolMessage>;
+    async fn process_event(&self, notification: Event) -> Result<(), Error>;
+    async fn process_protocol_message(&self, message: ProtocolMessage) -> Result<(), Error>;
+    async fn process_error(&self, error: Error);
 }
 
 #[async_trait]
 #[auto_impl(Arc)]
-pub trait Client<AbstractGadgetT>: Clone + Send + Sync where AbstractGadgetT: AbstractGadget {
-    async fn next_event(&self) -> Option<AbstractGadgetT::Event>;
-    async fn latest_event(&self) -> Option<AbstractGadgetT::Event>;
+pub trait Client<Event>: Clone + Send + Sync {
+    async fn next_event(&self) -> Option<Event>;
+    async fn latest_event(&self) -> Option<Event>;
 }
 
-
-pub struct GeneralGadget<Module: GadgetWithClient<AbstractGadgetT>, Event, ProtocolMessage, Error, AbstractGadgetT: AbstractGadget> {
+pub struct GeneralGadget<
+    Module: GadgetWithClient<ProtocolMessage, Event, Error>,
+    Event,
+    ProtocolMessage,
+    Error,
+> {
     module: Module,
     client: Arc<Module::Client>,
-    phantom_data: PhantomData<(Event, ProtocolMessage, Error, AbstractGadgetT)>
+    phantom_data: PhantomData<(Event, ProtocolMessage, Error)>,
 }
 
-impl<Module, Event, ProtocolMessage, Error, AbstractGadgetT: AbstractGadget> GeneralGadget<Module, Event, ProtocolMessage, Error, AbstractGadgetT>
-    where
-        Module: GadgetWithClient<AbstractGadgetT>,
+impl<Module, Event, ProtocolMessage, Error> GeneralGadget<Module, Event, ProtocolMessage, Error>
+where
+    Module: GadgetWithClient<ProtocolMessage, Event, Error>,
 {
     pub fn new(client: Module::Client, module: Module) -> Self {
         Self {
@@ -50,43 +47,38 @@ impl<Module, Event, ProtocolMessage, Error, AbstractGadgetT: AbstractGadget> Gen
 }
 
 #[async_trait]
-impl<Module, Event, ProtocolMessage, Error, AbstractGadgetT: AbstractGadget> AbstractGadget for GeneralGadget<Module, Event, ProtocolMessage, Error, AbstractGadgetT>
+impl<Module, Event, ProtocolMessage, Error> AbstractGadget
+    for GeneralGadget<Module, Event, ProtocolMessage, Error>
 where
-    Module: GadgetWithClient<AbstractGadgetT>,
-    Event: Send + Sync,
-    ProtocolMessage: Send + Sync,
-    Error: std::error::Error + Send + Sync,
+    Module: GadgetWithClient<ProtocolMessage, Event, Error>,
+    Event: Send + Sync + 'static,
+    ProtocolMessage: Send + Sync + 'static,
+    Error: std::error::Error + Send + Sync + 'static,
 {
     type Event = Event;
     type ProtocolMessage = ProtocolMessage;
     type Error = Error;
 
-    async fn next_event(&self) -> Option<Event> 
-        where Module: GadgetWithClient<AbstractGadgetT>,{
+    async fn next_event(&self) -> Option<Event> {
         self.client.next_event().await
     }
 
-    async fn get_next_protocol_message(&self) -> Option<AbstractGadgetT::ProtocolMessage> {
+    async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage> {
         GadgetWithClient::get_next_protocol_message(&self.module).await
     }
 
-    async fn on_event_received(
-        &self,
-        notification: <Module as AbstractGadget>::Event,
-    ) -> Result<(), <Module as AbstractGadget>::Error> {
-        self.module
-            .process_event(notification)
-            .await
+    async fn on_event_received(&self, notification: Self::Event) -> Result<(), Self::Error> {
+        self.module.process_event(notification).await
     }
 
     async fn process_protocol_message(
         &self,
-        message: <Module as AbstractGadget>::ProtocolMessage,
+        message: Self::ProtocolMessage,
     ) -> Result<(), Self::Error> {
         GadgetWithClient::process_protocol_message(&self.module, message).await
     }
 
-    async fn process_error(&self, error: <Module as AbstractGadget>::Error) {
+    async fn process_error(&self, error: Self::Error) {
         GadgetWithClient::process_error(&self.module, error).await
     }
 }

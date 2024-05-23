@@ -19,5 +19,3 @@ impl Display for SubstrateGadgetError {
 }
 
 impl Error for SubstrateGadgetError {}
-
-

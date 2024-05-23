@@ -18,7 +18,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 #[allow(clippy::too_many_arguments)]
 pub fn create_job_manager_to_async_protocol_channel_split<
-    N: Network + 'static,
+    N: Network<GadgetProtocolMessage> + 'static,
     C1: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
 >(
@@ -450,7 +450,7 @@ pub type DuplexedChannel<O, I, C2> = (
 
 #[allow(clippy::too_many_arguments)]
 pub fn create_job_manager_to_async_protocol_channel_split_io<
-    N: Network + 'static,
+    N: Network<GadgetProtocolMessage> + 'static,
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     O: InnerMessage<Inner = I::Inner> + MaybeSenderReceiver + Send + 'static,
     I: InnerMessage + InnerMessageFromInbound + MaybeSenderReceiver + Send + 'static,
@@ -626,7 +626,7 @@ pub type TriplexedChannel<O1, I1, O2, I2, C2> = (
 
 #[allow(clippy::too_many_arguments)]
 pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
-    N: Network + 'static,
+    N: Network<GadgetProtocolMessage> + 'static,
     C3: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     O1: InnerMessage<Inner = I1::Inner> + MaybeSenderReceiver + Send + 'static,
     I1: InnerMessage + InnerMessageFromInbound + MaybeSenderReceiver + Send + 'static,
@@ -809,7 +809,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
 
 #[allow(clippy::too_many_arguments)]
 async fn wrap_message_and_forward_to_network<
-    N: Network,
+    N: Network<GadgetProtocolMessage>,
     C1: Serialize,
     C2: Serialize,
     C3: Serialize,

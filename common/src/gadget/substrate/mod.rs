@@ -1,40 +1,53 @@
-use std::ops::Deref;
-use std::sync::Arc;
-use async_trait::async_trait;
-use sp_core::{ecdsa, keccak_256, sr25519};
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
-use gadget_core::gadget::substrate::FinalityNotification;
-use gadget_core::job_manager::{PollMethod, WorkManagerInterface};
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen};
-use gadget_core::gadget::manager::AbstractGadget;
 use crate::config::GadgetProtocol;
 use crate::gadget::{EventHandler, GeneralModule, MetricizedJob};
 use crate::prelude::{ClientWithApi, GadgetProtocolMessage, WorkManager};
 use crate::protocol::AsyncProtocol;
 use crate::tangle_runtime::AccountId32;
+use async_trait::async_trait;
+use gadget_core::gadget::manager::AbstractGadget;
+use gadget_core::gadget::substrate::FinalityNotification;
+use gadget_core::job_manager::{PollMethod, WorkManagerInterface};
+use sp_core::{ecdsa, keccak_256, sr25519};
+use std::ops::Deref;
+use std::sync::Arc;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{jobs, roles};
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{
+    MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen,
+};
 
 /// Endow the general module with event-handler specific code tailored towards interacting with substrate
-pub struct SubstrateGadget<C, N, M> {
-    module: GeneralModule<C, N, M, FinalityNotification, GadgetProtocolMessage, crate::Error, Self>,
+pub struct TangleGadget<C, N, M> {
+    module: GeneralModule<C, N, M, TangleEvent, GadgetProtocolMessage, crate::Error>,
 }
 
-impl<C, N, M> Deref for SubstrateGadget<C, N, M> {
-    type Target = GeneralModule<C, N, M, FinalityNotification, GadgetProtocolMessage, crate::Error, Self>;
+impl<C, N, M> Deref for TangleGadget<C, N, M> {
+    type Target = GeneralModule<C, N, M, TangleEvent, GadgetProtocolMessage, crate::Error>;
 
     fn deref(&self) -> &Self::Target {
         &self.module
     }
 }
 
-impl<C, N, M> From<GeneralModule<C, N, M, FinalityNotification, GadgetProtocolMessage, crate::Error, Self>> for SubstrateGadget<C, N, M> {
-    fn from(module: GeneralModule<C, N, M, FinalityNotification, GadgetProtocolMessage, crate::Error, Self>) -> Self {
-        SubstrateGadget { module }
+impl<C, N, M> From<GeneralModule<C, N, M, TangleEvent, GadgetProtocolMessage, crate::Error>>
+    for TangleGadget<C, N, M>
+{
+    fn from(
+        module: GeneralModule<C, N, M, TangleEvent, GadgetProtocolMessage, crate::Error>,
+    ) -> Self {
+        TangleGadget { module }
     }
 }
 
 #[async_trait]
-impl<C: Send + ClientWithApi<Self> + 'static, N: Send + Sync + 'static, M: GadgetProtocol<Self, C> + Send + 'static> AbstractGadget for SubstrateGadget<C, N, M> {
-    type Event = FinalityNotification;
+impl<
+        C: Send + ClientWithApi<TangleEvent> + 'static,
+        N: Send + Sync + 'static,
+        M: GadgetProtocol<Self, C> + Send + 'static,
+    > AbstractGadget for TangleGadget<C, N, M>
+where
+    Self: AbstractGadget<Event = TangleEvent>,
+{
+    type Event = TangleEvent;
     type ProtocolMessage = GadgetProtocolMessage;
     type Error = crate::Error;
 
@@ -47,24 +60,34 @@ impl<C: Send + ClientWithApi<Self> + 'static, N: Send + Sync + 'static, M: Gadge
     }
 
     async fn on_event_received(&self, notification: Self::Event) -> Result<(), Self::Error> {
-        todo!()
+        self.process_event(notification).await
     }
 
-    async fn process_protocol_message(&self, message: Self::ProtocolMessage) -> Result<(), Self::Error> {
-        todo!()
+    async fn process_protocol_message(
+        &self,
+        message: Self::ProtocolMessage,
+    ) -> Result<(), Self::Error> {
+        self.job_manager
+            .deliver_message(message)
+            .map(|_| ())
+            .map_err(|err| crate::Error::WorkManagerError { err })
     }
 
-    async fn process_error(&self, error: Self::Error) {
-        todo!()
-    }
+    async fn process_error(&self, _error: Self::Error) {}
 }
 
+pub type TangleEvent = FinalityNotification;
+
 #[async_trait]
-impl<C: Send + ClientWithApi<Self> + 'static, N: Send + Sync + 'static, M: GadgetProtocol<Self, C> + Send + 'static> EventHandler<C, N, M, FinalityNotification, crate::Error> for SubstrateGadget<C, N, M> {
-    async fn process_event(
-        &self,
-        notification: FinalityNotification,
-    ) -> Result<(), crate::Error> {
+impl<
+        C: Send + ClientWithApi<TangleEvent> + 'static,
+        N: Send + Sync + 'static,
+        M: GadgetProtocol<TangleEvent, C> + Send + 'static,
+    > EventHandler<C, N, M, TangleEvent, crate::Error> for TangleGadget<C, N, M>
+where
+    Self: AbstractGadget<Event = TangleEvent>,
+{
+    async fn process_event(&self, notification: TangleEvent) -> Result<(), crate::Error> {
         let now: u64 = notification.number;
         *self.clock.write() = Some(now);
         self.protocol.logger().trace(format!(

@@ -1,6 +1,8 @@
 use crate::client::{ClientWithApi, JobsClient, PalletSubmitter};
 use crate::config::{DebugLogger, GadgetProtocol, Network, NetworkAndProtocolSetup};
+use crate::environments::Environment;
 use crate::gadget::message::GadgetProtocolMessage;
+use crate::gadget::substrate::JobInitMetadata;
 use crate::gadget::work_manager::WorkManager;
 use crate::gadget::WorkManagerConfig;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
@@ -9,6 +11,7 @@ use crate::protocol::AsyncProtocol;
 use crate::tangle_runtime::*;
 use crate::Error;
 use async_trait::async_trait;
+use gadget_core::gadget::manager::AbstractGadget;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use parity_scale_codec::{Decode, Encode};
@@ -18,15 +21,16 @@ use sp_core::{keccak_256, sr25519};
 use sp_io::crypto::ecdsa_verify_prehashed;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
-use crate::gadget::substrate::JobInitMetadata;
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 
 #[async_trait]
-pub trait FullProtocolConfig: Clone + Send + Sync + Sized + 'static {
+pub trait FullProtocolConfig<AbstractGadgetT: AbstractGadget>:
+    Clone + Send + Sync + Sized + 'static
+{
     type AsyncProtocolParameters: Send + Sync + Clone;
-    type Client: ClientWithApi;
-    type Network: Network;
+    type Client: ClientWithApi<AbstractGadgetT::Event>;
+    type Network: Network<AbstractGadgetT::ProtocolMessage>;
     type AdditionalNodeParameters: Clone + Send + Sync + 'static;
     type KeystoreBackend: KeystoreBackend;
     async fn new(
@@ -79,13 +83,13 @@ pub trait FullProtocolConfig: Clone + Send + Sync + Sized + 'static {
         job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     ) -> bool;
 
-    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Client>>;
+    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Client, AbstractGadgetT>>;
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
 
     fn logger(&self) -> DebugLogger;
 
     fn client(&self) -> Self::Client;
-    fn get_jobs_client(&self) -> JobsClient<Self::Client> {
+    fn get_jobs_client(&self) -> JobsClient<Self::Client, AbstractGadgetT> {
         self.jobs_client()
             .lock()
             .clone()
@@ -98,7 +102,7 @@ pub trait FullProtocolConfig: Clone + Send + Sync + Sized + 'static {
 }
 
 #[async_trait]
-impl<T: FullProtocolConfig> AsyncProtocol for T {
+impl<AbstractGadgetT: AbstractGadget, T: FullProtocolConfig<AbstractGadgetT>> AsyncProtocol for T {
     type AdditionalParams = T::AsyncProtocolParameters;
 
     async fn generate_protocol_from(
@@ -124,14 +128,18 @@ impl<T: FullProtocolConfig> AsyncProtocol for T {
 }
 
 #[async_trait]
-impl<T: FullProtocolConfig> NetworkAndProtocolSetup for T {
+impl<AbstractGadgetT: AbstractGadget, T: FullProtocolConfig<AbstractGadgetT>>
+    NetworkAndProtocolSetup<AbstractGadgetT> for T
+where
+    T::Client: 'static,
+{
     type Network = T;
     type Protocol = T;
     type Client = T::Client;
 
     async fn build_network_and_protocol(
         &self,
-        jobs_client: JobsClient<Self::Client>,
+        jobs_client: JobsClient<Self::Client, AbstractGadgetT>,
     ) -> Result<(Self::Network, Self::Protocol), Error> {
         let jobs_client_store = T::jobs_client(self);
         jobs_client_store.lock().replace(jobs_client);
@@ -152,7 +160,9 @@ impl<T: FullProtocolConfig> NetworkAndProtocolSetup for T {
 }
 
 #[async_trait]
-impl<T: FullProtocolConfig> GadgetProtocol<T::Client> for T {
+impl<AbstractGadgetT: AbstractGadget, T: FullProtocolConfig<AbstractGadgetT>>
+    GadgetProtocol<AbstractGadgetT, T::Client> for T
+{
     async fn create_next_job(
         &self,
         job: JobInitMetadata,
@@ -184,7 +194,7 @@ impl<T: FullProtocolConfig> GadgetProtocol<T::Client> for T {
         T::phase_filter(self, job)
     }
 
-    fn client(&self) -> JobsClient<T::Client> {
+    fn client(&self) -> JobsClient<T::Client, AbstractGadgetT> {
         T::get_jobs_client(self)
     }
 
@@ -198,8 +208,12 @@ impl<T: FullProtocolConfig> GadgetProtocol<T::Client> for T {
 }
 
 #[async_trait]
-impl<T: FullProtocolConfig> Network for T {
-    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+impl<ProtocolMessage: Send + Sync + 'static, T: FullProtocolConfig<Self> + AbstractGadget>
+    Network<ProtocolMessage> for T
+where
+    Self: AbstractGadget<ProtocolMessage = ProtocolMessage>,
+{
+    async fn next_message(&self) -> Option<ProtocolMessage> {
         let mut message = T::internal_network(self).next_message().await?;
         if let Some(peer_public_key) = message.from_network_id {
             if let Ok(payload_and_signature) =
@@ -231,10 +245,7 @@ impl<T: FullProtocolConfig> Network for T {
         self.next_message().await
     }
 
-    async fn send_message(
-        &self,
-        mut message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), Error> {
+    async fn send_message(&self, mut message: ProtocolMessage) -> Result<(), Error> {
         // Sign the hash of the message
         let hashed_message = keccak_256(&message.payload);
         let signature = self.key_store().pair().sign_prehashed(&hashed_message);
@@ -257,8 +268,8 @@ impl<T: FullProtocolConfig> Network for T {
 /// Used for constructing an instance of a node. If there is both a keygen and a signing protocol, then,
 /// the length of the vectors are 2. The length of the vector is equal to the numbers of protocols that
 /// the constructed node is going to concurrently execute
-pub struct NodeInput<C: ClientWithApi, N: Network, KBE: KeystoreBackend, D> {
-    pub clients: Vec<C>,
+pub struct NodeInput<Env: Environment, N: Network<Env::ProtocolMessage>, KBE: KeystoreBackend, D> {
+    pub clients: Vec<Env::Client>,
     pub networks: Vec<N>,
     pub account_id: sr25519::Public,
     pub logger: DebugLogger,

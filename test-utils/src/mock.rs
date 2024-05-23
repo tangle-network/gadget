@@ -773,9 +773,7 @@ pub mod mock_wrapper_client {
             })
         }
 
-        async fn latest_event(
-            &self,
-        ) -> Option<substrate::FinalityNotification> {
+        async fn latest_event(&self) -> Option<substrate::FinalityNotification> {
             let lock = self
                 .latest_finality_notification
                 .lock_timeout(Duration::from_millis(500))

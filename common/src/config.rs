@@ -5,19 +5,20 @@ pub use crate::gadget::network::Network;
 pub use crate::gadget::GadgetProtocol;
 pub use crate::prometheus::PrometheusConfig;
 use async_trait::async_trait;
-use std::sync::Arc;
 use gadget_core::gadget::manager::AbstractGadget;
+use std::sync::Arc;
 
 #[async_trait]
 pub trait ProtocolConfig<AbstractGadgetT: AbstractGadget>
 where
     Self: Sized,
 {
-    type Network: Network;
-    type Protocol: GadgetProtocol<AbstractGadgetT, <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<AbstractGadgetT>>::Client>;
-    type ProtocolSpecificConfiguration: Clone
-        + NetworkAndProtocolSetup<AbstractGadgetT>
-        + Sync;
+    type Network: Network<AbstractGadgetT::ProtocolMessage>;
+    type Protocol: GadgetProtocol<
+        AbstractGadgetT,
+        <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<AbstractGadgetT>>::Client,
+    >;
+    type ProtocolSpecificConfiguration: Clone + NetworkAndProtocolSetup<AbstractGadgetT> + Sync;
     fn params(&self) -> &Self::ProtocolSpecificConfiguration;
 
     fn take_network(&mut self) -> Self::Network;
@@ -78,7 +79,9 @@ pub trait NetworkAndProtocolSetup<AbstractGadgetT: AbstractGadget> {
     type Protocol;
     type Client: ClientWithApi<AbstractGadgetT>;
 
-    async fn build_jobs_client(&self) -> Result<JobsClient<Self::Client, AbstractGadgetT>, crate::Error> {
+    async fn build_jobs_client(
+        &self,
+    ) -> Result<JobsClient<Self::Client, AbstractGadgetT>, crate::Error> {
         create_client(self.client(), self.logger(), self.pallet_tx()).await
     }
 
