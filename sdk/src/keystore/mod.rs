@@ -20,10 +20,10 @@
 //!
 //! with each module is feature gated to allow only the necessary dependencies to be included.
 
-/// Keystore errors module
-mod error;
 /// Backend modules
 pub mod backend;
+/// Keystore errors module
+mod error;
 
 /// ECDSA Support
 #[cfg(feature = "keystore-ecdsa")]
@@ -122,8 +122,10 @@ pub trait KeystoreBackend {
     /// Returns the Keypair for the given [`sr25519::Public`] if it does exist, otherwise returns `None`.
     /// An `Err` will be returned if finding the key operation itself failed.
     #[cfg(feature = "keystore-sr25519")]
-    fn expose_sr25519_secret(&self, public: &sr25519::Public)
-        -> Result<Option<sr25519::Secret>, Error>;
+    fn expose_sr25519_secret(
+        &self,
+        public: &sr25519::Public,
+    ) -> Result<Option<sr25519::Secret>, Error>;
 
     /// Returns the [`ecdsa::Secret`] for the given [`ecdsa::Public`] if it does exist, otherwise returns `None`.
     /// An `Err` will be returned if finding the key operation itself failed.
@@ -132,10 +134,15 @@ pub trait KeystoreBackend {
     /// Returns the [`ed25519::Secret`] for the given [`ed25519::Public`] if it does exist, otherwise returns `None`.
     /// An `Err` will be returned if finding the key operation itself failed.
     #[cfg(feature = "keystore-ed25519")]
-    fn expose_ed25519_secret(&self, public: &ed25519::Public)
-        -> Result<Option<ed25519::Secret>, Error>;
+    fn expose_ed25519_secret(
+        &self,
+        public: &ed25519::Public,
+    ) -> Result<Option<ed25519::Secret>, Error>;
     /// Returns the [`bls381::Secret`] for the given [`bls381::Public`] if it does exist, otherwise returns `None`.
     /// An `Err` will be returned if finding the key operation itself failed.
     #[cfg(feature = "keystore-bls381")]
-    fn expose_bls381_secret(&self, public: &bls381::Public) -> Result<Option<bls381::Secret>, Error>;
+    fn expose_bls381_secret(
+        &self,
+        public: &bls381::Public,
+    ) -> Result<Option<bls381::Secret>, Error>;
 }
