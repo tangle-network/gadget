@@ -1,9 +1,9 @@
 use crate::client::{ClientWithApi, JobsClient, PalletSubmitter};
 use crate::config::{DebugLogger, GadgetProtocol, Network, NetworkAndProtocolSetup};
-use crate::environments::Environment;
-use crate::gadget::message::GadgetProtocolMessage;
-use crate::gadget::substrate::JobInitMetadata;
-use crate::gadget::work_manager::WorkManager;
+use crate::environments::GadgetEnvironment;
+use crate::gadget::message::TangleProtocolMessage;
+use crate::gadget::tangle::JobInitMetadata;
+use crate::gadget::work_manager::TangleWorkManager;
 use crate::gadget::WorkManagerConfig;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use crate::prometheus::PrometheusConfig;
@@ -25,12 +25,12 @@ use tokio::sync::mpsc::UnboundedReceiver;
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 
 #[async_trait]
-pub trait FullProtocolConfig<AbstractGadgetT: AbstractGadget>:
+pub trait FullProtocolConfig<Event, ProtocolMessage>:
     Clone + Send + Sync + Sized + 'static
 {
-    type AsyncProtocolParameters: Send + Sync + Clone;
-    type Client: ClientWithApi<AbstractGadgetT::Event>;
-    type Network: Network<AbstractGadgetT::ProtocolMessage>;
+    type AsyncProtocolParameters: Send + Sync + Clone + 'static;
+    type Client: ClientWithApi<Event>;
+    type Network: Network<ProtocolMessage, Event>;
     type AdditionalNodeParameters: Clone + Send + Sync + 'static;
     type KeystoreBackend: KeystoreBackend;
     async fn new(
@@ -44,11 +44,11 @@ pub trait FullProtocolConfig<AbstractGadgetT: AbstractGadget>:
     ) -> Result<Self, Error>;
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+        associated_block_id: <TangleWorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <TangleWorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <TangleWorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <TangleWorkManager as WorkManagerInterface>::TaskID,
+        protocol_message_rx: UnboundedReceiver<ProtocolMessage>,
         additional_params: Self::AsyncProtocolParameters,
     ) -> Result<BuiltExecutableJobWrapper, JobError>;
 
@@ -65,10 +65,14 @@ pub trait FullProtocolConfig<AbstractGadgetT: AbstractGadget>:
     async fn create_next_job(
         &self,
         job: JobInitMetadata,
-        work_manager: &ProtocolWorkManager<WorkManager>,
+        work_manager: &ProtocolWorkManager<TangleWorkManager>,
     ) -> Result<Self::AsyncProtocolParameters, Error>;
 
-    async fn process_error(&self, error: Error, _job_manager: &ProtocolWorkManager<WorkManager>) {
+    async fn process_error(
+        &self,
+        error: Error,
+        _job_manager: &ProtocolWorkManager<TangleWorkManager>,
+    ) {
         self.logger().error(format!("Error in protocol: {error}"));
     }
 
@@ -83,13 +87,13 @@ pub trait FullProtocolConfig<AbstractGadgetT: AbstractGadget>:
         job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     ) -> bool;
 
-    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Client, AbstractGadgetT>>;
+    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Client, Event>>;
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
 
     fn logger(&self) -> DebugLogger;
 
     fn client(&self) -> Self::Client;
-    fn get_jobs_client(&self) -> JobsClient<Self::Client, AbstractGadgetT> {
+    fn get_jobs_client(&self) -> JobsClient<Self::Client, Event> {
         self.jobs_client()
             .lock()
             .clone()
@@ -102,16 +106,18 @@ pub trait FullProtocolConfig<AbstractGadgetT: AbstractGadget>:
 }
 
 #[async_trait]
-impl<AbstractGadgetT: AbstractGadget, T: FullProtocolConfig<AbstractGadgetT>> AsyncProtocol for T {
+impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env::Event, Env::ProtocolMessage>>
+    AsyncProtocol<Env> for T
+{
     type AdditionalParams = T::AsyncProtocolParameters;
 
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+        associated_block_id: <TangleWorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <TangleWorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <TangleWorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <TangleWorkManager as WorkManagerInterface>::TaskID,
+        protocol_message_rx: UnboundedReceiver<Env::ProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         T::generate_protocol_from(
@@ -128,10 +134,11 @@ impl<AbstractGadgetT: AbstractGadget, T: FullProtocolConfig<AbstractGadgetT>> As
 }
 
 #[async_trait]
-impl<AbstractGadgetT: AbstractGadget, T: FullProtocolConfig<AbstractGadgetT>>
-    NetworkAndProtocolSetup<AbstractGadgetT> for T
+impl<Event, ProtocolMessage, T: FullProtocolConfig<Event, ProtocolMessage>>
+    NetworkAndProtocolSetup<Event, ProtocolMessage> for T
 where
     T::Client: 'static,
+    Event: Send + Sync + 'static,
 {
     type Network = T;
     type Protocol = T;
@@ -139,7 +146,7 @@ where
 
     async fn build_network_and_protocol(
         &self,
-        jobs_client: JobsClient<Self::Client, AbstractGadgetT>,
+        jobs_client: JobsClient<Self::Client, Event>,
     ) -> Result<(Self::Network, Self::Protocol), Error> {
         let jobs_client_store = T::jobs_client(self);
         jobs_client_store.lock().replace(jobs_client);
@@ -160,18 +167,22 @@ where
 }
 
 #[async_trait]
-impl<AbstractGadgetT: AbstractGadget, T: FullProtocolConfig<AbstractGadgetT>>
-    GadgetProtocol<AbstractGadgetT, T::Client> for T
+impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env::Event, Env::ProtocolMessage>>
+    GadgetProtocol<Env, T::Client> for T
 {
     async fn create_next_job(
         &self,
         job: JobInitMetadata,
-        work_manager: &ProtocolWorkManager<WorkManager>,
-    ) -> Result<<Self as AsyncProtocol>::AdditionalParams, Error> {
+        work_manager: &ProtocolWorkManager<TangleWorkManager>,
+    ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Error> {
         T::create_next_job(self, job, work_manager).await
     }
 
-    async fn process_error(&self, error: Error, job_manager: &ProtocolWorkManager<WorkManager>) {
+    async fn process_error(
+        &self,
+        error: Error,
+        job_manager: &ProtocolWorkManager<TangleWorkManager>,
+    ) {
         T::process_error(self, error, job_manager).await;
     }
 
@@ -194,7 +205,7 @@ impl<AbstractGadgetT: AbstractGadget, T: FullProtocolConfig<AbstractGadgetT>>
         T::phase_filter(self, job)
     }
 
-    fn client(&self) -> JobsClient<T::Client, AbstractGadgetT> {
+    fn client(&self) -> JobsClient<T::Client, Env::Event> {
         T::get_jobs_client(self)
     }
 
@@ -208,8 +219,8 @@ impl<AbstractGadgetT: AbstractGadget, T: FullProtocolConfig<AbstractGadgetT>>
 }
 
 #[async_trait]
-impl<ProtocolMessage: Send + Sync + 'static, T: FullProtocolConfig<Self> + AbstractGadget>
-    Network<ProtocolMessage> for T
+impl<Event, ProtocolMessage, T: FullProtocolConfig<Event, ProtocolMessage> + AbstractGadget>
+    Network<ProtocolMessage, Event> for T
 where
     Self: AbstractGadget<ProtocolMessage = ProtocolMessage>,
 {
@@ -268,7 +279,12 @@ where
 /// Used for constructing an instance of a node. If there is both a keygen and a signing protocol, then,
 /// the length of the vectors are 2. The length of the vector is equal to the numbers of protocols that
 /// the constructed node is going to concurrently execute
-pub struct NodeInput<Env: Environment, N: Network<Env::ProtocolMessage>, KBE: KeystoreBackend, D> {
+pub struct NodeInput<
+    Env: GadgetEnvironment,
+    N: Network<Env::ProtocolMessage, Env::Event>,
+    KBE: KeystoreBackend,
+    D,
+> {
     pub clients: Vec<Env::Client>,
     pub networks: Vec<N>,
     pub account_id: sr25519::Public,

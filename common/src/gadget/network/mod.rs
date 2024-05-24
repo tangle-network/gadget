@@ -4,7 +4,7 @@ use gadget_core::gadget::manager::AbstractGadget;
 use sp_core::ecdsa;
 
 #[async_trait]
-pub trait Network<ProtocolMessage>: Send + Sync + Clone + 'static {
+pub trait Network<ProtocolMessage, Event>: Send + Sync + Clone + 'static {
     async fn next_message(&self) -> Option<ProtocolMessage>;
     async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error>;
 

@@ -43,7 +43,7 @@ use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::full_protocol::NodeInput;
 use gadget_common::gadget::network::Network;
-use gadget_common::gadget::work_manager::WorkManager;
+use gadget_common::gadget::work_manager::TangleWorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::prelude::PrometheusConfig;
@@ -423,14 +423,14 @@ pub struct MockNetwork {
     peers_tx: Arc<
         HashMap<
             ecdsa::Public,
-            UnboundedSender<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
+            UnboundedSender<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage>,
         >,
     >,
     peers_rx: Arc<
         HashMap<
             ecdsa::Public,
             tokio::sync::Mutex<
-                UnboundedReceiver<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
+                UnboundedReceiver<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage>,
             >,
         >,
     >,
@@ -467,7 +467,9 @@ impl MockNetwork {
 
 #[async_trait]
 impl Network for MockNetwork {
-    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+    async fn next_message(
+        &self,
+    ) -> Option<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage> {
         self.peers_rx
             .get(&self.my_id)?
             .lock_timeout(Duration::from_millis(500))
@@ -478,7 +480,7 @@ impl Network for MockNetwork {
 
     async fn send_message(
         &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
+        message: <TangleWorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
         let _check_message_has_ids = message.from_network_id.ok_or(Error::MissingNetworkId)?;
         if let Some(peer_id) = message.to_network_id {

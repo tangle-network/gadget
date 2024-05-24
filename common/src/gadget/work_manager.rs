@@ -1,11 +1,11 @@
 use crate::debug_logger::DebugLogger;
-use crate::gadget::message::{GadgetProtocolMessage, UserID};
+use crate::gadget::message::{TangleProtocolMessage, UserID};
 use gadget_core::job_manager::WorkManagerInterface;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-pub struct WorkManager {
-    pub(crate) clock: Arc<RwLock<Option<<WorkManager as WorkManagerInterface>::Clock>>>,
+pub struct TangleWorkManager {
+    pub(crate) clock: Arc<RwLock<Option<<TangleWorkManager as WorkManagerInterface>::Clock>>>,
     pub(crate) logger: DebugLogger,
 }
 
@@ -16,11 +16,11 @@ const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 20;
 #[cfg(feature = "testing")]
 const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 60;
 
-impl WorkManagerInterface for WorkManager {
+impl WorkManagerInterface for TangleWorkManager {
     type RetryID = u16;
     type UserID = UserID;
     type Clock = u64;
-    type ProtocolMessage = GadgetProtocolMessage;
+    type ProtocolMessage = TangleProtocolMessage;
     type Error = crate::Error;
     type SessionID = u64;
     type TaskID = [u8; 32];

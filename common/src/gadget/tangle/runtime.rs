@@ -1,15 +1,17 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use color_eyre::Result;
-use gadget_common::config::ClientWithApi;
-use gadget_common::locks::TokioMutexExt;
-use gadget_common::tangle_runtime::*;
-use gadget_core::gadget::substrate::{Client, FinalityNotification};
+use crate::config::ClientWithApi;
+use crate::gadget::tangle::TangleEvent;
+use crate::locks::TokioMutexExt;
+use crate::tangle_runtime::*;
+use gadget_core::gadget::general::Client;
+use gadget_core::gadget::substrate::FinalityNotification;
 use tangle_subxt::subxt::blocks::{Block, BlockRef};
 use tangle_subxt::subxt::ext::futures::TryFutureExt;
 use tangle_subxt::subxt::{self, PolkadotConfig};
 use tangle_subxt::tangle_testnet_runtime::api;
+
 pub type TangleConfig = subxt::PolkadotConfig;
 type TangleClient = subxt::OnlineClient<TangleConfig>;
 type TangleBlock = Block<TangleConfig, TangleClient>;
@@ -56,7 +58,7 @@ impl TangleRuntime {
 
     /// Initialize the TangleRuntime instance by listening for finality notifications.
     /// This method must be called before using the instance.
-    async fn initialize(&self) -> Result<()> {
+    async fn initialize(&self) -> color_eyre::Result<()> {
         let finality_notification_stream = self.client.blocks().subscribe_finalized().await?;
         *self.finality_notification_stream.lock().await = Some(finality_notification_stream);
         Ok(())
@@ -72,7 +74,7 @@ impl TangleRuntime {
 }
 
 #[async_trait::async_trait]
-impl Client for TangleRuntime {
+impl Client<TangleEvent> for TangleRuntime {
     async fn next_event(&self) -> Option<FinalityNotification> {
         let mut lock = self
             .finality_notification_stream
@@ -95,7 +97,6 @@ impl Client for TangleRuntime {
             }
             None => {
                 drop(lock);
-                tracing::debug!("Finality notification stream is not initialized. Initializing...");
                 self.initialize().await.ok()?;
                 // Next time, the stream should be initialized.
                 self.next_event().await
@@ -113,7 +114,6 @@ impl Client for TangleRuntime {
             Some(notification) => Some(notification.clone()),
             None => {
                 drop(lock);
-                tracing::debug!("Latest finality notification is not available. Fetching...");
                 self.next_event().await
             }
         }
@@ -121,7 +121,7 @@ impl Client for TangleRuntime {
 }
 
 #[async_trait::async_trait]
-impl ClientWithApi for TangleRuntime {
+impl ClientWithApi<TangleEvent> for TangleRuntime {
     async fn query_jobs_by_validator(
         &self,
         at: [u8; 32],
@@ -138,12 +138,12 @@ impl ClientWithApi for TangleRuntime {
                 >,
             >,
         >,
-        gadget_common::Error,
+        crate::Error,
     > {
         let q = api::apis().jobs_api().query_jobs_by_validator(validator);
         self.runtime_api(at)
             .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
+            .map_err(|e| crate::Error::ClientError { err: e.to_string() })
             .await
     }
 
@@ -162,12 +162,12 @@ impl ClientWithApi for TangleRuntime {
                 MaxAdditionalParamsLen,
             >,
         >,
-        gadget_common::Error,
+        crate::Error,
     > {
         let q = api::apis().jobs_api().query_job_by_id(role_type, job_id);
         self.runtime_api(at)
             .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
+            .map_err(|e| crate::Error::ClientError { err: e.to_string() })
             .await
     }
 
@@ -190,23 +190,20 @@ impl ClientWithApi for TangleRuntime {
                 MaxAdditionalParamsLen,
             >,
         >,
-        gadget_common::Error,
+        crate::Error,
     > {
         let q = api::apis().jobs_api().query_job_result(role_type, job_id);
         self.runtime_api(at)
             .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
+            .map_err(|e| crate::Error::ClientError { err: e.to_string() })
             .await
     }
 
-    async fn query_next_job_id(
-        &self,
-        at: [u8; 32],
-    ) -> core::result::Result<u64, gadget_common::Error> {
+    async fn query_next_job_id(&self, at: [u8; 32]) -> core::result::Result<u64, crate::Error> {
         let q = api::apis().jobs_api().query_next_job_id();
         self.runtime_api(at)
             .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
+            .map_err(|e| crate::Error::ClientError { err: e.to_string() })
             .await
     }
 
@@ -214,11 +211,11 @@ impl ClientWithApi for TangleRuntime {
         &self,
         at: [u8; 32],
         address: AccountId32,
-    ) -> core::result::Result<Option<Vec<u8>>, gadget_common::Error> {
+    ) -> core::result::Result<Option<Vec<u8>>, crate::Error> {
         let q = api::apis().jobs_api().query_restaker_role_key(address);
         self.runtime_api(at)
             .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
+            .map_err(|e| crate::Error::ClientError { err: e.to_string() })
             .await
     }
 
@@ -226,7 +223,7 @@ impl ClientWithApi for TangleRuntime {
         &self,
         at: [u8; 32],
         address: AccountId32,
-    ) -> std::result::Result<Vec<RoleType>, gadget_common::Error> {
+    ) -> std::result::Result<Vec<RoleType>, crate::Error> {
         let storage_address = api::storage().roles().account_roles_mapping(address);
         let block_ref = BlockRef::from_hash(sp_core::hash::H256::from_slice(&at));
         self.client
@@ -234,7 +231,7 @@ impl ClientWithApi for TangleRuntime {
             .at(block_ref)
             .fetch_or_default(&storage_address)
             .map_ok(|v| v.0)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
+            .map_err(|e| crate::Error::ClientError { err: e.to_string() })
             .await
     }
 }
@@ -242,11 +239,11 @@ impl ClientWithApi for TangleRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use color_eyre::{eyre::OptionExt, Result};
+    use color_eyre::eyre::OptionExt;
 
     #[ignore = "requires a running node"]
     #[tokio::test]
-    async fn client() -> Result<()> {
+    async fn client() -> color_eyre::Result<()> {
         let subxt_client = subxt::OnlineClient::new().await?;
         let runtime = TangleRuntime::new(subxt_client);
 

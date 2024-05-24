@@ -1,6 +1,7 @@
 use crate::config::GadgetProtocol;
+use crate::environments::{GadgetEnvironment, TangleEnvironment};
 use crate::gadget::{EventHandler, GeneralModule, MetricizedJob};
-use crate::prelude::{ClientWithApi, GadgetProtocolMessage, WorkManager};
+use crate::prelude::{ClientWithApi, TangleProtocolMessage, TangleWorkManager};
 use crate::protocol::AsyncProtocol;
 use crate::tangle_runtime::AccountId32;
 use async_trait::async_trait;
@@ -15,25 +16,23 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_run
     MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen,
 };
 
-/// Endow the general module with event-handler specific code tailored towards interacting with substrate
+pub mod runtime;
+
+/// Endow the general module with event-handler specific code tailored towards interacting with tangle
 pub struct TangleGadget<C, N, M> {
-    module: GeneralModule<C, N, M, TangleEvent, GadgetProtocolMessage, crate::Error>,
+    module: GeneralModule<C, N, M, TangleEnvironment>,
 }
 
 impl<C, N, M> Deref for TangleGadget<C, N, M> {
-    type Target = GeneralModule<C, N, M, TangleEvent, GadgetProtocolMessage, crate::Error>;
+    type Target = GeneralModule<C, N, M, TangleEnvironment>;
 
     fn deref(&self) -> &Self::Target {
         &self.module
     }
 }
 
-impl<C, N, M> From<GeneralModule<C, N, M, TangleEvent, GadgetProtocolMessage, crate::Error>>
-    for TangleGadget<C, N, M>
-{
-    fn from(
-        module: GeneralModule<C, N, M, TangleEvent, GadgetProtocolMessage, crate::Error>,
-    ) -> Self {
+impl<C, N, M> From<GeneralModule<C, N, M, TangleEnvironment>> for TangleGadget<C, N, M> {
+    fn from(module: GeneralModule<C, N, M, TangleEnvironment>) -> Self {
         TangleGadget { module }
     }
 }
@@ -42,13 +41,17 @@ impl<C, N, M> From<GeneralModule<C, N, M, TangleEvent, GadgetProtocolMessage, cr
 impl<
         C: Send + ClientWithApi<TangleEvent> + 'static,
         N: Send + Sync + 'static,
-        M: GadgetProtocol<Self, C> + Send + 'static,
+        M: GadgetProtocol<TangleEnvironment, C> + Send + 'static,
     > AbstractGadget for TangleGadget<C, N, M>
 where
-    Self: AbstractGadget<Event = TangleEvent>,
+    Self: AbstractGadget<
+        Event = <TangleEnvironment as GadgetEnvironment>::Event,
+        Error = <TangleEnvironment as GadgetEnvironment>::Error,
+        ProtocolMessage = <TangleEnvironment as GadgetEnvironment>::ProtocolMessage,
+    >,
 {
     type Event = TangleEvent;
-    type ProtocolMessage = GadgetProtocolMessage;
+    type ProtocolMessage = TangleProtocolMessage;
     type Error = crate::Error;
 
     async fn next_event(&self) -> Option<Self::Event> {
@@ -77,15 +80,20 @@ where
 }
 
 pub type TangleEvent = FinalityNotification;
+pub type TangleNetworkMessage = TangleProtocolMessage;
 
 #[async_trait]
 impl<
         C: Send + ClientWithApi<TangleEvent> + 'static,
         N: Send + Sync + 'static,
-        M: GadgetProtocol<TangleEvent, C> + Send + 'static,
+        M: GadgetProtocol<TangleEnvironment, C> + Send + 'static,
     > EventHandler<C, N, M, TangleEvent, crate::Error> for TangleGadget<C, N, M>
 where
-    Self: AbstractGadget<Event = TangleEvent>,
+    Self: AbstractGadget<
+        Event = TangleEvent,
+        ProtocolMessage = TangleNetworkMessage,
+        Error = crate::Error,
+    >,
 {
     async fn process_event(&self, notification: TangleEvent) -> Result<(), crate::Error> {
         let now: u64 = notification.number;
@@ -314,9 +322,9 @@ pub struct JobInitMetadata {
         jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     >,
     pub participants_role_ids: Vec<ecdsa::Public>,
-    pub task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    pub retry_id: <WorkManager as WorkManagerInterface>::RetryID,
+    pub task_id: <TangleWorkManager as WorkManagerInterface>::TaskID,
+    pub retry_id: <TangleWorkManager as WorkManagerInterface>::RetryID,
     pub job_id: u64,
-    pub now: <WorkManager as WorkManagerInterface>::Clock,
+    pub now: <TangleWorkManager as WorkManagerInterface>::Clock,
     pub at: [u8; 32],
 }

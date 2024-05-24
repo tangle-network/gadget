@@ -1,6 +1,6 @@
 use crate::client::ClientWithApi;
 use crate::config::ProtocolConfig;
-use crate::gadget::work_manager::WorkManager;
+use crate::gadget::work_manager::TangleWorkManager;
 use crate::gadget::{GadgetProtocol, GeneralModule};
 use crate::prelude::PrometheusConfig;
 use gadget::network::Network;
@@ -27,9 +27,9 @@ pub mod prelude {
     pub use crate::client::*;
     pub use crate::config::*;
     pub use crate::full_protocol::{FullProtocolConfig, NodeInput};
-    pub use crate::gadget::message::GadgetProtocolMessage;
-    pub use crate::gadget::substrate::JobInitMetadata;
-    pub use crate::gadget::work_manager::WorkManager;
+    pub use crate::gadget::message::TangleProtocolMessage;
+    pub use crate::gadget::tangle::JobInitMetadata;
+    pub use crate::gadget::work_manager::TangleWorkManager;
     pub use crate::gadget::WorkManagerConfig;
     pub use crate::generate_setup_and_run_command;
     pub use crate::keystore::{ECDSAKeyStore, InMemoryBackend, KeystoreBackend};
@@ -137,6 +137,8 @@ impl From<JobError> for Error {
     }
 }
 
+// TODO: Replace AbstractGadgetT with Environment (e.g., TangleEnvironment)
+/*
 pub async fn run_protocol<AbstractGadgetT: AbstractGadget, T: ProtocolConfig<AbstractGadgetT>>(
     mut protocol_config: T,
 ) -> Result<(), Error> {
@@ -185,8 +187,8 @@ pub async fn run_protocol<AbstractGadgetT: AbstractGadget, T: ProtocolConfig<Abs
 /// Creates a work manager
 pub async fn create_work_manager<
     AbstractGadgetT: AbstractGadget,
-    C: ClientWithApi<AbstractGadgetT>,
-    P: GadgetProtocol<AbstractGadgetT, C>,
+    C: ClientWithApi<AbstractGadgetT::Event>,
+    P: GadgetProtocol<AbstractGadgetT::Event, C>,
 >(
     latest_event: &AbstractGadgetT::Event,
     protocol: &P,
@@ -420,3 +422,4 @@ macro_rules! generate_protocol {
         }
     };
 }
+*/

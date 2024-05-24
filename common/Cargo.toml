@@ -24,6 +24,7 @@ round-based = { workspace = true }
 round-based-21 = { workspace = true, features = ["derive"]}
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
 lazy_static = { workspace = true }
+color-eyre = { workspace = true }
 
 # Substrate
 tangle-subxt = { workspace = true, optional = true }

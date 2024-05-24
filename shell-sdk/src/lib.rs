@@ -3,7 +3,6 @@ pub mod entry;
 pub mod keystore;
 pub mod network;
 pub mod shell;
-pub mod tangle;
 
 pub use config::*;
 pub use entry::run_shell_for_protocol;
@@ -19,7 +18,6 @@ pub mod prelude {
     pub use crate::DebugLogger;
     pub use crate::ECDSAKeyStore;
     pub use crate::FullProtocolConfig;
-    pub use crate::GadgetProtocolMessage;
     pub use crate::JobError;
     pub use crate::JobsClient;
     pub use crate::KeystoreBackend;
@@ -29,8 +27,9 @@ pub mod prelude {
     pub use crate::PalletSubmitter;
     pub use crate::ProtocolWorkManager;
     pub use crate::SendFuture;
+    pub use crate::TangleProtocolMessage;
+    pub use crate::TangleWorkManager;
     pub use crate::UnboundedReceiver;
-    pub use crate::WorkManager;
     pub use crate::WorkManagerInterface;
     pub use gadget_common::full_protocol::SharedOptional;
     pub use gadget_common::gadget::substrate::JobInitMetadata;

@@ -11,13 +11,13 @@ use std::sync::Arc;
 use tangle_subxt::subxt::{self, tx::TxPayload, OnlineClient};
 
 pub struct JobsClient<C, Event> {
-    pub client: C,
+    pub client: Arc<C>,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
     _pd: PhantomData<Event>,
 }
 
-impl<Event: Send + Sync + 'static, C: Clone> Clone for JobsClient<C, Event> {
+impl<Event, C> Clone for JobsClient<C, Event> {
     fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
@@ -34,7 +34,7 @@ pub async fn create_client<Event: Send + Sync + 'static, C: ClientWithApi<Event>
     pallet_tx: Arc<dyn PalletSubmitter>,
 ) -> Result<JobsClient<C, Event>, crate::Error> {
     Ok(JobsClient {
-        client,
+        client: client.into(),
         logger,
         pallet_tx,
         _pd: PhantomData,
@@ -78,7 +78,7 @@ pub trait PhaseResultExt {
 
 #[async_trait]
 #[auto_impl(Arc)]
-pub trait ClientWithApi<Event>: Client<Event> {
+pub trait ClientWithApi<Event>: Client<Event> + 'static {
     /// Query jobs associated with a specific validator.
     ///
     /// This function takes a `validator` parameter of type `AccountId` and attempts
