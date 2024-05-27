@@ -140,10 +140,6 @@ pub trait Backend {
         public: &bls381::Public,
         msg: &[u8],
     ) -> Result<Option<bls381::Signature>, Error>;
-    /// Checks if the private key for the given public key exist.
-    ///
-    /// Returns `true` if the private key could be found.
-    fn has_key(&self, public: &[u8]) -> bool;
     /// Returns the Keypair for the given [`sr25519::Public`] if it does exist, otherwise returns `None`.
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.

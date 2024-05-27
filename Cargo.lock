@@ -3519,6 +3519,9 @@ version = "0.1.0"
 dependencies = [
  "ed25519-zebra 4.0.3",
  "k256",
+ "parking_lot 0.12.2",
+ "rand",
+ "rand_core 0.6.4",
  "schnorrkel",
  "thiserror",
  "w3f-bls",

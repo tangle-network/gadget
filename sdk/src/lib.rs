@@ -16,5 +16,13 @@
 )]
 //! Gadget SDK
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
 /// Keystore Module
 pub mod keystore;
+
+/// Randomness generation module
+pub mod random;
