@@ -1,4 +1,4 @@
-# Gadget: A Powerful distributed MPC Framework
+# Gadget: A Powerful distributed AVS Framework
 
 <p align="center">
   <img src="https://github.com/webb-tools/dkg-substrate/raw/master/assets/webb_banner_light.png" alt="Gadget Logo">
@@ -15,7 +15,7 @@ Gadget is a comprehensive framework for building multi-party computation (MPC) a
 - Modular and extensible architecture
 - Support for various MPC protocols and services:
     - [x] [DFNS CGGMP21](https://github.com/dfns/cggmp21/tree/m/cggmp21)
-    - [x] [Threshold BLS](https://github.com/mikelodder7/blsful)
+    - [x] [Threshold BLS](https://github.com/hyperledger-labs/agora-blsful)
     - [x] [LIT Protocol fork of ZCash Frost](https://github.com/LIT-Protocol/frost)
     - [x] [Groth16 ZK-SaaS](https://github.com/webb-tools/zk-SaaS)
     - [x] [DKLS](https://github.com/webb-tools/silent-shard-dkls23-gadget)
@@ -56,14 +56,9 @@ The gadget shell is a standalone application that provides a command-line interf
 Before running that command, make sure that a [tangle](https://github.com/webb-tools/tangle/) node is running, otherwise, the shell will fail.
 
 ### Creating a New Protocol
-To create a new protocol using Gadget, follow these steps:
+To create a new protocol using Gadget, clone the [protocol-template](https://github.com/webb-tools/protocol-template) and begin hacking!
 
-Create a new directory in the protocols folder with the name of your protocol (e.g., protocols/my-protocol).
-Copy the contents of the protocols/stub directory into your new protocol directory.
-Modify the `Cargo.toml` file in your protocol directory to include the necessary dependencies.
-Implement the protocol-specific logic in the src directory of your protocol.
-Update the tests in the tests directory to validate your protocol implementation.
-For more detailed instructions on creating a new protocol, refer to the [README.md](./protocols/stub/README.md) file in the protocols/stub directory.
+For examples of protocols using this template, check out our [protocol implementations](https://github.com/webb-tools/protocols)
 
 ## Testing
 This repository contains unit tests and integration tests to validate the functionality of the Gadget framework and its interaction with the blockchain.
