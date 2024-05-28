@@ -20,3 +20,7 @@ pub fn sign(secret: &Secret, msg: &[u8]) -> Result<Signature, schnorrkel::Signat
     let public = secret.to_public();
     secret.sign_simple_doublecheck(SIGNING_CTX, msg, &public)
 }
+
+pub fn secret_from_bytes(bytes: &[u8]) -> Result<Secret, schnorrkel::SignatureError> {
+    Secret::from_bytes(bytes)
+}

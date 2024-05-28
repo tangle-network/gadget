@@ -25,7 +25,7 @@ extern crate alloc;
 pub mod keystore;
 
 /// Metrics Module
-pub mod metrics;
+// pub mod metrics;
 
 /// Logging Module
 pub mod logging;

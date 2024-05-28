@@ -170,4 +170,17 @@ pub trait Backend {
         &self,
         public: &bls381::Public,
     ) -> Result<Option<bls381::Secret>, Error>;
+
+    /// Returns an iterator over all [`sr25519::Public`] keys that exist in the keystore.
+    #[cfg(feature = "keystore-sr25519")]
+    fn iter_sr25519(&self) -> impl Iterator<Item = sr25519::Public>;
+    /// Returns an iterator over all [`bls381::Public`] keys that exist in the keystore.
+    #[cfg(feature = "keystore-ecdsa")]
+    fn iter_ecdsa(&self) -> impl Iterator<Item = ecdsa::Public>;
+    /// Returns an iterator over all [`ed25519::Public`] keys that exist in the keystore.
+    #[cfg(feature = "keystore-ed25519")]
+    fn iter_ed25519(&self) -> impl Iterator<Item = ed25519::Public>;
+    /// Returns an iterator over all [`bls381::Public`] keys that exist in the keystore.
+    #[cfg(feature = "keystore-bls381")]
+    fn iter_bls381(&self) -> impl Iterator<Item = bls381::Public>;
 }

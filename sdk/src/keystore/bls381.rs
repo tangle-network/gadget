@@ -26,3 +26,7 @@ pub fn sign(secret: &mut Secret, msg: &[u8]) -> Signature {
 pub fn to_public(secret: &Secret) -> Public {
     secret.clone().into_public()
 }
+
+pub fn secret_from_bytes(bytes: &[u8]) -> Secret {
+    Secret::from_seed(bytes)
+}

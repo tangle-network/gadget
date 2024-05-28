@@ -21,3 +21,7 @@ pub fn sign(secret: &Secret, msg: &[u8]) -> Signature {
     let mut keypair = k256::ecdsa::SigningKey::from(secret);
     keypair.sign(msg)
 }
+
+pub fn secret_from_bytes(bytes: &[u8]) -> k256::elliptic_curve::Result<Secret> {
+    Secret::from_bytes(bytes.into())
+}

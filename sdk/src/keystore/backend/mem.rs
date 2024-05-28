@@ -4,6 +4,7 @@
 use alloc::{collections::BTreeMap, sync::Arc};
 #[cfg(feature = "std")]
 use std::{collections::BTreeMap, sync::Arc};
+#[cfg(feature = "keystore-bls381")]
 use w3f_bls::SerializableToBytes;
 
 use parking_lot::RwLock;
@@ -241,5 +242,33 @@ impl Backend for InMemoryKeystore {
     ) -> Result<Option<bls381::Secret>, crate::keystore::Error> {
         let lock = self.bls381.read();
         Ok(lock.get(&Bls381PublicWrapper(*public)).cloned())
+    }
+
+    #[cfg(feature = "keystore-sr25519")]
+    fn iter_sr25519(&self) -> impl Iterator<Item = sr25519::Public> {
+        let lock = self.sr25519.read();
+        let iter = lock.keys().copied().collect::<Vec<_>>();
+        iter.into_iter()
+    }
+
+    #[cfg(feature = "keystore-ecdsa")]
+    fn iter_ecdsa(&self) -> impl Iterator<Item = ecdsa::Public> {
+        let lock = self.ecdsa.read();
+        let iter = lock.keys().copied().collect::<Vec<_>>();
+        iter.into_iter()
+    }
+
+    #[cfg(feature = "keystore-ed25519")]
+    fn iter_ed25519(&self) -> impl Iterator<Item = ed25519::Public> {
+        let lock = self.ed25519.read();
+        let iter = lock.keys().map(|k| k.0.clone()).collect::<Vec<_>>();
+        iter.into_iter()
+    }
+
+    #[cfg(feature = "keystore-bls381")]
+    fn iter_bls381(&self) -> impl Iterator<Item = bls381::Public> {
+        let lock = self.bls381.read();
+        let iter = lock.keys().map(|k| k.0.clone()).collect::<Vec<_>>();
+        iter.into_iter()
     }
 }

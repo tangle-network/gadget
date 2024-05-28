@@ -12,6 +12,7 @@ thiserror = { workspace = true }
 parking_lot = { workspace = true }
 rand_core = { version = "0.6.4", default-features = false }
 rand = { workspace = true, optional = true }
+hex = { workspace = true, default-features = false }
 
 # Keystore deps
 k256 = { version = "0.13", default-features = false, features = ["arithmetic", "ecdsa"], optional = true  }
@@ -40,8 +41,9 @@ std = [
   "alloc",
   "rand",
   "getrandom",
+  "hex/std",
 ]
-alloc = ["rand_core/alloc"]
+alloc = ["rand_core/alloc", "hex/alloc"]
 full = [
   "keystore",
 ]
@@ -60,3 +62,6 @@ keystore-ecdsa = ["k256"]
 keystore-sr25519 = ["schnorrkel"]
 keystore-ed25519 = ["ed25519-zebra"]
 keystore-bls381 = ["w3f-bls"]
+# Keystore backends
+# Requires: std
+keystore-fs = []

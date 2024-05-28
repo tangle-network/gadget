@@ -20,3 +20,7 @@ pub fn sign(secret: &Secret, msg: &[u8]) -> Signature {
 pub fn to_public(secret: &Secret) -> Public {
     Public::from(secret)
 }
+
+pub fn secret_from_bytes(bytes: &[u8]) -> Result<Secret, ed25519_zebra::Error> {
+    Secret::try_from(bytes).map_err(|_| ed25519_zebra::Error::InvalidSliceLength)
+}
