@@ -261,14 +261,14 @@ impl Backend for InMemoryKeystore {
     #[cfg(feature = "keystore-ed25519")]
     fn iter_ed25519(&self) -> impl Iterator<Item = ed25519::Public> {
         let lock = self.ed25519.read();
-        let iter = lock.keys().map(|k| k.0.clone()).collect::<Vec<_>>();
+        let iter = lock.keys().map(|k| k.0).collect::<Vec<_>>();
         iter.into_iter()
     }
 
     #[cfg(feature = "keystore-bls381")]
     fn iter_bls381(&self) -> impl Iterator<Item = bls381::Public> {
         let lock = self.bls381.read();
-        let iter = lock.keys().map(|k| k.0.clone()).collect::<Vec<_>>();
+        let iter = lock.keys().map(|k| k.0).collect::<Vec<_>>();
         iter.into_iter()
     }
 }

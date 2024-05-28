@@ -57,6 +57,7 @@ keystore = [
   "keystore-sr25519",
   "keystore-ed25519",
   "keystore-bls381",
+  "keystore-fs",
 ]
 keystore-ecdsa = ["k256"]
 keystore-sr25519 = ["schnorrkel"]
