@@ -9,6 +9,9 @@ repository.workspace = true
 
 [dependencies]
 thiserror = { workspace = true }
+parking_lot = { workspace = true }
+rand_core = { version = "0.6.4", default-features = false }
+rand = { workspace = true, optional = true }
 
 # Keystore deps
 k256 = { version = "0.13", default-features = false, features = ["arithmetic", "ecdsa"], optional = true  }
@@ -32,10 +35,19 @@ hyper = { version = "0.14.16", default-features = false, features = ["client"] }
 slog-term = "2.9.1"
 
 [features]
-default = ["full"]
+default = ["full", "std"]
+std = [
+  "alloc",
+  "rand",
+  "getrandom",
+]
+alloc = ["rand_core/alloc"]
 full = [
   "keystore",
 ]
+
+# Randomness
+getrandom = ["rand_core/getrandom"]
 
 # Keystore features
 keystore = [
