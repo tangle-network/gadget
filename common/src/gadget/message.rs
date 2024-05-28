@@ -20,7 +20,7 @@ pub struct TangleProtocolMessage {
     pub to_network_id: Option<ecdsa::Public>,
 }
 
-pub type UserID = u32;
+pub type UserID = u16;
 
 impl ProtocolMessageMetadata<TangleWorkManager> for TangleProtocolMessage {
     fn associated_block_id(&self) -> <TangleWorkManager as WorkManagerInterface>::Clock {
@@ -47,6 +47,14 @@ impl ProtocolMessageMetadata<TangleWorkManager> for TangleProtocolMessage {
         &self,
     ) -> Option<<TangleWorkManager as WorkManagerInterface>::UserID> {
         self.to
+    }
+    
+    fn payload(&self) -> &Vec<u8> {
+        &self.payload
+    }
+    
+    fn payload_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.payload
     }
 }
 

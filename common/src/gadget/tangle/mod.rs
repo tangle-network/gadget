@@ -49,6 +49,7 @@ where
         Error = <TangleEnvironment as GadgetEnvironment>::Error,
         ProtocolMessage = <TangleEnvironment as GadgetEnvironment>::ProtocolMessage,
     >,
+    C: ClientWithApi<<TangleEnvironment as GadgetEnvironment>::Client>,
 {
     type Event = TangleEvent;
     type ProtocolMessage = TangleProtocolMessage;
@@ -94,6 +95,7 @@ where
         ProtocolMessage = TangleNetworkMessage,
         Error = crate::Error,
     >,
+        C: ClientWithApi<<TangleEnvironment as GadgetEnvironment>::Client>
 {
     async fn process_event(&self, notification: TangleEvent) -> Result<(), crate::Error> {
         let now: u64 = notification.number;

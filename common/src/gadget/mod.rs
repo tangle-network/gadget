@@ -30,7 +30,7 @@ pub struct GeneralModule<C, N, M, Env: GadgetEnvironment> {
     protocol: M,
     network: N,
     job_manager: ProtocolWorkManager<TangleWorkManager>,
-    clock: Arc<RwLock<Option<u64>>>,
+    clock: Arc<RwLock<Option<Env::Clock>>>,
     event_handler: Box<dyn EventHandler<C, N, M, Env::Event, Env::Error>>,
 }
 
@@ -57,20 +57,20 @@ impl Default for WorkManagerConfig {
 
 impl<
         Env: GadgetEnvironment,
-        WM: WorkManagerInterface,
-        C: ClientWithApi<Env::Event>,
+        C: ClientWithApi<Env::Event> + ClientWithApi<<Env as GadgetEnvironment>::Client>,
         N: Network<Env::ProtocolMessage, Env::Event>,
         M: GadgetProtocol<Env, C>,
-        Error,
+        Env: GadgetEnvironment<Clock = Arc<parking_lot::lock_api::RwLock<parking_lot::RawRwLock, std::option::Option<Env::Clock>>>>,
     > GeneralModule<C, N, M, Env>
 {
-    pub fn new<Evt: EventHandler<C, N, M, Env::Event, Error>>(
+    pub fn new<Evt: EventHandler<C, N, M, Env::Event, Env::Error>>(
         network: N,
         module: M,
         job_manager: ProtocolWorkManager<Env::JobManager>,
         event_handler: Evt,
-    ) -> Self {
-        let clock = job_manager.utility.clock.clone();
+    ) -> Self 
+    where Evt: EventHandler<C, N, M, <Env as GadgetEnvironment>::Event, <Env as GadgetEnvironment>::Error>,{
+        let clock = job_manager.utility.clock().clone();
         GeneralModule {
             protocol: module,
             job_manager,
@@ -84,12 +84,10 @@ impl<
 #[async_trait]
 impl<
         Env: GadgetEnvironment,
-        WM: WorkManagerInterface,
-        C: ClientWithApi<Env::Event>,
+        C: ClientWithApi<Env> + ClientWithApi<<Env as GadgetEnvironment>::Client> + gadget_core::gadget::general::Client<<Env as GadgetEnvironment>::Event>,
         N: Network<Env::ProtocolMessage, Env::Event>,
         M: GadgetProtocol<Env, C>,
-    > AbstractGadget for GeneralModule<C, N, M, Env>
-{
+    > AbstractGadget for GeneralModule<C, N, M, Env>{
     type Event = Env::Event;
     type ProtocolMessage = Env::ProtocolMessage;
     type Error = Env::Error;
@@ -113,7 +111,7 @@ impl<
         self.job_manager
             .deliver_message(message)
             .map(|_| ())
-            .map_err(|err| crate::Error::WorkManagerError { err })
+            .map_err(|err| Self::Error::from(format!("{err:?}")))
     }
 
     async fn process_error(&self, error: Self::Error) {
@@ -122,6 +120,7 @@ impl<
 }
 
 #[async_trait]
+#[auto_impl::auto_impl(Box)]
 pub trait EventHandler<C, N, M, Event, Error>: Send + Sync + 'static {
     async fn process_event(&self, notification: Event) -> Result<(), Error>;
 }
@@ -131,7 +130,7 @@ pub trait EventHandler<C, N, M, Event, Error>: Send + Sync + 'static {
 impl<
         Env: GadgetEnvironment,
         Error: Send + Sync + 'static,
-        C: ClientWithApi<Env::Event>,
+        C: ClientWithApi<Env::Event> + ClientWithApi<<Env as GadgetEnvironment>::Client>,
         N: Network<Env::ProtocolMessage, Env::Event>,
         M: GadgetProtocol<Env, C>,
     > GadgetWithClient<Env::ProtocolMessage, Env::Event, Error> for GeneralModule<C, N, M, Env>
@@ -171,14 +170,14 @@ pub trait GadgetProtocol<Env: GadgetEnvironment, C: ClientWithApi<Env::Client>>:
     async fn create_next_job(
         &self,
         job: JobInitMetadata,
-        work_manager: &ProtocolWorkManager<TangleWorkManager>,
+        work_manager: &ProtocolWorkManager<Env::JobManager>,
     ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Error>;
 
     /// Process an error that may arise from the work manager, async protocol, or the executor
     async fn process_error(
         &self,
-        error: Error,
-        job_manager: &ProtocolWorkManager<TangleWorkManager>,
+        error: Env::Error,
+        job_manager: &ProtocolWorkManager<Env::JobManager>,
     );
     /// The account ID of this node. Jobs queried will be filtered by this account ID
     fn account_id(&self) -> &sr25519::Public;

@@ -55,7 +55,7 @@ pub type EnqueuedMessage<A, B, C> = HashMap<A, HashMap<B, VecDeque<C>>>;
 
 pub trait WorkManagerInterface: Send + Sync + 'static + Sized {
     type RetryID: Copy + Hash + Eq + PartialEq + Send + Sync + 'static;
-    type UserID: Copy + Hash + Eq + PartialEq + Send + Sync + 'static;
+    type UserID: Debug + Copy + Hash + Eq + PartialEq + Send + Sync + Into<u16> + 'static;
     type Clock: Copy
         + Debug
         + Default
@@ -105,6 +105,8 @@ pub trait ProtocolMessageMetadata<WM: WorkManagerInterface> {
     fn associated_task(&self) -> WM::TaskID;
     fn associated_sender_user_id(&self) -> WM::UserID;
     fn associated_recipient_user_id(&self) -> Option<WM::UserID>;
+    fn payload(&self) -> &Vec<u8>;
+    fn payload_mut(&mut self) -> &mut Vec<u8>;
 }
 
 /// The [`ProtocolRemote`] is the interface between the [`ProtocolWorkManager`] and the async protocol.
@@ -706,6 +708,10 @@ mod tests {
             &self,
         ) -> Option<<TestWorkManager as WorkManagerInterface>::UserID> {
             self.associated_recipient
+        }
+
+        fn payload(&self) -> &Vec<u8> {
+            unimplemented!()
         }
     }
 

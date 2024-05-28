@@ -1,13 +1,12 @@
 //! When delivering messages to an async protocol, we want o make sure we don't mix up voting and public key gossip messages
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
 use crate::environments::GadgetEnvironment;
-use crate::gadget::message::{TangleProtocolMessage, UserID};
+use crate::gadget::message::UserID;
 use crate::gadget::network::Network;
-use crate::gadget::work_manager::TangleWorkManager;
 use crate::prelude::DebugLogger;
-use crate::utils::{deserialize, serialize};
+use crate::utils::deserialize;
 use futures::StreamExt;
-use gadget_core::job_manager::WorkManagerInterface;
+use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use round_based::Msg;
 use round_based_21::{Incoming, MessageDestination, MessageType, MsgId, Outgoing, PartyIndex};
 use serde::de::DeserializeOwned;
@@ -25,11 +24,11 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
 >(
     mut rx_gadget: UnboundedReceiver<Env::ProtocolMessage>,
-    associated_block_id: <TangleWorkManager as WorkManagerInterface>::Clock,
-    associated_retry_id: <TangleWorkManager as WorkManagerInterface>::RetryID,
-    associated_session_id: <TangleWorkManager as WorkManagerInterface>::SessionID,
-    associated_task_id: <TangleWorkManager as WorkManagerInterface>::TaskID,
-    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+    associated_block_id: Env::Clock,
+    associated_retry_id: Env::RetryID,
+    associated_session_id: Env::SessionID,
+    associated_task_id: Env::TaskID,
+    user_id_mapping: Arc<HashMap<Env::UserID, ecdsa::Public>>,
     my_account_id: ecdsa::Public,
     network: N,
     logger: DebugLogger,
@@ -45,7 +44,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     // Take the messages from the gadget and send them to the async protocol
     tokio::task::spawn(async move {
         while let Some(msg) = rx_gadget.recv().await {
-            match deserialize::<MultiplexedChannelMessage<C1, C2>>(&msg.payload) {
+            match deserialize::<MultiplexedChannelMessage<C1, C2>>(msg.payload()) {
                 Ok(msg) => match msg {
                     MultiplexedChannelMessage::Channel1(msg) => {
                         if tx_to_async_proto_1.unbounded_send(Ok(msg)).is_err() {
@@ -459,11 +458,11 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     I: InnerMessage + InnerMessageFromInbound + MaybeSenderReceiver + Send + 'static,
 >(
     mut rx_gadget: UnboundedReceiver<Env::ProtocolMessage>,
-    associated_block_id: <TangleWorkManager as WorkManagerInterface>::Clock,
-    associated_retry_id: <TangleWorkManager as WorkManagerInterface>::RetryID,
-    associated_session_id: <TangleWorkManager as WorkManagerInterface>::SessionID,
-    associated_task_id: <TangleWorkManager as WorkManagerInterface>::TaskID,
-    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+    associated_block_id: Env::Clock,
+    associated_retry_id: Env::RetryID,
+    associated_session_id: Env::SessionID,
+    associated_task_id: Env::TaskID,
+    user_id_mapping: Arc<HashMap<Env::UserID, ecdsa::Public>>,
     my_account_id: ecdsa::Public,
     network: N,
     logger: DebugLogger,
@@ -496,22 +495,24 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     tokio::task::spawn(async move {
         let mut id = 0;
         while let Some(msg_orig) = rx_gadget.recv().await {
-            if msg_orig.payload.is_empty() {
+            if msg_orig.payload().is_empty() {
                 logger.warn(format!(
-                    "Received empty message from Peer {}",
-                    msg_orig.from
+                    "Received empty message from Peer {:?}",
+                    msg_orig.associated_sender_user_id()
                 ));
                 continue;
             }
-            match deserialize::<MultiplexedChannelMessage<O::Inner, C2>>(&msg_orig.payload) {
+
+            match deserialize::<MultiplexedChannelMessage<O::Inner, C2>>(msg_orig.payload()) {
                 Ok(msg) => match msg {
                     MultiplexedChannelMessage::Channel1(msg) => {
                         logger.trace(format!("Received message count: {id}", id = id + 1));
                         logger.trace(format!(
-                            "Received message from {} as {:?}",
-                            msg_orig.from, msg_orig.to
+                            "Received message from {:?} as {:?}",
+                            msg_orig.associated_sender_user_id(),
+                            msg_orig.associated_recipient_user_id()
                         ));
-                        let msg_type = if let Some(to) = msg_orig.to {
+                        let msg_type = if let Some(to) = msg_orig.associated_recipient_user_id() {
                             if let Some(to_account_id) = mapping_clone.get(&to) {
                                 if *to_account_id != my_account_id {
                                     logger.error("Invalid message received");
@@ -528,8 +529,12 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
                             MessageType::Broadcast
                         };
 
-                        let incoming =
-                            I::from_inbound(id, msg_orig.from as PartyIndex, msg_type, msg);
+                        let incoming = I::from_inbound(
+                            id,
+                            msg_orig.associated_sender_user_id().into(),
+                            msg_type,
+                            msg,
+                        );
 
                         if tx_to_async_proto_1.unbounded_send(Ok(incoming)).is_err() {
                             logger.error("Failed to send Incoming message to protocol");
@@ -640,11 +645,11 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
     I2: InnerMessage + InnerMessageFromInbound + MaybeSenderReceiver + Send + 'static,
 >(
     mut rx_gadget: UnboundedReceiver<Env::ProtocolMessage>,
-    associated_block_id: <TangleWorkManager as WorkManagerInterface>::Clock,
-    associated_retry_id: <TangleWorkManager as WorkManagerInterface>::RetryID,
-    associated_session_id: <TangleWorkManager as WorkManagerInterface>::SessionID,
-    associated_task_id: <TangleWorkManager as WorkManagerInterface>::TaskID,
-    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
+    associated_block_id: Env::Clock,
+    associated_retry_id: Env::RetryID,
+    associated_session_id: Env::SessionID,
+    associated_task_id: Env::TaskID,
+    user_id_mapping: Arc<HashMap<Env::UserID, ecdsa::Public>>,
     my_account_id: ecdsa::Public,
     network: N,
     logger: DebugLogger,
@@ -658,26 +663,31 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
     tokio::task::spawn(async move {
         let mut id = 0;
         while let Some(msg_orig) = rx_gadget.recv().await {
-            if msg_orig.payload.is_empty() {
+            if msg_orig.payload().is_empty() {
                 logger.warn(format!(
-                    "Received empty message from Peer {}",
-                    msg_orig.from
+                    "Received empty message from Peer {:?}",
+                    msg_orig.associated_sender_user_id()
                 ));
                 continue;
             }
+
             match deserialize::<MultiplexedChannelMessage<O1::Inner, O2::Inner, C3>>(
-                &msg_orig.payload,
+                msg_orig.payload(),
             ) {
                 Ok(msg) => match msg {
                     MultiplexedChannelMessage::Channel1(msg) => {
-                        let msg_type = if msg_orig.to.is_some() {
+                        let msg_type = if msg_orig.associated_recipient_user_id().is_some() {
                             MessageType::P2P
                         } else {
                             MessageType::Broadcast
                         };
 
-                        let incoming =
-                            I1::from_inbound(id, msg_orig.from as PartyIndex, msg_type, msg);
+                        let incoming = I1::from_inbound(
+                            id,
+                            msg_orig.associated_sender_user_id().into(),
+                            msg_type,
+                            msg,
+                        );
 
                         if tx_to_async_proto_1.unbounded_send(Ok(incoming)).is_err() {
                             logger.error("Failed to send Incoming message to protocol");
@@ -686,14 +696,18 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
                         id += 1;
                     }
                     MultiplexedChannelMessage::Channel2(msg) => {
-                        let msg_type = if msg_orig.to.is_some() {
+                        let msg_type = if msg_orig.associated_recipient_user_id().is_some() {
                             MessageType::P2P
                         } else {
                             MessageType::Broadcast
                         };
 
-                        let incoming =
-                            I2::from_inbound(id, msg_orig.from as PartyIndex, msg_type, msg);
+                        let incoming = I2::from_inbound(
+                            id,
+                            msg_orig.associated_sender_user_id().into(),
+                            msg_type,
+                            msg,
+                        );
 
                         if tx_to_async_proto_2.unbounded_send(Ok(incoming)).is_err() {
                             logger.error("Failed to send Incoming message to protocol");
@@ -759,7 +773,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
         let task1 = async move {
             while let Some(msg) = rx_to_outbound_2.next().await {
                 if let Err(err) =
-                    wrap_message_and_forward_to_network::<Event, _, O1::Inner, O2::Inner, C3, _>(
+                    wrap_message_and_forward_to_network::<Env, _, O1::Inner, O2::Inner, C3, _>(
                         msg,
                         network,
                         user_id_mapping,
@@ -826,10 +840,10 @@ async fn wrap_message_and_forward_to_network<
     network: &N,
     user_id_mapping: &HashMap<UserID, ecdsa::Public>,
     my_user_id: UserID,
-    associated_block_id: <TangleWorkManager as WorkManagerInterface>::Clock,
-    associated_session_id: <TangleWorkManager as WorkManagerInterface>::SessionID,
-    associated_retry_id: <TangleWorkManager as WorkManagerInterface>::RetryID,
-    associated_task_id: <TangleWorkManager as WorkManagerInterface>::TaskID,
+    associated_block_id: Env::Clock,
+    associated_session_id: Env::SessionID,
+    associated_retry_id: Env::RetryID,
+    associated_task_id: Env::TaskID,
     splitter: impl FnOnce(M) -> MultiplexedChannelMessage<C1, C2, C3>,
     logger: &DebugLogger,
 ) -> Result<(), crate::Error>

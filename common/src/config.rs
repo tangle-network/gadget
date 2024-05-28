@@ -16,6 +16,8 @@ pub trait ProtocolConfig<
     ProtocolMessage: Send + Sync + 'static,
 > where
     Self: Sized,
+    <<Self as ProtocolConfig<Env, Event, ProtocolMessage>>::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Event, ProtocolMessage>>::Client: ClientWithApi<<Env as GadgetEnvironment>::Client>
+
 {
     type Network: Network<ProtocolMessage, Event>;
     type Protocol: GadgetProtocol<

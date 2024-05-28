@@ -13,7 +13,7 @@ use crate::Error;
 use async_trait::async_trait;
 use gadget_core::gadget::manager::AbstractGadget;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
-use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use gadget_core::job_manager::{ProtocolMessageMetadata, ProtocolWorkManager, WorkManagerInterface};
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
 use sp_core::ecdsa::{Public, Signature};
@@ -25,12 +25,12 @@ use tokio::sync::mpsc::UnboundedReceiver;
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 
 #[async_trait]
-pub trait FullProtocolConfig<Event, ProtocolMessage>:
+pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     Clone + Send + Sync + Sized + 'static
 {
     type AsyncProtocolParameters: Send + Sync + Clone + 'static;
-    type Client: ClientWithApi<Event>;
-    type Network: Network<ProtocolMessage, Event>;
+    type Client: ClientWithApi<Env::Event>;
+    type Network: Network<Env::ProtocolMessage, Env::Event>;
     type AdditionalNodeParameters: Clone + Send + Sync + 'static;
     type KeystoreBackend: KeystoreBackend;
     async fn new(
@@ -41,14 +41,14 @@ pub trait FullProtocolConfig<Event, ProtocolMessage>:
         account_id: sr25519::Public,
         key_store: ECDSAKeyStore<Self::KeystoreBackend>,
         prometheus_config: PrometheusConfig,
-    ) -> Result<Self, Error>;
+    ) -> Result<Self, Env::Error>;
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <TangleWorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <TangleWorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <TangleWorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <TangleWorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_rx: UnboundedReceiver<ProtocolMessage>,
+        associated_block_id: Env::Clock,
+        associated_retry_id: Env::RetryID,
+        associated_session_id: Env::SessionID,
+        associated_task_id: Env::TaskID,
+        protocol_message_rx: UnboundedReceiver<Env::ProtocolMessage>,
         additional_params: Self::AsyncProtocolParameters,
     ) -> Result<BuiltExecutableJobWrapper, JobError>;
 
@@ -65,13 +65,13 @@ pub trait FullProtocolConfig<Event, ProtocolMessage>:
     async fn create_next_job(
         &self,
         job: JobInitMetadata,
-        work_manager: &ProtocolWorkManager<TangleWorkManager>,
-    ) -> Result<Self::AsyncProtocolParameters, Error>;
+        work_manager: &ProtocolWorkManager<Env::JobManager>,
+    ) -> Result<Self::AsyncProtocolParameters, Env::Error>;
 
     async fn process_error(
         &self,
         error: Error,
-        _job_manager: &ProtocolWorkManager<TangleWorkManager>,
+        _job_manager: &ProtocolWorkManager<Env::JobManager>,
     ) {
         self.logger().error(format!("Error in protocol: {error}"));
     }
@@ -106,19 +106,19 @@ pub trait FullProtocolConfig<Event, ProtocolMessage>:
 }
 
 #[async_trait]
-impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env::Event, Env::ProtocolMessage>>
+impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env>>
     AsyncProtocol<Env> for T
-{
+    where T: FullProtocolConfig<Env>, {
     type AdditionalParams = T::AsyncProtocolParameters;
 
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <TangleWorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <TangleWorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <TangleWorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <TangleWorkManager as WorkManagerInterface>::TaskID,
+        associated_block_id: Env::Clock,
+        associated_retry_id: Env::RetryID,
+        associated_session_id: Env::SessionID,
+        associated_task_id: Env::TaskID,
         protocol_message_rx: UnboundedReceiver<Env::ProtocolMessage>,
-        additional_params: Self::AdditionalParams,
+        additional_params: T::AsyncProtocolParameters::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         T::generate_protocol_from(
             self,
@@ -134,8 +134,8 @@ impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env::Event, Env::ProtocolMess
 }
 
 #[async_trait]
-impl<Event, ProtocolMessage, T: FullProtocolConfig<Event, ProtocolMessage>>
-    NetworkAndProtocolSetup<Event, ProtocolMessage> for T
+impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env>>
+    NetworkAndProtocolSetup<Env::Event, Env::ProtocolMessage> for T
 where
     T::Client: 'static,
     Event: Send + Sync + 'static,
@@ -167,21 +167,21 @@ where
 }
 
 #[async_trait]
-impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env::Event, Env::ProtocolMessage>>
-    GadgetProtocol<Env, T::Client> for T
-{
+impl<Env: GadgetEnvironment<Error = Error>, T: FullProtocolConfig<Env>>
+    GadgetProtocol<Env, T::Client> for T 
+    where <T as FullProtocolConfig<Env>>::Client: ClientWithApi<<Env as GadgetEnvironment>::Client> {
     async fn create_next_job(
         &self,
         job: JobInitMetadata,
-        work_manager: &ProtocolWorkManager<TangleWorkManager>,
-    ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Error> {
+        work_manager: &ProtocolWorkManager<Env::JobManager>,
+    ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Env::Error> {
         T::create_next_job(self, job, work_manager).await
     }
 
     async fn process_error(
         &self,
-        error: Error,
-        job_manager: &ProtocolWorkManager<TangleWorkManager>,
+        error: Env::Error,
+        job_manager: &ProtocolWorkManager<Env::JobManager>,
     ) {
         T::process_error(self, error, job_manager).await;
     }
@@ -219,16 +219,16 @@ impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env::Event, Env::ProtocolMess
 }
 
 #[async_trait]
-impl<Event, ProtocolMessage, T: FullProtocolConfig<Event, ProtocolMessage> + AbstractGadget>
-    Network<ProtocolMessage, Event> for T
+impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env> + AbstractGadget>
+    Network<Env::ProtocolMessage, Env::Event> for T
 where
-    Self: AbstractGadget<ProtocolMessage = ProtocolMessage>,
+    T: AbstractGadget<ProtocolMessage = Env::ProtocolMessage>,
 {
-    async fn next_message(&self) -> Option<ProtocolMessage> {
+    async fn next_message(&self) -> Option<Env::ProtocolMessage> {
         let mut message = T::internal_network(self).next_message().await?;
         if let Some(peer_public_key) = message.from_network_id {
             if let Ok(payload_and_signature) =
-                <PayloadAndSignature as Decode>::decode(&mut message.payload.as_slice())
+                <PayloadAndSignature as Decode>::decode(&mut message.payload().as_slice())
             {
                 let hashed_message = keccak_256(&payload_and_signature.payload);
                 if ecdsa_verify_prehashed(
@@ -236,8 +236,8 @@ where
                     &hashed_message,
                     &peer_public_key,
                 ) {
-                    message.payload = payload_and_signature.payload;
-                    crate::prometheus::BYTES_RECEIVED.inc_by(message.payload.len() as u64);
+                    *message.payload_mut() = payload_and_signature.payload;
+                    crate::prometheus::BYTES_RECEIVED.inc_by(message.payload().len() as u64);
                     return Some(message);
                 } else {
                     self.logger()
@@ -256,18 +256,18 @@ where
         self.next_message().await
     }
 
-    async fn send_message(&self, mut message: ProtocolMessage) -> Result<(), Error> {
+    async fn send_message(&self, mut message: Env::ProtocolMessage) -> Result<(), Error> {
         // Sign the hash of the message
-        let hashed_message = keccak_256(&message.payload);
+        let hashed_message = keccak_256(message.payload());
         let signature = self.key_store().pair().sign_prehashed(&hashed_message);
         let payload_and_signature = PayloadAndSignature {
-            payload: message.payload,
+            payload: message.payload().to_vec(),
             signature,
         };
 
         let serialized_message = Encode::encode(&payload_and_signature);
-        message.payload = serialized_message;
-        crate::prometheus::BYTES_SENT.inc_by(message.payload.len() as u64);
+        *message.payload_mut() = serialized_message;
+        crate::prometheus::BYTES_SENT.inc_by(message.payload().len() as u64);
         T::internal_network(self).send_message(message).await
     }
 

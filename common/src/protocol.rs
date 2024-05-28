@@ -79,18 +79,21 @@ pub trait AsyncProtocol<Env: GadgetEnvironment> {
     }
 }
 
-impl<Env: GadgetEnvironment> ProtocolRemote<TangleWorkManager> for AsyncProtocolRemote<Env> {
+impl<Env> ProtocolRemote<TangleWorkManager> for AsyncProtocolRemote<Env> 
+    where Env: GadgetEnvironment<
+    RetryID = <TangleWorkManager as WorkManagerInterface>::RetryID, 
+    ProtocolMessage = <TangleWorkManager as WorkManagerInterface>::ProtocolMessage,
+    Error = <TangleWorkManager as WorkManagerInterface>::Error,
+    Clock = <TangleWorkManager as WorkManagerInterface>::Clock,
+    SessionID = <TangleWorkManager as WorkManagerInterface>::SessionID,
+    >{
     fn start(&self) -> Result<(), Env::Error> {
         self.start_tx
             .lock()
             .take()
-            .ok_or_else(|| crate::Error::ProtocolRemoteError {
-                err: "Protocol already started".to_string(),
-            })?
+            .ok_or_else(|| Env::Error::from("Protocol already started".to_string()))?
             .send(())
-            .map_err(|_err| crate::Error::ProtocolRemoteError {
-                err: "Unable to start protocol".to_string(),
-            })
+            .map_err(|_err| Env::Error::from("Unable to start protocol".to_string()))
     }
 
     fn session_id(&self) -> <Env::JobManager as WorkManagerInterface>::SessionID {
@@ -105,13 +108,9 @@ impl<Env: GadgetEnvironment> ProtocolRemote<TangleWorkManager> for AsyncProtocol
         self.shutdown_tx
             .lock()
             .take()
-            .ok_or_else(|| crate::Error::ProtocolRemoteError {
-                err: "Protocol already shutdown".to_string(),
-            })?
+            .ok_or_else(|| Env::Error::from("Protocol already shutdown".to_string()))?
             .send(reason)
-            .map_err(|reason| crate::Error::ProtocolRemoteError {
-                err: format!("Unable to shutdown protocol with status {reason:?}"),
-            })
+            .map_err(|reason| Env::Error::from(format!("Unable to shutdown protocol with status {reason:?}")))
     }
 
     fn is_done(&self) -> bool {
@@ -121,9 +120,7 @@ impl<Env: GadgetEnvironment> ProtocolRemote<TangleWorkManager> for AsyncProtocol
     fn deliver_message(&self, message: Env::ProtocolMessage) -> Result<(), Env::Error> {
         self.to_async_protocol
             .send(message)
-            .map_err(|err| crate::Error::ProtocolRemoteError {
-                err: err.to_string(),
-            })
+            .map_err(|err| Env::Error::from(err.to_string()))
     }
 
     fn has_started(&self) -> bool {

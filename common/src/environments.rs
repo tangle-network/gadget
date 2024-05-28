@@ -4,17 +4,25 @@ use crate::gadget::tangle::runtime::TangleRuntime;
 use crate::gadget::tangle::TangleEvent;
 use crate::prelude::{TangleProtocolMessage, TangleWorkManager};
 use crate::utils::serialize;
-use gadget_core::job_manager::WorkManagerInterface;
+use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::Serialize;
 use sp_core::ecdsa;
 use std::error::Error;
+use std::fmt::{Debug, Display};
 
-pub trait GadgetEnvironment {
+pub trait GadgetEnvironment: 'static where
+    Self::JobManager: WorkManagerInterface<Clock = Self::Clock, RetryID = Self::RetryID, TaskID = Self::TaskID, SessionID = Self::SessionID, Error = Self::Error, ProtocolMessage = Self::ProtocolMessage>
+{
     type Event: Send + Sync + 'static;
-    type ProtocolMessage: Send + Sync + 'static;
+    type ProtocolMessage: Send + Sync + 'static + ProtocolMessageMetadata<Self::JobManager>;
     type Client: ClientWithApi<Self::Event> + Send + Sync + 'static;
     type JobManager: WorkManagerInterface;
-    type Error: Error + Send + Sync + 'static;
+    type Error: Error + Send + Sync + From<String> + 'static;
+    type Clock: Display + Copy + Send + Sync + 'static;
+    type RetryID: Display + Copy + Send + Sync + 'static;
+    type TaskID: Debug + Copy + Send + Sync + 'static;
+    type SessionID: Display + Copy + Send + Sync + 'static;
+    type UserID: Debug + Copy + Send + Sync + 'static;
 
     fn build_protocol_message<Payload: Serialize>(
         associated_block_id: <Self::JobManager as WorkManagerInterface>::Clock,
@@ -27,6 +35,10 @@ pub trait GadgetEnvironment {
         from_account_id: Option<ecdsa::Public>,
         to_network_id: Option<ecdsa::Public>,
     ) -> Self::ProtocolMessage;
+
+    fn set_payload(&mut self, input: Vec<u8>, output: &mut Vec<u8>) {
+        *output = input;
+    }
 }
 
 #[derive(Default)]
@@ -38,6 +50,10 @@ impl GadgetEnvironment for TangleEnvironment {
     type Client = TangleRuntime;
     type JobManager = TangleWorkManager;
     type Error = crate::Error;
+    type Clock = <Self::JobManager as WorkManagerInterface>::Clock;
+    type RetryID = <Self::JobManager as WorkManagerInterface>::RetryID;
+    type TaskID = <Self::JobManager as WorkManagerInterface>::TaskID;
+    type SessionID = <Self::JobManager as WorkManagerInterface>::SessionID;
 
     fn build_protocol_message<Payload: Serialize>(
         associated_block_id: <Self::JobManager as WorkManagerInterface>::Clock,
@@ -56,7 +72,7 @@ impl GadgetEnvironment for TangleEnvironment {
             associated_retry_id,
             task_hash: associated_task_id,
             from,
-            to: to.as_user_id(),
+            to,
             payload: serialize(payload).expect("Failed to serialize message"),
             from_network_id: from_account_id,
             to_network_id,

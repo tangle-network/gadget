@@ -121,6 +121,13 @@ pub enum Error {
     JoinError { err: JoinError },
     ParticipantNotSelected { id: ecdsa::Public, reason: String },
     PrometheusError { err: String },
+    Other { err: String },
+}
+
+impl From<String> for crate::Error {
+    fn from(err: String) -> Self {
+        Self::Other { err }
+    }
 }
 
 impl Display for Error {
