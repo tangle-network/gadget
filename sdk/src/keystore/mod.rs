@@ -24,20 +24,20 @@
 
 /// Backend modules
 pub mod backend;
-/// Keystore errors module
-mod error;
+/// BLS381 Support
+#[cfg(feature = "keystore-bls381")]
+mod bls381;
 /// ECDSA Support
 #[cfg(feature = "keystore-ecdsa")]
 mod ecdsa;
 /// Ed25519 Support
 #[cfg(feature = "keystore-ed25519")]
 mod ed25519;
+/// Keystore errors module
+mod error;
 /// Schnorrkel Support
 #[cfg(feature = "keystore-sr25519")]
 mod sr25519;
-/// BLS381 Support
-#[cfg(feature = "keystore-bls381")]
-mod bls381;
 
 pub use error::Error;
 
