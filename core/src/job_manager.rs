@@ -55,7 +55,6 @@ pub type EnqueuedMessage<A, B, C> = HashMap<A, HashMap<B, VecDeque<C>>>;
 
 pub trait WorkManagerInterface: Send + Sync + 'static + Sized {
     type RetryID: Copy + Hash + Eq + PartialEq + Send + Sync + 'static;
-    type UserID: Debug + Copy + Hash + Eq + PartialEq + Send + Sync + Into<u16> + 'static;
     type Clock: Copy
         + Debug
         + Default
@@ -103,9 +102,11 @@ pub trait ProtocolMessageMetadata<WM: WorkManagerInterface> {
     fn associated_session_id(&self) -> WM::SessionID;
     fn associated_retry_id(&self) -> WM::RetryID;
     fn associated_task(&self) -> WM::TaskID;
-    fn associated_sender_user_id(&self) -> WM::UserID;
-    fn associated_recipient_user_id(&self) -> Option<WM::UserID>;
+    fn associated_sender_user_id(&self) -> u16;
+    fn associated_recipient_user_id(&self) -> Option<u16>;
     fn payload(&self) -> &Vec<u8>;
+    fn from_network_id(&self) -> Option<sp_core::ecdsa::Public>;
+    fn to_network_id(&self) -> Option<sp_core::ecdsa::Public>;
     fn payload_mut(&mut self) -> &mut Vec<u8>;
 }
 

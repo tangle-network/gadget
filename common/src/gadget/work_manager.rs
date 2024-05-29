@@ -18,7 +18,6 @@ const ACCEPTABLE_BLOCK_TOLERANCE: u64 = 60;
 
 impl WorkManagerInterface for TangleWorkManager {
     type RetryID = u16;
-    type UserID = UserID;
     type Clock = u64;
     type ProtocolMessage = TangleProtocolMessage;
     type Error = crate::Error;

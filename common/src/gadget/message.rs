@@ -39,22 +39,28 @@ impl ProtocolMessageMetadata<TangleWorkManager> for TangleProtocolMessage {
         self.task_hash
     }
 
-    fn associated_sender_user_id(&self) -> <TangleWorkManager as WorkManagerInterface>::UserID {
+    fn associated_sender_user_id(&self) -> u16 {
         self.from
     }
 
-    fn associated_recipient_user_id(
-        &self,
-    ) -> Option<<TangleWorkManager as WorkManagerInterface>::UserID> {
+    fn associated_recipient_user_id(&self) -> Option<u16> {
         self.to
     }
-    
+
     fn payload(&self) -> &Vec<u8> {
         &self.payload
     }
-    
+
     fn payload_mut(&mut self) -> &mut Vec<u8> {
         &mut self.payload
+    }
+
+    fn from_network_id(&self) -> Option<ecdsa::Public> {
+        self.from_network_id
+    }
+
+    fn to_network_id(&self) -> Option<ecdsa::Public> {
+        self.to_network_id
     }
 }
 

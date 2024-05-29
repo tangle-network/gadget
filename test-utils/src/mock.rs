@@ -41,6 +41,7 @@ pub type BlockNumber = u64;
 pub use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmitter};
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use gadget_common::debug_logger::DebugLogger;
+use gadget_common::environments::GadgetEnvironment;
 use gadget_common::full_protocol::NodeInput;
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::TangleWorkManager;
@@ -466,7 +467,7 @@ impl MockNetwork {
 }
 
 #[async_trait]
-impl Network for MockNetwork {
+impl<Env: GadgetEnvironment> Network<Env> for MockNetwork {
     async fn next_message(
         &self,
     ) -> Option<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage> {

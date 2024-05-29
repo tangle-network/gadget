@@ -13,10 +13,10 @@ use tokio::sync::mpsc::UnboundedReceiver;
 pub struct AsyncProtocolRemote<Env: GadgetEnvironment> {
     pub start_tx: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     pub shutdown_tx: Mutex<Option<tokio::sync::oneshot::Sender<ShutdownReason>>>,
-    pub associated_session_id: <Env::JobManager as WorkManagerInterface>::SessionID,
-    pub associated_block_id: <Env::JobManager as WorkManagerInterface>::Clock,
-    pub associated_retry_id: <Env::JobManager as WorkManagerInterface>::RetryID,
-    pub associated_task_id: <Env::JobManager as WorkManagerInterface>::TaskID,
+    pub associated_session_id: <Env::WorkManager as WorkManagerInterface>::SessionID,
+    pub associated_block_id: <Env::WorkManager as WorkManagerInterface>::Clock,
+    pub associated_retry_id: <Env::WorkManager as WorkManagerInterface>::RetryID,
+    pub associated_task_id: <Env::WorkManager as WorkManagerInterface>::TaskID,
     pub to_async_protocol: tokio::sync::mpsc::UnboundedSender<Env::ProtocolMessage>,
     pub is_done: Arc<AtomicBool>,
 }
@@ -26,20 +26,20 @@ pub trait AsyncProtocol<Env: GadgetEnvironment> {
     type AdditionalParams: Send + Sync + 'static;
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <Env::JobManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <Env::JobManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <Env::JobManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <Env::JobManager as WorkManagerInterface>::TaskID,
+        associated_block_id: <Env::WorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <Env::WorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <Env::WorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <Env::WorkManager as WorkManagerInterface>::TaskID,
         protocol_message_rx: UnboundedReceiver<Env::ProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError>;
 
     async fn create(
         &self,
-        session_id: <Env::JobManager as WorkManagerInterface>::SessionID,
-        now: <Env::JobManager as WorkManagerInterface>::Clock,
-        retry_id: <Env::JobManager as WorkManagerInterface>::RetryID,
-        task_id: <Env::JobManager as WorkManagerInterface>::TaskID,
+        session_id: <Env::WorkManager as WorkManagerInterface>::SessionID,
+        now: <Env::WorkManager as WorkManagerInterface>::Clock,
+        retry_id: <Env::WorkManager as WorkManagerInterface>::RetryID,
+        task_id: <Env::WorkManager as WorkManagerInterface>::TaskID,
         additional_params: Self::AdditionalParams,
     ) -> Result<Job<Env>, JobError> {
         let is_done = Arc::new(AtomicBool::new(false));
@@ -79,14 +79,16 @@ pub trait AsyncProtocol<Env: GadgetEnvironment> {
     }
 }
 
-impl<Env> ProtocolRemote<TangleWorkManager> for AsyncProtocolRemote<Env> 
-    where Env: GadgetEnvironment<
-    RetryID = <TangleWorkManager as WorkManagerInterface>::RetryID, 
-    ProtocolMessage = <TangleWorkManager as WorkManagerInterface>::ProtocolMessage,
-    Error = <TangleWorkManager as WorkManagerInterface>::Error,
-    Clock = <TangleWorkManager as WorkManagerInterface>::Clock,
-    SessionID = <TangleWorkManager as WorkManagerInterface>::SessionID,
-    >{
+impl<Env> ProtocolRemote<TangleWorkManager> for AsyncProtocolRemote<Env>
+where
+    Env: GadgetEnvironment<
+        RetryID = <TangleWorkManager as WorkManagerInterface>::RetryID,
+        ProtocolMessage = <TangleWorkManager as WorkManagerInterface>::ProtocolMessage,
+        Error = <TangleWorkManager as WorkManagerInterface>::Error,
+        Clock = <TangleWorkManager as WorkManagerInterface>::Clock,
+        SessionID = <TangleWorkManager as WorkManagerInterface>::SessionID,
+    >,
+{
     fn start(&self) -> Result<(), Env::Error> {
         self.start_tx
             .lock()
@@ -96,11 +98,11 @@ impl<Env> ProtocolRemote<TangleWorkManager> for AsyncProtocolRemote<Env>
             .map_err(|_err| Env::Error::from("Unable to start protocol".to_string()))
     }
 
-    fn session_id(&self) -> <Env::JobManager as WorkManagerInterface>::SessionID {
+    fn session_id(&self) -> <Env::WorkManager as WorkManagerInterface>::SessionID {
         self.associated_session_id
     }
 
-    fn started_at(&self) -> <Env::JobManager as WorkManagerInterface>::Clock {
+    fn started_at(&self) -> <Env::WorkManager as WorkManagerInterface>::Clock {
         self.associated_block_id
     }
 
@@ -110,7 +112,11 @@ impl<Env> ProtocolRemote<TangleWorkManager> for AsyncProtocolRemote<Env>
             .take()
             .ok_or_else(|| Env::Error::from("Protocol already shutdown".to_string()))?
             .send(reason)
-            .map_err(|reason| Env::Error::from(format!("Unable to shutdown protocol with status {reason:?}")))
+            .map_err(|reason| {
+                Env::Error::from(format!(
+                    "Unable to shutdown protocol with status {reason:?}"
+                ))
+            })
     }
 
     fn is_done(&self) -> bool {
@@ -127,7 +133,7 @@ impl<Env> ProtocolRemote<TangleWorkManager> for AsyncProtocolRemote<Env>
         self.start_tx.lock().is_none()
     }
 
-    fn retry_id(&self) -> <Env::JobManager as WorkManagerInterface>::RetryID {
+    fn retry_id(&self) -> <Env::WorkManager as WorkManagerInterface>::RetryID {
         self.associated_retry_id
     }
 }

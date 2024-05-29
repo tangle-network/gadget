@@ -1,5 +1,5 @@
 use crate::client::ClientWithApi;
-use crate::config::ProtocolConfig;
+use crate::config::{NetworkAndProtocolSetup, ProtocolConfig};
 use crate::gadget::work_manager::TangleWorkManager;
 use crate::gadget::{GadgetProtocol, GeneralModule};
 use crate::prelude::PrometheusConfig;
@@ -20,6 +20,7 @@ use tokio::task::JoinError;
 pub use subxt_signer;
 pub use tangle_subxt;
 pub mod environments;
+use crate::environments::{GadgetEnvironment, TangleEnvironment};
 use gadget_core::gadget::general::{Client, GeneralGadget};
 
 #[allow(ambiguous_glob_reexports)]
@@ -145,10 +146,10 @@ impl From<JobError> for Error {
 }
 
 // TODO: Replace AbstractGadgetT with Environment (e.g., TangleEnvironment)
-/*
-pub async fn run_protocol<AbstractGadgetT: AbstractGadget, T: ProtocolConfig<AbstractGadgetT>>(
+pub async fn run_protocol<Env: GadgetEnvironment, T: ProtocolConfig<Env>>(
     mut protocol_config: T,
-) -> Result<(), Error> {
+) -> Result<(), Error>
+where <<T as ProtocolConfig<Env>>::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Env>>::Client: ClientWithApi<<Env as GadgetEnvironment>::Client>{
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
@@ -158,7 +159,8 @@ pub async fn run_protocol<AbstractGadgetT: AbstractGadget, T: ProtocolConfig<Abs
     // Before running, wait for the first finality notification we receive
     let latest_finality_notification = get_latest_event_from_client(&client).await?;
     let work_manager = create_work_manager(&latest_finality_notification, &protocol).await?;
-    let proto_module = GeneralModule::new(network.clone(), protocol, work_manager);
+    let proto_module =
+        GeneralModule::new(network.clone(), protocol, work_manager, TangleEnvironment);
     // Plug the module into the general gadget to interface the WebbGadget with Substrate
     let substrate_gadget = GeneralGadget::new(client, proto_module);
     let network_future = network.run();
@@ -193,13 +195,14 @@ pub async fn run_protocol<AbstractGadgetT: AbstractGadget, T: ProtocolConfig<Abs
 
 /// Creates a work manager
 pub async fn create_work_manager<
+    Env: GadgetEnvironment,
     AbstractGadgetT: AbstractGadget,
     C: ClientWithApi<AbstractGadgetT::Event>,
-    P: GadgetProtocol<AbstractGadgetT::Event, C>,
+    P: GadgetProtocol<Env, C>,
 >(
     latest_event: &AbstractGadgetT::Event,
     protocol: &P,
-) -> Result<ProtocolWorkManager<WorkManager>, Error> {
+) -> Result<ProtocolWorkManager<Env::WorkManager>, Error> {
     let now: u64 = latest_finality_notification.number;
 
     let work_manager_config = protocol.get_work_manager_config();
@@ -429,4 +432,3 @@ macro_rules! generate_protocol {
         }
     };
 }
-*/

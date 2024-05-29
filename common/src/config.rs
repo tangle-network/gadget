@@ -10,30 +10,26 @@ use gadget_core::gadget::manager::AbstractGadget;
 use std::sync::Arc;
 
 #[async_trait]
-pub trait ProtocolConfig<
-    Env: GadgetEnvironment,
-    Event: Send + Sync + 'static,
-    ProtocolMessage: Send + Sync + 'static,
-> where
+pub trait ProtocolConfig<Env: GadgetEnvironment>
+where
     Self: Sized,
-    <<Self as ProtocolConfig<Env, Event, ProtocolMessage>>::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Event, ProtocolMessage>>::Client: ClientWithApi<<Env as GadgetEnvironment>::Client>
-
+    <<Self as ProtocolConfig<Env>>::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<
+        Env,
+    >>::Client: ClientWithApi<<Env as GadgetEnvironment>::Client>,
 {
-    type Network: Network<ProtocolMessage, Event>;
+    type Network: Network<Env>;
     type Protocol: GadgetProtocol<
         Env,
-        <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Event, ProtocolMessage>>::Client,
+        <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Env>>::Client,
     >;
-    type ProtocolSpecificConfiguration: Clone
-        + NetworkAndProtocolSetup<Event, ProtocolMessage>
-        + Sync;
+    type ProtocolSpecificConfiguration: Clone + NetworkAndProtocolSetup<Env> + Sync;
     fn params(&self) -> &Self::ProtocolSpecificConfiguration;
 
     fn take_network(&mut self) -> Self::Network;
     fn take_protocol(&mut self) -> Self::Protocol;
     fn take_client(
         &mut self,
-    ) -> <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Event, ProtocolMessage>>::Client;
+    ) -> <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Env>>::Client;
     fn prometheus_config(&self) -> PrometheusConfig;
 
     async fn build(&self) -> Result<Self, crate::Error> {
@@ -60,15 +56,9 @@ pub trait ProtocolConfig<
     }
 
     fn new(
-        network: <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<
-            Event,
-            ProtocolMessage,
-        >>::Network,
-        client: <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<
-            Event,
-            ProtocolMessage,
-        >>::Client,
-        protocol: <<Self as ProtocolConfig<Env, Event, ProtocolMessage>>::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Event, ProtocolMessage>>::Protocol,
+        network: <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Env>>::Network,
+        client: <Self::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Env>>::Client,
+        protocol: <<Self as ProtocolConfig<Env>>::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Env>>::Protocol,
         params: Self::ProtocolSpecificConfiguration,
         pallet_tx: Arc<dyn PalletSubmitter>,
         logger: DebugLogger,
@@ -88,18 +78,20 @@ pub trait ProtocolConfig<
 }
 
 #[async_trait]
-pub trait NetworkAndProtocolSetup<Event: Send + Sync + 'static, ProtocolMessage> {
+pub trait NetworkAndProtocolSetup<Env: GadgetEnvironment> {
     type Network;
     type Protocol;
-    type Client: ClientWithApi<Event>;
+    type Client: ClientWithApi<Env::Event>;
 
-    async fn build_jobs_client(&self) -> Result<JobsClient<Self::Client, Event>, crate::Error> {
+    async fn build_jobs_client(
+        &self,
+    ) -> Result<JobsClient<Self::Client, Env::Event>, crate::Error> {
         create_client(self.client(), self.logger(), self.pallet_tx()).await
     }
 
     async fn build_network_and_protocol(
         &self,
-        jobs_client: JobsClient<Self::Client, Event>,
+        jobs_client: JobsClient<Self::Client, Env::Event>,
     ) -> Result<(Self::Network, Self::Protocol), crate::Error>;
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
     fn logger(&self) -> DebugLogger;

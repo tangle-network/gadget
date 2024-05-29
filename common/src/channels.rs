@@ -6,7 +6,7 @@ use crate::gadget::network::Network;
 use crate::prelude::DebugLogger;
 use crate::utils::deserialize;
 use futures::StreamExt;
-use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
+use gadget_core::job_manager::ProtocolMessageMetadata;
 use round_based::Msg;
 use round_based_21::{Incoming, MessageDestination, MessageType, MsgId, Outgoing, PartyIndex};
 use serde::de::DeserializeOwned;
@@ -19,7 +19,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 #[allow(clippy::too_many_arguments)]
 pub fn create_job_manager_to_async_protocol_channel_split<
     Env: GadgetEnvironment,
-    N: Network<Env::ProtocolMessage, Env::Event>,
+    N: Network<Env>,
     C1: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
 >(
@@ -28,7 +28,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     associated_retry_id: Env::RetryID,
     associated_session_id: Env::SessionID,
     associated_task_id: Env::TaskID,
-    user_id_mapping: Arc<HashMap<Env::UserID, ecdsa::Public>>,
+    user_id_mapping: Arc<HashMap<u16, ecdsa::Public>>,
     my_account_id: ecdsa::Public,
     network: N,
     logger: DebugLogger,
@@ -139,10 +139,10 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     )
 }
 
-pub fn get_to_and_from_account_id(
-    mapping: &HashMap<UserID, ecdsa::Public>,
-    from: UserID,
-    to: Option<UserID>,
+pub fn get_to_and_from_account_id<Env: GadgetEnvironment>(
+    mapping: &HashMap<u16, ecdsa::Public>,
+    from: u16,
+    to: Option<u16>,
     logger: &DebugLogger,
 ) -> (Option<ecdsa::Public>, Option<ecdsa::Public>) {
     let from_account_id = mapping.get(&from).cloned();
@@ -452,7 +452,7 @@ pub type DuplexedChannel<O, I, C2> = (
 #[allow(clippy::too_many_arguments)]
 pub fn create_job_manager_to_async_protocol_channel_split_io<
     Env: GadgetEnvironment,
-    N: Network<Env::ProtocolMessage, Env::Event>,
+    N: Network<Env>,
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     O: InnerMessage<Inner = I::Inner> + MaybeSenderReceiver + Send + 'static,
     I: InnerMessage + InnerMessageFromInbound + MaybeSenderReceiver + Send + 'static,
@@ -462,7 +462,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     associated_retry_id: Env::RetryID,
     associated_session_id: Env::SessionID,
     associated_task_id: Env::TaskID,
-    user_id_mapping: Arc<HashMap<Env::UserID, ecdsa::Public>>,
+    user_id_mapping: Arc<HashMap<u16, ecdsa::Public>>,
     my_account_id: ecdsa::Public,
     network: N,
     logger: DebugLogger,
@@ -484,7 +484,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
         })
         .expect("Failed to find my user id");
 
-    if my_user_id != i as u32 {
+    if my_user_id != i {
         logger.error(format!(
             "My user id is not equal to i: {} != {}",
             my_user_id, i
@@ -637,7 +637,7 @@ pub type TriplexedChannel<O1, I1, O2, I2, C2> = (
 #[allow(clippy::too_many_arguments)]
 pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
     Env: GadgetEnvironment,
-    N: Network<Env::ProtocolMessage, Env::Event> + 'static,
+    N: Network<Env> + 'static,
     C3: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     O1: InnerMessage<Inner = I1::Inner> + MaybeSenderReceiver + Send + 'static,
     I1: InnerMessage + InnerMessageFromInbound + MaybeSenderReceiver + Send + 'static,
@@ -649,7 +649,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
     associated_retry_id: Env::RetryID,
     associated_session_id: Env::SessionID,
     associated_task_id: Env::TaskID,
-    user_id_mapping: Arc<HashMap<Env::UserID, ecdsa::Public>>,
+    user_id_mapping: Arc<HashMap<u16, ecdsa::Public>>,
     my_account_id: ecdsa::Public,
     network: N,
     logger: DebugLogger,
@@ -830,7 +830,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
 #[allow(clippy::too_many_arguments)]
 async fn wrap_message_and_forward_to_network<
     Env: GadgetEnvironment,
-    N: Network<Env::ProtocolMessage, Env::Event>,
+    N: Network<Env>,
     C1: Serialize,
     C2: Serialize,
     C3: Serialize,
@@ -838,8 +838,8 @@ async fn wrap_message_and_forward_to_network<
 >(
     msg: M,
     network: &N,
-    user_id_mapping: &HashMap<UserID, ecdsa::Public>,
-    my_user_id: UserID,
+    user_id_mapping: &HashMap<u16, ecdsa::Public>,
+    my_user_id: u16,
     associated_block_id: Env::Clock,
     associated_session_id: Env::SessionID,
     associated_retry_id: Env::RetryID,
@@ -853,7 +853,7 @@ where
     let from = msg.maybe_sender();
     let to = msg.maybe_receiver();
     logger.trace(format!("Sending message from {:?} to {:?}", from, to));
-    let (to_account_id, from_account_id) = get_to_and_from_account_id(
+    let (to_account_id, from_account_id) = get_to_and_from_account_id::<Env>(
         user_id_mapping,
         from.as_user_id().unwrap_or(my_user_id),
         to.as_user_id(),

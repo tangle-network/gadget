@@ -2,7 +2,6 @@ use crate::config::GadgetProtocol;
 use crate::environments::{GadgetEnvironment, TangleEnvironment};
 use crate::gadget::{EventHandler, GeneralModule, MetricizedJob};
 use crate::prelude::{ClientWithApi, TangleProtocolMessage, TangleWorkManager};
-use crate::protocol::AsyncProtocol;
 use crate::tangle_runtime::AccountId32;
 use async_trait::async_trait;
 use gadget_core::gadget::manager::AbstractGadget;
@@ -95,7 +94,7 @@ where
         ProtocolMessage = TangleNetworkMessage,
         Error = crate::Error,
     >,
-        C: ClientWithApi<<TangleEnvironment as GadgetEnvironment>::Client>
+    C: ClientWithApi<<TangleEnvironment as GadgetEnvironment>::Client>,
 {
     async fn process_event(&self, notification: TangleEvent) -> Result<(), crate::Error> {
         let now: u64 = notification.number;

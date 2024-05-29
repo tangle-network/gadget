@@ -3,7 +3,6 @@ use crate::tangle_runtime::*;
 use async_trait::async_trait;
 use auto_impl::auto_impl;
 use gadget_core::gadget::general::Client;
-use gadget_core::gadget::manager::AbstractGadget;
 use sp_core::{ecdsa, ByteArray};
 use sp_core::{sr25519, Pair};
 use std::marker::PhantomData;

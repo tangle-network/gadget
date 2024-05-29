@@ -10,27 +10,34 @@ use sp_core::ecdsa;
 use std::error::Error;
 use std::fmt::{Debug, Display};
 
-pub trait GadgetEnvironment: 'static where
-    Self::JobManager: WorkManagerInterface<Clock = Self::Clock, RetryID = Self::RetryID, TaskID = Self::TaskID, SessionID = Self::SessionID, Error = Self::Error, ProtocolMessage = Self::ProtocolMessage>
+pub trait GadgetEnvironment: 'static
+where
+    Self::WorkManager: WorkManagerInterface<
+        Clock = Self::Clock,
+        RetryID = Self::RetryID,
+        TaskID = Self::TaskID,
+        SessionID = Self::SessionID,
+        Error = Self::Error,
+        ProtocolMessage = Self::ProtocolMessage,
+    >,
 {
     type Event: Send + Sync + 'static;
-    type ProtocolMessage: Send + Sync + 'static + ProtocolMessageMetadata<Self::JobManager>;
+    type ProtocolMessage: Send + Sync + 'static + ProtocolMessageMetadata<Self::WorkManager>;
     type Client: ClientWithApi<Self::Event> + Send + Sync + 'static;
-    type JobManager: WorkManagerInterface;
+    type WorkManager: WorkManagerInterface;
     type Error: Error + Send + Sync + From<String> + 'static;
     type Clock: Display + Copy + Send + Sync + 'static;
     type RetryID: Display + Copy + Send + Sync + 'static;
     type TaskID: Debug + Copy + Send + Sync + 'static;
     type SessionID: Display + Copy + Send + Sync + 'static;
-    type UserID: Debug + Copy + Send + Sync + 'static;
 
     fn build_protocol_message<Payload: Serialize>(
-        associated_block_id: <Self::JobManager as WorkManagerInterface>::Clock,
-        associated_session_id: <Self::JobManager as WorkManagerInterface>::SessionID,
-        associated_retry_id: <Self::JobManager as WorkManagerInterface>::RetryID,
-        associated_task_id: <Self::JobManager as WorkManagerInterface>::TaskID,
-        from: UserID,
-        to: Option<UserID>,
+        associated_block_id: <Self::WorkManager as WorkManagerInterface>::Clock,
+        associated_session_id: <Self::WorkManager as WorkManagerInterface>::SessionID,
+        associated_retry_id: <Self::WorkManager as WorkManagerInterface>::RetryID,
+        associated_task_id: <Self::WorkManager as WorkManagerInterface>::TaskID,
+        from: u16,
+        to: Option<u16>,
         payload: &Payload,
         from_account_id: Option<ecdsa::Public>,
         to_network_id: Option<ecdsa::Public>,
@@ -48,18 +55,18 @@ impl GadgetEnvironment for TangleEnvironment {
     type Event = TangleEvent;
     type ProtocolMessage = TangleProtocolMessage;
     type Client = TangleRuntime;
-    type JobManager = TangleWorkManager;
+    type WorkManager = TangleWorkManager;
     type Error = crate::Error;
-    type Clock = <Self::JobManager as WorkManagerInterface>::Clock;
-    type RetryID = <Self::JobManager as WorkManagerInterface>::RetryID;
-    type TaskID = <Self::JobManager as WorkManagerInterface>::TaskID;
-    type SessionID = <Self::JobManager as WorkManagerInterface>::SessionID;
+    type Clock = <Self::WorkManager as WorkManagerInterface>::Clock;
+    type RetryID = <Self::WorkManager as WorkManagerInterface>::RetryID;
+    type TaskID = <Self::WorkManager as WorkManagerInterface>::TaskID;
+    type SessionID = <Self::WorkManager as WorkManagerInterface>::SessionID;
 
     fn build_protocol_message<Payload: Serialize>(
-        associated_block_id: <Self::JobManager as WorkManagerInterface>::Clock,
-        associated_session_id: <Self::JobManager as WorkManagerInterface>::SessionID,
-        associated_retry_id: <Self::JobManager as WorkManagerInterface>::RetryID,
-        associated_task_id: <Self::JobManager as WorkManagerInterface>::TaskID,
+        associated_block_id: <Self::WorkManager as WorkManagerInterface>::Clock,
+        associated_session_id: <Self::WorkManager as WorkManagerInterface>::SessionID,
+        associated_retry_id: <Self::WorkManager as WorkManagerInterface>::RetryID,
+        associated_task_id: <Self::WorkManager as WorkManagerInterface>::TaskID,
         from: UserID,
         to: Option<UserID>,
         payload: &Payload,

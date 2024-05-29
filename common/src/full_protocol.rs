@@ -13,7 +13,7 @@ use crate::Error;
 use async_trait::async_trait;
 use gadget_core::gadget::manager::AbstractGadget;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
-use gadget_core::job_manager::{ProtocolMessageMetadata, ProtocolWorkManager, WorkManagerInterface};
+use gadget_core::job_manager::{ProtocolMessageMetadata, ProtocolWorkManager};
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
 use sp_core::ecdsa::{Public, Signature};
@@ -30,7 +30,7 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
 {
     type AsyncProtocolParameters: Send + Sync + Clone + 'static;
     type Client: ClientWithApi<Env::Event>;
-    type Network: Network<Env::ProtocolMessage, Env::Event>;
+    type Network: Network<Env>;
     type AdditionalNodeParameters: Clone + Send + Sync + 'static;
     type KeystoreBackend: KeystoreBackend;
     async fn new(
@@ -65,13 +65,13 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     async fn create_next_job(
         &self,
         job: JobInitMetadata,
-        work_manager: &ProtocolWorkManager<Env::JobManager>,
+        work_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) -> Result<Self::AsyncProtocolParameters, Env::Error>;
 
     async fn process_error(
         &self,
         error: Error,
-        _job_manager: &ProtocolWorkManager<Env::JobManager>,
+        _job_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) {
         self.logger().error(format!("Error in protocol: {error}"));
     }
@@ -87,13 +87,13 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
         job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     ) -> bool;
 
-    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Client, Event>>;
+    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Client, Env::Event>>;
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
 
     fn logger(&self) -> DebugLogger;
 
     fn client(&self) -> Self::Client;
-    fn get_jobs_client(&self) -> JobsClient<Self::Client, Event> {
+    fn get_jobs_client(&self) -> JobsClient<Self::Client, Env::Event> {
         self.jobs_client()
             .lock()
             .clone()
@@ -105,6 +105,7 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     }
 }
 
+/*
 #[async_trait]
 impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env>>
     AsyncProtocol<Env> for T
@@ -118,7 +119,7 @@ impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env>>
         associated_session_id: Env::SessionID,
         associated_task_id: Env::TaskID,
         protocol_message_rx: UnboundedReceiver<Env::ProtocolMessage>,
-        additional_params: T::AsyncProtocolParameters::AdditionalParams,
+        additional_params: <T as FullProtocolConfig<Env>>::AsyncProtocolParameters,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         T::generate_protocol_from(
             self,
@@ -131,14 +132,14 @@ impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env>>
         )
         .await
     }
-}
+}*/
 
 #[async_trait]
-impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env>>
-    NetworkAndProtocolSetup<Env::Event, Env::ProtocolMessage> for T
+impl<Env, T> NetworkAndProtocolSetup<Env> for T
 where
+    Env: GadgetEnvironment,
+    T: FullProtocolConfig<Env>,
     T::Client: 'static,
-    Event: Send + Sync + 'static,
 {
     type Network = T;
     type Protocol = T;
@@ -146,7 +147,7 @@ where
 
     async fn build_network_and_protocol(
         &self,
-        jobs_client: JobsClient<Self::Client, Event>,
+        jobs_client: JobsClient<Self::Client, Env::Event>,
     ) -> Result<(Self::Network, Self::Protocol), Error> {
         let jobs_client_store = T::jobs_client(self);
         jobs_client_store.lock().replace(jobs_client);
@@ -167,13 +168,16 @@ where
 }
 
 #[async_trait]
-impl<Env: GadgetEnvironment<Error = Error>, T: FullProtocolConfig<Env>>
-    GadgetProtocol<Env, T::Client> for T 
-    where <T as FullProtocolConfig<Env>>::Client: ClientWithApi<<Env as GadgetEnvironment>::Client> {
+impl<Env: GadgetEnvironment<Error = Error>, T: FullProtocolConfig<Env> + AsyncProtocol<Env>>
+    GadgetProtocol<Env, T::Client> for T
+where
+    <T as FullProtocolConfig<Env>>::Client: ClientWithApi<<Env as GadgetEnvironment>::Client>,
+    T: AsyncProtocol<Env, AdditionalParams = T::AsyncProtocolParameters>,
+{
     async fn create_next_job(
         &self,
         job: JobInitMetadata,
-        work_manager: &ProtocolWorkManager<Env::JobManager>,
+        work_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Env::Error> {
         T::create_next_job(self, job, work_manager).await
     }
@@ -181,7 +185,7 @@ impl<Env: GadgetEnvironment<Error = Error>, T: FullProtocolConfig<Env>>
     async fn process_error(
         &self,
         error: Env::Error,
-        job_manager: &ProtocolWorkManager<Env::JobManager>,
+        job_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) {
         T::process_error(self, error, job_manager).await;
     }
@@ -219,14 +223,14 @@ impl<Env: GadgetEnvironment<Error = Error>, T: FullProtocolConfig<Env>>
 }
 
 #[async_trait]
-impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env> + AbstractGadget>
-    Network<Env::ProtocolMessage, Env::Event> for T
+impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env> + AbstractGadget> Network<Env> for T
 where
     T: AbstractGadget<ProtocolMessage = Env::ProtocolMessage>,
 {
     async fn next_message(&self) -> Option<Env::ProtocolMessage> {
         let mut message = T::internal_network(self).next_message().await?;
-        if let Some(peer_public_key) = message.from_network_id {
+        let peer_public_key = message.from_network_id();
+        if let Some(peer_public_key) = peer_public_key {
             if let Ok(payload_and_signature) =
                 <PayloadAndSignature as Decode>::decode(&mut message.payload().as_slice())
             {
@@ -249,7 +253,7 @@ where
             }
         } else {
             self.logger()
-                .warn("Received a message without a valid sender public key.")
+                .warn("Received a message without a valid public key from sender");
         }
 
         // This message was invalid. Thus, poll the next message
@@ -279,12 +283,7 @@ where
 /// Used for constructing an instance of a node. If there is both a keygen and a signing protocol, then,
 /// the length of the vectors are 2. The length of the vector is equal to the numbers of protocols that
 /// the constructed node is going to concurrently execute
-pub struct NodeInput<
-    Env: GadgetEnvironment,
-    N: Network<Env::ProtocolMessage, Env::Event>,
-    KBE: KeystoreBackend,
-    D,
-> {
+pub struct NodeInput<Env: GadgetEnvironment, N: Network<Env>, KBE: KeystoreBackend, D> {
     pub clients: Vec<Env::Client>,
     pub networks: Vec<N>,
     pub account_id: sr25519::Public,
