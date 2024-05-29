@@ -1,6 +1,6 @@
 //! Keystore backend implementations.
 
-/// In Memory Keystore Backend
+/// In-Memory Keystore Backend
 pub mod mem;
 
 /// Filesystem Keystore Backend

@@ -13,7 +13,7 @@ enum KeyType {
     Bls381 = 0x03,
 }
 
-/// The filesystem keystore backend. it stores keys in files, where each file
+/// The filesystem keystore backend. It stores keys in files, where each file
 /// is named after the public key and contains the private key.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilesystemKeystore {

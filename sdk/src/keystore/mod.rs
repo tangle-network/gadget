@@ -6,10 +6,12 @@
 //! Currently, we support different backends:
 //!
 //! - `memory`: A simple in-memory storage (enabled by default)
-//! - `file`: A storage that saves the keys to a file (`keystore-file` feature)
-//! - `kms`: A storage that uses a AWS Key Management System (`keystore-kms` feature)
-//! - `substrate`: Uses Substrate's Framewrok keystore (`keystore-substrate` feature)
+//! - `file`: A storage that saves the keys to a file (`keystore-fs` feature)
+//! - `kms`: A storage that uses a AWS Key Management System (`keystore-kms` feature)*
+//! - `substrate`: Uses Substrate's Framework keystore (`keystore-substrate` feature)*
 //! and a lot more to be added in the future.
+//!
+//! Note: The `kms` and `substrate` backends are not yet implemented.
 //!
 //! In Addition, the module provides a `Keystore` trait that can be implemented by any backend
 //! and this trait offers the following methods:
@@ -24,18 +26,15 @@
 pub mod backend;
 /// Keystore errors module
 mod error;
-
 /// ECDSA Support
 #[cfg(feature = "keystore-ecdsa")]
 mod ecdsa;
 /// Ed25519 Support
 #[cfg(feature = "keystore-ed25519")]
 mod ed25519;
-
 /// Schnorrkel Support
 #[cfg(feature = "keystore-sr25519")]
 mod sr25519;
-
 /// BLS381 Support
 #[cfg(feature = "keystore-bls381")]
 mod bls381;
@@ -148,7 +147,6 @@ pub trait Backend {
         &self,
         public: &sr25519::Public,
     ) -> Result<Option<sr25519::Secret>, Error>;
-
     /// Returns the [`ecdsa::Secret`] for the given [`ecdsa::Public`] if it does exist, otherwise returns `None`.
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.
@@ -170,7 +168,6 @@ pub trait Backend {
         &self,
         public: &bls381::Public,
     ) -> Result<Option<bls381::Secret>, Error>;
-
     /// Returns an iterator over all [`sr25519::Public`] keys that exist in the keystore.
     #[cfg(feature = "keystore-sr25519")]
     fn iter_sr25519(&self) -> impl Iterator<Item = sr25519::Public>;

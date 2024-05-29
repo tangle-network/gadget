@@ -1,4 +1,4 @@
-//! In Memory Keystore Backend that supports different cryptographic key operations such as key generation, signing, and public key retrieval.
+//! In-Memory Keystore Backend that supports different cryptographic key operations such as key generation, signing, and public key retrieval.
 
 #[cfg(not(feature = "std"))]
 use alloc::{collections::BTreeMap, sync::Arc};
@@ -60,7 +60,7 @@ impl Ord for Bls381PublicWrapper {
     }
 }
 
-/// The In Memory Keystore Backend. It stores everything in memory
+/// The In-Memory Keystore Backend. It stores everything in memory
 /// and does not persist anything, once dropped all the keys are lost, so use with caution.
 /// This is useful for testing and development purposes.
 /// It implements the [`crate::keystore::Backend`] trait.
@@ -86,7 +86,7 @@ impl core::fmt::Debug for InMemoryKeystore {
 }
 
 impl InMemoryKeystore {
-    /// Create a new In Memory Keystore Backend.
+    /// Create a new In-Memory Keystore Backend.
     #[must_use]
     pub fn new() -> Self {
         Self::default()

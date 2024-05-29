@@ -22,7 +22,7 @@ pub fn getrandom_or_panic() -> impl RngCore + CryptoRng {
 pub fn getrandom_or_panic() -> impl RngCore + CryptoRng {
     const PRM: &'static str = "Attempted to use functionality that requires system randomness!!";
 
-    // Should we panic when invoked or when used?
+    // TODO: Should we panic when invoked or when used?
 
     struct PanicRng;
     impl rand_core::RngCore for PanicRng {
