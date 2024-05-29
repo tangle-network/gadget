@@ -58,7 +58,7 @@ impl Default for WorkManagerConfig {
 impl<
         Clk: Clone,
         Env: GadgetEnvironment<Clock = Clk>,
-        C: ClientWithApi<Env::Event> + ClientWithApi<<Env as GadgetEnvironment>::Client>,
+        C: ClientWithApi<Env>,
         N: Network<Env>,
         M: GadgetProtocol<Env, C>,
     > GeneralModule<C, N, M, Env>
@@ -95,7 +95,6 @@ where
 impl<
         Env: GadgetEnvironment,
         C: ClientWithApi<Env>
-            + ClientWithApi<<Env as GadgetEnvironment>::Client>
             + gadget_core::gadget::general::Client<<Env as GadgetEnvironment>::Event>,
         N: Network<Env>,
         M: GadgetProtocol<Env, C>,
@@ -143,7 +142,7 @@ pub trait EventHandler<C, N, M, Event, Error>: Send + Sync + 'static {
 impl<
         Env: GadgetEnvironment,
         Error: Send + Sync + 'static,
-        C: ClientWithApi<Env::Event> + ClientWithApi<<Env as GadgetEnvironment>::Client>,
+        C: ClientWithApi<Env>,
         N: Network<Env>,
         M: GadgetProtocol<Env, C>,
     > GadgetWithClient<Env::ProtocolMessage, Env::Event, Error> for GeneralModule<C, N, M, Env>
@@ -173,7 +172,7 @@ where
 pub type Job<Env> = (AsyncProtocolRemote<Env>, BuiltExecutableJobWrapper);
 
 #[async_trait]
-pub trait GadgetProtocol<Env: GadgetEnvironment, C: ClientWithApi<Env::Client>>:
+pub trait GadgetProtocol<Env: GadgetEnvironment, C: ClientWithApi<Env>>:
     AsyncProtocol<Env> + Send + Sync + 'static
 {
     /// Given an input of a valid and relevant job, return the parameters needed to start the async protocol

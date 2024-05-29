@@ -15,7 +15,7 @@ where
     Self: Sized,
     <<Self as ProtocolConfig<Env>>::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<
         Env,
-    >>::Client: ClientWithApi<<Env as GadgetEnvironment>::Client>,
+    >>::Client: ClientWithApi<Env>,
 {
     type Network: Network<Env>;
     type Protocol: GadgetProtocol<
@@ -81,7 +81,7 @@ where
 pub trait NetworkAndProtocolSetup<Env: GadgetEnvironment> {
     type Network;
     type Protocol;
-    type Client: ClientWithApi<Env::Event>;
+    type Client: ClientWithApi<Env>;
 
     async fn build_jobs_client(
         &self,

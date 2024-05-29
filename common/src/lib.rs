@@ -145,11 +145,9 @@ impl From<JobError> for Error {
     }
 }
 
-// TODO: Replace AbstractGadgetT with Environment (e.g., TangleEnvironment)
 pub async fn run_protocol<Env: GadgetEnvironment, T: ProtocolConfig<Env>>(
     mut protocol_config: T,
-) -> Result<(), Error>
-where <<T as ProtocolConfig<Env>>::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Env>>::Client: ClientWithApi<<Env as GadgetEnvironment>::Client>{
+) -> Result<(), Error>{
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
@@ -196,14 +194,13 @@ where <<T as ProtocolConfig<Env>>::ProtocolSpecificConfiguration as NetworkAndPr
 /// Creates a work manager
 pub async fn create_work_manager<
     Env: GadgetEnvironment,
-    AbstractGadgetT: AbstractGadget,
-    C: ClientWithApi<AbstractGadgetT::Event>,
+    C: ClientWithApi<Env>,
     P: GadgetProtocol<Env, C>,
 >(
-    latest_event: &AbstractGadgetT::Event,
+    latest_event: &Env::Event,
     protocol: &P,
 ) -> Result<ProtocolWorkManager<Env::WorkManager>, Error> {
-    let now: u64 = latest_finality_notification.number;
+    let now: u64 = latest_event.number();
 
     let work_manager_config = protocol.get_work_manager_config();
 
@@ -245,9 +242,9 @@ async fn get_latest_event_from_client<
 /// Also generates a setup_node function that sets up the future that runs all the protocols concurrently
 #[allow(clippy::crate_in_macro_def)]
 macro_rules! generate_setup_and_run_command {
-    ($( $config:ident ),*) => {
+    ($env:ty, $( $config:ident ),*) => {
         /// Sets up a future that runs all the protocols concurrently
-        pub fn setup_node<C: ClientWithApi + 'static, N: Network, KBE: $crate::keystore::KeystoreBackend, D: Send + Clone + 'static>(node_input: NodeInput<C, N, KBE, D>) -> impl SendFuture<'static, ()>
+        pub fn setup_node<C: ClientWithApi<$env> + 'static, N: Network<$env>, KBE: $crate::keystore::KeystoreBackend, D: Send + Clone + 'static>(node_input: NodeInput<C, N, KBE, D>) -> impl SendFuture<'static, ()>
         {
             async move {
                 if let Err(err) = run(
@@ -268,7 +265,7 @@ macro_rules! generate_setup_and_run_command {
             }
         }
 
-        pub async fn run<C: ClientWithApi + 'static, N: Network, KBE: $crate::keystore::KeystoreBackend>(
+        pub async fn run<C: ClientWithApi<$env> + 'static, N: Network<$env>, KBE: $crate::keystore::KeystoreBackend>(
             client: Vec<C>,
             pallet_tx: Arc<dyn PalletSubmitter>,
             networks: Vec<N>,
@@ -295,11 +292,11 @@ macro_rules! generate_setup_and_run_command {
 
 #[macro_export]
 macro_rules! generate_protocol {
-    ($name:expr, $struct_name:ident, $async_proto_params:ty, $proto_gen_path:expr, $create_job_path:expr, $phase_filter:pat, $( $role_filter:pat ),*) => {
+    ($env:ty, $name:expr, $struct_name:ident, $async_proto_params:ty, $proto_gen_path:expr, $create_job_path:expr, $phase_filter:pat, $( $role_filter:pat ),*) => {
         #[protocol]
         pub struct $struct_name<
-            C: ClientWithApi + 'static,
-            N: Network,
+            C: ClientWithApi<$env> + 'static,
+            N: Network<$env>,
             KBE: KeystoreBackend,
         > {
             pallet_tx: Arc<dyn PalletSubmitter>,
@@ -315,8 +312,8 @@ macro_rules! generate_protocol {
 
         #[async_trait]
         impl<
-                C: ClientWithApi + 'static,
-                N: Network,
+                C: ClientWithApi<$env> + 'static,
+                N: Network<$env>,
                 KBE: KeystoreBackend,
             > FullProtocolConfig for $struct_name<C, N, KBE>
         {

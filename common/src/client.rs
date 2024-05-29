@@ -8,6 +8,7 @@ use sp_core::{sr25519, Pair};
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tangle_subxt::subxt::{self, tx::TxPayload, OnlineClient};
+use crate::environments::GadgetEnvironment;
 
 pub struct JobsClient<C, Event> {
     pub client: Arc<C>,
@@ -27,11 +28,11 @@ impl<Event, C> Clone for JobsClient<C, Event> {
     }
 }
 
-pub async fn create_client<Event: Send + Sync + 'static, C: ClientWithApi<Event>>(
+pub async fn create_client<Env: GadgetEnvironment, C: ClientWithApi<Env>>(
     client: C,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
-) -> Result<JobsClient<C, Event>, crate::Error> {
+) -> Result<JobsClient<C, Env::Event>, crate::Error> {
     Ok(JobsClient {
         client: client.into(),
         logger,
@@ -77,7 +78,7 @@ pub trait PhaseResultExt {
 
 #[async_trait]
 #[auto_impl(Arc)]
-pub trait ClientWithApi<Event>: Client<Event> + 'static {
+pub trait ClientWithApi<Env: GadgetEnvironment>: Client<Env::Event> + 'static {
     /// Query jobs associated with a specific validator.
     ///
     /// This function takes a `validator` parameter of type `AccountId` and attempts
@@ -197,7 +198,7 @@ pub trait ClientWithApi<Event>: Client<Event> + 'static {
     ) -> Result<Vec<roles::RoleType>, crate::Error>;
 }
 
-impl<Event: Send + Sync + 'static, C: ClientWithApi<Event>> JobsClient<C, Event> {
+impl<Env: GadgetEnvironment, C: ClientWithApi<Env>> JobsClient<C, Env::Event> {
     pub async fn query_jobs_by_validator(
         &self,
         at: [u8; 32],

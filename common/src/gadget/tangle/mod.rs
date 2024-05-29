@@ -18,11 +18,12 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_run
 pub mod runtime;
 
 /// Endow the general module with event-handler specific code tailored towards interacting with tangle
-pub struct TangleGadget<C, N, M> {
+pub struct TangleGadget<C, N, M> where C: ClientWithApi<TangleEnvironment> {
     module: GeneralModule<C, N, M, TangleEnvironment>,
 }
 
-impl<C, N, M> Deref for TangleGadget<C, N, M> {
+impl<C, N, M> Deref for TangleGadget<C, N, M> 
+where C: ClientWithApi<TangleEnvironment> {
     type Target = GeneralModule<C, N, M, TangleEnvironment>;
 
     fn deref(&self) -> &Self::Target {
@@ -30,7 +31,8 @@ impl<C, N, M> Deref for TangleGadget<C, N, M> {
     }
 }
 
-impl<C, N, M> From<GeneralModule<C, N, M, TangleEnvironment>> for TangleGadget<C, N, M> {
+impl<C, N, M> From<GeneralModule<C, N, M, TangleEnvironment>> for TangleGadget<C, N, M> 
+where C: ClientWithApi<TangleEnvironment>{
     fn from(module: GeneralModule<C, N, M, TangleEnvironment>) -> Self {
         TangleGadget { module }
     }
@@ -38,7 +40,7 @@ impl<C, N, M> From<GeneralModule<C, N, M, TangleEnvironment>> for TangleGadget<C
 
 #[async_trait]
 impl<
-        C: Send + ClientWithApi<TangleEvent> + 'static,
+        C: Send + ClientWithApi<TangleEnvironment> + 'static,
         N: Send + Sync + 'static,
         M: GadgetProtocol<TangleEnvironment, C> + Send + 'static,
     > AbstractGadget for TangleGadget<C, N, M>
@@ -48,7 +50,7 @@ where
         Error = <TangleEnvironment as GadgetEnvironment>::Error,
         ProtocolMessage = <TangleEnvironment as GadgetEnvironment>::ProtocolMessage,
     >,
-    C: ClientWithApi<<TangleEnvironment as GadgetEnvironment>::Client>,
+    C: ClientWithApi<TangleEnvironment>
 {
     type Event = TangleEvent;
     type ProtocolMessage = TangleProtocolMessage;
@@ -84,7 +86,7 @@ pub type TangleNetworkMessage = TangleProtocolMessage;
 
 #[async_trait]
 impl<
-        C: Send + ClientWithApi<TangleEvent> + 'static,
+        C: Send + ClientWithApi<TangleEnvironment> + 'static,
         N: Send + Sync + 'static,
         M: GadgetProtocol<TangleEnvironment, C> + Send + 'static,
     > EventHandler<C, N, M, TangleEvent, crate::Error> for TangleGadget<C, N, M>
@@ -94,7 +96,7 @@ where
         ProtocolMessage = TangleNetworkMessage,
         Error = crate::Error,
     >,
-    C: ClientWithApi<<TangleEnvironment as GadgetEnvironment>::Client>,
+    C: ClientWithApi<TangleEnvironment>,
 {
     async fn process_event(&self, notification: TangleEvent) -> Result<(), crate::Error> {
         let now: u64 = notification.number;

@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use crate::config::ClientWithApi;
 use crate::gadget::tangle::TangleEvent;
+use crate::gadget::EventHandler;
 use crate::locks::TokioMutexExt;
 use crate::tangle_runtime::*;
 use gadget_core::gadget::general::Client;
@@ -11,6 +12,7 @@ use tangle_subxt::subxt::blocks::{Block, BlockRef};
 use tangle_subxt::subxt::ext::futures::TryFutureExt;
 use tangle_subxt::subxt::{self, PolkadotConfig};
 use tangle_subxt::tangle_testnet_runtime::api;
+use crate::environments::TangleEnvironment;
 
 pub type TangleConfig = subxt::PolkadotConfig;
 type TangleClient = subxt::OnlineClient<TangleConfig>;
@@ -121,7 +123,7 @@ impl Client<TangleEvent> for TangleRuntime {
 }
 
 #[async_trait::async_trait]
-impl ClientWithApi<TangleEvent> for TangleRuntime {
+impl ClientWithApi<TangleEnvironment> for TangleRuntime {
     async fn query_jobs_by_validator(
         &self,
         at: [u8; 32],
@@ -235,6 +237,7 @@ impl ClientWithApi<TangleEvent> for TangleRuntime {
             .await
     }
 }
+
 
 #[cfg(test)]
 mod tests {

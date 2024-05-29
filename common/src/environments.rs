@@ -4,13 +4,14 @@ use crate::gadget::tangle::runtime::TangleRuntime;
 use crate::gadget::tangle::TangleEvent;
 use crate::prelude::{TangleProtocolMessage, TangleWorkManager};
 use crate::utils::serialize;
+use gadget_core::gadget::general::Client;
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::Serialize;
 use sp_core::ecdsa;
 use std::error::Error;
 use std::fmt::{Debug, Display};
 
-pub trait GadgetEnvironment: 'static
+pub trait GadgetEnvironment: Sized + 'static
 where
     Self::WorkManager: WorkManagerInterface<
         Clock = Self::Clock,
@@ -23,7 +24,7 @@ where
 {
     type Event: Send + Sync + 'static;
     type ProtocolMessage: Send + Sync + 'static + ProtocolMessageMetadata<Self::WorkManager>;
-    type Client: ClientWithApi<Self::Event> + Send + Sync + 'static;
+    type Client: ClientWithApi<Self> + Send + Sync + 'static;
     type WorkManager: WorkManagerInterface;
     type Error: Error + Send + Sync + From<String> + 'static;
     type Clock: Display + Copy + Send + Sync + 'static;

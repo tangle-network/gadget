@@ -29,7 +29,7 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     Clone + Send + Sync + Sized + 'static
 {
     type AsyncProtocolParameters: Send + Sync + Clone + 'static;
-    type Client: ClientWithApi<Env::Event>;
+    type Client: ClientWithApi<Env>;
     type Network: Network<Env>;
     type AdditionalNodeParameters: Clone + Send + Sync + 'static;
     type KeystoreBackend: KeystoreBackend;
@@ -171,7 +171,7 @@ where
 impl<Env: GadgetEnvironment<Error = Error>, T: FullProtocolConfig<Env> + AsyncProtocol<Env>>
     GadgetProtocol<Env, T::Client> for T
 where
-    <T as FullProtocolConfig<Env>>::Client: ClientWithApi<<Env as GadgetEnvironment>::Client>,
+    <T as FullProtocolConfig<Env>>::Client: ClientWithApi<Env>,
     T: AsyncProtocol<Env, AdditionalParams = T::AsyncProtocolParameters>,
 {
     async fn create_next_job(
