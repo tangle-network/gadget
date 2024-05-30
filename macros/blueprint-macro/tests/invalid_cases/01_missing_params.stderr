@@ -1,0 +1,7 @@
+error: unexpected end of input, Missing 'params' argument in attribute
+  --> tests/invalid_cases/01_missing_params.rs:10:1
+   |
+10 | #[job(result(Bytes))]
+   | ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the attribute macro `job` (in Nightly builds, run with -Z macro-backtrace for more info)

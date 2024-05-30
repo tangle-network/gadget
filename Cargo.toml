@@ -9,6 +9,7 @@ members = [
     "shell-manager",
     "shell-sdk",
     "sdk",
+    "macros/blueprint-macro",
 ]
 
 [workspace.package]

@@ -1,0 +1,5 @@
+error: parameter not declared in the function
+  --> tests/invalid_cases/06_undefined_param.rs:10:17
+   |
+10 | #[job(params(n, t), result(Bytes))]
+   |                 ^

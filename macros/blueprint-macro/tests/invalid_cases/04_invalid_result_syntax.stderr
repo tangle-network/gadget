@@ -1,0 +1,5 @@
+error: expected `,`
+  --> tests/invalid_cases/04_invalid_result_syntax.rs:10:31
+   |
+10 | #[job(params(n), result(Bytes String))]
+   |                               ^^^^^^
