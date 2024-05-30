@@ -7,6 +7,7 @@ members = [
     "protocol-macros",
     "shell-manager",
     "shell-sdk",
+    "eigen-contracts"
 ]
 
 [workspace.dependencies]
@@ -114,6 +115,7 @@ ark-bn254 = { version = "0.4", default-features = false, features = ["curve"] }
 ark-secp256k1 = { version = "0.4", default-features = false }
 ark-ed25519 = { version = "0.4", default-features = false }
 
+ethers =  "2.0.14"
 tokio-rustls = "0.24.1"
 tokio = "1.32.0"
 bincode = "1.3.3"
