@@ -4,12 +4,15 @@ use crate::gadget::tangle::runtime::TangleRuntime;
 use crate::gadget::tangle::TangleEvent;
 use crate::prelude::{TangleProtocolMessage, TangleWorkManager};
 use crate::utils::serialize;
-use gadget_core::gadget::general::Client;
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::Serialize;
 use sp_core::ecdsa;
 use std::error::Error;
 use std::fmt::{Debug, Display};
+
+pub trait EventMetadata {
+    fn number(&self) -> u64;
+}
 
 pub trait GadgetEnvironment: Sized + 'static
 where
@@ -22,7 +25,7 @@ where
         ProtocolMessage = Self::ProtocolMessage,
     >,
 {
-    type Event: Send + Sync + 'static;
+    type Event: EventMetadata + Send + Sync + 'static;
     type ProtocolMessage: Send + Sync + 'static + ProtocolMessageMetadata<Self::WorkManager>;
     type Client: ClientWithApi<Self> + Send + Sync + 'static;
     type WorkManager: WorkManagerInterface;
@@ -85,5 +88,11 @@ impl GadgetEnvironment for TangleEnvironment {
             from_network_id: from_account_id,
             to_network_id,
         }
+    }
+}
+
+impl EventMetadata for TangleEvent {
+    fn number(&self) -> u64 {
+        self.number
     }
 }

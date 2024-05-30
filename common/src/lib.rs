@@ -1,11 +1,10 @@
 use crate::client::ClientWithApi;
-use crate::config::{NetworkAndProtocolSetup, ProtocolConfig};
-use crate::gadget::work_manager::TangleWorkManager;
+use crate::config::ProtocolConfig;
+use crate::environments::EventMetadata;
 use crate::gadget::{GadgetProtocol, GeneralModule};
 use crate::prelude::PrometheusConfig;
 use gadget::network::Network;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
-use gadget_core::gadget::substrate::FinalityNotification;
 pub use gadget_core::job::JobError;
 pub use gadget_core::job::*;
 pub use gadget_core::job_manager::WorkManagerInterface;
@@ -147,7 +146,7 @@ impl From<JobError> for Error {
 
 pub async fn run_protocol<Env: GadgetEnvironment, T: ProtocolConfig<Env>>(
     mut protocol_config: T,
-) -> Result<(), Error>{
+) -> Result<(), Error> {
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
@@ -195,7 +194,7 @@ pub async fn run_protocol<Env: GadgetEnvironment, T: ProtocolConfig<Env>>(
 pub async fn create_work_manager<
     Env: GadgetEnvironment,
     C: ClientWithApi<Env>,
-    P: GadgetProtocol<Env, C>,
+    P: GadgetProtocol<Env>,
 >(
     latest_event: &Env::Event,
     protocol: &P,

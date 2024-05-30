@@ -1,5 +1,4 @@
 use crate::environments::GadgetEnvironment;
-use crate::gadget::message::TangleProtocolMessage;
 use crate::gadget::work_manager::TangleWorkManager;
 use crate::gadget::Job;
 use async_trait::async_trait;

@@ -1,12 +1,12 @@
-use crate::client::{ClientWithApi, JobsClient};
+use crate::client::JobsClient;
 use crate::debug_logger::DebugLogger;
 use crate::environments::GadgetEnvironment;
 use crate::gadget::tangle::JobInitMetadata;
-use crate::gadget::work_manager::TangleWorkManager;
 use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
 use crate::tangle_runtime::*;
 use crate::Error;
 use async_trait::async_trait;
+use gadget_core::gadget::general::Client;
 use gadget_core::gadget::general::GadgetWithClient;
 use gadget_core::gadget::manager::AbstractGadget;
 use gadget_core::job::{BuiltExecutableJobWrapper, ExecutableJob, JobBuilder};
@@ -14,7 +14,6 @@ use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
 use network::Network;
 use parking_lot::{Mutex, RwLock};
 use sp_core::sr25519;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -26,12 +25,12 @@ pub mod tangle;
 pub mod work_manager;
 
 /// Used as a module to place inside the SubstrateGadget
-pub struct GeneralModule<C, N, M, Env: GadgetEnvironment> {
+pub struct GeneralModule<N, M, Env: GadgetEnvironment> {
     protocol: M,
     network: N,
     job_manager: ProtocolWorkManager<Env::WorkManager>,
     clock: Arc<RwLock<Option<Env::Clock>>>,
-    event_handler: Box<dyn EventHandler<C, N, M, Env::Event, Env::Error>>,
+    event_handler: Box<dyn EventHandler<Env>>,
 }
 
 const DEFAULT_MAX_ACTIVE_TASKS: usize = 4;
@@ -55,31 +54,13 @@ impl Default for WorkManagerConfig {
     }
 }
 
-impl<
-        Clk: Clone,
-        Env: GadgetEnvironment<Clock = Clk>,
-        C: ClientWithApi<Env>,
-        N: Network<Env>,
-        M: GadgetProtocol<Env, C>,
-    > GeneralModule<C, N, M, Env>
-where
-    Env: GadgetEnvironment<Clock = Clk>,
-{
-    pub fn new<Evt: EventHandler<C, N, M, Env::Event, Env::Error>>(
+impl<Env: GadgetEnvironment, N: Network<Env>, M: GadgetProtocol<Env>> GeneralModule<N, M, Env> {
+    pub fn new<Evt: EventHandler<Env>>(
         network: N,
         module: M,
         job_manager: ProtocolWorkManager<Env::WorkManager>,
         event_handler: Evt,
-    ) -> Self
-    where
-        Evt: EventHandler<
-            C,
-            N,
-            M,
-            <Env as GadgetEnvironment>::Event,
-            <Env as GadgetEnvironment>::Error,
-        >,
-    {
+    ) -> Self {
         let clock = Arc::new(RwLock::new(Some(job_manager.utility.clock().clone())));
         GeneralModule {
             protocol: module,
@@ -92,13 +73,8 @@ where
 }
 
 #[async_trait]
-impl<
-        Env: GadgetEnvironment,
-        C: ClientWithApi<Env>
-            + gadget_core::gadget::general::Client<<Env as GadgetEnvironment>::Event>,
-        N: Network<Env>,
-        M: GadgetProtocol<Env, C>,
-    > AbstractGadget for GeneralModule<C, N, M, Env>
+impl<Env: GadgetEnvironment, N: Network<Env>, M: GadgetProtocol<Env>> AbstractGadget
+    for GeneralModule<N, M, Env>
 {
     type Event = Env::Event;
     type ProtocolMessage = Env::ProtocolMessage;
@@ -133,38 +109,43 @@ impl<
 
 #[async_trait]
 #[auto_impl::auto_impl(Box)]
-pub trait EventHandler<C, N, M, Event, Error>: Send + Sync + 'static {
-    async fn process_event(&self, notification: Event) -> Result<(), Error>;
+pub trait EventHandler<Env: GadgetEnvironment>: Send + Sync + 'static {
+    async fn process_event(
+        &self,
+        notification: <Env as GadgetEnvironment>::Event,
+    ) -> Result<(), <Env as GadgetEnvironment>::Error>;
 }
 
 // Redirection to the `AbstractGadget` trait, with a placeholder for a client.
 #[async_trait]
-impl<
-        Env: GadgetEnvironment,
-        Error: Send + Sync + 'static,
-        C: ClientWithApi<Env>,
-        N: Network<Env>,
-        M: GadgetProtocol<Env, C>,
-    > GadgetWithClient<Env::ProtocolMessage, Env::Event, Error> for GeneralModule<C, N, M, Env>
+impl<Env: GadgetEnvironment, N: Network<Env>, M: GadgetProtocol<Env>>
+    GadgetWithClient<Env::ProtocolMessage, Env::Event, Env::Error> for GeneralModule<N, M, Env>
 where
-    Self: AbstractGadget<Event = Env::Event, Error = Error, ProtocolMessage = Env::ProtocolMessage>,
+    Self: AbstractGadget<
+        Event = Env::Event,
+        Error = Env::Error,
+        ProtocolMessage = Env::ProtocolMessage,
+    >,
 {
-    type Client = C;
+    type Client = <Env as GadgetEnvironment>::Client;
 
     async fn get_next_protocol_message(&self) -> Option<Env::ProtocolMessage> {
         <Self as AbstractGadget>::get_next_protocol_message(self).await
     }
 
     /// Provided by the developer
-    async fn process_event(&self, notification: Env::Event) -> Result<(), Error> {
+    async fn process_event(&self, notification: Env::Event) -> Result<(), Env::Error> {
         <Self as AbstractGadget>::on_event_received(self, notification).await
     }
 
-    async fn process_protocol_message(&self, message: Env::ProtocolMessage) -> Result<(), Error> {
+    async fn process_protocol_message(
+        &self,
+        message: Env::ProtocolMessage,
+    ) -> Result<(), Env::Error> {
         <Self as AbstractGadget>::process_protocol_message(self, message).await
     }
 
-    async fn process_error(&self, error: Error) {
+    async fn process_error(&self, error: Env::Error) {
         <Self as AbstractGadget>::process_error(self, error).await
     }
 }
@@ -172,7 +153,7 @@ where
 pub type Job<Env> = (AsyncProtocolRemote<Env>, BuiltExecutableJobWrapper);
 
 #[async_trait]
-pub trait GadgetProtocol<Env: GadgetEnvironment, C: ClientWithApi<Env>>:
+pub trait GadgetProtocol<Env: GadgetEnvironment>:
     AsyncProtocol<Env> + Send + Sync + 'static
 {
     /// Given an input of a valid and relevant job, return the parameters needed to start the async protocol
@@ -219,7 +200,7 @@ pub trait GadgetProtocol<Env: GadgetEnvironment, C: ClientWithApi<Env>>:
         &self,
         job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     ) -> bool;
-    fn client(&self) -> JobsClient<C, Env::Event>;
+    fn client(&self) -> JobsClient<Env>;
     fn logger(&self) -> DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {
         Default::default()

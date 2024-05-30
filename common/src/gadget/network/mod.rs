@@ -1,7 +1,6 @@
 use crate::environments::GadgetEnvironment;
 use crate::Error;
 use async_trait::async_trait;
-use gadget_core::gadget::manager::AbstractGadget;
 use sp_core::ecdsa;
 
 #[async_trait]

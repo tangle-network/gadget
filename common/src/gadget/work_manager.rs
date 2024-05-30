@@ -1,5 +1,5 @@
 use crate::debug_logger::DebugLogger;
-use crate::gadget::message::{TangleProtocolMessage, UserID};
+use crate::gadget::message::TangleProtocolMessage;
 use gadget_core::job_manager::WorkManagerInterface;
 use parking_lot::RwLock;
 use std::sync::Arc;

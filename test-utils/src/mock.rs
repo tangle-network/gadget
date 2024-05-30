@@ -796,7 +796,8 @@ pub mod mock_wrapper_client {
     }
 
     #[async_trait]
-    impl<R: Send + Sync + Clone + 'static, B: Block> ClientWithApi<TangleEnvironment> for MockClient<R, B>
+    impl<R: Send + Sync + Clone + 'static, B: Block> ClientWithApi<TangleEnvironment>
+        for MockClient<R, B>
     where
         R: ProvideRuntimeApi<B>,
         R::Api: pallet_jobs_rpc_runtime_api::JobsApi<

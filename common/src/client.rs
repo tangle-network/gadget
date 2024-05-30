@@ -1,43 +1,39 @@
 use crate::debug_logger::DebugLogger;
+use crate::environments::{GadgetEnvironment, TangleEnvironment};
 use crate::tangle_runtime::*;
 use async_trait::async_trait;
 use auto_impl::auto_impl;
 use gadget_core::gadget::general::Client;
 use sp_core::{ecdsa, ByteArray};
 use sp_core::{sr25519, Pair};
-use std::marker::PhantomData;
 use std::sync::Arc;
 use tangle_subxt::subxt::{self, tx::TxPayload, OnlineClient};
-use crate::environments::GadgetEnvironment;
 
-pub struct JobsClient<C, Event> {
-    pub client: Arc<C>,
+pub struct JobsClient<Env: GadgetEnvironment> {
+    pub client: Arc<Env::Client>,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
-    _pd: PhantomData<Event>,
 }
 
-impl<Event, C> Clone for JobsClient<C, Event> {
+impl<Env: GadgetEnvironment> Clone for JobsClient<Env> {
     fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
             logger: self.logger.clone(),
             pallet_tx: self.pallet_tx.clone(),
-            _pd: PhantomData,
         }
     }
 }
 
-pub async fn create_client<Env: GadgetEnvironment, C: ClientWithApi<Env>>(
-    client: C,
+pub async fn create_client<Env: GadgetEnvironment>(
+    client: Env::Client,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
-) -> Result<JobsClient<C, Env::Event>, crate::Error> {
+) -> Result<JobsClient<Env>, crate::Error> {
     Ok(JobsClient {
-        client: client.into(),
+        client: Arc::new(client),
         logger,
         pallet_tx,
-        _pd: PhantomData,
     })
 }
 
@@ -198,7 +194,7 @@ pub trait ClientWithApi<Env: GadgetEnvironment>: Client<Env::Event> + 'static {
     ) -> Result<Vec<roles::RoleType>, crate::Error>;
 }
 
-impl<Env: GadgetEnvironment, C: ClientWithApi<Env>> JobsClient<C, Env::Event> {
+impl JobsClient<TangleEnvironment> {
     pub async fn query_jobs_by_validator(
         &self,
         at: [u8; 32],
@@ -393,12 +389,12 @@ impl<
 }
 
 #[async_trait]
-impl<Event: Send + Sync + 'static, C: Client<Event>> Client<Event> for JobsClient<C, Event> {
-    async fn next_event(&self) -> Option<Event> {
+impl<Env: GadgetEnvironment> Client<Env::Event> for JobsClient<Env> {
+    async fn next_event(&self) -> Option<Env::Event> {
         self.client.next_event().await
     }
 
-    async fn latest_event(&self) -> Option<Event> {
+    async fn latest_event(&self) -> Option<Env::Event> {
         self.client.latest_event().await
     }
 }

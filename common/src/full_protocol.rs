@@ -1,9 +1,7 @@
-use crate::client::{ClientWithApi, JobsClient, PalletSubmitter};
+use crate::client::{JobsClient, PalletSubmitter};
 use crate::config::{DebugLogger, GadgetProtocol, Network, NetworkAndProtocolSetup};
 use crate::environments::GadgetEnvironment;
-use crate::gadget::message::TangleProtocolMessage;
 use crate::gadget::tangle::JobInitMetadata;
-use crate::gadget::work_manager::TangleWorkManager;
 use crate::gadget::WorkManagerConfig;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use crate::prometheus::PrometheusConfig;
@@ -29,12 +27,11 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     Clone + Send + Sync + Sized + 'static
 {
     type AsyncProtocolParameters: Send + Sync + Clone + 'static;
-    type Client: ClientWithApi<Env>;
     type Network: Network<Env>;
     type AdditionalNodeParameters: Clone + Send + Sync + 'static;
     type KeystoreBackend: KeystoreBackend;
     async fn new(
-        client: Self::Client,
+        client: <Env as GadgetEnvironment>::Client,
         pallet_tx: Arc<dyn PalletSubmitter>,
         network: Self::Network,
         logger: DebugLogger,
@@ -87,13 +84,13 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
         job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     ) -> bool;
 
-    fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Client, Env::Event>>;
+    fn jobs_client(&self) -> &SharedOptional<JobsClient<Env>>;
     fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
 
     fn logger(&self) -> DebugLogger;
 
-    fn client(&self) -> Self::Client;
-    fn get_jobs_client(&self) -> JobsClient<Self::Client, Env::Event> {
+    fn client(&self) -> <Env as GadgetEnvironment>::Client;
+    fn get_jobs_client(&self) -> JobsClient<Env> {
         self.jobs_client()
             .lock()
             .clone()
@@ -139,15 +136,13 @@ impl<Env, T> NetworkAndProtocolSetup<Env> for T
 where
     Env: GadgetEnvironment,
     T: FullProtocolConfig<Env>,
-    T::Client: 'static,
 {
     type Network = T;
     type Protocol = T;
-    type Client = T::Client;
 
     async fn build_network_and_protocol(
         &self,
-        jobs_client: JobsClient<Self::Client, Env::Event>,
+        jobs_client: JobsClient<Env>,
     ) -> Result<(Self::Network, Self::Protocol), Error> {
         let jobs_client_store = T::jobs_client(self);
         jobs_client_store.lock().replace(jobs_client);
@@ -162,16 +157,15 @@ where
         T::logger(self)
     }
 
-    fn client(&self) -> Self::Client {
+    fn client(&self) -> <Env as GadgetEnvironment>::Client {
         T::client(self)
     }
 }
 
 #[async_trait]
 impl<Env: GadgetEnvironment<Error = Error>, T: FullProtocolConfig<Env> + AsyncProtocol<Env>>
-    GadgetProtocol<Env, T::Client> for T
+    GadgetProtocol<Env> for T
 where
-    <T as FullProtocolConfig<Env>>::Client: ClientWithApi<Env>,
     T: AsyncProtocol<Env, AdditionalParams = T::AsyncProtocolParameters>,
 {
     async fn create_next_job(
@@ -209,7 +203,7 @@ where
         T::phase_filter(self, job)
     }
 
-    fn client(&self) -> JobsClient<T::Client, Env::Event> {
+    fn client(&self) -> JobsClient<Env> {
         T::get_jobs_client(self)
     }
 
