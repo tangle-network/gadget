@@ -3427,7 +3427,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-blueprint-macro"
+name = "gadget-blueprint-proc-macro"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",

@@ -1,4 +1,4 @@
-use gadget_blueprint_macro::job;
+use gadget_blueprint_proc_macro::job;
 
 struct Bytes;
 impl Bytes {
@@ -7,8 +7,8 @@ impl Bytes {
     }
 }
 
-#[job(params(n t), result(Bytes))]
-fn keygen(n: u16, t: u8) -> Bytes {
+#[job(result(Bytes))]
+fn keygen(n: u16) -> Bytes {
     Bytes::new()
 }
 

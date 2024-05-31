@@ -1,4 +1,4 @@
-use gadget_blueprint_macro::job;
+use gadget_blueprint_proc_macro::job;
 
 struct Bytes;
 impl Bytes {
