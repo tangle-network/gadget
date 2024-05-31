@@ -55,7 +55,7 @@ impl Default for WorkManagerConfig {
 
 impl<Env: GadgetEnvironment, N: Network<Env>, M: GadgetProtocol<Env>> GeneralModule<N, M, Env> {
     pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<Env::WorkManager>) -> Self {
-        let clock = Arc::new(RwLock::new(Some(job_manager.utility.clock().clone())));
+        let clock = Arc::new(RwLock::new(Some(job_manager.utility.clock())));
         GeneralModule {
             protocol: module,
             job_manager,
@@ -171,7 +171,10 @@ pub trait GadgetProtocol<Env: GadgetEnvironment>:
         job_manager: &ProtocolWorkManager<Env::WorkManager>,
     );
 
-    async fn generate_work_manager(&self, clock: Arc<RwLock<Option<<Env as GadgetEnvironment>::Clock>>>) -> <Env as GadgetEnvironment>::WorkManager;
+    async fn generate_work_manager(
+        &self,
+        clock: Arc<RwLock<Option<<Env as GadgetEnvironment>::Clock>>>,
+    ) -> <Env as GadgetEnvironment>::WorkManager;
     /// The account ID of this node. Jobs queried will be filtered by this account ID
     fn account_id(&self) -> &sr25519::Public;
 

@@ -55,11 +55,11 @@ impl ProtocolMessageMetadata<TangleWorkManager> for TangleProtocolMessage {
         &mut self.payload
     }
 
-    fn from_network_id(&self) -> Option<ecdsa::Public> {
+    fn sender_network_id(&self) -> Option<ecdsa::Public> {
         self.from_network_id
     }
 
-    fn to_network_id(&self) -> Option<ecdsa::Public> {
+    fn recipient_network_id(&self) -> Option<ecdsa::Public> {
         self.to_network_id
     }
 }

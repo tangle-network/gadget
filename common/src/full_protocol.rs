@@ -14,12 +14,12 @@ use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolMessageMetadata, ProtocolWorkManager};
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
+use parking_lot::RwLock;
 use sp_core::ecdsa::{Public, Signature};
 use sp_core::{keccak_256, sr25519};
 use sp_io::crypto::ecdsa_verify_prehashed;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
-use parking_lot::RwLock;
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 
@@ -104,9 +104,10 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
 }
 
 #[async_trait]
-impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env>>
-    AsyncProtocol<Env> for T
-    where T: FullProtocolConfig<Env>, {
+impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env>> AsyncProtocol<Env> for T
+where
+    T: FullProtocolConfig<Env>,
+{
     type AdditionalParams = T::AsyncProtocolParameters;
 
     async fn generate_protocol_from(
@@ -176,10 +177,12 @@ where
         T::create_next_job(self, job, work_manager).await
     }
 
-    async fn generate_work_manager(&self, clock: Arc<RwLock<Option<<Env as GadgetEnvironment>::Clock>>>) -> <Env as GadgetEnvironment>::WorkManager {
+    async fn generate_work_manager(
+        &self,
+        clock: Arc<RwLock<Option<<Env as GadgetEnvironment>::Clock>>>,
+    ) -> <Env as GadgetEnvironment>::WorkManager {
         T::generate_work_manager(self, clock).await
     }
-
 
     async fn process_event(
         &self,
@@ -235,7 +238,7 @@ where
 {
     async fn next_message(&self) -> Option<Env::ProtocolMessage> {
         let mut message = T::internal_network(self).next_message().await?;
-        let peer_public_key = message.from_network_id();
+        let peer_public_key = message.sender_network_id();
         if let Some(peer_public_key) = peer_public_key {
             if let Ok(payload_and_signature) =
                 <PayloadAndSignature as Decode>::decode(&mut message.payload().as_slice())

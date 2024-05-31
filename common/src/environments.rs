@@ -35,6 +35,7 @@ where
     type TaskID: Debug + Copy + Send + Sync + 'static;
     type SessionID: Display + Copy + Send + Sync + 'static;
 
+    #[allow(clippy::too_many_arguments)]
     fn build_protocol_message<Payload: Serialize>(
         associated_block_id: <Self::WorkManager as WorkManagerInterface>::Clock,
         associated_session_id: <Self::WorkManager as WorkManagerInterface>::SessionID,

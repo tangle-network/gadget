@@ -1,5 +1,6 @@
 use crate::protocols::resolver::{load_global_config_file, str_to_role_type, ProtocolMetadata};
 use config::ShellManagerOpts;
+use gadget_common::gadget::tangle::runtime::TangleRuntime;
 use gadget_common::sp_core::Pair;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::shell::load_keys_from_keystore;
@@ -11,7 +12,6 @@ use structopt::StructOpt;
 use tangle_subxt::subxt;
 use tangle_subxt::subxt::utils::AccountId32;
 use tokio::io::AsyncWriteExt;
-use gadget_common::gadget::tangle::runtime::TangleRuntime;
 
 pub mod config;
 pub mod error;

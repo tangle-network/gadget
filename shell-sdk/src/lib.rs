@@ -52,7 +52,6 @@ pub mod prelude {
     pub use pallet_zksaas;
     pub use tangle_primitives;
     pub use tangle_subxt;
-
 }
 
 /// Should be put inside the main.rs file of the protocol repository

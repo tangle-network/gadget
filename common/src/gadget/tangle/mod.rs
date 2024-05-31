@@ -3,6 +3,7 @@ use crate::environments::{GadgetEnvironment, TangleEnvironment};
 use crate::gadget::{EventHandler, GeneralModule, MetricizedJob};
 use crate::prelude::{TangleProtocolMessage, TangleWorkManager};
 use crate::tangle_runtime::AccountId32;
+use crate::Network;
 use async_trait::async_trait;
 use gadget_core::gadget::general::Client;
 use gadget_core::gadget::manager::AbstractGadget;
@@ -15,7 +16,6 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{
     MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen,
 };
-use crate::Network;
 
 pub mod runtime;
 
@@ -39,8 +39,10 @@ impl<N, M> From<GeneralModule<N, M, TangleEnvironment>> for TangleGadget<N, M> {
 }
 
 #[async_trait]
-impl<N: Send + Sync + Network<TangleEnvironment> + 'static, M: GadgetProtocol<TangleEnvironment> + Send + 'static> AbstractGadget
-    for TangleGadget<N, M>
+impl<
+        N: Send + Sync + Network<TangleEnvironment> + 'static,
+        M: GadgetProtocol<TangleEnvironment> + Send + 'static,
+    > AbstractGadget for TangleGadget<N, M>
 where
     Self: AbstractGadget<
         Event = <TangleEnvironment as GadgetEnvironment>::Event,

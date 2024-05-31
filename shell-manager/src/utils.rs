@@ -2,6 +2,7 @@ use crate::config::ShellManagerOpts;
 use crate::protocols::resolver::ProtocolMetadata;
 use gadget_common::client::ClientWithApi;
 use gadget_common::config::DebugLogger;
+use gadget_common::gadget::tangle::runtime::TangleRuntime;
 use gadget_common::tangle_runtime::AccountId32;
 use sha2::Digest;
 use shell_sdk::{defaults, ShellTomlConfig};
@@ -9,7 +10,6 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
-use gadget_common::gadget::tangle::runtime::TangleRuntime;
 
 pub async fn get_subscribed_role_types(
     runtime: &TangleRuntime,

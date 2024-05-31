@@ -531,7 +531,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
 
                         let incoming = I::from_inbound(
                             id,
-                            msg_orig.associated_sender_user_id().into(),
+                            msg_orig.associated_sender_user_id(),
                             msg_type,
                             msg,
                         );
@@ -684,7 +684,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
 
                         let incoming = I1::from_inbound(
                             id,
-                            msg_orig.associated_sender_user_id().into(),
+                            msg_orig.associated_sender_user_id(),
                             msg_type,
                             msg,
                         );
@@ -704,7 +704,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
 
                         let incoming = I2::from_inbound(
                             id,
-                            msg_orig.associated_sender_user_id().into(),
+                            msg_orig.associated_sender_user_id(),
                             msg_type,
                             msg,
                         );

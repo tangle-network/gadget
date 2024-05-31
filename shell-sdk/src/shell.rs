@@ -2,10 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::{
-    keystore::KeystoreContainer,
-    SubxtConfig,
-};
+use crate::{keystore::KeystoreContainer, SubxtConfig};
 
 use color_eyre::eyre::OptionExt;
 use gadget_common::environments::TangleEnvironment;
@@ -99,7 +96,7 @@ where
     let clients = (0..networks.len())
         .map(|_| TangleRuntime::new(runtime.client()))
         .collect::<Vec<_>>();
-    Ok(NodeInput::<TangleEnvironment, GossipHandle, KBE, ()>{
+    Ok(NodeInput::<TangleEnvironment, GossipHandle, KBE, ()> {
         clients,
         account_id,
         logger,
@@ -139,7 +136,6 @@ where
         keystore.clone(),
     )
 }
-
 
 pub fn load_keys_from_keystore(
     keystore_config: &crate::config::KeystoreConfig,
