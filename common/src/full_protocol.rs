@@ -19,6 +19,7 @@ use sp_core::{keccak_256, sr25519};
 use sp_io::crypto::ecdsa_verify_prehashed;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
+use parking_lot::RwLock;
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 
@@ -102,7 +103,6 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     }
 }
 
-/*
 #[async_trait]
 impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env>>
     AsyncProtocol<Env> for T
@@ -129,7 +129,7 @@ impl<Env: GadgetEnvironment, T: FullProtocolConfig<Env>>
         )
         .await
     }
-}*/
+}
 
 #[async_trait]
 impl<Env, T> NetworkAndProtocolSetup<Env> for T
@@ -174,6 +174,18 @@ where
         work_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Env::Error> {
         T::create_next_job(self, job, work_manager).await
+    }
+
+    async fn generate_work_manager(&self, clock: Arc<RwLock<Option<<Env as GadgetEnvironment>::Clock>>>) -> <Env as GadgetEnvironment>::WorkManager {
+        T::generate_work_manager(self, clock).await
+    }
+
+
+    async fn process_event(
+        &self,
+        notification: <Env as GadgetEnvironment>::Event,
+    ) -> Result<(), Env::Error> {
+        T::process_event(self, notification).await
     }
 
     async fn process_error(

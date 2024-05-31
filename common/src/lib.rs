@@ -1,9 +1,9 @@
-use crate::client::ClientWithApi;
 use crate::config::ProtocolConfig;
 use crate::environments::EventMetadata;
 use crate::gadget::{GadgetProtocol, GeneralModule};
 use crate::prelude::PrometheusConfig;
 use gadget::network::Network;
+use gadget_core::gadget::general::GeneralGadget;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
 pub use gadget_core::job::JobError;
 pub use gadget_core::job::*;
@@ -19,8 +19,8 @@ use tokio::task::JoinError;
 pub use subxt_signer;
 pub use tangle_subxt;
 pub mod environments;
-use crate::environments::{GadgetEnvironment, TangleEnvironment};
-use gadget_core::gadget::general::{Client, GeneralGadget};
+use crate::environments::GadgetEnvironment;
+use gadget_core::gadget::general::Client;
 
 #[allow(ambiguous_glob_reexports)]
 pub mod prelude {
@@ -154,10 +154,9 @@ pub async fn run_protocol<Env: GadgetEnvironment, T: ProtocolConfig<Env>>(
     let prometheus_config = protocol_config.prometheus_config();
 
     // Before running, wait for the first finality notification we receive
-    let latest_finality_notification = get_latest_event_from_client(&client).await?;
+    let latest_finality_notification = get_latest_event_from_client::<Env>(&client).await?;
     let work_manager = create_work_manager(&latest_finality_notification, &protocol).await?;
-    let proto_module =
-        GeneralModule::new(network.clone(), protocol, work_manager, TangleEnvironment);
+    let proto_module = GeneralModule::new(network.clone(), protocol, work_manager);
     // Plug the module into the general gadget to interface the WebbGadget with Substrate
     let substrate_gadget = GeneralGadget::new(client, proto_module);
     let network_future = network.run();
@@ -191,24 +190,17 @@ pub async fn run_protocol<Env: GadgetEnvironment, T: ProtocolConfig<Env>>(
 }
 
 /// Creates a work manager
-pub async fn create_work_manager<
-    Env: GadgetEnvironment,
-    C: ClientWithApi<Env>,
-    P: GadgetProtocol<Env>,
->(
-    latest_event: &Env::Event,
+pub async fn create_work_manager<Env: GadgetEnvironment, P: GadgetProtocol<Env>>(
+    latest_event: &<Env as GadgetEnvironment>::Event,
     protocol: &P,
-) -> Result<ProtocolWorkManager<Env::WorkManager>, Error> {
-    let now: u64 = latest_event.number();
+) -> Result<ProtocolWorkManager<<Env as GadgetEnvironment>::WorkManager>, Error> {
+    let now = latest_event.number();
 
     let work_manager_config = protocol.get_work_manager_config();
 
     let clock = Arc::new(RwLock::new(Some(now)));
 
-    let job_manager_zk = WorkManager {
-        clock,
-        logger: protocol.logger().clone(),
-    };
+    let job_manager = protocol.generate_work_manager(clock.clone()).await;
 
     let poll_method = match work_manager_config.interval {
         Some(interval) => PollMethod::Interval {
@@ -218,19 +210,16 @@ pub async fn create_work_manager<
     };
 
     Ok(ProtocolWorkManager::new(
-        job_manager_zk,
+        job_manager,
         work_manager_config.max_active_tasks,
         work_manager_config.max_pending_tasks,
         poll_method,
     ))
 }
 
-async fn get_latest_event_from_client<
-    AbstractGadgetT: AbstractGadget,
-    C: Client<AbstractGadgetT::Event>,
->(
-    client: &C,
-) -> Result<AbstractGadgetT::Event, Error> {
+async fn get_latest_event_from_client<Env: GadgetEnvironment>(
+    client: &Env::Client,
+) -> Result<<Env as GadgetEnvironment>::Event, Error> {
     client.latest_event().await.ok_or_else(|| Error::InitError {
         err: "No finality notification received".to_string(),
     })

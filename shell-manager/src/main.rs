@@ -3,7 +3,6 @@ use config::ShellManagerOpts;
 use gadget_common::sp_core::Pair;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::shell::load_keys_from_keystore;
-use shell_sdk::tangle::TangleRuntime;
 use shell_sdk::Client;
 use shell_sdk::{entry, DebugLogger, ShellTomlConfig};
 use std::collections::HashMap;
@@ -12,6 +11,7 @@ use structopt::StructOpt;
 use tangle_subxt::subxt;
 use tangle_subxt::subxt::utils::AccountId32;
 use tokio::io::AsyncWriteExt;
+use gadget_common::gadget::tangle::runtime::TangleRuntime;
 
 pub mod config;
 pub mod error;

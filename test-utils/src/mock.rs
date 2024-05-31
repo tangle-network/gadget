@@ -41,7 +41,7 @@ pub type BlockNumber = u64;
 pub use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmitter};
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use gadget_common::debug_logger::DebugLogger;
-use gadget_common::environments::GadgetEnvironment;
+use gadget_common::environments::{GadgetEnvironment, TangleEnvironment};
 use gadget_common::full_protocol::NodeInput;
 use gadget_common::gadget::network::Network;
 use gadget_common::gadget::work_manager::TangleWorkManager;
@@ -467,7 +467,7 @@ impl MockNetwork {
 }
 
 #[async_trait]
-impl<Env: GadgetEnvironment> Network<Env> for MockNetwork {
+impl Network<TangleEnvironment> for MockNetwork {
     async fn next_message(
         &self,
     ) -> Option<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage> {
@@ -547,7 +547,7 @@ pub async fn new_test_ext<
     const N: usize,
     const K: usize,
     D: Send + Clone + 'static,
-    F: Fn(NodeInput<MockClient<Runtime, Block>, MockNetwork, InMemoryBackend, D>) -> Fut,
+    F: Fn(NodeInput<TangleEnvironment, MockNetwork, InMemoryBackend, D>) -> Fut,
     Fut: SendFuture<'static, ()>,
 >(
     additional_params: D,
@@ -703,7 +703,7 @@ pub mod mock_wrapper_client {
         jobs, roles,
     };
     use gadget_common::tangle_runtime::*;
-    use gadget_core::gadget::substrate::{self, Client};
+    use gadget_core::gadget::substrate;
     use pallet_jobs_rpc_runtime_api::JobsApi;
     use parity_scale_codec::{Decode, Encode};
     use sc_client_api::{
@@ -719,6 +719,7 @@ pub mod mock_wrapper_client {
     use tangle_primitives::jobs::JobId;
     use tangle_primitives::AccountId;
     use gadget_common::environments::TangleEnvironment;
+    use gadget_core::gadget::general::Client;
 
     #[derive(Clone)]
     pub struct MockClient<R, B: Block> {

@@ -4,6 +4,7 @@ use crate::gadget::{EventHandler, GeneralModule, MetricizedJob};
 use crate::prelude::{TangleProtocolMessage, TangleWorkManager};
 use crate::tangle_runtime::AccountId32;
 use async_trait::async_trait;
+use gadget_core::gadget::general::Client;
 use gadget_core::gadget::manager::AbstractGadget;
 use gadget_core::gadget::substrate::FinalityNotification;
 use gadget_core::job_manager::{PollMethod, WorkManagerInterface};
@@ -14,6 +15,7 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::{
     MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen,
 };
+use crate::Network;
 
 pub mod runtime;
 
@@ -37,7 +39,7 @@ impl<N, M> From<GeneralModule<N, M, TangleEnvironment>> for TangleGadget<N, M> {
 }
 
 #[async_trait]
-impl<N: Send + Sync + 'static, M: GadgetProtocol<TangleEnvironment> + Send + 'static> AbstractGadget
+impl<N: Send + Sync + Network<TangleEnvironment> + 'static, M: GadgetProtocol<TangleEnvironment> + Send + 'static> AbstractGadget
     for TangleGadget<N, M>
 where
     Self: AbstractGadget<
@@ -51,11 +53,11 @@ where
     type Error = crate::Error;
 
     async fn next_event(&self) -> Option<Self::Event> {
-        todo!()
+        self.protocol.client().client.next_event().await
     }
 
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage> {
-        todo!()
+        self.network.next_message().await
     }
 
     async fn on_event_received(&self, notification: Self::Event) -> Result<(), Self::Error> {

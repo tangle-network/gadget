@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 use std::collections::HashMap;
 
-use gadget_common::environments::GadgetEnvironment;
+use gadget_common::environments::TangleEnvironment;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
@@ -316,7 +316,7 @@ enum MessageType {
 }
 
 #[async_trait]
-impl<Env: GadgetEnvironment> Network<Env> for GossipHandle {
+impl Network<TangleEnvironment> for GossipHandle {
     async fn next_message(
         &self,
     ) -> Option<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage> {

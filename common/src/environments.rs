@@ -10,8 +10,8 @@ use sp_core::ecdsa;
 use std::error::Error;
 use std::fmt::{Debug, Display};
 
-pub trait EventMetadata {
-    fn number(&self) -> u64;
+pub trait EventMetadata<Env: GadgetEnvironment> {
+    fn number(&self) -> <Env as GadgetEnvironment>::Clock;
 }
 
 pub trait GadgetEnvironment: Sized + 'static
@@ -25,7 +25,7 @@ where
         ProtocolMessage = Self::ProtocolMessage,
     >,
 {
-    type Event: EventMetadata + Send + Sync + 'static;
+    type Event: EventMetadata<Self> + Send + Sync + 'static;
     type ProtocolMessage: Send + Sync + 'static + ProtocolMessageMetadata<Self::WorkManager>;
     type Client: ClientWithApi<Self> + Send + Sync + 'static;
     type WorkManager: WorkManagerInterface;
@@ -91,8 +91,8 @@ impl GadgetEnvironment for TangleEnvironment {
     }
 }
 
-impl EventMetadata for TangleEvent {
-    fn number(&self) -> u64 {
+impl EventMetadata<TangleEnvironment> for TangleEvent {
+    fn number(&self) -> <TangleEnvironment as GadgetEnvironment>::Clock {
         self.number
     }
 }

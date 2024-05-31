@@ -7,7 +7,7 @@ pub mod shell;
 pub use config::*;
 pub use entry::run_shell_for_protocol;
 pub use gadget_common::prelude::*;
-pub use gadget_core::gadget::substrate::Client;
+pub use gadget_core::gadget::general::Client;
 pub use shell::generate_node_input;
 
 pub mod prelude {
@@ -32,7 +32,8 @@ pub mod prelude {
     pub use crate::UnboundedReceiver;
     pub use crate::WorkManagerInterface;
     pub use gadget_common::full_protocol::SharedOptional;
-    pub use gadget_common::gadget::substrate::JobInitMetadata;
+
+    pub use gadget_common::gadget::tangle::JobInitMetadata;
     pub use gadget_common::prelude::InMemoryBackend;
     pub use gadget_common::tangle_runtime::AccountId32;
     pub use gadget_common::tangle_runtime::MaxAdditionalParamsLen;
@@ -51,6 +52,7 @@ pub mod prelude {
     pub use pallet_zksaas;
     pub use tangle_primitives;
     pub use tangle_subxt;
+
 }
 
 /// Should be put inside the main.rs file of the protocol repository

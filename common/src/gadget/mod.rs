@@ -30,7 +30,6 @@ pub struct GeneralModule<N, M, Env: GadgetEnvironment> {
     network: N,
     job_manager: ProtocolWorkManager<Env::WorkManager>,
     clock: Arc<RwLock<Option<Env::Clock>>>,
-    event_handler: Box<dyn EventHandler<Env>>,
 }
 
 const DEFAULT_MAX_ACTIVE_TASKS: usize = 4;
@@ -55,17 +54,11 @@ impl Default for WorkManagerConfig {
 }
 
 impl<Env: GadgetEnvironment, N: Network<Env>, M: GadgetProtocol<Env>> GeneralModule<N, M, Env> {
-    pub fn new<Evt: EventHandler<Env>>(
-        network: N,
-        module: M,
-        job_manager: ProtocolWorkManager<Env::WorkManager>,
-        event_handler: Evt,
-    ) -> Self {
+    pub fn new(network: N, module: M, job_manager: ProtocolWorkManager<Env::WorkManager>) -> Self {
         let clock = Arc::new(RwLock::new(Some(job_manager.utility.clock().clone())));
         GeneralModule {
             protocol: module,
             job_manager,
-            event_handler: Box::new(event_handler),
             network,
             clock,
         }
@@ -89,7 +82,7 @@ impl<Env: GadgetEnvironment, N: Network<Env>, M: GadgetProtocol<Env>> AbstractGa
     }
 
     async fn on_event_received(&self, notification: Self::Event) -> Result<(), Self::Error> {
-        self.event_handler.process_event(notification).await
+        self.protocol.process_event(notification).await
     }
 
     async fn process_protocol_message(
@@ -166,12 +159,19 @@ pub trait GadgetProtocol<Env: GadgetEnvironment>:
         work_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Error>;
 
+    async fn process_event(
+        &self,
+        event: <Env as GadgetEnvironment>::Event,
+    ) -> Result<(), Env::Error>;
+
     /// Process an error that may arise from the work manager, async protocol, or the executor
     async fn process_error(
         &self,
         error: Env::Error,
         job_manager: &ProtocolWorkManager<Env::WorkManager>,
     );
+
+    async fn generate_work_manager(&self, clock: Arc<RwLock<Option<<Env as GadgetEnvironment>::Clock>>>) -> <Env as GadgetEnvironment>::WorkManager;
     /// The account ID of this node. Jobs queried will be filtered by this account ID
     fn account_id(&self) -> &sr25519::Public;
 
