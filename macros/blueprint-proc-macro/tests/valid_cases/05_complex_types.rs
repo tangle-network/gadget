@@ -15,7 +15,7 @@ fn keygen(n: u16, vec: Vec<u8>) -> Result<(Bytes, String), String> {
 
 fn main() {
     // Ensure the generated struct exists
-    let _ = Keygen {
+    let _ = KeygenJob {
         params: (16u16, vec![1u8, 2, 3]),
         result: (Bytes::new(), String::new()),
     };

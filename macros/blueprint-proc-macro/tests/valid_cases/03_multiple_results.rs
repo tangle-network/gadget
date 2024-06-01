@@ -15,5 +15,5 @@ fn keygen(n: u16) -> (Bytes, String) {
 
 fn main() {
     // Ensure the generated struct exists
-    let _ = Keygen { params: (16u16), result: (Bytes::new(), String::new()) };
+    let _ = KeygenJob { params: (16u16), result: (Bytes::new(), String::new()) };
 }
