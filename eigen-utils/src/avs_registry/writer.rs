@@ -1,7 +1,8 @@
-use alloy_network::{EthereumSigner, Network};
+use alloy_network::{Ethereum, EthereumSigner, Network};
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use alloy_provider::Provider;
 
+use alloy_rpc_types::TransactionReceipt;
 use alloy_signer::k256::ecdsa;
 use alloy_signer::k256::ecdsa::signature::Keypair;
 use alloy_signer::utils::raw_public_key_to_address;
@@ -16,39 +17,37 @@ use crate::types::{*};
 
 type AvsRegistryWriterResult<T> = Result<T, AvsError>;
 
-pub struct AvsRegistryChainWriter<T, P, N, S>
+pub struct AvsRegistryChainWriter<T, P, S>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy + 'static,
-    N: Network,
+    P: Provider<T, Ethereum> + Copy + 'static,
     S: Signer + Send + Sync,
 {
     service_manager_addr: Address,
-    registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P, N>,
-    operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P, N>,
-    stake_registry: StakeRegistry::StakeRegistryInstance<T, P, N>,
-    bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P, N>,
-    el_reader: ElChainReader<T, P, N>,
+    registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P>,
+    operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P>,
+    stake_registry: StakeRegistry::StakeRegistryInstance<T, P>,
+    bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P>,
+    el_reader: ElChainReader<T, P>,
     // logger: Logger,
     eth_client: P,
     tx_mgr: EthereumSigner,
     signer: S,
 }
 
-impl<T, P, N, S> AvsRegistryChainWriter<T, P, N, S>
+impl<T, P, S> AvsRegistryChainWriter<T, P, S>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy + 'static,
-    N: Network,
+    P: Provider<T, Ethereum> + Copy + 'static,
     S: Signer + Send + Sync,
 {
     pub fn new(
         service_manager_addr: Address,
-        registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P, N>,
-        operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P, N>,
-        stake_registry: StakeRegistry::StakeRegistryInstance<T, P, N>,
-        bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P, N>,
-        el_reader: ElChainReader<T, P, N>,
+        registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P>,
+        operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P>,
+        stake_registry: StakeRegistry::StakeRegistryInstance<T, P>,
+        bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P>,
+        el_reader: ElChainReader<T, P>,
         // logger: Logger,
         eth_client: P,
         tx_mgr: EthereumSigner,
@@ -76,7 +75,7 @@ where
         bls_key_pair: &KeyPair,
         quorum_numbers: Bytes,
         socket: String,
-    ) -> AvsRegistryWriterResult<<N as Network>::ReceiptResponse> {
+    ) -> AvsRegistryWriterResult<TransactionReceipt> {
         let operator_addr = raw_public_key_to_address(
             operator_ecdsa_private_key
                 .verifying_key()
@@ -84,8 +83,7 @@ where
                 .as_ref(),
         );
 
-        // self.logger
-        //     .info("Registering operator with the AVS's registry coordinator");
+        log::info!("Registering operator with the AVS's registry coordinator");
 
         let g1_hashed_msg_to_sign = self
             .registry_coordinator
@@ -153,8 +151,7 @@ where
             .get_receipt()
             .await?;
 
-        // self.logger
-        //     .info("Successfully registered operator with AVS registry coordinator");
+        log::info!("Successfully registered operator with AVS registry coordinator");
 
         Ok(receipt)
     }
@@ -163,8 +160,8 @@ where
         &self,
         operators_per_quorum: Vec<Vec<Address>>,
         quorum_numbers: Bytes,
-    ) -> AvsRegistryWriterResult<<N as Network>::ReceiptResponse> {
-        // self.logger.info("Updating stakes for entire operator set");
+    ) -> AvsRegistryWriterResult<TransactionReceipt> {
+        log::info!("Updating stakes for entire operator set");
 
         let receipt = self
             .registry_coordinator
@@ -174,8 +171,7 @@ where
             .get_receipt()
             .await?;
 
-        // self.logger
-        //     .info("Successfully updated stakes for entire operator set");
+        log::info!("Successfully updated stakes for entire operator set");
 
         Ok(receipt)
     }
@@ -183,9 +179,8 @@ where
     pub async fn update_stakes_of_operator_subset_for_all_quorums(
         &self,
         operators: Vec<Address>,
-    ) -> AvsRegistryWriterResult<<N as Network>::ReceiptResponse> {
-        // self.logger
-        //     .info("Updating stakes of operator subset for all quorums");
+    ) -> AvsRegistryWriterResult<TransactionReceipt> {
+        log::info!("Updating stakes of operator subset for all quorums");
 
         let receipt = self
             .registry_coordinator
@@ -195,8 +190,7 @@ where
             .get_receipt()
             .await?;
 
-        // self.logger
-        //     .info("Successfully updated stakes of operator subset for all quorums");
+        log::info!("Successfully updated stakes of operator subset for all quorums");
 
         Ok(receipt)
     }
@@ -204,9 +198,8 @@ where
     pub async fn deregister_operator(
         &self,
         quorum_numbers: Bytes,
-    ) -> AvsRegistryWriterResult<<N as Network>::ReceiptResponse> {
-        // self.logger
-        //     .info("Deregistering operator with the AVS's registry coordinator");
+    ) -> AvsRegistryWriterResult<TransactionReceipt> {
+        log::info!("Deregistering operator with the AVS's registry coordinator");
 
         let receipt = self
             .registry_coordinator
@@ -216,8 +209,7 @@ where
             .get_receipt()
             .await?;
 
-        // self.logger
-        //     .info("Successfully deregistered operator with the AVS's registry coordinator");
+        log::info!("Successfully deregistered operator with the AVS's registry coordinator");
 
         Ok(receipt)
     }

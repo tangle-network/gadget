@@ -26,6 +26,7 @@ tree_magic_mini.workspace = true
 tokio.workspace = true
 hex.workspace = true
 futures.workspace = true
+log.workspace = true
 alloy-contract.workspace = true
 alloy-consensus.workspace = true
 alloy-eips.workspace = true

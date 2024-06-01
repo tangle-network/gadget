@@ -1,6 +1,6 @@
 use crate::types::*;
 
-use alloy_network::Network;
+use alloy_network::{Ethereum, Network};
 use alloy_primitives::FixedBytes;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
@@ -15,25 +15,24 @@ use eigen_contracts::IERC20;
 // use crate::logging::Logger;
 
 #[async_trait]
-pub trait ElReader<T, P, N>
+pub trait ElReader<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy + 'static,
-    N: Network,
+    P: Provider<T, Ethereum> + Copy + 'static,
 {
     async fn is_operator_registered(&self, operator: &Operator) -> Result<bool, AvsError>;
     async fn get_operator_details(&self, operator: &Operator) -> Result<Operator, AvsError>;
     async fn get_strategy_and_underlying_token(
         &self,
         strategy_addr: Address,
-    ) -> Result<(IStrategy::IStrategyInstance<T, P, N>, Address), AvsError>;
+    ) -> Result<(IStrategy::IStrategyInstance<T, P>, Address), AvsError>;
     async fn get_strategy_and_underlying_erc20_token(
         &self,
         strategy_addr: Address,
     ) -> Result<
         (
-            IStrategy::IStrategyInstance<T, P, N>,
-            IERC20::IERC20Instance<T, P, N>,
+            IStrategy::IStrategyInstance<T, P>,
+            IERC20::IERC20Instance<T, P>,
             Address,
         ),
         AvsError,
@@ -66,31 +65,29 @@ where
     ) -> Result<FixedBytes<32>, AvsError>;
 }
 
-pub struct ElChainReader<T, P, N>
+pub struct ElChainReader<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy + 'static,
-    N: Network,
+    P: Provider<T, Ethereum> + Copy + 'static,
 {
     // logger: Logger,
-    slasher: ISlasher::ISlasherInstance<T, P, N>,
-    delegation_manager: DelegationManager::DelegationManagerInstance<T, P, N>,
-    strategy_manager: StrategyManager::StrategyManagerInstance<T, P, N>,
-    avs_directory: AVSDirectory::AVSDirectoryInstance<T, P, N>,
+    slasher: ISlasher::ISlasherInstance<T, P>,
+    delegation_manager: DelegationManager::DelegationManagerInstance<T, P>,
+    strategy_manager: StrategyManager::StrategyManagerInstance<T, P>,
+    avs_directory: AVSDirectory::AVSDirectoryInstance<T, P>,
     eth_client: P,
 }
 
-impl<T, P, N> ElChainReader<T, P, N>
+impl<T, P> ElChainReader<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy + 'static,
-    N: Network,
+    P: Provider<T, Ethereum> + Copy + 'static,
 {
     pub fn new(
-        slasher: ISlasher::ISlasherInstance<T, P, N>,
-        delegation_manager: DelegationManager::DelegationManagerInstance<T, P, N>,
-        strategy_manager: StrategyManager::StrategyManagerInstance<T, P, N>,
-        avs_directory: AVSDirectory::AVSDirectoryInstance<T, P, N>,
+        slasher: ISlasher::ISlasherInstance<T, P>,
+        delegation_manager: DelegationManager::DelegationManagerInstance<T, P>,
+        strategy_manager: StrategyManager::StrategyManagerInstance<T, P>,
+        avs_directory: AVSDirectory::AVSDirectoryInstance<T, P>,
         // logger: Logger,
         eth_client: P,
     ) -> Self {
@@ -128,11 +125,10 @@ where
 }
 
 #[async_trait]
-impl<T, P, N> ElReader<T, P, N> for ElChainReader<T, P, N>
+impl<T, P> ElReader<T, P> for ElChainReader<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy + 'static,
-    N: Network,
+    P: Provider<T, Ethereum> + Copy + 'static,
 {
     async fn is_operator_registered(&self, operator: &Operator) -> Result<bool, AvsError> {
         let is_operator = self
@@ -163,7 +159,7 @@ where
     async fn get_strategy_and_underlying_token(
         &self,
         strategy_addr: Address,
-    ) -> Result<(IStrategy::IStrategyInstance<T, P, N>, Address), AvsError> {
+    ) -> Result<(IStrategy::IStrategyInstance<T, P>, Address), AvsError> {
         let contract_strategy = IStrategy::new(strategy_addr, self.eth_client);
         let underlying_token_addr = contract_strategy
             .underlyingToken()
@@ -178,8 +174,8 @@ where
         strategy_addr: Address,
     ) -> Result<
         (
-            IStrategy::IStrategyInstance<T, P, N>,
-            IERC20::IERC20Instance<T, P, N>,
+            IStrategy::IStrategyInstance<T, P>,
+            IERC20::IERC20Instance<T, P>,
             Address,
         ),
         AvsError,

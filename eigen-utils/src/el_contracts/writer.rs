@@ -1,9 +1,11 @@
 use crate::types::*;
 
+use alloy_network::Ethereum;
 use alloy_network::EthereumSigner;
 use alloy_network::Network;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
+use alloy_rpc_types::TransactionReceipt;
 use alloy_transport::Transport;
 use async_trait::async_trait;
 use eigen_contracts::AVSDirectory;
@@ -17,48 +19,46 @@ use super::reader::ElReader;
 // use crate::logging::Logger;
 
 #[async_trait]
-pub trait ElWriter<N: Network>: Send + Sync {
+pub trait ElWriter: Send + Sync {
     async fn register_as_operator(
         &self,
         operator: Operator,
-    ) -> Result<<N as Network>::ReceiptResponse, AvsError>;
+    ) -> Result<TransactionReceipt, AvsError>;
     async fn update_operator_details(
         &self,
         operator: Operator,
-    ) -> Result<<N as Network>::ReceiptResponse, AvsError>;
+    ) -> Result<TransactionReceipt, AvsError>;
     async fn deposit_erc20_into_strategy(
         &self,
         strategy_addr: Address,
         amount: U256,
-    ) -> Result<<N as Network>::ReceiptResponse, AvsError>;
+    ) -> Result<TransactionReceipt, AvsError>;
 }
 
-pub struct ElChainWriter<T, P, N>
+pub struct ElChainWriter<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy + 'static,
-    N: Network,
+    P: Provider<T, Ethereum> + Copy + 'static,
 {
-    slasher: ISlasher::ISlasherInstance<T, P, N>,
-    delegation_manager: DelegationManager::DelegationManagerInstance<T, P, N>,
-    strategy_manager: StrategyManager::StrategyManagerInstance<T, P, N>,
-    el_chain_reader: ElChainReader<T, P, N>,
+    slasher: ISlasher::ISlasherInstance<T, P>,
+    delegation_manager: DelegationManager::DelegationManagerInstance<T, P>,
+    strategy_manager: StrategyManager::StrategyManagerInstance<T, P>,
+    el_chain_reader: ElChainReader<T, P>,
     eth_client: P,
     // logger: Logger,
     tx_mgr: EthereumSigner,
 }
 
-impl<T, P, N> ElChainWriter<T, P, N>
+impl<T, P> ElChainWriter<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy + 'static,
-    N: Network,
+    P: Provider<T, Ethereum> + Copy + 'static,
 {
     pub fn new(
-        slasher: ISlasher::ISlasherInstance<T, P, N>,
-        delegation_manager: DelegationManager::DelegationManagerInstance<T, P, N>,
-        strategy_manager: StrategyManager::StrategyManagerInstance<T, P, N>,
-        el_chain_reader: ElChainReader<T, P, N>,
+        slasher: ISlasher::ISlasherInstance<T, P>,
+        delegation_manager: DelegationManager::DelegationManagerInstance<T, P>,
+        strategy_manager: StrategyManager::StrategyManagerInstance<T, P>,
+        el_chain_reader: ElChainReader<T, P>,
         eth_client: P,
         // logger: Logger,
         tx_mgr: EthereumSigner,
@@ -86,7 +86,6 @@ where
         let slash_addr = delegation_manager.slasher().call().await.map(|a| a._0)?;
         let slasher = ISlasher::new(slash_addr, eth_client);
         let strategy_manager = StrategyManager::new(strategy_manager_addr, eth_client);
-        let _avs_directory = AVSDirectory::new(avs_directory_addr, eth_client);
         let el_chain_reader = ElChainReader::build(
             delegation_manager_addr,
             avs_directory_addr,
@@ -108,20 +107,19 @@ where
 }
 
 #[async_trait]
-impl<T, P, N> ElWriter<N> for ElChainWriter<T, P, N>
+impl<T, P> ElWriter for ElChainWriter<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy,
-    N: Network,
+    P: Provider<T, Ethereum> + Copy,
 {
     async fn register_as_operator(
         &self,
         operator: Operator,
-    ) -> Result<<N as Network>::ReceiptResponse, AvsError> {
-        // self.logger.info(format!(
-        //     "registering operator {} to EigenLayer",
-        //     operator.address
-        // ));
+    ) -> Result<TransactionReceipt, AvsError> {
+        log::info!(
+            "registering operator {} to EigenLayer",
+            operator.address
+        );
 
         let op_details = DelegationManager::OperatorDetails {
             earningsReceiver: operator.earnings_receiver_address,
@@ -136,11 +134,11 @@ where
             .await?
             .get_receipt()
             .await?;
-
-        // self.logger.info(format!(
-        //     "tx successfully included, txHash: {}",
-        //     receipt.transaction_hash
-        // ));
+    
+        log::info!(
+            "Successfully registered operator to EigenLayer, txHash: {}",
+            receipt.transaction_hash
+        );
 
         Ok(receipt)
     }
@@ -148,11 +146,11 @@ where
     async fn update_operator_details(
         &self,
         operator: Operator,
-    ) -> Result<<N as Network>::ReceiptResponse, AvsError> {
-        // self.logger.info(format!(
-        //     "updating operator details of operator {} to EigenLayer",
-        //     operator.address
-        // ));
+    ) -> Result<TransactionReceipt, AvsError> {
+        log::info!(
+            "updating operator details of operator {} to EigenLayer",
+            operator.address
+        );
 
         let op_details = DelegationManager::OperatorDetails {
             earningsReceiver: operator.earnings_receiver_address,
@@ -160,17 +158,18 @@ where
             delegationApprover: operator.delegation_approver_address,
         };
 
-        let _receipt = self
+        let receipt = self
             .delegation_manager
             .modifyOperatorDetails(op_details)
             .send()
             .await?
             .get_receipt()
             .await?;
-        // self.logger.info(format!(
-        //     "successfully updated operator metadata URI, txHash: {}",
-        //     receipt.transaction_hash
-        // ));
+
+        log::info!(
+            "successfully updated operator metadata URI, txHash: {}",
+            receipt.transaction_hash
+        );
 
         let receipt = self
             .delegation_manager
@@ -179,10 +178,11 @@ where
             .await?
             .get_receipt()
             .await?;
-        // self.logger.info(format!(
-        //     "successfully updated operator details, txHash: {}",
-        //     receipt.transaction_hash
-        // ));
+
+        log::info!(
+            "successfully updated operator details, txHash: {}",
+            receipt.transaction_hash
+        );
 
         Ok(receipt)
     }
@@ -191,22 +191,27 @@ where
         &self,
         strategy_addr: Address,
         amount: U256,
-    ) -> Result<<N as Network>::ReceiptResponse, AvsError> {
-        // self.logger.info(format!(
-        //     "depositing {} tokens into strategy {}",
-        //     amount, strategy_addr
-        // ));
+    ) -> Result<TransactionReceipt, AvsError> {
+        log::info!(
+            "depositing {} tokens into strategy {}",
+            amount, strategy_addr
+        );
 
         let (_, underlying_token_contract, underlying_token_addr) = self
             .el_chain_reader
             .get_strategy_and_underlying_erc20_token(strategy_addr)
             .await?;
-        let _receipt = underlying_token_contract
+        let receipt = underlying_token_contract
             .approve(*self.strategy_manager.address(), amount)
             .send()
             .await?
             .get_receipt()
             .await?;
+        
+        log::info!(
+            "approved {} tokens for deposit into strategy {} with txHash: {}",
+            amount, strategy_addr, receipt.transaction_hash
+        );
 
         let receipt = self
             .strategy_manager
@@ -215,10 +220,11 @@ where
             .await?
             .get_receipt()
             .await?;
-        // self.logger.info(format!(
-        //     "deposited {} into strategy {}",
-        //     amount, strategy_addr
-        // ));
+
+        log::info!(
+            "deposited {} into strategy {}",
+            amount, strategy_addr
+        );
 
         Ok(receipt)
     }

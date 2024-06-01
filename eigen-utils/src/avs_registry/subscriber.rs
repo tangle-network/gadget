@@ -1,5 +1,6 @@
 use alloy_network::{Network};
 use alloy_provider::Provider;
+use alloy_provider::ProviderBuilder;
 use alloy_pubsub::Subscription;
 use alloy_rpc_types::Filter;
 use alloy_rpc_types::Log;

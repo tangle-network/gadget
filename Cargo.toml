@@ -7,8 +7,10 @@ members = [
     "protocol-macros",
     "shell-manager",
     "shell-sdk",
-    "eigen-contracts"
-, "eigen-utils"]
+    "eigen-contracts",
+    "eigen-utils",
+    "fireblocks-client",
+]
 
 [workspace.dependencies]
 gadget-core = { path = "./core" }
@@ -19,6 +21,8 @@ shell-sdk = { path = "./shell-sdk" }
 shell-manager = { path = "./shell-manager" }
 
 eigen-contracts = { path = "./eigen-contracts" }
+eigen-utils = { path = "./eigen-utils" }
+fireblocks-client = { path = "./fireblocks-client" }
 
 snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false, rev = "1c15242" }
@@ -134,7 +138,6 @@ parking_lot = "0.12.1"
 futures = "0.3.30"
 hex = "0.4.3"
 auto_impl = "1.1.0"
-uuid = "1.4.1"
 bytes = "1.5.0"
 serde_bytes = "0.11.12"
 itertools = "0.12.0"
@@ -170,6 +173,11 @@ regex = "1.10.4"
 num-bigint = "0.4.5"
 reqwest = "0.12.4"
 tree_magic_mini = "3.1.5"
+uuid = "1.8.0"
+jsonwebtoken = "9.3.0"
+rsa = "0.9.6"
+pretty_env_logger = "0.5.0"
+
 alloy-chains = "0.1.15"
 alloy-primitives = "0.7.2"
 alloy-dyn-abi = "0.7.2"
