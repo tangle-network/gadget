@@ -7,6 +7,30 @@ license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
 [dependencies]
-ethers.workspace = true
-
-
+alloy-primitives.workspace = true
+alloy-provider.workspace = true
+alloy-sol-types = { workspace = true, features = ["json"] }
+alloy-transport-http.workspace = true
+alloy-rpc-types.workspace = true
+# serde_json = "1.0.114"
+# num-bigint = "0.4.4"
+# reqwest = "0.12.4"
+# eigen-types.workspace = true
+# eigen-crypto-bls.workspace = true
+# ark-ff.workspace = true
+# eigen-crypto-bn254.workspace = true
+# eigen-client-elcontracts.workspace = true
+# eigen-chainio-utils.workspace = true
+# ark-bn254 = "0.4.0"
+# thiserror.workspace = true
+# tracing.workspace = true
+# tokio = {version = "1.37.0" , features = ["test-util", "full","sync"] }
+# hex = "0.4.3"
+# futures = "0.3.30"
+alloy-contract.workspace = true
+alloy-eips.workspace = true
+alloy-transport.workspace = true
+alloy-network.workspace = true
+alloy-transport-ws.workspace = true
+alloy-signer-wallet.workspace = true
+alloy-signer.workspace = true
