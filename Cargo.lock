@@ -3432,8 +3432,21 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
+ "ron",
  "syn 2.0.63",
+ "tangle-subxt",
  "trybuild",
+]
+
+[[package]]
+name = "gadget-blueprint-proc-macro-core"
+version = "0.1.0"
+
+[[package]]
+name = "gadget-blueprint-proc-macro-playground"
+version = "0.1.0"
+dependencies = [
+ "gadget-blueprint-proc-macro",
 ]
 
 [[package]]
@@ -8142,6 +8155,18 @@ dependencies = [
  "spin 0.9.8",
  "untrusted 0.9.0",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "ron"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b91f7eff05f748767f183df4320a63d6936e9c6107d97c9e6bdd9784f4289c94"
+dependencies = [
+ "base64 0.21.7",
+ "bitflags 2.5.0",
+ "serde",
+ "serde_derive",
 ]
 
 [[package]]

@@ -14,6 +14,8 @@ proc-macro = true
 syn = { version = "2.0", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"
+tangle-subxt = { workspace = true }
+ron = "0.8"
 
 [dev-dependencies]
 trybuild = "1.0"

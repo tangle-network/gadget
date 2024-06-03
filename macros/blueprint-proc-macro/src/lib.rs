@@ -21,6 +21,7 @@ use syn::parse_macro_input;
 
 /// Blueprint Job proc-macro
 mod job;
+mod blueprint;
 
 /// A procedural macro that annotates a function as a job.
 /// It generates a struct with the same name as the function (in `PascalCase`)
@@ -52,4 +53,44 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
         Ok(tokens) => tokens,
         Err(err) => err.to_compile_error().into(),
     }
+}
+
+/// A procedural macro that generates a blueprint.json file
+/// that contains the blueprint of the given module.
+///
+/// # Example
+/// ```rust,ignore
+/// # use blueprint_macro::blueprint;
+/// blueprint! {
+///  registration_hook: None,
+///  registration_params: [],
+/// }
+#[proc_macro]
+pub fn blueprint(input: TokenStream) -> TokenStream {
+    let input_str = format!("ServiceBlueprint({input})");
+    let ron = ron::Options::default().with_default_extension(ron::extensions::Extensions::all());
+    let maybe_blueprint = ron.from_str(&input_str);
+    let blueprint = match maybe_blueprint {
+        Ok(blueprint) => blueprint,
+        Err(err) => {
+            return syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!("Failed to create blueprint: {err}"),
+            )
+            .to_compile_error()
+            .into()
+        }
+    };
+    let ServiceBlueprint { request_hook, .. } = blueprint;
+    let out = quote::quote! {
+        /// Gadget Blueprint
+        /// AUTO GENERATED MODULE.
+        pub mod blueprint {
+            pub static BLUEPRINT: ServiceBlueprint = ServiceBlueprint {
+                request_hook: #request_hook,
+                ..Default::default()
+            };
+        }
+    };
+    out.into()
 }
