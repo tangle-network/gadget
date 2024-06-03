@@ -1,43 +1,39 @@
 use crate::debug_logger::DebugLogger;
+use crate::environments::{GadgetEnvironment, TangleEnvironment};
 use crate::tangle_runtime::*;
 use async_trait::async_trait;
 use auto_impl::auto_impl;
 use gadget_core::gadget::general::Client;
-use gadget_core::gadget::manager::AbstractGadget;
 use sp_core::{ecdsa, ByteArray};
 use sp_core::{sr25519, Pair};
-use std::marker::PhantomData;
 use std::sync::Arc;
 use tangle_subxt::subxt::{self, tx::TxPayload, OnlineClient};
 
-pub struct JobsClient<C, Event> {
-    pub client: C,
+pub struct JobsClient<Env: GadgetEnvironment> {
+    pub client: Arc<Env::Client>,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
-    _pd: PhantomData<Event>,
 }
 
-impl<Event: Send + Sync + 'static, C: Clone> Clone for JobsClient<C, Event> {
+impl<Env: GadgetEnvironment> Clone for JobsClient<Env> {
     fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
             logger: self.logger.clone(),
             pallet_tx: self.pallet_tx.clone(),
-            _pd: PhantomData,
         }
     }
 }
 
-pub async fn create_client<Event: Send + Sync + 'static, C: ClientWithApi<Event>>(
-    client: C,
+pub async fn create_client<Env: GadgetEnvironment>(
+    client: Env::Client,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
-) -> Result<JobsClient<C, Event>, crate::Error> {
+) -> Result<JobsClient<Env>, crate::Error> {
     Ok(JobsClient {
-        client,
+        client: Arc::new(client),
         logger,
         pallet_tx,
-        _pd: PhantomData,
     })
 }
 
@@ -78,7 +74,7 @@ pub trait PhaseResultExt {
 
 #[async_trait]
 #[auto_impl(Arc)]
-pub trait ClientWithApi<Event>: Client<Event> {
+pub trait ClientWithApi<Env: GadgetEnvironment>: Client<Env::Event> + 'static {
     /// Query jobs associated with a specific validator.
     ///
     /// This function takes a `validator` parameter of type `AccountId` and attempts
@@ -198,7 +194,7 @@ pub trait ClientWithApi<Event>: Client<Event> {
     ) -> Result<Vec<roles::RoleType>, crate::Error>;
 }
 
-impl<Event: Send + Sync + 'static, C: ClientWithApi<Event>> JobsClient<C, Event> {
+impl JobsClient<TangleEnvironment> {
     pub async fn query_jobs_by_validator(
         &self,
         at: [u8; 32],
@@ -393,12 +389,12 @@ impl<
 }
 
 #[async_trait]
-impl<Event: Send + Sync + 'static, C: Client<Event>> Client<Event> for JobsClient<C, Event> {
-    async fn next_event(&self) -> Option<Event> {
+impl<Env: GadgetEnvironment> Client<Env::Event> for JobsClient<Env> {
+    async fn next_event(&self) -> Option<Env::Event> {
         self.client.next_event().await
     }
 
-    async fn latest_event(&self) -> Option<Event> {
+    async fn latest_event(&self) -> Option<Env::Event> {
         self.client.latest_event().await
     }
 }

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use gadget_common::prelude::{DebugLogger, Network, WorkManager};
+use gadget_common::prelude::{DebugLogger, Network, TangleWorkManager};
 use gadget_core::job_manager::WorkManagerInterface;
 use libp2p::gossipsub::IdentTopic;
 use libp2p::kad::store::MemoryStore;
@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 use std::collections::HashMap;
 
+use gadget_common::environments::TangleEnvironment;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
@@ -315,8 +316,10 @@ enum MessageType {
 }
 
 #[async_trait]
-impl Network for GossipHandle {
-    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+impl Network<TangleEnvironment> for GossipHandle {
+    async fn next_message(
+        &self,
+    ) -> Option<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage> {
         let mut lock = self
             .rx_from_inbound
             .try_lock()
@@ -336,7 +339,7 @@ impl Network for GossipHandle {
 
     async fn send_message(
         &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
+        message: <TangleWorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), gadget_common::Error> {
         let message_type = if let Some(to) = message.to_network_id {
             let libp2p_id = self
@@ -387,7 +390,7 @@ mod tests {
     use crate::network::setup::setup_libp2p_network;
     use crate::shell::wait_for_connection_to_bootnodes;
     use gadget_common::keystore::InMemoryBackend;
-    use gadget_common::prelude::{DebugLogger, GadgetProtocolMessage, Network, WorkManager};
+    use gadget_common::prelude::{DebugLogger, Network, TangleProtocolMessage, TangleWorkManager};
     use gadget_core::job_manager::WorkManagerInterface;
     use sp_core::{ecdsa, Pair};
     use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
@@ -542,14 +545,14 @@ mod tests {
 
     fn dummy_message_broadcast(
         input: Vec<u8>,
-    ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
+    ) -> <TangleWorkManager as WorkManagerInterface>::ProtocolMessage {
         dummy_message_inner(input, None)
     }
 
     fn dummy_message_p2p(
         input: Vec<u8>,
         to_idx: usize,
-    ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
+    ) -> <TangleWorkManager as WorkManagerInterface>::ProtocolMessage {
         let dummy_role_key = get_dummy_role_key_from_index(to_idx);
         dummy_message_inner(input, Some(dummy_role_key.public()))
     }
@@ -557,8 +560,8 @@ mod tests {
     fn dummy_message_inner(
         input: Vec<u8>,
         to_network_id: Option<ecdsa::Public>,
-    ) -> <WorkManager as WorkManagerInterface>::ProtocolMessage {
-        GadgetProtocolMessage {
+    ) -> <TangleWorkManager as WorkManagerInterface>::ProtocolMessage {
+        TangleProtocolMessage {
             associated_block_id: 0,
             associated_session_id: 0,
             associated_retry_id: 0,

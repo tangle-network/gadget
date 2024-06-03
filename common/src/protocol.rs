@@ -1,5 +1,5 @@
-use crate::gadget::message::GadgetProtocolMessage;
-use crate::gadget::work_manager::WorkManager;
+use crate::environments::GadgetEnvironment;
+use crate::gadget::work_manager::TangleWorkManager;
 use crate::gadget::Job;
 use async_trait::async_trait;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
@@ -9,39 +9,38 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-pub struct AsyncProtocolRemote {
+pub struct AsyncProtocolRemote<Env: GadgetEnvironment> {
     pub start_tx: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     pub shutdown_tx: Mutex<Option<tokio::sync::oneshot::Sender<ShutdownReason>>>,
-    pub associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-    pub associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-    pub associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-    pub associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-    pub to_async_protocol:
-        tokio::sync::mpsc::UnboundedSender<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
+    pub associated_session_id: <Env::WorkManager as WorkManagerInterface>::SessionID,
+    pub associated_block_id: <Env::WorkManager as WorkManagerInterface>::Clock,
+    pub associated_retry_id: <Env::WorkManager as WorkManagerInterface>::RetryID,
+    pub associated_task_id: <Env::WorkManager as WorkManagerInterface>::TaskID,
+    pub to_async_protocol: tokio::sync::mpsc::UnboundedSender<Env::ProtocolMessage>,
     pub is_done: Arc<AtomicBool>,
 }
 
 #[async_trait]
-pub trait AsyncProtocol {
+pub trait AsyncProtocol<Env: GadgetEnvironment> {
     type AdditionalParams: Send + Sync + 'static;
     async fn generate_protocol_from(
         &self,
-        associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-        associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-        associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-        associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-        protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+        associated_block_id: <Env::WorkManager as WorkManagerInterface>::Clock,
+        associated_retry_id: <Env::WorkManager as WorkManagerInterface>::RetryID,
+        associated_session_id: <Env::WorkManager as WorkManagerInterface>::SessionID,
+        associated_task_id: <Env::WorkManager as WorkManagerInterface>::TaskID,
+        protocol_message_rx: UnboundedReceiver<Env::ProtocolMessage>,
         additional_params: Self::AdditionalParams,
     ) -> Result<BuiltExecutableJobWrapper, JobError>;
 
     async fn create(
         &self,
-        session_id: <WorkManager as WorkManagerInterface>::SessionID,
-        now: <WorkManager as WorkManagerInterface>::Clock,
-        retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-        task_id: <WorkManager as WorkManagerInterface>::TaskID,
+        session_id: <Env::WorkManager as WorkManagerInterface>::SessionID,
+        now: <Env::WorkManager as WorkManagerInterface>::Clock,
+        retry_id: <Env::WorkManager as WorkManagerInterface>::RetryID,
+        task_id: <Env::WorkManager as WorkManagerInterface>::TaskID,
         additional_params: Self::AdditionalParams,
-    ) -> Result<Job, JobError> {
+    ) -> Result<Job<Env>, JobError> {
         let is_done = Arc::new(AtomicBool::new(false));
         let (to_async_protocol, protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
         let (start_tx, start_rx) = tokio::sync::oneshot::channel();
@@ -79,41 +78,43 @@ pub trait AsyncProtocol {
     }
 }
 
-impl ProtocolRemote<WorkManager> for AsyncProtocolRemote {
-    fn start(&self) -> Result<(), <WorkManager as WorkManagerInterface>::Error> {
+impl<Env> ProtocolRemote<TangleWorkManager> for AsyncProtocolRemote<Env>
+where
+    Env: GadgetEnvironment<
+        RetryID = <TangleWorkManager as WorkManagerInterface>::RetryID,
+        ProtocolMessage = <TangleWorkManager as WorkManagerInterface>::ProtocolMessage,
+        Error = <TangleWorkManager as WorkManagerInterface>::Error,
+        Clock = <TangleWorkManager as WorkManagerInterface>::Clock,
+        SessionID = <TangleWorkManager as WorkManagerInterface>::SessionID,
+    >,
+{
+    fn start(&self) -> Result<(), Env::Error> {
         self.start_tx
             .lock()
             .take()
-            .ok_or_else(|| crate::Error::ProtocolRemoteError {
-                err: "Protocol already started".to_string(),
-            })?
+            .ok_or_else(|| Env::Error::from("Protocol already started".to_string()))?
             .send(())
-            .map_err(|_err| crate::Error::ProtocolRemoteError {
-                err: "Unable to start protocol".to_string(),
-            })
+            .map_err(|_err| Env::Error::from("Unable to start protocol".to_string()))
     }
 
-    fn session_id(&self) -> <WorkManager as WorkManagerInterface>::SessionID {
+    fn session_id(&self) -> <Env::WorkManager as WorkManagerInterface>::SessionID {
         self.associated_session_id
     }
 
-    fn started_at(&self) -> <WorkManager as WorkManagerInterface>::Clock {
+    fn started_at(&self) -> <Env::WorkManager as WorkManagerInterface>::Clock {
         self.associated_block_id
     }
 
-    fn shutdown(
-        &self,
-        reason: ShutdownReason,
-    ) -> Result<(), <WorkManager as WorkManagerInterface>::Error> {
+    fn shutdown(&self, reason: ShutdownReason) -> Result<(), Env::Error> {
         self.shutdown_tx
             .lock()
             .take()
-            .ok_or_else(|| crate::Error::ProtocolRemoteError {
-                err: "Protocol already shutdown".to_string(),
-            })?
+            .ok_or_else(|| Env::Error::from("Protocol already shutdown".to_string()))?
             .send(reason)
-            .map_err(|reason| crate::Error::ProtocolRemoteError {
-                err: format!("Unable to shutdown protocol with status {reason:?}"),
+            .map_err(|reason| {
+                Env::Error::from(format!(
+                    "Unable to shutdown protocol with status {reason:?}"
+                ))
             })
     }
 
@@ -121,22 +122,17 @@ impl ProtocolRemote<WorkManager> for AsyncProtocolRemote {
         self.is_done.load(Ordering::SeqCst)
     }
 
-    fn deliver_message(
-        &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), <WorkManager as WorkManagerInterface>::Error> {
+    fn deliver_message(&self, message: Env::ProtocolMessage) -> Result<(), Env::Error> {
         self.to_async_protocol
             .send(message)
-            .map_err(|err| crate::Error::ProtocolRemoteError {
-                err: err.to_string(),
-            })
+            .map_err(|err| Env::Error::from(err.to_string()))
     }
 
     fn has_started(&self) -> bool {
         self.start_tx.lock().is_none()
     }
 
-    fn retry_id(&self) -> <WorkManager as WorkManagerInterface>::RetryID {
+    fn retry_id(&self) -> <Env::WorkManager as WorkManagerInterface>::RetryID {
         self.associated_retry_id
     }
 }

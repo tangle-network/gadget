@@ -55,7 +55,6 @@ pub type EnqueuedMessage<A, B, C> = HashMap<A, HashMap<B, VecDeque<C>>>;
 
 pub trait WorkManagerInterface: Send + Sync + 'static + Sized {
     type RetryID: Copy + Hash + Eq + PartialEq + Send + Sync + 'static;
-    type UserID: Copy + Hash + Eq + PartialEq + Send + Sync + 'static;
     type Clock: Copy
         + Debug
         + Default
@@ -103,8 +102,12 @@ pub trait ProtocolMessageMetadata<WM: WorkManagerInterface> {
     fn associated_session_id(&self) -> WM::SessionID;
     fn associated_retry_id(&self) -> WM::RetryID;
     fn associated_task(&self) -> WM::TaskID;
-    fn associated_sender_user_id(&self) -> WM::UserID;
-    fn associated_recipient_user_id(&self) -> Option<WM::UserID>;
+    fn associated_sender_user_id(&self) -> u16;
+    fn associated_recipient_user_id(&self) -> Option<u16>;
+    fn payload(&self) -> &Vec<u8>;
+    fn sender_network_id(&self) -> Option<sp_core::ecdsa::Public>;
+    fn recipient_network_id(&self) -> Option<sp_core::ecdsa::Public>;
+    fn payload_mut(&mut self) -> &mut Vec<u8>;
 }
 
 /// The [`ProtocolRemote`] is the interface between the [`ProtocolWorkManager`] and the async protocol.
@@ -667,6 +670,7 @@ mod tests {
     use super::*;
     use crate::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
     use parking_lot::Mutex;
+    use sp_core::ecdsa::Public;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
     use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -698,20 +702,33 @@ mod tests {
             self.associated_task
         }
 
-        fn associated_sender_user_id(&self) -> <TestWorkManager as WorkManagerInterface>::UserID {
-            self.associated_sender
+        fn associated_sender_user_id(&self) -> u16 {
+            self.associated_sender as _
         }
 
-        fn associated_recipient_user_id(
-            &self,
-        ) -> Option<<TestWorkManager as WorkManagerInterface>::UserID> {
-            self.associated_recipient
+        fn associated_recipient_user_id(&self) -> Option<u16> {
+            self.associated_recipient.map(|r| r as _)
+        }
+
+        fn payload(&self) -> &Vec<u8> {
+            unimplemented!()
+        }
+
+        fn sender_network_id(&self) -> Option<Public> {
+            None
+        }
+
+        fn recipient_network_id(&self) -> Option<Public> {
+            None
+        }
+
+        fn payload_mut(&mut self) -> &mut Vec<u8> {
+            unimplemented!("Not implemented")
         }
     }
 
     impl WorkManagerInterface for TestWorkManager {
         type RetryID = u32;
-        type UserID = u64;
         type Clock = u64;
         type ProtocolMessage = TestMessage;
         type Error = ();
@@ -1454,22 +1471,33 @@ mod tests {
             [0; 32]
         }
 
-        fn associated_sender_user_id(
-            &self,
-        ) -> <DummyRangeChecker<N> as WorkManagerInterface>::UserID {
-            0
+        fn associated_sender_user_id(&self) -> u16 {
+            todo!()
         }
 
-        fn associated_recipient_user_id(
-            &self,
-        ) -> Option<<DummyRangeChecker<N> as WorkManagerInterface>::UserID> {
-            None
+        fn associated_recipient_user_id(&self) -> Option<u16> {
+            todo!()
+        }
+
+        fn payload(&self) -> &Vec<u8> {
+            todo!()
+        }
+
+        fn sender_network_id(&self) -> Option<Public> {
+            todo!()
+        }
+
+        fn recipient_network_id(&self) -> Option<Public> {
+            todo!()
+        }
+
+        fn payload_mut(&mut self) -> &mut Vec<u8> {
+            todo!()
         }
     }
 
     impl<const N: u64> WorkManagerInterface for DummyRangeChecker<N> {
         type RetryID = u64;
-        type UserID = u64;
         type Clock = u64;
         type ProtocolMessage = DummyProtocolMessage;
         type Error = ();

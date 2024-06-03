@@ -2,12 +2,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::{
-    keystore::KeystoreContainer,
-    tangle::{TangleConfig, TangleRuntime},
-    SubxtConfig,
-};
+use crate::{keystore::KeystoreContainer, SubxtConfig};
+
 use color_eyre::eyre::OptionExt;
+use gadget_common::environments::TangleEnvironment;
+use gadget_common::gadget::tangle::runtime::{crypto, TangleConfig, TangleRuntime};
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::{
     client::{PairSigner, SubxtPalletSubmitter},
@@ -22,14 +21,13 @@ use tokio::task::JoinHandle;
 
 use crate::config::ShellConfig;
 use crate::network::gossip::GossipHandle;
-use crate::tangle::crypto;
 use itertools::Itertools;
 
 /// The version of the shell-sdk
 pub const AGENT_VERSION: &str = "tangle/gadget-shell-sdk/1.0.0";
 pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub type ShellNodeInput<KBE> = NodeInput<TangleRuntime, GossipHandle, KBE, ()>;
+pub type ShellNodeInput<KBE> = NodeInput<TangleEnvironment, GossipHandle, KBE, ()>;
 
 /// Generates the NodeInput and handle to the networking layer for the given config.
 #[tracing::instrument(skip(config))]
@@ -98,7 +96,7 @@ where
     let clients = (0..networks.len())
         .map(|_| TangleRuntime::new(runtime.client()))
         .collect::<Vec<_>>();
-    Ok(NodeInput {
+    Ok(NodeInput::<TangleEnvironment, GossipHandle, KBE, ()> {
         clients,
         account_id,
         logger,

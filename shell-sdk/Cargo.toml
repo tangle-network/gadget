@@ -8,7 +8,7 @@ edition = "2021"
 [features]
 
 [dependencies]
-color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
+color-eyre = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
