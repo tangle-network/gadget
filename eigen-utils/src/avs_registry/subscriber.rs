@@ -1,6 +1,5 @@
-use alloy_network::{Network};
+use alloy_network::Ethereum;
 use alloy_provider::Provider;
-use alloy_provider::ProviderBuilder;
 use alloy_pubsub::Subscription;
 use alloy_rpc_types::Filter;
 use alloy_rpc_types::Log;
@@ -11,32 +10,28 @@ use crate::types::*;
 
 type AvsRegistrySubscriberResult<T> = Result<T, AvsError>;
 
-pub struct AvsRegistryChainSubscriber<T, P, N>
+#[derive(Debug, Clone)]
+pub struct AvsRegistryChainSubscriber<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy + 'static,
-    N: Network,
+    P: Provider<T, Ethereum> + Clone,
 {
-    // logger: Logger,
-    registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P, N>,
-    bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P, N>,
+    registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P>,
+    bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P>,
     eth_client: P,
 }
 
-impl<T, P, N> AvsRegistryChainSubscriber<T, P, N>
+impl<T, P> AvsRegistryChainSubscriber<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy + 'static,
-    N: Network,
+    P: Provider<T, Ethereum> + Clone,
 {
     pub fn new(
-        // logger: Logger,
-        registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P, N>,
-        bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P, N>,
+        registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P>,
+        bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P>,
         eth_client: P,
     ) -> Self {
         Self {
-            // logger,
             registry_coordinator,
             bls_apk_registry,
             eth_client,

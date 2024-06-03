@@ -18,7 +18,7 @@ use eigen_contracts::IERC20;
 pub trait ElReader<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, Ethereum> + Copy + 'static,
+    P: Provider<T, Ethereum> + Clone,
 {
     async fn is_operator_registered(&self, operator: &Operator) -> Result<bool, AvsError>;
     async fn get_operator_details(&self, operator: &Operator) -> Result<Operator, AvsError>;
@@ -68,7 +68,7 @@ where
 pub struct ElChainReader<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, Ethereum> + Copy + 'static,
+    P: Provider<T, Ethereum> + Clone,
 {
     // logger: Logger,
     slasher: ISlasher::ISlasherInstance<T, P>,
@@ -81,7 +81,7 @@ where
 impl<T, P> ElChainReader<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, Ethereum> + Copy + 'static,
+    P: Provider<T, Ethereum> + Clone,
 {
     pub fn new(
         slasher: ISlasher::ISlasherInstance<T, P>,
@@ -96,7 +96,7 @@ where
             delegation_manager,
             strategy_manager,
             avs_directory,
-            // logger,
+
             eth_client,
         }
     }
@@ -108,17 +108,17 @@ where
         eth_client: P,
         // logger: Logger,
     ) -> Result<Self, AvsError> {
-        let delegation_manager = DelegationManager::new(delegation_manager_addr, eth_client);
+        let delegation_manager =
+            DelegationManager::new(delegation_manager_addr, eth_client.clone());
         let slash_addr = delegation_manager.slasher().call().await.map(|a| a._0)?;
-        let slasher = ISlasher::new(slash_addr, eth_client);
-        let strategy_manager = StrategyManager::new(strategy_manager_addr, eth_client);
-        let avs_directory = AVSDirectory::new(avs_directory_addr, eth_client);
+        let slasher = ISlasher::new(slash_addr, eth_client.clone());
+        let strategy_manager = StrategyManager::new(strategy_manager_addr, eth_client.clone());
+        let avs_directory = AVSDirectory::new(avs_directory_addr, eth_client.clone());
         Ok(Self::new(
             slasher,
             delegation_manager,
             strategy_manager,
             avs_directory,
-            // logger,
             eth_client,
         ))
     }
@@ -128,7 +128,7 @@ where
 impl<T, P> ElReader<T, P> for ElChainReader<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, Ethereum> + Copy + 'static,
+    P: Provider<T, Ethereum> + Clone,
 {
     async fn is_operator_registered(&self, operator: &Operator) -> Result<bool, AvsError> {
         let is_operator = self

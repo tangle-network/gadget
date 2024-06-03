@@ -1,11 +1,9 @@
-use alloy_network::Network;
+use alloy_network::{Ethereum, Network};
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::Filter;
 use alloy_transport::Transport;
-use ark_bn254::{
-    Fq as Bn254Fq, G1Affine as Bn254G1Affine, G2Affine as Bn254G2Affine,
-};
+use ark_bn254::{Fq as Bn254Fq, G1Affine as Bn254G1Affine, G2Affine as Bn254G2Affine};
 use ark_ff::{BigInt, PrimeField};
 use eigen_contracts::RegistryCoordinator::OperatorSocketUpdate;
 use eigen_contracts::{BlsApkRegistry, OperatorStateRetriever, RegistryCoordinator, StakeRegistry};
@@ -17,31 +15,29 @@ use crate::types::*;
 type AvsRegistryReaderResult<T> = Result<T, AvsError>;
 
 #[derive(Clone, Debug, Error)]
-pub struct AvsRegistryChainReader<T, P, N>
+pub struct AvsRegistryChainReader<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy + 'static,
-    N: Network,
+    P: Provider<T, Ethereum> + Clone,
 {
     // logger: Logger,
-    bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P, N>,
-    registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P, N>,
-    operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P, N>,
-    stake_registry: StakeRegistry::StakeRegistryInstance<T, P, N>,
+    bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P>,
+    registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P>,
+    operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P>,
+    stake_registry: StakeRegistry::StakeRegistryInstance<T, P>,
     eth_client: P,
 }
 
-impl<T, P, N> AvsRegistryChainReader<T, P, N>
+impl<T, P> AvsRegistryChainReader<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, N> + Copy + 'static,
-    N: Network,
+    P: Provider<T, Ethereum> + Clone,
 {
     pub fn new(
-        bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P, N>,
-        registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P, N>,
-        operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P, N>,
-        stake_registry: StakeRegistry::StakeRegistryInstance<T, P, N>,
+        bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P>,
+        registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P>,
+        operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P>,
+        stake_registry: StakeRegistry::StakeRegistryInstance<T, P>,
         // logger: Logger,
         eth_client: P,
     ) -> Self {
@@ -50,9 +46,32 @@ where
             registry_coordinator,
             operator_state_retriever,
             stake_registry,
-            // logger,
+
             eth_client,
         }
+    }
+
+    pub fn build(
+        bls_apk_registry_addr: Address,
+        registry_coordinator_addr: Address,
+        operator_state_retriever_addr: Address,
+        stake_registry_addr: Address,
+        eth_client: P,
+    ) -> Self {
+        let bls_apk_registry = BlsApkRegistry::new(bls_apk_registry_addr, eth_client.clone());
+        let registry_coordinator =
+            RegistryCoordinator::new(registry_coordinator_addr, eth_client.clone());
+        let operator_state_retriever =
+            OperatorStateRetriever::new(operator_state_retriever_addr, eth_client.clone());
+        let stake_registry = StakeRegistry::new(stake_registry_addr, eth_client.clone());
+
+        AvsRegistryChainReader::new(
+            bls_apk_registry,
+            registry_coordinator,
+            operator_state_retriever,
+            stake_registry,
+            eth_client,
+        )
     }
 
     pub async fn get_quorum_count(&self) -> AvsRegistryReaderResult<u8> {
@@ -280,8 +299,14 @@ where
     ) -> AvsRegistryReaderResult<HashMap<OperatorId, Socket>> {
         let mut operator_id_to_socket_map = HashMap::new();
 
-        for i in (start_block..=stop_block).step_by(block_range as usize) {
-            let to_block = (i + block_range - 1).min(stop_block);
+        let mut start = start_block;
+        let mut end = stop_block;
+        if start_block == 0 && stop_block == 0 {
+            end = self.eth_client.get_block_number().await? as u64;
+        }
+
+        for i in (start..=end).step_by(block_range as usize) {
+            let to_block = (i + block_range - 1).min(end);
             let filter = Filter::new()
                 .from_block(i)
                 .to_block(to_block)

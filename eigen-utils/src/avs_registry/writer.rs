@@ -13,14 +13,14 @@ use eigen_contracts::{BlsApkRegistry, OperatorStateRetriever, RegistryCoordinato
 use crate::crypto::bls::{G1Point, KeyPair};
 use crate::el_contracts::reader::ElChainReader;
 use crate::el_contracts::reader::ElReader;
-use crate::types::{*};
+use crate::types::*;
 
 type AvsRegistryWriterResult<T> = Result<T, AvsError>;
 
 pub struct AvsRegistryChainWriter<T, P, S>
 where
     T: Transport + Clone,
-    P: Provider<T, Ethereum> + Copy + 'static,
+    P: Provider<T, Ethereum> + Clone,
     S: Signer + Send + Sync,
 {
     service_manager_addr: Address,
@@ -38,7 +38,7 @@ where
 impl<T, P, S> AvsRegistryChainWriter<T, P, S>
 where
     T: Transport + Clone,
-    P: Provider<T, Ethereum> + Copy + 'static,
+    P: Provider<T, Ethereum> + Clone,
     S: Signer + Send + Sync,
 {
     pub fn new(
@@ -60,7 +60,7 @@ where
             stake_registry,
             bls_apk_registry,
             el_reader,
-            // logger,
+
             eth_client,
             tx_mgr,
             signer,

@@ -1,4 +1,5 @@
 use alloy_primitives::{keccak256, Address, B256, U256};
+use alloy_primitives::{Bytes, FixedBytes};
 use alloy_transport::RpcError;
 use alloy_transport::TransportErrorKind;
 
@@ -18,13 +19,14 @@ use crate::crypto::bls;
 use crate::crypto::bls::G1Point;
 use crate::crypto::bls::KeyPair;
 use crate::crypto::bls::Signature;
+use crate::services::bls_aggregation::BlsAggregationError;
 use crate::utils::*;
 
 pub const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
 
 pub type TaskIndex = u32;
 pub type TaskResponseDigest = B256;
-pub type TaskResponse = Box<dyn std::any::Any>;
+pub type TaskResponse = Vec<u8>;
 
 type TaskResponseHashFunction = fn(TaskResponse) -> TaskResponseDigest;
 
@@ -73,13 +75,13 @@ impl Operator {
 // or whatever an avs decides to use
 pub type Socket = String;
 
-#[derive(Debug, Clone, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Debug, Default, Clone, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct OperatorInfo {
-    socket: Socket,
-    pubkeys: OperatorPubkeys,
+    pub socket: Socket,
+    pub pubkeys: OperatorPubkeys,
 }
 
-#[derive(Debug, Clone, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Debug, Default, Clone, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct OperatorPubkeys {
     pub g1_pubkey: Bn254G1Affine,
     pub g2_pubkey: Bn254G2Affine,
@@ -167,13 +169,18 @@ pub type BlockNum = u32;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct OperatorAvsState {
-    operator_id: OperatorId,
-    operator_info: OperatorInfo,
-    stake_per_quorum: HashMap<QuorumNum, StakeAmount>,
-    block_number: BlockNum,
+    pub operator_id: OperatorId,
+    pub operator_info: OperatorInfo,
+    pub stake_per_quorum: HashMap<QuorumNum, StakeAmount>,
+    pub block_number: BlockNum,
 }
 
 const MAX_NUMBER_OF_QUORUMS: usize = 192;
+
+pub fn bytes_to_quorum_ids(bytes: &Bytes) -> Vec<QuorumNum> {
+    let bitmap = U256::from_le_slice(bytes.to_vec()[..].try_into().unwrap());
+    bitmap_to_quorum_ids(&bitmap)
+}
 
 pub fn bitmap_to_quorum_ids(bitmap: &U256) -> Vec<QuorumNum> {
     let mut quorum_ids = Vec::new();
@@ -185,12 +192,20 @@ pub fn bitmap_to_quorum_ids(bitmap: &U256) -> Vec<QuorumNum> {
     quorum_ids
 }
 
+pub fn quorum_ids_to_bitmap(quorum_ids: &[QuorumNum]) -> Bytes {
+    let mut bitmap = U256::from(0);
+    for quorum_id in quorum_ids {
+        bitmap.set_bit(quorum_id.underlying_type() as usize, true);
+    }
+    bitmap.to_le_bytes_vec().into()
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct QuorumAvsState {
-    quorum_number: QuorumNum,
-    total_stake: StakeAmount,
-    agg_pubkey_g1: Bn254G1Affine,
-    block_number: BlockNum,
+    pub quorum_number: QuorumNum,
+    pub total_stake: StakeAmount,
+    pub agg_pubkey_g1: G1Point,
+    pub block_number: BlockNum,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -252,4 +267,6 @@ pub enum AvsError {
     SignerError(#[from] alloy_signer::Error),
     #[error("rpc error")]
     RpcError(#[from] RpcError<TransportErrorKind>),
+    #[error("bls aggregation error")]
+    BlsAggregationError(#[from] BlsAggregationError),
 }

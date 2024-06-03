@@ -1,8 +1,5 @@
 use alloy_primitives::U256;
 
-
-
-
 use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::PrimeField;
@@ -23,7 +20,7 @@ struct EncryptedBLSKeyJSONV3 {
     pub crypto: serde_json::Value, // Adjust this type to match your specific encryption structure
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct G1Point {
     pub x: U256,
     pub y: U256,
@@ -153,9 +150,23 @@ impl G1Point {
         self.x = U256::from_limbs(pt.x.0 .0);
         self.y = U256::from_limbs(pt.y.0 .0);
     }
+
+    pub fn from_ark_g1(ark_g1: &G1Affine) -> Self {
+        Self {
+            x: U256::from_limbs(ark_g1.x.0 .0),
+            y: U256::from_limbs(ark_g1.y.0 .0),
+        }
+    }
+
+    pub fn to_ark_g1(&self) -> G1Affine {
+        G1Affine::new(
+            Fq::from(BigInt(self.x.into_limbs())),
+            Fq::from(BigInt(self.y.into_limbs())),
+        )
+    }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct G2Point {
     pub x: [U256; 2],
     pub y: [U256; 2],
@@ -302,9 +313,35 @@ impl G2Point {
             U256::from_limbs(pt.y.c1.0 .0),
         ];
     }
+
+    pub fn from_ark_g2(ark_g2: &G2Affine) -> Self {
+        Self {
+            x: [
+                U256::from_limbs(ark_g2.x.c0.0 .0),
+                U256::from_limbs(ark_g2.x.c1.0 .0),
+            ],
+            y: [
+                U256::from_limbs(ark_g2.y.c0.0 .0),
+                U256::from_limbs(ark_g2.y.c1.0 .0),
+            ],
+        }
+    }
+
+    pub fn to_ark_g2(&self) -> G2Affine {
+        G2Affine::new(
+            QuadExtField {
+                c0: Fq::from(BigInt(self.x[0].into_limbs())),
+                c1: Fq::from(BigInt(self.x[1].into_limbs())),
+            },
+            QuadExtField {
+                c0: Fq::from(BigInt(self.y[0].into_limbs())),
+                c1: Fq::from(BigInt(self.y[1].into_limbs())),
+            },
+        )
+    }
 }
 
-#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Signature {
     pub g1_point: G1Point,
 }

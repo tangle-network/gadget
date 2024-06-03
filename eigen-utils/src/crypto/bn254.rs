@@ -1,10 +1,8 @@
-use crate::crypto::bls::{G1Point};
+use crate::crypto::bls::G1Point;
 
 use ark_bn254::{Fq as Bn254Fq, G1Affine as Bn254G1Affine, G2Affine as Bn254G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{Field, One, PrimeField};
-
-
 
 pub fn map_to_curve(digest: &[u8; 32]) -> G1Point {
     let one = Bn254Fq::one();

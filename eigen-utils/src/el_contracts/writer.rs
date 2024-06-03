@@ -13,7 +13,6 @@ use eigen_contracts::DelegationManager;
 use eigen_contracts::ISlasher;
 use eigen_contracts::StrategyManager;
 
-
 use super::reader::ElChainReader;
 use super::reader::ElReader;
 // use crate::logging::Logger;
@@ -38,7 +37,7 @@ pub trait ElWriter: Send + Sync {
 pub struct ElChainWriter<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, Ethereum> + Copy + 'static,
+    P: Provider<T, Ethereum> + Clone,
 {
     slasher: ISlasher::ISlasherInstance<T, P>,
     delegation_manager: DelegationManager::DelegationManagerInstance<T, P>,
@@ -52,7 +51,7 @@ where
 impl<T, P> ElChainWriter<T, P>
 where
     T: Transport + Clone,
-    P: Provider<T, Ethereum> + Copy + 'static,
+    P: Provider<T, Ethereum> + Clone,
 {
     pub fn new(
         slasher: ISlasher::ISlasherInstance<T, P>,
@@ -69,7 +68,6 @@ where
             strategy_manager,
             el_chain_reader,
             eth_client,
-            // logger,
             tx_mgr,
         }
     }
@@ -82,16 +80,16 @@ where
         // logger: Logger,
         tx_mgr: EthereumSigner,
     ) -> Result<Self, AvsError> {
-        let delegation_manager = DelegationManager::new(delegation_manager_addr, eth_client);
+        let delegation_manager =
+            DelegationManager::new(delegation_manager_addr, eth_client.clone());
         let slash_addr = delegation_manager.slasher().call().await.map(|a| a._0)?;
-        let slasher = ISlasher::new(slash_addr, eth_client);
-        let strategy_manager = StrategyManager::new(strategy_manager_addr, eth_client);
+        let slasher = ISlasher::new(slash_addr, eth_client.clone());
+        let strategy_manager = StrategyManager::new(strategy_manager_addr, eth_client.clone());
         let el_chain_reader = ElChainReader::build(
             delegation_manager_addr,
             avs_directory_addr,
             strategy_manager_addr,
-            // logger.clone(),
-            eth_client,
+            eth_client.clone(),
         )
         .await?;
         Ok(Self::new(
@@ -100,7 +98,6 @@ where
             strategy_manager,
             el_chain_reader,
             eth_client,
-            // logger,
             tx_mgr,
         ))
     }
@@ -116,10 +113,7 @@ where
         &self,
         operator: Operator,
     ) -> Result<TransactionReceipt, AvsError> {
-        log::info!(
-            "registering operator {} to EigenLayer",
-            operator.address
-        );
+        log::info!("registering operator {} to EigenLayer", operator.address);
 
         let op_details = DelegationManager::OperatorDetails {
             earningsReceiver: operator.earnings_receiver_address,
@@ -134,7 +128,7 @@ where
             .await?
             .get_receipt()
             .await?;
-    
+
         log::info!(
             "Successfully registered operator to EigenLayer, txHash: {}",
             receipt.transaction_hash
@@ -194,7 +188,8 @@ where
     ) -> Result<TransactionReceipt, AvsError> {
         log::info!(
             "depositing {} tokens into strategy {}",
-            amount, strategy_addr
+            amount,
+            strategy_addr
         );
 
         let (_, underlying_token_contract, underlying_token_addr) = self
@@ -207,10 +202,12 @@ where
             .await?
             .get_receipt()
             .await?;
-        
+
         log::info!(
             "approved {} tokens for deposit into strategy {} with txHash: {}",
-            amount, strategy_addr, receipt.transaction_hash
+            amount,
+            strategy_addr,
+            receipt.transaction_hash
         );
 
         let receipt = self
@@ -221,10 +218,7 @@ where
             .get_receipt()
             .await?;
 
-        log::info!(
-            "deposited {} into strategy {}",
-            amount, strategy_addr
-        );
+        log::info!("deposited {} into strategy {}", amount, strategy_addr);
 
         Ok(receipt)
     }
