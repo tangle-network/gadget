@@ -3,14 +3,14 @@ mod tests {
     use trybuild::TestCases;
 
     #[test]
-    fn test_valid_cases() {
+    fn test_jobs_valid_cases() {
         let t = TestCases::new();
-        t.pass("tests/valid_cases/*.rs");
+        t.pass("tests/valid_cases/job/*.rs");
     }
 
     #[test]
-    fn test_invalid_cases() {
+    fn test_jobs_invalid_cases() {
         let t = TestCases::new();
-        t.compile_fail("tests/invalid_cases/*.rs");
+        t.compile_fail("tests/invalid_cases/job/*.rs");
     }
 }
