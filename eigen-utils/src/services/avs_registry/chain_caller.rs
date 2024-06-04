@@ -1,5 +1,5 @@
 use alloy_network::Ethereum;
-use alloy_primitives::{Address, Bytes, FixedBytes, B256, U256, U64};
+use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use async_trait::async_trait;
@@ -10,7 +10,7 @@ use crate::avs_registry::reader::AvsRegistryChainReader;
 use crate::crypto::bls::G1Point;
 use crate::services::operator_info::OperatorInfoServiceTrait;
 use crate::types::{
-    bitmap_to_quorum_ids, bytes_to_quorum_ids, quorum_ids_to_bitmap, OperatorAvsState, OperatorId,
+    bytes_to_quorum_ids, OperatorAvsState, OperatorId,
     OperatorInfo, QuorumAvsState, QuorumNum, QuorumNums,
 };
 

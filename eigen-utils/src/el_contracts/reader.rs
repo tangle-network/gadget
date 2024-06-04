@@ -1,6 +1,6 @@
 use crate::types::*;
 
-use alloy_network::{Ethereum, Network};
+use alloy_network::{Ethereum};
 use alloy_primitives::FixedBytes;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
@@ -157,7 +157,7 @@ where
         &self,
         strategy_addr: Address,
     ) -> Result<(IStrategy::IStrategyInstance<T, P>, Address), AvsError> {
-        let contract_strategy = IStrategy::new(strategy_addr, self.eth_client);
+        let contract_strategy = IStrategy::new(strategy_addr, self.eth_client.clone());
         let underlying_token_addr = contract_strategy
             .underlyingToken()
             .call()
@@ -177,13 +177,13 @@ where
         ),
         AvsError,
     > {
-        let contract_strategy = IStrategy::new(strategy_addr, self.eth_client);
+        let contract_strategy = IStrategy::new(strategy_addr, self.eth_client.clone());
         let underlying_token_addr = contract_strategy
             .underlyingToken()
             .call()
             .await
             .map(|addr| addr._0)?;
-        let contract_underlying_token = IERC20::new(underlying_token_addr, self.eth_client);
+        let contract_underlying_token = IERC20::new(underlying_token_addr, self.eth_client.clone());
         Ok((
             contract_strategy,
             contract_underlying_token,

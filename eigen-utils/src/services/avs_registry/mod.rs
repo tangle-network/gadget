@@ -1,4 +1,4 @@
-use alloy_primitives::{Address, Bytes, FixedBytes};
+use alloy_primitives::{Bytes, FixedBytes};
 use async_trait::async_trait;
 use eigen_contracts::OperatorStateRetriever;
 use std::collections::HashMap;

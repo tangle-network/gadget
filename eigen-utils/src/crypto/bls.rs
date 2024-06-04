@@ -87,6 +87,12 @@ impl G1Point {
         Self::new(Fq::zero(), Fq::zero())
     }
 
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut ser_buf = vec![0; self.serialized_size(ark_serialize::Compress::Yes)];
+        self.serialize_compressed(&mut ser_buf);
+        ser_buf
+    }
+
     pub fn neg(&self) -> Self {
         let affine = G1Affine::new(
             Fq::from(BigInt(self.x.into_limbs())),
@@ -172,12 +178,91 @@ pub struct G2Point {
     pub y: [U256; 2],
 }
 
+impl CanonicalSerialize for G2Point {
+    fn serialize_with_mode<W: std::io::prelude::Write>(
+        &self,
+        writer: W,
+        compress: ark_serialize::Compress,
+    ) -> Result<(), ark_serialize::SerializationError> {
+        let affine = G2Affine::new(
+            QuadExtField {
+                c0: Fq::from(BigInt(self.x[0].into_limbs())),
+                c1: Fq::from(BigInt(self.x[1].into_limbs())),
+            },
+            QuadExtField {
+                c0: Fq::from(BigInt(self.y[0].into_limbs())),
+                c1: Fq::from(BigInt(self.y[1].into_limbs())),
+            },
+        );
+
+        affine.serialize_with_mode(writer, compress)
+    }
+
+    fn serialized_size(&self, compress: ark_serialize::Compress) -> usize {
+        let affine = G2Affine::new(
+            QuadExtField {
+                c0: Fq::from(BigInt(self.x[0].into_limbs())),
+                c1: Fq::from(BigInt(self.x[1].into_limbs())),
+            },
+            QuadExtField {
+                c0: Fq::from(BigInt(self.y[0].into_limbs())),
+                c1: Fq::from(BigInt(self.y[1].into_limbs())),
+            },
+        );
+
+        affine.serialized_size(compress)
+    }
+}
+
+impl Valid for G2Point {
+    fn check(&self) -> Result<(), ark_serialize::SerializationError> {
+        let affine = G2Affine::new(
+            QuadExtField {
+                c0: Fq::from(BigInt(self.x[0].into_limbs())),
+                c1: Fq::from(BigInt(self.x[1].into_limbs())),
+            },
+            QuadExtField {
+                c0: Fq::from(BigInt(self.y[0].into_limbs())),
+                c1: Fq::from(BigInt(self.y[1].into_limbs())),
+            },
+        );
+
+        affine.check()
+    }
+}
+
+impl CanonicalDeserialize for G2Point {
+    fn deserialize_with_mode<R: std::io::prelude::Read>(
+        reader: R,
+        compress: ark_serialize::Compress,
+        validate: ark_serialize::Validate,
+    ) -> Result<Self, ark_serialize::SerializationError> {
+        let affine = G2Affine::deserialize_with_mode(reader, compress, validate)?;
+        Ok(Self {
+            x: [
+                U256::from_limbs(affine.x.c0.0 .0),
+                U256::from_limbs(affine.x.c1.0 .0),
+            ],
+            y: [
+                U256::from_limbs(affine.y.c0.0 .0),
+                U256::from_limbs(affine.y.c1.0 .0),
+            ],
+        })
+    }
+}
+
 impl G2Point {
     pub fn new(x: [Fr; 2], y: [Fr; 2]) -> Self {
         Self {
             x: [U256::from_limbs(x[0].0 .0), U256::from_limbs(x[1].0 .0)],
             y: [U256::from_limbs(y[0].0 .0), U256::from_limbs(y[1].0 .0)],
         }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut ser_buf = vec![0; self.serialized_size(ark_serialize::Compress::Yes)];
+        self.serialize_compressed(&mut ser_buf);
+        ser_buf
     }
 
     pub fn neg(&self) -> Self {

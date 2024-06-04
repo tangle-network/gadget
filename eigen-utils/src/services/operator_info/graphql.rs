@@ -3,9 +3,10 @@ use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use ark_bn254::{Fq as Bn254Fq, G1Affine as Bn254G1Affine, G2Affine as Bn254G2Affine};
-use ark_ff::{BigInt, QuadExtField};
+use ark_ff::{QuadExtField};
 use ark_serialize::CanonicalDeserialize;
 use async_trait::async_trait;
+
 use serde::Deserialize;
 use std::{collections::HashMap, marker::PhantomData};
 

@@ -1,4 +1,4 @@
-use alloy_network::{Ethereum, Network};
+use alloy_network::{Ethereum};
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::Filter;
@@ -297,7 +297,7 @@ where
     ) -> AvsRegistryReaderResult<HashMap<OperatorId, Socket>> {
         let mut operator_id_to_socket_map = HashMap::new();
 
-        let mut start = start_block;
+        let start = start_block;
         let mut end = stop_block;
         if start_block == 0 && stop_block == 0 {
             end = self.eth_client.get_block_number().await? as u64;

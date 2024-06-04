@@ -14,6 +14,12 @@ pub struct OperatorInfoService {
     pub operator_info_map: Arc<Mutex<HashMap<Address, OperatorInfo>>>,
 }
 
+impl Default for OperatorInfoService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OperatorInfoService {
     pub fn new() -> Self {
         OperatorInfoService {

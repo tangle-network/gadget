@@ -1,12 +1,12 @@
 use crate::crypto::bls::{G1Point, G2Point, Signature};
 use crate::services::avs_registry::AvsRegistryServiceTrait;
 use crate::types::{
-    bitmap_to_quorum_ids, bytes_to_quorum_ids, OperatorAvsState, OperatorId, QuorumNum,
+    bytes_to_quorum_ids, OperatorAvsState, OperatorId, QuorumNum,
     QuorumThresholdPercentage, TaskIndex, TaskResponse, TaskResponseDigest,
 };
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{Bytes, U256};
 use async_trait::async_trait;
-use regex::bytes;
+
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 use std::sync::{Arc, Mutex};
@@ -104,7 +104,7 @@ pub trait BlsAggregationService {
         operator_id: OperatorId,
     ) -> Result<(), BlsAggregationError>;
 
-    fn get_response_channel(&self) -> mpsc::Receiver<BlsAggregationServiceResponse>;
+    fn get_response_channel(&mut self) -> mpsc::Receiver<BlsAggregationServiceResponse>;
 }
 
 struct BlsAggregatorService<R>
@@ -145,7 +145,7 @@ where
         self.signed_task_resps_txs
             .lock()
             .unwrap()
-            .insert(task_index.clone(), tx);
+            .insert(task_index, tx);
 
         let avs_registry_service = self.avs_registry_service.clone();
         let hash_function = Arc::clone(&self.hash_function);
@@ -181,8 +181,12 @@ where
         bls_signature: Signature,
         operator_id: OperatorId,
     ) -> Result<(), BlsAggregationError> {
-        let mut task_resps_txs = self.signed_task_resps_txs.lock().unwrap();
-        if let Some(tx) = task_resps_txs.get_mut(&task_index) {
+        let tx_opt = {
+            let task_resps_txs = self.signed_task_resps_txs.lock().unwrap();
+            task_resps_txs.get(&task_index).cloned()
+        };
+
+        if let Some(tx) = tx_opt {
             let (tx_res, rx_res) = oneshot::channel();
             let send_result = tx
                 .send(SignedTaskResponseDigest {
@@ -193,30 +197,28 @@ where
                 })
                 .await;
 
-            drop(task_resps_txs); // Drop the lock before await
-
             send_result.map_err(|_| {
                 BlsAggregationError::ProcessNewSignature(
                     "Failed to send signed task response digest".to_string(),
-                    task_index.clone(),
+                    task_index,
                 )
             })?;
 
             rx_res.await.map_err(|_| {
                 BlsAggregationError::ProcessNewSignature(
                     "Failed to receive signature verification result".to_string(),
-                    task_index.clone(),
+                    task_index,
                 )
             })?
         } else {
             Err(BlsAggregationError::TaskInitializationError(
                 "Task not initialized".to_string(),
-                task_index.clone(),
+                task_index,
             ))
         }
     }
 
-    fn get_response_channel(&self) -> mpsc::Receiver<BlsAggregationServiceResponse> {
+    fn get_response_channel(&mut self) -> mpsc::Receiver<BlsAggregationServiceResponse> {
         let (tx, rx) = mpsc::channel(100);
         self.aggregated_responses_tx = tx;
         rx
@@ -248,7 +250,7 @@ where
             .avs_registry_service
             .get_operators_avs_state_at_block(
                 quorum_numbers.clone(),
-                task_created_block.try_into().unwrap(),
+                task_created_block.into(),
             )
             .await
         {
@@ -257,8 +259,8 @@ where
                 self.aggregated_responses_tx
                     .send(BlsAggregationServiceResponse {
                         err: Some(BlsAggregationError::TaskInitializationError(
-                            e.into(),
-                            task_index.clone(),
+                            e,
+                            task_index,
                         )),
                         task_index,
                         ..Default::default()
@@ -273,7 +275,7 @@ where
             .avs_registry_service
             .get_quorums_avs_state_at_block(
                 quorum_numbers.clone(),
-                task_created_block.try_into().unwrap(),
+                task_created_block.into(),
             )
             .await
         {
@@ -282,8 +284,8 @@ where
                 self.aggregated_responses_tx
                     .send(BlsAggregationServiceResponse {
                         err: Some(BlsAggregationError::TaskInitializationError(
-                            e.into(),
-                            task_index.clone(),
+                            e,
+                            task_index,
                         )),
                         task_index,
                         ..Default::default()
@@ -296,12 +298,10 @@ where
 
         let total_stake_per_quorum: HashMap<QuorumNum, U256> = quorums_avs_stake_dict
             .iter()
-            .map(|(quorum_num, state)| (quorum_num.clone(), state.total_stake.clone()))
+            .map(|(quorum_num, state)| (quorum_num.clone(), state.total_stake))
             .collect();
 
-        let quorum_apks_g1: Vec<G1Point> = quorums_avs_stake_dict
-            .iter()
-            .map(|(_, state)| state.agg_pubkey_g1.clone())
+        let quorum_apks_g1: Vec<G1Point> = quorums_avs_stake_dict.values().map(|state| state.agg_pubkey_g1.clone())
             .collect();
 
         let mut aggregated_operators_dict: HashMap<TaskResponseDigest, AggregatedOperators> =
@@ -314,14 +314,14 @@ where
         loop {
             tokio::select! {
                 Some(signed_task_response_digest) = rx.recv() => {
-                    log::debug!("Task goroutine received new signed task response digest: {:?}", signed_task_response_digest);
+                    log::debug!("Task received new signed task response digest: {:?}", signed_task_response_digest);
 
-                    let verification_result = self.verify_signature(task_index.clone(), &signed_task_response_digest, &operators_avs_state_dict).await;
+                    let verification_result = self.verify_signature(task_index, &signed_task_response_digest, &operators_avs_state_dict).await;
 
                     match verification_result {
                         Ok(task_response_digest) => {
-                            let digest_aggregated_operators = aggregated_operators_dict.entry(task_response_digest.clone())
-                                .or_insert_with(|| AggregatedOperators::default());
+                            let digest_aggregated_operators = aggregated_operators_dict.entry(task_response_digest)
+                                .or_default();
 
                             let operator_avs_state = &operators_avs_state_dict[&signed_task_response_digest.operator_id];
 
@@ -330,7 +330,7 @@ where
                             digest_aggregated_operators.signers_operator_ids_set.insert(signed_task_response_digest.operator_id);
 
                             for (quorum_num, stake) in &operator_avs_state.stake_per_quorum {
-                                *digest_aggregated_operators.signers_total_stake_per_quorum.entry(quorum_num.clone()).or_insert_with(U256::default) += stake;
+                                *digest_aggregated_operators.signers_total_stake_per_quorum.entry(quorum_num.clone()).or_default() += stake;
                             }
 
                             if self.check_if_stake_thresholds_met(&digest_aggregated_operators.signers_total_stake_per_quorum, &total_stake_per_quorum, &quorum_threshold_percentages_map) {
@@ -343,7 +343,7 @@ where
                                     .map(|operator_id| G1Point::from_ark_g1(&operators_avs_state_dict[operator_id].operator_info.pubkeys.g1_pubkey))
                                     .collect();
 
-                                let indices = match self.avs_registry_service.get_check_signatures_indices(task_created_block.try_into().unwrap(), quorum_numbers.clone(), non_signers_operator_ids.clone()).await {
+                                let indices = match self.avs_registry_service.get_check_signatures_indices(task_created_block.into(), quorum_numbers.clone(), non_signers_operator_ids.clone()).await {
                                     Ok(indices) => indices,
                                     Err(e) => {
                                         self.aggregated_responses_tx.send(BlsAggregationServiceResponse {
@@ -380,7 +380,7 @@ where
                 }
                 _ = &mut task_expired_timer => {
                     self.aggregated_responses_tx.send(BlsAggregationServiceResponse {
-                        err: Some(BlsAggregationError::TaskExpiredError(task_index.clone())),
+                        err: Some(BlsAggregationError::TaskExpiredError(task_index)),
                         task_index,
                         ..Default::default()
                     }).await.unwrap();
@@ -398,10 +398,10 @@ where
     ) -> Result<TaskResponseDigest, BlsAggregationError> {
         let operator_avs_state = operators_avs_state_dict
             .get(&signed_task_response_digest.operator_id)
-            .ok_or_else(|| {
+            .ok_or({
                 BlsAggregationError::OperatorNotPartOfTaskQuorumError(
-                    signed_task_response_digest.operator_id.clone(),
-                    task_index.clone(),
+                    signed_task_response_digest.operator_id,
+                    task_index,
                 )
             })?;
 

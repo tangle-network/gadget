@@ -1,8 +1,10 @@
 use alloy_network::Ethereum;
-use alloy_primitives::{Address, U256};
+use alloy_primitives::{Address, FixedBytes, Log, U256};
 use alloy_provider::Provider;
+use alloy_sol_types::SolEvent;
 use alloy_transport::Transport;
 use async_trait::async_trait;
+use eigen_contracts::{BlsApkRegistry, RegistryCoordinator};
 use std::collections::HashMap;
 use std::iter::zip;
 use std::sync::{Arc, Mutex};
@@ -12,7 +14,7 @@ use tokio::task;
 
 use crate::avs_registry::reader::AvsRegistryChainReader;
 use crate::avs_registry::subscriber::AvsRegistryChainSubscriber;
-use crate::crypto::bls::G1Point;
+use crate::crypto::bls::{G1Point, G2Point};
 use crate::types::{operator_id_from_g1_pubkey, OperatorId, OperatorInfo, OperatorPubkeys, Socket};
 
 use super::OperatorInfoServiceTrait;
@@ -68,12 +70,12 @@ where
             socket_dict: Arc::new(Mutex::new(HashMap::new())),
         };
 
-        service.start_service_in_task(query_receiver);
+        service.clone().start_service_in_task(query_receiver);
 
         service
     }
 
-    fn start_service_in_task(self, mut query_receiver: Receiver<Query>) {
+    pub fn start_service_in_task(self, mut query_receiver: Receiver<Query>) {
         let avs_registry_subscriber = self.avs_registry_subscriber.clone();
         let avs_registry_reader = self.avs_registry_reader.clone();
         let pubkey_dict = self.pubkey_dict.clone();
@@ -104,35 +106,94 @@ where
                 panic!("Error querying past registered operator events");
             }
 
-            while let Some(event) = query_receiver.recv().await {
-                match event {
-                    Query {
-                        operator_addr,
-                        resp_sender,
-                    } => {
-                        let pubkeys = pubkey_dict.lock().unwrap().get(&operator_addr);
-                        let operator_id = operator_addr_to_id
-                            .lock()
-                            .unwrap()
-                            .get(&operator_addr)
-                            .cloned();
-                        let socket = operator_id
-                            .as_ref()
-                            .and_then(|id| socket_dict.lock().unwrap().get(id))
-                            .cloned();
-                        let operator_info = OperatorInfo {
-                            socket: socket.unwrap_or_default(),
-                            pubkeys: if pubkeys.is_some() {
-                                pubkeys.unwrap().clone()
-                            } else {
-                                OperatorPubkeys::default()
-                            },
+            loop {
+                tokio::select! {
+                    Some(event) = query_receiver.recv() => {
+                        match event {
+                            Query {
+                                operator_addr,
+                                resp_sender,
+                            } => {
+                                let pubkeys_lock = pubkey_dict.lock().unwrap();
+                                let pubkeys = pubkeys_lock.get(&operator_addr).cloned();
+                                drop(pubkeys_lock);
+
+                                let operator_id = operator_addr_to_id
+                                    .lock()
+                                    .unwrap()
+                                    .get(&operator_addr)
+                                    .cloned();
+                                let socket = operator_id
+                                    .as_ref()
+                                    .and_then(|id| {
+                                        let socket_lock = socket_dict.lock().unwrap();
+                                        let socket = socket_lock.get(id).cloned();
+                                        drop(socket_lock);
+
+                                        socket
+                                    });
+
+                                let operator_info = OperatorInfo {
+                                    socket: socket.unwrap_or_default(),
+                                    pubkeys: pubkeys.clone().unwrap_or_default(),
+                                };
+                                let operator_exists = pubkeys.is_some();
+                                let _ = resp_sender.send(Resp {
+                                    operator_info,
+                                    operator_exists,
+                                });
+                            }
+                        }
+                    }
+                    Ok(new_pubkey_registration_event) = new_pubkey_registration_stream.recv() => {
+                        let block_number = new_pubkey_registration_event.block_number;
+                        let new_pubkey_registration_event: Log<BlsApkRegistry::NewPubkeyRegistration> = BlsApkRegistry::NewPubkeyRegistration::decode_log(&new_pubkey_registration_event.inner, true).unwrap();
+                        let operator_addr = new_pubkey_registration_event.operator;
+                        let pubkey_g1 = G1Point {
+                            x: new_pubkey_registration_event.pubkeyG1.X,
+                            y: new_pubkey_registration_event.pubkeyG1.Y,
                         };
-                        let operator_exists = pubkeys.is_some();
-                        let _ = resp_sender.send(Resp {
-                            operator_info,
-                            operator_exists,
+                        let pubkey_g2 = G2Point {
+                            x: new_pubkey_registration_event.pubkeyG2.X,
+                            y: new_pubkey_registration_event.pubkeyG2.Y,
+                        };
+
+                        let mut pubkey_dict_lock = pubkey_dict.lock().unwrap();
+                        pubkey_dict_lock.insert(operator_addr, OperatorPubkeys {
+                            g1_pubkey: pubkey_g1.to_ark_g1(),
+                            g2_pubkey: pubkey_g2.to_ark_g2(),
                         });
+                        drop(pubkey_dict_lock);
+
+                        let operator_id = FixedBytes::<32>::from(pubkey_g1.x);
+                        let mut operator_addr_to_id_lock = operator_addr_to_id.lock().unwrap();
+                        operator_addr_to_id_lock.insert(operator_addr, operator_id);
+                        drop(operator_addr_to_id_lock);
+
+                        log::debug!(
+                            "Added operator pubkeys to pubkey dict from new pubkey registration event. Block: {:?}, Operator Address: {:?}, Operator ID: {:?}, G1 Pubkey: {:?}, G2 Pubkey: {:?}",
+                            block_number,
+                            operator_addr,
+                            operator_id,
+                            pubkey_g1.to_bytes(),
+                            pubkey_g2.to_bytes(),
+                        );
+                    }
+                    Ok(new_socket_registration_event) = new_socket_registration_stream.recv() => {
+                        let new_socket_registration_event = RegistryCoordinator::OperatorSocketUpdate::decode_log(&new_socket_registration_event.inner, true).unwrap();
+
+                        let operator_id = new_socket_registration_event.operatorId;
+                        let socket = new_socket_registration_event.socket.clone();
+
+                        log::debug!(
+                            "Received new socket registration event. Operator ID: {:?}, Socket: {:?}",
+                            operator_id,
+                            socket.clone(),
+                        );
+
+                        let mut socket_dict_lock = socket_dict.lock().unwrap();
+                        socket_dict_lock.insert(operator_id, socket);
+                        drop(socket_dict_lock);
                     }
                 }
             }
@@ -169,7 +230,7 @@ where
             y: U256::from_limbs(operator_pubkeys.g1_pubkey.y.0 .0),
         });
         pubkey_dict.insert(operator_addr, operator_pubkeys.clone());
-        operator_addr_to_id.insert(operator_addr, operator_id.clone());
+        operator_addr_to_id.insert(operator_addr, operator_id);
         log::debug!(
             "Added operator pubkeys to pubkey dict: {:?}",
             operator_pubkeys
@@ -178,7 +239,7 @@ where
 
     for (operator_id, socket) in sockets_map {
         let mut socket_dict = socket_dict.lock().unwrap();
-        socket_dict.insert(operator_id.clone(), socket.clone());
+        socket_dict.insert(operator_id, socket.clone());
         log::debug!("Added socket to socket dict: {:?}", socket);
     }
 

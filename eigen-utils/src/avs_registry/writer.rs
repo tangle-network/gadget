@@ -1,4 +1,4 @@
-use alloy_network::{Ethereum, EthereumSigner, Network};
+use alloy_network::{Ethereum, EthereumSigner};
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use alloy_provider::Provider;
 
