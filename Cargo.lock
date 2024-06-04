@@ -2628,7 +2628,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f76ef192b63e8a44b3d08832acebbb984c3fba154b5c26f70037c860202a0d4b"
 dependencies = [
  "anyhow",
- "ethereum-types",
+ "ethereum-types 0.12.1",
  "hex",
  "sha3 0.9.1",
  "thiserror",
@@ -2647,14 +2647,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethbloom"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c22d4b5885b6aa2fe5e8b9329fb8d232bf739e434e6b87347c63bdd00c120f60"
+dependencies = [
+ "crunchy",
+ "fixed-hash 0.8.0",
+ "impl-serde",
+ "tiny-keccak",
+]
+
+[[package]]
 name = "ethereum-types"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05136f7057fe789f06e6d41d07b34e6f70d8c86e5693b60f97aaa6553553bdaf"
 dependencies = [
- "ethbloom",
+ "ethbloom 0.11.1",
  "fixed-hash 0.7.0",
  "primitive-types 0.10.1",
+ "uint",
+]
+
+[[package]]
+name = "ethereum-types"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02d215cbf040552efcbe99a38372fe80ab9d00268e20012b79fcd0f073edd8ee"
+dependencies = [
+ "ethbloom 0.13.0",
+ "fixed-hash 0.8.0",
+ "impl-serde",
+ "primitive-types 0.12.2",
  "uint",
 ]
 
@@ -3430,17 +3455,22 @@ dependencies = [
 name = "gadget-blueprint-proc-macro"
 version = "0.1.0"
 dependencies = [
+ "gadget-blueprint-proc-macro-core",
  "proc-macro2",
  "quote",
  "ron",
+ "serde_json",
  "syn 2.0.63",
- "tangle-subxt",
  "trybuild",
 ]
 
 [[package]]
 name = "gadget-blueprint-proc-macro-core"
 version = "0.1.0"
+dependencies = [
+ "ethereum-types 0.14.1",
+ "serde",
+]
 
 [[package]]
 name = "gadget-blueprint-proc-macro-playground"

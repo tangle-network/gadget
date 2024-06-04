@@ -19,9 +19,9 @@
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
+mod blueprint;
 /// Blueprint Job proc-macro
 mod job;
-mod blueprint;
 
 /// A procedural macro that annotates a function as a job.
 /// It generates a struct with the same name as the function (in `PascalCase`)
@@ -67,10 +67,13 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 #[proc_macro]
 pub fn blueprint(input: TokenStream) -> TokenStream {
+    use gadget_blueprint_proc_macro_core::ServiceBlueprint;
+
+    let input = proc_macro2::TokenStream::from(input);
     let input_str = format!("ServiceBlueprint({input})");
     let ron = ron::Options::default().with_default_extension(ron::extensions::Extensions::all());
     let maybe_blueprint = ron.from_str(&input_str);
-    let blueprint = match maybe_blueprint {
+    let blueprint: ServiceBlueprint = match maybe_blueprint {
         Ok(blueprint) => blueprint,
         Err(err) => {
             return syn::Error::new(
@@ -81,15 +84,24 @@ pub fn blueprint(input: TokenStream) -> TokenStream {
             .into()
         }
     };
-    let ServiceBlueprint { request_hook, .. } = blueprint;
+
+    let blueprint_json = match serde_json::to_string_pretty(&blueprint) {
+        Ok(blueprint_json) => blueprint_json,
+        Err(err) => {
+            return syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!("Failed to serialize blueprint to json: {err}"),
+            )
+            .to_compile_error()
+            .into()
+        }
+    };
+
     let out = quote::quote! {
         /// Gadget Blueprint
         /// AUTO GENERATED MODULE.
         pub mod blueprint {
-            pub static BLUEPRINT: ServiceBlueprint = ServiceBlueprint {
-                request_hook: #request_hook,
-                ..Default::default()
-            };
+            pub const BLUEPRINT: &str = #blueprint_json;
         }
     };
     out.into()
