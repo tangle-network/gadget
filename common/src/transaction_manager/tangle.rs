@@ -1,10 +1,10 @@
-use std::sync::Arc;
 use crate::prelude::PalletSubmitter;
-use crate::transaction_manager::TransactionManagerT;
+use crate::transaction_manager::TransactionManager;
+use std::sync::Arc;
 
 pub type TangleTransactionManager = Arc<dyn PalletSubmitter>;
 
-impl TransactionManagerT for TangleTransactionManager {
+impl TransactionManager for TangleTransactionManager {
     fn transaction_manager(&self) -> &Self {
         self
     }

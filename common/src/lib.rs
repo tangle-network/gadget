@@ -26,6 +26,7 @@ pub mod transaction_manager;
 pub mod prelude {
     pub use crate::client::*;
     pub use crate::config::*;
+    pub use crate::environments::*;
     pub use crate::full_protocol::{FullProtocolConfig, NodeInput};
     pub use crate::gadget::message::TangleProtocolMessage;
     pub use crate::gadget::tangle::JobInitMetadata;
@@ -43,7 +44,6 @@ pub mod prelude {
     pub use std::pin::Pin;
     pub use std::sync::Arc;
     pub use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-    pub use crate::environments::*;
 }
 
 #[cfg(feature = "tangle-testnet")]

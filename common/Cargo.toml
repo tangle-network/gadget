@@ -4,6 +4,28 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["substrate", "tangle-testnet"]
+tangle-testnet = []
+tangle-mainnet = []
+substrate = [
+    "gadget-core/substrate",
+    "tangle-subxt",
+    "subxt-signer",
+    "sp-api",
+    "sp-io",
+    "sp-core",
+    "sp-runtime",
+    "sp-application-crypto",
+    "sc-service",
+    "sc-client-api",
+    "frame-support",
+    "linked-hash-map",
+    "substrate-prometheus-endpoint",
+    "parity-scale-codec",
+    "scale-info",
+]
+testing = []
 
 [dependencies]
 gadget-core = { workspace = true }
@@ -43,26 +65,3 @@ linked-hash-map = { workspace = true, optional = true }
 parity-scale-codec = { workspace = true, optional = true }
 scale-info = { workspace = true, optional = true }
 thiserror = { workspace = true }
-
-[features]
-default = ["substrate", "tangle-testnet"]
-tangle-testnet = []
-tangle-mainnet = []
-substrate = [
-  "gadget-core/substrate",
-  "tangle-subxt",
-  "subxt-signer",
-  "sp-api",
-  "sp-io",
-  "sp-core",
-  "sp-runtime",
-  "sp-application-crypto",
-  "sc-service",
-  "sc-client-api",
-  "frame-support",
-  "linked-hash-map",
-  "substrate-prometheus-endpoint",
-  "parity-scale-codec",
-  "scale-info",
-]
-testing = []

@@ -3,14 +3,14 @@ use crate::gadget::message::UserID;
 use crate::gadget::tangle::runtime::TangleRuntime;
 use crate::gadget::tangle::TangleEvent;
 use crate::prelude::{TangleProtocolMessage, TangleWorkManager};
+use crate::transaction_manager::tangle::TangleTransactionManager;
+use crate::transaction_manager::TransactionManager;
 use crate::utils::serialize;
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::Serialize;
 use sp_core::ecdsa;
 use std::error::Error;
 use std::fmt::{Debug, Display};
-use crate::transaction_manager::tangle::TangleTransactionManager;
-use crate::transaction_manager::TransactionManagerT;
 
 pub trait EventMetadata<Env: GadgetEnvironment> {
     fn number(&self) -> <Env as GadgetEnvironment>::Clock;
@@ -36,7 +36,7 @@ where
     type RetryID: Display + Copy + Send + Sync + 'static;
     type TaskID: Debug + Copy + Send + Sync + 'static;
     type SessionID: Display + Copy + Send + Sync + 'static;
-    type TransactionManager: TransactionManagerT;
+    type TransactionManager: TransactionManager;
 
     #[allow(clippy::too_many_arguments)]
     fn build_protocol_message<Payload: Serialize>(

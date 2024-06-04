@@ -50,6 +50,7 @@ use gadget_common::gadget::work_manager::TangleWorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::prelude::{PrometheusConfig, TangleProtocolMessage};
+use gadget_common::transaction_manager::tangle::TangleTransactionManager;
 use gadget_common::utils::serialize;
 use gadget_common::Error;
 use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
@@ -68,7 +69,6 @@ use tangle_primitives::verifier::{
     arkworks::ArkworksVerifierGroth16Bn254, circom::CircomVerifierGroth16Bn254,
 };
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use gadget_common::transaction_manager::tangle::TangleTransactionManager;
 
 /// Key type for DKG keys
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"role");

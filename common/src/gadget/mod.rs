@@ -29,6 +29,7 @@ pub struct GeneralModule<N, M, Env: GadgetEnvironment> {
     protocol: M,
     network: N,
     job_manager: ProtocolWorkManager<Env::WorkManager>,
+    #[allow(dead_code)]
     clock: Arc<RwLock<Option<Env::Clock>>>,
 }
 
@@ -210,6 +211,7 @@ pub trait GadgetProtocol<Env: GadgetEnvironment>:
     }
 }
 
+#[allow(dead_code)]
 trait MetricizedJob: ExecutableJob {
     fn with_metrics(self) -> BuiltExecutableJobWrapper
     where
