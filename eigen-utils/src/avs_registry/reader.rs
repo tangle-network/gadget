@@ -20,7 +20,6 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Clone,
 {
-    // logger: Logger,
     bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P>,
     registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P>,
     operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P>,
@@ -38,7 +37,6 @@ where
         registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P>,
         operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P>,
         stake_registry: StakeRegistry::StakeRegistryInstance<T, P>,
-        // logger: Logger,
         eth_client: P,
     ) -> Self {
         Self {

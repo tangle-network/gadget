@@ -44,7 +44,6 @@ where
     strategy_manager: StrategyManager::StrategyManagerInstance<T, P>,
     el_chain_reader: ElChainReader<T, P>,
     eth_client: P,
-    // logger: Logger,
     tx_mgr: EthereumSigner,
 }
 
@@ -59,7 +58,6 @@ where
         strategy_manager: StrategyManager::StrategyManagerInstance<T, P>,
         el_chain_reader: ElChainReader<T, P>,
         eth_client: P,
-        // logger: Logger,
         tx_mgr: EthereumSigner,
     ) -> Self {
         Self {
@@ -77,7 +75,6 @@ where
         avs_directory_addr: Address,
         strategy_manager_addr: Address,
         eth_client: P,
-        // logger: Logger,
         tx_mgr: EthereumSigner,
     ) -> Result<Self, AvsError> {
         let delegation_manager =

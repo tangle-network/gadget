@@ -70,7 +70,6 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Clone,
 {
-    // logger: Logger,
     slasher: ISlasher::ISlasherInstance<T, P>,
     delegation_manager: DelegationManager::DelegationManagerInstance<T, P>,
     strategy_manager: StrategyManager::StrategyManagerInstance<T, P>,
@@ -88,7 +87,6 @@ where
         delegation_manager: DelegationManager::DelegationManagerInstance<T, P>,
         strategy_manager: StrategyManager::StrategyManagerInstance<T, P>,
         avs_directory: AVSDirectory::AVSDirectoryInstance<T, P>,
-        // logger: Logger,
         eth_client: P,
     ) -> Self {
         Self {
@@ -106,7 +104,6 @@ where
         avs_directory_addr: Address,
         strategy_manager_addr: Address,
         eth_client: P,
-        // logger: Logger,
     ) -> Result<Self, AvsError> {
         let delegation_manager =
             DelegationManager::new(delegation_manager_addr, eth_client.clone());
