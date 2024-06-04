@@ -1,5 +1,5 @@
 error: unexpected end of input, Missing 'result' argument in attribute
-  --> tests/invalid_cases/02_missing_result.rs:10:1
+  --> tests/invalid_cases/job/02_missing_result.rs:10:1
    |
 10 | #[job(params(n))]
    | ^^^^^^^^^^^^^^^^^

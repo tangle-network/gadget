@@ -1,5 +1,5 @@
 error: Function must have a return type
-  --> tests/invalid_cases/05_function_without_return.rs:10:1
+  --> tests/invalid_cases/job/05_function_without_return.rs:10:1
    |
 10 | #[job(params(n), result(Bytes))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

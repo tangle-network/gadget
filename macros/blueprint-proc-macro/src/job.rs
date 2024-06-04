@@ -18,7 +18,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     let fn_name_string = fn_name.to_string();
     let struct_name = format_ident!("{}Job", pascal_case(&fn_name_string));
 
-    let syn::ReturnType::Type(_, _result) = &input.sig.output else {
+    let syn::ReturnType::Type(_, result) = &input.sig.output else {
         return Err(syn::Error::new_spanned(
             &input.sig.output,
             "Function must have a return type",
@@ -44,7 +44,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
 
     // Extract params and result types from args
     let params_type = args.params_to_token_stream(&param_types)?;
-    let result_type = args.result_to_token_stream();
+    let result_type = args.result_to_token_stream(result);
     // Generate the struct
     let gen = quote! {
         struct #struct_name {
@@ -74,13 +74,13 @@ fn pascal_case(s: &str) -> String {
 /// `JobArgs` type to handle parsing of attributes
 pub(crate) struct JobArgs {
     params: Vec<Ident>,
-    result: Vec<Type>,
+    result: ResultsKind,
 }
 
 impl Parse for JobArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut params = Vec::new();
-        let mut result = Vec::new();
+        let mut result = None;
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
@@ -89,7 +89,7 @@ impl Parse for JobArgs {
                 params = p;
             } else if lookahead.peek(kw::result) {
                 let Results(r) = input.parse()?;
-                result = r;
+                result = Some(r);
             } else if lookahead.peek(Token![,]) {
                 let _ = input.parse::<Token![,]>()?;
             } else {
@@ -101,14 +101,19 @@ impl Parse for JobArgs {
             return Err(input.error("Missing 'params' argument in attribute"));
         }
 
-        if result.is_empty() {
-            return Err(input.error("Missing 'result' argument in attribute"));
+        let result = result.ok_or_else(|| input.error("Missing 'result' argument in attribute"))?;
+
+        if let ResultsKind::Types(ref r) = result {
+            if r.is_empty() {
+                return Err(input.error("Expected at least one parameter for the `result` attribute, or `_` to infer the type"));
+            }
         }
 
         Ok(JobArgs { params, result })
     }
 }
 
+#[derive(Debug)]
 struct Params(Vec<Ident>);
 
 impl Parse for Params {
@@ -135,7 +140,22 @@ impl Parse for Params {
     }
 }
 
-struct Results(Vec<Type>);
+enum ResultsKind {
+    Infered,
+    Types(Vec<Type>),
+}
+
+impl std::fmt::Debug for ResultsKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Infered => write!(f, "Infered"),
+            Self::Types(_) => write!(f, "Types"),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Results(ResultsKind);
 
 impl Parse for Results {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
@@ -143,11 +163,21 @@ impl Parse for Results {
         let content;
         let _ = syn::parenthesized!(content in input);
         let names = content.parse_terminated(Type::parse, Token![,])?;
+        if names.is_empty() {
+            return Err(syn::Error::new_spanned(
+                names,
+                "Expected at least one parameter",
+            ));
+        }
+        if names.iter().any(|ty| matches!(ty, Type::Infer(_))) {
+            // Infer the types from the retun type
+            return Ok(Self(ResultsKind::Infered));
+        }
         let mut items = Vec::new();
         for name in names {
             items.push(name);
         }
-        Ok(Self(items))
+        Ok(Self(ResultsKind::Types(items)))
     }
 }
 
@@ -168,9 +198,14 @@ impl JobArgs {
         Ok(quote! { (#(#params),*) })
     }
 
-    fn result_to_token_stream(&self) -> proc_macro2::TokenStream {
-        let result = self.result.iter().collect::<Vec<_>>();
-        quote! { (#(#result),*) }
+    fn result_to_token_stream(&self, result: &Type) -> proc_macro2::TokenStream {
+        match &self.result {
+            ResultsKind::Infered => quote! { #result },
+            ResultsKind::Types(types) => {
+                let xs = types.iter().collect::<Vec<_>>();
+                quote! { (#(#xs),*) }
+            }
+        }
     }
 }
 

@@ -1,5 +1,5 @@
 error: unexpected end of input, Missing 'params' argument in attribute
-  --> tests/invalid_cases/01_missing_params.rs:10:1
+  --> tests/invalid_cases/job/01_missing_params.rs:10:1
    |
 10 | #[job(result(Bytes))]
    | ^^^^^^^^^^^^^^^^^^^^^
