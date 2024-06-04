@@ -242,16 +242,10 @@ impl ClientWithApi<TangleEnvironment> for TangleRuntime {
 mod tests {
     use super::*;
     use color_eyre::eyre::OptionExt;
-<<<<<<< HEAD
-
-    #[ignore = "requires a running node"]
-    #[tokio::test]
-=======
     use gadget_io::tokio;
 
     #[ignore = "requires a running node"]
     #[gadget_io::tokio::test]
->>>>>>> main
     async fn client() -> color_eyre::Result<()> {
         let subxt_client = subxt::OnlineClient::new().await?;
         let runtime = TangleRuntime::new(subxt_client);
