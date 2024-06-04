@@ -94,34 +94,34 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
     // Generate the generic parameters
     let generics_token_stream = generate_generic_params(struct_generics, None);
     let generics_token_stream_unique =
-        generate_generic_params(struct_generics, Some(&["C", "B", "BE"]));
+        generate_generic_params(struct_generics, Some(&["Env", "B", "BE"]));
     let generics_token_stream_unique_with_bounds =
-        generate_generic_params_with_bounds(struct_generics, Some(&["C", "B", "BE"]));
+        generate_generic_params_with_bounds(struct_generics, Some(&["Env", "B", "BE"]));
     let generic_token_stream_with_bounds =
         generate_generic_params_with_bounds(struct_generics, None);
     // Create the implementation
     let generated = quote! {
         #input_struct
 
-        pub struct #new_struct<C: gadget_common::config::ClientWithApi + 'static, #generics_token_stream_unique_with_bounds>
+        pub struct #new_struct<Env: gadget_common::environments::GadgetEnvironment + 'static, #generics_token_stream_unique_with_bounds>
             #where_bounds {
-            pub network: Option<<#struct_ident<#generics_token_stream> as gadget_common::config::NetworkAndProtocolSetup>::Network>,
-            pub protocol: Option<<#struct_ident<#generics_token_stream> as gadget_common::config::NetworkAndProtocolSetup>::Protocol>,
-            pub client: Option<C>,
+            pub network: Option<<#struct_ident<#generics_token_stream> as gadget_common::config::NetworkAndProtocolSetup<Env>>::Network>,
+            pub protocol: Option<<#struct_ident<#generics_token_stream> as gadget_common::config::NetworkAndProtocolSetup<Env>>::Protocol>,
+            pub client: Option<Env::Client>,
             pub params: #struct_ident<#generics_token_stream>,
             pub pallet_tx: Arc<dyn gadget_common::client::PalletSubmitter>,
             pub logger: gadget_common::config::DebugLogger,
             pub prometheus_config: gadget_common::prometheus::PrometheusConfig,
         }
 
-        impl<C: gadget_common::config::ClientWithApi + 'static, #generics_token_stream_unique_with_bounds> gadget_common::config::ProtocolConfig for #new_struct <C, #generics_token_stream_unique>
+        impl<Env: gadget_common::environments::GadgetEnvironment + 'static, #generics_token_stream_unique_with_bounds> gadget_common::config::ProtocolConfig<Env> for #new_struct <Env, #generics_token_stream_unique>
             #where_bounds
         {
-            type Network = <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup>::Network;
-            type Protocol = <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup>::Protocol;
+            type Network = <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup<Env>>::Network;
+            type Protocol = <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup<Env>>::Protocol;
             type ProtocolSpecificConfiguration = #struct_ident <#generics_token_stream>;
 
-            fn new(network: Self::Network, client: <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup>::Client, protocol: Self::Protocol, params: Self::ProtocolSpecificConfiguration, pallet_tx: Arc<dyn gadget_common::client::PalletSubmitter>, logger: DebugLogger, prometheus_config: gadget_common::prometheus::PrometheusConfig) -> Self {
+            fn new(network: Self::Network, client: <Env as gadget_common::environments::GadgetEnvironment>::Client, protocol: Self::Protocol, params: Self::ProtocolSpecificConfiguration, pallet_tx: Arc<dyn gadget_common::client::PalletSubmitter>, logger: DebugLogger, prometheus_config: gadget_common::prometheus::PrometheusConfig) -> Self {
                 Self {
                     network: Some(network),
                     client: Some(client),
@@ -141,7 +141,7 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
                 self.protocol.take().expect("Protocol not set")
             }
 
-            fn take_client(&mut self) -> <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup>::Client {
+            fn take_client(&mut self) -> <Env as gadget_common::environments::GadgetEnvironment>::Client {
                 self.client.take().expect("Client not set")
             }
 
@@ -154,12 +154,12 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
-        impl<C: gadget_common::config::ClientWithApi + 'static, #generics_token_stream_unique_with_bounds> #struct_ident <#generics_token_stream>
+        impl<Env: gadget_common::environments::GadgetEnvironment + 'static, #generics_token_stream_unique_with_bounds> #struct_ident <#generics_token_stream>
             #where_bounds
         {
-            pub fn setup(self) -> #new_struct <C, #generics_token_stream_unique> {
-                let pallet_tx = <Self as gadget_common::config::NetworkAndProtocolSetup>::pallet_tx(&self);
-                let logger = <Self as gadget_common::config::NetworkAndProtocolSetup>::logger(&self);
+            pub fn setup(self) -> #new_struct <Env, #generics_token_stream_unique> {
+                let pallet_tx = <Self as gadget_common::config::NetworkAndProtocolSetup<Env>>::pallet_tx(&self);
+                let logger = <Self as gadget_common::config::NetworkAndProtocolSetup<Env>>::logger(&self);
                 let prometheus_config = self.prometheus_config.clone();
 
                 #new_struct {
@@ -173,7 +173,7 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
                 }
             }
 
-            pub async fn execute(self) -> Result<(), gadget_common::Error> {
+            pub async fn execute(self) -> Result<(), Error> {
                 use gadget_common::config::ProtocolConfig;
                 self.setup().build().await?.run().await
             }

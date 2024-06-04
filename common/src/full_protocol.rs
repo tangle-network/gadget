@@ -1,7 +1,7 @@
 use crate::client::{JobsClient, PalletSubmitter};
 use crate::config::{DebugLogger, GadgetProtocol, Network, NetworkAndProtocolSetup};
 use crate::environments::GadgetEnvironment;
-use crate::gadget::tangle::JobInitMetadata;
+use crate::gadget::tangle::TangleInitMetadata;
 use crate::gadget::WorkManagerConfig;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use crate::prometheus::PrometheusConfig;
@@ -12,14 +12,13 @@ use async_trait::async_trait;
 use gadget_core::gadget::manager::AbstractGadget;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolMessageMetadata, ProtocolWorkManager};
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
 use parking_lot::RwLock;
 use sp_core::ecdsa::{Public, Signature};
 use sp_core::{keccak_256, sr25519};
-use sp_io::crypto::ecdsa_verify_prehashed;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 
@@ -31,6 +30,7 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     type Network: Network<Env>;
     type AdditionalNodeParameters: Clone + Send + Sync + 'static;
     type KeystoreBackend: KeystoreBackend;
+
     async fn new(
         client: <Env as GadgetEnvironment>::Client,
         pallet_tx: Arc<dyn PalletSubmitter>,
@@ -39,14 +39,15 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
         account_id: sr25519::Public,
         key_store: ECDSAKeyStore<Self::KeystoreBackend>,
         prometheus_config: PrometheusConfig,
-    ) -> Result<Self, Env::Error>;
+    ) -> Result<Self, <Env as GadgetEnvironment>::Error>;
+
     async fn generate_protocol_from(
         &self,
-        associated_block_id: Env::Clock,
-        associated_retry_id: Env::RetryID,
-        associated_session_id: Env::SessionID,
-        associated_task_id: Env::TaskID,
-        protocol_message_rx: UnboundedReceiver<Env::ProtocolMessage>,
+        associated_block_id: <Env as GadgetEnvironment>::Clock,
+        associated_retry_id: <Env as GadgetEnvironment>::RetryID,
+        associated_session_id: <Env as GadgetEnvironment>::SessionID,
+        associated_task_id: <Env as GadgetEnvironment>::TaskID,
+        protocol_message_rx: UnboundedReceiver<<Env as GadgetEnvironment>::ProtocolMessage>,
         additional_params: Self::AsyncProtocolParameters,
     ) -> Result<BuiltExecutableJobWrapper, JobError>;
 
@@ -62,14 +63,14 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     /// The provided work manager should only be used for querying recorded_messages
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
-        work_manager: &ProtocolWorkManager<Env::WorkManager>,
-    ) -> Result<Self::AsyncProtocolParameters, Env::Error>;
+        job: TangleInitMetadata,
+        work_manager: &ProtocolWorkManager<<Env as GadgetEnvironment>::WorkManager>,
+    ) -> Result<Self::AsyncProtocolParameters, <Env as GadgetEnvironment>::Error>;
 
     async fn process_error(
         &self,
         error: Error,
-        _job_manager: &ProtocolWorkManager<Env::WorkManager>,
+        _job_manager: &ProtocolWorkManager<<Env as GadgetEnvironment>::WorkManager>,
     ) {
         self.logger().error(format!("Error in protocol: {error}"));
     }
@@ -112,11 +113,11 @@ where
 
     async fn generate_protocol_from(
         &self,
-        associated_block_id: Env::Clock,
-        associated_retry_id: Env::RetryID,
-        associated_session_id: Env::SessionID,
-        associated_task_id: Env::TaskID,
-        protocol_message_rx: UnboundedReceiver<Env::ProtocolMessage>,
+        associated_block_id: <Env as GadgetEnvironment>::Clock,
+        associated_retry_id: <Env as GadgetEnvironment>::RetryID,
+        associated_session_id: <Env as GadgetEnvironment>::SessionID,
+        associated_task_id: <Env as GadgetEnvironment>::TaskID,
+        protocol_message_rx: UnboundedReceiver<<Env as GadgetEnvironment>::ProtocolMessage>,
         additional_params: <T as FullProtocolConfig<Env>>::AsyncProtocolParameters,
     ) -> Result<BuiltExecutableJobWrapper, JobError> {
         T::generate_protocol_from(
@@ -171,17 +172,10 @@ where
 {
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: TangleInitMetadata,
         work_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Env::Error> {
         T::create_next_job(self, job, work_manager).await
-    }
-
-    async fn generate_work_manager(
-        &self,
-        clock: Arc<RwLock<Option<<Env as GadgetEnvironment>::Clock>>>,
-    ) -> <Env as GadgetEnvironment>::WorkManager {
-        T::generate_work_manager(self, clock).await
     }
 
     async fn process_event(
@@ -197,6 +191,13 @@ where
         job_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) {
         T::process_error(self, error, job_manager).await;
+    }
+
+    async fn generate_work_manager(
+        &self,
+        clock: Arc<RwLock<Option<<Env as GadgetEnvironment>::Clock>>>,
+    ) -> <Env as GadgetEnvironment>::WorkManager {
+        T::generate_work_manager(self, clock).await
     }
 
     fn account_id(&self) -> &sr25519::Public {
@@ -244,7 +245,7 @@ where
                 <PayloadAndSignature as Decode>::decode(&mut message.payload().as_slice())
             {
                 let hashed_message = keccak_256(&payload_and_signature.payload);
-                if ecdsa_verify_prehashed(
+                if sp_core::ecdsa::Pair::verify_prehashed(
                     &payload_and_signature.signature,
                     &hashed_message,
                     &peer_public_key,

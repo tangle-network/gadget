@@ -39,8 +39,8 @@ pub mod crypto {
 #[derive(Debug, Clone)]
 pub struct TangleRuntime {
     client: subxt::OnlineClient<PolkadotConfig>,
-    finality_notification_stream: Arc<tokio::sync::Mutex<Option<TangleBlockStream>>>,
-    latest_finality_notification: Arc<tokio::sync::Mutex<Option<FinalityNotification>>>,
+    finality_notification_stream: Arc<gadget_io::tokio::sync::Mutex<Option<TangleBlockStream>>>,
+    latest_finality_notification: Arc<gadget_io::tokio::sync::Mutex<Option<FinalityNotification>>>,
 }
 
 impl TangleRuntime {
@@ -48,8 +48,8 @@ impl TangleRuntime {
     pub fn new(client: subxt::OnlineClient<PolkadotConfig>) -> Self {
         Self {
             client,
-            finality_notification_stream: Arc::new(tokio::sync::Mutex::new(None)),
-            latest_finality_notification: Arc::new(tokio::sync::Mutex::new(None)),
+            finality_notification_stream: Arc::new(gadget_io::tokio::sync::Mutex::new(None)),
+            latest_finality_notification: Arc::new(gadget_io::tokio::sync::Mutex::new(None)),
         }
     }
 
@@ -238,12 +238,20 @@ impl ClientWithApi<TangleEnvironment> for TangleRuntime {
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod tests {
     use super::*;
     use color_eyre::eyre::OptionExt;
+<<<<<<< HEAD
 
     #[ignore = "requires a running node"]
     #[tokio::test]
+=======
+    use gadget_io::tokio;
+
+    #[ignore = "requires a running node"]
+    #[gadget_io::tokio::test]
+>>>>>>> main
     async fn client() -> color_eyre::Result<()> {
         let subxt_client = subxt::OnlineClient::new().await?;
         let runtime = TangleRuntime::new(subxt_client);

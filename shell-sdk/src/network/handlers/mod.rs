@@ -1,3 +1,4 @@
+#[cfg(not(target_family = "wasm"))]
 pub mod connections;
 pub mod dcutr;
 pub mod gossip;

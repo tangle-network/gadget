@@ -33,7 +33,7 @@ pub mod prelude {
     pub use crate::WorkManagerInterface;
     pub use gadget_common::full_protocol::SharedOptional;
 
-    pub use gadget_common::gadget::tangle::JobInitMetadata;
+    pub use gadget_common::gadget::tangle::TangleInitMetadata;
     pub use gadget_common::prelude::InMemoryBackend;
     pub use gadget_common::tangle_runtime::AccountId32;
     pub use gadget_common::tangle_runtime::MaxAdditionalParamsLen;
@@ -58,7 +58,7 @@ pub mod prelude {
 #[macro_export]
 macro_rules! generate_shell_binary {
     ($entry_point:path, $keystore:path, $n_protocols:expr, $($role_type:expr),*) => {
-        #[tokio::main]
+        #[gadget_io::tokio::main]
         async fn main() -> color_eyre::Result<()> {
             $crate::run_shell_for_protocol(vec![$($role_type),*], $n_protocols, $keystore, $entry_point).await?;
             Ok(())

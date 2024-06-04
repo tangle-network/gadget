@@ -9,40 +9,44 @@ pub use gadget_core::job::JobError;
 pub use gadget_core::job::*;
 pub use gadget_core::job_manager::WorkManagerInterface;
 pub use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
+use gadget_io::tokio::task::JoinError;
 use parking_lot::RwLock;
 pub use sp_core;
 use sp_core::ecdsa;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
-use tokio::task::JoinError;
 
 pub use subxt_signer;
 pub use tangle_subxt;
 pub mod environments;
 use crate::environments::GadgetEnvironment;
 use gadget_core::gadget::general::Client;
+pub mod transaction_manager;
 
 #[allow(ambiguous_glob_reexports)]
 pub mod prelude {
     pub use crate::client::*;
     pub use crate::config::*;
+    pub use crate::environments::*;
     pub use crate::full_protocol::{FullProtocolConfig, NodeInput};
     pub use crate::gadget::message::TangleProtocolMessage;
-    pub use crate::gadget::tangle::JobInitMetadata;
+    pub use crate::gadget::tangle::TangleInitMetadata;
     pub use crate::gadget::work_manager::TangleWorkManager;
     pub use crate::gadget::WorkManagerConfig;
     pub use crate::generate_setup_and_run_command;
     pub use crate::keystore::{ECDSAKeyStore, InMemoryBackend, KeystoreBackend};
-    pub use crate::{BuiltExecutableJobWrapper, Error, JobBuilder, JobError, WorkManagerInterface};
+    pub use crate::{BuiltExecutableJobWrapper, JobBuilder, JobError, WorkManagerInterface};
     pub use async_trait::async_trait;
     pub use gadget_core::job_manager::ProtocolWorkManager;
     pub use gadget_core::job_manager::SendFuture;
+    pub use gadget_core::job_manager::WorkManagerError;
+    pub use gadget_io;
+    pub use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
     pub use parking_lot::Mutex;
     pub use protocol_macros::protocol;
     pub use sp_runtime::traits::Block;
     pub use std::pin::Pin;
     pub use std::sync::Arc;
-    pub use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 }
 
 #[cfg(feature = "tangle-testnet")]
@@ -186,7 +190,7 @@ pub async fn run_protocol<Env: GadgetEnvironment, T: ProtocolConfig<Env>>(
     }
 
     // Run both the network and the gadget together
-    tokio::try_join!(network_future, gadget_future).map(|_| ())
+    gadget_io::tokio::try_join!(network_future, gadget_future).map(|_| ())
 }
 
 /// Creates a work manager
@@ -232,7 +236,7 @@ async fn get_latest_event_from_client<Env: GadgetEnvironment>(
 macro_rules! generate_setup_and_run_command {
     ($env:ty, $( $config:ident ),*) => {
         /// Sets up a future that runs all the protocols concurrently
-        pub fn setup_node<C: ClientWithApi<$env> + 'static, N: Network<$env>, KBE: $crate::keystore::KeystoreBackend, D: Send + Clone + 'static>(node_input: NodeInput<C, N, KBE, D>) -> impl SendFuture<'static, ()>
+        pub fn setup_node<Env: GadgetEnvironment, N: Network<Env>, KBE: $crate::keystore::KeystoreBackend, D: Send + Clone + 'static>(node_input: NodeInput<Env, N, KBE, D>) -> impl SendFuture<'static, ()>
         {
             async move {
                 if let Err(err) = run(
@@ -253,8 +257,8 @@ macro_rules! generate_setup_and_run_command {
             }
         }
 
-        pub async fn run<C: ClientWithApi<$env> + 'static, N: Network<$env>, KBE: $crate::keystore::KeystoreBackend>(
-            client: Vec<C>,
+        pub async fn run<Env: GadgetEnvironment, N: Network<Env>, KBE: $crate::keystore::KeystoreBackend>(
+            client: Vec<Env::Client>,
             pallet_tx: Arc<dyn PalletSubmitter>,
             networks: Vec<N>,
             logger: DebugLogger,
@@ -273,7 +277,11 @@ macro_rules! generate_setup_and_run_command {
                 futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), $crate::Error>>>>);
             )*
 
-            futures.try_collect::<Vec<_>>().await.map(|_| ())
+            if let Err(err) = futures.try_collect::<Vec<_>>().await.map(|_| ()) {
+                Err(err)
+            } else {
+                Ok(())
+            }
         }
     };
 }
@@ -283,36 +291,35 @@ macro_rules! generate_protocol {
     ($env:ty, $name:expr, $struct_name:ident, $async_proto_params:ty, $proto_gen_path:expr, $create_job_path:expr, $phase_filter:pat, $( $role_filter:pat ),*) => {
         #[protocol]
         pub struct $struct_name<
-            C: ClientWithApi<$env> + 'static,
-            N: Network<$env>,
+            Env: GadgetEnvironment,
+            N: Network<Env>,
             KBE: KeystoreBackend,
         > {
             pallet_tx: Arc<dyn PalletSubmitter>,
             logger: DebugLogger,
-            client: C,
+            client: <Env as GadgetEnvironment>::Client,
             /// This field should NEVER be used directly. Use Self instead as the network
             network_inner: N,
             account_id: sp_core::sr25519::Public,
             key_store: ECDSAKeyStore<KBE>,
-            jobs_client: Arc<Mutex<Option<JobsClient<C>>>>,
+            jobs_client: Arc<Mutex<Option<JobsClient<Env>>>>,
             prometheus_config: $crate::prometheus::PrometheusConfig,
         }
 
         #[async_trait]
         impl<
-                C: ClientWithApi<$env> + 'static,
-                N: Network<$env>,
+                Env: GadgetEnvironment,
+                N: Network<Env>,
                 KBE: KeystoreBackend,
-            > FullProtocolConfig for $struct_name<C, N, KBE>
+            > FullProtocolConfig<Env> for $struct_name<Env, N, KBE>
         {
             type AsyncProtocolParameters = $async_proto_params;
-            type Client = C;
             type Network = N;
             type AdditionalNodeParameters = ();
             type KeystoreBackend = KBE;
 
             async fn new(
-                client: Self::Client,
+                client: <Env as GadgetEnvironment>::Client,
                 pallet_tx: Arc<dyn PalletSubmitter>,
                 network_inner: Self::Network,
                 logger: DebugLogger,
@@ -339,11 +346,11 @@ macro_rules! generate_protocol {
 
             async fn generate_protocol_from(
                 &self,
-                associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-                associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-                associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-                associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
-                protocol_message_rx: UnboundedReceiver<GadgetProtocolMessage>,
+                associated_block_id: <<Env as GadgetEnvironment>::WorkManager as WorkManagerInterface>::Clock,
+                associated_retry_id: <<Env as GadgetEnvironment>::WorkManager as WorkManagerInterface>::RetryID,
+                associated_session_id: <<Env as GadgetEnvironment>::WorkManager as WorkManagerInterface>::SessionID,
+                associated_task_id: <<Env as GadgetEnvironment>::WorkManager as WorkManagerInterface>::TaskID,
+                protocol_message_rx: UnboundedReceiver<<Env as GadgetEnvironment>::ProtocolMessage>,
                 additional_params: Self::AsyncProtocolParameters,
             ) -> Result<BuiltExecutableJobWrapper, JobError> {
                 $proto_gen_path(
@@ -365,7 +372,7 @@ macro_rules! generate_protocol {
             async fn create_next_job(
                 &self,
                 job: JobInitMetadata,
-                work_manager: &ProtocolWorkManager<WorkManager>,
+                work_manager: &ProtocolWorkManager<<Env as GadgetEnvironment>::WorkManager>,
             ) -> Result<Self::AsyncProtocolParameters, Error> {
                 $create_job_path(self, job, work_manager).await
             }
@@ -395,7 +402,7 @@ macro_rules! generate_protocol {
                 matches!(job, $phase_filter)
             }
 
-            fn jobs_client(&self) -> &SharedOptional<JobsClient<Self::Client>> {
+            fn jobs_client(&self) -> &SharedOptional<JobsClient<Env>> {
                 &self.jobs_client
             }
 
@@ -411,7 +418,7 @@ macro_rules! generate_protocol {
                 &self.key_store
             }
 
-            fn client(&self) -> Self::Client {
+            fn client(&self) -> <Env as GadgetEnvironment>::Client {
                 self.client.clone()
             }
         }

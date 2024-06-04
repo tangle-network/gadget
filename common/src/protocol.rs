@@ -4,19 +4,19 @@ use crate::gadget::Job;
 use async_trait::async_trait;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolRemote, ShutdownReason, WorkManagerInterface};
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 pub struct AsyncProtocolRemote<Env: GadgetEnvironment> {
-    pub start_tx: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
-    pub shutdown_tx: Mutex<Option<tokio::sync::oneshot::Sender<ShutdownReason>>>,
+    pub start_tx: Mutex<Option<gadget_io::tokio::sync::oneshot::Sender<()>>>,
+    pub shutdown_tx: Mutex<Option<gadget_io::tokio::sync::oneshot::Sender<ShutdownReason>>>,
     pub associated_session_id: <Env::WorkManager as WorkManagerInterface>::SessionID,
     pub associated_block_id: <Env::WorkManager as WorkManagerInterface>::Clock,
     pub associated_retry_id: <Env::WorkManager as WorkManagerInterface>::RetryID,
     pub associated_task_id: <Env::WorkManager as WorkManagerInterface>::TaskID,
-    pub to_async_protocol: tokio::sync::mpsc::UnboundedSender<Env::ProtocolMessage>,
+    pub to_async_protocol: gadget_io::tokio::sync::mpsc::UnboundedSender<Env::ProtocolMessage>,
     pub is_done: Arc<AtomicBool>,
 }
 
@@ -42,9 +42,10 @@ pub trait AsyncProtocol<Env: GadgetEnvironment> {
         additional_params: Self::AdditionalParams,
     ) -> Result<Job<Env>, JobError> {
         let is_done = Arc::new(AtomicBool::new(false));
-        let (to_async_protocol, protocol_message_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (start_tx, start_rx) = tokio::sync::oneshot::channel();
-        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+        let (to_async_protocol, protocol_message_rx) =
+            gadget_io::tokio::sync::mpsc::unbounded_channel();
+        let (start_tx, start_rx) = gadget_io::tokio::sync::oneshot::channel();
+        let (shutdown_tx, shutdown_rx) = gadget_io::tokio::sync::oneshot::channel();
         let async_protocol = self
             .generate_protocol_from(
                 now,

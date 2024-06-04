@@ -1,7 +1,7 @@
 use crate::client::JobsClient;
 use crate::debug_logger::DebugLogger;
 use crate::environments::GadgetEnvironment;
-use crate::gadget::tangle::JobInitMetadata;
+use crate::gadget::tangle::TangleInitMetadata;
 use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
 use crate::tangle_runtime::*;
 use crate::Error;
@@ -19,7 +19,6 @@ use std::time::Duration;
 
 pub mod core;
 pub mod message;
-pub mod metrics;
 pub mod network;
 pub mod tangle;
 pub mod work_manager;
@@ -29,6 +28,7 @@ pub struct GeneralModule<N, M, Env: GadgetEnvironment> {
     protocol: M,
     network: N,
     job_manager: ProtocolWorkManager<Env::WorkManager>,
+    #[allow(dead_code)]
     clock: Arc<RwLock<Option<Env::Clock>>>,
 }
 
@@ -155,7 +155,7 @@ pub trait GadgetProtocol<Env: GadgetEnvironment>:
     /// In case the participant is not selected for some reason, return an [`Error::ParticipantNotSelected`]
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: TangleInitMetadata,
         work_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Error>;
 
@@ -210,16 +210,17 @@ pub trait GadgetProtocol<Env: GadgetEnvironment>:
     }
 }
 
+#[allow(dead_code)]
 trait MetricizedJob: ExecutableJob {
     fn with_metrics(self) -> BuiltExecutableJobWrapper
     where
         Self: Sized,
     {
-        let job = Arc::new(tokio::sync::Mutex::new(self));
+        let job = Arc::new(gadget_io::tokio::sync::Mutex::new(self));
         let job2 = job.clone();
         let job3 = job.clone();
         let job4 = job.clone();
-        let tokio_metrics = tokio::runtime::Handle::current().metrics();
+        let tokio_metrics = gadget_io::tokio::runtime::Handle::current().metrics();
         crate::prometheus::TOKIO_ACTIVE_TASKS.set(tokio_metrics.active_tasks_count() as f64);
         let now_init = Arc::new(Mutex::new(None));
         let now_clone = now_init.clone();

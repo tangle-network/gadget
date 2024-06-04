@@ -50,9 +50,11 @@ use gadget_common::gadget::work_manager::TangleWorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::prelude::{PrometheusConfig, TangleProtocolMessage};
+use gadget_common::transaction_manager::tangle::TangleTransactionManager;
 use gadget_common::utils::serialize;
 use gadget_common::Error;
 use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
+use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use sp_core::ecdsa;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
 use sp_std::sync::Arc;
@@ -67,7 +69,6 @@ use tangle_primitives::roles::RoleType;
 use tangle_primitives::verifier::{
     arkworks::ArkworksVerifierGroth16Bn254, circom::CircomVerifierGroth16Bn254,
 };
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 /// Key type for DKG keys
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"role");
@@ -433,7 +434,7 @@ pub struct MockNetwork {
     peers_rx: Arc<
         HashMap<
             ecdsa::Public,
-            tokio::sync::Mutex<
+            gadget_io::tokio::sync::Mutex<
                 UnboundedReceiver<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage>,
             >,
         >,
@@ -448,9 +449,9 @@ impl MockNetwork {
         let mut networks = Vec::new();
 
         for id in ids {
-            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+            let (tx, rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
             peers_tx.insert(*id, tx);
-            peers_rx.insert(*id, tokio::sync::Mutex::new(rx));
+            peers_rx.insert(*id, gadget_io::tokio::sync::Mutex::new(rx));
         }
 
         let peers_tx = Arc::new(peers_tx);
@@ -617,7 +618,7 @@ pub async fn new_test_ext<
     let externalities = ext.clone();
 
     // Spawn a thread that sends a finality notification whenever it detects a change in block number
-    tokio::task::spawn(async move {
+    gadget_io::tokio::task::spawn(async move {
         let mut prev: Option<u64> = None;
         loop {
             let number = externalities
@@ -652,7 +653,7 @@ pub async fn new_test_ext<
                 }
             }
 
-            tokio::time::sleep(Duration::from_millis(12000)).await;
+            gadget_io::tokio::time::sleep(Duration::from_millis(12000)).await;
         }
     });
 
@@ -692,7 +693,7 @@ pub async fn new_test_ext<
         };
 
         let task = f(input);
-        tokio::task::spawn(task);
+        gadget_io::tokio::task::spawn(task);
     }
 
     ext
@@ -731,8 +732,10 @@ pub mod mock_wrapper_client {
     #[derive(Clone)]
     pub struct MockClient<R, B: Block> {
         runtime: Arc<R>,
-        finality_notification_stream: Arc<tokio::sync::Mutex<Option<FinalityNotifications<B>>>>,
-        latest_finality_notification: Arc<tokio::sync::Mutex<Option<FinalityNotification<B>>>>,
+        finality_notification_stream:
+            Arc<gadget_io::tokio::sync::Mutex<Option<FinalityNotifications<B>>>>,
+        latest_finality_notification:
+            Arc<gadget_io::tokio::sync::Mutex<Option<FinalityNotification<B>>>>,
         finality_notification_txs:
             Arc<parking_lot::Mutex<Vec<TracingUnboundedSender<FinalityNotification<B>>>>>,
     }
@@ -745,12 +748,12 @@ pub mod mock_wrapper_client {
             >,
         ) -> Self {
             let runtime = Arc::new(runtime);
-            let finality_notification_stream = Arc::new(tokio::sync::Mutex::new(None));
+            let finality_notification_stream = Arc::new(gadget_io::tokio::sync::Mutex::new(None));
 
             let this = Self {
                 runtime,
                 finality_notification_stream,
-                latest_finality_notification: tokio::sync::Mutex::new(None).into(),
+                latest_finality_notification: gadget_io::tokio::sync::Mutex::new(None).into(),
                 finality_notification_txs,
             };
 
@@ -1040,6 +1043,7 @@ impl GadgetEnvironment for TangleExtEnvironment {
     type RetryID = <Self::WorkManager as WorkManagerInterface>::RetryID;
     type TaskID = <Self::WorkManager as WorkManagerInterface>::TaskID;
     type SessionID = <Self::WorkManager as WorkManagerInterface>::SessionID;
+    type TransactionManager = TangleTransactionManager;
 
     fn build_protocol_message<Payload: Serialize>(
         associated_block_id: <Self::WorkManager as WorkManagerInterface>::Clock,
