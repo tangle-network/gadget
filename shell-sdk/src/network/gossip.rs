@@ -10,9 +10,9 @@ use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 use std::collections::HashMap;
 
+use gadget_common::environments::TangleEnvironment;
 use gadget_io::tokio::sync::mpsc::UnboundedSender;
 use gadget_io::tokio::sync::{Mutex, RwLock};
-use gadget_common::environments::TangleEnvironment;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 

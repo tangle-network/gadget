@@ -2,15 +2,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::{
-    keystore::load_keys_from_keystore,
-    tangle::{TangleConfig, TangleRuntime},
-};
-use crate::{keystore::KeystoreContainer, SubxtConfig};
+use crate::{keystore::load_keys_from_keystore, SubxtConfig};
 
-use color_eyre::eyre::OptionExt;
 use gadget_common::environments::TangleEnvironment;
-use gadget_common::gadget::tangle::runtime::{crypto, TangleConfig, TangleRuntime};
+use gadget_common::gadget::tangle::runtime::{TangleConfig, TangleRuntime};
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::{
     client::{PairSigner, SubxtPalletSubmitter},
@@ -24,6 +19,7 @@ use tangle_subxt::subxt;
 
 use crate::config::ShellConfig;
 use crate::network::gossip::GossipHandle;
+pub use gadget_io::KeystoreContainer;
 use itertools::Itertools;
 
 /// The version of the shell-sdk

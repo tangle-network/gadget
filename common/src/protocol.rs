@@ -16,9 +16,7 @@ pub struct AsyncProtocolRemote<Env: GadgetEnvironment> {
     pub associated_block_id: <Env::WorkManager as WorkManagerInterface>::Clock,
     pub associated_retry_id: <Env::WorkManager as WorkManagerInterface>::RetryID,
     pub associated_task_id: <Env::WorkManager as WorkManagerInterface>::TaskID,
-    pub to_async_protocol: gadget_io::tokio::sync::mpsc::UnboundedSender<
-        Env::ProtocolMessage,
-    >,
+    pub to_async_protocol: gadget_io::tokio::sync::mpsc::UnboundedSender<Env::ProtocolMessage>,
     pub is_done: Arc<AtomicBool>,
 }
 
