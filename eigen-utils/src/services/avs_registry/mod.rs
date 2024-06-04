@@ -8,7 +8,7 @@ use crate::types::{OperatorAvsState, OperatorId, QuorumAvsState, QuorumNum};
 pub mod chain_caller;
 
 #[async_trait]
-pub trait AvsRegistryServiceTrait: Send + Sync {
+pub trait AvsRegistryServiceTrait: Send + Sync + Clone + 'static {
     async fn get_operators_avs_state_at_block(
         &self,
         quorum_numbers: Bytes,

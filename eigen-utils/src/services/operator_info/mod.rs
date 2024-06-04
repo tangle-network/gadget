@@ -28,7 +28,7 @@ impl OperatorInfoService {
 }
 
 #[async_trait]
-pub trait OperatorInfoServiceTrait: Send + Sync {
+pub trait OperatorInfoServiceTrait: Send + Sync + Clone + 'static {
     async fn get_operator_info(&self, operator: Address) -> Option<OperatorInfo>;
 }
 

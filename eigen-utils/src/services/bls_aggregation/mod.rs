@@ -147,8 +147,18 @@ where
             .unwrap()
             .insert(task_index.clone(), tx);
 
-        let service_clone = self.clone();
+        let avs_registry_service = self.avs_registry_service.clone();
+        let hash_function = Arc::clone(&self.hash_function);
+        let aggregated_responses_tx = self.aggregated_responses_tx.clone();
+        let signed_task_resps_txs = Arc::clone(&self.signed_task_resps_txs);
+
         tokio::spawn(async move {
+            let service_clone = BlsAggregatorService {
+                avs_registry_service,
+                hash_function,
+                aggregated_responses_tx,
+                signed_task_resps_txs,
+            };
             service_clone
                 .single_task_aggregator_(
                     task_index,

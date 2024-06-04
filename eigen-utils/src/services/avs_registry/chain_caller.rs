@@ -79,7 +79,7 @@ where
 impl<T, P, I> AvsRegistryServiceTrait for AvsRegistryServiceChainCaller<T, P, I>
 where
     T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
+    P: Provider<T, Ethereum> + Clone + 'static,
     I: OperatorInfoServiceTrait,
 {
     async fn get_operators_avs_state_at_block(
