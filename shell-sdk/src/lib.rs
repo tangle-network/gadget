@@ -33,7 +33,7 @@ pub mod prelude {
     pub use crate::WorkManagerInterface;
     pub use gadget_common::full_protocol::SharedOptional;
 
-    pub use gadget_common::gadget::tangle::JobInitMetadata;
+    pub use gadget_common::gadget::tangle::TangleInitMetadata;
     pub use gadget_common::prelude::InMemoryBackend;
     pub use gadget_common::tangle_runtime::AccountId32;
     pub use gadget_common::tangle_runtime::MaxAdditionalParamsLen;

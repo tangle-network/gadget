@@ -1,7 +1,7 @@
 use crate::client::JobsClient;
 use crate::debug_logger::DebugLogger;
 use crate::environments::GadgetEnvironment;
-use crate::gadget::tangle::JobInitMetadata;
+use crate::gadget::tangle::TangleInitMetadata;
 use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
 use crate::tangle_runtime::*;
 use crate::Error;
@@ -155,7 +155,7 @@ pub trait GadgetProtocol<Env: GadgetEnvironment>:
     /// In case the participant is not selected for some reason, return an [`Error::ParticipantNotSelected`]
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: TangleInitMetadata,
         work_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Error>;
 

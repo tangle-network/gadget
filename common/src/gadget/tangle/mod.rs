@@ -98,7 +98,7 @@ where
     }
 }
 
-pub struct JobInitMetadata {
+pub struct TangleInitMetadata {
     pub job_type:
         jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
     pub role_type: roles::RoleType,

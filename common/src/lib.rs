@@ -29,7 +29,7 @@ pub mod prelude {
     pub use crate::environments::*;
     pub use crate::full_protocol::{FullProtocolConfig, NodeInput};
     pub use crate::gadget::message::TangleProtocolMessage;
-    pub use crate::gadget::tangle::JobInitMetadata;
+    pub use crate::gadget::tangle::TangleInitMetadata;
     pub use crate::gadget::work_manager::TangleWorkManager;
     pub use crate::gadget::WorkManagerConfig;
     pub use crate::generate_setup_and_run_command;

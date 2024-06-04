@@ -1,7 +1,7 @@
 use crate::client::{JobsClient, PalletSubmitter};
 use crate::config::{DebugLogger, GadgetProtocol, Network, NetworkAndProtocolSetup};
 use crate::environments::GadgetEnvironment;
-use crate::gadget::tangle::JobInitMetadata;
+use crate::gadget::tangle::TangleInitMetadata;
 use crate::gadget::WorkManagerConfig;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
 use crate::prometheus::PrometheusConfig;
@@ -63,7 +63,7 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     /// The provided work manager should only be used for querying recorded_messages
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: TangleInitMetadata,
         work_manager: &ProtocolWorkManager<<Env as GadgetEnvironment>::WorkManager>,
     ) -> Result<Self::AsyncProtocolParameters, <Env as GadgetEnvironment>::Error>;
 
@@ -172,7 +172,7 @@ where
 {
     async fn create_next_job(
         &self,
-        job: JobInitMetadata,
+        job: TangleInitMetadata,
         work_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Env::Error> {
         T::create_next_job(self, job, work_manager).await
