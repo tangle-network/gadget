@@ -33,6 +33,7 @@ getrandom = { workspace = true }
 tracing = { git = "https://github.com/tokio-rs/tracing", default-features = false, features = ["alloc"] }
 tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", default-features = false, features = ["alloc"] }
 tracing-core = { git = "https://github.com/tokio-rs/tracing", default-features = false, features = ["alloc"] }
+color-eyre = { workspace = true }
 
 # Substrate
 tangle-subxt = { workspace = true, optional = true }

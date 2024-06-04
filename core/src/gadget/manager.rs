@@ -20,21 +20,18 @@ impl Display for GadgetError {
     }
 }
 
-impl std::error::Error for GadgetError {}
+impl Error for GadgetError {}
 
 #[async_trait]
-pub trait AbstractGadget: Send + Sync {
-    type FinalityNotification: Send;
-    type ProtocolMessage: Send;
-    type Error: Error + Send;
+pub trait AbstractGadget: Send + Sync + 'static {
+    type Event: Send + Sync + 'static;
+    type ProtocolMessage: Send + Sync + 'static;
+    type Error: Error + Send + Sync + 'static;
 
-    async fn get_next_finality_notification(&self) -> Option<Self::FinalityNotification>;
+    async fn next_event(&self) -> Option<Self::Event>;
     async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage>;
 
-    async fn process_finality_notification(
-        &self,
-        notification: Self::FinalityNotification,
-    ) -> Result<(), Self::Error>;
+    async fn on_event_received(&self, notification: Self::Event) -> Result<(), Self::Error>;
     async fn process_protocol_message(
         &self,
         message: Self::ProtocolMessage,
@@ -50,8 +47,8 @@ impl<'a> GadgetManager<'a> {
 
             let finality_notification_task = async move {
                 loop {
-                    if let Some(notification) = gadget.get_next_finality_notification().await {
-                        if let Err(err) = gadget.process_finality_notification(notification).await {
+                    if let Some(notification) = gadget.next_event().await {
+                        if let Err(err) = gadget.on_event_received(notification).await {
                             gadget.process_error(err).await;
                         }
                     } else {

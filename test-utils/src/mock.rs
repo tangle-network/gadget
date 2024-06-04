@@ -41,12 +41,17 @@ pub type BlockNumber = u64;
 pub use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmitter};
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use gadget_common::debug_logger::DebugLogger;
+use gadget_common::environments::{EventMetadata, GadgetEnvironment};
 use gadget_common::full_protocol::NodeInput;
+use gadget_common::gadget::message::UserID;
 use gadget_common::gadget::network::Network;
-use gadget_common::gadget::work_manager::WorkManager;
+use gadget_common::gadget::tangle::TangleEvent;
+use gadget_common::gadget::work_manager::TangleWorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
-use gadget_common::prelude::PrometheusConfig;
+use gadget_common::prelude::{PrometheusConfig, TangleProtocolMessage};
+use gadget_common::transaction_manager::tangle::TangleTransactionManager;
+use gadget_common::utils::serialize;
 use gadget_common::Error;
 use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
 use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -423,14 +428,14 @@ pub struct MockNetwork {
     peers_tx: Arc<
         HashMap<
             ecdsa::Public,
-            UnboundedSender<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
+            UnboundedSender<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage>,
         >,
     >,
     peers_rx: Arc<
         HashMap<
             ecdsa::Public,
             gadget_io::tokio::sync::Mutex<
-                UnboundedReceiver<<WorkManager as WorkManagerInterface>::ProtocolMessage>,
+                UnboundedReceiver<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage>,
             >,
         >,
     >,
@@ -466,8 +471,15 @@ impl MockNetwork {
 }
 
 #[async_trait]
-impl Network for MockNetwork {
-    async fn next_message(&self) -> Option<<WorkManager as WorkManagerInterface>::ProtocolMessage> {
+impl<Env: GadgetEnvironment> Network<Env> for MockNetwork
+where
+    Env: GadgetEnvironment<
+        ProtocolMessage = <TangleWorkManager as WorkManagerInterface>::ProtocolMessage,
+    >,
+{
+    async fn next_message(
+        &self,
+    ) -> Option<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage> {
         self.peers_rx
             .get(&self.my_id)?
             .lock_timeout(Duration::from_millis(500))
@@ -478,7 +490,7 @@ impl Network for MockNetwork {
 
     async fn send_message(
         &self,
-        message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
+        message: <TangleWorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
         let _check_message_has_ids = message.from_network_id.ok_or(Error::MissingNetworkId)?;
         if let Some(peer_id) = message.to_network_id {
@@ -544,7 +556,7 @@ pub async fn new_test_ext<
     const N: usize,
     const K: usize,
     D: Send + Clone + 'static,
-    F: Fn(NodeInput<MockClient<Runtime, Block>, MockNetwork, InMemoryBackend, D>) -> Fut,
+    F: Fn(NodeInput<TangleExtEnvironment, MockNetwork, InMemoryBackend, D>) -> Fut,
     Fut: SendFuture<'static, ()>,
 >(
     additional_params: D,
@@ -688,7 +700,7 @@ pub async fn new_test_ext<
 }
 
 pub mod mock_wrapper_client {
-    use crate::mock::RuntimeOrigin;
+    use crate::mock::{Runtime, RuntimeOrigin, TangleExtEnvironment};
     use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use async_trait::async_trait;
     use futures::StreamExt;
@@ -700,7 +712,7 @@ pub mod mock_wrapper_client {
         jobs, roles,
     };
     use gadget_common::tangle_runtime::*;
-    use gadget_core::gadget::substrate::{self, Client};
+    use gadget_core::gadget::substrate;
     use pallet_jobs_rpc_runtime_api::JobsApi;
     use parity_scale_codec::{Decode, Encode};
     use sc_client_api::{
@@ -715,6 +727,7 @@ pub mod mock_wrapper_client {
     use std::time::Duration;
     use tangle_primitives::jobs::JobId;
     use tangle_primitives::AccountId;
+    use gadget_core::gadget::general::Client;
 
     #[derive(Clone)]
     pub struct MockClient<R, B: Block> {
@@ -753,8 +766,10 @@ pub mod mock_wrapper_client {
     }
 
     #[async_trait]
-    impl<R: Send + Sync + Clone, B: Block> Client for MockClient<R, B> {
-        async fn get_next_finality_notification(&self) -> Option<substrate::FinalityNotification> {
+    impl<R: Send + Sync + Clone, B: Block> Client<substrate::FinalityNotification>
+        for MockClient<R, B>
+    {
+        async fn next_event(&self) -> Option<substrate::FinalityNotification> {
             let mut lock = self
                 .finality_notification_stream
                 .lock_timeout(Duration::from_millis(500))
@@ -775,9 +790,7 @@ pub mod mock_wrapper_client {
             })
         }
 
-        async fn get_latest_finality_notification(
-            &self,
-        ) -> Option<substrate::FinalityNotification> {
+        async fn latest_event(&self) -> Option<substrate::FinalityNotification> {
             let lock = self
                 .latest_finality_notification
                 .lock_timeout(Duration::from_millis(500))
@@ -790,27 +803,13 @@ pub mod mock_wrapper_client {
                 Some(substrate::FinalityNotification { hash, number })
             } else {
                 drop(lock);
-                self.get_next_finality_notification().await
+                self.next_event().await
             }
         }
     }
 
     #[async_trait]
-    impl<R: Send + Sync + Clone + 'static, B: Block> ClientWithApi for MockClient<R, B>
-    where
-        R: ProvideRuntimeApi<B>,
-        R::Api: pallet_jobs_rpc_runtime_api::JobsApi<
-            B,
-            ::tangle_primitives::AccountId,
-            super::MaxParticipants,
-            super::MaxSubmissionLen,
-            super::MaxKeyLen,
-            super::MaxDataLen,
-            super::MaxSignatureLen,
-            super::MaxProofLen,
-            super::MaxAdditionalParamsLen,
-        >,
-    {
+    impl ClientWithApi<TangleExtEnvironment> for MockClient<Runtime, crate::mock::Block> {
         async fn query_jobs_by_validator(
             &self,
             at: [u8; 32],
@@ -1029,5 +1028,50 @@ pub mod mock_wrapper_client {
                 })
                 .await
         }
+    }
+}
+
+pub struct TangleExtEnvironment;
+
+impl GadgetEnvironment for TangleExtEnvironment {
+    type Event = TangleEvent;
+    type ProtocolMessage = TangleProtocolMessage;
+    type Client = MockClient<Runtime, Block>;
+    type WorkManager = TangleWorkManager;
+    type Error = gadget_common::Error;
+    type Clock = <Self::WorkManager as WorkManagerInterface>::Clock;
+    type RetryID = <Self::WorkManager as WorkManagerInterface>::RetryID;
+    type TaskID = <Self::WorkManager as WorkManagerInterface>::TaskID;
+    type SessionID = <Self::WorkManager as WorkManagerInterface>::SessionID;
+    type TransactionManager = TangleTransactionManager;
+
+    fn build_protocol_message<Payload: Serialize>(
+        associated_block_id: <Self::WorkManager as WorkManagerInterface>::Clock,
+        associated_session_id: <Self::WorkManager as WorkManagerInterface>::SessionID,
+        associated_retry_id: <Self::WorkManager as WorkManagerInterface>::RetryID,
+        associated_task_id: <Self::WorkManager as WorkManagerInterface>::TaskID,
+        from: UserID,
+        to: Option<UserID>,
+        payload: &Payload,
+        from_account_id: Option<ecdsa::Public>,
+        to_network_id: Option<ecdsa::Public>,
+    ) -> Self::ProtocolMessage {
+        TangleProtocolMessage {
+            associated_block_id,
+            associated_session_id,
+            associated_retry_id,
+            task_hash: associated_task_id,
+            from,
+            to,
+            payload: serialize(payload).expect("Failed to serialize message"),
+            from_network_id: from_account_id,
+            to_network_id,
+        }
+    }
+}
+
+impl EventMetadata<TangleExtEnvironment> for TangleEvent {
+    fn number(&self) -> <TangleExtEnvironment as GadgetEnvironment>::Clock {
+        self.number
     }
 }

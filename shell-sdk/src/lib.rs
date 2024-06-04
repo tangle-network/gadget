@@ -3,12 +3,11 @@ pub mod entry;
 pub mod keystore;
 pub mod network;
 pub mod shell;
-pub mod tangle;
 
 pub use config::*;
 pub use entry::run_shell_for_protocol;
 pub use gadget_common::prelude::*;
-pub use gadget_core::gadget::substrate::Client;
+pub use gadget_core::gadget::general::Client;
 pub use shell::generate_node_input;
 
 pub mod prelude {
@@ -19,9 +18,7 @@ pub mod prelude {
     pub use crate::DebugLogger;
     pub use crate::ECDSAKeyStore;
     pub use crate::FullProtocolConfig;
-    pub use crate::GadgetProtocolMessage;
     pub use crate::JobError;
-    pub use crate::JobInitMetadata;
     pub use crate::JobsClient;
     pub use crate::KeystoreBackend;
     pub use crate::Mutex;
@@ -30,10 +27,13 @@ pub mod prelude {
     pub use crate::PalletSubmitter;
     pub use crate::ProtocolWorkManager;
     pub use crate::SendFuture;
+    pub use crate::TangleProtocolMessage;
+    pub use crate::TangleWorkManager;
     pub use crate::UnboundedReceiver;
-    pub use crate::WorkManager;
     pub use crate::WorkManagerInterface;
     pub use gadget_common::full_protocol::SharedOptional;
+
+    pub use gadget_common::gadget::tangle::TangleInitMetadata;
     pub use gadget_common::prelude::InMemoryBackend;
     pub use gadget_common::tangle_runtime::AccountId32;
     pub use gadget_common::tangle_runtime::MaxAdditionalParamsLen;

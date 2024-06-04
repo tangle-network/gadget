@@ -1,11 +1,11 @@
 use crate::protocols::resolver::{load_global_config_file, str_to_role_type, ProtocolMetadata};
 use config::ShellManagerOpts;
+use gadget_common::gadget::tangle::runtime::TangleRuntime;
 use gadget_common::sp_core::Pair;
 use gadget_io::tokio::io::AsyncWriteExt;
 use gadget_io::ShellTomlConfig;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::keystore::load_keys_from_keystore;
-use shell_sdk::tangle::TangleRuntime;
 use shell_sdk::{entry, DebugLogger};
 use shell_sdk::{gadget_io, Client};
 use std::collections::HashMap;
@@ -57,7 +57,7 @@ async fn main() -> color_eyre::Result<()> {
     let mut active_shells = HashMap::<String, _>::new();
 
     let manager_task = async move {
-        while let Some(notification) = runtime.get_next_finality_notification().await {
+        while let Some(notification) = runtime.next_event().await {
             logger.info(format!("Received notification {}", notification.number));
             // TODO: Fetch blueprints instead of role types
             let onchain_roles = utils::get_subscribed_role_types(

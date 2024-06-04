@@ -151,6 +151,7 @@ serde_bytes = { version = "0.11.12", default-features = false }
 itertools = "0.12.0"
 strum = "0.26"
 clap = "4.0.32"
+color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
 hex-literal = "0.4.1"
 rand = "0.8.5"
 rand_core = "0.6"

@@ -1,20 +1,21 @@
 use crate::debug_logger::DebugLogger;
+use crate::environments::{GadgetEnvironment, TangleEnvironment};
 use crate::tangle_runtime::*;
 use async_trait::async_trait;
 use auto_impl::auto_impl;
-use gadget_core::gadget::substrate::{Client, FinalityNotification};
+use gadget_core::gadget::general::Client;
 use sp_core::{ecdsa, ByteArray};
 use sp_core::{sr25519, Pair};
 use std::sync::Arc;
 use tangle_subxt::subxt::{self, tx::TxPayload, OnlineClient};
 
-pub struct JobsClient<C> {
-    pub client: C,
+pub struct JobsClient<Env: GadgetEnvironment> {
+    pub client: Arc<Env::Client>,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
 }
 
-impl<C: Clone> Clone for JobsClient<C> {
+impl<Env: GadgetEnvironment> Clone for JobsClient<Env> {
     fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
@@ -24,13 +25,13 @@ impl<C: Clone> Clone for JobsClient<C> {
     }
 }
 
-pub async fn create_client<C: ClientWithApi>(
-    client: C,
+pub async fn create_client<Env: GadgetEnvironment>(
+    client: Env::Client,
     logger: DebugLogger,
     pallet_tx: Arc<dyn PalletSubmitter>,
-) -> Result<JobsClient<C>, crate::Error> {
+) -> Result<JobsClient<Env>, crate::Error> {
     Ok(JobsClient {
-        client,
+        client: Arc::new(client),
         logger,
         pallet_tx,
     })
@@ -73,7 +74,7 @@ pub trait PhaseResultExt {
 
 #[async_trait]
 #[auto_impl(Arc)]
-pub trait ClientWithApi: Client {
+pub trait ClientWithApi<Env: GadgetEnvironment>: Client<Env::Event> + 'static {
     /// Query jobs associated with a specific validator.
     ///
     /// This function takes a `validator` parameter of type `AccountId` and attempts
@@ -193,7 +194,7 @@ pub trait ClientWithApi: Client {
     ) -> Result<Vec<roles::RoleType>, crate::Error>;
 }
 
-impl<C: ClientWithApi> JobsClient<C> {
+impl JobsClient<TangleEnvironment> {
     pub async fn query_jobs_by_validator(
         &self,
         at: [u8; 32],
@@ -388,13 +389,13 @@ impl<
 }
 
 #[async_trait]
-impl<C: Client> Client for JobsClient<C> {
-    async fn get_next_finality_notification(&self) -> Option<FinalityNotification> {
-        self.client.get_next_finality_notification().await
+impl<Env: GadgetEnvironment> Client<Env::Event> for JobsClient<Env> {
+    async fn next_event(&self) -> Option<Env::Event> {
+        self.client.next_event().await
     }
 
-    async fn get_latest_finality_notification(&self) -> Option<FinalityNotification> {
-        self.client.get_latest_finality_notification().await
+    async fn latest_event(&self) -> Option<Env::Event> {
+        self.client.latest_event().await
     }
 }
 /// A [`Signer`] implementation that can be constructed from an [`sp_core::Pair`].
@@ -573,7 +574,7 @@ mod tests {
     use super::*;
 
     #[gadget_io::tokio::test]
-    #[ignore = "This test requires a running substrate node"]
+    #[ignore = "This test requires a running general node"]
     async fn subxt_pallet_submitter() -> anyhow::Result<()> {
         let logger = DebugLogger { id: "test".into() };
         let alice = subxt_signer::sr25519::dev::alice();
