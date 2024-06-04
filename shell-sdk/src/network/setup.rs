@@ -1,15 +1,22 @@
 use crate::config::ShellConfig;
+#[cfg(not(target_family = "wasm"))]
 use crate::network::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
 };
 use crate::shell::{AGENT_VERSION, CLIENT_VERSION};
 use futures::StreamExt;
 use gadget_common::config::DebugLogger;
+
+#[cfg(not(target_family = "wasm"))]
+use libp2p::{
+    gossipsub, gossipsub::IdentTopic, kad::store::MemoryStore, mdns, request_response,
+    swarm::dial_opts::DialOpts, StreamProtocol,
+};
+
 use gadget_common::prelude::KeystoreBackend;
-use libp2p::gossipsub::IdentTopic;
-use libp2p::kad::store::MemoryStore;
-use libp2p::swarm::dial_opts::DialOpts;
-use libp2p::{gossipsub, mdns, request_response, StreamProtocol};
+use gadget_io::tokio::select;
+use gadget_io::tokio::sync::{Mutex, RwLock};
+use gadget_io::tokio::task::{spawn, JoinHandle};
 use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::error::Error;
@@ -19,11 +26,9 @@ use std::str::FromStr;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::select;
-use tokio::sync::{Mutex, RwLock};
-use tokio::task::JoinHandle;
 
 #[allow(clippy::collapsible_else_if)]
+#[cfg(not(target_family = "wasm"))]
 pub async fn setup_libp2p_network<KBE: KeystoreBackend>(
     identity: libp2p::identity::Keypair,
     config: &ShellConfig<KBE>,
@@ -123,13 +128,13 @@ pub async fn setup_libp2p_network<KBE: KeystoreBackend>(
     // Subscribe to all networks
     let mut inbound_mapping = Vec::new();
     let (tx_to_outbound, mut rx_to_outbound) =
-        tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
+        gadget_io::tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
     let ecdsa_peer_id_to_libp2p_id = Arc::new(RwLock::new(HashMap::new()));
     let mut handles_ret = HashMap::with_capacity(networks.len());
     for network in networks {
         let topic = IdentTopic::new(network.clone());
         swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
-        let (inbound_tx, inbound_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (inbound_tx, inbound_rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
         let connected_peers = Arc::new(AtomicU32::new(0));
         inbound_mapping.push((topic.clone(), inbound_tx, connected_peers.clone()));
 
@@ -202,6 +207,6 @@ pub async fn setup_libp2p_network<KBE: KeystoreBackend>(
         }
     };
 
-    let spawn_handle = tokio::task::spawn(worker);
+    let spawn_handle = spawn(worker);
     Ok((handles_ret, spawn_handle))
 }

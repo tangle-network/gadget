@@ -1,0 +1,55 @@
+[package]
+name = "gadget-io"
+version = "0.0.1"
+license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["std"]
+std = [
+
+]
+wasm = [
+
+]
+
+[dependencies]
+tracing = { workspace = true, features = ["log", "attributes"] }
+hex = { workspace = true }
+anyhow = "1.0.81"
+scale-info = { workspace = true}
+parity-scale-codec = { workspace = true }
+serde = { workspace = true }
+#sp-core = { workspace = true, default-features = false }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+getrandom = { workspace = true, features = ["js"] }
+wasm-bindgen = { version = "0.2.92" }
+wasm-bindgen-futures = { version = "0.4.42" }
+tsify = { version = "0.4.5" }
+serde-wasm-bindgen = { version = "0.6.5" }
+js-sys = "0.3.69"
+color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
+sp-core = { workspace = true, features = ["serde", "full_crypto"] }
+tokio = { workspace = true, features = ["sync", "macros", "io-util", "rt", "time"] }
+wasmtimer = { git = "https://github.com/whizsid/wasmtimer-rs.git" }
+
+p256 = { workspace = true, features = ["alloc", "ecdsa"], default-features = false }
+
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
+sp-core = { workspace = true, features = ["default"] }
+sp-application-crypto = { workspace = true }
+sp-keystore = { workspace = true }
+sc-keystore = { workspace = true }
+structopt = "0.3.26"
+tokio = { workspace = true, features = ["full"] }
+url = { workspace = true, features = ["serde"] }
+libp2p = { workspace = true }
+rand = { workspace = true }
+
+[dev-dependencies]

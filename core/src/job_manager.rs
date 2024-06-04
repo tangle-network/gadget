@@ -9,6 +9,11 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(target_family = "wasm")]
+use wasm_bindgen_test::*;
+#[cfg(target_family = "wasm")]
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum PollMethod {
     Interval { millis: u64 },
@@ -167,10 +172,9 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
 
             let handler = async move {
                 let periodic_poller = async move {
-                    let mut interval =
-                        tokio::time::interval(std::time::Duration::from_millis(millis));
                     loop {
-                        interval.tick().await;
+                        let _ = futures_timer::Delay::new(std::time::Duration::from_millis(millis))
+                            .await;
                         this_worker.poll();
                     }
                 };
@@ -179,7 +183,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
                 logger.error("[worker] periodic_poller exited".to_string());
             };
 
-            tokio::task::spawn(handler);
+            gadget_io::spawn(handler);
         }
 
         this
@@ -438,7 +442,7 @@ impl<WM: WorkManagerInterface> ProtocolWorkManager<WM> {
         };
 
         // Spawn the task. When it finishes, it will clean itself up
-        tokio::task::spawn(task);
+        gadget_io::tokio::task::spawn(task);
         Ok(())
     }
 
@@ -666,14 +670,16 @@ fn should_deliver<WM: WorkManagerInterface>(
 }
 
 #[cfg(test)]
+#[cfg(not(target_family = "wasm"))]
 mod tests {
     use super::*;
     use crate::job::{BuiltExecutableJobWrapper, JobBuilder, JobError};
+    use gadget_io::tokio;
+    use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
     use parking_lot::Mutex;
     use sp_core::ecdsa::Public;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
-    use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
     #[derive(Debug, Eq, PartialEq)]
     struct TestWorkManager;
@@ -759,7 +765,7 @@ mod tests {
         retry_id: u32,
         started_at: u64,
         delivered_messages: UnboundedSender<TestMessage>,
-        start_tx: Arc<Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
+        start_tx: Arc<Mutex<Option<gadget_io::tokio::sync::oneshot::Sender<()>>>>,
         is_done: Arc<AtomicBool>,
         has_started: Arc<AtomicBool>,
     }
@@ -770,7 +776,7 @@ mod tests {
             retry_id: u32,
             started_at: u64,
             task_tx: UnboundedSender<TestMessage>,
-            start_tx: tokio::sync::oneshot::Sender<()>,
+            start_tx: gadget_io::tokio::sync::oneshot::Sender<()>,
             is_done: Arc<AtomicBool>,
         ) -> Arc<Self> {
             Arc::new(Self {
@@ -795,8 +801,8 @@ mod tests {
         BuiltExecutableJobWrapper,
         UnboundedReceiver<TestMessage>,
     ) {
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        let (start_tx, start_rx) = tokio::sync::oneshot::channel();
+        let (tx, rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
+        let (start_tx, start_rx) = gadget_io::tokio::sync::oneshot::channel();
         let is_done = Arc::new(AtomicBool::new(false));
         let remote = TestProtocolRemote::new(
             session_id,
@@ -825,8 +831,8 @@ mod tests {
         BuiltExecutableJobWrapper,
         UnboundedReceiver<TestMessage>,
     ) {
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        let (start_tx, start_rx) = tokio::sync::oneshot::channel();
+        let (tx, rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
+        let (start_tx, start_rx) = gadget_io::tokio::sync::oneshot::channel();
         let is_done = Arc::new(AtomicBool::new(false));
         let remote = TestProtocolRemote::new(
             session_id,
@@ -882,7 +888,7 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_push_task() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote, task, _rx) = generate_async_protocol(1, 1, 0);
@@ -890,7 +896,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_deliver_message() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote, task, mut rx) = generate_async_protocol(0, 0, 0);
@@ -915,7 +921,7 @@ mod tests {
         let _ = rx.recv().await.unwrap();
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_deliver_self_ref_message() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote, task, _rx) = generate_async_protocol(0, 0, 0);
@@ -936,7 +942,7 @@ mod tests {
         assert!(work_manager.deliver_message(message).is_err());
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_job_exists() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote, task, _rx) = generate_async_protocol(1, 1, 0);
@@ -950,7 +956,7 @@ mod tests {
         assert!(result);
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_add_multiple_tasks() {
         let work_manager = ProtocolWorkManager::new(
             TestWorkManager,
@@ -977,7 +983,7 @@ mod tests {
             .is_err());
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_deliver_to_queued_task() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote, task, mut rx) = generate_async_protocol(1, 1, 0);
@@ -1005,7 +1011,7 @@ mod tests {
         assert_eq!(next_message, msg);
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_get_task_metadata() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
@@ -1044,7 +1050,7 @@ mod tests {
         // Now, start the tasks
         work_manager.poll();
         // Wait some time for the tasks to finish
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
         // Poll again to cleanup
         work_manager.poll();
         // Re-check the statuses
@@ -1053,7 +1059,7 @@ mod tests {
         assert!(metadata.is_empty());
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_get_task_metadata_no_force_start() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
@@ -1097,7 +1103,7 @@ mod tests {
         assert!(metadata.contains(&expected2));
 
         // Wait some time for the tasks to finish
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
         // Poll again to cleanup
         work_manager.poll();
         // Re-check the statuses
@@ -1106,7 +1112,7 @@ mod tests {
         assert!(metadata.is_empty());
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_force_shutdown_all() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
@@ -1130,7 +1136,7 @@ mod tests {
         assert!(!work_manager.job_exists(&[2; 32]));
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_clear_enqueued_tasks() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
@@ -1154,7 +1160,7 @@ mod tests {
         assert!(!work_manager.job_exists(&[2; 32]));
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_max_tasks_limit() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 2, 2, PollMethod::Manual);
 
@@ -1183,7 +1189,7 @@ mod tests {
             .is_err());
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_task_completion() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
@@ -1193,7 +1199,7 @@ mod tests {
             .unwrap();
 
         // Wait some time for the tasks to finish
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
         // Poll again to cleanup
         work_manager.poll();
 
@@ -1201,7 +1207,7 @@ mod tests {
         assert!(!work_manager.job_exists(&[1; 32]));
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_job_removal_on_drop() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
@@ -1217,7 +1223,7 @@ mod tests {
         assert!(!work_manager.job_exists(&[1; 32]));
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_message_delivery_to_non_existent_job() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
 
@@ -1238,7 +1244,7 @@ mod tests {
         assert_eq!(delivery_type, DeliveryType::EnqueuedMessage);
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_message_delivery_to_job_with_outdated_block_id() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
@@ -1264,7 +1270,7 @@ mod tests {
         assert_eq!(delivery_type, DeliveryType::EnqueuedMessage);
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_can_submit_more_tasks() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 0, PollMethod::Manual);
         let (remote, task, _rx) = generate_async_protocol(1, 1, 0);
@@ -1276,7 +1282,7 @@ mod tests {
         assert!(!work_manager.can_submit_more_tasks());
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_multiple_messages_single_task() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 10, 10, PollMethod::Manual);
         let (remote, task, mut rx) = generate_async_protocol(1, 1, 0);
@@ -1308,7 +1314,7 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_task_not_started() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 0, PollMethod::Manual);
         let (remote, task, _rx) = generate_async_protocol(1, 1, 0);
@@ -1327,7 +1333,7 @@ mod tests {
             }));
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_can_submit_more_tasks_with_enqueued_tasks() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 1, PollMethod::Manual);
         let (remote1, task1, _rx) = generate_async_protocol(1, 1, 0);
@@ -1344,7 +1350,7 @@ mod tests {
         assert!(!work_manager.can_submit_more_tasks()); // no more tasks can be added
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_message_delivery_to_stalled_task() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 0, PollMethod::Manual);
         let (remote, task, _rx) = generate_async_protocol(1, 1, 1); // Task will stall immediately
@@ -1365,7 +1371,7 @@ mod tests {
         assert_eq!(delivery_type, DeliveryType::EnqueuedMessage); // message should be enqueued because task is stalled and removed
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_message_delivery_with_incorrect_task_hash() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 0, PollMethod::Manual);
         let (remote, task, _rx) = generate_async_protocol(1, 1, 0);
@@ -1385,13 +1391,13 @@ mod tests {
         assert_eq!(delivery_type, DeliveryType::EnqueuedMessage); // message should be enqueued because the task hash is incorrect
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_retry_id() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 0, PollMethod::Manual);
         let (remote, task, _rx) = generate_async_protocol_error(1, 0, 0);
         assert!(work_manager.latest_retry_id(&[0; 32]).is_none());
         work_manager.push_task([0; 32], true, remote, task).unwrap();
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
         assert_eq!(
             work_manager
                 .latest_retry_id(&[0; 32])
@@ -1404,7 +1410,7 @@ mod tests {
         // Simulate a retry
         let (remote, task, _rx) = generate_async_protocol_error(1, 1, 0);
         work_manager.push_task([0; 32], true, remote, task).unwrap();
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
 
         assert_eq!(
             work_manager
@@ -1418,12 +1424,12 @@ mod tests {
         // Simulate that the protocol works on the third attempt
         let (remote, task, _rx) = generate_async_protocol(1, 2, 0);
         work_manager.push_task([0; 32], true, remote, task).unwrap();
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
         // Since the protocol was a success, the retry id should be cleared
         assert!(work_manager.latest_retry_id(&[0; 32]).is_none());
     }
 
-    #[tokio::test]
+    #[gadget_io::tokio::test]
     async fn test_record_message() {
         let work_manager = ProtocolWorkManager::new(TestWorkManager, 1, 0, PollMethod::Manual);
         let (remote, task, _rx) = generate_async_protocol(1, 1, 0);

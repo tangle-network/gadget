@@ -5,18 +5,31 @@ authors = ["Thomas P Braun"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [features]
+default = ["substrate"]
 substrate = []
 
 [dependencies]
 parking_lot = { workspace = true }
-tokio = { workspace = true, features = ["sync", "time", "macros", "rt"] }
-hex = { workspace = true }
+gadget-io = { workspace = true, default-features = false }
+hex = { workspace = true, features = ["alloc"] }
 log = { workspace = true }
 async-trait = { workspace = true }
 auto_impl = { workspace = true }
 futures = { workspace = true }
+futures-timer = "3.0.3"
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+wasm-bindgen-test = "0.3.34"
+getrandom = { workspace = true, features = ["js"] }
+wasm-bindgen-futures = "0.4.42"
 sp-core = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros"] }
+
+[target.'cfg(target_family = "wasm")'.dev-dependencies]
+wasm-bindgen-test = "0.3.34"

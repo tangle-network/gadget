@@ -1,9 +1,10 @@
 use futures::Stream;
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
+use sp_io::EcdsaVerifyError;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 pub const ECDSA_SIGNATURE_LENGTH: usize = 65;
 
@@ -25,7 +26,7 @@ pub fn serialize(object: &impl Serialize) -> Result<Vec<u8>, serde_json::Error> 
 /// On the second clone, the original channel will stop receiving new messages
 /// and the new channel will start receiving any new messages after the clone.
 pub struct CloneableUnboundedReceiver<T> {
-    rx: Arc<tokio::sync::Mutex<UnboundedReceiver<T>>>,
+    rx: Arc<gadget_io::tokio::sync::Mutex<UnboundedReceiver<T>>>,
     is_in_use: Arc<AtomicBool>,
 }
 
@@ -45,7 +46,7 @@ impl<T: Clone> Clone for CloneableUnboundedReceiver<T> {
 impl<T> From<UnboundedReceiver<T>> for CloneableUnboundedReceiver<T> {
     fn from(rx: UnboundedReceiver<T>) -> Self {
         Self {
-            rx: Arc::new(tokio::sync::Mutex::new(rx)),
+            rx: Arc::new(gadget_io::tokio::sync::Mutex::new(rx)),
             is_in_use: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -65,7 +66,7 @@ impl<T> Stream for CloneableUnboundedReceiver<T> {
             Err(_) => return std::task::Poll::Pending,
         };
         let rx = &mut *rx;
-        tokio::pin!(rx);
+        gadget_io::tokio::pin!(rx);
         rx.poll_recv(cx)
     }
 }
@@ -91,7 +92,20 @@ pub fn recover_ecdsa_pub_key(
 
         let hash = sp_core::keccak_256(data);
 
-        let pub_key = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &hash)?;
+        // let pub_key = sp_io::crypto::secp256k1_ecdsa_recover(&sig, &hash)?;
+
+        let msg = hash;
+        let rid =
+            libsecp256k1::RecoveryId::parse(if sig[64] > 26 { sig[64] - 27 } else { sig[64] })
+                .map_err(|_| EcdsaVerifyError::BadV)?;
+        let sig = libsecp256k1::Signature::parse_overflowing_slice(&sig[..64])
+            .map_err(|_| EcdsaVerifyError::BadRS)?;
+        let msg = libsecp256k1::Message::parse(&msg);
+        let pubkey =
+            libsecp256k1::recover(&msg, &sig, &rid).map_err(|_| EcdsaVerifyError::BadSignature)?;
+        let mut pub_key = [0u8; 64];
+        pub_key.copy_from_slice(&pubkey.serialize()[1..65]);
+
         return Ok(pub_key.to_vec());
     }
     Err(sp_io::EcdsaVerifyError::BadSignature)

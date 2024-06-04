@@ -12,14 +12,13 @@ use async_trait::async_trait;
 use gadget_core::gadget::manager::AbstractGadget;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolMessageMetadata, ProtocolWorkManager};
+use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
 use parking_lot::RwLock;
 use sp_core::ecdsa::{Public, Signature};
 use sp_core::{keccak_256, sr25519};
-use sp_io::crypto::ecdsa_verify_prehashed;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 
@@ -246,7 +245,7 @@ where
                 <PayloadAndSignature as Decode>::decode(&mut message.payload().as_slice())
             {
                 let hashed_message = keccak_256(&payload_and_signature.payload);
-                if ecdsa_verify_prehashed(
+                if sp_core::ecdsa::Pair::verify_prehashed(
                     &payload_and_signature.signature,
                     &hashed_message,
                     &peer_public_key,

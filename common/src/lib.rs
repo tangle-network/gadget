@@ -9,12 +9,12 @@ pub use gadget_core::job::JobError;
 pub use gadget_core::job::*;
 pub use gadget_core::job_manager::WorkManagerInterface;
 pub use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
+use gadget_io::tokio::task::JoinError;
 use parking_lot::RwLock;
 pub use sp_core;
 use sp_core::ecdsa;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
-use tokio::task::JoinError;
 
 pub use subxt_signer;
 pub use tangle_subxt;
@@ -34,16 +34,18 @@ pub mod prelude {
     pub use crate::gadget::WorkManagerConfig;
     pub use crate::generate_setup_and_run_command;
     pub use crate::keystore::{ECDSAKeyStore, InMemoryBackend, KeystoreBackend};
-    pub use crate::{BuiltExecutableJobWrapper, Error, JobBuilder, JobError, WorkManagerInterface};
+    pub use crate::{BuiltExecutableJobWrapper, JobBuilder, JobError, WorkManagerInterface};
     pub use async_trait::async_trait;
     pub use gadget_core::job_manager::ProtocolWorkManager;
     pub use gadget_core::job_manager::SendFuture;
+    pub use gadget_core::job_manager::WorkManagerError;
+    pub use gadget_io;
+    pub use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
     pub use parking_lot::Mutex;
     pub use protocol_macros::protocol;
     pub use sp_runtime::traits::Block;
     pub use std::pin::Pin;
     pub use std::sync::Arc;
-    pub use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 }
 
 #[cfg(feature = "tangle-testnet")]
@@ -187,7 +189,7 @@ pub async fn run_protocol<Env: GadgetEnvironment, T: ProtocolConfig<Env>>(
     }
 
     // Run both the network and the gadget together
-    tokio::try_join!(network_future, gadget_future).map(|_| ())
+    gadget_io::tokio::try_join!(network_future, gadget_future).map(|_| ())
 }
 
 /// Creates a work manager
@@ -274,7 +276,11 @@ macro_rules! generate_setup_and_run_command {
                 futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), $crate::Error>>>>);
             )*
 
-            futures.try_collect::<Vec<_>>().await.map(|_| ())
+            if let Err(err) = futures.try_collect::<Vec<_>>().await.map(|_| ()) {
+                Err(err)
+            } else {
+                Ok(())
+            }
         }
     };
 }
