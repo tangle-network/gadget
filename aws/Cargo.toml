@@ -11,8 +11,10 @@ aws-types.workspace = true
 aws-sdk-s3.workspace = true
 aws-sdk-secretsmanager.workspace = true
 aws-sdk-kms.workspace = true
-tokio.workspace = true
-k256.workspace = true
+tokio = { version = "1.22.0", features = ["rt-multi-thread", "parking_lot"] }
+
+k256 = { workspace = true, features = ["ecdsa"] }
+
 picky-asn1-der.workspace = true
 serde.workspace = true
 alloy-primitives.workspace = true

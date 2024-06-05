@@ -52,9 +52,6 @@ substrate-prometheus-endpoint = { workspace = true, optional = true, default-fea
 frame-support = { workspace = true, optional = true, default-features = false }
 linked-hash-map = { workspace = true, optional = true, default-features = false }
 
-# Eigenlayer
-eigen-contracts = { workspace = true, optional = true }
-
 parity-scale-codec = { workspace = true, optional = true }
 scale-info = { workspace = true, optional = true }
 thiserror = { workspace = true }
@@ -84,7 +81,6 @@ substrate = [
   "parity-scale-codec",
   "scale-info",
 ]
-eigenlayer = ["eigen-contracts"]
 std = [
   "sqlx",
   "serde/std",

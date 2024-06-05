@@ -9,10 +9,12 @@ members = [
     "shell-manager",
     "shell-sdk",
     "eigen-contracts",
+    "eigen-gadget",
     "eigen-utils",
     "fireblocks-client",
     "aws",
     "sdk",
+    "eigen-gadget",
 ]
 
 [workspace.package]
@@ -32,8 +34,10 @@ shell-sdk = { path = "./shell-sdk", default-features = false }
 shell-manager = { path = "./shell-manager" }
 
 eigen-contracts = { path = "./eigen-contracts" }
+eigen-gadget = { path = "./eigen-gadget" }
 eigen-utils = { path = "./eigen-utils" }
 fireblocks-client = { path = "./fireblocks-client" }
+gadget-aws-kms = { path = "./aws" }
 
 snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false, rev = "1c15242" }
@@ -203,6 +207,9 @@ aws-sdk-s3 = "1.32.0"
 aws-sdk-secretsmanager = "1.31.0"
 aws-sdk-kms = "1.29.0"
 picky-asn1-der = "0.4.1"
+hyper = "1.3.1"
+pin-project-lite = "0.2.14"
+http-body-util = "0.1.1"
 
 alloy-chains = "0.1.15"
 alloy-primitives = "0.7.2"

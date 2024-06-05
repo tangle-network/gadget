@@ -27,7 +27,8 @@ pub async fn get_ecdsa_public_key(
     let public_key_bytes = pk_info.public_key;
 
     // Parse the public key bytes to create an ECDSA public key
-    let public_key = PublicKey::from_sec1_bytes(&public_key_bytes)?;
+    let public_key = PublicKey::from_sec1_bytes(&public_key_bytes)
+        .map_err(|_| "Failed to parse ECDSA public key")?;
 
     Ok(public_key)
 }

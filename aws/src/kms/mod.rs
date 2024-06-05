@@ -26,6 +26,7 @@ async fn new_kms_client(region: &str) -> Result<Client, Box<dyn Error>> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use aws_sdk_kms::types::{KeySpec, KeyUsageType};
     use get_public_key::get_ecdsa_public_key;
     use get_signature::get_ecdsa_signature;
 
