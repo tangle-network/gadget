@@ -2,43 +2,6 @@ type BlueprintString<'a> = std::borrow::Cow<'a, str>;
 /// A type that represents an EVM Address.
 pub type Address = ethereum_types::H160;
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum Field<AccountId> {
-    /// Represents a field of null value.
-    None,
-    /// Represents a boolean.
-    Bool(bool),
-    /// Represents a u8 Number.
-    Uint8(u8),
-    /// Represents a i8 Number.
-    Int8(i8),
-    /// Represents a u16 Number.
-    Uint16(u16),
-    /// Represents a i16 Number.
-    Int16(i16),
-    /// Represents a u32 Number.
-    Uint32(u32),
-    /// Represents a i32 Number.
-    Int32(i32),
-    /// Represents a u64 Number.
-    Uint64(u64),
-    /// Represents a i64 Number.
-    Int64(i64),
-    /// Represents a UTF-8 string.
-    String(std::string::String),
-    /// Represents a Raw Bytes.
-    Bytes(std::vec::Vec<u8>),
-    /// Represents an array of values
-    /// Fixed Length of values.
-    Array(std::vec::Vec<Field<AccountId>>),
-    /// Represents a list of values
-    List(std::vec::Vec<Field<AccountId>>),
-
-    // NOTE: Special types starts from 100
-    /// A sepcial type for AccountId
-    AccountId(AccountId),
-}
-
 #[derive(Default, Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum FieldType {
     /// A Field of `void` type.

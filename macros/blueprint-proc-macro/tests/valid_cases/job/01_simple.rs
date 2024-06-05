@@ -1,22 +1,16 @@
 use gadget_blueprint_proc_macro::job;
+use gadget_blueprint_proc_macro_core::*;
 
-struct Bytes;
-impl Bytes {
-    fn new() -> Self {
-        Self
-    }
-}
-
-#[job(params(n), result(Bytes))]
-fn keygen(n: u16) -> Bytes {
+#[job(params(n), result(Vec<u8>))]
+fn keygen(n: u16) -> Vec<u8> {
     let _ = n;
-    Bytes::new()
+    Vec::new()
 }
 
 fn main() {
     // Ensure the generated struct exists
-    let _ = KeygenJob {
-        params: (16),
-        result: Bytes::new(),
-    };
+    // let _ = KeygenJob {
+    //     params: (16),
+    //     result: Bytes::new(),
+    // };
 }

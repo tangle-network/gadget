@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 
 use proc_macro::TokenStream;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, ItemFn, Token, Type};
@@ -44,7 +44,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
 
     // Extract params and result types from args
     let params_type = args.params_to_token_stream(&param_types)?;
-    let result_type = args.result_to_token_stream(result);
+    let result_type = args.result_to_token_stream(result)?;
     // Generate the struct
     let gen = quote! {
         struct #struct_name {
@@ -54,6 +54,8 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
 
         #input
     };
+
+    eprintln!("Generated code: {gen}");
 
     Ok(gen.into())
 }
@@ -194,18 +196,92 @@ impl JobArgs {
                     syn::Error::new_spanned(ident, "parameter not declared in the function")
                 })
             })
+            .map(|ty| type_to_field_type(ty?))
             .collect::<syn::Result<Vec<_>>>()?;
         Ok(quote! { (#(#params),*) })
     }
 
-    fn result_to_token_stream(&self, result: &Type) -> proc_macro2::TokenStream {
+    fn result_to_token_stream(&self, result: &Type) -> syn::Result<proc_macro2::TokenStream> {
         match &self.result {
-            ResultsKind::Infered => quote! { #result },
+            ResultsKind::Infered => type_to_field_type(result),
             ResultsKind::Types(types) => {
-                let xs = types.iter().collect::<Vec<_>>();
-                quote! { (#(#xs),*) }
+                let xs = types
+                    .iter()
+                    .map(type_to_field_type)
+                    .collect::<syn::Result<Vec<_>>>()?;
+                Ok(quote! { (#(#xs),*) })
             }
         }
+    }
+}
+
+pub fn type_to_field_type(ty: &Type) -> syn::Result<proc_macro2::TokenStream> {
+    match ty {
+        Type::Array(_) => Err(syn::Error::new_spanned(ty, "TODO: support arrays")),
+        Type::Path(inner) => path_to_field_type(&inner.path),
+        _ => Err(syn::Error::new_spanned(ty, "unsupported type")),
+    }
+}
+
+fn path_to_field_type(path: &syn::Path) -> syn::Result<proc_macro2::TokenStream> {
+    if path.segments.len() != 1 {
+        return Err(syn::Error::new_spanned(
+            path,
+            "expected a single type path segment",
+        ));
+    }
+    let seg = &path.segments[0];
+    let ident = &seg.ident;
+    let args = &seg.arguments;
+    match args {
+        syn::PathArguments::None => ident_to_field_type(ident),
+        // Support for Vec<T> where T is a simple type
+        syn::PathArguments::AngleBracketed(inner) if ident.eq("Vec") && inner.args.len() == 1 => {
+            let inner_arg = &inner.args[0];
+            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
+                let inner_type = type_to_field_type(inner_ty)?;
+                Ok(quote! { FieldType::List(Box<#inner_type>) })
+            } else {
+                Err(syn::Error::new_spanned(
+                    inner_arg,
+                    "unsupported complex type",
+                ))
+            }
+        }
+        // Support for Option<T> where T is a simple type
+        syn::PathArguments::AngleBracketed(inner)
+            if ident.eq("Option") && inner.args.len() == 1 =>
+        {
+            let inner_arg = &inner.args[0];
+            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
+                let inner_type = type_to_field_type(inner_ty)?;
+                Ok(quote! { FieldType::Optional(Box<#inner_type>) })
+            } else {
+                Err(syn::Error::new_spanned(
+                    inner_arg,
+                    "unsupported complex type",
+                ))
+            }
+        }
+        _ => Err(syn::Error::new_spanned(args, "unsupported complex type")),
+    }
+}
+
+fn ident_to_field_type(ident: &Ident) -> syn::Result<proc_macro2::TokenStream> {
+    match ident.to_string().as_str() {
+        "u8" => Ok(quote! { FieldType::U8 }),
+        "u16" => Ok(quote! { FieldType::U16 }),
+        "u32" => Ok(quote! { FieldType::U32 }),
+        "u64" => Ok(quote! { FieldType::U64 }),
+        "i8" => Ok(quote! { FieldType::I8 }),
+        "i16" => Ok(quote! { FieldType::I16 }),
+        "i32" => Ok(quote! { FieldType::I32 }),
+        "i64" => Ok(quote! { FieldType::I64 }),
+        "bool" => Ok(quote! { FieldType::Bool }),
+        "String" => Ok(quote! { FieldType::String }),
+        "Bytes" => Ok(quote! { FieldType::Bytes }),
+        "AccountId" => Ok(quote! { FieldType::AccountId }),
+        _ => Err(syn::Error::new_spanned(ident, "unsupported type")),
     }
 }
 
