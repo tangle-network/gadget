@@ -10,3 +10,6 @@
 [submodule "eigen-gadget/lib/forge-std"]
 	path = eigen-gadget/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "eigen-gadget/lib/eigenlayer-middleware"]
+	path = eigen-gadget/lib/eigenlayer-middleware
+	url = https://github.com/Layr-Labs/eigenlayer-middleware
