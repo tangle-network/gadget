@@ -7,3 +7,6 @@
 [submodule "eigen-contracts/lib/eigenlayer-contracts"]
 	path = eigen-contracts/lib/eigenlayer-contracts
 	url = https://github.com/Layr-Labs/eigenlayer-contracts
+[submodule "eigen-gadget/lib/forge-std"]
+	path = eigen-gadget/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
