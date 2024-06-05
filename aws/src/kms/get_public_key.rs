@@ -1,10 +1,7 @@
 use aws_sdk_kms::Client;
-use k256::elliptic_curve::sec1::ToEncodedPoint;
-use k256::pkcs8::DecodePublicKey;
 use k256::PublicKey;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use std::str::FromStr;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Asn1EcPublicKey {
@@ -34,17 +31,3 @@ pub async fn get_ecdsa_public_key(
 
     Ok(public_key)
 }
-
-// #[tokio::main]
-// async fn main() -> Result<(), Box<dyn Error>> {
-//     let config = aws_config::load_from_env().await;
-//     let client = Client::new(&config);
-
-//     let key_id = "your-key-id";
-//     match get_ecdsa_public_key(&client, key_id).await {
-//         Ok(pub_key) => println!("Public Key: {:?}", pub_key.to_encoded_point(false)),
-//         Err(e) => eprintln!("Failed to get ECDSA public key: {}", e),
-//     }
-
-//     Ok(())
-// }

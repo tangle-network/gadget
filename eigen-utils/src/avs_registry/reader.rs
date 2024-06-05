@@ -1,4 +1,4 @@
-use alloy_network::{Ethereum};
+use alloy_network::Ethereum;
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::Filter;

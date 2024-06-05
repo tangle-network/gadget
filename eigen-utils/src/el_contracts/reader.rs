@@ -1,6 +1,6 @@
 use crate::types::*;
 
-use alloy_network::{Ethereum};
+use alloy_network::Ethereum;
 use alloy_primitives::FixedBytes;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;

@@ -1,5 +1,5 @@
+use alloy_primitives::Bytes;
 use alloy_primitives::{keccak256, Address, B256, U256};
-use alloy_primitives::{Bytes};
 use alloy_transport::RpcError;
 use alloy_transport::TransportErrorKind;
 

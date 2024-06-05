@@ -10,8 +10,8 @@ use crate::avs_registry::reader::AvsRegistryChainReader;
 use crate::crypto::bls::G1Point;
 use crate::services::operator_info::OperatorInfoServiceTrait;
 use crate::types::{
-    bytes_to_quorum_ids, OperatorAvsState, OperatorId,
-    OperatorInfo, QuorumAvsState, QuorumNum, QuorumNums,
+    bytes_to_quorum_ids, OperatorAvsState, OperatorId, OperatorInfo, QuorumAvsState, QuorumNum,
+    QuorumNums,
 };
 
 use super::AvsRegistryServiceTrait;

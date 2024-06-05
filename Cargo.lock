@@ -978,6 +978,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-secp256k1"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c02e954eaeb4ddb29613fee20840c2bbc85ca4396d53e33837e11905363c5f2"
+dependencies = [
+ "ark-ec",
+ "ark-ff 0.4.2",
+ "ark-std 0.4.0",
+]
+
+[[package]]
 name = "ark-secret-scalar"
 version = "0.0.2"
 source = "git+https://github.com/w3f/ring-vrf?rev=e9782f9#e9782f938629c90f3adb3fff2358bc8d1386af3e"
@@ -3537,17 +3548,7 @@ name = "eigen-contracts"
 version = "0.1.0"
 dependencies = [
  "alloy-contract",
- "alloy-eips",
- "alloy-network",
- "alloy-primitives",
- "alloy-provider",
- "alloy-rpc-types",
- "alloy-signer",
- "alloy-signer-wallet",
  "alloy-sol-types",
- "alloy-transport",
- "alloy-transport-http",
- "alloy-transport-ws",
 ]
 
 [[package]]
@@ -4619,6 +4620,10 @@ dependencies = [
 name = "gadget-aws-kms"
 version = "0.1.0"
 dependencies = [
+ "alloy-consensus",
+ "alloy-primitives",
+ "ark-ff 0.4.2",
+ "ark-secp256k1",
  "aws-config",
  "aws-sdk-kms",
  "aws-sdk-s3",
@@ -4627,6 +4632,7 @@ dependencies = [
  "k256",
  "picky-asn1-der",
  "serde",
+ "thiserror",
  "tokio",
 ]
 

@@ -1,11 +1,10 @@
-use aws_config::default_provider::app_name::Builder;
 use aws_config::meta::region::RegionProviderChain;
-use aws_config::provider_config::ProviderConfig;
+
 use aws_config::retry::RetryConfig;
 use aws_config::Region;
-use aws_sdk_s3::config::endpoint::Endpoint;
+
 use aws_sdk_s3::config::Credentials;
-use aws_sdk_s3::{Client, Config};
+use aws_sdk_s3::Client;
 use aws_types::SdkConfig;
 use std::error::Error;
 use std::sync::Arc;
@@ -45,7 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Some("http://localhost:9000"),
     )
     .await?;
-    let client = Client::new(&aws_config);
+    let _client = Client::new(&aws_config);
 
     // Use the client to make requests
 

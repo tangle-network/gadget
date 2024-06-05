@@ -1,8 +1,8 @@
 use crate::crypto::bls::{G1Point, G2Point, Signature};
 use crate::services::avs_registry::AvsRegistryServiceTrait;
 use crate::types::{
-    bytes_to_quorum_ids, OperatorAvsState, OperatorId, QuorumNum,
-    QuorumThresholdPercentage, TaskIndex, TaskResponse, TaskResponseDigest,
+    bytes_to_quorum_ids, OperatorAvsState, OperatorId, QuorumNum, QuorumThresholdPercentage,
+    TaskIndex, TaskResponse, TaskResponseDigest,
 };
 use alloy_primitives::{Bytes, U256};
 use async_trait::async_trait;
@@ -248,20 +248,14 @@ where
 
         let operators_avs_state_dict = match self
             .avs_registry_service
-            .get_operators_avs_state_at_block(
-                quorum_numbers.clone(),
-                task_created_block.into(),
-            )
+            .get_operators_avs_state_at_block(quorum_numbers.clone(), task_created_block.into())
             .await
         {
             Ok(state) => state,
             Err(e) => {
                 self.aggregated_responses_tx
                     .send(BlsAggregationServiceResponse {
-                        err: Some(BlsAggregationError::TaskInitializationError(
-                            e,
-                            task_index,
-                        )),
+                        err: Some(BlsAggregationError::TaskInitializationError(e, task_index)),
                         task_index,
                         ..Default::default()
                     })
@@ -273,20 +267,14 @@ where
 
         let quorums_avs_stake_dict = match self
             .avs_registry_service
-            .get_quorums_avs_state_at_block(
-                quorum_numbers.clone(),
-                task_created_block.into(),
-            )
+            .get_quorums_avs_state_at_block(quorum_numbers.clone(), task_created_block.into())
             .await
         {
             Ok(state) => state,
             Err(e) => {
                 self.aggregated_responses_tx
                     .send(BlsAggregationServiceResponse {
-                        err: Some(BlsAggregationError::TaskInitializationError(
-                            e,
-                            task_index,
-                        )),
+                        err: Some(BlsAggregationError::TaskInitializationError(e, task_index)),
                         task_index,
                         ..Default::default()
                     })
@@ -301,7 +289,9 @@ where
             .map(|(quorum_num, state)| (quorum_num.clone(), state.total_stake))
             .collect();
 
-        let quorum_apks_g1: Vec<G1Point> = quorums_avs_stake_dict.values().map(|state| state.agg_pubkey_g1.clone())
+        let quorum_apks_g1: Vec<G1Point> = quorums_avs_stake_dict
+            .values()
+            .map(|state| state.agg_pubkey_g1.clone())
             .collect();
 
         let mut aggregated_operators_dict: HashMap<TaskResponseDigest, AggregatedOperators> =

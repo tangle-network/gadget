@@ -1,12 +1,13 @@
 use aws_config::meta::region::RegionProviderChain;
-use aws_config::{BehaviorVersion, SdkConfig};
+use aws_config::BehaviorVersion;
 use aws_sdk_kms::config::Region;
-use aws_sdk_kms::types::{KeySpec, KeyUsageType};
+
 use aws_sdk_kms::Client;
 use std::error::Error;
 
 pub mod get_public_key;
 pub mod get_signature;
+pub mod signer;
 
 async fn new_kms_client(region: &str) -> Result<Client, Box<dyn Error>> {
     let region_provider =
@@ -73,7 +74,6 @@ mod test {
     }
 
     use aws_config::meta::region::RegionProviderChain;
-    use aws_sdk_kms::config::Builder;
 
     #[tokio::test]
     async fn test_get_ecdsa_signature() {
