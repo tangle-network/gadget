@@ -40,6 +40,7 @@ pub type BlockNumber = u64;
 
 pub use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmitter};
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
+use gadget_common::client::TanglePalletSubmitter;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::environments::{EventMetadata, GadgetEnvironment};
 use gadget_common::full_protocol::NodeInput;
@@ -50,7 +51,6 @@ use gadget_common::gadget::work_manager::TangleWorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::prelude::{PrometheusConfig, TangleProtocolMessage};
-use gadget_common::transaction_manager::tangle::TangleTransactionManager;
 use gadget_common::utils::serialize;
 use gadget_common::Error;
 use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
@@ -685,7 +685,7 @@ pub async fn new_test_ext<
             networks,
             account_id: sr25519::Public(account_id.into()),
             logger,
-            pallet_tx,
+            pallet_tx: pallet_tx as _,
             keystore,
             node_index,
             additional_params: additional_params.clone(),
@@ -704,7 +704,7 @@ pub mod mock_wrapper_client {
     use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use async_trait::async_trait;
     use futures::StreamExt;
-    use gadget_common::client::{exec_client_function, PalletSubmitter};
+    use gadget_common::client::{exec_client_function, TanglePalletSubmitter};
     use gadget_common::config::ClientWithApi;
     use gadget_common::locks::TokioMutexExt;
     use gadget_common::tangle_subxt::subxt::utils::AccountId32;
@@ -990,7 +990,7 @@ pub mod mock_wrapper_client {
     }
 
     #[async_trait]
-    impl PalletSubmitter for TestExternalitiesPalletSubmitter {
+    impl TanglePalletSubmitter for TestExternalitiesPalletSubmitter {
         async fn submit_job_result(
             &self,
             role_type: roles::RoleType,
@@ -1043,7 +1043,7 @@ impl GadgetEnvironment for TangleExtEnvironment {
     type RetryID = <Self::WorkManager as WorkManagerInterface>::RetryID;
     type TaskID = <Self::WorkManager as WorkManagerInterface>::TaskID;
     type SessionID = <Self::WorkManager as WorkManagerInterface>::SessionID;
-    type TransactionManager = TangleTransactionManager;
+    type TransactionManager = Arc<dyn TanglePalletSubmitter>;
 
     fn build_protocol_message<Payload: Serialize>(
         associated_block_id: <Self::WorkManager as WorkManagerInterface>::Clock,

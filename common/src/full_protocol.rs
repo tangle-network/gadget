@@ -1,4 +1,4 @@
-use crate::client::{JobsClient, PalletSubmitter};
+use crate::client::JobsClient;
 use crate::config::{DebugLogger, GadgetProtocol, Network, NetworkAndProtocolSetup};
 use crate::environments::GadgetEnvironment;
 use crate::gadget::tangle::TangleInitMetadata;
@@ -33,7 +33,7 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
 
     async fn new(
         client: <Env as GadgetEnvironment>::Client,
-        pallet_tx: Arc<dyn PalletSubmitter>,
+        pallet_tx: <Env as GadgetEnvironment>::TransactionManager,
         network: Self::Network,
         logger: DebugLogger,
         account_id: sr25519::Public,
@@ -87,7 +87,7 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     ) -> bool;
 
     fn jobs_client(&self) -> &SharedOptional<JobsClient<Env>>;
-    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
+    fn pallet_tx(&self) -> <Env as GadgetEnvironment>::TransactionManager;
 
     fn logger(&self) -> DebugLogger;
 
@@ -151,7 +151,7 @@ where
         Ok((self.clone(), self.clone()))
     }
 
-    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
+    fn pallet_tx(&self) -> <Env as GadgetEnvironment>::TransactionManager {
         T::pallet_tx(self)
     }
 
@@ -298,7 +298,7 @@ pub struct NodeInput<Env: GadgetEnvironment, N: Network<Env>, KBE: KeystoreBacke
     pub networks: Vec<N>,
     pub account_id: sr25519::Public,
     pub logger: DebugLogger,
-    pub pallet_tx: Arc<dyn PalletSubmitter>,
+    pub pallet_tx: <Env as GadgetEnvironment>::TransactionManager,
     pub keystore: ECDSAKeyStore<KBE>,
     pub node_index: usize,
     pub additional_params: D,

@@ -12,7 +12,7 @@ use tangle_subxt::subxt::{self, tx::TxPayload, OnlineClient};
 pub struct JobsClient<Env: GadgetEnvironment> {
     pub client: Arc<Env::Client>,
     logger: DebugLogger,
-    pallet_tx: Arc<dyn PalletSubmitter>,
+    pallet_tx: Env::TransactionManager,
 }
 
 impl<Env: GadgetEnvironment> Clone for JobsClient<Env> {
@@ -28,7 +28,7 @@ impl<Env: GadgetEnvironment> Clone for JobsClient<Env> {
 pub async fn create_client<Env: GadgetEnvironment>(
     client: Env::Client,
     logger: DebugLogger,
-    pallet_tx: Arc<dyn PalletSubmitter>,
+    pallet_tx: Env::TransactionManager,
 ) -> Result<JobsClient<Env>, crate::Error> {
     Ok(JobsClient {
         client: Arc::new(client),
@@ -434,7 +434,7 @@ where
 
 #[async_trait]
 #[auto_impl(Arc)]
-pub trait PalletSubmitter: Send + Sync + 'static {
+pub trait TanglePalletSubmitter: Send + Sync + 'static {
     async fn submit_job_result(
         &self,
         role_type: roles::RoleType,
@@ -462,7 +462,7 @@ where
 }
 
 #[async_trait]
-impl<C, S> PalletSubmitter for SubxtPalletSubmitter<C, S>
+impl<C, S> TanglePalletSubmitter for SubxtPalletSubmitter<C, S>
 where
     C: subxt::Config + Send + Sync + 'static,
     S: subxt::tx::Signer<C> + Send + Sync + 'static,

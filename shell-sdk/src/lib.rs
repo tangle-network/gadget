@@ -24,9 +24,9 @@ pub mod prelude {
     pub use crate::Mutex;
     pub use crate::Network;
     pub use crate::NodeInput;
-    pub use crate::PalletSubmitter;
     pub use crate::ProtocolWorkManager;
     pub use crate::SendFuture;
+    pub use crate::TanglePalletSubmitter;
     pub use crate::TangleProtocolMessage;
     pub use crate::TangleWorkManager;
     pub use crate::UnboundedReceiver;

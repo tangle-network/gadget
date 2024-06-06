@@ -1,9 +1,8 @@
-use crate::client::ClientWithApi;
+use crate::client::{ClientWithApi, TanglePalletSubmitter};
 use crate::gadget::message::UserID;
 use crate::gadget::tangle::runtime::TangleRuntime;
 use crate::gadget::tangle::TangleEvent;
 use crate::prelude::{TangleProtocolMessage, TangleWorkManager};
-use crate::transaction_manager::tangle::TangleTransactionManager;
 use crate::transaction_manager::TransactionManager;
 use crate::utils::serialize;
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
@@ -11,6 +10,7 @@ use serde::Serialize;
 use sp_core::ecdsa;
 use std::error::Error;
 use std::fmt::{Debug, Display};
+use std::sync::Arc;
 
 pub trait EventMetadata<Env: GadgetEnvironment> {
     fn number(&self) -> <Env as GadgetEnvironment>::Clock;
@@ -69,7 +69,7 @@ impl GadgetEnvironment for TangleEnvironment {
     type RetryID = <Self::WorkManager as WorkManagerInterface>::RetryID;
     type TaskID = <Self::WorkManager as WorkManagerInterface>::TaskID;
     type SessionID = <Self::WorkManager as WorkManagerInterface>::SessionID;
-    type TransactionManager = TangleTransactionManager;
+    type TransactionManager = Arc<dyn TanglePalletSubmitter>;
 
     fn build_protocol_message<Payload: Serialize>(
         associated_block_id: <Self::WorkManager as WorkManagerInterface>::Clock,

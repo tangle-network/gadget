@@ -258,7 +258,7 @@ macro_rules! generate_setup_and_run_command {
 
         pub async fn run<Env: GadgetEnvironment, N: Network<Env>, KBE: $crate::keystore::KeystoreBackend>(
             client: Vec<Env::Client>,
-            pallet_tx: Arc<dyn PalletSubmitter>,
+            pallet_tx: <Env as GadgetEnvironment>::TransactionManager,
             networks: Vec<N>,
             logger: DebugLogger,
             account_id: sp_core::sr25519::Public,
@@ -294,7 +294,7 @@ macro_rules! generate_protocol {
             N: Network<Env>,
             KBE: KeystoreBackend,
         > {
-            pallet_tx: Arc<dyn PalletSubmitter>,
+            pallet_tx: <Env as GadgetEnvironment>::TransactionManager,
             logger: DebugLogger,
             client: <Env as GadgetEnvironment>::Client,
             /// This field should NEVER be used directly. Use Self instead as the network
@@ -319,7 +319,7 @@ macro_rules! generate_protocol {
 
             async fn new(
                 client: <Env as GadgetEnvironment>::Client,
-                pallet_tx: Arc<dyn PalletSubmitter>,
+                pallet_tx: <Env as GadgetEnvironment>::TransactionManager,
                 network_inner: Self::Network,
                 logger: DebugLogger,
                 account_id: sp_core::sr25519::Public,
@@ -405,7 +405,7 @@ macro_rules! generate_protocol {
                 &self.jobs_client
             }
 
-            fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
+            fn pallet_tx(&self) -> <Env as GadgetEnvironment>::TransactionManager {
                 self.pallet_tx.clone()
             }
 

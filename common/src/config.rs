@@ -1,12 +1,11 @@
 pub use crate::client::ClientWithApi;
-use crate::client::{create_client, JobsClient, PalletSubmitter};
+use crate::client::{create_client, JobsClient};
 pub use crate::debug_logger::DebugLogger;
 use crate::environments::GadgetEnvironment;
 pub use crate::gadget::network::Network;
 pub use crate::gadget::GadgetProtocol;
 pub use crate::prometheus::PrometheusConfig;
 use async_trait::async_trait;
-use std::sync::Arc;
 
 #[async_trait]
 pub trait ProtocolConfig<Env: GadgetEnvironment>
@@ -51,12 +50,12 @@ where
         client: <Env as GadgetEnvironment>::Client,
         protocol: <<Self as ProtocolConfig<Env>>::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Env>>::Protocol,
         params: Self::ProtocolSpecificConfiguration,
-        pallet_tx: Arc<dyn PalletSubmitter>,
+        pallet_tx: <Env as GadgetEnvironment>::TransactionManager,
         logger: DebugLogger,
         prometheus_config: PrometheusConfig,
     ) -> Self;
 
-    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
+    fn pallet_tx(&self) -> <Env as GadgetEnvironment>::TransactionManager {
         self.params().pallet_tx()
     }
     fn logger(&self) -> DebugLogger {
@@ -81,7 +80,7 @@ pub trait NetworkAndProtocolSetup<Env: GadgetEnvironment> {
         &self,
         jobs_client: JobsClient<Env>,
     ) -> Result<(Self::Network, Self::Protocol), crate::Error>;
-    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
+    fn pallet_tx(&self) -> <Env as GadgetEnvironment>::TransactionManager;
     fn logger(&self) -> DebugLogger;
     fn client(&self) -> <Env as GadgetEnvironment>::Client;
 }
