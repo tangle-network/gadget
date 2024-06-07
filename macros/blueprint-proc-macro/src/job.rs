@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, HashSet};
 
+use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata, JobResultVerifier};
 use proc_macro::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, ItemFn, Token, Type};
@@ -16,7 +17,8 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     // Extract function name and arguments
     let fn_name = &input.sig.ident;
     let fn_name_string = fn_name.to_string();
-    let struct_name = format_ident!("{}Job", pascal_case(&fn_name_string));
+    let job_def_name = format_ident!("{}_JOB_DEF", fn_name_string.to_ascii_uppercase());
+    let function_docs = get_function_docs(input);
 
     let syn::ReturnType::Type(_, result) = &input.sig.output else {
         return Err(syn::Error::new_spanned(
@@ -43,24 +45,53 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     }
 
     // Extract params and result types from args
-    let params_type = args.params_to_token_stream(&param_types)?;
-    let result_type = args.result_to_token_stream(result)?;
-    // Generate the struct
-    let gen = quote! {
-        struct #struct_name {
-            params: #params_type,
-            result: #result_type,
-        }
-
-        #input
+    let params_type = args.params_to_to_field_types(&param_types)?;
+    let result_type = args.result_to_field_types(result)?;
+    let job_def = JobDefinition {
+        metadata: JobMetadata {
+            name: fn_name_string.into(),
+            description: if function_docs.is_empty() {
+                None
+            } else {
+                Some(function_docs.join("\n").into())
+            },
+        },
+        params: params_type,
+        result: result_type,
+        verifier: JobResultVerifier::None,
     };
 
-    eprintln!("Generated code: {gen}");
+    let ron = ron::Options::default().with_default_extension(ron::extensions::Extensions::all());
+    let job_dev_str = ron
+        .to_string_pretty(
+            &job_def,
+            ron::ser::PrettyConfig::new()
+                .struct_names(false)
+                .compact_arrays(false),
+        )
+        .map_err(|err| {
+            syn::Error::new_spanned(
+                input,
+                format!("Failed to serialize job definition to ron: {err}"),
+            )
+        })?;
+    // Generate the struct
+    let gen = quote! {
+        pub const #job_def_name: &str = #job_dev_str;
+        #input
+    };
 
     Ok(gen.into())
 }
 
+/// Extracts documentation comments from an [`ItemFn`]
+fn get_function_docs(_item_fn: &ItemFn) -> Vec<String> {
+    // TODO: Add a way to extract the documentation comments from the function
+    vec![]
+}
+
 /// Convert a `snake_case` string to `PascalCase`
+#[allow(dead_code)]
 fn pascal_case(s: &str) -> String {
     s.split('_')
         .map(|word| {
@@ -184,10 +215,10 @@ impl Parse for Results {
 }
 
 impl JobArgs {
-    fn params_to_token_stream(
+    fn params_to_to_field_types(
         &self,
         param_types: &BTreeMap<Ident, Type>,
-    ) -> syn::Result<proc_macro2::TokenStream> {
+    ) -> syn::Result<Vec<FieldType>> {
         let params = self
             .params
             .iter()
@@ -198,24 +229,24 @@ impl JobArgs {
             })
             .map(|ty| type_to_field_type(ty?))
             .collect::<syn::Result<Vec<_>>>()?;
-        Ok(quote! { (#(#params),*) })
+        Ok(params)
     }
 
-    fn result_to_token_stream(&self, result: &Type) -> syn::Result<proc_macro2::TokenStream> {
+    fn result_to_field_types(&self, result: &Type) -> syn::Result<Vec<FieldType>> {
         match &self.result {
-            ResultsKind::Infered => type_to_field_type(result),
+            ResultsKind::Infered => type_to_field_type(result).map(|x| vec![x]),
             ResultsKind::Types(types) => {
                 let xs = types
                     .iter()
                     .map(type_to_field_type)
                     .collect::<syn::Result<Vec<_>>>()?;
-                Ok(quote! { (#(#xs),*) })
+                Ok(xs)
             }
         }
     }
 }
 
-pub fn type_to_field_type(ty: &Type) -> syn::Result<proc_macro2::TokenStream> {
+pub fn type_to_field_type(ty: &Type) -> syn::Result<FieldType> {
     match ty {
         Type::Array(_) => Err(syn::Error::new_spanned(ty, "TODO: support arrays")),
         Type::Path(inner) => path_to_field_type(&inner.path),
@@ -223,14 +254,12 @@ pub fn type_to_field_type(ty: &Type) -> syn::Result<proc_macro2::TokenStream> {
     }
 }
 
-fn path_to_field_type(path: &syn::Path) -> syn::Result<proc_macro2::TokenStream> {
-    if path.segments.len() != 1 {
-        return Err(syn::Error::new_spanned(
-            path,
-            "expected a single type path segment",
-        ));
-    }
-    let seg = &path.segments[0];
+fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
+    // take the last segment of the path
+    let seg = &path
+        .segments
+        .last()
+        .ok_or_else(|| syn::Error::new_spanned(path, "path must have at least one segment"))?;
     let ident = &seg.ident;
     let args = &seg.arguments;
     match args {
@@ -240,7 +269,10 @@ fn path_to_field_type(path: &syn::Path) -> syn::Result<proc_macro2::TokenStream>
             let inner_arg = &inner.args[0];
             if let syn::GenericArgument::Type(inner_ty) = inner_arg {
                 let inner_type = type_to_field_type(inner_ty)?;
-                Ok(quote! { FieldType::List(Box<#inner_type>) })
+                match inner_type {
+                    FieldType::Uint8 => Ok(FieldType::Bytes),
+                    others => Ok(FieldType::List(Box::new(others))),
+                }
             } else {
                 Err(syn::Error::new_spanned(
                     inner_arg,
@@ -255,7 +287,7 @@ fn path_to_field_type(path: &syn::Path) -> syn::Result<proc_macro2::TokenStream>
             let inner_arg = &inner.args[0];
             if let syn::GenericArgument::Type(inner_ty) = inner_arg {
                 let inner_type = type_to_field_type(inner_ty)?;
-                Ok(quote! { FieldType::Optional(Box<#inner_type>) })
+                Ok(FieldType::Optional(Box::new(inner_type)))
             } else {
                 Err(syn::Error::new_spanned(
                     inner_arg,
@@ -267,20 +299,20 @@ fn path_to_field_type(path: &syn::Path) -> syn::Result<proc_macro2::TokenStream>
     }
 }
 
-fn ident_to_field_type(ident: &Ident) -> syn::Result<proc_macro2::TokenStream> {
+fn ident_to_field_type(ident: &Ident) -> syn::Result<FieldType> {
     match ident.to_string().as_str() {
-        "u8" => Ok(quote! { FieldType::U8 }),
-        "u16" => Ok(quote! { FieldType::U16 }),
-        "u32" => Ok(quote! { FieldType::U32 }),
-        "u64" => Ok(quote! { FieldType::U64 }),
-        "i8" => Ok(quote! { FieldType::I8 }),
-        "i16" => Ok(quote! { FieldType::I16 }),
-        "i32" => Ok(quote! { FieldType::I32 }),
-        "i64" => Ok(quote! { FieldType::I64 }),
-        "bool" => Ok(quote! { FieldType::Bool }),
-        "String" => Ok(quote! { FieldType::String }),
-        "Bytes" => Ok(quote! { FieldType::Bytes }),
-        "AccountId" => Ok(quote! { FieldType::AccountId }),
+        "u8" => Ok(FieldType::Uint8),
+        "u16" => Ok(FieldType::Uint16),
+        "u32" => Ok(FieldType::Uint32),
+        "u64" => Ok(FieldType::Uint64),
+        "i8" => Ok(FieldType::Int8),
+        "i16" => Ok(FieldType::Int16),
+        "i32" => Ok(FieldType::Int32),
+        "i64" => Ok(FieldType::Int64),
+        "bool" => Ok(FieldType::Bool),
+        "String" => Ok(FieldType::String),
+        "Bytes" => Ok(FieldType::Bytes),
+        "AccountId" => Ok(FieldType::AccountId),
         _ => Err(syn::Error::new_spanned(ident, "unsupported type")),
     }
 }

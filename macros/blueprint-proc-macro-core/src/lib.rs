@@ -61,6 +61,49 @@ pub struct ServiceBlueprint<'a> {
     pub gadget: Gadget<'a>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct RawJobDefinition {
+    path: String,
+}
+
+impl<'de> serde::Deserialize<'de> for RawJobDefinition {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct Visitor;
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = RawJobDefinition;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a path")
+            }
+        }
+
+        deserializer.deserialize_any(Visitor)
+    }
+}
+
+/// A Service Blueprint is a the main definition of a service.
+/// it contains the metadata of the service, the job definitions, and other hooks, along with the
+/// gadget that will be executed when one of the jobs is calling this service.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ServiceBlueprintRaw<'a> {
+    /// The metadata of the service.
+    pub metadata: ServiceMetadata<'a>,
+    /// The job definitions that are available in this service.
+    pub jobs: Vec<RawJobDefinition>,
+    /// The registration hook that will be called before restaker registration.
+    pub registration_hook: ServiceRegistrationHook,
+    /// The parameters that are required for the service registration.
+    pub registration_params: Vec<FieldType>,
+    /// The request hook that will be called before creating a service from the service blueprint.
+    pub request_hook: ServiceRequestHook,
+    /// The parameters that are required for the service request.
+    pub request_params: Vec<FieldType>,
+    /// The gadget that will be executed for the service.
+    pub gadget: Gadget<'a>,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ServiceMetadata<'a> {
     /// The Service name.

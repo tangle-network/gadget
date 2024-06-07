@@ -12,12 +12,12 @@ blueprint! {
         version: "1.0.0",
         description: "My service description",
     ),
-    jobs: [],
+    jobs: [keygen],
     registration_hook: Evm("0x4838B106FCe9647Bdf1E7877BF73cE8B0BAD5f97"),
     registration_params: [Uint8],
     request_hook: None,
     request_params: [],
-    gadget: Wasm (
+    gadget: Native (
         runtime: Wasmtime,
         soruces: [],
     ),

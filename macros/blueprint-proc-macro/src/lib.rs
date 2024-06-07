@@ -16,6 +16,7 @@
 )]
 //! Blueprint Macros
 
+use gadget_blueprint_proc_macro_core::ServiceBlueprintRaw;
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
@@ -67,13 +68,12 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 #[proc_macro]
 pub fn blueprint(input: TokenStream) -> TokenStream {
-    use gadget_blueprint_proc_macro_core::ServiceBlueprint;
 
     let input = proc_macro2::TokenStream::from(input);
-    let input_str = format!("ServiceBlueprint({input})");
+    let input_str = format!("ServiceBlueprintRaw({input})");
     let ron = ron::Options::default().with_default_extension(ron::extensions::Extensions::all());
     let maybe_blueprint = ron.from_str(&input_str);
-    let blueprint: ServiceBlueprint = match maybe_blueprint {
+    let blueprint: ServiceBlueprintRaw = match maybe_blueprint {
         Ok(blueprint) => blueprint,
         Err(err) => {
             return syn::Error::new(
