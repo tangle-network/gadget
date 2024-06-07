@@ -1,5 +1,6 @@
 // use gadget_common::prelude::GadgetEnvironment;
 
+pub mod aggregator;
 pub mod avs;
 pub mod operator;
 

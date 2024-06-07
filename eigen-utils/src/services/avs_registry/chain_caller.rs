@@ -43,21 +43,18 @@ where
         }
     }
 
-    pub fn build(
-        bls_apk_registry_addr: Address,
+    pub async fn build(
         registry_coordinator_addr: Address,
         operator_state_retriever_addr: Address,
-        stake_registry_addr: Address,
         eth_client: P,
         operator_info_service: I,
     ) -> Self {
         let avs_registry_reader = AvsRegistryChainReader::build(
-            bls_apk_registry_addr,
             registry_coordinator_addr,
             operator_state_retriever_addr,
-            stake_registry_addr,
             eth_client,
-        );
+        )
+        .await;
         AvsRegistryServiceChainCaller::new(operator_info_service, avs_registry_reader)
     }
 

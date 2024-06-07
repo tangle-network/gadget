@@ -13,7 +13,7 @@ use tokio::sync::OnceCell;
 static SDK_CONFIG: OnceCell<Arc<SdkConfig>> = OnceCell::const_new();
 
 // Example usage:
-// 
+//
 // let aws_config = get_aws_config(
 //     "access_key",
 //     "secret_access_key",

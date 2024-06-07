@@ -413,6 +413,8 @@ dependencies = [
  "alloy-primitives",
  "alloy-signer",
  "async-trait",
+ "elliptic-curve 0.13.8",
+ "eth-keystore",
  "k256",
  "rand",
  "thiserror",
@@ -1602,7 +1604,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite 0.2.14",
  "tracing 0.1.40",
- "uuid",
+ "uuid 1.8.0",
 ]
 
 [[package]]
@@ -3555,10 +3557,14 @@ dependencies = [
 name = "eigen-gadget"
 version = "0.1.0"
 dependencies = [
+ "alloy-contract",
  "alloy-primitives",
  "alloy-provider",
+ "alloy-pubsub",
  "alloy-rpc-client",
  "alloy-rpc-types",
+ "alloy-signer",
+ "alloy-signer-wallet",
  "alloy-sol-types",
  "alloy-transport",
  "alloy-transport-http",
@@ -3572,6 +3578,37 @@ dependencies = [
  "k256",
  "log",
  "prometheus",
+ "reqwest",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "eigen-tangle-avs"
+version = "0.1.0"
+dependencies = [
+ "alloy-contract",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-pubsub",
+ "alloy-rpc-client",
+ "alloy-rpc-types",
+ "alloy-signer",
+ "alloy-signer-wallet",
+ "alloy-sol-types",
+ "alloy-transport",
+ "alloy-transport-http",
+ "alloy-transport-ws",
+ "async-trait",
+ "aws-sdk-kms",
+ "eigen-contracts",
+ "eigen-utils",
+ "gadget-aws-kms",
+ "hex",
+ "k256",
+ "log",
+ "prometheus",
+ "reqwest",
  "thiserror",
  "tokio",
 ]
@@ -3603,6 +3640,7 @@ dependencies = [
  "ark-std 0.4.0",
  "async-trait",
  "base64 0.22.1",
+ "chacha20poly1305",
  "eigen-contracts",
  "futures",
  "hex",
@@ -3614,6 +3652,7 @@ dependencies = [
  "rand",
  "regex",
  "reqwest",
+ "scrypt 0.11.0",
  "serde",
  "serde_json",
  "thiserror",
@@ -3795,6 +3834,28 @@ dependencies = [
  "cfg-if",
  "home",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "eth-keystore"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fda3bf123be441da5260717e0661c25a2fd9cb2b2c1d20bf2e05580047158ab"
+dependencies = [
+ "aes",
+ "ctr",
+ "digest 0.10.7",
+ "hex",
+ "hmac 0.12.1",
+ "pbkdf2 0.11.0",
+ "rand",
+ "scrypt 0.10.0",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "sha3 0.10.8",
+ "thiserror",
+ "uuid 0.8.2",
 ]
 
 [[package]]
@@ -4049,7 +4110,7 @@ dependencies = [
  "tokio",
  "tracing 0.1.40",
  "tree_magic_mini",
- "uuid",
+ "uuid 1.8.0",
 ]
 
 [[package]]
@@ -7278,7 +7339,7 @@ dependencies = [
  "cfg-if",
  "derive_more",
  "serde",
- "uuid",
+ "uuid 1.8.0",
 ]
 
 [[package]]
@@ -8390,6 +8451,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7924d1d0ad836f665c9065e26d016c673ece3993f30d340068b16f282afc1156"
 
 [[package]]
+name = "password-hash"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166"
+dependencies = [
+ "base64ct",
+ "rand_core 0.6.4",
+ "subtle 2.5.0",
+]
+
+[[package]]
 name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8406,11 +8478,21 @@ dependencies = [
 
 [[package]]
 name = "pbkdf2"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83a0692ec44e4cf1ef28ca317f14f8f07da2d95ec3fa01f86e4467b725e60917"
+dependencies = [
+ "digest 0.10.7",
+]
+
+[[package]]
+name = "pbkdf2"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
 dependencies = [
  "digest 0.10.7",
+ "hmac 0.12.1",
 ]
 
 [[package]]
@@ -9950,6 +10032,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "salsa20"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97a22f5af31f73a954c10289c93e8a50cc23d971e80ee446f1f6f7137a088213"
+dependencies = [
+ "cipher 0.4.4",
+]
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10852,6 +10943,30 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "scrypt"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f9e24d2b632954ded8ab2ef9fea0a0c769ea56ea98bddbafbad22caeeadf45d"
+dependencies = [
+ "hmac 0.12.1",
+ "pbkdf2 0.11.0",
+ "salsa20",
+ "sha2 0.10.8",
+]
+
+[[package]]
+name = "scrypt"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0516a385866c09368f0b5bcd1caff3366aace790fcd46e2bb032697bb172fd1f"
+dependencies = [
+ "password-hash",
+ "pbkdf2 0.12.2",
+ "salsa20",
+ "sha2 0.10.8",
+]
 
 [[package]]
 name = "sct"
@@ -14086,6 +14201,16 @@ checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
 
 [[package]]
 name = "uuid"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
+dependencies = [
+ "getrandom 0.2.15",
+ "serde",
+]
+
+[[package]]
+name = "uuid"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a183cf7feeba97b4dd1c0d46788634f6221d87fa961b305bed08c851829efcc0"
@@ -14742,7 +14867,7 @@ dependencies = [
  "tokio",
  "turn",
  "url",
- "uuid",
+ "uuid 1.8.0",
  "waitgroup",
  "webrtc-mdns",
  "webrtc-util",

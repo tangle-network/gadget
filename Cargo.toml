@@ -14,7 +14,7 @@ members = [
     "fireblocks-client",
     "aws",
     "sdk",
-    "eigen-gadget",
+    "eigen-gadget", "eigen-tangle-avs",
 ]
 
 [workspace.package]
@@ -200,7 +200,8 @@ uuid = "1.8.0"
 jsonwebtoken = "9.3.0"
 rsa = "0.9.6"
 pretty_env_logger = "0.5.0"
-
+scrypt = "0.11.0"
+chacha20poly1305 = "0.10.1"
 aws-config = "1.5.0"
 aws-types = "1.3.0"
 aws-sdk-s3 = "1.32.0"

@@ -49,19 +49,32 @@ where
         }
     }
 
-    pub fn build(
-        bls_apk_registry_addr: Address,
+    pub async fn build(
         registry_coordinator_addr: Address,
         operator_state_retriever_addr: Address,
-        stake_registry_addr: Address,
         eth_client: P,
     ) -> Self {
-        let bls_apk_registry = BlsApkRegistry::new(bls_apk_registry_addr, eth_client.clone());
         let registry_coordinator =
             RegistryCoordinator::new(registry_coordinator_addr, eth_client.clone());
+
+        let bls_apk_registry_addr = registry_coordinator
+            .blsApkRegistry()
+            .call()
+            .await
+            .map(|addr| addr._0)
+            .unwrap();
+        let bls_apk_registry = BlsApkRegistry::new(bls_apk_registry_addr, eth_client.clone());
+
+        let stake_registry_addr = registry_coordinator
+            .stakeRegistry()
+            .call()
+            .await
+            .map(|addr| addr._0)
+            .unwrap();
+        let stake_registry = StakeRegistry::new(stake_registry_addr, eth_client.clone());
+
         let operator_state_retriever =
             OperatorStateRetriever::new(operator_state_retriever_addr, eth_client.clone());
-        let stake_registry = StakeRegistry::new(stake_registry_addr, eth_client.clone());
 
         AvsRegistryChainReader::new(
             bls_apk_registry,

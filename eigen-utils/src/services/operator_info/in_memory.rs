@@ -36,14 +36,14 @@ where
     socket_dict: Arc<Mutex<HashMap<OperatorId, Socket>>>,
 }
 
-struct Query {
-    operator_addr: Address,
-    resp_sender: oneshot::Sender<Resp>,
+pub struct Query {
+    pub operator_addr: Address,
+    pub resp_sender: oneshot::Sender<Resp>,
 }
 
-struct Resp {
-    operator_info: OperatorInfo,
-    operator_exists: bool,
+pub struct Resp {
+    pub operator_info: OperatorInfo,
+    pub operator_exists: bool,
 }
 
 impl<T, P> OperatorsInfoServiceInMemory<T, P>

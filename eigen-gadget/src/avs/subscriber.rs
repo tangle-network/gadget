@@ -1,170 +1,152 @@
-use alloy_primitives::Address;
-use alloy_solidity_abi::Token;
-use async_trait::async_trait;
-use std::{error::Error, sync::Arc};
-use tokio::sync::Mutex;
-use tokio_stream::StreamExt;
-use alloy::event::{SubscriptionStream, RawLog};
+use std::str::FromStr;
 
-use crate::{
-    clients::{eth::EthClient},
-    contracts::{cstaskmanager::{IncredibleSquaringTaskManager, ContractIncredibleSquaringTaskManagerNewTaskCreated, ContractIncredibleSquaringTaskManagerTaskResponded}},
-    logging::Logger,
-    config::Config,
-};
+use alloy_primitives::Address;
+use alloy_provider::{network::Ethereum, Provider};
+use alloy_pubsub::Subscription;
+use alloy_rpc_types::{Filter, Log};
+use alloy_transport::Transport;
+use async_trait::async_trait;
+use eigen_utils::types::AvsError;
+
+use super::{AvsManagersBindings, IncredibleSquaringTaskManager, SetupConfig};
 
 #[async_trait]
-pub trait AvsSubscriberer: Send + Sync {
+pub trait AvsSubscriberTrait: Send + Sync {
     async fn subscribe_to_new_tasks(
         &self,
-        new_task_created_chan: tokio::sync::mpsc::Sender<ContractIncredibleSquaringTaskManagerNewTaskCreated>,
-    ) -> Result<SubscriptionStream<RawLog>, Box<dyn Error + Send + Sync>>;
+        new_task_created_chan: tokio::sync::mpsc::Sender<
+            Log<IncredibleSquaringTaskManager::NewTaskCreated>,
+        >,
+    ) -> Result<Subscription<Log>, AvsError>;
 
     async fn subscribe_to_task_responses(
         &self,
-        task_response_logs: tokio::sync::mpsc::Sender<ContractIncredibleSquaringTaskManagerTaskResponded>,
-    ) -> Result<SubscriptionStream<RawLog>, Box<dyn Error + Send + Sync>>;
-
-    async fn parse_task_responded(
-        &self,
-        raw_log: RawLog,
-    ) -> Result<ContractIncredibleSquaringTaskManagerTaskResponded, Box<dyn Error + Send + Sync>>;
+        task_response_logs: tokio::sync::mpsc::Sender<
+            Log<IncredibleSquaringTaskManager::TaskResponded>,
+        >,
+    ) -> Result<Subscription<Log>, AvsError>;
 }
 
-pub struct AvsSubscriber {
-    avs_contract_bindings: Arc<AvsManagersBindings>,
-    logger: Arc<Logger>,
+pub struct AvsSubscriber<T, P>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Clone,
+{
+    avs_contract_bindings: AvsManagersBindings<T, P>,
+    eth_client: P,
 }
 
-impl AvsSubscriber {
-    pub async fn from_config(config: &Config) -> Result<Self, Box<dyn Error + Send + Sync>> {
+impl<T, P> AvsSubscriber<T, P>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Clone,
+{
+    pub async fn from_config(config: &SetupConfig<T, P>) -> Result<Self, AvsError> {
         Self::new(
             config.registry_coordinator_addr,
             config.operator_state_retriever_addr,
-            Arc::new(EthClient::new(&config.eth_ws_url).await?),
-            Arc::new(Logger::new(&config.logger)),
+            config.eth_client.clone(),
         )
         .await
     }
 
     pub async fn new(
         registry_coordinator_addr: Address,
-        bls_operator_state_retriever_addr: Address,
-        eth_client: Arc<EthClient>,
-        logger: Arc<Logger>,
-    ) -> Result<Self, Box<dyn Error + Send + Sync>> {
+        operator_state_retriever_addr: Address,
+        eth_client: P,
+    ) -> Result<Self, AvsError> {
         let avs_contract_bindings = AvsManagersBindings::new(
             registry_coordinator_addr,
-            bls_operator_state_retriever_addr,
-            eth_client,
-            logger.clone(),
+            operator_state_retriever_addr,
+            eth_client.clone(),
         )
         .await?;
 
         Ok(Self {
-            avs_contract_bindings: Arc::new(avs_contract_bindings),
-            logger,
+            avs_contract_bindings,
+            eth_client,
         })
+    }
+
+    pub async fn build(
+        registry_coordinator_addr: &str,
+        operator_state_retriever_addr: &str,
+        eth_client: P,
+    ) -> Result<Self, AvsError> {
+        Self::new(
+            Address::from_str(registry_coordinator_addr).unwrap_or_default(),
+            Address::from_str(operator_state_retriever_addr).unwrap_or_default(),
+            eth_client,
+        )
+        .await
     }
 }
 
 #[async_trait]
-impl AvsSubscriberer for AvsSubscriber {
+impl<T, P> AvsSubscriberTrait for AvsSubscriber<T, P>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Clone,
+{
     async fn subscribe_to_new_tasks(
         &self,
-        new_task_created_chan: tokio::sync::mpsc::Sender<ContractIncredibleSquaringTaskManagerNewTaskCreated>,
-    ) -> Result<SubscriptionStream<RawLog>, Box<dyn Error + Send + Sync>> {
-        let mut stream = self
-            .avs_contract_bindings
-            .task_manager
-            .watch_new_task_created()
-            .await?;
-
-        let avs_contract_bindings = self.avs_contract_bindings.clone();
-        let logger = self.logger.clone();
+        new_task_created_chan: tokio::sync::mpsc::Sender<
+            Log<IncredibleSquaringTaskManager::NewTaskCreated>,
+        >,
+    ) -> Result<Subscription<Log>, AvsError> {
+        let filter = Filter::new()
+            .address(*self.avs_contract_bindings.task_manager.address())
+            .event("NewTaskCreated");
+        let subscription = self.eth_client.subscribe_logs(&filter).await?;
 
         tokio::spawn(async move {
-            while let Some(raw_log) = stream.next().await {
-                match avs_contract_bindings.task_manager.parse_new_task_created(raw_log.clone()).await {
-                    Ok(event) => {
-                        if new_task_created_chan.send(event).await.is_err() {
-                            logger.error("Failed to send new task created event");
-                        }
+            loop {
+                tokio::select! {
+                    Ok(log) = subscription.recv() => {
+                        match log.log_decode::<IncredibleSquaringTaskManager::NewTaskCreated>() {
+                            Ok(event) => {
+                                if new_task_created_chan.send(event).await.is_err() {
+                                    log::error!("Failed to send new task created event");
+                                }
+                            }
+                            Err(e) => log::error!("Failed to parse new task created event: {:?}", e),
+                        };
                     }
-                    Err(e) => logger.error(&format!("Failed to parse new task created event: {:?}", e)),
                 }
             }
         });
 
-        Ok(stream)
+        Ok(subscription)
     }
 
     async fn subscribe_to_task_responses(
         &self,
-        task_response_logs: tokio::sync::mpsc::Sender<ContractIncredibleSquaringTaskManagerTaskResponded>,
-    ) -> Result<SubscriptionStream<RawLog>, Box<dyn Error + Send + Sync>> {
-        let mut stream = self
-            .avs_contract_bindings
-            .task_manager
-            .watch_task_responded()
-            .await?;
+        task_response_logs: tokio::sync::mpsc::Sender<
+            Log<IncredibleSquaringTaskManager::TaskResponded>,
+        >,
+    ) -> Result<Subscription<Log>, AvsError> {
+        let filter = Filter::new()
+            .address(*self.avs_contract_bindings.task_manager.address())
+            .event("TaskResponded");
 
-        let avs_contract_bindings = self.avs_contract_bindings.clone();
-        let logger = self.logger.clone();
-
+        let subscription = self.eth_client.subscribe_logs(&filter).await?;
         tokio::spawn(async move {
-            while let Some(raw_log) = stream.next().await {
-                match avs_contract_bindings.task_manager.parse_task_responded(raw_log.clone()).await {
-                    Ok(event) => {
-                        if task_response_logs.send(event).await.is_err() {
-                            logger.error("Failed to send task response event");
-                        }
+            loop {
+                tokio::select! {
+                    Ok(log) = subscription.recv() => {
+                        match log.log_decode::<IncredibleSquaringTaskManager::TaskResponded>() {
+                            Ok(event) => {
+                                if task_response_logs.send(event).await.is_err() {
+                                    log::error!("Failed to send task response event");
+                                }
+                            }
+                            Err(e) => log::error!("Failed to parse task response event: {:?}", e),
+                        };
                     }
-                    Err(e) => logger.error(&format!("Failed to parse task response event: {:?}", e)),
                 }
             }
         });
 
-        Ok(stream)
+        Ok(subscription)
     }
-
-    async fn parse_task_responded(
-        &self,
-        raw_log: RawLog,
-    ) -> Result<ContractIncredibleSquaringTaskManagerTaskResponded, Box<dyn Error + Send + Sync>> {
-        self.avs_contract_bindings
-            .task_manager
-            .parse_task_responded(raw_log)
-            .await
-    }
-}
-
-pub struct AvsManagersBindings {
-    pub task_manager: IncredibleSquaringTaskManager,
-    eth_client: Arc<EthClient>,
-    logger: Arc<Logger>,
-}
-
-impl AvsManagersBindings {
-    pub async fn new(
-        registry_coordinator_addr: Address,
-        operator_state_retriever_addr: Address,
-        eth_client: Arc<EthClient>,
-        logger: Arc<Logger>,
-    ) -> Result<Self, Box<dyn Error + Send + Sync>> {
-        let task_manager = IncredibleSquaringTaskManager::new(registry_coordinator_addr, eth_client.clone()).await?;
-        Ok(Self {
-            task_manager,
-            eth_client,
-            logger,
-        })
-    }
-}
-
-// Configuration struct as an example. Adapt as needed.
-pub struct Config {
-    pub registry_coordinator_addr: Address,
-    pub operator_state_retriever_addr: Address,
-    pub eth_ws_url: String,
-    pub logger: String,
 }

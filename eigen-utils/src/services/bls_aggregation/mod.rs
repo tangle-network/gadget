@@ -107,15 +107,15 @@ pub trait BlsAggregationService {
     fn get_response_channel(&mut self) -> mpsc::Receiver<BlsAggregationServiceResponse>;
 }
 
-struct BlsAggregatorService<R>
+pub type HashFn = Arc<dyn Fn(TaskResponse) -> Result<TaskResponseDigest, BlsAggregationError> + Send + Sync>;
+pub struct BlsAggregatorService<R>
 where
     R: AvsRegistryServiceTrait,
 {
     aggregated_responses_tx: mpsc::Sender<BlsAggregationServiceResponse>,
     signed_task_resps_txs: Arc<Mutex<HashMap<TaskIndex, mpsc::Sender<SignedTaskResponseDigest>>>>,
     avs_registry_service: R,
-    hash_function:
-        Arc<dyn Fn(TaskResponse) -> Result<TaskResponseDigest, BlsAggregationError> + Send + Sync>,
+    hash_function: HashFn,
 }
 
 #[derive(Debug)]
@@ -160,7 +160,7 @@ where
                 signed_task_resps_txs,
             };
             service_clone
-                .single_task_aggregator_(
+                .single_task_aggregator(
                     task_index,
                     task_created_block,
                     quorum_numbers,
@@ -229,7 +229,20 @@ impl<R> BlsAggregatorService<R>
 where
     R: AvsRegistryServiceTrait,
 {
-    async fn single_task_aggregator_(
+    pub fn new(
+        aggregated_responses_tx: mpsc::Sender<BlsAggregationServiceResponse>,
+        avs_registry_service: R,
+        hash_function: HashFn
+    ) -> Self {
+        Self {
+            aggregated_responses_tx,
+            signed_task_resps_txs: Arc::new(Mutex::new(HashMap::new())),
+            avs_registry_service,
+            hash_function,
+        }
+    }
+
+    async fn single_task_aggregator(
         self,
         task_index: TaskIndex,
         task_created_block: u32,

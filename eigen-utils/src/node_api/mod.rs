@@ -1,8 +1,11 @@
-use alloy_transport_http::Http;
 use http_body_util::Full;
 use hyper::{
-    body::{self, Body, Bytes, Incoming}, server::conn::{http1, http2}, service::service_fn, Method, Request, Response, StatusCode
+    body::{self, Bytes, Incoming},
+    server::conn::http1,
+    service::service_fn,
+    Method, Request, Response, StatusCode,
 };
+use log::{error, info};
 use serde::Serialize;
 use serde_json::json;
 use std::{
@@ -10,8 +13,7 @@ use std::{
     net::SocketAddr,
     sync::{Arc, Mutex},
 };
-use tokio::{net::TcpListener};
-use log::{info, error};
+use tokio::net::TcpListener;
 
 use self::tokiort::TokioIo;
 
@@ -35,7 +37,7 @@ enum ServiceStatus {
 }
 
 #[derive(Debug, Serialize, Clone)]
-struct NodeService {
+pub struct NodeService {
     id: String,
     name: String,
     description: String,
@@ -43,36 +45,39 @@ struct NodeService {
 }
 
 #[derive(Clone)]
-struct NodeApi {
+pub struct NodeApi {
     avs_node_name: String,
     avs_node_sem_ver: String,
-    health: Arc<Mutex<NodeHealth>>,
-    node_services: Arc<Mutex<Vec<NodeService>>>,
+    health: NodeHealth,
+    node_services: Vec<NodeService>,
+    ip_port_address: String,
 }
 
 impl NodeApi {
-    fn new(avs_node_name: &str, avs_node_sem_ver: &str) -> Self {
+    pub fn new(avs_node_name: &str, avs_node_sem_ver: &str, ip_port_addr: &str) -> Self {
         Self {
             avs_node_name: avs_node_name.to_string(),
             avs_node_sem_ver: avs_node_sem_ver.to_string(),
-            health: Arc::new(Mutex::new(NodeHealth::Healthy)),
-            node_services: Arc::new(Mutex::new(Vec::new())),
+            health: NodeHealth::Healthy,
+            node_services: Vec::new(),
+            ip_port_address: ip_port_addr.to_string(),
         }
     }
 
-    fn update_health(&self, health: NodeHealth) {
-        let mut health_lock = self.health.lock().unwrap();
-        *health_lock = health;
+    fn update_health(&mut self, health: NodeHealth) {
+        self.health = health;
     }
 
-    fn register_new_service(&self, service: NodeService) {
-        let mut node_services_lock = self.node_services.lock().unwrap();
-        node_services_lock.push(service);
+    fn register_new_service(&mut self, service: NodeService) {
+        self.node_services.push(service);
     }
 
-    fn update_service_status(&self, service_id: &str, service_status: ServiceStatus) -> Result<(), String> {
-        let mut node_services_lock = self.node_services.lock().unwrap();
-        for service in node_services_lock.iter_mut() {
+    fn update_service_status(
+        &mut self,
+        service_id: &str,
+        service_status: ServiceStatus,
+    ) -> Result<(), String> {
+        for service in self.node_services.iter_mut() {
             if service.id == service_id {
                 service.status = service_status;
                 return Ok(());
@@ -81,10 +86,13 @@ impl NodeApi {
         Err(format!("Service with serviceId {} not found", service_id))
     }
 
-    fn deregister_service(&self, service_id: &str) -> Result<(), String> {
-        let mut node_services_lock = self.node_services.lock().unwrap();
-        if let Some(index) = node_services_lock.iter().position(|service| service.id == service_id) {
-            node_services_lock.remove(index);
+    fn deregister_service(&mut self, service_id: &str) -> Result<(), String> {
+        if let Some(index) = self
+            .node_services
+            .iter()
+            .position(|service| service.id == service_id)
+        {
+            self.node_services.remove(index);
             return Ok(());
         }
         Err(format!("Service with serviceId {} not found", service_id))
@@ -98,10 +106,13 @@ impl NodeApi {
             let this = Arc::new(self.clone());
             tokio::task::spawn(async move {
                 if let Err(err) = http1::Builder::new()
-                    .serve_connection(io, service_fn(move |req| {
-                        let this = Arc::clone(&this);
-                        async move { this.router(req).await }
-                    }))
+                    .serve_connection(
+                        io,
+                        service_fn(move |req| {
+                            let this = Arc::clone(&this);
+                            async move { this.router(req).await }
+                        }),
+                    )
                     .await
                 {
                     println!("Error serving connection: {:?}", err);
@@ -110,7 +121,10 @@ impl NodeApi {
         }
     }
 
-    async fn router(&self, req: Request<body::Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
+    async fn router(
+        &self,
+        req: Request<body::Incoming>,
+    ) -> Result<Response<Full<Bytes>>, Infallible> {
         match (req.method(), req.uri().path()) {
             (&Method::GET, path) if path == format!("{}/node", BASE_URL) => {
                 self.node_handler().await
@@ -142,8 +156,7 @@ impl NodeApi {
     }
 
     async fn health_handler(&self) -> Result<Response<Full<Bytes>>, Infallible> {
-        let health_lock = self.health.lock().unwrap();
-        match *health_lock {
+        match self.health {
             NodeHealth::Healthy => Ok(Response::new(Full::new(Bytes::from("")))),
             NodeHealth::PartiallyHealthy => Ok(Response::builder()
                 .status(StatusCode::PARTIAL_CONTENT)
@@ -157,20 +170,23 @@ impl NodeApi {
     }
 
     async fn services_handler(&self) -> Result<Response<Full<Bytes>>, Infallible> {
-        let node_services_lock = self.node_services.lock().unwrap();
         let response = json!({
-            "services": *node_services_lock,
+            "services": self.node_services,
         });
 
         Ok(json_response(response))
     }
 
-    async fn service_health_handler(&self, req: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
+    async fn service_health_handler(
+        &self,
+        req: Request<Incoming>,
+    ) -> Result<Response<Full<Bytes>>, Infallible> {
         let path = req.uri().path();
-        let service_id = path.trim_start_matches(&format!("{}/node/services/", BASE_URL)).trim_end_matches("/health");
+        let service_id = path
+            .trim_start_matches(&format!("{}/node/services/", BASE_URL))
+            .trim_end_matches("/health");
 
-        let node_services_lock = self.node_services.lock().unwrap();
-        for service in node_services_lock.iter() {
+        for service in self.node_services.iter() {
             if service.id == service_id {
                 return match service.status {
                     ServiceStatus::Up => Ok(Response::new(Full::new(Bytes::from("")))),

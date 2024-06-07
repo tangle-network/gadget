@@ -1,5 +1,6 @@
 use alloy_primitives::Bytes;
 use alloy_primitives::{keccak256, Address, B256, U256};
+use alloy_rpc_types::error;
 use alloy_transport::RpcError;
 use alloy_transport::TransportErrorKind;
 
@@ -259,8 +260,14 @@ pub enum AvsError {
     InvalidDescription,
     #[error("invalid Twitter URL")]
     InvalidTwitterUrl,
+    #[error("key errors")]
+    KeyError(String),
     #[error("invalid url validation")]
     InvalidUrl(#[from] UrlError),
+    #[error("invalid log decoding error")]
+    InvalidLogDecodingError(String),
+    #[error("invalid sol types")]
+    InvalidSolTypes(#[from] alloy_sol_types::Error),
     #[error("alloy contract error")]
     ContractError(#[from] alloy_contract::Error),
     #[error("alloy signer error")]

@@ -16,6 +16,7 @@ alloy-pubsub.workspace = true
 eigen-contracts.workspace = true
 hyper = { workspace = true, features = ["full"] }
 regex.workspace = true
+chacha20poly1305.workspace = true
 anyhow.workspace = true
 pin-project-lite.workspace = true
 http-body-util.workspace = true
@@ -38,6 +39,7 @@ alloy-network.workspace = true
 alloy-transport-ws.workspace = true
 alloy-signer-wallet.workspace = true
 alloy-signer.workspace = true
+scrypt.workspace = true
 
 ark-bn254.workspace = true
 ark-std.workspace = true

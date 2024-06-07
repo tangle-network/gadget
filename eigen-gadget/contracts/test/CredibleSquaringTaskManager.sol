@@ -3,7 +3,7 @@ pragma solidity ^0.8.12;
 
 import "../src/IncredibleSquaringServiceManager.sol" as incsqsm;
 import {IncredibleSquaringTaskManager} from "../src/IncredibleSquaringTaskManager.sol";
-import {BLSMockAVSDeployer} from "@eigenlayer-middleware/test/utils/BLSMockAVSDeployer.sol";
+import {BLSMockAVSDeployer} from "./BLSMockAVSDeployer.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract IncredibleSquaringTaskManagerTest is BLSMockAVSDeployer {

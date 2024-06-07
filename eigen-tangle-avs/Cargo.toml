@@ -1,5 +1,5 @@
 [package]
-name = "eigen-gadget"
+name = "eigen-tangle-avs"
 version = "0.1.0"
 authors.workspace = true
 edition.workspace = true
@@ -28,7 +28,6 @@ aws-sdk-kms.workspace = true
 eigen-contracts.workspace = true
 eigen-utils.workspace = true
 gadget-aws-kms.workspace = true
-# gadget-common = { workspace = true, features = ["tangle-testnet"] }
 
 hex.workspace = true
 k256.workspace = true
