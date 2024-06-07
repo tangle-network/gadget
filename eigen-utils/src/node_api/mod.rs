@@ -98,7 +98,10 @@ impl NodeApi {
         Err(format!("Service with serviceId {} not found", service_id))
     }
 
-    async fn start(self, addr: SocketAddr) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn start(
+        self,
+        addr: SocketAddr,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let listener = TcpListener::bind(addr).await.unwrap();
         loop {
             let (stream, _) = listener.accept().await.unwrap();

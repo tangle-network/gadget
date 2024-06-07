@@ -107,7 +107,8 @@ pub trait BlsAggregationService {
     fn get_response_channel(&mut self) -> mpsc::Receiver<BlsAggregationServiceResponse>;
 }
 
-pub type HashFn = Arc<dyn Fn(TaskResponse) -> Result<TaskResponseDigest, BlsAggregationError> + Send + Sync>;
+pub type HashFn =
+    Arc<dyn Fn(TaskResponse) -> Result<TaskResponseDigest, BlsAggregationError> + Send + Sync>;
 pub struct BlsAggregatorService<R>
 where
     R: AvsRegistryServiceTrait,
@@ -232,7 +233,7 @@ where
     pub fn new(
         aggregated_responses_tx: mpsc::Sender<BlsAggregationServiceResponse>,
         avs_registry_service: R,
-        hash_function: HashFn
+        hash_function: HashFn,
     ) -> Self {
         Self {
             aggregated_responses_tx,

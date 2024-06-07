@@ -4,18 +4,23 @@ use alloy_primitives::U256;
 use alloy_provider::{network::Ethereum, Provider};
 use alloy_transport::Transport;
 use eigen_utils::{
-    avs_registry::reader::AvsRegistryChainReader, services::{
+    avs_registry::reader::AvsRegistryChainReader,
+    services::{
         avs_registry::{chain_caller::AvsRegistryServiceChainCaller, AvsRegistryServiceTrait},
         bls_aggregation::{
             BlsAggregationService, BlsAggregationServiceResponse, BlsAggregatorService,
         },
-    }, types::TaskResponse
+    },
+    types::TaskResponse,
 };
 use tokio::sync::{mpsc, RwLock};
 
 use crate::{
     avs::{
-        reader::AvsReader, writer::AvsWriter, IncredibleSquaringTaskManager::{self, Task}, SetupConfig
+        reader::AvsReader,
+        writer::AvsWriter,
+        IncredibleSquaringTaskManager::{self, Task},
+        SetupConfig,
     },
     operator::OperatorError,
 };
@@ -45,10 +50,12 @@ where
             config.registry_coordinator_addr,
             config.operator_state_retriever_addr,
             config.eth_client,
-        ).await;
-        let avs_chain_caller = AvsRegistryServiceChainCaller::new(operator_info_service, avs_reader);
+        )
+        .await;
+        let avs_chain_caller =
+            AvsRegistryServiceChainCaller::new(operator_info_service, avs_reader);
         let (tx, rx) = mpsc::channel(100);
-        let bls_aggregation_service = BlsAggregatorService::new(tx)
+        let bls_aggregation_service = BlsAggregatorService::new(tx);
 
         Ok(Self {
             server_ip_port_addr: config.aggregator_server_ip_port_addr.clone(),

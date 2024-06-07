@@ -14,7 +14,8 @@ members = [
     "fireblocks-client",
     "aws",
     "sdk",
-    "eigen-gadget", "eigen-tangle-avs",
+    "eigen-gadget",
+    "eigen-tangle-avs",
 ]
 
 [workspace.package]
@@ -36,6 +37,7 @@ shell-manager = { path = "./shell-manager" }
 eigen-contracts = { path = "./eigen-contracts" }
 eigen-gadget = { path = "./eigen-gadget" }
 eigen-utils = { path = "./eigen-utils" }
+eigen-tangle-avs = { path = "./eigen-tangle-avs" }
 fireblocks-client = { path = "./fireblocks-client" }
 gadget-aws-kms = { path = "./aws" }
 
