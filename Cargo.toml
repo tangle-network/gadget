@@ -8,7 +8,7 @@ members = [
     "protocol-macros",
     "shell-manager",
     "shell-sdk",
-    "sdk",
+    "sdk", "executor",
 ]
 
 [workspace.package]
