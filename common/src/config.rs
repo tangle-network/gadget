@@ -2,8 +2,8 @@ pub use crate::client::ClientWithApi;
 use crate::client::{create_client, JobsClient};
 pub use crate::debug_logger::DebugLogger;
 use crate::environments::GadgetEnvironment;
-pub use crate::gadget::network::Network;
-pub use crate::gadget::GadgetProtocol;
+pub use crate::module::network::Network;
+pub use crate::module::GadgetProtocol;
 pub use crate::prometheus::PrometheusConfig;
 use async_trait::async_trait;
 

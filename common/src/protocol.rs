@@ -1,6 +1,5 @@
 use crate::environments::GadgetEnvironment;
-use crate::gadget::work_manager::TangleWorkManager;
-use crate::gadget::Job;
+use crate::module::Job;
 use async_trait::async_trait;
 use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
 use gadget_core::job_manager::{ProtocolRemote, ShutdownReason, WorkManagerInterface};
@@ -16,7 +15,8 @@ pub struct AsyncProtocolRemote<Env: GadgetEnvironment> {
     pub associated_block_id: <Env::WorkManager as WorkManagerInterface>::Clock,
     pub associated_retry_id: <Env::WorkManager as WorkManagerInterface>::RetryID,
     pub associated_task_id: <Env::WorkManager as WorkManagerInterface>::TaskID,
-    pub to_async_protocol: gadget_io::tokio::sync::mpsc::UnboundedSender<Env::ProtocolMessage>,
+    pub to_async_protocol:
+        gadget_io::tokio::sync::mpsc::UnboundedSender<<Env as GadgetEnvironment>::ProtocolMessage>,
     pub is_done: Arc<AtomicBool>,
 }
 
@@ -79,15 +79,8 @@ pub trait AsyncProtocol<Env: GadgetEnvironment> {
     }
 }
 
-impl<Env> ProtocolRemote<TangleWorkManager> for AsyncProtocolRemote<Env>
-where
-    Env: GadgetEnvironment<
-        RetryID = <TangleWorkManager as WorkManagerInterface>::RetryID,
-        ProtocolMessage = <TangleWorkManager as WorkManagerInterface>::ProtocolMessage,
-        Error = <TangleWorkManager as WorkManagerInterface>::Error,
-        Clock = <TangleWorkManager as WorkManagerInterface>::Clock,
-        SessionID = <TangleWorkManager as WorkManagerInterface>::SessionID,
-    >,
+impl<Env: GadgetEnvironment> ProtocolRemote<<Env as GadgetEnvironment>::WorkManager>
+    for AsyncProtocolRemote<Env>
 {
     fn start(&self) -> Result<(), Env::Error> {
         self.start_tx

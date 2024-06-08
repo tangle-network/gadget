@@ -1,6 +1,9 @@
 use async_trait::async_trait;
-use gadget_common::prelude::{DebugLogger, Network, TangleWorkManager};
-use gadget_core::job_manager::WorkManagerInterface;
+use gadget_common::environments::GadgetEnvironment;
+use gadget_common::prelude::{DebugLogger, Network};
+use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
+use gadget_io::tokio::sync::mpsc::UnboundedSender;
+use gadget_io::tokio::sync::{Mutex, RwLock};
 use libp2p::gossipsub::IdentTopic;
 use libp2p::kad::store::MemoryStore;
 use libp2p::{
@@ -9,10 +12,6 @@ use libp2p::{
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 use std::collections::HashMap;
-
-use gadget_common::environments::TangleEnvironment;
-use gadget_io::tokio::sync::mpsc::UnboundedSender;
-use gadget_io::tokio::sync::{Mutex, RwLock};
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
@@ -316,10 +315,10 @@ enum MessageType {
 }
 
 #[async_trait]
-impl Network<TangleEnvironment> for GossipHandle {
+impl<Env: GadgetEnvironment> Network<Env> for GossipHandle {
     async fn next_message(
         &self,
-    ) -> Option<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage> {
+    ) -> Option<<Env::WorkManager as WorkManagerInterface>::ProtocolMessage> {
         let mut lock = self
             .rx_from_inbound
             .try_lock()
@@ -332,16 +331,16 @@ impl Network<TangleEnvironment> for GossipHandle {
                 self.logger
                     .error(format!("Failed to deserialize message: {e}"));
                 drop(lock);
-                self.next_message().await
+                Network::<Env>::next_message(self).await
             }
         }
     }
 
     async fn send_message(
         &self,
-        message: <TangleWorkManager as WorkManagerInterface>::ProtocolMessage,
+        message: <Env::WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), gadget_common::Error> {
-        let message_type = if let Some(to) = message.to_network_id {
+        let message_type = if let Some(to) = message.recipient_network_id() {
             let libp2p_id = self
                 .ecdsa_peer_id_to_libp2p_id
                 .read()
@@ -387,14 +386,16 @@ impl Network<TangleEnvironment> for GossipHandle {
 #[cfg(test)]
 #[cfg(not(target_family = "wasm"))]
 mod tests {
-    use crate::config::{KeystoreConfig, ShellConfig, SubxtConfig};
+    use crate::config::{KeystoreConfig, ShellConfig};
     use crate::network::setup::setup_libp2p_network;
     use crate::shell::wait_for_connection_to_bootnodes;
     use gadget_common::keystore::InMemoryBackend;
-    use gadget_common::prelude::{DebugLogger, Network, TangleProtocolMessage, TangleWorkManager};
+    use gadget_common::prelude::{DebugLogger, Network};
     use gadget_core::job_manager::WorkManagerInterface;
     use gadget_io::tokio;
     use sp_core::{ecdsa, Pair};
+    use tangle_environment::gadget::SubxtConfig;
+    use tangle_environment::message::TangleProtocolMessage;
     use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 
     #[gadget_io::tokio::test]

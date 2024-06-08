@@ -119,3 +119,6 @@ wasm-bindgen-test = "0.3.34"
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 test-utils = { workspace = true }
+
+[dev-dependencies]
+tangle-environment = { workspace = true }

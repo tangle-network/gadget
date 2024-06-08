@@ -1,8 +1,8 @@
 use crate::config::ProtocolConfig;
 use crate::environments::EventMetadata;
-use crate::gadget::{GadgetProtocol, GeneralModule};
+use crate::module::network::Network;
+use crate::module::{GadgetProtocol, GeneralModule};
 use crate::prelude::PrometheusConfig;
-use gadget::network::Network;
 use gadget_core::gadget::general::GeneralGadget;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
 pub use gadget_core::job::JobError;
@@ -17,10 +17,10 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 pub use subxt_signer;
-pub use tangle_subxt;
 pub mod environments;
 use crate::environments::GadgetEnvironment;
 use gadget_core::gadget::general::Client;
+pub mod module;
 pub mod transaction_manager;
 #[allow(ambiguous_glob_reexports)]
 pub mod prelude {
@@ -28,18 +28,14 @@ pub mod prelude {
     pub use crate::config::*;
     pub use crate::environments::*;
     pub use crate::full_protocol::{FullProtocolConfig, NodeInput};
-    pub use crate::gadget::message::TangleProtocolMessage;
-    pub use crate::gadget::tangle::TangleInitMetadata;
-    pub use crate::gadget::work_manager::TangleWorkManager;
-    pub use crate::gadget::WorkManagerConfig;
     pub use crate::generate_setup_and_run_command;
     pub use crate::keystore::{ECDSAKeyStore, InMemoryBackend, KeystoreBackend};
+    pub use crate::module::WorkManagerConfig;
     pub use crate::{BuiltExecutableJobWrapper, JobBuilder, JobError, WorkManagerInterface};
     pub use async_trait::async_trait;
     pub use gadget_core::job_manager::ProtocolWorkManager;
     pub use gadget_core::job_manager::SendFuture;
     pub use gadget_core::job_manager::WorkManagerError;
-    pub use gadget_io;
     pub use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
     pub use parking_lot::Mutex;
     pub use protocol_macros::protocol;
@@ -47,6 +43,12 @@ pub mod prelude {
     pub use std::pin::Pin;
     pub use std::sync::Arc;
 }
+
+// Convenience re-exports
+pub use async_trait;
+pub use color_eyre;
+pub use gadget_io;
+pub use tangle_subxt;
 
 #[cfg(feature = "tangle-testnet")]
 pub mod tangle_runtime {
@@ -95,7 +97,6 @@ pub mod client;
 pub mod config;
 pub mod debug_logger;
 pub mod full_protocol;
-pub mod gadget;
 pub mod helpers;
 pub mod keystore;
 pub mod locks;

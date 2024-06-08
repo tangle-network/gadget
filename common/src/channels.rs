@@ -1,8 +1,7 @@
 //! When delivering messages to an async protocol, we want o make sure we don't mix up voting and public key gossip messages
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
 use crate::environments::GadgetEnvironment;
-use crate::gadget::message::UserID;
-use crate::gadget::network::Network;
+use crate::module::network::Network;
 use crate::prelude::DebugLogger;
 use crate::utils::deserialize;
 use futures::StreamExt;
@@ -15,6 +14,8 @@ use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+pub type UserID = u16;
 
 #[allow(clippy::too_many_arguments)]
 pub fn create_job_manager_to_async_protocol_channel_split<

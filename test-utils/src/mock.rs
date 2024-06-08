@@ -23,6 +23,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::EnsureSigned;
+use gadget_common::config::Network;
 use pallet_jobs_rpc_runtime_api::BlockNumberOf;
 use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
@@ -33,6 +34,9 @@ use sp_runtime::RuntimeDebug;
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
 use std::time::Duration;
+use tangle_environment::gadget::{TangleEvent, TangleJobMetadata};
+use tangle_environment::message::{TangleProtocolMessage, UserID};
+use tangle_environment::work_manager::TangleWorkManager;
 use tangle_primitives::AccountId;
 
 pub type Balance = u128;
@@ -44,16 +48,12 @@ use gadget_common::client::TanglePalletSubmitter;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::environments::{EventMetadata, GadgetEnvironment};
 use gadget_common::full_protocol::NodeInput;
-use gadget_common::gadget::message::UserID;
-use gadget_common::gadget::network::Network;
-use gadget_common::gadget::tangle::TangleEvent;
-use gadget_common::gadget::work_manager::TangleWorkManager;
 use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
 use gadget_common::locks::TokioMutexExt;
-use gadget_common::prelude::{PrometheusConfig, TangleProtocolMessage};
+use gadget_common::prelude::PrometheusConfig;
 use gadget_common::utils::serialize;
 use gadget_common::Error;
-use gadget_core::job_manager::{SendFuture, WorkManagerInterface};
+use gadget_core::job_manager::{ProtocolMessageMetadata, SendFuture, WorkManagerInterface};
 use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use sp_core::ecdsa;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
@@ -423,26 +423,31 @@ sp_externalities::decl_extension! {
     pub struct TracingUnboundedReceiverExt(TracingUnboundedReceiver<<Block as BlockT>::Hash>);
 }
 
-#[derive(Clone)]
-pub struct MockNetwork {
+type PeersRx<Env> =
+    Arc<HashMap<ecdsa::Public, gadget_io::tokio::sync::Mutex<UnboundedReceiver<Env>>>>;
+
+pub struct MockNetwork<Env: GadgetEnvironment> {
     peers_tx: Arc<
         HashMap<
             ecdsa::Public,
-            UnboundedSender<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage>,
+            UnboundedSender<<Env::WorkManager as WorkManagerInterface>::ProtocolMessage>,
         >,
     >,
-    peers_rx: Arc<
-        HashMap<
-            ecdsa::Public,
-            gadget_io::tokio::sync::Mutex<
-                UnboundedReceiver<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage>,
-            >,
-        >,
-    >,
+    peers_rx: PeersRx<<Env::WorkManager as WorkManagerInterface>::ProtocolMessage>,
     my_id: ecdsa::Public,
 }
 
-impl MockNetwork {
+impl<Env: GadgetEnvironment> Clone for MockNetwork<Env> {
+    fn clone(&self) -> Self {
+        Self {
+            peers_tx: self.peers_tx.clone(),
+            peers_rx: self.peers_rx.clone(),
+            my_id: self.my_id,
+        }
+    }
+}
+
+impl<Env: GadgetEnvironment> MockNetwork<Env> {
     pub fn setup(ids: &Vec<ecdsa::Public>) -> Vec<Self> {
         let mut peers_tx = HashMap::new();
         let mut peers_rx = HashMap::new();
@@ -471,15 +476,13 @@ impl MockNetwork {
 }
 
 #[async_trait]
-impl<Env: GadgetEnvironment> Network<Env> for MockNetwork
+impl<Env: GadgetEnvironment> Network<Env> for MockNetwork<Env>
 where
-    Env: GadgetEnvironment<
-        ProtocolMessage = <TangleWorkManager as WorkManagerInterface>::ProtocolMessage,
-    >,
+    Env::ProtocolMessage: Clone,
 {
     async fn next_message(
         &self,
-    ) -> Option<<TangleWorkManager as WorkManagerInterface>::ProtocolMessage> {
+    ) -> Option<<Env::WorkManager as WorkManagerInterface>::ProtocolMessage> {
         self.peers_rx
             .get(&self.my_id)?
             .lock_timeout(Duration::from_millis(500))
@@ -490,10 +493,10 @@ where
 
     async fn send_message(
         &self,
-        message: <TangleWorkManager as WorkManagerInterface>::ProtocolMessage,
+        message: <Env::WorkManager as WorkManagerInterface>::ProtocolMessage,
     ) -> Result<(), Error> {
-        let _check_message_has_ids = message.from_network_id.ok_or(Error::MissingNetworkId)?;
-        if let Some(peer_id) = message.to_network_id {
+        let _check_message_has_ids = message.sender_network_id().ok_or(Error::MissingNetworkId)?;
+        if let Some(peer_id) = message.recipient_network_id() {
             let tx = self
                 .peers_tx
                 .get(&peer_id)
@@ -556,7 +559,9 @@ pub async fn new_test_ext<
     const N: usize,
     const K: usize,
     D: Send + Clone + 'static,
-    F: Fn(NodeInput<TangleExtEnvironment, MockNetwork, InMemoryBackend, D>) -> Fut,
+    F: Fn(
+        NodeInput<TangleExtEnvironment, MockNetwork<TangleExtEnvironment>, InMemoryBackend, D>,
+    ) -> Fut,
     Fut: SendFuture<'static, ()>,
 >(
     additional_params: D,
@@ -1031,8 +1036,13 @@ pub mod mock_wrapper_client {
     }
 }
 
-pub struct TangleExtEnvironment;
+#[derive(Clone, Debug)]
+pub struct TangleExtEnvironment {
+    finality_notification_txs:
+        Arc<parking_lot::Mutex<Vec<TracingUnboundedSender<FinalityNotification<Block>>>>>,
+}
 
+#[async_trait]
 impl GadgetEnvironment for TangleExtEnvironment {
     type Event = TangleEvent;
     type ProtocolMessage = TangleProtocolMessage;
@@ -1044,6 +1054,7 @@ impl GadgetEnvironment for TangleExtEnvironment {
     type TaskID = <Self::WorkManager as WorkManagerInterface>::TaskID;
     type SessionID = <Self::WorkManager as WorkManagerInterface>::SessionID;
     type TransactionManager = Arc<dyn TanglePalletSubmitter>;
+    type JobInitMetadata = TangleJobMetadata;
 
     fn build_protocol_message<Payload: Serialize>(
         associated_block_id: <Self::WorkManager as WorkManagerInterface>::Clock,
@@ -1067,6 +1078,15 @@ impl GadgetEnvironment for TangleExtEnvironment {
             from_network_id: from_account_id,
             to_network_id,
         }
+    }
+
+    async fn setup_client(&self) -> Result<Self::Client, Self::Error> {
+        let finality_notification_txs = self.finality_notification_txs.clone();
+        Ok(MockClient::<Runtime, Block>::new(Runtime, finality_notification_txs).await)
+    }
+
+    fn transaction_manager(&self) -> &Self::TransactionManager {
+        todo!()
     }
 }
 

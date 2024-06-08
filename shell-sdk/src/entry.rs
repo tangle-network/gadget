@@ -1,4 +1,5 @@
 use crate::shell::ShellNodeInput;
+use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, KeystoreBackend};
 use gadget_core::job_manager::SendFuture;
 use gadget_io::{defaults, ShellTomlConfig, SupportedChains};
@@ -24,12 +25,14 @@ pub fn keystore_from_base_path(
 
 /// Runs a shell for a given protocol.
 pub async fn run_shell_for_protocol<
+    Env: GadgetEnvironment,
     KBE: KeystoreBackend,
-    T: FnOnce(ShellNodeInput<KBE>) -> F,
+    T: FnOnce(ShellNodeInput<KBE, Env>) -> F,
     F,
     T2: FnOnce() -> F2,
     F2: SendFuture<'static, KBE>,
 >(
+    environment: Env,
     role_types: Vec<RoleType>,
     n_protocols: usize,
     keystore_backend: T2,
@@ -63,9 +66,7 @@ where
         keystore_backend,
         role_types,
         keystore,
-        subxt: crate::SubxtConfig {
-            endpoint: config.url,
-        },
+        environment,
         base_path: config.base_path,
         bind_ip: config.bind_ip,
         bind_port: config.bind_port,

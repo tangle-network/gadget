@@ -26,14 +26,10 @@ pub mod prelude {
     pub use crate::NodeInput;
     pub use crate::ProtocolWorkManager;
     pub use crate::SendFuture;
-    pub use crate::TanglePalletSubmitter;
-    pub use crate::TangleProtocolMessage;
-    pub use crate::TangleWorkManager;
     pub use crate::UnboundedReceiver;
     pub use crate::WorkManagerInterface;
     pub use gadget_common::full_protocol::SharedOptional;
 
-    pub use gadget_common::gadget::tangle::TangleInitMetadata;
     pub use gadget_common::prelude::InMemoryBackend;
     pub use gadget_common::tangle_runtime::AccountId32;
     pub use gadget_common::tangle_runtime::MaxAdditionalParamsLen;
