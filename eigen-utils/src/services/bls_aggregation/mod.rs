@@ -269,7 +269,10 @@ where
             Err(e) => {
                 self.aggregated_responses_tx
                     .send(BlsAggregationServiceResponse {
-                        err: Some(BlsAggregationError::TaskInitializationError(e, task_index)),
+                        err: Some(BlsAggregationError::TaskInitializationError(
+                            e.to_string(),
+                            task_index,
+                        )),
                         task_index,
                         ..Default::default()
                     })
@@ -288,7 +291,10 @@ where
             Err(e) => {
                 self.aggregated_responses_tx
                     .send(BlsAggregationServiceResponse {
-                        err: Some(BlsAggregationError::TaskInitializationError(e, task_index)),
+                        err: Some(BlsAggregationError::TaskInitializationError(
+                            e.to_string(),
+                            task_index,
+                        )),
                         task_index,
                         ..Default::default()
                     })

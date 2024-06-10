@@ -6,91 +6,38 @@ use async_trait::async_trait;
 use eigen_contracts::OperatorStateRetriever;
 use std::collections::HashMap;
 
-use crate::avs_registry::reader::AvsRegistryChainReader;
+use crate::avs_registry::reader::AvsRegistryChainReaderTrait;
+use crate::avs_registry::AvsRegistryContractManager;
 use crate::crypto::bls::G1Point;
 use crate::services::operator_info::OperatorInfoServiceTrait;
 use crate::types::{
-    bytes_to_quorum_ids, OperatorAvsState, OperatorId, OperatorInfo, QuorumAvsState, QuorumNum,
-    QuorumNums,
+    bytes_to_quorum_ids, AvsError, OperatorAvsState, OperatorId, OperatorInfo, QuorumAvsState,
+    QuorumNum, QuorumNums,
 };
+use crate::Config;
 
-use super::AvsRegistryServiceTrait;
-
-#[derive(Debug, Clone)]
-pub struct AvsRegistryServiceChainCaller<T, P, I>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-    I: OperatorInfoServiceTrait,
-{
-    avs_registry_reader: AvsRegistryChainReader<T, P>,
-    operator_info_service: I,
-}
-
-impl<T, P, I> AvsRegistryServiceChainCaller<T, P, I>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-    I: OperatorInfoServiceTrait,
-{
-    pub fn new(
-        operator_info_service: I,
-        avs_registry_reader: AvsRegistryChainReader<T, P>,
-    ) -> Self {
-        AvsRegistryServiceChainCaller {
-            operator_info_service,
-            avs_registry_reader,
-        }
-    }
-
-    pub async fn build(
-        registry_coordinator_addr: Address,
-        operator_state_retriever_addr: Address,
-        eth_client: P,
-        operator_info_service: I,
-    ) -> Self {
-        let avs_registry_reader = AvsRegistryChainReader::build(
-            registry_coordinator_addr,
-            operator_state_retriever_addr,
-            eth_client,
-        )
-        .await;
-        AvsRegistryServiceChainCaller::new(operator_info_service, avs_registry_reader)
-    }
-
-    async fn get_operator_info(&self, operator_id: B256) -> Result<OperatorInfo, String> {
-        let operator_addr = self
-            .avs_registry_reader
-            .get_operator_from_id(operator_id)
-            .await
-            .map_err(|e| format!("Failed to get operator address from pubkey hash: {:?}", e))?;
-
-        self.operator_info_service
-            .get_operator_info(operator_addr)
-            .await
-            .ok_or_else(|| format!("Failed to get operator info from operatorInfoService (operatorAddr: {:?}, operatorId: {:?})", operator_addr, operator_id))
-    }
-}
+use super::{AvsRegistryServiceChainCaller, AvsRegistryServiceTrait};
 
 #[async_trait]
-impl<T, P, I> AvsRegistryServiceTrait for AvsRegistryServiceChainCaller<T, P, I>
+impl<T, I> AvsRegistryServiceTrait for AvsRegistryServiceChainCaller<T, I>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone + 'static,
+    T: Config,
     I: OperatorInfoServiceTrait,
 {
     async fn get_operators_avs_state_at_block(
         &self,
         quorum_numbers: Bytes,
         block_number: u64,
-    ) -> Result<HashMap<OperatorId, OperatorAvsState>, String> {
+    ) -> Result<HashMap<OperatorId, OperatorAvsState>, AvsError> {
         let mut operators_avs_state: HashMap<OperatorId, OperatorAvsState> = HashMap::new();
 
         let operators_stakes_in_quorums = self
-            .avs_registry_reader
+            .avs_registry_manager
             .get_operators_stake_in_quorums_at_block(quorum_numbers.clone(), block_number)
             .await
-            .map_err(|e| format!("Failed to get operator state: {:?}", e))?;
+            .map_err(|e| {
+                AvsError::OperatorError(format!("Failed to get operator state: {:?}", e))
+            })?;
 
         let quorum_nums_vec: Vec<QuorumNum> = bytes_to_quorum_ids(&quorum_numbers);
         if operators_stakes_in_quorums.len() != quorum_nums_vec.clone().len() {
@@ -129,7 +76,7 @@ where
         &self,
         quorum_numbers: Bytes,
         block_number: u64,
-    ) -> Result<HashMap<QuorumNum, QuorumAvsState>, String> {
+    ) -> Result<HashMap<QuorumNum, QuorumAvsState>, AvsError> {
         let operators_avs_state = self
             .get_operators_avs_state_at_block(quorum_numbers.clone(), block_number)
             .await?;
@@ -169,14 +116,16 @@ where
         reference_block_number: u64,
         quorum_numbers: Bytes,
         non_signer_operator_ids: Vec<OperatorId>,
-    ) -> Result<OperatorStateRetriever::CheckSignaturesIndices, String> {
-        self.avs_registry_reader
+    ) -> Result<OperatorStateRetriever::CheckSignaturesIndices, AvsError> {
+        self.avs_registry_manager
             .get_check_signatures_indices(
                 reference_block_number.try_into().unwrap(),
                 quorum_numbers,
                 non_signer_operator_ids,
             )
             .await
-            .map_err(|e| format!("Failed to get check signatures indices: {:?}", e))
+            .map_err(|e| {
+                AvsError::OperatorError(format!("Failed to get check signatures indices: {:?}", e))
+            })
     }
 }

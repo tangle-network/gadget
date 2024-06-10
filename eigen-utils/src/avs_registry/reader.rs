@@ -10,83 +10,87 @@ use eigen_contracts::{BlsApkRegistry, OperatorStateRetriever, RegistryCoordinato
 use std::collections::HashMap;
 use thiserror::Error;
 
-use crate::types::*;
+use crate::{types::*, Config};
 
-type AvsRegistryReaderResult<T> = Result<T, AvsError>;
+use super::{AvsRegistryContractManager, AvsRegistryContractResult};
 
-#[derive(Clone, Debug, Error)]
-pub struct AvsRegistryChainReader<T, P>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-{
-    bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P>,
-    registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P>,
-    operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P>,
-    stake_registry: StakeRegistry::StakeRegistryInstance<T, P>,
-    eth_client: P,
+pub trait AvsRegistryChainReaderTrait {
+    async fn get_quorum_count(&self) -> AvsRegistryContractResult<u8>;
+
+    async fn get_operators_stake_in_quorums_at_current_block(
+        &self,
+        quorum_numbers: Bytes,
+    ) -> AvsRegistryContractResult<Vec<Vec<OperatorStateRetriever::Operator>>>;
+
+    async fn get_operators_stake_in_quorums_at_block(
+        &self,
+        quorum_numbers: Bytes,
+        block_number: u64,
+    ) -> AvsRegistryContractResult<Vec<Vec<OperatorStateRetriever::Operator>>>;
+
+    async fn get_operator_addrs_in_quorums_at_current_block(
+        &self,
+        quorum_numbers: Bytes,
+    ) -> AvsRegistryContractResult<Vec<Vec<Address>>>;
+
+    async fn get_operators_stake_in_quorums_of_operator_at_block(
+        &self,
+        operator_id: OperatorId,
+        block_number: u64,
+    ) -> AvsRegistryContractResult<(QuorumNums, Vec<Vec<OperatorStateRetriever::Operator>>)>;
+
+    async fn get_operators_stake_in_quorums_of_operator_at_current_block(
+        &self,
+        operator_id: OperatorId,
+    ) -> AvsRegistryContractResult<(QuorumNums, Vec<Vec<OperatorStateRetriever::Operator>>)>;
+
+    async fn get_operator_stake_in_quorums_of_operator_at_current_block(
+        &self,
+        operator_id: OperatorId,
+    ) -> AvsRegistryContractResult<HashMap<QuorumNum, StakeAmount>>;
+
+    async fn get_check_signatures_indices(
+        &self,
+        reference_block_number: u32,
+        quorum_numbers: Bytes,
+        non_signer_operator_ids: Vec<OperatorId>,
+    ) -> AvsRegistryContractResult<OperatorStateRetriever::CheckSignaturesIndices>;
+
+    async fn get_operator_id(
+        &self,
+        operator_address: Address,
+    ) -> AvsRegistryContractResult<OperatorId>;
+
+    async fn get_operator_from_id(
+        &self,
+        operator_id: OperatorId,
+    ) -> AvsRegistryContractResult<Address>;
+
+    async fn is_operator_registered(
+        &self,
+        operator_address: Address,
+    ) -> AvsRegistryContractResult<bool>;
+
+    async fn query_existing_registered_operator_pubkeys(
+        &self,
+        start_block: u64,
+        stop_block: u64,
+        block_range: u64,
+    ) -> AvsRegistryContractResult<(Vec<Address>, Vec<OperatorPubkeys>)>;
+
+    async fn query_existing_registered_operator_sockets(
+        &self,
+        start_block: u64,
+        stop_block: u64,
+        block_range: u64,
+    ) -> AvsRegistryContractResult<HashMap<OperatorId, Socket>>;
 }
 
-impl<T, P> AvsRegistryChainReader<T, P>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-{
-    pub fn new(
-        bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P>,
-        registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P>,
-        operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P>,
-        stake_registry: StakeRegistry::StakeRegistryInstance<T, P>,
-        eth_client: P,
-    ) -> Self {
-        Self {
-            bls_apk_registry,
-            registry_coordinator,
-            operator_state_retriever,
-            stake_registry,
-
-            eth_client,
-        }
-    }
-
-    pub async fn build(
-        registry_coordinator_addr: Address,
-        operator_state_retriever_addr: Address,
-        eth_client: P,
-    ) -> Self {
+impl<T: Config> AvsRegistryChainReaderTrait for AvsRegistryContractManager<T> {
+    async fn get_quorum_count(&self) -> AvsRegistryContractResult<u8> {
         let registry_coordinator =
-            RegistryCoordinator::new(registry_coordinator_addr, eth_client.clone());
-
-        let bls_apk_registry_addr = registry_coordinator
-            .blsApkRegistry()
-            .call()
-            .await
-            .map(|addr| addr._0)
-            .unwrap();
-        let bls_apk_registry = BlsApkRegistry::new(bls_apk_registry_addr, eth_client.clone());
-
-        let stake_registry_addr = registry_coordinator
-            .stakeRegistry()
-            .call()
-            .await
-            .map(|addr| addr._0)
-            .unwrap();
-        let stake_registry = StakeRegistry::new(stake_registry_addr, eth_client.clone());
-
-        let operator_state_retriever =
-            OperatorStateRetriever::new(operator_state_retriever_addr, eth_client.clone());
-
-        AvsRegistryChainReader::new(
-            bls_apk_registry,
-            registry_coordinator,
-            operator_state_retriever,
-            stake_registry,
-            eth_client,
-        )
-    }
-
-    pub async fn get_quorum_count(&self) -> AvsRegistryReaderResult<u8> {
-        self.registry_coordinator
+            RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
+        registry_coordinator
             .quorumCount()
             .call()
             .await
@@ -94,23 +98,27 @@ where
             .map_err(AvsError::from)
     }
 
-    pub async fn get_operators_stake_in_quorums_at_current_block(
+    async fn get_operators_stake_in_quorums_at_current_block(
         &self,
         quorum_numbers: Bytes,
-    ) -> AvsRegistryReaderResult<Vec<Vec<OperatorStateRetriever::Operator>>> {
-        let current_block = self.eth_client.get_block_number().await?;
+    ) -> AvsRegistryContractResult<Vec<Vec<OperatorStateRetriever::Operator>>> {
+        let current_block = self.eth_client_http.get_block_number().await?;
         self.get_operators_stake_in_quorums_at_block(quorum_numbers, current_block)
             .await
     }
 
-    pub async fn get_operators_stake_in_quorums_at_block(
+    async fn get_operators_stake_in_quorums_at_block(
         &self,
         quorum_numbers: Bytes,
         block_number: u64,
-    ) -> AvsRegistryReaderResult<Vec<Vec<OperatorStateRetriever::Operator>>> {
-        self.operator_state_retriever
+    ) -> AvsRegistryContractResult<Vec<Vec<OperatorStateRetriever::Operator>>> {
+        let operator_state_retriever = OperatorStateRetriever::new(
+            self.operator_state_retriever_addr,
+            self.eth_client_http.clone(),
+        );
+        operator_state_retriever
             .getOperatorState_0(
-                *self.registry_coordinator.address(),
+                self.registry_coordinator_addr,
                 quorum_numbers,
                 block_number.try_into().unwrap(),
             )
@@ -120,15 +128,18 @@ where
             .map_err(AvsError::from)
     }
 
-    pub async fn get_operator_addrs_in_quorums_at_current_block(
+    async fn get_operator_addrs_in_quorums_at_current_block(
         &self,
         quorum_numbers: Bytes,
-    ) -> AvsRegistryReaderResult<Vec<Vec<Address>>> {
-        let current_block = self.eth_client.get_block_number().await?;
-        let operator_stakes = self
-            .operator_state_retriever
+    ) -> AvsRegistryContractResult<Vec<Vec<Address>>> {
+        let current_block = self.eth_client_http.get_block_number().await?;
+        let operator_state_retriever = OperatorStateRetriever::new(
+            self.operator_state_retriever_addr,
+            self.eth_client_http.clone(),
+        );
+        let operator_stakes = operator_state_retriever
             .getOperatorState_0(
-                *self.registry_coordinator.address(),
+                self.registry_coordinator_addr,
                 quorum_numbers,
                 current_block.try_into().unwrap(),
             )
@@ -147,15 +158,18 @@ where
         Ok(quorum_operator_addrs)
     }
 
-    pub async fn get_operators_stake_in_quorums_of_operator_at_block(
+    async fn get_operators_stake_in_quorums_of_operator_at_block(
         &self,
         operator_id: OperatorId,
         block_number: u64,
-    ) -> AvsRegistryReaderResult<(QuorumNums, Vec<Vec<OperatorStateRetriever::Operator>>)> {
-        let (quorum_bitmap, operator_stakes) = self
-            .operator_state_retriever
+    ) -> AvsRegistryContractResult<(QuorumNums, Vec<Vec<OperatorStateRetriever::Operator>>)> {
+        let operator_state_retriever = OperatorStateRetriever::new(
+            self.operator_state_retriever_addr,
+            self.eth_client_http.clone(),
+        );
+        let (quorum_bitmap, operator_stakes) = operator_state_retriever
             .getOperatorState_1(
-                *self.registry_coordinator.address(),
+                self.registry_coordinator_addr,
                 operator_id,
                 block_number.try_into().unwrap(),
             )
@@ -166,31 +180,33 @@ where
         Ok((quorums, operator_stakes))
     }
 
-    pub async fn get_operators_stake_in_quorums_of_operator_at_current_block(
+    async fn get_operators_stake_in_quorums_of_operator_at_current_block(
         &self,
         operator_id: OperatorId,
-    ) -> AvsRegistryReaderResult<(QuorumNums, Vec<Vec<OperatorStateRetriever::Operator>>)> {
-        let current_block = self.eth_client.get_block_number().await?;
+    ) -> AvsRegistryContractResult<(QuorumNums, Vec<Vec<OperatorStateRetriever::Operator>>)> {
+        let current_block = self.eth_client_http.get_block_number().await?;
         self.get_operators_stake_in_quorums_of_operator_at_block(operator_id, current_block)
             .await
     }
 
-    pub async fn get_operator_stake_in_quorums_of_operator_at_current_block(
+    async fn get_operator_stake_in_quorums_of_operator_at_current_block(
         &self,
         operator_id: OperatorId,
-    ) -> AvsRegistryReaderResult<HashMap<QuorumNum, StakeAmount>> {
-        let quorum_bitmap = self
-            .registry_coordinator
+    ) -> AvsRegistryContractResult<HashMap<QuorumNum, StakeAmount>> {
+        let registry_coordinator =
+            RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
+        let quorum_bitmap = registry_coordinator
             .getCurrentQuorumBitmap(operator_id)
             .call()
             .await
             .map(|val| val._0)?;
 
+        let stake_registry =
+            StakeRegistry::new(self.stake_registry_addr, self.eth_client_http.clone());
         let quorums = bitmap_to_quorum_ids(&quorum_bitmap);
         let mut quorum_stakes = HashMap::new();
         for quorum in quorums {
-            let stake = self
-                .stake_registry
+            let stake = stake_registry
                 .getCurrentStake(operator_id, quorum.0)
                 .call()
                 .await
@@ -201,15 +217,19 @@ where
         Ok(quorum_stakes)
     }
 
-    pub async fn get_check_signatures_indices(
+    async fn get_check_signatures_indices(
         &self,
         reference_block_number: u32,
         quorum_numbers: Bytes,
         non_signer_operator_ids: Vec<OperatorId>,
-    ) -> AvsRegistryReaderResult<OperatorStateRetriever::CheckSignaturesIndices> {
-        self.operator_state_retriever
+    ) -> AvsRegistryContractResult<OperatorStateRetriever::CheckSignaturesIndices> {
+        let operator_state_retriever = OperatorStateRetriever::new(
+            self.operator_state_retriever_addr,
+            self.eth_client_http.clone(),
+        );
+        operator_state_retriever
             .getCheckSignaturesIndices(
-                *self.registry_coordinator.address(),
+                self.registry_coordinator_addr,
                 reference_block_number,
                 quorum_numbers,
                 non_signer_operator_ids,
@@ -220,11 +240,13 @@ where
             .map_err(AvsError::from)
     }
 
-    pub async fn get_operator_id(
+    async fn get_operator_id(
         &self,
         operator_address: Address,
-    ) -> AvsRegistryReaderResult<OperatorId> {
-        self.registry_coordinator
+    ) -> AvsRegistryContractResult<OperatorId> {
+        let registry_coordinator =
+            RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
+        registry_coordinator
             .getOperatorId(operator_address)
             .call()
             .await
@@ -232,11 +254,13 @@ where
             .map_err(AvsError::from)
     }
 
-    pub async fn get_operator_from_id(
+    async fn get_operator_from_id(
         &self,
         operator_id: OperatorId,
-    ) -> AvsRegistryReaderResult<Address> {
-        self.registry_coordinator
+    ) -> AvsRegistryContractResult<Address> {
+        let registry_coordinator =
+            RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
+        registry_coordinator
             .getOperatorFromId(operator_id)
             .call()
             .await
@@ -244,12 +268,13 @@ where
             .map_err(AvsError::from)
     }
 
-    pub async fn is_operator_registered(
+    async fn is_operator_registered(
         &self,
         operator_address: Address,
-    ) -> AvsRegistryReaderResult<bool> {
-        let operator_status = self
-            .registry_coordinator
+    ) -> AvsRegistryContractResult<bool> {
+        let registry_coordinator =
+            RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
+        let operator_status = registry_coordinator
             .getOperatorStatus(operator_address)
             .call()
             .await
@@ -258,12 +283,12 @@ where
         Ok(operator_status == 1)
     }
 
-    pub async fn query_existing_registered_operator_pubkeys(
+    async fn query_existing_registered_operator_pubkeys(
         &self,
         start_block: u64,
         stop_block: u64,
         block_range: u64,
-    ) -> AvsRegistryReaderResult<(Vec<Address>, Vec<OperatorPubkeys>)> {
+    ) -> AvsRegistryContractResult<(Vec<Address>, Vec<OperatorPubkeys>)> {
         let mut operator_addresses = Vec::new();
         let mut operator_pubkeys = Vec::new();
 
@@ -274,8 +299,8 @@ where
                 .from_block(i)
                 .to_block(to_block)
                 .event("NewPubkeyRegistration")
-                .address(*self.bls_apk_registry.address());
-            let logs = self.eth_client.get_logs(&filter).await?;
+                .address(self.bls_apk_registry_addr);
+            let logs = self.eth_client_http.get_logs(&filter).await?;
 
             for log in logs {
                 let maybe_pub_key_reg = log
@@ -302,18 +327,18 @@ where
         Ok((operator_addresses, operator_pubkeys))
     }
 
-    pub async fn query_existing_registered_operator_sockets(
+    async fn query_existing_registered_operator_sockets(
         &self,
         start_block: u64,
         stop_block: u64,
         block_range: u64,
-    ) -> AvsRegistryReaderResult<HashMap<OperatorId, Socket>> {
+    ) -> AvsRegistryContractResult<HashMap<OperatorId, Socket>> {
         let mut operator_id_to_socket_map = HashMap::new();
 
         let start = start_block;
         let mut end = stop_block;
         if start_block == 0 && stop_block == 0 {
-            end = self.eth_client.get_block_number().await? as u64;
+            end = self.eth_client_http.get_block_number().await? as u64;
         }
 
         for i in (start..=end).step_by(block_range as usize) {
@@ -321,9 +346,9 @@ where
             let filter = Filter::new()
                 .from_block(i)
                 .to_block(to_block)
-                .address(*self.registry_coordinator.address())
+                .address(self.registry_coordinator_addr)
                 .event("OperatorSocketUpdate");
-            let logs = self.eth_client.get_logs(&filter).await?;
+            let logs = self.eth_client_http.get_logs(&filter).await?;
 
             for log in logs {
                 let maybe_op_socket_update = log.log_decode::<OperatorSocketUpdate>().ok();

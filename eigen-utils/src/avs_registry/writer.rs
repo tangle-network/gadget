@@ -7,65 +7,16 @@ use alloy_signer::k256::ecdsa;
 use alloy_signer::k256::ecdsa::signature::Keypair;
 use alloy_signer::utils::raw_public_key_to_address;
 use alloy_signer::Signer;
-use alloy_transport::Transport;
-use eigen_contracts::{BlsApkRegistry, OperatorStateRetriever, RegistryCoordinator, StakeRegistry};
+use eigen_contracts::RegistryCoordinator;
 
 use crate::crypto::bls::{G1Point, KeyPair};
-use crate::el_contracts::reader::ElChainReader;
 use crate::el_contracts::reader::ElReader;
-use crate::types::*;
+use crate::{types::*, Config};
 
-type AvsRegistryWriterResult<T> = Result<T, AvsError>;
+use super::{AvsRegistryContractManager, AvsRegistryContractResult};
 
-pub struct AvsRegistryChainWriter<T, P, S>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-    S: Signer + Send + Sync,
-{
-    service_manager_addr: Address,
-    registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P>,
-    operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P>,
-    stake_registry: StakeRegistry::StakeRegistryInstance<T, P>,
-    bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P>,
-    el_reader: ElChainReader<T, P>,
-    eth_client: P,
-    tx_mgr: EthereumSigner,
-    signer: S,
-}
-
-impl<T, P, S> AvsRegistryChainWriter<T, P, S>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-    S: Signer + Send + Sync,
-{
-    pub fn new(
-        service_manager_addr: Address,
-        registry_coordinator: RegistryCoordinator::RegistryCoordinatorInstance<T, P>,
-        operator_state_retriever: OperatorStateRetriever::OperatorStateRetrieverInstance<T, P>,
-        stake_registry: StakeRegistry::StakeRegistryInstance<T, P>,
-        bls_apk_registry: BlsApkRegistry::BlsApkRegistryInstance<T, P>,
-        el_reader: ElChainReader<T, P>,
-        eth_client: P,
-        tx_mgr: EthereumSigner,
-        signer: S,
-    ) -> Self {
-        Self {
-            service_manager_addr,
-            registry_coordinator,
-            operator_state_retriever,
-            stake_registry,
-            bls_apk_registry,
-            el_reader,
-
-            eth_client,
-            tx_mgr,
-            signer,
-        }
-    }
-
-    pub async fn register_operator_in_quorum_with_avs_registry_coordinator(
+pub trait AvsRegistryChainWriterTrait {
+    async fn register_operator_in_quorum_with_avs_registry_coordinator(
         &self,
         operator_ecdsa_private_key: &ecdsa::SigningKey,
         operator_to_avs_registration_sig_salt: FixedBytes<32>,
@@ -73,7 +24,35 @@ where
         bls_key_pair: &KeyPair,
         quorum_numbers: Bytes,
         socket: String,
-    ) -> AvsRegistryWriterResult<TransactionReceipt> {
+    ) -> AvsRegistryContractResult<TransactionReceipt>;
+
+    async fn update_stakes_of_entire_operator_set_for_quorums(
+        &self,
+        operators_per_quorum: Vec<Vec<Address>>,
+        quorum_numbers: Bytes,
+    ) -> AvsRegistryContractResult<TransactionReceipt>;
+
+    async fn update_stakes_of_operator_subset_for_all_quorums(
+        &self,
+        operators: Vec<Address>,
+    ) -> AvsRegistryContractResult<TransactionReceipt>;
+
+    async fn deregister_operator(
+        &self,
+        quorum_numbers: Bytes,
+    ) -> AvsRegistryContractResult<TransactionReceipt>;
+}
+
+impl<T: Config> AvsRegistryChainWriterTrait for AvsRegistryContractManager<T> {
+    async fn register_operator_in_quorum_with_avs_registry_coordinator(
+        &self,
+        operator_ecdsa_private_key: &ecdsa::SigningKey,
+        operator_to_avs_registration_sig_salt: FixedBytes<32>,
+        operator_to_avs_registration_sig_expiry: U256,
+        bls_key_pair: &KeyPair,
+        quorum_numbers: Bytes,
+        socket: String,
+    ) -> AvsRegistryContractResult<TransactionReceipt> {
         let operator_addr = raw_public_key_to_address(
             operator_ecdsa_private_key
                 .verifying_key()
@@ -83,8 +62,9 @@ where
 
         log::info!("Registering operator with the AVS's registry coordinator");
 
-        let g1_hashed_msg_to_sign = self
-            .registry_coordinator
+        let registry_coordinator =
+            RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
+        let g1_hashed_msg_to_sign = registry_coordinator
             .pubkeyRegistrationMessageHash(operator_addr)
             .call()
             .await
@@ -114,7 +94,7 @@ where
         };
 
         let msg_to_sign = self
-            .el_reader
+            .el_contract_manager
             .calculate_operator_avs_registration_digest_hash(
                 operator_addr,
                 self.service_manager_addr,
@@ -136,8 +116,9 @@ where
                 expiry: operator_to_avs_registration_sig_expiry,
             };
 
-        let receipt = self
-            .registry_coordinator
+        let registry_coordinator =
+            RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
+        let receipt = registry_coordinator
             .registerOperator(
                 quorum_numbers,
                 socket,
@@ -154,15 +135,16 @@ where
         Ok(receipt)
     }
 
-    pub async fn update_stakes_of_entire_operator_set_for_quorums(
+    async fn update_stakes_of_entire_operator_set_for_quorums(
         &self,
         operators_per_quorum: Vec<Vec<Address>>,
         quorum_numbers: Bytes,
-    ) -> AvsRegistryWriterResult<TransactionReceipt> {
+    ) -> AvsRegistryContractResult<TransactionReceipt> {
         log::info!("Updating stakes for entire operator set");
 
-        let receipt = self
-            .registry_coordinator
+        let registry_coordinator =
+            RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
+        let receipt = registry_coordinator
             .updateOperatorsForQuorum(operators_per_quorum, quorum_numbers)
             .send()
             .await?
@@ -174,14 +156,15 @@ where
         Ok(receipt)
     }
 
-    pub async fn update_stakes_of_operator_subset_for_all_quorums(
+    async fn update_stakes_of_operator_subset_for_all_quorums(
         &self,
         operators: Vec<Address>,
-    ) -> AvsRegistryWriterResult<TransactionReceipt> {
+    ) -> AvsRegistryContractResult<TransactionReceipt> {
         log::info!("Updating stakes of operator subset for all quorums");
 
-        let receipt = self
-            .registry_coordinator
+        let registry_coordinator =
+            RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
+        let receipt = registry_coordinator
             .updateOperators(operators)
             .send()
             .await?
@@ -193,14 +176,15 @@ where
         Ok(receipt)
     }
 
-    pub async fn deregister_operator(
+    async fn deregister_operator(
         &self,
         quorum_numbers: Bytes,
-    ) -> AvsRegistryWriterResult<TransactionReceipt> {
+    ) -> AvsRegistryContractResult<TransactionReceipt> {
         log::info!("Deregistering operator with the AVS's registry coordinator");
 
-        let receipt = self
-            .registry_coordinator
+        let registry_coordinator =
+            RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
+        let receipt = registry_coordinator
             .deregisterOperator(quorum_numbers)
             .send()
             .await?

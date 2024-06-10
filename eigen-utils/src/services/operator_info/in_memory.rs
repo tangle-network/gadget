@@ -12,24 +12,21 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::sync::oneshot;
 use tokio::task;
 
-use crate::avs_registry::reader::AvsRegistryChainReader;
-use crate::avs_registry::subscriber::AvsRegistryChainSubscriber;
+use crate::avs_registry::reader::AvsRegistryChainReaderTrait;
+use crate::avs_registry::subscriber::AvsRegistryChainSubscriberTrait;
+use crate::avs_registry::AvsRegistryContractManager;
 use crate::crypto::bls::{G1Point, G2Point};
 use crate::types::{operator_id_from_g1_pubkey, OperatorId, OperatorInfo, OperatorPubkeys, Socket};
+use crate::Config;
 
 use super::OperatorInfoServiceTrait;
 
 const DEFAULT_LOG_FILTER_QUERY_BLOCK_RANGE: u64 = 10_000;
 
-#[derive(Debug, Clone)]
-pub struct OperatorsInfoServiceInMemory<T, P>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone + 'static,
-{
+#[derive(Clone)]
+pub struct OperatorsInfoServiceInMemory<T: Config> {
     log_filter_query_block_range: u64,
-    avs_registry_subscriber: AvsRegistryChainSubscriber<T, P>,
-    avs_registry_reader: AvsRegistryChainReader<T, P>,
+    avs_registry_manager: AvsRegistryContractManager<T>,
     query_sender: Sender<Query>,
     pubkey_dict: Arc<Mutex<HashMap<Address, OperatorPubkeys>>>,
     operator_addr_to_id: Arc<Mutex<HashMap<Address, OperatorId>>>,
@@ -46,14 +43,9 @@ pub struct Resp {
     pub operator_exists: bool,
 }
 
-impl<T, P> OperatorsInfoServiceInMemory<T, P>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone + 'static,
-{
+impl<T: Config> OperatorsInfoServiceInMemory<T> {
     pub fn new(
-        avs_registry_subscriber: AvsRegistryChainSubscriber<T, P>,
-        avs_registry_reader: AvsRegistryChainReader<T, P>,
+        avs_registry_manager: AvsRegistryContractManager<T>,
         log_filter_query_block_range: Option<u64>,
     ) -> Self {
         let (query_sender, query_receiver) = mpsc::channel(100);
@@ -61,8 +53,7 @@ where
             log_filter_query_block_range.unwrap_or(DEFAULT_LOG_FILTER_QUERY_BLOCK_RANGE);
 
         let service = OperatorsInfoServiceInMemory {
-            avs_registry_subscriber,
-            avs_registry_reader,
+            avs_registry_manager,
             log_filter_query_block_range,
             query_sender,
             pubkey_dict: Arc::new(Mutex::new(HashMap::new())),
@@ -76,25 +67,24 @@ where
     }
 
     pub fn start_service_in_task(self, mut query_receiver: Receiver<Query>) {
-        let avs_registry_subscriber = self.avs_registry_subscriber.clone();
-        let avs_registry_reader = self.avs_registry_reader.clone();
+        let avs_registry_manager = self.avs_registry_manager.clone();
         let pubkey_dict = self.pubkey_dict.clone();
         let operator_addr_to_id = self.operator_addr_to_id.clone();
         let socket_dict = self.socket_dict.clone();
 
         task::spawn(async move {
-            let mut new_pubkey_registration_stream = avs_registry_subscriber
+            let mut new_pubkey_registration_stream = avs_registry_manager
                 .subscribe_to_new_pubkey_registrations()
                 .await
                 .unwrap();
-            let mut new_socket_registration_stream = avs_registry_subscriber
+            let mut new_socket_registration_stream = avs_registry_manager
                 .subscribe_to_operator_socket_updates()
                 .await
                 .unwrap();
 
             // Fill the pubkey_dict db with the operators and pubkeys found
-            if let Err(e) = query_past_registered_operator_events_and_fill_db::<T, P>(
-                &avs_registry_reader,
+            if let Err(e) = query_past_registered_operator_events_and_fill_db::<T>(
+                &avs_registry_manager,
                 &pubkey_dict,
                 &operator_addr_to_id,
                 &socket_dict,
@@ -201,22 +191,18 @@ where
     }
 }
 
-pub async fn query_past_registered_operator_events_and_fill_db<T, P>(
-    avs_registry_reader: &AvsRegistryChainReader<T, P>,
+pub async fn query_past_registered_operator_events_and_fill_db<T: Config>(
+    avs_registry_manager: &AvsRegistryContractManager<T>,
     pubkey_dict: &Arc<Mutex<HashMap<Address, OperatorPubkeys>>>,
     operator_addr_to_id: &Arc<Mutex<HashMap<Address, OperatorId>>>,
     socket_dict: &Arc<Mutex<HashMap<OperatorId, Socket>>>,
     log_filter_query_block_range: u64,
-) -> Result<(), String>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-{
-    let already_registered_operator_addrs = avs_registry_reader
+) -> Result<(), String> {
+    let already_registered_operator_addrs = avs_registry_manager
         .query_existing_registered_operator_pubkeys(0, 0, log_filter_query_block_range)
         .await
         .map_err(|e| e.to_string())?;
-    let sockets_map = avs_registry_reader
+    let sockets_map = avs_registry_manager
         .query_existing_registered_operator_sockets(0, 0, log_filter_query_block_range)
         .await
         .map_err(|e| e.to_string())?;
@@ -247,11 +233,7 @@ where
 }
 
 #[async_trait]
-impl<T, P> OperatorInfoServiceTrait for OperatorsInfoServiceInMemory<T, P>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-{
+impl<T: Config> OperatorInfoServiceTrait for OperatorsInfoServiceInMemory<T> {
     async fn get_operator_info(&self, operator_addr: Address) -> Option<OperatorInfo> {
         let (resp_sender, resp_receiver) = oneshot::channel();
         self.query_sender

@@ -9,8 +9,8 @@ use aws_sdk_kms::Client as KmsClient;
 use bls::KeyPair;
 use eigen_utils::avs_registry::subscriber::AvsRegistryChainSubscriber;
 use eigen_utils::crypto::bls::KeyPair;
-use eigen_utils::el_contracts::reader::ElReader;
-use eigen_utils::el_contracts::writer::ElWriter;
+use eigen_utils::el_contracts::reader::{ElChainReader, ElReader};
+use eigen_utils::el_contracts::writer::{ElChainWriter, ElWriter};
 use eigen_utils::node_api::NodeApi;
 use eigen_utils::services::bls_aggregation::SignedTaskResponseDigest;
 use eigen_utils::types::{AvsError, QuorumNum};
@@ -82,7 +82,7 @@ where
     node_api: NodeApi,
     avs_writer: AvsWriter<T, P>,
     avs_reader: AvsReader<T, P>,
-    avs_subscriber: AvsRegistryChainSubscriber<T, P>,
+    avs_subscriber: AvsSubscriber<T, P>,
     eigenlayer_reader: Arc<dyn ElReader<T, P>>,
     eigenlayer_writer: Arc<dyn ElWriter>,
     bls_keypair: KeyPair,
@@ -179,13 +179,27 @@ where
             &avs_and_eigen_metrics,
         )?;
 
+        let el_chain_reader = ElChainReader::build(
+            config.delegation_manager_addr,
+            config.avs_directory_addr,
+            config.strategy_manager_addr,
+            eth_rpc_client.clone(),
+        );
+
+        let el_chain_writer = ElChainWriter::build(
+            config.delegation_manager_addr,
+            config.avs_directory_addr,
+            config.strategy_manager_addr,
+            eth_rpc_client.clone(),
+        );
+
         let mut operator = Operator {
             config: config.clone(),
             node_api,
             eth_client: eth_rpc_client,
             avs_writer,
-            avs_reader: Arc::new(avs_reader),
-            avs_subscriber: Arc::new(avs_subscriber),
+            avs_reader: avs_reader,
+            avs_subscriber: avs_subscriber,
             eigenlayer_reader: sdk_clients.el_chain_reader.clone(),
             eigenlayer_writer: sdk_clients.el_chain_writer.clone(),
             bls_keypair,
@@ -196,15 +210,16 @@ where
             aggregator_rpc_client: Arc::new(aggregator_rpc_client),
             credible_squaring_service_manager_addr: config
                 .avs_registry_coordinator_address
-                .parse()?,
+                .parse()
+                .map_err(|e| OperatorError(e))?,
         };
 
-        if config.register_operator_on_startup {
-            operator.register_operator_on_startup(
-                operator_ecdsa_private_key,
-                config.token_strategy_addr.parse()?,
-            );
-        }
+        // if config.register_operator_on_startup {
+        //     operator.register_operator_on_startup(
+        //         operator_ecdsa_private_key,
+        //         config.token_strategy_addr.parse()?,
+        //     );
+        // }
 
         let operator_id = sdk_clients
             .avs_registry_chain_reader

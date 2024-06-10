@@ -262,6 +262,8 @@ pub enum AvsError {
     InvalidTwitterUrl,
     #[error("key errors")]
     KeyError(String),
+    #[error("operator errors")]
+    OperatorError(String),
     #[error("invalid url validation")]
     InvalidUrl(#[from] UrlError),
     #[error("invalid log decoding error")]

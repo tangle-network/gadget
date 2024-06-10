@@ -1,4 +1,4 @@
-use crate::types::*;
+use crate::{types::*, Config};
 
 use alloy_network::Ethereum;
 use alloy_primitives::FixedBytes;
@@ -12,6 +12,8 @@ use eigen_contracts::ISlasher;
 use eigen_contracts::IStrategy;
 use eigen_contracts::StrategyManager;
 use eigen_contracts::IERC20;
+
+use super::ElChainContractManager;
 // use crate::logging::Logger;
 
 #[async_trait]
@@ -65,71 +67,12 @@ where
     ) -> Result<FixedBytes<32>, AvsError>;
 }
 
-pub struct ElChainReader<T, P>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-{
-    slasher: ISlasher::ISlasherInstance<T, P>,
-    delegation_manager: DelegationManager::DelegationManagerInstance<T, P>,
-    strategy_manager: StrategyManager::StrategyManagerInstance<T, P>,
-    avs_directory: AVSDirectory::AVSDirectoryInstance<T, P>,
-    eth_client: P,
-}
-
-impl<T, P> ElChainReader<T, P>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-{
-    pub fn new(
-        slasher: ISlasher::ISlasherInstance<T, P>,
-        delegation_manager: DelegationManager::DelegationManagerInstance<T, P>,
-        strategy_manager: StrategyManager::StrategyManagerInstance<T, P>,
-        avs_directory: AVSDirectory::AVSDirectoryInstance<T, P>,
-        eth_client: P,
-    ) -> Self {
-        Self {
-            slasher,
-            delegation_manager,
-            strategy_manager,
-            avs_directory,
-
-            eth_client,
-        }
-    }
-
-    pub async fn build(
-        delegation_manager_addr: Address,
-        avs_directory_addr: Address,
-        strategy_manager_addr: Address,
-        eth_client: P,
-    ) -> Result<Self, AvsError> {
-        let delegation_manager =
-            DelegationManager::new(delegation_manager_addr, eth_client.clone());
-        let slash_addr = delegation_manager.slasher().call().await.map(|a| a._0)?;
-        let slasher = ISlasher::new(slash_addr, eth_client.clone());
-        let strategy_manager = StrategyManager::new(strategy_manager_addr, eth_client.clone());
-        let avs_directory = AVSDirectory::new(avs_directory_addr, eth_client.clone());
-        Ok(Self::new(
-            slasher,
-            delegation_manager,
-            strategy_manager,
-            avs_directory,
-            eth_client,
-        ))
-    }
-}
-
 #[async_trait]
-impl<T, P> ElReader<T, P> for ElChainReader<T, P>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-{
+impl<T: Config> ElReader<T::TH, T::PH> for ElChainContractManager<T> {
     async fn is_operator_registered(&self, operator: &Operator) -> Result<bool, AvsError> {
-        let is_operator = self
-            .delegation_manager
+        let delegation_manager =
+            DelegationManager::new(self.delegation_manager_addr, self.eth_client_http.clone());
+        let is_operator = delegation_manager
             .isOperator(operator.address)
             .call()
             .await
@@ -138,8 +81,9 @@ where
     }
 
     async fn get_operator_details(&self, operator: &Operator) -> Result<Operator, AvsError> {
-        let details = self
-            .delegation_manager
+        let delegation_manager =
+            DelegationManager::new(self.delegation_manager_addr, self.eth_client_http.clone());
+        let details = delegation_manager
             .operatorDetails(operator.address)
             .call()
             .await
@@ -156,8 +100,8 @@ where
     async fn get_strategy_and_underlying_token(
         &self,
         strategy_addr: Address,
-    ) -> Result<(IStrategy::IStrategyInstance<T, P>, Address), AvsError> {
-        let contract_strategy = IStrategy::new(strategy_addr, self.eth_client.clone());
+    ) -> Result<(IStrategy::IStrategyInstance<T::TH, T::PH>, Address), AvsError> {
+        let contract_strategy = IStrategy::new(strategy_addr, self.eth_client_http.clone());
         let underlying_token_addr = contract_strategy
             .underlyingToken()
             .call()
@@ -171,19 +115,20 @@ where
         strategy_addr: Address,
     ) -> Result<
         (
-            IStrategy::IStrategyInstance<T, P>,
-            IERC20::IERC20Instance<T, P>,
+            IStrategy::IStrategyInstance<T::TH, T::PH>,
+            IERC20::IERC20Instance<T::TH, T::PH>,
             Address,
         ),
         AvsError,
     > {
-        let contract_strategy = IStrategy::new(strategy_addr, self.eth_client.clone());
+        let contract_strategy = IStrategy::new(strategy_addr, self.eth_client_http.clone());
         let underlying_token_addr = contract_strategy
             .underlyingToken()
             .call()
             .await
             .map(|addr| addr._0)?;
-        let contract_underlying_token = IERC20::new(underlying_token_addr, self.eth_client.clone());
+        let contract_underlying_token =
+            IERC20::new(underlying_token_addr, self.eth_client_http.clone());
         Ok((
             contract_strategy,
             contract_underlying_token,
@@ -196,8 +141,8 @@ where
         operator_addr: Address,
         service_manager_addr: Address,
     ) -> Result<u32, AvsError> {
-        let until_block = self
-            .slasher
+        let slasher = ISlasher::new(self.slasher_addr, self.eth_client_http.clone());
+        let until_block = slasher
             .contractCanSlashOperatorUntilBlock(operator_addr, service_manager_addr)
             .call()
             .await
@@ -206,8 +151,8 @@ where
     }
 
     async fn operator_is_frozen(&self, operator_addr: Address) -> Result<bool, AvsError> {
-        let is_frozen = self
-            .slasher
+        let slasher = ISlasher::new(self.slasher_addr, self.eth_client_http.clone());
+        let is_frozen = slasher
             .isFrozen(operator_addr)
             .call()
             .await
@@ -220,8 +165,9 @@ where
         operator_addr: Address,
         strategy_addr: Address,
     ) -> Result<U256, AvsError> {
-        let shares = self
-            .delegation_manager
+        let delegation_manager =
+            DelegationManager::new(self.delegation_manager_addr, self.eth_client_http.clone());
+        let shares = delegation_manager
             .operatorShares(operator_addr, strategy_addr)
             .call()
             .await
@@ -237,8 +183,9 @@ where
         approver_salt: FixedBytes<32>,
         expiry: U256,
     ) -> Result<FixedBytes<32>, AvsError> {
-        let digest = self
-            .delegation_manager
+        let delegation_manager =
+            DelegationManager::new(self.delegation_manager_addr, self.eth_client_http.clone());
+        let digest = delegation_manager
             .calculateDelegationApprovalDigestHash(
                 staker,
                 operator,
@@ -259,8 +206,9 @@ where
         salt: FixedBytes<32>,
         expiry: U256,
     ) -> Result<FixedBytes<32>, AvsError> {
-        let digest = self
-            .avs_directory
+        let avs_directory =
+            AVSDirectory::new(self.avs_directory_addr, self.eth_client_http.clone());
+        let digest = avs_directory
             .calculateOperatorAVSRegistrationDigestHash(operator, avs, salt, expiry)
             .call()
             .await
