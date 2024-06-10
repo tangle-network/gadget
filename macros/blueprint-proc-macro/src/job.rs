@@ -49,7 +49,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     let result_type = args.result_to_field_types(result)?;
     let job_def = JobDefinition {
         metadata: JobMetadata {
-            name: fn_name_string.into(),
+            name: fn_name_string.clone().into(),
             description: if function_docs.is_empty() {
                 None
             } else {
@@ -77,7 +77,10 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         })?;
     // Generate the struct
     let gen = quote! {
+        #[doc = "Job definition for the function "]
+        #[doc = #fn_name_string]
         pub const #job_def_name: &str = #job_dev_str;
+
         #input
     };
 

@@ -12,7 +12,7 @@ blueprint! {
         version: "1.0.0",
         description: "My service description",
     ),
-    jobs: [keygen],
+    jobs: [],
     registration_hook: Evm("0x4838B106FCe9647Bdf1E7877BF73cE8B0BAD5f97"),
     registration_params: [Uint8],
     request_hook: None,
@@ -28,6 +28,7 @@ mod tests {
 
     #[test]
     fn generated_blueprint() {
+        eprintln!("{}", super::KEYGEN_JOB_DEF);
         eprintln!("{}", super::blueprint::BLUEPRINT);
     }
 }
