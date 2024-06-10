@@ -68,7 +68,6 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 #[proc_macro]
 pub fn blueprint(input: TokenStream) -> TokenStream {
-
     let input = proc_macro2::TokenStream::from(input);
     let input_str = format!("ServiceBlueprintRaw({input})");
     let ron = ron::Options::default().with_default_extension(ron::extensions::Extensions::all());

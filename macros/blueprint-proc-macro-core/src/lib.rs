@@ -79,7 +79,7 @@ impl<'de> serde::Deserialize<'de> for RawJobDefinition {
             }
         }
 
-        deserializer.deserialize_any(Visitor)
+        deserializer.deserialize_string(Visitor)
     }
 }
 

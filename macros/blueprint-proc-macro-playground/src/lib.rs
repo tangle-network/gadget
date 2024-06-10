@@ -1,6 +1,6 @@
 use gadget_blueprint_proc_macro::{blueprint, job};
 
-#[job(params(t, n), result(_))]
+#[job(params(n, t), result(_))]
 pub fn keygen(n: u16, t: u8) -> Vec<u8> {
     let _ = (n, t);
     vec![0; 33]
