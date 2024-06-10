@@ -24,10 +24,10 @@ pub mod work_manager;
 pub type TangleTransactionManager = Arc<dyn TanglePalletSubmitter>;
 
 pub struct TangleEnvironment {
-    subxt_config: SubxtConfig,
-    account_key: sr25519::Pair,
-    logger: DebugLogger,
-    pallet_tx: Arc<dyn TanglePalletSubmitter>,
+    pub subxt_config: SubxtConfig,
+    pub account_key: sr25519::Pair,
+    pub logger: DebugLogger,
+    pub pallet_tx: TangleTransactionManager,
 }
 
 impl std::fmt::Debug for TangleEnvironment {
@@ -85,7 +85,7 @@ impl GadgetEnvironment for TangleEnvironment {
                 })?;
 
         let pair_signer = PairSigner::new(self.account_key.clone());
-        let pallet_tx_submitter = SubxtPalletSubmitter::with_client(
+        let _pallet_tx_submitter = SubxtPalletSubmitter::with_client(
             subxt_client.clone(),
             pair_signer,
             self.logger.clone(),

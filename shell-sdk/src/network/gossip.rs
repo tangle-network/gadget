@@ -386,22 +386,31 @@ impl<Env: GadgetEnvironment> Network<Env> for GossipHandle {
 #[cfg(test)]
 #[cfg(not(target_family = "wasm"))]
 mod tests {
+    use std::sync::Arc;
+
     use crate::config::{KeystoreConfig, ShellConfig};
+    use crate::network::gossip::GossipHandle;
     use crate::network::setup::setup_libp2p_network;
     use crate::shell::wait_for_connection_to_bootnodes;
+    use async_trait::async_trait;
+    use gadget_common::client::TanglePalletSubmitter;
     use gadget_common::keystore::InMemoryBackend;
-    use gadget_common::prelude::{DebugLogger, Network};
+    use gadget_common::prelude::DebugLogger;
     use gadget_core::job_manager::WorkManagerInterface;
     use gadget_io::tokio;
+    use sp_application_crypto::sr25519;
     use sp_core::{ecdsa, Pair};
     use tangle_environment::gadget::SubxtConfig;
     use tangle_environment::message::TangleProtocolMessage;
+    use tangle_environment::work_manager::TangleWorkManager;
+    use tangle_environment::TangleEnvironment;
+    use tangle_primitives::jobs::JobId;
     use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 
     #[gadget_io::tokio::test]
     async fn test_gossip_network() {
         color_eyre::install().unwrap();
-        test_utils::setup_log();
+        tangle_test_utils::setup_log();
         const N_PEERS: usize = 3;
         let networks = vec!["/test-network".to_string()];
         let mut all_handles = Vec::new();
@@ -440,11 +449,20 @@ mod tests {
                 panic!("Invalid peer index");
             };
 
-            let shell_config = ShellConfig {
-                keystore: KeystoreConfig::InMemory,
-                subxt: SubxtConfig {
+            let pallet_tx = Arc::new(StubPalletTx);
+
+            let tangle_environment = TangleEnvironment {
+                subxt_config: SubxtConfig {
                     endpoint: url::Url::from_directory_path("/").unwrap(),
                 },
+                account_key: sr25519::Pair::generate().0,
+                logger: logger.clone(),
+                pallet_tx,
+            };
+
+            let shell_config = ShellConfig::<InMemoryBackend, TangleEnvironment> {
+                keystore: KeystoreConfig::InMemory,
+                environment: tangle_environment,
                 bind_ip: "127.0.0.1".parse().unwrap(),
                 bind_port,
                 bootnodes,
@@ -457,7 +475,7 @@ mod tests {
 
             let role_key = get_dummy_role_key_from_index(x);
 
-            let (handles, _) = setup_libp2p_network(
+            let (handles, _) = setup_libp2p_network::<_, TangleEnvironment>(
                 identity,
                 &shell_config,
                 logger.clone(),
@@ -487,10 +505,10 @@ mod tests {
         for _network in &networks {
             for (handles, _, _) in &all_handles {
                 for handle in handles.values() {
-                    handle
-                        .send_message(dummy_message_broadcast(b"Hello, world".to_vec()))
-                        .await
-                        .unwrap();
+                    <GossipHandle as gadget_common::prelude::Network<TangleEnvironment>>::send_message(
+                        handle,
+                        dummy_message_broadcast(b"Hello, world".to_vec()),
+                    ).await.unwrap()
                 }
             }
         }
@@ -500,7 +518,11 @@ mod tests {
             for (handles, _, logger) in &all_handles {
                 logger.debug("Waiting to receive broadcast messages ...");
                 for handle in handles.values() {
-                    let message = handle.next_message().await.unwrap();
+                    let message = <GossipHandle as gadget_common::prelude::Network<
+                        TangleEnvironment,
+                    >>::next_message(handle)
+                    .await
+                    .unwrap();
                     assert_eq!(message.payload, b"Hello, world");
                     assert_eq!(message.to_network_id, None);
                 }
@@ -518,10 +540,10 @@ mod tests {
                         .cloned()
                         .collect::<Vec<_>>();
                     for i in send_idxs {
-                        handle
-                            .send_message(dummy_message_p2p(b"Hello, world".to_vec(), i))
-                            .await
-                            .unwrap();
+                        <GossipHandle as gadget_common::prelude::Network<TangleEnvironment>>::send_message(
+                            handle,
+                            dummy_message_p2p(b"Hello, world".to_vec(), i),
+                        ).await.unwrap();
                     }
                 }
             }
@@ -534,7 +556,11 @@ mod tests {
                 for (my_idx, handle) in handles.values().enumerate() {
                     // Each party should receive two messages
                     for _ in 0..2 {
-                        let message = handle.next_message().await.unwrap();
+                        let message = <GossipHandle as gadget_common::prelude::Network<
+                            TangleEnvironment,
+                        >>::next_message(handle)
+                        .await
+                        .unwrap();
                         assert_eq!(message.payload, b"Hello, world");
                         assert_eq!(
                             message.to_network_id,
@@ -580,5 +606,26 @@ mod tests {
     fn get_dummy_role_key_from_index(index: usize) -> ecdsa::Pair {
         let seed = [0xcd + index as u8; 32];
         ecdsa::Pair::from_seed_slice(&seed).expect("valid seed")
+    }
+
+    struct StubPalletTx;
+
+    #[async_trait]
+    impl TanglePalletSubmitter for StubPalletTx {
+        async fn submit_job_result(
+            &self,
+            _role_type: gadget_common::tangle_runtime::RoleType,
+            _job_id: JobId,
+            _result: gadget_common::tangle_runtime::jobs::JobResult<
+                gadget_common::tangle_runtime::MaxParticipants,
+                gadget_common::tangle_runtime::MaxKeyLen,
+                gadget_common::tangle_runtime::MaxSignatureLen,
+                gadget_common::tangle_runtime::MaxDataLen,
+                gadget_common::tangle_runtime::MaxProofLen,
+                gadget_common::tangle_runtime::MaxAdditionalParamsLen,
+            >,
+        ) -> Result<(), gadget_common::Error> {
+            unreachable!("TangetPalletSubmitter::submit_job_result should not be called with a stub implementation `()` ")
+        }
     }
 }
