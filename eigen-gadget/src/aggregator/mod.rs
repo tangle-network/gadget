@@ -1,137 +1,178 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use alloy_primitives::U256;
-use alloy_provider::{network::Ethereum, Provider};
-use alloy_transport::Transport;
+use alloy_sol_types::SolType;
 use eigen_utils::{
-    avs_registry::reader::AvsRegistryChainReader,
+    node_api::tokiort::TokioIo,
     services::{
-        avs_registry::{chain_caller::AvsRegistryServiceChainCaller, AvsRegistryServiceTrait},
+        avs_registry::AvsRegistryServiceChainCaller,
         bls_aggregation::{
             BlsAggregationService, BlsAggregationServiceResponse, BlsAggregatorService,
         },
+        operator_info::OperatorInfoServiceTrait,
     },
-    types::TaskResponse,
+    types::{
+        bytes_to_quorum_ids, quorum_ids_to_bitmap, QuorumNum, QuorumThresholdPercentage, TaskIndex,
+    },
+    Config,
 };
-use tokio::sync::{mpsc, RwLock};
+use http_body_util::{BodyExt, Full};
+use hyper::{
+    body::{self, Body, Bytes},
+    server::conn::http1,
+    service::service_fn,
+    Request, Response,
+};
+use tokio::{
+    net::TcpListener,
+    sync::{
+        mpsc::{self, Receiver},
+        RwLock,
+    },
+    time::interval,
+};
 
 use crate::{
     avs::{
-        reader::AvsReader,
-        writer::AvsWriter,
-        IncredibleSquaringTaskManager::{self, Task},
-        SetupConfig,
+        writer::IncredibleSquaringWriter,
+        IncredibleSquaringContractManager,
+        IncredibleSquaringTaskManager::{self, Task, TaskResponse},
+        SetupConfig, SignedTaskResponse,
     },
+    get_task_response_digest,
     operator::OperatorError,
 };
 
-pub struct Aggregator<T, P, R>
+// Constants
+pub const TASK_CHALLENGE_WINDOW_BLOCK: u64 = 100;
+pub const BLOCK_TIME_SECONDS: u64 = 12;
+
+pub const QUORUM_THRESHOLD_NUMERATOR: u8 = 100;
+pub const QUORUM_THRESHOLD_DENOMINATOR: u8 = 100;
+pub const QUERY_FILTER_FROM_BLOCK: u64 = 1;
+
+// We only use a single quorum (quorum 0) for incredible squaring
+pub const QUORUM_NUMBERS: &[QuorumNum] = &[QuorumNum(0)];
+
+pub struct Aggregator<T, I>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-    R: AvsRegistryServiceTrait,
+    T: Config,
+    I: OperatorInfoServiceTrait,
 {
     server_ip_port_addr: String,
-    avs_writer: AvsWriter<T, P>,
-    bls_aggregation_service: BlsAggregatorService<R>,
+    incredible_squaring_contract_manager: IncredibleSquaringContractManager<T>,
+    bls_aggregation_service: BlsAggregatorService<T, I>,
+    bls_aggregation_responses: Receiver<BlsAggregationServiceResponse>,
     tasks: Arc<RwLock<HashMap<u32, Task>>>,
     task_responses: Arc<RwLock<HashMap<u32, HashMap<U256, TaskResponse>>>>,
 }
 
-impl<T, P, R> Aggregator<T, P, R>
+impl<T, I> Aggregator<T, I>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-    R: AvsRegistryServiceTrait,
+    T: Config,
+    I: OperatorInfoServiceTrait,
 {
-    pub async fn new(config: &SetupConfig<T, P>) -> Result<Self, OperatorError> {
-        let avs_writer = AvsWriter::from_config(config).await?;
-        let avs_reader = AvsRegistryChainReader::build(
+    pub async fn build(
+        config: &SetupConfig<T>,
+        operator_info_service: I,
+        server_ip_port_addr: String,
+    ) -> Result<Self, OperatorError> {
+        let incredible_squaring_contract_manager = IncredibleSquaringContractManager::build(
             config.registry_coordinator_addr,
             config.operator_state_retriever_addr,
-            config.eth_client,
+            config.eth_client_http.clone(),
+            config.eth_client_ws.clone(),
+            config.signer.clone(),
         )
-        .await;
-        let avs_chain_caller =
-            AvsRegistryServiceChainCaller::new(operator_info_service, avs_reader);
+        .await?;
+        let avs_chain_caller = AvsRegistryServiceChainCaller::build(
+            incredible_squaring_contract_manager.service_manager_addr,
+            config.registry_coordinator_addr,
+            config.operator_state_retriever_addr,
+            config.delegate_manager_addr,
+            config.avs_directory_addr,
+            config.eth_client_http.clone(),
+            config.eth_client_ws.clone(),
+            config.signer.clone(),
+            operator_info_service,
+        )
+        .await?;
         let (tx, rx) = mpsc::channel(100);
-        let bls_aggregation_service = BlsAggregatorService::new(tx);
+        let bls_aggregation_service = BlsAggregatorService::new(tx, avs_chain_caller);
 
         Ok(Self {
-            server_ip_port_addr: config.aggregator_server_ip_port_addr.clone(),
-            avs_writer,
+            server_ip_port_addr,
+            incredible_squaring_contract_manager,
             bls_aggregation_service,
+            bls_aggregation_responses: rx,
             tasks: Arc::new(RwLock::new(HashMap::new())),
             task_responses: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 
-    pub async fn start(
-        self: Arc<Self>,
-        ctx: tokio::sync::broadcast::Receiver<()>,
-    ) -> Result<(), OperatorError> {
-        let mut interval = interval(Duration::from_secs(10));
+    pub async fn start(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        log::info!("Starting aggregator.");
+        log::info!("Starting aggregator RPC server.");
+
+        // Start server in a separate task
+        tokio::spawn(async move { self.start_server().await.unwrap() });
+
+        let mut ticker = interval(Duration::from_secs(10));
+        log::info!("Aggregator set to send new task every 10 seconds...");
         let mut task_num = 0;
 
-        self.logger.info("Starting aggregator.");
-        self.logger.info("Starting aggregator rpc server.");
-        tokio::spawn(self.clone().start_server(ctx.clone()));
-
-        // Send the first task
+        // Send the first task immediately
         self.send_new_task(U256::from(task_num)).await?;
         task_num += 1;
 
         loop {
             tokio::select! {
-                _ = ctx.recv() => {
-                    return Ok(());
-                }
-                bls_agg_service_resp = self.bls_aggregation_service.get_response_channel().recv() => {
-                    match bls_agg_service_resp {
-                        Some(resp) => {
-                            self.send_aggregated_response_to_contract(resp).await;
-                        }
-                        None => break,
-                    }
-                }
-                _ = interval.tick() => {
-                    if let Err(err) = self.send_new_task(U256::from(task_num)).await {
-                        self.logger.error("Error sending new task", &err.to_string());
-                    }
+                _ = ticker.tick() => {
+                    self.send_new_task(U256::from(task_num)).await?;
                     task_num += 1;
+                }
+                bls_agg_service_resp = self.bls_aggregation_responses.recv() => {
+                    if let Some(bls_agg_service_resp) = bls_agg_service_resp {
+                        log::info!("Received response from blsAggregationService");
+                        let _ = self.send_aggregated_response_to_contract(bls_agg_service_resp).await;
+                    }
                 }
             }
         }
-
-        Ok(())
     }
 
-    async fn send_new_task(&self, num_to_square: U256) -> Result<(), OperatorError> {
-        self.logger
-            .info("Aggregator sending new task", &num_to_square.to_string());
-        let (new_task, task_index) = self
-            .avs_writer
+    async fn send_new_task(&self, num_to_square: U256) -> Result<(), Box<dyn std::error::Error>> {
+        log::info!(
+            "Aggregator sending new task with number to square: {:?}",
+            num_to_square
+        );
+
+        let (new_task, task_index): (Task, TaskIndex) = self
+            .incredible_squaring_contract_manager
             .send_new_task_number_to_square(
                 num_to_square,
                 QUORUM_THRESHOLD_NUMERATOR,
-                QUORUM_NUMBERS.to_vec(),
+                quorum_ids_to_bitmap(QUORUM_NUMBERS),
             )
             .await?;
 
-        {
-            let mut tasks = self.tasks.write().unwrap();
-            tasks.insert(task_index, new_task.clone());
-        }
+        self.tasks
+            .write()
+            .await
+            .insert(task_index, new_task.clone());
 
-        let quorum_threshold_percentages = vec![QUORUM_THRESHOLD_PERCENTAGE; QUORUM_NUMBERS.len()];
-        let time_to_expiry = Duration::from_secs(TASK_CHALLENGE_WINDOW_BLOCK * BLOCK_TIME_SECONDS);
+        let quorum_threshold_percentages =
+            vec![QuorumThresholdPercentage(QUORUM_THRESHOLD_NUMERATOR); QUORUM_NUMBERS.len()];
+        let task_time_to_expiry =
+            Duration::from_secs(TASK_CHALLENGE_WINDOW_BLOCK * BLOCK_TIME_SECONDS);
+
         self.bls_aggregation_service
             .initialize_new_task(
                 task_index,
-                new_task.task_created_block,
-                QUORUM_NUMBERS.to_vec(),
+                new_task.taskCreatedBlock,
+                quorum_ids_to_bitmap(QUORUM_NUMBERS),
                 quorum_threshold_percentages,
-                time_to_expiry,
+                task_time_to_expiry,
             )
             .await;
 
@@ -143,8 +184,7 @@ where
         bls_agg_service_resp: BlsAggregationServiceResponse,
     ) {
         if let Some(err) = bls_agg_service_resp.err {
-            self.logger
-                .error("BlsAggregationServiceResponse contains an error", &err);
+            log::error!("BlsAggregationServiceResponse contains an error: {}", err);
             return;
         }
 
@@ -167,41 +207,123 @@ where
             IncredibleSquaringTaskManager::NonSignerStakesAndSignature {
                 nonSignerPubkeys: non_signer_pubkeys,
                 quorumApks: quorum_apks,
-                apkG2: bls_agg_service_resp.signers_apk_g2,
-                sigma: bls_agg_service_resp.signers_agg_sig_g1,
+                apkG2: IncredibleSquaringTaskManager::G2Point {
+                    X: bls_agg_service_resp.signers_apk_g2.x,
+                    Y: bls_agg_service_resp.signers_apk_g2.y,
+                },
+                sigma: IncredibleSquaringTaskManager::G1Point {
+                    X: bls_agg_service_resp.signers_agg_sig_g1.g1_point.x,
+                    Y: bls_agg_service_resp.signers_agg_sig_g1.g1_point.y,
+                },
                 nonSignerQuorumBitmapIndices: bls_agg_service_resp.non_signer_quorum_bitmap_indices,
                 quorumApkIndices: bls_agg_service_resp.quorum_apk_indices,
                 totalStakeIndices: bls_agg_service_resp.total_stake_indices,
                 nonSignerStakeIndices: bls_agg_service_resp.non_signer_stake_indices,
             };
 
-        self.logger.info(
-            "Threshold reached. Sending aggregated response onchain.",
+        log::info!(
+            "Threshold reached. Sending aggregated response onchain. {}",
             &format!("task_index: {}", bls_agg_service_resp.task_index),
         );
 
         let task = {
-            let tasks = self.tasks.read().unwrap();
+            let tasks = self.tasks.read().await;
             tasks.get(&bls_agg_service_resp.task_index).cloned()
         };
 
         let task_response = {
-            let task_responses = self.task_responses.read().unwrap();
+            let task_responses = self.task_responses.read().await;
             task_responses
                 .get(&bls_agg_service_resp.task_index)
-                .and_then(|responses| responses.get(&bls_agg_service_resp.task_response_digest))
+                .and_then(|responses| {
+                    responses.get(&bls_agg_service_resp.task_response_digest.into())
+                })
                 .cloned()
         };
 
         if let (Some(task), Some(task_response)) = (task, task_response) {
             if let Err(err) = self
-                .avs_writer
+                .incredible_squaring_contract_manager
                 .send_aggregated_response(task, task_response, non_signer_stakes_and_signature)
                 .await
             {
-                self.logger
-                    .error("Aggregator failed to respond to task", &err.to_string());
+                log::error!("Aggregator failed to respond to task: {}", &err.to_string());
             }
+        }
+    }
+
+    async fn process_signed_task_response(
+        &self,
+        req: Request<body::Incoming>,
+    ) -> Result<Response<Full<Bytes>>, Box<dyn std::error::Error + Send + Sync>> {
+        let body_bytes = req.collect().await?.to_bytes();
+        let signed_task_response: SignedTaskResponse = serde_json::from_slice(&body_bytes)?;
+
+        log::info!("Received signed task response: {:?}", signed_task_response);
+
+        let task_response = IncredibleSquaringTaskManager::TaskResponse::abi_decode(
+            &signed_task_response.task_response,
+            true,
+        )?;
+        let task_index = task_response.referenceTaskIndex;
+        let task_response_digest = get_task_response_digest(&task_response);
+        let task_response_digest_u256 = U256::from_le_bytes(task_response_digest.0);
+
+        {
+            let mut task_responses = self.task_responses.write().await;
+            if !task_responses.contains_key(&task_index) {
+                task_responses.insert(task_index, HashMap::new());
+            }
+            let task_response_map = task_responses.get_mut(&task_index).unwrap();
+            if !task_response_map.contains_key(&task_response_digest_u256) {
+                task_response_map.insert(task_response_digest_u256, task_response);
+            }
+        }
+
+        self.bls_aggregation_service
+            .process_new_signature(
+                task_index,
+                task_response_digest.to_vec(),
+                signed_task_response.bls_signature,
+                signed_task_response.operator_id,
+            )
+            .await?;
+
+        Ok(Response::new(Full::new(Bytes::from(
+            "Task response processed successfully",
+        ))))
+    }
+
+    async fn start_server(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let listener = TcpListener::bind(self.server_ip_port_addr.clone())
+            .await
+            .unwrap();
+        log::info!("Starting server at {}", self.server_ip_port_addr);
+        loop {
+            let (stream, _) = listener.accept().await.unwrap();
+            let io = TokioIo::new(stream);
+            let aggregator = Arc::new(self.clone());
+            tokio::task::spawn(async move {
+                if let Err(err) = http1::Builder::new()
+                    .serve_connection(
+                        io,
+                        service_fn(move |req| {
+                            let aggregator = Arc::clone(&aggregator);
+                            async move {
+                                match req.uri().path() {
+                                    "/process_signed_task_response" => {
+                                        aggregator.process_signed_task_response(req).await
+                                    }
+                                    _ => Ok(Response::new(Full::new(Bytes::from("404 Not Found")))),
+                                }
+                            }
+                        }),
+                    )
+                    .await
+                {
+                    println!("Error serving connection: {:?}", err);
+                }
+            });
         }
     }
 }

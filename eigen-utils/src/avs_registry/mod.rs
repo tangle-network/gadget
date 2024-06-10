@@ -1,11 +1,7 @@
-use std::marker::PhantomData;
-
-use alloy_network::Ethereum;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
-use alloy_signer::Signer;
-use alloy_transport::Transport;
-use eigen_contracts::{BlsApkRegistry, RegistryCoordinator};
+
+use eigen_contracts::RegistryCoordinator;
 
 use crate::{el_contracts::ElChainContractManager, types::AvsError, Config};
 

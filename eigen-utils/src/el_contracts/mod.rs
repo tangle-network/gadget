@@ -1,8 +1,6 @@
-use alloy_network::Ethereum;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
-use alloy_signer::Signer;
-use alloy_transport::Transport;
+
 use eigen_contracts::DelegationManager;
 
 use crate::{types::AvsError, Config};

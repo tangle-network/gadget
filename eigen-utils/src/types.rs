@@ -1,6 +1,6 @@
 use alloy_primitives::Bytes;
 use alloy_primitives::{keccak256, Address, B256, U256};
-use alloy_rpc_types::error;
+
 use alloy_transport::RpcError;
 use alloy_transport::TransportErrorKind;
 
@@ -278,4 +278,8 @@ pub enum AvsError {
     RpcError(#[from] RpcError<TransportErrorKind>),
     #[error("bls aggregation error")]
     BlsAggregationError(#[from] BlsAggregationError),
+    #[error("reqwest error")]
+    ReqwestError(#[from] reqwest::Error),
+    #[error("serde json error")]
+    SerdeJsonError(#[from] serde_json::Error),
 }

@@ -1,18 +1,16 @@
-use alloy_network::Ethereum;
-use alloy_primitives::{Address, Bytes, B256, U256};
-use alloy_provider::Provider;
-use alloy_transport::Transport;
+use alloy_primitives::{Bytes, U256};
+
 use async_trait::async_trait;
 use eigen_contracts::OperatorStateRetriever;
 use std::collections::HashMap;
 
 use crate::avs_registry::reader::AvsRegistryChainReaderTrait;
-use crate::avs_registry::AvsRegistryContractManager;
+
 use crate::crypto::bls::G1Point;
 use crate::services::operator_info::OperatorInfoServiceTrait;
 use crate::types::{
-    bytes_to_quorum_ids, AvsError, OperatorAvsState, OperatorId, OperatorInfo, QuorumAvsState,
-    QuorumNum, QuorumNums,
+    bytes_to_quorum_ids, AvsError, OperatorAvsState, OperatorId, QuorumAvsState, QuorumNum,
+    QuorumNums,
 };
 use crate::Config;
 
@@ -31,7 +29,7 @@ where
     ) -> Result<HashMap<OperatorId, OperatorAvsState>, AvsError> {
         let mut operators_avs_state: HashMap<OperatorId, OperatorAvsState> = HashMap::new();
 
-        let operators_stakes_in_quorums = self
+        let operators_stakes_in_quorums: Vec<Vec<OperatorStateRetriever::Operator>> = self
             .avs_registry_manager
             .get_operators_stake_in_quorums_at_block(quorum_numbers.clone(), block_number)
             .await
@@ -53,14 +51,14 @@ where
                     operator_avs_state
                         .stake_per_quorum
                         .insert(quorum_num.clone(), operator_stake);
-                } else {
+                } else if let Some(operator_info) = info {
                     let mut stake_per_quorum = HashMap::new();
                     stake_per_quorum.insert(quorum_num.clone(), operator_stake);
                     operators_avs_state.insert(
                         operator.operatorId,
                         OperatorAvsState {
                             operator_id: operator.operatorId,
-                            operator_info: info,
+                            operator_info,
                             stake_per_quorum,
                             block_number: block_number.try_into().unwrap(),
                         },

@@ -1,8 +1,7 @@
-use alloy_network::Ethereum;
 use alloy_primitives::{Address, FixedBytes, Log, U256};
-use alloy_provider::Provider;
+
 use alloy_sol_types::SolEvent;
-use alloy_transport::Transport;
+
 use async_trait::async_trait;
 use eigen_contracts::{BlsApkRegistry, RegistryCoordinator};
 use std::collections::HashMap;
@@ -234,7 +233,10 @@ pub async fn query_past_registered_operator_events_and_fill_db<T: Config>(
 
 #[async_trait]
 impl<T: Config> OperatorInfoServiceTrait for OperatorsInfoServiceInMemory<T> {
-    async fn get_operator_info(&self, operator_addr: Address) -> Option<OperatorInfo> {
+    async fn get_operator_info(
+        &self,
+        operator_addr: Address,
+    ) -> Result<Option<OperatorInfo>, String> {
         let (resp_sender, resp_receiver) = oneshot::channel();
         self.query_sender
             .send(Query {
@@ -242,7 +244,8 @@ impl<T: Config> OperatorInfoServiceTrait for OperatorsInfoServiceInMemory<T> {
                 resp_sender,
             })
             .await
-            .unwrap();
-        resp_receiver.await.ok().map(|resp| resp.operator_info)
+            .map_err(|e| e.to_string())?;
+
+        Ok(resp_receiver.await.ok().map(|resp| resp.operator_info))
     }
 }

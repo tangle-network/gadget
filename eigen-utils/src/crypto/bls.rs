@@ -1,7 +1,7 @@
 /// https://hackmd.io/@jpw/bn254
 use alloy_primitives::U256;
 
-use ark_bn254::{g2, Bn254, Fq, Fr, G1Affine, G2Affine};
+use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::PrimeField;
 use ark_ff::{BigInt, QuadExtField, Zero};
@@ -12,7 +12,7 @@ use base64::prelude::*;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
 use rand::thread_rng;
-use scrypt::password_hash::{PasswordHash, PasswordHashString, PasswordHasher, Salt};
+use scrypt::password_hash::{PasswordHashString, Salt};
 use scrypt::{Params, Scrypt};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -271,7 +271,9 @@ pub fn ark_point_to_g2_point(pt: &G2Affine) -> G2Point {
     }
 }
 
-#[derive(Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(
+    Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize, Serialize, Deserialize,
+)]
 pub struct Signature {
     pub g1_point: G1Point,
 }
@@ -365,7 +367,7 @@ impl KeyPair {
             .unwrap();
         let crypto_struct = serde_json::json!({
             "encrypted_data": BASE64_STANDARD.encode(ciphertext),
-            "nonce": BASE64_STANDARD.encode(nonce.to_vec()),
+            "nonce": BASE64_STANDARD.encode(nonce),
             "password_hash": BASE64_STANDARD.encode(password_hash.hash.unwrap().as_bytes()),
         });
 

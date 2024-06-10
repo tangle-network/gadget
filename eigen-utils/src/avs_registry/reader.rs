@@ -1,14 +1,12 @@
-use alloy_network::Ethereum;
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::Filter;
-use alloy_transport::Transport;
+
 use ark_bn254::{Fq as Bn254Fq, G1Affine as Bn254G1Affine, G2Affine as Bn254G2Affine};
 use ark_ff::{BigInt, PrimeField};
 use eigen_contracts::RegistryCoordinator::OperatorSocketUpdate;
 use eigen_contracts::{BlsApkRegistry, OperatorStateRetriever, RegistryCoordinator, StakeRegistry};
 use std::collections::HashMap;
-use thiserror::Error;
 
 use crate::{types::*, Config};
 

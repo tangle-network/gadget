@@ -4,7 +4,8 @@ use crate::types::{
     bytes_to_quorum_ids, OperatorAvsState, OperatorId, QuorumNum, QuorumThresholdPercentage,
     TaskIndex, TaskResponse, TaskResponseDigest,
 };
-use alloy_primitives::{Bytes, U256};
+use crate::Config;
+use alloy_primitives::{keccak256, Bytes, U256};
 use async_trait::async_trait;
 
 use std::collections::{HashMap, HashSet};
@@ -13,6 +14,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
+
+use super::avs_registry::AvsRegistryServiceChainCaller;
+use super::operator_info::OperatorInfoServiceTrait;
 
 #[derive(Debug, Clone, Error)]
 pub enum BlsAggregationError {
@@ -103,20 +107,17 @@ pub trait BlsAggregationService {
         bls_signature: Signature,
         operator_id: OperatorId,
     ) -> Result<(), BlsAggregationError>;
-
-    fn get_response_channel(&mut self) -> mpsc::Receiver<BlsAggregationServiceResponse>;
 }
 
-pub type HashFn =
-    Arc<dyn Fn(TaskResponse) -> Result<TaskResponseDigest, BlsAggregationError> + Send + Sync>;
-pub struct BlsAggregatorService<R>
+#[derive(Clone)]
+pub struct BlsAggregatorService<T, I>
 where
-    R: AvsRegistryServiceTrait,
+    T: Config,
+    I: OperatorInfoServiceTrait,
 {
     aggregated_responses_tx: mpsc::Sender<BlsAggregationServiceResponse>,
     signed_task_resps_txs: Arc<Mutex<HashMap<TaskIndex, mpsc::Sender<SignedTaskResponseDigest>>>>,
-    avs_registry_service: R,
-    hash_function: HashFn,
+    avs_registry_service: AvsRegistryServiceChainCaller<T, I>,
 }
 
 #[derive(Debug)]
@@ -128,9 +129,10 @@ pub struct SignedTaskResponseDigest {
 }
 
 #[async_trait]
-impl<R> BlsAggregationService for BlsAggregatorService<R>
+impl<T, I> BlsAggregationService for BlsAggregatorService<T, I>
 where
-    R: AvsRegistryServiceTrait,
+    T: Config,
+    I: OperatorInfoServiceTrait,
 {
     async fn initialize_new_task(
         &self,
@@ -149,14 +151,12 @@ where
             .insert(task_index, tx);
 
         let avs_registry_service = self.avs_registry_service.clone();
-        let hash_function = Arc::clone(&self.hash_function);
         let aggregated_responses_tx = self.aggregated_responses_tx.clone();
         let signed_task_resps_txs = Arc::clone(&self.signed_task_resps_txs);
 
         tokio::spawn(async move {
             let service_clone = BlsAggregatorService {
                 avs_registry_service,
-                hash_function,
                 aggregated_responses_tx,
                 signed_task_resps_txs,
             };
@@ -218,28 +218,21 @@ where
             ))
         }
     }
-
-    fn get_response_channel(&mut self) -> mpsc::Receiver<BlsAggregationServiceResponse> {
-        let (tx, rx) = mpsc::channel(100);
-        self.aggregated_responses_tx = tx;
-        rx
-    }
 }
 
-impl<R> BlsAggregatorService<R>
+impl<T, I> BlsAggregatorService<T, I>
 where
-    R: AvsRegistryServiceTrait,
+    T: Config,
+    I: OperatorInfoServiceTrait,
 {
     pub fn new(
         aggregated_responses_tx: mpsc::Sender<BlsAggregationServiceResponse>,
-        avs_registry_service: R,
-        hash_function: HashFn,
+        avs_registry_service: AvsRegistryServiceChainCaller<T, I>,
     ) -> Self {
         Self {
             aggregated_responses_tx,
             signed_task_resps_txs: Arc::new(Mutex::new(HashMap::new())),
             avs_registry_service,
-            hash_function,
         }
     }
 
@@ -415,9 +408,7 @@ where
                 )
             })?;
 
-        let task_response_digest =
-            (self.hash_function)(signed_task_response_digest.task_response.clone())
-                .map_err(|e| BlsAggregationError::HashFunctionError(e.to_string()))?;
+        let task_response_digest = keccak256(&signed_task_response_digest.task_response);
 
         let operator_g2_pubkey = &operator_avs_state.operator_info.pubkeys.g2_pubkey;
 

@@ -1,35 +1,37 @@
 use alloy_core::{bls, core::U256, txmgr, wallet};
-use alloy_primitives::{Address, U256};
+use alloy_primitives::{Address, FixedBytes, U256};
 use alloy_provider::network::Ethereum;
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rpc_client::WsConnect;
+use alloy_rpc_types::Log;
 use alloy_signer_wallet::Wallet;
+use alloy_sol_types::SolValue;
 use alloy_transport::Transport;
 use aws_sdk_kms::Client as KmsClient;
 use bls::KeyPair;
+use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
 use eigen_utils::avs_registry::subscriber::AvsRegistryChainSubscriber;
+use eigen_utils::avs_registry::AvsRegistryContractManager;
 use eigen_utils::crypto::bls::KeyPair;
-use eigen_utils::el_contracts::reader::{ElChainReader, ElReader};
-use eigen_utils::el_contracts::writer::{ElChainWriter, ElWriter};
+use eigen_utils::el_contracts::ElChainContractManager;
 use eigen_utils::node_api::NodeApi;
 use eigen_utils::services::bls_aggregation::SignedTaskResponseDigest;
-use eigen_utils::types::{AvsError, QuorumNum};
-use log::{error, info};
+use eigen_utils::services::operator_info::in_memory::OperatorsInfoServiceInMemory;
+use eigen_utils::services::operator_info::OperatorInfoServiceTrait;
+use eigen_utils::types::AvsError;
+use eigen_utils::Config;
+use log::error;
 use prometheus::Registry;
-use reqwest::Url;
-use std::collections::HashMap;
-use std::env;
-use std::marker::PhantomData;
-use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
-use std::time::Duration;
 use thiserror::Error;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
-use crate::avs::reader::AvsReader;
-use crate::avs::subscriber::AvsSubscriber;
-use crate::avs::writer::AvsWriter;
-use crate::avs::IncredibleSquaringTaskManager;
+use crate::aggregator::Aggregator;
+use crate::avs::subscriber::IncredibleSquaringSubscriber;
+use crate::avs::{IncredibleSquaringContractManager, IncredibleSquaringTaskManager, SetupConfig};
+use crate::get_task_response_digest;
+use crate::rpc_client::AggregatorRpcClient;
 
 const AVS_NAME: &str = "incredible-squaring";
 const SEM_VER: &str = "0.0.1";
@@ -68,68 +70,68 @@ pub enum OperatorError {
     AvsSdkError(#[from] AvsError),
     #[error("Wallet error")]
     WalletError(#[from] alloy_signer_wallet::WalletError),
+    #[error("Node API error: {0}")]
+    NodeApiError(String),
 }
 
-pub struct Operator<T, P>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-{
+pub struct Operator<T: Config, I: OperatorInfoServiceTrait> {
     config: NodeConfig,
-    eth_client: P,
     // metrics_reg: Registry,
     // metrics: Metrics,
     node_api: NodeApi,
-    avs_writer: AvsWriter<T, P>,
-    avs_reader: AvsReader<T, P>,
-    avs_subscriber: AvsSubscriber<T, P>,
-    eigenlayer_reader: Arc<dyn ElReader<T, P>>,
-    eigenlayer_writer: Arc<dyn ElWriter>,
+    avs_registry_contract_manager: AvsRegistryContractManager<T>,
+    incredible_squaring_contract_manager: IncredibleSquaringContractManager<T>,
+    eigenlayer_contract_manager: ElChainContractManager<T>,
     bls_keypair: KeyPair,
-    operator_id: [u8; 32],
+    operator_id: FixedBytes<32>,
     operator_addr: Address,
-    new_task_created_chan: mpsc::Sender<IncredibleSquaringTaskManager::NewTaskCreated>,
     aggregator_server_ip_port_addr: String,
-    // aggregator_rpc_client: Arc<dyn AggregatorRpcClienter>,
-    credible_squaring_service_manager_addr: Address,
+    aggregator_rpc_client: AggregatorRpcClient,
 }
 
 #[derive(Debug, Clone)]
 pub struct NodeConfig {
     pub node_api_ip_port_address: String,
-    pub eth_rpc_url: String,
-    pub eth_ws_url: String,
+    pub enable_node_api: bool,
+    // pub eth_rpc_url: String,
+    // pub eth_ws_url: String,
     pub bls_private_key_store_path: String,
     pub ecdsa_private_key_store_path: String,
-    pub avs_registry_coordinator_address: String,
-    pub operator_state_retriever_address: String,
+    pub incredible_squaring_service_manager_addr: String,
+    pub avs_registry_coordinator_addr: String,
+    pub operator_state_retriever_addr: String,
+    pub delegation_manager_addr: String,
+    pub avs_directory_addr: String,
     pub eigen_metrics_ip_port_address: String,
+    pub server_ip_port_address: String,
     pub operator_address: String,
     pub enable_metrics: bool,
 }
 
-impl<T, P> Operator<T, P>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone,
-{
-    pub async fn new_from_config(config: NodeConfig) -> Result<Self, OperatorError> {
+impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
+    pub async fn new_from_config(
+        config: NodeConfig,
+        eth_client_http: T::PH,
+        eth_client_ws: T::PW,
+        operator_info_service: I,
+        signer: T::S,
+    ) -> Result<Self, OperatorError> {
         let metrics_reg = Registry::new();
         // let avs_and_eigen_metrics = Metrics::new(AVS_NAME, eigen_metrics, &metrics_reg);
 
         let node_api = NodeApi::new(AVS_NAME, SEM_VER, &config.node_api_ip_port_address);
 
-        let eth_rpc_client = ProviderBuilder::default()
-            .with_recommended_fillers()
-            .on_http(
-                Url::parse(&config.eth_rpc_url)
-                    .map_err(|e| OperatorError::HttpEthClientError(e.to_string()))?,
-            );
-        let eth_ws_client = ProviderBuilder::default()
-            .with_recommended_fillers()
-            .on_ws(WsConnect::new(&config.eth_ws_url))
-            .await
-            .map_err(|e| AvsError::from(e))?;
+        // let eth_rpc_client = ProviderBuilder::default()
+        //     .with_recommended_fillers()
+        //     .on_http(
+        //         Url::parse(&config.eth_rpc_url)
+        //             .map_err(|e| OperatorError::HttpEthClientError(e.to_string()))?,
+        //     );
+        // let eth_ws_client = ProviderBuilder::default()
+        //     .with_recommended_fillers()
+        //     .on_ws(WsConnect::new(&config.eth_ws_url))
+        //     .await
+        //     .map_err(|e| AvsError::from(e))?;
 
         let bls_key_password =
             std::env::var("OPERATOR_BLS_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
@@ -139,79 +141,85 @@ where
         )
         .map_err(|e| OperatorError::from(e))?;
 
-        let chain_id = eth_rpc_client
+        let chain_id = eth_client_http
             .get_chain_id()
             .await
             .map_err(|e| OperatorError::ChainIdError(e.to_string()))?;
 
-        let ecdsa_key_password =
-            std::env::var("OPERATOR_ECDSA_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
-        let keystore_file_path = PathBuf::from(
-            env::var("CARGO_MANIFEST_DIR").map_err(|e| AvsError::KeyError(e.to_string()))?,
-        )
-        .join(config.ecdsa_private_key_store_path);
-        let signer = Wallet::decrypt_keystore(keystore_file_path, ecdsa_key_password)?;
-        let alice = signer.address();
+        // let ecdsa_key_password =
+        //     std::env::var("OPERATOR_ECDSA_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
+        // let keystore_file_path = PathBuf::from(
+        //     env::var("CARGO_MANIFEST_DIR").map_err(|e| AvsError::KeyError(e.to_string()))?,
+        // )
+        // .join(config.ecdsa_private_key_store_path);
+        // let signer = Wallet::decrypt_keystore(keystore_file_path, ecdsa_key_password)?;
 
-        let avs_writer = AvsWriter::build(
-            &config.avs_registry_coordinator_address,
-            &config.operator_state_retriever_address,
-            eth_rpc_client.clone(),
+        let setup_config = SetupConfig {
+            registry_coordinator_addr: Address::from_str(&config.avs_registry_coordinator_addr)
+                .unwrap(),
+            operator_state_retriever_addr: Address::from_str(&config.operator_state_retriever_addr)
+                .unwrap(),
+            delegate_manager_addr: Address::from_str(&config.delegation_manager_addr).unwrap(),
+            avs_directory_addr: Address::from_str(&config.avs_directory_addr).unwrap(),
+            eth_client_http: eth_client_http.clone(),
+            eth_client_ws: eth_client_ws.clone(),
+            signer: signer.clone(),
+        };
+
+        let incredible_squaring_contract_manager = IncredibleSquaringContractManager::build(
+            setup_config.registry_coordinator_addr,
+            setup_config.operator_state_retriever_addr,
+            eth_client_http.clone(),
+            eth_client_ws.clone(),
+            signer.clone(),
         )
         .await?;
 
-        let avs_reader = AvsReader::build(
-            &config.avs_registry_coordinator_address,
-            &config.operator_state_retriever_address,
-            eth_rpc_client.clone(),
+        let avs_registry_contract_manager = AvsRegistryContractManager::build(
+            Address::from_str(&config.incredible_squaring_service_manager_addr).unwrap(),
+            setup_config.registry_coordinator_addr,
+            setup_config.operator_state_retriever_addr,
+            setup_config.delegate_manager_addr,
+            setup_config.avs_directory_addr,
+            eth_client_http.clone(),
+            eth_client_ws.clone(),
+            signer.clone(),
         )
         .await?;
 
-        let avs_subscriber = AvsSubscriber::build(
-            &config.avs_registry_coordinator_address,
-            &config.operator_state_retriever_address,
-            eth_ws_client.clone(),
+        // let aggregator = Aggregator::build(
+        //     &setup_config,
+        //     operator_info_service,
+        //     config.server_ip_port_address.clone(),
+        // )
+        // .await?;
+        let aggregator_rpc_client = AggregatorRpcClient::new(config.server_ip_port_address.clone());
+
+        let eigenlayer_contract_manager = ElChainContractManager::build(
+            setup_config.delegate_manager_addr,
+            setup_config.avs_directory_addr,
+            eth_client_http.clone(),
+            eth_client_ws.clone(),
+            signer.clone(),
         )
         .await?;
 
-        let aggregator_rpc_client = AggregatorRpcClient::new(
-            &config.aggregator_server_ip_port_address,
-            &avs_and_eigen_metrics,
-        )?;
+        let operator_addr = Address::from_str(&config.operator_address).unwrap();
+        let operator_id = avs_registry_contract_manager
+            .get_operator_id(operator_addr)
+            .await?;
 
-        let el_chain_reader = ElChainReader::build(
-            config.delegation_manager_addr,
-            config.avs_directory_addr,
-            config.strategy_manager_addr,
-            eth_rpc_client.clone(),
-        );
-
-        let el_chain_writer = ElChainWriter::build(
-            config.delegation_manager_addr,
-            config.avs_directory_addr,
-            config.strategy_manager_addr,
-            eth_rpc_client.clone(),
-        );
-
-        let mut operator = Operator {
+        let operator = Operator {
             config: config.clone(),
             node_api,
-            eth_client: eth_rpc_client,
-            avs_writer,
-            avs_reader: avs_reader,
-            avs_subscriber: avs_subscriber,
-            eigenlayer_reader: sdk_clients.el_chain_reader.clone(),
-            eigenlayer_writer: sdk_clients.el_chain_writer.clone(),
+            avs_registry_contract_manager,
+            incredible_squaring_contract_manager,
+            eigenlayer_contract_manager,
             bls_keypair,
-            operator_id: [0u8; 32], // this is set below
-            operator_addr: config.operator_address.parse()?,
-            new_task_created_chan: mpsc::channel(100).0,
-            aggregator_server_ip_port_addr: config.aggregator_server_ip_port_address.clone(),
-            aggregator_rpc_client: Arc::new(aggregator_rpc_client),
-            credible_squaring_service_manager_addr: config
-                .avs_registry_coordinator_address
-                .parse()
-                .map_err(|e| OperatorError(e))?,
+            operator_id,
+            operator_addr,
+            aggregator_server_ip_port_addr: config.server_ip_port_address.clone(),
+            aggregator_rpc_client,
         };
 
         // if config.register_operator_on_startup {
@@ -220,11 +228,6 @@ where
         //         config.token_strategy_addr.parse()?,
         //     );
         // }
-
-        let operator_id = sdk_clients
-            .avs_registry_chain_reader
-            .get_operator_id(&operator.operator_addr)?;
-        operator.operator_id = operator_id;
 
         log::info!("Operator info: operatorId={}, operatorAddr={}, operatorG1Pubkey={}, operatorG2Pubkey={}",
             hex::encode(operator_id),
@@ -238,8 +241,9 @@ where
 
     pub async fn start(&self) -> Result<(), OperatorError> {
         let operator_is_registered = self
-            .avs_reader
-            .is_operator_registered(&self.operator_addr)?;
+            .avs_registry_contract_manager
+            .is_operator_registered(self.operator_addr)
+            .await?;
         if !operator_is_registered {
             return Err(OperatorError::OperatorNotRegistered);
         }
@@ -247,29 +251,22 @@ where
         log::info!("Starting operator.");
 
         if self.config.enable_node_api {
-            self.node_api.start();
+            if let Err(e) = self.node_api.start().await {
+                return Err(OperatorError::NodeApiError(e.to_string()));
+            }
         }
 
         let mut sub = self
-            .avs_subscriber
-            .subscribe_to_new_tasks(self.new_task_created_chan.clone());
+            .incredible_squaring_contract_manager
+            .subscribe_to_new_tasks()
+            .await?;
 
         loop {
             tokio::select! {
-                _ = ctx.done() => {
-                    return Ok(());
-                },
-                Some(err) = metrics_err_chan.next() => {
-                    log::fatal!(&format!("Error in metrics server: {}", err));
-                },
-                Some(err) = sub.err() => {
-                    log::error!(&format!("Error in websocket subscription: {}", err));
-                    sub.unsubscribe();
-                    sub = self.avs_subscriber.subscribe_to_new_tasks(self.new_task_created_chan.clone());
-                },
-                Some(new_task_created_log) = self.new_task_created_chan.recv() => {
-                    self.metrics.inc_num_tasks_received();
-                    let task_response = self.process_new_task_created_log(&new_task_created_log);
+                Ok(new_task_created_log) = sub.recv() => {
+                    // self.metrics.inc_num_tasks_received();
+                    let log: Log<IncredibleSquaringTaskManager::NewTaskCreated> = new_task_created_log.log_decode().unwrap();
+                    let task_response = self.process_new_task_created_log(&log);
                     if let Ok(signed_task_response) = self.sign_task_response(&task_response) {
                         tokio::spawn(self.aggregator_rpc_client.send_signed_task_response_to_aggregator(signed_task_response));
                     }
@@ -280,19 +277,23 @@ where
 
     fn process_new_task_created_log(
         &self,
-        new_task_created_log: &IncredibleSquaringTaskManager::NewTaskCreated,
+        new_task_created_log: &Log<IncredibleSquaringTaskManager::NewTaskCreated>,
     ) -> IncredibleSquaringTaskManager::TaskResponse {
         log::debug!("Received new task: {:?}", new_task_created_log);
         log::info!("Received new task: numberToBeSquared={}, taskIndex={}, taskCreatedBlock={}, quorumNumbers={}, QuorumThresholdPercentage={}",
-            new_task_created_log.task.numberToBeSquared,
-            new_task_created_log.taskIndex,
-            new_task_created_log.task.taskCreatedBlock,
-            new_task_created_log.task.quorumNumbers,
-            new_task_created_log.task.quorumThresholdPercentage
+            new_task_created_log.inner.task.numberToBeSquared,
+            new_task_created_log.inner.taskIndex,
+            new_task_created_log.inner.task.taskCreatedBlock,
+            new_task_created_log.inner.task.quorumNumbers,
+            new_task_created_log.inner.task.quorumThresholdPercentage
         );
-        let number_squared = new_task_created_log.task.numberToBeSquared.pow(2);
+        let number_squared = new_task_created_log
+            .inner
+            .task
+            .numberToBeSquared
+            .pow(U256::from(2));
         IncredibleSquaringTaskManager::TaskResponse {
-            referenceTaskIndex: new_task_created_log.taskIndex,
+            referenceTaskIndex: new_task_created_log.inner.taskIndex,
             numberSquared: number_squared,
         }
     }
@@ -301,16 +302,16 @@ where
         &self,
         task_response: &IncredibleSquaringTaskManager::TaskResponse,
     ) -> Result<SignedTaskResponseDigest, OperatorError> {
-        let task_response_hash = core::get_task_response_digest(task_response)
-            .map_err(|e| OperatorError::TaskResponseHeaderHashError(e.to_string()))?;
+        let task_response_hash = get_task_response_digest(task_response);
         let bls_signature = self.bls_keypair.sign_message(&task_response_hash);
+        let (tx_res, rx_res) = oneshot::channel();
         let signed_task_response = SignedTaskResponseDigest {
-            task_response: task_response.clone(),
+            task_response: task_response.abi_encode(),
             bls_signature,
             operator_id: self.operator_id,
-            signature_verification_error_tx: todo!(),
+            signature_verification_error_tx: tx_res,
         };
-        log::debug!(&format!("Signed task response: {:?}", signed_task_response));
+        log::debug!("Signed task response: {:?}", signed_task_response);
         Ok(signed_task_response)
     }
 }

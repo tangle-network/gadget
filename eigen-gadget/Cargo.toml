@@ -30,10 +30,14 @@ eigen-utils.workspace = true
 gadget-aws-kms.workspace = true
 # gadget-common = { workspace = true, features = ["tangle-testnet"] }
 
+http-body-util.workspace = true
+hyper = { workspace = true, features = ["full"] }
 hex.workspace = true
 k256.workspace = true
 log.workspace = true
 prometheus.workspace = true
 reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

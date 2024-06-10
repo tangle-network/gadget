@@ -5,14 +5,10 @@ use hyper::{
     service::service_fn,
     Method, Request, Response, StatusCode,
 };
-use log::{error, info};
+
 use serde::Serialize;
 use serde_json::json;
-use std::{
-    convert::Infallible,
-    net::SocketAddr,
-    sync::{Arc, Mutex},
-};
+use std::{convert::Infallible, net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
 
 use self::tokiort::TokioIo;
@@ -98,11 +94,8 @@ impl NodeApi {
         Err(format!("Service with serviceId {} not found", service_id))
     }
 
-    pub async fn start(
-        self,
-        addr: SocketAddr,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let listener = TcpListener::bind(addr).await.unwrap();
+    pub async fn start(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let listener = TcpListener::bind(&self.ip_port_address).await?;
         loop {
             let (stream, _) = listener.accept().await.unwrap();
             let io = TokioIo::new(stream);

@@ -10,7 +10,7 @@ use eigen_contracts::AVSDirectory;
 use eigen_contracts::DelegationManager;
 use eigen_contracts::ISlasher;
 use eigen_contracts::IStrategy;
-use eigen_contracts::StrategyManager;
+
 use eigen_contracts::IERC20;
 
 use super::ElChainContractManager;

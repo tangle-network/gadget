@@ -1,6 +1,7 @@
 use alloy_primitives::{Address, Bytes, FixedBytes, B256};
 use async_trait::async_trait;
 use eigen_contracts::OperatorStateRetriever;
+use futures::TryFutureExt;
 use std::collections::HashMap;
 
 use crate::{
@@ -79,7 +80,7 @@ where
         })
     }
 
-    async fn get_operator_info(&self, operator_id: B256) -> Result<OperatorInfo, AvsError> {
+    async fn get_operator_info(&self, operator_id: B256) -> Result<Option<OperatorInfo>, AvsError> {
         let operator_addr = self
             .avs_registry_manager
             .get_operator_from_id(operator_id)
@@ -94,6 +95,6 @@ where
         self.operator_info_service
             .get_operator_info(operator_addr)
             .await
-            .ok_or_else(|| AvsError::OperatorError(format!("Failed to get operator info from operatorInfoService (operatorAddr: {:?}, operatorId: {:?})", operator_addr, operator_id)))
+            .map_err(|e| AvsError::OperatorError(format!("Failed to get operator info from operatorInfoService (operatorAddr: {:?}, operatorId: {:?}): {}", operator_addr, operator_id, e)))
     }
 }

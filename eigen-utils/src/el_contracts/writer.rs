@@ -1,13 +1,10 @@
 use crate::types::*;
 use crate::Config;
 
-use alloy_network::Ethereum;
-use alloy_network::EthereumSigner;
-
 use alloy_primitives::{Address, U256};
-use alloy_provider::Provider;
+
 use alloy_rpc_types::TransactionReceipt;
-use alloy_transport::Transport;
+
 use async_trait::async_trait;
 
 use eigen_contracts::DelegationManager;
