@@ -4,11 +4,14 @@ use failure::format_err;
 use nix::libc::pid_t;
 use nix::sys::signal;
 use nix::sys::signal::Signal;
-use procfs::process::Process;
-use procfs::ProcError;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::time::Duration;
+use sysinfo::ProcessStatus::{
+    Dead, Idle, LockBlocked, Parked, Run, Sleep, Stop, Tracing, UninterruptibleDiskSleep, Unknown,
+    Wakekill, Waking, Zombie,
+};
+use sysinfo::{Pid, ProcessStatus, System};
 use tokio::io::{BufReader, Lines};
 pub use tokio::process::Child;
 use tokio::time::timeout;
@@ -36,10 +39,13 @@ impl GadgetProcess {
         output: Vec<String>,
         stream: Lines<BufReader<tokio::process::ChildStdout>>,
     ) -> Result<GadgetProcess, Box<dyn Error>> {
-        let process_name = Process::new(pid.ok_or("PID does not exist")? as i32)?
-            .status()?
-            .name;
-        let pid = pid.ok_or("PID does not exist")?;
+        let s = System::new_all();
+        let pid = pid.ok_or("No PID found")?;
+        let process_name = s
+            .process(Pid::from_u32(pid))
+            .ok_or(format!("Process {pid} doesn't exist"))?
+            .name()
+            .to_string();
         Ok(GadgetProcess {
             command,
             process_name,
@@ -113,23 +119,20 @@ impl GadgetProcess {
     /// Restart a GadgetProcess, killing the previously running process if it exists. Returns the new GadgetProcess
     pub(crate) async fn restart_process(&mut self) -> Result<GadgetProcess, Box<dyn Error>> {
         // Kill current process running this command
-        // let status = Process::new(self.pid as i32)?.status()?;
-        match Process::new(self.pid as i32) {
-            Ok(process) => {
-                let status = process.status()?;
-                if status.name == self.process_name {
+        let s = System::new_all();
+        match s.process(Pid::from_u32(self.pid)) {
+            Some(process) => {
+                if process.name() == self.process_name {
                     self.kill()?;
                 }
             }
-            Err(err) => {
-                if matches!(err, ProcError::NotFound(_)) {
-                    // No need to worry, the previously running process died
-                    // TODO: Log
-                    println!("LOG : Process restart attempt yielded error {:?}", err);
-                } else {
-                    println!("ERROR : Process restart attempt yielded error {:?}", err);
-                    return Err(err.into());
-                }
+            None => {
+                // No need to worry, the previously running process died
+                // TODO: Log
+                println!(
+                    "LOG : Process restart attempt found no process for PID {:?}",
+                    self.pid
+                );
             }
         }
         run_command!(&self.command.clone())
@@ -137,23 +140,12 @@ impl GadgetProcess {
 
     /// Checks the status of this GadgetProcess
     pub(crate) fn status(&self) -> Result<Status, Box<dyn Error>> {
-        match Process::new(self.pid as i32) {
-            Ok(process) => {
-                let status = process.stat()?;
-                Ok(Status::from(status.state))
-            }
-            Err(err) => {
-                if matches!(err, ProcError::NotFound(_)) {
-                    // If it isn't found, then the process died
-                    Ok(Status::Dead)
-                } else {
-                    // If there is an error, then
-                    println!(
-                        "ERROR : Status check on process {} yielded {:?}",
-                        self.pid, err
-                    );
-                    Err(err.into())
-                }
+        let s = System::new_all();
+        match s.process(Pid::from_u32(self.pid)) {
+            Some(process) => Ok(Status::from(process.status())),
+            None => {
+                // If it isn't found, then the process died
+                Ok(Status::Dead)
             }
         }
     }
@@ -161,13 +153,17 @@ impl GadgetProcess {
     /// Gets process name by PID
     #[allow(dead_code)]
     pub(crate) fn get_name(&self) -> Result<String, Box<dyn Error>> {
-        let status = Process::new(self.pid as i32)?.status()?;
-        Ok(status.name)
+        let s = System::new_all();
+        let name = s
+            .process(Pid::from_u32(self.pid))
+            .ok_or(format!("Process {} doesn't exist", self.pid))?
+            .name();
+        Ok(name.into())
     }
 
     /// Terminates the process depicted by this GadgetProcess - will fail if the PID is now being reused
     pub(crate) fn kill(&self) -> Result<(), Box<dyn Error>> {
-        let running_process = Process::new(self.pid as i32)?.status()?.name;
+        let running_process = self.get_name()?;
         if running_process == self.process_name {
             Ok(signal::kill(
                 nix::unistd::Pid::from_raw(self.pid as pid_t),
@@ -205,17 +201,17 @@ pub(crate) enum Status {
     /// Zombie process
     Dead,
     /// Other or invalid status - if this occurs, something is likely wrong
-    Unknown,
+    Unknown(String),
 }
 
-impl From<char> for Status {
-    fn from(value: char) -> Status {
+impl From<ProcessStatus> for Status {
+    fn from(value: ProcessStatus) -> Status {
         match value {
-            'R' => Status::Active,
-            'S' | 'D' => Status::Sleeping,
-            'T' => Status::Inactive,
-            'Z' | 'X' | 'x' => Status::Dead,
-            _ => Status::Unknown,
+            Run | Waking => Status::Active,
+            Sleep | UninterruptibleDiskSleep | Parked | LockBlocked | Wakekill => Status::Sleeping,
+            Stop | Tracing | Idle => Status::Inactive,
+            Dead | Zombie => Status::Dead,
+            Unknown(code) => Status::Unknown(format!("Unknown with code {code}")),
         }
     }
 }

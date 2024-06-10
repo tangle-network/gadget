@@ -17,5 +17,4 @@ failure = "0.1.8"
 nix = { version = "0.29.0", features = ["process", "signal"] }
 serde = { version = "1.0.203", features = ["derive"] }
 itertools = "0.13.0"
-procfs = { version = "0.16.0" }
 sysinfo = { version = "0.30.12" }

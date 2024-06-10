@@ -1,11 +1,6 @@
 use crate::process::types::{GadgetProcess, Status};
 use crate::process::utils::*;
 use crate::{craft_child_process, run_command, OS_COMMAND};
-use itertools::Itertools;
-use nix::libc::pid_t;
-use nix::sys::signal;
-use nix::sys::signal::Signal;
-use procfs::process::Process;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
@@ -67,24 +62,17 @@ impl GadgetProcessManager {
         let mut to_remove = Vec::new();
         let s = System::new_all();
 
-        // Find dead processes and gather them for return
-        let mut running_processes = s.processes().keys();
+        // Find dead processes and gather them for return & removal
         for (key, value) in self.children.iter() {
-            // Move on if the PID exists and has the correct name
             let current_pid = value.pid;
-            if running_processes.contains(&Pid::from_u32(current_pid)) {
-                continue;
-            }
-
-            // If a different process has taken the expected process' place, we want to restart
-            // the intended process without killing the existing one
-            if Process::new(current_pid as i32).unwrap().status()?.name == value.process_name {
-                // Kill the running process
-                let _ = signal::kill(
-                    nix::unistd::Pid::from_raw(current_pid as pid_t),
-                    Signal::SIGTERM,
-                );
-                to_remove.push(key.clone());
+            if let Some(process) = s.process(Pid::from_u32(current_pid)) {
+                if process.name() == value.process_name {
+                    // Still running
+                    continue;
+                } else {
+                    // No longer running, some unknown process is now utilizing this PID
+                    to_remove.push(key.clone());
+                }
             }
         }
         self.children.retain(|k, _| !to_remove.contains(k));
@@ -111,8 +99,11 @@ impl GadgetProcessManager {
                             // If it is still correctly running, we just move along
                             continue;
                         }
-                        Status::Inactive | Status::Dead | Status::Unknown => {
+                        Status::Inactive | Status::Dead => {
                             // Dead, should be restarted
+                        }
+                        Status::Unknown(code) => {
+                            println!("LOG : {} yielded {}", key.clone(), code);
                         }
                     }
                 }
