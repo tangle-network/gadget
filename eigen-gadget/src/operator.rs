@@ -153,7 +153,7 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
         // .join(config.ecdsa_private_key_store_path);
         // let signer = Wallet::decrypt_keystore(keystore_file_path, ecdsa_key_password)?;
 
-        let setup_config = SetupConfig {
+        let setup_config = SetupConfig::<T> {
             registry_coordinator_addr: Address::from_str(&config.avs_registry_coordinator_addr)
                 .unwrap(),
             operator_state_retriever_addr: Address::from_str(&config.operator_state_retriever_addr)
