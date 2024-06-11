@@ -318,6 +318,7 @@ pub struct PrivateKey {
     pub key: Fq,
 }
 
+#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct KeyPair {
     pub priv_key: PrivateKey,
     pub pub_key: G1Point,

@@ -18,7 +18,10 @@ use eigen_utils::{
 };
 use http_body_util::{BodyExt, Full};
 use hyper::{
-    body::{self, Body, Bytes}, server::conn::http1, service::service_fn, Method, Request, Response, StatusCode
+    body::{self, Body, Bytes},
+    server::conn::http1,
+    service::service_fn,
+    Method, Request, Response, StatusCode,
 };
 use tokio::{
     net::TcpListener,
@@ -356,7 +359,9 @@ where
                 let _ = self.process_signed_task_response(req).await;
                 Ok(Response::builder()
                     .status(StatusCode::OK)
-                    .body(Full::new(Bytes::from("Task response processed successfully")))
+                    .body(Full::new(Bytes::from(
+                        "Task response processed successfully",
+                    )))
                     .unwrap())
             }
             _ => Ok(Response::builder()
