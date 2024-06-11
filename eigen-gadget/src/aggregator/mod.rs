@@ -18,17 +18,14 @@ use eigen_utils::{
 };
 use http_body_util::{BodyExt, Full};
 use hyper::{
-    body::{self, Body, Bytes},
+    body::{self, Bytes},
     server::conn::http1,
     service::service_fn,
     Method, Request, Response, StatusCode,
 };
 use tokio::{
     net::TcpListener,
-    sync::{
-        mpsc::{self, Receiver},
-        RwLock,
-    },
+    sync::{broadcast, RwLock},
     time::interval,
 };
 
@@ -54,6 +51,7 @@ pub const QUERY_FILTER_FROM_BLOCK: u64 = 1;
 // We only use a single quorum (quorum 0) for incredible squaring
 pub const QUORUM_NUMBERS: &[QuorumNum] = &[QuorumNum(0)];
 
+#[derive(Clone)]
 pub struct Aggregator<T, I>
 where
     T: Config,
@@ -62,7 +60,7 @@ where
     server_ip_port_addr: String,
     incredible_squaring_contract_manager: IncredibleSquaringContractManager<T>,
     bls_aggregation_service: BlsAggregatorService<T, I>,
-    bls_aggregation_responses: Receiver<BlsAggregationServiceResponse>,
+    // bls_aggregation_responses: Receiver<BlsAggregationServiceResponse>,
     tasks: Arc<RwLock<HashMap<u32, Task>>>,
     task_responses: Arc<RwLock<HashMap<u32, HashMap<U256, TaskResponse>>>>,
 }
@@ -97,14 +95,14 @@ where
             operator_info_service,
         )
         .await?;
-        let (tx, rx) = mpsc::channel(100);
+        let (tx, _) = broadcast::channel(100);
         let bls_aggregation_service = BlsAggregatorService::new(tx, avs_chain_caller);
 
         Ok(Self {
             server_ip_port_addr,
             incredible_squaring_contract_manager,
             bls_aggregation_service,
-            bls_aggregation_responses: rx,
+            // bls_aggregation_responses: rx,
             tasks: Arc::new(RwLock::new(HashMap::new())),
             task_responses: Arc::new(RwLock::new(HashMap::new())),
         })
@@ -115,7 +113,8 @@ where
         log::info!("Starting aggregator RPC server.");
 
         // Start server in a separate task
-        tokio::spawn(async move { self.start_server().await.unwrap() });
+        let this = self.clone();
+        tokio::spawn(async move { this.start_server().await.unwrap() });
 
         let mut ticker = interval(Duration::from_secs(10));
         log::info!("Aggregator set to send new task every 10 seconds...");
@@ -125,14 +124,19 @@ where
         self.send_new_task(U256::from(task_num)).await?;
         task_num += 1;
 
+        let mut receiver = self
+            .clone()
+            .bls_aggregation_service
+            .aggregated_responses_tx
+            .subscribe();
         loop {
             tokio::select! {
                 _ = ticker.tick() => {
                     self.send_new_task(U256::from(task_num)).await?;
                     task_num += 1;
                 }
-                bls_agg_service_resp = self.bls_aggregation_responses.recv() => {
-                    if let Some(bls_agg_service_resp) = bls_agg_service_resp {
+                bls_agg_service_resp = receiver.recv() => {
+                    if let Ok(bls_agg_service_resp) = bls_agg_service_resp {
                         log::info!("Received response from blsAggregationService");
                         let _ = self.send_aggregated_response_to_contract(bls_agg_service_resp).await;
                     }

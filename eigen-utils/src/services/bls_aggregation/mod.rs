@@ -13,7 +13,7 @@ use std::fmt::{Display, Formatter};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use thiserror::Error;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{broadcast, mpsc, oneshot};
 
 use super::avs_registry::AvsRegistryServiceChainCaller;
 use super::operator_info::OperatorInfoServiceTrait;
@@ -115,9 +115,10 @@ where
     T: Config,
     I: OperatorInfoServiceTrait,
 {
-    aggregated_responses_tx: mpsc::Sender<BlsAggregationServiceResponse>,
-    signed_task_resps_txs: Arc<Mutex<HashMap<TaskIndex, mpsc::Sender<SignedTaskResponseDigest>>>>,
-    avs_registry_service: AvsRegistryServiceChainCaller<T, I>,
+    pub aggregated_responses_tx: broadcast::Sender<BlsAggregationServiceResponse>,
+    pub signed_task_resps_txs:
+        Arc<Mutex<HashMap<TaskIndex, mpsc::Sender<SignedTaskResponseDigest>>>>,
+    pub avs_registry_service: AvsRegistryServiceChainCaller<T, I>,
 }
 
 #[derive(Debug)]
@@ -226,7 +227,7 @@ where
     I: OperatorInfoServiceTrait,
 {
     pub fn new(
-        aggregated_responses_tx: mpsc::Sender<BlsAggregationServiceResponse>,
+        aggregated_responses_tx: broadcast::Sender<BlsAggregationServiceResponse>,
         avs_registry_service: AvsRegistryServiceChainCaller<T, I>,
     ) -> Self {
         Self {
@@ -269,7 +270,6 @@ where
                         task_index,
                         ..Default::default()
                     })
-                    .await
                     .unwrap();
                 return;
             }
@@ -291,7 +291,6 @@ where
                         task_index,
                         ..Default::default()
                     })
-                    .await
                     .unwrap();
                 return;
             }
@@ -353,7 +352,7 @@ where
                                             err: Some(BlsAggregationError::TaskInitializationError(format!("Failed to get check signatures indices: {}", e), task_index)),
                                             task_index,
                                             ..Default::default()
-                                        }).await.unwrap();
+                                        }).unwrap();
                                         return;
                                     }
                                 };
@@ -371,7 +370,7 @@ where
                                     quorum_apk_indices: indices.quorumApkIndices,
                                     total_stake_indices: indices.totalStakeIndices,
                                     non_signer_stake_indices: indices.nonSignerStakeIndices,
-                                }).await.unwrap();
+                                }).unwrap();
 
                                 return;
                             }
@@ -386,7 +385,7 @@ where
                         err: Some(BlsAggregationError::TaskExpiredError(task_index)),
                         task_index,
                         ..Default::default()
-                    }).await.unwrap();
+                    }).unwrap();
                     return;
                 }
             }

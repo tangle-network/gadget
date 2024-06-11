@@ -219,9 +219,9 @@ where
 
         log::info!("Starting operator.");
 
-        if self.config.enable_node_api {
-            self.node_api.start(Default::default()).await?;
-        }
+        // if self.config.enable_node_api {
+        //     self.node_api.start(Default::default()).await?;
+        // }
 
         // TODO: Run the executor thing.
     }
