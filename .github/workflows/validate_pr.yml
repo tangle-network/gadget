@@ -151,4 +151,4 @@ jobs:
         run: rustup target add wasm32-unknown-unknown
 
       - name: Run wasm checks
-        run: cargo build --target wasm32-unknown-unknown --no-default-features --features wasm
+        run: cargo build --target wasm32-unknown-unknown --package=gadget-core,gadget-common --no-default-features --features wasm
