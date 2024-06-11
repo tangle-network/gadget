@@ -85,6 +85,7 @@ pub struct Operator<T: Config, I: OperatorInfoServiceTrait> {
     operator_id: FixedBytes<32>,
     operator_addr: Address,
     aggregator_server_ip_port_addr: String,
+    aggregator_server: Aggregator<T, I>,
     aggregator_rpc_client: AggregatorRpcClient,
 }
 
@@ -186,12 +187,12 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
         )
         .await?;
 
-        // let aggregator = Aggregator::build(
-        //     &setup_config,
-        //     operator_info_service,
-        //     config.server_ip_port_address.clone(),
-        // )
-        // .await?;
+        let aggregator_service = Aggregator::build(
+            &setup_config,
+            operator_info_service,
+            config.server_ip_port_address.clone(),
+        )
+        .await?;
         let aggregator_rpc_client = AggregatorRpcClient::new(config.server_ip_port_address.clone());
 
         let eigenlayer_contract_manager = ElChainContractManager::build(
@@ -218,6 +219,7 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
             operator_id,
             operator_addr,
             aggregator_server_ip_port_addr: config.server_ip_port_address.clone(),
+            aggregator_server: aggregator_service,
             aggregator_rpc_client,
         };
 
