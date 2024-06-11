@@ -10,13 +10,10 @@ use alloy_transport::Transport;
 use aws_sdk_kms::Client as KmsClient;
 use bls::KeyPair;
 use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
-use eigen_utils::avs_registry::subscriber::AvsRegistryChainSubscriber;
 use eigen_utils::avs_registry::AvsRegistryContractManager;
 use eigen_utils::crypto::bls::KeyPair;
 use eigen_utils::el_contracts::ElChainContractManager;
 use eigen_utils::node_api::NodeApi;
-use eigen_utils::services::bls_aggregation::SignedTaskResponseDigest;
-use eigen_utils::services::operator_info::in_memory::OperatorsInfoServiceInMemory;
 use eigen_utils::services::operator_info::OperatorInfoServiceTrait;
 use eigen_utils::types::AvsError;
 use eigen_utils::Config;
@@ -25,11 +22,13 @@ use prometheus::Registry;
 use std::str::FromStr;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::{mpsc, oneshot};
 
 use crate::aggregator::Aggregator;
 use crate::avs::subscriber::IncredibleSquaringSubscriber;
-use crate::avs::{IncredibleSquaringContractManager, IncredibleSquaringTaskManager, SetupConfig};
+use crate::avs::{
+    IncredibleSquaringContractManager, IncredibleSquaringTaskManager, SetupConfig,
+    SignedTaskResponse,
+};
 use crate::get_task_response_digest;
 use crate::rpc_client::AggregatorRpcClient;
 
@@ -301,15 +300,13 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
     fn sign_task_response(
         &self,
         task_response: &IncredibleSquaringTaskManager::TaskResponse,
-    ) -> Result<SignedTaskResponseDigest, OperatorError> {
+    ) -> Result<SignedTaskResponse, OperatorError> {
         let task_response_hash = get_task_response_digest(task_response);
         let bls_signature = self.bls_keypair.sign_message(&task_response_hash);
-        let (tx_res, rx_res) = oneshot::channel();
-        let signed_task_response = SignedTaskResponseDigest {
+        let signed_task_response = SignedTaskResponse {
             task_response: task_response.abi_encode(),
             bls_signature,
             operator_id: self.operator_id,
-            signature_verification_error_tx: tx_res,
         };
         log::debug!("Signed task response: {:?}", signed_task_response);
         Ok(signed_task_response)

@@ -13,10 +13,9 @@ use ark_serialize::CanonicalSerialize;
 use ark_serialize::Compress;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::mpsc::Sender;
+
 use thiserror::Error;
 
-use crate::crypto::bls;
 use crate::crypto::bls::G1Point;
 use crate::crypto::bls::KeyPair;
 use crate::crypto::bls::Signature;
@@ -28,16 +27,6 @@ pub const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
 pub type TaskIndex = u32;
 pub type TaskResponseDigest = B256;
 pub type TaskResponse = Vec<u8>;
-
-type TaskResponseHashFunction = fn(TaskResponse) -> TaskResponseDigest;
-
-#[derive(Debug)]
-pub struct SignedTaskResponseDigest {
-    task_response: TaskResponse,
-    bls_signature: bls::Signature,
-    operator_id: OperatorId,
-    signature_verification_error_c: Sender<anyhow::Error>,
-}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Operator {

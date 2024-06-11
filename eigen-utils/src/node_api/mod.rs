@@ -8,7 +8,7 @@ use hyper::{
 
 use serde::Serialize;
 use serde_json::json;
-use std::{convert::Infallible, net::SocketAddr, sync::Arc};
+use std::{convert::Infallible, sync::Arc};
 use tokio::net::TcpListener;
 
 use self::tokiort::TokioIo;
