@@ -85,6 +85,7 @@ impl GadgetEnvironment for TangleEnvironment {
                 })?;
 
         let pair_signer = PairSigner::new(self.account_key.clone());
+        // TODO: Figure out what to do with this
         let _pallet_tx_submitter = SubxtPalletSubmitter::with_client(
             subxt_client.clone(),
             pair_signer,
