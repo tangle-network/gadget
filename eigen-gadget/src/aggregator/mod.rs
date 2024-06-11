@@ -107,7 +107,7 @@ where
         })
     }
 
-    pub async fn start(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn start(self) -> Result<(), Box<dyn std::error::Error>> {
         log::info!("Starting aggregator.");
         log::info!("Starting aggregator RPC server.");
 
@@ -329,7 +329,7 @@ where
         loop {
             let (stream, _) = listener.accept().await.unwrap();
             let io = TokioIo::new(stream);
-            let this = Arc::new(self.clone());
+            let this = Arc::new(self);
             tokio::task::spawn(async move {
                 if let Err(err) = http1::Builder::new()
                     .serve_connection(

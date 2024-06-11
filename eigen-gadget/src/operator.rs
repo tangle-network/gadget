@@ -1,13 +1,7 @@
 use alloy_primitives::{Address, FixedBytes, U256};
-use alloy_provider::network::Ethereum;
-use alloy_provider::{Provider, ProviderBuilder};
-use alloy_rpc_client::WsConnect;
+use alloy_provider::Provider;
 use alloy_rpc_types::Log;
-use alloy_signer_wallet::Wallet;
 use alloy_sol_types::SolValue;
-use alloy_transport::Transport;
-use aws_sdk_kms::Client as KmsClient;
-use bls::KeyPair;
 use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
 use eigen_utils::avs_registry::AvsRegistryContractManager;
 use eigen_utils::crypto::bls::KeyPair;
@@ -19,7 +13,6 @@ use eigen_utils::Config;
 use log::error;
 use prometheus::Registry;
 use std::str::FromStr;
-use std::sync::Arc;
 use thiserror::Error;
 
 use crate::aggregator::Aggregator;
@@ -268,7 +261,10 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
                     let log: Log<IncredibleSquaringTaskManager::NewTaskCreated> = new_task_created_log.log_decode().unwrap();
                     let task_response = self.process_new_task_created_log(&log);
                     if let Ok(signed_task_response) = self.sign_task_response(&task_response) {
-                        tokio::spawn(self.aggregator_rpc_client.send_signed_task_response_to_aggregator(signed_task_response));
+                        let agg_rpc_client = self.aggregator_rpc_client.clone();
+                        tokio::spawn(async move {
+                            agg_rpc_client.send_signed_task_response_to_aggregator(signed_task_response).await;
+                        });
                     }
                 },
             }
