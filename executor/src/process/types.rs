@@ -61,7 +61,7 @@ impl GadgetProcess {
         if let Some(stream) = &mut self.stream {
             // Read lines until we time out, meaning we are still waiting for output - continue for now
             loop {
-                let read_result = timeout(Duration::from_millis(50), stream.next_line()).await;
+                let read_result = timeout(Duration::from_millis(500), stream.next_line()).await;
                 match read_result {
                     Ok(output) => {
                         if output.is_err() {

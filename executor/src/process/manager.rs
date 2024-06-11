@@ -1,4 +1,4 @@
-use crate::process::types::{GadgetProcess, Status};
+use crate::process::types::{GadgetProcess, ProcessOutput, Status};
 use crate::process::utils::*;
 use crate::{craft_child_process, run_command, OS_COMMAND};
 use serde::{Deserialize, Serialize};
@@ -53,6 +53,32 @@ impl GadgetProcessManager {
         let gadget_process = run_command!(command)?;
         self.children.insert(identifier.clone(), gadget_process);
         Ok(identifier)
+    }
+
+    pub(crate) async fn focus_service_to_completion(
+        &mut self,
+        service: String,
+    ) -> Result<(), Box<dyn Error>> {
+        let process = self
+            .children
+            .get_mut(&service)
+            .ok_or(format!("Failed to focus on {service}, it does not exist"))?;
+        loop {
+            match process.read().await {
+                ProcessOutput::Output(output) => {
+                    println!("{output:?}");
+                    continue;
+                }
+                ProcessOutput::Exhausted(output) => {
+                    println!("{output:?}");
+                    break;
+                }
+                ProcessOutput::Waiting => {
+                    continue;
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Removes processes that are no longer running from the manager. Returns a Vector of the names of processes removed
