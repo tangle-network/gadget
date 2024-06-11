@@ -1,15 +1,15 @@
 use crate::gadget::TangleEvent;
 use crate::work_manager::TangleWorkManager;
+use environment_utils::transaction_manager::tangle::{SubxtPalletSubmitter, TanglePalletSubmitter};
 use gadget::{SubxtConfig, TangleJobMetadata};
 use gadget_common::async_trait::async_trait;
 use gadget_common::channels::UserID;
-use gadget_common::client::{PairSigner, SubxtPalletSubmitter};
+use gadget_common::client::PairSigner;
 use gadget_common::config::DebugLogger;
 use gadget_common::environments::{EventMetadata, GadgetEnvironment};
-use gadget_common::prelude::TanglePalletSubmitter;
 use gadget_common::sp_core::serde::Serialize;
 use gadget_common::sp_core::{ecdsa, sr25519};
-use gadget_common::tangle_subxt::subxt;
+use gadget_common::tangle_subxt::subxt::PolkadotConfig;
 use gadget_common::utils::serialize;
 use gadget_common::WorkManagerInterface;
 use message::TangleProtocolMessage;
@@ -21,6 +21,7 @@ pub mod gadget;
 pub mod message;
 pub mod runtime;
 pub mod work_manager;
+
 pub type TangleTransactionManager = Arc<dyn TanglePalletSubmitter>;
 
 #[derive(Clone)]
@@ -79,11 +80,13 @@ impl GadgetEnvironment for TangleEnvironment {
 
     async fn setup_client(&self) -> Result<Self::Client, Self::Error> {
         let subxt_client =
-            subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&self.subxt_config.endpoint)
-                .await
-                .map_err(|err| gadget_common::Error::ClientError {
-                    err: err.to_string(),
-                })?;
+            gadget_common::tangle_subxt::subxt::OnlineClient::<PolkadotConfig>::from_url(
+                &self.subxt_config.endpoint,
+            )
+            .await
+            .map_err(|err| gadget_common::Error::ClientError {
+                err: err.to_string(),
+            })?;
 
         let pair_signer = PairSigner::new(self.account_key.clone());
         let pallet_tx_submitter = SubxtPalletSubmitter::with_client(

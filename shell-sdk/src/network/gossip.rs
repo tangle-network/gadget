@@ -393,7 +393,7 @@ mod tests {
     use crate::network::setup::setup_libp2p_network;
     use crate::shell::wait_for_connection_to_bootnodes;
     use async_trait::async_trait;
-    use gadget_common::client::TanglePalletSubmitter;
+    use environment_utils::transaction_manager::tangle::TanglePalletSubmitter;
     use gadget_common::keystore::InMemoryBackend;
     use gadget_common::prelude::DebugLogger;
     use gadget_core::job_manager::WorkManagerInterface;

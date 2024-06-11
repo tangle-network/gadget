@@ -1,5 +1,4 @@
 use crate::client::ClientWithApi;
-use crate::transaction_manager::TransactionManager;
 use async_trait::async_trait;
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::{Deserialize, Serialize};
@@ -37,7 +36,7 @@ where
     type RetryID: Display + Copy + Send + Sync + 'static;
     type TaskID: Debug + Copy + Send + Sync + 'static;
     type SessionID: Display + Copy + Send + Sync + 'static;
-    type TransactionManager: TransactionManager;
+    type TransactionManager: Clone + Send + Sync + 'static;
     type JobInitMetadata: Send + Sync + 'static;
 
     #[allow(clippy::too_many_arguments)]

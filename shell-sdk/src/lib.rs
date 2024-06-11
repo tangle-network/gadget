@@ -50,7 +50,7 @@ pub mod prelude {
     pub use tangle_subxt;
 }
 
-/// Should be put inside the main.rs file of the protocol repository
+/// Should be put inside the lib file of the protocol repository
 #[macro_export]
 macro_rules! generate_shell_binary {
     ($entry_point:path, $keystore:path, $n_protocols:expr, $($role_type:expr),*) => {

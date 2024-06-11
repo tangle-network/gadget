@@ -44,6 +44,7 @@ wasm = [
 
 [dependencies]
 getrandom = { workspace = true, optional = true, default-features = false }
+environment-utils = { workspace = true }
 parking_lot = { workspace = true }
 futures = { workspace = true }
 sp-io = { workspace = true, default-features = false }

@@ -44,7 +44,7 @@ pub type BlockNumber = u64;
 
 pub use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmitter};
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
-use gadget_common::client::TanglePalletSubmitter;
+use environment_utils::transaction_manager::tangle::TanglePalletSubmitter;
 use gadget_common::debug_logger::DebugLogger;
 use gadget_common::environments::{EventMetadata, GadgetEnvironment};
 use gadget_common::full_protocol::NodeInput;
@@ -709,7 +709,7 @@ pub mod mock_wrapper_client {
     use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use async_trait::async_trait;
     use futures::StreamExt;
-    use gadget_common::client::{exec_client_function, TanglePalletSubmitter};
+    use gadget_common::client::exec_client_function;
     use gadget_common::config::ClientWithApi;
     use gadget_common::locks::TokioMutexExt;
     use gadget_common::tangle_subxt::subxt::utils::AccountId32;
@@ -732,6 +732,7 @@ pub mod mock_wrapper_client {
     use std::time::Duration;
     use tangle_primitives::jobs::JobId;
     use tangle_primitives::AccountId;
+    use environment_utils::transaction_manager::tangle::TanglePalletSubmitter;
     use gadget_core::gadget::general::Client;
 
     #[derive(Clone)]

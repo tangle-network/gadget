@@ -21,7 +21,6 @@ pub mod environments;
 use crate::environments::GadgetEnvironment;
 use gadget_core::gadget::general::Client;
 pub mod module;
-pub mod transaction_manager;
 #[allow(ambiguous_glob_reexports)]
 pub mod prelude {
     pub use crate::client::*;
