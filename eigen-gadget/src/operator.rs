@@ -1,4 +1,3 @@
-use alloy_core::{bls, core::U256, txmgr, wallet};
 use alloy_primitives::{Address, FixedBytes, U256};
 use alloy_provider::network::Ethereum;
 use alloy_provider::{Provider, ProviderBuilder};
@@ -240,7 +239,7 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
         Ok(operator)
     }
 
-    pub async fn start(&self) -> Result<(), OperatorError> {
+    pub async fn start(self) -> Result<(), OperatorError> {
         let operator_is_registered = self
             .avs_registry_contract_manager
             .is_operator_registered(self.operator_addr)

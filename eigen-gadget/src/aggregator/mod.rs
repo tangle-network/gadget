@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, convert::Infallible, sync::Arc, time::Duration};
 
 use alloy_primitives::U256;
 use alloy_sol_types::SolType;
@@ -18,10 +18,7 @@ use eigen_utils::{
 };
 use http_body_util::{BodyExt, Full};
 use hyper::{
-    body::{self, Body, Bytes},
-    server::conn::http1,
-    service::service_fn,
-    Request, Response,
+    body::{self, Body, Bytes}, server::conn::http1, service::service_fn, Method, Request, Response, StatusCode
 };
 use tokio::{
     net::TcpListener,
@@ -294,29 +291,52 @@ where
         ))))
     }
 
-    async fn start_server(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let listener = TcpListener::bind(self.server_ip_port_addr.clone())
-            .await
-            .unwrap();
-        log::info!("Starting server at {}", self.server_ip_port_addr);
+    // async fn start_server(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    //     let listener = TcpListener::bind(self.server_ip_port_addr.clone())
+    //         .await
+    //         .unwrap();
+    //     log::info!("Starting server at {}", self.server_ip_port_addr);
+    //     loop {
+    //         let (stream, _) = listener.accept().await.unwrap();
+    //         let io = TokioIo::new(stream);
+    //         let aggregator = Arc::new(self.clone());
+    //         tokio::task::spawn(async move {
+    //             if let Err(err) = http1::Builder::new()
+    //                 .serve_connection(
+    //                     io,
+    //                     service_fn(move |req| {
+    //                         let aggregator = Arc::clone(&aggregator);
+    //                         async move {
+    //                             match req.uri().path() {
+    //                                 "/process_signed_task_response" => {
+    //                                     aggregator.process_signed_task_response(req).await
+    //                                 }
+    //                                 _ => Ok(Response::new(Full::new(Bytes::from("404 Not Found")))),
+    //                             }
+    //                         }
+    //                     }),
+    //                 )
+    //                 .await
+    //             {
+    //                 println!("Error serving connection: {:?}", err);
+    //             }
+    //         });
+    //     }
+    // }
+
+    pub async fn start_server(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let listener = TcpListener::bind(&self.server_ip_port_addr).await?;
         loop {
             let (stream, _) = listener.accept().await.unwrap();
             let io = TokioIo::new(stream);
-            let aggregator = Arc::new(self.clone());
+            let this = Arc::new(self.clone());
             tokio::task::spawn(async move {
                 if let Err(err) = http1::Builder::new()
                     .serve_connection(
                         io,
                         service_fn(move |req| {
-                            let aggregator = Arc::clone(&aggregator);
-                            async move {
-                                match req.uri().path() {
-                                    "/process_signed_task_response" => {
-                                        aggregator.process_signed_task_response(req).await
-                                    }
-                                    _ => Ok(Response::new(Full::new(Bytes::from("404 Not Found")))),
-                                }
-                            }
+                            let this = Arc::clone(&this);
+                            async move { this.router(req).await }
                         }),
                     )
                     .await
@@ -324,6 +344,25 @@ where
                     println!("Error serving connection: {:?}", err);
                 }
             });
+        }
+    }
+
+    async fn router(
+        &self,
+        req: Request<body::Incoming>,
+    ) -> Result<Response<Full<Bytes>>, Infallible> {
+        match (req.method(), req.uri().path()) {
+            (&Method::POST, path) if path == "/process_signed_task_response" => {
+                let _ = self.process_signed_task_response(req).await;
+                Ok(Response::builder()
+                    .status(StatusCode::OK)
+                    .body(Full::new(Bytes::from("Task response processed successfully")))
+                    .unwrap())
+            }
+            _ => Ok(Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(Full::new(Bytes::from("Not Found")))
+                .unwrap()),
         }
     }
 }
