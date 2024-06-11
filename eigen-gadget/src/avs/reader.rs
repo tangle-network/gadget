@@ -1,12 +1,9 @@
-use super::{
-    Erc20Mock, IncredibleSquaringContractManager, IncredibleSquaringTaskManager, SetupConfig,
-};
+use super::{Erc20Mock, IncredibleSquaringContractManager, IncredibleSquaringTaskManager};
 use alloy_primitives::{Address, Bytes, FixedBytes};
-use alloy_provider::{network::Ethereum, Provider, ProviderBuilder, RootProvider};
-use alloy_transport::Transport;
+use alloy_provider::Provider;
+
 use async_trait::async_trait;
-use eigen_utils::{avs_registry::AvsRegistryContractManager, types::AvsError, Config};
-use std::{str::FromStr, sync::Arc};
+use eigen_utils::{types::AvsError, Config};
 
 #[async_trait]
 pub trait IncredibleSquaringReader {

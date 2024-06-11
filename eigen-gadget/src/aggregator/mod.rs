@@ -11,9 +11,7 @@ use eigen_utils::{
         },
         operator_info::OperatorInfoServiceTrait,
     },
-    types::{
-        bytes_to_quorum_ids, quorum_ids_to_bitmap, QuorumNum, QuorumThresholdPercentage, TaskIndex,
-    },
+    types::{quorum_ids_to_bitmap, QuorumNum, QuorumThresholdPercentage, TaskIndex},
     Config,
 };
 use http_body_util::{BodyExt, Full};
@@ -275,13 +273,13 @@ where
 
         {
             let mut task_responses = self.task_responses.write().await;
-            if !task_responses.contains_key(&task_index) {
-                task_responses.insert(task_index, HashMap::new());
-            }
+            task_responses
+                .entry(task_index)
+                .or_insert_with(HashMap::new);
             let task_response_map = task_responses.get_mut(&task_index).unwrap();
-            if !task_response_map.contains_key(&task_response_digest_u256) {
-                task_response_map.insert(task_response_digest_u256, task_response);
-            }
+            task_response_map
+                .entry(task_response_digest_u256)
+                .or_insert(task_response);
         }
 
         self.bls_aggregation_service
@@ -336,7 +334,7 @@ where
         loop {
             let (stream, _) = listener.accept().await.unwrap();
             let io = TokioIo::new(stream);
-            let this = Arc::new(self);
+            let this = Arc::new(self.clone());
             tokio::task::spawn(async move {
                 if let Err(err) = http1::Builder::new()
                     .serve_connection(

@@ -81,7 +81,7 @@ impl AggregatorRpcClient {
             .parse()
             .unwrap();
 
-        let json = serde_json::to_string(params).map_err(|e| AvsError::from(e))?;
+        let json = serde_json::to_string(params).map_err(AvsError::from)?;
 
         reqwest::Client::new()
             .post(url)
@@ -89,6 +89,6 @@ impl AggregatorRpcClient {
             .body(json)
             .send()
             .await
-            .map_err(|e| AvsError::from(e))
+            .map_err(AvsError::from)
     }
 }

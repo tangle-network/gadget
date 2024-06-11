@@ -108,7 +108,7 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
         operator_info_service: I,
         signer: T::S,
     ) -> Result<Self, OperatorError> {
-        let metrics_reg = Registry::new();
+        let _metrics_reg = Registry::new();
         // let avs_and_eigen_metrics = Metrics::new(AVS_NAME, eigen_metrics, &metrics_reg);
 
         let node_api = NodeApi::new(AVS_NAME, SEM_VER, &config.node_api_ip_port_address);
@@ -131,9 +131,9 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
             &config.bls_private_key_store_path,
             &bls_key_password,
         )
-        .map_err(|e| OperatorError::from(e))?;
+        .map_err(OperatorError::from)?;
 
-        let chain_id = eth_client_http
+        let _chain_id = eth_client_http
             .get_chain_id()
             .await
             .map_err(|e| OperatorError::ChainIdError(e.to_string()))?;

@@ -1,7 +1,7 @@
 use alloy_primitives::U256;
 use alloy_provider::Provider;
 use alloy_rpc_types::{Log, Transaction};
-use alloy_sol_types::{abi, SolCall};
+use alloy_sol_types::SolCall;
 use eigen_utils::types::{AvsError, TaskIndex};
 use eigen_utils::Config;
 use std::collections::HashMap;
@@ -165,7 +165,7 @@ impl<T: Config> Challenger<T> {
                 true,
             )
             .map(|e| e.pubkeysOfNonSigningOperators)
-            .map_err(|e| AvsError::from(e))?;
+            .map_err(AvsError::from)?;
 
         Ok(non_signing_operator_pub_keys)
     }

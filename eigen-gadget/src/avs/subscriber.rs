@@ -1,14 +1,11 @@
-use std::str::FromStr;
-
-use alloy_primitives::Address;
-use alloy_provider::{network::Ethereum, Provider};
+use alloy_provider::Provider;
 use alloy_pubsub::Subscription;
 use alloy_rpc_types::{Filter, Log};
-use alloy_transport::Transport;
+
 use async_trait::async_trait;
 use eigen_utils::{types::AvsError, Config};
 
-use super::{IncredibleSquaringContractManager, IncredibleSquaringTaskManager, SetupConfig};
+use super::IncredibleSquaringContractManager;
 
 #[async_trait]
 pub trait IncredibleSquaringSubscriber: Send + Sync {

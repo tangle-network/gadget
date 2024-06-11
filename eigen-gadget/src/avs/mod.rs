@@ -2,20 +2,18 @@ pub mod reader;
 pub mod subscriber;
 pub mod writer;
 
-use std::f64::consts::E;
-
 use alloy_primitives::{Address, Bytes, U256};
-use alloy_provider::{network::Ethereum, Provider, ProviderBuilder};
+use alloy_provider::Provider;
 use alloy_rpc_types::{Log, TransactionReceipt};
-use alloy_sol_types::{sol, SolValue};
-use alloy_transport::Transport;
+use alloy_sol_types::sol;
+
 use eigen_contracts::RegistryCoordinator;
 use eigen_utils::{
     crypto::bls::{G1Point, Signature},
     types::{AvsError, OperatorId},
     Config,
 };
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use IncredibleSquaringTaskManager::{Task, TaskResponse, TaskResponseMetadata};
 
 sol!(
@@ -79,7 +77,7 @@ pub struct IncredibleSquaringContractManager<T: Config> {
 impl<T: Config> IncredibleSquaringContractManager<T> {
     pub async fn build(
         registry_coordinator_addr: Address,
-        operator_state_retriever_addr: Address,
+        _operator_state_retriever_addr: Address,
         eth_client_http: T::PH,
         eth_client_ws: T::PW,
         signer: T::S,
@@ -128,16 +126,15 @@ impl<T: Config> IncredibleSquaringContractManager<T> {
             .await?
             .get_receipt()
             .await
-            .map_err(|e| AvsError::from(e))
+            .map_err(AvsError::from)
     }
 
     pub async fn parse_new_task_created(
         &self,
         log: &Log,
     ) -> Result<Log<IncredibleSquaringTaskManager::NewTaskCreated>, AvsError> {
-        Ok(log
-            .log_decode::<IncredibleSquaringTaskManager::NewTaskCreated>()
-            .map_err(|e| AvsError::from(e))?)
+        log.log_decode::<IncredibleSquaringTaskManager::NewTaskCreated>()
+            .map_err(AvsError::from)
     }
 
     pub async fn raise_and_resolve_challenge(
@@ -165,7 +162,7 @@ impl<T: Config> IncredibleSquaringContractManager<T> {
             .await?
             .get_receipt()
             .await
-            .map_err(|e| AvsError::from(e))
+            .map_err(AvsError::from)
     }
 
     pub async fn respond_to_task(
@@ -184,6 +181,6 @@ impl<T: Config> IncredibleSquaringContractManager<T> {
             .await?
             .get_receipt()
             .await
-            .map_err(|e| AvsError::from(e))
+            .map_err(AvsError::from)
     }
 }

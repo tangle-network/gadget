@@ -1,11 +1,11 @@
-use alloy_primitives::{Address, Bytes, U256};
-use alloy_rpc_types::{Log, TransactionReceipt};
+use alloy_primitives::{Bytes, U256};
+use alloy_rpc_types::TransactionReceipt;
 use async_trait::async_trait;
 use eigen_utils::types::{AvsError, TaskIndex};
 use eigen_utils::Config;
 
 use super::IncredibleSquaringTaskManager::{Task, TaskResponse, TaskResponseMetadata};
-use super::{IncredibleSquaringContractManager, IncredibleSquaringTaskManager, SetupConfig};
+use super::{IncredibleSquaringContractManager, IncredibleSquaringTaskManager};
 
 #[async_trait]
 pub trait IncredibleSquaringWriter: Send + Sync {
@@ -63,7 +63,7 @@ impl<T: Config> IncredibleSquaringWriter for IncredibleSquaringContractManager<T
                 log.log_decode::<IncredibleSquaringTaskManager::NewTaskCreated>()
                     .ok()
             })
-            .map(|log| (log.inner.task, log.inner.taskIndex))
+            .map(|log| (log.inner.task.clone(), log.inner.taskIndex))
             .ok_or(AvsError::InvalidLogDecodingError(
                 "NewTaskCreated event not found".to_string(),
             ))
@@ -91,7 +91,7 @@ impl<T: Config> IncredibleSquaringWriter for IncredibleSquaringContractManager<T
             .await?
             .get_receipt()
             .await
-            .map_err(|e| AvsError::from(e))
+            .map_err(AvsError::from)
     }
 
     async fn send_aggregated_response(
@@ -110,6 +110,6 @@ impl<T: Config> IncredibleSquaringWriter for IncredibleSquaringContractManager<T
             .await?
             .get_receipt()
             .await
-            .map_err(|e| AvsError::from(e))
+            .map_err(AvsError::from)
     }
 }
