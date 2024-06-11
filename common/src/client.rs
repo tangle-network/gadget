@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use auto_impl::auto_impl;
 use gadget_core::gadget::general::Client;
 use sp_core::Pair;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 use tangle_subxt::subxt::{self, tx::TxPayload, OnlineClient};
 
 pub struct JobsClient<Env: GadgetEnvironment> {
@@ -239,7 +239,7 @@ where
 
 #[async_trait]
 #[auto_impl(Arc)]
-pub trait TanglePalletSubmitter: Send + Sync + 'static {
+pub trait TanglePalletSubmitter: Send + Sync + std::fmt::Debug + 'static {
     async fn submit_job_result(
         &self,
         role_type: roles::RoleType,
@@ -264,6 +264,14 @@ where
     subxt_client: OnlineClient<C>,
     signer: S,
     logger: DebugLogger,
+}
+
+impl<C: subxt::Config, S: subxt::tx::Signer<C>> Debug for SubxtPalletSubmitter<C, S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SubxtPalletSubmitter")
+            .field("signer", &self.signer.account_id())
+            .finish()
+    }
 }
 
 #[async_trait]

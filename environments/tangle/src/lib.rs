@@ -23,11 +23,12 @@ pub mod runtime;
 pub mod work_manager;
 pub type TangleTransactionManager = Arc<dyn TanglePalletSubmitter>;
 
+#[derive(Clone)]
 pub struct TangleEnvironment {
     pub subxt_config: SubxtConfig,
     pub account_key: sr25519::Pair,
     pub logger: DebugLogger,
-    pub pallet_tx: TangleTransactionManager,
+    pub pallet_tx: Arc<parking_lot::Mutex<Option<TangleTransactionManager>>>,
 }
 
 impl std::fmt::Debug for TangleEnvironment {
@@ -49,7 +50,7 @@ impl GadgetEnvironment for TangleEnvironment {
     type RetryID = <Self::WorkManager as WorkManagerInterface>::RetryID;
     type TaskID = <Self::WorkManager as WorkManagerInterface>::TaskID;
     type SessionID = <Self::WorkManager as WorkManagerInterface>::SessionID;
-    type TransactionManager = Arc<dyn TanglePalletSubmitter>;
+    type TransactionManager = TangleTransactionManager;
     type JobInitMetadata = TangleJobMetadata;
 
     fn build_protocol_message<Payload: Serialize>(
@@ -85,18 +86,25 @@ impl GadgetEnvironment for TangleEnvironment {
                 })?;
 
         let pair_signer = PairSigner::new(self.account_key.clone());
-        // TODO: Figure out what to do with this
-        let _pallet_tx_submitter = SubxtPalletSubmitter::with_client(
+        let pallet_tx_submitter = SubxtPalletSubmitter::with_client(
             subxt_client.clone(),
             pair_signer,
             self.logger.clone(),
         );
+
+        self.pallet_tx.lock().replace(Arc::new(pallet_tx_submitter));
+
         Ok(TangleRuntime::new(subxt_client))
         // let runtime = TangleRuntime::new(runtime.client());
     }
 
-    fn transaction_manager(&self) -> &Self::TransactionManager {
-        &self.pallet_tx
+    fn transaction_manager(&self) -> Self::TransactionManager {
+        let lock = self.pallet_tx.lock();
+        if let Some(pallet_tx) = &*lock {
+            pallet_tx.clone()
+        } else {
+            panic!("Transaction manager not initialized")
+        }
     }
 }
 

@@ -457,7 +457,7 @@ mod tests {
                 },
                 account_key: sr25519::Pair::generate().0,
                 logger: logger.clone(),
-                pallet_tx,
+                pallet_tx: Arc::new(gadget_common::prelude::Mutex::new(Some(pallet_tx))),
             };
 
             let shell_config = ShellConfig::<InMemoryBackend, TangleEnvironment> {
@@ -608,6 +608,7 @@ mod tests {
         ecdsa::Pair::from_seed_slice(&seed).expect("valid seed")
     }
 
+    #[derive(Debug)]
     struct StubPalletTx;
 
     #[async_trait]

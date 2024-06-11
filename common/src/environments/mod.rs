@@ -55,7 +55,7 @@ where
 
     async fn setup_client(&self) -> Result<Self::Client, Self::Error>;
 
-    fn transaction_manager(&self) -> &Self::TransactionManager;
+    fn transaction_manager(&self) -> Self::TransactionManager;
 
     fn set_payload(&mut self, input: Vec<u8>, output: &mut Vec<u8>) {
         *output = input;

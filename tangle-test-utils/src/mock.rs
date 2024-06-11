@@ -994,6 +994,14 @@ pub mod mock_wrapper_client {
         pub id: AccountId,
     }
 
+    impl std::fmt::Debug for TestExternalitiesPalletSubmitter {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("TestExternalitiesPalletSubmitter")
+                .field("id", &self.id.to_string())
+                .finish()
+        }
+    }
+
     #[async_trait]
     impl TanglePalletSubmitter for TestExternalitiesPalletSubmitter {
         async fn submit_job_result(
@@ -1040,6 +1048,8 @@ pub mod mock_wrapper_client {
 pub struct TangleExtEnvironment {
     finality_notification_txs:
         Arc<parking_lot::Mutex<Vec<TracingUnboundedSender<FinalityNotification<Block>>>>>,
+    #[allow(dead_code)]
+    pallet_tx: Arc<parking_lot::Mutex<Option<Arc<dyn TanglePalletSubmitter>>>>,
 }
 
 #[async_trait]
@@ -1085,8 +1095,12 @@ impl GadgetEnvironment for TangleExtEnvironment {
         Ok(MockClient::<Runtime, Block>::new(Runtime, finality_notification_txs).await)
     }
 
-    fn transaction_manager(&self) -> &Self::TransactionManager {
-        todo!()
+    fn transaction_manager(&self) -> Self::TransactionManager {
+        if let Some(pallet_tx) = &*self.pallet_tx.lock() {
+            pallet_tx.clone()
+        } else {
+            panic!("Transaction manager not set")
+        }
     }
 }
 
