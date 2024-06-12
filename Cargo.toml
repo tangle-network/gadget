@@ -8,8 +8,9 @@ members = [
     "protocol-macros",
     "shell-manager",
     "shell-sdk",
-    "sdk",
-    "environments/tangle", "environments/utils",
+    "sdk", "executor",
+    "environments/tangle", 
+    "environments/utils"
 ]
 
 [workspace.package]
