@@ -1,6 +1,5 @@
 use crate::config::ShellManagerOpts;
 use crate::protocols::resolver::ProtocolMetadata;
-use gadget_common::client::ClientWithApi;
 use gadget_common::config::DebugLogger;
 use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::{defaults, ShellTomlConfig};
@@ -8,6 +7,7 @@ use sha2::Digest;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use tangle_environment::api::ClientWithApi;
 use tangle_environment::runtime::TangleRuntime;
 use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
 

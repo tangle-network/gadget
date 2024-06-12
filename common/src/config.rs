@@ -1,4 +1,3 @@
-pub use crate::client::ClientWithApi;
 use crate::client::{create_client, JobsClient};
 pub use crate::debug_logger::DebugLogger;
 use crate::environments::GadgetEnvironment;
@@ -6,11 +5,13 @@ pub use crate::module::network::Network;
 pub use crate::module::GadgetProtocol;
 pub use crate::prometheus::PrometheusConfig;
 use async_trait::async_trait;
+use gadget_core::gadget::general::Client;
 
 #[async_trait]
 pub trait ProtocolConfig<Env: GadgetEnvironment>
 where
     Self: Sized,
+    <Env as GadgetEnvironment>::Client: Client<<Env as GadgetEnvironment>::Event>,
 {
     type Network: Network<Env>;
     type Protocol: GadgetProtocol<Env>;

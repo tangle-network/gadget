@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::api::ClientWithApi;
 use crate::gadget::TangleEvent;
 use crate::TangleEnvironment;
-use gadget_common::config::ClientWithApi;
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::tangle_subxt::subxt::blocks::{Block, BlockRef};
 use gadget_common::tangle_subxt::subxt::ext::futures::TryFutureExt;

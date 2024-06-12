@@ -63,6 +63,8 @@ impl<Env: GadgetEnvironment, N: Network<Env>, M: GadgetProtocol<Env>> GeneralMod
 #[async_trait]
 impl<Env: GadgetEnvironment, N: Network<Env>, M: GadgetProtocol<Env>> AbstractGadget
     for GeneralModule<N, M, Env>
+where
+    <Env as GadgetEnvironment>::Client: Client<<Env as GadgetEnvironment>::Event>,
 {
     type Event = Env::Event;
     type ProtocolMessage = Env::ProtocolMessage;
@@ -114,6 +116,7 @@ where
         Error = Env::Error,
         ProtocolMessage = Env::ProtocolMessage,
     >,
+    <Env as GadgetEnvironment>::Client: Client<<Env as GadgetEnvironment>::Event>,
 {
     type Client = <Env as GadgetEnvironment>::Client;
 

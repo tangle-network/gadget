@@ -14,7 +14,6 @@ pub mod prelude {
     pub use crate::async_trait;
     pub use crate::protocol;
     pub use crate::BuiltExecutableJobWrapper;
-    pub use crate::ClientWithApi;
     pub use crate::DebugLogger;
     pub use crate::ECDSAKeyStore;
     pub use crate::FullProtocolConfig;

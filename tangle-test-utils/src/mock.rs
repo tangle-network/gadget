@@ -710,7 +710,7 @@ pub mod mock_wrapper_client {
     use async_trait::async_trait;
     use futures::StreamExt;
     use gadget_common::client::exec_client_function;
-    use gadget_common::config::ClientWithApi;
+    use tangle_environment::api::ClientWithApi;
     use gadget_common::locks::TokioMutexExt;
     use gadget_common::tangle_subxt::subxt::utils::AccountId32;
     use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{

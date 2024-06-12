@@ -1,5 +1,5 @@
-use crate::client::ClientWithApi;
 use async_trait::async_trait;
+use gadget_core::gadget::general::Client;
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
@@ -11,7 +11,7 @@ pub trait EventMetadata<Env: GadgetEnvironment> {
 }
 
 #[async_trait]
-pub trait GadgetEnvironment: std::fmt::Debug + Sized + 'static
+pub trait GadgetEnvironment: Debug + Sized + 'static
 where
     Self::WorkManager: WorkManagerInterface<
         Clock = Self::Clock,
@@ -29,7 +29,7 @@ where
         + Sync
         + 'static
         + ProtocolMessageMetadata<Self::WorkManager>;
-    type Client: ClientWithApi<Self> + Send + Sync + 'static;
+    type Client: Client<<Self as GadgetEnvironment>::Event> + Send + Sync + 'static;
     type WorkManager: WorkManagerInterface;
     type Error: Error + Send + Sync + From<String> + Into<crate::Error> + 'static;
     type Clock: Display + Copy + Send + Sync + 'static;
