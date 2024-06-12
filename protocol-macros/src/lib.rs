@@ -109,7 +109,7 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
             pub protocol: Option<<#struct_ident<#generics_token_stream> as gadget_common::config::NetworkAndProtocolSetup<Env>>::Protocol>,
             pub client: Option<Env::Client>,
             pub params: #struct_ident<#generics_token_stream>,
-            pub pallet_tx: Arc<dyn gadget_common::client::PalletSubmitter>,
+            pub tx_manager: Arc<dyn gadget_common::client::PalletSubmitter>,
             pub logger: gadget_common::config::DebugLogger,
             pub prometheus_config: gadget_common::prometheus::PrometheusConfig,
         }
@@ -121,13 +121,13 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
             type Protocol = <Self::ProtocolSpecificConfiguration as gadget_common::config::NetworkAndProtocolSetup<Env>>::Protocol;
             type ProtocolSpecificConfiguration = #struct_ident <#generics_token_stream>;
 
-            fn new(network: Self::Network, client: <Env as gadget_common::environments::GadgetEnvironment>::Client, protocol: Self::Protocol, params: Self::ProtocolSpecificConfiguration, pallet_tx: Arc<dyn gadget_common::client::PalletSubmitter>, logger: DebugLogger, prometheus_config: gadget_common::prometheus::PrometheusConfig) -> Self {
+            fn new(network: Self::Network, client: <Env as gadget_common::environments::GadgetEnvironment>::Client, protocol: Self::Protocol, params: Self::ProtocolSpecificConfiguration, tx_manager: Arc<dyn gadget_common::client::PalletSubmitter>, logger: DebugLogger, prometheus_config: gadget_common::prometheus::PrometheusConfig) -> Self {
                 Self {
                     network: Some(network),
                     client: Some(client),
                     protocol: Some(protocol),
                     params,
-                    pallet_tx,
+                    tx_manager,
                     logger,
                     prometheus_config,
                 }
@@ -158,7 +158,7 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
             #where_bounds
         {
             pub fn setup(self) -> #new_struct <Env, #generics_token_stream_unique> {
-                let pallet_tx = <Self as gadget_common::config::NetworkAndProtocolSetup<Env>>::pallet_tx(&self);
+                let tx_manager = <Self as gadget_common::config::NetworkAndProtocolSetup<Env>>::tx_manager(&self);
                 let logger = <Self as gadget_common::config::NetworkAndProtocolSetup<Env>>::logger(&self);
                 let prometheus_config = self.prometheus_config.clone();
 
@@ -167,7 +167,7 @@ pub fn protocol(_args: TokenStream, input: TokenStream) -> TokenStream {
                     protocol: None,
                     client: None,
                     params: self,
-                    pallet_tx,
+                    tx_manager,
                     logger,
                     prometheus_config,
                 }

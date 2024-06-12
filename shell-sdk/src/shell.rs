@@ -1,21 +1,17 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Duration;
 
-use crate::{keystore::load_keys_from_keystore, SubxtConfig};
+use crate::keystore::load_keys_from_keystore;
 
-use gadget_common::environments::TangleEnvironment;
-use gadget_common::gadget::tangle::runtime::{TangleConfig, TangleRuntime};
+use gadget_common::environments::GadgetEnvironment;
 use gadget_common::keystore::KeystoreBackend;
 use gadget_common::{
-    client::{PairSigner, SubxtPalletSubmitter},
     config::{DebugLogger, PrometheusConfig},
     full_protocol::NodeInput,
     keystore::ECDSAKeyStore,
 };
 use gadget_io::tokio::task::JoinHandle;
 use sp_core::{ed25519, keccak_256, sr25519, Pair};
-use tangle_subxt::subxt;
 
 use crate::config::ShellConfig;
 use crate::network::gossip::GossipHandle;
@@ -26,13 +22,13 @@ use itertools::Itertools;
 pub const AGENT_VERSION: &str = "tangle/gadget-shell-sdk/1.0.0";
 pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub type ShellNodeInput<KBE> = NodeInput<TangleEnvironment, GossipHandle, KBE, ()>;
+pub type ShellNodeInput<KBE, Env> = NodeInput<Env, GossipHandle, KBE, ()>;
 
 /// Generates the NodeInput and handle to the networking layer for the given config.
 #[tracing::instrument(skip(config))]
-pub async fn generate_node_input<KBE: KeystoreBackend>(
-    config: ShellConfig<KBE>,
-) -> color_eyre::Result<(ShellNodeInput<KBE>, JoinHandle<()>)> {
+pub async fn generate_node_input<KBE: KeystoreBackend, Env: GadgetEnvironment>(
+    config: ShellConfig<KBE, Env>,
+) -> color_eyre::Result<(ShellNodeInput<KBE, Env>, JoinHandle<()>)> {
     let (role_key, acco_key) = load_keys_from_keystore(&config.keystore)?;
     let network_key = ed25519::Pair::from_seed(&config.node_key);
     let logger = DebugLogger::default();
@@ -65,7 +61,7 @@ pub async fn generate_node_input<KBE: KeystoreBackend>(
     wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
 
     let node_input = generate_node_input_for_required_protocols(
-        &config.subxt,
+        &config.environment,
         networks,
         acco_key,
         logger,
@@ -76,14 +72,14 @@ pub async fn generate_node_input<KBE: KeystoreBackend>(
     Ok((node_input, network_task))
 }
 
-pub fn generate_node_input_for_role_group<KBE>(
-    runtime: TangleRuntime,
+pub fn generate_node_input_for_role_group<KBE, Env: GadgetEnvironment>(
+    runtime: Env::Client,
     networks: HashMap<String, GossipHandle>,
     account_id: sr25519::Public,
     logger: DebugLogger,
-    pallet_tx: Arc<SubxtPalletSubmitter<TangleConfig, PairSigner<TangleConfig>>>,
+    tx_manager: Env::TransactionManager,
     keystore: ECDSAKeyStore<KBE>,
-) -> color_eyre::Result<ShellNodeInput<KBE>>
+) -> color_eyre::Result<ShellNodeInput<KBE, Env>>
 where
     KBE: KeystoreBackend,
 {
@@ -93,13 +89,14 @@ where
         .map(|r| r.1)
         .collect::<Vec<_>>();
     let clients = (0..networks.len())
-        .map(|_| TangleRuntime::new(runtime.client()))
+        .map(|_| runtime.clone())
         .collect::<Vec<_>>();
-    Ok(NodeInput::<TangleEnvironment, GossipHandle, KBE, ()> {
+
+    Ok(NodeInput::<Env, GossipHandle, KBE, ()> {
         clients,
         account_id,
         logger,
-        pallet_tx,
+        tx_manager,
         keystore,
         node_index: 0,
         additional_params: (),
@@ -108,36 +105,33 @@ where
     })
 }
 
-pub async fn generate_node_input_for_required_protocols<KBE>(
-    subxt_config: &SubxtConfig,
+pub async fn generate_node_input_for_required_protocols<KBE, Env: GadgetEnvironment>(
+    env: &Env,
     networks: HashMap<String, GossipHandle>,
     acco_key: sr25519::Pair,
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
-) -> color_eyre::Result<ShellNodeInput<KBE>>
+) -> color_eyre::Result<ShellNodeInput<KBE, Env>>
 where
     KBE: KeystoreBackend,
 {
-    let subxt_client =
-        subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&subxt_config.endpoint).await?;
-
-    let pair_signer = PairSigner::new(acco_key.clone());
-    let pallet_tx_submitter =
-        SubxtPalletSubmitter::with_client(subxt_client.clone(), pair_signer, logger.clone());
-    let pallet_tx = Arc::new(pallet_tx_submitter);
-    let runtime = TangleRuntime::new(subxt_client);
+    let runtime = env
+        .setup_client()
+        .await
+        .map_err(|err| color_eyre::Report::msg(format!("Failed to setup runtime: {err}")))?;
+    let tx_manager = env.transaction_manager();
     generate_node_input_for_role_group(
-        TangleRuntime::new(runtime.client()),
+        runtime,
         networks.clone(),
         acco_key.public(),
         logger.clone(),
-        pallet_tx.clone(),
+        tx_manager.clone(),
         keystore.clone(),
     )
 }
 
-pub async fn wait_for_connection_to_bootnodes<KBE: KeystoreBackend>(
-    config: &ShellConfig<KBE>,
+pub async fn wait_for_connection_to_bootnodes<KBE: KeystoreBackend, Env: GadgetEnvironment>(
+    config: &ShellConfig<KBE, Env>,
     handles: &HashMap<String, GossipHandle>,
     logger: &DebugLogger,
 ) -> color_eyre::Result<()> {

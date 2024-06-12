@@ -13,6 +13,7 @@ use libp2p::{
     swarm::dial_opts::DialOpts, StreamProtocol,
 };
 
+use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::KeystoreBackend;
 use gadget_io::tokio::select;
 use gadget_io::tokio::sync::{Mutex, RwLock};
@@ -29,14 +30,15 @@ use std::time::Duration;
 
 #[allow(clippy::collapsible_else_if)]
 #[cfg(not(target_family = "wasm"))]
-pub async fn setup_libp2p_network<KBE: KeystoreBackend>(
+pub async fn setup_libp2p_network<KBE: KeystoreBackend, Env: GadgetEnvironment>(
     identity: libp2p::identity::Keypair,
-    config: &ShellConfig<KBE>,
+    config: &ShellConfig<KBE, Env>,
     logger: DebugLogger,
     networks: Vec<String>,
     role_key: ecdsa::Pair,
 ) -> Result<(HashMap<String, GossipHandle>, JoinHandle<()>), Box<dyn Error>> {
     // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
+
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
         .with_tokio()
         .with_tcp(

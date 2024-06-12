@@ -14,7 +14,6 @@ pub mod prelude {
     pub use crate::async_trait;
     pub use crate::protocol;
     pub use crate::BuiltExecutableJobWrapper;
-    pub use crate::ClientWithApi;
     pub use crate::DebugLogger;
     pub use crate::ECDSAKeyStore;
     pub use crate::FullProtocolConfig;
@@ -24,16 +23,12 @@ pub mod prelude {
     pub use crate::Mutex;
     pub use crate::Network;
     pub use crate::NodeInput;
-    pub use crate::PalletSubmitter;
     pub use crate::ProtocolWorkManager;
     pub use crate::SendFuture;
-    pub use crate::TangleProtocolMessage;
-    pub use crate::TangleWorkManager;
     pub use crate::UnboundedReceiver;
     pub use crate::WorkManagerInterface;
     pub use gadget_common::full_protocol::SharedOptional;
 
-    pub use gadget_common::gadget::tangle::TangleInitMetadata;
     pub use gadget_common::prelude::InMemoryBackend;
     pub use gadget_common::tangle_runtime::AccountId32;
     pub use gadget_common::tangle_runtime::MaxAdditionalParamsLen;
@@ -54,7 +49,7 @@ pub mod prelude {
     pub use tangle_subxt;
 }
 
-/// Should be put inside the main.rs file of the protocol repository
+/// Should be put inside the lib file of the protocol repository
 #[macro_export]
 macro_rules! generate_shell_binary {
     ($entry_point:path, $keystore:path, $n_protocols:expr, $($role_type:expr),*) => {

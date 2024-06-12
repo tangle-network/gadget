@@ -1,5 +1,6 @@
 use crate::job::ExecutableJob;
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 use std::future::Future;
 use std::ops::{Add, Sub};
@@ -72,7 +73,13 @@ pub trait WorkManagerInterface: Send + Sync + 'static + Sized {
         + Sub<Output = Self::Clock>
         + Add<Output = Self::Clock>
         + 'static;
-    type ProtocolMessage: ProtocolMessageMetadata<Self> + Send + Sync + Clone + 'static;
+    type ProtocolMessage: Serialize
+        + for<'de> Deserialize<'de>
+        + ProtocolMessageMetadata<Self>
+        + Send
+        + Sync
+        + Clone
+        + 'static;
     type Error: Debug + Send + Sync + 'static;
     type SessionID: Copy + Hash + Eq + PartialEq + Display + Debug + Send + Sync + 'static;
     type TaskID: Copy + Hash + Eq + PartialEq + Debug + Send + Sync + AsRef<[u8]> + 'static;
@@ -678,12 +685,13 @@ mod tests {
     use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
     use parking_lot::Mutex;
     use sp_core::ecdsa::Public;
+    use sp_core::serde::{Deserialize, Serialize};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
 
     #[derive(Debug, Eq, PartialEq)]
     struct TestWorkManager;
-    #[derive(Clone, Eq, PartialEq, Debug)]
+    #[derive(Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
     pub struct TestMessage {
         message: String,
         associated_block_id: u64,
@@ -1460,7 +1468,7 @@ mod tests {
     }
 
     struct DummyRangeChecker<const N: u64>;
-    #[derive(Clone)]
+    #[derive(Clone, Serialize, Deserialize)]
     struct DummyProtocolMessage;
 
     impl<const N: u64> ProtocolMessageMetadata<DummyRangeChecker<N>> for DummyProtocolMessage {

@@ -1,5 +1,5 @@
 [package]
-name = "test-utils"
+name = "tangle-test-utils"
 version = "0.1.0"
 edition = "2021"
 
@@ -44,6 +44,7 @@ wasm = [
 
 [dependencies]
 getrandom = { workspace = true, optional = true, default-features = false }
+environment-utils = { workspace = true }
 parking_lot = { workspace = true }
 futures = { workspace = true }
 sp-io = { workspace = true, default-features = false }
@@ -54,6 +55,7 @@ frame-system = { workspace = true, default-features = false }
 gadget-common = { workspace = true, default-features = false }
 gadget-core = { workspace = true }
 gadget-io = { workspace = true, default-features = false }
+tangle-environment.workspace = true
 pallet-jobs-rpc-runtime-api = { workspace = true }
 sc-client-api = { workspace = true, optional = true, default-features = false }
 sc-utils = { workspace = true, optional = true, default-features = false }
