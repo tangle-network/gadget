@@ -17,7 +17,6 @@ use runtime::TangleRuntime;
 use std::sync::Arc;
 
 pub mod api;
-pub mod client;
 pub mod gadget;
 pub mod message;
 pub mod runtime;

@@ -149,10 +149,7 @@ impl From<JobError> for Error {
 
 pub async fn run_protocol<Env: GadgetEnvironment, T: ProtocolConfig<Env>>(
     mut protocol_config: T,
-) -> Result<(), Error>
-where
-    <Env as GadgetEnvironment>::Client: Client<<Env as GadgetEnvironment>::Event>,
-{
+) -> Result<(), Error> {
     let client = protocol_config.take_client();
     let network = protocol_config.take_network();
     let protocol = protocol_config.take_protocol();
@@ -225,14 +222,11 @@ pub async fn create_work_manager<Env: GadgetEnvironment, P: GadgetProtocol<Env>>
 
 async fn get_latest_event_from_client<Env: GadgetEnvironment>(
     client: &<Env as GadgetEnvironment>::Client,
-) -> Result<<Env as GadgetEnvironment>::Event, Error>
-where
-    <Env as GadgetEnvironment>::Client: Client<<Env as GadgetEnvironment>::Event>,
-{
+) -> Result<<Env as GadgetEnvironment>::Event, Error> {
     Client::<Env::Event>::latest_event(client)
         .await
         .ok_or_else(|| Error::InitError {
-            err: "No finality notification received".to_string(),
+            err: "No event received".to_string(),
         })
 }
 

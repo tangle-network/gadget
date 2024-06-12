@@ -71,10 +71,7 @@ pub trait PhaseResultExt {
 }
 
 #[async_trait]
-impl<Env: GadgetEnvironment> Client<Env::Event> for JobsClient<Env>
-where
-    <Env as GadgetEnvironment>::Client: Client<<Env as GadgetEnvironment>::Event>,
-{
+impl<Env: GadgetEnvironment> Client<Env::Event> for JobsClient<Env> {
     async fn next_event(&self) -> Option<Env::Event> {
         self.client.next_event().await
     }
