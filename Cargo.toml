@@ -16,6 +16,8 @@ members = [
     "sdk",
     "eigen-gadget",
     "eigen-tangle-avs",
+    "sdk",
+    "executor",
 ]
 
 [workspace.package]
