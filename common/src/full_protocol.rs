@@ -32,7 +32,7 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
 
     async fn new(
         client: <Env as GadgetEnvironment>::Client,
-        pallet_tx: <Env as GadgetEnvironment>::TransactionManager,
+        tx_manager: <Env as GadgetEnvironment>::TransactionManager,
         network: Self::Network,
         logger: DebugLogger,
         account_id: sr25519::Public,
@@ -86,7 +86,7 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     ) -> bool;
 
     fn jobs_client(&self) -> &SharedOptional<JobsClient<Env>>;
-    fn pallet_tx(&self) -> <Env as GadgetEnvironment>::TransactionManager;
+    fn tx_manager(&self) -> <Env as GadgetEnvironment>::TransactionManager;
 
     fn logger(&self) -> DebugLogger;
 
@@ -150,8 +150,8 @@ where
         Ok((self.clone(), self.clone()))
     }
 
-    fn pallet_tx(&self) -> <Env as GadgetEnvironment>::TransactionManager {
-        T::pallet_tx(self)
+    fn tx_manager(&self) -> <Env as GadgetEnvironment>::TransactionManager {
+        T::tx_manager(self)
     }
 
     fn logger(&self) -> DebugLogger {
@@ -297,7 +297,7 @@ pub struct NodeInput<Env: GadgetEnvironment, N: Network<Env>, KBE: KeystoreBacke
     pub networks: Vec<N>,
     pub account_id: sr25519::Public,
     pub logger: DebugLogger,
-    pub pallet_tx: <Env as GadgetEnvironment>::TransactionManager,
+    pub tx_manager: <Env as GadgetEnvironment>::TransactionManager,
     pub keystore: ECDSAKeyStore<KBE>,
     pub node_index: usize,
     pub additional_params: D,

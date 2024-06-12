@@ -677,7 +677,7 @@ pub async fn new_test_ext<
             id: format!("Peer {node_index}"),
         };
 
-        let pallet_tx = Arc::new(TestExternalitiesPalletSubmitter {
+        let tx_manager = Arc::new(TestExternalitiesPalletSubmitter {
             id: account_id.clone(),
             ext: ext.clone(),
         });
@@ -690,7 +690,7 @@ pub async fn new_test_ext<
             networks,
             account_id: sr25519::Public(account_id.into()),
             logger,
-            pallet_tx: pallet_tx as _,
+            tx_manager: tx_manager as _,
             keystore,
             node_index,
             additional_params: additional_params.clone(),
@@ -1050,7 +1050,7 @@ pub struct TangleExtEnvironment {
     finality_notification_txs:
         Arc<parking_lot::Mutex<Vec<TracingUnboundedSender<FinalityNotification<Block>>>>>,
     #[allow(dead_code)]
-    pallet_tx: Arc<parking_lot::Mutex<Option<Arc<dyn TanglePalletSubmitter>>>>,
+    tx_manager: Arc<parking_lot::Mutex<Option<Arc<dyn TanglePalletSubmitter>>>>,
 }
 
 #[async_trait]
@@ -1097,8 +1097,8 @@ impl GadgetEnvironment for TangleExtEnvironment {
     }
 
     fn transaction_manager(&self) -> Self::TransactionManager {
-        if let Some(pallet_tx) = &*self.pallet_tx.lock() {
-            pallet_tx.clone()
+        if let Some(tx_manager) = &*self.tx_manager.lock() {
+            tx_manager.clone()
         } else {
             panic!("Transaction manager not set")
         }

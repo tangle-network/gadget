@@ -99,7 +99,7 @@ impl JobsClient<TangleEnvironment> {
             MaxAdditionalParamsLen,
         >,
     ) -> Result<(), gadget_common::Error> {
-        self.pallet_tx
+        self.tx_manager
             .submit_job_result(role_type, job_id, result)
             .await
     }

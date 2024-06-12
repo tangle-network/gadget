@@ -170,7 +170,7 @@ mod tests {
             <subxt_signer::sr25519::Keypair as Signer<PolkadotConfig>>::account_id(&alice);
         let bob_account_id =
             <subxt_signer::sr25519::Keypair as Signer<PolkadotConfig>>::account_id(&bob);
-        let pallet_tx =
+        let tx_manager =
             SubxtPalletSubmitter::<PolkadotConfig, _>::new(alice.clone(), logger).await?;
         let dkg_phase_one = jobs::JobSubmission {
             expiry: 100u64,
@@ -186,7 +186,7 @@ mod tests {
             }),
         };
         let tx = api::tx().jobs().submit_job(dkg_phase_one);
-        let _hash = pallet_tx.submit(&tx).await?;
+        let _hash = tx_manager.submit(&tx).await?;
         Ok(())
     }
 }

@@ -11,7 +11,7 @@ use tangle_subxt::subxt::{self};
 pub struct JobsClient<Env: GadgetEnvironment> {
     pub client: Arc<Env::Client>,
     logger: DebugLogger,
-    pub(crate) pallet_tx: Env::TransactionManager,
+    pub(crate) tx_manager: Env::TransactionManager,
 }
 
 impl<Env: GadgetEnvironment> Clone for JobsClient<Env> {
@@ -19,7 +19,7 @@ impl<Env: GadgetEnvironment> Clone for JobsClient<Env> {
         Self {
             client: self.client.clone(),
             logger: self.logger.clone(),
-            pallet_tx: self.pallet_tx.clone(),
+            tx_manager: self.tx_manager.clone(),
         }
     }
 }
@@ -27,12 +27,12 @@ impl<Env: GadgetEnvironment> Clone for JobsClient<Env> {
 pub async fn create_client<Env: GadgetEnvironment>(
     client: Env::Client,
     logger: DebugLogger,
-    pallet_tx: Env::TransactionManager,
+    tx_manager: Env::TransactionManager,
 ) -> Result<JobsClient<Env>, crate::Error> {
     Ok(JobsClient {
         client: Arc::new(client),
         logger,
-        pallet_tx,
+        tx_manager,
     })
 }
 

@@ -29,7 +29,7 @@ pub struct TangleEnvironment {
     pub subxt_config: SubxtConfig,
     pub account_key: sr25519::Pair,
     pub logger: DebugLogger,
-    pub pallet_tx: Arc<parking_lot::Mutex<Option<TangleTransactionManager>>>,
+    pub tx_manager: Arc<parking_lot::Mutex<Option<TangleTransactionManager>>>,
 }
 
 impl std::fmt::Debug for TangleEnvironment {
@@ -89,22 +89,24 @@ impl GadgetEnvironment for TangleEnvironment {
             })?;
 
         let pair_signer = PairSigner::new(self.account_key.clone());
-        let pallet_tx_submitter = SubxtPalletSubmitter::with_client(
+        let tx_manager_submitter = SubxtPalletSubmitter::with_client(
             subxt_client.clone(),
             pair_signer,
             self.logger.clone(),
         );
 
-        self.pallet_tx.lock().replace(Arc::new(pallet_tx_submitter));
+        self.tx_manager
+            .lock()
+            .replace(Arc::new(tx_manager_submitter));
 
         Ok(TangleRuntime::new(subxt_client))
         // let runtime = TangleRuntime::new(runtime.client());
     }
 
     fn transaction_manager(&self) -> Self::TransactionManager {
-        let lock = self.pallet_tx.lock();
-        if let Some(pallet_tx) = &*lock {
-            pallet_tx.clone()
+        let lock = self.tx_manager.lock();
+        if let Some(tx_manager) = &*lock {
+            tx_manager.clone()
         } else {
             panic!("Transaction manager not initialized")
         }

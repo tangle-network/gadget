@@ -240,7 +240,7 @@ macro_rules! generate_setup_and_run_command {
             async move {
                 if let Err(err) = run(
                     node_input.clients,
-                    node_input.pallet_tx,
+                    node_input.tx_manager,
                     node_input.networks,
                     node_input.logger.clone(),
                     node_input.account_id,
@@ -258,7 +258,7 @@ macro_rules! generate_setup_and_run_command {
 
         pub async fn run<Env: GadgetEnvironment, N: Network<Env>, KBE: $crate::keystore::KeystoreBackend>(
             client: Vec<Env::Client>,
-            pallet_tx: <Env as GadgetEnvironment>::TransactionManager,
+            tx_manager: <Env as GadgetEnvironment>::TransactionManager,
             networks: Vec<N>,
             logger: DebugLogger,
             account_id: sp_core::sr25519::Public,
@@ -272,7 +272,7 @@ macro_rules! generate_setup_and_run_command {
             let mut clients: std::collections::VecDeque<_> = client.into_iter().collect();
 
             $(
-                let config = crate::$config::new(clients.pop_front().expect("Not enough clients"), pallet_tx.clone(), networks.pop_front().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone(), prometheus_config.clone()).await?;
+                let config = crate::$config::new(clients.pop_front().expect("Not enough clients"), tx_manager.clone(), networks.pop_front().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone(), prometheus_config.clone()).await?;
                 futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), $crate::Error>>>>);
             )*
 
@@ -294,7 +294,7 @@ macro_rules! generate_protocol {
             N: Network<Env>,
             KBE: KeystoreBackend,
         > {
-            pallet_tx: <Env as GadgetEnvironment>::TransactionManager,
+            tx_manager: <Env as GadgetEnvironment>::TransactionManager,
             logger: DebugLogger,
             client: <Env as GadgetEnvironment>::Client,
             /// This field should NEVER be used directly. Use Self instead as the network
@@ -319,7 +319,7 @@ macro_rules! generate_protocol {
 
             async fn new(
                 client: <Env as GadgetEnvironment>::Client,
-                pallet_tx: <Env as GadgetEnvironment>::TransactionManager,
+                tx_manager: <Env as GadgetEnvironment>::TransactionManager,
                 network_inner: Self::Network,
                 logger: DebugLogger,
                 account_id: sp_core::sr25519::Public,
@@ -332,7 +332,7 @@ macro_rules! generate_protocol {
                     DebugLogger { id: (logger.id + " | " + stringify!($name)).replace("\"", "") }
                 };
                 Ok(Self {
-                    pallet_tx,
+                    tx_manager,
                     logger,
                     client,
                     network_inner,
@@ -405,8 +405,8 @@ macro_rules! generate_protocol {
                 &self.jobs_client
             }
 
-            fn pallet_tx(&self) -> <Env as GadgetEnvironment>::TransactionManager {
-                self.pallet_tx.clone()
+            fn tx_manager(&self) -> <Env as GadgetEnvironment>::TransactionManager {
+                self.tx_manager.clone()
             }
 
             fn logger(&self) -> DebugLogger {

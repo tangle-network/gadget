@@ -449,7 +449,7 @@ mod tests {
                 panic!("Invalid peer index");
             };
 
-            let pallet_tx = Arc::new(StubPalletTx);
+            let tx_manager = Arc::new(StubPalletTx);
 
             let tangle_environment = TangleEnvironment {
                 subxt_config: SubxtConfig {
@@ -457,7 +457,7 @@ mod tests {
                 },
                 account_key: sr25519::Pair::generate().0,
                 logger: logger.clone(),
-                pallet_tx: Arc::new(gadget_common::prelude::Mutex::new(Some(pallet_tx))),
+                tx_manager: Arc::new(gadget_common::prelude::Mutex::new(Some(tx_manager))),
             };
 
             let shell_config = ShellConfig::<InMemoryBackend, TangleEnvironment> {

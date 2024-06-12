@@ -30,7 +30,7 @@ where
             .await?;
         let client = self.params().client();
         let params = self.params().clone();
-        let pallet_tx = self.pallet_tx();
+        let tx_manager = self.tx_manager();
         let logger = self.logger();
         let prometheus_config = self.prometheus_config();
 
@@ -39,7 +39,7 @@ where
             client,
             protocol,
             params,
-            pallet_tx,
+            tx_manager,
             logger,
             prometheus_config,
         ))
@@ -50,13 +50,13 @@ where
         client: <Env as GadgetEnvironment>::Client,
         protocol: <<Self as ProtocolConfig<Env>>::ProtocolSpecificConfiguration as NetworkAndProtocolSetup<Env>>::Protocol,
         params: Self::ProtocolSpecificConfiguration,
-        pallet_tx: <Env as GadgetEnvironment>::TransactionManager,
+        tx_manager: <Env as GadgetEnvironment>::TransactionManager,
         logger: DebugLogger,
         prometheus_config: PrometheusConfig,
     ) -> Self;
 
-    fn pallet_tx(&self) -> <Env as GadgetEnvironment>::TransactionManager {
-        self.params().pallet_tx()
+    fn tx_manager(&self) -> <Env as GadgetEnvironment>::TransactionManager {
+        self.params().tx_manager()
     }
     fn logger(&self) -> DebugLogger {
         self.params().logger()
@@ -73,14 +73,14 @@ pub trait NetworkAndProtocolSetup<Env: GadgetEnvironment> {
     type Protocol;
 
     async fn build_jobs_client(&self) -> Result<JobsClient<Env>, crate::Error> {
-        create_client(self.client(), self.logger(), self.pallet_tx()).await
+        create_client(self.client(), self.logger(), self.tx_manager()).await
     }
 
     async fn build_network_and_protocol(
         &self,
         jobs_client: JobsClient<Env>,
     ) -> Result<(Self::Network, Self::Protocol), crate::Error>;
-    fn pallet_tx(&self) -> <Env as GadgetEnvironment>::TransactionManager;
+    fn tx_manager(&self) -> <Env as GadgetEnvironment>::TransactionManager;
     fn logger(&self) -> DebugLogger;
     fn client(&self) -> <Env as GadgetEnvironment>::Client;
 }

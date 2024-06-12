@@ -77,7 +77,7 @@ pub fn generate_node_input_for_role_group<KBE, Env: GadgetEnvironment>(
     networks: HashMap<String, GossipHandle>,
     account_id: sr25519::Public,
     logger: DebugLogger,
-    pallet_tx: Env::TransactionManager,
+    tx_manager: Env::TransactionManager,
     keystore: ECDSAKeyStore<KBE>,
 ) -> color_eyre::Result<ShellNodeInput<KBE, Env>>
 where
@@ -96,7 +96,7 @@ where
         clients,
         account_id,
         logger,
-        pallet_tx,
+        tx_manager,
         keystore,
         node_index: 0,
         additional_params: (),
@@ -119,13 +119,13 @@ where
         .setup_client()
         .await
         .map_err(|err| color_eyre::Report::msg(format!("Failed to setup runtime: {err}")))?;
-    let pallet_tx = env.transaction_manager();
+    let tx_manager = env.transaction_manager();
     generate_node_input_for_role_group(
         runtime,
         networks.clone(),
         acco_key.public(),
         logger.clone(),
-        pallet_tx.clone(),
+        tx_manager.clone(),
         keystore.clone(),
     )
 }
