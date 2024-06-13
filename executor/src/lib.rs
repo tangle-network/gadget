@@ -46,7 +46,7 @@ pub async fn run_executor(instructions: &str) {
         println!("LOG : Process {}", service.clone());
         let status = process.status().unwrap();
         println!("\tSTATUS: {:?}", status);
-        let output = process.read().await;
+        let output = process.read_until_default_timeout().await;
         println!("\n{} read result:\n\t {:?}\n", service, output);
         if let ProcessOutput::Exhausted(_) = output {
             println!("{} ended, removing from Manager", service);

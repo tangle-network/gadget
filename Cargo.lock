@@ -3619,6 +3619,7 @@ dependencies = [
  "log",
  "prometheus",
  "reqwest",
+ "serde",
  "thiserror",
  "tokio",
 ]

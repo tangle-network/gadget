@@ -126,7 +126,7 @@ impl GadgetProcess {
     /// Will loop and wait for output from the process, returns early if no output is received
     /// for a default timeout period of 1 second.
     pub(crate) async fn read_until_default_timeout(&mut self) -> ProcessOutput {
-        self.read_with_timeout(DEFAULT_READ_TIMEOUT).await
+        self.read_until_timeout(DEFAULT_READ_TIMEOUT).await
     }
 
     /// Continually reads output from this GadgetProcess, eventually returning a ProcessOutput.

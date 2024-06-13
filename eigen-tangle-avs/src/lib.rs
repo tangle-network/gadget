@@ -1,6 +1,7 @@
 use alloy_sol_types::sol;
 
 pub mod operator;
+// mod avs;
 
 sol!(
     #[allow(missing_docs)]
