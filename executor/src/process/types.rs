@@ -16,6 +16,8 @@ use tokio::io::{BufReader, Lines};
 pub use tokio::process::Child;
 use tokio::time::timeout;
 
+const DEFAULT_READ_TIMEOUT: u64 = 1000;
+
 /// A Process spawned by gadget-executor, running some service or command(s)
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GadgetProcess {
@@ -124,8 +126,7 @@ impl GadgetProcess {
     /// Will loop and wait for output from the process, returns early if no output is received
     /// for a default timeout period of 1 second.
     pub(crate) async fn read_until_default_timeout(&mut self) -> ProcessOutput {
-        let default_timeout = 1000u64;
-        self.read_with_timeout(default_timeout).await
+        self.read_with_timeout(DEFAULT_READ_TIMEOUT).await
     }
 
     /// Continually reads output from this GadgetProcess, eventually returning a ProcessOutput.
