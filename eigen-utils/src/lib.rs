@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_signer::Signer;

@@ -14,7 +14,6 @@ use sysinfo::ProcessStatus::{
 use sysinfo::{Pid, ProcessStatus, System};
 use tokio::io::{BufReader, Lines};
 pub use tokio::process::Child;
-use tokio::time::timeout;
 
 const DEFAULT_READ_TIMEOUT: u64 = 1000;
 

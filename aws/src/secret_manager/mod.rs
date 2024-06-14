@@ -2,7 +2,7 @@ use aws_config::{meta::region::RegionProviderChain, BehaviorVersion, Region};
 use aws_sdk_secretsmanager::{operation::get_secret_value::GetSecretValueOutput, Client};
 use std::error::Error as StdError;
 
-async fn read_string_from_secret_manager(
+pub async fn read_string_from_secret_manager(
     secret_name: &str,
     region: &str,
 ) -> Result<String, Box<dyn StdError>> {

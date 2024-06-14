@@ -1,35 +1,35 @@
 // use alloy_core::{bls, core::U256, txmgr, wallet};
-use alloy_primitives::{Address, U256};
-use alloy_provider::network::Ethereum;
-use alloy_provider::{Provider, ProviderBuilder};
-use alloy_rpc_client::WsConnect;
-use alloy_signer_wallet::Wallet;
-use alloy_transport::Transport;
-use aws_sdk_kms::Client as KmsClient;
+use alloy_primitives::Address;
+// use alloy_provider::network::Ethereum;
+// use alloy_provider::{Provider, ProviderBuilder};
+// use alloy_rpc_client::WsConnect;
+// use alloy_signer_wallet::Wallet;
+// use alloy_transport::Transport;
+// use aws_sdk_kms::Client as KmsClient;
 // use bls::KeyPair;
-use eigen_utils::avs_registry::subscriber::AvsRegistryChainSubscriberTrait;
+// use eigen_utils::avs_registry::subscriber::AvsRegistryChainSubscriberTrait;
 use eigen_utils::crypto::bls::KeyPair;
-use eigen_utils::el_contracts::reader::ElReader;
-use eigen_utils::el_contracts::writer::ElWriter;
+// use eigen_utils::el_contracts::reader::ElReader;
+// use eigen_utils::el_contracts::writer::ElWriter;
 use eigen_utils::node_api::NodeApi;
-use eigen_utils::services::bls_aggregation::SignedTaskResponseDigest;
-use eigen_utils::types::{AvsError, QuorumNum};
-use log::{error, info};
-use prometheus::Registry;
-use reqwest::Url;
-use std::collections::HashMap;
-use std::env;
-use std::marker::PhantomData;
-use std::path::PathBuf;
+// use eigen_utils::services::bls_aggregation::SignedTaskResponseDigest;
+use eigen_utils::types::AvsError;
+use log::error;
+// use prometheus::Registry;
+// use reqwest::Url;
+// use std::collections::HashMap;
+// use std::env;
+// use std::marker::PhantomData;
+// use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::Arc;
-use std::time::Duration;
+// use std::sync::Arc;
+// use std::time::Duration;
 use thiserror::Error;
-use tokio::sync::mpsc;
-use eigen_utils::avs_registry::AvsRegistryContractManager;
+// use tokio::sync::mpsc;
 use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
+use eigen_utils::avs_registry::AvsRegistryContractManager;
 use eigen_utils::Config;
-use eigen_utils::services::operator_info::OperatorInfoServiceTrait;
+// use eigen_utils::services::operator_info::OperatorInfoServiceTrait;
 
 // use crate::avs::reader::AvsReader;
 // use crate::avs::subscriber::AvsSubscriber;
@@ -77,6 +77,7 @@ pub enum OperatorError {
     WalletError(#[from] alloy_signer_wallet::WalletError),
 }
 
+#[allow(dead_code)]
 pub struct Operator<T: Config> {
     config: NodeConfig,
     // eth_client: P,
@@ -142,7 +143,7 @@ impl<T: Config> Operator<T> {
         // operator_info_service: I,
         signer: T::S,
     ) -> Result<Self, OperatorError> {
-        let metrics_reg = Registry::new();
+        // let metrics_reg = Registry::new();
         // let avs_and_eigen_metrics = Metrics::new(AVS_NAME, eigen_metrics, &metrics_reg);
 
         let node_api = NodeApi::new(AVS_NAME, SEM_VER, &config.node_api_ip_port_address);
@@ -165,7 +166,7 @@ impl<T: Config> Operator<T> {
             &config.bls_private_key_store_path,
             &bls_key_password,
         )
-        .map_err(|e| OperatorError::from(e))?;
+        .map_err(OperatorError::from)?;
 
         // let chain_id = eth_rpc_client
         //     .get_chain_id()
@@ -182,8 +183,10 @@ impl<T: Config> Operator<T> {
         let setup_config = SetupConfig::<T> {
             registry_coordinator_addr: Address::from_str(&config.avs_registry_coordinator_address)
                 .unwrap(),
-            operator_state_retriever_addr: Address::from_str(&config.operator_state_retriever_address)
-                .unwrap(),
+            operator_state_retriever_addr: Address::from_str(
+                &config.operator_state_retriever_address,
+            )
+            .unwrap(),
             delegate_manager_addr: Address::from_str(&config.delegation_manager_address).unwrap(),
             avs_directory_addr: Address::from_str(&config.avs_directory_address).unwrap(),
             eth_client_http: eth_client_http.clone(),
@@ -201,13 +204,16 @@ impl<T: Config> Operator<T> {
             eth_client_ws.clone(),
             signer.clone(),
         )
-            .await?;
+        .await?;
 
-        let operator_addr = Address::from_str(&config.operator_address).map_err(|err| OperatorError::OperatorAddressError(err.to_string()))?;
+        let operator_addr = Address::from_str(&config.operator_address)
+            .map_err(|err| OperatorError::OperatorAddressError(err.to_string()))?;
         let operator_id = avs_registry_contract_manager
             .get_operator_id(operator_addr)
             .await?;
-        let tangle_validator_service_manager_addr = Address::from_str(&config.tangle_validator_service_manager_address).map_err(|err| OperatorError::ServiceManagerAddressError(err.to_string()))?;
+        let tangle_validator_service_manager_addr =
+            Address::from_str(&config.tangle_validator_service_manager_address)
+                .map_err(|err| OperatorError::ServiceManagerAddressError(err.to_string()))?;
 
         // let avs_writer = AvsWriter::build(
         //     &config.avs_registry_coordinator_address,
@@ -239,7 +245,7 @@ impl<T: Config> Operator<T> {
         // )
         //     .await?;
 
-        let mut operator = Operator {
+        let operator = Operator {
             config: config.clone(),
             node_api,
             // eth_client: eth_rpc_client,

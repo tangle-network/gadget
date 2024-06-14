@@ -1,9 +1,10 @@
+#![allow(async_fn_in_trait)]
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
-use alloy_provider::Provider;
+// use alloy_provider::Provider;
 
 use alloy_rpc_types::TransactionReceipt;
 use alloy_signer::k256::ecdsa;
-use alloy_signer::k256::ecdsa::signature::Keypair;
+// use alloy_signer::k256::ecdsa::signature::Keypair;
 use alloy_signer::utils::raw_public_key_to_address;
 use alloy_signer::Signer;
 use eigen_contracts::RegistryCoordinator;

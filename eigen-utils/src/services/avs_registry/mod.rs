@@ -1,7 +1,7 @@
 use alloy_primitives::{Address, Bytes, FixedBytes, B256};
 use async_trait::async_trait;
 use eigen_contracts::OperatorStateRetriever;
-use futures::TryFutureExt;
+// use futures::TryFutureExt;
 use std::collections::HashMap;
 
 use crate::{
@@ -51,6 +51,7 @@ where
     T: Config,
     I: OperatorInfoServiceTrait,
 {
+    #[allow(clippy::too_many_arguments)]
     pub async fn build(
         service_manager_addr: Address,
         registry_coordinator_addr: Address,

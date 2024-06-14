@@ -12,7 +12,7 @@ thiserror = { workspace = true }
 parking_lot = { workspace = true }
 rand_core = { version = "0.6.4", default-features = false }
 rand = { workspace = true, optional = true }
-hex = { workspace = true, default-features = false }
+hex = { version = "0.4.3", default-features = false }
 
 # Keystore deps
 k256 = { version = "0.13", default-features = false, features = ["arithmetic", "ecdsa"], optional = true  }

@@ -176,7 +176,7 @@ where
                 quorum_threshold_percentages,
                 task_time_to_expiry,
             )
-            .await;
+            .await?;
 
         Ok(())
     }
@@ -357,7 +357,7 @@ where
         req: Request<body::Incoming>,
     ) -> Result<Response<Full<Bytes>>, Infallible> {
         match (req.method(), req.uri().path()) {
-            (&Method::POST, path) if path == "/process_signed_task_response" => {
+            (&Method::POST, "/process_signed_task_response") => {
                 let _ = self.process_signed_task_response(req).await;
                 Ok(Response::builder()
                     .status(StatusCode::OK)

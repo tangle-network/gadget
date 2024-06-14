@@ -98,11 +98,11 @@ impl<T: Config> OperatorsInfoServiceInMemory<T> {
             loop {
                 tokio::select! {
                     Some(event) = query_receiver.recv() => {
-                        match event {
-                            Query {
+                            let Query {
                                 operator_addr,
                                 resp_sender,
-                            } => {
+                            } = event;
+                            {
                                 let pubkeys_lock = pubkey_dict.lock().unwrap();
                                 let pubkeys = pubkeys_lock.get(&operator_addr).cloned();
                                 drop(pubkeys_lock);
@@ -132,7 +132,6 @@ impl<T: Config> OperatorsInfoServiceInMemory<T> {
                                     operator_exists,
                                 });
                             }
-                        }
                     }
                     Ok(new_pubkey_registration_event) = new_pubkey_registration_stream.recv() => {
                         let block_number = new_pubkey_registration_event.block_number;

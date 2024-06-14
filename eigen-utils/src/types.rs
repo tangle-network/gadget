@@ -80,10 +80,10 @@ pub struct OperatorPubkeys {
 impl OperatorPubkeys {
     pub fn to_contract_pubkeys(&self) -> (Bn254G1Affine, Bn254G2Affine) {
         let mut ser_buf = vec![0; self.g1_pubkey.serialized_size(Compress::Yes)];
-        self.g1_pubkey.serialize_compressed(&mut ser_buf);
-
+        let _ = self.g1_pubkey.serialize_compressed(&mut ser_buf);
+        // TODO: Error handling is missing
         let mut ser_buf2 = vec![0; self.g2_pubkey.serialized_size(Compress::Yes)];
-        self.g2_pubkey.serialize_compressed(&mut ser_buf2);
+        let _ = self.g2_pubkey.serialize_compressed(&mut ser_buf2);
         (
             Bn254G1Affine::deserialize_compressed::<&[u8]>(ser_buf.as_ref()).unwrap(),
             Bn254G2Affine::deserialize_compressed::<&[u8]>(ser_buf2.as_ref()).unwrap(),
@@ -118,7 +118,7 @@ pub fn operator_id_from_key_pair(key_pair: &KeyPair) -> OperatorId {
     operator_id_from_g1_pubkey(&key_pair.pub_key)
 }
 
-pub fn sign_hashed_to_curve_message(pt: G1Point, key_pair: &KeyPair) -> Result<Signature, ()> {
+pub fn sign_hashed_to_curve_message(pt: G1Point, key_pair: &KeyPair) -> Signature {
     let ark_pt: Bn254G1Affine = Bn254G1Affine::new(
         Bn254Fq::from(BigInt::new(pt.x.into_limbs())),
         Bn254Fq::from(BigInt::new(pt.y.into_limbs())),
@@ -128,9 +128,9 @@ pub fn sign_hashed_to_curve_message(pt: G1Point, key_pair: &KeyPair) -> Result<S
         x: U256::from_limbs(sig.x.0 .0),
         y: U256::from_limbs(sig.y.0 .0),
     };
-    Ok(Signature {
+    Signature {
         g1_point: sig_point,
-    })
+    }
 }
 
 pub type QuorumNums = Vec<QuorumNum>;

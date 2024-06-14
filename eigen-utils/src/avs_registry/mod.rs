@@ -1,5 +1,5 @@
 use alloy_primitives::Address;
-use alloy_provider::Provider;
+// use alloy_provider::Provider;
 
 use eigen_contracts::RegistryCoordinator;
 
@@ -25,6 +25,7 @@ pub struct AvsRegistryContractManager<T: Config> {
 }
 
 impl<T: Config> AvsRegistryContractManager<T> {
+    #[allow(clippy::too_many_arguments)]
     pub async fn build(
         service_manager_addr: Address,
         registry_coordinator_addr: Address,

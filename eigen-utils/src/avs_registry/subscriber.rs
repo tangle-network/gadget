@@ -1,3 +1,4 @@
+#![allow(async_fn_in_trait)]
 use alloy_provider::Provider;
 use alloy_pubsub::Subscription;
 use alloy_rpc_types::Filter;

@@ -1,16 +1,16 @@
 use aws_config::meta::region::RegionProviderChain;
 
 use aws_config::retry::RetryConfig;
-use aws_config::Region;
+use aws_config::{BehaviorVersion, Region};
 
 use aws_sdk_s3::config::Credentials;
 
 use aws_types::SdkConfig;
 use std::error::Error;
 use std::sync::Arc;
-use tokio::sync::OnceCell;
+// use tokio::sync::OnceCell;
 
-static SDK_CONFIG: OnceCell<Arc<SdkConfig>> = OnceCell::const_new();
+// static SDK_CONFIG: OnceCell<Arc<SdkConfig>> = OnceCell::const_new();
 
 // Example usage:
 //
@@ -22,7 +22,7 @@ static SDK_CONFIG: OnceCell<Arc<SdkConfig>> = OnceCell::const_new();
 // )
 // .await?;
 // let _client = Client::new(&aws_config);
-async fn get_aws_config(
+pub async fn get_aws_config(
     access_key: &str,
     secret_access_key: &str,
     region: &str,
@@ -33,7 +33,7 @@ async fn get_aws_config(
     let region_provider =
         RegionProviderChain::default_provider().or_else(Region::new(region.to_string()));
 
-    let shared_config = aws_config::from_env()
+    let shared_config = aws_config::defaults(BehaviorVersion::latest())
         .region(region_provider)
         .credentials_provider(credentials)
         .endpoint_url(endpoint_url.unwrap_or_default())

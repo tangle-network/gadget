@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use alloy_primitives::{Address, FixedBytes, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::Log;

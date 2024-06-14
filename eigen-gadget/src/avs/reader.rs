@@ -1,6 +1,6 @@
 use super::{Erc20Mock, IncredibleSquaringContractManager, IncredibleSquaringTaskManager};
 use alloy_primitives::{Address, Bytes, FixedBytes};
-use alloy_provider::Provider;
+// use alloy_provider::Provider;
 
 use async_trait::async_trait;
 use eigen_utils::{types::AvsError, Config};

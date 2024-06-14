@@ -9,7 +9,7 @@ pub mod get_public_key;
 pub mod get_signature;
 pub mod signer;
 
-async fn new_kms_client(region: &str) -> Result<Client, Box<dyn Error>> {
+pub async fn new_kms_client(region: &str) -> Result<Client, Box<dyn Error>> {
     let region_provider =
         RegionProviderChain::default_provider().or_else(Region::new(region.to_string()));
 

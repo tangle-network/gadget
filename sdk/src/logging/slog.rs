@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use slog::{debug, error, info, warn};
 
 use super::Logger;

@@ -96,11 +96,17 @@ pub fn new_kms_signer(
 
             let sig_result =
                 Signature::from_bytes_and_parity(&signature.to_bytes().to_vec()[..], 0);
-            let sig = if sig_result.is_err() {
+            // let sig = if sig_result.is_err() {
+            //     Signature::from_bytes_and_parity(&signature.to_bytes().to_vec()[..], 1)
+            //         .map_err(|_| SignerError::VerifySignatureError)?
+            // } else {
+            //     sig_result.unwrap()
+            // };
+            let sig = if let Ok(sig) = sig_result {
+                sig
+            } else {
                 Signature::from_bytes_and_parity(&signature.to_bytes().to_vec()[..], 1)
                     .map_err(|_| SignerError::VerifySignatureError)?
-            } else {
-                sig_result.unwrap()
             };
 
             Ok(sig)

@@ -2,7 +2,7 @@ use regex::Regex;
 use reqwest::{Client, Url};
 use std::fmt::Display;
 
-use std::io::Read;
+// use std::io::Read;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -98,7 +98,7 @@ pub fn validate_text(text: &str) -> Result<(), UrlError> {
     if text.len() > 500 {
         return Err(UrlError::TextTooLong);
     }
-    let re = Regex::new(r"^[a-zA-Z0-9 +.,;:?!'\-_()/[\]~&#$-%]+$").unwrap();
+    let re = Regex::new(r"^[a-zA-Z0-9 +.,;:?!'\-_()/\[\]~&#$-%]+$").unwrap();
     if !re.is_match(text) {
         return Err(UrlError::InvalidText);
     }
