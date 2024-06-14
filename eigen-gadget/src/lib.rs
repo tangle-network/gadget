@@ -1,5 +1,3 @@
-// use gadget_common::prelude::GadgetEnvironment;
-
 use alloy_primitives::{keccak256, B256};
 use alloy_sol_types::SolValue;
 use avs::IncredibleSquaringTaskManager::TaskResponse;

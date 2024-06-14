@@ -1,5 +1,4 @@
 use alloy_primitives::Address;
-// use alloy_provider::Provider;
 
 use eigen_contracts::RegistryCoordinator;
 

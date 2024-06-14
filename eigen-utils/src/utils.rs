@@ -1,8 +1,6 @@
 use regex::Regex;
 use reqwest::{Client, Url};
 use std::fmt::Display;
-
-// use std::io::Read;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

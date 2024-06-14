@@ -1,7 +1,6 @@
 use alloy_primitives::{Address, Bytes, FixedBytes, B256};
 use async_trait::async_trait;
 use eigen_contracts::OperatorStateRetriever;
-// use futures::TryFutureExt;
 use std::collections::HashMap;
 
 use crate::{

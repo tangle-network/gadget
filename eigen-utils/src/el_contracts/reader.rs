@@ -14,7 +14,6 @@ use eigen_contracts::IStrategy;
 use eigen_contracts::IERC20;
 
 use super::ElChainContractManager;
-// use crate::logging::Logger;
 
 #[async_trait]
 pub trait ElReader<T, P>

@@ -1,5 +1,4 @@
 use alloy_primitives::Address;
-// use alloy_provider::Provider;
 
 use ark_bn254::{Fq as Bn254Fq, G1Affine as Bn254G1Affine, G2Affine as Bn254G2Affine};
 use ark_ff::QuadExtField;

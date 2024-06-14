@@ -8,7 +8,6 @@ use aws_sdk_s3::config::Credentials;
 use aws_types::SdkConfig;
 use std::error::Error;
 use std::sync::Arc;
-// use tokio::sync::OnceCell;
 
 // static SDK_CONFIG: OnceCell<Arc<SdkConfig>> = OnceCell::const_new();
 

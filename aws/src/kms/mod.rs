@@ -79,7 +79,10 @@ mod test {
     #[tokio::test]
     async fn test_get_ecdsa_signature() {
         let region_provider = RegionProviderChain::default_provider().or_else("us-west-2");
-        let config = aws_config::from_env().region(region_provider).load().await;
+        let config = aws_config::defaults(BehaviorVersion::latest())
+            .region(region_provider)
+            .load()
+            .await;
         let client = Client::new(&config);
 
         let key_id = "your-key-id";
