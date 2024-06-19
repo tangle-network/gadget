@@ -1,26 +1,26 @@
-use std::future::Future;
-use std::net::SocketAddr;
-use std::pin::Pin;
-use alloy_primitives::{Address, B256, ChainId, Signature};
-use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
-use eigen_utils::avs_registry::AvsRegistryContractManager;
-use eigen_utils::crypto::bls::KeyPair;
-use eigen_utils::node_api::NodeApi;
-use eigen_utils::types::AvsError;
-use eigen_utils::Config;
-use log::error;
-use std::str::FromStr;
 use alloy_contract::private::Ethereum;
+use alloy_primitives::{Address, ChainId, Signature, B256};
 use alloy_provider::network::EthereumSigner;
 use alloy_provider::{HyperProvider, Provider, ProviderBuilder, ReqwestProvider, RootProvider};
 use alloy_rpc_client::BuiltInConnectionString;
 use alloy_signer::Signer;
 use alloy_transport::{BoxTransport, Transport};
 use alloy_transport_http::{Http, HyperClient};
-use reqwest::{Client, Url};
-use thiserror::Error;
+use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
+use eigen_utils::avs_registry::AvsRegistryContractManager;
+use eigen_utils::crypto::bls::KeyPair;
+use eigen_utils::node_api::NodeApi;
+use eigen_utils::types::AvsError;
+use eigen_utils::Config;
 use gadget_common::prelude::PairSigner;
 use gadget_common::sp_core;
+use log::error;
+use reqwest::{Client, Url};
+use std::future::Future;
+use std::net::SocketAddr;
+use std::pin::Pin;
+use std::str::FromStr;
+use thiserror::Error;
 
 const AVS_NAME: &str = "incredible-squaring";
 const SEM_VER: &str = "0.0.1";
@@ -128,7 +128,15 @@ pub struct EigenTangleSigner {
 }
 
 impl Signer for EigenTangleSigner {
-    fn sign_hash<'life0, 'life1, 'async_trait>(&'life0 self, hash: &'life1 B256) -> Pin<Box<dyn Future<Output=alloy_signer::Result<Signature>> + Send + 'async_trait>> where 'life0: 'async_trait, 'life1: 'async_trait, Self: 'async_trait {
+    fn sign_hash<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        hash: &'life1 B256,
+    ) -> Pin<Box<dyn Future<Output = alloy_signer::Result<Signature>> + Send + 'async_trait>>
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
         println!("SIGN HASH TEST");
         panic!("Signer functions for EigenTangleSigner are not yet implemented")
     }
@@ -308,7 +316,8 @@ impl<T: Config> Operator<T> {
         //     .get_operator_id(&operator.operator_addr)?;
         // operator.operator_id = operator_id;
 
-        log::info!("Operator info: operatorId={}, operatorAddr={}, operatorG1Pubkey=, operatorG2Pubkey=",
+        log::info!(
+            "Operator info: operatorId={}, operatorAddr={}, operatorG1Pubkey=, operatorG2Pubkey=",
             hex::encode(operator_id),
             config.operator_address,
             // hex::encode(operator.bls_keypair.get_pub_key_g1().to_bytes()),
@@ -340,11 +349,11 @@ impl<T: Config> Operator<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::net::{SocketAddr, ToSocketAddrs};
     use alloy_provider::network::EthereumSigner;
     use alloy_rpc_client::{BuiltInConnectionString, RpcClient};
     use gadget_common::client::PairSigner;
     use gadget_common::sp_core::Pair;
+    use std::net::{SocketAddr, ToSocketAddrs};
     // use gadget_common::tangle_subxt::subxt::backend::rpc::RpcClient;
     use super::*;
 
@@ -357,10 +366,13 @@ mod tests {
             // bls_private_key_store_path: "./../../tangle/tmp/alice/chains/local_testnet/keystore/62616265d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string(),
             // bls_private_key_store_path: "./bls.json".to_string(),
             // ecdsa_private_key_store_path: "./../../tangle/tmp/alice/chains/local_testnet/keystore/696d6f6ed43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string(),
-            avs_registry_coordinator_address: "0x0000000000000000000000000000000000000001".to_string(),
-            operator_state_retriever_address: "0x0000000000000000000000000000000000000002".to_string(),
+            avs_registry_coordinator_address: "0x0000000000000000000000000000000000000001"
+                .to_string(),
+            operator_state_retriever_address: "0x0000000000000000000000000000000000000002"
+                .to_string(),
             eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
-            tangle_validator_service_manager_address: "0x0000000000000000000000000000000000000003".to_string(),
+            tangle_validator_service_manager_address: "0x0000000000000000000000000000000000000003"
+                .to_string(),
             delegation_manager_address: "0x0000000000000000000000000000000000000004".to_string(),
             avs_directory_address: "0x0000000000000000000000000000000000000005".to_string(),
             operator_address: "0x0000000000000000000000000000000000000006".to_string(),
@@ -368,14 +380,26 @@ mod tests {
             enable_node_api: false,
         };
 
-        let signer = EigenTangleSigner{ signer: Pair::generate().0 };
+        let signer = EigenTangleSigner {
+            signer: Pair::generate().0,
+        };
 
         let operator = Operator::<NodeConfig>::new_from_config(
             node_config,
-            EigenTangleProvider { provider: ReqwestProvider::new(RpcClient::new_http("https://sepolia.infura.io/v3/".parse().unwrap())) },
-            EigenTangleProvider { provider: ReqwestProvider::new(RpcClient::new_http("wss://ws-sepolia.reservoir.tools:443".parse().unwrap())) },
+            EigenTangleProvider {
+                provider: ReqwestProvider::new(RpcClient::new_http(
+                    "https://sepolia.infura.io/v3/".parse().unwrap(),
+                )),
+            },
+            EigenTangleProvider {
+                provider: ReqwestProvider::new(RpcClient::new_http(
+                    "wss://ws-sepolia.reservoir.tools:443".parse().unwrap(),
+                )),
+            },
             signer,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
 
         operator.start().await.unwrap();
     }
