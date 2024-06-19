@@ -12,7 +12,7 @@ repository.workspace = true
 [dependencies]
 alloy-contract.workspace = true
 alloy-primitives.workspace = true
-alloy-provider.workspace = true
+alloy-provider = { workspace = true, features = ["hyper"] }
 alloy-pubsub.workspace = true
 alloy-rpc-client.workspace = true
 alloy-rpc-types.workspace = true
@@ -37,6 +37,7 @@ reqwest.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 serde = { version = "1.0.203", features = ["derive"] }
+gadget-common = { workspace = true, default-features = false, features = ["default"] }
 
 [features]
 default = []

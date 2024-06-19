@@ -1,4 +1,7 @@
-use alloy_primitives::Address;
+use std::future::Future;
+use std::net::SocketAddr;
+use std::pin::Pin;
+use alloy_primitives::{Address, B256, ChainId, Signature};
 use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
 use eigen_utils::avs_registry::AvsRegistryContractManager;
 use eigen_utils::crypto::bls::KeyPair;
@@ -7,7 +10,17 @@ use eigen_utils::types::AvsError;
 use eigen_utils::Config;
 use log::error;
 use std::str::FromStr;
+use alloy_contract::private::Ethereum;
+use alloy_provider::network::EthereumSigner;
+use alloy_provider::{HyperProvider, Provider, ProviderBuilder, ReqwestProvider, RootProvider};
+use alloy_rpc_client::BuiltInConnectionString;
+use alloy_signer::Signer;
+use alloy_transport::{BoxTransport, Transport};
+use alloy_transport_http::{Http, HyperClient};
+use reqwest::{Client, Url};
 use thiserror::Error;
+use gadget_common::prelude::PairSigner;
+use gadget_common::sp_core;
 
 const AVS_NAME: &str = "incredible-squaring";
 const SEM_VER: &str = "0.0.1";
@@ -64,7 +77,7 @@ pub struct Operator<T: Config> {
     // avs_subscriber: AvsRegistryChainSubscriber<T, P>,
     // eigenlayer_reader: Arc<dyn ElReader<T, P>>,
     // eigenlayer_writer: Arc<dyn ElWriter>,
-    bls_keypair: KeyPair,
+    // bls_keypair: KeyPair,
     operator_id: [u8; 32],
     operator_addr: Address,
     tangle_validator_service_manager_addr: Address,
@@ -75,8 +88,8 @@ pub struct NodeConfig {
     pub node_api_ip_port_address: String,
     pub eth_rpc_url: String,
     pub eth_ws_url: String,
-    pub bls_private_key_store_path: String,
-    pub ecdsa_private_key_store_path: String,
+    // pub bls_private_key_store_path: String,
+    // pub ecdsa_private_key_store_path: String,
     pub avs_registry_coordinator_address: String,
     pub operator_state_retriever_address: String,
     pub eigen_metrics_ip_port_address: String,
@@ -86,6 +99,54 @@ pub struct NodeConfig {
     pub operator_address: String,
     pub enable_metrics: bool,
     pub enable_node_api: bool,
+}
+
+#[derive(Clone)]
+pub struct EigenTangleProvider {
+    pub provider: ReqwestProvider,
+}
+
+impl Provider for EigenTangleProvider {
+    fn root(&self) -> &RootProvider<BoxTransport, Ethereum> {
+        println!("Provider Root TEST");
+        // panic!("Provider functions for EigenTangleProvider are not yet implemented")
+        &self.clone().provider.boxed().clone()
+    }
+}
+
+impl Config for NodeConfig {
+    type TH = BoxTransport;
+    type TW = BoxTransport;
+    type PH = EigenTangleProvider;
+    type PW = EigenTangleProvider;
+    type S = EigenTangleSigner;
+}
+
+#[derive(Clone)]
+pub struct EigenTangleSigner {
+    pub signer: sp_core::sr25519::Pair,
+}
+
+impl Signer for EigenTangleSigner {
+    fn sign_hash<'life0, 'life1, 'async_trait>(&'life0 self, hash: &'life1 B256) -> Pin<Box<dyn Future<Output=alloy_signer::Result<Signature>> + Send + 'async_trait>> where 'life0: 'async_trait, 'life1: 'async_trait, Self: 'async_trait {
+        println!("SIGN HASH TEST");
+        panic!("Signer functions for EigenTangleSigner are not yet implemented")
+    }
+
+    fn address(&self) -> Address {
+        println!("ADDRESS TEST");
+        panic!("Signer functions for EigenTangleSigner are not yet implemented")
+    }
+
+    fn chain_id(&self) -> Option<ChainId> {
+        println!("CHAIN ID TEST");
+        panic!("Signer functions for EigenTangleSigner are not yet implemented")
+    }
+
+    fn set_chain_id(&mut self, chain_id: Option<ChainId>) {
+        println!("SET CHAIN ID TEST");
+        panic!("Signer functions for EigenTangleSigner are not yet implemented")
+    }
 }
 
 #[derive(Clone)]
@@ -133,13 +194,13 @@ impl<T: Config> Operator<T> {
         //     .await
         //     .map_err(|e| AvsError::from(e))?;
 
-        let bls_key_password =
-            std::env::var("OPERATOR_BLS_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
-        let bls_keypair = KeyPair::read_private_key_from_file(
-            &config.bls_private_key_store_path,
-            &bls_key_password,
-        )
-        .map_err(OperatorError::from)?;
+        // let bls_key_password =
+        //     std::env::var("OPERATOR_BLS_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
+        // let bls_keypair = KeyPair::read_private_key_from_file(
+        //     &config.bls_private_key_store_path,
+        //     &bls_key_password,
+        // )
+        // .map_err(OperatorError::from)?;
 
         // let chain_id = eth_rpc_client
         //     .get_chain_id()
@@ -229,7 +290,7 @@ impl<T: Config> Operator<T> {
             // eigenlayer_writer: sdk_clients.el_chain_writer.clone(),
             avs_registry_contract_manager,
             // tangle_validator_contract_manager,
-            bls_keypair,
+            // bls_keypair,
             operator_id: [0u8; 32], // this is set below
             operator_addr,
             tangle_validator_service_manager_addr,
@@ -247,11 +308,11 @@ impl<T: Config> Operator<T> {
         //     .get_operator_id(&operator.operator_addr)?;
         // operator.operator_id = operator_id;
 
-        log::info!("Operator info: operatorId={}, operatorAddr={}, operatorG1Pubkey={}, operatorG2Pubkey={}",
+        log::info!("Operator info: operatorId={}, operatorAddr={}, operatorG1Pubkey=, operatorG2Pubkey=",
             hex::encode(operator_id),
             config.operator_address,
-            hex::encode(operator.bls_keypair.get_pub_key_g1().to_bytes()),
-            hex::encode(operator.bls_keypair.get_pub_key_g2().to_bytes())
+            // hex::encode(operator.bls_keypair.get_pub_key_g1().to_bytes()),
+            // hex::encode(operator.bls_keypair.get_pub_key_g2().to_bytes())
         );
 
         Ok(operator)
@@ -274,5 +335,48 @@ impl<T: Config> Operator<T> {
         // TODO: Run the executor thing.
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::net::{SocketAddr, ToSocketAddrs};
+    use alloy_provider::network::EthereumSigner;
+    use alloy_rpc_client::{BuiltInConnectionString, RpcClient};
+    use gadget_common::client::PairSigner;
+    use gadget_common::sp_core::Pair;
+    // use gadget_common::tangle_subxt::subxt::backend::rpc::RpcClient;
+    use super::*;
+
+    #[tokio::test]
+    async fn test_run_operator() {
+        let node_config = NodeConfig {
+            node_api_ip_port_address: "127.0.0.1:9808".to_string(),
+            eth_rpc_url: "https://sepolia.infura.io/v3/".to_string(),
+            eth_ws_url: "wss://ws-sepolia.reservoir.tools".to_string(),
+            // bls_private_key_store_path: "./../../tangle/tmp/alice/chains/local_testnet/keystore/62616265d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string(),
+            // bls_private_key_store_path: "./bls.json".to_string(),
+            // ecdsa_private_key_store_path: "./../../tangle/tmp/alice/chains/local_testnet/keystore/696d6f6ed43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string(),
+            avs_registry_coordinator_address: "0x0000000000000000000000000000000000000001".to_string(),
+            operator_state_retriever_address: "0x0000000000000000000000000000000000000002".to_string(),
+            eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
+            tangle_validator_service_manager_address: "0x0000000000000000000000000000000000000003".to_string(),
+            delegation_manager_address: "0x0000000000000000000000000000000000000004".to_string(),
+            avs_directory_address: "0x0000000000000000000000000000000000000005".to_string(),
+            operator_address: "0x0000000000000000000000000000000000000006".to_string(),
+            enable_metrics: false,
+            enable_node_api: false,
+        };
+
+        let signer = EigenTangleSigner{ signer: Pair::generate().0 };
+
+        let operator = Operator::<NodeConfig>::new_from_config(
+            node_config,
+            EigenTangleProvider { provider: ReqwestProvider::new(RpcClient::new_http("https://sepolia.infura.io/v3/".parse().unwrap())) },
+            EigenTangleProvider { provider: ReqwestProvider::new(RpcClient::new_http("wss://ws-sepolia.reservoir.tools:443".parse().unwrap())) },
+            signer,
+        ).await.unwrap();
+
+        operator.start().await.unwrap();
     }
 }

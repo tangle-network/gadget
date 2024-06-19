@@ -310,3 +310,33 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
         Ok(signed_task_response)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_operator() {
+        let operator = Operator::new_from_config(
+            NodeConfig {
+                node_api_ip_port_address: "".to_string(),
+                enable_node_api: false,
+                bls_private_key_store_path: "".to_string(),
+                ecdsa_private_key_store_path: "".to_string(),
+                incredible_squaring_service_manager_addr: "".to_string(),
+                avs_registry_coordinator_addr: "".to_string(),
+                operator_state_retriever_addr: "".to_string(),
+                delegation_manager_addr: "".to_string(),
+                avs_directory_addr: "".to_string(),
+                eigen_metrics_ip_port_address: "".to_string(),
+                server_ip_port_address: "".to_string(),
+                operator_address: "".to_string(),
+                enable_metrics: false,
+            },
+            (),
+            (),
+            (),
+            ()
+        ).await;
+    }
+}
