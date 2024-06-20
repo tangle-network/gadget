@@ -22,6 +22,7 @@
 extern crate alloc;
 
 /// Keystore Module
+#[cfg(not(feature = "wasm"))]
 pub mod keystore;
 
 /// Metrics Module
@@ -30,4 +31,5 @@ pub mod keystore;
 /// Logging Module
 pub mod logging;
 /// Randomness generation module
+#[cfg(not(feature = "wasm"))]
 pub mod random;
