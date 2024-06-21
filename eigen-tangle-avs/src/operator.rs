@@ -2,10 +2,12 @@ use alloy_contract::private::Ethereum;
 use alloy_primitives::{Address, ChainId, Signature, B256};
 use alloy_provider::network::EthereumSigner;
 use alloy_provider::{HyperProvider, Provider, ProviderBuilder, ReqwestProvider, RootProvider};
+use alloy_pubsub::PubSubConnect;
 use alloy_rpc_client::BuiltInConnectionString;
 use alloy_signer::Signer;
-use alloy_transport::{BoxTransport, Transport};
+use alloy_transport::{BoxTransport, Pbf, Transport, TransportError};
 use alloy_transport_http::{Http, HyperClient};
+use aws_sdk_kms::config::HttpClient;
 use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
 use eigen_utils::avs_registry::AvsRegistryContractManager;
 use eigen_utils::crypto::bls::KeyPair;
@@ -18,6 +20,7 @@ use log::error;
 use reqwest::{Client, Url};
 use std::future::Future;
 use std::net::SocketAddr;
+use std::ops::Deref;
 use std::pin::Pin;
 use std::str::FromStr;
 use thiserror::Error;
@@ -102,23 +105,32 @@ pub struct NodeConfig {
 }
 
 #[derive(Clone)]
-pub struct EigenTangleProvider {
-    pub provider: ReqwestProvider,
+pub struct EigenTangleProvider<T: Transport> {
+    // pub provider: &'static ReqwestProvider,
+    pub provider: RootProvider<T, Ethereum>,
 }
 
-impl Provider for EigenTangleProvider {
+// impl Provider for TangleProvider {
+//     fn root(&self) -> &RootProvider<BoxTransport, Ethereum> {
+//         todo!()
+//     }
+// }
+
+impl<T: Transport> Provider for EigenTangleProvider<T> {
     fn root(&self) -> &RootProvider<BoxTransport, Ethereum> {
         println!("Provider Root TEST");
         // panic!("Provider functions for EigenTangleProvider are not yet implemented")
-        &self.clone().provider.boxed().clone()
+        // &self.clone().provider.boxed().clone()
+        // RootProvider::<BoxTransport, Ethereum>::builder().with_recommended_fillers().on_anvil()
+        &self.provider
     }
 }
 
 impl Config for NodeConfig {
     type TH = BoxTransport;
     type TW = BoxTransport;
-    type PH = EigenTangleProvider;
-    type PW = EigenTangleProvider;
+    type PH = EigenTangleProvider<BoxTransport>;
+    type PW = EigenTangleProvider<BoxTransport>;
     type S = EigenTangleSigner;
 }
 
@@ -126,6 +138,20 @@ impl Config for NodeConfig {
 pub struct EigenTangleSigner {
     pub signer: sp_core::sr25519::Pair,
 }
+//
+// pub type EigenTangleWebTransport = alloy_transport_ws::WsConnect;
+//
+// impl alloy_transport::TransportConnect for EigenTangleWebTransport {
+//     type Transport = alloy_transport_ws::WsConnect;
+//
+//     fn is_local(&self) -> bool {
+//         todo!()
+//     }
+//
+//     fn get_transport<'a: 'b, 'b>(&'a self) -> Pbf<'b, Self::Transport, TransportError> {
+//         todo!()
+//     }
+// }
 
 impl Signer for EigenTangleSigner {
     fn sign_hash<'life0, 'life1, 'async_trait>(
@@ -350,7 +376,10 @@ impl<T: Config> Operator<T> {
 #[cfg(test)]
 mod tests {
     use alloy_provider::network::EthereumSigner;
-    use alloy_rpc_client::{BuiltInConnectionString, RpcClient};
+    use alloy_pubsub::PubSubConnect;
+    use alloy_rpc_client::{BuiltInConnectionString, ClientBuilder, RpcClient};
+    use alloy_transport::RpcError::Transport;
+    use alloy_transport_ws::WsConnect;
     use gadget_common::client::PairSigner;
     use gadget_common::sp_core::Pair;
     use std::net::{SocketAddr, ToSocketAddrs};
@@ -387,19 +416,48 @@ mod tests {
         let operator = Operator::<NodeConfig>::new_from_config(
             node_config,
             EigenTangleProvider {
-                provider: ReqwestProvider::new(RpcClient::new_http(
-                    "https://sepolia.infura.io/v3/".parse().unwrap(),
-                )),
+                // provider: ReqwestProvider::new(RpcClient::new_http(
+                //     "https://sepolia.infura.io/v3/".parse().unwrap(),
+                // )),
+                // provider: RootProvider::new(RpcClient::builder().transport(BoxTransport::new(alloy_transport_http::Http::new("https://sepolia.infura.io/v3/".parse().unwrap())), true)),
+                provider: ProviderBuilder::new()
+                    .with_recommended_fillers()
+                    .signer(signer.clone())
+                    .on_http("https://sepolia.infura.io/v3/".parse().unwrap())
+                    .root()
+                    .clone()
+                    .boxed(),
             },
             EigenTangleProvider {
-                provider: ReqwestProvider::new(RpcClient::new_http(
-                    "wss://ws-sepolia.reservoir.tools:443".parse().unwrap(),
-                )),
+                // provider: ReqwestProvider::new(RpcClient::new_http(
+                //     "wss://ws-sepolia.reservoir.tools:443".parse().unwrap(),
+                // )),
+                // provider: RootProvider::new(RpcClient::builder().transport(BoxTransport::new(), true)),
+                provider: ProviderBuilder::new()
+                    .with_recommended_fillers()
+                    .signer(signer.clone())
+                    .on_http("wss://ws-sepolia.reservoir.tools:443".parse().unwrap())
+                    .root()
+                    .clone()
+                    .boxed(),
             },
             signer,
         )
         .await
         .unwrap();
+
+        // let http_provider = ProviderBuilder::new()
+        //     .with_recommended_fillers()
+        //     .signer(signer.clone())
+        //     .on_http("https://sepolia.infura.io/v3/".parse().unwrap());
+        // let ws_provider = ProviderBuilder::new()
+        //     .with_recommended_fillers()
+        //     .signer(signer.clone())
+        //     .on_ws(WsConnect::new("wss://ws-sepolia.reservoir.tools:443"))
+        //     .await.unwrap();
+        //
+        // let test_http = http_provider.root();
+        // let test_ws = ws_provider.root();
 
         operator.start().await.unwrap();
     }

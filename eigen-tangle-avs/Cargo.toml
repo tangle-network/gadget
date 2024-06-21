@@ -11,6 +11,7 @@ repository.workspace = true
 
 [dependencies]
 alloy-contract.workspace = true
+alloy-network.workspace = true
 alloy-primitives.workspace = true
 alloy-provider = { workspace = true, features = ["hyper"] }
 alloy-pubsub.workspace = true
