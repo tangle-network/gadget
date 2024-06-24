@@ -11,6 +11,7 @@ repository.workspace = true
 
 [dependencies]
 alloy-contract.workspace = true
+alloy-consensus.workspace = true
 alloy-network.workspace = true
 alloy-primitives.workspace = true
 alloy-provider = { workspace = true, features = ["hyper"] }
@@ -31,7 +32,8 @@ eigen-utils.workspace = true
 gadget-aws-kms.workspace = true
 
 hex.workspace = true
-k256.workspace = true
+#k256.workspace = true
+k256 = { workspace = true, features = ["ecdsa"] }
 log.workspace = true
 prometheus.workspace = true
 reqwest.workspace = true
@@ -39,6 +41,9 @@ thiserror.workspace = true
 tokio.workspace = true
 serde = { version = "1.0.203", features = ["derive"] }
 gadget-common = { workspace = true, default-features = false, features = ["default"] }
+
+[dev-dependencies]
+rand_core.workspace = true
 
 [features]
 default = []
