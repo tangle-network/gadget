@@ -60,7 +60,6 @@ async fn main() -> color_eyre::Result<()> {
     let manager_task = async move {
         while let Some(notification) = runtime.next_event().await {
             logger.info(format!("Received notification {}", notification.number));
-            // TODO: Fetch blueprints instead of role types
             let onchain_roles = utils::get_subscribed_role_types(
                 &runtime,
                 notification.hash,

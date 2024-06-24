@@ -7,9 +7,10 @@ use sha2::Digest;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tangle_environment::api::ClientWithApi;
+use tangle_subxt::tangle_testnet_runtime::api::services::storage::types::blueprints::Blueprints;
+use shell_sdk::prelude::tangle_primitives::roles::RoleType;
+use tangle_environment::api::ClientWithServicesApi;
 use tangle_environment::runtime::TangleRuntime;
-use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
 
 pub async fn get_subscribed_role_types(
     runtime: &TangleRuntime,
@@ -29,6 +30,12 @@ pub async fn get_subscribed_role_types(
         .query_restaker_roles(block_hash, account_id)
         .await
         .map_err(|err| msg_to_error(err.to_string()))
+        .map(|r| r.into_iter().map(blueprint_to_role_type).collect())
+}
+
+pub fn blueprint_to_role_type(blueprint: Blueprints) -> RoleType {
+    let (account_id, blueprint) = blueprint;
+    todo!("")
 }
 
 pub fn generate_process_arguments(

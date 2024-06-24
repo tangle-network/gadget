@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::api::ClientWithApi;
+use crate::api::ClientWithServicesApi;
 use crate::gadget::TangleEvent;
 use crate::TangleEnvironment;
 use gadget_common::locks::TokioMutexExt;
@@ -10,6 +10,7 @@ use gadget_common::tangle_subxt::subxt::ext::futures::TryFutureExt;
 use gadget_common::tangle_subxt::subxt::{self, PolkadotConfig};
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_common::{async_trait, tangle_runtime::*};
+use gadget_common::tangle_subxt::tangle_testnet_runtime::api::services::storage::types::blueprints::Blueprints;
 use gadget_core::gadget::general::Client;
 use gadget_core::gadget::substrate::FinalityNotification;
 
@@ -128,7 +129,7 @@ impl Client<TangleEvent> for TangleRuntime {
 }
 
 #[async_trait::async_trait]
-impl ClientWithApi<TangleEnvironment> for TangleRuntime {
+impl ClientWithServicesApi<TangleEnvironment> for TangleRuntime {
     async fn query_jobs_by_validator(
         &self,
         at: [u8; 32],
@@ -147,7 +148,10 @@ impl ClientWithApi<TangleEnvironment> for TangleRuntime {
         >,
         gadget_common::Error,
     > {
-        let q = api::apis().jobs_api().query_jobs_by_validator(validator);
+        let q = api::apis()
+            .services_api()
+            .query_services_with_blueprints_by_operator(validator);
+        //let q = api::apis().jobs_api().query_jobs_by_validator(validator);
         self.runtime_api(at)
             .call(q)
             .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
@@ -233,16 +237,35 @@ impl ClientWithApi<TangleEnvironment> for TangleRuntime {
         &self,
         at: [u8; 32],
         address: AccountId32,
-    ) -> std::result::Result<Vec<RoleType>, gadget_common::Error> {
-        let storage_address = api::storage().roles().account_roles_mapping(address);
+    ) -> Result<Vec<Blueprints>, gadget_common::Error> {
         let block_ref = BlockRef::from_hash(sp_core::hash::H256::from_slice(&at));
-        self.client
+        let call = api::storage().services().user_services(address);
+
+        let blueprint_ids: Vec<u64> = self
+            .client
             .storage()
-            .at(block_ref)
-            .fetch_or_default(&storage_address)
+            .at(block_ref.clone())
+            .fetch_or_default(&call)
             .map_ok(|v| v.0)
             .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await
+            .await?;
+
+        let mut ret = vec![];
+
+        for blueprint_id in blueprint_ids {
+            let svcs = api::storage().services().blueprints(blueprint_id);
+            let blueprint: Blueprints = self
+                .client
+                .storage()
+                .at(block_ref.clone())
+                .fetch_or_default(&svcs)
+                .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
+                .await?;
+
+            ret.push(blueprint);
+        }
+
+        Ok(ret)
     }
 }
 

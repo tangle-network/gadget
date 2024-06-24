@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use gadget_core::gadget::general::Client;
 use sp_core::Pair;
 use std::sync::Arc;
+#[cfg(feature = "substrate")]
 use tangle_subxt::subxt::{self};
 
 pub struct JobsClient<Env: GadgetEnvironment> {
@@ -80,13 +81,16 @@ impl<Env: GadgetEnvironment> Client<Env::Event> for JobsClient<Env> {
         self.client.latest_event().await
     }
 }
+
 /// A [`Signer`] implementation that can be constructed from an [`sp_core::Pair`].
+#[cfg(feature = "substrate")]
 #[derive(Clone)]
 pub struct PairSigner<T: subxt::Config> {
     account_id: T::AccountId,
     signer: sp_core::sr25519::Pair,
 }
 
+#[cfg(feature = "substrate")]
 impl<T: subxt::Config> PairSigner<T>
 where
     T::AccountId: From<[u8; 32]>,
@@ -97,6 +101,7 @@ where
     }
 }
 
+#[cfg(feature = "substrate")]
 impl<T: subxt::Config> subxt::tx::Signer<T> for PairSigner<T>
 where
     T::Signature: From<subxt::utils::MultiSignature>,

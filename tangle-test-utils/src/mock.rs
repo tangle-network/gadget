@@ -710,7 +710,7 @@ pub mod mock_wrapper_client {
     use async_trait::async_trait;
     use futures::StreamExt;
     use gadget_common::client::exec_client_function;
-    use tangle_environment::api::ClientWithApi;
+    use tangle_environment::api::ClientWithServicesApi;
     use gadget_common::locks::TokioMutexExt;
     use gadget_common::tangle_subxt::subxt::utils::AccountId32;
     use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{
@@ -815,7 +815,7 @@ pub mod mock_wrapper_client {
     }
 
     #[async_trait]
-    impl ClientWithApi<TangleExtEnvironment> for MockClient<Runtime, crate::mock::Block> {
+    impl ClientWithServicesApi<TangleExtEnvironment> for MockClient<Runtime, crate::mock::Block> {
         async fn query_jobs_by_validator(
             &self,
             at: [u8; 32],

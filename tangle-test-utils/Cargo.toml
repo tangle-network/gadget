@@ -22,12 +22,7 @@ std = [
     "tangle-primitives/default",
     "sc-client-api",
     "sc-utils/default",
-    "pallet-jobs/default",
-    "pallet-dkg/default",
-    "pallet-zksaas/default",
-    "pallet-balances/default",
-    "pallet-timestamp/default",
-    "pallet-jobs-rpc-runtime-api/default"
+    "pallet-services/default",
 ]
 wasm = [
     "sp-core/serde",
@@ -56,7 +51,6 @@ gadget-common = { workspace = true, default-features = false }
 gadget-core = { workspace = true }
 gadget-io = { workspace = true, default-features = false }
 tangle-environment.workspace = true
-pallet-jobs-rpc-runtime-api = { workspace = true }
 sc-client-api = { workspace = true, optional = true, default-features = false }
 sc-utils = { workspace = true, optional = true, default-features = false }
 sp-api = { workspace = true, default-features = false }
@@ -65,11 +59,7 @@ sp-runtime = { workspace = true, default-features = false }
 sp-keystore = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-application-crypto = { workspace = true, default-features = false, features = ["full_crypto"] }
-pallet-balances = { workspace = true }
-pallet-timestamp = { workspace = true }
-pallet-jobs = { workspace = true }
-pallet-dkg = { workspace = true}
-pallet-zksaas = { workspace = true }
+pallet-services = { workspace = true }
 sp-externalities = { workspace = true, default-features = false }
 tangle-primitives = { workspace = true, features = ["verifying"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }

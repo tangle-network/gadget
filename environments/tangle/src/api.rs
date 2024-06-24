@@ -1,16 +1,26 @@
 use auto_impl::auto_impl;
 use gadget_common::async_trait::async_trait;
 use gadget_common::environments::GadgetEnvironment;
+use gadget_common::prelude::JobsClient;
 use gadget_common::tangle_runtime;
 use gadget_common::tangle_runtime::{
     AccountId32, MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
     MaxSignatureLen, MaxSubmissionLen,
 };
+use gadget_common::tangle_subxt::subxt::{Config, OnlineClient};
 use gadget_core::gadget::general::Client;
+
+/* Some notes:
+fn test (){
+    gadget_common::tangle_subxt::subxt::client::OnlineClient::new().await.unwrap().storage().query_services_with_blueprints_by_operator(account_id, block_opts)
+    gadget_common::tangle_subxt::tangle_testnet_runtime::api::services::storage::StorageApi::blueprints()
+}*/
+
+pub type BlockHash = [u8; 32];
 
 #[async_trait]
 #[auto_impl(Arc)]
-pub trait ClientWithApi<Env: GadgetEnvironment>: Client<Env::Event> + 'static {
+pub trait ClientWithServicesApi<Env: GadgetEnvironment>: Client<Env::Event> + 'static {
     /// Query jobs associated with a specific validator.
     ///
     /// This function takes a `validator` parameter of type `AccountId` and attempts
@@ -32,7 +42,7 @@ pub trait ClientWithApi<Env: GadgetEnvironment>: Client<Env::Event> + 'static {
     ) -> Result<
         Option<
             Vec<
-                tangle_runtime::RpcResponseJobsData<
+                RpcResponseBlueprintsData<
                     AccountId32,
                     u64,
                     MaxParticipants,
@@ -128,4 +138,15 @@ pub trait ClientWithApi<Env: GadgetEnvironment>: Client<Env::Event> + 'static {
         at: [u8; 32],
         address: AccountId32,
     ) -> Result<Vec<tangle_runtime::RoleType>, gadget_common::Error>;
+}
+
+/// A client for interacting with the services API
+/// TODO: Make this the object that is used for getting services and submitting transactions as necessary.
+pub struct ServicesClient<Env: GadgetEnvironment, C: Config> {
+    tx_manager: JobsClient<Env>,
+    rpc_client: OnlineClient<C>,
+}
+
+fn todo() {
+    //gadget_common::tangle_subxt::tangle_testnet_runtime::api::services::
 }
