@@ -1,7 +1,3 @@
-use ::tracing::dispatcher::SetGlobalDefaultError;
-use log::SetLoggerError;
-use tracing_log::LogTracer;
-
 /// Module for structured logging using the slog crate.
 #[cfg(feature = "std")]
 pub mod slog;
