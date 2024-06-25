@@ -221,26 +221,26 @@ alloy-dyn-abi = "0.7.2"
 alloy-sol-types = "0.7.2"
 alloy-rlp = "0.3.4"
 alloy-trie = "0.3.1"
-alloy-rpc-types = { git = "https://github.com/alloy-rs/alloy", rev = "af788af" }
-alloy-rpc-types-anvil = { git = "https://github.com/alloy-rs/alloy", rev = "af788af" }
-alloy-rpc-types-trace = { git = "https://github.com/alloy-rs/alloy", rev = "af788af" }
-alloy-rpc-types-engine = { git = "https://github.com/alloy-rs/alloy", rev = "af788af" }
-alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "af788af" }
-alloy-node-bindings = { git = "https://github.com/alloy-rs/alloy", rev = "af788af" }
-alloy-provider = { git = "https://github.com/alloy-rs/alloy", rev = "af788af", default-features = false, features = [
+alloy-rpc-types = { git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-rpc-types-anvil = { git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-rpc-types-trace = { git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-rpc-types-engine = { git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-genesis = { git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-node-bindings = { git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-provider = { git = "https://github.com/alloy-rs/alloy", version = "0.1.2", default-features = false, features = [
     "reqwest","ws"
 ] }
-alloy-pubsub = {git = "https://github.com/alloy-rs/alloy", rev = "af788af"}
-alloy-transport-http = {git = "https://github.com/alloy-rs/alloy", rev = "af788af"}
-alloy-eips = { git = "https://github.com/alloy-rs/alloy", default-features = false, rev = "af788af" }
-alloy-signer = { git = "https://github.com/alloy-rs/alloy", rev = "af788af" }
-alloy-signer-wallet = { git = "https://github.com/alloy-rs/alloy", rev = "af788af" }
-alloy-network = { git = "https://github.com/alloy-rs/alloy", rev = "af788af" }
-alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "af788af" }
-alloy-contract = {git = "https://github.com/alloy-rs/alloy", rev = "af788af" }
-alloy-transport =  {git = "https://github.com/alloy-rs/alloy", rev = "af788af"}
-alloy-transport-ws = {git = "https://github.com/alloy-rs/alloy", rev = "af788af"}
-alloy-rpc-client = {git = "https://github.com/alloy-rs/alloy", rev = "af788af"}
+alloy-pubsub = {git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-transport-http = {git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-eips = { git = "https://github.com/alloy-rs/alloy", default-features = false, version = "0.1.2" }
+alloy-signer = { git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-signer-local = { git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-network = { git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-consensus = { git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-contract = {git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-transport =  {git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-transport-ws = {git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
+alloy-rpc-client = {git = "https://github.com/alloy-rs/alloy", version = "0.1.2" }
 # WebAssembly
 wasmtime = { version = "8.0.1", default-features = false }
 wasm-bindgen = {version = "0.2.92" }

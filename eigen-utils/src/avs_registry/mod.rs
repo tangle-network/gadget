@@ -37,6 +37,8 @@ impl<T: Config> AvsRegistryContractManager<T> {
     ) -> Result<Self, AvsError> {
         let registry_coordinator =
             RegistryCoordinator::new(registry_coordinator_addr, eth_client_http.clone());
+        println!("AVS BUILD CHECKPOINT 1");
+        println!("Registry Coordinator: {:?}", registry_coordinator_addr);
 
         let bls_apk_registry_addr = registry_coordinator
             .blsApkRegistry()
@@ -44,11 +46,15 @@ impl<T: Config> AvsRegistryContractManager<T> {
             .await
             .map(|addr| addr._0)?;
 
+        println!("AVS BUILD CHECKPOINT 2");
+
         let stake_registry_addr = registry_coordinator
             .stakeRegistry()
             .call()
             .await
             .map(|addr| addr._0)?;
+
+        println!("AVS BUILD CHECKPOINT 3");
 
         let el_contract_manager = ElChainContractManager::build(
             delegation_manager_addr,
@@ -58,6 +64,8 @@ impl<T: Config> AvsRegistryContractManager<T> {
             signer.clone(),
         )
         .await?;
+
+        println!("AVS BUILD CHECKPOINT 4");
 
         Ok(AvsRegistryContractManager {
             service_manager_addr,

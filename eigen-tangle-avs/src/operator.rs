@@ -1,37 +1,18 @@
-use std::fmt::Formatter;
 use alloy_contract::private::Ethereum;
 use alloy_primitives::{Address, ChainId, Signature, B256};
-use alloy_provider::network::EthereumSigner;
-use alloy_provider::{HyperProvider, Provider, ProviderBuilder, ReqwestProvider, RootProvider, SendableTx};
-use alloy_pubsub::PubSubConnect;
-use alloy_rpc_client::BuiltInConnectionString;
-use alloy_transport::{BoxTransport, impl_future, Pbf, Transport, TransportError, TransportResult};
-use alloy_transport_http::{Http, HyperClient};
-use aws_sdk_kms::config::HttpClient;
+use alloy_provider::{Provider, RootProvider};
+use alloy_signer_local::PrivateKeySigner;
+use alloy_transport::BoxTransport;
 use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
 use eigen_utils::avs_registry::AvsRegistryContractManager;
-use eigen_utils::crypto::bls::KeyPair;
 use eigen_utils::node_api::NodeApi;
 use eigen_utils::types::AvsError;
 use eigen_utils::Config;
-use gadget_common::prelude::PairSigner;
-use gadget_common::sp_core;
 use log::error;
-use reqwest::{Client, Url};
 use std::future::Future;
-use std::net::SocketAddr;
-use std::ops::Deref;
 use std::pin::Pin;
 use std::str::FromStr;
-use alloy_provider::fillers::FillerControlFlow;
-use alloy_signer_wallet::Wallet;
-use async_trait::async_trait;
-use k256::{ecdsa, Secp256k1};
-use k256::ecdsa::{Error, RecoveryId, SigningKey};
-use k256::ecdsa::signature::hazmat::PrehashSigner;
-use k256::ecdsa::signature::Signer;
 use thiserror::Error;
-use gadget_common::sp_core::Pair;
 
 const AVS_NAME: &str = "incredible-squaring";
 const SEM_VER: &str = "0.0.1";
@@ -71,7 +52,7 @@ pub enum OperatorError {
     #[error("AVS SDK error")]
     AvsSdkError(#[from] AvsError),
     #[error("Wallet error")]
-    WalletError(#[from] alloy_signer_wallet::WalletError),
+    WalletError(#[from] alloy_signer_local::LocalSignerError),
 }
 
 #[allow(dead_code)]
@@ -124,17 +105,9 @@ impl Provider for EigenTangleProvider {
     }
 }
 
-impl Config for NodeConfig {
-    type TH = BoxTransport;
-    type TW = BoxTransport;
-    type PH = EigenTangleProvider;
-    type PW = EigenTangleProvider;
-    type S = EigenTangleSigner;
-}
-
 #[derive(Clone)]
 pub struct EigenTangleSigner {
-    pub signing_key: ecdsa::SigningKey,
+    pub signer: PrivateKeySigner,
 }
 
 impl alloy_signer::Signer for EigenTangleSigner {
@@ -147,12 +120,9 @@ impl alloy_signer::Signer for EigenTangleSigner {
         'life1: 'async_trait,
         Self: 'async_trait,
     {
-        let signing_key = self.signing_key.clone();
+        let signer = self.signer.clone();
 
-        let signature_future = async move {
-            let sig: Signature = signing_key.sign(hash.as_slice());
-            alloy_signer::Result::Ok(alloy_signer::Signature::from(sig))
-        };
+        let signature_future = async move { signer.sign_hash(hash).await };
 
         Box::pin(signature_future)
     }
@@ -167,55 +137,25 @@ impl alloy_signer::Signer for EigenTangleSigner {
         panic!("Signer functions for EigenTangleSigner are not yet implemented")
     }
 
-    fn set_chain_id(&mut self, chain_id: Option<ChainId>) {
+    fn set_chain_id(&mut self, _chain_id: Option<ChainId>) {
         println!("SET CHAIN ID TEST");
         panic!("Signer functions for EigenTangleSigner are not yet implemented")
     }
 }
 
-// impl<S: PrehashSignature> PrehashSigner<S> for EigenTangleSigner {
-//     fn sign_prehash(&self, prehash: &[u8]) -> Result<S, Error> {
-//         todo!()
-//     }
-// }
-
-// #[async_trait]
-// impl alloy_network::TxSigner<Signature> for EigenTangleSigner {
-//     fn address(&self) -> Address {
-//         self.address()
-//         // println!("ADDRESS TEST");
-//         // panic!("TxSigner functions for EigenTangleSigner are not yet implemented")
-//     }
-//
-//     async fn sign_transaction(&self, tx: &mut dyn alloy_consensus::SignableTransaction<Signature>) -> alloy_signer::Result<Signature> {
-//         let sig_hash = tx.signature_hash();
-//         self.sign_hash(&sig_hash).await
-//         // println!("SIGN TRANSACTION TEST");
-//         // panic!("TxSigner functions for EigenTangleSigner are not yet implemented")
-//     }
-// }
-
-// impl<N> alloy_provider::fillers::TxFiller for EigenTangleSigner {
-//     type Fillable = ();
-//
-//     fn status(&self, tx: &Ethereum::TransactionRequest) -> FillerControlFlow {
-//         todo!()
-//     }
-//
-//     fn prepare<P, T>(&self, provider: &P, tx: &Ethereum::TransactionRequest) -> impl_future!(<Output = TransportResult<Self::Fillable>>) where P: Provider<T, Ethereum>, T: Transport + Clone {
-//         todo!()
-//     }
-//
-//     fn fill(&self, fillable: Self::Fillable, tx: SendableTx<Ethereum>) -> impl_future!(<Output = TransportResult<SendableTx<N>>>) {
-//         todo!()
-//     }
-// }
-
-impl std::fmt::Debug for EigenTangleSigner {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.signing_key.to_bytes())
-    }
+impl Config for NodeConfig {
+    type TH = BoxTransport;
+    type TW = BoxTransport;
+    type PH = EigenTangleProvider;
+    type PW = EigenTangleProvider;
+    type S = EigenTangleSigner;
 }
+
+// impl std::fmt::Debug for EigenTangleSigner {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         write!(f, "{:?}", self.signing_key.to_bytes())
+//     }
+// }
 
 #[derive(Clone)]
 pub struct TangleValidatorContractManager<T: Config> {
@@ -247,9 +187,11 @@ impl<T: Config> Operator<T> {
     ) -> Result<Self, OperatorError> {
         // let metrics_reg = Registry::new();
         // let avs_and_eigen_metrics = Metrics::new(AVS_NAME, eigen_metrics, &metrics_reg);
+        println!("Checkpoint 1");
 
         let node_api = NodeApi::new(AVS_NAME, SEM_VER, &config.node_api_ip_port_address);
 
+        println!("Checkpoint 2");
         // let eth_rpc_client = ProviderBuilder::default()
         //     .with_recommended_fillers()
         //     .on_http(
@@ -296,6 +238,8 @@ impl<T: Config> Operator<T> {
             signer: signer.clone(),
         };
 
+        println!("Checkpoint 3");
+
         let avs_registry_contract_manager = AvsRegistryContractManager::build(
             Address::from_str(&config.tangle_validator_service_manager_address).unwrap(),
             setup_config.registry_coordinator_addr,
@@ -308,11 +252,16 @@ impl<T: Config> Operator<T> {
         )
         .await?;
 
+        println!("Checkpoint 4");
+
         let operator_addr = Address::from_str(&config.operator_address)
             .map_err(|err| OperatorError::OperatorAddressError(err.to_string()))?;
         let operator_id = avs_registry_contract_manager
             .get_operator_id(operator_addr)
             .await?;
+
+        println!("Checkpoint 5");
+
         let tangle_validator_service_manager_addr =
             Address::from_str(&config.tangle_validator_service_manager_address)
                 .map_err(|err| OperatorError::ServiceManagerAddressError(err.to_string()))?;
@@ -384,6 +333,8 @@ impl<T: Config> Operator<T> {
             // hex::encode(operator.bls_keypair.get_pub_key_g2().to_bytes())
         );
 
+        println!("Operator Returning");
+
         Ok(operator)
     }
 
@@ -409,25 +360,18 @@ impl<T: Config> Operator<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Chain;
-    use alloy_provider::network::EthereumSigner;
-    use alloy_pubsub::PubSubConnect;
-    use alloy_rpc_client::{BuiltInConnectionString, ClientBuilder, RpcClient};
-    use alloy_transport::RpcError::Transport;
-    use alloy_transport_ws::WsConnect;
-    use gadget_common::client::PairSigner;
-    use gadget_common::sp_core::Pair;
-    use std::net::{SocketAddr, ToSocketAddrs};
-    use gadget_common::subxt_signer::bip39::rand_core;
-    // use gadget_common::tangle_subxt::subxt::backend::rpc::RpcClient;
     use super::*;
+    use alloy_provider::ProviderBuilder;
+    use alloy_transport_ws::WsConnect;
 
     #[tokio::test]
     async fn test_run_operator() {
+        let http_endpoint = "http://127.0.0.1:33877";
+        let ws_endpoint = "ws://127.0.0.1:33877";
         let node_config = NodeConfig {
             node_api_ip_port_address: "127.0.0.1:9808".to_string(),
-            eth_rpc_url: "https://sepolia.infura.io/v3/".to_string(),
-            eth_ws_url: "wss://ws-sepolia.reservoir.tools".to_string(),
+            eth_rpc_url: http_endpoint.to_string(),
+            eth_ws_url: ws_endpoint.to_string(),
             // bls_private_key_store_path: "./../../tangle/tmp/alice/chains/local_testnet/keystore/62616265d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string(),
             // bls_private_key_store_path: "./bls.json".to_string(),
             // ecdsa_private_key_store_path: "./../../tangle/tmp/alice/chains/local_testnet/keystore/696d6f6ed43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string(),
@@ -445,25 +389,29 @@ mod tests {
             enable_node_api: false,
         };
 
-        let signer = EigenTangleSigner {
-            signing_key: SigningKey::random(&mut rand_core::OsRng),
-        };
+        let signer = EigenTangleSigner { signer: PrivateKeySigner::random() };
 
         let http_provider = ProviderBuilder::new()
             .with_recommended_fillers()
-            .signer(signer.clone())
-            .on_hyper_http("https://sepolia.infura.io/v3/".parse().unwrap())
+            // .signer(signer.clone())
+            .on_hyper_http(http_endpoint.parse().unwrap()) //https://sepolia.infura.io/v3/
             .root()
             .clone()
             .boxed();
 
+        println!("About to set up WS Provider");
+
         let ws_provider = ProviderBuilder::new()
             .with_recommended_fillers()
-            .signer(signer.clone())
-            .on_ws("wss://ws-sepolia.reservoir.tools:443".parse().unwrap())
+            // .signer(signer.clone())
+            .on_ws(WsConnect::new(ws_endpoint)) //wss://ws-sepolia.reservoir.tools:443
+            .await
+            .unwrap()
             .root()
             .clone()
             .boxed();
+
+        println!("About to set up Operator");
 
         let operator = Operator::<NodeConfig>::new_from_config(
             node_config.clone(),
@@ -475,8 +423,8 @@ mod tests {
             },
             signer,
         )
-            .await
-            .unwrap();
+        .await
+        .unwrap();
 
         operator.start().await.unwrap();
     }

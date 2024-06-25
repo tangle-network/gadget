@@ -18,7 +18,7 @@ alloy-rpc-client.workspace = true
 alloy-rpc-types.workspace = true
 alloy-sol-types.workspace = true
 alloy-signer.workspace = true
-alloy-signer-wallet = { workspace = true, features = ["keystore"] }
+alloy-signer-local = { workspace = true, features = ["keystore"] }
 alloy-transport-http.workspace = true
 alloy-transport-ws.workspace = true
 alloy-transport.workspace = true

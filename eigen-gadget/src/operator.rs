@@ -61,7 +61,7 @@ pub enum OperatorError {
     #[error("AVS SDK error")]
     AvsSdkError(#[from] AvsError),
     #[error("Wallet error")]
-    WalletError(#[from] alloy_signer_wallet::WalletError),
+    WalletError(#[from] alloy_signer_local::LocalSignerError),
     #[error("Node API error: {0}")]
     NodeApiError(String),
 }

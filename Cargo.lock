@@ -79,7 +79,7 @@ dependencies = [
  "cipher 0.4.4",
  "ctr",
  "ghash",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -122,9 +122,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
 
 [[package]]
+name = "alloy-chains"
+version = "0.1.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1752d7d62e2665da650a36d84abbf239f812534475d51f072a49a533513b7cdd"
+dependencies = [
+ "num_enum",
+ "strum",
+]
+
+[[package]]
 name = "alloy-consensus"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
@@ -132,20 +142,19 @@ dependencies = [
  "alloy-serde",
  "c-kzg",
  "serde",
- "sha2 0.10.8",
 ]
 
 [[package]]
 name = "alloy-contract"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-json-abi",
  "alloy-network",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-types",
+ "alloy-rpc-types-eth",
  "alloy-sol-types",
  "alloy-transport",
  "futures",
@@ -172,8 +181,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-eips"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-primitives",
  "alloy-rlp",
@@ -181,17 +190,7 @@ dependencies = [
  "c-kzg",
  "once_cell",
  "serde",
-]
-
-[[package]]
-name = "alloy-genesis"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
-dependencies = [
- "alloy-primitives",
- "alloy-serde",
- "serde",
- "serde_json",
+ "sha2 0.10.8",
 ]
 
 [[package]]
@@ -208,8 +207,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-json-rpc"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-primitives",
  "serde",
@@ -220,17 +219,19 @@ dependencies = [
 
 [[package]]
 name = "alloy-network"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
  "alloy-json-rpc",
  "alloy-primitives",
- "alloy-rpc-types",
+ "alloy-rpc-types-eth",
+ "alloy-serde",
  "alloy-signer",
  "alloy-sol-types",
  "async-trait",
+ "auto_impl",
  "futures-utils-wasm",
  "thiserror",
 ]
@@ -259,17 +260,18 @@ dependencies = [
 
 [[package]]
 name = "alloy-provider"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
+ "alloy-chains",
+ "alloy-consensus",
  "alloy-eips",
  "alloy-json-rpc",
  "alloy-network",
  "alloy-primitives",
  "alloy-pubsub",
  "alloy-rpc-client",
- "alloy-rpc-types",
- "alloy-rpc-types-trace",
+ "alloy-rpc-types-eth",
  "alloy-transport",
  "alloy-transport-http",
  "alloy-transport-ws",
@@ -280,7 +282,9 @@ dependencies = [
  "futures",
  "futures-utils-wasm",
  "lru 0.12.3",
+ "pin-project",
  "reqwest",
+ "serde",
  "serde_json",
  "tokio",
  "tracing 0.1.40",
@@ -289,8 +293,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-pubsub"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-json-rpc",
  "alloy-primitives",
@@ -329,8 +333,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-rpc-client"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-json-rpc",
  "alloy-primitives",
@@ -353,38 +357,34 @@ dependencies = [
 
 [[package]]
 name = "alloy-rpc-types"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
+dependencies = [
+ "alloy-rpc-types-eth",
+ "alloy-serde",
+]
+
+[[package]]
+name = "alloy-rpc-types-eth"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
- "alloy-genesis",
  "alloy-primitives",
  "alloy-rlp",
  "alloy-serde",
  "alloy-sol-types",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "serde",
  "serde_json",
  "thiserror",
 ]
 
 [[package]]
-name = "alloy-rpc-types-trace"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
-dependencies = [
- "alloy-primitives",
- "alloy-rpc-types",
- "alloy-serde",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "alloy-serde"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-primitives",
  "serde",
@@ -393,8 +393,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-signer"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-primitives",
  "async-trait",
@@ -405,9 +405,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "alloy-signer-wallet"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+name = "alloy-signer-local"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-consensus",
  "alloy-network",
@@ -495,8 +495,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-transport"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-json-rpc",
  "base64 0.22.1",
@@ -508,13 +508,12 @@ dependencies = [
  "tokio",
  "tower",
  "url",
- "wasm-bindgen-futures",
 ]
 
 [[package]]
 name = "alloy-transport-http"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-json-rpc",
  "alloy-transport",
@@ -524,18 +523,20 @@ dependencies = [
  "reqwest",
  "serde_json",
  "tower",
+ "tracing 0.1.40",
  "url",
 ]
 
 [[package]]
 name = "alloy-transport-ws"
-version = "0.1.0"
-source = "git+https://github.com/alloy-rs/alloy?rev=af788af#af788afe934d4c54ec1fcb6bb4b16ce385f913ab"
+version = "0.1.2"
+source = "git+https://github.com/alloy-rs/alloy#4b5541e231297d055187d2955892673a8ad2eddf"
 dependencies = [
  "alloy-pubsub",
  "alloy-transport",
  "futures",
- "http 0.2.12",
+ "http 1.1.0",
+ "rustls 0.23.10",
  "serde_json",
  "tokio",
  "tokio-tungstenite",
@@ -1608,7 +1609,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite 0.2.14",
  "tracing 0.1.40",
- "uuid 1.9.0",
+ "uuid 1.9.1",
 ]
 
 [[package]]
@@ -1781,7 +1782,7 @@ dependencies = [
  "percent-encoding",
  "ring 0.17.8",
  "sha2 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "time",
  "tracing 0.1.40",
  "zeroize",
@@ -2124,9 +2125,9 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bitflags"
-version = "2.5.0"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf4b9d6a944f767f8e5e0db018570623c85f3d925ac718db4e06d0187adb21c1"
+checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 dependencies = [
  "serde",
 ]
@@ -2418,7 +2419,7 @@ dependencies = [
  "aead",
  "cipher 0.4.4",
  "ctr",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -2930,7 +2931,7 @@ checksum = "ef2b4b23cddf68b89b8f8069890e8c270d54e2d5fe1b143820234805e4cb17ef"
 dependencies = [
  "generic-array 0.14.7",
  "rand_core 0.6.4",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -2942,7 +2943,7 @@ checksum = "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76"
 dependencies = [
  "generic-array 0.14.7",
  "rand_core 0.6.4",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -2974,7 +2975,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b584a330336237c1eecd3e94266efb216c56ed91225d634cb2991c5f3fd1aeab"
 dependencies = [
  "generic-array 0.14.7",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -2984,7 +2985,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25fab6889090c8133f3deb8f73ba3c65a7f456f66436fc012a1b1e272b1e103e"
 dependencies = [
  "generic-array 0.14.7",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -3005,7 +3006,7 @@ dependencies = [
  "byteorder",
  "digest 0.9.0",
  "rand_core 0.5.1",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -3022,7 +3023,7 @@ dependencies = [
  "fiat-crypto",
  "rand_core 0.6.4",
  "rustc_version 0.4.0",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -3281,7 +3282,7 @@ dependencies = [
  "block-buffer 0.10.4",
  "const-oid",
  "crypto-common",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -3494,7 +3495,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "sha2 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -3537,7 +3538,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "sha3 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -3572,7 +3573,7 @@ dependencies = [
  "alloy-rpc-client",
  "alloy-rpc-types",
  "alloy-signer",
- "alloy-signer-wallet",
+ "alloy-signer-local",
  "alloy-sol-types",
  "alloy-transport",
  "alloy-transport-http",
@@ -3608,7 +3609,7 @@ dependencies = [
  "alloy-rpc-client",
  "alloy-rpc-types",
  "alloy-signer",
- "alloy-signer-wallet",
+ "alloy-signer-local",
  "alloy-sol-types",
  "alloy-transport",
  "alloy-transport-http",
@@ -3643,7 +3644,7 @@ dependencies = [
  "alloy-pubsub",
  "alloy-rpc-types",
  "alloy-signer",
- "alloy-signer-wallet",
+ "alloy-signer-local",
  "alloy-sol-types",
  "alloy-transport",
  "alloy-transport-http",
@@ -3703,7 +3704,7 @@ dependencies = [
  "pkcs8 0.9.0",
  "rand_core 0.6.4",
  "sec1 0.3.0",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -3727,7 +3728,7 @@ dependencies = [
  "sec1 0.7.3",
  "serde_json",
  "serdect",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "tap",
  "zeroize",
 ]
@@ -4044,7 +4045,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d013fc25338cc558c5c2cfbad646908fb23591e2404481826742b651c9af7160"
 dependencies = [
  "rand_core 0.6.4",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -4057,7 +4058,7 @@ dependencies = [
  "byteorder",
  "ff_derive",
  "rand_core 0.6.4",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -4160,7 +4161,7 @@ dependencies = [
  "tokio",
  "tracing 0.1.40",
  "tree_magic_mini",
- "uuid 1.9.0",
+ "uuid 1.9.1",
 ]
 
 [[package]]
@@ -4421,7 +4422,7 @@ dependencies = [
 [[package]]
 name = "frost-core"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "byteorder",
  "debugless-unwrap",
@@ -4432,92 +4433,92 @@ dependencies = [
  "serde",
  "serdect",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0)",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
 [[package]]
 name = "frost-ed25519"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "curve25519-dalek 4.1.3",
  "frost-core",
  "parity-scale-codec 3.6.12",
  "rand_core 0.6.4",
  "sha2 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
 name = "frost-ed448"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "ed448-goldilocks-plus",
  "frost-core",
  "parity-scale-codec 3.6.12",
  "rand_core 0.6.4",
  "sha3 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
 name = "frost-p256"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "frost-core",
  "p256 0.13.2",
  "parity-scale-codec 3.6.12",
  "rand_core 0.6.4",
  "sha2 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
 name = "frost-p384"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "frost-core",
  "p384 0.13.0 (git+https://github.com/LIT-Protocol/elliptic-curves.git)",
  "parity-scale-codec 3.6.12",
  "rand_core 0.6.4",
  "sha2 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
 name = "frost-ristretto255"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "curve25519-dalek 4.1.3",
  "frost-core",
  "parity-scale-codec 3.6.12",
  "rand_core 0.6.4",
  "sha2 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
 name = "frost-secp256k1"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "frost-core",
  "k256",
  "parity-scale-codec 3.6.12",
  "rand_core 0.6.4",
  "sha2 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
 name = "frost-taproot"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "frost-core",
  "k256",
@@ -4525,7 +4526,7 @@ dependencies = [
  "rand_core 0.6.4",
  "sha2 0.10.8",
  "signature 2.2.0",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -4947,7 +4948,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "serde_with 2.3.3",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "udigest",
  "zeroize",
 ]
@@ -4961,7 +4962,7 @@ dependencies = [
  "generic-array 0.14.7",
  "rand_core 0.6.4",
  "serde",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -4979,7 +4980,7 @@ dependencies = [
  "rand_core 0.6.4",
  "sha2 0.10.8",
  "stark-curve",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -4993,7 +4994,7 @@ dependencies = [
  "generic-ec",
  "rand_core 0.6.4",
  "serde",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "udigest",
 ]
 
@@ -5131,7 +5132,7 @@ checksum = "5dfbfb3a6cfbd390d5c9564ab283a0349b9b9fcd46a706c1eb10e0db70bfbac7"
 dependencies = [
  "ff 0.12.1",
  "rand_core 0.6.4",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -5142,7 +5143,7 @@ checksum = "f0f9ef7462f7c099f518d754361858f86d8a07af53ba9af0fe635bbccb151a63"
 dependencies = [
  "ff 0.13.0",
  "rand_core 0.6.4",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -7148,7 +7149,7 @@ version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0ff37bd590ca25063e35af745c343cb7a0271906fb7b37e4813e8f79f00268d"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "libc",
 ]
 
@@ -7179,7 +7180,7 @@ checksum = "5be9b9bb642d8522a44d533eab56c16c738301965504753b03ad1de3425d5451"
 dependencies = [
  "crunchy",
  "digest 0.9.0",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -7437,7 +7438,7 @@ dependencies = [
  "cfg-if",
  "derive_more",
  "serde",
- "uuid 1.9.0",
+ "uuid 1.9.1",
 ]
 
 [[package]]
@@ -7639,7 +7640,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rand_distr",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "thiserror",
  "zeroize",
 ]
@@ -7934,7 +7935,7 @@ version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab2156c4fce2f8df6c499cc1c763e4394b7482525bf2a9701c9d79d215f519e4"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "cfg-if",
  "cfg_aliases 0.1.1",
  "libc",
@@ -7946,7 +7947,7 @@ version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "cfg-if",
  "cfg_aliases 0.2.1",
  "libc",
@@ -8120,6 +8121,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_enum"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02339744ee7253741199f897151b38e72257d13802d4ee837285cc2990a90845"
+dependencies = [
+ "num_enum_derive",
+]
+
+[[package]]
+name = "num_enum_derive"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "681030a937600a36906c185595136d26abfebb4aa9c65701cefcaf8578bb982b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.68",
+]
+
+[[package]]
 name = "object"
 version = "0.30.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8182,7 +8203,7 @@ version = "0.10.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95a0481286a310808298130d22dd1fef0fa571e05a8f44ec801801e84b216b1f"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "cfg-if",
  "foreign-types",
  "libc",
@@ -8308,7 +8329,7 @@ dependencies = [
 [[package]]
 name = "pallet-dkg"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "derivation-path",
  "digest 0.10.7",
@@ -8349,7 +8370,7 @@ dependencies = [
  "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0)",
  "starknet-crypto",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "tangle-crypto-primitives",
  "tangle-primitives",
  "udigest",
@@ -8358,7 +8379,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8375,7 +8396,7 @@ dependencies = [
 [[package]]
 name = "pallet-jobs-rpc-runtime-api"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "sp-api",
@@ -8407,7 +8428,7 @@ dependencies = [
 [[package]]
 name = "pallet-zksaas"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8577,7 +8598,7 @@ checksum = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166"
 dependencies = [
  "base64ct",
  "rand_core 0.6.4",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -9140,7 +9161,7 @@ checksum = "b4c2511913b88df1637da85cc8d96ec8e43a3f8bb8ccb71ee1ac240d6f3df58d"
 dependencies = [
  "bit-set",
  "bit-vec",
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "lazy_static",
  "num-traits",
  "rand",
@@ -9527,7 +9548,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c82cf8cff14456045f55ec4241383baeff27af886adb72ffb2162f99911de0fd"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
 ]
 
 [[package]]
@@ -9694,7 +9715,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dd2a808d456c4a54e300a23e9f5a67e122c3024119acbfd73e3bf664491cb2"
 dependencies = [
  "hmac 0.12.1",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -9812,7 +9833,7 @@ dependencies = [
  "rand_core 0.6.4",
  "signature 2.2.0",
  "spki 0.7.3",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -9964,7 +9985,7 @@ version = "0.38.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70dc5ec042f7a43c4a73241207cecc9873a06d45debb38b329f8541d85c2730f"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "errno",
  "libc",
  "linux-raw-sys 0.4.14",
@@ -10005,7 +10026,7 @@ dependencies = [
  "ring 0.17.8",
  "rustls-pki-types",
  "rustls-webpki 0.102.4",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -10016,9 +10037,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05cff451f60db80f490f3c182b77c35260baace73209e9cdbbe526bfe3a4d402"
 dependencies = [
  "once_cell",
+ "ring 0.17.8",
  "rustls-pki-types",
  "rustls-webpki 0.102.4",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -11055,7 +11077,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde_bytes",
  "sha2 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -11127,7 +11149,7 @@ dependencies = [
  "der 0.6.1",
  "generic-array 0.14.7",
  "pkcs8 0.9.0",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -11142,7 +11164,7 @@ dependencies = [
  "generic-array 0.14.7",
  "pkcs8 0.10.2",
  "serdect",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -11179,7 +11201,7 @@ version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c627723fd09706bacdb5cf41499e95098555af3c3c29d014dc3c458ef6be11c0"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "core-foundation",
  "core-foundation-sys",
  "libc",
@@ -11254,9 +11276,9 @@ dependencies = [
 
 [[package]]
 name = "serde_bytes"
-version = "0.11.14"
+version = "0.11.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b8497c313fd43ab992087548117643f6fcd935cbf36f176ffda0aacf9591734"
+checksum = "387cc504cb06bb40a96c8e04e951fe01854cf6bc921053c954e4a606d9675c6a"
 dependencies = [
  "serde",
 ]
@@ -11285,9 +11307,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.117"
+version = "1.0.118"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "455182ea6142b14f93f4bc5320a2b31c1f266b66a4a5c858b013302a5d8cbfc3"
+checksum = "d947f6b3163d8857ea16c4fa0dd4840d52f3041039a85decd46867eb1abef2e4"
 dependencies = [
  "itoa",
  "ryu",
@@ -11630,7 +11652,7 @@ dependencies = [
  "generic-ec",
  "hmac 0.12.1",
  "sha2 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -11795,7 +11817,7 @@ dependencies = [
  "ring 0.17.8",
  "rustc_version 0.4.0",
  "sha2 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -12095,7 +12117,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#5e62782d27a18d8c57da28617181c66cd57076b5"
+source = "git+https://github.com/paritytech/polkadot-sdk#2f3a1bf8736844272a7eb165780d9f283b19d5c0"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -12157,7 +12179,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#5e62782d27a18d8c57da28617181c66cd57076b5"
+source = "git+https://github.com/paritytech/polkadot-sdk#2f3a1bf8736844272a7eb165780d9f283b19d5c0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -12178,7 +12200,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#5e62782d27a18d8c57da28617181c66cd57076b5"
+source = "git+https://github.com/paritytech/polkadot-sdk#2f3a1bf8736844272a7eb165780d9f283b19d5c0"
 dependencies = [
  "environmental",
  "parity-scale-codec 3.6.12",
@@ -12354,7 +12376,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#5e62782d27a18d8c57da28617181c66cd57076b5"
+source = "git+https://github.com/paritytech/polkadot-sdk#2f3a1bf8736844272a7eb165780d9f283b19d5c0"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -12386,7 +12408,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#5e62782d27a18d8c57da28617181c66cd57076b5"
+source = "git+https://github.com/paritytech/polkadot-sdk#2f3a1bf8736844272a7eb165780d9f283b19d5c0"
 dependencies = [
  "Inflector",
  "expander",
@@ -12479,7 +12501,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#5e62782d27a18d8c57da28617181c66cd57076b5"
+source = "git+https://github.com/paritytech/polkadot-sdk#2f3a1bf8736844272a7eb165780d9f283b19d5c0"
 
 [[package]]
 name = "sp-storage"
@@ -12497,7 +12519,7 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#5e62782d27a18d8c57da28617181c66cd57076b5"
+source = "git+https://github.com/paritytech/polkadot-sdk#2f3a1bf8736844272a7eb165780d9f283b19d5c0"
 dependencies = [
  "impl-serde",
  "parity-scale-codec 3.6.12",
@@ -12534,7 +12556,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#5e62782d27a18d8c57da28617181c66cd57076b5"
+source = "git+https://github.com/paritytech/polkadot-sdk#2f3a1bf8736844272a7eb165780d9f283b19d5c0"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "tracing 0.1.40",
@@ -12634,7 +12656,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#5e62782d27a18d8c57da28617181c66cd57076b5"
+source = "git+https://github.com/paritytech/polkadot-sdk#2f3a1bf8736844272a7eb165780d9f283b19d5c0"
 dependencies = [
  "impl-trait-for-tuples",
  "log",
@@ -12804,7 +12826,7 @@ checksum = "e37195395df71fd068f6e2082247891bc11e3289624bbc776a0cdfa1ca7f1ea4"
 dependencies = [
  "atoi",
  "base64 0.21.7",
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "byteorder",
  "bytes",
  "crc",
@@ -12846,7 +12868,7 @@ checksum = "d6ac0ac3b7ccd10cc96c7ab29791a7dd236bd94021f31eec7ba3d46a74aa1c24"
 dependencies = [
  "atoi",
  "base64 0.21.7",
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "byteorder",
  "crc",
  "dotenvy",
@@ -12930,7 +12952,7 @@ dependencies = [
  "ff 0.13.0",
  "hex-literal 0.3.4",
  "primeorder 0.13.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "zeroize",
 ]
 
@@ -13074,6 +13096,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "strum"
+version = "0.26.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
+dependencies = [
+ "strum_macros",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.26.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c6bee85a5a24955dc440386795aa378cd9cf82acd5f764469152d2270e581be"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn 2.0.68",
+]
+
+[[package]]
 name = "stun"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13085,7 +13129,7 @@ dependencies = [
  "md-5",
  "rand",
  "ring 0.17.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "thiserror",
  "tokio",
  "url",
@@ -13134,9 +13178,9 @@ checksum = "2d67a5a62ba6e01cb2192ff309324cb4875d0c451d55fe2319433abe7a05a8ee"
 
 [[package]]
 name = "subtle"
-version = "2.6.0"
+version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d0208408ba0c3df17ed26eb06992cb1a1268d41b2c0e12e65203fbe3972cee5"
+checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "subxt"
@@ -13365,7 +13409,7 @@ dependencies = [
 [[package]]
 name = "tangle-crypto-primitives"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "scale-info",
@@ -13375,7 +13419,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -13403,7 +13447,7 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "1.0.8"
-source = "git+https://github.com/webb-tools/tangle.git?branch=main#b880edc8441e2a1c83f12205b862c807bf171a8b"
+source = "git+https://github.com/webb-tools/tangle.git?branch=main#860139ea3b5f6bb8cde017568e8cc0f57027cc1f"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "scale-info",
@@ -13587,9 +13631,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec"
-version = "1.6.0"
+version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87cc5ceb3875bb20c2890005a4e226a4651264a5c75edb2421b52861a0a0cb50"
+checksum = "c55115c6fbe2d2bef26eb09ad74bde02d8255476fc0c7b515ef09fbb35742d82"
 dependencies = [
  "tinyvec_macros",
 ]
@@ -13686,17 +13730,18 @@ dependencies = [
 
 [[package]]
 name = "tokio-tungstenite"
-version = "0.20.1"
+version = "0.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "212d5dcb2a1ce06d81107c3d0ffa3121fe974b73f068c8282cb1c32328113b6c"
+checksum = "c6989540ced10490aaf14e6bad2e3d33728a2813310a0c71d1574304c49631cd"
 dependencies = [
  "futures-util",
  "log",
- "rustls 0.21.12",
+ "rustls 0.23.10",
+ "rustls-pki-types",
  "tokio",
- "tokio-rustls 0.24.1",
- "tungstenite 0.20.1",
- "webpki-roots 0.25.4",
+ "tokio-rustls 0.26.0",
+ "tungstenite 0.23.0",
+ "webpki-roots 0.26.3",
 ]
 
 [[package]]
@@ -13803,7 +13848,7 @@ version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61c5bb1d698276a2443e5ecfabc1008bf15a36c12e6a7176e7bf089ea9131140"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "bytes",
  "futures-core",
  "futures-util",
@@ -14110,26 +14155,6 @@ checksum = "f4f195fd851901624eee5a58c4bb2b4f06399148fcd0ed336e6f1cb60a9881df"
 
 [[package]]
 name = "tungstenite"
-version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e3dac10fd62eaf6617d3a904ae222845979aec67c615d1c842b4002c7666fb9"
-dependencies = [
- "byteorder",
- "bytes",
- "data-encoding",
- "http 0.2.12",
- "httparse",
- "log",
- "rand",
- "rustls 0.21.12",
- "sha1",
- "thiserror",
- "url",
- "utf-8",
-]
-
-[[package]]
-name = "tungstenite"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ef1a641ea34f399a848dea702823bbecfb4c486f911735368f1f137cb8257e1"
@@ -14144,6 +14169,26 @@ dependencies = [
  "sha1",
  "thiserror",
  "url",
+ "utf-8",
+]
+
+[[package]]
+name = "tungstenite"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e2e2ce1e47ed2994fd43b04c8f618008d4cabdd5ee34027cf14f9d918edd9c8"
+dependencies = [
+ "byteorder",
+ "bytes",
+ "data-encoding",
+ "http 1.1.0",
+ "httparse",
+ "log",
+ "rand",
+ "rustls 0.23.10",
+ "rustls-pki-types",
+ "sha1",
+ "thiserror",
  "utf-8",
 ]
 
@@ -14288,7 +14333,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc1de2c688dc15305988b563c3854064043356019f97a4b46276fe734c4f07ea"
 dependencies = [
  "crypto-common",
- "subtle 2.6.0",
+ "subtle 2.6.1",
 ]
 
 [[package]]
@@ -14363,9 +14408,9 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.9.0"
+version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ea73390fe27785838dcbf75b91b1d84799e28f1ce71e6f372a5dc2200c80de5"
+checksum = "5de17fd2f7da591098415cff336e12965a28061ddace43b59cb3c430179c9439"
 dependencies = [
  "getrandom 0.2.15",
  "serde",
@@ -14919,6 +14964,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f20c57d8d7db6d3b86154206ae5d8fba62dd39573114de97c2cb0578251f8e1"
 
 [[package]]
+name = "webpki-roots"
+version = "0.26.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd7c23921eeb1713a4e851530e9b9756e4fb0e89978582942612524cf09f01cd"
+dependencies = [
+ "rustls-pki-types",
+]
+
+[[package]]
 name = "webrtc"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15003,7 +15057,7 @@ dependencies = [
  "serde",
  "sha1",
  "sha2 0.10.8",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "thiserror",
  "tokio",
  "webrtc-util",
@@ -15029,7 +15083,7 @@ dependencies = [
  "tokio",
  "turn",
  "url",
- "uuid 1.9.0",
+ "uuid 1.9.1",
  "waitgroup",
  "webrtc-mdns",
  "webrtc-util",
@@ -15095,7 +15149,7 @@ dependencies = [
  "rtcp",
  "rtp",
  "sha1",
- "subtle 2.6.0",
+ "subtle 2.6.1",
  "thiserror",
  "tokio",
  "webrtc-util",
