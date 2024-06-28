@@ -1,4 +1,5 @@
 use alloy_primitives::Address;
+use alloy_provider::ProviderBuilder;
 
 use eigen_contracts::RegistryCoordinator;
 
@@ -35,16 +36,33 @@ impl<T: Config> AvsRegistryContractManager<T> {
         eth_client_ws: T::PW,
         signer: T::S,
     ) -> Result<Self, AvsError> {
+
+        // let http_provider = ProviderBuilder::new()
+        //     .on_http("http://127.0.0.1:33125".parse().unwrap());
+
         let registry_coordinator =
             RegistryCoordinator::new(registry_coordinator_addr, eth_client_http.clone());
         println!("AVS BUILD CHECKPOINT 1");
         println!("Registry Coordinator: {:?}", registry_coordinator_addr);
 
+        println!("BLS APK REGISTRY BUILDER");
         let bls_apk_registry_addr = registry_coordinator
-            .blsApkRegistry()
-            .call()
-            .await
-            .map(|addr| addr._0)?;
+            .blsApkRegistry();
+
+        println!("BLS APK REGISTRY REQUESTING CALL");
+        let debug_one = bls_apk_registry_addr
+            .call();
+
+        println!("BLS APK REGISTRY AWAITING CALL");
+        let debug_two = debug_one
+            .await;
+
+        println!("BLS APK REGISTRY ADDRESS");
+        let debug_three = debug_two
+            .map(|addr| addr._0);
+
+        println!("BLS APK REGISTRY ADDRESS RESULT: {:?}", debug_three);
+        let bls_apk_registry_addr = debug_three?;
 
         println!("AVS BUILD CHECKPOINT 2");
 

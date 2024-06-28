@@ -30,6 +30,7 @@ repository = "https://github.com/webb-tools/gadget"
 gadget-core = { path = "./core" }
 gadget-common = { path = "./common", default-features = false }
 gadget-io = { path = "./gadget-io", default-features = false }
+gadget-executor = { path = "./executor" }
 test-utils = { path = "./test-utils" }
 protocol-macros = { path = "./protocol-macros" }
 shell-sdk = { path = "./shell-sdk", default-features = false }

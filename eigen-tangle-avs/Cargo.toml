@@ -41,6 +41,9 @@ thiserror.workspace = true
 tokio.workspace = true
 serde = { version = "1.0.203", features = ["derive"] }
 gadget-common = { workspace = true, default-features = false, features = ["default"] }
+gadget-executor = { workspace = true }
+sp-keystore.workspace = true
+sc-keystore.workspace = true
 
 [dev-dependencies]
 rand_core.workspace = true
