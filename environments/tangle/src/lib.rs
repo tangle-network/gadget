@@ -7,8 +7,10 @@ use gadget_common::channels::UserID;
 use gadget_common::client::PairSigner;
 use gadget_common::config::DebugLogger;
 use gadget_common::environments::{EventMetadata, GadgetEnvironment};
+use gadget_common::gadget_io::ShellTomlConfig;
 use gadget_common::sp_core::serde::Serialize;
 use gadget_common::sp_core::{ecdsa, sr25519};
+use gadget_common::tangle_subxt::subxt;
 use gadget_common::tangle_subxt::subxt::PolkadotConfig;
 use gadget_common::utils::serialize;
 use gadget_common::WorkManagerInterface;
@@ -30,6 +32,17 @@ pub struct TangleEnvironment {
     pub account_key: sr25519::Pair,
     pub logger: DebugLogger,
     pub tx_manager: Arc<parking_lot::Mutex<Option<TangleTransactionManager>>>,
+}
+
+impl TangleEnvironment {
+    pub fn new(subxt_config: SubxtConfig, account_key: sr25519::Pair, logger: DebugLogger) -> Self {
+        Self {
+            subxt_config,
+            account_key,
+            logger,
+            tx_manager: Arc::new(parking_lot::Mutex::new(None)),
+        }
+    }
 }
 
 impl std::fmt::Debug for TangleEnvironment {
@@ -78,7 +91,7 @@ impl GadgetEnvironment for TangleEnvironment {
         }
     }
 
-    async fn setup_client(&self) -> Result<Self::Client, Self::Error> {
+    async fn setup_runtime(&self) -> Result<Self::Client, Self::Error> {
         let subxt_client =
             gadget_common::tangle_subxt::subxt::OnlineClient::<PolkadotConfig>::from_url(
                 &self.subxt_config.endpoint,
@@ -89,18 +102,18 @@ impl GadgetEnvironment for TangleEnvironment {
             })?;
 
         let pair_signer = PairSigner::new(self.account_key.clone());
-        let tx_manager_submitter = SubxtPalletSubmitter::with_client(
-            subxt_client.clone(),
-            pair_signer,
-            self.logger.clone(),
-        );
+        let mut lock = self.tx_manager.lock();
 
-        self.tx_manager
-            .lock()
-            .replace(Arc::new(tx_manager_submitter));
+        if lock.is_none() {
+            let tx_manager_submitter = SubxtPalletSubmitter::with_client(
+                subxt_client.clone(),
+                pair_signer,
+                self.logger.clone(),
+            );
+            *lock = Some(Arc::new(tx_manager_submitter));
+        }
 
         Ok(TangleRuntime::new(subxt_client))
-        // let runtime = TangleRuntime::new(runtime.client());
     }
 
     fn transaction_manager(&self) -> Self::TransactionManager {

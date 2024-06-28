@@ -24,7 +24,6 @@ use frame_support::{
 };
 use frame_system::EnsureSigned;
 use gadget_common::config::Network;
-use pallet_jobs_rpc_runtime_api::BlockNumberOf;
 use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use serde::{Deserialize, Serialize};
@@ -69,6 +68,8 @@ use tangle_primitives::roles::RoleType;
 use tangle_primitives::verifier::{
     arkworks::ArkworksVerifierGroth16Bn254, circom::CircomVerifierGroth16Bn254,
 };
+use gadget_common::tangle_runtime::api::runtime_types::tangle_runtime::Runtime;
+use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::RuntimeEvent;
 
 /// Key type for DKG keys
 pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"role");
@@ -284,6 +285,36 @@ parameter_types! {
     pub const MaxAdditionalParamsLen: u32 = 256;
 }
 
+impl pallet_services::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type ForceOrigin = ();
+    type Currency = ();
+    type PalletId = ();
+    type EvmRunner = ();
+    type EvmGasWeightMapping = ();
+    type MaxFields = ();
+    type MaxFieldsSize = ();
+    type MaxMetadataLength = ();
+    type MaxJobsPerService = ();
+    type MaxOperatorsPerService = ();
+    type MaxPermittedCallers = ();
+    type MaxServicesPerOperator = ();
+    type MaxBlueprintsPerOperator = ();
+    type MaxServicesPerUser = ();
+    type MaxBinariesPerGadget = ();
+    type MaxSourcesPerGadget = ();
+    type MaxGitOwnerLength = ();
+    type MaxGitRepoLength = ();
+    type MaxGitTagLength = ();
+    type MaxBinaryNameLength = ();
+    type MaxIpfsHashLength = ();
+    type MaxContainerRegistryLength = ();
+    type MaxContainerImageNameLength = ();
+    type MaxContainerImageTagLength = ();
+    type Constraints = ();
+    type WeightInfo = ();
+}
+/*
 impl pallet_jobs::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
@@ -303,7 +334,7 @@ impl pallet_jobs::Config for Runtime {
     type MisbehaviorHandler = MockMisbehaviorHandler;
     type WeightInfo = ();
 }
-
+*/
 pub struct MockMisbehaviorHandler;
 
 impl MisbehaviorHandler for MockMisbehaviorHandler {
@@ -1091,7 +1122,7 @@ impl GadgetEnvironment for TangleExtEnvironment {
         }
     }
 
-    async fn setup_client(&self) -> Result<Self::Client, Self::Error> {
+    async fn setup_runtime(&self) -> Result<Self::Client, Self::Error> {
         let finality_notification_txs = self.finality_notification_txs.clone();
         Ok(MockClient::<Runtime, Block>::new(Runtime, finality_notification_txs).await)
     }

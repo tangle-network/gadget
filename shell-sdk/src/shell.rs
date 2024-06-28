@@ -116,7 +116,7 @@ where
     KBE: KeystoreBackend,
 {
     let runtime = env
-        .setup_client()
+        .setup_runtime()
         .await
         .map_err(|err| color_eyre::Report::msg(format!("Failed to setup runtime: {err}")))?;
     let tx_manager = env.transaction_manager();

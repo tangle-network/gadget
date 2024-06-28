@@ -1,6 +1,7 @@
 use crate::protocols::resolver::{load_global_config_file, str_to_role_type, ProtocolMetadata};
 use config::ShellManagerOpts;
 use gadget_common::gadget_io;
+use gadget_common::prelude::GadgetEnvironment;
 use gadget_common::sp_core::Pair;
 use gadget_io::tokio::io::AsyncWriteExt;
 use gadget_io::ShellTomlConfig;
@@ -11,8 +12,8 @@ use shell_sdk::{entry, DebugLogger};
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use structopt::StructOpt;
-use tangle_environment::runtime::TangleRuntime;
-use tangle_subxt::subxt;
+use tangle_environment::gadget::SubxtConfig;
+use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::utils::AccountId32;
 
 pub mod config;
@@ -20,13 +21,11 @@ pub mod error;
 pub mod protocols;
 pub mod utils;
 
-#[gadget_io::tokio::main]
+#[tokio::main]
 async fn main() -> color_eyre::Result<()> {
     //color_eyre::install()?;
     let opt = &ShellManagerOpts::from_args();
     let test_mode = opt.test;
-    //    entry::setup_shell_logger(opt.verbose, opt.pretty, "gadget")
-    //        .map_err(|err| msg_to_error(err.to_string()))?;
     entry::setup_shell_logger(opt.verbose, opt.pretty, "gadget")?;
     let shell_config_contents = std::fs::read_to_string(opt.shell_config.clone())?;
     let shell_config: ShellTomlConfig = toml::from_str(&shell_config_contents)
@@ -42,27 +41,30 @@ async fn main() -> color_eyre::Result<()> {
         global_protocols.len()
     ));
 
-    let subxt_client = subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&shell_config.url)
-        .await
-        .map_err(|err| utils::msg_to_error(err.to_string()))?;
-    let runtime = TangleRuntime::new(subxt_client);
-
     let keystore = keystore_from_base_path(
         &shell_config.base_path,
         shell_config.chain,
         shell_config.keystore_password.clone(),
     );
+
     let (_role_key, acco_key) = load_keys_from_keystore(&keystore)?;
     let sub_account_id = AccountId32(acco_key.public().0);
+    let subxt_config = SubxtConfig {
+        endpoint: shell_config.url.clone(),
+    };
+
+    let tangle_environment = TangleEnvironment::new(subxt_config, acco_key, logger.clone());
+
+    let runtime = tangle_environment.setup_runtime().await?;
 
     let mut active_shells = HashMap::<String, _>::new();
 
     let manager_task = async move {
-        while let Some(notification) = runtime.next_event().await {
-            logger.info(format!("Received notification {}", notification.number));
+        while let Some(event) = runtime.next_event().await {
+            logger.info(format!("Received notification {}", event.number));
             let onchain_roles = utils::get_subscribed_role_types(
                 &runtime,
-                notification.hash,
+                event.hash,
                 sub_account_id.clone(),
                 &global_protocols,
                 test_mode,

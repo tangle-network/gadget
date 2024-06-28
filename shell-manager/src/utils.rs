@@ -4,13 +4,13 @@ use gadget_common::config::DebugLogger;
 use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::{defaults, ShellTomlConfig};
 use sha2::Digest;
+use shell_sdk::prelude::tangle_primitives::roles::RoleType;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tangle_subxt::tangle_testnet_runtime::api::services::storage::types::blueprints::Blueprints;
-use shell_sdk::prelude::tangle_primitives::roles::RoleType;
 use tangle_environment::api::ClientWithServicesApi;
 use tangle_environment::runtime::TangleRuntime;
+use tangle_subxt::tangle_testnet_runtime::api::services::storage::types::blueprints::Blueprints;
 
 pub async fn get_subscribed_role_types(
     runtime: &TangleRuntime,

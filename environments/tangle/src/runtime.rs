@@ -44,6 +44,7 @@ pub struct TangleRuntime {
         Arc<gadget_common::gadget_io::tokio::sync::Mutex<Option<TangleBlockStream>>>,
     latest_finality_notification:
         Arc<gadget_common::gadget_io::tokio::sync::Mutex<Option<FinalityNotification>>>,
+    account_id: AccountId32,
 }
 
 impl TangleRuntime {
@@ -83,7 +84,7 @@ impl TangleRuntime {
 
 #[async_trait::async_trait]
 impl Client<TangleEvent> for TangleRuntime {
-    async fn next_event(&self) -> Option<FinalityNotification> {
+    async fn next_event(&self) -> Option<TangleEvent> {
         let mut lock = self
             .finality_notification_stream
             .try_lock_timeout(Duration::from_millis(500))
@@ -92,7 +93,7 @@ impl Client<TangleEvent> for TangleRuntime {
         match lock.as_mut() {
             Some(stream) => {
                 let block = stream.next().await?.ok()?;
-                let notification = FinalityNotification {
+                let notification = TangleEvent {
                     number: block.number().into(),
                     hash: block.hash().into(),
                 };
@@ -112,7 +113,7 @@ impl Client<TangleEvent> for TangleRuntime {
         }
     }
 
-    async fn latest_event(&self) -> Option<FinalityNotification> {
+    async fn latest_event(&self) -> Option<TangleEvent> {
         let lock = self
             .latest_finality_notification
             .try_lock_timeout(Duration::from_millis(500))
@@ -125,147 +126,6 @@ impl Client<TangleEvent> for TangleRuntime {
                 self.next_event().await
             }
         }
-    }
-}
-
-#[async_trait::async_trait]
-impl ClientWithServicesApi<TangleEnvironment> for TangleRuntime {
-    async fn query_jobs_by_validator(
-        &self,
-        at: [u8; 32],
-        validator: AccountId32,
-    ) -> core::result::Result<
-        Option<
-            Vec<
-                RpcResponseJobsData<
-                    AccountId32,
-                    u64,
-                    MaxParticipants,
-                    MaxSubmissionLen,
-                    MaxAdditionalParamsLen,
-                >,
-            >,
-        >,
-        gadget_common::Error,
-    > {
-        let q = api::apis()
-            .services_api()
-            .query_services_with_blueprints_by_operator(validator);
-        //let q = api::apis().jobs_api().query_jobs_by_validator(validator);
-        self.runtime_api(at)
-            .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await
-    }
-
-    async fn query_job_by_id(
-        &self,
-        at: [u8; 32],
-        role_type: RoleType,
-        job_id: u64,
-    ) -> core::result::Result<
-        Option<
-            RpcResponseJobsData<
-                AccountId32,
-                u64,
-                MaxParticipants,
-                MaxSubmissionLen,
-                MaxAdditionalParamsLen,
-            >,
-        >,
-        gadget_common::Error,
-    > {
-        let q = api::apis().jobs_api().query_job_by_id(role_type, job_id);
-        self.runtime_api(at)
-            .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await
-    }
-
-    async fn query_job_result(
-        &self,
-        at: [u8; 32],
-        role_type: RoleType,
-        job_id: u64,
-    ) -> core::result::Result<
-        Option<
-            PhaseResult<
-                AccountId32,
-                u64,
-                MaxParticipants,
-                MaxKeyLen,
-                MaxDataLen,
-                MaxSignatureLen,
-                MaxSubmissionLen,
-                MaxProofLen,
-                MaxAdditionalParamsLen,
-            >,
-        >,
-        gadget_common::Error,
-    > {
-        let q = api::apis().jobs_api().query_job_result(role_type, job_id);
-        self.runtime_api(at)
-            .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await
-    }
-
-    async fn query_next_job_id(
-        &self,
-        at: [u8; 32],
-    ) -> core::result::Result<u64, gadget_common::Error> {
-        let q = api::apis().jobs_api().query_next_job_id();
-        self.runtime_api(at)
-            .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await
-    }
-
-    async fn query_restaker_role_key(
-        &self,
-        at: [u8; 32],
-        address: AccountId32,
-    ) -> core::result::Result<Option<Vec<u8>>, gadget_common::Error> {
-        let q = api::apis().jobs_api().query_restaker_role_key(address);
-        self.runtime_api(at)
-            .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await
-    }
-
-    async fn query_restaker_roles(
-        &self,
-        at: [u8; 32],
-        address: AccountId32,
-    ) -> Result<Vec<Blueprints>, gadget_common::Error> {
-        let block_ref = BlockRef::from_hash(sp_core::hash::H256::from_slice(&at));
-        let call = api::storage().services().user_services(address);
-
-        let blueprint_ids: Vec<u64> = self
-            .client
-            .storage()
-            .at(block_ref.clone())
-            .fetch_or_default(&call)
-            .map_ok(|v| v.0)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await?;
-
-        let mut ret = vec![];
-
-        for blueprint_id in blueprint_ids {
-            let svcs = api::storage().services().blueprints(blueprint_id);
-            let blueprint: Blueprints = self
-                .client
-                .storage()
-                .at(block_ref.clone())
-                .fetch_or_default(&svcs)
-                .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-                .await?;
-
-            ret.push(blueprint);
-        }
-
-        Ok(ret)
     }
 }
 
