@@ -44,6 +44,7 @@ gadget-common = { workspace = true, default-features = false, features = ["defau
 gadget-executor = { workspace = true }
 sp-keystore.workspace = true
 sc-keystore.workspace = true
+env_logger = "0.10.2"
 
 [dev-dependencies]
 rand_core.workspace = true

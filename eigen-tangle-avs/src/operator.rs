@@ -365,6 +365,9 @@ impl<T: Config> Operator<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::path::Path;
+    use alloy_primitives::{address, U256};
     use super::*;
     use alloy_provider::ProviderBuilder;
     use alloy_signer::Error::Ecdsa;
@@ -375,14 +378,86 @@ mod tests {
     use gadget_common::gadget::tangle::runtime::crypto::role::KEY_TYPE;
     use gadget_common::sp_core::{ecdsa, Pair};
     use gadget_common::sp_core::testing::ECDSA;
+    use gadget_common::subxt_signer::bip39::rand::thread_rng;
     use gadget_common::subxt_signer::SecretString;
 
     static BLS_PASSWORD: &str = "BLS_PASSWORD";
     static ECDSA_PASSWORD: &str = "ECDSA_PASSWORD";
 
 
+    // These are for the anvil test function
+    // use alloy::signers::Signer;
+    // use alloy_primitives::hex::FromHex;
+    // use alloy_primitives::{address, ruint, Address, Bytes, TxKind, U256};
+    // use alloy_provider::network::{EthereumWallet, ReceiptResponse, TransactionBuilder};
+    // use alloy_provider::{Provider, WalletProvider};
+    // use alloy_rpc_types_eth::{BlockId, BlockTransactions, TransactionRequest};
+    // use alloy_signer_local::PrivateKeySigner;
+    // use alloy_sol_types::sol;
+    // use anvil::{spawn, NodeConfig};
+    async fn test_anvil() {
+        env_logger::init();
+
+        // let (api, mut handle) = spawn(NodeConfig::test().with_port(33125)).await;
+        // api.anvil_auto_impersonate_account(true).await.unwrap();
+        // let provider = handle.http_provider();
+        //
+        // let accounts = handle.dev_wallets().collect::<Vec<_>>();
+        // let from = accounts[0].address();
+        // let to = accounts[1].address();
+        //
+        // let amount = handle
+        //     .genesis_balance()
+        //     .checked_div(U256::from(2u64))
+        //     .unwrap();
+        //
+        // let gas_price = provider.get_gas_price().await.unwrap();
+        //
+        //
+        // println!("Deploying Registry Coordinator...");
+        //
+        // let rc = RegistryCoordinator::deploy(
+        //     provider.clone(),
+        //     Address::from(address!("23e42f117e8643cc0174197c6c7cb38d8e5bd286")),
+        //     Address::from(address!("33e423a17e86433a0174197c6c7cb38d8e3ad287")),
+        //     Address::from(address!("43e42f117e8643cc03a4197c6c3ab38d8e5bd288")),
+        //     Address::from(address!("53e42f117e8643cc01741973ac7cb3ad8e5bd289")),
+        // )
+        //     .await
+        //     .unwrap();
+        // let registry_coordinator_addr = rc.address();
+        // println!("Registry Coordinator returned");
+        // api.mine_one().await;
+        // println!("Registry Coordinator deployed at: {:?}", registry_coordinator_addr);
+        //
+        // let dm = DelegationManager::deploy(
+        //     provider.clone(),
+        //     Address::from(address!("63e423a17e86433a0174197c6c7cb38d8e3ad280")),
+        //     Address::from(address!("73e42f117e8643cc03a4197c6c3ab38d8e5bd281")),
+        //     Address::from(address!("83e42f117e8643cc01741973ac7cb3ad8e5bd282")),
+        // )
+        //     .await
+        //     .unwrap();
+        // let delegation_manager_addr = dm.address();
+        // println!("Delegation Manager returned");
+        // api.mine_one().await;
+        // println!("Delegation Manager deployed at: {:?}", delegation_manager_addr);
+        //
+        // let block = provider
+        //     .get_block(BlockId::latest(), false.into())
+        //     .await
+        //     .unwrap()
+        //     .unwrap();
+        //
+        // let serv = handle.servers.pop().unwrap();
+        // let res = serv.await.unwrap();
+        // res.unwrap();
+    }
+
+
     #[tokio::test]
     async fn test_generate_keys() {
+        env_logger::init();
         // let bls_key_password = std::env::var("OPERATOR_BLS_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
         let bls_pair = KeyPair::gen_random().unwrap();
         bls_pair.save_to_file("./keystore/bls", "BLS_PASSWORD").unwrap();
@@ -393,7 +468,7 @@ mod tests {
         // let ecdsa_key_password = std::env::var("OPERATOR_ECDSA_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
         // let (ecdsa_pair, ecdsa_string, ecdsa_seed) = ecdsa::Pair::generate_with_phrase(Some("TEST TEST TEST TEST ECDSA ECDSA ECDSA ECDSA"));
         let keystore = sc_keystore::LocalKeystore::open("./keystore/ecdsa", Some(SecretString::new("ECDSA_PASSWORD".to_string()))).unwrap();
-        keystore.ecdsa_generate_new(ECDSA, Some("TEST TEST TEST TEST ECDSA ECDSA ECDSA ECDSA")).unwrap();
+        keystore.ecdsa_generate_new(ECDSA, Some("0x623627acc6e1ad1462d1cc97107a5bf529af32bac90d8268ef98c3ff2150ec5b")).unwrap();
 
         let keystore = sc_keystore::LocalKeystore::open("./keystore/ecdsa", Some(SecretString::new("ECDSA_PASSWORD".to_string()))).unwrap();
         let ecdsa_keys = keystore.keys(ECDSA).unwrap();
@@ -417,6 +492,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_operator() {
+        env_logger::init();
         let http_endpoint = "http://127.0.0.1:33125";
         let ws_endpoint = "ws://127.0.0.1:33125";
         let node_config = NodeConfig {
