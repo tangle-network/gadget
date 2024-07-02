@@ -68,7 +68,6 @@ use tangle_primitives::roles::RoleType;
 use tangle_primitives::verifier::{
     arkworks::ArkworksVerifierGroth16Bn254, circom::CircomVerifierGroth16Bn254,
 };
-use gadget_common::tangle_runtime::api::runtime_types::{pallet_dkg, pallet_zksaas};
 use gadget_common::tangle_runtime::api::runtime_types::tangle_runtime::Runtime;
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_balances;
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::RuntimeEvent;
@@ -258,85 +257,113 @@ const KB: u32 = 1024;
 const MB: u32 = 1024 * KB;
 
 parameter_types! {
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxSubmissionLen: u32 = 64 * MB;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxParticipants: u32 = 10;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxKeyLen: u32 = 2048;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxDataLen: u32 = 256;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxSignatureLen: u32 = 256;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxProofLen: u32 = 256;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxActiveJobsPerValidator: u32 = 100;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxRolesPerValidator: u32 = 100;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxAdditionalParamsLen: u32 = 256;
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxFields: u32 = 256;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxFieldsSize: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxMetadataLength: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxJobsPerService: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxOperatorsPerService: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxPermittedCallers: u32 = 256;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxServicesPerOperator: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxBlueprintsPerOperator: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxServicesPerUser: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxBinariesPerGadget: u32 = 64;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxSourcesPerGadget: u32 = 64;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxGitOwnerLength: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxGitRepoLength: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxGitTagLength: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxBinaryNameLength: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxIpfsHashLength: u32 = 46;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxContainerRegistryLength: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxContainerImageNameLength: u32 = 1024;
+
+	#[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+	pub const MaxContainerImageTagLength: u32 = 1024;
 }
 
-impl pallet_services::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type ForceOrigin = ();
-    type Currency = ();
-    type PalletId = ();
-    type EvmRunner = ();
-    type EvmGasWeightMapping = ();
-    type MaxFields = ();
-    type MaxFieldsSize = ();
-    type MaxMetadataLength = ();
-    type MaxJobsPerService = ();
-    type MaxOperatorsPerService = ();
-    type MaxPermittedCallers = ();
-    type MaxServicesPerOperator = ();
-    type MaxBlueprintsPerOperator = ();
-    type MaxServicesPerUser = ();
-    type MaxBinariesPerGadget = ();
-    type MaxSourcesPerGadget = ();
-    type MaxGitOwnerLength = ();
-    type MaxGitRepoLength = ();
-    type MaxGitTagLength = ();
-    type MaxBinaryNameLength = ();
-    type MaxIpfsHashLength = ();
-    type MaxContainerRegistryLength = ();
-    type MaxContainerImageNameLength = ();
-    type MaxContainerImageTagLength = ();
-    type Constraints = ();
-    type WeightInfo = ();
+impl Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+	type Currency = Balances;
+	type PalletId = ServicesPalletId;
+	type EvmRunner = MockedEvmRunner;
+	type EvmGasWeightMapping = PalletEVMGasWeightMapping;
+	type MaxFields = MaxFields;
+	type MaxFieldsSize = MaxFieldsSize;
+	type MaxMetadataLength = MaxMetadataLength;
+	type MaxJobsPerService = MaxJobsPerService;
+	type MaxOperatorsPerService = MaxOperatorsPerService;
+	type MaxPermittedCallers = MaxPermittedCallers;
+	type MaxServicesPerOperator = MaxServicesPerOperator;
+	type MaxBlueprintsPerOperator = MaxBlueprintsPerOperator;
+	type MaxServicesPerUser = MaxServicesPerUser;
+	type MaxBinariesPerGadget = MaxBinariesPerGadget;
+	type MaxSourcesPerGadget = MaxSourcesPerGadget;
+	type MaxGitOwnerLength = MaxGitOwnerLength;
+	type MaxGitRepoLength = MaxGitRepoLength;
+	type MaxGitTagLength = MaxGitTagLength;
+	type MaxBinaryNameLength = MaxBinaryNameLength;
+	type MaxIpfsHashLength = MaxIpfsHashLength;
+	type MaxContainerRegistryLength = MaxContainerRegistryLength;
+	type MaxContainerImageNameLength = MaxContainerImageNameLength;
+	type MaxContainerImageTagLength = MaxContainerImageTagLength;
+	type Constraints = pallet_services::types::ConstraintsOf<Self>;
+	type WeightInfo = ();
 }
-/*
-impl pallet_jobs::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-    type JobToFee = JobToFeeHandler;
-    type RolesHandler = MockRolesHandler;
-    type MPCHandler = MockMPCHandler;
-    type ForceOrigin = EnsureSigned<AccountId>;
-    type MaxParticipants = MaxParticipants;
-    type MaxSubmissionLen = MaxSubmissionLen;
-    type MaxSignatureLen = MaxSignatureLen;
-    type MaxDataLen = MaxDataLen;
-    type MaxKeyLen = MaxKeyLen;
-    type MaxProofLen = MaxProofLen;
-    type MaxActiveJobsPerValidator = MaxActiveJobsPerValidator;
-    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
-    type PalletId = JobsPalletId;
-    type MisbehaviorHandler = MockMisbehaviorHandler;
-    type WeightInfo = ();
-}
-*/
+
 pub struct MockMisbehaviorHandler;
 
 impl MisbehaviorHandler for MockMisbehaviorHandler {
@@ -345,81 +372,15 @@ impl MisbehaviorHandler for MockMisbehaviorHandler {
     }
 }
 
-impl pallet_dkg::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-    type UpdateOrigin = EnsureSigned<AccountId>;
-    type MaxParticipants = MaxParticipants;
-    type MaxSubmissionLen = MaxSubmissionLen;
-    type MaxSignatureLen = MaxSignatureLen;
-    type MaxDataLen = MaxDataLen;
-    type MaxKeyLen = MaxKeyLen;
-    type MaxProofLen = MaxProofLen;
-    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
-    type WeightInfo = ();
-}
-
-impl pallet_zksaas::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-
-    type UpdateOrigin = EnsureSigned<AccountId>;
-    type Verifier = (ArkworksVerifierGroth16Bn254, CircomVerifierGroth16Bn254);
-    type MaxParticipants = MaxParticipants;
-    type MaxSubmissionLen = MaxSubmissionLen;
-    type MaxSignatureLen = MaxSignatureLen;
-    type MaxDataLen = MaxDataLen;
-    type MaxKeyLen = MaxKeyLen;
-    type MaxProofLen = MaxProofLen;
-    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
-    type WeightInfo = ();
-}
-
 construct_runtime!(
     pub enum Runtime
     {
         System: frame_system,
         Timestamp: pallet_timestamp,
         Balances: pallet_balances,
-        Jobs: pallet_jobs,
-        Dkg: pallet_dkg,
-        ZkSaaS: pallet_zksaas,
+        Services: pallet_services
     }
 );
-
-sp_api::mock_impl_runtime_apis! {
-    impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen, MaxAdditionalParamsLen> for Runtime {
-        fn query_jobs_by_validator(&self, validator: AccountId) -> Option<Vec<RpcResponseJobsData<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>>> {
-            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                Jobs::query_jobs_by_validator(validator)
-            })
-        }
-
-        fn query_job_by_id(role_type: RoleType, job_id: JobId) -> Option<RpcResponseJobsData<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>> {
-            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                Jobs::query_job_by_id(role_type, job_id)
-            })
-        }
-
-        fn query_job_result(role_type: RoleType, job_id: JobId) -> Option<PhaseResult<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxSubmissionLen, MaxProofLen, MaxAdditionalParamsLen>> {
-            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                Jobs::query_job_result(role_type, job_id)
-            })
-        }
-
-        fn query_next_job_id() -> JobId {
-            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                Jobs::query_next_job_id()
-            })
-        }
-
-        fn query_restaker_role_key(address: AccountId) -> Option<Vec<u8>> {
-            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                MockRolesHandler::get_validator_role_key(address)
-            })
-        }
-    }
-}
 
 pub struct ExtBuilder;
 

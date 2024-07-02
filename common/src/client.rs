@@ -55,27 +55,6 @@ where
         .expect("Failed to spawn blocking task")
 }
 
-pub trait JobTypeExt {
-    /// Checks if the job type is a phase one job.
-    fn is_phase_one(&self) -> bool;
-    /// Gets the participants for the job type, if applicable.
-    fn get_participants(self) -> Option<Vec<AccountId32>>;
-    /// Gets the threshold value for the job type, if applicable.
-    fn get_threshold(self) -> Option<u8>;
-    /// Gets the role associated with the job type.
-    fn get_role_type(&self) -> roles::RoleType;
-    /// Gets the phase one ID for phase two jobs, if applicable.
-    fn get_phase_one_id(&self) -> Option<u64>;
-    /// Gets the permitted caller for the job type, if applicable.
-    fn get_permitted_caller(self) -> Option<AccountId32>;
-}
-
-pub trait PhaseResultExt {
-    /// Gets the participants for the phase result, if applicable.
-    fn participants(&self) -> Option<Vec<AccountId32>>;
-    /// Gets the threshold value for the phase result, if applicable.
-    fn threshold(&self) -> Option<u8>;
-}
 
 #[async_trait]
 impl<Env: GadgetEnvironment> Client<Env::Event> for JobsClient<Env> {

@@ -1,8 +1,6 @@
 use crate::error::Error;
 use crate::protocols::config::ProtocolConfig;
-use shell_sdk::prelude::tangle_primitives::roles::{
-    RoleType, ThresholdSignatureRoleType, ZeroKnowledgeRoleType,
-};
+use shell_sdk::prelude::tangle_primitives;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -61,63 +59,4 @@ pub fn load_global_config_file<P: AsRef<Path>>(path: P) -> Result<Vec<ProtocolMe
     }
 
     Ok(ret)
-}
-
-pub fn convert_str_vec_to_role_types(input: Vec<String>) -> Result<Vec<RoleType>, Error> {
-    let mut ret = vec![];
-    for role in input {
-        ret.push(
-            str_to_role_type(&role)
-                .ok_or_else(|| Error::msg(format!("Unregistered RoleType: {role:?}")))?,
-        );
-    }
-
-    Ok(ret)
-}
-
-pub fn str_to_role_type<T: AsRef<str>>(role_type: T) -> Option<RoleType> {
-    let role_type = role_type.as_ref();
-    match role_type {
-        // ZkSaaS types
-        "ZkSaaSGroth16" => Some(RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSGroth16)),
-        "ZkSaaSMarlin" => Some(RoleType::ZkSaaS(ZeroKnowledgeRoleType::ZkSaaSMarlin)),
-
-        // DFNS
-        "DfnsCGGMP21Secp256k1" => Some(RoleType::Tss(
-            ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
-        )),
-        "DfnsCGGMP21Secp256r1" => Some(RoleType::Tss(
-            ThresholdSignatureRoleType::DfnsCGGMP21Secp256r1,
-        )),
-        "DfnsCGGMP21Stark" => Some(RoleType::Tss(ThresholdSignatureRoleType::DfnsCGGMP21Stark)),
-
-        // Silent Shard
-        "SilentShardDKLS23Secp256k1" => Some(RoleType::Tss(
-            ThresholdSignatureRoleType::SilentShardDKLS23Secp256k1,
-        )),
-
-        // ZcashFrost
-        "ZcashFrostP256" => Some(RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP256)),
-        "ZcashFrostP384" => Some(RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostP384)),
-        "ZcashFrostSecp256k1" => Some(RoleType::Tss(
-            ThresholdSignatureRoleType::ZcashFrostSecp256k1,
-        )),
-        "ZcashFrostRistretto255" => Some(RoleType::Tss(
-            ThresholdSignatureRoleType::ZcashFrostRistretto255,
-        )),
-        "ZcashFrostEd25519" => Some(RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd25519)),
-        "ZcashFrostEd448" => Some(RoleType::Tss(ThresholdSignatureRoleType::ZcashFrostEd448)),
-
-        // BLS
-        "GennaroDKGBls381" => Some(RoleType::Tss(ThresholdSignatureRoleType::GennaroDKGBls381)),
-
-        // WSTS
-        "WstsV2" => Some(RoleType::Tss(ThresholdSignatureRoleType::WstsV2)),
-
-        // Relaying
-        "LightClientRelaying" => Some(RoleType::LightClientRelaying),
-
-        // Faulty types
-        _ => None,
-    }
 }
