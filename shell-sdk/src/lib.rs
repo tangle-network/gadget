@@ -38,13 +38,8 @@ pub mod prelude {
     pub use gadget_common::Error;
     pub use gadget_common::{generate_protocol, generate_setup_and_run_command};
     pub use std::sync::Arc;
-    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles;
 
     pub use color_eyre;
-    pub use pallet_dkg;
-    pub use pallet_jobs;
-    pub use pallet_jobs_rpc_runtime_api;
-    pub use pallet_zksaas;
     pub use tangle_primitives;
     pub use tangle_subxt;
 }

@@ -68,7 +68,9 @@ use tangle_primitives::roles::RoleType;
 use tangle_primitives::verifier::{
     arkworks::ArkworksVerifierGroth16Bn254, circom::CircomVerifierGroth16Bn254,
 };
+use gadget_common::tangle_runtime::api::runtime_types::{pallet_dkg, pallet_zksaas};
 use gadget_common::tangle_runtime::api::runtime_types::tangle_runtime::Runtime;
+use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_balances;
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::RuntimeEvent;
 
 /// Key type for DKG keys
@@ -736,20 +738,18 @@ pub async fn new_test_ext<
 }
 
 pub mod mock_wrapper_client {
-    use crate::mock::{Runtime, RuntimeOrigin, TangleExtEnvironment};
+    use crate::mock::{Runtime, TangleExtEnvironment};
     use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use async_trait::async_trait;
     use futures::StreamExt;
     use gadget_common::client::exec_client_function;
-    use tangle_environment::api::ClientWithServicesApi;
     use gadget_common::locks::TokioMutexExt;
     use gadget_common::tangle_subxt::subxt::utils::AccountId32;
     use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{
-        jobs, roles,
+        jobs,
     };
     use gadget_common::tangle_runtime::*;
     use gadget_core::gadget::substrate;
-    use pallet_jobs_rpc_runtime_api::JobsApi;
     use parity_scale_codec::{Decode, Encode};
     use sc_client_api::{
         BlockchainEvents, FinalityNotification, FinalityNotifications, ImportNotifications,
@@ -842,147 +842,6 @@ pub mod mock_wrapper_client {
                 drop(lock);
                 self.next_event().await
             }
-        }
-    }
-
-    #[async_trait]
-    impl ClientWithServicesApi<TangleExtEnvironment> for MockClient<Runtime, crate::mock::Block> {
-        async fn query_jobs_by_validator(
-            &self,
-            at: [u8; 32],
-            validator: AccountId32,
-        ) -> Result<
-            Option<
-                Vec<
-                    jobs::RpcResponseJobsData<
-                        AccountId32,
-                        u64,
-                        MaxParticipants,
-                        MaxSubmissionLen,
-                        MaxAdditionalParamsLen,
-                    >,
-                >,
-            >,
-            gadget_common::Error,
-        > {
-            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
-            let validator = tangle_primitives::AccountId::from(validator.0);
-            exec_client_function(&self.runtime, move |r| {
-                r.runtime_api()
-                    .query_jobs_by_validator(at, validator)
-                    .map_err(|err| gadget_common::Error::ClientError {
-                        err: format!("{err:?}"),
-                    })
-                    .map(|r| {
-                        r.map(|r| {
-                            r.into_iter()
-                                .flat_map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()))
-                                .collect()
-                        })
-                    })
-            })
-            .await
-        }
-        async fn query_job_by_id(
-            &self,
-            at: [u8; 32],
-            role_type: roles::RoleType,
-            job_id: u64,
-        ) -> Result<
-            Option<
-                jobs::RpcResponseJobsData<
-                    AccountId32,
-                    u64,
-                    MaxParticipants,
-                    MaxSubmissionLen,
-                    MaxAdditionalParamsLen,
-                >,
-            >,
-            gadget_common::Error,
-        > {
-            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
-            let role_type = Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap();
-            exec_client_function(&self.runtime, move |r| {
-                r.runtime_api()
-                    .query_job_by_id(at, role_type, job_id)
-                    .map_err(|err| gadget_common::Error::ClientError {
-                        err: format!("{err:?}"),
-                    })
-                    .map(|r| r.map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()).unwrap()))
-            })
-            .await
-        }
-
-        async fn query_job_result(
-            &self,
-            at: [u8; 32],
-            role_type: roles::RoleType,
-            job_id: u64,
-        ) -> Result<
-            Option<
-                jobs::PhaseResult<
-                    AccountId32,
-                    u64,
-                    MaxParticipants,
-                    MaxKeyLen,
-                    MaxDataLen,
-                    MaxSignatureLen,
-                    MaxSubmissionLen,
-                    MaxProofLen,
-                    MaxAdditionalParamsLen,
-                >,
-            >,
-            gadget_common::Error,
-        > {
-            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
-            let role_type = Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap();
-            exec_client_function(&self.runtime, move |r| {
-                r.runtime_api()
-                    .query_job_result(at, role_type, job_id)
-                    .map_err(|err| gadget_common::Error::ClientError {
-                        err: format!("{err:?}"),
-                    })
-                    .map(|r| r.map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()).unwrap()))
-            })
-            .await
-        }
-
-        async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, gadget_common::Error> {
-            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
-            exec_client_function(&self.runtime, move |r| {
-                r.runtime_api().query_next_job_id(at).map_err(|err| {
-                    gadget_common::Error::ClientError {
-                        err: format!("{err:?}"),
-                    }
-                })
-            })
-            .await
-        }
-
-        async fn query_restaker_role_key(
-            &self,
-            at: [u8; 32],
-            address: AccountId32,
-        ) -> Result<Option<Vec<u8>>, gadget_common::Error> {
-            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
-            let address = tangle_primitives::AccountId::from(address.0);
-            exec_client_function(&self.runtime, move |r| {
-                r.runtime_api()
-                    .query_restaker_role_key(at, address)
-                    .map_err(|err| gadget_common::Error::ClientError {
-                        err: format!("{err:?}"),
-                    })
-                    .map(|r| r.map(|r| r.to_vec()))
-            })
-            .await
-        }
-
-        async fn query_restaker_roles(
-            &self,
-            _at: [u8; 32],
-            _address: AccountId32,
-        ) -> Result<Vec<roles::RoleType>, gadget_common::Error> {
-            Ok(Default::default())
         }
     }
 

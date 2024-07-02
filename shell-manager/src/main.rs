@@ -12,6 +12,7 @@ use shell_sdk::{entry, DebugLogger};
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use structopt::StructOpt;
+use tangle_environment::api::ServicesClient;
 use tangle_environment::gadget::SubxtConfig;
 use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::utils::AccountId32;
@@ -56,6 +57,7 @@ async fn main() -> color_eyre::Result<()> {
     let tangle_environment = TangleEnvironment::new(subxt_config, acco_key, logger.clone());
 
     let runtime = tangle_environment.setup_runtime().await?;
+    let runtime = ServicesClient::new(logger.clone(), runtime.client());
 
     let mut active_shells = HashMap::<String, _>::new();
 

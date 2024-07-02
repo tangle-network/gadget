@@ -1,10 +1,10 @@
 use crate::error::Error;
 use crate::protocols::config::ProtocolConfig;
+use shell_sdk::prelude::tangle_primitives::roles::{
+    RoleType, ThresholdSignatureRoleType, ZeroKnowledgeRoleType,
+};
 use std::collections::HashMap;
 use std::path::Path;
-use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_submitted::RoleType;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::tss::ThresholdSignatureRoleType;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::zksaas::ZeroKnowledgeRoleType;
 
 #[derive(Debug)]
 pub struct ProtocolMetadata {

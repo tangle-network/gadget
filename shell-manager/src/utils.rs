@@ -1,6 +1,7 @@
 use crate::config::ShellManagerOpts;
 use crate::protocols::resolver::ProtocolMetadata;
 use gadget_common::config::DebugLogger;
+use gadget_common::sp_core::H256;
 use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::{defaults, ShellTomlConfig};
 use sha2::Digest;
@@ -8,17 +9,23 @@ use shell_sdk::prelude::tangle_primitives::roles::RoleType;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tangle_environment::api::ClientWithServicesApi;
-use tangle_environment::runtime::TangleRuntime;
+use tangle_environment::api::ServicesClient;
+use tangle_environment::TangleEnvironment;
+use tangle_subxt::subxt::backend::BlockRef;
+use tangle_subxt::subxt::Config;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::jobs::v2::ServiceBlueprint;
 use tangle_subxt::tangle_testnet_runtime::api::services::storage::types::blueprints::Blueprints;
 
-pub async fn get_subscribed_role_types(
-    runtime: &TangleRuntime,
+pub async fn get_subscribed_role_types<C: Config>(
+    runtime: &ServicesClient<C>,
     block_hash: [u8; 32],
     account_id: AccountId32,
     global_protocols: &[ProtocolMetadata],
     test_mode: bool,
-) -> color_eyre::Result<Vec<RoleType>> {
+) -> color_eyre::Result<Vec<RoleType>>
+where
+    BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
+{
     if test_mode {
         return Ok(global_protocols
             .iter()
@@ -27,14 +34,13 @@ pub async fn get_subscribed_role_types(
     }
 
     runtime
-        .query_restaker_roles(block_hash, account_id)
+        .query_restaker_blueprints(block_hash, account_id)
         .await
         .map_err(|err| msg_to_error(err.to_string()))
         .map(|r| r.into_iter().map(blueprint_to_role_type).collect())
 }
 
-pub fn blueprint_to_role_type(blueprint: Blueprints) -> RoleType {
-    let (account_id, blueprint) = blueprint;
+pub fn blueprint_to_role_type(blueprint: ServiceBlueprint) -> RoleType {
     todo!("")
 }
 

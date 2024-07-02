@@ -14,6 +14,12 @@ pub struct JobsClient<Env: GadgetEnvironment> {
     pub(crate) tx_manager: Env::TransactionManager,
 }
 
+impl<Env: GadgetEnvironment> JobsClient<Env> {
+    pub fn logger(&self) -> &DebugLogger {
+        &self.logger
+    }
+}
+
 impl<Env: GadgetEnvironment> Clone for JobsClient<Env> {
     fn clone(&self) -> Self {
         Self {

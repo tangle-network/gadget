@@ -3,7 +3,7 @@ pub use gadget_io::KeystoreConfig;
 use libp2p::Multiaddr;
 use std::net::IpAddr;
 use std::path::PathBuf;
-use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
+use tangle_primitives::roles::RoleType;
 
 #[derive(Debug)]
 pub struct ShellConfig<KBE: Clone, Env: GadgetEnvironment> {

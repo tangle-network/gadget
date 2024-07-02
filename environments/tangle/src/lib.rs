@@ -7,10 +7,9 @@ use gadget_common::channels::UserID;
 use gadget_common::client::PairSigner;
 use gadget_common::config::DebugLogger;
 use gadget_common::environments::{EventMetadata, GadgetEnvironment};
-use gadget_common::gadget_io::ShellTomlConfig;
 use gadget_common::sp_core::serde::Serialize;
 use gadget_common::sp_core::{ecdsa, sr25519};
-use gadget_common::tangle_subxt::subxt;
+use gadget_common::tangle_subxt::subxt::tx::Signer;
 use gadget_common::tangle_subxt::subxt::PolkadotConfig;
 use gadget_common::utils::serialize;
 use gadget_common::WorkManagerInterface;
@@ -102,6 +101,7 @@ impl GadgetEnvironment for TangleEnvironment {
             })?;
 
         let pair_signer = PairSigner::new(self.account_key.clone());
+        let account_id = pair_signer.account_id();
         let mut lock = self.tx_manager.lock();
 
         if lock.is_none() {
@@ -113,7 +113,7 @@ impl GadgetEnvironment for TangleEnvironment {
             *lock = Some(Arc::new(tx_manager_submitter));
         }
 
-        Ok(TangleRuntime::new(subxt_client))
+        Ok(TangleRuntime::new(subxt_client, account_id))
     }
 
     fn transaction_manager(&self) -> Self::TransactionManager {

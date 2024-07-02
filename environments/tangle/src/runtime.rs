@@ -1,16 +1,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::api::ClientWithServicesApi;
 use crate::gadget::TangleEvent;
-use crate::TangleEnvironment;
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::tangle_subxt::subxt::blocks::{Block, BlockRef};
-use gadget_common::tangle_subxt::subxt::ext::futures::TryFutureExt;
 use gadget_common::tangle_subxt::subxt::{self, PolkadotConfig};
-use gadget_common::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_common::{async_trait, tangle_runtime::*};
-use gadget_common::tangle_subxt::tangle_testnet_runtime::api::services::storage::types::blueprints::Blueprints;
 use gadget_core::gadget::general::Client;
 use gadget_core::gadget::substrate::FinalityNotification;
 
@@ -49,7 +44,7 @@ pub struct TangleRuntime {
 
 impl TangleRuntime {
     /// Create a new TangleRuntime instance.
-    pub fn new(client: subxt::OnlineClient<PolkadotConfig>) -> Self {
+    pub fn new(client: subxt::OnlineClient<PolkadotConfig>, account_id: AccountId32) -> Self {
         Self {
             client,
             finality_notification_stream: Arc::new(
@@ -58,6 +53,7 @@ impl TangleRuntime {
             latest_finality_notification: Arc::new(
                 gadget_common::gadget_io::tokio::sync::Mutex::new(None),
             ),
+            account_id,
         }
     }
 
@@ -73,12 +69,16 @@ impl TangleRuntime {
         Ok(())
     }
 
-    fn runtime_api(
+    pub fn runtime_api(
         &self,
         at: [u8; 32],
     ) -> subxt::runtime_api::RuntimeApi<TangleConfig, TangleClient> {
         let block_ref = BlockRef::from_hash(sp_core::hash::H256::from_slice(&at));
         self.client.runtime_api().at(block_ref)
+    }
+
+    pub fn account_id(&self) -> &AccountId32 {
+        &self.account_id
     }
 }
 
