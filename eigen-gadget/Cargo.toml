@@ -41,3 +41,4 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+env_logger = "0.10.2"

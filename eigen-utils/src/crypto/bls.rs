@@ -5,7 +5,7 @@ use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::PrimeField;
 use ark_ff::{BigInt, QuadExtField, Zero};
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError, Valid};
 use ark_std::One;
 use ark_std::UniformRand;
 use base64::prelude::*;
@@ -16,8 +16,12 @@ use scrypt::password_hash::{Encoding, PasswordHash, PasswordHashString, Salt, Sa
 use scrypt::{Params, password_hash, Scrypt};
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::{BufWriter, Write};
 use std::path::Path;
 use std::str::from_utf8;
+use alloy_primitives::bytes::Buf;
+use serde::de::IntoDeserializer;
+use crate::crypto::bls;
 
 use crate::types::AvsError;
 
@@ -26,7 +30,7 @@ use super::pairing_products::{InnerProduct, PairingInnerProduct};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct EncryptedBLSKeyJSONV3 {
-    pub pub_key: String,
+    pub pub_key: G1Point,
     pub crypto: serde_json::Value, // Adjust this type to match your specific encryption structure
 }
 
@@ -342,7 +346,7 @@ impl KeyPair {
     }
 
     pub fn save_to_file(&self, path: &str, password: &str) -> Result<(), AvsError> {
-        let mut sk_bytes = vec![0; self.priv_key.compressed_size()];
+        let mut sk_bytes = Vec::new();
         let _ = self.priv_key.serialize_compressed(&mut sk_bytes);
 
         let salt = SaltString::generate(thread_rng());
@@ -360,15 +364,14 @@ impl KeyPair {
             salt.as_salt(),
         )
             .map_err(|e| AvsError::KeyError(e.to_string()))?;
-        log::warn!("Password Hash: {:?}", password_hash);
-        log::warn!("Password Hash Encoding: {:?}", password_hash.encoding());
 
         let mut rng = thread_rng();
         let key: [u8; 32] = kdf_buf[..32].try_into().map_err(|_| AvsError::KeyError("Key conversion error".to_string()))?;
         let cipher = ChaCha20Poly1305::new(&key.into());
         let nonce = ChaCha20Poly1305::generate_nonce(&mut rng);
         let ciphertext: Vec<u8> = cipher
-            .encrypt(&nonce, b"plaintext message".as_ref()).unwrap();
+            .encrypt(&nonce, &sk_bytes[..])
+            .map_err(|e| AvsError::KeyError(e.to_string()))?;
         let crypto_struct = serde_json::json!({
             "encrypted_data": BASE64_STANDARD.encode(ciphertext),
             "nonce": BASE64_STANDARD.encode(nonce),
@@ -376,7 +379,7 @@ impl KeyPair {
         });
 
         let encrypted_bls_struct = EncryptedBLSKeyJSONV3 {
-            pub_key: format!("{:?}", self.pub_key),
+            pub_key: self.pub_key.clone(),
             crypto: crypto_struct,
         };
 
@@ -396,12 +399,6 @@ impl KeyPair {
         let encrypted_bls_struct: EncryptedBLSKeyJSONV3 = serde_json::from_str(&key_store_contents)
             .map_err(|e| AvsError::KeyError(e.to_string()))?;
 
-        if encrypted_bls_struct.pub_key.is_empty() {
-            return Err(AvsError::KeyError(
-                "Invalid BLS key file. PubKey field not found.".to_string(),
-            ));
-        }
-
         let sk_bytes = BASE64_STANDARD
             .decode(
                 encrypted_bls_struct.crypto["encrypted_data"]
@@ -409,14 +406,13 @@ impl KeyPair {
                     .ok_or(AvsError::KeyError("Invalid data".to_string()))?,
             )
             .map_err(|e| AvsError::KeyError(e.to_string()))?;
-        log::warn!("sk_bytes: {:?}", sk_bytes);
         let password_hash = BASE64_STANDARD
             .decode(
                 encrypted_bls_struct.crypto["password_hash"]
                     .as_str()
                     .ok_or(AvsError::KeyError("Invalid data".to_string()))?,
             )
-            .map(|p| PasswordHashString::new(std::str::from_utf8(&p).unwrap()))
+            .map(|p| PasswordHashString::new(std::str::from_utf8(&p).map_err(|_| password_hash::Error::Crypto)?))
             .map_err(|e| AvsError::KeyError(e.to_string()))?
             .map_err(|e| AvsError::KeyError(e.to_string()))?;
         let nonce = BASE64_STANDARD
@@ -426,14 +422,12 @@ impl KeyPair {
                     .ok_or(AvsError::KeyError("Invalid data".to_string()))?,
             )
             .map(|n| Nonce::clone_from_slice(&n[..]))
-            .map_err(|e| AvsError::KeyError(e.to_string())).unwrap();
+            .map_err(|e| AvsError::KeyError(e.to_string()))?;
 
         password_hash
             .password_hash()
             .verify_password(&[&Scrypt], password)
             .map_err(|e| AvsError::KeyError(e.to_string()))?;
-
-        log::warn!("password_hash: {:?}", password_hash);
 
         let mut salt = password_hash.salt().ok_or(AvsError::KeyError("Invalid salt".to_string()))?.as_str();
         let mut kdf_buf: [u8; 32] = Default::default();
@@ -443,15 +437,17 @@ impl KeyPair {
             &Params::recommended(),
             &mut kdf_buf,
         )
-        .map_err(|e| AvsError::KeyError(e.to_string())).unwrap();
-        let key: [u8; 32] = kdf_buf[..32].try_into().unwrap();
+        .map_err(|e| AvsError::KeyError(e.to_string()))?;
+        let key: [u8; 32] = kdf_buf[..32].try_into().map_err(|_| AvsError::KeyError("Key conversion error".to_string()))?;;
         let cipher = ChaCha20Poly1305::new(&key.into());
         let priv_key_bytes = cipher
             .decrypt(&nonce, &sk_bytes[..])
-            .map_err(|e| AvsError::KeyError(e.to_string())).unwrap();
+            .map_err(|e| AvsError::KeyError(e.to_string()))?;
 
         let priv_key = Fq::from_le_bytes_mod_order(&priv_key_bytes);
-        Ok(Self::new(&PrivateKey { key: priv_key }))
+
+        let pair = KeyPair { priv_key: PrivateKey { key: priv_key }, pub_key: encrypted_bls_struct.pub_key };
+        Ok(pair)
     }
 
     pub fn sign_message(&self, message: &[u8; 32]) -> Signature {

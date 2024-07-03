@@ -50,3 +50,13 @@ ark-inner-products.workspace = true
 
 base64.workspace = true
 rand.workspace = true
+rand_core.workspace = true
+uuid = { workspace = true, features = ["v4", "serde"] }
+bincode.workspace = true
+sha3 = "0.10.8"
+k256.workspace = true
+aes-gcm = "0.10.3"
+secp256k1 = "0.29.0"
+dirs = "5.0.1"
+gadget-common.workspace = true
+aes = "0.8.4"

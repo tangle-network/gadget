@@ -4,18 +4,24 @@ use alloy_provider::{Provider, RootProvider};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
 use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
+use eigen_utils::avs_registry::writer::AvsRegistryChainWriterTrait;
 use eigen_utils::avs_registry::AvsRegistryContractManager;
+use eigen_utils::crypto::bls::{KeyPair, PrivateKey};
 use eigen_utils::node_api::NodeApi;
 use eigen_utils::types::AvsError;
 use eigen_utils::Config;
+use gadget_common::sp_core::testing::ECDSA;
+use gadget_common::subxt_signer::SecretString;
+use k256::ecdsa::SigningKey;
+use k256::Secp256k1;
 use log::error;
+use sp_keystore::Keystore;
+use std::env;
 use std::future::Future;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::str::FromStr;
-use k256::ecdsa::SigningKey;
 use thiserror::Error;
-use eigen_utils::avs_registry::writer::AvsRegistryChainWriterTrait;
-use eigen_utils::crypto::bls::{KeyPair, PrivateKey};
 
 const AVS_NAME: &str = "incredible-squaring";
 const SEM_VER: &str = "0.0.1";
@@ -209,25 +215,27 @@ impl<T: Config> Operator<T> {
 
         let bls_key_password =
             std::env::var("OPERATOR_BLS_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
+        // let bls_keypair = KeyPair::read_private_key_from_file(
+        //     &config.bls_private_key_store_path,
+        //     &bls_key_password,
+        // )
+        // .map_err(OperatorError::from)?;
         let bls_keypair = KeyPair::read_private_key_from_file(
             &config.bls_private_key_store_path,
             &bls_key_password,
         )
         .map_err(OperatorError::from)?;
 
-        // let chain_id = eth_rpc_client
-        //     .get_chain_id()
-        //     .await
-        //     .map_err(|e| OperatorError::ChainIdError(e.to_string()))?;
+        let chain_id = eth_client_http
+            .get_chain_id()
+            .await
+            .map_err(|e| OperatorError::ChainIdError(e.to_string()))?;
 
         // let ecdsa_key_password =
         //     std::env::var("OPERATOR_ECDSA_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
-        // let keystore_file_path = PathBuf::from(
-        //     env::var("CARGO_MANIFEST_DIR").map_err(|e| AvsError::KeyError(e.to_string()))?,
-        // )
-        // .join(config.ecdsa_private_key_store_path);
-        // let signer = Wallet::decrypt_keystore(keystore_file_path, ecdsa_key_password)?;
-
+        // // let signer = Wallet::decrypt_keystore(keystore_file_path, ecdsa_key_password)?;
+        // let keystore = sc_keystore::LocalKeystore::open(&config.ecdsa_private_key_store_path, Some(SecretString::new(ecdsa_key_password))).unwrap();
+        // let ecdsa_key = keystore.keys(ECDSA).unwrap().pop().unwrap();
 
         let setup_config = SetupConfig::<T> {
             registry_coordinator_addr: Address::from_str(&config.avs_registry_coordinator_address)
@@ -347,7 +355,8 @@ impl<T: Config> Operator<T> {
         println!("Starting operator.");
         let operator_is_registered = self
             .avs_registry_contract_manager
-            .is_operator_registered(self.operator_addr).await?;
+            .is_operator_registered(self.operator_addr)
+            .await?;
         if !operator_is_registered {
             return Err(OperatorError::OperatorNotRegistered);
         }
@@ -365,25 +374,24 @@ impl<T: Config> Operator<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use std::path::Path;
-    use alloy_primitives::{address, U256};
     use super::*;
+    use alloy_primitives::{address, U256};
     use alloy_provider::ProviderBuilder;
     use alloy_signer::Error::Ecdsa;
     use alloy_transport_ws::WsConnect;
-    use sp_keystore::Keystore;
     use eigen_utils::crypto::bls;
     use eigen_utils::crypto::bls::KeyPair;
     use gadget_common::gadget::tangle::runtime::crypto::role::KEY_TYPE;
-    use gadget_common::sp_core::{ecdsa, Pair};
     use gadget_common::sp_core::testing::ECDSA;
+    use gadget_common::sp_core::{ecdsa, ByteArray, Pair};
     use gadget_common::subxt_signer::bip39::rand::thread_rng;
     use gadget_common::subxt_signer::SecretString;
+    use sp_keystore::Keystore;
+    use std::fs;
+    use std::path::Path;
 
     static BLS_PASSWORD: &str = "BLS_PASSWORD";
     static ECDSA_PASSWORD: &str = "ECDSA_PASSWORD";
-
 
     // These are for the anvil test function
     // use alloy::signers::Signer;
@@ -454,41 +462,38 @@ mod tests {
         // res.unwrap();
     }
 
-
     #[tokio::test]
     async fn test_generate_keys() {
         env_logger::init();
-        // let bls_key_password = std::env::var("OPERATOR_BLS_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
+
+        // BLS
         let bls_pair = KeyPair::gen_random().unwrap();
-        bls_pair.save_to_file("./keystore/bls", "BLS_PASSWORD").unwrap();
+        bls_pair
+            .save_to_file("./keystore/bls", BLS_PASSWORD)
+            .unwrap();
+        let bls_keys = KeyPair::read_private_key_from_file("./keystore/bls", BLS_PASSWORD).unwrap();
+        assert_eq!(bls_pair.priv_key.key, bls_keys.priv_key.key);
+        assert_eq!(bls_pair.pub_key, bls_keys.pub_key);
 
-        let bls_keys = KeyPair::read_private_key_from_file("./keystore/bls", "BLS_PASSWORD").unwrap();
-        println!("BLS Keys: {:?}", bls_keys);
+        // ECDSA
+        let keystore = sc_keystore::LocalKeystore::open(
+            "./keystore/ecdsa",
+            Some(SecretString::new(ECDSA_PASSWORD.to_string())),
+        )
+        .unwrap();
+        keystore.keys(ECDSA).unwrap().clear();
+        let new_key = keystore.ecdsa_generate_new(ECDSA, None).unwrap(); //Some("0x623627acc6e1ad1462d1cc97107a5bf529af32bac90d8268ef98c3ff2150ec5b")
+        let new_key = new_key.as_slice();
 
-        // let ecdsa_key_password = std::env::var("OPERATOR_ECDSA_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
-        // let (ecdsa_pair, ecdsa_string, ecdsa_seed) = ecdsa::Pair::generate_with_phrase(Some("TEST TEST TEST TEST ECDSA ECDSA ECDSA ECDSA"));
-        let keystore = sc_keystore::LocalKeystore::open("./keystore/ecdsa", Some(SecretString::new("ECDSA_PASSWORD".to_string()))).unwrap();
-        keystore.ecdsa_generate_new(ECDSA, Some("0x623627acc6e1ad1462d1cc97107a5bf529af32bac90d8268ef98c3ff2150ec5b")).unwrap();
-
-        let keystore = sc_keystore::LocalKeystore::open("./keystore/ecdsa", Some(SecretString::new("ECDSA_PASSWORD".to_string()))).unwrap();
-        let ecdsa_keys = keystore.keys(ECDSA).unwrap();
-        println!("ECDSA Keys: {:?}", ecdsa_keys);
-
-
-        // let bls_keypair = KeyPair::read_private_key_from_file(
-        //     &config.bls_private_key_store_path,
-        //     &bls_key_password,
-        // )
-        //     .map_err(OperatorError::from)?;
-        //
-        // let keystore_file_path = PathBuf::from(
-        //     env::var("CARGO_MANIFEST_DIR").map_err(|e| AvsError::KeyError(e.to_string()))?,
-        // )
-        //     .join(config.ecdsa_private_key_store_path);
-
-
+        let keystore = sc_keystore::LocalKeystore::open(
+            "./keystore/ecdsa",
+            Some(SecretString::new(ECDSA_PASSWORD.to_string())),
+        )
+        .unwrap();
+        let ecdsa_key = keystore.keys(ECDSA).unwrap().pop().unwrap();
+        let ecdsa_key = ecdsa_key.as_slice();
+        assert_eq!(ecdsa_key, new_key);
     }
-
 
     #[tokio::test]
     async fn test_run_operator() {
@@ -515,7 +520,9 @@ mod tests {
             enable_node_api: false,
         };
 
-        let signer = EigenTangleSigner { signer: PrivateKeySigner::random() };
+        let signer = EigenTangleSigner {
+            signer: PrivateKeySigner::random(),
+        };
 
         let http_provider = ProviderBuilder::new()
             .with_recommended_fillers()

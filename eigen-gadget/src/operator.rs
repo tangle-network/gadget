@@ -86,8 +86,8 @@ pub struct Operator<T: Config, I: OperatorInfoServiceTrait> {
 pub struct NodeConfig {
     pub node_api_ip_port_address: String,
     pub enable_node_api: bool,
-    // pub eth_rpc_url: String,
-    // pub eth_ws_url: String,
+    pub eth_rpc_url: String,
+    pub eth_ws_url: String,
     pub bls_private_key_store_path: String,
     pub ecdsa_private_key_store_path: String,
     pub incredible_squaring_service_manager_addr: String,
@@ -313,30 +313,73 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
 
 #[cfg(test)]
 mod tests {
+    use alloy_provider::ProviderBuilder;
+    use alloy_signer_local::PrivateKeySigner;
+    use alloy_transport_ws::WsConnect;
     use super::*;
 
     #[tokio::test]
-    async fn test_operator() {
-        let operator = Operator::new_from_config(
-            NodeConfig {
-                node_api_ip_port_address: "".to_string(),
-                enable_node_api: false,
-                bls_private_key_store_path: "".to_string(),
-                ecdsa_private_key_store_path: "".to_string(),
-                incredible_squaring_service_manager_addr: "".to_string(),
-                avs_registry_coordinator_addr: "".to_string(),
-                operator_state_retriever_addr: "".to_string(),
-                delegation_manager_addr: "".to_string(),
-                avs_directory_addr: "".to_string(),
-                eigen_metrics_ip_port_address: "".to_string(),
-                server_ip_port_address: "".to_string(),
-                operator_address: "".to_string(),
-                enable_metrics: false,
+    async fn test_run_operator() {
+        env_logger::init();
+        let http_endpoint = "http://127.0.0.1:33125";
+        let ws_endpoint = "ws://127.0.0.1:33125";
+        let node_config = NodeConfig {
+            node_api_ip_port_address: "127.0.0.1:9808".to_string(),
+            eth_rpc_url: http_endpoint.to_string(),
+            eth_ws_url: ws_endpoint.to_string(),
+            bls_private_key_store_path: "".to_string(),
+            ecdsa_private_key_store_path: "".to_string(),
+            incredible_squaring_service_manager_addr: "".to_string(),
+            avs_registry_coordinator_addr: "0x5fbdb2315678afecb367f032d93f642f64180aa3"
+                .to_string(),
+            operator_state_retriever_addr: "0x0000000000000000000000000000000000000002"
+                .to_string(),
+            eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
+            delegation_manager_addr: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512".to_string(),
+            avs_directory_addr: "0x0000000000000000000000000000000000000005".to_string(),
+            operator_address: "0x0000000000000000000000000000000000000006".to_string(),
+            enable_metrics: false,
+            enable_node_api: false,
+            server_ip_port_address: "".to_string(),
+        };
+
+        let signer = EigenTangleSigner {
+            signer: PrivateKeySigner::random(),
+        };
+
+        let http_provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .on_hyper_http(http_endpoint.parse().unwrap())
+            .root()
+            .clone()
+            .boxed();
+
+        println!("About to set up WS Provider");
+
+        let ws_provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .on_ws(WsConnect::new(ws_endpoint))
+            .await
+            .unwrap()
+            .root()
+            .clone()
+            .boxed();
+
+        println!("About to set up Operator");
+
+        let operator = Operator::<NodeConfig>::new_from_config(
+            node_config.clone(),
+            EigenTangleProvider {
+                provider: http_provider,
             },
-            (),
-            (),
-            (),
-            ()
-        ).await;
+            EigenTangleProvider {
+                provider: ws_provider,
+            },
+            signer,
+        )
+            .await
+            .unwrap();
+
+        operator.start().await.unwrap();
     }
 }
