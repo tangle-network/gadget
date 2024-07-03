@@ -1,8 +1,4 @@
-use gadget_common::{
-    tangle_runtime::{AccountId32, MaxAdditionalParamsLen, MaxParticipants, MaxSubmissionLen},
-    tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_core::ecdsa,
-    WorkManagerInterface,
-};
+use gadget_common::WorkManagerInterface;
 use gadget_core::gadget::substrate::FinalityNotification;
 
 use crate::work_manager::TangleWorkManager;

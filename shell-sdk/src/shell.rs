@@ -39,7 +39,7 @@ pub async fn generate_node_input<KBE: KeystoreBackend, Env: GadgetEnvironment>(
 
     // Create a network for each subprotocol in the protocol (e.g., keygen, signing, refresh, rotate, = 4 total subprotocols = n_protocols)
     let network_ids = (0..config.n_protocols)
-        .map(|_| format!("{:?}", config.role_types[0]))
+        .map(|_| format!("{:?}", config.services[0]))
         .map(|r| keccak_256(r.as_bytes()))
         .map(hex::encode)
         .enumerate()

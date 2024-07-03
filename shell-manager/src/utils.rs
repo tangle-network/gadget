@@ -5,43 +5,32 @@ use gadget_common::sp_core::H256;
 use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::{defaults, ShellTomlConfig};
 use sha2::Digest;
-use shell_sdk::prelude::tangle_primitives::roles::RoleType;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tangle_environment::api::ServicesClient;
-use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::backend::BlockRef;
 use tangle_subxt::subxt::Config;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::jobs::v2::ServiceBlueprint;
-use tangle_subxt::tangle_testnet_runtime::api::services::storage::types::blueprints::Blueprints;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 
-pub async fn get_subscribed_role_types<C: Config>(
+pub async fn get_subscribed_services<C: Config>(
     runtime: &ServicesClient<C>,
     block_hash: [u8; 32],
     account_id: AccountId32,
     global_protocols: &[ProtocolMetadata],
     test_mode: bool,
-) -> color_eyre::Result<Vec<RoleType>>
+) -> color_eyre::Result<Vec<ServiceBlueprint>>
 where
     BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
 {
     if test_mode {
-        return Ok(global_protocols
-            .iter()
-            .flat_map(|r| r.role_types().clone())
-            .collect());
+        return Ok(global_protocols.iter().map(|r| r.service.clone()).collect());
     }
 
     runtime
         .query_restaker_blueprints(block_hash, account_id)
         .await
         .map_err(|err| msg_to_error(err.to_string()))
-        .map(|r| r.into_iter().map(blueprint_to_role_type).collect())
-}
-
-pub fn blueprint_to_role_type(blueprint: ServiceBlueprint) -> RoleType {
-    todo!("")
 }
 
 pub fn generate_process_arguments(
@@ -139,12 +128,9 @@ pub fn msg_to_error<T: Into<String>>(msg: T) -> color_eyre::Report {
     color_eyre::Report::msg(msg.into())
 }
 
-pub fn get_role_type_str(role_type: &RoleType) -> String {
-    match role_type {
-        RoleType::Tss(tss) => format!("{tss:?}"),
-        RoleType::ZkSaaS(zksaas) => format!("{zksaas:?}"),
-        RoleType::LightClientRelaying => format!("{role_type:?}"),
-    }
+pub fn get_service_str(svc: &ServiceBlueprint) -> String {
+    String::from_utf8(svc.metadata.name.0 .0.clone())
+        .unwrap_or_else(|_| "Non-UTF8 Service".to_string())
 }
 
 pub async fn chmod_x_file<P: AsRef<Path>>(path: P) -> color_eyre::Result<()> {

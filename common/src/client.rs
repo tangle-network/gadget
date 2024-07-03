@@ -1,6 +1,5 @@
 use crate::debug_logger::DebugLogger;
 use crate::environments::GadgetEnvironment;
-use crate::tangle_runtime::*;
 use async_trait::async_trait;
 use gadget_core::gadget::general::Client;
 use sp_core::Pair;
@@ -54,7 +53,6 @@ where
         .await
         .expect("Failed to spawn blocking task")
 }
-
 
 #[async_trait]
 impl<Env: GadgetEnvironment> Client<Env::Event> for JobsClient<Env> {

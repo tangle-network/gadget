@@ -1,4 +1,4 @@
-use crate::protocols::resolver::{load_global_config_file, str_to_role_type, ProtocolMetadata};
+use crate::protocols::resolver::{load_global_config_file, ProtocolMetadata};
 use config::ShellManagerOpts;
 use gadget_common::gadget_io;
 use gadget_common::prelude::GadgetEnvironment;
@@ -7,7 +7,6 @@ use gadget_io::tokio::io::AsyncWriteExt;
 use gadget_io::ShellTomlConfig;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::keystore::load_keys_from_keystore;
-use shell_sdk::Client;
 use shell_sdk::{entry, DebugLogger};
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
@@ -64,7 +63,7 @@ async fn main() -> color_eyre::Result<()> {
     let manager_task = async move {
         while let Some(event) = runtime.next_event().await {
             logger.info(format!("Received notification {}", event.number));
-            let onchain_roles = utils::get_subscribed_role_types(
+            let onchain_services = utils::get_subscribed_services(
                 &runtime,
                 event.hash,
                 sub_account_id.clone(),
@@ -72,16 +71,22 @@ async fn main() -> color_eyre::Result<()> {
                 test_mode,
             )
             .await?;
-            logger.trace(format!("OnChain roles: {onchain_roles:?}"));
+            logger.trace(format!(
+                "OnChain services: {:?}",
+                onchain_services
+                    .iter()
+                    .map(|r| r.metadata.name.clone())
+                    .collect()
+            ));
             // Check to see if local does not have any running on-chain roles
-            for role in &onchain_roles {
-                let role_str = utils::get_role_type_str(role);
-                if !active_shells.contains_key(&role_str) {
+            for role in &onchain_services {
+                let service_str = utils::get_service_str(role);
+                if !active_shells.contains_key(&service_str) {
                     // Add in the protocol
                     for global_protocol in &global_protocols {
-                        if global_protocol.role_types().contains(&role.clone()) {
+                        if global_protocol.service.metadata.name == role.metadata.name {
                             let ProtocolMetadata {
-                                role_types: _,
+                                service: _,
                                 git,
                                 rev,
                                 package,
@@ -95,7 +100,7 @@ async fn main() -> color_eyre::Result<()> {
 
                             let sha_url = utils::get_sha_download_url(git, rev, package);
 
-                            logger.info(format!("Downloading {role_str} SHA from {sha_url}"));
+                            logger.info(format!("Downloading {service_str} SHA from {sha_url}"));
                             let sha_downloaded = reqwest::get(&sha_url)
                                 .await
                                 .map_err(|err| utils::msg_to_error(err.to_string()))?
@@ -108,7 +113,7 @@ async fn main() -> color_eyre::Result<()> {
                                     "Retrieved hash {} mismatches the declared hash {} for protocol: {}",
                                     sha_downloaded,
                                     expected_hash,
-                                    role_str
+                                    service_str
                                 ));
                                 continue;
                             }
@@ -155,7 +160,7 @@ async fn main() -> color_eyre::Result<()> {
                                         "Binary hash {} mismatched expected hash of {} for protocol: {}",
                                         retrieved_hash,
                                         expected_hash,
-                                        role_str
+                                        service_str
                                     ));
                                     continue;
                                 }
@@ -169,7 +174,7 @@ async fn main() -> color_eyre::Result<()> {
 
                             let arguments = utils::generate_process_arguments(&shell_config, opt)?;
 
-                            logger.info(format!("Starting protocol: {role_str}"));
+                            logger.info(format!("Starting protocol: {service_str}"));
 
                             // Now that the file is loaded, spawn the process
                             let process_handle =
@@ -187,10 +192,10 @@ async fn main() -> color_eyre::Result<()> {
                                 utils::generate_running_process_status_handle(
                                     process_handle,
                                     logger,
-                                    &role_str,
+                                    &service_str,
                                 );
 
-                            active_shells.insert(role_str.clone(), (status_handle, Some(abort)));
+                            active_shells.insert(service_str.clone(), (status_handle, Some(abort)));
                         }
                     }
                 }
@@ -199,15 +204,18 @@ async fn main() -> color_eyre::Result<()> {
             // Check to see if local is running protocols that are not on-chain
             let mut to_remove = vec![];
             for (role, process_handle) in &mut active_shells {
-                let role_type = str_to_role_type(role)
-                    .ok_or_else(|| utils::msg_to_error(format!("Invalid role type: {role}")))?;
-                if !onchain_roles.contains(&role_type) {
-                    logger.warn(format!("Killing protocol: {role}"));
-                    if let Some(abort_handle) = process_handle.1.take() {
-                        let _ = abort_handle.send(());
-                    }
+                for onchain_service in onchain_services {
+                    let onchain_service_str = utils::get_service_str(&onchain_service);
+                    if &onchain_service_str != role {
+                        logger.warn(format!(
+                            "Killing service that is no longer on-chain: {role}"
+                        ));
+                        if let Some(abort_handle) = process_handle.1.take() {
+                            let _ = abort_handle.send(());
+                        }
 
-                    to_remove.push(role.clone());
+                        to_remove.push(role.clone());
+                    }
                 }
             }
 

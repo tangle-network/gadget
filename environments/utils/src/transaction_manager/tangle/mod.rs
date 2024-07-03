@@ -1,11 +1,7 @@
 use auto_impl::auto_impl;
 use gadget_common::async_trait::async_trait;
 use gadget_common::config::DebugLogger;
-use gadget_common::tangle_runtime;
-use gadget_common::tangle_runtime::{
-    api, jobs, MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
-    MaxSignatureLen,
-};
+use gadget_common::tangle_runtime::api;
 use gadget_common::tangle_subxt::subxt;
 use gadget_common::tangle_subxt::subxt::tx::TxPayload;
 use gadget_common::tangle_subxt::subxt::OnlineClient;
@@ -14,19 +10,11 @@ use std::fmt::Debug;
 #[async_trait]
 #[auto_impl(Arc)]
 pub trait TanglePalletSubmitter: Send + Sync + Debug + 'static {
-    async fn submit_job_result(
+    async fn submit_service_result(
         &self,
-        role_type: tangle_runtime::RoleType,
-        job_id: u64,
-
-        result: jobs::JobResult<
-            MaxParticipants,
-            MaxKeyLen,
-            MaxSignatureLen,
-            MaxDataLen,
-            MaxProofLen,
-            MaxAdditionalParamsLen,
-        >,
+        service_id: u64,
+        call_id: u64,
+        result: api::services::calls::types::submit_result::Result,
     ) -> Result<(), gadget_common::Error>;
 }
 
@@ -58,33 +46,26 @@ where
     <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams:
         Default + Send + Sync + 'static,
 {
-    async fn submit_job_result(
+    async fn submit_service_result(
         &self,
-        role_type: tangle_runtime::RoleType,
-        job_id: u64,
-        result: jobs::JobResult<
-            MaxParticipants,
-            MaxKeyLen,
-            MaxSignatureLen,
-            MaxDataLen,
-            MaxProofLen,
-            MaxAdditionalParamsLen,
-        >,
+        service_id: u64,
+        call_id: u64,
+        result: api::services::calls::types::submit_result::Result,
     ) -> Result<(), gadget_common::Error> {
         let tx = api::tx()
-            .jobs()
-            .submit_job_result(role_type, job_id, result);
+            .services()
+            .submit_result(service_id, call_id, result);
         match self.submit(&tx).await {
             Ok(hash) => {
                 self.logger.info(format!(
-                    "({}) Job result submitted for job_id: {job_id} at block: {hash}",
+                    "({}) Service result submitted for service-id/call-id: {service_id}/{call_id} at block: {hash}",
                     self.signer.account_id(),
                 ));
                 Ok(())
             }
             Err(err) if err.to_string().contains("JobNotFound") => {
                 self.logger.warn(format!(
-                    "({}) Job not found for job_id: {job_id}",
+                    "({}) Service not found for service-id/call-id: {service_id}/{call_id}",
                     self.signer.account_id(),
                 ));
                 Ok(())
@@ -154,10 +135,7 @@ mod tests {
     use gadget_common::tangle_subxt::{
         subxt::{tx::Signer, utils::AccountId32, PolkadotConfig},
         tangle_testnet_runtime::api,
-        tangle_testnet_runtime::api::runtime_types::{
-            bounded_collections::bounded_vec::BoundedVec,
-            tangle_primitives::{jobs, roles},
-        },
+        tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec,
     };
 
     #[gadget_io::tokio::test]

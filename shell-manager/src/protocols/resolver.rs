@@ -1,22 +1,16 @@
 use crate::error::Error;
 use crate::protocols::config::ProtocolConfig;
-use shell_sdk::prelude::tangle_primitives;
 use std::collections::HashMap;
 use std::path::Path;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 
 #[derive(Debug)]
 pub struct ProtocolMetadata {
-    pub role_types: Vec<RoleType>,
+    pub service: ServiceBlueprint,
     pub git: String,
     pub rev: String,
     pub package: String,
     pub bin_hashes: HashMap<String, String>,
-}
-
-impl ProtocolMetadata {
-    pub fn role_types(&self) -> &Vec<RoleType> {
-        &self.role_types
-    }
 }
 
 pub fn load_global_config_file<P: AsRef<Path>>(path: P) -> Result<Vec<ProtocolMetadata>, Error> {
@@ -45,7 +39,7 @@ pub fn load_global_config_file<P: AsRef<Path>>(path: P) -> Result<Vec<ProtocolMe
             ))?;
             ret.push(ProtocolMetadata {
                 git: git.clone(),
-                role_types: convert_str_vec_to_role_types(protocol.role_types)?,
+                service: convert_str_vec_to_role_types(protocol.role_types)?,
                 rev,
                 bin_hashes,
                 package: protocol.package,

@@ -31,10 +31,6 @@ pub mod prelude {
 
     pub use gadget_common::prelude::InMemoryBackend;
     pub use gadget_common::tangle_runtime::AccountId32;
-    pub use gadget_common::tangle_runtime::MaxAdditionalParamsLen;
-    pub use gadget_common::tangle_runtime::MaxParticipants;
-    pub use gadget_common::tangle_runtime::MaxSubmissionLen;
-    pub use gadget_common::tangle_runtime::{jobs, RoleType};
     pub use gadget_common::Error;
     pub use gadget_common::{generate_protocol, generate_setup_and_run_command};
     pub use std::sync::Arc;
