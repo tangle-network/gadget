@@ -13,6 +13,7 @@ pub struct ProtocolMetadata {
     pub bin_hashes: HashMap<String, String>,
 }
 
+// This is for testing only
 pub fn load_global_config_file<P: AsRef<Path>>(path: P) -> Result<Vec<ProtocolMetadata>, Error> {
     let config: ProtocolConfig = toml::from_str(&std::fs::read_to_string(path)?)
         .map_err(|err| Error::msg(err.to_string()))?;

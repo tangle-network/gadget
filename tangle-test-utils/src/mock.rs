@@ -14,9 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmitter};
+use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use async_trait::async_trait;
+use environment_utils::transaction_manager::tangle::TanglePalletSubmitter;
 use frame_support::pallet_prelude::*;
-use frame_support::traits::Hooks;
+use frame_support::traits::{Contains, Hooks, OneSessionHandler};
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{ConstU128, ConstU32, ConstU64, Everything},
@@ -24,14 +27,30 @@ use frame_support::{
 };
 use frame_system::EnsureSigned;
 use gadget_common::config::Network;
+use gadget_common::locks::TokioMutexExt;
+use gadget_common::prelude::{
+    DebugLogger, ECDSAKeyStore, EventMetadata, GadgetEnvironment, InMemoryBackend, NodeInput,
+    PrometheusConfig, UnboundedReceiver, UnboundedSender,
+};
+use gadget_common::tangle_subxt::subxt::OfflineClient;
+use gadget_common::utils::serialize;
+use gadget_common::Error;
+use gadget_core::job_manager::{ProtocolMessageMetadata, SendFuture, WorkManagerInterface};
+use pallet_services::EvmGasWeightMapping;
 use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use serde::{Deserialize, Serialize};
 use sp_api::{ApiRef, ProvideRuntimeApi};
+use sp_application_crypto::ecdsa;
 use sp_core::{sr25519, ByteArray, Pair, H256};
+use sp_keystore::testing::MemoryKeystore;
+use sp_keystore::{KeystoreExt, KeystorePtr};
+use sp_runtime::testing::UintAuthorityId;
+use sp_runtime::traits::ConvertInto;
 use sp_runtime::RuntimeDebug;
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 use tangle_environment::gadget::{TangleEvent, TangleJobMetadata};
 use tangle_environment::message::{TangleProtocolMessage, UserID};
@@ -40,42 +59,6 @@ use tangle_primitives::AccountId;
 
 pub type Balance = u128;
 pub type BlockNumber = u64;
-
-pub use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmitter};
-use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
-use environment_utils::transaction_manager::tangle::TanglePalletSubmitter;
-use gadget_common::debug_logger::DebugLogger;
-use gadget_common::environments::{EventMetadata, GadgetEnvironment};
-use gadget_common::full_protocol::NodeInput;
-use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
-use gadget_common::locks::TokioMutexExt;
-use gadget_common::prelude::PrometheusConfig;
-use gadget_common::utils::serialize;
-use gadget_common::Error;
-use gadget_core::job_manager::{ProtocolMessageMetadata, SendFuture, WorkManagerInterface};
-use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use sp_core::ecdsa;
-use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
-use sp_std::sync::Arc;
-use tangle_primitives::jobs::traits::{JobToFee, MPCHandler};
-use tangle_primitives::jobs::{
-    JobId, JobResult, JobSubmission, JobType, JobWithResult, PhaseResult, ReportRestakerOffence,
-    RpcResponseJobsData, ValidatorOffenceType,
-};
-use tangle_primitives::misbehavior::{MisbehaviorHandler, MisbehaviorSubmission};
-use tangle_primitives::roles::traits::RolesHandler;
-use tangle_primitives::roles::RoleType;
-use tangle_primitives::verifier::{
-    arkworks::ArkworksVerifierGroth16Bn254, circom::CircomVerifierGroth16Bn254,
-};
-use gadget_common::tangle_runtime::api::runtime_types::tangle_runtime::Runtime;
-use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_balances;
-use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_testnet_runtime::RuntimeEvent;
-
-/// Key type for DKG keys
-pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"role");
-
-pub type Block = frame_system::mocking::MockBlock<Runtime>;
 
 impl frame_system::Config for Runtime {
     type RuntimeOrigin = RuntimeOrigin;
@@ -105,156 +88,194 @@ impl frame_system::Config for Runtime {
 }
 
 impl pallet_balances::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type WeightInfo = ();
     type Balance = Balance;
     type DustRemoval = ();
+    type RuntimeEvent = RuntimeEvent;
     type ExistentialDeposit = ConstU128<1>;
     type AccountStore = System;
-    type ReserveIdentifier = ();
-    type RuntimeHoldReason = RuntimeHoldReason;
-    type FreezeIdentifier = ();
     type MaxLocks = ();
     type MaxReserves = ConstU32<50>;
-    type MaxFreezes = ();
-    type RuntimeFreezeReason = ();
-}
-
-impl pallet_timestamp::Config for Runtime {
-    type Moment = u64;
-    type OnTimestampSet = ();
-    type MinimumPeriod = ();
+    type ReserveIdentifier = ();
     type WeightInfo = ();
+    type RuntimeHoldReason = RuntimeHoldReason;
+    type RuntimeFreezeReason = ();
+    type FreezeIdentifier = ();
+    type MaxFreezes = ();
 }
 
-pub struct JobToFeeHandler;
+parameter_types! {
+    pub ElectionBoundsOnChain: ElectionBounds = ElectionBoundsBuilder::default()
+        .voters_count(5_000.into()).targets_count(1_250.into()).build();
+    pub ElectionBoundsMultiPhase: ElectionBounds = ElectionBoundsBuilder::default()
+        .voters_count(10_000.into()).targets_count(1_500.into()).build();
+}
 
-impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>
-    for JobToFeeHandler
-{
-    type Balance = Balance;
+impl pallet_session::historical::Config for Runtime {
+    type FullIdentification = AccountId;
+    type FullIdentificationOf = ConvertInto;
+}
 
-    fn job_to_fee(
-        job: &JobSubmission<
-            AccountId,
-            BlockNumber,
-            MaxParticipants,
-            MaxSubmissionLen,
-            MaxAdditionalParamsLen,
-        >,
-    ) -> Balance {
-        match job.job_type {
-            JobType::DKGTSSPhaseOne(_)
-            | JobType::DKGTSSPhaseTwo(_)
-            | JobType::DKGTSSPhaseThree(_)
-            | JobType::DKGTSSPhaseFour(_) => Dkg::job_to_fee(job),
-            JobType::ZkSaaSPhaseOne(_) | JobType::ZkSaaSPhaseTwo(_) => ZkSaaS::job_to_fee(job),
+pub struct BaseFilter;
+impl Contains<RuntimeCall> for BaseFilter {
+    fn contains(call: &RuntimeCall) -> bool {
+        let is_stake_unbond_call = matches!(
+            call,
+            RuntimeCall::Staking(pallet_staking::Call::unbond { .. })
+        );
+
+        if is_stake_unbond_call {
+            // no unbond call
+            return false;
         }
-    }
 
-    fn calculate_result_extension_fee(_result: Vec<u8>, _extension_time: BlockNumber) -> Balance {
-        20
-    }
-}
-
-pub struct MockRolesHandler;
-
-impl RolesHandler<AccountId> for MockRolesHandler {
-    type Balance = Balance;
-    fn record_job_by_validators(_: Vec<AccountId>) -> DispatchResult {
-        Ok(())
-    }
-
-    fn get_max_active_service_for_restaker(_: AccountId) -> std::option::Option<u32> {
-        Some(u32::MAX)
-    }
-    fn report_offence(_offence_report: ReportRestakerOffence<AccountId>) -> DispatchResult {
-        Ok(())
-    }
-
-    fn is_restaker(address: AccountId) -> bool {
-        let restakers = (0..8)
-            .map(id_to_sr25519_public)
-            .map(Into::into)
-            .collect::<Vec<_>>();
-        restakers.contains(&address)
-    }
-
-    fn is_restaker_with_role(address: AccountId, _role: RoleType) -> bool {
-        let restakers = (0..8)
-            .map(id_to_sr25519_public)
-            .map(Into::into)
-            .collect::<Vec<_>>();
-        restakers.contains(&address)
-    }
-
-    fn get_validator_role_key(address: AccountId) -> Option<Vec<u8>> {
-        let validators = (0..8).map(id_to_ecdsa_pair).collect::<Vec<_>>();
-        let restakers = (0..8)
-            .map(id_to_sr25519_public)
-            .map(AccountId::from)
-            .collect::<Vec<_>>();
-        let idx = restakers.iter().position(|p| p == &address);
-        idx.map(|i| validators[i].public().to_raw_vec())
-    }
-}
-
-pub struct MockMPCHandler;
-
-impl
-    MPCHandler<
-        AccountId,
-        BlockNumber,
-        Balance,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-        MaxAdditionalParamsLen,
-    > for MockMPCHandler
-{
-    fn verify(
-        data: JobWithResult<
-            AccountId,
-            MaxParticipants,
-            MaxSubmissionLen,
-            MaxKeyLen,
-            MaxDataLen,
-            MaxSignatureLen,
-            MaxProofLen,
-            MaxAdditionalParamsLen,
-        >,
-    ) -> DispatchResult {
-        match data.result {
-            JobResult::DKGPhaseOne(_)
-            | JobResult::DKGPhaseTwo(_)
-            | JobResult::DKGPhaseThree(_)
-            | JobResult::DKGPhaseFour(_) => Dkg::verify(data.result),
-            JobResult::ZkSaaSPhaseOne(_) | JobResult::ZkSaaSPhaseTwo(_) => ZkSaaS::verify(data),
+        // no chill call
+        if matches!(
+            call,
+            RuntimeCall::Staking(pallet_staking::Call::chill { .. })
+        ) {
+            return false;
         }
+
+        // no withdraw_unbonded call
+        let is_stake_withdraw_call = matches!(
+            call,
+            RuntimeCall::Staking(pallet_staking::Call::withdraw_unbonded { .. })
+        );
+
+        if is_stake_withdraw_call {
+            return false;
+        }
+
+        true
+    }
+}
+
+sp_runtime::impl_opaque_keys! {
+    pub struct MockSessionKeys {
+        pub other: MockSessionHandler,
+    }
+}
+
+pub struct MockSessionHandler;
+impl OneSessionHandler<AccountId> for MockSessionHandler {
+    type Key = UintAuthorityId;
+
+    fn on_genesis_session<'a, I: 'a>(_: I)
+    where
+        I: Iterator<Item = (&'a AccountId, Self::Key)>,
+        AccountId: 'a,
+    {
     }
 
-    fn verify_validator_report(
-        _validator: AccountId,
-        _offence: ValidatorOffenceType,
-        _signatures: Vec<Vec<u8>>,
-    ) -> DispatchResult {
-        Ok(())
+    fn on_new_session<'a, I: 'a>(_: bool, _: I, _: I)
+    where
+        I: Iterator<Item = (&'a AccountId, Self::Key)>,
+        AccountId: 'a,
+    {
     }
 
-    fn validate_authority_key(_validator: AccountId, _authority_key: Vec<u8>) -> DispatchResult {
-        Ok(())
+    fn on_disabled(_validator_index: u32) {}
+}
+
+impl sp_runtime::BoundToRuntimeAppPublic for MockSessionHandler {
+    type Public = UintAuthorityId;
+}
+
+pub struct MockSessionManager;
+
+impl pallet_session::SessionManager<AccountId> for MockSessionManager {
+    fn end_session(_: sp_staking::SessionIndex) {}
+    fn start_session(_: sp_staking::SessionIndex) {}
+    fn new_session(idx: sp_staking::SessionIndex) -> Option<Vec<AccountId>> {
+        if idx == 0 || idx == 1 || idx == 2 {
+            Some(vec![
+                mock_pub_key(1),
+                mock_pub_key(2),
+                mock_pub_key(3),
+                mock_pub_key(4),
+            ])
+        } else {
+            None
+        }
     }
 }
 
 parameter_types! {
-    pub const JobsPalletId: PalletId = PalletId(*b"py/jobss");
+    pub const Period: u64 = 1;
+    pub const Offset: u64 = 0;
 }
 
-const KB: u32 = 1024;
-const MB: u32 = 1024 * KB;
+impl pallet_session::Config for Runtime {
+    type SessionManager = MockSessionManager;
+    type Keys = MockSessionKeys;
+    type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
+    type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+    type SessionHandler = (MockSessionHandler,);
+    type RuntimeEvent = RuntimeEvent;
+    type ValidatorId = AccountId;
+    type ValidatorIdOf = pallet_staking::StashOf<Runtime>;
+    type WeightInfo = ();
+}
+
+pub struct OnChainSeqPhragmen;
+impl onchain::Config for OnChainSeqPhragmen {
+    type System = Runtime;
+    type Solver = SequentialPhragmen<AccountId, Perbill>;
+    type DataProvider = Staking;
+    type WeightInfo = ();
+    type MaxWinners = ConstU32<100>;
+    type Bounds = ElectionBoundsOnChain;
+}
+
+/// Upper limit on the number of NPOS nominations.
+const MAX_QUOTA_NOMINATIONS: u32 = 16;
+
+impl pallet_staking::Config for Runtime {
+    type Currency = Balances;
+    type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
+    type UnixTime = pallet_timestamp::Pallet<Self>;
+    type CurrencyToVote = ();
+    type RewardRemainder = ();
+    type RuntimeEvent = RuntimeEvent;
+    type Slash = ();
+    type Reward = ();
+    type SessionsPerEra = ();
+    type SlashDeferDuration = ();
+    type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
+    type BondingDuration = ();
+    type SessionInterface = ();
+    type EraPayout = ();
+    type NextNewSession = Session;
+    type MaxExposurePageSize = ConstU32<64>;
+    type MaxControllersInDeprecationBatch = ConstU32<100>;
+    type OffendingValidatorsThreshold = ();
+    type ElectionProvider = onchain::OnChainExecution<OnChainSeqPhragmen>;
+    type GenesisElectionProvider = Self::ElectionProvider;
+    type VoterList = pallet_staking::UseNominatorsAndValidatorsMap<Self>;
+    type TargetList = pallet_staking::UseValidatorsMap<Self>;
+    type MaxUnlockingChunks = ConstU32<32>;
+    type HistoryDepth = ConstU32<84>;
+    type EventListeners = ();
+    type BenchmarkingConfig = pallet_staking::TestBenchmarkingConfig;
+    type NominationsQuota = pallet_staking::FixedNominationsQuota<MAX_QUOTA_NOMINATIONS>;
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const ServicesPalletId: PalletId = PalletId(*b"py/servs");
+}
+
+pub struct PalletEVMGasWeightMapping;
+
+impl EvmGasWeightMapping for PalletEVMGasWeightMapping {
+    fn gas_to_weight(gas: u64, without_base_weight: bool) -> Weight {
+        pallet_evm::FixedGasWeightMapping::<Runtime>::gas_to_weight(gas, without_base_weight)
+    }
+
+    fn weight_to_gas(weight: Weight) -> u64 {
+        pallet_evm::FixedGasWeightMapping::<Runtime>::weight_to_gas(weight)
+    }
+}
 
 parameter_types! {
     #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
@@ -334,7 +355,7 @@ parameter_types! {
     pub const MaxContainerImageTagLength: u32 = 1024;
 }
 
-impl Config for Runtime {
+impl pallet_services::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type ForceOrigin = frame_system::EnsureRoot<AccountId>;
     type Currency = Balances;
@@ -364,21 +385,18 @@ impl Config for Runtime {
     type WeightInfo = ();
 }
 
-pub struct MockMisbehaviorHandler;
+type Block = frame_system::mocking::MockBlock<Runtime>;
 
-impl MisbehaviorHandler for MockMisbehaviorHandler {
-    fn verify(_data: MisbehaviorSubmission) -> DispatchResult {
-        Ok(())
-    }
-}
-
+#[allow(non_camel_case_types)]
 construct_runtime!(
     pub enum Runtime
     {
         System: frame_system,
         Timestamp: pallet_timestamp,
         Balances: pallet_balances,
-        Services: pallet_services
+        Services: pallet_services,
+        Session: pallet_session,
+        Staking: pallet_staking,
     }
 );
 
@@ -521,11 +539,11 @@ static TEST_EXTERNALITIES: parking_lot::Mutex<Option<MultiThreadedTestExternalit
 pub fn advance_to_block(block_number: u64) {
     while System::block_number() < block_number {
         System::on_finalize(System::block_number());
-        Jobs::on_finalize(System::block_number());
+        Services::on_finalize(System::block_number());
         Balances::on_finalize(System::block_number());
         System::set_block_number(System::block_number() + 1);
         System::on_initialize(System::block_number());
-        Jobs::on_initialize(System::block_number());
+        Services::on_initialize(System::block_number());
         Balances::on_initialize(System::block_number());
     }
 }
@@ -635,17 +653,7 @@ pub async fn new_test_ext<
 
                 let lock = sinks.lock();
                 for sink in lock.iter() {
-                    let (faux_sink, faux_stream) = tracing_unbounded("faux_sink", 1024);
-                    std::mem::forget(faux_stream);
-
-                    let header = <Block as BlockT>::Header::new_from_number(number);
-                    let summary = FinalizeSummary::<Block> {
-                        finalized: vec![header.hash()],
-                        header,
-                        stale_heads: vec![],
-                    };
-
-                    let notification = FinalityNotification::from_summary(summary, faux_sink);
+                    let notification = generate_finality_notification_at(number);
                     if sink.unbounded_send(notification).is_err() {
                         log::warn!(target: "gadget", "Will not deliver FinalityNotification because the receiver is gone");
                     }
@@ -671,9 +679,11 @@ pub async fn new_test_ext<
             id: format!("Peer {node_index}"),
         };
 
+        let genesis_hash = generate_finality_notification_at(0).hash;
         let tx_manager = Arc::new(TestExternalitiesPalletSubmitter {
             id: account_id.clone(),
             ext: ext.clone(),
+            subxt_client: OfflineClient::new(genesis_hash, "1.0.0".into(), []),
         });
 
         let keystore = ECDSAKeyStore::in_memory(role_pair);
@@ -698,19 +708,34 @@ pub async fn new_test_ext<
     ext
 }
 
+fn generate_finality_notification_at(number: u64) -> FinalityNotification<Block> {
+    let (faux_sink, faux_stream) = tracing_unbounded("faux_sink", 1024);
+    std::mem::forget(faux_stream);
+    let header = <Block as BlockT>::Header::new_from_number(number);
+    let summary = FinalizeSummary::<Block> {
+        finalized: vec![header.hash()],
+        header,
+        stale_heads: vec![],
+    };
+
+    FinalityNotification::from_summary(summary, faux_sink)
+}
+
 pub mod mock_wrapper_client {
     use crate::mock::{Runtime, TangleExtEnvironment};
     use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use async_trait::async_trait;
+    use environment_utils::transaction_manager::tangle::TanglePalletSubmitter;
     use futures::StreamExt;
     use gadget_common::client::exec_client_function;
     use gadget_common::locks::TokioMutexExt;
-    use gadget_common::tangle_subxt::subxt::utils::AccountId32;
-    use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{
-        jobs,
-    };
     use gadget_common::tangle_runtime::*;
+    use gadget_common::tangle_subxt;
+    use gadget_common::tangle_subxt::subxt::utils::AccountId32;
+    use gadget_common::tangle_subxt::subxt::{Config, OfflineClient, OnlineClient};
+    use gadget_core::gadget::general::Client;
     use gadget_core::gadget::substrate;
+    use gadget_io::tokio;
     use parity_scale_codec::{Decode, Encode};
     use sc_client_api::{
         BlockchainEvents, FinalityNotification, FinalityNotifications, ImportNotifications,
@@ -722,10 +747,7 @@ pub mod mock_wrapper_client {
     use sp_runtime::traits::Header;
     use std::sync::Arc;
     use std::time::Duration;
-    use tangle_primitives::jobs::JobId;
     use tangle_primitives::AccountId;
-    use environment_utils::transaction_manager::tangle::TanglePalletSubmitter;
-    use gadget_core::gadget::general::Client;
 
     #[derive(Clone)]
     pub struct MockClient<R, B: Block> {
@@ -841,12 +863,13 @@ pub mod mock_wrapper_client {
         }
     }
 
-    pub struct TestExternalitiesPalletSubmitter {
+    pub struct TestExternalitiesPalletSubmitter<C: Config> {
         pub ext: MultiThreadedTestExternalities,
         pub id: AccountId,
+        pub subxt_client: OfflineClient<C>,
     }
 
-    impl std::fmt::Debug for TestExternalitiesPalletSubmitter {
+    impl<C: Config> std::fmt::Debug for TestExternalitiesPalletSubmitter<C> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.debug_struct("TestExternalitiesPalletSubmitter")
                 .field("id", &self.id.to_string())
@@ -855,43 +878,31 @@ pub mod mock_wrapper_client {
     }
 
     #[async_trait]
-    impl TanglePalletSubmitter for TestExternalitiesPalletSubmitter {
-        async fn submit_job_result(
+    impl<C: Config> TanglePalletSubmitter for TestExternalitiesPalletSubmitter<C> {
+        async fn submit_service_result(
             &self,
-            role_type: roles::RoleType,
-            job_id: JobId,
-            result: jobs::JobResult<
-                MaxParticipants,
-                MaxKeyLen,
-                MaxSignatureLen,
-                MaxDataLen,
-                MaxProofLen,
-                MaxAdditionalParamsLen,
-            >,
+            service_id: u64,
+            call_id: u64,
+            result: api::services::calls::types::submit_result::Result,
         ) -> Result<(), gadget_common::Error> {
             let id = self.id.clone();
-            self.ext
-                .execute_with_async(move || {
-                    let origin = RuntimeOrigin::signed(id);
-                    let res = crate::mock::Jobs::submit_job_result(
-                        origin,
-                        Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap(),
-                        job_id,
-                        Decode::decode(&mut Encode::encode(&result).as_slice()).unwrap(),
-                    );
-                    if let Err(err) = res {
-                        let err = format!("Pallet tx error: {err:?}");
-                        if err.contains("JobNotFound") {
-                            // Job has already been submitted (assumption only for tests)
-                            Ok(())
-                        } else {
-                            Err(gadget_common::Error::ClientError { err })
-                        }
-                    } else {
-                        Ok(())
-                    }
-                })
-                .await
+            let client = self.subxt_client.clone();
+            let function = async move {
+                let call = api::tx()
+                    .services()
+                    .submit_result(service_id, call_id, result);
+                let _res = client
+                    .tx()
+                    .sign_and_submit_then_watch_default(&call, &id)
+                    .await?
+                    .wait_for_finalized_success()
+                    .await?
+                    .block_hash();
+
+                Ok(())
+            };
+
+            function.await
         }
     }
 }
@@ -960,4 +971,8 @@ impl EventMetadata<TangleExtEnvironment> for TangleEvent {
     fn number(&self) -> <TangleExtEnvironment as GadgetEnvironment>::Clock {
         self.number
     }
+}
+
+pub fn mock_pub_key(id: u8) -> AccountId {
+    sr25519::Public::from_raw([id; 32]).into()
 }

@@ -7,7 +7,7 @@ use gadget_io::tokio::io::AsyncWriteExt;
 use gadget_io::ShellTomlConfig;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::keystore::load_keys_from_keystore;
-use shell_sdk::{entry, DebugLogger};
+use shell_sdk::{entry, Client, DebugLogger};
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use structopt::StructOpt;
@@ -55,13 +55,13 @@ async fn main() -> color_eyre::Result<()> {
 
     let tangle_environment = TangleEnvironment::new(subxt_config, acco_key, logger.clone());
 
-    let runtime = tangle_environment.setup_runtime().await?;
-    let runtime = ServicesClient::new(logger.clone(), runtime.client());
+    let tangle_runtime = tangle_environment.setup_runtime().await?;
+    let runtime = ServicesClient::new(logger.clone(), tangle_runtime.client());
 
     let mut active_shells = HashMap::<String, _>::new();
 
     let manager_task = async move {
-        while let Some(event) = runtime.next_event().await {
+        while let Some(event) = tangle_runtime.next_event().await {
             logger.info(format!("Received notification {}", event.number));
             let onchain_services = utils::get_subscribed_services(
                 &runtime,
@@ -76,7 +76,7 @@ async fn main() -> color_eyre::Result<()> {
                 onchain_services
                     .iter()
                     .map(|r| r.metadata.name.clone())
-                    .collect()
+                    .collect::<Vec<_>>()
             ));
             // Check to see if local does not have any running on-chain roles
             for role in &onchain_services {
@@ -204,8 +204,8 @@ async fn main() -> color_eyre::Result<()> {
             // Check to see if local is running protocols that are not on-chain
             let mut to_remove = vec![];
             for (role, process_handle) in &mut active_shells {
-                for onchain_service in onchain_services {
-                    let onchain_service_str = utils::get_service_str(&onchain_service);
+                for onchain_service in &onchain_services {
+                    let onchain_service_str = utils::get_service_str(onchain_service);
                     if &onchain_service_str != role {
                         logger.warn(format!(
                             "Killing service that is no longer on-chain: {role}"

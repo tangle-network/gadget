@@ -108,6 +108,13 @@ frame-executive = { git = "https://github.com/paritytech/polkadot-sdk", branch =
 
 pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0", default-features = false  }
 pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0", default-features = false  }
+pallet-session = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0", default-features = false }
+pallet-staking = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0" }
+pallet-session-historical = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0", default-features = false }
+pallet-evm = { git = "https://github.com/paritytech/frontier.git", branch = "polkadot-v1.7.0", default-features = false }
+sp-staking = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0", default-features = false }
+sp-npos-elections = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"}
+sp-session = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0"}
 
 # ARK Libraries
 ark-std = { version = "0.4.0", default-features = false, features = [ "print-trace", "std" ] }

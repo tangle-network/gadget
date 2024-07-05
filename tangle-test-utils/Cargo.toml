@@ -23,6 +23,7 @@ std = [
     "sc-client-api",
     "sc-utils/default",
     "pallet-services/default",
+    "pallet-balances/default",
 ]
 wasm = [
     "sp-core/serde",
@@ -59,10 +60,20 @@ sp-runtime = { workspace = true, default-features = false }
 sp-keystore = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-application-crypto = { workspace = true, default-features = false, features = ["full_crypto"] }
-pallet-services = { workspace = true }
 sp-externalities = { workspace = true, default-features = false }
 tangle-primitives = { workspace = true, features = ["verifying"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 parity-scale-codec = { workspace = true }
 serde = { workspace = true }
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+sp-npos-elections = { workspace = true }
+sp-session = { workspace = true }
+
+# Pallets
+pallet-timestamp = { workspace = true }
+pallet-balances = { workspace = true }
+pallet-services = { workspace = true }
+pallet-session = { workspace = true }
+pallet-staking = { workspace = true }
+pallet-evm = { workspace = true }
+sp-staking = { workspace = true }
