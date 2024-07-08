@@ -121,3 +121,34 @@ jobs:
 
       - name: tests
         run: cargo nextest run --release --nocapture --package ${{ matrix.package }}
+
+  wasm_checks:
+    timeout-minutes: 90
+    name: WASM checks
+    runs-on: macos-14
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+
+      - name: install rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+
+      - name: install protobuf
+        run: brew install protobuf gmp
+
+      - name: Set Relevant M1 env vars
+        run: |
+          export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
+          export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
+
+      - name: Check if wasm32-unknown-unknown is installed
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Run wasm checks
+        run: cargo test --target wasm32-unknown-unknown --package=gadget-core --package=gadget-common --no-default-features --features wasm

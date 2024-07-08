@@ -1,16 +1,17 @@
 use crate::protocols::resolver::{load_global_config_file, str_to_role_type, ProtocolMetadata};
 use config::ShellManagerOpts;
-use gadget_common::gadget::tangle::runtime::TangleRuntime;
+use gadget_common::gadget_io;
 use gadget_common::sp_core::Pair;
 use gadget_io::tokio::io::AsyncWriteExt;
 use gadget_io::ShellTomlConfig;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::keystore::load_keys_from_keystore;
+use shell_sdk::Client;
 use shell_sdk::{entry, DebugLogger};
-use shell_sdk::{gadget_io, Client};
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use structopt::StructOpt;
+use tangle_environment::runtime::TangleRuntime;
 use tangle_subxt::subxt;
 use tangle_subxt::subxt::utils::AccountId32;
 

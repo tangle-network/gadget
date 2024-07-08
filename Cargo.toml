@@ -4,7 +4,7 @@ members = [
     "core",
     "common",
     "gadget-io",
-    "test-utils",
+    "tangle-test-utils",
     "protocol-macros",
     "shell-manager",
     "shell-sdk",
@@ -12,6 +12,9 @@ members = [
     "macros/blueprint-proc-macro",
     "macros/blueprint-proc-macro-core",
     "macros/blueprint-proc-macro-playground",
+    "executor",
+    "environments/tangle", 
+    "environments/utils"
 ]
 
 [workspace.package]
@@ -25,10 +28,12 @@ repository = "https://github.com/webb-tools/gadget"
 gadget-core = { path = "./core" }
 gadget-common = { path = "./common", default-features = false }
 gadget-io = { path = "./gadget-io", default-features = false }
-test-utils = { path = "./test-utils" }
+tangle-test-utils = { path = "./tangle-test-utils" }
 protocol-macros = { path = "./protocol-macros" }
 shell-sdk = { path = "./shell-sdk", default-features = false }
 shell-manager = { path = "./shell-manager" }
+tangle-environment = { path = "./environments/tangle" }
+environment-utils = { path = "./environments/utils" }
 
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core" }
@@ -41,12 +46,6 @@ pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "main"
 pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
 tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", default-features = false, branch = "main" }
-#pallet-jobs-rpc-runtime-api = { path = "../tangle/pallets/jobs/rpc/runtime-api", default-features = false }
-#pallet-jobs = { path = "../tangle/pallets/jobs", default-features = false }
-#pallet-dkg = { path = "../tangle/pallets/dkg", default-features = false }
-#pallet-zksaas = { path = "../tangle/pallets/zksaas", default-features = false }
-#tangle-primitives = { path = "../tangle/primitives", default-features = false }
-#tangle-subxt = { path = "../tangle/tangle-subxt", default-features = false }
 subxt-signer = { version = "0.34.0", default-features = false }
 subxt = { version = "0.34.0", default-features = false }
 

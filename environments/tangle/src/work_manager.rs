@@ -1,5 +1,5 @@
-use crate::debug_logger::DebugLogger;
-use crate::gadget::message::TangleProtocolMessage;
+use crate::message::TangleProtocolMessage;
+use gadget_common::config::DebugLogger;
 use gadget_core::job_manager::WorkManagerInterface;
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -20,7 +20,7 @@ impl WorkManagerInterface for TangleWorkManager {
     type RetryID = u16;
     type Clock = u64;
     type ProtocolMessage = TangleProtocolMessage;
-    type Error = crate::Error;
+    type Error = gadget_common::Error;
     type SessionID = u64;
     type TaskID = [u8; 32];
 

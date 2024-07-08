@@ -1,0 +1,22 @@
+[package]
+name = "tangle-environment"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+gadget-common = { workspace = true }
+environment-utils = { workspace = true, features = ["tangle"] }
+serde = { workspace = true }
+gadget-core = { workspace = true }
+parking_lot = { workspace = true }
+sp-core = { workspace = true }
+sp-application-crypto = { workspace = true }
+scale-info = { workspace = true }
+parity-scale-codec = { workspace = true }
+url = { workspace = true }
+auto_impl = { workspace = true }
+anyhow = { workspace = true }

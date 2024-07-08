@@ -1,7 +1,7 @@
 use crate::client::JobsClient;
 use crate::debug_logger::DebugLogger;
 use crate::environments::GadgetEnvironment;
-use crate::gadget::tangle::TangleInitMetadata;
+use crate::module::network::Network;
 use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
 use crate::tangle_runtime::*;
 use crate::Error;
@@ -11,23 +11,18 @@ use gadget_core::gadget::general::GadgetWithClient;
 use gadget_core::gadget::manager::AbstractGadget;
 use gadget_core::job::{BuiltExecutableJobWrapper, ExecutableJob, JobBuilder};
 use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
-use network::Network;
 use parking_lot::{Mutex, RwLock};
 use sp_core::sr25519;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub mod core;
-pub mod message;
 pub mod network;
-pub mod tangle;
-pub mod work_manager;
 
 /// Used as a module to place inside the SubstrateGadget
 pub struct GeneralModule<N, M, Env: GadgetEnvironment> {
-    protocol: M,
-    network: N,
-    job_manager: ProtocolWorkManager<Env::WorkManager>,
+    pub protocol: M,
+    pub network: N,
+    pub job_manager: ProtocolWorkManager<Env::WorkManager>,
     #[allow(dead_code)]
     clock: Arc<RwLock<Option<Env::Clock>>>,
 }
@@ -153,9 +148,10 @@ pub trait GadgetProtocol<Env: GadgetEnvironment>:
     /// Note: the parameters returned must be relevant to the `AsyncProtocol` implementation of this protocol
     ///
     /// In case the participant is not selected for some reason, return an [`Error::ParticipantNotSelected`]
+    /// TODO: move some code back to common, and use Env::JobInitMetadata type
     async fn create_next_job(
         &self,
-        job: TangleInitMetadata,
+        job: <Env as GadgetEnvironment>::JobInitMetadata,
         work_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Error>;
 
