@@ -12,9 +12,11 @@ use eigen_utils::types::AvsError;
 use eigen_utils::Config;
 use gadget_common::sp_core::testing::ECDSA;
 use gadget_common::subxt_signer::SecretString;
-use k256::ecdsa::SigningKey;
+use k256::ecdsa::{SigningKey, VerifyingKey};
+use k256::elliptic_curve::SecretKey;
 use k256::Secp256k1;
 use log::error;
+use rand_core::OsRng;
 use sp_keystore::Keystore;
 use std::env;
 use std::future::Future;
@@ -196,11 +198,9 @@ impl<T: Config> Operator<T> {
     ) -> Result<Self, OperatorError> {
         // let metrics_reg = Registry::new();
         // let avs_and_eigen_metrics = Metrics::new(AVS_NAME, eigen_metrics, &metrics_reg);
-        println!("Checkpoint 1");
 
         let node_api = NodeApi::new(AVS_NAME, SEM_VER, &config.node_api_ip_port_address);
 
-        println!("Checkpoint 2");
         // let eth_rpc_client = ProviderBuilder::default()
         //     .with_recommended_fillers()
         //     .on_http(
@@ -215,11 +215,6 @@ impl<T: Config> Operator<T> {
 
         let bls_key_password =
             std::env::var("OPERATOR_BLS_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
-        // let bls_keypair = KeyPair::read_private_key_from_file(
-        //     &config.bls_private_key_store_path,
-        //     &bls_key_password,
-        // )
-        // .map_err(OperatorError::from)?;
         let bls_keypair = KeyPair::read_private_key_from_file(
             &config.bls_private_key_store_path,
             &bls_key_password,
@@ -231,11 +226,16 @@ impl<T: Config> Operator<T> {
             .await
             .map_err(|e| OperatorError::ChainIdError(e.to_string()))?;
 
-        // let ecdsa_key_password =
-        //     std::env::var("OPERATOR_ECDSA_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
-        // // let signer = Wallet::decrypt_keystore(keystore_file_path, ecdsa_key_password)?;
-        // let keystore = sc_keystore::LocalKeystore::open(&config.ecdsa_private_key_store_path, Some(SecretString::new(ecdsa_key_password))).unwrap();
-        // let ecdsa_key = keystore.keys(ECDSA).unwrap().pop().unwrap();
+        let ecdsa_key_password =
+            std::env::var("OPERATOR_ECDSA_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
+        let ecdsa_secret_key = eigen_utils::crypto::ecdsa::read_key(
+            &config.ecdsa_private_key_store_path,
+            &ecdsa_key_password,
+        )
+        .unwrap();
+        let ecdsa_public_key = ecdsa_secret_key.public_key();
+        let ecdsa_signing_key = SigningKey::from(&ecdsa_secret_key);
+        let ecdsa_verifying_key = VerifyingKey::from(&ecdsa_signing_key);
 
         let setup_config = SetupConfig::<T> {
             registry_coordinator_addr: Address::from_str(&config.avs_registry_coordinator_address)
@@ -251,8 +251,7 @@ impl<T: Config> Operator<T> {
             signer: signer.clone(),
         };
 
-        println!("Checkpoint 3");
-
+        println!("About to build AVS Registry Contract Manager");
         let avs_registry_contract_manager = AvsRegistryContractManager::build(
             Address::from_str(&config.tangle_validator_service_manager_address).unwrap(),
             setup_config.registry_coordinator_addr,
@@ -265,16 +264,15 @@ impl<T: Config> Operator<T> {
         )
         .await?;
 
-        println!("Checkpoint 4");
-
+        println!("About to get operator address");
         let operator_addr = Address::from_str(&config.operator_address)
             .map_err(|err| OperatorError::OperatorAddressError(err.to_string()))?;
+        println!("About to get operator id");
         let operator_id = avs_registry_contract_manager
             .get_operator_id(operator_addr)
             .await?;
 
-        println!("Checkpoint 5");
-
+        println!("About to get service manager address");
         let tangle_validator_service_manager_addr =
             Address::from_str(&config.tangle_validator_service_manager_address)
                 .map_err(|err| OperatorError::ServiceManagerAddressError(err.to_string()))?;
@@ -309,6 +307,30 @@ impl<T: Config> Operator<T> {
         // )
         //     .await?;
 
+        // if config.register_operator_on_startup {
+        //     operator.register_operator_on_startup(
+        //         operator_ecdsa_private_key,
+        //         config.token_strategy_addr.parse()?,
+        //     );
+        // }
+
+        // let operator_id = sdk_clients
+        //     .avs_registry_chain_reader
+        //     .get_operator_id(&operator.operator_addr)?;
+        // operator.operator_id = operator_id;
+
+        println!("About to register operator");
+        let register_result = avs_registry_contract_manager
+            .register_operator_in_quorum_with_avs_registry_coordinator(
+                &ecdsa_signing_key,
+                Default::default(),
+                Default::default(),
+                &bls_keypair,
+                Default::default(),
+                "".to_string(),
+            )
+            .await;
+
         let operator = Operator {
             config: config.clone(),
             node_api,
@@ -317,28 +339,6 @@ impl<T: Config> Operator<T> {
             operator_addr,
             tangle_validator_service_manager_addr,
         };
-
-        // if config.register_operator_on_startup {
-        //     operator.register_operator_on_startup(
-        //         operator_ecdsa_private_key,
-        //         config.token_strategy_addr.parse()?,
-        //     );
-        // }
-
-        // let register_result = avs_registry_contract_manager
-        //     .register_operator_in_quorum_with_avs_registry_coordinator(
-        //         SigningKey,
-        //         Default::default(),
-        //         Default::default(),
-        //         &KeyPair { priv_key: PrivateKey { key: Default::default() }, pub_key: Default::default() },
-        //         Default::default(),
-        //         "".to_string()
-        //     ).await;
-
-        // let operator_id = sdk_clients
-        //     .avs_registry_chain_reader
-        //     .get_operator_id(&operator.operator_addr)?;
-        // operator.operator_id = operator_id;
 
         log::info!(
             "Operator info: operatorId={}, operatorAddr={}, operatorG1Pubkey=, operatorG2Pubkey=",
@@ -375,25 +375,17 @@ impl<T: Config> Operator<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::{address, U256};
     use alloy_provider::ProviderBuilder;
-    use alloy_signer::Error::Ecdsa;
     use alloy_transport_ws::WsConnect;
-    use eigen_utils::crypto::bls;
     use eigen_utils::crypto::bls::KeyPair;
-    use gadget_common::gadget::tangle::runtime::crypto::role::KEY_TYPE;
-    use gadget_common::sp_core::testing::ECDSA;
-    use gadget_common::sp_core::{ecdsa, ByteArray, Pair};
-    use gadget_common::subxt_signer::bip39::rand::thread_rng;
-    use gadget_common::subxt_signer::SecretString;
-    use sp_keystore::Keystore;
-    use std::fs;
-    use std::path::Path;
+    use k256::ecdsa::VerifyingKey;
+    use k256::elliptic_curve::SecretKey;
+    use rand_core::OsRng;
 
     static BLS_PASSWORD: &str = "BLS_PASSWORD";
     static ECDSA_PASSWORD: &str = "ECDSA_PASSWORD";
 
-    // These are for the anvil test function
+    // // --------- IMPORTS FOR ANVIL TESTS ---------
     // use alloy::signers::Signer;
     // use alloy_primitives::hex::FromHex;
     // use alloy_primitives::{address, ruint, Address, Bytes, TxKind, U256};
@@ -403,6 +395,7 @@ mod tests {
     // use alloy_signer_local::PrivateKeySigner;
     // use alloy_sol_types::sol;
     // use anvil::{spawn, NodeConfig};
+    // // --------- IMPORTS FOR ANVIL TESTS ---------
     async fn test_anvil() {
         env_logger::init();
 
@@ -466,7 +459,7 @@ mod tests {
     async fn test_generate_keys() {
         env_logger::init();
 
-        // BLS
+        // ---------------- BLS ----------------
         let bls_pair = KeyPair::gen_random().unwrap();
         bls_pair
             .save_to_file("./keystore/bls", BLS_PASSWORD)
@@ -475,24 +468,24 @@ mod tests {
         assert_eq!(bls_pair.priv_key.key, bls_keys.priv_key.key);
         assert_eq!(bls_pair.pub_key, bls_keys.pub_key);
 
-        // ECDSA
-        let keystore = sc_keystore::LocalKeystore::open(
-            "./keystore/ecdsa",
-            Some(SecretString::new(ECDSA_PASSWORD.to_string())),
-        )
-        .unwrap();
-        keystore.keys(ECDSA).unwrap().clear();
-        let new_key = keystore.ecdsa_generate_new(ECDSA, None).unwrap(); //Some("0x623627acc6e1ad1462d1cc97107a5bf529af32bac90d8268ef98c3ff2150ec5b")
-        let new_key = new_key.as_slice();
+        //---------------- ECDSA ----------------
+        let signing_key = SigningKey::random(&mut OsRng);
+        let secret_key = SecretKey::from(signing_key.clone());
+        let public_key = secret_key.public_key();
+        let verifying_key = VerifyingKey::from(&signing_key);
+        eigen_utils::crypto::ecdsa::write_key("./keystore/ecdsa", &secret_key, ECDSA_PASSWORD)
+            .unwrap();
 
-        let keystore = sc_keystore::LocalKeystore::open(
-            "./keystore/ecdsa",
-            Some(SecretString::new(ECDSA_PASSWORD.to_string())),
-        )
-        .unwrap();
-        let ecdsa_key = keystore.keys(ECDSA).unwrap().pop().unwrap();
-        let ecdsa_key = ecdsa_key.as_slice();
-        assert_eq!(ecdsa_key, new_key);
+        let read_ecdsa_secret_key =
+            eigen_utils::crypto::ecdsa::read_key("./keystore/ecdsa", ECDSA_PASSWORD).unwrap();
+        let read_ecdsa_public_key = read_ecdsa_secret_key.public_key();
+        let read_ecdsa_signing_key = SigningKey::from(&read_ecdsa_secret_key);
+        let read_ecdsa_verifying_key = VerifyingKey::from(&read_ecdsa_signing_key);
+
+        assert_eq!(secret_key, read_ecdsa_secret_key);
+        assert_eq!(public_key, read_ecdsa_public_key);
+        assert_eq!(signing_key, read_ecdsa_signing_key);
+        assert_eq!(verifying_key, read_ecdsa_verifying_key);
     }
 
     #[tokio::test]
@@ -504,8 +497,8 @@ mod tests {
             node_api_ip_port_address: "127.0.0.1:9808".to_string(),
             eth_rpc_url: http_endpoint.to_string(),
             eth_ws_url: ws_endpoint.to_string(),
-            bls_private_key_store_path: "".to_string(),
-            ecdsa_private_key_store_path: "".to_string(),
+            bls_private_key_store_path: "./keystore/bls".to_string(),
+            ecdsa_private_key_store_path: "./keystore/ecdsa".to_string(),
             avs_registry_coordinator_address: "0x5fbdb2315678afecb367f032d93f642f64180aa3"
                 .to_string(),
             operator_state_retriever_address: "0x0000000000000000000000000000000000000002"
@@ -531,8 +524,6 @@ mod tests {
             .clone()
             .boxed();
 
-        println!("About to set up WS Provider");
-
         let ws_provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .on_ws(WsConnect::new(ws_endpoint))
@@ -541,8 +532,6 @@ mod tests {
             .root()
             .clone()
             .boxed();
-
-        println!("About to set up Operator");
 
         let operator = Operator::<NodeConfig>::new_from_config(
             node_config.clone(),

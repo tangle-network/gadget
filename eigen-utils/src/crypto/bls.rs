@@ -5,23 +5,18 @@ use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::PrimeField;
 use ark_ff::{BigInt, QuadExtField, Zero};
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError, Valid};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
 use ark_std::One;
 use ark_std::UniformRand;
 use base64::prelude::*;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
 use rand::thread_rng;
-use scrypt::password_hash::{Encoding, PasswordHash, PasswordHashString, Salt, SaltString};
+use scrypt::password_hash::{PasswordHashString, SaltString};
 use scrypt::{Params, password_hash, Scrypt};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::{BufWriter, Write};
 use std::path::Path;
-use std::str::from_utf8;
-use alloy_primitives::bytes::Buf;
-use serde::de::IntoDeserializer;
-use crate::crypto::bls;
 
 use crate::types::AvsError;
 
@@ -429,7 +424,7 @@ impl KeyPair {
             .verify_password(&[&Scrypt], password)
             .map_err(|e| AvsError::KeyError(e.to_string()))?;
 
-        let mut salt = password_hash.salt().ok_or(AvsError::KeyError("Invalid salt".to_string()))?.as_str();
+        let salt = password_hash.salt().ok_or(AvsError::KeyError("Invalid salt".to_string()))?.as_str();
         let mut kdf_buf: [u8; 32] = Default::default();
         scrypt::scrypt(
             password.as_bytes(),
@@ -438,7 +433,7 @@ impl KeyPair {
             &mut kdf_buf,
         )
         .map_err(|e| AvsError::KeyError(e.to_string()))?;
-        let key: [u8; 32] = kdf_buf[..32].try_into().map_err(|_| AvsError::KeyError("Key conversion error".to_string()))?;;
+        let key: [u8; 32] = kdf_buf[..32].try_into().map_err(|_| AvsError::KeyError("Key conversion error".to_string()))?;
         let cipher = ChaCha20Poly1305::new(&key.into());
         let priv_key_bytes = cipher
             .decrypt(&nonce, &sk_bytes[..])

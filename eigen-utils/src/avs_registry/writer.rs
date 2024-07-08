@@ -5,11 +5,14 @@ use alloy_rpc_types::TransactionReceipt;
 use alloy_signer::k256::ecdsa;
 use alloy_signer::utils::raw_public_key_to_address;
 use alloy_signer::Signer;
+use k256::ecdsa::VerifyingKey;
+use k256::SecretKey;
 use eigen_contracts::RegistryCoordinator;
 
 use crate::crypto::bls::{G1Point, KeyPair};
 use crate::el_contracts::reader::ElReader;
 use crate::{types::*, Config};
+use crate::crypto::ecdsa::ToAddress;
 
 use super::{AvsRegistryContractManager, AvsRegistryContractResult};
 
@@ -51,12 +54,8 @@ impl<T: Config> AvsRegistryChainWriterTrait for AvsRegistryContractManager<T> {
         quorum_numbers: Bytes,
         socket: String,
     ) -> AvsRegistryContractResult<TransactionReceipt> {
-        let operator_addr = raw_public_key_to_address(
-            operator_ecdsa_private_key
-                .verifying_key()
-                .to_sec1_bytes()
-                .as_ref(),
-        );
+        let verifying_key = VerifyingKey::from(operator_ecdsa_private_key);
+        let operator_addr = verifying_key.to_address();
 
         log::info!("Registering operator with the AVS's registry coordinator");
 
