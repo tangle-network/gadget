@@ -1,19 +1,19 @@
-use std::fs::{self, File};
-use std::io::{self, Write, BufWriter, ErrorKind};
-use std::path::Path;
+use aes::cipher::{KeyIvInit, StreamCipher};
+use aes::{cipher, Aes128};
 use alloy_primitives::Address;
+use ctr::Ctr128BE;
 use k256::ecdsa::{SigningKey, VerifyingKey};
 use k256::{FieldBytes, PublicKey, SecretKey};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use aes::{Aes128, cipher};
-use aes::cipher::{StreamCipher, KeyIvInit};
-use ctr::Ctr128BE;
 use rand::Rng;
 use scrypt::{scrypt, Params};
+use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 use std::error::Error;
+use std::fs::{self, File};
+use std::io::{self, BufWriter, ErrorKind, Write};
+use std::path::Path;
 use std::str::FromStr;
+use uuid::Uuid;
 
 type Aes128Ctr = Ctr128BE<Aes128>;
 
@@ -91,7 +91,12 @@ fn aes_ctr_xor(key: &[u8], in_text: &[u8], iv: &[u8]) -> Result<Vec<u8>, cipher:
     Ok(out_text)
 }
 
-fn encrypt_data_v3(data: &[u8], auth: &[u8], scrypt_n: u8, scrypt_p: u32) -> Result<CryptoJSON, Box<dyn Error>> {
+fn encrypt_data_v3(
+    data: &[u8],
+    auth: &[u8],
+    scrypt_n: u8,
+    scrypt_p: u32,
+) -> Result<CryptoJSON, Box<dyn Error>> {
     let mut salt = [0u8; 32];
     rand::thread_rng().fill(&mut salt);
     let scrypt_params = Params::new(scrypt_n as u8, 8, scrypt_p, 32)?;
@@ -132,8 +137,14 @@ fn encrypt_data_v3(data: &[u8], auth: &[u8], scrypt_n: u8, scrypt_p: u32) -> Res
     Ok(crypto_struct)
 }
 
-fn encrypt_key(keystore: &Keystore, auth: &str, scrypt_n: u8, scrypt_p: u32) -> Result<Vec<u8>, Box<dyn Error>> {
-    let crypto_struct = encrypt_data_v3(&keystore.private_key, auth.as_bytes(), scrypt_n, scrypt_p)?;
+fn encrypt_key(
+    keystore: &Keystore,
+    auth: &str,
+    scrypt_n: u8,
+    scrypt_p: u32,
+) -> Result<Vec<u8>, Box<dyn Error>> {
+    let crypto_struct =
+        encrypt_data_v3(&keystore.private_key, auth.as_bytes(), scrypt_n, scrypt_p)?;
     let encrypted_key_json_v3 = EncryptedKeyJSONV3 {
         address: keystore.address.clone().to_string(),
         crypto: crypto_struct,
@@ -146,7 +157,10 @@ fn encrypt_key(keystore: &Keystore, auth: &str, scrypt_n: u8, scrypt_p: u32) -> 
 
 fn decrypt_data_v3(crypto_json: &CryptoJSON, auth: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     if crypto_json.cipher != "aes-128-ctr" {
-        return Err(Box::new(io::Error::new(io::ErrorKind::InvalidInput, "cipher not supported")));
+        return Err(Box::new(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "cipher not supported",
+        )));
     }
 
     let mac = hex::decode(&crypto_json.mac)?;
@@ -157,7 +171,12 @@ fn decrypt_data_v3(crypto_json: &CryptoJSON, auth: &str) -> Result<Vec<u8>, Box<
     let salt = hex::decode(kdf_params["salt"].as_str().ok_or("missing salt")?)?;
     let scrypt_n = kdf_params["n"].as_u64().ok_or("missing n")? as u8;
     let scrypt_p = kdf_params["p"].as_u64().ok_or("missing p")? as u32;
-    let scrypt_params = Params::new(scrypt_n, Params::RECOMMENDED_R, scrypt_p, Params::RECOMMENDED_LEN)?;
+    let scrypt_params = Params::new(
+        scrypt_n,
+        Params::RECOMMENDED_R,
+        scrypt_p,
+        Params::RECOMMENDED_LEN,
+    )?;
 
     let mut derived_key = [0u8; 32];
     scrypt(auth.as_bytes(), &salt, &scrypt_params, &mut derived_key)?;
@@ -168,7 +187,10 @@ fn decrypt_data_v3(crypto_json: &CryptoJSON, auth: &str) -> Result<Vec<u8>, Box<
     let calculated_mac = hasher.finalize();
 
     if mac != calculated_mac.as_slice() {
-        return Err(Box::new(io::Error::new(io::ErrorKind::InvalidInput, "invalid MAC")));
+        return Err(Box::new(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "invalid MAC",
+        )));
     }
 
     let plain_text = aes_ctr_xor(&derived_key[..16], &cipher_text, &iv)?;
@@ -185,7 +207,10 @@ fn decrypt_key(key_json: &[u8], auth: &str) -> Result<Key, Box<dyn Error>> {
         let key_id = Uuid::parse_str(&k.id)?;
         (key_bytes, key_id)
     } else {
-        return Err(Box::new(io::Error::new(io::ErrorKind::InvalidInput, "unsupported version")));
+        return Err(Box::new(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "unsupported version",
+        )));
     };
 
     let private_key = {
@@ -208,8 +233,10 @@ fn decrypt_key(key_json: &[u8], auth: &str) -> Result<Key, Box<dyn Error>> {
 }
 
 pub fn write_key_from_hex(path: &str, private_key_hex: &str, password: &str) -> io::Result<()> {
-    let private_key_bytes = hex::decode(private_key_hex).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
-    let secret_key = SecretKey::from_bytes(FieldBytes::from_slice(&private_key_bytes)).map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "Invalid private key"))?;
+    let private_key_bytes = hex::decode(private_key_hex)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
+    let secret_key = SecretKey::from_bytes(FieldBytes::from_slice(&private_key_bytes))
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "Invalid private key"))?;
     write_key(path, &secret_key, password)
 }
 
@@ -226,7 +253,13 @@ pub fn write_key(path: &str, private_key: &SecretKey, password: &str) -> io::Res
         // nonce,
     };
 
-    let encrypted_bytes = encrypt_key(&key, password, Params::RECOMMENDED_LOG_N, Params::RECOMMENDED_P).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
+    let encrypted_bytes = encrypt_key(
+        &key,
+        password,
+        Params::RECOMMENDED_LOG_N,
+        Params::RECOMMENDED_P,
+    )
+    .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
     write_bytes_to_file(path, &encrypted_bytes)
 }
 
@@ -255,7 +288,8 @@ fn password_to_key(password: &str) -> [u8; 32] {
 
 pub fn read_key(key_store_file: &str, password: &str) -> io::Result<SecretKey> {
     let key_store_contents = fs::read(key_store_file)?;
-    let key: Key = decrypt_key(&key_store_contents, password).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
+    let key: Key = decrypt_key(&key_store_contents, password)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
     // SecretKey::from_bytes(FieldBytes::from_slice(&key.private_key)).map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "Invalid private key"))
     Ok(key.private_key)
 }

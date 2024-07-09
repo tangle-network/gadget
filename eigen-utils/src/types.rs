@@ -271,4 +271,6 @@ pub enum AvsError {
     ReqwestError(#[from] reqwest::Error),
     #[error("serde json error")]
     SerdeJsonError(#[from] serde_json::Error),
+    #[error("Transaction with (hash: {0}) not found")]
+    TransactionNotFound(alloy_primitives::TxHash),
 }

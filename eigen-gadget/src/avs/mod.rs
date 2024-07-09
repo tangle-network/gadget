@@ -36,7 +36,7 @@ sol!(
     #[derive(Debug)]
     #[sol(rpc)]
     Erc20Mock,
-    "contracts/out/Erc20Mock.sol/Erc20Mock.json"
+    "contracts/out/ERC20Mock.sol/ERC20Mock.json"
 );
 
 #[derive(Debug, Clone)]

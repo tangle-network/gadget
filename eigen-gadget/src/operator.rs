@@ -313,10 +313,10 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use alloy_provider::ProviderBuilder;
     use alloy_signer_local::PrivateKeySigner;
     use alloy_transport_ws::WsConnect;
-    use super::*;
 
     #[tokio::test]
     async fn test_run_operator() {
@@ -330,10 +330,8 @@ mod tests {
             bls_private_key_store_path: "".to_string(),
             ecdsa_private_key_store_path: "".to_string(),
             incredible_squaring_service_manager_addr: "".to_string(),
-            avs_registry_coordinator_addr: "0x5fbdb2315678afecb367f032d93f642f64180aa3"
-                .to_string(),
-            operator_state_retriever_addr: "0x0000000000000000000000000000000000000002"
-                .to_string(),
+            avs_registry_coordinator_addr: "0x5fbdb2315678afecb367f032d93f642f64180aa3".to_string(),
+            operator_state_retriever_addr: "0x0000000000000000000000000000000000000002".to_string(),
             eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
             delegation_manager_addr: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512".to_string(),
             avs_directory_addr: "0x0000000000000000000000000000000000000005".to_string(),
@@ -377,8 +375,8 @@ mod tests {
             },
             signer,
         )
-            .await
-            .unwrap();
+        .await
+        .unwrap();
 
         operator.start().await.unwrap();
     }

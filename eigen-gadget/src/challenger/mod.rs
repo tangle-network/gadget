@@ -148,11 +148,14 @@ impl<T: Config> Challenger<T> {
         let tx_hash = v_log.transaction_hash.unwrap_or_default();
         log::info!("txHash: {:?}", tx_hash);
 
-        let tx: Transaction = self
+        let Some(tx) = self
             .incredible_squaring_contract_manager
             .eth_client_http
             .get_transaction_by_hash(tx_hash)
-            .await?;
+            .await?
+        else {
+            return Err(AvsError::TransactionNotFound(tx_hash));
+        };
         let calldata = tx.input;
         log::info!("calldata: {:?}", calldata);
 
