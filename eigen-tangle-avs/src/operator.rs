@@ -16,7 +16,6 @@ use k256::ecdsa::{SigningKey, VerifyingKey};
 use k256::elliptic_curve::SecretKey;
 use k256::Secp256k1;
 use log::error;
-use rand_core::OsRng;
 use sp_keystore::Keystore;
 use std::env;
 use std::future::Future;
