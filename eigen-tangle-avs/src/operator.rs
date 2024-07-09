@@ -1,5 +1,5 @@
 use alloy_contract::private::Ethereum;
-use alloy_primitives::{Address, ChainId, Signature, B256};
+use alloy_primitives::{Address, ChainId, Signature, B256, FixedBytes, ruint};
 use alloy_provider::{Provider, RootProvider};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
@@ -14,16 +14,22 @@ use gadget_common::sp_core::testing::ECDSA;
 use gadget_common::subxt_signer::SecretString;
 use k256::ecdsa::{SigningKey, VerifyingKey};
 use k256::elliptic_curve::SecretKey;
-use k256::Secp256k1;
+use k256::{Secp256k1, U256};
 use log::error;
 use rand_core::OsRng;
+use ruint::aliases;
 use sp_keystore::Keystore;
 use std::env;
 use std::future::Future;
+use std::io::Read;
 use std::path::PathBuf;
 use std::pin::Pin;
-use std::str::FromStr;
+use std::str::{Bytes, FromStr};
+use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
+use gadget_common::subxt_signer::bip39::rand;
+use gadget_common::subxt_signer::bip39::rand::Rng;
+use gadget_common::tangle_runtime::api::evm::calls::types::create2::Salt;
 
 const AVS_NAME: &str = "incredible-squaring";
 const SEM_VER: &str = "0.0.1";
@@ -213,6 +219,7 @@ impl<T: Config> Operator<T> {
         //     .await
         //     .map_err(|e| AvsError::from(e))?;
 
+        log::warn!("About to read BLS key");
         let bls_key_password =
             std::env::var("OPERATOR_BLS_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
         let bls_keypair = KeyPair::read_private_key_from_file(
@@ -221,11 +228,12 @@ impl<T: Config> Operator<T> {
         )
         .map_err(OperatorError::from)?;
 
-        let chain_id = eth_client_http
-            .get_chain_id()
-            .await
-            .map_err(|e| OperatorError::ChainIdError(e.to_string()))?;
+        // let chain_id = eth_client_http
+        //     .get_chain_id()
+        //     .await
+        //     .map_err(|e| OperatorError::ChainIdError(e.to_string()))?;
 
+        log::warn!("About to read ECDSA key");
         let ecdsa_key_password =
             std::env::var("OPERATOR_ECDSA_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
         let ecdsa_secret_key = eigen_utils::crypto::ecdsa::read_key(
@@ -233,9 +241,7 @@ impl<T: Config> Operator<T> {
             &ecdsa_key_password,
         )
         .unwrap();
-        let ecdsa_public_key = ecdsa_secret_key.public_key();
         let ecdsa_signing_key = SigningKey::from(&ecdsa_secret_key);
-        let ecdsa_verifying_key = VerifyingKey::from(&ecdsa_signing_key);
 
         let setup_config = SetupConfig::<T> {
             registry_coordinator_addr: Address::from_str(&config.avs_registry_coordinator_address)
@@ -251,7 +257,7 @@ impl<T: Config> Operator<T> {
             signer: signer.clone(),
         };
 
-        println!("About to build AVS Registry Contract Manager");
+        log::info!("About to build AVS Registry Contract Manager");
         let avs_registry_contract_manager = AvsRegistryContractManager::build(
             Address::from_str(&config.tangle_validator_service_manager_address).unwrap(),
             setup_config.registry_coordinator_addr,
@@ -264,15 +270,15 @@ impl<T: Config> Operator<T> {
         )
         .await?;
 
-        println!("About to get operator address");
+        log::info!("About to get operator address");
         let operator_addr = Address::from_str(&config.operator_address)
             .map_err(|err| OperatorError::OperatorAddressError(err.to_string()))?;
-        println!("About to get operator id");
+        log::info!("About to get operator id");
         let operator_id = avs_registry_contract_manager
             .get_operator_id(operator_addr)
             .await?;
 
-        println!("About to get service manager address");
+        log::info!("About to get service manager address");
         let tangle_validator_service_manager_addr =
             Address::from_str(&config.tangle_validator_service_manager_address)
                 .map_err(|err| OperatorError::ServiceManagerAddressError(err.to_string()))?;
@@ -319,17 +325,21 @@ impl<T: Config> Operator<T> {
         //     .get_operator_id(&operator.operator_addr)?;
         // operator.operator_id = operator_id;
 
-        println!("About to register operator");
+        let mut salt = [0u8; 32];
+        rand::thread_rng().fill(&mut salt);
+        let sig_salt = FixedBytes::from_slice(&salt);
+        let expiry = aliases::U256::from(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600);
         let register_result = avs_registry_contract_manager
             .register_operator_in_quorum_with_avs_registry_coordinator(
                 &ecdsa_signing_key,
-                Default::default(),
-                Default::default(),
+                sig_salt,
+                expiry,
                 &bls_keypair,
-                Default::default(),
-                "".to_string(),
+                alloy_primitives::Bytes::from(b"0"),
+                "33125".to_string(),
             )
             .await;
+        log::info!("Register result: {:?}", register_result);
 
         let operator = Operator {
             config: config.clone(),
@@ -341,31 +351,33 @@ impl<T: Config> Operator<T> {
         };
 
         log::info!(
-            "Operator info: operatorId={}, operatorAddr={}, operatorG1Pubkey=, operatorG2Pubkey=",
+            "Operator info: operatorId={}, operatorAddr={}, operatorG1Pubkey={:?}, operatorG2Pubkey={:?}",
             hex::encode(operator_id),
             config.operator_address,
+            bls_keypair.get_pub_key_g1(),
+            bls_keypair.get_pub_key_g2(),
         );
 
-        println!("Operator Returning");
+        log::info!("Operator Returning");
 
         Ok(operator)
     }
 
     pub async fn start(&self) -> Result<(), OperatorError> {
-        println!("Starting operator.");
+        log::info!("Starting operator.");
         let operator_is_registered = self
             .avs_registry_contract_manager
             .is_operator_registered(self.operator_addr)
-            .await?;
-        if !operator_is_registered {
-            return Err(OperatorError::OperatorNotRegistered);
-        }
+            .await;
+        log::info!("Operator registration status: {:?}", operator_is_registered);
+        // if !operator_is_registered? {
+        //     return Err(OperatorError::OperatorNotRegistered);
+        // }
 
         // if self.config.enable_node_api {
         //     self.node_api.start(Default::default()).await?;
         // }
 
-        // TODO: Run the executor's Tangle Validator runner
         gadget_executor::run_tangle_validator().await.unwrap();
 
         Ok(())
@@ -374,6 +386,7 @@ impl<T: Config> Operator<T> {
 
 #[cfg(test)]
 mod tests {
+    use alloy_primitives::address;
     use super::*;
     use alloy_provider::ProviderBuilder;
     use alloy_transport_ws::WsConnect;
@@ -397,8 +410,9 @@ mod tests {
     // use anvil::{spawn, NodeConfig};
     // // --------- IMPORTS FOR ANVIL TESTS ---------
     async fn test_anvil() {
-        env_logger::init();
-
+        // // Initialize the logger
+        // env_logger::init();
+        //
         // let (api, mut handle) = spawn(NodeConfig::test().with_port(33125)).await;
         // api.anvil_auto_impersonate_account(true).await.unwrap();
         // let provider = handle.http_provider();
@@ -409,11 +423,10 @@ mod tests {
         //
         // let amount = handle
         //     .genesis_balance()
-        //     .checked_div(U256::from(2u64))
+        //     .checked_div(alloy_primitives::U256::from(2u64))
         //     .unwrap();
         //
         // let gas_price = provider.get_gas_price().await.unwrap();
-        //
         //
         // println!("Deploying Registry Coordinator...");
         //
@@ -444,6 +457,18 @@ mod tests {
         // api.mine_one().await;
         // println!("Delegation Manager deployed at: {:?}", delegation_manager_addr);
         //
+        // let ad = AVSDirectory::deploy(
+        //     provider.clone(),
+        //     delegation_manager_addr.clone(),
+        // )
+        //     .await
+        //     .unwrap();
+        // let avs_dir_addr = ad.address();
+        // println!("AVS Directory returned");
+        // api.mine_one().await;
+        // println!("AVS Directory deployed at: {:?}", avs_dir_addr);
+        //
+        // // get the block, await receipts
         // let block = provider
         //     .get_block(BlockId::latest(), false.into())
         //     .await
@@ -504,10 +529,10 @@ mod tests {
             operator_state_retriever_address: "0x0000000000000000000000000000000000000002"
                 .to_string(),
             eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
-            tangle_validator_service_manager_address: "0x0000000000000000000000000000000000000003"
+            tangle_validator_service_manager_address: "0x23e42f117e8643cc0174197c6c7cb38d8e5bd286"
                 .to_string(),
             delegation_manager_address: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512".to_string(),
-            avs_directory_address: "0x0000000000000000000000000000000000000005".to_string(),
+            avs_directory_address: "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0".to_string(),
             operator_address: "0x0000000000000000000000000000000000000006".to_string(),
             enable_metrics: false,
             enable_node_api: false,

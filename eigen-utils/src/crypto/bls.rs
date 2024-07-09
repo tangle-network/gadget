@@ -1,8 +1,8 @@
 /// https://hackmd.io/@jpw/bn254
 use alloy_primitives::U256;
 
-use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine};
-use ark_ec::{AffineRepr, CurveGroup};
+use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine, G2Projective};
+use ark_ec::{AffineRepr, bn, CurveGroup, Group};
 use ark_ff::PrimeField;
 use ark_ff::{BigInt, QuadExtField, Zero};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
@@ -16,6 +16,7 @@ use scrypt::password_hash::{PasswordHashString, SaltString};
 use scrypt::{Params, password_hash, Scrypt};
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::ops::Mul;
 use std::path::Path;
 
 use crate::types::AvsError;
@@ -462,10 +463,20 @@ impl KeyPair {
     }
 
     pub fn get_pub_key_g2(&self) -> G2Point {
-        let mut pub_key_g2_point = G2Point::generator();
-        pub_key_g2_point.mul(self.priv_key.key);
+        // let mut pub_key_g2_point = G2Point::generator();
+        // pub_key_g2_point.mul(self.priv_key.key);
+        let g2_gen = G2Affine::generator();
+        // ark_bn254::G2Affine::new().mul_bigint();
+        // let g2_gen = G2Projective::generator();
 
-        pub_key_g2_point
+        // Scalar multiplication
+        let result = g2_gen.mul_bigint(self.priv_key.key.0);
+
+        // Convert result to affine form
+        let g2_affine = G2Affine::from(result);
+
+        G2Point::from_ark_g2(&g2_affine)
+        // pub_key_g2_point
     }
 
     pub fn get_pub_key_g1(&self) -> &G1Point {
