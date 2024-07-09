@@ -3,11 +3,9 @@ use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 
 use alloy_rpc_types::TransactionReceipt;
 use alloy_signer::k256::ecdsa;
-use alloy_signer::utils::raw_public_key_to_address;
 use alloy_signer::Signer;
 use eigen_contracts::RegistryCoordinator;
 use k256::ecdsa::VerifyingKey;
-use k256::SecretKey;
 
 use crate::crypto::bls::{G1Point, KeyPair};
 use crate::crypto::ecdsa::ToAddress;

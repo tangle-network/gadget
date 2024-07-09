@@ -387,11 +387,9 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::address;
     use alloy_provider::ProviderBuilder;
     use alloy_signer_local::PrivateKeySigner;
     use alloy_transport_ws::WsConnect;
-    use eigen_utils::types::OperatorInfo;
 
     static BLS_PASSWORD: &str = "BLS_PASSWORD";
     static ECDSA_PASSWORD: &str = "ECDSA_PASSWORD";

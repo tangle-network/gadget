@@ -3,7 +3,7 @@ use aes::{cipher, Aes128};
 use alloy_primitives::Address;
 use ctr::Ctr128BE;
 use k256::ecdsa::{SigningKey, VerifyingKey};
-use k256::{FieldBytes, PublicKey, SecretKey};
+use k256::{FieldBytes, SecretKey};
 use rand::Rng;
 use scrypt::{scrypt, Params};
 use serde::{Deserialize, Serialize};

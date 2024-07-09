@@ -1,8 +1,8 @@
 /// https://hackmd.io/@jpw/bn254
 use alloy_primitives::U256;
 
-use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine, G2Projective};
-use ark_ec::{bn, AffineRepr, CurveGroup, Group};
+use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine};
+use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::PrimeField;
 use ark_ff::{BigInt, QuadExtField, Zero};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
@@ -16,7 +16,6 @@ use scrypt::password_hash::{PasswordHashString, SaltString};
 use scrypt::{password_hash, Params, Scrypt};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::ops::Mul;
 use std::path::Path;
 
 use crate::types::AvsError;
