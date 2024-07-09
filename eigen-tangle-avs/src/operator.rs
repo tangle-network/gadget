@@ -1,5 +1,5 @@
 use alloy_contract::private::Ethereum;
-use alloy_primitives::{Address, ChainId, Signature, B256, FixedBytes, ruint};
+use alloy_primitives::{ruint, Address, ChainId, FixedBytes, Signature, B256};
 use alloy_provider::{Provider, RootProvider};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
@@ -11,7 +11,10 @@ use eigen_utils::node_api::NodeApi;
 use eigen_utils::types::AvsError;
 use eigen_utils::Config;
 use gadget_common::sp_core::testing::ECDSA;
+use gadget_common::subxt_signer::bip39::rand;
+use gadget_common::subxt_signer::bip39::rand::Rng;
 use gadget_common::subxt_signer::SecretString;
+use gadget_common::tangle_runtime::api::evm::calls::types::create2::Salt;
 use k256::ecdsa::{SigningKey, VerifyingKey};
 use k256::elliptic_curve::SecretKey;
 use k256::{Secp256k1, U256};
@@ -27,9 +30,6 @@ use std::pin::Pin;
 use std::str::{Bytes, FromStr};
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
-use gadget_common::subxt_signer::bip39::rand;
-use gadget_common::subxt_signer::bip39::rand::Rng;
-use gadget_common::tangle_runtime::api::evm::calls::types::create2::Salt;
 
 const AVS_NAME: &str = "incredible-squaring";
 const SEM_VER: &str = "0.0.1";
@@ -167,12 +167,6 @@ impl Config for NodeConfig {
     type PW = EigenTangleProvider;
     type S = EigenTangleSigner;
 }
-
-// impl std::fmt::Debug for EigenTangleSigner {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "{:?}", self.signing_key.to_bytes())
-//     }
-// }
 
 #[derive(Clone)]
 pub struct TangleValidatorContractManager<T: Config> {
@@ -328,7 +322,13 @@ impl<T: Config> Operator<T> {
         let mut salt = [0u8; 32];
         rand::thread_rng().fill(&mut salt);
         let sig_salt = FixedBytes::from_slice(&salt);
-        let expiry = aliases::U256::from(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600);
+        let expiry = aliases::U256::from(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                + 3600,
+        );
         let register_result = avs_registry_contract_manager
             .register_operator_in_quorum_with_avs_registry_coordinator(
                 &ecdsa_signing_key,
@@ -386,8 +386,8 @@ impl<T: Config> Operator<T> {
 
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::address;
     use super::*;
+    use alloy_primitives::address;
     use alloy_provider::ProviderBuilder;
     use alloy_transport_ws::WsConnect;
     use eigen_utils::crypto::bls::KeyPair;

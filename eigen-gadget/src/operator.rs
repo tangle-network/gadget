@@ -1,18 +1,24 @@
 #![allow(dead_code)]
-use alloy_primitives::{Address, FixedBytes, U256};
-use alloy_provider::Provider;
+
+use alloy_contract::private::Ethereum;
+use alloy_primitives::{Address, ChainId, FixedBytes, Signature, B256, U256};
+use alloy_provider::{Provider, RootProvider};
 use alloy_rpc_types::Log;
+use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::SolValue;
+use alloy_transport::BoxTransport;
 use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
 use eigen_utils::avs_registry::AvsRegistryContractManager;
 use eigen_utils::crypto::bls::KeyPair;
 use eigen_utils::el_contracts::ElChainContractManager;
 use eigen_utils::node_api::NodeApi;
 use eigen_utils::services::operator_info::OperatorInfoServiceTrait;
-use eigen_utils::types::AvsError;
+use eigen_utils::types::{AvsError, OperatorInfo};
 use eigen_utils::Config;
 use log::error;
 use prometheus::Registry;
+use std::future::Future;
+use std::pin::Pin;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -82,6 +88,56 @@ pub struct Operator<T: Config, I: OperatorInfoServiceTrait> {
     aggregator_rpc_client: AggregatorRpcClient,
 }
 
+#[derive(Clone)]
+pub struct EigenGadgetProvider {
+    pub provider: RootProvider<BoxTransport, Ethereum>,
+}
+
+impl Provider for EigenGadgetProvider {
+    fn root(&self) -> &RootProvider<BoxTransport, Ethereum> {
+        println!("Provider Root TEST");
+        &self.provider
+    }
+}
+
+#[derive(Clone)]
+pub struct EigenGadgetSigner {
+    pub signer: PrivateKeySigner,
+}
+
+impl alloy_signer::Signer for EigenGadgetSigner {
+    fn sign_hash<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        hash: &'life1 B256,
+    ) -> Pin<Box<dyn Future<Output = alloy_signer::Result<Signature>> + Send + 'async_trait>>
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        let signer = self.signer.clone();
+
+        let signature_future = async move { signer.sign_hash(hash).await };
+
+        Box::pin(signature_future)
+    }
+
+    fn address(&self) -> Address {
+        println!("ADDRESS TEST");
+        panic!("Signer functions for EigenGadgetSigner are not yet implemented")
+    }
+
+    fn chain_id(&self) -> Option<ChainId> {
+        println!("CHAIN ID TEST");
+        panic!("Signer functions for EigenGadgetSigner are not yet implemented")
+    }
+
+    fn set_chain_id(&mut self, _chain_id: Option<ChainId>) {
+        println!("SET CHAIN ID TEST");
+        panic!("Signer functions for EigenGadgetSigner are not yet implemented")
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct NodeConfig {
     pub node_api_ip_port_address: String,
@@ -99,6 +155,23 @@ pub struct NodeConfig {
     pub server_ip_port_address: String,
     pub operator_address: String,
     pub enable_metrics: bool,
+}
+
+impl Config for NodeConfig {
+    type TH = BoxTransport;
+    type TW = BoxTransport;
+    type PH = EigenGadgetProvider;
+    type PW = EigenGadgetProvider;
+    type S = EigenGadgetSigner;
+}
+
+#[derive(Debug, Clone)]
+pub struct OperatorInfoService {}
+
+impl OperatorInfoServiceTrait for OperatorInfoService {
+    async fn get_operator_info(&self, operator: Address) -> Result<Option<OperatorInfo>, String> {
+        todo!()
+    }
 }
 
 impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
@@ -314,9 +387,111 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_primitives::address;
     use alloy_provider::ProviderBuilder;
     use alloy_signer_local::PrivateKeySigner;
     use alloy_transport_ws::WsConnect;
+    use eigen_utils::types::OperatorInfo;
+
+    static BLS_PASSWORD: &str = "BLS_PASSWORD";
+    static ECDSA_PASSWORD: &str = "ECDSA_PASSWORD";
+
+    // // --------- IMPORTS FOR ANVIL TESTS ---------
+    // use alloy::signers::Signer;
+    // use alloy_primitives::hex::FromHex;
+    // use alloy_primitives::{address, ruint, Address, Bytes, TxKind, U256};
+    // use alloy_provider::network::{EthereumWallet, ReceiptResponse, TransactionBuilder};
+    // use alloy_provider::{Provider, WalletProvider};
+    // use alloy_rpc_types_eth::{BlockId, BlockTransactions, TransactionRequest};
+    // use alloy_signer_local::PrivateKeySigner;
+    // use alloy_sol_types::sol;
+    // use anvil::{spawn, NodeConfig};
+    // // --------- IMPORTS FOR ANVIL TESTS ---------
+    async fn test_anvil() {
+        // // Initialize the logger
+        // env_logger::init();
+        //
+        // let (api, mut handle) = spawn(NodeConfig::test().with_port(33125)).await;
+        // api.anvil_auto_impersonate_account(true).await.unwrap();
+        // let provider = handle.http_provider();
+        //
+        // let accounts = handle.dev_wallets().collect::<Vec<_>>();
+        // let from = accounts[0].address();
+        // let to = accounts[1].address();
+        //
+        // let amount = handle
+        //     .genesis_balance()
+        //     .checked_div(U256::from(2u64))
+        //     .unwrap();
+        //
+        // let gas_price = provider.get_gas_price().await.unwrap();
+        //
+        // println!("Deploying Registry Coordinator...");
+        //
+        // let rc = RegistryCoordinator::deploy(
+        //     provider.clone(),
+        //     Address::from(address!("23e42f117e8643cc0174197c6c7cb38d8e5bd286")),
+        //     Address::from(address!("33e423a17e86433a0174197c6c7cb38d8e3ad287")),
+        //     Address::from(address!("43e42f117e8643cc03a4197c6c3ab38d8e5bd288")),
+        //     Address::from(address!("53e42f117e8643cc01741973ac7cb3ad8e5bd289")),
+        // )
+        //     .await
+        //     .unwrap();
+        // let registry_coordinator_addr = rc.address();
+        // println!("Registry Coordinator returned");
+        // api.mine_one().await;
+        // println!("Registry Coordinator deployed at: {:?}", registry_coordinator_addr);
+        //
+        // let dm = DelegationManager::deploy(
+        //     provider.clone(),
+        //     Address::from(address!("63e423a17e86433a0174197c6c7cb38d8e3ad280")),
+        //     Address::from(address!("73e42f117e8643cc03a4197c6c3ab38d8e5bd281")),
+        //     Address::from(address!("83e42f117e8643cc01741973ac7cb3ad8e5bd282")),
+        // )
+        //     .await
+        //     .unwrap();
+        // let delegation_manager_addr = dm.address();
+        // println!("Delegation Manager returned");
+        // api.mine_one().await;
+        // println!("Delegation Manager deployed at: {:?}", delegation_manager_addr);
+        //
+        // let ad = AVSDirectory::deploy(
+        //     provider.clone(),
+        //     delegation_manager_addr.clone(),
+        // )
+        //     .await
+        //     .unwrap();
+        // let avs_dir_addr = ad.address();
+        // println!("AVS Directory returned");
+        // api.mine_one().await;
+        // println!("AVS Directory deployed at: {:?}", avs_dir_addr);
+        //
+        // let issm = IncredibleSquaringServiceManager::deploy(
+        //     provider.clone(),
+        //     *avs_dir_addr,
+        //     *registry_coordinator_addr,
+        //     Address::from(address!("33e423a17e86433a0174197c6c7cb38d8e3ad287")),
+        //     Address::from(address!("65e423a17e86433a0174197c6c7cb5a28e3ad290")),
+        // )
+        //     .await
+        //     .unwrap();
+        // let issm_addr = issm.address();
+        // println!("Incredible Squaring Service Manager returned");
+        // api.mine_one().await;
+        // println!("Incredible Squaring Service Manager deployed at: {:?}", issm_addr);
+        //
+        //
+        // // get the block, await receipts
+        // let block = provider
+        //     .get_block(BlockId::latest(), false.into())
+        //     .await
+        //     .unwrap()
+        //     .unwrap();
+        //
+        // let serv = handle.servers.pop().unwrap();
+        // let res = serv.await.unwrap();
+        // res.unwrap();
+    }
 
     #[tokio::test]
     async fn test_run_operator() {
@@ -327,21 +502,23 @@ mod tests {
             node_api_ip_port_address: "127.0.0.1:9808".to_string(),
             eth_rpc_url: http_endpoint.to_string(),
             eth_ws_url: ws_endpoint.to_string(),
-            bls_private_key_store_path: "".to_string(),
-            ecdsa_private_key_store_path: "".to_string(),
+            bls_private_key_store_path: "./keystore/bls".to_string(),
+            ecdsa_private_key_store_path: "./keystore/ecdsa".to_string(),
             incredible_squaring_service_manager_addr: "".to_string(),
             avs_registry_coordinator_addr: "0x5fbdb2315678afecb367f032d93f642f64180aa3".to_string(),
             operator_state_retriever_addr: "0x0000000000000000000000000000000000000002".to_string(),
             eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
             delegation_manager_addr: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512".to_string(),
-            avs_directory_addr: "0x0000000000000000000000000000000000000005".to_string(),
+            avs_directory_addr: "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0".to_string(),
             operator_address: "0x0000000000000000000000000000000000000006".to_string(),
             enable_metrics: false,
             enable_node_api: false,
             server_ip_port_address: "".to_string(),
         };
 
-        let signer = EigenTangleSigner {
+        let operator_info_service = OperatorInfoService {};
+
+        let signer = EigenGadgetSigner {
             signer: PrivateKeySigner::random(),
         };
 
@@ -365,14 +542,15 @@ mod tests {
 
         println!("About to set up Operator");
 
-        let operator = Operator::<NodeConfig>::new_from_config(
+        let operator = Operator::<NodeConfig, OperatorInfoService>::new_from_config(
             node_config.clone(),
-            EigenTangleProvider {
+            EigenGadgetProvider {
                 provider: http_provider,
             },
-            EigenTangleProvider {
+            EigenGadgetProvider {
                 provider: ws_provider,
             },
+            operator_info_service,
             signer,
         )
         .await

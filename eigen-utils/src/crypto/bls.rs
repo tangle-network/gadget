@@ -2,7 +2,7 @@
 use alloy_primitives::U256;
 
 use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine, G2Projective};
-use ark_ec::{AffineRepr, bn, CurveGroup, Group};
+use ark_ec::{bn, AffineRepr, CurveGroup, Group};
 use ark_ff::PrimeField;
 use ark_ff::{BigInt, QuadExtField, Zero};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
