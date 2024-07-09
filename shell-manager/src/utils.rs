@@ -113,10 +113,11 @@ pub fn get_download_url<T: Into<String>>(git: T, rev: &str, package: &str) -> St
     }
 
     let ext = if os == "windows" { ".exe" } else { "" };
-
+    // releases/tag/x86_64-unknown-linux-gnu-ed36a4f9bc7e2570de8776d4d34ffee8f2a8c195
     // https://github.com/webb-tools/protocols/releases/download/protocol-aarch64-apple-darwin-d1cc78ee4652696a2228f62b735e55ef23bf3f8e/protocol-threshold-bls-protocol-d1cc78ee4652696a2228f62b735e55ef23bf3f8e.sha256
     // https://github.com/webb-tools/protocols/releases/download/aarch64-apple-darwin-d1cc78ee4652696a2228f62b735e55ef23bf3f8e/protocol-threshold-bls-protocol-d1cc78ee4652696a2228f62b735e55ef23bf3f8e.sha256
-    format!("{git}releases/download/{arch}-{os}-{rev}/protocol-{package}-{rev}{ext}")
+    // format!("{git}releases/download/{arch}-{os}-{rev}/protocol-{package}-{rev}{ext}")
+    format!("{git}tag/{arch}-{os}-{rev}/protocol-{package}-{rev}{ext}")
 }
 
 pub fn get_sha_download_url<T: Into<String>>(git: T, rev: &str, package: &str) -> String {
@@ -183,4 +184,8 @@ pub fn generate_running_process_status_handle(
 
     gadget_io::tokio::spawn(task);
     (status, stop_tx)
+}
+
+pub fn bytes_to_utf8_string<T: Into<Vec<u8>>>(input: T) -> color_eyre::Result<String> {
+    String::from_utf8(input.into()).map_err(|err| msg_to_error(err.to_string()))
 }
