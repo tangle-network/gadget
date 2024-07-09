@@ -35,7 +35,6 @@ impl<T: Config> AvsRegistryContractManager<T> {
         eth_client_ws: T::PW,
         signer: T::S,
     ) -> Result<Self, AvsError> {
-
         // let http_provider = ProviderBuilder::new()
         //     .on_http("http://127.0.0.1:33125".parse().unwrap());
 
@@ -45,20 +44,16 @@ impl<T: Config> AvsRegistryContractManager<T> {
         println!("Registry Coordinator: {:?}", registry_coordinator_addr);
 
         println!("BLS APK REGISTRY BUILDER");
-        let bls_apk_registry_addr = registry_coordinator
-            .blsApkRegistry();
+        let bls_apk_registry_addr = registry_coordinator.blsApkRegistry();
 
         println!("BLS APK REGISTRY REQUESTING CALL");
-        let debug_one = bls_apk_registry_addr
-            .call();
+        let debug_one = bls_apk_registry_addr.call();
 
         println!("BLS APK REGISTRY AWAITING CALL");
-        let debug_two = debug_one
-            .await;
+        let debug_two = debug_one.await;
 
         println!("BLS APK REGISTRY ADDRESS");
-        let debug_three = debug_two
-            .map(|addr| addr._0);
+        let debug_three = debug_two.map(|addr| addr._0);
 
         println!("BLS APK REGISTRY ADDRESS RESULT: {:?}", debug_three);
         let bls_apk_registry_addr = debug_three?;

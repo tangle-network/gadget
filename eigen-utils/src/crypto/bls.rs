@@ -13,7 +13,7 @@ use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
 use rand::thread_rng;
 use scrypt::password_hash::{PasswordHashString, SaltString};
-use scrypt::{Params, password_hash, Scrypt};
+use scrypt::{password_hash, Params, Scrypt};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -353,15 +353,14 @@ impl KeyPair {
             &mut kdf_buf,
         )
         .map_err(|e| AvsError::KeyError(e.to_string()))?;
-        let password_hash = scrypt::password_hash::PasswordHash::generate(
-            Scrypt,
-            password,
-            salt.as_salt(),
-        )
-            .map_err(|e| AvsError::KeyError(e.to_string()))?;
+        let password_hash =
+            scrypt::password_hash::PasswordHash::generate(Scrypt, password, salt.as_salt())
+                .map_err(|e| AvsError::KeyError(e.to_string()))?;
 
         let mut rng = thread_rng();
-        let key: [u8; 32] = kdf_buf[..32].try_into().map_err(|_| AvsError::KeyError("Key conversion error".to_string()))?;
+        let key: [u8; 32] = kdf_buf[..32]
+            .try_into()
+            .map_err(|_| AvsError::KeyError("Key conversion error".to_string()))?;
         let cipher = ChaCha20Poly1305::new(&key.into());
         let nonce = ChaCha20Poly1305::generate_nonce(&mut rng);
         let ciphertext: Vec<u8> = cipher
@@ -407,7 +406,11 @@ impl KeyPair {
                     .as_str()
                     .ok_or(AvsError::KeyError("Invalid data".to_string()))?,
             )
-            .map(|p| PasswordHashString::new(std::str::from_utf8(&p).map_err(|_| password_hash::Error::Crypto)?))
+            .map(|p| {
+                PasswordHashString::new(
+                    std::str::from_utf8(&p).map_err(|_| password_hash::Error::Crypto)?,
+                )
+            })
             .map_err(|e| AvsError::KeyError(e.to_string()))?
             .map_err(|e| AvsError::KeyError(e.to_string()))?;
         let nonce = BASE64_STANDARD
@@ -424,7 +427,10 @@ impl KeyPair {
             .verify_password(&[&Scrypt], password)
             .map_err(|e| AvsError::KeyError(e.to_string()))?;
 
-        let salt = password_hash.salt().ok_or(AvsError::KeyError("Invalid salt".to_string()))?.as_str();
+        let salt = password_hash
+            .salt()
+            .ok_or(AvsError::KeyError("Invalid salt".to_string()))?
+            .as_str();
         let mut kdf_buf: [u8; 32] = Default::default();
         scrypt::scrypt(
             password.as_bytes(),
@@ -433,7 +439,9 @@ impl KeyPair {
             &mut kdf_buf,
         )
         .map_err(|e| AvsError::KeyError(e.to_string()))?;
-        let key: [u8; 32] = kdf_buf[..32].try_into().map_err(|_| AvsError::KeyError("Key conversion error".to_string()))?;
+        let key: [u8; 32] = kdf_buf[..32]
+            .try_into()
+            .map_err(|_| AvsError::KeyError("Key conversion error".to_string()))?;
         let cipher = ChaCha20Poly1305::new(&key.into());
         let priv_key_bytes = cipher
             .decrypt(&nonce, &sk_bytes[..])
@@ -441,7 +449,10 @@ impl KeyPair {
 
         let priv_key = Fq::from_le_bytes_mod_order(&priv_key_bytes);
 
-        let pair = KeyPair { priv_key: PrivateKey { key: priv_key }, pub_key: encrypted_bls_struct.pub_key };
+        let pair = KeyPair {
+            priv_key: PrivateKey { key: priv_key },
+            pub_key: encrypted_bls_struct.pub_key,
+        };
         Ok(pair)
     }
 
