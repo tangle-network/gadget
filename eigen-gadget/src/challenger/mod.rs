@@ -1,6 +1,6 @@
 use alloy_primitives::U256;
 use alloy_provider::Provider;
-use alloy_rpc_types::{Log, Transaction};
+use alloy_rpc_types::Log;
 use alloy_sol_types::SolCall;
 use eigen_utils::types::{AvsError, TaskIndex};
 use eigen_utils::Config;

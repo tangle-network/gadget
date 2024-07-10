@@ -473,20 +473,12 @@ impl KeyPair {
     }
 
     pub fn get_pub_key_g2(&self) -> G2Point {
-        // let mut pub_key_g2_point = G2Point::generator();
-        // pub_key_g2_point.mul(self.priv_key.key);
         let g2_gen = G2Affine::generator();
-        // ark_bn254::G2Affine::new().mul_bigint();
-        // let g2_gen = G2Projective::generator();
-
         // Scalar multiplication
         let result = g2_gen.mul_bigint(self.priv_key.key.0);
-
         // Convert result to affine form
         let g2_affine = G2Affine::from(result);
-
         G2Point::from_ark_g2(&g2_affine)
-        // pub_key_g2_point
     }
 
     pub fn get_pub_key_g1(&self) -> &G1Point {
