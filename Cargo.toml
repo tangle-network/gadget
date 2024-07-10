@@ -17,6 +17,7 @@ members = [
     "eigen-gadget",
     "eigen-tangle-avs",
     "executor",
+    "blueprints/incredible-squaring",
 ]
 
 [workspace.package]
