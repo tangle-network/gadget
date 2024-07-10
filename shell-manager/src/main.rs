@@ -1,13 +1,11 @@
-use crate::protocols::resolver::{load_global_config_file, ProtocolMetadata};
+use crate::protocols::resolver::load_global_config_file;
 use config::ShellManagerOpts;
 use gadget_common::gadget_io;
 use gadget_common::prelude::GadgetEnvironment;
 use gadget_common::sp_core::Pair;
-use gadget_io::tokio::io::AsyncWriteExt;
 use gadget_io::ShellTomlConfig;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::keystore::load_keys_from_keystore;
-use shell_sdk::prelude::tangle_primitives::services::{Gadget, GadgetSourceFetcher};
 use shell_sdk::{entry, Client, DebugLogger};
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;

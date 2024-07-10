@@ -21,8 +21,8 @@ pub async fn handle(
 ) -> color_eyre::Result<()> {
     for service in onchain_services {
         if let Gadget::Native(gadget) = &service.gadget {
-            let source = &gadget.soruces[0];
-            if let GadgetSourceFetcher::Github(gh) = source {
+            let source = &gadget.soruces.0[0];
+            if let GadgetSourceFetcher::Github(gh) = &source.fetcher {
                 if let Err(err) = handle_github_source(
                     service,
                     shell_config,
@@ -57,16 +57,15 @@ async fn handle_github_source(
         // Add in the protocol
         let owner = bytes_to_utf8_string(github.owner.0 .0.clone())?;
         let repo = bytes_to_utf8_string(github.owner.0 .0.clone())?;
+        let tag = bytes_to_utf8_string(github.tag.0 .0.clone())?;
         let git = format!("https://github.com/{owner}/{repo}");
 
         let relevant_binary =
             get_gadget_binary(&github.binaries.0).ok_or_eyre("Unable to find matching binary")?;
         let expected_hash = slice_32_to_sha_hex_string(relevant_binary.sha256);
-        let rev = relevant_binary.rev;
-        let package = relevant_binary.package;
 
         let current_dir = std::env::current_dir()?;
-        let mut binary_download_path = format!("{}/protocol-{rev}", current_dir.display());
+        let mut binary_download_path = format!("{}/protocol-{tag}", current_dir.display());
 
         if utils::is_windows() {
             binary_download_path += ".exe"
@@ -77,7 +76,7 @@ async fn handle_github_source(
         // Check if the binary exists, if not download it
         let retrieved_hash =
             if !utils::valid_file_exists(&binary_download_path, &expected_hash).await {
-                let url = utils::get_download_url(git, rev, package);
+                let url = utils::get_download_url(git, &tag);
 
                 let download = reqwest::get(&url)
                     .await

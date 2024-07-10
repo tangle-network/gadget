@@ -97,7 +97,7 @@ pub fn get_formatted_os_string() -> String {
     }
 }
 
-pub fn get_download_url<T: Into<String>>(git: T, rev: &str, package: &str) -> String {
+pub fn get_download_url<T: Into<String>>(git: T, tag: &str) -> String {
     let os = get_formatted_os_string();
     let arch = std::env::consts::ARCH;
 
@@ -113,16 +113,8 @@ pub fn get_download_url<T: Into<String>>(git: T, rev: &str, package: &str) -> St
     }
 
     let ext = if os == "windows" { ".exe" } else { "" };
-    // releases/tag/x86_64-unknown-linux-gnu-ed36a4f9bc7e2570de8776d4d34ffee8f2a8c195
-    // https://github.com/webb-tools/protocols/releases/download/protocol-aarch64-apple-darwin-d1cc78ee4652696a2228f62b735e55ef23bf3f8e/protocol-threshold-bls-protocol-d1cc78ee4652696a2228f62b735e55ef23bf3f8e.sha256
-    // https://github.com/webb-tools/protocols/releases/download/aarch64-apple-darwin-d1cc78ee4652696a2228f62b735e55ef23bf3f8e/protocol-threshold-bls-protocol-d1cc78ee4652696a2228f62b735e55ef23bf3f8e.sha256
-    // format!("{git}releases/download/{arch}-{os}-{rev}/protocol-{package}-{rev}{ext}")
-    format!("{git}tag/{arch}-{os}-{rev}/protocol-{package}-{rev}{ext}")
-}
-
-pub fn get_sha_download_url<T: Into<String>>(git: T, rev: &str, package: &str) -> String {
-    let base_url = get_download_url(git, rev, package);
-    format!("{base_url}.sha256")
+    // https://github.com/<owner>/<repo>/releases/download/v<tag>/<path>
+    format!("{git}releases/download/v{tag}/protocol-{os}-{arch}{ext}")
 }
 
 pub fn msg_to_error<T: Into<String>>(msg: T) -> color_eyre::Report {

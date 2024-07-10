@@ -8,7 +8,7 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
 pub struct ProtocolMetadata {
     pub service: ServiceBlueprint,
     pub git: String,
-    pub rev: String,
+    pub tag: String,
     pub package: String,
     pub bin_hashes: HashMap<String, String>,
 }
@@ -35,13 +35,13 @@ pub fn load_global_config_file<P: AsRef<Path>>(path: P) -> Result<Vec<ProtocolMe
             let git = repository.get("git").ok_or(Error::msg(
                 "External protocol does not have a git repository specified",
             ))?;
-            let rev = repository.get("rev").cloned().ok_or(Error::msg(
+            let tag = repository.get("tag").cloned().ok_or(Error::msg(
                 "External protocol does not have a revision specified",
             ))?;
+            
             ret.push(ProtocolMetadata {
                 git: git.clone(),
-                service: convert_str_vec_to_role_types(protocol.role_types)?,
-                rev,
+                tag,
                 bin_hashes,
                 package: protocol.package,
             })
