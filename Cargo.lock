@@ -4921,6 +4921,7 @@ name = "gadget-sdk"
 version = "0.1.0"
 dependencies = [
  "ed25519-zebra 4.0.3",
+ "elliptic-curve 0.13.8",
  "hex",
  "hyper 0.14.29",
  "k256",
@@ -5814,6 +5815,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "color-eyre",
+ "gadget-sdk",
  "tangle-subxt",
  "tokio",
 ]

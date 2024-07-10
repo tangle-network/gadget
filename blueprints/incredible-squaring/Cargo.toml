@@ -17,6 +17,7 @@ tangle-subxt = { workspace = true }
 alloy-primitives = { workspace = true }
 color-eyre = { workspace = true, optional = true }
 tokio = { workspace = true, default-features = false, features = ["full"], optional = true }
+gadget-sdk = { workspace = true, features = ["full", "std"] }
 
 [features]
 default = []

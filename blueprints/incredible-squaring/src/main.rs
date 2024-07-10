@@ -1,6 +1,13 @@
 use std::path::PathBuf;
 
-use color_eyre::{eyre::Context, Result};
+use color_eyre::{
+    eyre::{bail, Context},
+    Result,
+};
+use gadget_sdk::keystore::backend::{
+    fs::FilesystemKeystore, mem::InMemoryKeystore, GenericKeyStore,
+};
+use tangle_subxt::subxt;
 
 #[derive(Debug, Clone)]
 struct GadgetEnvironment {
@@ -14,8 +21,25 @@ struct GadgetEnvironment {
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
-    let gadget_env = GadgetEnvironment::from_env()?;
-    println!("{:?}", gadget_env);
+    let env = GadgetEnvironment::from_env()?;
+
+    let keystore = match env.keystore_uri {
+        uri if uri == "file::memory:" || uri == ":memory:" => {
+            GenericKeyStore::Mem(InMemoryKeystore::new())
+        }
+        uri if uri.starts_with("file:") || uri.starts_with("file://") => {
+            let path = uri
+                .trim_start_matches("file:")
+                .trim_start_matches("file://");
+            GenericKeyStore::Fs(FilesystemKeystore::open(path)?)
+        }
+        otherwise => {
+            bail!("Unsupported keystore URI: {otherwise}")
+        }
+    };
+
+    let client =
+        subxt::OnlineClient::<subxt::SubstrateConfig>::from_url(&env.tangle_rpc_endpoint).await?;
     Ok(())
 }
 

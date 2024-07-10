@@ -16,6 +16,7 @@ hex = { version = "0.4.3", default-features = false }
 
 # Keystore deps
 k256 = { version = "0.13", default-features = false, features = ["arithmetic", "ecdsa"], optional = true  }
+elliptic-curve = { version = "0.13", default-features = false, optional = true }
 ed25519-zebra = { version = "4", default-features = false, features = [], optional = true }
 schnorrkel = { version = "0.11.4", features = ["preaudit_deprecated"], default-features = false, optional = true }
 w3f-bls = { version = "0.1.3", default-features = false, optional = true }
@@ -42,8 +43,9 @@ std = [
   "rand",
   "getrandom",
   "hex/std",
+  "elliptic-curve/std"
 ]
-alloc = ["rand_core/alloc", "hex/alloc"]
+alloc = ["k256/alloc", "rand_core/alloc", "hex/alloc", "schnorrkel/alloc"]
 full = [
   "keystore",
 ]
@@ -59,7 +61,7 @@ keystore = [
   "keystore-bls381",
   "keystore-fs",
 ]
-keystore-ecdsa = ["k256"]
+keystore-ecdsa = ["k256", "elliptic-curve/sec1"]
 keystore-sr25519 = ["schnorrkel"]
 keystore-ed25519 = ["ed25519-zebra"]
 keystore-bls381 = ["w3f-bls"]

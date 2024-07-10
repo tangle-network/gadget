@@ -36,6 +36,7 @@ test-utils = { path = "./test-utils" }
 protocol-macros = { path = "./protocol-macros" }
 shell-sdk = { path = "./shell-sdk", default-features = false }
 shell-manager = { path = "./shell-manager" }
+gadget-sdk = { path = "./sdk", default-features = false }
 
 eigen-contracts = { path = "./eigen-contracts" }
 eigen-gadget = { path = "./eigen-gadget" }

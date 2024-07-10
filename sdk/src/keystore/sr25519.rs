@@ -10,9 +10,11 @@ const SIGNING_CTX: &[u8] = b"substrate";
 pub fn generate_with_optional_seed(
     seed: Option<&[u8]>,
 ) -> Result<Secret, schnorrkel::SignatureError> {
-    match seed {
-        Some(seed) => Secret::from_bytes(seed),
-        None => Ok(Secret::generate()),
+    if let Some(seed) = seed {
+        Secret::from_bytes(seed)
+    } else {
+        let rng = crate::random::getrandom_or_panic();
+        Ok(Secret::generate_with(rng))
     }
 }
 
