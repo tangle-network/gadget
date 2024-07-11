@@ -7,20 +7,21 @@ use color_eyre::eyre::OptionExt;
 use gadget_common::prelude::DebugLogger;
 use gadget_io::ShellTomlConfig;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
-    Gadget, GadgetBinary, GadgetSourceFetcher, GithubFetcher, ServiceBlueprint,
+    GadgetBinary, GadgetSourceFetcher, GithubFetcher, ServiceBlueprint,
 };
 use tokio::io::AsyncWriteExt;
 
 pub async fn handle(
     onchain_services: &[NativeGithubMetadata],
+    onchain_gh_fetchers: &[&GithubFetcher],
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
     active_shells: &mut ActiveShells,
     global_protocols: &[NativeGithubMetadata],
     logger: &DebugLogger,
 ) -> color_eyre::Result<()> {
-    for gh in onchain_services {
-        let bin_hashes = gh
+    for (gh, fetcher) in onchain_services.into_iter().zip(onchain_gh_fetchers) {
+        let bin_hashes = fetcher
             .binaries
             .0
             .iter()
@@ -37,7 +38,7 @@ pub async fn handle(
             &native_wasm_metadata,
             shell_config,
             shell_manager_opts,
-            gh,
+            *fetcher,
             active_shells,
             logger,
         )

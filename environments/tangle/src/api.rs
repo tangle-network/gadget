@@ -1,9 +1,9 @@
 use gadget_common::config::DebugLogger;
-use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 use gadget_common::tangle_runtime::AccountId32;
+use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
+use gadget_common::tangle_subxt::subxt::{Config, OnlineClient};
 use gadget_common::tangle_subxt::subxt::backend::BlockRef;
 use gadget_common::tangle_subxt::subxt::utils::H256;
-use gadget_common::tangle_subxt::subxt::{Config, OnlineClient};
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api;
 
 pub type BlockHash = [u8; 32];
@@ -35,19 +35,18 @@ where
         address: AccountId32,
     ) -> Result<Vec<ServiceBlueprint>, gadget_common::Error> {
         let block_ref = BlockRef::from_hash(H256::from_slice(&at));
-        let call = api::storage().services().user_services(address);
-        let blueprint_ids: Vec<u64> = self
+        let call = api::storage().services().next_blueprint_id();
+        let next_blueprint_id: u64 = self
             .rpc_client
             .storage()
             .at(block_ref.clone())
             .fetch_or_default(&call)
             .await
-            .map(|v| v.0)
             .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })?;
 
         let mut ret = vec![];
 
-        for blueprint_id in blueprint_ids {
+        for blueprint_id in 0..(next_blueprint_id - 1) {
             let svcs = api::storage().services().blueprints(blueprint_id);
             let blueprint = self
                 .rpc_client

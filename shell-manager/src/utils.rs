@@ -12,7 +12,7 @@ use tangle_environment::api::ServicesClient;
 use tangle_subxt::subxt::backend::BlockRef;
 use tangle_subxt::subxt::Config;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
-    Gadget, GadgetSourceFetcher, GithubFetcher, ServiceBlueprint,
+    Gadget, GadgetSourceFetcher, GithubFetcher,
 };
 
 pub async fn get_subscribed_services<C: Config>(
