@@ -1,8 +1,8 @@
 use crate::config::ShellManagerOpts;
 use crate::gadget::ActiveShells;
-use crate::protocols::resolver::ProtocolMetadata;
+use crate::protocols::resolver::NativeGithubMetadata;
 use crate::utils;
-use crate::utils::bytes_to_utf8_string;
+use crate::utils::{bytes_to_utf8_string, get_service_str};
 use color_eyre::eyre::OptionExt;
 use gadget_common::prelude::DebugLogger;
 use gadget_io::ShellTomlConfig;
@@ -12,32 +12,38 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
 use tokio::io::AsyncWriteExt;
 
 pub async fn handle(
-    onchain_services: &[ServiceBlueprint],
+    onchain_services: &[NativeGithubMetadata],
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
     active_shells: &mut ActiveShells,
-    global_protocols: &[ProtocolMetadata],
+    global_protocols: &[NativeGithubMetadata],
     logger: &DebugLogger,
 ) -> color_eyre::Result<()> {
-    for service in onchain_services {
-        if let Gadget::Native(gadget) = &service.gadget {
-            let source = &gadget.soruces.0[0];
-            if let GadgetSourceFetcher::Github(gh) = &source.fetcher {
-                if let Err(err) = handle_github_source(
-                    service,
-                    shell_config,
-                    shell_manager_opts,
-                    gh,
-                    active_shells,
-                    logger,
-                )
-                .await
-                {
-                    logger.warn(err)
-                }
-            } else {
-                logger.warn(format!("The source {source:?} is not supported",))
-            }
+    for gh in onchain_services {
+        let bin_hashes = gh
+            .binaries
+            .0
+            .iter()
+            .map(|r| slice_32_to_sha_hex_string(r.sha256))
+            .collect();
+
+        let native_wasm_metadata = NativeGithubMetadata {
+            git: gh.git.clone(),
+            tag: gh.tag.clone(),
+            bin_hashes,
+        };
+
+        if let Err(err) = handle_github_source(
+            &native_wasm_metadata,
+            shell_config,
+            shell_manager_opts,
+            gh,
+            active_shells,
+            logger,
+        )
+        .await
+        {
+            logger.warn(err)
         }
     }
 
@@ -45,7 +51,7 @@ pub async fn handle(
 }
 
 async fn handle_github_source(
-    service: &ServiceBlueprint,
+    service: &NativeGithubMetadata,
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
     github: &GithubFetcher,
@@ -145,7 +151,14 @@ fn get_gadget_binary(gadget_binaries: &[GadgetBinary]) -> Option<&GadgetBinary> 
     for binary in gadget_binaries {
         let binary_str = format!("{:?}", binary.os).to_lowercase();
         if binary_str.contains(&os) || os.contains(&binary_str) || binary_str == os {
-            let arch_str = format!("{:?}", binary.arch).to_lowercase();
+            let mut arch_str = format!("{:?}", binary.arch).to_lowercase();
+
+            if arch_str == "amd" {
+                arch_str = "x86".to_string()
+            } else if arch_str == "amd64" {
+                arch_str = "x86_64".to_string()
+            }
+
             if arch_str == arch {
                 return Some(binary);
             }

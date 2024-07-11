@@ -75,7 +75,7 @@ async fn main() -> color_eyre::Result<()> {
                 "OnChain services: {:?}",
                 onchain_services
                     .iter()
-                    .map(|r| r.metadata.name.clone())
+                    .map(|r| r.git.clone())
                     .collect::<Vec<_>>()
             ));
 

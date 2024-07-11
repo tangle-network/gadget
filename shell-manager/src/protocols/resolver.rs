@@ -2,30 +2,23 @@ use crate::error::Error;
 use crate::protocols::config::ProtocolConfig;
 use std::collections::HashMap;
 use std::path::Path;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 
 #[derive(Debug)]
-pub struct ProtocolMetadata {
-    pub service: ServiceBlueprint,
+pub struct NativeGithubMetadata {
     pub git: String,
     pub tag: String,
-    pub package: String,
     pub bin_hashes: HashMap<String, String>,
 }
 
 // This is for testing only
-pub fn load_global_config_file<P: AsRef<Path>>(path: P) -> Result<Vec<ProtocolMetadata>, Error> {
+pub fn load_global_config_file<P: AsRef<Path>>(
+    path: P,
+) -> Result<Vec<NativeGithubMetadata>, Error> {
     let config: ProtocolConfig = toml::from_str(&std::fs::read_to_string(path)?)
         .map_err(|err| Error::msg(err.to_string()))?;
     let mut ret = vec![];
 
     for protocol in config.protocols {
-        if protocol.role_types.is_empty() {
-            return Err(Error::msg(
-                "Protocol does not have any role types specified",
-            ));
-        }
-
         if let (Some(bin_hashes), Some(repository)) = (protocol.bin_hashes, protocol.repository) {
             if bin_hashes.is_empty() {
                 return Err(Error::msg(
@@ -38,17 +31,16 @@ pub fn load_global_config_file<P: AsRef<Path>>(path: P) -> Result<Vec<ProtocolMe
             let tag = repository.get("tag").cloned().ok_or(Error::msg(
                 "External protocol does not have a revision specified",
             ))?;
-            
-            ret.push(ProtocolMetadata {
+
+            ret.push(NativeGithubMetadata {
                 git: git.clone(),
                 tag,
                 bin_hashes,
-                package: protocol.package,
             })
         } else {
             return Err(Error::msg(format!(
                 "External protocol does not have bin_hashes and a repository specified: {:?}",
-                protocol.role_types
+                protocol.package
             )));
         }
     }

@@ -1,5 +1,5 @@
 use crate::config::ShellManagerOpts;
-use crate::protocols::resolver::ProtocolMetadata;
+use crate::protocols::resolver::NativeGithubMetadata;
 use gadget_common::config::DebugLogger;
 use gadget_common::sp_core::H256;
 use gadget_common::tangle_runtime::AccountId32;
@@ -11,26 +11,55 @@ use std::sync::Arc;
 use tangle_environment::api::ServicesClient;
 use tangle_subxt::subxt::backend::BlockRef;
 use tangle_subxt::subxt::Config;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
+    Gadget, GadgetSourceFetcher, GithubFetcher, ServiceBlueprint,
+};
 
 pub async fn get_subscribed_services<C: Config>(
     runtime: &ServicesClient<C>,
     block_hash: [u8; 32],
     account_id: AccountId32,
-    global_protocols: &[ProtocolMetadata],
+    global_protocols: &[NativeGithubMetadata],
     test_mode: bool,
-) -> color_eyre::Result<Vec<ServiceBlueprint>>
+) -> color_eyre::Result<Vec<NativeGithubMetadata>>
 where
     BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
 {
     if test_mode {
-        return Ok(global_protocols.iter().map(|r| r.service.clone()).collect());
+        return Ok(global_protocols.iter().map(|r| r.clone()).collect());
     }
 
     runtime
         .query_restaker_blueprints(block_hash, account_id)
         .await
         .map_err(|err| msg_to_error(err.to_string()))
+        .map(|r| {
+            r.into_iter().filter_map(|blueprint| {
+                if let Gadget::Native(gadget) = blueprint {
+                    let source = &gadget.soruces.0[0];
+                    if let GadgetSourceFetcher::Github(gh) = &source.fetcher {
+                        let ret = github_fetcher_to_native_github_metadata(gh);
+                        return Some(ret);
+                    }
+                }
+
+                None
+            })
+        })
+        .collect()
+}
+
+pub fn github_fetcher_to_native_github_metadata(gh: &GithubFetcher) -> NativeGithubMetadata {
+    let owner = bytes_to_utf8_string(gh.owner.0 .0.clone()).expect("Should be valid");
+    let repo = bytes_to_utf8_string(gh.repo.0 .0.clone())?;
+    let tag = bytes_to_utf8_string(gh.tag.0 .0.clone())?;
+    let git = format!("https://github.com/{owner}/{repo}");
+
+    NativeGithubMetadata {
+        git,
+        tag,
+        bin_hashes: Default::default(),
+    }
 }
 
 pub fn generate_process_arguments(
@@ -121,9 +150,10 @@ pub fn msg_to_error<T: Into<String>>(msg: T) -> color_eyre::Report {
     color_eyre::Report::msg(msg.into())
 }
 
-pub fn get_service_str(svc: &ServiceBlueprint) -> String {
-    String::from_utf8(svc.metadata.name.0 .0.clone())
-        .unwrap_or_else(|_| "Non-UTF8 Service".to_string())
+pub fn get_service_str(svc: &NativeGithubMetadata) -> String {
+    let repo = svc.git.clone();
+    let vals = repo.split(".com/").collect();
+    vals[1].clone()
 }
 
 pub async fn chmod_x_file<P: AsRef<Path>>(path: P) -> color_eyre::Result<()> {
