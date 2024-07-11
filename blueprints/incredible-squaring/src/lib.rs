@@ -1,5 +1,6 @@
 use alloy_primitives::U256;
 
+pub const X_SQUARE_JOB_ID: u8 = 0;
 /// Returns x^2 saturating to [`U256::MAX`] if overflow occurs.
 pub fn xsquare(x: U256) -> U256 {
     x.saturating_pow(U256::from(2))

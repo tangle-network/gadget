@@ -9,6 +9,9 @@ repository.workspace = true
 
 [dependencies]
 thiserror = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
 parking_lot = { workspace = true }
 rand_core = { version = "0.6.4", default-features = false }
 rand = { workspace = true, optional = true }
@@ -22,15 +25,18 @@ schnorrkel = { version = "0.11.4", features = ["preaudit_deprecated"], default-f
 w3f-bls = { version = "0.1.3", default-features = false, optional = true }
 
 # Metrics deps
-hyper = { version = "0.14.16", default-features = false, features = ["http1", "server", "tcp"] }
-log = { workspace = true, default-features = true }
-prometheus = { version = "0.13.0", default-features = false }
-tokio = { version = "1.22.0", features = ["rt-multi-thread", "parking_lot"] }
+hyper = { version = "0.14.16", default-features = false, features = ["http1", "server", "tcp"], optional = true }
+log = { workspace = true, default-features = true, optional = true }
+prometheus = { version = "0.13.0", default-features = false, optional = true }
+tokio = { workspace = true, default-features = false, optional = true }
 
 # Logging deps
-tracing = "0.1.40"
-tracing-log = "0.2.0"
-slog = "2.7.0"
+tracing-log = { version = "0.2.0", default-features = false, optional = true }
+slog = { version = "2.7.0", default-features = false, optional = true }
+
+# Event Watchers and Handlers
+subxt = { workspace = true, default-features = false, optional = true }
+backoff = { version = "0.4.0", features = ["tokio"], optional = true }
 
 [dev-dependencies]
 hyper = { version = "0.14.16", default-features = false, features = ["client"] }
@@ -48,6 +54,10 @@ std = [
 alloc = ["k256/alloc", "rand_core/alloc", "hex/alloc", "schnorrkel/alloc"]
 full = [
   "keystore",
+  "getrandom",
+  "metrics",
+  "logging",
+  "events-watcher"
 ]
 
 # Randomness
@@ -68,3 +78,9 @@ keystore-bls381 = ["w3f-bls"]
 # Keystore backends
 # Requires: std
 keystore-fs = []
+
+metrics = ["hyper", "log", "prometheus", "tokio"]
+logging = ["tracing-log", "slog"]
+
+events-watcher = ["subxt/jsonrpsee", "subxt/native", "backoff", "tokio/time"]
+

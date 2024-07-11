@@ -25,9 +25,15 @@ extern crate alloc;
 pub mod keystore;
 
 /// Metrics Module
+// #[cfg(feature = "metrics")]
 // pub mod metrics;
 
 /// Logging Module
+#[cfg(feature = "logging")]
 pub mod logging;
 /// Randomness generation module
 pub mod random;
+
+/// Blockchain Events Watcher Module
+#[cfg(feature = "events-watcher")]
+pub mod events_watcher;

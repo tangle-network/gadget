@@ -1964,6 +1964,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "backoff"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b62ddb9cb1ec0a098ad4bbf9344d0713fa193ae1a80af55febcff2627b6a00c1"
+dependencies = [
+ "futures-core",
+ "getrandom 0.2.15",
+ "instant",
+ "pin-project-lite 0.2.14",
+ "rand",
+ "tokio",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.71"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4843,7 +4857,7 @@ dependencies = [
  "substrate-prometheus-endpoint",
  "subxt",
  "subxt-signer",
- "tangle-subxt",
+ "tangle-subxt 1.0.8",
  "thiserror",
  "tracing 0.2.0",
  "tracing-core 0.2.0",
@@ -4920,8 +4934,11 @@ dependencies = [
 name = "gadget-sdk"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "backoff",
  "ed25519-zebra 4.0.3",
  "elliptic-curve 0.13.8",
+ "futures",
  "hex",
  "hyper 0.14.29",
  "k256",
@@ -4933,6 +4950,7 @@ dependencies = [
  "schnorrkel",
  "slog",
  "slog-term",
+ "subxt",
  "thiserror",
  "tokio",
  "tracing 0.1.40",
@@ -5814,10 +5832,13 @@ name = "incredible-squaring-blueprint"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
+ "async-trait",
  "color-eyre",
  "gadget-sdk",
- "tangle-subxt",
+ "subxt-signer",
+ "tangle-subxt 0.1.3-v2+001",
  "tokio",
+ "tracing 0.1.40",
 ]
 
 [[package]]
@@ -11551,7 +11572,7 @@ dependencies = [
  "sha2 0.10.8",
  "shell-sdk",
  "structopt",
- "tangle-subxt",
+ "tangle-subxt 1.0.8",
  "tokio",
  "toml 0.8.14",
  "tracing 0.1.40",
@@ -11598,7 +11619,7 @@ dependencies = [
  "sp-keystore",
  "structopt",
  "tangle-primitives",
- "tangle-subxt",
+ "tangle-subxt 1.0.8",
  "test-utils",
  "tokio_with_wasm",
  "toml 0.8.14",
@@ -13497,6 +13518,16 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0)",
+]
+
+[[package]]
+name = "tangle-subxt"
+version = "0.1.3-v2+001"
+source = "git+https://github.com/webb-tools/tangle.git?branch=jobs/v2#38679c50a617ff73706de622528bb648ec8e85e1"
+dependencies = [
+ "parity-scale-codec 3.6.12",
+ "scale-info",
+ "subxt",
 ]
 
 [[package]]

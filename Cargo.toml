@@ -53,6 +53,7 @@ pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "main"
 pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
 tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", default-features = false, branch = "main" }
+tangle-subxt-v2 = { package = "tangle-subxt", git = "https://github.com/webb-tools/tangle.git", default-features = false, branch = "jobs/v2" }
 #pallet-jobs-rpc-runtime-api = { path = "../tangle/pallets/jobs/rpc/runtime-api", default-features = false }
 #pallet-jobs = { path = "../tangle/pallets/jobs", default-features = false }
 #pallet-dkg = { path = "../tangle/pallets/dkg", default-features = false }
