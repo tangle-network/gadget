@@ -21,7 +21,9 @@ fn main() {
                 },
                 "params": ["Bytes"],
                 "result": ["Bytes"],
-                "verifier": "None"
+                "verifier": {
+                    "Evm": "./contracts/out/IncredibleSquaringBlueprint.sol/IncredibleSquaringBlueprint.json"
+                }
             }
         ],
         "registration_hook": "None",

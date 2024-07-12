@@ -20,6 +20,13 @@ use incredible_squaring_blueprint as blueprint;
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
+    let env_filter = tracing_subscriber::EnvFilter::from_default_env();
+    let logger = tracing_subscriber::fmt()
+        .compact()
+        .with_target(true)
+        .with_env_filter(env_filter);
+    logger.init();
+
     let env = gadget_sdk::env::load()?;
     let keystore = env.keystore()?;
     let client = subxt::OnlineClient::from_url(&env.tangle_rpc_endpoint).await?;

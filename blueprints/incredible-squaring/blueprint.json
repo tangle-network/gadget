@@ -40,7 +40,9 @@
       "result": [
         "Bytes"
       ],
-      "verifier": "None"
+      "verifier": {
+        "Evm": "./contracts/out/IncredibleSquaringBlueprint.sol/IncredibleSquaringBlueprint.json"
+      }
     }
   ],
   "metadata": {
