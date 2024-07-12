@@ -1,5 +1,33 @@
 {
-  "gadget": {},
+  "gadget": {
+    "Native": {
+      "soruces": [
+        {
+          "fetcher": {
+            "Github": {
+              "binaries": [
+                {
+                  "arch": "Amd64",
+                  "name": "incredible-squaring-gadget",
+                  "os": "Linux",
+                  "sha256": ""
+                },
+                {
+                  "arch": "Arm64",
+                  "name": "incredible-squaring-gadget",
+                  "os": "MacOS",
+                  "sha256": ""
+                }
+              ],
+              "owner": "webb-tools",
+              "repo": "gadget",
+              "tag": "0.1.0"
+            }
+          }
+        }
+      ]
+    }
+  },
   "jobs": [
     {
       "metadata": {

@@ -28,7 +28,25 @@ fn main() {
         "registration_params": [],
         "request_hook": "None",
         "request_params": [],
-        "gadget": {}
+        "gadget": {
+            "Native": {
+                "soruces": [
+                    {
+                        "fetcher": {
+                            "Github": {
+                                "owner": "webb-tools",
+                                "repo": "gadget",
+                                "tag": env!("CARGO_PKG_VERSION"),
+                                "binaries": [
+                                    { "arch": "Amd64", "os": "Linux", "name": "incredible-squaring-gadget", "sha256": "" },
+                                    { "arch": "Arm64", "os": "MacOS", "name": "incredible-squaring-gadget", "sha256": "" },
+                                ]
+                            }
+                        },
+                    }
+                ]
+            }
+        }
     });
 
     // write the blueprint to blueprint.json next to build.rs
