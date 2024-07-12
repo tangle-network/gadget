@@ -1,9 +1,9 @@
 use gadget_common::config::DebugLogger;
-use gadget_common::tangle_runtime::AccountId32;
 use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
-use gadget_common::tangle_subxt::subxt::{Config, OnlineClient};
+use gadget_common::tangle_runtime::AccountId32;
 use gadget_common::tangle_subxt::subxt::backend::BlockRef;
 use gadget_common::tangle_subxt::subxt::utils::H256;
+use gadget_common::tangle_subxt::subxt::{Config, OnlineClient};
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api;
 
 pub type BlockHash = [u8; 32];

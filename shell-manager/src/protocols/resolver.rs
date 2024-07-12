@@ -2,12 +2,15 @@ use crate::error::Error;
 use crate::protocols::config::ProtocolConfig;
 use std::collections::HashMap;
 use std::path::Path;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GadgetBinary;
 
 #[derive(Debug)]
 pub struct NativeGithubMetadata {
     pub git: String,
     pub tag: String,
-    pub bin_hashes: HashMap<String, String>,
+    pub owner: String,
+    pub repo: String,
+    pub gadget_binaries: Vec<GadgetBinary>,
 }
 
 // This is for testing only
@@ -25,17 +28,30 @@ pub fn load_global_config_file<P: AsRef<Path>>(
                     "External protocol does not have any binaries hashes specified",
                 ));
             }
-            let git = repository.get("git").ok_or(Error::msg(
-                "External protocol does not have a git repository specified",
-            ))?;
+
             let tag = repository.get("tag").cloned().ok_or(Error::msg(
                 "External protocol does not have a revision specified",
             ))?;
 
+            let repo = repository.get("repo").cloned().ok_or(Error::msg(
+                "External protocol does not have a repository specified",
+            ))?;
+
+            let owner = repository.get("owner").cloned().ok_or(Error::msg(
+                "External protocol does not have an owner specified",
+            ))?;
+
+            let git = format!("https://github.com/{owner}/{repo}");
+
+            // TOOD: Use real value
+            let gadget_binaries = vec![];
+
             ret.push(NativeGithubMetadata {
-                git: git.clone(),
+                git,
+                repo,
+                owner,
                 tag,
-                bin_hashes,
+                gadget_binaries,
             })
         } else {
             return Err(Error::msg(format!(

@@ -21,17 +21,12 @@ pub async fn handle(
     logger: &DebugLogger,
 ) -> color_eyre::Result<()> {
     for (gh, fetcher) in onchain_services.into_iter().zip(onchain_gh_fetchers) {
-        let bin_hashes = fetcher
-            .binaries
-            .0
-            .iter()
-            .map(|r| slice_32_to_sha_hex_string(r.sha256))
-            .collect();
-
         let native_wasm_metadata = NativeGithubMetadata {
             git: gh.git.clone(),
             tag: gh.tag.clone(),
-            bin_hashes,
+            owner: gh.owner.clone(),
+            repo: gh.repo.clone(),
+            gadget_binaries: fetcher.binaries.0.clone(),
         };
 
         if let Err(err) = handle_github_source(

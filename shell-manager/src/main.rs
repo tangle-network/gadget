@@ -1,4 +1,5 @@
-use crate::protocols::resolver::load_global_config_file;
+use crate::protocols::resolver::{load_global_config_file, NativeGithubMetadata};
+use color_eyre::Report;
 use config::ShellManagerOpts;
 use gadget_common::gadget_io;
 use gadget_common::prelude::GadgetEnvironment;
@@ -60,10 +61,26 @@ async fn main() -> color_eyre::Result<()> {
 
     let mut active_shells = HashMap::<String, _>::new();
 
+    // Get blueprint on inti, per ordering requirement
+    let blueprints = if let Some(event) = tangle_runtime.next_event().await {
+        utils::get_blueprints(
+            &runtime,
+            event.hash,
+            sub_account_id.clone(),
+            &global_protocols,
+            test_mode,
+        )
+        .await?
+    } else {
+        return Err(Report::msg("Failed to get initial block hash"));
+    };
+    
+    
     let manager_task = async move {
+        // Step 2: Listen to FinalityNotifications and poll for new services that correspond to the blueprints above
         while let Some(event) = tangle_runtime.next_event().await {
             logger.info(format!("Received notification {}", event.number));
-            let onchain_services = utils::get_subscribed_services(
+            let onchain_services = utils::get_services(
                 &runtime,
                 event.hash,
                 sub_account_id.clone(),
@@ -71,6 +88,16 @@ async fn main() -> color_eyre::Result<()> {
                 test_mode,
             )
             .await?;
+            let onchain_services = onchain_services
+                .iter()
+                .map(|(fetcher, metadata)| metadata.clone())
+                .collect::<Vec<_>>();
+
+            let fetchers = onchain_services
+                .iter()
+                .map(|fetcher, _| *fetcher)
+                .collect::<Vec<&NativeGithubMetadata>>();
+
             logger.trace(format!(
                 "OnChain services: {:?}",
                 onchain_services
@@ -79,9 +106,10 @@ async fn main() -> color_eyre::Result<()> {
                     .collect::<Vec<_>>()
             ));
 
-            // Check to see if local does not have any running on-chain roles
+            // Step 3: Check to see if we need to start any new services
             gadget::native::handle(
                 &onchain_services,
+                fetchers,
                 &shell_config,
                 opt,
                 &mut active_shells,

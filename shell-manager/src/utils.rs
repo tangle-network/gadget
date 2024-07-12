@@ -12,16 +12,16 @@ use tangle_environment::api::ServicesClient;
 use tangle_subxt::subxt::backend::BlockRef;
 use tangle_subxt::subxt::Config;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
-    Gadget, GadgetSourceFetcher, GithubFetcher,
+    Gadget, GadgetSourceFetcher, GithubFetcher, ServiceBlueprint,
 };
 
-pub async fn get_subscribed_services<C: Config>(
+pub async fn get_blueprints<C: Config>(
     runtime: &ServicesClient<C>,
     block_hash: [u8; 32],
     account_id: AccountId32,
     global_protocols: &[NativeGithubMetadata],
     test_mode: bool,
-) -> color_eyre::Result<Vec<NativeGithubMetadata>>
+) -> color_eyre::Result<Vec<ServiceBlueprint>>
 where
     BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
 {
@@ -29,24 +29,81 @@ where
         return Ok(global_protocols.iter().map(|r| r.clone()).collect());
     }
 
+    perform_query(
+        runtime,
+        block_hash,
+        account_id,
+        get_blueprints_native_fetcher,
+    )
+    .await
+}
+
+pub async fn get_services<C: Config>(
+    runtime: &ServicesClient<C>,
+    block_hash: [u8; 32],
+    account_id: AccountId32,
+    global_protocols: &[NativeGithubMetadata],
+    test_mode: bool,
+) -> color_eyre::Result<Vec<(GithubFetcher, NativeGithubMetadata)>>
+where
+    BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
+{
+    if test_mode {
+        return Ok(global_protocols
+            .iter()
+            .map(|r| {
+                let metadata = r.clone();
+                let fetcher = GithubFetcher {
+                    owner: metadata.owner.clone().try_into().unwrap(),
+                    repo: metadata.repo.clone().try_into().unwrap(),
+                    tag: metadata.tag.clone().try_into().unwrap(),
+                    binaries: BoundedVec(),
+                };
+            })
+            .collect());
+    }
+
+    perform_query(runtime, block_hash, account_id, get_native_metadata_fetcher).await
+}
+
+async fn perform_query<C: Config, K, F: Fn(Vec<ServiceBlueprint>) -> Vec<K>>(
+    runtime: &ServicesClient<C>,
+    block_hash: [u8; 32],
+    account_id: AccountId32,
+    remapping: F,
+) -> color_eyre::Result<Vec<K>>
+where
+    BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
+{
     runtime
         .query_restaker_blueprints(block_hash, account_id)
         .await
         .map_err(|err| msg_to_error(err.to_string()))
-        .map(|r| {
-            r.into_iter().filter_map(|blueprint| {
-                if let Gadget::Native(gadget) = blueprint {
-                    let source = &gadget.soruces.0[0];
-                    if let GadgetSourceFetcher::Github(gh) = &source.fetcher {
-                        let ret = github_fetcher_to_native_github_metadata(gh);
-                        return Some(ret);
-                    }
-                }
-
-                None
-            })
-        })
+        .map(|r| remapping(r))
         .collect()
+}
+
+/// Simple identity transformation
+fn get_blueprints_native_fetcher(
+    service_blueprints: Vec<ServiceBlueprint>,
+) -> Vec<ServiceBlueprint> {
+    service_blueprints
+}
+
+fn get_native_metadata_fetcher(
+    service_blueprints: Vec<ServiceBlueprint>,
+) -> Vec<(GithubFetcher, NativeGithubMetadata)> {
+    let mut ret = vec![];
+    for service_blueprint in service_blueprints {
+        if let Gadget::Native(gadget) = service_blueprint {
+            let source = &gadget.soruces.0[0];
+            if let GadgetSourceFetcher::Github(gh) = &source.fetcher {
+                ret.push((gh.clone(), github_fetcher_to_native_github_metadata(gh)));
+            }
+        }
+    }
+
+    ret
 }
 
 pub fn github_fetcher_to_native_github_metadata(gh: &GithubFetcher) -> NativeGithubMetadata {
@@ -58,7 +115,9 @@ pub fn github_fetcher_to_native_github_metadata(gh: &GithubFetcher) -> NativeGit
     NativeGithubMetadata {
         git,
         tag,
-        bin_hashes: Default::default(),
+        repo,
+        owner,
+        gadget_binaries: gh.binaries.0.clone(),
     }
 }
 
