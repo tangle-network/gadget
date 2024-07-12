@@ -10,6 +10,9 @@ use core::time::Duration;
 use futures::TryFutureExt;
 use subxt::OnlineClient;
 
+/// Tangle Event Watcher
+pub mod tangle;
+
 /// An error type for the event watcher.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

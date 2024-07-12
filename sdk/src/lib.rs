@@ -37,3 +37,6 @@ pub mod random;
 /// Blockchain Events Watcher Module
 #[cfg(feature = "events-watcher")]
 pub mod events_watcher;
+
+/// Gadget Environment Module
+pub mod env;
