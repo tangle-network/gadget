@@ -1,0 +1,32 @@
+{
+  "gadget": {},
+  "jobs": [
+    {
+      "metadata": {
+        "description": "Returns the square of the input as `U256` bytes in BE format.",
+        "name": "xsquare"
+      },
+      "params": [
+        "Bytes"
+      ],
+      "result": [
+        "Bytes"
+      ],
+      "verifier": "None"
+    }
+  ],
+  "metadata": {
+    "author": "Webb Technologies Inc.",
+    "category": "Cryptographic Services",
+    "code_repository": "https://github.com/webb-tools/gadget",
+    "description": "A Simple Blueprint to demo how blueprints work on Tangle Network",
+    "license": "Unlicense",
+    "logo": "https://example.com/logo.png",
+    "name": "incredible-squaring-blueprint",
+    "website": "https://tangle.tools"
+  },
+  "registration_hook": "None",
+  "registration_params": [],
+  "request_hook": "None",
+  "request_params": []
+}

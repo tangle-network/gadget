@@ -1,6 +1,7 @@
 [package]
 name = "incredible-squaring-blueprint"
 version = "0.1.0"
+description = "A Simple Blueprint to demo how blueprints work on Tangle Network"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -21,6 +22,9 @@ color-eyre = { workspace = true, optional = true }
 tokio = { workspace = true, default-features = false, features = ["full"], optional = true }
 gadget-sdk = { workspace = true, default-features = false, features = ["std", "keystore", "events-watcher"] }
 subxt-signer = { workspace = true, features = ["native", "sr25519", "subxt"], optional = true }
+
+[build-dependencies]
+serde_json = { workspace = true }
 
 [features]
 default = []
