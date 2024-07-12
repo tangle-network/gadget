@@ -28,6 +28,7 @@ aws-sdk-kms.workspace = true
 eigen-contracts.workspace = true
 eigen-utils.workspace = true
 gadget-aws-kms.workspace = true
+gadget-common = { workspace = true, default-features = false, features = ["default"] }
 # gadget-common = { workspace = true, features = ["tangle-testnet"] }
 
 http-body-util.workspace = true

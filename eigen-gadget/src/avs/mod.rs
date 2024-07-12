@@ -81,24 +81,16 @@ impl<T: Config> IncredibleSquaringContractManager<T> {
         eth_client_ws: T::PW,
         signer: T::S,
     ) -> Result<Self, AvsError> {
-        let registry_coordinator = RegistryCoordinator::RegistryCoordinatorInstance::new(
-            registry_coordinator_addr,
-            eth_client_http.clone(),
-        );
-        let service_manager_addr = registry_coordinator
-            .serviceManager()
-            .call()
-            .await
-            .map(|x| x._0)?;
-
+        let registry_coordinator =
+            RegistryCoordinator::new(registry_coordinator_addr, eth_client_http.clone());
+        let service_manager_addr = registry_coordinator.service_manager().call().await?.0;
         let service_manager =
             IncredibleSquaringServiceManager::new(service_manager_addr, eth_client_http.clone());
-
         let task_manager_addr = service_manager
-            .incredibleSquaringTaskManager()
+            .incredible_squaring_task_manager()
             .call()
-            .await
-            .map(|x| x._0)?;
+            .await?
+            .0;
 
         Ok(Self {
             task_manager_addr,

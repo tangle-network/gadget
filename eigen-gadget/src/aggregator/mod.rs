@@ -107,26 +107,25 @@ where
     }
 
     pub async fn start(self) -> Result<(), Box<dyn std::error::Error>> {
-        log::info!("Starting aggregator.");
-        log::info!("Starting aggregator RPC server.");
+        // Initialize task number
+        let mut task_num = 0;
 
-        // Start server in a separate task
-        let this = self.clone();
-        tokio::spawn(async move { this.start_server().await.unwrap() });
-
+        // Start sending tasks in intervals
         let mut ticker = interval(Duration::from_secs(10));
         log::info!("Aggregator set to send new task every 10 seconds...");
-        let mut task_num = 0;
 
         // Send the first task immediately
         self.send_new_task(U256::from(task_num)).await?;
         task_num += 1;
 
+        // Subscribe to aggregated responses
         let mut receiver = self
             .clone()
             .bls_aggregation_service
             .aggregated_responses_tx
             .subscribe();
+
+        // Continuously send tasks and process responses
         loop {
             tokio::select! {
                 _ = ticker.tick() => {
