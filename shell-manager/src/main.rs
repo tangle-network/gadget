@@ -61,7 +61,17 @@ async fn main() -> color_eyre::Result<()> {
 
     let mut active_shells = HashMap::<String, _>::new();
 
-    // Get blueprint on inti, per ordering requirement
+    // With the basics setup, we must now implement the main logic
+    /*
+       1. Shell (on init) calls query blueprints with services by operator RPC and then it downloads the binaries.
+       2. It does not execute them right away, there are a few things that need to be done first
+           a. For each blueprint, there is a list of services associated with it, run the blueprint binary (gadget) as a child process
+           b. If it is empty, we do nothing other than listing for a new event that states a new service instance got created by one of these blueprints.
+           c. At this event, we start a new process running this gadget.
+    */
+
+    // Get blueprint on init, per ordering requirement
+    // TODO: Use these below instead of re-querying in manager_task loop below
     let blueprints = if let Some(event) = tangle_runtime.next_event().await {
         utils::get_blueprints(
             &runtime,
@@ -74,8 +84,9 @@ async fn main() -> color_eyre::Result<()> {
     } else {
         return Err(Report::msg("Failed to get initial block hash"));
     };
-    
-    
+
+    // TODO: Validate that the below loop is logically and effectively-equivalent to https://github.com/webb-tools/gadget/issues/157
+
     let manager_task = async move {
         // Step 2: Listen to FinalityNotifications and poll for new services that correspond to the blueprints above
         while let Some(event) = tangle_runtime.next_event().await {
@@ -118,7 +129,7 @@ async fn main() -> color_eyre::Result<()> {
             )
             .await?;
 
-            // Check to see if local is running protocols that are not on-chain
+            // Check to see if local is running services that are not on-chain
             let mut to_remove = vec![];
             for (role, process_handle) in &mut active_shells {
                 for onchain_service in &onchain_services {

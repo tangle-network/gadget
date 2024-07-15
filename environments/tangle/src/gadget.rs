@@ -11,7 +11,6 @@ pub struct TangleJobMetadata {
     pub job_id: u64,
     pub now: <TangleWorkManager as WorkManagerInterface>::Clock,
     pub at: [u8; 32],
-    pub raw_event: TangleEvent,
 }
 
 #[derive(Debug, Clone)]
