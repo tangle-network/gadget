@@ -172,7 +172,7 @@ pub struct OperatorInfoService {}
 
 #[async_trait]
 impl OperatorInfoServiceTrait for OperatorInfoService {
-    async fn get_operator_info(&self, operator: Address) -> Result<Option<OperatorInfo>, String> {
+    async fn get_operator_info(&self, _operator: Address) -> Result<Option<OperatorInfo>, String> {
         todo!()
     }
 }
@@ -211,10 +211,11 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
         )
         .map_err(OperatorError::from)?;
 
-        let chain_id = eth_client_http
+        let _chain_id = eth_client_http
             .get_chain_id()
             .await
             .map_err(|e| OperatorError::ChainIdError(e.to_string()))?;
+        // TODO: Chain id is not used
 
         log::info!("About to read ECDSA key");
         let ecdsa_key_password =
@@ -224,7 +225,8 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
             &ecdsa_key_password,
         )
         .unwrap();
-        let ecdsa_signing_key = SigningKey::from(&ecdsa_secret_key);
+        let _ecdsa_signing_key = SigningKey::from(&ecdsa_secret_key);
+        // TODO: Ecdsa signing key is not used
 
         let setup_config = SetupConfig::<T> {
             registry_coordinator_addr: Address::from_str(&config.avs_registry_coordinator_addr)
@@ -405,10 +407,11 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::address;
     use alloy_provider::ProviderBuilder;
     use alloy_signer_local::PrivateKeySigner;
     use alloy_transport_ws::WsConnect;
+    use avs::IncredibleSquaringServiceManager;
+    use eigen_contracts::*;
     use gadget_common::subxt_signer::bip39::rand_core::OsRng;
     use k256::ecdsa::VerifyingKey;
     use k256::elliptic_curve::SecretKey;
@@ -417,37 +420,32 @@ mod tests {
     static ECDSA_PASSWORD: &str = "ECDSA_PASSWORD";
 
     // --------- IMPORTS FOR ANVIL TEST ---------
-    use alloy::signers::Signer;
-    use alloy_primitives::hex::FromHex;
+    // use alloy::signers::Signer;
     use alloy_primitives::{address, Address, Bytes, U256};
-    use alloy_provider::network::{ReceiptResponse, TransactionBuilder, TxSigner};
-    use alloy_provider::{Provider, WalletProvider};
-    use alloy_rpc_client::RpcClient;
+    // use alloy_provider::network::{TransactionBuilder, TxSigner};
+    use crate::avs;
+    use alloy_provider::Provider;
     use alloy_rpc_types_eth::BlockId;
-    use alloy_sol_types::sol;
-    use anvil::{spawn, NodeConfig};
-    use std::str::FromStr;
-    use std::time::Duration;
-    use tokio::time::sleep;
-    use url::Url;
+    use anvil::spawn;
+
     async fn test_anvil() {
         // Initialize the logger
         env_logger::init();
 
-        let (api, mut handle) = spawn(NodeConfig::test().with_port(33125)).await;
+        let (api, mut handle) = spawn(anvil::NodeConfig::test().with_port(33125)).await;
         api.anvil_auto_impersonate_account(true).await.unwrap();
         let provider = handle.http_provider();
 
         let accounts = handle.dev_wallets().collect::<Vec<_>>();
-        let from = accounts[0].address();
-        let to = accounts[1].address();
+        let _from = accounts[0].address();
+        let _to = accounts[1].address();
 
-        let amount = handle
+        let _amount = handle
             .genesis_balance()
             .checked_div(U256::from(2u64))
             .unwrap();
 
-        let gas_price = provider.get_gas_price().await.unwrap();
+        let _gas_price = provider.get_gas_price().await.unwrap();
 
         let index_registry = IndexRegistry::deploy(provider.clone()).await.unwrap();
         let index_registry_addr = index_registry.address();
@@ -545,11 +543,10 @@ mod tests {
             task_manager_addr
         );
 
-        let result = task_manager
+        let _result = task_manager
             .createNewTask(U256::from(2), 100u32, Bytes::from("0"))
             .await
             .unwrap();
-        println!("Create New Task Return: {:?}", result);
 
         let service_manager = IncredibleSquaringServiceManager::deploy(
             provider.clone(),
@@ -569,7 +566,7 @@ mod tests {
         );
 
         // get the block, await receipts
-        let block = provider
+        let _block = provider
             .get_block(BlockId::latest(), false.into())
             .await
             .unwrap()

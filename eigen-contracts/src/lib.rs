@@ -75,6 +75,13 @@ sol!(
 sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
+    IndexRegistry,
+    "out/IIndexRegistry.sol/IIndexRegistry.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
     StrategyManager,
     "out/StrategyManager.sol/StrategyManager.json"
 );

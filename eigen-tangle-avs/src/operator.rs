@@ -377,9 +377,9 @@ impl<T: Config> Operator<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::{address, Bytes, U256};
     use alloy_provider::ProviderBuilder;
     use alloy_transport_ws::WsConnect;
+    use eigen_contracts::*;
     use eigen_utils::crypto::bls::KeyPair;
     use k256::ecdsa::VerifyingKey;
     use k256::elliptic_curve::SecretKey;
@@ -389,32 +389,31 @@ mod tests {
     static ECDSA_PASSWORD: &str = "ECDSA_PASSWORD";
 
     // --------- IMPORTS FOR ANVIL TEST ---------
-    use alloy::signers::Signer;
-    use alloy_primitives::hex::FromHex;
-    use alloy_primitives::{address, ruint, Address, Bytes, TxKind, U256};
-    use alloy_provider::network::{EthereumWallet, ReceiptResponse, TransactionBuilder};
-    use alloy_provider::{Provider, WalletProvider};
-    use alloy_rpc_types_eth::{BlockId, BlockTransactions, TransactionRequest};
+    use crate::TangleValidatorServiceManager::TangleValidatorServiceManagerCalls::TangleValidatorOperatorManager;
+    use crate::{TangleValidatorServiceManager, TangleValidatorTaskManager};
+    use alloy_primitives::{address, Address, U256};
+    use alloy_provider::Provider;
+    use alloy_rpc_types_eth::BlockId;
     use alloy_signer_local::PrivateKeySigner;
-    use alloy_sol_types::sol;
-    use anvil::{spawn, NodeConfig};
-    async fn test_anvil() {
+    use anvil::spawn;
+
+    async fn run_anvil_testnet() {
         env_logger::init();
 
-        let (api, mut handle) = spawn(NodeConfig::test().with_port(33125)).await;
+        let (api, mut handle) = spawn(anvil::NodeConfig::test().with_port(33125)).await;
         api.anvil_auto_impersonate_account(true).await.unwrap();
         let provider = handle.http_provider();
 
         let accounts = handle.dev_wallets().collect::<Vec<_>>();
-        let from = accounts[0].address();
-        let to = accounts[1].address();
+        let _from = accounts[0].address();
+        let _to = accounts[1].address();
 
-        let amount = handle
+        let _amount = handle
             .genesis_balance()
             .checked_div(U256::from(2u64))
             .unwrap();
 
-        let gas_price = provider.get_gas_price().await.unwrap();
+        let _gas_price = provider.get_gas_price().await.unwrap();
 
         let index_registry = IndexRegistry::deploy(provider.clone()).await.unwrap();
         let index_registry_addr = index_registry.address();
@@ -426,8 +425,8 @@ mod tests {
             provider.clone(),
             Address::from(address!("5fbdb2315678afecb367f032d93f642f64180aa3")),
         )
-            .await
-            .unwrap();
+        .await
+        .unwrap();
         let bls_apk_registry_addr = bls_apk_registry.address();
         println!("BLS APK Registry returned");
         api.mine_one().await;
@@ -438,23 +437,23 @@ mod tests {
             Address::from(address!("5fbdb2315678afecb367f032d93f642f64180aa3")),
             Address::from(address!("e7f1725e7734ce288f8367e1bb143e90bb3f0512")),
         )
-            .await
-            .unwrap();
+        .await
+        .unwrap();
         let stake_registry_addr = stake_registry.address();
         println!("Stake Registry returned");
         api.mine_one().await;
         println!("Stake Registry deployed at: {:?}", stake_registry_addr);
 
-        let rc = RegistryCoordinator::deploy(
+        let registry_coordinator = RegistryCoordinator::deploy(
             provider.clone(),
             Address::from(address!("cf7ed3acca5a467e9e704c703e8d87f634fb0fc9")),
             *stake_registry_addr,
             *bls_apk_registry_addr,
             *index_registry_addr,
         )
-            .await
-            .unwrap();
-        let registry_coordinator_addr = rc.address();
+        .await
+        .unwrap();
+        let registry_coordinator_addr = registry_coordinator.address();
         println!("Registry Coordinator returned");
         api.mine_one().await;
         println!(
@@ -468,8 +467,8 @@ mod tests {
             Address::from(address!("73e42f117e8643cc03a4197c6c3ab38d8e5bd281")),
             Address::from(address!("83e42f117e8643cc01741973ac7cb3ad8e5bd282")),
         )
-            .await
-            .unwrap();
+        .await
+        .unwrap();
         let delegation_manager_addr = delegation_manager.address();
         println!("Delegation Manager returned");
         api.mine_one().await;
@@ -497,46 +496,39 @@ mod tests {
             state_retriever_addr
         );
 
-        let task_manager = IncredibleSquaringTaskManager::deploy(
-            provider.clone(),
-            *registry_coordinator_addr,
-            1u32,
-        )
-            .await
-            .unwrap();
-        let task_manager_addr = task_manager.address();
-        println!("Incredible Squaring Task Manager returned");
+        let tangle_task_manager =
+            TangleValidatorTaskManager::deploy(provider.clone(), *registry_coordinator_addr)
+                .await
+                .unwrap();
+        let tangle_task_manager_addr = tangle_task_manager.address();
+        println!("Tangle Validator Task Manager returned");
         api.mine_one().await;
         println!(
-            "Incredible Squaring Task Manager deployed at: {:?}",
-            task_manager_addr
+            "Tangle Validator Task Manager deployed at: {:?}",
+            tangle_task_manager_addr
         );
 
-        let result = task_manager
-            .createNewTask(U256::from(2), 100u32, Bytes::from("0"))
-            .await
-            .unwrap();
-        println!("Create New Task Return: {:?}", result);
+        // let tangle_operator_manager_addr = tangle_operator_manager.address();
+        // println!("Tangle Validator Operator Manager returned");
+        // api.mine_one().await;
+        // println!("Tangle Validator Operator Manager deployed at: {:?}", tangle_operator_manager_addr);
 
-        let service_manager = IncredibleSquaringServiceManager::deploy(
-            provider.clone(),
-            *avs_directory_addr,
-            *registry_coordinator_addr,
-            *stake_registry_addr,
-            *task_manager_addr,
-        )
-            .await
-            .unwrap();
-        let service_manager_addr = service_manager.address();
-        println!("Incredible Squaring Service Manager returned");
-        api.mine_one().await;
-        println!(
-            "Incredible Squaring Service Manager deployed at: {:?}",
-            service_manager_addr
-        );
+        // let tangle_service_manager = TangleValidatorServiceManager::deploy(
+        //     provider.clone(),
+        //     *avs_directory_addr,
+        //     *registry_coordinator_addr,
+        //     *stake_registry_addr,
+        //     *tangle_operator_manager_addr,
+        // )
+        //     .await
+        //     .unwrap();
+        // let tangle_service_manager_addr = tangle_service_manager.address();
+        // println!("Tangle Validator Service Manager returned");
+        // api.mine_one().await;
+        // println!("Tangle Validator Service Manager deployed at: {:?}", tangle_service_manager_addr);
 
         // get the block, await receipts
-        let block = provider
+        let _block = provider
             .get_block(BlockId::latest(), false.into())
             .await
             .unwrap()
@@ -545,6 +537,11 @@ mod tests {
         let serv = handle.servers.pop().unwrap();
         let res = serv.await.unwrap();
         res.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_anvil() {
+        run_anvil_testnet().await;
     }
 
     #[tokio::test]
