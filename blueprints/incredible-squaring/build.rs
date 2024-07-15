@@ -8,7 +8,7 @@ fn main() {
             "description": env!("CARGO_PKG_DESCRIPTION"),
             "author": env!("CARGO_PKG_AUTHORS"),
             "category": "Cryptographic Services",
-            "code_repository": env!("CARGO_PKG_REPOSITORY"),
+            "codeRepository": env!("CARGO_PKG_REPOSITORY"),
             "logo": "https://example.com/logo.png",
             "website": env!("CARGO_PKG_HOMEPAGE"),
             "license": env!("CARGO_PKG_LICENSE")
@@ -26,10 +26,10 @@ fn main() {
                 }
             }
         ],
-        "registration_hook": "None",
-        "registration_params": [],
-        "request_hook": "None",
-        "request_params": [],
+        "registrationHook": "None",
+        "registrationParams": [],
+        "requestHook": "None",
+        "requestParams": [],
         "gadget": {
             "Native": {
                 "soruces": [

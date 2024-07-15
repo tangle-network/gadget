@@ -1,9 +1,12 @@
+use std::str::FromStr;
+
 use alloy_primitives::U256;
 use color_eyre::{eyre::OptionExt, Result};
 use gadget_sdk::{
     events_watcher::{self, tangle::*, EventHandler, SubstrateEventWatcher},
     keystore::Backend,
 };
+use subxt_signer::ExposeSecret;
 use tangle_subxt_v2::{
     subxt,
     tangle_testnet_runtime::api::{

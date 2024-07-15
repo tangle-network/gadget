@@ -86,8 +86,9 @@ impl GadgetEnvironment {
             #[cfg(feature = "keystore-fs")]
             uri if uri.starts_with("file:") || uri.starts_with("file://") => {
                 let path = uri
-                    .trim_start_matches("file:")
-                    .trim_start_matches("file://");
+                    .trim_start_matches("file://")
+                    .trim_start_matches("file:");
+                tracing::debug!("Reading keystore from: {path}");
                 Ok(GenericKeyStore::Fs(FilesystemKeystore::open(path)?))
             }
 

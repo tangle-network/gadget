@@ -1,0 +1,20 @@
+{
+  "name": "incredible-squaring-env",
+  "version": "0.1.0",
+  "main": "index.js",
+  "author": "Shady Khalifa <dev+github@shadykhalifa.me>",
+  "license": "Unlicense",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "prettier": "3.3.3",
+    "tsx": "4.16.2",
+    "typescript": "5.5.3"
+  },
+  "dependencies": {
+    "@polkadot/api": "^12.2.1",
+    "tslib": "^2.6.3",
+    "viem": "^2.17.4"
+  }
+}

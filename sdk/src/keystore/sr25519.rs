@@ -24,5 +24,14 @@ pub fn sign(secret: &Secret, msg: &[u8]) -> Result<Signature, schnorrkel::Signat
 }
 
 pub fn secret_from_bytes(bytes: &[u8]) -> Result<Secret, schnorrkel::SignatureError> {
-    Secret::from_bytes(bytes)
+    if bytes.len() == 32 {
+        // add a new random nonce to the secret key
+        let mut final_bytes = [0u8; 64];
+        final_bytes[..32].copy_from_slice(bytes);
+        let mut rng = crate::random::getrandom_or_panic();
+        rand::Rng::fill(&mut rng, &mut final_bytes[32..]);
+        Secret::from_bytes(&final_bytes[..])
+    } else {
+        Secret::from_bytes(bytes)
+    }
 }
