@@ -40,7 +40,7 @@ pub trait EventHandler<RuntimeConfig>
 where
     RuntimeConfig: subxt::Config + Send + Sync + 'static,
 {
-    /// a method to be called with a list of events information,
+    /// A method to be called with a list of events information,
     /// it is up to the handler to decide what to do with the event.
     ///
     /// If this method returned an error, the handler will be considered as failed and will
