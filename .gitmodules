@@ -28,3 +28,6 @@
 [submodule "eigen-tangle-avs/contracts/lib/eigenlayer-middleware"]
 	path = eigen-tangle-avs/contracts/lib/eigenlayer-middleware
 	url = https://github.com/Layr-Labs/eigenlayer-middleware
+[submodule "blueprints/incredible-squaring/contracts/lib/forge-std"]
+	path = blueprints/incredible-squaring/contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std

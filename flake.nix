@@ -53,6 +53,10 @@
             # Finally the toolchain
             toolchain
             pkgs.foundry-bin
+            # Nodejs
+            pkgs.nodePackages.typescript-language-server
+            pkgs.nodejs_22
+            pkgs.nodePackages.yarn
           ];
           packages = [
             pkgs.cargo-nextest

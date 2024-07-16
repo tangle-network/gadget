@@ -26,7 +26,7 @@ serde_bytes = { workspace = true }
 anyhow = { workspace = true }
 futures = { workspace = true }
 round-based = { workspace = true }
-round-based-21 = { workspace = true, features = ["derive"]}
+round-based-21 = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
 lazy_static = { workspace = true }
 getrandom = { workspace = true }
@@ -45,7 +45,7 @@ sp-core = { workspace = true, optional = true, default-features = false }
 sp-application-crypto = { workspace = true, optional = true, default-features = false }
 sp-runtime = { workspace = true, optional = true, default-features = false }
 sp-tracing = { workspace = true, optional = true, default-features = false }
-sp-runtime-interface = { workspace = true, default-features = false}
+sp-runtime-interface = { workspace = true, default-features = false }
 sc-service = { workspace = true, optional = true, default-features = false }
 sc-client-api = { workspace = true, optional = true, default-features = false }
 substrate-prometheus-endpoint = { workspace = true, optional = true, default-features = false }
@@ -61,57 +61,51 @@ default = ["substrate", "std", "tangle-testnet"]
 tangle-testnet = []
 tangle-mainnet = []
 substrate = [
-  "gadget-core/substrate",
-  "gadget-io/default",
-  "tangle-subxt",
-  "subxt-signer/native",
-  "subxt/native",
-  "subxt/jsonrpsee",
-  "sp-api/default",
-  "sp-io/default",
-  "sp-core/default",
-  "sp-runtime/default",
-  "sp-application-crypto/default",
-  "sp-tracing/default",
-  "sc-service",
-  "sc-client-api",
-  "frame-support/std",
-  "linked-hash-map",
-  "substrate-prometheus-endpoint",
-  "parity-scale-codec",
-  "scale-info",
+    "gadget-core/substrate",
+    "gadget-io/default",
+    "tangle-subxt",
+    "subxt-signer",
+    "subxt/native",
+    "subxt/jsonrpsee",
+    "sp-api/default",
+    "sp-io/default",
+    "sp-core/default",
+    "sp-runtime/default",
+    "sp-application-crypto/default",
+    "sp-tracing/default",
+    "sc-service",
+    "sc-client-api",
+    "frame-support/std",
+    "linked-hash-map",
+    "substrate-prometheus-endpoint",
+    "parity-scale-codec",
+    "scale-info",
 ]
-std = [
-  "sqlx",
-  "serde/std",
-  "serde_bytes/std",
-  "tracing/std",
-  "tracing/attributes",
-]
+std = ["sqlx", "serde/std", "serde_bytes/std", "tracing/std", "tracing/attributes"]
 wasm = [
-  "gadget-io/wasm",
-  "serde/alloc",
-  "serde/derive",
-  "serde_bytes/alloc",
-  "tracing/alloc",
-  "getrandom/js",
-  "gadget-core/substrate",
-  "subxt-signer/web",
-  "subxt/web",
-  "subxt/jsonrpsee",
-  "sp-api",
-  "sp-io/disable_panic_handler",
-  "sp-io/disable_oom",
-  "sp-io/disable_allocator",
-  "sp-core/serde",
-  "sp-core/full_crypto",
-  "sp-runtime/serde",
-  "sp-application-crypto/serde",
-  "sp-application-crypto/full_crypto",
-  "frame-support",
-  "linked-hash-map",
-  "parity-scale-codec",
-  "scale-info",
+    "gadget-io/wasm",
+    "serde/alloc",
+    "serde/derive",
+    "serde_bytes/alloc",
+    "tracing/alloc",
+    "getrandom/js",
+    "gadget-core/substrate",
+    "subxt-signer/web",
+    "subxt/web",
+    "subxt/jsonrpsee",
+    "sp-api",
+    "sp-io/disable_panic_handler",
+    "sp-io/disable_oom",
+    "sp-io/disable_allocator",
+    "sp-core/serde",
+    "sp-core/full_crypto",
+    "sp-runtime/serde",
+    "sp-application-crypto/serde",
+    "sp-application-crypto/full_crypto",
+    "frame-support",
+    "linked-hash-map",
+    "parity-scale-codec",
+    "scale-info",
 ]
 testing = []
 
