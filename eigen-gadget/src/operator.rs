@@ -428,7 +428,7 @@ mod tests {
     use alloy_rpc_types_eth::BlockId;
     use anvil::spawn;
 
-    async fn test_anvil() {
+    async fn run_anvil_testnet() {
         // Initialize the logger
         env_logger::init();
 
@@ -545,6 +545,7 @@ mod tests {
 
         let _result = task_manager
             .createNewTask(U256::from(2), 100u32, Bytes::from("0"))
+            .call()
             .await
             .unwrap();
 
@@ -575,6 +576,11 @@ mod tests {
         let serv = handle.servers.pop().unwrap();
         let res = serv.await.unwrap();
         res.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_anvil() {
+        run_anvil_testnet().await;
     }
 
     #[tokio::test]

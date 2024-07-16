@@ -17,3 +17,11 @@ sol!(
     TangleValidatorServiceManager,
     "contracts/out/TangleValidatorServiceManager.sol/TangleValidatorServiceManager.json"
 );
+
+sol!(
+    #[allow(missing_docs)]
+    #[derive(Debug)]
+    #[sol(rpc)]
+    ITangleValidatorTaskManager,
+    "contracts/out/ITangleValidatorTaskManager.sol/ITangleValidatorTaskManager.json"
+);

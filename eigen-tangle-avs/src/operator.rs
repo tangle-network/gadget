@@ -3,6 +3,7 @@ use alloy_primitives::{ruint, Address, ChainId, FixedBytes, Signature, B256};
 use alloy_provider::{Provider, RootProvider};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
+use eigen_contracts::DelegationManager;
 use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
 use eigen_utils::avs_registry::writer::AvsRegistryChainWriterTrait;
 use eigen_utils::avs_registry::AvsRegistryContractManager;
@@ -241,6 +242,13 @@ impl<T: Config> Operator<T> {
             signer: signer.clone(),
         };
 
+        // log::info!("Starting Delegation Manager Test");
+        // let test_delegation_manager = DelegationManager::new(setup_config.delegate_manager_addr, eth_client_http.clone());
+        // let test_addr = test_delegation_manager.address();
+        // log::info!("Delegation Manager Test Address: {:?}", test_addr);
+        // let test = test_delegation_manager.slasher().call().await.map(|a| a._0).unwrap();
+        // log::info!("Delegation Manager Test Slash Address: {:?}", test);
+
         log::info!("About to build AVS Registry Contract Manager");
         let avs_registry_contract_manager = AvsRegistryContractManager::build(
             Address::from_str(&config.tangle_validator_service_manager_address).unwrap(),
@@ -358,7 +366,7 @@ impl<T: Config> Operator<T> {
         let operator_is_registered = self
             .avs_registry_contract_manager
             .is_operator_registered(self.operator_addr)
-            .await;
+            .await?;
         log::info!("Operator registration status: {:?}", operator_is_registered);
         // if !operator_is_registered? {
         //     return Err(OperatorError::OperatorNotRegistered);
@@ -389,13 +397,17 @@ mod tests {
     static ECDSA_PASSWORD: &str = "ECDSA_PASSWORD";
 
     // --------- IMPORTS FOR ANVIL TEST ---------
+    use crate::TangleValidatorServiceManager::TangleValidatorOperatorManagerCall;
     use crate::TangleValidatorServiceManager::TangleValidatorServiceManagerCalls::TangleValidatorOperatorManager;
-    use crate::{TangleValidatorServiceManager, TangleValidatorTaskManager};
+    use crate::{
+        ITangleValidatorTaskManager, TangleValidatorServiceManager, TangleValidatorTaskManager,
+    };
     use alloy_primitives::{address, Address, U256};
     use alloy_provider::Provider;
     use alloy_rpc_types_eth::BlockId;
     use alloy_signer_local::PrivateKeySigner;
     use anvil::spawn;
+    use eigen_contracts::EigenPodManager::EigenPodManagerCalls::ethPOS;
 
     async fn run_anvil_testnet() {
         env_logger::init();
@@ -414,42 +426,26 @@ mod tests {
             .unwrap();
 
         let _gas_price = provider.get_gas_price().await.unwrap();
+        // let registry_coordinator_addr = Address::from(address!("5fbdb2315678afecb367f032d93f642f64180aa3"));
+        let delegation_manager_addr =
+            Address::from(address!("e7f1725e7734ce288f8367e1bb143e90bb3f0512"));
+        let tangle_service_manager_addr =
+            Address::from(address!("afbdb2315678afecb367f032d93f642f64180aa4"));
+        let stake_registry_addr =
+            Address::from(address!("bfbdb2385678afecb367f032d93f648f64188aa3"));
+        let bls_apk_registry_addr =
+            Address::from(address!("cfbdb2318678afacb367f032a98f642f64180aa2"));
+        let index_registry_addr =
+            Address::from(address!("dfbdb2385678afecb367f032d938642f84180aa1"));
+        let strategy_manager_addr =
+            Address::from(address!("8fbdb2318678afecb368f032d93f642f64180aa6"));
 
-        let index_registry = IndexRegistry::deploy(provider.clone()).await.unwrap();
-        let index_registry_addr = index_registry.address();
-        println!("Index Registry returned");
-        api.mine_one().await;
-        println!("Index Registry deployed at: {:?}", index_registry_addr);
-
-        let bls_apk_registry = BlsApkRegistry::deploy(
+        let mut registry_coordinator = RegistryCoordinator::deploy(
             provider.clone(),
-            Address::from(address!("5fbdb2315678afecb367f032d93f642f64180aa3")),
-        )
-        .await
-        .unwrap();
-        let bls_apk_registry_addr = bls_apk_registry.address();
-        println!("BLS APK Registry returned");
-        api.mine_one().await;
-        println!("BLS APK Registry deployed at: {:?}", bls_apk_registry_addr);
-
-        let stake_registry = StakeRegistry::deploy(
-            provider.clone(),
-            Address::from(address!("5fbdb2315678afecb367f032d93f642f64180aa3")),
-            Address::from(address!("e7f1725e7734ce288f8367e1bb143e90bb3f0512")),
-        )
-        .await
-        .unwrap();
-        let stake_registry_addr = stake_registry.address();
-        println!("Stake Registry returned");
-        api.mine_one().await;
-        println!("Stake Registry deployed at: {:?}", stake_registry_addr);
-
-        let registry_coordinator = RegistryCoordinator::deploy(
-            provider.clone(),
-            Address::from(address!("cf7ed3acca5a467e9e704c703e8d87f634fb0fc9")),
-            *stake_registry_addr,
-            *bls_apk_registry_addr,
-            *index_registry_addr,
+            tangle_service_manager_addr,
+            stake_registry_addr,
+            bls_apk_registry_addr,
+            index_registry_addr,
         )
         .await
         .unwrap();
@@ -461,15 +457,100 @@ mod tests {
             registry_coordinator_addr
         );
 
-        let delegation_manager = DelegationManager::deploy(
+        let mut index_registry = IndexRegistry::deploy(provider.clone()).await.unwrap();
+        index_registry.set_address(index_registry_addr);
+        let index_registry_addr = index_registry.address();
+        println!("Index Registry returned");
+        api.mine_one().await;
+        println!("Index Registry deployed at: {:?}", index_registry_addr);
+
+        let mut bls_apk_registry =
+            BlsApkRegistry::deploy(provider.clone(), *registry_coordinator_addr)
+                .await
+                .unwrap();
+        bls_apk_registry.set_address(bls_apk_registry_addr);
+        let bls_apk_registry_addr = bls_apk_registry.address();
+        println!("BLS APK Registry returned");
+        api.mine_one().await;
+        println!("BLS APK Registry deployed at: {:?}", bls_apk_registry_addr);
+
+        let mut stake_registry = StakeRegistry::deploy(
             provider.clone(),
-            Address::from(address!("63e423a17e86433a0174197c6c7cb38d8e3ad280")),
-            Address::from(address!("73e42f117e8643cc03a4197c6c3ab38d8e5bd281")),
-            Address::from(address!("83e42f117e8643cc01741973ac7cb3ad8e5bd282")),
+            *registry_coordinator_addr,
+            delegation_manager_addr,
         )
         .await
         .unwrap();
+        stake_registry.set_address(stake_registry_addr);
+        let stake_registry_addr = stake_registry.address();
+        println!("Stake Registry returned");
+        api.mine_one().await;
+        println!("Stake Registry deployed at: {:?}", stake_registry_addr);
+
+        let slasher = ISlasher::deploy(provider.clone()).await.unwrap();
+        let slasher_addr = slasher.address();
+        // println!("Slasher returned");
+        // api.mine_one().await;
+        println!("Slasher deployed at: {:?}", slasher_addr);
+
+        let eigen_pod_manager = EigenPodManager::deploy(
+            provider.clone(),
+            Address::from(address!("73e42f117e8643cc03a4197c6c3ab38d8e5bd281")),
+            Address::from(address!("83e42f117e8643cc01741973ac7cb3ad8e5bd282")),
+            strategy_manager_addr,
+            *slasher_addr,
+            delegation_manager_addr,
+        )
+        .await
+        .unwrap();
+        let eigen_pod_manager_addr = eigen_pod_manager.address();
+        // println!("Eigen Pod Manager returned");
+        // api.mine_one().await;
+        println!(
+            "Eigen Pod Manager deployed at: {:?}",
+            eigen_pod_manager_addr
+        );
+
+        let mut strategy_manager = StrategyManager::deploy(
+            provider.clone(),
+            delegation_manager_addr,
+            *eigen_pod_manager_addr,
+            *slasher_addr,
+        )
+        .await
+        .unwrap();
+        strategy_manager.set_address(strategy_manager_addr);
+        let strategy_manager_addr = strategy_manager.address();
+        // println!("Strategy Manager returned");
+        // api.mine_one().await;
+        println!("Strategy Manager deployed at: {:?}", strategy_manager_addr);
+
+        let mut delegation_manager = DelegationManager::deploy(
+            provider.clone(),
+            *strategy_manager_addr,
+            *slasher_addr,
+            *eigen_pod_manager_addr,
+        )
+        .await
+        .unwrap();
+        let slasher = delegation_manager
+            .slasher()
+            .call()
+            .await
+            .map(|a| a._0)
+            .unwrap();
+        println!("Slasher Address from Delegation Manager: {:?}", slasher);
+        delegation_manager.set_address(delegation_manager_addr);
         let delegation_manager_addr = delegation_manager.address();
+        let test_delegation_manager =
+            DelegationManager::new(*delegation_manager_addr, provider.clone());
+        let slasher = test_delegation_manager
+            .slasher()
+            .call()
+            .await
+            .map(|a| a._0)
+            .unwrap();
+        println!("Slasher Address from Delegation Manager: {:?}", slasher);
         println!("Delegation Manager returned");
         api.mine_one().await;
         println!(
@@ -508,24 +589,52 @@ mod tests {
             tangle_task_manager_addr
         );
 
-        // let tangle_operator_manager_addr = tangle_operator_manager.address();
-        // println!("Tangle Validator Operator Manager returned");
-        // api.mine_one().await;
-        // println!("Tangle Validator Operator Manager deployed at: {:?}", tangle_operator_manager_addr);
+        let tangle_operator_manager = ITangleValidatorTaskManager::deploy(provider.clone())
+            .await
+            .unwrap();
+        let tangle_operator_manager_addr = tangle_operator_manager.address();
+        println!("Tangle Validator Operator Manager returned");
+        api.mine_one().await;
+        println!(
+            "Tangle Validator Operator Manager deployed at: {:?}",
+            tangle_operator_manager_addr
+        );
 
-        // let tangle_service_manager = TangleValidatorServiceManager::deploy(
-        //     provider.clone(),
-        //     *avs_directory_addr,
-        //     *registry_coordinator_addr,
-        //     *stake_registry_addr,
-        //     *tangle_operator_manager_addr,
-        // )
-        //     .await
-        //     .unwrap();
-        // let tangle_service_manager_addr = tangle_service_manager.address();
-        // println!("Tangle Validator Service Manager returned");
-        // api.mine_one().await;
-        // println!("Tangle Validator Service Manager deployed at: {:?}", tangle_service_manager_addr);
+        let mut tangle_service_manager = TangleValidatorServiceManager::deploy(
+            provider.clone(),
+            *avs_directory_addr,
+            *registry_coordinator_addr,
+            *stake_registry_addr,
+            *tangle_operator_manager_addr,
+        )
+        .await
+        .unwrap();
+        tangle_service_manager.set_address(tangle_service_manager_addr);
+        let tangle_service_manager_addr = tangle_service_manager.address();
+        println!("Tangle Validator Service Manager returned");
+        api.mine_one().await;
+        println!(
+            "Tangle Validator Service Manager deployed at: {:?}",
+            tangle_service_manager_addr
+        );
+
+        let mut registry_coordinator = RegistryCoordinator::deploy(
+            provider.clone(),
+            *tangle_service_manager_addr,
+            *stake_registry_addr,
+            *bls_apk_registry_addr,
+            *index_registry_addr,
+        )
+        .await
+        .unwrap();
+        registry_coordinator.set_address(*registry_coordinator_addr);
+        let registry_coordinator_addr = registry_coordinator.address();
+        println!("Registry Coordinator returned");
+        api.mine_one().await;
+        println!(
+            "Registry Coordinator deployed at: {:?}",
+            registry_coordinator_addr
+        );
 
         // get the block, await receipts
         let _block = provider
@@ -533,6 +642,65 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+
+        let http_endpoint = "http://127.0.0.1:33125";
+        let ws_endpoint = "ws://127.0.0.1:33125";
+        let node_config = NodeConfig {
+            node_api_ip_port_address: "127.0.0.1:9808".to_string(),
+            eth_rpc_url: http_endpoint.to_string(),
+            eth_ws_url: ws_endpoint.to_string(),
+            bls_private_key_store_path: "./keystore/bls".to_string(),
+            ecdsa_private_key_store_path: "./keystore/ecdsa".to_string(),
+            avs_registry_coordinator_address: registry_coordinator_addr.to_string(),
+            operator_state_retriever_address: state_retriever_addr.to_string(),
+            eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
+            tangle_validator_service_manager_address: tangle_service_manager_addr.to_string(),
+            delegation_manager_address: delegation_manager_addr.to_string(),
+            avs_directory_address: avs_directory_addr.to_string(),
+            operator_address: "0x0000000000000000000000000000000000000006".to_string(),
+            enable_metrics: false,
+            enable_node_api: false,
+        };
+
+        let signer = EigenTangleSigner {
+            signer: PrivateKeySigner::random(),
+        };
+
+        let http_provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .on_hyper_http(http_endpoint.parse().unwrap())
+            .root()
+            .clone()
+            .boxed();
+
+        let ws_provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .on_ws(WsConnect::new(ws_endpoint))
+            .await
+            .unwrap()
+            .root()
+            .clone()
+            .boxed();
+
+        let operator = Operator::<NodeConfig>::new_from_config(
+            node_config.clone(),
+            EigenTangleProvider {
+                provider: http_provider,
+            },
+            EigenTangleProvider {
+                provider: ws_provider,
+            },
+            signer,
+        )
+        .await
+        .unwrap();
+
+        println!(
+            "OPERATOR STARTING WITH ADDRESS: {:?}",
+            operator.operator_addr
+        );
+
+        operator.start().await.unwrap();
 
         let serv = handle.servers.pop().unwrap();
         let res = serv.await.unwrap();

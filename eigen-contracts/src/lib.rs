@@ -85,3 +85,10 @@ sol!(
     StrategyManager,
     "out/StrategyManager.sol/StrategyManager.json"
 );
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    EigenPodManager,
+    "out/EigenPodManager.sol/EigenPodManager.json"
+);
