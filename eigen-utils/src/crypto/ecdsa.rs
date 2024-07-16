@@ -59,7 +59,6 @@ pub struct Keystore {
     id: Uuid,
     address: String,
     private_key: Vec<u8>,
-    // nonce: [u8; 12],
 }
 
 impl Key {
@@ -99,7 +98,7 @@ fn encrypt_data_v3(
 ) -> Result<CryptoJSON, Box<dyn Error>> {
     let mut salt = [0u8; 32];
     rand::thread_rng().fill(&mut salt);
-    let scrypt_params = Params::new(scrypt_n as u8, 8, scrypt_p, 32)?;
+    let scrypt_params = Params::new(scrypt_n, 8, scrypt_p, 32)?;
     let mut derived_key = [0u8; 32];
     scrypt(auth, &salt, &scrypt_params, &mut derived_key)?;
 
@@ -243,14 +242,11 @@ pub fn write_key_from_hex(path: &str, private_key_hex: &str, password: &str) -> 
 pub fn write_key(path: &str, private_key: &SecretKey, password: &str) -> io::Result<()> {
     let id = Uuid::new_v4();
     let public_key = VerifyingKey::from(private_key.public_key());
-    // let mut nonce = [0u8; 12];
-    // OsRng.fill_bytes(&mut nonce);
 
     let key = Keystore {
         id,
         address: public_key.to_address().to_string(),
         private_key: private_key.to_bytes().to_vec(),
-        // nonce,
     };
 
     let encrypted_bytes = encrypt_key(
@@ -290,14 +286,13 @@ pub fn read_key(key_store_file: &str, password: &str) -> io::Result<SecretKey> {
     let key_store_contents = fs::read(key_store_file)?;
     let key: Key = decrypt_key(&key_store_contents, password)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
-    // SecretKey::from_bytes(FieldBytes::from_slice(&key.private_key)).map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "Invalid private key"))
     Ok(key.private_key)
 }
 
 pub fn get_address_from_keystore_file(key_store_file: &str) -> io::Result<Address> {
     let key_json = fs::read(key_store_file)?;
     let keystore: Keystore = serde_json::from_slice(&key_json)?;
-    Ok(Address::from_str(&keystore.address).map_err(|e| io::Error::new(ErrorKind::Other, e))?)
+    Address::from_str(&keystore.address).map_err(|e| io::Error::new(ErrorKind::Other, e))
 }
 
 pub trait ToAddress {

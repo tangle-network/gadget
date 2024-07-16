@@ -83,14 +83,14 @@ impl<T: Config> IncredibleSquaringContractManager<T> {
     ) -> Result<Self, AvsError> {
         let registry_coordinator =
             RegistryCoordinator::new(registry_coordinator_addr, eth_client_http.clone());
-        let service_manager_addr = registry_coordinator.service_manager().call().await?.0;
+        let service_manager_addr = registry_coordinator.serviceManager().call().await?._0;
         let service_manager =
             IncredibleSquaringServiceManager::new(service_manager_addr, eth_client_http.clone());
         let task_manager_addr = service_manager
-            .incredible_squaring_task_manager()
+            .incredibleSquaringTaskManager()
             .call()
             .await?
-            .0;
+            ._0;
 
         Ok(Self {
             task_manager_addr,
