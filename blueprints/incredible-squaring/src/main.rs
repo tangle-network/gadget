@@ -1,12 +1,9 @@
-use std::str::FromStr;
-
 use alloy_primitives::U256;
 use color_eyre::{eyre::OptionExt, Result};
 use gadget_sdk::{
     events_watcher::{self, tangle::*, EventHandler, SubstrateEventWatcher},
     keystore::Backend,
 };
-use subxt_signer::ExposeSecret;
 use tangle_subxt_v2::{
     subxt,
     tangle_testnet_runtime::api::{
@@ -44,12 +41,14 @@ async fn main() -> Result<()> {
 
     let mut seed = [0u8; 32];
     seed.copy_from_slice(&sr25519_secret.to_bytes()[0..32]);
-    let signer = subxt_signer::sr25519::Keypair::from_seed(seed)?;
+    let signer = subxt_signer::sr25519::Keypair::from_secret_key(seed)?;
 
     let x_square = IncredibleSquaringEventHandler {
         service_id: env.service_id,
         signer,
     };
+
+    tracing::info!("Starting the event watcher ...");
 
     SubstrateEventWatcher::run(
         &TangleEventsWatcher,
@@ -83,7 +82,7 @@ impl EventHandler<TangleConfig> for IncredibleSquaringEventHandler {
     async fn handle_events(
         &self,
         client: subxt::OnlineClient<TangleConfig>,
-        (events, _block_number): (subxt::events::Events<TangleConfig>, u64),
+        (events, block_number): (subxt::events::Events<TangleConfig>, u64),
     ) -> Result<(), events_watcher::Error> {
         let x_square_job_events: Vec<_> = events
             .find::<JobCalled>()
@@ -93,13 +92,16 @@ impl EventHandler<TangleConfig> for IncredibleSquaringEventHandler {
             })
             .collect();
         for call in x_square_job_events {
+            tracing::info!("Handling JobCalled Events: #{block_number}",);
             let Some(Field::Bytes(x)) = call.args.first() else {
                 tracing::warn!("No argument provided for x square job");
                 continue;
             };
             let x = U256::from_be_slice(&x.0);
+            tracing::debug!("Squaring x: {x}");
             // do the squaring
             let xsquare = blueprint::xsquare(x);
+            tracing::debug!("Squaint Result: {xsquare}");
             let xsquare_bytes = xsquare.to_be_bytes_vec();
             // craft the response.
             let result = vec![Field::Bytes(BoundedVec(xsquare_bytes))];
@@ -111,6 +113,7 @@ impl EventHandler<TangleConfig> for IncredibleSquaringEventHandler {
                 .tx()
                 .sign_and_submit_then_watch_default(&response, &self.signer)
                 .await?;
+            tracing::debug!("Submitted the result, waiting for finalization ...");
             let events = progress.wait_for_finalized_success().await?;
             // find our event.
             let maybe_event = events.find_first::<JobResultSubmitted>()?;

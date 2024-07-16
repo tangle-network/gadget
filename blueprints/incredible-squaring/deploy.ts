@@ -15,7 +15,7 @@ import * as blueprint from "./blueprint.json";
 import { AddressOrPair, SubmittableExtrinsic } from "@polkadot/api/types";
 
 const tangle = defineChain({
-  id: 3799,
+  id: 3287,
   name: "Tangle Testnet",
   nativeCurrency: {
     decimals: 18,

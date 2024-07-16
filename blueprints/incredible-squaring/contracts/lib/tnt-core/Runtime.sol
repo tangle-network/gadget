@@ -4,7 +4,8 @@ pragma solidity >=0.8.13;
 /// @dev A Contract that is inherited by all runtime hooks.
 contract Runtime {
     /// @dev address(keccak256(pallet_services::Config::PalletId::to_account_id())[0:20])
-    address constant RUNTIME_ADDRESS = 0x6D6F646c70792F73657276730000000000000000;
+    address constant RUNTIME_ADDRESS =
+        0x6d6f646c70792F73727663730000000000000000;
     /// @dev Only allow the runtime to call this function.
 
     modifier onlyRuntime() {

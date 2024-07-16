@@ -477,7 +477,9 @@ mod tests {
 
         // Generate and store BLS key pair
         let bls_key_pair = KeyPair::gen_random().unwrap();
-        bls_key_pair.save_to_file("./keystore/bls", BLS_PASSWORD).unwrap();
+        bls_key_pair
+            .save_to_file("./keystore/bls", BLS_PASSWORD)
+            .unwrap();
         let bls_keys = KeyPair::read_private_key_from_file("./keystore/bls", BLS_PASSWORD).unwrap();
         assert_eq!(bls_key_pair.priv_key.key, bls_keys.priv_key.key);
         assert_eq!(bls_key_pair.pub_key, bls_keys.pub_key);
@@ -487,9 +489,11 @@ mod tests {
         let secret_key = SecretKey::from(signing_key.clone());
         let public_key = secret_key.public_key();
         let verifying_key = VerifyingKey::from(&signing_key);
-        eigen_utils::crypto::ecdsa::write_key("./keystore/ecdsa", &secret_key, ECDSA_PASSWORD).unwrap();
+        eigen_utils::crypto::ecdsa::write_key("./keystore/ecdsa", &secret_key, ECDSA_PASSWORD)
+            .unwrap();
 
-        let read_ecdsa_secret_key = eigen_utils::crypto::ecdsa::read_key("./keystore/ecdsa", ECDSA_PASSWORD).unwrap();
+        let read_ecdsa_secret_key =
+            eigen_utils::crypto::ecdsa::read_key("./keystore/ecdsa", ECDSA_PASSWORD).unwrap();
         let read_ecdsa_public_key = read_ecdsa_secret_key.public_key();
         let read_ecdsa_signing_key = SigningKey::from(&read_ecdsa_secret_key);
         let read_ecdsa_verifying_key = VerifyingKey::from(&read_ecdsa_signing_key);

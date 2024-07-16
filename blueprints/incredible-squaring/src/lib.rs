@@ -14,9 +14,9 @@ mod tests {
     #[test]
     fn it_works() {
         let x = U256::from(3);
-        assert_eq!(x2(x), U256::from(9));
+        assert_eq!(xsquare(x), U256::from(9));
 
         let x = U256::MAX;
-        assert_eq!(x2(x), U256::MAX);
+        assert_eq!(xsquare(x), U256::MAX);
     }
 }

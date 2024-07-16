@@ -133,7 +133,7 @@ where
         };
         let task = || async {
             let blocks = client.blocks();
-            let best_block: Option<u64> = None;
+            let mut best_block: Option<u64> = None;
             loop {
                 let latest_block = blocks
                     .at_latest()
@@ -143,9 +143,19 @@ where
 
                 let latest_block_number: u64 = latest_block.number().into();
 
-                let new_block = best_block.map(|b| b < latest_block_number).unwrap_or(false);
-                if !new_block {
-                    tokio::time::sleep(Duration::from_secs(6)).await;
+                let new_block = best_block.map(|b| b < latest_block_number);
+                match new_block {
+                    Some(false) => {
+                        // same block, sleep for a while and try again.
+                        tokio::time::sleep(Duration::from_secs(6)).await;
+                        continue;
+                    }
+                    Some(true) => {
+                        // new block, handle it.
+                    }
+                    None => {
+                        // first block, no need to check
+                    }
                 }
                 let events = latest_block
                     .events()
@@ -184,6 +194,7 @@ where
                         "event handled successfully at block #{}",
                         latest_block_number
                     );
+                    best_block = Some(latest_block_number);
                 } else {
                     tracing::error!("Error while handling event, all handlers failed.");
                     tracing::warn!("Restarting event watcher ...");
