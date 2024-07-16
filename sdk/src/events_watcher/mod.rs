@@ -44,7 +44,7 @@ where
     /// it is up to the handler to decide what to do with the event.
     ///
     /// If this method returned an error, the handler will be considered as failed and will
-    /// be discarded. to have a retry mechanism, use the [`EventHandlerWithRetry::handle_events_with_retry`] method
+    /// be discarded. To have a retry mechanism, use the [`EventHandlerWithRetry::handle_events_with_retry`] method
     /// which does exactly what it says.
     async fn handle_events(
         &self,
@@ -61,7 +61,7 @@ where
 
 /// An Auxiliary trait to handle events with retry logic.
 ///
-/// this trait is automatically implemented for all the event handlers.
+/// **Note**: This trait is automatically implemented for all the event handlers.
 #[async_trait::async_trait]
 pub trait EventHandlerWithRetry<RuntimeConfig>: EventHandler<RuntimeConfig>
 where
@@ -76,7 +76,7 @@ where
     ///
     /// If this method returns Ok(true), these events will be marked as handled.
     ///
-    /// **Note**: this method is automatically implemented for all the event handlers.
+    /// **Note**: This method is automatically implemented for all the event handlers.
     async fn handle_events_with_retry(
         &self,
         client: OnlineClient<RuntimeConfig>,
