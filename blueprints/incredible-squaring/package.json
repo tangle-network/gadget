@@ -2,7 +2,7 @@
   "name": "incredible-squaring-env",
   "version": "0.1.0",
   "main": "index.js",
-  "author": "Shady Khalifa <dev+github@shadykhalifa.me>",
+  "author": "Webb <hello@webb.tools>",
   "license": "Unlicense",
   "private": true,
   "type": "module",
