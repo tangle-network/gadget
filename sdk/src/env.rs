@@ -10,7 +10,7 @@ pub struct GadgetEnvironment {
     pub keystore_uri: String,
     /// Data directory path.
     /// This is used to store the data for the gadget.
-    /// if not provided, the gadget is expected to store the data in memory.
+    /// If not provided, the gadget is expected to store the data in memory.
     pub data_dir_path: Option<String>,
     /// Blueprint ID for this gadget.
     pub blueprint_id: u64,
