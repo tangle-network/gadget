@@ -4428,6 +4428,7 @@ dependencies = [
  "eigen-utils",
  "env_logger 0.11.3",
  "foundry-common",
+ "futures",
  "gadget-aws-kms",
  "gadget-common",
  "getrandom 0.2.15",

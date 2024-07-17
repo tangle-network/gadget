@@ -1,6 +1,8 @@
+use alloy_primitives::keccak256;
 use alloy_provider::Provider;
 use alloy_pubsub::Subscription;
 use alloy_rpc_types::{Filter, Log};
+use futures::StreamExt;
 
 use async_trait::async_trait;
 use eigen_utils::{types::AvsError, Config};
@@ -20,7 +22,17 @@ impl<T: Config> IncredibleSquaringSubscriber for IncredibleSquaringContractManag
         let filter = Filter::new()
             .address(self.task_manager_addr)
             .event("NewTaskCreated");
-        let subscription = self.eth_client_ws.subscribe_logs(&filter).await?;
+        let sub = self.eth_client_ws.subscribe_logs(&filter).await?;
+
+        let signature = keccak256("NewTaskCreated(latestTaskNum, newTask)".as_bytes());
+        let subscription = self
+            .eth_client_ws
+            .subscribe_logs(&Filter::new().event_signature(signature))
+            .await?;
+        // let mut stream = subscription.into_stream().take(5);
+        // while let Some(tx) = stream.next().await {
+        //     log::info!("{tx:#?}");
+        // }
 
         Ok(subscription)
     }

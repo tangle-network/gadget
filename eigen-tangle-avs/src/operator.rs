@@ -3,7 +3,6 @@ use alloy_primitives::{ruint, Address, ChainId, FixedBytes, Signature, B256};
 use alloy_provider::{Provider, RootProvider};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::BoxTransport;
-use eigen_contracts::DelegationManager;
 use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
 use eigen_utils::avs_registry::writer::AvsRegistryChainWriterTrait;
 use eigen_utils::avs_registry::AvsRegistryContractManager;
