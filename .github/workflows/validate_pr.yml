@@ -84,7 +84,7 @@ jobs:
         run: brew install protobuf
 
       - name: build
-        run: cargo build --workspace --package ${{ matrix.package }}
+        run: cargo build --package ${{ matrix.package }}
 
   testing:
     timeout-minutes: 90
