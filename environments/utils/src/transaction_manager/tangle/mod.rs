@@ -10,7 +10,7 @@ use tangle_subxt::subxt::tx::Payload;
 #[async_trait]
 #[auto_impl(Arc)]
 pub trait TanglePalletSubmitter: Send + Sync + Debug + 'static {
-    async fn submit_service_result(
+    async fn submit_job_call_result(
         &self,
         service_id: u64,
         call_id: u64,
@@ -46,7 +46,7 @@ where
     <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::Params:
         Default + Send + Sync + 'static,
 {
-    async fn submit_service_result(
+    async fn submit_job_call_result(
         &self,
         service_id: u64,
         call_id: u64,

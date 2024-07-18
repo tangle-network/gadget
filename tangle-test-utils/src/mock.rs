@@ -882,7 +882,7 @@ pub mod mock_wrapper_client {
 
     #[async_trait]
     impl<C: Config> TanglePalletSubmitter for TestExternalitiesPalletSubmitter<C> {
-        async fn submit_service_result(
+        async fn submit_job_call_result(
             &self,
             service_id: u64,
             call_id: u64,
