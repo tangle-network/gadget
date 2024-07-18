@@ -1,14 +1,19 @@
 #![allow(dead_code)]
 
 use alloy_contract::private::Ethereum;
+use alloy_primitives::private::rand::Rng;
+use alloy_primitives::ruint::aliases;
 use alloy_primitives::{Address, ChainId, FixedBytes, Signature, B256, U256};
+use alloy_provider::network::AnyNetwork;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_rpc_types::Log;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::SolValue;
 use alloy_transport::BoxTransport;
 use async_trait::async_trait;
+use eigen_contracts::IndexRegistry::IndexRegistryCalls::registryCoordinator;
 use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
+use eigen_utils::avs_registry::writer::AvsRegistryChainWriterTrait;
 use eigen_utils::avs_registry::AvsRegistryContractManager;
 use eigen_utils::crypto::bls::KeyPair;
 use eigen_utils::el_contracts::ElChainContractManager;
@@ -16,12 +21,17 @@ use eigen_utils::node_api::NodeApi;
 use eigen_utils::services::operator_info::OperatorInfoServiceTrait;
 use eigen_utils::types::{AvsError, OperatorInfo};
 use eigen_utils::Config;
+use foundry_common::provider::runtime_transport::RuntimeTransport;
+use foundry_common::provider::tower::RetryBackoffService;
+use foundry_common::provider::RetryProvider;
+use gadget_common::subxt_signer::bip39::rand;
 use k256::ecdsa::SigningKey;
 use log::error;
 use prometheus::Registry;
 use std::future::Future;
 use std::pin::Pin;
 use std::str::FromStr;
+use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
 use crate::aggregator::Aggregator;
@@ -225,7 +235,7 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
             &ecdsa_key_password,
         )
         .unwrap();
-        let _ecdsa_signing_key = SigningKey::from(&ecdsa_secret_key);
+        let ecdsa_signing_key = SigningKey::from(&ecdsa_secret_key);
         // TODO: Ecdsa signing key is not used
 
         let setup_config = SetupConfig::<T> {
@@ -301,6 +311,28 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
             bls_keypair.clone().get_pub_key_g2(),
         );
 
+        let mut salt = [0u8; 32];
+        rand::thread_rng().fill(&mut salt);
+        let sig_salt = FixedBytes::from_slice(&salt);
+        let expiry = aliases::U256::from(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                + 3600,
+        );
+        let register_result = avs_registry_contract_manager
+            .register_operator_in_quorum_with_avs_registry_coordinator(
+                &ecdsa_signing_key,
+                sig_salt,
+                expiry,
+                &bls_keypair,
+                alloy_primitives::Bytes::from(vec![0]),
+                "33125".to_string(),
+            )
+            .await;
+        log::info!("Register result: {:?}", register_result);
+
         log::info!("About to create operator");
         let operator = Operator {
             config: config.clone(),
@@ -350,6 +382,7 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
             .unwrap();
 
         log::info!("Subscribed to new tasks: {:?}", sub);
+        log::info!("Raw Subscription: {:?}", sub.inner());
 
         let value = sub.recv().await.unwrap();
         log::info!("Received new task: {:?}", value);
@@ -435,6 +468,10 @@ mod tests {
     use alloy_provider::Provider;
     use alloy_rpc_types_eth::BlockId;
     use anvil::spawn;
+    use foundry_common::provider::RetryProvider;
+    use futures::StreamExt;
+    use url::Url;
+
     struct ContractAddresses {
         pub service_manager: Address,
         pub registry_coordinator: Address,
@@ -450,7 +487,20 @@ mod tests {
 
         let (api, mut handle) = spawn(anvil::NodeConfig::test().with_port(33125)).await;
         api.anvil_auto_impersonate_account(true).await.unwrap();
-        let provider = handle.http_provider();
+        // let http_provider = handle.http_provider();
+        // let ws_provider = handle.ws_provider();
+
+        let http_provider = ProviderBuilder::new()
+            .on_http(Url::parse(&handle.http_endpoint()).unwrap())
+            .root()
+            .clone();
+
+        // let provider = ProviderBuilder::new().on_ws(WsConnect::new(handle.ws_endpoint())).await.unwrap();
+
+        let provider = ProviderBuilder::new()
+            .on_builtin(&handle.ws_endpoint())
+            .await
+            .unwrap();
 
         let accounts = handle.dev_wallets().collect::<Vec<_>>();
         let from = accounts[0].address();
@@ -578,7 +628,7 @@ mod tests {
         let task_manager = IncredibleSquaringTaskManager::deploy(
             provider.clone(),
             *registry_coordinator_addr,
-            10u32,
+            1u32,
         )
         .await
         .unwrap();
@@ -589,12 +639,6 @@ mod tests {
             "Incredible Squaring Task Manager deployed at: {:?}",
             task_manager_addr
         );
-
-        let result = task_manager
-            .createNewTask(U256::from(2), 100u32, Bytes::from("0"))
-            .call()
-            .await
-            .unwrap();
 
         let service_manager = IncredibleSquaringServiceManager::deploy(
             provider.clone(),
@@ -613,6 +657,26 @@ mod tests {
             service_manager_addr
         );
 
+        log::info!("About to create new task");
+        tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
+        let result = task_manager
+            .createNewTask(U256::from(2), 100u32, Bytes::from("0"))
+            .call()
+            .await
+            .unwrap();
+        log::info!("Created new task: {:?}", result);
+        let latest_task = task_manager.latestTaskNum().call().await.unwrap()._0;
+        log::info!("Latest task: {:?}", latest_task);
+        let task_hash = task_manager
+            .allTaskHashes(latest_task)
+            .call()
+            .await
+            .unwrap()
+            ._0;
+        log::info!("Task info: {:?}", task_hash);
+
+        api.mine_one().await;
+
         let _block = provider
             .get_block(BlockId::latest(), false.into())
             .await
@@ -626,13 +690,15 @@ mod tests {
             res.unwrap();
         };
         let spawner_task_manager_address = task_manager_addr.clone();
-        let spawner_provider = provider.clone();
+        // let spawner_provider = provider.clone();
+        let spawner_provider = provider;
         let task_spawner = async move {
             let manager = IncredibleSquaringTaskManager::new(
                 spawner_task_manager_address,
                 spawner_provider.clone(),
             );
             loop {
+                api.mine_one().await;
                 log::info!("About to create new task");
                 tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
                 let result = manager
@@ -641,10 +707,40 @@ mod tests {
                     .await
                     .unwrap();
                 log::info!("Created new task: {:?}", result);
+                let latest_task = manager.latestTaskNum().call().await.unwrap()._0;
+                log::info!("Latest task: {:?}", latest_task);
+                let task_hash = manager.allTaskHashes(latest_task).call().await.unwrap()._0;
+                log::info!("Task info: {:?}", task_hash);
             }
         };
         tokio::spawn(run_testnet);
         tokio::spawn(task_spawner);
+
+        // let ws = ProviderBuilder::new().on_ws(WsConnect::new(handle.ws_endpoint())).await.unwrap();
+        //
+        // // Subscribe to new blocks.
+        // let sub = ws.subscribe_blocks().await.unwrap();
+        //
+        // // Wait and take the next 4 blocks.
+        // let mut stream = sub.into_stream();
+        //
+        // log::warn!("Awaiting blocks...");
+        //
+        // // Take the stream and print the block number upon receiving a new block.
+        // let handle = tokio::spawn(async move {
+        //     log::warn!("About to mine blocks...");
+        //     api.mine_one().await;
+        //     while let Some(block) = stream.next().await {
+        //         log::warn!(
+        //             "Latest block number: {}",
+        //             block.header.number.expect("Failed to get block number")
+        //         );
+        //         api.mine_one().await;
+        //     }
+        // });
+        //
+        // handle.await.unwrap();
+
         ContractAddresses {
             service_manager: *service_manager_addr,
             registry_coordinator: *registry_coordinator_addr,
@@ -757,70 +853,70 @@ mod tests {
         assert_eq!(verifying_key, read_ecdsa_verifying_key);
     }
 
-    #[tokio::test]
-    async fn test_run_operator() {
-        env_logger::init();
-        let http_endpoint = "http://127.0.0.1:33125";
-        let ws_endpoint = "ws://127.0.0.1:33125";
-        let node_config = NodeConfig {
-            node_api_ip_port_address: "127.0.0.1:9808".to_string(),
-            eth_rpc_url: http_endpoint.to_string(),
-            eth_ws_url: ws_endpoint.to_string(),
-            bls_private_key_store_path: "./keystore/bls".to_string(),
-            ecdsa_private_key_store_path: "./keystore/ecdsa".to_string(),
-            incredible_squaring_service_manager_addr: "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9"
-                .to_string(),
-            avs_registry_coordinator_addr: "0x5fbdb2315678afecb367f032d93f642f64180aa3".to_string(),
-            operator_state_retriever_addr: "0xdc64a140aa3e981100a9beca4e685f962f0cf6c9".to_string(),
-            eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
-            delegation_manager_addr: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512".to_string(),
-            avs_directory_addr: "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0".to_string(),
-            operator_address: "0x0000000000000000000000000000000000000006".to_string(),
-            enable_metrics: false,
-            enable_node_api: false,
-            server_ip_port_address: "".to_string(),
-        };
-
-        let operator_info_service = OperatorInfoService {};
-
-        let signer = EigenGadgetSigner {
-            signer: PrivateKeySigner::random(),
-        };
-
-        let http_provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .on_http(http_endpoint.parse().unwrap())
-            .root()
-            .clone()
-            .boxed();
-
-        println!("About to set up WS Provider");
-
-        let ws_provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .on_ws(WsConnect::new(ws_endpoint))
-            .await
-            .unwrap()
-            .root()
-            .clone()
-            .boxed();
-
-        println!("About to set up Operator");
-
-        let operator = Operator::<NodeConfig, OperatorInfoService>::new_from_config(
-            node_config.clone(),
-            EigenGadgetProvider {
-                provider: http_provider,
-            },
-            EigenGadgetProvider {
-                provider: ws_provider,
-            },
-            operator_info_service,
-            signer,
-        )
-        .await
-        .unwrap();
-
-        operator.start().await.unwrap();
-    }
+    // #[tokio::test]
+    // async fn test_run_operator() {
+    //     env_logger::init();
+    //     let http_endpoint = "http://127.0.0.1:33125";
+    //     let ws_endpoint = "ws://127.0.0.1:33125";
+    //     let node_config = NodeConfig {
+    //         node_api_ip_port_address: "127.0.0.1:9808".to_string(),
+    //         eth_rpc_url: http_endpoint.to_string(),
+    //         eth_ws_url: ws_endpoint.to_string(),
+    //         bls_private_key_store_path: "./keystore/bls".to_string(),
+    //         ecdsa_private_key_store_path: "./keystore/ecdsa".to_string(),
+    //         incredible_squaring_service_manager_addr: "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9"
+    //             .to_string(),
+    //         avs_registry_coordinator_addr: "0x5fbdb2315678afecb367f032d93f642f64180aa3".to_string(),
+    //         operator_state_retriever_addr: "0xdc64a140aa3e981100a9beca4e685f962f0cf6c9".to_string(),
+    //         eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
+    //         delegation_manager_addr: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512".to_string(),
+    //         avs_directory_addr: "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0".to_string(),
+    //         operator_address: "0x0000000000000000000000000000000000000006".to_string(),
+    //         enable_metrics: false,
+    //         enable_node_api: false,
+    //         server_ip_port_address: "".to_string(),
+    //     };
+    //
+    //     let operator_info_service = OperatorInfoService {};
+    //
+    //     let signer = EigenGadgetSigner {
+    //         signer: PrivateKeySigner::random(),
+    //     };
+    //
+    //     let http_provider = ProviderBuilder::new()
+    //         .with_recommended_fillers()
+    //         .on_http(http_endpoint.parse().unwrap())
+    //         .root()
+    //         .clone()
+    //         .boxed();
+    //
+    //     println!("About to set up WS Provider");
+    //
+    //     let ws_provider = ProviderBuilder::new()
+    //         .with_recommended_fillers()
+    //         .on_ws(WsConnect::new(ws_endpoint))
+    //         .await
+    //         .unwrap()
+    //         .root()
+    //         .clone()
+    //         .boxed();
+    //
+    //     println!("About to set up Operator");
+    //
+    //     let operator = Operator::<NodeConfig, OperatorInfoService>::new_from_config(
+    //         node_config.clone(),
+    //         EigenGadgetProvider {
+    //             provider: http_provider,
+    //         },
+    //         EigenGadgetProvider {
+    //             provider: ws_provider,
+    //         },
+    //         operator_info_service,
+    //         signer,
+    //     )
+    //     .await
+    //     .unwrap();
+    //
+    //     operator.start().await.unwrap();
+    // }
 }

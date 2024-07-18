@@ -332,7 +332,7 @@ impl<T: Config> Operator<T> {
                 sig_salt,
                 expiry,
                 &bls_keypair,
-                alloy_primitives::Bytes::from(b"0"),
+                alloy_primitives::Bytes::from(vec![0]),
                 "33125".to_string(),
             )
             .await;
@@ -396,8 +396,6 @@ mod tests {
     static ECDSA_PASSWORD: &str = "ECDSA_PASSWORD";
 
     // --------- IMPORTS FOR ANVIL TEST ---------
-    use crate::TangleValidatorServiceManager::TangleValidatorOperatorManagerCall;
-    use crate::TangleValidatorServiceManager::TangleValidatorServiceManagerCalls::TangleValidatorOperatorManager;
     use crate::{
         ITangleValidatorTaskManager, TangleValidatorServiceManager, TangleValidatorTaskManager,
     };
@@ -406,7 +404,6 @@ mod tests {
     use alloy_rpc_types_eth::BlockId;
     use alloy_signer_local::PrivateKeySigner;
     use anvil::spawn;
-    use eigen_contracts::EigenPodManager::EigenPodManagerCalls::ethPOS;
 
     async fn run_anvil_testnet() {
         env_logger::init();
@@ -426,22 +423,25 @@ mod tests {
 
         let _gas_price = provider.get_gas_price().await.unwrap();
         // let registry_coordinator_addr = Address::from(address!("5fbdb2315678afecb367f032d93f642f64180aa3"));
-        let delegation_manager_addr =
-            Address::from(address!("e7f1725e7734ce288f8367e1bb143e90bb3f0512"));
+
         let tangle_service_manager_addr =
             Address::from(address!("afbdb2315678afecb367f032d93f642f64180aa4"));
+        let delegation_manager_addr =
+            Address::from(address!("0165878a594ca255338adfa4d48449f69242eb8f"));
+        let service_manager_addr =
+            Address::from(address!("610178da211fef7d417bc0e6fed39f05609ad788"));
         let stake_registry_addr =
-            Address::from(address!("bfbdb2385678afecb367f032d93f648f64188aa3"));
+            Address::from(address!("cf7ed3acca5a467e9e704c703e8d87f634fb0fc9"));
         let bls_apk_registry_addr =
-            Address::from(address!("cfbdb2318678afacb367f032a98f642f64180aa2"));
+            Address::from(address!("9fe46736679d2d9a65f0992f2272de9f3c7fa6e0"));
         let index_registry_addr =
-            Address::from(address!("dfbdb2385678afecb367f032d938642f84180aa1"));
+            Address::from(address!("e7f1725e7734ce288f8367e1bb143e90bb3f0512"));
         let strategy_manager_addr =
             Address::from(address!("8fbdb2318678afecb368f032d93f642f64180aa6"));
 
-        let mut registry_coordinator = RegistryCoordinator::deploy(
+        let registry_coordinator = RegistryCoordinator::deploy(
             provider.clone(),
-            tangle_service_manager_addr,
+            service_manager_addr,
             stake_registry_addr,
             bls_apk_registry_addr,
             index_registry_addr,
@@ -457,7 +457,6 @@ mod tests {
         );
 
         let mut index_registry = IndexRegistry::deploy(provider.clone()).await.unwrap();
-        index_registry.set_address(index_registry_addr);
         let index_registry_addr = index_registry.address();
         println!("Index Registry returned");
         api.mine_one().await;
@@ -467,7 +466,6 @@ mod tests {
             BlsApkRegistry::deploy(provider.clone(), *registry_coordinator_addr)
                 .await
                 .unwrap();
-        bls_apk_registry.set_address(bls_apk_registry_addr);
         let bls_apk_registry_addr = bls_apk_registry.address();
         println!("BLS APK Registry returned");
         api.mine_one().await;
@@ -480,7 +478,6 @@ mod tests {
         )
         .await
         .unwrap();
-        stake_registry.set_address(stake_registry_addr);
         let stake_registry_addr = stake_registry.address();
         println!("Stake Registry returned");
         api.mine_one().await;
@@ -488,8 +485,6 @@ mod tests {
 
         let slasher = ISlasher::deploy(provider.clone()).await.unwrap();
         let slasher_addr = slasher.address();
-        // println!("Slasher returned");
-        // api.mine_one().await;
         println!("Slasher deployed at: {:?}", slasher_addr);
 
         let eigen_pod_manager = EigenPodManager::deploy(
@@ -503,53 +498,20 @@ mod tests {
         .await
         .unwrap();
         let eigen_pod_manager_addr = eigen_pod_manager.address();
-        // println!("Eigen Pod Manager returned");
-        // api.mine_one().await;
         println!(
             "Eigen Pod Manager deployed at: {:?}",
             eigen_pod_manager_addr
         );
 
-        let mut strategy_manager = StrategyManager::deploy(
-            provider.clone(),
-            delegation_manager_addr,
-            *eigen_pod_manager_addr,
-            *slasher_addr,
-        )
-        .await
-        .unwrap();
-        strategy_manager.set_address(strategy_manager_addr);
-        let strategy_manager_addr = strategy_manager.address();
-        // println!("Strategy Manager returned");
-        // api.mine_one().await;
-        println!("Strategy Manager deployed at: {:?}", strategy_manager_addr);
-
         let mut delegation_manager = DelegationManager::deploy(
             provider.clone(),
-            *strategy_manager_addr,
+            strategy_manager_addr,
             *slasher_addr,
             *eigen_pod_manager_addr,
         )
         .await
         .unwrap();
-        let slasher = delegation_manager
-            .slasher()
-            .call()
-            .await
-            .map(|a| a._0)
-            .unwrap();
-        println!("Slasher Address from Delegation Manager: {:?}", slasher);
-        delegation_manager.set_address(delegation_manager_addr);
         let delegation_manager_addr = delegation_manager.address();
-        let test_delegation_manager =
-            DelegationManager::new(*delegation_manager_addr, provider.clone());
-        let slasher = test_delegation_manager
-            .slasher()
-            .call()
-            .await
-            .map(|a| a._0)
-            .unwrap();
-        println!("Slasher Address from Delegation Manager: {:?}", slasher);
         println!("Delegation Manager returned");
         api.mine_one().await;
         println!(
@@ -608,7 +570,6 @@ mod tests {
         )
         .await
         .unwrap();
-        tangle_service_manager.set_address(tangle_service_manager_addr);
         let tangle_service_manager_addr = tangle_service_manager.address();
         println!("Tangle Validator Service Manager returned");
         api.mine_one().await;
@@ -617,25 +578,8 @@ mod tests {
             tangle_service_manager_addr
         );
 
-        let mut registry_coordinator = RegistryCoordinator::deploy(
-            provider.clone(),
-            *tangle_service_manager_addr,
-            *stake_registry_addr,
-            *bls_apk_registry_addr,
-            *index_registry_addr,
-        )
-        .await
-        .unwrap();
-        registry_coordinator.set_address(*registry_coordinator_addr);
-        let registry_coordinator_addr = registry_coordinator.address();
-        println!("Registry Coordinator returned");
         api.mine_one().await;
-        println!(
-            "Registry Coordinator deployed at: {:?}",
-            registry_coordinator_addr
-        );
 
-        // get the block, await receipts
         let _block = provider
             .get_block(BlockId::latest(), false.into())
             .await
