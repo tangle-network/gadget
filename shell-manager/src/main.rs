@@ -81,7 +81,7 @@ async fn main() -> color_eyre::Result<()> {
         &blueprints,
         logger,
         &shell_config,
-        &opt,
+        opt,
         &mut active_shells,
     )
     .await?;
@@ -94,7 +94,7 @@ async fn main() -> color_eyre::Result<()> {
                 &blueprints,
                 logger,
                 &shell_config,
-                &opt,
+                opt,
                 &mut active_shells,
             )
             .await?;
@@ -148,13 +148,12 @@ async fn handle_tangle_block(
         match evt {
             Ok(evt) => {
                 logger.info(format!("Unregistered event: {evt:?}"));
-                if &evt.operator == account_id {
-                    if active_shells.remove(&evt.blueprint_id).is_some() {
-                        logger.info(format!(
-                            "Removed all services for blueprint_id: {}",
-                            evt.blueprint_id,
-                        ));
-                    }
+                if &evt.operator == account_id && active_shells.remove(&evt.blueprint_id).is_some()
+                {
+                    logger.info(format!(
+                        "Removed all services for blueprint_id: {}",
+                        evt.blueprint_id,
+                    ));
                 }
             }
             Err(err) => {
@@ -214,7 +213,6 @@ async fn handle_tangle_event(
     // TODO: Refactor into Vec<SourceMetadata<T>> where T: NativeGithubMetadata + [...]
     let mut onchain_services = vec![];
     let mut fetchers = vec![];
-    let mut blueprint_ids = vec![];
     let mut service_ids = vec![];
 
     for blueprint in blueprints {
@@ -227,7 +225,6 @@ async fn handle_tangle_event(
                 let metadata = github_fetcher_to_native_github_metadata(gh, blueprint.blueprint_id);
                 onchain_services.push(metadata);
                 fetchers.push(gh);
-                blueprint_ids.push(blueprint.blueprint_id);
 
                 for service in &blueprint.services {
                     services_for_this_blueprint.push(service.id);
@@ -262,7 +259,6 @@ async fn handle_tangle_event(
         shell_manager_opts,
         active_shells,
         logger,
-        &blueprint_ids,
     )
     .await?;
 

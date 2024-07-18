@@ -129,26 +129,3 @@ impl Client<TangleEvent> for TangleRuntime {
         }
     }
 }
-
-#[cfg(test)]
-#[cfg(not(target_family = "wasm"))]
-mod tests {
-    use super::*;
-    use gadget_common::color_eyre::eyre::OptionExt;
-    use gadget_common::gadget_io::tokio;
-
-    #[ignore = "requires a running node"]
-    #[tokio::test]
-    async fn client() -> gadget_common::color_eyre::Result<()> {
-        let subxt_client = subxt::OnlineClient::new().await?;
-        let runtime = TangleRuntime::new(subxt_client);
-
-        let notification = runtime
-            .next_event()
-            .await
-            .ok_or_eyre("Finality notification not found")?;
-        let job_id = runtime.query_next_job_id(notification.hash).await?;
-        eprintln!("Next job id: {}", job_id);
-        Ok(())
-    }
-}

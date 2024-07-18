@@ -6,6 +6,7 @@ use crate::utils::get_service_str;
 use color_eyre::eyre::OptionExt;
 use gadget_common::prelude::DebugLogger;
 use gadget_io::ShellTomlConfig;
+use std::fmt::Write;
 use tangle_environment::api::RpcServicesWithBlueprint;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
     GadgetBinary, GithubFetcher,
@@ -20,21 +21,15 @@ pub async fn maybe_handle(
     shell_manager_opts: &ShellManagerOpts,
     active_shells: &mut ActiveShells,
     logger: &DebugLogger,
-    blueprint_ids: &[u64],
 ) -> color_eyre::Result<()> {
-    for ((gh, fetcher), blueprint_id) in onchain_services
-        .into_iter()
-        .zip(onchain_gh_fetchers)
-        .into_iter()
-        .zip(blueprint_ids)
-    {
+    for (gh, fetcher) in onchain_services.iter().zip(onchain_gh_fetchers) {
         let native_wasm_metadata = NativeGithubMetadata {
             git: gh.git.clone(),
             tag: gh.tag.clone(),
             owner: gh.owner.clone(),
             repo: gh.repo.clone(),
             gadget_binaries: fetcher.binaries.0.clone(),
-            blueprint_id: *blueprint_id,
+            blueprint_id: gh.blueprint_id,
         };
 
         if let Err(err) = handle_github_source(
@@ -42,10 +37,9 @@ pub async fn maybe_handle(
             &native_wasm_metadata,
             shell_config,
             shell_manager_opts,
-            *fetcher,
+            fetcher,
             active_shells,
             logger,
-            *blueprint_id,
         )
         .await
         {
@@ -64,8 +58,8 @@ async fn handle_github_source(
     github: &GithubFetcher,
     active_shells: &mut ActiveShells,
     logger: &DebugLogger,
-    blueprint_id: u64,
 ) -> color_eyre::Result<()> {
+    let blueprint_id = service.blueprint_id;
     let service_str = get_service_str(service);
     if !active_shells.contains_key(&blueprint_id) {
         // Maybe add in the protocol to the active shells
@@ -166,7 +160,10 @@ async fn handle_github_source(
 }
 
 fn slice_32_to_sha_hex_string(hash: [u8; 32]) -> String {
-    hash.iter().map(|byte| format!("{:02x}", byte)).collect()
+    hash.iter().fold(String::new(), |mut acc, byte| {
+        write!(&mut acc, "{:02x}", byte).expect("Should be able to write");
+        acc
+    })
 }
 
 fn get_gadget_binary(gadget_binaries: &[GadgetBinary]) -> Option<&GadgetBinary> {
