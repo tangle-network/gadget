@@ -628,9 +628,7 @@ pub async fn new_test_ext<
     let ext = MultiThreadedTestExternalities::new(ext);
     assert!(TEST_EXTERNALITIES.lock().replace(ext.clone()).is_none(), "Make sure to run tests serially with -- --test-threads=1 or with nextest to ensure separate program spaces per test");
 
-    let finality_notification_txs = Arc::new(parking_lot::Mutex::new(Vec::<
-        TracingUnboundedSender<FinalityNotification<Block>>,
-    >::new()));
+    let finality_notification_txs = Arc::new(parking_lot::Mutex::new(Vec::new()));
     let sinks = finality_notification_txs.clone();
     let externalities = ext.clone();
 
@@ -747,6 +745,7 @@ pub mod mock_wrapper_client {
     use sp_runtime::traits::Header;
     use std::sync::Arc;
     use std::time::Duration;
+    use tangle_environment::gadget::TangleEvent;
     use tangle_primitives::AccountId;
 
     #[derive(Clone)]
@@ -754,17 +753,16 @@ pub mod mock_wrapper_client {
         runtime: Arc<R>,
         finality_notification_stream:
             Arc<gadget_io::tokio::sync::Mutex<Option<FinalityNotifications<B>>>>,
-        latest_finality_notification:
-            Arc<gadget_io::tokio::sync::Mutex<Option<FinalityNotification<B>>>>,
+        latest_finality_notification: Arc<gadget_io::tokio::sync::Mutex<Option<TangleEvent>>>,
         finality_notification_txs:
-            Arc<parking_lot::Mutex<Vec<TracingUnboundedSender<FinalityNotification<B>>>>>,
+            Arc<parking_lot::Mutex<Vec<TracingUnboundedSender<TangleEvent>>>>,
     }
 
     impl<R, B: Block> MockClient<R, B> {
         pub async fn new(
             runtime: R,
             finality_notification_txs: Arc<
-                parking_lot::Mutex<Vec<TracingUnboundedSender<FinalityNotification<B>>>>,
+                parking_lot::Mutex<Vec<TracingUnboundedSender<TangleEvent>>>,
             >,
         ) -> Self {
             let runtime = Arc::new(runtime);
@@ -786,10 +784,8 @@ pub mod mock_wrapper_client {
     }
 
     #[async_trait]
-    impl<R: Send + Sync + Clone, B: Block> Client<substrate::FinalityNotification>
-        for MockClient<R, B>
-    {
-        async fn next_event(&self) -> Option<substrate::FinalityNotification> {
+    impl<R: Send + Sync + Clone, B: Block> Client<TangleEvent> for MockClient<R, B> {
+        async fn next_event(&self) -> Option<TangleEvent> {
             let mut lock = self
                 .finality_notification_stream
                 .lock_timeout(Duration::from_millis(500))
@@ -806,21 +802,28 @@ pub mod mock_wrapper_client {
                 hash.copy_from_slice(n.header.hash().as_ref());
                 let number =
                     Decode::decode(&mut Encode::encode(&n.header.number()).as_slice()).unwrap();
-                substrate::FinalityNotification { hash, number }
+                TangleEvent {
+                    hash,
+                    number,
+                    events: n,
+                }
             })
         }
 
-        async fn latest_event(&self) -> Option<substrate::FinalityNotification> {
+        async fn latest_event(&self) -> Option<TangleEvent> {
             let lock = self
                 .latest_finality_notification
                 .lock_timeout(Duration::from_millis(500))
                 .await;
             if let Some(n) = lock.clone() {
                 let mut hash = [0u8; 32];
-                hash.copy_from_slice(n.header.hash().as_ref());
-                let number =
-                    Decode::decode(&mut Encode::encode(&n.header.number()).as_slice()).unwrap();
-                Some(substrate::FinalityNotification { hash, number })
+                hash.copy_from_slice(&n.hash);
+                let number = Decode::decode(&mut Encode::encode(&n.number).as_slice()).unwrap();
+                Some(TangleEvent {
+                    hash,
+                    number,
+                    events: n,
+                })
             } else {
                 drop(lock);
                 self.next_event().await

@@ -18,7 +18,4 @@ pub struct ShellManagerOpts {
     /// Whether to use pretty logging
     #[structopt(long)]
     pub pretty: bool,
-    /// Wether this is debug mode or not
-    #[structopt(long, short = "t")]
-    pub test: bool,
 }

@@ -1,8 +1,17 @@
 use crate::work_manager::TangleWorkManager;
+use gadget_common::tangle_subxt::subxt::events::Events;
+use gadget_common::tangle_subxt::subxt::PolkadotConfig;
 use gadget_common::WorkManagerInterface;
-use gadget_core::gadget::substrate::FinalityNotification;
 
-pub type TangleEvent = FinalityNotification;
+#[derive(Clone)]
+pub struct TangleEvent {
+    /// Finalized block number.
+    pub number: u64,
+    /// Finalized block header hash.
+    pub hash: [u8; 32],
+    /// Events
+    pub events: Events<PolkadotConfig>,
+}
 
 pub struct TangleJobMetadata {
     pub task_id: <TangleWorkManager as WorkManagerInterface>::TaskID,

@@ -7,12 +7,11 @@ use gadget_common::tangle_subxt::subxt::blocks::{Block, BlockRef};
 use gadget_common::tangle_subxt::subxt::{self, PolkadotConfig};
 use gadget_common::{async_trait, tangle_runtime::*};
 use gadget_core::gadget::general::Client;
-use gadget_core::gadget::substrate::FinalityNotification;
 
 pub type TangleConfig = subxt::PolkadotConfig;
-type TangleClient = subxt::OnlineClient<TangleConfig>;
-type TangleBlock = Block<TangleConfig, TangleClient>;
-type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
+pub type TangleClient = subxt::OnlineClient<TangleConfig>;
+pub type TangleBlock = Block<TangleConfig, TangleClient>;
+pub type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
 
 pub mod crypto {
     use sp_application_crypto::{app_crypto, ecdsa, sr25519};
@@ -32,13 +31,13 @@ pub mod crypto {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TangleRuntime {
     client: subxt::OnlineClient<PolkadotConfig>,
     finality_notification_stream:
         Arc<gadget_common::gadget_io::tokio::sync::Mutex<Option<TangleBlockStream>>>,
     latest_finality_notification:
-        Arc<gadget_common::gadget_io::tokio::sync::Mutex<Option<FinalityNotification>>>,
+        Arc<gadget_common::gadget_io::tokio::sync::Mutex<Option<TangleEvent>>>,
     account_id: AccountId32,
 }
 
@@ -93,9 +92,11 @@ impl Client<TangleEvent> for TangleRuntime {
         match lock.as_mut() {
             Some(stream) => {
                 let block = stream.next().await?.ok()?;
+                let events = block.events().await.ok()?;
                 let notification = TangleEvent {
                     number: block.number().into(),
                     hash: block.hash().into(),
+                    events,
                 };
                 let mut lock2 = self
                     .latest_finality_notification

@@ -19,7 +19,6 @@ pub async fn maybe_handle(
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
     active_shells: &mut ActiveShells,
-    global_protocols: &[NativeGithubMetadata],
     logger: &DebugLogger,
     blueprint_ids: &[u64],
 ) -> color_eyre::Result<()> {
@@ -35,6 +34,7 @@ pub async fn maybe_handle(
             owner: gh.owner.clone(),
             repo: gh.repo.clone(),
             gadget_binaries: fetcher.binaries.0.clone(),
+            blueprint_id: *blueprint_id,
         };
 
         if let Err(err) = handle_github_source(
@@ -74,7 +74,8 @@ async fn handle_github_source(
         let expected_hash = slice_32_to_sha_hex_string(relevant_binary.sha256);
 
         let current_dir = std::env::current_dir()?;
-        let mut binary_download_path = format!("{}/protocol-{tag}", current_dir.display());
+        let mut binary_download_path =
+            format!("{}/protocol-{:?}", current_dir.display(), github.tag);
 
         if utils::is_windows() {
             binary_download_path += ".exe"

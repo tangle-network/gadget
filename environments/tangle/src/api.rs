@@ -1,5 +1,4 @@
 use gadget_common::config::DebugLogger;
-use gadget_common::tangle_runtime::api::runtime_apis::services_api::types::QueryServicesWithBlueprintsByOperator;
 use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services;
 use gadget_common::tangle_runtime::AccountId32;
 use gadget_common::tangle_subxt::subxt::backend::BlockRef;
@@ -13,6 +12,7 @@ pub type BlockHash = [u8; 32];
 /// TODO: Make this the object that is used for getting services and submitting transactions as necessary.
 pub struct ServicesClient<C: Config> {
     rpc_client: OnlineClient<C>,
+    #[allow(dead_code)]
     logger: DebugLogger,
 }
 
@@ -32,7 +32,7 @@ impl<C: Config> ServicesClient<C>
 where
     BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
 {
-    pub async fn query_restaker_blueprints(
+    pub async fn query_operator_blueprints(
         &self,
         at: [u8; 32],
         address: AccountId32,
@@ -40,15 +40,17 @@ where
         let call = api::apis()
             .services_api()
             .query_services_with_blueprints_by_operator(address);
-        let block_ref = BlockRef::from_hash(H256::from_slice(&at));
-        //let call = api::storage().services().next_blueprint_id();
-        let ret: Vec<QueryServicesWithBlueprintsByOperator> = self
+        let at = BlockRef::from_hash(H256::from_slice(&at));
+        let ret: Vec<RpcServicesWithBlueprint> = self
             .rpc_client
-            .storage()
-            .at(block_ref.clone())
-            .fetch_or_default(&call)
+            .runtime_api()
+            .at(at)
+            .call(call)
             .await
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })?;
+            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })?
+            .map_err(|err| gadget_common::Error::ClientError {
+                err: format!("{err:?}"),
+            })?;
 
         Ok(ret)
     }

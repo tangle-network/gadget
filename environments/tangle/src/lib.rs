@@ -13,7 +13,6 @@ use gadget_common::tangle_subxt::subxt::tx::Signer;
 use gadget_common::tangle_subxt::subxt::PolkadotConfig;
 use gadget_common::utils::serialize;
 use gadget_common::WorkManagerInterface;
-use gadget_core::gadget::substrate::FinalityNotification;
 use message::TangleProtocolMessage;
 use runtime::TangleRuntime;
 use std::sync::Arc;
@@ -55,7 +54,7 @@ impl std::fmt::Debug for TangleEnvironment {
 
 #[async_trait]
 impl GadgetEnvironment for TangleEnvironment {
-    type Event = FinalityNotification;
+    type Event = TangleEvent;
     type ProtocolMessage = TangleProtocolMessage;
     type Client = TangleRuntime;
     type WorkManager = TangleWorkManager;
