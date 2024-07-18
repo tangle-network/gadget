@@ -1,21 +1,15 @@
 [package]
-name = "gadget-blueprint-proc-macro"
+name = "blueprint-metadata"
 version = "0.1.0"
+description = "A build dependency for generating metadata for Blueprint at compile time."
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
-[lib]
-proc-macro = true
-
 [dependencies]
-syn = { version = "2.0", features = ["full"] }
-quote = "1.0"
-proc-macro2 = "1.0"
-serde_json = { workspace = true }
+typed-builder = { version = "0.19" }
 gadget-blueprint-proc-macro-core = { workspace = true }
-
-[dev-dependencies]
-trybuild = "1.0"
+serde_json = { workspace = true }
+rustdoc-types = "0.27.0"

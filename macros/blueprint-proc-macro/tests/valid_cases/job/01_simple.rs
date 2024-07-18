@@ -1,7 +1,7 @@
 use gadget_blueprint_proc_macro::job;
 
 /// A simple job that generates a key of length `n`
-#[job(params(n), result(Vec<u8>))]
+#[job(id = 0, params(n), result(Vec<u8>))]
 fn keygen(n: u16) -> Vec<u8> {
     let _ = n;
     Vec::new()

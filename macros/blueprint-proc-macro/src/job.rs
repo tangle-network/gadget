@@ -5,10 +5,11 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
-use syn::{Ident, ItemFn, Token, Type};
+use syn::{Ident, ItemFn, LitInt, Token, Type};
 
 // Defines custom keywords
 mod kw {
+    syn::custom_keyword!(id);
     syn::custom_keyword!(params);
     syn::custom_keyword!(result);
 }
@@ -18,7 +19,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     let fn_name = &input.sig.ident;
     let fn_name_string = fn_name.to_string();
     let job_def_name = format_ident!("{}_JOB_DEF", fn_name_string.to_ascii_uppercase());
-    let function_docs = get_function_docs(input);
+    let job_id_name = format_ident!("{}_JOB_ID", fn_name_string.to_ascii_uppercase());
 
     let syn::ReturnType::Type(_, result) = &input.sig.output else {
         return Err(syn::Error::new_spanned(
@@ -45,52 +46,43 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     }
 
     // Extract params and result types from args
+    let job_id = &args.id;
     let params_type = args.params_to_to_field_types(&param_types)?;
     let result_type = args.result_to_field_types(result)?;
     let job_def = JobDefinition {
         metadata: JobMetadata {
             name: fn_name_string.clone().into(),
-            description: if function_docs.is_empty() {
-                None
-            } else {
-                Some(function_docs.join("\n").into())
-            },
+            description: None,
         },
         params: params_type,
         result: result_type,
         verifier: JobResultVerifier::None,
     };
 
-    let ron = ron::Options::default().with_default_extension(ron::extensions::Extensions::all());
-    let job_dev_str = ron
-        .to_string_pretty(
-            &job_def,
-            ron::ser::PrettyConfig::new()
-                .struct_names(false)
-                .compact_arrays(false),
+    let job_def_str = serde_json::to_string(&job_def).map_err(|err| {
+        syn::Error::new_spanned(
+            input,
+            format!("Failed to serialize job definition to ron: {err}"),
         )
-        .map_err(|err| {
-            syn::Error::new_spanned(
-                input,
-                format!("Failed to serialize job definition to ron: {err}"),
-            )
-        })?;
+    })?;
     // Generate the struct
     let gen = quote! {
         #[doc = "Job definition for the function "]
+        #[doc = "[`"]
         #[doc = #fn_name_string]
-        pub const #job_def_name: &str = #job_dev_str;
+        #[doc = "`]"]
+        pub const #job_def_name: &str = #job_def_str;
+
+        #[doc = "Job ID for the function "]
+        #[doc = "[`"]
+        #[doc = #fn_name_string]
+        #[doc = "`]"]
+        pub const #job_id_name: u8 = #job_id;
 
         #input
     };
 
     Ok(gen.into())
-}
-
-/// Extracts documentation comments from an [`ItemFn`]
-fn get_function_docs(_item_fn: &ItemFn) -> Vec<String> {
-    // TODO: Add a way to extract the documentation comments from the function
-    vec![]
 }
 
 /// Convert a `snake_case` string to `PascalCase`
@@ -109,6 +101,7 @@ fn pascal_case(s: &str) -> String {
 
 /// `JobArgs` type to handle parsing of attributes
 pub(crate) struct JobArgs {
+    id: LitInt,
     params: Vec<Ident>,
     result: ResultsKind,
 }
@@ -117,10 +110,15 @@ impl Parse for JobArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut params = Vec::new();
         let mut result = None;
+        let mut id = None;
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
-            if lookahead.peek(kw::params) {
+            if lookahead.peek(kw::id) {
+                let _ = input.parse::<kw::id>()?;
+                let _ = input.parse::<Token![=]>()?;
+                id = Some(input.parse()?);
+            } else if lookahead.peek(kw::params) {
                 let Params(p) = input.parse()?;
                 params = p;
             } else if lookahead.peek(kw::result) {
@@ -133,8 +131,10 @@ impl Parse for JobArgs {
             }
         }
 
+        let id = id.ok_or_else(|| input.error("Missing `id` argument in attribute"))?;
+
         if params.is_empty() {
-            return Err(input.error("Missing 'params' argument in attribute"));
+            return Err(input.error("Missing `params` argument in attribute"));
         }
 
         let result = result.ok_or_else(|| input.error("Missing 'result' argument in attribute"))?;
@@ -145,7 +145,7 @@ impl Parse for JobArgs {
             }
         }
 
-        Ok(JobArgs { params, result })
+        Ok(JobArgs { id, params, result })
     }
 }
 

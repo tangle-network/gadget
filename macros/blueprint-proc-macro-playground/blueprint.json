@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "gadget-blueprint-proc-macro-playground",
+    "description": "",
+    "author": "Webb Technologies Inc.",
+    "category": null,
+    "code_repository": "https://github.com/webb-tools/gadget",
+    "logo": null,
+    "website": "https://tangle.tools",
+    "license": "Unlicense"
+  },
+  "jobs": [],
+  "registration_hook": "None",
+  "registration_params": [],
+  "request_hook": "None",
+  "request_params": [],
+  "gadget": {
+    "Wasm": {
+      "runtime": "Wasmtime",
+      "soruces": []
+    }
+  }
+}

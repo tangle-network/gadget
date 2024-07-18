@@ -1311,6 +1311,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-metadata"
+version = "0.1.0"
+dependencies = [
+ "gadget-blueprint-proc-macro-core",
+ "rustdoc-types",
+ "serde_json",
+ "typed-builder",
+]
+
+[[package]]
 name = "bounded-collections"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1444,6 +1454,12 @@ name = "cfg_aliases"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
+
+[[package]]
+name = "cfg_aliases"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
 name = "chacha"
@@ -2589,6 +2605,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "environment-utils"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "auto_impl",
+ "gadget-common",
+ "gadget-io",
+ "tangle-subxt",
+ "tokio",
+]
+
+[[package]]
 name = "environmental"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2762,6 +2790,28 @@ checksum = "7cd915d99f24784cdc19fd37ef22b97e3ff0ae756c7e492e9fbfe897d61e2aec"
 dependencies = [
  "indenter",
  "once_cell",
+]
+
+[[package]]
+name = "failure"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d32e9bd16cc02eae7db7ef620b392808b89f6a5e16bb3497d159c6b92a0f4f86"
+dependencies = [
+ "backtrace",
+ "failure_derive",
+]
+
+[[package]]
+name = "failure_derive"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa4da3c766cd7a0db8242e326e9e4e081edd567072893ed320008189715366a4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+ "synstructure",
 ]
 
 [[package]]
@@ -3458,7 +3508,6 @@ dependencies = [
  "gadget-blueprint-proc-macro-core",
  "proc-macro2",
  "quote",
- "ron",
  "serde_json",
  "syn 2.0.63",
  "trybuild",
@@ -3476,6 +3525,7 @@ dependencies = [
 name = "gadget-blueprint-proc-macro-playground"
 version = "0.1.0"
 dependencies = [
+ "blueprint-metadata",
  "gadget-blueprint-proc-macro",
 ]
 
@@ -3542,10 +3592,27 @@ dependencies = [
  "hex",
  "log",
  "parking_lot 0.12.2",
+ "serde",
  "sp-core",
  "tokio",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
+]
+
+[[package]]
+name = "gadget-executor"
+version = "0.1.0"
+dependencies = [
+ "failure",
+ "futures",
+ "gadget-common",
+ "gadget-io",
+ "itertools 0.13.0",
+ "nix 0.29.0",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tokio",
 ]
 
 [[package]]
@@ -4344,7 +4411,7 @@ dependencies = [
  "rtnetlink",
  "system-configuration",
  "tokio",
- "windows",
+ "windows 0.51.1",
 ]
 
 [[package]]
@@ -4581,6 +4648,15 @@ name = "itertools"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
@@ -4857,9 +4933,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.154"
+version = "0.2.155"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae743338b92ff9146ce83992f766a31066a91a8c84a45e0e9f21e7cf6de6d346"
+checksum = "97b3888a4aecf77e811145cadf6eef5901f4782c53886191b2f693f24761847c"
 
 [[package]]
 name = "libm"
@@ -6544,7 +6620,19 @@ checksum = "ab2156c4fce2f8df6c499cc1c763e4394b7482525bf2a9701c9d79d215f519e4"
 dependencies = [
  "bitflags 2.5.0",
  "cfg-if",
- "cfg_aliases",
+ "cfg_aliases 0.1.1",
+ "libc",
+]
+
+[[package]]
+name = "nix"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
+dependencies = [
+ "bitflags 2.5.0",
+ "cfg-if",
+ "cfg_aliases 0.2.1",
  "libc",
 ]
 
@@ -6581,6 +6669,15 @@ name = "normalize-line-endings"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61807f77802ff30975e01f4f071c8ba10c022052f98b3294119f3e615d13e5be"
+
+[[package]]
+name = "ntapi"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8a3895c6391c39d7fe7ebc444a87eb2991b2a0bc718fdabd071eec617fc68e4"
+dependencies = [
+ "winapi",
+]
 
 [[package]]
 name = "nu-ansi-term"
@@ -8190,18 +8287,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ron"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b91f7eff05f748767f183df4320a63d6936e9c6107d97c9e6bdd9784f4289c94"
-dependencies = [
- "base64 0.21.7",
- "bitflags 2.5.0",
- "serde",
- "serde_derive",
-]
-
-[[package]]
 name = "round-based"
 version = "0.1.7"
 source = "git+https://github.com/webb-tools/round-based-protocol#959126f9f6edce16d4ee95954091b93e33a83140"
@@ -8328,6 +8413,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
 dependencies = [
  "semver",
+]
+
+[[package]]
+name = "rustdoc-types"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbe3d9a9818bcf1e08f3ce06b359260921c2271d2c650b3589a43f0fd020774a"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -9553,9 +9647,9 @@ checksum = "cd0b0ec5f1c1ca621c432a25813d8d60c88abe6d3e08a3eb9cf37d97a0fe3d73"
 
 [[package]]
 name = "serde"
-version = "1.0.201"
+version = "1.0.204"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "780f1cebed1629e4753a1a38a3c72d30b97ec044f0aef68cb26650a3c5cf363c"
+checksum = "bc76f558e0cbb2a839d37354c575f1dc3fdc6546b5be373ba43d95f231bf7c12"
 dependencies = [
  "serde_derive",
 ]
@@ -9582,9 +9676,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.201"
+version = "1.0.204"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5e405930b9796f1c00bee880d03fc7e0bb4b9a11afc776885ffe84320da2865"
+checksum = "e0cd7e117be63d3c3678776753929474f3b04a43a080c744d6b0ae2a8c28e222"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -9783,6 +9877,7 @@ dependencies = [
  "sha2 0.10.8",
  "shell-sdk",
  "structopt",
+ "tangle-environment",
  "tangle-subxt",
  "tokio",
  "toml 0.8.12",
@@ -9802,6 +9897,7 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "env_logger 0.11.3",
+ "environment-utils",
  "futures",
  "futures-timer",
  "gadget-common",
@@ -9829,9 +9925,10 @@ dependencies = [
  "sp-io",
  "sp-keystore",
  "structopt",
+ "tangle-environment",
  "tangle-primitives",
  "tangle-subxt",
- "test-utils",
+ "tangle-test-utils",
  "tokio_with_wasm",
  "toml 0.8.12",
  "tracing 0.1.40",
@@ -11277,7 +11374,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a2a1c578e98c1c16fc3b8ec1328f7659a500737d7a0c6d625e73e830ff9c1f6"
 dependencies = [
  "bitflags 1.3.2",
- "cfg_aliases",
+ "cfg_aliases 0.1.1",
  "libc",
  "parking_lot 0.11.2",
  "parking_lot_core 0.8.6",
@@ -11291,7 +11388,7 @@ version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70a2595fc3aa78f2d0e45dd425b22282dd863273761cc77780914b2cf3003acf"
 dependencies = [
- "cfg_aliases",
+ "cfg_aliases 0.1.1",
  "memchr",
  "proc-macro2",
  "quote",
@@ -11587,6 +11684,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "sysinfo"
+version = "0.30.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a5b4ddaee55fb2bea2bf0e5000747e5f5c0de765e5a5ff87f4cd106439f4bb3"
+dependencies = [
+ "cfg-if",
+ "core-foundation-sys",
+ "libc",
+ "ntapi",
+ "once_cell",
+ "rayon",
+ "windows 0.52.0",
+]
+
+[[package]]
 name = "system-configuration"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11615,6 +11727,24 @@ dependencies = [
  "parity-scale-codec 3.6.12",
  "scale-info",
  "sp-application-crypto",
+]
+
+[[package]]
+name = "tangle-environment"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "auto_impl",
+ "environment-utils",
+ "gadget-common",
+ "gadget-core",
+ "parity-scale-codec 3.6.12",
+ "parking_lot 0.12.2",
+ "scale-info",
+ "serde",
+ "sp-application-crypto",
+ "sp-core",
+ "url",
 ]
 
 [[package]]
@@ -11653,6 +11783,45 @@ dependencies = [
  "parity-scale-codec 3.6.12",
  "scale-info",
  "subxt",
+]
+
+[[package]]
+name = "tangle-test-utils"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "environment-utils",
+ "frame-support",
+ "frame-system",
+ "futures",
+ "gadget-common",
+ "gadget-core",
+ "gadget-io",
+ "getrandom 0.2.15",
+ "log",
+ "pallet-balances",
+ "pallet-dkg",
+ "pallet-jobs",
+ "pallet-jobs-rpc-runtime-api",
+ "pallet-timestamp",
+ "pallet-zksaas",
+ "parity-scale-codec 3.6.12",
+ "parking_lot 0.12.2",
+ "sc-client-api",
+ "sc-utils",
+ "scale-info",
+ "serde",
+ "sp-api",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-externalities 0.25.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0)",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0)",
+ "tangle-environment",
+ "tangle-primitives",
+ "tracing-subscriber 0.3.18",
 ]
 
 [[package]]
@@ -11704,43 +11873,6 @@ name = "termtree"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
-
-[[package]]
-name = "test-utils"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "frame-support",
- "frame-system",
- "futures",
- "gadget-common",
- "gadget-core",
- "gadget-io",
- "getrandom 0.2.15",
- "log",
- "pallet-balances",
- "pallet-dkg",
- "pallet-jobs",
- "pallet-jobs-rpc-runtime-api",
- "pallet-timestamp",
- "pallet-zksaas",
- "parity-scale-codec 3.6.12",
- "parking_lot 0.12.2",
- "sc-client-api",
- "sc-utils",
- "scale-info",
- "serde",
- "sp-api",
- "sp-application-crypto",
- "sp-core",
- "sp-externalities 0.25.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0)",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0)",
- "tangle-primitives",
- "tracing-subscriber 0.3.18",
-]
 
 [[package]]
 name = "textwrap"
@@ -11838,9 +11970,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.37.0"
+version = "1.38.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1adbebffeca75fcfd058afa480fb6c0b81e165a0323f9c9d39c9697e37c46787"
+checksum = "eb2caba9f80616f438e09748d5acda951967e1ea58508ef53d9c6402485a46df"
 dependencies = [
  "backtrace",
  "bytes",
@@ -11857,9 +11989,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-macros"
-version = "2.2.0"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b8a1e28f2deaa14e508979454cb3a223b10b938b45af148bc0986de36f1923b"
+checksum = "5f5ae998a069d4b5aba8ee9dad856af7d520c3699e6159b185c2acd48155d39a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -12367,6 +12499,26 @@ dependencies = [
  "digest 0.10.7",
  "rand",
  "static_assertions",
+]
+
+[[package]]
+name = "typed-builder"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06fbd5b8de54c5f7c91f6fe4cebb949be2125d7758e630bb58b1d831dbce600"
+dependencies = [
+ "typed-builder-macro",
+]
+
+[[package]]
+name = "typed-builder-macro"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9534daa9fd3ed0bd911d462a37f172228077e7abf18c18a5f67199d959205f8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.63",
 ]
 
 [[package]]
@@ -13335,6 +13487,16 @@ checksum = "ca229916c5ee38c2f2bc1e9d8f04df975b4bd93f9955dc69fabb5d91270045c9"
 dependencies = [
  "windows-core 0.51.1",
  "windows-targets 0.48.5",
+]
+
+[[package]]
+name = "windows"
+version = "0.52.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e48a53791691ab099e5e2ad123536d0fff50652600abaf43bbf952894110d0be"
+dependencies = [
+ "windows-core 0.52.0",
+ "windows-targets 0.52.5",
 ]
 
 [[package]]

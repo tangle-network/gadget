@@ -9,3 +9,6 @@ repository.workspace = true
 
 [dependencies]
 gadget-blueprint-proc-macro = { workspace = true }
+
+[build-dependencies]
+blueprint-metadata = { workspace = true }
