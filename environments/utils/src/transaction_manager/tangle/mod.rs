@@ -3,9 +3,9 @@ use gadget_common::async_trait::async_trait;
 use gadget_common::config::DebugLogger;
 use gadget_common::tangle_runtime::api;
 use gadget_common::tangle_subxt::subxt;
-use gadget_common::tangle_subxt::subxt::tx::TxPayload;
 use gadget_common::tangle_subxt::subxt::OnlineClient;
 use std::fmt::Debug;
+use tangle_subxt::subxt::tx::Payload;
 
 #[async_trait]
 #[auto_impl(Arc)]
@@ -43,7 +43,7 @@ where
     S: subxt::tx::Signer<C> + Send + Sync + 'static,
     C::AccountId: std::fmt::Display + Send + Sync + 'static,
     C::Hash: std::fmt::Display,
-    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams:
+    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::Params:
         Default + Send + Sync + 'static,
 {
     async fn submit_service_result(
@@ -85,7 +85,7 @@ where
     C::AccountId: std::fmt::Display,
     S: subxt::tx::Signer<C>,
     C::Hash: std::fmt::Display,
-    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams: Default,
+    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::Params: Default,
 {
     pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, gadget_common::Error> {
         let subxt_client =
@@ -105,7 +105,7 @@ where
         }
     }
 
-    async fn submit<Call: TxPayload>(&self, call: &Call) -> anyhow::Result<C::Hash> {
+    async fn submit<Call: Payload>(&self, call: &Call) -> anyhow::Result<C::Hash> {
         if let Some(details) = call.validation_details() {
             self.logger.trace(format!(
                 "({}) Submitting {}.{}",
@@ -121,7 +121,7 @@ where
             .await?
             .wait_for_finalized_success()
             .await?
-            .block_hash())
+            .extrinsic_hash())
     }
 }
 

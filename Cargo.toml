@@ -171,7 +171,7 @@ starknet-crypto = "0.6.1"
 anyhow = "1.0.79"
 libsecp256k1 = "0.7.1"
 rayon = { version = "1.8.0" }
-thiserror = { version = "=1.0.57" }
+thiserror = { version = "1" }
 aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc", "getrandom", "zeroize"] }
 zeroize = { version = "1", default-features = false, features = ["alloc", "zeroize_derive"] }
 substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.7.0", default-features = false }

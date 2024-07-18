@@ -2,16 +2,18 @@ use crate::config::ShellManagerOpts;
 use crate::gadget::ActiveShells;
 use crate::protocols::resolver::NativeGithubMetadata;
 use crate::utils;
-use crate::utils::{bytes_to_utf8_string, get_service_str};
+use crate::utils::get_service_str;
 use color_eyre::eyre::OptionExt;
 use gadget_common::prelude::DebugLogger;
 use gadget_io::ShellTomlConfig;
+use tangle_environment::api::RpcServicesWithBlueprint;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
-    GadgetBinary, GadgetSourceFetcher, GithubFetcher, ServiceBlueprint,
+    GadgetBinary, GithubFetcher,
 };
 use tokio::io::AsyncWriteExt;
 
-pub async fn handle(
+pub async fn maybe_handle(
+    blueprints: &Vec<RpcServicesWithBlueprint>,
     onchain_services: &[NativeGithubMetadata],
     onchain_gh_fetchers: &[&GithubFetcher],
     shell_config: &ShellTomlConfig,
@@ -19,8 +21,14 @@ pub async fn handle(
     active_shells: &mut ActiveShells,
     global_protocols: &[NativeGithubMetadata],
     logger: &DebugLogger,
+    blueprint_ids: &[u64],
 ) -> color_eyre::Result<()> {
-    for (gh, fetcher) in onchain_services.into_iter().zip(onchain_gh_fetchers) {
+    for ((gh, fetcher), blueprint_id) in onchain_services
+        .into_iter()
+        .zip(onchain_gh_fetchers)
+        .into_iter()
+        .zip(blueprint_ids)
+    {
         let native_wasm_metadata = NativeGithubMetadata {
             git: gh.git.clone(),
             tag: gh.tag.clone(),
@@ -30,12 +38,14 @@ pub async fn handle(
         };
 
         if let Err(err) = handle_github_source(
+            blueprints,
             &native_wasm_metadata,
             shell_config,
             shell_manager_opts,
             *fetcher,
             active_shells,
             logger,
+            *blueprint_id,
         )
         .await
         {
@@ -47,21 +57,18 @@ pub async fn handle(
 }
 
 async fn handle_github_source(
+    blueprints: &Vec<RpcServicesWithBlueprint>,
     service: &NativeGithubMetadata,
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
     github: &GithubFetcher,
     active_shells: &mut ActiveShells,
     logger: &DebugLogger,
+    blueprint_id: u64,
 ) -> color_eyre::Result<()> {
-    let service_str = utils::get_service_str(service);
-    if !active_shells.contains_key(&service_str) {
-        // Add in the protocol
-        let owner = bytes_to_utf8_string(github.owner.0 .0.clone())?;
-        let repo = bytes_to_utf8_string(github.owner.0 .0.clone())?;
-        let tag = bytes_to_utf8_string(github.tag.0 .0.clone())?;
-        let git = format!("https://github.com/{owner}/{repo}");
-
+    let service_str = get_service_str(service);
+    if !active_shells.contains_key(&blueprint_id) {
+        // Maybe add in the protocol to the active shells
         let relevant_binary =
             get_gadget_binary(&github.binaries.0).ok_or_eyre("Unable to find matching binary")?;
         let expected_hash = slice_32_to_sha_hex_string(relevant_binary.sha256);
@@ -78,7 +85,7 @@ async fn handle_github_source(
         // Check if the binary exists, if not download it
         let retrieved_hash =
             if !utils::valid_file_exists(&binary_download_path, &expected_hash).await {
-                let url = utils::get_download_url(git, &tag);
+                let url = utils::get_download_url(&service.git, &service.tag);
 
                 let download = reqwest::get(&url)
                     .await
@@ -89,7 +96,7 @@ async fn handle_github_source(
                 let retrieved_hash = utils::hash_bytes_to_hex(&download);
 
                 // Write the binary to disk
-                let mut file = gadget_io::tokio::fs::File::create(&binary_download_path).await?;
+                let mut file = tokio::fs::File::create(&binary_download_path).await?;
                 file.write_all(&download).await?;
                 file.flush().await?;
                 Some(retrieved_hash)
@@ -113,25 +120,45 @@ async fn handle_github_source(
             }
         }
 
-        let arguments = utils::generate_process_arguments(shell_config, shell_manager_opts)?;
+        for blueprint in blueprints {
+            if blueprint.blueprint_id == blueprint_id {
+                for svc in &blueprint.services {
+                    let service_id = svc.id;
+                    let sub_service_str = format!("{service_str}-{service_id}");
+                    // Each spawned binary will effectively run a single "RoleType" in old parlance
+                    let arguments = utils::generate_process_arguments(
+                        shell_config,
+                        shell_manager_opts,
+                        blueprint_id,
+                        service_id,
+                    )?;
 
-        logger.info(format!("Starting protocol: {service_str}"));
+                    logger.info(format!("Starting protocol: {sub_service_str}"));
 
-        // Now that the file is loaded, spawn the process
-        let process_handle = gadget_io::tokio::process::Command::new(&binary_download_path)
-            .kill_on_drop(true)
-            .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
-            .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
-            .stdin(std::process::Stdio::null())
-            .current_dir(&std::env::current_dir()?)
-            .envs(std::env::vars().collect::<Vec<_>>())
-            .args(arguments)
-            .spawn()?;
+                    // Now that the file is loaded, spawn the process
+                    let process_handle = tokio::process::Command::new(&binary_download_path)
+                        .kill_on_drop(true)
+                        .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
+                        .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
+                        .stdin(std::process::Stdio::null())
+                        .current_dir(&std::env::current_dir()?)
+                        .envs(std::env::vars().collect::<Vec<_>>())
+                        .args(arguments)
+                        .spawn()?;
 
-        let (status_handle, abort) =
-            utils::generate_running_process_status_handle(process_handle, logger, &service_str);
+                    let (status_handle, abort) = utils::generate_running_process_status_handle(
+                        process_handle,
+                        logger,
+                        &sub_service_str,
+                    );
 
-        active_shells.insert(service_str.clone(), (status_handle, Some(abort)));
+                    active_shells
+                        .entry(blueprint_id)
+                        .or_default()
+                        .insert(service_id, (status_handle, Some(abort)));
+                }
+            }
+        }
     }
 
     Ok(())

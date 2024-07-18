@@ -14,8 +14,8 @@ tangle = []
 gadget-common = { workspace = true }
 anyhow = { workspace = true }
 auto_impl = { workspace = true }
+tangle-subxt = { workspace = true }
 
 [dev-dependencies]
 gadget-io = { workspace = true }
 tokio = { workspace = true }
-tangle-subxt = { workspace = true }

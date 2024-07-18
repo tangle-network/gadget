@@ -1,7 +1,6 @@
+use crate::work_manager::TangleWorkManager;
 use gadget_common::WorkManagerInterface;
 use gadget_core::gadget::substrate::FinalityNotification;
-
-use crate::work_manager::TangleWorkManager;
 
 pub type TangleEvent = FinalityNotification;
 

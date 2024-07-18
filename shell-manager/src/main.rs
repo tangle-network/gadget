@@ -1,4 +1,6 @@
+use crate::gadget::ActiveShells;
 use crate::protocols::resolver::{load_global_config_file, NativeGithubMetadata};
+use crate::utils::github_fetcher_to_native_github_metadata;
 use color_eyre::Report;
 use config::ShellManagerOpts;
 use gadget_common::gadget_io;
@@ -7,14 +9,17 @@ use gadget_common::sp_core::Pair;
 use gadget_io::ShellTomlConfig;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::keystore::load_keys_from_keystore;
+use shell_sdk::prelude::tangle_primitives::services::Gadget;
 use shell_sdk::{entry, Client, DebugLogger};
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use structopt::StructOpt;
-use tangle_environment::api::ServicesClient;
-use tangle_environment::gadget::SubxtConfig;
+use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
+use tangle_environment::gadget::{SubxtConfig, TangleEvent};
 use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::utils::AccountId32;
+use tangle_subxt::subxt::Config;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher;
 
 pub mod config;
 pub mod error;
@@ -58,106 +63,57 @@ async fn main() -> color_eyre::Result<()> {
 
     let tangle_runtime = tangle_environment.setup_runtime().await?;
     let runtime = ServicesClient::new(logger.clone(), tangle_runtime.client());
-
     let mut active_shells = HashMap::<String, _>::new();
 
     // With the basics setup, we must now implement the main logic
     /*
-       1. Shell (on init) calls query blueprints with services by operator RPC and then it downloads the binaries.
-       2. It does not execute them right away, there are a few things that need to be done first
-           a. For each blueprint, there is a list of services associated with it, run the blueprint binary (gadget) as a child process
-           b. If it is empty, we do nothing other than listing for a new event that states a new service instance got created by one of these blueprints.
-           c. At this event, we start a new process running this gadget.
+       * Query to get Vec<RpcServicesWithBlueprint>
+       * For each RpcServicesWithBlueprint, fetch the associated gadget binary (fetch/download)
+        -> If the services field is empty, just emit and log inside the executed binary "that states a new service instance got created by one of these blueprints"
+        -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
     */
 
-    // Get blueprint on init, per ordering requirement
-    // TODO: Use these below instead of re-querying in manager_task loop below
-    let blueprints = if let Some(event) = tangle_runtime.next_event().await {
-        utils::get_blueprints(
-            &runtime,
-            event.hash,
-            sub_account_id.clone(),
-            &global_protocols,
-            test_mode,
-        )
-        .await?
-    } else {
-        return Err(Report::msg("Failed to get initial block hash"));
-    };
-
-    // TODO: Validate that the below loop is logically and effectively-equivalent to https://github.com/webb-tools/gadget/issues/157
-
-    let manager_task = async move {
-        // Step 2: Listen to FinalityNotifications and poll for new services that correspond to the blueprints above
-        while let Some(event) = tangle_runtime.next_event().await {
-            logger.info(format!("Received notification {}", event.number));
-            let onchain_services = utils::get_services(
+    let (blueprints, init_event) = if let Some(event) = tangle_runtime.next_event().await {
+        (
+            utils::get_blueprints(
                 &runtime,
                 event.hash,
                 sub_account_id.clone(),
                 &global_protocols,
                 test_mode,
             )
-            .await?;
-            let onchain_services = onchain_services
-                .iter()
-                .map(|(fetcher, metadata)| metadata.clone())
-                .collect::<Vec<_>>();
+            .await?,
+            event,
+        )
+    } else {
+        return Err(Report::msg("Failed to get initial block hash"));
+    };
 
-            let fetchers = onchain_services
-                .iter()
-                .map(|fetcher, _| *fetcher)
-                .collect::<Vec<&NativeGithubMetadata>>();
+    logger.info(format!("Received {} blueprints", blueprints.len()));
+    handle_tangle_event(
+        init_event,
+        &blueprints,
+        logger,
+        &global_protocols,
+        &shell_config,
+        &opt,
+        &mut active_shells,
+    )
+    .await?;
 
-            logger.trace(format!(
-                "OnChain services: {:?}",
-                onchain_services
-                    .iter()
-                    .map(|r| r.git.clone())
-                    .collect::<Vec<_>>()
-            ));
-
-            // Step 3: Check to see if we need to start any new services
-            gadget::native::handle(
-                &onchain_services,
-                fetchers,
-                &shell_config,
-                opt,
-                &mut active_shells,
-                &global_protocols,
+    let manager_task = async move {
+        // Step 2: Listen to FinalityNotifications and poll for new/deleted services that correspond to the blueprints above
+        while let Some(event) = tangle_runtime.next_event().await {
+            handle_tangle_event(
+                event,
+                &blueprints,
                 logger,
+                &global_protocols,
+                &shell_config,
+                &opt,
+                &mut active_shells,
             )
             .await?;
-
-            // Check to see if local is running services that are not on-chain
-            let mut to_remove = vec![];
-            for (role, process_handle) in &mut active_shells {
-                for onchain_service in &onchain_services {
-                    let onchain_service_str = utils::get_service_str(onchain_service);
-                    if &onchain_service_str != role {
-                        logger.warn(format!(
-                            "Killing service that is no longer on-chain: {role}"
-                        ));
-                        if let Some(abort_handle) = process_handle.1.take() {
-                            let _ = abort_handle.send(());
-                        }
-
-                        to_remove.push(role.clone());
-                    }
-                }
-            }
-
-            // Check to see if any process handles have died
-            for (role, process_handle) in &mut active_shells {
-                if !process_handle.0.load(Ordering::Relaxed) {
-                    // By removing any killed processes, we will auto-restart them on the next finality notification if required
-                    to_remove.push(role.clone());
-                }
-            }
-
-            for role in to_remove {
-                active_shells.remove(&role);
-            }
         }
 
         Err::<(), _>(utils::msg_to_error("Finality Notification stream died"))
@@ -175,4 +131,110 @@ async fn main() -> color_eyre::Result<()> {
             Ok(())
         }
     }
+}
+
+// TODO: We need HashMap<BlueprintId, HashMap<ServiceID, SpawnedTaskHandle>>
+async fn handle_tangle_event<C: Config>(
+    event: TangleEvent,
+    blueprints: &Vec<RpcServicesWithBlueprint>,
+    logger: &DebugLogger,
+    global_protocols: &[NativeGithubMetadata],
+    shell_config: &ShellTomlConfig,
+    shell_manager_opts: &ShellManagerOpts,
+    active_shells: &mut ActiveShells,
+) -> color_eyre::Result<()> {
+    logger.info(format!("Received notification {}", event.number));
+    // TODO: Refactor into Vec<SourceMetadata<T>> where T: NativeGithubMetadata + [...]
+    let mut onchain_services = vec![];
+    let mut fetchers = vec![];
+    let mut blueprint_ids = vec![];
+
+    for blueprint in blueprints {
+        if let Gadget::Native(gadget) = &blueprint.blueprint.gadget {
+            let gadget_source = &gadget.soruces[0];
+            if let GadgetSourceFetcher::Github(gh) = &gadget_source.fetcher {
+                let metadata = github_fetcher_to_native_github_metadata(gh);
+                onchain_services.push(metadata);
+                fetchers.push(gh);
+                blueprint_ids.push(blueprint.blueprint_id);
+            } else {
+                logger.warn(
+                    "Blueprint does not contain a Github fetcher and thus currently unsupported",
+                );
+            }
+        } else {
+            logger
+                .warn("Blueprint does not contain a native gadget and thus currently unsupported");
+        }
+    }
+
+    logger.trace(format!(
+        "OnChain services: {:?}",
+        onchain_services
+            .iter()
+            .map(|r| r.git.clone())
+            .collect::<Vec<_>>()
+    ));
+
+    // Step 3: Check to see if we need to start any new services
+    gadget::native::maybe_handle(
+        blueprints,
+        &onchain_services,
+        &fetchers,
+        shell_config,
+        shell_manager_opts,
+        active_shells,
+        &global_protocols,
+        logger,
+        &blueprint_ids,
+    )
+    .await?;
+
+    // Check to see if local is running services that are not on-chain
+    let mut to_remove: Vec<(u64, u64)> = vec![];
+
+    // Loop through every (blueprint_id, service_id) running. See if the service is still on-chain. If not, kill it and add it to to_remove
+    for (blueprint_id, process_handles) in active_shells {
+        for (service_id, process_handle) in process_handles {
+            if !onchain_services
+                .iter()
+                .all(|r| r.blueprint_id != blueprint_id && r.service_id != service_id)
+            {
+                logger.warn(format!(
+                    "Killing service that is no longer on-chain: {blueprint_id}//{service_id}",
+                ));
+                if let Some(abort_handle) = process_handle.1.take() {
+                    let _ = abort_handle.send(());
+                }
+
+                to_remove.push((*blueprint_id, *service_id));
+            }
+        }
+    }
+
+    // Check to see if any process handles have died
+    for (blueprint_id, process_handles) in active_shells {
+        for (service_id, process_handle) in process_handles {
+            if !process_handle.0.load(Ordering::Relaxed) {
+                // By removing any killed processes, we will auto-restart them on the next finality notification if required
+                to_remove.push((*blueprint_id, *service_id));
+            }
+        }
+    }
+
+    for (blueprint_id, service_id) in to_remove {
+        let mut should_delete_blueprint = false;
+        if let Some(shells) = active_shells.get_mut(&blueprint_id) {
+            shells.remove(&service_id);
+            if shells.is_empty() {
+                should_delete_blueprint = true;
+            }
+        }
+
+        if should_delete_blueprint {
+            active_shells.remove(&blueprint_id);
+        }
+    }
+
+    Ok(())
 }

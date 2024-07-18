@@ -1,5 +1,6 @@
 use gadget_common::config::DebugLogger;
-use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
+use gadget_common::tangle_runtime::api::runtime_apis::services_api::types::QueryServicesWithBlueprintsByOperator;
+use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services;
 use gadget_common::tangle_runtime::AccountId32;
 use gadget_common::tangle_subxt::subxt::backend::BlockRef;
 use gadget_common::tangle_subxt::subxt::utils::H256;
@@ -25,6 +26,8 @@ impl<C: Config> ServicesClient<C> {
     }
 }
 
+pub type RpcServicesWithBlueprint = services::RpcServicesWithBlueprint<AccountId32, u64>;
+
 impl<C: Config> ServicesClient<C>
 where
     BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
@@ -33,38 +36,19 @@ where
         &self,
         at: [u8; 32],
         address: AccountId32,
-    ) -> Result<Vec<ServiceBlueprint>, gadget_common::Error> {
+    ) -> Result<Vec<RpcServicesWithBlueprint>, gadget_common::Error> {
+        let call = api::apis()
+            .services_api()
+            .query_services_with_blueprints_by_operator(address);
         let block_ref = BlockRef::from_hash(H256::from_slice(&at));
-        let call = api::storage().services().next_blueprint_id();
-        let next_blueprint_id: u64 = self
+        //let call = api::storage().services().next_blueprint_id();
+        let ret: Vec<QueryServicesWithBlueprintsByOperator> = self
             .rpc_client
             .storage()
             .at(block_ref.clone())
             .fetch_or_default(&call)
             .await
             .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })?;
-
-        let mut ret = vec![];
-
-        for blueprint_id in 0..(next_blueprint_id - 1) {
-            let svcs = api::storage().services().blueprints(blueprint_id);
-            let blueprint = self
-                .rpc_client
-                .storage()
-                .at(block_ref.clone())
-                .fetch(&svcs)
-                .await
-                .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })?;
-
-            if let Some(blueprint) = blueprint {
-                ret.push(blueprint.1);
-            } else {
-                self.logger.error(format!(
-                    "Failed to fetch blueprint for ID: {}",
-                    blueprint_id
-                ));
-            }
-        }
 
         Ok(ret)
     }

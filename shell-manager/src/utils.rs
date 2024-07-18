@@ -8,7 +8,7 @@ use sha2::Digest;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tangle_environment::api::ServicesClient;
+use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
 use tangle_subxt::subxt::backend::BlockRef;
 use tangle_subxt::subxt::Config;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
@@ -21,7 +21,7 @@ pub async fn get_blueprints<C: Config>(
     account_id: AccountId32,
     global_protocols: &[NativeGithubMetadata],
     test_mode: bool,
-) -> color_eyre::Result<Vec<ServiceBlueprint>>
+) -> color_eyre::Result<Vec<RpcServicesWithBlueprint>>
 where
     BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
 {
@@ -66,7 +66,7 @@ where
     perform_query(runtime, block_hash, account_id, get_native_metadata_fetcher).await
 }
 
-async fn perform_query<C: Config, K, F: Fn(Vec<ServiceBlueprint>) -> Vec<K>>(
+async fn perform_query<C: Config, K, F: Fn(Vec<RpcServicesWithBlueprint>) -> Vec<K>>(
     runtime: &ServicesClient<C>,
     block_hash: [u8; 32],
     account_id: AccountId32,
@@ -85,17 +85,17 @@ where
 
 /// Simple identity transformation
 fn get_blueprints_native_fetcher(
-    service_blueprints: Vec<ServiceBlueprint>,
-) -> Vec<ServiceBlueprint> {
+    service_blueprints: Vec<RpcServicesWithBlueprint>,
+) -> Vec<RpcServicesWithBlueprint> {
     service_blueprints
 }
 
 fn get_native_metadata_fetcher(
-    service_blueprints: Vec<ServiceBlueprint>,
+    service_blueprints: Vec<RpcServicesWithBlueprint>,
 ) -> Vec<(GithubFetcher, NativeGithubMetadata)> {
     let mut ret = vec![];
     for service_blueprint in service_blueprints {
-        if let Gadget::Native(gadget) = service_blueprint {
+        if let Gadget::Native(gadget) = service_blueprint.blueprint {
             let source = &gadget.soruces.0[0];
             if let GadgetSourceFetcher::Github(gh) = &source.fetcher {
                 ret.push((gh.clone(), github_fetcher_to_native_github_metadata(gh)));
@@ -124,6 +124,8 @@ pub fn github_fetcher_to_native_github_metadata(gh: &GithubFetcher) -> NativeGit
 pub fn generate_process_arguments(
     shell_config: &ShellTomlConfig,
     opt: &ShellManagerOpts,
+    blueprint_id: u64,
+    service_id: u64,
 ) -> color_eyre::Result<Vec<String>> {
     let mut arguments = vec![
         format!("--bind-ip={}", shell_config.bind_ip),
@@ -144,6 +146,8 @@ pub fn generate_process_arguments(
                 .clone()
                 .unwrap_or_else(|| { hex::encode(defaults::generate_node_key()) })
         ),
+        format!("--blueprint-id={}", blueprint_id),
+        format!("--service-id={}", service_id),
         format!("--base-path={}", shell_config.base_path.display()),
         format!("--chain={}", shell_config.chain.to_string()),
         format!("--verbose={}", opt.verbose),
