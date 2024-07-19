@@ -1,24 +1,22 @@
 use std::{
+    collections::HashMap,
     io::{BufRead, BufReader, Read},
+    path::Path,
     process::{Command, Stdio},
 };
 
 use gadget_blueprint_proc_macro_core::{
-    Gadget, ServiceBlueprint, ServiceMetadata, ServiceRegistrationHook, ServiceRequestHook,
-    WasmGadget, WasmRuntime,
+    Gadget, JobDefinition, ServiceBlueprint, ServiceMetadata, ServiceRegistrationHook,
+    ServiceRequestHook, WasmGadget, WasmRuntime,
 };
 
-#[derive(Debug, Clone, typed_builder::TypedBuilder)]
+use rustdoc_types::{Crate, Id, Item, ItemEnum, Module};
+
+#[derive(Debug, Clone, Default, typed_builder::TypedBuilder)]
 pub struct Config {
     /// The output path of the generated `blueprint.json` file.
     #[builder(default, setter(strip_option))]
     output_file: Option<std::path::PathBuf>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self { output_file: None }
-    }
 }
 
 impl Config {
@@ -28,6 +26,9 @@ impl Config {
                 .expect("Failed to get current directory")
                 .join("blueprint.json")
         });
+        let krate = generate_rustdoc();
+        // Extract the job definitions from the rustdoc output
+        let jobs = extract_jobs(&krate);
         eprintln!("Generating blueprint.json to {:?}", output_file);
         let blueprint = ServiceBlueprint {
             metadata: ServiceMetadata {
@@ -42,7 +43,7 @@ impl Config {
                 website: std::env::var("CARGO_PKG_HOMEPAGE").map(Into::into).ok(),
                 license: std::env::var("CARGO_PKG_LICENSE").map(Into::into).ok(),
             },
-            jobs: vec![],
+            jobs,
             registration_hook: ServiceRegistrationHook::None,
             registration_params: vec![],
             request_hook: ServiceRequestHook::None,
@@ -55,8 +56,63 @@ impl Config {
 
         let json = serde_json::to_string_pretty(&blueprint).expect("Failed to serialize blueprint");
         std::fs::write(&output_file, json).expect("Failed to write blueprint.json");
-        generate_rustdoc();
     }
+}
+
+/// Extract job definitions from the rustdoc output.
+fn extract_jobs(krate: &Crate) -> Vec<JobDefinition<'_>> {
+    let root_module = krate
+        .index
+        .get(&krate.root)
+        .expect("Failed to get root module");
+    let ItemEnum::Module(blueprint_crate) = &root_module.inner else {
+        panic!("Failed to get blueprint crate module");
+    };
+    extract_jobs_from_module(&krate.root, &krate.index, blueprint_crate)
+}
+
+/// Extracts job definitions from a module.
+fn extract_jobs_from_module<'a>(
+    root: &'a Id,
+    index: &'a HashMap<Id, Item>,
+    module: &'a Module,
+) -> Vec<JobDefinition<'a>> {
+    let mut jobs = vec![];
+    let automatically_derived: String = String::from("#[automatically_derived]");
+    const JOB_DEF: &str = "JOB_DEF";
+    for item_id in &module.items {
+        let item = index.get(item_id).expect("Failed to get item");
+        match &item.inner {
+            ItemEnum::Module(m) => {
+                jobs.extend(extract_jobs_from_module(root, index, m));
+            }
+            // Handle only the constant items that are automatically derived and have the JOB_DEF in their name
+            ItemEnum::Constant(c)
+                if item.attrs.contains(&automatically_derived)
+                    && item
+                        .name
+                        .as_ref()
+                        .map(|v| v.contains(JOB_DEF))
+                        .unwrap_or(false) =>
+            {
+                let linked_function_id = item.links.values().next().expect("No linked functions");
+                let linked_function = index
+                    .get(linked_function_id)
+                    .expect("Failed to get linked function");
+                assert!(
+                    matches!(linked_function.inner, ItemEnum::Function(_)),
+                    "Linked item is not a function"
+                );
+                let mut job_def: JobDefinition =
+                    serde_json::from_str(&unescape_json_string(&c.expr))
+                        .expect("Failed to deserialize job definition");
+                job_def.metadata.description = linked_function.docs.as_ref().map(Into::into);
+                jobs.push(job_def);
+            }
+            _ => continue,
+        }
+    }
+    jobs
 }
 
 /// Generate `blueprint.json` to the current crate working directory next to `build.rs` file.
@@ -64,11 +120,53 @@ pub fn generate_json() {
     Config::builder().build().generate_json();
 }
 
-fn generate_rustdoc() {
+struct Locked;
+
+struct LockFile {
+    path: std::path::PathBuf,
+}
+
+impl LockFile {
+    fn new(base_path: &Path) -> Self {
+        std::fs::create_dir_all(base_path).expect("Failed to create lock file directory");
+        let path = base_path.join("CODEGEN_LOCK");
+        Self { path }
+    }
+
+    fn try_lock(&self) -> Result<(), Locked> {
+        // if the file exists, it's already locked
+        if self.path.exists() {
+            return Err(Locked);
+        }
+        std::fs::File::create(&self.path)
+            .map(|_| ())
+            .map_err(|_| Locked)
+    }
+}
+
+impl Drop for LockFile {
+    fn drop(&mut self) {
+        // Delete the file when the lock goes out of scope
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+fn generate_rustdoc() -> Crate {
+    let root = std::env::var("CARGO_MANIFEST_DIR").expect("Failed to get manifest directory");
+    let root = std::path::Path::new(&root);
     let crate_name = std::env::var("CARGO_PKG_NAME").expect("Failed to get package name");
     let target_dir = std::env::current_dir()
         .expect("Failed to get current directory")
         .join("target");
+    let lock = LockFile::new(root);
+    if lock.try_lock().is_err() {
+        eprintln!(
+            "{}: Already locked; skipping rustdoc generation",
+            lock.path.display()
+        );
+        // Exit early if the lock file exists
+        std::process::exit(0);
+    }
     let custom_target_dir = format!("{}/blueprint", target_dir.display());
     let mut cmd = Command::new("cargo");
     cmd.arg("rustdoc");
@@ -132,12 +230,27 @@ fn generate_rustdoc() {
         panic!("command returned status {status:?}, command was: {final_cmd}")
     }
 
-    let json_path = format!("{custom_target_dir}/doc/{crate_name}.json");
-    let json_payload = std::fs::read(json_path).unwrap();
-    let krate: rustdoc_types::Crate = serde_json::from_slice(&json_payload).unwrap();
+    let crate_name_snake_case = kabab_case_to_snake_case(&crate_name);
+    let json_path = format!("{custom_target_dir}/doc/{crate_name_snake_case}.json");
+    eprintln!("Reading JSON from {json_path}");
+    let json_string = std::fs::read_to_string(&json_path).expect("Failed to read rustdoc JSON");
+    let krate: Crate = serde_json::from_str(&json_string).expect("Failed to parse rustdoc JSON");
     assert!(
         krate.format_version >= 28,
-        "This tool expects JSON format version 28",
+        "This tool expects JSON format version >= 28",
     );
-    panic!("krate: {krate:#?}");
+    krate
+}
+
+fn kabab_case_to_snake_case(s: &str) -> String {
+    s.replace('-', "_")
+}
+
+/// A simple function to unscape JSON strings that are escaped multiple times
+fn unescape_json_string(s: &str) -> String {
+    let mut s = s.to_string();
+    while let Ok(unescape) = serde_json::from_str::<String>(&s) {
+        s = unescape;
+    }
+    s
 }

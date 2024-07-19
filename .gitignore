@@ -18,3 +18,4 @@ target/
 
 .direnv
 certs
+.DS_Store

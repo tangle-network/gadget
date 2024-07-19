@@ -71,12 +71,14 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         #[doc = "[`"]
         #[doc = #fn_name_string]
         #[doc = "`]"]
+        #[automatically_derived]
         pub const #job_def_name: &str = #job_def_str;
 
         #[doc = "Job ID for the function "]
         #[doc = "[`"]
         #[doc = #fn_name_string]
         #[doc = "`]"]
+        #[automatically_derived]
         pub const #job_id_name: u8 = #job_id;
 
         #input
