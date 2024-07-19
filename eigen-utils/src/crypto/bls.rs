@@ -1,6 +1,4 @@
-/// https://hackmd.io/@jpw/bn254
 use alloy_primitives::U256;
-
 use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::PrimeField;
@@ -483,5 +481,127 @@ impl KeyPair {
 
     pub fn get_pub_key_g1(&self) -> &G1Point {
         &self.pub_key
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ark_ec::bn::G1Projective;
+    use ark_ff::{BigInt, Zero};
+    use ark_ff::{BigInteger256, UniformRand};
+    use gadget_common::sp_core::crypto::Ss58Codec;
+    use hex::FromHex;
+    use rand::{thread_rng, Rng, RngCore};
+
+    pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
+        let mut hex_string = String::new();
+        for part in bigint.0.iter().rev() {
+            write!(&mut hex_string, "{:016x}", part).unwrap();
+        }
+        hex_string
+    }
+
+    pub fn hex_string_to_biginteger256(hex_str: &str) -> BigInteger256 {
+        let bytes = Vec::from_hex(hex_str).unwrap();
+
+        assert!(bytes.len() <= 32, "Byte length exceeds 32 bytes");
+
+        let mut padded_bytes = vec![0u8; 32];
+        let start = 32 - bytes.len();
+        padded_bytes[start..].copy_from_slice(&bytes);
+
+        let mut limbs = [0u64; 4];
+        for (i, chunk) in padded_bytes.chunks(8).rev().enumerate() {
+            let mut array = [0u8; 8];
+            let len = chunk.len().min(8);
+            array[..len].copy_from_slice(&chunk[..len]); // Copy the bytes into the fixed-size array
+            limbs[i] = u64::from_be_bytes(array);
+        }
+
+        BigInteger256::new(limbs)
+    }
+
+    #[tokio::test]
+    async fn test_keypair_generation() {
+        let keypair = KeyPair::gen_random().unwrap();
+        let pub_key = G1Projective::from(keypair.pub_key.to_ark_g1());
+
+        // Check that the public key is not zero
+        assert_ne!(pub_key, G1Projective::zero());
+        assert_ne!(keypair.pub_key, G1Point::zero());
+    }
+
+    #[tokio::test]
+    async fn test_signature_generation() {
+        let keypair = KeyPair::gen_random().unwrap();
+
+        let message = [0u8; 32];
+        let signature = keypair.sign_message(&message);
+
+        // Check that the signature is not zero
+        assert_ne!(signature, G1Projective::zero());
+    }
+
+    #[tokio::test]
+    async fn test_signature_verification() {
+        let keypair = KeyPair::gen_random().unwrap();
+        let pub_key_g2 = keypair.get_pub_key_g2();
+        // generate a random message
+        let mut message = [0u8; 32];
+        rand::thread_rng().fill(&mut message);
+
+        let signature = keypair.sign_message(&message);
+
+        let g1_projective = G1Projective::from(signature.g1_point.to_ark_g1());
+
+        // Check that the signature is not zero
+        assert_ne!(g1_projective, G1Projective::zero());
+        let mut wrong_message = [0u8; 32];
+        rand::thread_rng().fill(&mut wrong_message);
+
+        // Check that the signature verifies
+        assert!(signature.verify(&pub_key_g2, &message));
+        assert!(!signature.verify(&pub_key_g2, &wrong_message))
+    }
+
+    #[tokio::test]
+    async fn test_signature_verification_invalid() {
+        let mut rng = thread_rng();
+        let keypair = KeyPair::gen_random().unwrap();
+
+        let mut message = [0u8; 32];
+        rand::thread_rng().fill(&mut message);
+
+        let signature = keypair.sign_message(&message);
+        let g1_projective = G1Projective::from(signature.g1_point.to_ark_g1());
+
+        // Check that the signature is not zero
+        assert_ne!(g1_projective, G1Projective::zero());
+
+        // Check that the signature does not verify with a different public key
+        let different_pub_key = G2Point::rand(&mut rng);
+        assert!(!signature.verify(&different_pub_key, &message));
+    }
+
+    #[tokio::test]
+    async fn test_keypair_from_string() {
+        let bigint = BigInt([
+            12844100841192127628,
+            7068359412155877604,
+            5417847382009744817,
+            1586467664616413849,
+        ]);
+        let hex_string = bigint_to_hex(&bigint);
+        let converted_bigint = hex_string_to_biginteger256(&hex_string);
+        assert_eq!(bigint, converted_bigint);
+        let keypair_result_from_string = KeyPair::from_string(&hex_string);
+        let keypair_result_normal = KeyPair::new(&PrivateKey {
+            key: Fq::new(bigint),
+        });
+
+        let keypair_from_string = keypair_result_from_string.unwrap();
+        let keypair_from_new = keypair_result_normal.unwrap();
+        assert_eq!(keypair_from_new.priv_key, keypair_from_string.priv_key);
     }
 }

@@ -1,5 +1,6 @@
 #![allow(async_fn_in_trait)]
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
+use alloy_provider::Provider;
 
 use alloy_rpc_types::TransactionReceipt;
 use alloy_signer::k256::ecdsa;
@@ -87,6 +88,13 @@ impl<T: Config> AvsRegistryChainWriterTrait for AvsRegistryContractManager<T> {
                 Y: g2_pubkey_bn254.y,
             },
         };
+        log::info!(
+            "Pubkey registration params: X1:{:?} Y1:{:?}, X2:{:?} Y2:{:?}",
+            pubkey_reg_params.pubkeyG1.X,
+            pubkey_reg_params.pubkeyG1.Y,
+            pubkey_reg_params.pubkeyG2.X,
+            pubkey_reg_params.pubkeyG2.Y
+        );
 
         let msg_to_sign = self
             .el_contract_manager
@@ -110,20 +118,50 @@ impl<T: Config> AvsRegistryChainWriterTrait for AvsRegistryContractManager<T> {
                 salt: operator_to_avs_registration_sig_salt,
                 expiry: operator_to_avs_registration_sig_expiry,
             };
+        log::info!(
+            "Operator signature: {:?}",
+            operator_signature_with_salt_and_expiry.signature
+        );
+        log::info!(
+            "Operator salt: {:?}",
+            operator_signature_with_salt_and_expiry.salt
+        );
+        log::info!(
+            "Operator expiry: {:?}",
+            operator_signature_with_salt_and_expiry.expiry
+        );
 
         let registry_coordinator =
             RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
-        let receipt = registry_coordinator
-            .registerOperator(
-                quorum_numbers,
-                socket,
-                pubkey_reg_params,
-                operator_signature_with_salt_and_expiry,
-            )
-            .send()
-            .await?
-            .get_receipt()
-            .await?;
+        let builder = registry_coordinator.registerOperator(
+            quorum_numbers,
+            socket,
+            pubkey_reg_params,
+            operator_signature_with_salt_and_expiry,
+        );
+
+        let _call = builder.call().await.unwrap();
+
+        let tx = builder.send().await?;
+        // .get_receipt()
+        // .await?;
+
+        // log::info!("TX: {:?}", tx.inner());
+
+        let watch = tx.watch().await?;
+        log::info!(
+            "Registered operator with the AVS's registry coordinator: {:?}",
+            watch
+        );
+
+        let receipt = self
+            .eth_client_http
+            .get_transaction_receipt(watch)
+            .await
+            .unwrap()
+            .unwrap();
+
+        // let receipt = tx.get_receipt().await?;
 
         log::info!("Successfully registered operator with AVS registry coordinator");
 

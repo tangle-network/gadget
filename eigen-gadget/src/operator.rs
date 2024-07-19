@@ -3,7 +3,7 @@
 use alloy_contract::private::Ethereum;
 use alloy_primitives::private::rand::Rng;
 use alloy_primitives::ruint::aliases;
-use alloy_primitives::{Address, ChainId, FixedBytes, Signature, B256, U256};
+use alloy_primitives::{Address, Bytes, ChainId, FixedBytes, Signature, B256, U256};
 use alloy_provider::network::AnyNetwork;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_rpc_types::Log;
@@ -314,21 +314,24 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
         let mut salt = [0u8; 32];
         rand::thread_rng().fill(&mut salt);
         let sig_salt = FixedBytes::from_slice(&salt);
-        let expiry = aliases::U256::from(
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-                + 3600,
-        );
+        // let expiry = aliases::U256::from(
+        //     SystemTime::now()
+        //         .duration_since(UNIX_EPOCH)
+        //         .unwrap()
+        //         .as_secs()
+        //         + 3600,
+        // );
+        let current_block_number = eth_client_http.get_block_number().await.unwrap();
+        let expiry: U256 = U256::from(current_block_number + 20);
+        let quorum_nums = Bytes::from(vec![0]);
         let register_result = avs_registry_contract_manager
             .register_operator_in_quorum_with_avs_registry_coordinator(
                 &ecdsa_signing_key,
                 sig_salt,
                 expiry,
                 &bls_keypair,
-                alloy_primitives::Bytes::from(vec![0]),
-                "33125".to_string(),
+                quorum_nums,
+                "ws://127.0.0.1:33125".to_string(),
             )
             .await;
         log::info!("Register result: {:?}", register_result);
@@ -468,6 +471,7 @@ mod tests {
     use alloy_provider::Provider;
     use alloy_rpc_types_eth::BlockId;
     use anvil::spawn;
+    use ark_bn254::Fq;
     use foundry_common::provider::RetryProvider;
     use futures::StreamExt;
     use url::Url;
@@ -525,6 +529,7 @@ mod tests {
             Address::from(address!("e7f1725e7734ce288f8367e1bb143e90bb3f0512"));
         let strategy_manager_addr =
             Address::from(address!("8fbdb2318678afecb368f032d93f642f64180aa6"));
+        let task_manager_addr = Address::from(address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"));
 
         let registry_coordinator = RegistryCoordinator::deploy(
             provider.clone(),
@@ -576,8 +581,8 @@ mod tests {
 
         let eigen_pod_manager = EigenPodManager::deploy(
             provider.clone(),
-            Address::from(address!("73e42f117e8643cc03a4197c6c3ab38d8e5bd281")),
-            Address::from(address!("83e42f117e8643cc01741973ac7cb3ad8e5bd282")),
+            Address::from(address!("73e42f117e8643cc03a4197c6c3ab38d8e5bd281")), //ethPOS
+            Address::from(address!("83e42f117e8643cc01741973ac7cb3ad8e5bd282")), //eigenPodBeacon
             strategy_manager_addr,
             *slasher_addr,
             delegation_manager_addr,
@@ -639,6 +644,14 @@ mod tests {
             "Incredible Squaring Task Manager deployed at: {:?}",
             task_manager_addr
         );
+        // let task_manager = IncredibleSquaringTaskManager::new(task_manager_addr, provider.clone());
+        // let task_manager_addr = task_manager.address();
+        // println!("Incredible Squaring Task Manager returned");
+        // api.mine_one().await;
+        // println!(
+        //     "Incredible Squaring Task Manager deployed at: {:?}",
+        //     task_manager_addr
+        // );
 
         let service_manager = IncredibleSquaringServiceManager::deploy(
             provider.clone(),
@@ -703,14 +716,18 @@ mod tests {
                 tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
                 let result = manager
                     .createNewTask(U256::from(2), 100u32, Bytes::from("0"))
-                    .call()
+                    .send()
+                    .await
+                    .unwrap()
+                    .watch()
                     .await
                     .unwrap();
+                api.mine_one().await;
                 log::info!("Created new task: {:?}", result);
-                let latest_task = manager.latestTaskNum().call().await.unwrap()._0;
-                log::info!("Latest task: {:?}", latest_task);
-                let task_hash = manager.allTaskHashes(latest_task).call().await.unwrap()._0;
-                log::info!("Task info: {:?}", task_hash);
+                // let latest_task = manager.latestTaskNum().call().await.unwrap()._0;
+                // log::info!("Latest task: {:?}", latest_task);
+                // let task_hash = manager.allTaskHashes(latest_task).call().await.unwrap()._0;
+                // log::info!("Task info: {:?}", task_hash);
             }
         };
         tokio::spawn(run_testnet);
@@ -919,4 +936,123 @@ mod tests {
     //
     //     operator.start().await.unwrap();
     // }
+
+    use super::*;
+    use ark_ec::bn::G1Projective;
+    use ark_ff::{BigInt, Zero};
+    use ark_ff::{BigInteger256, UniformRand};
+    use eigen_utils::crypto::bls::{G1Point, G2Point, PrivateKey};
+    use gadget_common::sp_core::crypto::Ss58Codec;
+    use hex::FromHex;
+    use rand::{thread_rng, Rng, RngCore};
+
+    pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
+        let mut hex_string = String::new();
+        for part in bigint.0.iter().rev() {
+            write!(&mut hex_string, "{:016x}", part).unwrap();
+        }
+        hex_string
+    }
+
+    pub fn hex_string_to_biginteger256(hex_str: &str) -> BigInteger256 {
+        let bytes = Vec::from_hex(hex_str).unwrap();
+
+        assert!(bytes.len() <= 32, "Byte length exceeds 32 bytes");
+
+        let mut padded_bytes = vec![0u8; 32];
+        let start = 32 - bytes.len();
+        padded_bytes[start..].copy_from_slice(&bytes);
+
+        let mut limbs = [0u64; 4];
+        for (i, chunk) in padded_bytes.chunks(8).rev().enumerate() {
+            let mut array = [0u8; 8];
+            let len = chunk.len().min(8);
+            array[..len].copy_from_slice(&chunk[..len]); // Copy the bytes into the fixed-size array
+            limbs[i] = u64::from_be_bytes(array);
+        }
+
+        BigInteger256::new(limbs)
+    }
+
+    #[tokio::test]
+    async fn test_keypair_generation() {
+        let keypair = KeyPair::gen_random().unwrap();
+        let pub_key = G1Projective::from(keypair.pub_key.to_ark_g1());
+
+        // Check that the public key is not zero
+        assert_ne!(pub_key, G1Projective::zero());
+        assert_ne!(keypair.pub_key, G1Point::zero());
+    }
+
+    #[tokio::test]
+    async fn test_signature_generation() {
+        let keypair = KeyPair::gen_random().unwrap();
+
+        let message = [0u8; 32];
+        let signature = keypair.sign_message(&message);
+
+        // Check that the signature is not zero
+        assert_ne!(signature, G1Projective::zero());
+    }
+
+    #[tokio::test]
+    async fn test_signature_verification() {
+        let keypair = KeyPair::gen_random().unwrap();
+        let pub_key_g2 = keypair.get_pub_key_g2();
+        // generate a random message
+        let mut message = [0u8; 32];
+        rand::thread_rng().fill(&mut message);
+
+        let signature = keypair.sign_message(&message);
+
+        let g1_projective = G1Projective::from(signature.g1_point.to_ark_g1());
+
+        // Check that the signature is not zero
+        assert_ne!(g1_projective, G1Projective::zero());
+        let mut wrong_message = [0u8; 32];
+        rand::thread_rng().fill(&mut wrong_message);
+
+        // Check that the signature verifies
+        assert!(signature.verify(&pub_key_g2, &message));
+        assert!(!signature.verify(&pub_key_g2, &wrong_message))
+    }
+
+    #[tokio::test]
+    async fn test_signature_verification_invalid() {
+        let mut rng = thread_rng();
+        let keypair = KeyPair::gen_random().unwrap();
+
+        let mut message = [0u8; 32];
+        rand::thread_rng().fill(&mut message);
+
+        let signature = keypair.sign_message(&message);
+        let g1_projective = G1Projective::from(signature.g1_point.to_ark_g1());
+
+        // Check that the signature is not zero
+        assert_ne!(g1_projective, G1Projective::zero());
+
+        // Check that the signature does not verify with a different public key
+        let different_pub_key = G2Point::rand(&mut rng);
+        assert!(!signature.verify(&different_pub_key, &message));
+    }
+
+    #[tokio::test]
+    async fn test_keypair_from_string() {
+        let bigint = BigInt([
+            12844100841192127628,
+            7068359412155877604,
+            5417847382009744817,
+            1586467664616413849,
+        ]);
+        let hex_string = bigint_to_hex(&bigint);
+        let converted_bigint = hex_string_to_biginteger256(&hex_string);
+        assert_eq!(bigint, converted_bigint);
+        let keypair_result_from_string = KeyPair::from_string(&hex_string);
+        let keypair_result_normal = KeyPair::new(&PrivateKey {
+            key: Fq::new(bigint),
+        });
+
+        let keypair_from_string = keypair_result_from_string.unwrap();
+        assert_eq!(keypair_result_normal.priv_key, keypair_from_string.priv_key);
+    }
 }

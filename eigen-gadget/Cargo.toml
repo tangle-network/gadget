@@ -63,3 +63,6 @@ getrandom.workspace = true
 hex.workspace = true
 lazy_static.workspace = true
 url.workspace = true
+ark-ec.workspace = true
+ark-ff.workspace = true
+ark-bn254.workspace = true
