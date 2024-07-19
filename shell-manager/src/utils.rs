@@ -1,39 +1,56 @@
 use crate::config::ShellManagerOpts;
-use crate::protocols::resolver::ProtocolMetadata;
+use crate::protocols::resolver::NativeGithubMetadata;
 use gadget_common::config::DebugLogger;
+use gadget_common::sp_core::H256;
 use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::{defaults, ShellTomlConfig};
 use sha2::Digest;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tangle_environment::api::ClientWithApi;
-use tangle_environment::runtime::TangleRuntime;
-use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
+use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
+use tangle_subxt::subxt::backend::BlockRef;
+use tangle_subxt::subxt::Config;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GithubFetcher;
 
-pub async fn get_subscribed_role_types(
-    runtime: &TangleRuntime,
+pub async fn get_blueprints<C: Config>(
+    runtime: &ServicesClient<C>,
     block_hash: [u8; 32],
     account_id: AccountId32,
-    global_protocols: &[ProtocolMetadata],
-    test_mode: bool,
-) -> color_eyre::Result<Vec<RoleType>> {
-    if test_mode {
-        return Ok(global_protocols
-            .iter()
-            .flat_map(|r| r.role_types().clone())
-            .collect());
-    }
-
+) -> color_eyre::Result<Vec<RpcServicesWithBlueprint>>
+where
+    BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
+{
     runtime
-        .query_restaker_roles(block_hash, account_id)
+        .query_operator_blueprints(block_hash, account_id)
         .await
         .map_err(|err| msg_to_error(err.to_string()))
+}
+
+pub fn github_fetcher_to_native_github_metadata(
+    gh: &GithubFetcher,
+    blueprint_id: u64,
+) -> NativeGithubMetadata {
+    let owner = bytes_to_utf8_string(gh.owner.0 .0.clone()).expect("Should be valid");
+    let repo = bytes_to_utf8_string(gh.repo.0 .0.clone()).expect("Should be valid");
+    let tag = bytes_to_utf8_string(gh.tag.0 .0.clone()).expect("Should be valid");
+    let git = format!("https://github.com/{owner}/{repo}");
+
+    NativeGithubMetadata {
+        git,
+        tag,
+        repo,
+        owner,
+        gadget_binaries: gh.binaries.0.clone(),
+        blueprint_id,
+    }
 }
 
 pub fn generate_process_arguments(
     shell_config: &ShellTomlConfig,
     opt: &ShellManagerOpts,
+    blueprint_id: u64,
+    service_id: u64,
 ) -> color_eyre::Result<Vec<String>> {
     let mut arguments = vec![
         format!("--bind-ip={}", shell_config.bind_ip),
@@ -54,6 +71,8 @@ pub fn generate_process_arguments(
                 .clone()
                 .unwrap_or_else(|| { hex::encode(defaults::generate_node_key()) })
         ),
+        format!("--blueprint-id={}", blueprint_id),
+        format!("--service-id={}", service_id),
         format!("--base-path={}", shell_config.base_path.display()),
         format!("--chain={}", shell_config.chain.to_string()),
         format!("--verbose={}", opt.verbose),
@@ -95,7 +114,7 @@ pub fn get_formatted_os_string() -> String {
     }
 }
 
-pub fn get_download_url<T: Into<String>>(git: T, rev: &str, package: &str) -> String {
+pub fn get_download_url<T: Into<String>>(git: T, tag: &str) -> String {
     let os = get_formatted_os_string();
     let arch = std::env::consts::ARCH;
 
@@ -111,27 +130,18 @@ pub fn get_download_url<T: Into<String>>(git: T, rev: &str, package: &str) -> St
     }
 
     let ext = if os == "windows" { ".exe" } else { "" };
-
-    // https://github.com/webb-tools/protocols/releases/download/protocol-aarch64-apple-darwin-d1cc78ee4652696a2228f62b735e55ef23bf3f8e/protocol-threshold-bls-protocol-d1cc78ee4652696a2228f62b735e55ef23bf3f8e.sha256
-    // https://github.com/webb-tools/protocols/releases/download/aarch64-apple-darwin-d1cc78ee4652696a2228f62b735e55ef23bf3f8e/protocol-threshold-bls-protocol-d1cc78ee4652696a2228f62b735e55ef23bf3f8e.sha256
-    format!("{git}releases/download/{arch}-{os}-{rev}/protocol-{package}-{rev}{ext}")
-}
-
-pub fn get_sha_download_url<T: Into<String>>(git: T, rev: &str, package: &str) -> String {
-    let base_url = get_download_url(git, rev, package);
-    format!("{base_url}.sha256")
+    // https://github.com/<owner>/<repo>/releases/download/v<tag>/<path>
+    format!("{git}releases/download/v{tag}/protocol-{os}-{arch}{ext}")
 }
 
 pub fn msg_to_error<T: Into<String>>(msg: T) -> color_eyre::Report {
     color_eyre::Report::msg(msg.into())
 }
 
-pub fn get_role_type_str(role_type: &RoleType) -> String {
-    match role_type {
-        RoleType::Tss(tss) => format!("{tss:?}"),
-        RoleType::ZkSaaS(zksaas) => format!("{zksaas:?}"),
-        RoleType::LightClientRelaying => format!("{role_type:?}"),
-    }
+pub fn get_service_str(svc: &NativeGithubMetadata) -> String {
+    let repo = svc.git.clone();
+    let vals: Vec<&str> = repo.split(".com/").collect();
+    vals[1].to_string()
 }
 
 pub async fn chmod_x_file<P: AsRef<Path>>(path: P) -> color_eyre::Result<()> {
@@ -184,4 +194,8 @@ pub fn generate_running_process_status_handle(
 
     gadget_io::tokio::spawn(task);
     (status, stop_tx)
+}
+
+pub fn bytes_to_utf8_string<T: Into<Vec<u8>>>(input: T) -> color_eyre::Result<String> {
+    String::from_utf8(input.into()).map_err(|err| msg_to_error(err.to_string()))
 }

@@ -468,7 +468,7 @@ mod tests {
                 bootnodes,
                 base_path: std::path::PathBuf::new(),
                 node_key: [0u8; 32],
-                role_types: vec![RoleType::LightClientRelaying], // Dummy value
+                services: vec![RoleType::LightClientRelaying], // Dummy value
                 n_protocols: 1,
                 keystore_backend: InMemoryBackend::default(),
             };

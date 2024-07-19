@@ -52,7 +52,7 @@ where
         to_network_id: Option<ecdsa::Public>,
     ) -> Self::ProtocolMessage;
 
-    async fn setup_client(&self) -> Result<Self::Client, Self::Error>;
+    async fn setup_runtime(&self) -> Result<Self::Client, Self::Error>;
 
     fn transaction_manager(&self) -> Self::TransactionManager;
 

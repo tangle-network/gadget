@@ -1,22 +1,17 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::api::ClientWithApi;
 use crate::gadget::TangleEvent;
-use crate::TangleEnvironment;
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::tangle_subxt::subxt::blocks::{Block, BlockRef};
-use gadget_common::tangle_subxt::subxt::ext::futures::TryFutureExt;
 use gadget_common::tangle_subxt::subxt::{self, PolkadotConfig};
-use gadget_common::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_common::{async_trait, tangle_runtime::*};
 use gadget_core::gadget::general::Client;
-use gadget_core::gadget::substrate::FinalityNotification;
 
 pub type TangleConfig = subxt::PolkadotConfig;
-type TangleClient = subxt::OnlineClient<TangleConfig>;
-type TangleBlock = Block<TangleConfig, TangleClient>;
-type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
+pub type TangleClient = subxt::OnlineClient<TangleConfig>;
+pub type TangleBlock = Block<TangleConfig, TangleClient>;
+pub type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
 
 pub mod crypto {
     use sp_application_crypto::{app_crypto, ecdsa, sr25519};
@@ -36,18 +31,19 @@ pub mod crypto {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TangleRuntime {
     client: subxt::OnlineClient<PolkadotConfig>,
     finality_notification_stream:
         Arc<gadget_common::gadget_io::tokio::sync::Mutex<Option<TangleBlockStream>>>,
     latest_finality_notification:
-        Arc<gadget_common::gadget_io::tokio::sync::Mutex<Option<FinalityNotification>>>,
+        Arc<gadget_common::gadget_io::tokio::sync::Mutex<Option<TangleEvent>>>,
+    account_id: AccountId32,
 }
 
 impl TangleRuntime {
     /// Create a new TangleRuntime instance.
-    pub fn new(client: subxt::OnlineClient<PolkadotConfig>) -> Self {
+    pub fn new(client: subxt::OnlineClient<PolkadotConfig>, account_id: AccountId32) -> Self {
         Self {
             client,
             finality_notification_stream: Arc::new(
@@ -56,6 +52,7 @@ impl TangleRuntime {
             latest_finality_notification: Arc::new(
                 gadget_common::gadget_io::tokio::sync::Mutex::new(None),
             ),
+            account_id,
         }
     }
 
@@ -71,18 +68,22 @@ impl TangleRuntime {
         Ok(())
     }
 
-    fn runtime_api(
+    pub fn runtime_api(
         &self,
         at: [u8; 32],
     ) -> subxt::runtime_api::RuntimeApi<TangleConfig, TangleClient> {
         let block_ref = BlockRef::from_hash(sp_core::hash::H256::from_slice(&at));
         self.client.runtime_api().at(block_ref)
     }
+
+    pub fn account_id(&self) -> &AccountId32 {
+        &self.account_id
+    }
 }
 
 #[async_trait::async_trait]
 impl Client<TangleEvent> for TangleRuntime {
-    async fn next_event(&self) -> Option<FinalityNotification> {
+    async fn next_event(&self) -> Option<TangleEvent> {
         let mut lock = self
             .finality_notification_stream
             .try_lock_timeout(Duration::from_millis(500))
@@ -91,9 +92,11 @@ impl Client<TangleEvent> for TangleRuntime {
         match lock.as_mut() {
             Some(stream) => {
                 let block = stream.next().await?.ok()?;
-                let notification = FinalityNotification {
+                let events = block.events().await.ok()?;
+                let notification = TangleEvent {
                     number: block.number().into(),
                     hash: block.hash().into(),
+                    events,
                 };
                 let mut lock2 = self
                     .latest_finality_notification
@@ -111,7 +114,7 @@ impl Client<TangleEvent> for TangleRuntime {
         }
     }
 
-    async fn latest_event(&self) -> Option<FinalityNotification> {
+    async fn latest_event(&self) -> Option<TangleEvent> {
         let lock = self
             .latest_finality_notification
             .try_lock_timeout(Duration::from_millis(500))
@@ -124,147 +127,5 @@ impl Client<TangleEvent> for TangleRuntime {
                 self.next_event().await
             }
         }
-    }
-}
-
-#[async_trait::async_trait]
-impl ClientWithApi<TangleEnvironment> for TangleRuntime {
-    async fn query_jobs_by_validator(
-        &self,
-        at: [u8; 32],
-        validator: AccountId32,
-    ) -> core::result::Result<
-        Option<
-            Vec<
-                RpcResponseJobsData<
-                    AccountId32,
-                    u64,
-                    MaxParticipants,
-                    MaxSubmissionLen,
-                    MaxAdditionalParamsLen,
-                >,
-            >,
-        >,
-        gadget_common::Error,
-    > {
-        let q = api::apis().jobs_api().query_jobs_by_validator(validator);
-        self.runtime_api(at)
-            .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await
-    }
-
-    async fn query_job_by_id(
-        &self,
-        at: [u8; 32],
-        role_type: RoleType,
-        job_id: u64,
-    ) -> core::result::Result<
-        Option<
-            RpcResponseJobsData<
-                AccountId32,
-                u64,
-                MaxParticipants,
-                MaxSubmissionLen,
-                MaxAdditionalParamsLen,
-            >,
-        >,
-        gadget_common::Error,
-    > {
-        let q = api::apis().jobs_api().query_job_by_id(role_type, job_id);
-        self.runtime_api(at)
-            .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await
-    }
-
-    async fn query_job_result(
-        &self,
-        at: [u8; 32],
-        role_type: RoleType,
-        job_id: u64,
-    ) -> core::result::Result<
-        Option<
-            PhaseResult<
-                AccountId32,
-                u64,
-                MaxParticipants,
-                MaxKeyLen,
-                MaxDataLen,
-                MaxSignatureLen,
-                MaxSubmissionLen,
-                MaxProofLen,
-                MaxAdditionalParamsLen,
-            >,
-        >,
-        gadget_common::Error,
-    > {
-        let q = api::apis().jobs_api().query_job_result(role_type, job_id);
-        self.runtime_api(at)
-            .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await
-    }
-
-    async fn query_next_job_id(
-        &self,
-        at: [u8; 32],
-    ) -> core::result::Result<u64, gadget_common::Error> {
-        let q = api::apis().jobs_api().query_next_job_id();
-        self.runtime_api(at)
-            .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await
-    }
-
-    async fn query_restaker_role_key(
-        &self,
-        at: [u8; 32],
-        address: AccountId32,
-    ) -> core::result::Result<Option<Vec<u8>>, gadget_common::Error> {
-        let q = api::apis().jobs_api().query_restaker_role_key(address);
-        self.runtime_api(at)
-            .call(q)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await
-    }
-
-    async fn query_restaker_roles(
-        &self,
-        at: [u8; 32],
-        address: AccountId32,
-    ) -> std::result::Result<Vec<RoleType>, gadget_common::Error> {
-        let storage_address = api::storage().roles().account_roles_mapping(address);
-        let block_ref = BlockRef::from_hash(sp_core::hash::H256::from_slice(&at));
-        self.client
-            .storage()
-            .at(block_ref)
-            .fetch_or_default(&storage_address)
-            .map_ok(|v| v.0)
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })
-            .await
-    }
-}
-
-#[cfg(test)]
-#[cfg(not(target_family = "wasm"))]
-mod tests {
-    use super::*;
-    use gadget_common::color_eyre::eyre::OptionExt;
-    use gadget_common::gadget_io::tokio;
-
-    #[ignore = "requires a running node"]
-    #[tokio::test]
-    async fn client() -> gadget_common::color_eyre::Result<()> {
-        let subxt_client = subxt::OnlineClient::new().await?;
-        let runtime = TangleRuntime::new(subxt_client);
-
-        let notification = runtime
-            .next_event()
-            .await
-            .ok_or_eyre("Finality notification not found")?;
-        let job_id = runtime.query_next_job_id(notification.hash).await?;
-        eprintln!("Next job id: {}", job_id);
-        Ok(())
     }
 }

@@ -7,8 +7,19 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[features]
+default = ["std"]
+std = [
+    "gadget-common/std",
+    "sp-core/std",
+    "sp-application-crypto/std",
+    "scale-info/std",
+    "parity-scale-codec/std",
+    "anyhow/std",
+]
+
 [dependencies]
-gadget-common = { workspace = true }
+gadget-common = { workspace = true, features = ["substrate"] }
 environment-utils = { workspace = true, features = ["tangle"] }
 serde = { workspace = true }
 gadget-core = { workspace = true }

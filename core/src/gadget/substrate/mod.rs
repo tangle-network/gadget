@@ -1,14 +1,6 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FinalityNotification {
-    /// Finalized block number.
-    pub number: u64,
-    /// Finalized block header hash.
-    pub hash: [u8; 32],
-}
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct SubstrateGadgetError {}
 

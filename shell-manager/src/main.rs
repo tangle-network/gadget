@@ -1,224 +1,105 @@
-use crate::protocols::resolver::{load_global_config_file, str_to_role_type, ProtocolMetadata};
+use crate::gadget::ActiveShells;
+use crate::utils::github_fetcher_to_native_github_metadata;
+use color_eyre::Report;
 use config::ShellManagerOpts;
 use gadget_common::gadget_io;
+use gadget_common::prelude::GadgetEnvironment;
 use gadget_common::sp_core::Pair;
-use gadget_io::tokio::io::AsyncWriteExt;
 use gadget_io::ShellTomlConfig;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::keystore::load_keys_from_keystore;
-use shell_sdk::Client;
-use shell_sdk::{entry, DebugLogger};
+use shell_sdk::{entry, Client, DebugLogger};
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use structopt::StructOpt;
-use tangle_environment::runtime::TangleRuntime;
-use tangle_subxt::subxt;
+use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
+use tangle_environment::gadget::{SubxtConfig, TangleEvent};
+use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::utils::AccountId32;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher;
+use tangle_subxt::tangle_testnet_runtime::api::services::events::{
+    JobCalled, JobResultSubmitted, Registered, ServiceInitiated, Unregistered,
+};
 
 pub mod config;
 pub mod error;
+pub mod gadget;
 pub mod protocols;
 pub mod utils;
 
-#[gadget_io::tokio::main]
+#[tokio::main]
 async fn main() -> color_eyre::Result<()> {
     //color_eyre::install()?;
     let opt = &ShellManagerOpts::from_args();
-    let test_mode = opt.test;
-    //    entry::setup_shell_logger(opt.verbose, opt.pretty, "gadget")
-    //        .map_err(|err| msg_to_error(err.to_string()))?;
     entry::setup_shell_logger(opt.verbose, opt.pretty, "gadget")?;
     let shell_config_contents = std::fs::read_to_string(opt.shell_config.clone())?;
     let shell_config: ShellTomlConfig = toml::from_str(&shell_config_contents)
         .map_err(|err| utils::msg_to_error(err.to_string()))?;
-    let global_protocols = load_global_config_file(opt.protocols_config.clone())
-        .map_err(|err| utils::msg_to_error(err.to_string()))?;
     let logger = &DebugLogger {
         id: "Gadget Shell Manager".into(),
     };
-
-    logger.info(format!(
-        "Initializing with {} possible protocols",
-        global_protocols.len()
-    ));
-
-    let subxt_client = subxt::OnlineClient::<subxt::PolkadotConfig>::from_url(&shell_config.url)
-        .await
-        .map_err(|err| utils::msg_to_error(err.to_string()))?;
-    let runtime = TangleRuntime::new(subxt_client);
 
     let keystore = keystore_from_base_path(
         &shell_config.base_path,
         shell_config.chain,
         shell_config.keystore_password.clone(),
     );
+
     let (_role_key, acco_key) = load_keys_from_keystore(&keystore)?;
     let sub_account_id = AccountId32(acco_key.public().0);
+    let subxt_config = SubxtConfig {
+        endpoint: shell_config.url.clone(),
+    };
 
-    let mut active_shells = HashMap::<String, _>::new();
+    let tangle_environment = TangleEnvironment::new(subxt_config, acco_key, logger.clone());
+
+    let tangle_runtime = tangle_environment.setup_runtime().await?;
+    let runtime = ServicesClient::new(logger.clone(), tangle_runtime.client());
+    let mut active_shells = HashMap::new();
+
+    // With the basics setup, we must now implement the main logic
+    /*
+       * Query to get Vec<RpcServicesWithBlueprint>
+       * For each RpcServicesWithBlueprint, fetch the associated gadget binary (fetch/download)
+        -> If the services field is empty, just emit and log inside the executed binary "that states a new service instance got created by one of these blueprints"
+        -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
+    */
+
+    let (blueprints, init_event) = if let Some(event) = tangle_runtime.next_event().await {
+        (
+            utils::get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?,
+            event,
+        )
+    } else {
+        return Err(Report::msg("Failed to get initial block hash"));
+    };
+
+    logger.info(format!("Received {} blueprints", blueprints.len()));
+    handle_tangle_event(
+        &init_event,
+        &blueprints,
+        logger,
+        &shell_config,
+        opt,
+        &mut active_shells,
+    )
+    .await?;
 
     let manager_task = async move {
-        while let Some(notification) = runtime.next_event().await {
-            logger.info(format!("Received notification {}", notification.number));
-            // TODO: Fetch blueprints instead of role types
-            let onchain_roles = utils::get_subscribed_role_types(
-                &runtime,
-                notification.hash,
-                sub_account_id.clone(),
-                &global_protocols,
-                test_mode,
+        // Step 2: Listen to FinalityNotifications and poll for new/deleted services that correspond to the blueprints above
+        while let Some(event) = tangle_runtime.next_event().await {
+            handle_tangle_event(
+                &event,
+                &blueprints,
+                logger,
+                &shell_config,
+                opt,
+                &mut active_shells,
             )
             .await?;
-            logger.trace(format!("OnChain roles: {onchain_roles:?}"));
-            // Check to see if local does not have any running on-chain roles
-            for role in &onchain_roles {
-                let role_str = utils::get_role_type_str(role);
-                if !active_shells.contains_key(&role_str) {
-                    // Add in the protocol
-                    for global_protocol in &global_protocols {
-                        if global_protocol.role_types().contains(&role.clone()) {
-                            let ProtocolMetadata {
-                                role_types: _,
-                                git,
-                                rev,
-                                package,
-                                bin_hashes,
-                            } = global_protocol;
-                            // The hash is sha_256 of the binary
-                            let host_os = utils::get_formatted_os_string();
-                            let expected_hash = bin_hashes.get(&host_os).ok_or_else(|| {
-                                utils::msg_to_error(format!("No hash for this OS ({host_os})"))
-                            })?;
 
-                            let sha_url = utils::get_sha_download_url(git, rev, package);
-
-                            logger.info(format!("Downloading {role_str} SHA from {sha_url}"));
-                            let sha_downloaded = reqwest::get(&sha_url)
-                                .await
-                                .map_err(|err| utils::msg_to_error(err.to_string()))?
-                                .text()
-                                .await
-                                .map_err(|err| utils::msg_to_error(err.to_string()))?;
-
-                            if sha_downloaded.trim() != expected_hash.trim() {
-                                logger.error(format!(
-                                    "Retrieved hash {} mismatches the declared hash {} for protocol: {}",
-                                    sha_downloaded,
-                                    expected_hash,
-                                    role_str
-                                ));
-                                continue;
-                            }
-
-                            let current_dir = std::env::current_dir()?;
-                            let mut binary_download_path =
-                                format!("{}/protocol-{rev}", current_dir.display());
-
-                            if utils::is_windows() {
-                                binary_download_path += ".exe"
-                            }
-
-                            logger.info(format!("Downloading to {binary_download_path}"));
-
-                            // Check if the binary exists, if not download it
-                            let retrieved_hash =
-                                if !utils::valid_file_exists(&binary_download_path, expected_hash)
-                                    .await
-                                {
-                                    let url = utils::get_download_url(git, rev, package);
-
-                                    let download = reqwest::get(&url)
-                                        .await
-                                        .map_err(|err| utils::msg_to_error(err.to_string()))?
-                                        .bytes()
-                                        .await
-                                        .map_err(|err| utils::msg_to_error(err.to_string()))?;
-                                    let retrieved_hash = utils::hash_bytes_to_hex(&download);
-
-                                    // Write the binary to disk
-                                    let mut file =
-                                        gadget_io::tokio::fs::File::create(&binary_download_path)
-                                            .await?;
-                                    file.write_all(&download).await?;
-                                    file.flush().await?;
-                                    Some(retrieved_hash)
-                                } else {
-                                    None
-                                };
-
-                            if let Some(retrieved_hash) = retrieved_hash {
-                                if retrieved_hash.trim() != expected_hash.trim() {
-                                    logger.error(format!(
-                                        "Binary hash {} mismatched expected hash of {} for protocol: {}",
-                                        retrieved_hash,
-                                        expected_hash,
-                                        role_str
-                                    ));
-                                    continue;
-                                }
-                            }
-
-                            if !utils::is_windows() {
-                                if let Err(err) = utils::chmod_x_file(&binary_download_path).await {
-                                    logger.warn(format!("Failed to chmod +x the binary: {err}"));
-                                }
-                            }
-
-                            let arguments = utils::generate_process_arguments(&shell_config, opt)?;
-
-                            logger.info(format!("Starting protocol: {role_str}"));
-
-                            // Now that the file is loaded, spawn the process
-                            let process_handle =
-                                gadget_io::tokio::process::Command::new(&binary_download_path)
-                                    .kill_on_drop(true)
-                                    .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
-                                    .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
-                                    .stdin(std::process::Stdio::null())
-                                    .current_dir(&std::env::current_dir()?)
-                                    .envs(std::env::vars().collect::<Vec<_>>())
-                                    .args(arguments)
-                                    .spawn()?;
-
-                            let (status_handle, abort) =
-                                utils::generate_running_process_status_handle(
-                                    process_handle,
-                                    logger,
-                                    &role_str,
-                                );
-
-                            active_shells.insert(role_str.clone(), (status_handle, Some(abort)));
-                        }
-                    }
-                }
-            }
-
-            // Check to see if local is running protocols that are not on-chain
-            let mut to_remove = vec![];
-            for (role, process_handle) in &mut active_shells {
-                let role_type = str_to_role_type(role)
-                    .ok_or_else(|| utils::msg_to_error(format!("Invalid role type: {role}")))?;
-                if !onchain_roles.contains(&role_type) {
-                    logger.warn(format!("Killing protocol: {role}"));
-                    if let Some(abort_handle) = process_handle.1.take() {
-                        let _ = abort_handle.send(());
-                    }
-
-                    to_remove.push(role.clone());
-                }
-            }
-
-            // Check to see if any process handles have died
-            for (role, process_handle) in &mut active_shells {
-                if !process_handle.0.load(Ordering::Relaxed) {
-                    // By removing any killed processes, we will auto-restart them on the next finality notification if required
-                    to_remove.push(role.clone());
-                }
-            }
-
-            for role in to_remove {
-                active_shells.remove(&role);
-            }
+            handle_tangle_block(event, logger, &mut active_shells, &sub_account_id).await;
         }
 
         Err::<(), _>(utils::msg_to_error("Finality Notification stream died"))
@@ -236,4 +117,201 @@ async fn main() -> color_eyre::Result<()> {
             Ok(())
         }
     }
+}
+
+async fn handle_tangle_block(
+    event: TangleEvent,
+    logger: &DebugLogger,
+    active_shells: &mut ActiveShells,
+    account_id: &AccountId32,
+) {
+    let registered_events = event.events.find::<Registered>();
+    let unregistered_events = event.events.find::<Unregistered>();
+    let service_initiated_events = event.events.find::<ServiceInitiated>();
+    let job_called_events = event.events.find::<JobCalled>();
+    let job_result_submitted_events = event.events.find::<JobResultSubmitted>();
+
+    // Handle registered events
+    for evt in registered_events {
+        match evt {
+            Ok(evt) => {
+                logger.info(format!("Registered event: {evt:?}"));
+            }
+            Err(err) => {
+                logger.warn(format!("Error handling registered event: {err:?}"));
+            }
+        }
+    }
+
+    // Handle unregistered events
+    for evt in unregistered_events {
+        match evt {
+            Ok(evt) => {
+                logger.info(format!("Unregistered event: {evt:?}"));
+                if &evt.operator == account_id && active_shells.remove(&evt.blueprint_id).is_some()
+                {
+                    logger.info(format!(
+                        "Removed all services for blueprint_id: {}",
+                        evt.blueprint_id,
+                    ));
+                }
+            }
+            Err(err) => {
+                logger.warn(format!("Error handling unregistered event: {err:?}"));
+            }
+        }
+    }
+
+    // Handle service initiated events
+    for evt in service_initiated_events {
+        match evt {
+            Ok(evt) => {
+                logger.info(format!("Service initiated event: {evt:?}"));
+            }
+            Err(err) => {
+                logger.warn(format!("Error handling service initiated event: {err:?}"));
+            }
+        }
+    }
+
+    // Handle job called events
+    for evt in job_called_events {
+        match evt {
+            Ok(evt) => {
+                logger.info(format!("Job called event: {evt:?}"));
+            }
+            Err(err) => {
+                logger.warn(format!("Error handling job called event: {err:?}"));
+            }
+        }
+    }
+
+    // Handle job result submitted events
+    for evt in job_result_submitted_events {
+        match evt {
+            Ok(evt) => {
+                logger.info(format!("Job result submitted event: {evt:?}"));
+            }
+            Err(err) => {
+                logger.warn(format!(
+                    "Error handling job result submitted event: {err:?}"
+                ));
+            }
+        }
+    }
+}
+
+async fn handle_tangle_event(
+    event: &TangleEvent,
+    blueprints: &Vec<RpcServicesWithBlueprint>,
+    logger: &DebugLogger,
+    shell_config: &ShellTomlConfig,
+    shell_manager_opts: &ShellManagerOpts,
+    active_shells: &mut ActiveShells,
+) -> color_eyre::Result<()> {
+    logger.info(format!("Received notification {}", event.number));
+    // TODO: Refactor into Vec<SourceMetadata<T>> where T: NativeGithubMetadata + [...]
+    let mut onchain_services = vec![];
+    let mut fetchers = vec![];
+    let mut service_ids = vec![];
+
+    for blueprint in blueprints {
+        let mut services_for_this_blueprint = vec![];
+        if let runtime_types::tangle_primitives::services::Gadget::Native(gadget) =
+            &blueprint.blueprint.gadget
+        {
+            let gadget_source = &gadget.soruces.0[0];
+            if let GadgetSourceFetcher::Github(gh) = &gadget_source.fetcher {
+                let metadata = github_fetcher_to_native_github_metadata(gh, blueprint.blueprint_id);
+                onchain_services.push(metadata);
+                fetchers.push(gh);
+
+                for service in &blueprint.services {
+                    services_for_this_blueprint.push(service.id);
+                }
+            } else {
+                logger.warn(
+                    "Blueprint does not contain a Github fetcher and thus currently unsupported",
+                );
+            }
+
+            service_ids.push(services_for_this_blueprint);
+        } else {
+            logger
+                .warn("Blueprint does not contain a native gadget and thus currently unsupported");
+        }
+    }
+
+    logger.trace(format!(
+        "OnChain services: {:?}",
+        onchain_services
+            .iter()
+            .map(|r| r.git.clone())
+            .collect::<Vec<_>>()
+    ));
+
+    // Step 3: Check to see if we need to start any new services
+    gadget::native::maybe_handle(
+        blueprints,
+        &onchain_services,
+        &fetchers,
+        shell_config,
+        shell_manager_opts,
+        active_shells,
+        logger,
+    )
+    .await?;
+
+    // Check to see if local is running services that are not on-chain
+    let mut to_remove: Vec<(u64, u64)> = vec![];
+
+    // Loop through every (blueprint_id, service_id) running. See if the service is still on-chain. If not, kill it and add it to to_remove
+    for (blueprint_id, process_handles) in &mut *active_shells {
+        for (service_id, process_handle) in process_handles {
+            if !onchain_services
+                .iter()
+                .zip(&service_ids)
+                .all(|(r, s)| r.blueprint_id != *blueprint_id && !s.contains(service_id))
+            {
+                logger.warn(format!(
+                    "Killing service that is no longer on-chain: bid={blueprint_id}//sid={service_id}",
+                ));
+                if let Some(abort_handle) = process_handle.1.take() {
+                    if abort_handle.send(()).is_err() {
+                        logger.error(format!(
+                            "Failed to send abort signal to service: bid={blueprint_id}//sid={service_id}",
+                        ));
+                    }
+                }
+
+                to_remove.push((*blueprint_id, *service_id));
+            }
+        }
+    }
+
+    // Check to see if any process handles have died
+    for (blueprint_id, process_handles) in &mut *active_shells {
+        for (service_id, process_handle) in process_handles {
+            if !process_handle.0.load(Ordering::Relaxed) {
+                // By removing any killed processes, we will auto-restart them on the next finality notification if required
+                to_remove.push((*blueprint_id, *service_id));
+            }
+        }
+    }
+
+    for (blueprint_id, service_id) in to_remove {
+        let mut should_delete_blueprint = false;
+        if let Some(shells) = active_shells.get_mut(&blueprint_id) {
+            shells.remove(&service_id);
+            if shells.is_empty() {
+                should_delete_blueprint = true;
+            }
+        }
+
+        if should_delete_blueprint {
+            active_shells.remove(&blueprint_id);
+        }
+    }
+
+    Ok(())
 }
