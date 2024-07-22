@@ -1,32 +1,20 @@
 use auto_impl::auto_impl;
 use gadget_common::async_trait::async_trait;
 use gadget_common::config::DebugLogger;
-use gadget_common::tangle_runtime;
-use gadget_common::tangle_runtime::{
-    api, jobs, MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
-    MaxSignatureLen,
-};
+use gadget_common::tangle_runtime::api;
 use gadget_common::tangle_subxt::subxt;
-use gadget_common::tangle_subxt::subxt::tx::TxPayload;
 use gadget_common::tangle_subxt::subxt::OnlineClient;
 use std::fmt::Debug;
+use tangle_subxt::subxt::tx::Payload;
 
 #[async_trait]
 #[auto_impl(Arc)]
 pub trait TanglePalletSubmitter: Send + Sync + Debug + 'static {
-    async fn submit_job_result(
+    async fn submit_job_call_result(
         &self,
-        role_type: tangle_runtime::RoleType,
-        job_id: u64,
-
-        result: jobs::JobResult<
-            MaxParticipants,
-            MaxKeyLen,
-            MaxSignatureLen,
-            MaxDataLen,
-            MaxProofLen,
-            MaxAdditionalParamsLen,
-        >,
+        service_id: u64,
+        call_id: u64,
+        result: api::services::calls::types::submit_result::Result,
     ) -> Result<(), gadget_common::Error>;
 }
 
@@ -55,36 +43,29 @@ where
     S: subxt::tx::Signer<C> + Send + Sync + 'static,
     C::AccountId: std::fmt::Display + Send + Sync + 'static,
     C::Hash: std::fmt::Display,
-    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams:
+    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::Params:
         Default + Send + Sync + 'static,
 {
-    async fn submit_job_result(
+    async fn submit_job_call_result(
         &self,
-        role_type: tangle_runtime::RoleType,
-        job_id: u64,
-        result: jobs::JobResult<
-            MaxParticipants,
-            MaxKeyLen,
-            MaxSignatureLen,
-            MaxDataLen,
-            MaxProofLen,
-            MaxAdditionalParamsLen,
-        >,
+        service_id: u64,
+        call_id: u64,
+        result: api::services::calls::types::submit_result::Result,
     ) -> Result<(), gadget_common::Error> {
         let tx = api::tx()
-            .jobs()
-            .submit_job_result(role_type, job_id, result);
+            .services()
+            .submit_result(service_id, call_id, result);
         match self.submit(&tx).await {
             Ok(hash) => {
                 self.logger.info(format!(
-                    "({}) Job result submitted for job_id: {job_id} at block: {hash}",
+                    "({}) Service result submitted for service-id/call-id: {service_id}/{call_id} at block: {hash}",
                     self.signer.account_id(),
                 ));
                 Ok(())
             }
             Err(err) if err.to_string().contains("JobNotFound") => {
                 self.logger.warn(format!(
-                    "({}) Job not found for job_id: {job_id}",
+                    "({}) Service not found for service-id/call-id: {service_id}/{call_id}",
                     self.signer.account_id(),
                 ));
                 Ok(())
@@ -104,7 +85,7 @@ where
     C::AccountId: std::fmt::Display,
     S: subxt::tx::Signer<C>,
     C::Hash: std::fmt::Display,
-    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams: Default,
+    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::Params: Default,
 {
     pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, gadget_common::Error> {
         let subxt_client =
@@ -124,7 +105,7 @@ where
         }
     }
 
-    async fn submit<Call: TxPayload>(&self, call: &Call) -> anyhow::Result<C::Hash> {
+    async fn submit<Call: Payload>(&self, call: &Call) -> anyhow::Result<C::Hash> {
         if let Some(details) = call.validation_details() {
             self.logger.trace(format!(
                 "({}) Submitting {}.{}",
@@ -140,53 +121,6 @@ where
             .await?
             .wait_for_finalized_success()
             .await?
-            .block_hash())
-    }
-}
-
-#[cfg(test)]
-#[cfg(not(target_family = "wasm"))]
-mod tests {
-
-    use crate::transaction_manager::tangle::SubxtPalletSubmitter;
-    use gadget_common::prelude::*;
-    use gadget_common::subxt_signer;
-    use gadget_common::tangle_subxt::{
-        subxt::{tx::Signer, utils::AccountId32, PolkadotConfig},
-        tangle_testnet_runtime::api,
-        tangle_testnet_runtime::api::runtime_types::{
-            bounded_collections::bounded_vec::BoundedVec,
-            tangle_primitives::{jobs, roles},
-        },
-    };
-
-    #[gadget_io::tokio::test]
-    #[ignore = "This test requires a running general node"]
-    async fn subxt_pallet_submitter() -> anyhow::Result<()> {
-        let logger = DebugLogger { id: "test".into() };
-        let alice = subxt_signer::sr25519::dev::alice();
-        let bob = subxt_signer::sr25519::dev::bob();
-        let alice_account_id =
-            <subxt_signer::sr25519::Keypair as Signer<PolkadotConfig>>::account_id(&alice);
-        let bob_account_id =
-            <subxt_signer::sr25519::Keypair as Signer<PolkadotConfig>>::account_id(&bob);
-        let tx_manager =
-            SubxtPalletSubmitter::<PolkadotConfig, _>::new(alice.clone(), logger).await?;
-        let dkg_phase_one = jobs::JobSubmission {
-            expiry: 100u64,
-            ttl: 100u64,
-            fallback: jobs::FallbackOptions::Destroy,
-            job_type: jobs::JobType::DKGTSSPhaseOne(jobs::tss::DKGTSSPhaseOneJobType {
-                participants: BoundedVec::<AccountId32>(vec![alice_account_id, bob_account_id]),
-                threshold: 1u8,
-                permitted_caller: None,
-                role_type: roles::tss::ThresholdSignatureRoleType::DfnsCGGMP21Secp256k1,
-                hd_wallet: false,
-                __ignore: Default::default(),
-            }),
-        };
-        let tx = api::tx().jobs().submit_job(dkg_phase_one);
-        let _hash = tx_manager.submit(&tx).await?;
-        Ok(())
+            .extrinsic_hash())
     }
 }

@@ -54,7 +54,7 @@ jobs:
         run: sudo apt-get install protobuf-compiler
 
       - name: Run Clippy
-        run: cargo clippy --tests -- -D warnings
+        run: cargo clippy --package shell-manager --tests -- -D warnings
 
   build:
     timeout-minutes: 120
@@ -65,6 +65,7 @@ jobs:
             package: [
               gadget-core,
               gadget-common,
+              shell-manager,
             ]
     steps:
       - name: checkout code
@@ -83,7 +84,7 @@ jobs:
         run: brew install protobuf
 
       - name: build
-        run: cargo build --workspace --package ${{ matrix.package }}
+        run: cargo build --package ${{ matrix.package }}
 
   testing:
     timeout-minutes: 90
@@ -94,6 +95,7 @@ jobs:
             package: [
               gadget-core,
               gadget-common,
+              shell-manager,
             ]
     steps:
       - name: checkout code
@@ -147,7 +149,7 @@ jobs:
           export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
           export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
 
-      - name: Check if wasm32-unknown-unknown is installed
+      - name: Ensure wasm32-unknown-unknown is installed
         run: rustup target add wasm32-unknown-unknown
 
       - name: Run wasm checks

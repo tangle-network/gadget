@@ -14,9 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmitter};
+use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use async_trait::async_trait;
+use environment_utils::transaction_manager::tangle::TanglePalletSubmitter;
 use frame_support::pallet_prelude::*;
-use frame_support::traits::Hooks;
+use frame_support::traits::{Contains, Hooks, OneSessionHandler};
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{ConstU128, ConstU32, ConstU64, Everything},
@@ -24,15 +27,30 @@ use frame_support::{
 };
 use frame_system::EnsureSigned;
 use gadget_common::config::Network;
-use pallet_jobs_rpc_runtime_api::BlockNumberOf;
+use gadget_common::locks::TokioMutexExt;
+use gadget_common::prelude::{
+    DebugLogger, ECDSAKeyStore, EventMetadata, GadgetEnvironment, InMemoryBackend, NodeInput,
+    PrometheusConfig, UnboundedReceiver, UnboundedSender,
+};
+use gadget_common::tangle_subxt::subxt::OfflineClient;
+use gadget_common::utils::serialize;
+use gadget_common::Error;
+use gadget_core::job_manager::{ProtocolMessageMetadata, SendFuture, WorkManagerInterface};
+use pallet_services::EvmGasWeightMapping;
 use sc_client_api::{FinalityNotification, FinalizeSummary};
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use serde::{Deserialize, Serialize};
 use sp_api::{ApiRef, ProvideRuntimeApi};
+use sp_application_crypto::ecdsa;
 use sp_core::{sr25519, ByteArray, Pair, H256};
+use sp_keystore::testing::MemoryKeystore;
+use sp_keystore::{KeystoreExt, KeystorePtr};
+use sp_runtime::testing::UintAuthorityId;
+use sp_runtime::traits::ConvertInto;
 use sp_runtime::RuntimeDebug;
 use sp_runtime::{traits::Block as BlockT, traits::IdentityLookup, BuildStorage, DispatchResult};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 use tangle_environment::gadget::{TangleEvent, TangleJobMetadata};
 use tangle_environment::message::{TangleProtocolMessage, UserID};
@@ -41,39 +59,6 @@ use tangle_primitives::AccountId;
 
 pub type Balance = u128;
 pub type BlockNumber = u64;
-
-pub use crate::mock::mock_wrapper_client::{MockClient, TestExternalitiesPalletSubmitter};
-use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
-use environment_utils::transaction_manager::tangle::TanglePalletSubmitter;
-use gadget_common::debug_logger::DebugLogger;
-use gadget_common::environments::{EventMetadata, GadgetEnvironment};
-use gadget_common::full_protocol::NodeInput;
-use gadget_common::keystore::{ECDSAKeyStore, InMemoryBackend};
-use gadget_common::locks::TokioMutexExt;
-use gadget_common::prelude::PrometheusConfig;
-use gadget_common::utils::serialize;
-use gadget_common::Error;
-use gadget_core::job_manager::{ProtocolMessageMetadata, SendFuture, WorkManagerInterface};
-use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use sp_core::ecdsa;
-use sp_keystore::{testing::MemoryKeystore, KeystoreExt, KeystorePtr};
-use sp_std::sync::Arc;
-use tangle_primitives::jobs::traits::{JobToFee, MPCHandler};
-use tangle_primitives::jobs::{
-    JobId, JobResult, JobSubmission, JobType, JobWithResult, PhaseResult, ReportRestakerOffence,
-    RpcResponseJobsData, ValidatorOffenceType,
-};
-use tangle_primitives::misbehavior::{MisbehaviorHandler, MisbehaviorSubmission};
-use tangle_primitives::roles::traits::RolesHandler;
-use tangle_primitives::roles::RoleType;
-use tangle_primitives::verifier::{
-    arkworks::ArkworksVerifierGroth16Bn254, circom::CircomVerifierGroth16Bn254,
-};
-
-/// Key type for DKG keys
-pub const KEY_TYPE: sp_application_crypto::KeyTypeId = sp_application_crypto::KeyTypeId(*b"role");
-
-pub type Block = frame_system::mocking::MockBlock<Runtime>;
 
 impl frame_system::Config for Runtime {
     type RuntimeOrigin = RuntimeOrigin;
@@ -103,290 +88,317 @@ impl frame_system::Config for Runtime {
 }
 
 impl pallet_balances::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type WeightInfo = ();
     type Balance = Balance;
     type DustRemoval = ();
+    type RuntimeEvent = RuntimeEvent;
     type ExistentialDeposit = ConstU128<1>;
     type AccountStore = System;
-    type ReserveIdentifier = ();
-    type RuntimeHoldReason = RuntimeHoldReason;
-    type FreezeIdentifier = ();
     type MaxLocks = ();
     type MaxReserves = ConstU32<50>;
-    type MaxFreezes = ();
+    type ReserveIdentifier = ();
+    type WeightInfo = ();
+    type RuntimeHoldReason = RuntimeHoldReason;
     type RuntimeFreezeReason = ();
+    type FreezeIdentifier = ();
+    type MaxFreezes = ();
 }
 
-impl pallet_timestamp::Config for Runtime {
-    type Moment = u64;
-    type OnTimestampSet = ();
-    type MinimumPeriod = ();
-    type WeightInfo = ();
+parameter_types! {
+    pub ElectionBoundsOnChain: ElectionBounds = ElectionBoundsBuilder::default()
+        .voters_count(5_000.into()).targets_count(1_250.into()).build();
+    pub ElectionBoundsMultiPhase: ElectionBounds = ElectionBoundsBuilder::default()
+        .voters_count(10_000.into()).targets_count(1_500.into()).build();
 }
 
-pub struct JobToFeeHandler;
+impl pallet_session::historical::Config for Runtime {
+    type FullIdentification = AccountId;
+    type FullIdentificationOf = ConvertInto;
+}
 
-impl JobToFee<AccountId, BlockNumber, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>
-    for JobToFeeHandler
-{
-    type Balance = Balance;
+pub struct BaseFilter;
+impl Contains<RuntimeCall> for BaseFilter {
+    fn contains(call: &RuntimeCall) -> bool {
+        let is_stake_unbond_call = matches!(
+            call,
+            RuntimeCall::Staking(pallet_staking::Call::unbond { .. })
+        );
 
-    fn job_to_fee(
-        job: &JobSubmission<
-            AccountId,
-            BlockNumber,
-            MaxParticipants,
-            MaxSubmissionLen,
-            MaxAdditionalParamsLen,
-        >,
-    ) -> Balance {
-        match job.job_type {
-            JobType::DKGTSSPhaseOne(_)
-            | JobType::DKGTSSPhaseTwo(_)
-            | JobType::DKGTSSPhaseThree(_)
-            | JobType::DKGTSSPhaseFour(_) => Dkg::job_to_fee(job),
-            JobType::ZkSaaSPhaseOne(_) | JobType::ZkSaaSPhaseTwo(_) => ZkSaaS::job_to_fee(job),
+        if is_stake_unbond_call {
+            // no unbond call
+            return false;
         }
-    }
 
-    fn calculate_result_extension_fee(_result: Vec<u8>, _extension_time: BlockNumber) -> Balance {
-        20
-    }
-}
-
-pub struct MockRolesHandler;
-
-impl RolesHandler<AccountId> for MockRolesHandler {
-    type Balance = Balance;
-    fn record_job_by_validators(_: Vec<AccountId>) -> DispatchResult {
-        Ok(())
-    }
-
-    fn get_max_active_service_for_restaker(_: AccountId) -> std::option::Option<u32> {
-        Some(u32::MAX)
-    }
-    fn report_offence(_offence_report: ReportRestakerOffence<AccountId>) -> DispatchResult {
-        Ok(())
-    }
-
-    fn is_restaker(address: AccountId) -> bool {
-        let restakers = (0..8)
-            .map(id_to_sr25519_public)
-            .map(Into::into)
-            .collect::<Vec<_>>();
-        restakers.contains(&address)
-    }
-
-    fn is_restaker_with_role(address: AccountId, _role: RoleType) -> bool {
-        let restakers = (0..8)
-            .map(id_to_sr25519_public)
-            .map(Into::into)
-            .collect::<Vec<_>>();
-        restakers.contains(&address)
-    }
-
-    fn get_validator_role_key(address: AccountId) -> Option<Vec<u8>> {
-        let validators = (0..8).map(id_to_ecdsa_pair).collect::<Vec<_>>();
-        let restakers = (0..8)
-            .map(id_to_sr25519_public)
-            .map(AccountId::from)
-            .collect::<Vec<_>>();
-        let idx = restakers.iter().position(|p| p == &address);
-        idx.map(|i| validators[i].public().to_raw_vec())
-    }
-}
-
-pub struct MockMPCHandler;
-
-impl
-    MPCHandler<
-        AccountId,
-        BlockNumber,
-        Balance,
-        MaxParticipants,
-        MaxSubmissionLen,
-        MaxKeyLen,
-        MaxDataLen,
-        MaxSignatureLen,
-        MaxProofLen,
-        MaxAdditionalParamsLen,
-    > for MockMPCHandler
-{
-    fn verify(
-        data: JobWithResult<
-            AccountId,
-            MaxParticipants,
-            MaxSubmissionLen,
-            MaxKeyLen,
-            MaxDataLen,
-            MaxSignatureLen,
-            MaxProofLen,
-            MaxAdditionalParamsLen,
-        >,
-    ) -> DispatchResult {
-        match data.result {
-            JobResult::DKGPhaseOne(_)
-            | JobResult::DKGPhaseTwo(_)
-            | JobResult::DKGPhaseThree(_)
-            | JobResult::DKGPhaseFour(_) => Dkg::verify(data.result),
-            JobResult::ZkSaaSPhaseOne(_) | JobResult::ZkSaaSPhaseTwo(_) => ZkSaaS::verify(data),
+        // no chill call
+        if matches!(
+            call,
+            RuntimeCall::Staking(pallet_staking::Call::chill { .. })
+        ) {
+            return false;
         }
+
+        // no withdraw_unbonded call
+        let is_stake_withdraw_call = matches!(
+            call,
+            RuntimeCall::Staking(pallet_staking::Call::withdraw_unbonded { .. })
+        );
+
+        if is_stake_withdraw_call {
+            return false;
+        }
+
+        true
+    }
+}
+
+sp_runtime::impl_opaque_keys! {
+    pub struct MockSessionKeys {
+        pub other: MockSessionHandler,
+    }
+}
+
+pub struct MockSessionHandler;
+impl OneSessionHandler<AccountId> for MockSessionHandler {
+    type Key = UintAuthorityId;
+
+    fn on_genesis_session<'a, I: 'a>(_: I)
+    where
+        I: Iterator<Item = (&'a AccountId, Self::Key)>,
+        AccountId: 'a,
+    {
     }
 
-    fn verify_validator_report(
-        _validator: AccountId,
-        _offence: ValidatorOffenceType,
-        _signatures: Vec<Vec<u8>>,
-    ) -> DispatchResult {
-        Ok(())
+    fn on_new_session<'a, I: 'a>(_: bool, _: I, _: I)
+    where
+        I: Iterator<Item = (&'a AccountId, Self::Key)>,
+        AccountId: 'a,
+    {
     }
 
-    fn validate_authority_key(_validator: AccountId, _authority_key: Vec<u8>) -> DispatchResult {
-        Ok(())
+    fn on_disabled(_validator_index: u32) {}
+}
+
+impl sp_runtime::BoundToRuntimeAppPublic for MockSessionHandler {
+    type Public = UintAuthorityId;
+}
+
+pub struct MockSessionManager;
+
+impl pallet_session::SessionManager<AccountId> for MockSessionManager {
+    fn end_session(_: sp_staking::SessionIndex) {}
+    fn start_session(_: sp_staking::SessionIndex) {}
+    fn new_session(idx: sp_staking::SessionIndex) -> Option<Vec<AccountId>> {
+        if idx == 0 || idx == 1 || idx == 2 {
+            Some(vec![
+                mock_pub_key(1),
+                mock_pub_key(2),
+                mock_pub_key(3),
+                mock_pub_key(4),
+            ])
+        } else {
+            None
+        }
     }
 }
 
 parameter_types! {
-    pub const JobsPalletId: PalletId = PalletId(*b"py/jobss");
+    pub const Period: u64 = 1;
+    pub const Offset: u64 = 0;
 }
 
-const KB: u32 = 1024;
-const MB: u32 = 1024 * KB;
-
-parameter_types! {
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxSubmissionLen: u32 = 64 * MB;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxParticipants: u32 = 10;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxKeyLen: u32 = 2048;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxDataLen: u32 = 256;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxSignatureLen: u32 = 256;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxProofLen: u32 = 256;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxActiveJobsPerValidator: u32 = 100;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxRolesPerValidator: u32 = 100;
-    #[derive(Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, Encode, Decode)]
-    #[derive(Serialize, Deserialize)]
-    pub const MaxAdditionalParamsLen: u32 = 256;
-}
-
-impl pallet_jobs::Config for Runtime {
+impl pallet_session::Config for Runtime {
+    type SessionManager = MockSessionManager;
+    type Keys = MockSessionKeys;
+    type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
+    type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+    type SessionHandler = (MockSessionHandler,);
     type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-    type JobToFee = JobToFeeHandler;
-    type RolesHandler = MockRolesHandler;
-    type MPCHandler = MockMPCHandler;
-    type ForceOrigin = EnsureSigned<AccountId>;
-    type MaxParticipants = MaxParticipants;
-    type MaxSubmissionLen = MaxSubmissionLen;
-    type MaxSignatureLen = MaxSignatureLen;
-    type MaxDataLen = MaxDataLen;
-    type MaxKeyLen = MaxKeyLen;
-    type MaxProofLen = MaxProofLen;
-    type MaxActiveJobsPerValidator = MaxActiveJobsPerValidator;
-    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
-    type PalletId = JobsPalletId;
-    type MisbehaviorHandler = MockMisbehaviorHandler;
+    type ValidatorId = AccountId;
+    type ValidatorIdOf = pallet_staking::StashOf<Runtime>;
     type WeightInfo = ();
 }
 
-pub struct MockMisbehaviorHandler;
+pub struct OnChainSeqPhragmen;
+impl onchain::Config for OnChainSeqPhragmen {
+    type System = Runtime;
+    type Solver = SequentialPhragmen<AccountId, Perbill>;
+    type DataProvider = Staking;
+    type WeightInfo = ();
+    type MaxWinners = ConstU32<100>;
+    type Bounds = ElectionBoundsOnChain;
+}
 
-impl MisbehaviorHandler for MockMisbehaviorHandler {
-    fn verify(_data: MisbehaviorSubmission) -> DispatchResult {
-        Ok(())
+/// Upper limit on the number of NPOS nominations.
+const MAX_QUOTA_NOMINATIONS: u32 = 16;
+
+impl pallet_staking::Config for Runtime {
+    type Currency = Balances;
+    type CurrencyBalance = <Self as pallet_balances::Config>::Balance;
+    type UnixTime = pallet_timestamp::Pallet<Self>;
+    type CurrencyToVote = ();
+    type RewardRemainder = ();
+    type RuntimeEvent = RuntimeEvent;
+    type Slash = ();
+    type Reward = ();
+    type SessionsPerEra = ();
+    type SlashDeferDuration = ();
+    type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
+    type BondingDuration = ();
+    type SessionInterface = ();
+    type EraPayout = ();
+    type NextNewSession = Session;
+    type MaxExposurePageSize = ConstU32<64>;
+    type MaxControllersInDeprecationBatch = ConstU32<100>;
+    type OffendingValidatorsThreshold = ();
+    type ElectionProvider = onchain::OnChainExecution<OnChainSeqPhragmen>;
+    type GenesisElectionProvider = Self::ElectionProvider;
+    type VoterList = pallet_staking::UseNominatorsAndValidatorsMap<Self>;
+    type TargetList = pallet_staking::UseValidatorsMap<Self>;
+    type MaxUnlockingChunks = ConstU32<32>;
+    type HistoryDepth = ConstU32<84>;
+    type EventListeners = ();
+    type BenchmarkingConfig = pallet_staking::TestBenchmarkingConfig;
+    type NominationsQuota = pallet_staking::FixedNominationsQuota<MAX_QUOTA_NOMINATIONS>;
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const ServicesPalletId: PalletId = PalletId(*b"py/servs");
+}
+
+pub struct PalletEVMGasWeightMapping;
+
+impl EvmGasWeightMapping for PalletEVMGasWeightMapping {
+    fn gas_to_weight(gas: u64, without_base_weight: bool) -> Weight {
+        pallet_evm::FixedGasWeightMapping::<Runtime>::gas_to_weight(gas, without_base_weight)
+    }
+
+    fn weight_to_gas(weight: Weight) -> u64 {
+        pallet_evm::FixedGasWeightMapping::<Runtime>::weight_to_gas(weight)
     }
 }
 
-impl pallet_dkg::Config for Runtime {
+parameter_types! {
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxFields: u32 = 256;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxFieldsSize: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxMetadataLength: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxJobsPerService: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxOperatorsPerService: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxPermittedCallers: u32 = 256;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxServicesPerOperator: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxBlueprintsPerOperator: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxServicesPerUser: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxBinariesPerGadget: u32 = 64;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxSourcesPerGadget: u32 = 64;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxGitOwnerLength: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxGitRepoLength: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxGitTagLength: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxBinaryNameLength: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxIpfsHashLength: u32 = 46;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxContainerRegistryLength: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxContainerImageNameLength: u32 = 1024;
+
+    #[derive(Default, Copy, Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo)]
+    #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+    pub const MaxContainerImageTagLength: u32 = 1024;
+}
+
+impl pallet_services::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+    type ForceOrigin = frame_system::EnsureRoot<AccountId>;
     type Currency = Balances;
-    type UpdateOrigin = EnsureSigned<AccountId>;
-    type MaxParticipants = MaxParticipants;
-    type MaxSubmissionLen = MaxSubmissionLen;
-    type MaxSignatureLen = MaxSignatureLen;
-    type MaxDataLen = MaxDataLen;
-    type MaxKeyLen = MaxKeyLen;
-    type MaxProofLen = MaxProofLen;
-    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
+    type PalletId = ServicesPalletId;
+    type EvmRunner = MockedEvmRunner;
+    type EvmGasWeightMapping = PalletEVMGasWeightMapping;
+    type MaxFields = MaxFields;
+    type MaxFieldsSize = MaxFieldsSize;
+    type MaxMetadataLength = MaxMetadataLength;
+    type MaxJobsPerService = MaxJobsPerService;
+    type MaxOperatorsPerService = MaxOperatorsPerService;
+    type MaxPermittedCallers = MaxPermittedCallers;
+    type MaxServicesPerOperator = MaxServicesPerOperator;
+    type MaxBlueprintsPerOperator = MaxBlueprintsPerOperator;
+    type MaxServicesPerUser = MaxServicesPerUser;
+    type MaxBinariesPerGadget = MaxBinariesPerGadget;
+    type MaxSourcesPerGadget = MaxSourcesPerGadget;
+    type MaxGitOwnerLength = MaxGitOwnerLength;
+    type MaxGitRepoLength = MaxGitRepoLength;
+    type MaxGitTagLength = MaxGitTagLength;
+    type MaxBinaryNameLength = MaxBinaryNameLength;
+    type MaxIpfsHashLength = MaxIpfsHashLength;
+    type MaxContainerRegistryLength = MaxContainerRegistryLength;
+    type MaxContainerImageNameLength = MaxContainerImageNameLength;
+    type MaxContainerImageTagLength = MaxContainerImageTagLength;
+    type Constraints = pallet_services::types::ConstraintsOf<Self>;
     type WeightInfo = ();
 }
 
-impl pallet_zksaas::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
+type Block = frame_system::mocking::MockBlock<Runtime>;
 
-    type UpdateOrigin = EnsureSigned<AccountId>;
-    type Verifier = (ArkworksVerifierGroth16Bn254, CircomVerifierGroth16Bn254);
-    type MaxParticipants = MaxParticipants;
-    type MaxSubmissionLen = MaxSubmissionLen;
-    type MaxSignatureLen = MaxSignatureLen;
-    type MaxDataLen = MaxDataLen;
-    type MaxKeyLen = MaxKeyLen;
-    type MaxProofLen = MaxProofLen;
-    type MaxAdditionalParamsLen = MaxAdditionalParamsLen;
-    type WeightInfo = ();
-}
-
+#[allow(non_camel_case_types)]
 construct_runtime!(
     pub enum Runtime
     {
         System: frame_system,
         Timestamp: pallet_timestamp,
         Balances: pallet_balances,
-        Jobs: pallet_jobs,
-        Dkg: pallet_dkg,
-        ZkSaaS: pallet_zksaas,
+        Services: pallet_services,
+        Session: pallet_session,
+        Staking: pallet_staking,
     }
 );
-
-sp_api::mock_impl_runtime_apis! {
-    impl pallet_jobs_rpc_runtime_api::JobsApi<Block, AccountId, MaxParticipants, MaxSubmissionLen, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxProofLen, MaxAdditionalParamsLen> for Runtime {
-        fn query_jobs_by_validator(&self, validator: AccountId) -> Option<Vec<RpcResponseJobsData<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>>> {
-            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                Jobs::query_jobs_by_validator(validator)
-            })
-        }
-
-        fn query_job_by_id(role_type: RoleType, job_id: JobId) -> Option<RpcResponseJobsData<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>> {
-            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                Jobs::query_job_by_id(role_type, job_id)
-            })
-        }
-
-        fn query_job_result(role_type: RoleType, job_id: JobId) -> Option<PhaseResult<AccountId, BlockNumberOf<Block>, MaxParticipants, MaxKeyLen, MaxDataLen, MaxSignatureLen, MaxSubmissionLen, MaxProofLen, MaxAdditionalParamsLen>> {
-            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                Jobs::query_job_result(role_type, job_id)
-            })
-        }
-
-        fn query_next_job_id() -> JobId {
-            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                Jobs::query_next_job_id()
-            })
-        }
-
-        fn query_restaker_role_key(address: AccountId) -> Option<Vec<u8>> {
-            TEST_EXTERNALITIES.lock().as_ref().unwrap().execute_with(move || {
-                MockRolesHandler::get_validator_role_key(address)
-            })
-        }
-    }
-}
 
 pub struct ExtBuilder;
 
@@ -527,11 +539,11 @@ static TEST_EXTERNALITIES: parking_lot::Mutex<Option<MultiThreadedTestExternalit
 pub fn advance_to_block(block_number: u64) {
     while System::block_number() < block_number {
         System::on_finalize(System::block_number());
-        Jobs::on_finalize(System::block_number());
+        Services::on_finalize(System::block_number());
         Balances::on_finalize(System::block_number());
         System::set_block_number(System::block_number() + 1);
         System::on_initialize(System::block_number());
-        Jobs::on_initialize(System::block_number());
+        Services::on_initialize(System::block_number());
         Balances::on_initialize(System::block_number());
     }
 }
@@ -616,9 +628,7 @@ pub async fn new_test_ext<
     let ext = MultiThreadedTestExternalities::new(ext);
     assert!(TEST_EXTERNALITIES.lock().replace(ext.clone()).is_none(), "Make sure to run tests serially with -- --test-threads=1 or with nextest to ensure separate program spaces per test");
 
-    let finality_notification_txs = Arc::new(parking_lot::Mutex::new(Vec::<
-        TracingUnboundedSender<FinalityNotification<Block>>,
-    >::new()));
+    let finality_notification_txs = Arc::new(parking_lot::Mutex::new(Vec::new()));
     let sinks = finality_notification_txs.clone();
     let externalities = ext.clone();
 
@@ -641,17 +651,7 @@ pub async fn new_test_ext<
 
                 let lock = sinks.lock();
                 for sink in lock.iter() {
-                    let (faux_sink, faux_stream) = tracing_unbounded("faux_sink", 1024);
-                    std::mem::forget(faux_stream);
-
-                    let header = <Block as BlockT>::Header::new_from_number(number);
-                    let summary = FinalizeSummary::<Block> {
-                        finalized: vec![header.hash()],
-                        header,
-                        stale_heads: vec![],
-                    };
-
-                    let notification = FinalityNotification::from_summary(summary, faux_sink);
+                    let notification = generate_finality_notification_at(number);
                     if sink.unbounded_send(notification).is_err() {
                         log::warn!(target: "gadget", "Will not deliver FinalityNotification because the receiver is gone");
                     }
@@ -677,9 +677,11 @@ pub async fn new_test_ext<
             id: format!("Peer {node_index}"),
         };
 
+        let genesis_hash = generate_finality_notification_at(0).hash;
         let tx_manager = Arc::new(TestExternalitiesPalletSubmitter {
             id: account_id.clone(),
             ext: ext.clone(),
+            subxt_client: OfflineClient::new(genesis_hash, "1.0.0".into(), []),
         });
 
         let keystore = ECDSAKeyStore::in_memory(role_pair);
@@ -704,21 +706,34 @@ pub async fn new_test_ext<
     ext
 }
 
+fn generate_finality_notification_at(number: u64) -> FinalityNotification<Block> {
+    let (faux_sink, faux_stream) = tracing_unbounded("faux_sink", 1024);
+    std::mem::forget(faux_stream);
+    let header = <Block as BlockT>::Header::new_from_number(number);
+    let summary = FinalizeSummary::<Block> {
+        finalized: vec![header.hash()],
+        header,
+        stale_heads: vec![],
+    };
+
+    FinalityNotification::from_summary(summary, faux_sink)
+}
+
 pub mod mock_wrapper_client {
-    use crate::mock::{Runtime, RuntimeOrigin, TangleExtEnvironment};
+    use crate::mock::{Runtime, TangleExtEnvironment};
     use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
     use async_trait::async_trait;
+    use environment_utils::transaction_manager::tangle::TanglePalletSubmitter;
     use futures::StreamExt;
     use gadget_common::client::exec_client_function;
-    use tangle_environment::api::ClientWithApi;
     use gadget_common::locks::TokioMutexExt;
-    use gadget_common::tangle_subxt::subxt::utils::AccountId32;
-    use gadget_common::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::{
-        jobs, roles,
-    };
     use gadget_common::tangle_runtime::*;
+    use gadget_common::tangle_subxt;
+    use gadget_common::tangle_subxt::subxt::utils::AccountId32;
+    use gadget_common::tangle_subxt::subxt::{Config, OfflineClient, OnlineClient};
+    use gadget_core::gadget::general::Client;
     use gadget_core::gadget::substrate;
-    use pallet_jobs_rpc_runtime_api::JobsApi;
+    use gadget_io::tokio;
     use parity_scale_codec::{Decode, Encode};
     use sc_client_api::{
         BlockchainEvents, FinalityNotification, FinalityNotifications, ImportNotifications,
@@ -730,27 +745,24 @@ pub mod mock_wrapper_client {
     use sp_runtime::traits::Header;
     use std::sync::Arc;
     use std::time::Duration;
-    use tangle_primitives::jobs::JobId;
+    use tangle_environment::gadget::TangleEvent;
     use tangle_primitives::AccountId;
-    use environment_utils::transaction_manager::tangle::TanglePalletSubmitter;
-    use gadget_core::gadget::general::Client;
 
     #[derive(Clone)]
     pub struct MockClient<R, B: Block> {
         runtime: Arc<R>,
         finality_notification_stream:
             Arc<gadget_io::tokio::sync::Mutex<Option<FinalityNotifications<B>>>>,
-        latest_finality_notification:
-            Arc<gadget_io::tokio::sync::Mutex<Option<FinalityNotification<B>>>>,
+        latest_finality_notification: Arc<gadget_io::tokio::sync::Mutex<Option<TangleEvent>>>,
         finality_notification_txs:
-            Arc<parking_lot::Mutex<Vec<TracingUnboundedSender<FinalityNotification<B>>>>>,
+            Arc<parking_lot::Mutex<Vec<TracingUnboundedSender<TangleEvent>>>>,
     }
 
     impl<R, B: Block> MockClient<R, B> {
         pub async fn new(
             runtime: R,
             finality_notification_txs: Arc<
-                parking_lot::Mutex<Vec<TracingUnboundedSender<FinalityNotification<B>>>>,
+                parking_lot::Mutex<Vec<TracingUnboundedSender<TangleEvent>>>,
             >,
         ) -> Self {
             let runtime = Arc::new(runtime);
@@ -772,10 +784,8 @@ pub mod mock_wrapper_client {
     }
 
     #[async_trait]
-    impl<R: Send + Sync + Clone, B: Block> Client<substrate::FinalityNotification>
-        for MockClient<R, B>
-    {
-        async fn next_event(&self) -> Option<substrate::FinalityNotification> {
+    impl<R: Send + Sync + Clone, B: Block> Client<TangleEvent> for MockClient<R, B> {
+        async fn next_event(&self) -> Option<TangleEvent> {
             let mut lock = self
                 .finality_notification_stream
                 .lock_timeout(Duration::from_millis(500))
@@ -792,166 +802,32 @@ pub mod mock_wrapper_client {
                 hash.copy_from_slice(n.header.hash().as_ref());
                 let number =
                     Decode::decode(&mut Encode::encode(&n.header.number()).as_slice()).unwrap();
-                substrate::FinalityNotification { hash, number }
+                TangleEvent {
+                    hash,
+                    number,
+                    events: n,
+                }
             })
         }
 
-        async fn latest_event(&self) -> Option<substrate::FinalityNotification> {
+        async fn latest_event(&self) -> Option<TangleEvent> {
             let lock = self
                 .latest_finality_notification
                 .lock_timeout(Duration::from_millis(500))
                 .await;
             if let Some(n) = lock.clone() {
                 let mut hash = [0u8; 32];
-                hash.copy_from_slice(n.header.hash().as_ref());
-                let number =
-                    Decode::decode(&mut Encode::encode(&n.header.number()).as_slice()).unwrap();
-                Some(substrate::FinalityNotification { hash, number })
+                hash.copy_from_slice(&n.hash);
+                let number = Decode::decode(&mut Encode::encode(&n.number).as_slice()).unwrap();
+                Some(TangleEvent {
+                    hash,
+                    number,
+                    events: n,
+                })
             } else {
                 drop(lock);
                 self.next_event().await
             }
-        }
-    }
-
-    #[async_trait]
-    impl ClientWithApi<TangleExtEnvironment> for MockClient<Runtime, crate::mock::Block> {
-        async fn query_jobs_by_validator(
-            &self,
-            at: [u8; 32],
-            validator: AccountId32,
-        ) -> Result<
-            Option<
-                Vec<
-                    jobs::RpcResponseJobsData<
-                        AccountId32,
-                        u64,
-                        MaxParticipants,
-                        MaxSubmissionLen,
-                        MaxAdditionalParamsLen,
-                    >,
-                >,
-            >,
-            gadget_common::Error,
-        > {
-            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
-            let validator = tangle_primitives::AccountId::from(validator.0);
-            exec_client_function(&self.runtime, move |r| {
-                r.runtime_api()
-                    .query_jobs_by_validator(at, validator)
-                    .map_err(|err| gadget_common::Error::ClientError {
-                        err: format!("{err:?}"),
-                    })
-                    .map(|r| {
-                        r.map(|r| {
-                            r.into_iter()
-                                .flat_map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()))
-                                .collect()
-                        })
-                    })
-            })
-            .await
-        }
-        async fn query_job_by_id(
-            &self,
-            at: [u8; 32],
-            role_type: roles::RoleType,
-            job_id: u64,
-        ) -> Result<
-            Option<
-                jobs::RpcResponseJobsData<
-                    AccountId32,
-                    u64,
-                    MaxParticipants,
-                    MaxSubmissionLen,
-                    MaxAdditionalParamsLen,
-                >,
-            >,
-            gadget_common::Error,
-        > {
-            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
-            let role_type = Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap();
-            exec_client_function(&self.runtime, move |r| {
-                r.runtime_api()
-                    .query_job_by_id(at, role_type, job_id)
-                    .map_err(|err| gadget_common::Error::ClientError {
-                        err: format!("{err:?}"),
-                    })
-                    .map(|r| r.map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()).unwrap()))
-            })
-            .await
-        }
-
-        async fn query_job_result(
-            &self,
-            at: [u8; 32],
-            role_type: roles::RoleType,
-            job_id: u64,
-        ) -> Result<
-            Option<
-                jobs::PhaseResult<
-                    AccountId32,
-                    u64,
-                    MaxParticipants,
-                    MaxKeyLen,
-                    MaxDataLen,
-                    MaxSignatureLen,
-                    MaxSubmissionLen,
-                    MaxProofLen,
-                    MaxAdditionalParamsLen,
-                >,
-            >,
-            gadget_common::Error,
-        > {
-            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
-            let role_type = Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap();
-            exec_client_function(&self.runtime, move |r| {
-                r.runtime_api()
-                    .query_job_result(at, role_type, job_id)
-                    .map_err(|err| gadget_common::Error::ClientError {
-                        err: format!("{err:?}"),
-                    })
-                    .map(|r| r.map(|r| Decode::decode(&mut Encode::encode(&r).as_slice()).unwrap()))
-            })
-            .await
-        }
-
-        async fn query_next_job_id(&self, at: [u8; 32]) -> Result<u64, gadget_common::Error> {
-            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
-            exec_client_function(&self.runtime, move |r| {
-                r.runtime_api().query_next_job_id(at).map_err(|err| {
-                    gadget_common::Error::ClientError {
-                        err: format!("{err:?}"),
-                    }
-                })
-            })
-            .await
-        }
-
-        async fn query_restaker_role_key(
-            &self,
-            at: [u8; 32],
-            address: AccountId32,
-        ) -> Result<Option<Vec<u8>>, gadget_common::Error> {
-            let at = Decode::decode(&mut Encode::encode(&at).as_slice()).unwrap();
-            let address = tangle_primitives::AccountId::from(address.0);
-            exec_client_function(&self.runtime, move |r| {
-                r.runtime_api()
-                    .query_restaker_role_key(at, address)
-                    .map_err(|err| gadget_common::Error::ClientError {
-                        err: format!("{err:?}"),
-                    })
-                    .map(|r| r.map(|r| r.to_vec()))
-            })
-            .await
-        }
-
-        async fn query_restaker_roles(
-            &self,
-            _at: [u8; 32],
-            _address: AccountId32,
-        ) -> Result<Vec<roles::RoleType>, gadget_common::Error> {
-            Ok(Default::default())
         }
     }
 
@@ -990,12 +866,13 @@ pub mod mock_wrapper_client {
         }
     }
 
-    pub struct TestExternalitiesPalletSubmitter {
+    pub struct TestExternalitiesPalletSubmitter<C: Config> {
         pub ext: MultiThreadedTestExternalities,
         pub id: AccountId,
+        pub subxt_client: OfflineClient<C>,
     }
 
-    impl std::fmt::Debug for TestExternalitiesPalletSubmitter {
+    impl<C: Config> std::fmt::Debug for TestExternalitiesPalletSubmitter<C> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.debug_struct("TestExternalitiesPalletSubmitter")
                 .field("id", &self.id.to_string())
@@ -1004,43 +881,31 @@ pub mod mock_wrapper_client {
     }
 
     #[async_trait]
-    impl TanglePalletSubmitter for TestExternalitiesPalletSubmitter {
-        async fn submit_job_result(
+    impl<C: Config> TanglePalletSubmitter for TestExternalitiesPalletSubmitter<C> {
+        async fn submit_job_call_result(
             &self,
-            role_type: roles::RoleType,
-            job_id: JobId,
-            result: jobs::JobResult<
-                MaxParticipants,
-                MaxKeyLen,
-                MaxSignatureLen,
-                MaxDataLen,
-                MaxProofLen,
-                MaxAdditionalParamsLen,
-            >,
+            service_id: u64,
+            call_id: u64,
+            result: api::services::calls::types::submit_result::Result,
         ) -> Result<(), gadget_common::Error> {
             let id = self.id.clone();
-            self.ext
-                .execute_with_async(move || {
-                    let origin = RuntimeOrigin::signed(id);
-                    let res = crate::mock::Jobs::submit_job_result(
-                        origin,
-                        Decode::decode(&mut Encode::encode(&role_type).as_slice()).unwrap(),
-                        job_id,
-                        Decode::decode(&mut Encode::encode(&result).as_slice()).unwrap(),
-                    );
-                    if let Err(err) = res {
-                        let err = format!("Pallet tx error: {err:?}");
-                        if err.contains("JobNotFound") {
-                            // Job has already been submitted (assumption only for tests)
-                            Ok(())
-                        } else {
-                            Err(gadget_common::Error::ClientError { err })
-                        }
-                    } else {
-                        Ok(())
-                    }
-                })
-                .await
+            let client = self.subxt_client.clone();
+            let function = async move {
+                let call = api::tx()
+                    .services()
+                    .submit_result(service_id, call_id, result);
+                let _res = client
+                    .tx()
+                    .sign_and_submit_then_watch_default(&call, &id)
+                    .await?
+                    .wait_for_finalized_success()
+                    .await?
+                    .block_hash();
+
+                Ok(())
+            };
+
+            function.await
         }
     }
 }
@@ -1091,7 +956,7 @@ impl GadgetEnvironment for TangleExtEnvironment {
         }
     }
 
-    async fn setup_client(&self) -> Result<Self::Client, Self::Error> {
+    async fn setup_runtime(&self) -> Result<Self::Client, Self::Error> {
         let finality_notification_txs = self.finality_notification_txs.clone();
         Ok(MockClient::<Runtime, Block>::new(Runtime, finality_notification_txs).await)
     }
@@ -1109,4 +974,8 @@ impl EventMetadata<TangleExtEnvironment> for TangleEvent {
     fn number(&self) -> <TangleExtEnvironment as GadgetEnvironment>::Clock {
         self.number
     }
+}
+
+pub fn mock_pub_key(id: u8) -> AccountId {
+    sr25519::Public::from_raw([id; 32]).into()
 }

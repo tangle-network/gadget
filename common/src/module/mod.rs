@@ -3,7 +3,6 @@ use crate::debug_logger::DebugLogger;
 use crate::environments::GadgetEnvironment;
 use crate::module::network::Network;
 use crate::protocol::{AsyncProtocol, AsyncProtocolRemote};
-use crate::tangle_runtime::*;
 use crate::Error;
 use async_trait::async_trait;
 use gadget_core::gadget::general::Client;
@@ -152,7 +151,7 @@ pub trait GadgetProtocol<Env: GadgetEnvironment>:
     async fn create_next_job(
         &self,
         job: <Env as GadgetEnvironment>::JobInitMetadata,
-        work_manager: &ProtocolWorkManager<Env::WorkManager>,
+        work_manager: &ProtocolWorkManager<<Env as GadgetEnvironment>::WorkManager>,
     ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Error>;
 
     async fn process_event(
@@ -164,7 +163,7 @@ pub trait GadgetProtocol<Env: GadgetEnvironment>:
     async fn process_error(
         &self,
         error: Env::Error,
-        job_manager: &ProtocolWorkManager<Env::WorkManager>,
+        job_manager: &ProtocolWorkManager<<Env as GadgetEnvironment>::WorkManager>,
     );
 
     async fn generate_work_manager(
@@ -177,28 +176,6 @@ pub trait GadgetProtocol<Env: GadgetEnvironment>:
     /// The Protocol Name.
     /// Used for logging and debugging purposes
     fn name(&self) -> String;
-    /// Filter queried jobs by role type.
-    /// ## Example
-    ///
-    /// ```rust,ignore
-    /// fn role_filter(&self, role: RoleType) -> bool {
-    ///   matches!(role, RoleType::Tss(ThresholdSignatureRoleType::ZengoGG20Secp256k1))
-    /// }
-    /// ```
-    fn role_filter(&self, role: roles::RoleType) -> bool;
-
-    /// Filter queried jobs by Job type & Phase.
-    /// ## Example
-    ///
-    /// ```rust,ignore
-    /// fn phase_filter(&self, job: JobType<AccountId, MaxParticipants, MaxSubmissionLen>) -> bool {
-    ///   matches!(job, JobType::DKGTSSPhaseOne(_))
-    /// }
-    /// ```
-    fn phase_filter(
-        &self,
-        job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
-    ) -> bool;
     fn client(&self) -> JobsClient<Env>;
     fn logger(&self) -> DebugLogger;
     fn get_work_manager_config(&self) -> WorkManagerConfig {

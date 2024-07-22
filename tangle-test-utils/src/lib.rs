@@ -2,7 +2,6 @@ use crate::mock::{Jobs, Runtime};
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 pub use gadget_core::job_manager::SendFuture;
 pub use log;
-use pallet_jobs::{SubmittedJobs, SubmittedJobsRole};
 use std::time::Duration;
 use tangle_primitives::jobs::{JobId, PhaseResult};
 use tangle_primitives::roles::RoleType;
