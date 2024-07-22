@@ -126,7 +126,7 @@ pub enum ServiceRegistrationHook {
     #[default]
     None,
     /// A Smart contract that will be called to determine if the restaker will be registered.
-    Evm(Address),
+    Evm(String),
 }
 
 /// Service Request hook is a hook that will be called before creating a service from the service blueprint.
@@ -136,7 +136,7 @@ pub enum ServiceRequestHook {
     #[default]
     None,
     /// A Smart contract that will be called to determine if the caller meets the requirements to create a service.
-    Evm(Address),
+    Evm(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

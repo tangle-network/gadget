@@ -67,10 +67,10 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     let job_def_str = serde_json::to_string(&job_def).map_err(|err| {
         syn::Error::new_spanned(
             input,
-            format!("Failed to serialize job definition to ron: {err}"),
+            format!("Failed to serialize job definition to json: {err}"),
         )
     })?;
-    // Generate the struct
+
     let gen = quote! {
         #[doc = "Job definition for the function "]
         #[doc = "[`"]

@@ -20,6 +20,8 @@ use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
 mod blueprint;
+/// Blueprint Hooks proc-macro
+mod hooks;
 /// Blueprint Job proc-macro
 mod job;
 
@@ -63,6 +65,28 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ItemFn);
 
     match job::job_impl(&args, &input) {
+        Ok(tokens) => tokens,
+        Err(err) => err.to_compile_error().into(),
+    }
+}
+
+/// TDOD: Documentation
+#[proc_macro_attribute]
+pub fn registration_hook(args: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::ForeignItemFn);
+    let args = parse_macro_input!(args as hooks::HookArgs);
+    match hooks::registration_hook_impl(&args, &input) {
+        Ok(tokens) => tokens,
+        Err(err) => err.to_compile_error().into(),
+    }
+}
+
+/// TDOD: Documentation
+#[proc_macro_attribute]
+pub fn request_hook(args: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::ForeignItemFn);
+    let args = parse_macro_input!(args as hooks::HookArgs);
+    match hooks::request_hook_impl(&args, &input) {
         Ok(tokens) => tokens,
         Err(err) => err.to_compile_error().into(),
     }

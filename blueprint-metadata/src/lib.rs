@@ -6,7 +6,7 @@ use std::{
 };
 
 use gadget_blueprint_proc_macro_core::{
-    Gadget, JobDefinition, JobResultVerifier, ServiceBlueprint, ServiceMetadata,
+    FieldType, Gadget, JobDefinition, JobResultVerifier, ServiceBlueprint, ServiceMetadata,
     ServiceRegistrationHook, ServiceRequestHook, WasmGadget, WasmRuntime,
 };
 
@@ -29,6 +29,7 @@ impl Config {
         let krate = generate_rustdoc();
         // Extract the job definitions from the rustdoc output
         let jobs = extract_jobs(&krate);
+        let hooks = extract_hooks(&krate);
         eprintln!("Generating blueprint.json to {:?}", output_file);
         let blueprint = ServiceBlueprint {
             metadata: ServiceMetadata {
@@ -44,10 +45,34 @@ impl Config {
                 license: std::env::var("CARGO_PKG_LICENSE").map(Into::into).ok(),
             },
             jobs,
-            registration_hook: ServiceRegistrationHook::None,
-            registration_params: vec![],
-            request_hook: ServiceRequestHook::None,
-            request_params: vec![],
+            registration_hook: hooks
+                .iter()
+                .find_map(|hook| match hook {
+                    Hook::Registration(hook) => Some(hook.clone()),
+                    _ => None,
+                })
+                .unwrap_or_default(),
+            registration_params: hooks
+                .iter()
+                .find_map(|hook| match hook {
+                    Hook::RegistrationParams(params) => Some(params.clone()),
+                    _ => None,
+                })
+                .unwrap_or_default(),
+            request_hook: hooks
+                .iter()
+                .find_map(|hook| match hook {
+                    Hook::Request(hook) => Some(hook.clone()),
+                    _ => None,
+                })
+                .unwrap_or_default(),
+            request_params: hooks
+                .iter()
+                .find_map(|hook| match hook {
+                    Hook::RequestParams(params) => Some(params.clone()),
+                    _ => None,
+                })
+                .unwrap_or_default(),
             gadget: Gadget::Wasm(WasmGadget {
                 runtime: WasmRuntime::Wasmtime,
                 soruces: vec![],
@@ -57,6 +82,25 @@ impl Config {
         let json = serde_json::to_string_pretty(&blueprint).expect("Failed to serialize blueprint");
         std::fs::write(&output_file, json).expect("Failed to write blueprint.json");
     }
+}
+
+enum Hook {
+    Registration(ServiceRegistrationHook),
+    RegistrationParams(Vec<FieldType>),
+    Request(ServiceRequestHook),
+    RequestParams(Vec<FieldType>),
+}
+
+/// Extract hooks from a rustdoc module.
+fn extract_hooks(krate: &Crate) -> Vec<Hook> {
+    let root_module = krate
+        .index
+        .get(&krate.root)
+        .expect("Failed to get root module");
+    let ItemEnum::Module(blueprint_crate) = &root_module.inner else {
+        panic!("Failed to get blueprint crate module");
+    };
+    extract_hooks_from_module(&krate.root, &krate.index, blueprint_crate)
 }
 
 /// Extract job definitions from the rustdoc output.
@@ -123,6 +167,78 @@ fn extract_jobs_from_module<'a>(
         }
     }
     jobs
+}
+
+/// Extracts hooks from a module.
+fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Module) -> Vec<Hook> {
+    let mut hooks = vec![];
+    let automatically_derived: String = String::from("#[automatically_derived]");
+    const REGISTRATION_HOOK: &str = "REGISTRATION_HOOK";
+    const REQUEST_HOOK: &str = "REQUEST_HOOK";
+    const REGISTRATION_HOOK_PARAMS: &str = "REGISTRATION_HOOK_PARAMS";
+    const REQUEST_HOOK_PARAMS: &str = "REQUEST_HOOK_PARAMS";
+
+    for item_id in &module.items {
+        let item = index.get(item_id).expect("Failed to get item");
+        match &item.inner {
+            ItemEnum::Module(m) => {
+                hooks.extend(extract_hooks_from_module(_root, index, m));
+            }
+            ItemEnum::Constant(c)
+                if item.attrs.contains(&automatically_derived)
+                    && item
+                        .name
+                        .as_ref()
+                        .map(|v| v.contains(REGISTRATION_HOOK))
+                        .unwrap_or(false) =>
+            {
+                let value = serde_json::from_str(&unescape_json_string(&c.expr))
+                    .expect("Failed to deserialize hook");
+                hooks.push(Hook::Registration(value));
+            }
+
+            ItemEnum::Constant(c)
+                if item.attrs.contains(&automatically_derived)
+                    && item
+                        .name
+                        .as_ref()
+                        .map(|v| v.contains(REQUEST_HOOK))
+                        .unwrap_or(false) =>
+            {
+                let value = serde_json::from_str(&unescape_json_string(&c.expr))
+                    .expect("Failed to deserialize hook");
+                hooks.push(Hook::Request(value));
+            }
+
+            ItemEnum::Constant(c)
+                if item.attrs.contains(&automatically_derived)
+                    && item
+                        .name
+                        .as_ref()
+                        .map(|v| v.contains(REQUEST_HOOK_PARAMS))
+                        .unwrap_or(false) =>
+            {
+                let value = serde_json::from_str(&unescape_json_string(&c.expr))
+                    .expect("Failed to deserialize hook");
+                hooks.push(Hook::RequestParams(value));
+            }
+
+            ItemEnum::Constant(c)
+                if item.attrs.contains(&automatically_derived)
+                    && item
+                        .name
+                        .as_ref()
+                        .map(|v| v.contains(REGISTRATION_HOOK_PARAMS))
+                        .unwrap_or(false) =>
+            {
+                let value = serde_json::from_str(&unescape_json_string(&c.expr))
+                    .expect("Failed to deserialize hook");
+                hooks.push(Hook::RegistrationParams(value));
+            }
+            _ => continue,
+        }
+    }
+    hooks
 }
 
 /// Generate `blueprint.json` to the current crate working directory next to `build.rs` file.
@@ -259,8 +375,9 @@ fn kabab_case_to_snake_case(s: &str) -> String {
 /// A simple function to unscape JSON strings that are escaped multiple times
 fn unescape_json_string(s: &str) -> String {
     let mut s = s.to_string();
+    dbg!(&s);
     while let Ok(unescape) = serde_json::from_str::<String>(&s) {
-        s = unescape;
+        s = dbg!(unescape);
     }
-    s
+    dbg!(s)
 }
