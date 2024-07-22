@@ -1,12 +1,7 @@
 use gadget_blueprint_proc_macro::job;
 
 /// Simple Threashold (t) Keygen Job for n parties.
-#[job(
-    id = 0,
-    params(n, t),
-    result(_),
-    verifier(evm = "TestContract")
-)]
+#[job(id = 0, params(n, t), result(_), verifier(evm = "TestContract"))]
 pub fn keygen(n: u16, t: u8) -> Vec<u8> {
     let _ = (n, t);
     vec![0; 33]
