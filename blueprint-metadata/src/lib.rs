@@ -6,8 +6,8 @@ use std::{
 };
 
 use gadget_blueprint_proc_macro_core::{
-    Gadget, JobDefinition, ServiceBlueprint, ServiceMetadata, ServiceRegistrationHook,
-    ServiceRequestHook, WasmGadget, WasmRuntime,
+    Gadget, JobDefinition, JobResultVerifier, ServiceBlueprint, ServiceMetadata,
+    ServiceRegistrationHook, ServiceRequestHook, WasmGadget, WasmRuntime,
 };
 
 use rustdoc_types::{Crate, Id, Item, ItemEnum, Module};
@@ -73,7 +73,7 @@ fn extract_jobs(krate: &Crate) -> Vec<JobDefinition<'_>> {
 
 /// Extracts job definitions from a module.
 fn extract_jobs_from_module<'a>(
-    root: &'a Id,
+    _root: &'a Id,
     index: &'a HashMap<Id, Item>,
     module: &'a Module,
 ) -> Vec<JobDefinition<'a>> {
@@ -84,7 +84,7 @@ fn extract_jobs_from_module<'a>(
         let item = index.get(item_id).expect("Failed to get item");
         match &item.inner {
             ItemEnum::Module(m) => {
-                jobs.extend(extract_jobs_from_module(root, index, m));
+                jobs.extend(extract_jobs_from_module(_root, index, m));
             }
             // Handle only the constant items that are automatically derived and have the JOB_DEF in their name
             ItemEnum::Constant(c)
@@ -107,6 +107,16 @@ fn extract_jobs_from_module<'a>(
                     serde_json::from_str(&unescape_json_string(&c.expr))
                         .expect("Failed to deserialize job definition");
                 job_def.metadata.description = linked_function.docs.as_ref().map(Into::into);
+                if let JobResultVerifier::Evm(c) = &mut job_def.verifier {
+                    *c = std::env::current_dir()
+                        .expect("Failed to get current directory")
+                        .join("contracts")
+                        .join("out")
+                        .join(format!("{c}.sol"))
+                        .join(format!("{c}.json"))
+                        .display()
+                        .to_string();
+                }
                 jobs.push(job_def);
             }
             _ => continue,

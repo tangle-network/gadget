@@ -5,13 +5,15 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
-use syn::{Ident, ItemFn, LitInt, Token, Type};
+use syn::{Ident, ItemFn, LitInt, LitStr, Token, Type};
 
 // Defines custom keywords
 mod kw {
     syn::custom_keyword!(id);
     syn::custom_keyword!(params);
     syn::custom_keyword!(result);
+    syn::custom_keyword!(verifier);
+    syn::custom_keyword!(evm);
 }
 
 pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStream> {
@@ -56,7 +58,10 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         },
         params: params_type,
         result: result_type,
-        verifier: JobResultVerifier::None,
+        verifier: match &args.verifier {
+            Verifier::Evm(contract) => JobResultVerifier::Evm(contract.clone()),
+            Verifier::None => JobResultVerifier::None,
+        },
     };
 
     let job_def_str = serde_json::to_string(&job_def).map_err(|err| {
@@ -106,6 +111,7 @@ pub(crate) struct JobArgs {
     id: LitInt,
     params: Vec<Ident>,
     result: ResultsKind,
+    verifier: Verifier,
 }
 
 impl Parse for JobArgs {
@@ -113,6 +119,7 @@ impl Parse for JobArgs {
         let mut params = Vec::new();
         let mut result = None;
         let mut id = None;
+        let mut verifier = Verifier::None;
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
@@ -126,6 +133,8 @@ impl Parse for JobArgs {
             } else if lookahead.peek(kw::result) {
                 let Results(r) = input.parse()?;
                 result = Some(r);
+            } else if lookahead.peek(kw::verifier) {
+                verifier = input.parse()?;
             } else if lookahead.peek(Token![,]) {
                 let _ = input.parse::<Token![,]>()?;
             } else {
@@ -147,7 +156,12 @@ impl Parse for JobArgs {
             }
         }
 
-        Ok(JobArgs { id, params, result })
+        Ok(JobArgs {
+            id,
+            params,
+            result,
+            verifier,
+        })
     }
 }
 
@@ -216,6 +230,31 @@ impl Parse for Results {
             items.push(name);
         }
         Ok(Self(ResultsKind::Types(items)))
+    }
+}
+
+#[derive(Debug)]
+enum Verifier {
+    None,
+    // #[job(verifier(evm = "MyVerifierContract"))]
+    Evm(String),
+}
+
+impl Parse for Verifier {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let _ = input.parse::<kw::verifier>()?;
+        let content;
+        let _ = syn::parenthesized!(content in input);
+        let lookahead = content.lookahead1();
+        // parse `(evm = "MyVerifierContract")`
+        if lookahead.peek(kw::evm) {
+            let _ = content.parse::<kw::evm>()?;
+            let _ = content.parse::<Token![=]>()?;
+            let contract = content.parse::<LitStr>()?;
+            Ok(Verifier::Evm(contract.value()))
+        } else {
+            Ok(Verifier::None)
+        }
     }
 }
 

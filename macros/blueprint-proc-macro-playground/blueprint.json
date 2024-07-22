@@ -22,7 +22,9 @@
       "result": [
         "Bytes"
       ],
-      "verifier": "None"
+      "verifier": {
+        "Evm": "/Users/shady/github/webb-tools/gadget/macros/blueprint-proc-macro-playground/contracts/out/TestContract.sol/TestContract.json"
+      }
     },
     {
       "metadata": {

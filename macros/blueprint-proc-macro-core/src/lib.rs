@@ -115,7 +115,7 @@ pub enum JobResultVerifier {
     #[default]
     None,
     /// An EVM Contract Address that will verify the result.
-    Evm(Address),
+    Evm(String),
 }
 
 /// Service Registration hook is a hook that will be called before registering the restaker as

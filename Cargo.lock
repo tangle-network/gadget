@@ -3650,8 +3650,10 @@ name = "gadget-sdk"
 version = "0.1.0"
 dependencies = [
  "ed25519-zebra 4.0.3",
+ "env_logger 0.11.3",
+ "getrandom 0.2.15",
  "hex",
- "hyper 0.14.28",
+ "hyper 0.14.30",
  "k256",
  "log",
  "parking_lot 0.12.2",
@@ -3665,7 +3667,10 @@ dependencies = [
  "tokio",
  "tracing 0.1.40",
  "tracing-log 0.2.0",
+ "tracing-subscriber 0.3.18",
+ "tracing-wasm",
  "w3f-bls",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
@@ -4231,9 +4236,9 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
 name = "hyper"
-version = "0.14.28"
+version = "0.14.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf96e135eb83a2a8ddf766e426a841d8ddd7449d5f00d34ea02b41d2f19eef80"
+checksum = "a152ddd61dfaec7273fe8419ab357f33aee0d914c5f4efbf0d96fa749eea5ec9"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -4281,7 +4286,7 @@ checksum = "ec3efd23720e2049821a693cbc7e65ea87c72f1c58ff2f9522ff332b1491e590"
 dependencies = [
  "futures-util",
  "http 0.2.12",
- "hyper 0.14.28",
+ "hyper 0.14.30",
  "log",
  "rustls 0.21.12",
  "rustls-native-certs 0.6.3",
@@ -4425,7 +4430,7 @@ dependencies = [
  "bytes",
  "futures",
  "http 0.2.12",
- "hyper 0.14.28",
+ "hyper 0.14.30",
  "log",
  "rand",
  "tokio",
@@ -4744,7 +4749,7 @@ dependencies = [
  "async-trait",
  "beef",
  "futures-util",
- "hyper 0.14.28",
+ "hyper 0.14.30",
  "jsonrpsee-types 0.20.3",
  "parking_lot 0.12.2",
  "rand",
@@ -4769,7 +4774,7 @@ dependencies = [
  "beef",
  "futures-timer",
  "futures-util",
- "hyper 0.14.28",
+ "hyper 0.14.30",
  "jsonrpsee-types 0.21.0",
  "pin-project",
  "rustc-hash",
@@ -4789,7 +4794,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78b7de9f3219d95985eb77fd03194d7c1b56c19bce1abfcc9d07462574b15572"
 dependencies = [
  "async-trait",
- "hyper 0.14.28",
+ "hyper 0.14.30",
  "hyper-rustls",
  "jsonrpsee-core 0.21.0",
  "jsonrpsee-types 0.21.0",
@@ -4823,7 +4828,7 @@ checksum = "82c39a00449c9ef3f50b84fc00fc4acba20ef8f559f07902244abf4c15c5ab9c"
 dependencies = [
  "futures-util",
  "http 0.2.12",
- "hyper 0.14.28",
+ "hyper 0.14.30",
  "jsonrpsee-core 0.20.3",
  "jsonrpsee-types 0.20.3",
  "route-recognizer",
@@ -11479,7 +11484,7 @@ name = "substrate-prometheus-endpoint"
 version = "0.17.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0#162c6796bac740802fe11c9e39f3094677d1f08f"
 dependencies = [
- "hyper 0.14.28",
+ "hyper 0.14.30",
  "log",
  "prometheus",
  "thiserror",
@@ -12329,6 +12334,17 @@ dependencies = [
  "tracing 0.1.40",
  "tracing-core 0.1.32",
  "tracing-log 0.2.0",
+]
+
+[[package]]
+name = "tracing-wasm"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4575c663a174420fa2d78f4108ff68f65bf2fbb7dd89f33749b6e826b3626e07"
+dependencies = [
+ "tracing 0.1.40",
+ "tracing-subscriber 0.3.18",
+ "wasm-bindgen",
 ]
 
 [[package]]
