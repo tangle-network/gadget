@@ -471,7 +471,7 @@ mod tests {
     use alloy_provider::Provider;
     use alloy_rpc_types_eth::BlockId;
     use anvil::spawn;
-    use ark_bn254::Fq;
+    use ark_bn254::{Fq, G2Affine, G2Projective};
     use foundry_common::provider::RetryProvider;
     use futures::StreamExt;
     use url::Url;
@@ -938,13 +938,16 @@ mod tests {
     // }
 
     use super::*;
-    use ark_ec::bn::G1Projective;
+    use ark_bn254::G1Projective;
     use ark_ff::{BigInt, Zero};
     use ark_ff::{BigInteger256, UniformRand};
     use eigen_utils::crypto::bls::{G1Point, G2Point, PrivateKey};
     use gadget_common::sp_core::crypto::Ss58Codec;
     use hex::FromHex;
     use rand::{thread_rng, Rng, RngCore};
+    use std::fmt::Write;
+    use ark_ec::CurveGroup;
+    use ark_ec::short_weierstrass::Projective;
 
     pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
         let mut hex_string = String::new();
@@ -976,12 +979,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_keypair_generation() {
+        println!("About to generate keypair");
         let keypair = KeyPair::gen_random().unwrap();
-        let pub_key = G1Projective::from(keypair.pub_key.to_ark_g1());
+        println!("Generated keypair: {:?}", keypair);
+        let g1_point = keypair.pub_key;
+        println!("Generated G1Point: {:?}", g1_point);
+        let g1_affine = g1_point.to_ark_g1();
+        println!("Generated G1Affine: {:?}", g1_affine);
+        let pub_key = G1Projective::from(g1_affine);
 
+        println!("About to make assertions");
         // Check that the public key is not zero
         assert_ne!(pub_key, G1Projective::zero());
-        assert_ne!(keypair.pub_key, G1Point::zero());
+        assert_ne!(g1_point, G1Point::zero());
     }
 
     #[tokio::test]
@@ -992,7 +1002,7 @@ mod tests {
         let signature = keypair.sign_message(&message);
 
         // Check that the signature is not zero
-        assert_ne!(signature, G1Projective::zero());
+        assert_ne!(signature.g1_point, G1Point::zero());
     }
 
     #[tokio::test]
@@ -1013,8 +1023,8 @@ mod tests {
         rand::thread_rng().fill(&mut wrong_message);
 
         // Check that the signature verifies
-        assert!(signature.verify(&pub_key_g2, &message));
-        assert!(!signature.verify(&pub_key_g2, &wrong_message))
+        assert!(signature.verify(&pub_key_g2, &message).is_ok());
+        assert!(!signature.verify(&pub_key_g2, &wrong_message).is_ok())
     }
 
     #[tokio::test]
@@ -1032,8 +1042,9 @@ mod tests {
         assert_ne!(g1_projective, G1Projective::zero());
 
         // Check that the signature does not verify with a different public key
-        let different_pub_key = G2Point::rand(&mut rng);
-        assert!(!signature.verify(&different_pub_key, &message));
+        let g2_projective = G2Projective::rand(&mut rng);
+        let different_pub_key = G2Point::from_ark_g2(&G2Affine::from(g2_projective));
+        assert!(!signature.verify(&different_pub_key, &message).is_ok());
     }
 
     #[tokio::test]
@@ -1044,15 +1055,16 @@ mod tests {
             5417847382009744817,
             1586467664616413849,
         ]);
-        let hex_string = bigint_to_hex(&bigint);
-        let converted_bigint = hex_string_to_biginteger256(&hex_string);
+        let hex_string = eigen_utils::crypto::bls::bigint_to_hex(&bigint);
+        let converted_bigint = eigen_utils::crypto::bls::hex_string_to_biginteger256(&hex_string);
         assert_eq!(bigint, converted_bigint);
-        let keypair_result_from_string = KeyPair::from_string(&hex_string);
-        let keypair_result_normal = KeyPair::new(&PrivateKey {
+        let keypair_from_string = KeyPair::from_string(hex_string);
+        let keypair_from_new = KeyPair::new(&PrivateKey {
             key: Fq::new(bigint),
         });
+        let private_key_new = keypair_from_new.priv_key;
+        let private_key_string = keypair_from_string.priv_key;
 
-        let keypair_from_string = keypair_result_from_string.unwrap();
-        assert_eq!(keypair_result_normal.priv_key, keypair_from_string.priv_key);
+        assert!(matches!(private_key_new, private_key_string));
     }
 }

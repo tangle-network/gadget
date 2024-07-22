@@ -1,7 +1,7 @@
 use alloy_primitives::U256;
-use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine};
+use ark_bn254::{Bn254, Fq, Fr, G1Affine, G1Projective, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
-use ark_ff::PrimeField;
+use ark_ff::{BigInteger256, PrimeField};
 use ark_ff::{BigInt, QuadExtField, Zero};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
 use ark_std::One;
@@ -9,28 +9,32 @@ use ark_std::UniformRand;
 use base64::prelude::*;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
-use rand::thread_rng;
+use rand::{Rng, thread_rng};
 use scrypt::password_hash::{PasswordHashString, SaltString};
 use scrypt::{password_hash, Params, Scrypt};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use hex::FromHex;
+use std::fmt::Write;
+use std::ops::Mul;
 
 use crate::types::AvsError;
 
-use super::bn254::map_to_curve;
+use super::bn254::{map_to_curve, mul_by_generator_g1};
 use super::pairing_products::{InnerProduct, PairingInnerProduct};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct EncryptedBLSKeyJSONV3 {
-    pub pub_key: G1Point,
+    pub pub_key: G1Projective,
     pub crypto: serde_json::Value, // Adjust this type to match your specific encryption structure
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct G1Point {
-    pub x: U256,
-    pub y: U256,
+    pub point: G1Projective,
+    // pub x: U256,
+    // pub y: U256,
 }
 
 impl CanonicalSerialize for G1Point {
@@ -69,10 +73,8 @@ impl CanonicalDeserialize for G1Point {
 
 impl G1Point {
     pub fn new(x: Fq, y: Fq) -> Self {
-        Self {
-            x: U256::from_limbs(x.0 .0),
-            y: U256::from_limbs(y.0 .0),
-        }
+        let point = G1Projective::new(x, y, Fq::one());
+        G1Point { point }
     }
 
     pub fn zero() -> Self {
@@ -112,7 +114,7 @@ impl G1Point {
         *self = ark_point_to_g1_point(&pt);
     }
 
-    pub fn mul(&mut self, scalar: Fq) {
+    pub fn mul(&mut self, scalar: Fr) {
         let affine = g1_point_to_ark_point(self);
 
         let pt = affine.mul_bigint(scalar.0).into_affine();
@@ -124,6 +126,7 @@ impl G1Point {
     }
 
     pub fn to_ark_g1(&self) -> G1Affine {
+        println!("TO ARK G1");
         g1_point_to_ark_point(self)
     }
 }
@@ -230,17 +233,20 @@ impl G2Point {
 }
 
 pub fn g1_point_to_ark_point(pt: &G1Point) -> G1Affine {
+    let one = Fq::from(BigInt(pt.point.x.0.0));
+    let two = Fq::from(BigInt(pt.point.y.0.0));
     G1Affine::new(
-        Fq::from(BigInt(pt.x.into_limbs())),
-        Fq::from(BigInt(pt.y.into_limbs())),
+        one,
+        two,
     )
 }
 
 pub fn ark_point_to_g1_point(pt: &G1Affine) -> G1Point {
-    G1Point {
-        x: U256::from_limbs(pt.x.0 .0),
-        y: U256::from_limbs(pt.y.0 .0),
-    }
+    G1Point::new(*pt.x()?, *pt.y()?)
+    // G1Point {
+    //     x: U256::from_limbs(pt.x.0 .0),
+    //     y: U256::from_limbs(pt.y.0 .0),
+    // }
 }
 
 pub fn g2_point_to_ark_point(pt: &G2Point) -> G2Affine {
@@ -269,6 +275,34 @@ pub fn ark_point_to_g2_point(pt: &G2Affine) -> G2Point {
     }
 }
 
+pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
+    let mut hex_string = String::new();
+    for part in bigint.0.iter().rev() {
+        write!(&mut hex_string, "{:016x}", part).unwrap();
+    }
+    hex_string
+}
+
+pub fn hex_string_to_biginteger256(hex_str: &str) -> BigInteger256 {
+    let bytes = Vec::from_hex(hex_str).unwrap();
+
+    assert!(bytes.len() <= 32, "Byte length exceeds 32 bytes");
+
+    let mut padded_bytes = vec![0u8; 32];
+    let start = 32 - bytes.len();
+    padded_bytes[start..].copy_from_slice(&bytes);
+
+    let mut limbs = [0u64; 4];
+    for (i, chunk) in padded_bytes.chunks(8).rev().enumerate() {
+        let mut array = [0u8; 8];
+        let len = chunk.len().min(8);
+        array[..len].copy_from_slice(&chunk[..len]); // Copy the bytes into the fixed-size array
+        limbs[i] = u64::from_be_bytes(array);
+    }
+
+    BigInteger256::new(limbs)
+}
+
 #[derive(
     Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize, Serialize, Deserialize,
 )]
@@ -283,13 +317,18 @@ impl Signature {
         }
     }
 
+    pub fn sig(&self) -> G1Projective {
+        self.g1_point.point
+    }
+
     pub fn add(&mut self, other: &Signature) {
         self.g1_point.add(&other.g1_point);
     }
 
     pub fn verify(&self, pubkey: &G2Point, message: &[u8; 32]) -> Result<bool, AvsError> {
         let g2_gen = G2Point::generator();
-        let msg_point = map_to_curve(message);
+        let msg_projective = map_to_curve(message);
+        let msg_point= G1Point { point: msg_projective };
         let neg_sig = self.g1_point.neg();
         let p: [G1Point; 2] = [msg_point, neg_sig];
         let q: [G2Point; 2] = [pubkey.clone(), g2_gen];
@@ -311,31 +350,52 @@ impl Signature {
     }
 }
 
-#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
-pub struct PrivateKey {
-    pub key: Fq,
-}
+// #[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
+// pub struct PrivateKey {
+//     pub key: Fq,
+// }
+
+pub type PrivateKey = Fr;
+
+// impl PrivateKey {
+//     pub fn new(key: Fq) -> Self {
+//         Self { key }
+//     }
+//
+//     pub fn from_big_integer256(key: BigInteger256) -> Self {
+//         Self::new(Fq::from(key))
+//     }
+// }
 
 #[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct KeyPair {
     pub priv_key: PrivateKey,
-    pub pub_key: G1Point,
+    pub pub_key: G1Projective,
 }
 
 impl KeyPair {
-    pub fn new(sk: &PrivateKey) -> Self {
-        let pub_key_point = G1Affine::generator().mul_bigint(sk.key.0).into_affine();
-        Self {
-            priv_key: sk.clone(),
-            pub_key: ark_point_to_g1_point(&pub_key_point),
+    pub fn new(sk: PrivateKey) -> Result<Self, AvsError> {
+        let pub_key_point_result = mul_by_generator_g1(sk.clone());
+
+        match pub_key_point_result {
+            Ok(pub_key_point) => Ok(Self {
+                priv_key: sk.clone(),
+                pub_key: pub_key_point,
+            }),
+            Err(_) => Err(AvsError::KeyError("Failed to generate new key pair".to_string())),
         }
+    }
+
+    pub fn from_string(s: String) -> Result<Self, AvsError> {
+        let bigint = hex_string_to_biginteger256(&s);
+        let private_key = Fr::from(bigint);
+        KeyPair::new(private_key)
     }
 
     pub fn gen_random() -> Result<Self, AvsError> {
         let mut rng = rand::thread_rng();
-        let key = Fq::rand(&mut rng);
-        let priv_key = PrivateKey { key };
-        Ok(Self::new(&priv_key))
+        let key = Fr::rand(&mut rng);
+        KeyPair::new(key)
     }
 
     pub fn save_to_file(&self, path: &str, password: &str) -> Result<(), AvsError> {
@@ -445,10 +505,10 @@ impl KeyPair {
             .decrypt(&nonce, &sk_bytes[..])
             .map_err(|e| AvsError::KeyError(e.to_string()))?;
 
-        let priv_key = Fq::from_le_bytes_mod_order(&priv_key_bytes);
+        let priv_key = Fr::from_le_bytes_mod_order(&priv_key_bytes);
 
         let pair = KeyPair {
-            priv_key: PrivateKey { key: priv_key },
+            priv_key,
             pub_key: encrypted_bls_struct.pub_key,
         };
         Ok(pair)
@@ -456,15 +516,15 @@ impl KeyPair {
 
     pub fn sign_message(&self, message: &[u8; 32]) -> Signature {
         let mut sig_point = map_to_curve(message);
-        sig_point.mul(self.priv_key.key);
+        let sig = sig_point.mul(self.priv_key);
         Signature {
-            g1_point: sig_point,
+            g1_point: G1Point { point: sig},
         }
     }
 
     pub fn sign_hashed_to_curve_message(&self, g1_hashed_msg: &G1Point) -> Signature {
         let mut sig_point = g1_hashed_msg.clone();
-        sig_point.mul(self.priv_key.key);
+        sig_point.mul(self.priv_key);
         Signature {
             g1_point: sig_point,
         }
@@ -473,14 +533,15 @@ impl KeyPair {
     pub fn get_pub_key_g2(&self) -> G2Point {
         let g2_gen = G2Affine::generator();
         // Scalar multiplication
-        let result = g2_gen.mul_bigint(self.priv_key.key.0);
+        let result = g2_gen.mul_bigint(self.priv_key);
         // Convert result to affine form
         let g2_affine = G2Affine::from(result);
         G2Point::from_ark_g2(&g2_affine)
     }
 
     pub fn get_pub_key_g1(&self) -> &G1Point {
-        &self.pub_key
+        let point = G1Point { point: self.pub_key};
+        &point
     }
 }
 
@@ -493,34 +554,6 @@ mod tests {
     use gadget_common::sp_core::crypto::Ss58Codec;
     use hex::FromHex;
     use rand::{thread_rng, Rng, RngCore};
-
-    pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
-        let mut hex_string = String::new();
-        for part in bigint.0.iter().rev() {
-            write!(&mut hex_string, "{:016x}", part).unwrap();
-        }
-        hex_string
-    }
-
-    pub fn hex_string_to_biginteger256(hex_str: &str) -> BigInteger256 {
-        let bytes = Vec::from_hex(hex_str).unwrap();
-
-        assert!(bytes.len() <= 32, "Byte length exceeds 32 bytes");
-
-        let mut padded_bytes = vec![0u8; 32];
-        let start = 32 - bytes.len();
-        padded_bytes[start..].copy_from_slice(&bytes);
-
-        let mut limbs = [0u64; 4];
-        for (i, chunk) in padded_bytes.chunks(8).rev().enumerate() {
-            let mut array = [0u8; 8];
-            let len = chunk.len().min(8);
-            array[..len].copy_from_slice(&chunk[..len]); // Copy the bytes into the fixed-size array
-            limbs[i] = u64::from_be_bytes(array);
-        }
-
-        BigInteger256::new(limbs)
-    }
 
     #[tokio::test]
     async fn test_keypair_generation() {
@@ -595,10 +628,8 @@ mod tests {
         let hex_string = bigint_to_hex(&bigint);
         let converted_bigint = hex_string_to_biginteger256(&hex_string);
         assert_eq!(bigint, converted_bigint);
-        let keypair_result_from_string = KeyPair::from_string(&hex_string);
-        let keypair_result_normal = KeyPair::new(&PrivateKey {
-            key: Fq::new(bigint),
-        });
+        let keypair_result_from_string = KeyPair::from_string(hex_string);
+        let keypair_result_normal = KeyPair::new(Fr::from(bigint));
 
         let keypair_from_string = keypair_result_from_string.unwrap();
         let keypair_from_new = keypair_result_normal.unwrap();
