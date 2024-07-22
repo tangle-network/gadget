@@ -142,7 +142,7 @@ impl Backend for FilesystemKeystore {
 
     #[cfg(feature = "keystore-ecdsa")]
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error> {
-        let secret = ecdsa::generate_with_optional_seed(seed)?;
+        let secret = ecdsa::generate_with_optional_seed(seed).map_err(|err| Error::Ecdsa(err))?;
         let public = secret.public_key();
         let path = self.key_file_path(&public.to_sec1_bytes(), KeyType::Ecdsa);
         Self::write_to_file(path, &secret.to_bytes()[..])?;
@@ -157,7 +157,7 @@ impl Backend for FilesystemKeystore {
     ) -> Result<Option<ecdsa::Signature>, Error> {
         let secret_bytes = self.secret_by_type(&public.to_sec1_bytes(), KeyType::Ecdsa)?;
         if let Some(buf) = secret_bytes {
-            let secret = ecdsa::secret_from_bytes(&buf)?;
+            let secret = ecdsa::secret_from_bytes(&buf).map_err(|err| Error::Ecdsa(err))?;
             Ok(Some(ecdsa::sign(&secret, msg)))
         } else {
             Ok(None)
@@ -209,7 +209,7 @@ impl Backend for FilesystemKeystore {
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error> {
         let secret_bytes = self.secret_by_type(&public.to_sec1_bytes(), KeyType::Ecdsa)?;
         if let Some(buf) = secret_bytes {
-            Ok(Some(ecdsa::secret_from_bytes(&buf)?))
+            Ok(Some(ecdsa::secret_from_bytes(&buf).map_err(|err| Error::Ecdsa(err))?))
         } else {
             Ok(None)
         }

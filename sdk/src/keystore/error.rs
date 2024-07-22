@@ -14,7 +14,7 @@ pub enum Error {
     /// An error occurred during ecdsa module operation
     #[cfg(feature = "keystore-ecdsa")]
     #[error("ecdsa: {0}")]
-    Ecdsa(#[from] k256::elliptic_curve::Error),
+    Ecdsa(k256::elliptic_curve::Error),
     /// An error occurred during ed25519 module operation
     #[cfg(feature = "keystore-ed25519")]
     #[error("ed25519: {0}")]
