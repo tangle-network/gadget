@@ -3,7 +3,6 @@ use alloy_provider::Provider;
 use alloy_pubsub::Subscription;
 use alloy_rpc_types::{Filter, Log};
 use alloy_sol_types::{SolCall, SolEvent};
-use futures::StreamExt;
 
 use crate::avs::IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls;
 use async_trait::async_trait;

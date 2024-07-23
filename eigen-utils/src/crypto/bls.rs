@@ -9,7 +9,7 @@ use ark_std::UniformRand;
 use base64::prelude::*;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
-use rand::{Rng, thread_rng};
+use rand::thread_rng;
 use scrypt::password_hash::{PasswordHashString, SaltString};
 use scrypt::{password_hash, Params, Scrypt};
 use serde::{Deserialize, Serialize};
@@ -26,15 +26,14 @@ use super::pairing_products::{InnerProduct, PairingInnerProduct};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct EncryptedBLSKeyJSONV3 {
-    pub pub_key: G1Projective,
+    pub pub_key: G1Point,
     pub crypto: serde_json::Value, // Adjust this type to match your specific encryption structure
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct G1Point {
-    pub point: G1Projective,
-    // pub x: U256,
-    // pub y: U256,
+    pub x: U256,
+    pub y: U256,
 }
 
 impl CanonicalSerialize for G1Point {
@@ -73,8 +72,10 @@ impl CanonicalDeserialize for G1Point {
 
 impl G1Point {
     pub fn new(x: Fq, y: Fq) -> Self {
-        let point = G1Projective::new(x, y, Fq::one());
-        G1Point { point }
+        // let point = G1Projective::new(x, y, Fq::one());
+        let x = U256::from_limbs(x.0.0);
+        let y = U256::from_limbs(y.0.0);
+        G1Point { x, y }
     }
 
     pub fn zero() -> Self {
@@ -233,16 +234,25 @@ impl G2Point {
 }
 
 pub fn g1_point_to_ark_point(pt: &G1Point) -> G1Affine {
-    let one = Fq::from(BigInt(pt.point.x.0.0));
-    let two = Fq::from(BigInt(pt.point.y.0.0));
+    let one = Fq::new(BigInt(pt.x.as_limbs().clone()));
+    println!("One: {:?}", one);
+    let two = Fq::new(BigInt(pt.y.as_limbs().clone()));
+    println!("Two: {:?}", two);
     G1Affine::new(
         one,
         two,
     )
 }
 
+pub fn g1_point_to_g1_projective(pt: &G1Point) -> G1Projective {
+    let one = Fq::new(BigInt(pt.x.as_limbs().clone()));
+    let two = Fq::new(BigInt(pt.y.as_limbs().clone()));
+    println!("LAST CHECKPOINT");
+    G1Projective::new(one, two, Fq::one())
+}
+
 pub fn ark_point_to_g1_point(pt: &G1Affine) -> G1Point {
-    G1Point::new(*pt.x()?, *pt.y()?)
+    G1Point::new(pt.x, pt.y)
     // G1Point {
     //     x: U256::from_limbs(pt.x.0 .0),
     //     y: U256::from_limbs(pt.y.0 .0),
@@ -318,7 +328,7 @@ impl Signature {
     }
 
     pub fn sig(&self) -> G1Projective {
-        self.g1_point.point
+        G1Projective::from(self.clone().g1_point.to_ark_g1())//self.g1_point.point
     }
 
     pub fn add(&mut self, other: &Signature) {
@@ -327,8 +337,8 @@ impl Signature {
 
     pub fn verify(&self, pubkey: &G2Point, message: &[u8; 32]) -> Result<bool, AvsError> {
         let g2_gen = G2Point::generator();
-        let msg_projective = map_to_curve(message);
-        let msg_point= G1Point { point: msg_projective };
+        let msg_affine = map_to_curve(message);
+        let msg_point= G1Point::new(msg_affine.x, msg_affine.y);
         let neg_sig = self.g1_point.neg();
         let p: [G1Point; 2] = [msg_point, neg_sig];
         let q: [G2Point; 2] = [pubkey.clone(), g2_gen];
@@ -431,7 +441,7 @@ impl KeyPair {
         });
 
         let encrypted_bls_struct = EncryptedBLSKeyJSONV3 {
-            pub_key: self.pub_key.clone(),
+            pub_key: G1Point::new(self.pub_key.x, self.pub_key.y),
             crypto: crypto_struct,
         };
 
@@ -509,16 +519,16 @@ impl KeyPair {
 
         let pair = KeyPair {
             priv_key,
-            pub_key: encrypted_bls_struct.pub_key,
+            pub_key: G1Projective::from(encrypted_bls_struct.pub_key.to_ark_g1()),
         };
         Ok(pair)
     }
 
     pub fn sign_message(&self, message: &[u8; 32]) -> Signature {
-        let mut sig_point = map_to_curve(message);
+        let sig_point = map_to_curve(message);
         let sig = sig_point.mul(self.priv_key);
         Signature {
-            g1_point: G1Point { point: sig},
+            g1_point: G1Point::new(sig.x, sig.y),
         }
     }
 
@@ -533,15 +543,15 @@ impl KeyPair {
     pub fn get_pub_key_g2(&self) -> G2Point {
         let g2_gen = G2Affine::generator();
         // Scalar multiplication
-        let result = g2_gen.mul_bigint(self.priv_key);
+        let result = g2_gen.mul_bigint(self.priv_key.0);
         // Convert result to affine form
         let g2_affine = G2Affine::from(result);
         G2Point::from_ark_g2(&g2_affine)
     }
 
-    pub fn get_pub_key_g1(&self) -> &G1Point {
-        let point = G1Point { point: self.pub_key};
-        &point
+    pub fn get_pub_key_g1(&self) -> G1Point {
+        // let point = G1Point { point: self.pub_key};
+        G1Point::new(self.pub_key.x, self.pub_key.y)
     }
 }
 
@@ -558,11 +568,9 @@ mod tests {
     #[tokio::test]
     async fn test_keypair_generation() {
         let keypair = KeyPair::gen_random().unwrap();
-        let pub_key = G1Projective::from(keypair.pub_key.to_ark_g1());
 
         // Check that the public key is not zero
-        assert_ne!(pub_key, G1Projective::zero());
-        assert_ne!(keypair.pub_key, G1Point::zero());
+        assert_ne!(keypair.pub_key, G1Projective::zero());
     }
 
     #[tokio::test]
@@ -573,7 +581,7 @@ mod tests {
         let signature = keypair.sign_message(&message);
 
         // Check that the signature is not zero
-        assert_ne!(signature, G1Projective::zero());
+        assert_ne!(signature.g1_point, G1Point::zero());
     }
 
     #[tokio::test]

@@ -8,7 +8,6 @@ use alloy_signer::Signer;
 use ark_bn254::Fq;
 use eigen_contracts::RegistryCoordinator;
 use k256::ecdsa::VerifyingKey;
-use k256::elliptic_curve::bigint;
 
 use crate::crypto::bls::{G1Point, KeyPair};
 use crate::crypto::ecdsa::ToAddress;
@@ -79,12 +78,12 @@ impl<T: Config> AvsRegistryChainWriterTrait for AvsRegistryContractManager<T> {
 
         let pubkey_reg_params = RegistryCoordinator::PubkeyRegistrationParams {
             pubkeyRegistrationSignature: RegistryCoordinator::G1Point {
-                X: U256::from_limbs(signed_msg.g1_point.point.x.0.0),
-                Y: U256::from_limbs(signed_msg.g1_point.point.y.0.0),
+                X: U256::from_limbs(signed_msg.g1_point.x.as_limbs().clone()),
+                Y: U256::from_limbs(signed_msg.g1_point.y.as_limbs().clone()),
             },
             pubkeyG1: RegistryCoordinator::G1Point {
-                X: U256::from_limbs(g1_pubkey_bn254.point.x.0.0),
-                Y: U256::from_limbs(g1_pubkey_bn254.point.y.0.0),
+                X: U256::from_limbs(g1_pubkey_bn254.x.as_limbs().clone()),
+                Y: U256::from_limbs(g1_pubkey_bn254.y.as_limbs().clone()),
             },
             pubkeyG2: RegistryCoordinator::G2Point {
                 X: g2_pubkey_bn254.x,

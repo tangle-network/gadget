@@ -115,7 +115,8 @@ pub fn operator_id_from_contract_g1_pubkey(pubkey: G1Point) -> OperatorId {
 }
 
 pub fn operator_id_from_key_pair(key_pair: &KeyPair) -> OperatorId {
-    operator_id_from_g1_pubkey(&key_pair.pub_key)
+    let point = G1Point::new(key_pair.pub_key.x, key_pair.pub_key.y);
+    operator_id_from_g1_pubkey(&point)
 }
 
 pub fn sign_hashed_to_curve_message(pt: G1Point, key_pair: &KeyPair) -> Signature {
@@ -123,7 +124,7 @@ pub fn sign_hashed_to_curve_message(pt: G1Point, key_pair: &KeyPair) -> Signatur
         Bn254Fq::from(BigInt::new(pt.x.into_limbs())),
         Bn254Fq::from(BigInt::new(pt.y.into_limbs())),
     );
-    let sig = ark_pt.mul_bigint(&key_pair.priv_key.key.0);
+    let sig = ark_pt.mul_bigint(&key_pair.priv_key.0);
     let sig_point = G1Point {
         x: U256::from_limbs(sig.x.0 .0),
         y: U256::from_limbs(sig.y.0 .0),

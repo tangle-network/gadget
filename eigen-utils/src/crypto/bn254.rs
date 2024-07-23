@@ -4,27 +4,52 @@ use ark_bn254::{Bn254, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projecti
 use ark_ff::{BigInteger, BigInteger256};
 use std::ops::Mul;
 use std::str::FromStr;
-use crate::crypto::bls::G1Point;
-use ark_bn254::{Fq as Bn254Fq, G1Affine as Bn254G1Affine, G2Affine as Bn254G2Affine};
+use crate::crypto::bls::{g1_point_to_g1_projective, G1Point};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{Field, One, PrimeField};
 
-pub fn map_to_curve(digest: &[u8; 32]) -> G1Projective {
-    let one = Bn254Fq::one();
-    let three = Bn254Fq::from(3u64);
-    let mut x = Bn254Fq::from_be_bytes_mod_order(digest);
+
+pub fn map_to_curve(digest: &[u8; 32]) -> G1Projective{
+    let one = Fq::one();
+    let three = Fq::from(3u64);
+    let mut x = Fq::from_be_bytes_mod_order(&digest.as_slice());
+
     loop {
         let x_cubed = x.pow([3]);
-        let y = x_cubed + three;
-        if let Some(y_sqrt) = y.sqrt() {
-            let point = G1Point::new(x, y_sqrt);
-            return G1Projective::from(point.to_ark_g1());
-            // return G1Point::new(x, y_sqrt);
-        } else {
-            x += one;
+        let mut y = x_cubed + three;
+
+        if y.legendre().is_qr() {
+            let y = y.sqrt().unwrap();
+            let point = G1Affine::new(x, y);
+
+            if point.is_on_curve() {
+                return G1Projective::new(point.x, point.y, Fq::one());
+            }
         }
+
+        x += one;
     }
 }
+
+// pub fn map_to_curve(digest: &[u8; 32]) -> G1Projective {
+//     let one = Fq::one();
+//     let three = Fq::from(3u64);
+//     let mut x = Fq::from_be_bytes_mod_order(digest);
+//     let modulus = Fq::MODULUS;
+//
+//     loop {
+//         let x_cubed = x.pow([3]);
+//         let y = x_cubed + three;
+//         if let Some(y_sqrt) = y.sqrt() {
+//             let point = G1Point::new(x, y_sqrt);
+//             // return G1Projective::from(point.to_ark_g1());
+//             return g1_point_to_g1_projective(&point);
+//             // return G1Point::new(x, y_sqrt);
+//         } else {
+//             x += one;
+//         }
+//     }
+// }
 
 // pub fn mul_by_generator_g1(a: Fr) -> Bn254G1Affine {
 //     Bn254G1Affine::generator().mul_bigint(a.0).into_affine()

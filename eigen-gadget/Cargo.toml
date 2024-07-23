@@ -51,7 +51,7 @@ tokio = { version = "1.38.0", features = ["full"] }
 alloy = { version = "0.1.3", features = ["serde", "signers"] }
 alloy-rpc-types-eth.workspace = true
 alloy-rpc-client.workspace = true
-alloy-primitives.workspace = true
+alloy-primitives = { workspace = true, features = ["rand"] }
 alloy-provider.workspace = true
 alloy-contract.workspace = true
 alloy-sol-types.workspace = true

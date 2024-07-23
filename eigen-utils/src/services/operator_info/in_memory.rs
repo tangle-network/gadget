@@ -1,4 +1,4 @@
-use alloy_primitives::{Address, FixedBytes, Log, U256};
+use alloy_primitives::{Address, FixedBytes, Log};
 
 use alloy_sol_types::SolEvent;
 

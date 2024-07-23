@@ -22,7 +22,7 @@ pin-project-lite.workspace = true
 http-body-util.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 num-bigint.workspace = true
 reqwest.workspace = true
