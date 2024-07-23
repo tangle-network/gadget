@@ -27,11 +27,11 @@ use gadget_common::subxt_signer::bip39::rand;
 use k256::ecdsa::SigningKey;
 use log::error;
 use prometheus::Registry;
+use rand::{Fill, Rng};
 use std::future::Future;
 use std::pin::Pin;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
-use rand::{Rng, Fill};
 use thiserror::Error;
 
 use crate::aggregator::Aggregator;
@@ -939,16 +939,16 @@ mod tests {
 
     use super::*;
     use ark_bn254::G1Projective;
+    use ark_ec::short_weierstrass::Projective;
+    use ark_ec::CurveGroup;
     use ark_ff::{BigInt, Zero};
     use ark_ff::{BigInteger256, UniformRand};
     use eigen_utils::crypto::bls::{g1_point_to_g1_projective, G1Point, G2Point, PrivateKey};
+    use eigen_utils::crypto::bn254::get_g1_generator;
     use gadget_common::sp_core::crypto::Ss58Codec;
     use hex::FromHex;
     use rand::{thread_rng, Rng, RngCore};
     use std::fmt::Write;
-    use ark_ec::CurveGroup;
-    use ark_ec::short_weierstrass::Projective;
-    use eigen_utils::crypto::bn254::get_g1_generator;
 
     pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
         let mut hex_string = String::new();
@@ -1007,7 +1007,6 @@ mod tests {
         let signature = keypair.sign_message(&message);
 
         // let g1_projective = g1_point_to_g1_projective(&signature.g1_point);
-
 
         // Check that the signature is not zero
         assert_ne!(signature.g1_point, G1Point::zero());

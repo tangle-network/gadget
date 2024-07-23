@@ -38,7 +38,7 @@ impl<T: Config> ElWriter for ElChainContractManager<T> {
         log::info!("registering operator {} to EigenLayer", operator.address);
 
         let op_details = DelegationManager::OperatorDetails {
-            __deprecated_earningsReceiver: operator.earnings_receiver_address,
+            earningsReceiver: operator.earnings_receiver_address,
             stakerOptOutWindowBlocks: operator.staker_opt_out_window_blocks,
             delegationApprover: operator.delegation_approver_address,
         };
@@ -70,7 +70,7 @@ impl<T: Config> ElWriter for ElChainContractManager<T> {
         );
 
         let op_details = DelegationManager::OperatorDetails {
-            __deprecated_earningsReceiver: operator.earnings_receiver_address,
+            earningsReceiver: operator.earnings_receiver_address,
             stakerOptOutWindowBlocks: operator.staker_opt_out_window_blocks,
             delegationApprover: operator.delegation_approver_address,
         };

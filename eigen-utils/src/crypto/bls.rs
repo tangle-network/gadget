@@ -1,23 +1,23 @@
 use alloy_primitives::U256;
 use ark_bn254::{Bn254, Fq, Fr, G1Affine, G1Projective, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
-use ark_ff::{BigInteger256, PrimeField};
 use ark_ff::{BigInt, QuadExtField, Zero};
+use ark_ff::{BigInteger256, PrimeField};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
 use ark_std::One;
 use ark_std::UniformRand;
 use base64::prelude::*;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
+use hex::FromHex;
 use rand::thread_rng;
 use scrypt::password_hash::{PasswordHashString, SaltString};
 use scrypt::{password_hash, Params, Scrypt};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::Path;
-use hex::FromHex;
 use std::fmt::Write;
+use std::fs;
 use std::ops::Mul;
+use std::path::Path;
 
 use crate::types::AvsError;
 
@@ -73,8 +73,8 @@ impl CanonicalDeserialize for G1Point {
 impl G1Point {
     pub fn new(x: Fq, y: Fq) -> Self {
         // let point = G1Projective::new(x, y, Fq::one());
-        let x = U256::from_limbs(x.0.0);
-        let y = U256::from_limbs(y.0.0);
+        let x = U256::from_limbs(x.0 .0);
+        let y = U256::from_limbs(y.0 .0);
         G1Point { x, y }
     }
 
@@ -238,10 +238,7 @@ pub fn g1_point_to_ark_point(pt: &G1Point) -> G1Affine {
     println!("One: {:?}", one);
     let two = Fq::new(BigInt(pt.y.as_limbs().clone()));
     println!("Two: {:?}", two);
-    G1Affine::new(
-        one,
-        two,
-    )
+    G1Affine::new(one, two)
 }
 
 pub fn g1_point_to_g1_projective(pt: &G1Point) -> G1Projective {
@@ -328,7 +325,7 @@ impl Signature {
     }
 
     pub fn sig(&self) -> G1Projective {
-        G1Projective::from(self.clone().g1_point.to_ark_g1())//self.g1_point.point
+        G1Projective::from(self.clone().g1_point.to_ark_g1()) //self.g1_point.point
     }
 
     pub fn add(&mut self, other: &Signature) {
@@ -338,7 +335,7 @@ impl Signature {
     pub fn verify(&self, pubkey: &G2Point, message: &[u8; 32]) -> Result<bool, AvsError> {
         let g2_gen = G2Point::generator();
         let msg_affine = map_to_curve(message);
-        let msg_point= G1Point::new(msg_affine.x, msg_affine.y);
+        let msg_point = G1Point::new(msg_affine.x, msg_affine.y);
         let neg_sig = self.g1_point.neg();
         let p: [G1Point; 2] = [msg_point, neg_sig];
         let q: [G2Point; 2] = [pubkey.clone(), g2_gen];
@@ -392,7 +389,9 @@ impl KeyPair {
                 priv_key: sk.clone(),
                 pub_key: pub_key_point,
             }),
-            Err(_) => Err(AvsError::KeyError("Failed to generate new key pair".to_string())),
+            Err(_) => Err(AvsError::KeyError(
+                "Failed to generate new key pair".to_string(),
+            )),
         }
     }
 

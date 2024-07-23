@@ -10,10 +10,10 @@ use eigen_contracts::RegistryCoordinator;
 use k256::ecdsa::VerifyingKey;
 
 use crate::crypto::bls::{G1Point, KeyPair};
+use crate::crypto::bn254::u256_to_bigint256;
 use crate::crypto::ecdsa::ToAddress;
 use crate::el_contracts::reader::ElReader;
 use crate::{types::*, Config};
-use crate::crypto::bn254::u256_to_bigint256;
 
 use super::{AvsRegistryContractManager, AvsRegistryContractResult};
 
@@ -71,7 +71,7 @@ impl<T: Config> AvsRegistryChainWriterTrait for AvsRegistryContractManager<T> {
 
         let signed_msg = bls_key_pair.sign_hashed_to_curve_message(&G1Point::new(
             Fq::from(u256_to_bigint256(g1_hashed_msg_to_sign.X)),
-            Fq::from(u256_to_bigint256(g1_hashed_msg_to_sign.Y))
+            Fq::from(u256_to_bigint256(g1_hashed_msg_to_sign.Y)),
         ));
         let g1_pubkey_bn254 = bls_key_pair.get_pub_key_g1();
         let g2_pubkey_bn254 = bls_key_pair.get_pub_key_g2();
