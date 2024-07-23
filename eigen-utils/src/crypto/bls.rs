@@ -1,6 +1,7 @@
 use alloy_primitives::U256;
 use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
+use ark_ff::BigInteger256;
 use ark_ff::PrimeField;
 use ark_ff::{BigInt, QuadExtField, Zero};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
@@ -9,10 +10,12 @@ use ark_std::UniformRand;
 use base64::prelude::*;
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
+use hex::FromHex;
 use rand::thread_rng;
 use scrypt::password_hash::{PasswordHashString, SaltString};
 use scrypt::{password_hash, Params, Scrypt};
 use serde::{Deserialize, Serialize};
+use std::fmt::Write;
 use std::fs;
 use std::path::Path;
 
@@ -27,7 +30,7 @@ struct EncryptedBLSKeyJSONV3 {
     pub crypto: serde_json::Value, // Adjust this type to match your specific encryption structure
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct G1Point {
     pub x: U256,
     pub y: U256,
@@ -270,7 +273,15 @@ pub fn ark_point_to_g2_point(pt: &G2Affine) -> G2Point {
 }
 
 #[derive(
-    Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize, Serialize, Deserialize,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    CanonicalSerialize,
+    CanonicalDeserialize,
+    Serialize,
+    Deserialize,
 )]
 pub struct Signature {
     pub g1_point: G1Point,
@@ -306,12 +317,14 @@ impl Signature {
 
         let inner_product =
             PairingInnerProduct::<Bn254>::inner_product(&p_projective[..], &q_projective[..])
-                .unwrap();
+                .map_err(|e| {
+                    AvsError::KeyError(format!("Error in pairing inner product: {}", e))
+                })?;
         Ok(inner_product.0 == QuadExtField::one())
     }
 }
 
-#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct PrivateKey {
     pub key: Fq,
 }
@@ -482,6 +495,40 @@ impl KeyPair {
     pub fn get_pub_key_g1(&self) -> &G1Point {
         &self.pub_key
     }
+
+    pub fn from_string(key_string: &str) -> Self {
+        let bigint_key = hex_string_to_biginteger256(key_string);
+        let key = Fq::from(bigint_key);
+        KeyPair::new(&PrivateKey { key })
+    }
+}
+
+pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
+    let mut hex_string = String::new();
+    for part in bigint.0.iter().rev() {
+        write!(&mut hex_string, "{:016x}", part).unwrap();
+    }
+    hex_string
+}
+
+pub fn hex_string_to_biginteger256(hex_str: &str) -> BigInteger256 {
+    let bytes = Vec::from_hex(hex_str).unwrap();
+
+    assert!(bytes.len() <= 32, "Byte length exceeds 32 bytes");
+
+    let mut padded_bytes = [0u8; 32];
+    let start = 32 - bytes.len();
+    padded_bytes[start..].copy_from_slice(&bytes);
+
+    let mut limbs = [0u64; 4];
+    for (i, chunk) in padded_bytes.chunks(8).rev().enumerate() {
+        let mut array = [0u8; 8];
+        let len = chunk.len().min(8);
+        array[..len].copy_from_slice(&chunk[..len]); // Copy the bytes into the fixed-size array
+        limbs[i] = u64::from_be_bytes(array);
+    }
+
+    BigInteger256::new(limbs)
 }
 
 #[cfg(test)]
@@ -493,34 +540,6 @@ mod tests {
     use gadget_common::sp_core::crypto::Ss58Codec;
     use hex::FromHex;
     use rand::{thread_rng, Rng, RngCore};
-
-    pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
-        let mut hex_string = String::new();
-        for part in bigint.0.iter().rev() {
-            write!(&mut hex_string, "{:016x}", part).unwrap();
-        }
-        hex_string
-    }
-
-    pub fn hex_string_to_biginteger256(hex_str: &str) -> BigInteger256 {
-        let bytes = Vec::from_hex(hex_str).unwrap();
-
-        assert!(bytes.len() <= 32, "Byte length exceeds 32 bytes");
-
-        let mut padded_bytes = vec![0u8; 32];
-        let start = 32 - bytes.len();
-        padded_bytes[start..].copy_from_slice(&bytes);
-
-        let mut limbs = [0u64; 4];
-        for (i, chunk) in padded_bytes.chunks(8).rev().enumerate() {
-            let mut array = [0u8; 8];
-            let len = chunk.len().min(8);
-            array[..len].copy_from_slice(&chunk[..len]); // Copy the bytes into the fixed-size array
-            limbs[i] = u64::from_be_bytes(array);
-        }
-
-        BigInteger256::new(limbs)
-    }
 
     #[tokio::test]
     async fn test_keypair_generation() {
@@ -540,7 +559,12 @@ mod tests {
         let signature = keypair.sign_message(&message);
 
         // Check that the signature is not zero
-        assert_ne!(signature, G1Projective::zero());
+        assert_ne!(
+            signature,
+            Signature {
+                g1_point: G1Point::zero()
+            }
+        );
     }
 
     #[tokio::test]
@@ -561,8 +585,8 @@ mod tests {
         rand::thread_rng().fill(&mut wrong_message);
 
         // Check that the signature verifies
-        assert!(signature.verify(&pub_key_g2, &message));
-        assert!(!signature.verify(&pub_key_g2, &wrong_message))
+        assert!(signature.verify(&pub_key_g2, &message).unwrap());
+        assert!(!signature.verify(&pub_key_g2, &wrong_message).unwrap())
     }
 
     #[tokio::test]
@@ -581,7 +605,8 @@ mod tests {
 
         // Check that the signature does not verify with a different public key
         let different_pub_key = G2Point::rand(&mut rng);
-        assert!(!signature.verify(&different_pub_key, &message));
+        let failed = !signature.verify(&different_pub_key, &message).unwrap();
+        assert!(failed);
     }
 
     #[tokio::test]
@@ -600,8 +625,8 @@ mod tests {
             key: Fq::new(bigint),
         });
 
-        let keypair_from_string = keypair_result_from_string.unwrap();
-        let keypair_from_new = keypair_result_normal.unwrap();
+        let keypair_from_string = keypair_result_from_string;
+        let keypair_from_new = keypair_result_normal;
         assert_eq!(keypair_from_new.priv_key, keypair_from_string.priv_key);
     }
 }

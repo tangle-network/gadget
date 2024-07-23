@@ -72,7 +72,7 @@ pub fn load() -> Result<GadgetEnvironment, Error> {
 }
 
 impl GadgetEnvironment {
-    /// Loads the KeyStore from the current environment.
+    /// Loads the `KeyStore` from the current environment.
     #[cfg(feature = "keystore")]
     pub fn keystore(&self) -> Result<crate::keystore::backend::GenericKeyStore, Error> {
         #[cfg(all(feature = "keystore-fs", feature = "std"))]
@@ -103,6 +103,7 @@ impl GadgetEnvironment {
     }
 
     /// Returns whether the gadget should run in memory.
+    #[must_use]
     pub const fn should_run_in_memory(&self) -> bool {
         self.data_dir_path.is_none()
     }

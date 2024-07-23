@@ -1,11 +1,8 @@
-use alloy_primitives::keccak256;
 use alloy_provider::Provider;
 use alloy_pubsub::Subscription;
 use alloy_rpc_types::{Filter, Log};
-use alloy_sol_types::{SolCall, SolEvent};
-use futures::StreamExt;
+use alloy_sol_types::SolEvent;
 
-use crate::avs::IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls;
 use async_trait::async_trait;
 use eigen_utils::{types::AvsError, Config};
 

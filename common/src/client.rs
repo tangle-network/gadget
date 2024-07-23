@@ -7,7 +7,8 @@ use gadget_core::gadget::general::Client;
 use sp_core::{ecdsa, ByteArray};
 use sp_core::{sr25519, Pair};
 use std::sync::Arc;
-use tangle_subxt::subxt::{self, tx::TxPayload, OnlineClient};
+use subxt::tx::Payload;
+use tangle_subxt::subxt::{self, OnlineClient};
 
 pub struct JobsClient<Env: GadgetEnvironment> {
     pub client: Arc<Env::Client>,
@@ -468,7 +469,7 @@ where
     S: subxt::tx::Signer<C> + Send + Sync + 'static,
     C::AccountId: std::fmt::Display + Send + Sync + 'static,
     C::Hash: std::fmt::Display,
-    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams:
+    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::Params:
         Default + Send + Sync + 'static,
 {
     async fn submit_job_result(
@@ -517,7 +518,7 @@ where
     C::AccountId: std::fmt::Display,
     S: subxt::tx::Signer<C>,
     C::Hash: std::fmt::Display,
-    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::OtherParams: Default,
+    <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::Params: Default,
 {
     pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, crate::Error> {
         let subxt_client =
@@ -537,7 +538,7 @@ where
         }
     }
 
-    async fn submit<Call: TxPayload>(&self, call: &Call) -> anyhow::Result<C::Hash> {
+    async fn submit<Call: Payload>(&self, call: &Call) -> anyhow::Result<C::Hash> {
         if let Some(details) = call.validation_details() {
             self.logger.trace(format!(
                 "({}) Submitting {}.{}",
@@ -551,7 +552,7 @@ where
             .tx()
             .sign_and_submit_then_watch_default(call, &self.signer)
             .await?
-            .wait_for_finalized_success()
+            .wait_for_finalized()
             .await?
             .block_hash())
     }
@@ -579,10 +580,8 @@ mod tests {
         let logger = DebugLogger { id: "test".into() };
         let alice = subxt_signer::sr25519::dev::alice();
         let bob = subxt_signer::sr25519::dev::bob();
-        let alice_account_id =
-            <subxt_signer::sr25519::Keypair as Signer<PolkadotConfig>>::account_id(&alice);
-        let bob_account_id =
-            <subxt_signer::sr25519::Keypair as Signer<PolkadotConfig>>::account_id(&bob);
+        let alice_account_id = alice.public_key().to_account_id();
+        let bob_account_id = bob.public_key().to_account_id();
         let pallet_tx =
             SubxtPalletSubmitter::<PolkadotConfig, _>::new(alice.clone(), logger).await?;
         let dkg_phase_one = jobs::JobSubmission {
