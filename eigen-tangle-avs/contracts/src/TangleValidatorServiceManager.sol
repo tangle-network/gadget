@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
 import "eigenlayer-contracts/src/contracts/libraries/BytesLib.sol";
 import "./ITangleValidatorTaskManager.sol";

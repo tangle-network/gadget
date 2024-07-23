@@ -31,12 +31,15 @@ gadget-aws-kms.workspace = true
 gadget-common = { workspace = true, default-features = false, features = ["default"] }
 # gadget-common = { workspace = true, features = ["tangle-testnet"] }
 
+foundry-common.workspace = true
+futures.workspace = true
 http-body-util.workspace = true
 hyper = { workspace = true, features = ["full"] }
 hex.workspace = true
 k256.workspace = true
 log.workspace = true
 prometheus.workspace = true
+rand.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -46,7 +49,7 @@ env_logger.workspace = true
 
 [dev-dependencies]
 anvil.workspace = true
-foundry-common.workspace = true
+
 tokio = { version = "1.38.0", features = ["full"] }
 alloy = { version = "0.1.3", features = ["serde", "signers"] }
 alloy-rpc-types-eth.workspace = true
@@ -56,7 +59,6 @@ alloy-provider.workspace = true
 alloy-contract.workspace = true
 alloy-sol-types.workspace = true
 alloy-signer-local.workspace = true
-futures.workspace = true
 log.workspace = true
 env_logger.workspace = true
 getrandom.workspace = true

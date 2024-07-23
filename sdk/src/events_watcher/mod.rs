@@ -183,11 +183,11 @@ where
                 let mark_as_handled = result.iter().any(Result::is_ok);
                 // also, for all the failed event handlers, we should print what went
                 // wrong.
-                result.iter().for_each(|r| {
+                for r in &result {
                     if let Err(e) = r {
                         tracing::error!("{}", e);
                     }
-                });
+                }
 
                 if mark_as_handled {
                     tracing::trace!(
@@ -222,6 +222,7 @@ impl ConstantWithMaxRetryCount {
     /// Creates a new Constant backoff with `interval` and `max_retry_count`.
     /// `interval` is the duration to wait between retries, and `max_retry_count` is the maximum
     /// number of retries, after which we return `None` to indicate that we should stop retrying.
+    #[must_use]
     pub fn new(interval: Duration, max_retry_count: usize) -> Self {
         Self {
             interval,

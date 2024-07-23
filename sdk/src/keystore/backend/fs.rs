@@ -70,13 +70,13 @@ impl FilesystemKeystore {
             if content.iter().all(|&b| b.is_ascii_hexdigit()) {
                 if let Ok(decoded) = hex::decode(&content) {
                     tracing::debug!("Decoded hex-encoded key from file {:?}", path);
-                    return Ok(Some(decoded));
+                    Ok(Some(decoded))
                 } else {
                     tracing::warn!("Invalid hex encoding in file {:?}", path);
-                    return Ok(None);
+                    Ok(None)
                 }
             } else {
-                return Ok(Some(content));
+                Ok(Some(content))
             }
         } else {
             Ok(None)
