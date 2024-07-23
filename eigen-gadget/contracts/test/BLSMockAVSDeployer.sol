@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
 import { BLSSignatureChecker } from "eigenlayer-middleware/src/BLSSignatureChecker.sol";
 import { MockAVSDeployer } from "./MockAVSDeployer.sol";

@@ -34,14 +34,8 @@ pallet-jobs = { git = "https://github.com/webb-tools/tangle.git", branch = "main
 pallet-dkg = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
 pallet-zksaas = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "main" }
-tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", default-features = false, branch = "main" }
+tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", default-features = false, branch = "drew/update-subxt-0.37.0" }
 tangle-subxt-v2 = { package = "tangle-subxt", git = "https://github.com/webb-tools/tangle.git", default-features = false, branch = "jobs/v2" }
-#pallet-jobs-rpc-runtime-api = { path = "../tangle/pallets/jobs/rpc/runtime-api", default-features = false }
-#pallet-jobs = { path = "../tangle/pallets/jobs", default-features = false }
-#pallet-dkg = { path = "../tangle/pallets/dkg", default-features = false }
-#pallet-zksaas = { path = "../tangle/pallets/zksaas", default-features = false }
-#tangle-primitives = { path = "../tangle/primitives", default-features = false }
-#tangle-subxt = { path = "../tangle/tangle-subxt", default-features = false }
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
 
@@ -201,8 +195,8 @@ hyper = "1.3.1"
 pin-project-lite = "0.2.14"
 http-body-util = "0.1.1"
 
-anvil = { git = "https://github.com/foundry-rs/foundry.git", rev = "20b3da1f22e9f62f6e3406a5d582ad4aa509122c" }
-foundry-common = { git = "https://github.com/foundry-rs/foundry.git", rev = "20b3da1f22e9f62f6e3406a5d582ad4aa509122c" }
+anvil = { git = "https://github.com/foundry-rs/foundry.git" }
+foundry-common = { git = "https://github.com/foundry-rs/foundry.git" }
 alloy-chains = "0.1.23"
 alloy-primitives = "0.7.7"
 alloy-dyn-abi = "0.7.7"
@@ -230,27 +224,7 @@ alloy-contract = { version = "0.1.4" }
 alloy-transport =  { version = "0.1.4" }
 alloy-transport-ws = { version = "0.1.4" }
 alloy-rpc-client = { version = "0.1.4" }
-#alloy-rpc-types = { git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-rpc-types-anvil = { git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-rpc-types-eth = { git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-rpc-types-trace = { git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-rpc-types-engine = { git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-genesis = { git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-node-bindings = { git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-provider = { git = "https://github.com/alloy-rs/alloy", version = "0.1.4", default-features = false, features = [
-#    "reqwest","ws"
-#] }
-#alloy-pubsub = {git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-transport-http = {git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-eips = { git = "https://github.com/alloy-rs/alloy", default-features = false, version = "0.1.4" }
-#alloy-signer = { git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-signer-local = { git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-network = { git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-consensus = { git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-contract = {git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-transport =  {git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-transport-ws = {git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
-#alloy-rpc-client = {git = "https://github.com/alloy-rs/alloy", version = "0.1.4" }
+
 # WebAssembly
 wasmtime = { version = "8.0.1", default-features = false }
 wasm-bindgen = { version = "0.2.92" }
