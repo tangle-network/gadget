@@ -5,13 +5,16 @@ use alloy_provider::Provider;
 use alloy_rpc_types::TransactionReceipt;
 use alloy_signer::k256::ecdsa;
 use alloy_signer::Signer;
+use ark_bn254::Fq;
 use eigen_contracts::RegistryCoordinator;
 use k256::ecdsa::VerifyingKey;
+use k256::elliptic_curve::bigint;
 
 use crate::crypto::bls::{G1Point, KeyPair};
 use crate::crypto::ecdsa::ToAddress;
 use crate::el_contracts::reader::ElReader;
 use crate::{types::*, Config};
+use crate::crypto::bn254::u256_to_bigint256;
 
 use super::{AvsRegistryContractManager, AvsRegistryContractResult};
 
@@ -67,21 +70,21 @@ impl<T: Config> AvsRegistryChainWriterTrait for AvsRegistryContractManager<T> {
             .map(|x| x._0)
             .map_err(AvsError::from)?;
 
-        let signed_msg = bls_key_pair.sign_hashed_to_curve_message(&G1Point {
-            x: g1_hashed_msg_to_sign.X,
-            y: g1_hashed_msg_to_sign.Y,
-        });
+        let signed_msg = bls_key_pair.sign_hashed_to_curve_message(&G1Point::new(
+            Fq::from(u256_to_bigint256(g1_hashed_msg_to_sign.X)),
+            Fq::from(u256_to_bigint256(g1_hashed_msg_to_sign.Y))
+        ));
         let g1_pubkey_bn254 = bls_key_pair.get_pub_key_g1();
         let g2_pubkey_bn254 = bls_key_pair.get_pub_key_g2();
 
         let pubkey_reg_params = RegistryCoordinator::PubkeyRegistrationParams {
             pubkeyRegistrationSignature: RegistryCoordinator::G1Point {
-                X: signed_msg.g1_point.x,
-                Y: signed_msg.g1_point.y,
+                X: U256::from_limbs(signed_msg.g1_point.point.x.0.0),
+                Y: U256::from_limbs(signed_msg.g1_point.point.y.0.0),
             },
             pubkeyG1: RegistryCoordinator::G1Point {
-                X: g1_pubkey_bn254.x,
-                Y: g1_pubkey_bn254.y,
+                X: U256::from_limbs(g1_pubkey_bn254.point.x.0.0),
+                Y: U256::from_limbs(g1_pubkey_bn254.point.y.0.0),
             },
             pubkeyG2: RegistryCoordinator::G2Point {
                 X: g2_pubkey_bn254.x,

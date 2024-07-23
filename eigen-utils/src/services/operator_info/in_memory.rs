@@ -209,10 +209,10 @@ pub async fn query_past_registered_operator_events_and_fill_db<T: Config>(
     for (operator_addr, operator_pubkeys) in zip(op_addrs_vec, op_pubkeys_vec) {
         let mut pubkey_dict = pubkey_dict.lock().unwrap();
         let mut operator_addr_to_id = operator_addr_to_id.lock().unwrap();
-        let operator_id = operator_id_from_g1_pubkey(&G1Point {
-            x: U256::from_limbs(operator_pubkeys.g1_pubkey.x.0 .0),
-            y: U256::from_limbs(operator_pubkeys.g1_pubkey.y.0 .0),
-        });
+        let operator_id = operator_id_from_g1_pubkey(&G1Point::new(
+            operator_pubkeys.g1_pubkey.x,
+            operator_pubkeys.g1_pubkey.y,
+        ));
         pubkey_dict.insert(operator_addr, operator_pubkeys.clone());
         operator_addr_to_id.insert(operator_addr, operator_id);
         log::debug!(
