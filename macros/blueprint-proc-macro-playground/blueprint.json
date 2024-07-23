@@ -23,7 +23,7 @@
         "Bytes"
       ],
       "verifier": {
-        "Evm": "/Users/shady/github/webb-tools/gadget/macros/blueprint-proc-macro-playground/contracts/out/TestContract.sol/TestContract.json"
+        "Evm": "contracts/out/TestContract.sol/TestContract.json"
       }
     },
     {
@@ -41,10 +41,18 @@
       "verifier": "None"
     }
   ],
-  "registration_hook": "None",
-  "registration_params": [],
-  "request_hook": "None",
-  "request_params": [],
+  "registration_hook": {
+    "Evm": "contracts/out/RegistrationContract.sol/RegistrationContract.json"
+  },
+  "registration_params": [
+    "Bytes"
+  ],
+  "request_hook": {
+    "Evm": "contracts/out/RequestContract.sol/RequestContract.json"
+  },
+  "request_params": [
+    "Uint64"
+  ],
   "gadget": {
     "Wasm": {
       "runtime": "Wasmtime",

@@ -77,6 +77,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         #[doc = #fn_name_string]
         #[doc = "`]"]
         #[automatically_derived]
+        #[doc(hidden)]
         pub const #job_def_name: &str = #job_def_str;
 
         #[doc = "Job ID for the function "]

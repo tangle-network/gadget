@@ -54,9 +54,11 @@ pub(crate) fn registration_hook_impl(
     })?;
 
     let gen = quote! {
+        #[doc(hidden)]
         #[doc = "The registration hook for the service"]
         #[automatically_derived]
         pub const REGISTRATION_HOOK: &str = #hook_json;
+        #[doc(hidden)]
         #[doc = "The registration hook parameters for the service"]
         #[automatically_derived]
         pub const REGISTRATION_HOOK_PARAMS: &str = #hook_params;
@@ -110,9 +112,11 @@ pub(crate) fn request_hook_impl(
     })?;
 
     let gen = quote! {
+        #[doc(hidden)]
         #[doc = "The request hook for the service"]
         #[automatically_derived]
-        pub const RQUEST_HOOK: &str = #hook_json;
+        pub const REQUEST_HOOK: &str = #hook_json;
+        #[doc(hidden)]
         #[doc = "The request hook parameters for the service"]
         #[automatically_derived]
         pub const REQUEST_HOOK_PARAMS: &str = #hook_params;

@@ -27,5 +27,6 @@ mod tests {
     fn generated_blueprint() {
         eprintln!("{}", super::KEYGEN_JOB_DEF);
         assert_eq!(super::KEYGEN_JOB_ID, 0);
+        eprintln!("{}", super::REGISTRATION_HOOK);
     }
 }

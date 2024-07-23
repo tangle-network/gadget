@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Read},
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
@@ -152,14 +152,7 @@ fn extract_jobs_from_module<'a>(
                         .expect("Failed to deserialize job definition");
                 job_def.metadata.description = linked_function.docs.as_ref().map(Into::into);
                 if let JobResultVerifier::Evm(c) = &mut job_def.verifier {
-                    *c = std::env::current_dir()
-                        .expect("Failed to get current directory")
-                        .join("contracts")
-                        .join("out")
-                        .join(format!("{c}.sol"))
-                        .join(format!("{c}.json"))
-                        .display()
-                        .to_string();
+                    *c = resolve_evm_contract_path_by_name(c).display().to_string();
                 }
                 jobs.push(job_def);
             }
@@ -189,11 +182,14 @@ fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Mod
                     && item
                         .name
                         .as_ref()
-                        .map(|v| v.contains(REGISTRATION_HOOK))
+                        .map(|v| v.eq(REGISTRATION_HOOK))
                         .unwrap_or(false) =>
             {
-                let value = serde_json::from_str(&unescape_json_string(&c.expr))
+                let mut value = serde_json::from_str(&unescape_json_string(&c.expr))
                     .expect("Failed to deserialize hook");
+                if let ServiceRegistrationHook::Evm(c) = &mut value {
+                    *c = resolve_evm_contract_path_by_name(c).display().to_string();
+                }
                 hooks.push(Hook::Registration(value));
             }
 
@@ -202,11 +198,14 @@ fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Mod
                     && item
                         .name
                         .as_ref()
-                        .map(|v| v.contains(REQUEST_HOOK))
+                        .map(|v| v.eq(REQUEST_HOOK))
                         .unwrap_or(false) =>
             {
-                let value = serde_json::from_str(&unescape_json_string(&c.expr))
+                let mut value = serde_json::from_str(&unescape_json_string(&c.expr))
                     .expect("Failed to deserialize hook");
+                if let ServiceRequestHook::Evm(c) = &mut value {
+                    *c = resolve_evm_contract_path_by_name(c).display().to_string();
+                }
                 hooks.push(Hook::Request(value));
             }
 
@@ -215,7 +214,7 @@ fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Mod
                     && item
                         .name
                         .as_ref()
-                        .map(|v| v.contains(REQUEST_HOOK_PARAMS))
+                        .map(|v| v.eq(REQUEST_HOOK_PARAMS))
                         .unwrap_or(false) =>
             {
                 let value = serde_json::from_str(&unescape_json_string(&c.expr))
@@ -228,7 +227,7 @@ fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Mod
                     && item
                         .name
                         .as_ref()
-                        .map(|v| v.contains(REGISTRATION_HOOK_PARAMS))
+                        .map(|v| v.eq(REGISTRATION_HOOK_PARAMS))
                         .unwrap_or(false) =>
             {
                 let value = serde_json::from_str(&unescape_json_string(&c.expr))
@@ -239,6 +238,16 @@ fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Mod
         }
     }
     hooks
+}
+
+/// Resolves the path to the EVM contract JSON file by its name.
+///
+/// The contracts are expected to be in the `contracts/out` directory.
+fn resolve_evm_contract_path_by_name(name: &str) -> PathBuf {
+    PathBuf::from("contracts")
+        .join("out")
+        .join(format!("{name}.sol"))
+        .join(format!("{name}.json"))
 }
 
 /// Generate `blueprint.json` to the current crate working directory next to `build.rs` file.
@@ -301,6 +310,7 @@ fn generate_rustdoc() -> Crate {
     cmd.args(["--package", &crate_name]);
     cmd.args(["--target-dir", &custom_target_dir]);
     cmd.arg("--locked");
+    cmd.args(["--", "--document-hidden-items"]);
     cmd.env("RUSTC_BOOTSTRAP", "1");
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
@@ -375,9 +385,8 @@ fn kabab_case_to_snake_case(s: &str) -> String {
 /// A simple function to unscape JSON strings that are escaped multiple times
 fn unescape_json_string(s: &str) -> String {
     let mut s = s.to_string();
-    dbg!(&s);
     while let Ok(unescape) = serde_json::from_str::<String>(&s) {
-        s = dbg!(unescape);
+        s = unescape;
     }
-    dbg!(s)
+    s
 }
