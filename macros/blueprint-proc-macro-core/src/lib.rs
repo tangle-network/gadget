@@ -235,6 +235,7 @@ pub struct GadgetBinary<'a> {
     pub name: BlueprintString<'a>,
     /// The sha256 hash of the binary.
     /// used to verify the downloaded binary.
+    #[serde(default)]
     pub sha256: [u8; 32],
 }
 

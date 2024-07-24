@@ -23,7 +23,7 @@
         "Bytes"
       ],
       "verifier": {
-        "Evm": "contracts/out/TestContract.sol/TestContract.json"
+        "Evm": "contracts/out/KeygenContract.sol/KeygenContract.json"
       }
     },
     {

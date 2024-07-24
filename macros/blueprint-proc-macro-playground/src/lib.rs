@@ -1,7 +1,7 @@
 use gadget_blueprint_proc_macro::{job, registration_hook, request_hook};
 
 /// Simple Threashold (t) Keygen Job for n parties.
-#[job(id = 0, params(n, t), result(_), verifier(evm = "TestContract"))]
+#[job(id = 0, params(n, t), result(_), verifier(evm = "KeygenContract"))]
 pub fn keygen(n: u16, t: u8) -> Vec<u8> {
     let _ = (n, t);
     vec![0; 33]
@@ -15,10 +15,10 @@ pub fn sign(keygen_id: u64, data: Vec<u8>) -> Vec<u8> {
 }
 
 #[registration_hook(evm = "RegistrationContract")]
-pub fn my_registration_hook(pubkey: Vec<u8>);
+pub fn on_register(pubkey: Vec<u8>);
 
 #[request_hook(evm = "RequestContract")]
-pub fn my_request_hook(nft_id: u64);
+pub fn on_request(nft_id: u64);
 
 #[cfg(test)]
 mod tests {

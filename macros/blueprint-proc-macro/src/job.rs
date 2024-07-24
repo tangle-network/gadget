@@ -14,6 +14,7 @@ mod kw {
     syn::custom_keyword!(result);
     syn::custom_keyword!(verifier);
     syn::custom_keyword!(evm);
+    syn::custom_keyword!(skip_codegen);
 }
 
 pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStream> {
@@ -54,6 +55,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     let job_def = JobDefinition {
         metadata: JobMetadata {
             name: fn_name_string.clone().into(),
+            // filled later on during the rustdoc gen.
             description: None,
         },
         params: params_type,
@@ -70,6 +72,15 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
             format!("Failed to serialize job definition to json: {err}"),
         )
     })?;
+
+    let event_handler_gen = if args.skip_codegen {
+        proc_macro2::TokenStream::default()
+    } else {
+        // Generate the Job Handler.
+        quote! {
+            /// TODO: Implement the event handler for the job.
+        }
+    };
 
     let gen = quote! {
         #[doc = "Job definition for the function "]
@@ -88,6 +99,8 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         pub const #job_id_name: u8 = #job_id;
 
         #input
+
+        #event_handler_gen
     };
 
     Ok(gen.into())
@@ -109,10 +122,24 @@ fn pascal_case(s: &str) -> String {
 
 /// `JobArgs` type to handle parsing of attributes
 pub(crate) struct JobArgs {
+    /// Unique identifier for the job in the blueprint
+    /// `#[job(id = 1)]`
     id: LitInt,
+    /// List of parameters for the job, in order.
+    /// `#[job(params(a, b, c))]`
     params: Vec<Ident>,
+    /// List of return types for the job, could be infered from the function return type.
+    /// `#[job(result(u32, u64))]`
+    /// `#[job(result(_))]`
     result: ResultsKind,
+    /// Optional: Verifier for the job result, currently only supports EVM verifier.
+    /// `#[job(verifier(evm = "MyVerifierContract"))]`
     verifier: Verifier,
+    /// Optional: Skip code generation for this job.
+    /// `#[job(skip_codegen)]`
+    /// this is useful if the developer want to impl a custom event handler
+    /// for this job.
+    skip_codegen: bool,
 }
 
 impl Parse for JobArgs {
@@ -121,6 +148,7 @@ impl Parse for JobArgs {
         let mut result = None;
         let mut id = None;
         let mut verifier = Verifier::None;
+        let mut skip_codegen = false;
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
@@ -136,6 +164,9 @@ impl Parse for JobArgs {
                 result = Some(r);
             } else if lookahead.peek(kw::verifier) {
                 verifier = input.parse()?;
+            } else if lookahead.peek(kw::skip_codegen) {
+                let _ = input.parse::<kw::skip_codegen>()?;
+                skip_codegen = true;
             } else if lookahead.peek(Token![,]) {
                 let _ = input.parse::<Token![,]>()?;
             } else {
@@ -162,6 +193,7 @@ impl Parse for JobArgs {
             params,
             result,
             verifier,
+            skip_codegen,
         })
     }
 }

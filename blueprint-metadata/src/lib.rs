@@ -12,6 +12,11 @@ use gadget_blueprint_proc_macro_core::{
 
 use rustdoc_types::{Crate, Id, Item, ItemEnum, Module};
 
+/// Generate `blueprint.json` to the current crate working directory next to `build.rs` file.
+pub fn generate_json() {
+    Config::builder().build().generate_json();
+}
+
 #[derive(Debug, Clone, Default, typed_builder::TypedBuilder)]
 pub struct Config {
     /// The output path of the generated `blueprint.json` file.
@@ -30,6 +35,8 @@ impl Config {
         // Extract the job definitions from the rustdoc output
         let jobs = extract_jobs(&krate);
         let hooks = extract_hooks(&krate);
+        // let gadget = extract_gadget(&cargo_toml);
+        // eprintln!("{gadget:?}");
         eprintln!("Generating blueprint.json to {:?}", output_file);
         let blueprint = ServiceBlueprint {
             metadata: ServiceMetadata {
@@ -248,11 +255,6 @@ fn resolve_evm_contract_path_by_name(name: &str) -> PathBuf {
         .join("out")
         .join(format!("{name}.sol"))
         .join(format!("{name}.json"))
-}
-
-/// Generate `blueprint.json` to the current crate working directory next to `build.rs` file.
-pub fn generate_json() {
-    Config::builder().build().generate_json();
 }
 
 struct Locked;
