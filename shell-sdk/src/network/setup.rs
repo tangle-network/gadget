@@ -26,6 +26,9 @@ use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 
+/// The base network configuration for a blueprint's libp2p network.
+/// This configuration is used to setup the libp2p network for a blueprint.
+/// Construct using `NetworkConfig::new` for advanced users or `NetworkConfig::new_service_network` ordinarily.
 pub struct NetworkConfig {
     pub identity: libp2p::identity::Keypair,
     pub role_key: ecdsa::Pair,
@@ -37,6 +40,8 @@ pub struct NetworkConfig {
 }
 
 impl NetworkConfig {
+    /// For advanced use only. Use `NetworkConfig::new_service_network` for ordinary use.
+    /// This function allows for the creation of a network with multiple topics.
     pub fn new(
         identity: libp2p::identity::Keypair,
         role_key: ecdsa::Pair,
@@ -55,6 +60,28 @@ impl NetworkConfig {
             topics,
             logger,
         }
+    }
+
+    /// When constructing a network for a single service, the service name is used as the network name.
+    /// Each service within a blueprint must have a unique network name.
+    pub fn new_service_network<T: Into<String>>(
+        identity: libp2p::identity::Keypair,
+        role_key: ecdsa::Pair,
+        bootnodes: Vec<Multiaddr>,
+        bind_ip: IpAddr,
+        bind_port: u16,
+        service_name: T,
+        logger: DebugLogger,
+    ) -> Self {
+        Self::new(
+            identity,
+            role_key,
+            bootnodes,
+            bind_ip,
+            bind_port,
+            vec![service_name.into()],
+            logger,
+        )
     }
 }
 
@@ -86,6 +113,19 @@ pub async fn setup_multiplexed_libp2p_network(
         logger,
         role_key,
     } = config;
+
+    // Ensure all topics are unique
+    let topics_unique = topics
+        .iter()
+        .cloned()
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    if topics_unique.len() != topics.len() {
+        return Err("All topics must be unique".into());
+    }
+
     let networks = topics;
 
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)

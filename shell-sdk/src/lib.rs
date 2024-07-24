@@ -8,6 +8,7 @@ pub use config::*;
 pub use entry::run_shell_for_protocol;
 pub use gadget_common::prelude::*;
 pub use gadget_core::gadget::general::Client;
+pub use network::setup::{start_p2p_network, NetworkConfig};
 pub use shell::generate_node_input;
 
 pub mod prelude {
