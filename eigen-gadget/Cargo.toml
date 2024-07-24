@@ -36,7 +36,7 @@ futures.workspace = true
 http-body-util.workspace = true
 hyper = { workspace = true, features = ["full"] }
 hex.workspace = true
-k256.workspace = true
+k256 = { workspace = true, features = ["expose-field"] }
 log.workspace = true
 prometheus.workspace = true
 rand.workspace = true

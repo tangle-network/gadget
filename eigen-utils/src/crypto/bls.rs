@@ -1,7 +1,7 @@
 use alloy_primitives::U256;
 use ark_bn254::{Bn254, Fq, Fr, G1Affine, G1Projective, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup};
-use ark_ff::{BigInt, QuadExtField, Zero};
+use ark_ff::{BigInt, Field, QuadExtField, Zero};
 use ark_ff::{BigInteger256, PrimeField};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
 use ark_std::One;
@@ -16,7 +16,7 @@ use scrypt::{password_hash, Params, Scrypt};
 use serde::{Deserialize, Serialize};
 use std::fmt::Write;
 use std::fs;
-use std::ops::Mul;
+use std::ops::{Div, Mul, Neg};
 use std::path::Path;
 
 use crate::types::AvsError;
@@ -90,7 +90,7 @@ impl G1Point {
 
     pub fn neg(&self) -> Self {
         let affine = g1_point_to_ark_point(self);
-        let neg_affine = -affine;
+        let neg_affine = affine.neg();
         ark_point_to_g1_point(&neg_affine)
     }
 
@@ -333,26 +333,36 @@ impl Signature {
     }
 
     pub fn verify(&self, pubkey: &G2Point, message: &[u8; 32]) -> Result<bool, AvsError> {
+        println!("Verification Process Beginning...");
         let g2_gen = G2Point::generator();
+        println!("Verification Process Mapping to Curve...");
         let msg_affine = map_to_curve(message);
+        println!("Verification Process Creating Message Point...");
         let msg_point = G1Point::new(msg_affine.x, msg_affine.y);
+        println!("Verification Process Creating Negative Point...");
         let neg_sig = self.g1_point.neg();
+        println!("Verification Process Generating P...");
         let p: [G1Point; 2] = [msg_point, neg_sig];
+        println!("Verification Process Generating Q...");
         let q: [G2Point; 2] = [pubkey.clone(), g2_gen];
 
+        println!("Verification Process Generating P Projective...");
         let p_projective = [
             g1_point_to_ark_point(&p[0]).mul_bigint(Fr::one().0),
             g1_point_to_ark_point(&p[1]).mul_bigint(Fr::one().0),
         ];
 
+        println!("Verification Process Generating Q Projective...");
         let q_projective = [
             g2_point_to_ark_point(&q[0]).mul_bigint(Fr::one().0),
             g2_point_to_ark_point(&q[1]).mul_bigint(Fr::one().0),
         ];
 
+        println!("Verification Process Generating Inner Product...");
         let inner_product =
             PairingInnerProduct::<Bn254>::inner_product(&p_projective[..], &q_projective[..])
                 .unwrap();
+        println!("Verification Process Returning Result...");
         Ok(inner_product.0 == QuadExtField::one())
     }
 }
@@ -385,10 +395,15 @@ impl KeyPair {
         let pub_key_point_result = mul_by_generator_g1(sk.clone());
 
         match pub_key_point_result {
-            Ok(pub_key_point) => Ok(Self {
-                priv_key: sk.clone(),
-                pub_key: pub_key_point,
-            }),
+            Ok(pub_key_point) => {
+                // println!("Public Key In KeyPair New: {:?}", pub_key_point);
+                // println!("Public Key X: {:?}", pub_key_point.x.inverse().unwrap() * pub_key_point.z);
+                // println!("Public Key Y: {:?}", pub_key_point.y.inverse().unwrap() * pub_key_point.z);
+                Ok(Self {
+                    priv_key: sk.clone(),
+                    pub_key: pub_key_point,
+                })
+            },
             Err(_) => Err(AvsError::KeyError(
                 "Failed to generate new key pair".to_string(),
             )),
