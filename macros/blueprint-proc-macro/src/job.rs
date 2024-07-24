@@ -115,7 +115,7 @@ fn generate_event_handler_for(
     let fn_name = &f.sig.ident;
     let fn_name_string = fn_name.to_string();
     let struct_name = format_ident!("{}EventHandler", pascal_case(&fn_name_string));
-    let job_id_name = format_ident!("{}_JOB_ID", fn_name_string.to_ascii_uppercase());
+    let job_id = &job_args.id;
 
     let params_tokens = params
         .iter()
@@ -137,9 +137,27 @@ fn generate_event_handler_for(
         })
         .collect::<Vec<_>>();
     let fn_call = if f.sig.asyncness.is_some() {
-        quote! { let result = #fn_name(#(#fn_call_params)*).await; }
+        quote! { let job_result = #fn_name(#(#fn_call_params)*).await; }
     } else {
-        quote! { let result = #fn_name(#(#fn_call_params)*); }
+        quote! { let job_result = #fn_name(#(#fn_call_params)*); }
+    };
+
+    let result_tokens = if result.len() == 1 {
+        let ident = format_ident!("job_result");
+        vec![field_type_to_result_token(&ident, &result[0])]
+    } else {
+        result
+            .iter()
+            .enumerate()
+            .map(|(i, t)| {
+                let ident = format_ident!("result_{i}");
+                let s = field_type_to_result_token(&ident, t);
+                quote! {
+                    let #ident = job_result[#i];
+                    #s
+                }
+            })
+            .collect::<Vec<_>>()
     };
 
     quote! {
@@ -162,7 +180,7 @@ fn generate_event_handler_for(
                 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 
                 let has_event = events.find::<JobCalled>().flatten().any(|event| {
-                    event.service_id == self.service_id && event.job == #job_id_name
+                    event.service_id == self.service_id && event.job == #job_id
                 });
 
                 Ok(has_event)
@@ -190,7 +208,7 @@ fn generate_event_handler_for(
                     .find::<JobCalled>()
                     .flatten()
                     .filter(|event| {
-                        event.service_id == self.service_id && event.job == #job_id_name
+                        event.service_id == self.service_id && event.job == #job_id
                     })
                     .collect();
                 for call in job_events {
@@ -200,20 +218,14 @@ fn generate_event_handler_for(
                     #(#params_tokens)*
                     #fn_call
 
-                    // craft the response.
+                    let mut result = Vec::new();
+                    #(#result_tokens)*
+
                     let response =
                         TangleApi::tx()
                             .services()
                             .submit_result(self.service_id, call.call_id, result);
-                    let progress = client
-                        .tx()
-                        .sign_and_submit_then_watch_default(&response, &self.signer)
-                        .await?;
-                    tracing::debug!("Submitted the result, waiting for finalization ...");
-                    let events = progress.wait_for_finalized_success().await?;
-                    // find our event.
-                    let maybe_event = events.find_first::<JobResultSubmitted>()?;
-                    tracing::debug!("JobResultSubmitted event: {:?}", maybe_event);
+                    gadget_sdk::tx::send(client, &self.signer, response).await?;
                 }
                 Ok(())
             }
@@ -279,7 +291,7 @@ fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::Token
         FieldType::List(_) => {
             let inner_ident = format_ident!("{}_inner", ident);
             let inner = quote! {
-                let Some(Field::List(#inner_ident)) = args_iter.next() else { continue; };
+                let Some(Field::List(BoundedVec(#inner_ident))) = args_iter.next() else { continue; };
             };
 
             quote! {
@@ -292,6 +304,66 @@ fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::Token
         }
         FieldType::AccountId => {
             quote! { let Some(Field::AccountId(#ident)) = args_iter.next() else { continue; }; }
+        }
+    }
+}
+
+fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
+    match t {
+        FieldType::Void => quote! {},
+        FieldType::Bool => quote! { result.push(Field::Bool(#ident)); },
+        FieldType::Uint8 => quote! { result.push(Field::Uint8(#ident)); },
+        FieldType::Int8 => quote! { result.push(Field::Int8(#ident)); },
+        FieldType::Uint16 => quote! { result.push(Field::Uint16(#ident)); },
+        FieldType::Int16 => quote! { result.push(Field::Int16(#ident)); },
+        FieldType::Uint32 => quote! { result.push(Field::Uint32(#ident)); },
+        FieldType::Int32 => quote! { result.push(Field::Int32(#ident)); },
+        FieldType::Uint64 => quote! { result.push(Field::Uint64(#ident)); },
+        FieldType::Int64 => quote! { result.push(Field::Int64(#ident)); },
+        FieldType::String => quote! { result.push(Field::String(#ident)); },
+        FieldType::Bytes => quote! { result.push(Field::Bytes(#ident)); },
+        FieldType::Optional(t_x) => {
+            let v_ident = format_ident!("v");
+            let tokens = field_type_to_result_token(&v_ident, t_x);
+            quote! {
+                match #ident {
+                    Some(v) => #tokens,
+                    None => result.push(Field::None),
+                }
+            }
+        }
+        FieldType::Array(_, _) => todo!("Handle array"),
+        FieldType::List(t_x) => {
+            let inner_ident = format_ident!("{}_inner", ident);
+            let field = match **t_x {
+                FieldType::Void => unreachable!(),
+                FieldType::Bool => quote! { Field::Bool(item) },
+                FieldType::Uint8 => quote! { Field::Uint8(item) },
+                FieldType::Int8 => quote! { Field::Int8(item) },
+                FieldType::Uint16 => quote! { Field::Uint16(item) },
+                FieldType::Int16 => quote! { Field::Int16(item) },
+                FieldType::Uint32 => quote! { Field::Uint32(item) },
+                FieldType::Int32 => quote! { Field::Int32(item) },
+                FieldType::Uint64 => quote! { Field::Uint64(item) },
+                FieldType::Int64 => quote! { Field::Int64(item) },
+                FieldType::String => quote! { Field::String(item) },
+                FieldType::Bytes => quote! { Field::Bytes(item) },
+                FieldType::Optional(_) => todo!("handle optionals into lists"),
+                FieldType::Array(_, _) => todo!("handle arrays into lists"),
+                FieldType::List(_) => todo!("handle nested lists"),
+                FieldType::AccountId => quote! { Field::AccountId(item) },
+            };
+            let inner = quote! {
+               let #inner_ident = #ident.into_iter().map(|item| #field).collect::<Vec<_>>();
+            };
+
+            quote! {
+                #inner
+                result.push(Field::List(BoundedVec(#inner_ident)));
+            }
+        }
+        FieldType::AccountId => {
+            quote! { result.push(Field::AccountId(#ident)); }
         }
     }
 }

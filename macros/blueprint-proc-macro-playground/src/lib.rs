@@ -15,7 +15,7 @@ pub async fn sign(keygen_id: u64, data: Vec<u8>) -> Vec<u8> {
 }
 
 #[job(id = 2, params(keygen_id, new_t), result(_))]
-pub fn refresh(keygen_id: u64, new_t: Option<u8>) -> Vec<u8> {
+pub fn refresh(keygen_id: u64, new_t: Option<u8>) -> Vec<u64> {
     let _ = (keygen_id, new_t);
     vec![0; 33]
 }
