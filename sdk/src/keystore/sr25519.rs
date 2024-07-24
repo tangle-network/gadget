@@ -13,7 +13,9 @@ pub fn generate_with_optional_seed(
 ) -> Result<Secret, schnorrkel::SignatureError> {
     match seed {
         Some(seed) => Secret::from_bytes(seed),
-        None => Ok(schnorrkel::SecretKey::generate_with(&mut ThreadRng::default())),
+        None => Ok(schnorrkel::SecretKey::generate_with(
+            &mut ThreadRng::default(),
+        )),
     }
 }
 

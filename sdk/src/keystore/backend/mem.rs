@@ -95,10 +95,7 @@ impl InMemoryKeystore {
 
 impl Backend for InMemoryKeystore {
     #[cfg(feature = "keystore-sr25519")]
-    fn sr25519_generate_new(
-        &self,
-        seed: Option<&[u8]>,
-    ) -> Result<sr25519::Public, Error> {
+    fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public, Error> {
         let secret = sr25519::generate_with_optional_seed(seed)?;
         let public = secret.to_public();
         let old = self.sr25519.write().insert(public, secret);
@@ -122,10 +119,7 @@ impl Backend for InMemoryKeystore {
     }
 
     #[cfg(feature = "keystore-ed25519")]
-    fn ed25519_generate_new(
-        &self,
-        seed: Option<&[u8]>,
-    ) -> Result<ed25519::Public, Error> {
+    fn ed25519_generate_new(&self, seed: Option<&[u8]>) -> Result<ed25519::Public, Error> {
         let secret = ed25519::generate_with_optional_seed(seed)?;
         let public = ed25519::to_public(&secret);
         let old = self
@@ -152,10 +146,7 @@ impl Backend for InMemoryKeystore {
     }
 
     #[cfg(feature = "keystore-ecdsa")]
-    fn ecdsa_generate_new(
-        &self,
-        seed: Option<&[u8]>,
-    ) -> Result<ecdsa::Public, Error> {
+    fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error> {
         let secret = ecdsa::generate_with_optional_seed(seed).map_err(|err| Error::Ecdsa(err))?;
         let public = secret.public_key();
         let old = self.ecdsa.write().insert(public, secret);
@@ -179,10 +170,7 @@ impl Backend for InMemoryKeystore {
     }
 
     #[cfg(feature = "keystore-bls381")]
-    fn bls381_generate_new(
-        &self,
-        seed: Option<&[u8]>,
-    ) -> Result<bls381::Public, Error> {
+    fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<bls381::Public, Error> {
         let secret = bls381::generate_with_optional_seed(seed);
         let public = bls381::to_public(&secret);
         let old = self
@@ -218,10 +206,7 @@ impl Backend for InMemoryKeystore {
     }
 
     #[cfg(feature = "keystore-ecdsa")]
-    fn expose_ecdsa_secret(
-        &self,
-        public: &ecdsa::Public,
-    ) -> Result<Option<ecdsa::Secret>, Error> {
+    fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error> {
         let lock = self.ecdsa.read();
         Ok(lock.get(public).cloned())
     }

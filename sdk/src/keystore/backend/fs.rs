@@ -209,7 +209,9 @@ impl Backend for FilesystemKeystore {
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error> {
         let secret_bytes = self.secret_by_type(&public.to_sec1_bytes(), KeyType::Ecdsa)?;
         if let Some(buf) = secret_bytes {
-            Ok(Some(ecdsa::secret_from_bytes(&buf).map_err(|err| Error::Ecdsa(err))?))
+            Ok(Some(
+                ecdsa::secret_from_bytes(&buf).map_err(|err| Error::Ecdsa(err))?,
+            ))
         } else {
             Ok(None)
         }
@@ -254,6 +256,7 @@ impl Backend for FilesystemKeystore {
         self.iter_keys(KeyType::Ecdsa)
             .flat_map(|b| ecdsa::Public::from_sec1_bytes(&b))
     }
+
     #[cfg(feature = "keystore-ed25519")]
     fn iter_ed25519(&self) -> impl Iterator<Item = ed25519::Public> {
         self.iter_keys(KeyType::Ed25519)

@@ -15,8 +15,10 @@ use sp_core::{ed25519, keccak_256, sr25519, Pair};
 
 use crate::config::ShellConfig;
 use crate::network::gossip::GossipHandle;
+use crate::network::setup::NetworkConfig;
 pub use gadget_io::KeystoreContainer;
 use itertools::Itertools;
+use libp2p::Multiaddr;
 
 /// The version of the shell-sdk
 pub const AGENT_VERSION: &str = "tangle/gadget-shell-sdk/1.0.0";
@@ -47,18 +49,23 @@ pub async fn generate_node_input<KBE: KeystoreBackend, Env: GadgetEnvironment>(
         .sorted()
         .collect::<Vec<_>>();
 
-    let (networks, network_task) = crate::network::setup::setup_libp2p_network(
+    let libp2p_config = NetworkConfig::new(
         libp2p_key,
-        &config,
-        logger.clone(),
-        network_ids,
         role_key,
-    )
-    .await
-    .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
+        config.bootnodes.clone(),
+        config.bind_ip,
+        config.bind_port,
+        network_ids.clone(),
+        logger.clone(),
+    );
+
+    let (networks, network_task) =
+        crate::network::setup::setup_multiplexed_libp2p_network(libp2p_config)
+            .await
+            .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
     logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
-    wait_for_connection_to_bootnodes(&config, &networks, &logger).await?;
+    wait_for_connection_to_bootnodes(&config.bootnodes, &networks, &logger).await?;
 
     let node_input = generate_node_input_for_required_protocols(
         &config.environment,
@@ -130,13 +137,14 @@ where
     )
 }
 
-pub async fn wait_for_connection_to_bootnodes<KBE: KeystoreBackend, Env: GadgetEnvironment>(
-    config: &ShellConfig<KBE, Env>,
+pub async fn wait_for_connection_to_bootnodes(
+    bootnodes: &[Multiaddr],
     handles: &HashMap<String, GossipHandle>,
     logger: &DebugLogger,
 ) -> color_eyre::Result<()> {
-    let n_required = config.bootnodes.len();
+    let n_required = bootnodes.len();
     let n_networks = handles.len();
+
     logger.debug(format!(
         "Waiting for {n_required} peers to show up across {n_networks} networks"
     ));

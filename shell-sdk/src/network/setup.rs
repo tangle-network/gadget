@@ -1,4 +1,3 @@
-use crate::config::ShellConfig;
 #[cfg(not(target_family = "wasm"))]
 use crate::network::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
@@ -13,11 +12,10 @@ use libp2p::{
     swarm::dial_opts::DialOpts, StreamProtocol,
 };
 
-use gadget_common::environments::GadgetEnvironment;
-use gadget_common::prelude::KeystoreBackend;
 use gadget_io::tokio::select;
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use gadget_io::tokio::task::{spawn, JoinHandle};
+use libp2p::Multiaddr;
 use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::error::Error;
@@ -28,16 +26,67 @@ use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 
+pub struct NetworkConfig {
+    pub identity: libp2p::identity::Keypair,
+    pub role_key: ecdsa::Pair,
+    pub bootnodes: Vec<Multiaddr>,
+    pub bind_ip: IpAddr,
+    pub bind_port: u16,
+    pub topics: Vec<String>,
+    pub logger: DebugLogger,
+}
+
+impl NetworkConfig {
+    pub fn new(
+        identity: libp2p::identity::Keypair,
+        role_key: ecdsa::Pair,
+        bootnodes: Vec<Multiaddr>,
+        bind_ip: IpAddr,
+        bind_port: u16,
+        topics: Vec<String>,
+        logger: DebugLogger,
+    ) -> Self {
+        Self {
+            identity,
+            role_key,
+            bootnodes,
+            bind_ip,
+            bind_port,
+            topics,
+            logger,
+        }
+    }
+}
+
+/// Each service will only have one network. It is necessary that each service calling this function
+/// uses a distinct network name, otherwise, the network will not be able to distinguish between
+/// the different services.
+pub async fn start_p2p_network(config: NetworkConfig) -> Result<GossipHandle, Box<dyn Error>> {
+    if config.topics.len() != 1 {
+        return Err("Only one network topic is allowed when running this function".into());
+    }
+
+    let (networks, _) = setup_multiplexed_libp2p_network(config).await?;
+    let network = networks.into_iter().next().ok_or("No network found")?.1;
+    Ok(network)
+}
+
 #[allow(clippy::collapsible_else_if)]
 #[cfg(not(target_family = "wasm"))]
-pub async fn setup_libp2p_network<KBE: KeystoreBackend, Env: GadgetEnvironment>(
-    identity: libp2p::identity::Keypair,
-    config: &ShellConfig<KBE, Env>,
-    logger: DebugLogger,
-    networks: Vec<String>,
-    role_key: ecdsa::Pair,
+pub async fn setup_multiplexed_libp2p_network(
+    config: NetworkConfig,
 ) -> Result<(HashMap<String, GossipHandle>, JoinHandle<()>), Box<dyn Error>> {
     // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
+    let NetworkConfig {
+        identity,
+        bootnodes,
+        bind_ip,
+        bind_port,
+        topics,
+        logger,
+        role_key,
+    } = config;
+    let networks = topics;
 
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
         .with_tokio()
@@ -153,8 +202,6 @@ pub async fn setup_libp2p_network<KBE: KeystoreBackend, Env: GadgetEnvironment>(
         );
     }
 
-    let bind_ip = config.bind_ip;
-
     let mut ips_to_bind_to = vec![bind_ip];
 
     if let IpAddr::V6(v6_addr) = bind_ip {
@@ -173,12 +220,12 @@ pub async fn setup_libp2p_network<KBE: KeystoreBackend, Env: GadgetEnvironment>(
 
     for addr in ips_to_bind_to {
         let ip_label = if addr.is_ipv4() { "ip4" } else { "ip6" };
-        swarm.listen_on(format!("/{ip_label}/{addr}/udp/{}/quic-v1", config.bind_port).parse()?)?;
-        swarm.listen_on(format!("/{ip_label}/{addr}/tcp/{}", config.bind_port).parse()?)?;
+        swarm.listen_on(format!("/{ip_label}/{addr}/udp/{bind_port}/quic-v1").parse()?)?;
+        swarm.listen_on(format!("/{ip_label}/{addr}/tcp/{bind_port}").parse()?)?;
     }
 
     // Dial all bootnodes
-    for bootnode in &config.bootnodes {
+    for bootnode in &bootnodes {
         swarm.dial(
             DialOpts::unknown_peer_id()
                 .address(bootnode.clone())

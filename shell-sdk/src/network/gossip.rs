@@ -386,16 +386,19 @@ impl<Env: GadgetEnvironment> Network<Env> for GossipHandle {
 #[cfg(test)]
 #[cfg(not(target_family = "wasm"))]
 mod tests {
+    use std::future::Future;
+    use std::pin::Pin;
     use std::sync::Arc;
 
     use crate::config::{KeystoreConfig, ShellConfig};
     use crate::network::gossip::GossipHandle;
-    use crate::network::setup::setup_libp2p_network;
+    use crate::network::setup::{setup_multiplexed_libp2p_network, NetworkConfig};
     use crate::shell::wait_for_connection_to_bootnodes;
     use async_trait::async_trait;
     use environment_utils::transaction_manager::tangle::TanglePalletSubmitter;
     use gadget_common::keystore::InMemoryBackend;
     use gadget_common::prelude::DebugLogger;
+    use gadget_common::Error;
     use gadget_core::job_manager::WorkManagerInterface;
     use gadget_io::tokio;
     use sp_application_crypto::sr25519;
@@ -404,8 +407,6 @@ mod tests {
     use tangle_environment::message::TangleProtocolMessage;
     use tangle_environment::work_manager::TangleWorkManager;
     use tangle_environment::TangleEnvironment;
-    use tangle_primitives::jobs::JobId;
-    use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles::RoleType;
 
     #[gadget_io::tokio::test]
     async fn test_gossip_network() {
@@ -460,35 +461,24 @@ mod tests {
                 tx_manager: Arc::new(gadget_common::prelude::Mutex::new(Some(tx_manager))),
             };
 
-            let shell_config = ShellConfig::<InMemoryBackend, TangleEnvironment> {
-                keystore: KeystoreConfig::InMemory,
-                environment: tangle_environment,
-                bind_ip: "127.0.0.1".parse().unwrap(),
-                bind_port,
-                bootnodes,
-                base_path: std::path::PathBuf::new(),
-                node_key: [0u8; 32],
-                services: vec![RoleType::LightClientRelaying], // Dummy value
-                n_protocols: 1,
-                keystore_backend: InMemoryBackend::default(),
-            };
-
             let role_key = get_dummy_role_key_from_index(x);
 
-            let (handles, _) = setup_libp2p_network::<_, TangleEnvironment>(
+            let config = NetworkConfig {
                 identity,
-                &shell_config,
-                logger.clone(),
-                networks.clone(),
                 role_key,
-            )
-            .await
-            .unwrap();
-            all_handles.push((handles, shell_config, logger));
+                bootnodes: bootnodes.clone(),
+                bind_ip,
+                bind_port,
+                topics: networks.clone(),
+                logger: logger.clone(),
+            };
+
+            let (handles, _) = setup_multiplexed_libp2p_network(config).await.unwrap();
+            all_handles.push((handles, bootnodes.clone(), logger));
         }
 
-        for (handles, shell_config, logger) in &all_handles {
-            wait_for_connection_to_bootnodes(shell_config, handles, logger)
+        for (handles, bootnodes, logger) in &all_handles {
+            wait_for_connection_to_bootnodes(bootnodes, handles, logger)
                 .await
                 .unwrap();
         }
@@ -613,20 +603,13 @@ mod tests {
 
     #[async_trait]
     impl TanglePalletSubmitter for StubPalletTx {
-        async fn submit_job_result(
+        async fn submit_job_call_result(
             &self,
-            _role_type: gadget_common::tangle_runtime::RoleType,
-            _job_id: JobId,
-            _result: gadget_common::tangle_runtime::jobs::JobResult<
-                gadget_common::tangle_runtime::MaxParticipants,
-                gadget_common::tangle_runtime::MaxKeyLen,
-                gadget_common::tangle_runtime::MaxSignatureLen,
-                gadget_common::tangle_runtime::MaxDataLen,
-                gadget_common::tangle_runtime::MaxProofLen,
-                gadget_common::tangle_runtime::MaxAdditionalParamsLen,
-            >,
-        ) -> Result<(), gadget_common::Error> {
-            unreachable!("TangetPalletSubmitter::submit_job_result should not be called with a stub implementation `()` ")
+            service_id: u64,
+            call_id: u64,
+            result: tangle_subxt::tangle_testnet_runtime::api::services::calls::types::submit_result::Result,
+        ) -> Result<(), Error> {
+            panic!("Should not be called")
         }
     }
 }
