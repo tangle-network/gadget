@@ -48,10 +48,18 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         }
     }
 
-    // Extract params and result types from args
     let job_id = &args.id;
     let params_type = args.params_to_to_field_types(&param_types)?;
     let result_type = args.result_to_field_types(result)?;
+
+    let event_handler_gen = if args.skip_codegen {
+        proc_macro2::TokenStream::default()
+    } else {
+        // Generate the Job Handler.
+        generate_event_handler_for(input, args, &params_type, &result_type)
+    };
+
+    // Extract params and result types from args
     let job_def = JobDefinition {
         metadata: JobMetadata {
             name: fn_name_string.clone().into(),
@@ -72,15 +80,6 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
             format!("Failed to serialize job definition to json: {err}"),
         )
     })?;
-
-    let event_handler_gen = if args.skip_codegen {
-        proc_macro2::TokenStream::default()
-    } else {
-        // Generate the Job Handler.
-        quote! {
-            /// TODO: Implement the event handler for the job.
-        }
-    };
 
     let gen = quote! {
         #[doc = "Job definition for the function "]
@@ -106,8 +105,198 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     Ok(gen.into())
 }
 
+#[allow(clippy::too_many_lines)]
+fn generate_event_handler_for(
+    f: &ItemFn,
+    job_args: &JobArgs,
+    params: &[FieldType],
+    result: &[FieldType],
+) -> proc_macro2::TokenStream {
+    let fn_name = &f.sig.ident;
+    let fn_name_string = fn_name.to_string();
+    let struct_name = format_ident!("{}EventHandler", pascal_case(&fn_name_string));
+    let job_id_name = format_ident!("{}_JOB_ID", fn_name_string.to_ascii_uppercase());
+
+    let params_tokens = params
+        .iter()
+        .enumerate()
+        .map(|(i, t)| {
+            let ident = format_ident!("param{i}");
+            field_type_to_param_token(&ident, t)
+        })
+        .collect::<Vec<_>>();
+
+    let fn_call_params = params
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            let ident = format_ident!("param{i}");
+            quote! {
+                #ident,
+            }
+        })
+        .collect::<Vec<_>>();
+    let fn_call = if f.sig.asyncness.is_some() {
+        quote! { let result = #fn_name(#(#fn_call_params)*).await; }
+    } else {
+        quote! { let result = #fn_name(#(#fn_call_params)*); }
+    };
+
+    quote! {
+        /// Event handler for the function
+        #[doc = "[`"]
+        #[doc = #fn_name_string]
+        #[doc = "`]"]
+        struct #struct_name {
+            pub service_id: u64,
+            pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Kaypair,
+        }
+
+        #[automatically_derived]
+        #[async_trait::async_trait]
+        impl gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
+            async fn can_handle_events(
+                &self,
+                events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
+            ) -> Result<bool, gadget_sdk::events_watcher::Error> {
+                use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
+
+                let has_event = events.find::<JobCalled>().flatten().any(|event| {
+                    event.service_id == self.service_id && event.job == #job_id_name
+                });
+
+                Ok(has_event)
+            }
+
+            async fn handle_events(
+                &self,
+                client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                (events, block_number): (
+                    gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                    u64
+                ),
+            ) -> Result<(), gadget_sdk::events_watcher::Error> {
+                use gadget_sdk::tangle_subxt::{
+                    subxt,
+                    tangle_testnet_runtime::api::{
+                        self as TangleApi,
+                        runtime_types::{
+                            bounded_collections::bounded_vec::BoundedVec, tangle_primitives::services::field::Field,
+                        },
+                        services::events::{JobCalled, JobResultSubmitted},
+                    },
+                };
+                let job_events: Vec<_> = events
+                    .find::<JobCalled>()
+                    .flatten()
+                    .filter(|event| {
+                        event.service_id == self.service_id && event.job == #job_id_name
+                    })
+                    .collect();
+                for call in job_events {
+                    tracing::info!("Handling JobCalled Events: #{block_number}",);
+
+                    let mut args_iter = call.args.iter();
+                    #(#params_tokens)*
+                    #fn_call
+
+                    // craft the response.
+                    let response =
+                        TangleApi::tx()
+                            .services()
+                            .submit_result(self.service_id, call.call_id, result);
+                    let progress = client
+                        .tx()
+                        .sign_and_submit_then_watch_default(&response, &self.signer)
+                        .await?;
+                    tracing::debug!("Submitted the result, waiting for finalization ...");
+                    let events = progress.wait_for_finalized_success().await?;
+                    // find our event.
+                    let maybe_event = events.find_first::<JobResultSubmitted>()?;
+                    tracing::debug!("JobResultSubmitted event: {:?}", maybe_event);
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
+    match t {
+        FieldType::Void => unreachable!("void type should not be in params"),
+        FieldType::Bool => {
+            quote! { let Some(Field::Bool(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::Uint8 => {
+            quote! { let Some(Field::Uint8(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::Int8 => {
+            quote! { let Some(Field::Int8(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::Uint16 => {
+            quote! { let Some(Field::Uint16(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::Int16 => {
+            quote! { let Some(Field::Int16(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::Uint32 => {
+            quote! { let Some(Field::Uint32(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::Int32 => {
+            quote! { let Some(Field::Int32(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::Uint64 => {
+            quote! { let Some(Field::Uint64(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::Int64 => {
+            quote! { let Some(Field::Int64(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::String => {
+            quote! { let Some(Field::String(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::Bytes => {
+            quote! { let Some(Field::Bytes(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::Optional(t_x) => {
+            let inner_ident = format_ident!("{}_inner", ident);
+            let x_ident = format_ident!("{}_option", ident);
+            let x_inner = field_type_to_param_token(&x_ident, t_x);
+            let inner = quote! {
+                let Some(#inner_ident) = args_iter.next() else {  continue; };
+            };
+            quote! {
+                #inner
+                let #ident = match #inner_ident {
+                    _ => {
+                        #x_inner
+                        Some(#x_ident)
+                    },
+                    Field::None => None,
+                };
+            }
+        }
+        FieldType::Array(_, _) => todo!("Handle array"),
+        FieldType::List(_) => {
+            let inner_ident = format_ident!("{}_inner", ident);
+            let inner = quote! {
+                let Some(Field::List(#inner_ident)) = args_iter.next() else { continue; };
+            };
+
+            quote! {
+                #inner
+                let #ident = #inner_ident
+                    .into_iter()
+                    .map(|item| item.0)
+                    .collect::<Vec<_>>();
+            }
+        }
+        FieldType::AccountId => {
+            quote! { let Some(Field::AccountId(#ident)) = args_iter.next() else { continue; }; }
+        }
+    }
+}
+
 /// Convert a `snake_case` string to `PascalCase`
-#[allow(dead_code)]
 fn pascal_case(s: &str) -> String {
     s.split('_')
         .map(|word| {
