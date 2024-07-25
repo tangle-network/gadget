@@ -3589,8 +3589,10 @@ dependencies = [
 name = "gadget-blueprint-proc-macro-playground"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "blueprint-metadata",
  "gadget-blueprint-proc-macro",
+ "tracing 0.1.40",
 ]
 
 [[package]]

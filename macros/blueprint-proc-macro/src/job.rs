@@ -27,9 +27,28 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     let syn::ReturnType::Type(_, result) = &input.sig.output else {
         return Err(syn::Error::new_spanned(
             &input.sig.output,
-            "Function must have a return type",
+            "Function must have a return type of Result<T, E> where T is a tuple of the result fields",
         ));
     };
+
+    // check that the function has a return type of Result<T, E>
+    match **result {
+        Type::Path(ref path) => {
+            let seg = path.path.segments.last().unwrap();
+            if seg.ident != "Result" {
+                return Err(syn::Error::new_spanned(
+                    result,
+                    "Function must have a return type of Result<T, E> where T is a tuple of the result fields",
+                ));
+            }
+        }
+        _ => {
+            return Err(syn::Error::new_spanned(
+                result,
+                "Function must have a return type of Result<T, E> where T is a tuple of the result fields",
+            ));
+        }
+    }
 
     let mut param_types = BTreeMap::new();
     for input in &input.sig.inputs {
@@ -56,7 +75,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         proc_macro2::TokenStream::default()
     } else {
         // Generate the Job Handler.
-        generate_event_handler_for(input, args, &params_type, &result_type)
+        generate_event_handler_for(input, args, &param_types, &params_type, &result_type)
     };
 
     // Extract params and result types from args
@@ -109,6 +128,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
 fn generate_event_handler_for(
     f: &ItemFn,
     job_args: &JobArgs,
+    param_types: &BTreeMap<Ident, Type>,
     params: &[FieldType],
     result: &[FieldType],
 ) -> proc_macro2::TokenStream {
@@ -116,6 +136,39 @@ fn generate_event_handler_for(
     let fn_name_string = fn_name.to_string();
     let struct_name = format_ident!("{}EventHandler", pascal_case(&fn_name_string));
     let job_id = &job_args.id;
+
+    // Get all the params names inside the param_types map
+    // and not in the params list to be added to the event handler.
+    let x = param_types.keys().collect::<HashSet<_>>();
+    let y = job_args.params.iter().collect::<HashSet<_>>();
+    let diff = x.difference(&y).collect::<Vec<_>>();
+    let additional_params = diff
+        .iter()
+        .map(|ident| {
+            let ty = &param_types[**ident];
+            quote! {
+                pub #ident: #ty,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let additional_params_in_call = diff
+        .iter()
+        .map(|ident| {
+            let ty = &param_types[**ident];
+            let (is_ref, is_ref_mut) = match ty {
+                Type::Reference(r) => (true, r.mutability.is_some()),
+                _ => (false, false),
+            };
+            if is_ref && is_ref_mut {
+                quote! { &mut self.#ident, }
+            } else if is_ref {
+                quote! { &self.#ident, }
+            } else {
+                quote! { self.#ident }
+            }
+        })
+        .collect::<Vec<_>>();
 
     let params_tokens = params
         .iter()
@@ -137,9 +190,31 @@ fn generate_event_handler_for(
         })
         .collect::<Vec<_>>();
     let fn_call = if f.sig.asyncness.is_some() {
-        quote! { let job_result = #fn_name(#(#fn_call_params)*).await; }
+        quote! {
+            let job_result = match #fn_name(
+                #(#additional_params_in_call)*
+                #(#fn_call_params)*
+            ).await {
+                Ok(r) => r,
+                Err(e) => {
+                    tracing::error!("Error in job: {e}");
+                    return Err(format!("Error: {e}"));
+                }
+            };
+        }
     } else {
-        quote! { let job_result = #fn_name(#(#fn_call_params)*); }
+        quote! {
+            let job_result = match #fn_name(
+                #(#additional_params_in_call)*
+                #(#fn_call_params)*
+            ) {
+                Ok(r) => r,
+                Err(e) => {
+                    tracing::error!("Error in job: {e}");
+                    return Err(format!("Error: {e}"));
+                }
+            };
+        }
     };
 
     let result_tokens = if result.len() == 1 {
@@ -168,6 +243,7 @@ fn generate_event_handler_for(
         struct #struct_name {
             pub service_id: u64,
             pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Kaypair,
+            #(#additional_params)*
         }
 
         #[automatically_derived]
@@ -626,6 +702,19 @@ fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
             if let syn::GenericArgument::Type(inner_ty) = inner_arg {
                 let inner_type = type_to_field_type(inner_ty)?;
                 Ok(FieldType::Optional(Box::new(inner_type)))
+            } else {
+                Err(syn::Error::new_spanned(
+                    inner_arg,
+                    "unsupported complex type",
+                ))
+            }
+        }
+        // Support for Result<T, E> where T is a simple type
+        syn::PathArguments::AngleBracketed(inner) if ident.eq("Result") => {
+            let inner_arg = &inner.args[0];
+            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
+                let inner_type = type_to_field_type(inner_ty)?;
+                Ok(inner_type)
             } else {
                 Err(syn::Error::new_spanned(
                     inner_arg,
