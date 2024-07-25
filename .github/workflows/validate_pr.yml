@@ -34,7 +34,7 @@ jobs:
 
   linting:
     timeout-minutes: 120
-    name: cargo build
+    name: cargo clippy
     runs-on: macos-latest
     strategy:
         matrix:
