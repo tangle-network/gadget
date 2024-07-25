@@ -1,5 +1,6 @@
 use alloy_primitives::U256;
-use ark_bn254::{Bn254, Fq, Fr, G1Affine, G1Projective, G2Affine};
+use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine};
+use ark_bn254::Fq as F;
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{BigInt, Field, QuadExtField, Zero};
 use ark_ff::{BigInteger256, PrimeField};
@@ -18,10 +19,11 @@ use std::fmt::Write;
 use std::fs;
 use std::ops::{Div, Mul, Neg};
 use std::path::Path;
-
+use ark_ec::bn::G1Prepared;
+use ark_ec::pairing::Pairing;
 use crate::types::AvsError;
 
-use super::bn254::{map_to_curve, mul_by_generator_g1};
+use super::bn254::{map_to_curve, mul_by_generator_g1, point_to_u256, u256_to_point};
 use super::pairing_products::{InnerProduct, PairingInnerProduct};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -71,7 +73,7 @@ impl CanonicalDeserialize for G1Point {
 }
 
 impl G1Point {
-    pub fn new(x: Fq, y: Fq) -> Self {
+    pub fn new(x: F, y: F) -> Self {
         // let point = G1Projective::new(x, y, Fq::one());
         let x = U256::from_limbs(x.0 .0);
         let y = U256::from_limbs(y.0 .0);
@@ -79,7 +81,7 @@ impl G1Point {
     }
 
     pub fn zero() -> Self {
-        Self::new(Fq::zero(), Fq::zero())
+        Self::new(F::zero(), F::zero())
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -102,7 +104,6 @@ impl G1Point {
     pub fn add(&mut self, other: &G1Point) {
         let affine_p1 = g1_point_to_ark_point(self);
         let affine_p2 = g1_point_to_ark_point(other);
-
         let pt = (affine_p1 + affine_p2).into_affine();
         *self = ark_point_to_g1_point(&pt);
     }
@@ -110,14 +111,12 @@ impl G1Point {
     pub fn sub(&mut self, other: &G1Point) {
         let affine_p1 = g1_point_to_ark_point(self);
         let affine_p2 = g1_point_to_ark_point(other);
-
         let pt = (affine_p1 - affine_p2).into_affine();
         *self = ark_point_to_g1_point(&pt);
     }
 
     pub fn mul(&mut self, scalar: Fr) {
         let affine = g1_point_to_ark_point(self);
-
         let pt = affine.mul_bigint(scalar.0).into_affine();
         *self = ark_point_to_g1_point(&pt);
     }
@@ -127,7 +126,6 @@ impl G1Point {
     }
 
     pub fn to_ark_g1(&self) -> G1Affine {
-        println!("TO ARK G1");
         g1_point_to_ark_point(self)
     }
 }
@@ -173,7 +171,7 @@ impl CanonicalDeserialize for G2Point {
 }
 
 impl G2Point {
-    pub fn new(x: [Fr; 2], y: [Fr; 2]) -> Self {
+    pub fn new(x: [F; 2], y: [F; 2]) -> Self {
         Self {
             x: [U256::from_limbs(x[0].0 .0), U256::from_limbs(x[1].0 .0)],
             y: [U256::from_limbs(y[0].0 .0), U256::from_limbs(y[1].0 .0)],
@@ -193,7 +191,7 @@ impl G2Point {
     }
 
     pub fn zero() -> Self {
-        Self::new([Fr::zero(), Fr::zero()], [Fr::zero(), Fr::zero()])
+        Self::new([F::zero(), F::zero()], [F::zero(), F::zero()])
     }
 
     pub fn generator() -> Self {
@@ -217,7 +215,7 @@ impl G2Point {
         *self = ark_point_to_g2_point(&pt);
     }
 
-    pub fn mul(&mut self, scalar: Fq) {
+    pub fn mul(&mut self, scalar: F) {
         let affine = g2_point_to_ark_point(self);
 
         let pt = affine.mul_bigint(scalar.0).into_affine();
@@ -233,38 +231,31 @@ impl G2Point {
     }
 }
 
+/// Converts a [G1Point] to a [G1Affine]. Will panic if the provided point is not on the curve.
 pub fn g1_point_to_ark_point(pt: &G1Point) -> G1Affine {
-    let one = Fq::new(BigInt(pt.x.as_limbs().clone()));
-    println!("One: {:?}", one);
-    let two = Fq::new(BigInt(pt.y.as_limbs().clone()));
-    println!("Two: {:?}", two);
-    G1Affine::new(one, two)
+    G1Affine::new(u256_to_point(pt.x), u256_to_point(pt.y))
 }
 
+/// Converts a [G1Point] to a [G1Projective]. Will panic if the provided point is not on the curve.
 pub fn g1_point_to_g1_projective(pt: &G1Point) -> G1Projective {
-    let one = Fq::new(BigInt(pt.x.as_limbs().clone()));
-    let two = Fq::new(BigInt(pt.y.as_limbs().clone()));
-    println!("LAST CHECKPOINT");
-    G1Projective::new(one, two, Fq::one())
+    let affine = g1_point_to_ark_point(pt);
+    G1Projective::from(affine)
 }
 
+/// Converts a [G1Affine] to a [G1Point].
 pub fn ark_point_to_g1_point(pt: &G1Affine) -> G1Point {
-    G1Point::new(pt.x, pt.y)
-    // G1Point {
-    //     x: U256::from_limbs(pt.x.0 .0),
-    //     y: U256::from_limbs(pt.y.0 .0),
-    // }
+    G1Point { x: point_to_u256(pt.x), y: point_to_u256(pt.y) }
 }
 
 pub fn g2_point_to_ark_point(pt: &G2Point) -> G2Affine {
     G2Affine::new(
         QuadExtField {
-            c0: Fq::from(BigInt(pt.x[0].into_limbs())),
-            c1: Fq::from(BigInt(pt.x[1].into_limbs())),
+            c0: u256_to_point(pt.x[0]),
+            c1: u256_to_point(pt.x[1]),
         },
         QuadExtField {
-            c0: Fq::from(BigInt(pt.y[0].into_limbs())),
-            c1: Fq::from(BigInt(pt.y[1].into_limbs())),
+            c0: u256_to_point(pt.y[0]),
+            c1: u256_to_point(pt.y[1]),
         },
     )
 }
@@ -272,16 +263,17 @@ pub fn g2_point_to_ark_point(pt: &G2Point) -> G2Affine {
 pub fn ark_point_to_g2_point(pt: &G2Affine) -> G2Point {
     G2Point {
         x: [
-            U256::from_limbs(pt.x.c0.0 .0),
-            U256::from_limbs(pt.x.c1.0 .0),
+            point_to_u256(pt.x.c0),
+            point_to_u256(pt.x.c1),
         ],
         y: [
-            U256::from_limbs(pt.y.c0.0 .0),
-            U256::from_limbs(pt.y.c1.0 .0),
+            point_to_u256(pt.y.c0),
+            point_to_u256(pt.y.c1),
         ],
     }
 }
 
+/// Converts a [BigInteger256] to a hex string
 pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
     let mut hex_string = String::new();
     for part in bigint.0.iter().rev() {
@@ -290,6 +282,7 @@ pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
     hex_string
 }
 
+/// Converts a hex string to a [BigInteger256]
 pub fn hex_string_to_biginteger256(hex_str: &str) -> BigInteger256 {
     let bytes = Vec::from_hex(hex_str).unwrap();
 
@@ -333,56 +326,40 @@ impl Signature {
     }
 
     pub fn verify(&self, pubkey: &G2Point, message: &[u8; 32]) -> Result<bool, AvsError> {
-        println!("Verification Process Beginning...");
         let g2_gen = G2Point::generator();
-        println!("Verification Process Mapping to Curve...");
-        let msg_affine = map_to_curve(message);
-        println!("Verification Process Creating Message Point...");
-        let msg_point = G1Point::new(msg_affine.x, msg_affine.y);
-        println!("Verification Process Creating Negative Point...");
+        let msg_affine = map_to_curve(message).into_affine();
+        let msg_point = ark_point_to_g1_point(&msg_affine);
         let neg_sig = self.g1_point.neg();
-        println!("Verification Process Generating P...");
+
         let p: [G1Point; 2] = [msg_point, neg_sig];
-        println!("Verification Process Generating Q...");
         let q: [G2Point; 2] = [pubkey.clone(), g2_gen];
 
-        println!("Verification Process Generating P Projective...");
         let p_projective = [
-            g1_point_to_ark_point(&p[0]).mul_bigint(Fr::one().0),
-            g1_point_to_ark_point(&p[1]).mul_bigint(Fr::one().0),
+            g1_point_to_ark_point(&p[0]),
+            g1_point_to_ark_point(&p[1]),
         ];
-
-        println!("Verification Process Generating Q Projective...");
         let q_projective = [
-            g2_point_to_ark_point(&q[0]).mul_bigint(Fr::one().0),
-            g2_point_to_ark_point(&q[1]).mul_bigint(Fr::one().0),
+            g2_point_to_ark_point(&q[0]),
+            g2_point_to_ark_point(&q[1]),
         ];
 
-        println!("Verification Process Generating Inner Product...");
-        let inner_product =
-            PairingInnerProduct::<Bn254>::inner_product(&p_projective[..], &q_projective[..])
-                .unwrap();
-        println!("Verification Process Returning Result...");
-        Ok(inner_product.0 == QuadExtField::one())
+        let g2_gen = g2_point_to_ark_point(&G2Point::generator());
+        let pairing_left = Bn254::pairing(self.g1_point.to_ark_g1(), g2_gen);
+
+        let pairing_right = Bn254::pairing(msg_affine, g2_point_to_ark_point(&pubkey.clone()));
+        println!("Pairing Comparison: {:?}", pairing_left == pairing_right);
+
+
+        let pairing_result = Bn254::multi_pairing(p_projective, q_projective);
+        println!("Verification Process Pairing Result: {:?}", pairing_result);
+        println!("Pairing Output Inner: {:?}", pairing_result.0);
+        Ok(pairing_result.0.is_one())
     }
 }
 
 // #[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
-// pub struct PrivateKey {
-//     pub key: Fq,
-// }
-
 pub type PrivateKey = Fr;
 
-// impl PrivateKey {
-//     pub fn new(key: Fq) -> Self {
-//         Self { key }
-//     }
-//
-//     pub fn from_big_integer256(key: BigInteger256) -> Self {
-//         Self::new(Fq::from(key))
-//     }
-// }
 
 #[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct KeyPair {
@@ -542,7 +519,7 @@ impl KeyPair {
         let sig_point = map_to_curve(message);
         let sig = sig_point.mul(self.priv_key);
         Signature {
-            g1_point: G1Point::new(sig.x, sig.y),
+            g1_point: ark_point_to_g1_point(&sig.into_affine()),
         }
     }
 

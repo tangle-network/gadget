@@ -1,17 +1,19 @@
 use crate::crypto::bls::{g1_point_to_g1_projective, G1Point};
 use crate::types::AvsError;
 use alloy_primitives::U256;
-use ark_bn254::{Bn254, Fq, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_bn254::{Bn254, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{BigInteger, BigInteger256};
 use ark_ff::{Field, One, PrimeField};
 use std::ops::Mul;
 use std::str::FromStr;
 
+use ark_bn254::Fq as F;
+
 pub fn map_to_curve(digest: &[u8; 32]) -> G1Projective {
-    let one = Fq::one();
-    let three = Fq::from(3u64);
-    let mut x = Fq::from_be_bytes_mod_order(&digest.as_slice());
+    let one = F::one();
+    let three = F::from(3u64);
+    let mut x = F::from_be_bytes_mod_order(&digest.as_slice());
 
     loop {
         let x_cubed = x.pow([3]);
@@ -22,7 +24,7 @@ pub fn map_to_curve(digest: &[u8; 32]) -> G1Projective {
             let point = G1Affine::new(x, y);
 
             if point.is_on_curve() {
-                return G1Projective::new(point.x, point.y, Fq::one());
+                return G1Projective::new(point.x, point.y, F::one());
             }
         }
 
@@ -30,33 +32,19 @@ pub fn map_to_curve(digest: &[u8; 32]) -> G1Projective {
     }
 }
 
-// pub fn map_to_curve(digest: &[u8; 32]) -> G1Projective {
-//     let one = Fq::one();
-//     let three = Fq::from(3u64);
-//     let mut x = Fq::from_be_bytes_mod_order(digest);
-//     let modulus = Fq::MODULUS;
-//
-//     loop {
-//         let x_cubed = x.pow([3]);
-//         let y = x_cubed + three;
-//         if let Some(y_sqrt) = y.sqrt() {
-//             let point = G1Point::new(x, y_sqrt);
-//             // return G1Projective::from(point.to_ark_g1());
-//             return g1_point_to_g1_projective(&point);
-//             // return G1Point::new(x, y_sqrt);
-//         } else {
-//             x += one;
-//         }
-//     }
-// }
+// Helper for converting a PrimeField to its U256 representation for Ethereum compatibility
+pub fn u256_to_point<F: PrimeField>(point: U256) -> F {
+    let le: [u8; 32] = point.to_le_bytes();
+    F::from_le_bytes_mod_order(&le[..])
+}
 
-// pub fn mul_by_generator_g1(a: Fr) -> Bn254G1Affine {
-//     Bn254G1Affine::generator().mul_bigint(a.0).into_affine()
-// }
-//
-// pub fn mul_by_generator_g2(a: Fr) -> Bn254G2Affine {
-//     Bn254G2Affine::generator().mul_bigint(a.0).into_affine()
-// }
+// Helper for converting a PrimeField to its U256 representation for Ethereum compatibility
+// (U256 reads data as big endian)
+pub fn point_to_u256<F: PrimeField>(point: F) -> U256 {
+    let point = point.into_bigint();
+    let point_bytes = point.to_bytes_be();
+    U256::from_be_slice(&point_bytes[..])
+}
 
 /// Converts [U256] to [BigInteger256]
 pub fn u256_to_bigint256(value: U256) -> BigInteger256 {
@@ -82,9 +70,9 @@ pub fn biginteger256_to_u256(bi: BigInteger256) -> U256 {
 }
 
 pub fn get_g1_generator() -> Result<G1Affine, AvsError> {
-    let x_result = Fq::from_str("1");
+    let x_result = F::from_str("1");
 
-    let y_result = Fq::from_str("2");
+    let y_result = F::from_str("2");
 
     match x_result {
         Ok(x) => match y_result {
@@ -100,11 +88,11 @@ pub fn get_g1_generator() -> Result<G1Affine, AvsError> {
 }
 
 pub fn get_g2_generator() -> Result<G2Affine, AvsError> {
-    let x_0_result = Fq::from_str(
+    let x_0_result = F::from_str(
         "10857046999023057135944570762232829481370756359578518086990519993285655852781",
     );
 
-    let x_1result = Fq::from_str(
+    let x_1result = F::from_str(
         "11559732032986387107991004021392285783925812861821192530917403151452391805634",
     );
 
@@ -114,11 +102,11 @@ pub fn get_g2_generator() -> Result<G2Affine, AvsError> {
                 Ok(x_1) => {
                     let x = Fq2::new(x_0, x_1);
 
-                    let y_0_result = Fq::from_str("8495653923123431417604973247489272438418190587263600148770280649306958101930");
+                    let y_0_result = F::from_str("8495653923123431417604973247489272438418190587263600148770280649306958101930");
 
                     match y_0_result {
                         Ok(y_0) => {
-                            let y_1_result = Fq::from_str("4082367875863433681332203403145435568316851327593401208105741076214120093531");
+                            let y_1_result = F::from_str("4082367875863433681332203403145435568316851327593401208105741076214120093531");
 
                             match y_1_result {
                                 Ok(y_1) => {

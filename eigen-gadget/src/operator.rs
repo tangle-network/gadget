@@ -471,7 +471,8 @@ mod tests {
     use alloy_provider::Provider;
     use alloy_rpc_types_eth::BlockId;
     use anvil::spawn;
-    use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine, G2Projective};
+    use ark_bn254::{Bn254, Fr, G1Affine, G2Affine, G2Projective};
+    use ark_bn254::Fq as F;
     use foundry_common::provider::RetryProvider;
     use futures::StreamExt;
     use url::Url;
@@ -942,12 +943,10 @@ mod tests {
     use ark_ec::pairing::Pairing;
     use ark_ec::short_weierstrass::Projective;
     use ark_ec::{AffineRepr, CurveGroup};
-    use ark_ff::{BigInt, Field, One, PrimeField, ToConstraintField, Zero};
+    use ark_ff::{BigInt, BigInteger, Field, One, PrimeField, ToConstraintField, Zero};
     use ark_ff::{BigInteger256, UniformRand};
     use eigen_utils::crypto::bls::{g1_point_to_g1_projective, G1Point, G2Point, PrivateKey};
-    use eigen_utils::crypto::bn254::{
-        get_g1_generator, map_to_curve, mul_by_generator_g1, u256_to_bigint256,
-    };
+    use eigen_utils::crypto::bn254::{get_g1_generator, map_to_curve, mul_by_generator_g1, point_to_u256, u256_to_bigint256, u256_to_point};
     use gadget_common::sp_core::crypto::Ss58Codec;
     use hex::FromHex;
     use k256::FieldElement;
@@ -1002,16 +1001,16 @@ mod tests {
     }
 
     fn hash_to_g1(digest: &[u8; 32]) -> G1Affine {
-        let one = Fq::one();
-        let three = Fq::from(3u64);
-        let mut x = Fq::from_le_bytes_mod_order(digest);
+        let one = F::one();
+        let three = F::from(3u64);
+        let mut x = F::from_le_bytes_mod_order(digest);
 
         loop {
             let x_cubed = x.square() * x;
             let y_squared = x_cubed + three;
 
             if let Some(y) = y_squared.sqrt() {
-                let point = G1Projective::new(x, y, Fq::one());
+                let point = G1Projective::new(x, y, F::one());
                 return point.into_affine();
             } else {
                 x += &one;
@@ -1021,139 +1020,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_signature_verification() {
-        println!("Generating Random Key Pair...");
         let keypair = KeyPair::gen_random().unwrap();
-        println!("Keypair: {:?}", keypair);
-        let test_pub = keypair.pub_key;
-        println!("Test Pub: {:?}", test_pub);
-
-        println!("X TEST: {:?}", Fq::from(test_pub.x.0));
-        println!("Y TEST: {:?}", Fq::from(test_pub.y.0));
-        println!("Z TEST: {:?}", Fq::from(test_pub.z.0));
-
-        println!(
-            "X Mult Test as Fq {:?}",
-            Fq::from(test_pub.x.mul(test_pub.z))
-        );
-        println!("X Mult Test as BigInt{:?}", test_pub.x.mul(test_pub.z));
-
-        let affine_test = test_pub.into_affine();
-        println!(
-            "X Affine Test as Fq {:?}",
-            Fq::from(affine_test.x().unwrap().0)
-        );
-        println!("X Affine Test as BigInt{:?}", affine_test.x().unwrap());
-
-        // let x_element = FieldElement::from(test_pub.x.0);
-        // println!("X Element: {:?}", x_element);
-        // let y_element = FieldElement::from(test_pub.y.0);
-        // println!("Y Element: {:?}", y_element);
-
-        // let test_affine = G1Affine::new(x_element.into(), y_element.into());
-        // println!("Test Affine: {:?}", test_affine);
-
-        // let test = test_pub.to_field_elements().unwrap();
-        // println!("FIELD ELEMENTS TEST: {:?}", test);
-        //
-        //
-        // println!("Test X: {:?}", Fr::new(test_pub.x.0));
-        // println!("Test Y: {:?}", Fr::new(test_pub.y.0));
-        // println!("Test Z: {:?}", Fr::new(test_pub.z.0));
-        //
-        //
-        // // let test_point = G1Point::new(test_pub.x, test_pub.y);
-        // // println!("Test Point from x and y: {:?}", test_point);
-        //
-        // let test_affine = test_pub.into_affine();
-        // let test_point = G1Point::new(test_affine.x().unwrap().clone(), test_affine.y().unwrap().clone());
-        // println!("Test Point from Affine version: {:?}", test_point);
-        //
-        // let x = Fq::new(test_affine.x().unwrap().clone().0);
-        // let y = Fq::new(test_affine.y().unwrap().clone().0);
-        // let test_point = G1Point::new(x,y);
-        // println!("Test Point from Affine BigInt version: {:?}", test_point);
-        //
-        // let test_projective = G1Projective::new(
-        //     Fq::new(u256_to_bigint256(test_point.x)),
-        //     Fq::new(u256_to_bigint256(test_point.y)),
-        //     Fq::one()
-        // );
-        // println!("Test Projective: {:?}", test_projective);
-
-        println!("Retrieving G2 Public Key from Key Pair...");
         let pub_key_g2 = keypair.get_pub_key_g2();
-        // generate a random message
         let mut message = [0u8; 32];
         rand::thread_rng().fill(&mut message);
-        println!("Signing Randomly Generated Message...");
+
         let signature = keypair.sign_message(&message);
         println!("Signature: {:?}", signature);
-
-        // let g1_projective = g1_point_to_g1_projective(&signature.g1_point);
-        println!("Beginning Verifications/Assertions...");
-
-        let test = G1Point::zero();
-        println!("Test Zero did not fail...");
+        let g1_projective = g1_point_to_g1_projective(&signature.g1_point);
+        println!("G1 Projective: {:?}", g1_projective);
 
         // Check that the signature is not zero
-        assert_ne!(signature.g1_point, G1Point::zero());
+        assert_ne!(g1_projective, G1Projective::zero());
         let mut wrong_message = [0u8; 32];
         rand::thread_rng().fill(&mut wrong_message);
-        //
-        // println!("Signature is not Zero");
 
-        println!("Hash to G1");
-        let msg_hash = hash_to_g1(&message);
-        println!("Generating G1 Projective from Point");
-        let g1_projective = G1Projective::new(
-            Fq::new(u256_to_bigint256(signature.g1_point.x)),
-            Fq::new(u256_to_bigint256(signature.g1_point.y)),
-            Fq::one(),
-        );
-        println!("Converting G1 Projective to Affine");
-        let g1_affine = g1_projective.into_affine();
-
-        println!("Generating G2 Affine from Point");
-        let g2_affine = pub_key_g2.to_ark_g2();
-
-        println!("G2 Generator");
-        let generator = eigen_utils::crypto::bn254::get_g2_generator().unwrap();
-        println!("Pairing Left");
-        let pairing_left = Bn254::pairing(g1_affine, generator);
-
-        println!("Pairing Right");
-        let pairing_right = Bn254::pairing(msg_hash, g2_affine);
-
-        println!("Comparing Pairings");
-        assert_eq!(pairing_left, pairing_right)
-
-        // println!("Generating Random Key Pair...");
-        // let keypair = KeyPair::gen_random().unwrap();
-        //
-        // println!("Retrieving G2 Public Key from Key Pair...");
-        // let pub_key_g2 = keypair.get_pub_key_g2();
-        // // generate a random message
-        // let mut message = [0u8; 32];
-        // rand::thread_rng().fill(&mut message);
-        // println!("Signing Randomly Generated Message...");
-        // let signature = keypair.sign_message(&message);
-        //
-        // // let g1_projective = g1_point_to_g1_projective(&signature.g1_point);
-        // println!("Beginning Verifications/Assertions...");
-        //
-        // let test = G1Point::zero();
-        // println!("Test Zero did not fail...");
-        //
-        // // Check that the signature is not zero
-        // assert_ne!(signature.g1_point, G1Point::zero());
-        // let mut wrong_message = [0u8; 32];
-        // rand::thread_rng().fill(&mut wrong_message);
-        //
-        // println!("Signature is not Zero");
-        //
-        // // Check that the signature verifies
-        // assert!(signature.verify(&pub_key_g2, &message).is_ok());
-        // assert!(!signature.verify(&pub_key_g2, &wrong_message).is_ok())
+        // Check that the signature verifies
+        assert!(signature.verify(&pub_key_g2, &message).unwrap());
+        assert!(!signature.verify(&pub_key_g2, &wrong_message).unwrap())
     }
 
     // #[tokio::test]
