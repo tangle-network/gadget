@@ -8,7 +8,7 @@ pub use k256::SecretKey as Secret;
 
 use crate::random;
 
-pub fn generate_with_optional_seed(seed: Option<&[u8]>) -> elliptic_curve::Result<Secret> {
+pub fn generate_with_optional_seed(seed: Option<&[u8]>) -> k256::elliptic_curve::Result<Secret> {
     if let Some(seed) = seed {
         Secret::from_bytes(seed.into())
     } else {
@@ -22,6 +22,6 @@ pub fn sign(secret: &Secret, msg: &[u8]) -> Signature {
     keypair.sign(msg)
 }
 
-pub fn secret_from_bytes(bytes: &[u8]) -> elliptic_curve::Result<Secret> {
+pub fn secret_from_bytes(bytes: &[u8]) -> k256::elliptic_curve::Result<Secret> {
     Secret::from_bytes(bytes.into())
 }
