@@ -14,15 +14,11 @@ use gadget_io::tokio::task::JoinHandle;
 use sp_core::{ed25519, keccak_256, sr25519, Pair};
 
 use crate::config::ShellConfig;
-use crate::network::gossip::GossipHandle;
-use crate::network::setup::NetworkConfig;
 pub use gadget_io::KeystoreContainer;
+use gadget_sdk::network::gossip::GossipHandle;
+use gadget_sdk::network::setup::NetworkConfig;
 use itertools::Itertools;
 use libp2p::Multiaddr;
-
-/// The version of the shell-sdk
-pub const AGENT_VERSION: &str = "tangle/gadget-shell-sdk/1.0.0";
-pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub type ShellNodeInput<KBE, Env> = NodeInput<Env, GossipHandle, KBE, ()>;
 
@@ -60,8 +56,7 @@ pub async fn generate_node_input<KBE: KeystoreBackend, Env: GadgetEnvironment>(
     );
 
     let (networks, network_task) =
-        crate::network::setup::setup_multiplexed_libp2p_network(libp2p_config)
-            .await
+        gadget_sdk::network::setup::multiplexed_libp2p_network(libp2p_config)
             .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
     logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");

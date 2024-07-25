@@ -1,6 +1,13 @@
+#![allow(
+    missing_debug_implementations,
+    unused_results,
+    clippy::module_name_repetitions,
+    clippy::exhaustive_enums
+)]
 use async_trait::async_trait;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, Network};
+use gadget_common::sp_core::ecdsa;
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use gadget_io::tokio::sync::mpsc::UnboundedSender;
 use gadget_io::tokio::sync::{Mutex, RwLock};
@@ -10,7 +17,6 @@ use libp2p::{
     gossipsub, mdns, request_response, swarm::NetworkBehaviour, swarm::SwarmEvent, PeerId,
 };
 use serde::{Deserialize, Serialize};
-use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
@@ -108,9 +114,17 @@ impl<'a> NetworkService<'a> {
     }
 
     /// Handle inbound events from the networking layer
+    #[allow(clippy::too_many_lines)]
     pub(crate) async fn handle_swarm_event(&mut self, event: SwarmEvent<MyBehaviourEvent>) {
-        use MyBehaviourEvent::*;
-        use SwarmEvent::*;
+        use MyBehaviourEvent::{
+            Dcutr, Gossipsub, Identify, Kadmelia, Mdns, P2p, Ping, Relay, RelayClient,
+        };
+        use SwarmEvent::{
+            Behaviour, ConnectionClosed, ConnectionEstablished, Dialing, ExpiredListenAddr,
+            ExternalAddrConfirmed, ExternalAddrExpired, IncomingConnection,
+            IncomingConnectionError, ListenerClosed, ListenerError, NewExternalAddrCandidate,
+            NewExternalAddrOfPeer, NewListenAddr, OutgoingConnectionError,
+        };
         let _enter = self.span.enter();
         match event {
             Behaviour(P2p(event)) => {
@@ -259,11 +273,13 @@ pub struct GossipHandle {
 }
 
 impl GossipHandle {
+    #[must_use]
     pub fn connected_peers(&self) -> usize {
         self.connected_peers
             .load(std::sync::atomic::Ordering::Relaxed) as usize
     }
 
+    #[must_use]
     pub fn topic(&self) -> IdentTopic {
         self.topic.clone()
     }
@@ -275,6 +291,15 @@ pub struct IntraNodePayload {
     message_type: MessageType,
 }
 
+impl std::fmt::Debug for IntraNodePayload {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IntraNodePayload")
+            .field("topic", &self.topic)
+            .finish_non_exhaustive()
+    }
+}
+
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Debug)]
 pub enum GossipOrRequestResponse {
     Gossip(GossipMessage),
@@ -288,6 +313,7 @@ pub struct GossipMessage {
     pub raw_payload: Vec<u8>,
 }
 
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourRequest {
     Handshake {
@@ -300,6 +326,7 @@ pub enum MyBehaviourRequest {
     },
 }
 
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourResponse {
     Handshaked {
@@ -346,7 +373,7 @@ impl<Env: GadgetEnvironment> Network<Env> for GossipHandle {
                 .read()
                 .await
                 .get(&to)
-                .cloned()
+                .copied()
                 .ok_or_else(|| gadget_common::Error::NetworkError {
                     err: format!(
                         "No libp2p ID found for ecdsa public key: {to}. No handshake happened?"

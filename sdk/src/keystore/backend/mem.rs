@@ -147,7 +147,7 @@ impl Backend for InMemoryKeystore {
 
     #[cfg(feature = "keystore-ecdsa")]
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error> {
-        let secret = ecdsa::generate_with_optional_seed(seed).map_err(|err| Error::Ecdsa(err))?;
+        let secret = ecdsa::generate_with_optional_seed(seed).map_err(Error::Ecdsa)?;
         let public = secret.public_key();
         let old = self.ecdsa.write().insert(public, secret);
         assert!(old.is_none(), "generated key already exists");

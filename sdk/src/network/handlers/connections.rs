@@ -1,3 +1,5 @@
+#![allow(unused_results, clippy::used_underscore_binding)]
+
 use crate::network::gossip::{MyBehaviourRequest, NetworkService};
 use libp2p::PeerId;
 use sp_core::{keccak_256, Pair};
