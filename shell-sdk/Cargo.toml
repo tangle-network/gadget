@@ -52,6 +52,7 @@ console_log = { version = "1.0.0", optional = true }
 sc-keystore = { workspace = true, optional = true }
 
 # Shared Dependencies
+environment-utils = { workspace = true }
 matchbox_socket = "0.10.0"
 futures-timer = { version = "3.0.3", features = ["wasm-bindgen"]}
 log = { version = "0.4", default-features = false }
@@ -82,10 +83,7 @@ itertools = { workspace = true }
 env_logger = { workspace = true }
 
 # Pallets
-pallet-jobs-rpc-runtime-api = { workspace = true, features = ["default"] }
-pallet-jobs = { workspace = true, features = ["default"] }
-pallet-dkg = { workspace = true }
-pallet-zksaas = { workspace = true }
+pallet-services = { workspace = true }
 tangle-primitives = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
@@ -118,4 +116,7 @@ default-features = false
 wasm-bindgen-test = "0.3.34"
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
-test-utils = { workspace = true }
+tangle-test-utils = { workspace = true }
+
+[dev-dependencies]
+tangle-environment = { workspace = true }

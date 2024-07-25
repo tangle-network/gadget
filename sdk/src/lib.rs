@@ -14,6 +14,7 @@
     clippy::pedantic,
     clippy::exhaustive_enums
 )]
+#![allow(dead_code)]
 //! Gadget SDK
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -22,6 +23,7 @@
 extern crate alloc;
 
 /// Keystore Module
+#[cfg(not(feature = "wasm"))]
 pub mod keystore;
 
 /// Metrics Module
@@ -32,6 +34,7 @@ pub mod keystore;
 #[cfg(feature = "logging")]
 pub mod logging;
 /// Randomness generation module
+#[cfg(not(feature = "wasm"))]
 pub mod random;
 
 /// Blockchain Events Watcher Module

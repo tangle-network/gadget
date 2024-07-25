@@ -1,9 +1,10 @@
 use crate::shell::ShellNodeInput;
+use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, KeystoreBackend};
 use gadget_core::job_manager::SendFuture;
 use gadget_io::{defaults, ShellTomlConfig, SupportedChains};
 use structopt::StructOpt;
-use tangle_subxt::tangle_testnet_runtime::api::jobs::events::job_refunded::RoleType;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
@@ -24,13 +25,15 @@ pub fn keystore_from_base_path(
 
 /// Runs a shell for a given protocol.
 pub async fn run_shell_for_protocol<
+    Env: GadgetEnvironment,
     KBE: KeystoreBackend,
-    T: FnOnce(ShellNodeInput<KBE>) -> F,
+    T: FnOnce(ShellNodeInput<KBE, Env>) -> F,
     F,
     T2: FnOnce() -> F2,
     F2: SendFuture<'static, KBE>,
 >(
-    role_types: Vec<RoleType>,
+    environment: Env,
+    services: Vec<ServiceBlueprint>,
     n_protocols: usize,
     keystore_backend: T2,
     executor: T,
@@ -61,11 +64,9 @@ where
 
     let (node_input, network_handle) = crate::generate_node_input(crate::ShellConfig {
         keystore_backend,
-        role_types,
+        services,
         keystore,
-        subxt: crate::SubxtConfig {
-            endpoint: config.url,
-        },
+        environment,
         base_path: config.base_path,
         bind_ip: config.bind_ip,
         bind_port: config.bind_port,

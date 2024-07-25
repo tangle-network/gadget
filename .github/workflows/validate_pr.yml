@@ -54,7 +54,7 @@ jobs:
         run: sudo apt-get install protobuf-compiler
 
       - name: Run Clippy
-        run: cargo clippy --tests -- -D warnings
+        run: cargo clippy --package shell-manager --tests -- -D warnings
 
   build:
     timeout-minutes: 120
@@ -65,6 +65,7 @@ jobs:
             package: [
               gadget-core,
               gadget-common,
+              shell-manager,
             ]
     steps:
       - name: checkout code
@@ -83,7 +84,7 @@ jobs:
         run: brew install protobuf
 
       - name: build
-        run: cargo build --workspace --package ${{ matrix.package }}
+        run: cargo build --package ${{ matrix.package }}
 
   testing:
     timeout-minutes: 90
@@ -94,6 +95,7 @@ jobs:
             package: [
               gadget-core,
               gadget-common,
+              shell-manager,
             ]
     steps:
       - name: checkout code
@@ -121,3 +123,34 @@ jobs:
 
       - name: tests
         run: cargo nextest run --release --nocapture --package ${{ matrix.package }}
+
+  wasm_checks:
+    timeout-minutes: 90
+    name: WASM checks
+    runs-on: macos-14
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+
+      - name: install rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+
+      - name: install protobuf
+        run: brew install protobuf gmp
+
+      - name: Set Relevant M1 env vars
+        run: |
+          export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
+          export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
+
+      - name: Ensure wasm32-unknown-unknown is installed
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Run wasm checks
+        run: cargo test --target wasm32-unknown-unknown --package=gadget-core --package=gadget-common --no-default-features --features wasm

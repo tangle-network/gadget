@@ -1,12 +1,10 @@
-use crate::client::{JobsClient, PalletSubmitter};
+use crate::client::JobsClient;
 use crate::config::{DebugLogger, GadgetProtocol, Network, NetworkAndProtocolSetup};
 use crate::environments::GadgetEnvironment;
-use crate::gadget::tangle::TangleInitMetadata;
-use crate::gadget::WorkManagerConfig;
 use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
+use crate::module::WorkManagerConfig;
 use crate::prometheus::PrometheusConfig;
 use crate::protocol::AsyncProtocol;
-use crate::tangle_runtime::*;
 use crate::Error;
 use async_trait::async_trait;
 use gadget_core::gadget::manager::AbstractGadget;
@@ -33,7 +31,7 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
 
     async fn new(
         client: <Env as GadgetEnvironment>::Client,
-        pallet_tx: Arc<dyn PalletSubmitter>,
+        tx_manager: <Env as GadgetEnvironment>::TransactionManager,
         network: Self::Network,
         logger: DebugLogger,
         account_id: sr25519::Public,
@@ -63,7 +61,7 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     /// The provided work manager should only be used for querying recorded_messages
     async fn create_next_job(
         &self,
-        job: TangleInitMetadata,
+        job: <Env as GadgetEnvironment>::JobInitMetadata,
         work_manager: &ProtocolWorkManager<<Env as GadgetEnvironment>::WorkManager>,
     ) -> Result<Self::AsyncProtocolParameters, <Env as GadgetEnvironment>::Error>;
 
@@ -76,21 +74,10 @@ pub trait FullProtocolConfig<Env: GadgetEnvironment>:
     }
 
     fn account_id(&self) -> &sr25519::Public;
-
     fn name(&self) -> String;
-
-    fn role_filter(&self, role: roles::RoleType) -> bool;
-
-    fn phase_filter(
-        &self,
-        job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
-    ) -> bool;
-
     fn jobs_client(&self) -> &SharedOptional<JobsClient<Env>>;
-    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter>;
-
+    fn tx_manager(&self) -> <Env as GadgetEnvironment>::TransactionManager;
     fn logger(&self) -> DebugLogger;
-
     fn client(&self) -> <Env as GadgetEnvironment>::Client;
     fn get_jobs_client(&self) -> JobsClient<Env> {
         self.jobs_client()
@@ -151,8 +138,8 @@ where
         Ok((self.clone(), self.clone()))
     }
 
-    fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
-        T::pallet_tx(self)
+    fn tx_manager(&self) -> <Env as GadgetEnvironment>::TransactionManager {
+        T::tx_manager(self)
     }
 
     fn logger(&self) -> DebugLogger {
@@ -172,7 +159,7 @@ where
 {
     async fn create_next_job(
         &self,
-        job: TangleInitMetadata,
+        job: <Env as GadgetEnvironment>::JobInitMetadata,
         work_manager: &ProtocolWorkManager<Env::WorkManager>,
     ) -> Result<<Self as AsyncProtocol<Env>>::AdditionalParams, Env::Error> {
         T::create_next_job(self, job, work_manager).await
@@ -206,17 +193,6 @@ where
 
     fn name(&self) -> String {
         T::name(self)
-    }
-
-    fn role_filter(&self, role: roles::RoleType) -> bool {
-        T::role_filter(self, role)
-    }
-
-    fn phase_filter(
-        &self,
-        job: jobs::JobType<AccountId32, MaxParticipants, MaxSubmissionLen, MaxAdditionalParamsLen>,
-    ) -> bool {
-        T::phase_filter(self, job)
     }
 
     fn client(&self) -> JobsClient<Env> {
@@ -298,7 +274,7 @@ pub struct NodeInput<Env: GadgetEnvironment, N: Network<Env>, KBE: KeystoreBacke
     pub networks: Vec<N>,
     pub account_id: sr25519::Public,
     pub logger: DebugLogger,
-    pub pallet_tx: Arc<dyn PalletSubmitter>,
+    pub tx_manager: <Env as GadgetEnvironment>::TransactionManager,
     pub keystore: ECDSAKeyStore<KBE>,
     pub node_index: usize,
     pub additional_params: D,

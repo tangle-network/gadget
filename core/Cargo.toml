@@ -22,6 +22,7 @@ auto_impl = { workspace = true }
 futures = { workspace = true }
 sp-core = { workspace = true }
 futures-timer = "3.0.3"
+serde = { workspace = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 wasm-bindgen-test = "0.3.34"

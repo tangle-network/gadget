@@ -1,8 +1,8 @@
 use crate::config::ProtocolConfig;
 use crate::environments::EventMetadata;
-use crate::gadget::{GadgetProtocol, GeneralModule};
+use crate::module::network::Network;
+use crate::module::{GadgetProtocol, GeneralModule};
 use crate::prelude::PrometheusConfig;
-use gadget::network::Network;
 use gadget_core::gadget::general::GeneralGadget;
 use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
 pub use gadget_core::job::JobError;
@@ -17,30 +17,24 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 pub use subxt_signer;
-pub use tangle_subxt;
 pub mod environments;
 use crate::environments::GadgetEnvironment;
 use gadget_core::gadget::general::Client;
-pub mod transaction_manager;
-
+pub mod module;
 #[allow(ambiguous_glob_reexports)]
 pub mod prelude {
     pub use crate::client::*;
     pub use crate::config::*;
     pub use crate::environments::*;
     pub use crate::full_protocol::{FullProtocolConfig, NodeInput};
-    pub use crate::gadget::message::TangleProtocolMessage;
-    pub use crate::gadget::tangle::TangleInitMetadata;
-    pub use crate::gadget::work_manager::TangleWorkManager;
-    pub use crate::gadget::WorkManagerConfig;
     pub use crate::generate_setup_and_run_command;
     pub use crate::keystore::{ECDSAKeyStore, InMemoryBackend, KeystoreBackend};
+    pub use crate::module::WorkManagerConfig;
     pub use crate::{BuiltExecutableJobWrapper, JobBuilder, JobError, WorkManagerInterface};
     pub use async_trait::async_trait;
     pub use gadget_core::job_manager::ProtocolWorkManager;
     pub use gadget_core::job_manager::SendFuture;
     pub use gadget_core::job_manager::WorkManagerError;
-    pub use gadget_io;
     pub use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
     pub use parking_lot::Mutex;
     pub use protocol_macros::protocol;
@@ -49,45 +43,18 @@ pub mod prelude {
     pub use std::sync::Arc;
 }
 
-#[cfg(feature = "tangle-testnet")]
+// Convenience re-exports
+pub use async_trait;
+pub use color_eyre;
+pub use gadget_io;
+pub use tangle_subxt;
+
+//#[cfg(feature = "tangle-mainnet")]
 pub mod tangle_runtime {
     pub use tangle_subxt::subxt::utils::AccountId32;
     pub use tangle_subxt::tangle_testnet_runtime::api;
     pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::{
         bounded_collections::bounded_vec::BoundedVec,
-        tangle_primitives::jobs::{
-            self,
-            tss::{self, *},
-            zksaas::{self, *},
-            JobType::*,
-            PhaseResult, RpcResponseJobsData,
-        },
-        tangle_primitives::roles::{self, RoleType},
-        tangle_testnet_runtime::{
-            MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
-            MaxSignatureLen, MaxSubmissionLen,
-        },
-    };
-}
-
-#[cfg(feature = "tangle-mainnet")]
-pub mod tangle_runtime {
-    pub use tangle_subxt::subxt::utils::AccountId32;
-    pub use tangle_subxt::tangle_mainnet_runtime::api;
-    pub use tangle_subxt::tangle_mainnet_runtime::api::runtime_types::{
-        bounded_collections::bounded_vec::BoundedVec,
-        tangle_primitives::jobs::{
-            self,
-            tss::{self, *},
-            zksaas::{self, *},
-            JobType::*,
-            PhaseResult,
-        },
-        tangle_primitives::roles::{self, RoleType},
-        tangle_runtime::{
-            MaxAdditionalParamsLen, MaxDataLen, MaxKeyLen, MaxParticipants, MaxProofLen,
-            MaxSignatureLen, MaxSubmissionLen,
-        },
     };
 }
 
@@ -96,7 +63,6 @@ pub mod client;
 pub mod config;
 pub mod debug_logger;
 pub mod full_protocol;
-pub mod gadget;
 pub mod helpers;
 pub mod keystore;
 pub mod locks;
@@ -222,11 +188,13 @@ pub async fn create_work_manager<Env: GadgetEnvironment, P: GadgetProtocol<Env>>
 }
 
 async fn get_latest_event_from_client<Env: GadgetEnvironment>(
-    client: &Env::Client,
+    client: &<Env as GadgetEnvironment>::Client,
 ) -> Result<<Env as GadgetEnvironment>::Event, Error> {
-    client.latest_event().await.ok_or_else(|| Error::InitError {
-        err: "No finality notification received".to_string(),
-    })
+    Client::<Env::Event>::latest_event(client)
+        .await
+        .ok_or_else(|| Error::InitError {
+            err: "No event received".to_string(),
+        })
 }
 
 #[macro_export]
@@ -234,14 +202,14 @@ async fn get_latest_event_from_client<Env: GadgetEnvironment>(
 /// Also generates a setup_node function that sets up the future that runs all the protocols concurrently
 #[allow(clippy::crate_in_macro_def)]
 macro_rules! generate_setup_and_run_command {
-    ($env:ty, $( $config:ident ),*) => {
+    ($( $config:ident ),*) => {
         /// Sets up a future that runs all the protocols concurrently
         pub fn setup_node<Env: GadgetEnvironment, N: Network<Env>, KBE: $crate::keystore::KeystoreBackend, D: Send + Clone + 'static>(node_input: NodeInput<Env, N, KBE, D>) -> impl SendFuture<'static, ()>
         {
             async move {
                 if let Err(err) = run(
                     node_input.clients,
-                    node_input.pallet_tx,
+                    node_input.tx_manager,
                     node_input.networks,
                     node_input.logger.clone(),
                     node_input.account_id,
@@ -259,7 +227,7 @@ macro_rules! generate_setup_and_run_command {
 
         pub async fn run<Env: GadgetEnvironment, N: Network<Env>, KBE: $crate::keystore::KeystoreBackend>(
             client: Vec<Env::Client>,
-            pallet_tx: Arc<dyn PalletSubmitter>,
+            tx_manager: <Env as GadgetEnvironment>::TransactionManager,
             networks: Vec<N>,
             logger: DebugLogger,
             account_id: sp_core::sr25519::Public,
@@ -273,7 +241,7 @@ macro_rules! generate_setup_and_run_command {
             let mut clients: std::collections::VecDeque<_> = client.into_iter().collect();
 
             $(
-                let config = crate::$config::new(clients.pop_front().expect("Not enough clients"), pallet_tx.clone(), networks.pop_front().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone(), prometheus_config.clone()).await?;
+                let config = crate::$config::new(clients.pop_front().expect("Not enough clients"), tx_manager.clone(), networks.pop_front().expect("Not enough networks"), logger.clone(), account_id.clone(), key_store.clone(), prometheus_config.clone()).await?;
                 futures.push(Box::pin(config.execute()) as std::pin::Pin<Box<dyn SendFuture<'static, Result<(), $crate::Error>>>>);
             )*
 
@@ -288,14 +256,14 @@ macro_rules! generate_setup_and_run_command {
 
 #[macro_export]
 macro_rules! generate_protocol {
-    ($env:ty, $name:expr, $struct_name:ident, $async_proto_params:ty, $proto_gen_path:expr, $create_job_path:expr, $phase_filter:pat, $( $role_filter:pat ),*) => {
+    ($name:expr, $struct_name:ident, $async_proto_params:ty, $proto_gen_path:expr, $create_job_path:expr, $phase_filter:pat, $( $role_filter:pat ),*) => {
         #[protocol]
         pub struct $struct_name<
             Env: GadgetEnvironment,
             N: Network<Env>,
             KBE: KeystoreBackend,
         > {
-            pallet_tx: Arc<dyn PalletSubmitter>,
+            tx_manager: <Env as GadgetEnvironment>::TransactionManager,
             logger: DebugLogger,
             client: <Env as GadgetEnvironment>::Client,
             /// This field should NEVER be used directly. Use Self instead as the network
@@ -320,7 +288,7 @@ macro_rules! generate_protocol {
 
             async fn new(
                 client: <Env as GadgetEnvironment>::Client,
-                pallet_tx: Arc<dyn PalletSubmitter>,
+                tx_manager: <Env as GadgetEnvironment>::TransactionManager,
                 network_inner: Self::Network,
                 logger: DebugLogger,
                 account_id: sp_core::sr25519::Public,
@@ -333,7 +301,7 @@ macro_rules! generate_protocol {
                     DebugLogger { id: (logger.id + " | " + stringify!($name)).replace("\"", "") }
                 };
                 Ok(Self {
-                    pallet_tx,
+                    tx_manager,
                     logger,
                     client,
                     network_inner,
@@ -406,8 +374,8 @@ macro_rules! generate_protocol {
                 &self.jobs_client
             }
 
-            fn pallet_tx(&self) -> Arc<dyn PalletSubmitter> {
-                self.pallet_tx.clone()
+            fn tx_manager(&self) -> <Env as GadgetEnvironment>::TransactionManager {
+                self.tx_manager.clone()
             }
 
             fn logger(&self) -> DebugLogger {

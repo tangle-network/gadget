@@ -14,7 +14,6 @@ pub mod prelude {
     pub use crate::async_trait;
     pub use crate::protocol;
     pub use crate::BuiltExecutableJobWrapper;
-    pub use crate::ClientWithApi;
     pub use crate::DebugLogger;
     pub use crate::ECDSAKeyStore;
     pub use crate::FullProtocolConfig;
@@ -24,37 +23,24 @@ pub mod prelude {
     pub use crate::Mutex;
     pub use crate::Network;
     pub use crate::NodeInput;
-    pub use crate::PalletSubmitter;
     pub use crate::ProtocolWorkManager;
     pub use crate::SendFuture;
-    pub use crate::TangleProtocolMessage;
-    pub use crate::TangleWorkManager;
     pub use crate::UnboundedReceiver;
     pub use crate::WorkManagerInterface;
     pub use gadget_common::full_protocol::SharedOptional;
 
-    pub use gadget_common::gadget::tangle::TangleInitMetadata;
     pub use gadget_common::prelude::InMemoryBackend;
     pub use gadget_common::tangle_runtime::AccountId32;
-    pub use gadget_common::tangle_runtime::MaxAdditionalParamsLen;
-    pub use gadget_common::tangle_runtime::MaxParticipants;
-    pub use gadget_common::tangle_runtime::MaxSubmissionLen;
-    pub use gadget_common::tangle_runtime::{jobs, RoleType};
     pub use gadget_common::Error;
     pub use gadget_common::{generate_protocol, generate_setup_and_run_command};
     pub use std::sync::Arc;
-    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::roles;
 
     pub use color_eyre;
-    pub use pallet_dkg;
-    pub use pallet_jobs;
-    pub use pallet_jobs_rpc_runtime_api;
-    pub use pallet_zksaas;
     pub use tangle_primitives;
     pub use tangle_subxt;
 }
 
-/// Should be put inside the main.rs file of the protocol repository
+/// Should be put inside the lib file of the protocol repository
 #[macro_export]
 macro_rules! generate_shell_binary {
     ($entry_point:path, $keystore:path, $n_protocols:expr, $($role_type:expr),*) => {

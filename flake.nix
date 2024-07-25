@@ -11,19 +11,12 @@
         flake-utils.follows = "flake-utils";
       };
     };
-    foundry = {
-      url = "github:shazow/foundry.nix/monthly";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
-    };
   };
 
-  outputs = { self, nixpkgs, rust-overlay, foundry, flake-utils }:
+  outputs = { self, nixpkgs, rust-overlay, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ (import rust-overlay) foundry.overlay ];
+        overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs {
           inherit system overlays;
         };
@@ -37,7 +30,7 @@
             pkgs.pkg-config
             pkgs.clang
             pkgs.libclang.lib
-            pkgs.openssl
+            pkgs.openssl.dev
             pkgs.gmp
             # Protocol Buffers
             pkgs.protobuf
@@ -52,11 +45,6 @@
             pkgs.rust-analyzer-unwrapped
             # Finally the toolchain
             toolchain
-            pkgs.foundry-bin
-            # Nodejs
-            pkgs.nodePackages.typescript-language-server
-            pkgs.nodejs_22
-            pkgs.nodePackages.yarn
           ];
           packages = [
             pkgs.cargo-nextest
@@ -65,7 +53,7 @@
           ];
           # Environment variables
           RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";
-          LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.gmp pkgs.libclang pkgs.openssl ];
+          LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.gmp pkgs.libclang pkgs.openssl.dev ];
         };
       });
 }

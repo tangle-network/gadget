@@ -36,3 +36,4 @@ tokio = { workspace = true, features = ["process", "io-util", "signal"] }
 reqwest = { version = "0.12.3" }
 url = { workspace = true, features = ["serde"] }
 sha2 = { workspace = true }
+tangle-environment = { workspace = true }

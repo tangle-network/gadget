@@ -37,23 +37,23 @@ color-eyre = { workspace = true }
 
 # Substrate
 tangle-subxt = { workspace = true, optional = true }
-subxt-signer = { workspace = true, default-features = false, features = ["subxt", "sr25519"], optional = true }
-subxt = { workspace = true, optional = true, default-features = false }
-sp-api = { workspace = true, optional = true, default-features = false }
-sp-io = { workspace = true, optional = true, default-features = false }
-sp-core = { workspace = true, optional = true, default-features = false }
-sp-application-crypto = { workspace = true, optional = true, default-features = false }
-sp-runtime = { workspace = true, optional = true, default-features = false }
-sp-tracing = { workspace = true, optional = true, default-features = false }
-sp-runtime-interface = { workspace = true, default-features = false }
-sc-service = { workspace = true, optional = true, default-features = false }
-sc-client-api = { workspace = true, optional = true, default-features = false }
-substrate-prometheus-endpoint = { workspace = true, optional = true, default-features = false }
-frame-support = { workspace = true, optional = true, default-features = false }
-linked-hash-map = { workspace = true, optional = true, default-features = false }
+subxt-signer = { workspace = true, features = ["subxt", "sr25519"], optional = true }
+subxt = { workspace = true, optional = true }
+sp-api = { workspace = true, optional = true }
+sp-io = { workspace = true, optional = true }
+sp-core = { workspace = true, optional = true }
+sp-application-crypto = { workspace = true, optional = true }
+sp-runtime = { workspace = true, optional = true }
+sp-tracing = { workspace = true, optional = true }
+sp-runtime-interface = { workspace = true}
+sc-service = { workspace = true, optional = true }
+sc-client-api = { workspace = true, optional = true }
+substrate-prometheus-endpoint = { workspace = true, optional = true }
+frame-support = { workspace = true, optional = true }
+linked-hash-map = { workspace = true, optional = true }
 
 parity-scale-codec = { workspace = true, optional = true }
-scale-info = { workspace = true, optional = true }
+scale-info = { workspace = true, optional = true, features = ["derive"] }
 thiserror = { workspace = true }
 
 [features]
@@ -61,27 +61,38 @@ default = ["substrate", "std", "tangle-testnet"]
 tangle-testnet = []
 tangle-mainnet = []
 substrate = [
-    "gadget-core/substrate",
-    "gadget-io/default",
-    "tangle-subxt",
-    "subxt-signer",
-    "subxt/native",
-    "subxt/jsonrpsee",
-    "sp-api/default",
-    "sp-io/default",
-    "sp-core/default",
-    "sp-runtime/default",
-    "sp-application-crypto/default",
-    "sp-tracing/default",
-    "sc-service",
-    "sc-client-api",
-    "frame-support/std",
-    "linked-hash-map",
-    "substrate-prometheus-endpoint",
-    "parity-scale-codec",
-    "scale-info",
+  "gadget-core/substrate",
+  "gadget-io/default",
+  "tangle-subxt",
+  "subxt-signer/native",
+  "subxt/native",
+  "subxt/jsonrpsee",
+  "sp-api/default",
+  "sp-io/default",
+  "sp-core/default",
+  "sp-runtime/default",
+  "sp-application-crypto/default",
+  "sp-tracing/default",
+  "sc-client-api",
+  "frame-support/std",
+  "linked-hash-map",
+  "substrate-prometheus-endpoint",
+  "parity-scale-codec",
+  "scale-info",
 ]
-std = ["sqlx", "serde/std", "serde_bytes/std", "tracing/std", "tracing/attributes"]
+std = [
+  "sqlx",
+  "serde/std",
+  "serde_bytes/std",
+  "tracing/std",
+  "tracing/attributes",
+    "sp-api/std",
+    "sp-io/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "sp-application-crypto/std",
+    "sp-tracing/std",
+]
 wasm = [
     "gadget-io/wasm",
     "serde/alloc",
