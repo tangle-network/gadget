@@ -39,6 +39,24 @@
         "Bytes"
       ],
       "verifier": "None"
+    },
+    {
+      "metadata": {
+        "name": "refresh",
+        "description": null
+      },
+      "params": [
+        "Uint64",
+        {
+          "Optional": "Uint8"
+        }
+      ],
+      "result": [
+        {
+          "List": "Uint64"
+        }
+      ],
+      "verifier": "None"
     }
   ],
   "registration_hook": {

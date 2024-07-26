@@ -16,6 +16,8 @@ members = [
     "environments/tangle",
     "environments/utils",
     "blueprint-metadata",
+
+    "blueprints/*",
 ]
 
 [workspace.package]
@@ -36,6 +38,7 @@ shell-manager = { path = "./shell-manager" }
 tangle-environment = { path = "./environments/tangle" }
 environment-utils = { path = "./environments/utils" }
 
+gadget-sdk = { path = "./sdk", default-features = false }
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core" }
 blueprint-metadata = { path = "./blueprint-metadata" }
@@ -47,8 +50,8 @@ tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", default-featu
 
 snowbridge-milagro-bls = { git = "https://github.com/Snowfork/milagro_bls", default-features = false, rev = "43a5d480ed6e3b83de4cf54888680d51604199e6" }
 gennaro-dkg = { git = "https://github.com/mikelodder7/gennaro-dkg.git", default-features = false, rev = "1c15242" }
-subxt-signer = { version = "0.34.0", default-features = false }
-subxt = { version = "0.34.0", default-features = false }
+subxt-signer = { version = "0.37.0", default-features = false }
+subxt = { version = "0.37.0", default-features = false }
 
 # Round-based dependencies
 round-based = { git = "https://github.com/webb-tools/round-based-protocol", features = [

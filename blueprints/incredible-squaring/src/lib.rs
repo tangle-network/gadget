@@ -1,22 +1,27 @@
-use alloy_primitives::U256;
+use gadget_sdk::job;
+use std::convert::Infallible;
 
-pub const X_SQUARE_JOB_ID: u8 = 0;
-/// Returns x^2 saturating to [`U256::MAX`] if overflow occurs.
-pub fn xsquare(x: U256) -> U256 {
-    x.saturating_pow(U256::from(2))
+/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
+#[job(
+    id = 0,
+    params(x),
+    result(_),
+    verifier(evm = "IncredibleSquaringBlueprint")
+)]
+pub fn xsquare(x: u64) -> Result<u64, Infallible> {
+    Ok(x.saturating_pow(2u32))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::U256;
 
     #[test]
     fn it_works() {
-        let x = U256::from(3);
-        assert_eq!(xsquare(x), U256::from(9));
+        let x = 3;
+        assert_eq!(xsquare(x).unwrap(), 9);
 
-        let x = U256::MAX;
-        assert_eq!(xsquare(x), U256::MAX);
+        let x = u64::MAX;
+        assert_eq!(xsquare(x).unwrap(), u64::MAX);
     }
 }

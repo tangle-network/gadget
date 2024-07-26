@@ -25,6 +25,9 @@ pub enum Error {
     /// An error occurred in the event watcher and we need to restart it.
     #[error("An error occurred in the event watcher and we need to restart it.")]
     ForceRestart,
+    /// An error occurred in the event handler.
+    #[error(transparent)]
+    Handler(Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// A type alias to extract the event handler type from the event watcher.

@@ -145,7 +145,11 @@ fn generate_event_handler_for(
     let additional_params = diff
         .iter()
         .map(|ident| {
-            let ty = &param_types[**ident];
+            let mut ty = param_types[**ident].clone();
+            // remove the reference from the type and use the inner type
+            if let Type::Reference(r) = ty {
+                ty = *r.elem;
+            }
             quote! {
                 pub #ident: #ty,
             }
@@ -165,7 +169,7 @@ fn generate_event_handler_for(
             } else if is_ref {
                 quote! { &self.#ident, }
             } else {
-                quote! { self.#ident }
+                quote! { self.#ident, }
             }
         })
         .collect::<Vec<_>>();
@@ -198,7 +202,8 @@ fn generate_event_handler_for(
                 Ok(r) => r,
                 Err(e) => {
                     tracing::error!("Error in job: {e}");
-                    return Err(format!("Error: {e}"));
+                    use gadget_sdk::events_watcher::Error;
+                    return Err(Error::Handler(Box::new(e)));
                 }
             };
         }
@@ -211,7 +216,8 @@ fn generate_event_handler_for(
                 Ok(r) => r,
                 Err(e) => {
                     tracing::error!("Error in job: {e}");
-                    return Err(format!("Error: {e}"));
+                    use gadget_sdk::events_watcher::Error;
+                    return Err(Error::Handler(Box::new(e)));
                 }
             };
         }
@@ -240,9 +246,9 @@ fn generate_event_handler_for(
         #[doc = "[`"]
         #[doc = #fn_name_string]
         #[doc = "`]"]
-        struct #struct_name {
+        pub struct #struct_name {
             pub service_id: u64,
-            pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Kaypair,
+            pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
             #(#additional_params)*
         }
 
@@ -290,7 +296,7 @@ fn generate_event_handler_for(
                 for call in job_events {
                     tracing::info!("Handling JobCalled Events: #{block_number}",);
 
-                    let mut args_iter = call.args.iter();
+                    let mut args_iter = call.args.into_iter();
                     #(#params_tokens)*
                     #fn_call
 
@@ -301,7 +307,7 @@ fn generate_event_handler_for(
                         TangleApi::tx()
                             .services()
                             .submit_result(self.service_id, call.call_id, result);
-                    gadget_sdk::tx::send(client, &self.signer, response).await?;
+                    gadget_sdk::tx::tangle::send(&client, &self.signer, &response).await?;
                 }
                 Ok(())
             }
@@ -343,7 +349,7 @@ fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::Token
             quote! { let Some(Field::String(#ident)) = args_iter.next() else { continue; }; }
         }
         FieldType::Bytes => {
-            quote! { let Some(Field::Bytes(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Bytes(BoundedVec(#ident))) = args_iter.next() else { continue; }; }
         }
         FieldType::Optional(t_x) => {
             let inner_ident = format_ident!("{}_inner", ident);
@@ -397,7 +403,7 @@ fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::Toke
         FieldType::Uint64 => quote! { result.push(Field::Uint64(#ident)); },
         FieldType::Int64 => quote! { result.push(Field::Int64(#ident)); },
         FieldType::String => quote! { result.push(Field::String(#ident)); },
-        FieldType::Bytes => quote! { result.push(Field::Bytes(#ident)); },
+        FieldType::Bytes => quote! { result.push(Field::Bytes(BoundedVec(#ident))); },
         FieldType::Optional(t_x) => {
             let v_ident = format_ident!("v");
             let tokens = field_type_to_result_token(&v_ident, t_x);
@@ -423,7 +429,7 @@ fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::Toke
                 FieldType::Uint64 => quote! { Field::Uint64(item) },
                 FieldType::Int64 => quote! { Field::Int64(item) },
                 FieldType::String => quote! { Field::String(item) },
-                FieldType::Bytes => quote! { Field::Bytes(item) },
+                FieldType::Bytes => quote! { Field::Bytes(BoundedVec(item)) },
                 FieldType::Optional(_) => todo!("handle optionals into lists"),
                 FieldType::Array(_, _) => todo!("handle arrays into lists"),
                 FieldType::List(_) => todo!("handle nested lists"),
