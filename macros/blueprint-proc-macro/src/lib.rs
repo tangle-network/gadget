@@ -86,7 +86,7 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
 /// ```rust,no_run
 /// # use gadget_blueprint_proc_macro::registration_hook;
 /// #[registration_hook(evm = "MyRegistrationHook")]
-/// pub fn my_registration_hook(nft_id: u32);
+/// pub fn my_registration_hook();
 /// ```
 #[proc_macro_attribute]
 pub fn registration_hook(args: TokenStream, input: TokenStream) -> TokenStream {
