@@ -6,8 +6,6 @@
     unsafe_code,
     unstable_features,
     unused_import_braces,
-    unused_qualifications,
-    missing_docs,
     rustdoc::broken_intra_doc_links,
     unused_results,
     clippy::all,
@@ -34,3 +32,6 @@ pub mod logging;
 /// Randomness generation module
 #[cfg(not(feature = "wasm"))]
 pub mod random;
+
+#[cfg(feature = "networking-libp2p")]
+pub mod network;

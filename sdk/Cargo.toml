@@ -13,6 +13,7 @@ parking_lot = { workspace = true }
 rand_core = { version = "0.6.4", default-features = false }
 rand = { workspace = true, optional = true }
 hex = { workspace = true, default-features = false }
+elliptic-curve = { workspace = true }
 
 # Keystore deps
 k256 = { version = "0.13.3", optional = true }
@@ -34,6 +35,17 @@ tracing-subscriber = "0.3.18"
 env_logger = "0.11.3"
 tracing-wasm = { version = "0.2.1", optional = true }
 
+# Networking deps
+gadget-io = { workspace = true, optional = true }
+gadget-core = { workspace = true, optional = true }
+bincode = { workspace = true, optional = true }
+gadget-common = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+sp-io = { workspace = true, optional = true }
+sp-core = { workspace = true, optional = true }
+
 # WASM-only deps
 getrandom = { version = "0.2.15", optional = true }
 wasm-bindgen-test = { version = "0.3.42", optional = true }
@@ -41,6 +53,34 @@ wasm-bindgen-test = { version = "0.3.42", optional = true }
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 hyper = { version = "0.14.16", default-features = false, features = ["client"] }
 slog-term = { version = "2.9.1" }
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
+optional = true
+workspace = true
+features = [
+  "tokio",
+  "gossipsub",
+  "mdns",
+  "noise",
+  "macros",
+  "yamux",
+  "tcp",
+  "quic",
+  "request-response",
+  "cbor",
+  "identify",
+  "kad",
+  "dcutr",
+  "relay",
+  "ping",
+  "dns",
+  "autonat"
+]
+
+[target.'cfg(target_family = "wasm")'.dependencies.libp2p]
+optional = true
+workspace = true
+default-features = false
 
 [features]
 default = ["full", "std"]
@@ -56,7 +96,10 @@ std = [
 alloc = ["rand_core/alloc", "hex/alloc"]
 full = [
   "keystore",
+  "networking-libp2p",
 ]
+networking-libp2p = ["gadget-io", "bincode", "libp2p", "gadget-common", "serde", "async-trait", "futures", "gadget-core", "sp-io", "sp-core"]
+
 wasm = [
   "getrandom/js",
   "tracing-wasm",

@@ -59,6 +59,7 @@ log = { version = "0.4", default-features = false }
 gadget-core = { workspace = true }
 gadget-common = { workspace = true, default-features = false, features = ["tangle-testnet"] }
 gadget-io = { workspace = true, default-features = false }
+gadget-sdk = { workspace = true, features = ["networking-libp2p"] }
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 sp-keystore = { workspace = true }
@@ -86,6 +87,9 @@ env_logger = { workspace = true }
 pallet-services = { workspace = true }
 tangle-primitives = { workspace = true }
 
+[target.'cfg(target_family = "wasm")'.dev-dependencies]
+wasm-bindgen-test = "0.3.34"
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
 features = [
@@ -111,12 +115,6 @@ features = [
 [target.'cfg(target_family = "wasm")'.dependencies.libp2p]
 workspace = true
 default-features = false
-
-[target.'cfg(target_family = "wasm")'.dev-dependencies]
-wasm-bindgen-test = "0.3.34"
-
-[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
-tangle-test-utils = { workspace = true }
 
 [dev-dependencies]
 tangle-environment = { workspace = true }

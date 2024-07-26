@@ -1,3 +1,5 @@
+#![allow(unused_results)]
+
 use crate::network::gossip::{GossipMessage, NetworkService};
 
 use libp2p::gossipsub::TopicHash;
@@ -8,7 +10,7 @@ use std::sync::Arc;
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
     pub(crate) async fn handle_gossip(&mut self, event: gossipsub::Event) {
-        use gossipsub::Event::*;
+        use gossipsub::Event::{GossipsubNotSupported, Message, Subscribed, Unsubscribed};
         let with_connected_peers = |topic: &TopicHash, f: fn(&Arc<AtomicU32>)| {
             let maybe_mapping = self
                 .inbound_mapping
