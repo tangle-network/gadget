@@ -104,7 +104,7 @@ pub fn registration_hook(args: TokenStream, input: TokenStream) -> TokenStream {
 /// ```rust,no_run
 /// # use gadget_blueprint_proc_macro::request_hook;
 /// #[request_hook(evm = "MyRequestHook")]
-/// pub fn my_request_hook(nft_id: u32);
+/// pub fn my_request_hook();
 /// ```
 #[proc_macro_attribute]
 pub fn request_hook(args: TokenStream, input: TokenStream) -> TokenStream {
