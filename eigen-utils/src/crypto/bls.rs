@@ -1,8 +1,10 @@
+use crate::types::AvsError;
 use alloy_primitives::U256;
-use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine};
 use ark_bn254::Fq as F;
-use ark_ec::{AffineRepr, CurveGroup};
-use ark_ff::{BigInt, Field, QuadExtField, Zero};
+use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine};
+use ark_ec::pairing::Pairing;
+use ark_ec::{AffineRepr, CurveGroup, Group};
+use ark_ff::{QuadExtField, Zero};
 use ark_ff::{BigInteger256, PrimeField};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
 use ark_std::One;
@@ -17,14 +19,10 @@ use scrypt::{password_hash, Params, Scrypt};
 use serde::{Deserialize, Serialize};
 use std::fmt::Write;
 use std::fs;
-use std::ops::{Div, Mul, Neg};
+use std::ops::Neg;
 use std::path::Path;
-use ark_ec::bn::G1Prepared;
-use ark_ec::pairing::Pairing;
-use crate::types::AvsError;
 
 use super::bn254::{map_to_curve, mul_by_generator_g1, point_to_u256, u256_to_point};
-use super::pairing_products::{InnerProduct, PairingInnerProduct};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct EncryptedBLSKeyJSONV3 {
@@ -171,6 +169,7 @@ impl CanonicalDeserialize for G2Point {
 }
 
 impl G2Point {
+    /// Create a new [G2Point] from [Field] components. This is unchecked and will not verify that the point is on the curve.
     pub fn new(x: [F; 2], y: [F; 2]) -> Self {
         Self {
             x: [U256::from_limbs(x[0].0 .0), U256::from_limbs(x[1].0 .0)],
@@ -178,27 +177,32 @@ impl G2Point {
         }
     }
 
+    /// Returns the bytes representation of a [G2Point] as a [Vec] of [u8].
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut ser_buf = vec![0; self.serialized_size(ark_serialize::Compress::Yes)];
         let _ = self.serialize_compressed(&mut ser_buf);
         ser_buf
     }
 
+    /// Negates a [G2Point].
     pub fn neg(&self) -> Self {
         let affine = g2_point_to_ark_point(self);
         let neg_affine = -affine;
         ark_point_to_g2_point(&neg_affine)
     }
 
+    /// Returns a Zero [G2Point].
     pub fn zero() -> Self {
         Self::new([F::zero(), F::zero()], [F::zero(), F::zero()])
     }
 
+    /// Uses the fixed [G2Affine::generator] to generate a [G2Point].
     pub fn generator() -> Self {
         let gen = G2Affine::generator();
         ark_point_to_g2_point(&gen)
     }
 
+    /// Addition Operation for [G2Point].
     pub fn add(&mut self, other: &G2Point) {
         let affine_p1 = g2_point_to_ark_point(self);
         let affine_p2 = g2_point_to_ark_point(other);
@@ -207,6 +211,7 @@ impl G2Point {
         *self = ark_point_to_g2_point(&pt);
     }
 
+    /// Subtraction Operation for [G2Point].
     pub fn sub(&mut self, other: &G2Point) {
         let affine_p1 = g2_point_to_ark_point(self);
         let affine_p2 = g2_point_to_ark_point(other);
@@ -215,6 +220,7 @@ impl G2Point {
         *self = ark_point_to_g2_point(&pt);
     }
 
+    /// Multiplication Operation for [G2Point].
     pub fn mul(&mut self, scalar: F) {
         let affine = g2_point_to_ark_point(self);
 
@@ -222,10 +228,12 @@ impl G2Point {
         *self = ark_point_to_g2_point(&pt);
     }
 
+    /// Converts a [G2Affine] to a [G2Point].
     pub fn from_ark_g2(ark_g2: &G2Affine) -> Self {
         ark_point_to_g2_point(ark_g2)
     }
 
+    /// Converts a [G2Point] to a [G2Affine]. Will panic if the provided point is not on the curve.
     pub fn to_ark_g2(&self) -> G2Affine {
         g2_point_to_ark_point(self)
     }
@@ -244,9 +252,13 @@ pub fn g1_point_to_g1_projective(pt: &G1Point) -> G1Projective {
 
 /// Converts a [G1Affine] to a [G1Point].
 pub fn ark_point_to_g1_point(pt: &G1Affine) -> G1Point {
-    G1Point { x: point_to_u256(pt.x), y: point_to_u256(pt.y) }
+    G1Point {
+        x: point_to_u256(pt.x),
+        y: point_to_u256(pt.y),
+    }
 }
 
+/// Converts a [G2Point] to a [G2Affine]. Will panic if the provided point is not on the curve.
 pub fn g2_point_to_ark_point(pt: &G2Point) -> G2Affine {
     G2Affine::new(
         QuadExtField {
@@ -260,16 +272,11 @@ pub fn g2_point_to_ark_point(pt: &G2Point) -> G2Affine {
     )
 }
 
+/// Converts a [G2Affine] to a [G2Point].
 pub fn ark_point_to_g2_point(pt: &G2Affine) -> G2Point {
     G2Point {
-        x: [
-            point_to_u256(pt.x.c0),
-            point_to_u256(pt.x.c1),
-        ],
-        y: [
-            point_to_u256(pt.y.c0),
-            point_to_u256(pt.y.c1),
-        ],
+        x: [point_to_u256(pt.x.c0), point_to_u256(pt.x.c1)],
+        y: [point_to_u256(pt.y.c0), point_to_u256(pt.y.c1)],
     }
 }
 
@@ -288,7 +295,7 @@ pub fn hex_string_to_biginteger256(hex_str: &str) -> BigInteger256 {
 
     assert!(bytes.len() <= 32, "Byte length exceeds 32 bytes");
 
-    let mut padded_bytes = vec![0u8; 32];
+    let mut padded_bytes = [0u8; 32];
     let start = 32 - bytes.len();
     padded_bytes[start..].copy_from_slice(&bytes);
 
@@ -296,7 +303,7 @@ pub fn hex_string_to_biginteger256(hex_str: &str) -> BigInteger256 {
     for (i, chunk) in padded_bytes.chunks(8).rev().enumerate() {
         let mut array = [0u8; 8];
         let len = chunk.len().min(8);
-        array[..len].copy_from_slice(&chunk[..len]); // Copy the bytes into the fixed-size array
+        array[..len].copy_from_slice(&chunk[..len]);
         limbs[i] = u64::from_be_bytes(array);
     }
 
@@ -318,7 +325,7 @@ impl Signature {
     }
 
     pub fn sig(&self) -> G1Projective {
-        G1Projective::from(self.clone().g1_point.to_ark_g1()) //self.g1_point.point
+        G1Projective::from(self.clone().g1_point.to_ark_g1())
     }
 
     pub fn add(&mut self, other: &Signature) {
@@ -334,32 +341,21 @@ impl Signature {
         let p: [G1Point; 2] = [msg_point, neg_sig];
         let q: [G2Point; 2] = [pubkey.clone(), g2_gen];
 
-        let p_projective = [
-            g1_point_to_ark_point(&p[0]),
-            g1_point_to_ark_point(&p[1]),
-        ];
-        let q_projective = [
-            g2_point_to_ark_point(&q[0]),
-            g2_point_to_ark_point(&q[1]),
-        ];
+        let p_projective = [g1_point_to_ark_point(&p[0]), g1_point_to_ark_point(&p[1])];
+        let q_projective = [g2_point_to_ark_point(&q[0]), g2_point_to_ark_point(&q[1])];
 
-        let g2_gen = g2_point_to_ark_point(&G2Point::generator());
-        let pairing_left = Bn254::pairing(self.g1_point.to_ark_g1(), g2_gen);
-
-        let pairing_right = Bn254::pairing(msg_affine, g2_point_to_ark_point(&pubkey.clone()));
-        println!("Pairing Comparison: {:?}", pairing_left == pairing_right);
-
+        // // If Pairing Left and Right are equal, then the signature is valid as well
+        // let g2_gen = g2_point_to_ark_point(&G2Point::generator());
+        // let pairing_left = Bn254::pairing(self.g1_point.to_ark_g1(), g2_gen);
+        // let pairing_right = Bn254::pairing(msg_affine, g2_point_to_ark_point(&pubkey.clone()));
+        // println!("Pairing Comparison: {:?}", pairing_left == pairing_right);
 
         let pairing_result = Bn254::multi_pairing(p_projective, q_projective);
-        println!("Verification Process Pairing Result: {:?}", pairing_result);
-        println!("Pairing Output Inner: {:?}", pairing_result.0);
         Ok(pairing_result.0.is_one())
     }
 }
 
-// #[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub type PrivateKey = Fr;
-
 
 #[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct KeyPair {
@@ -369,18 +365,15 @@ pub struct KeyPair {
 
 impl KeyPair {
     pub fn new(sk: PrivateKey) -> Result<Self, AvsError> {
-        let pub_key_point_result = mul_by_generator_g1(sk.clone());
+        let pub_key_point_result = mul_by_generator_g1(sk);
 
         match pub_key_point_result {
             Ok(pub_key_point) => {
-                // println!("Public Key In KeyPair New: {:?}", pub_key_point);
-                // println!("Public Key X: {:?}", pub_key_point.x.inverse().unwrap() * pub_key_point.z);
-                // println!("Public Key Y: {:?}", pub_key_point.y.inverse().unwrap() * pub_key_point.z);
                 Ok(Self {
-                    priv_key: sk.clone(),
+                    priv_key: sk,
                     pub_key: pub_key_point,
                 })
-            },
+            }
             Err(_) => Err(AvsError::KeyError(
                 "Failed to generate new key pair".to_string(),
             )),
@@ -430,9 +423,10 @@ impl KeyPair {
             "nonce": BASE64_STANDARD.encode(nonce),
             "password_hash": BASE64_STANDARD.encode(password_hash.to_string()),
         });
+        let g1_point = ark_point_to_g1_point(&self.pub_key.into_affine());
 
         let encrypted_bls_struct = EncryptedBLSKeyJSONV3 {
-            pub_key: G1Point::new(self.pub_key.x, self.pub_key.y),
+            pub_key: g1_point,
             crypto: crypto_struct,
         };
 
@@ -510,24 +504,24 @@ impl KeyPair {
 
         let pair = KeyPair {
             priv_key,
-            pub_key: G1Projective::from(encrypted_bls_struct.pub_key.to_ark_g1()),
+            pub_key: g1_point_to_g1_projective(&encrypted_bls_struct.pub_key),
         };
         Ok(pair)
     }
 
     pub fn sign_message(&self, message: &[u8; 32]) -> Signature {
         let sig_point = map_to_curve(message);
-        let sig = sig_point.mul(self.priv_key);
+        let sig = sig_point.mul_bigint(self.priv_key.0);
         Signature {
             g1_point: ark_point_to_g1_point(&sig.into_affine()),
         }
     }
 
     pub fn sign_hashed_to_curve_message(&self, g1_hashed_msg: &G1Point) -> Signature {
-        let mut sig_point = g1_hashed_msg.clone();
-        sig_point.mul(self.priv_key);
+        let sig_point = g1_point_to_g1_projective(g1_hashed_msg);
+        let sig = sig_point.mul_bigint(self.priv_key.0);
         Signature {
-            g1_point: sig_point,
+            g1_point: ark_point_to_g1_point(&sig.into_affine()),
         }
     }
 

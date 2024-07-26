@@ -1,16 +1,12 @@
 #![allow(dead_code)]
-
 use alloy_contract::private::Ethereum;
-use alloy_primitives::ruint::aliases;
 use alloy_primitives::{Address, Bytes, ChainId, FixedBytes, Signature, B256, U256};
-use alloy_provider::network::AnyNetwork;
-use alloy_provider::{Provider, ProviderBuilder, RootProvider};
+use alloy_provider::{Provider, RootProvider};
 use alloy_rpc_types::Log;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::SolValue;
 use alloy_transport::BoxTransport;
 use async_trait::async_trait;
-use eigen_contracts::IndexRegistry::IndexRegistryCalls::registryCoordinator;
 use eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
 use eigen_utils::avs_registry::writer::AvsRegistryChainWriterTrait;
 use eigen_utils::avs_registry::AvsRegistryContractManager;
@@ -20,18 +16,14 @@ use eigen_utils::node_api::NodeApi;
 use eigen_utils::services::operator_info::OperatorInfoServiceTrait;
 use eigen_utils::types::{AvsError, OperatorInfo};
 use eigen_utils::Config;
-// use foundry_common::provider::runtime_transport::RuntimeTransport;
-// use foundry_common::provider::tower::RetryBackoffService;
-// use foundry_common::provider::RetryProvider;
 use gadget_common::subxt_signer::bip39::rand;
 use k256::ecdsa::SigningKey;
 use log::error;
 use prometheus::Registry;
-use rand::{Fill, Rng};
+use rand::Rng;
 use std::future::Future;
 use std::pin::Pin;
 use std::str::FromStr;
-use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
 use crate::aggregator::Aggregator;
@@ -86,8 +78,6 @@ pub enum OperatorError {
 
 pub struct Operator<T: Config, I: OperatorInfoServiceTrait> {
     config: NodeConfig,
-    // metrics_reg: Registry,
-    // metrics: Metrics,
     node_api: NodeApi,
     avs_registry_contract_manager: AvsRegistryContractManager<T>,
     incredible_squaring_contract_manager: IncredibleSquaringContractManager<T>,
@@ -471,10 +461,8 @@ mod tests {
     use alloy_provider::Provider;
     use alloy_rpc_types_eth::BlockId;
     use anvil::spawn;
-    use ark_bn254::{Bn254, Fr, G1Affine, G2Affine, G2Projective};
     use ark_bn254::Fq as F;
-    use foundry_common::provider::RetryProvider;
-    use futures::StreamExt;
+    use ark_bn254::{Fr, G1Affine, G2Affine, G2Projective};
     use url::Url;
 
     struct ContractAddresses {
@@ -495,10 +483,11 @@ mod tests {
         // let http_provider = handle.http_provider();
         // let ws_provider = handle.ws_provider();
 
-        let http_provider = ProviderBuilder::new()
+        let _http_provider = ProviderBuilder::new()
             .on_http(Url::parse(&handle.http_endpoint()).unwrap())
             .root()
             .clone();
+        // todo: http_provider is unused
 
         // let provider = ProviderBuilder::new().on_ws(WsConnect::new(handle.ws_endpoint())).await.unwrap();
 
@@ -530,7 +519,9 @@ mod tests {
             Address::from(address!("e7f1725e7734ce288f8367e1bb143e90bb3f0512"));
         let strategy_manager_addr =
             Address::from(address!("8fbdb2318678afecb368f032d93f642f64180aa6"));
-        let task_manager_addr = Address::from(address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"));
+        let _task_manager_addr =
+            Address::from(address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"));
+        // todo: task manager address is unused
 
         let registry_coordinator = RegistryCoordinator::deploy(
             provider.clone(),
@@ -549,22 +540,21 @@ mod tests {
             registry_coordinator_addr
         );
 
-        let mut index_registry = IndexRegistry::deploy(provider.clone()).await.unwrap();
+        let index_registry = IndexRegistry::deploy(provider.clone()).await.unwrap();
         let index_registry_addr = index_registry.address();
         println!("Index Registry returned");
         api.mine_one().await;
         println!("Index Registry deployed at: {:?}", index_registry_addr);
 
-        let mut bls_apk_registry =
-            BlsApkRegistry::deploy(provider.clone(), *registry_coordinator_addr)
-                .await
-                .unwrap();
+        let bls_apk_registry = BlsApkRegistry::deploy(provider.clone(), *registry_coordinator_addr)
+            .await
+            .unwrap();
         let bls_apk_registry_addr = bls_apk_registry.address();
         println!("BLS APK Registry returned");
         api.mine_one().await;
         println!("BLS APK Registry deployed at: {:?}", bls_apk_registry_addr);
 
-        let mut stake_registry = StakeRegistry::deploy(
+        let stake_registry = StakeRegistry::deploy(
             provider.clone(),
             *registry_coordinator_addr,
             delegation_manager_addr,
@@ -596,7 +586,7 @@ mod tests {
             eigen_pod_manager_addr
         );
 
-        let mut delegation_manager = DelegationManager::deploy(
+        let delegation_manager = DelegationManager::deploy(
             provider.clone(),
             strategy_manager_addr,
             *slasher_addr,
@@ -938,21 +928,12 @@ mod tests {
     //     operator.start().await.unwrap();
     // }
 
-    use super::*;
     use ark_bn254::G1Projective;
-    use ark_ec::pairing::Pairing;
-    use ark_ec::short_weierstrass::Projective;
-    use ark_ec::{AffineRepr, CurveGroup};
-    use ark_ff::{BigInt, BigInteger, Field, One, PrimeField, ToConstraintField, Zero};
-    use ark_ff::{BigInteger256, UniformRand};
-    use eigen_utils::crypto::bls::{g1_point_to_g1_projective, G1Point, G2Point, PrivateKey};
-    use eigen_utils::crypto::bn254::{get_g1_generator, map_to_curve, mul_by_generator_g1, point_to_u256, u256_to_bigint256, u256_to_point};
-    use gadget_common::sp_core::crypto::Ss58Codec;
-    use hex::FromHex;
-    use k256::FieldElement;
-    use rand::{thread_rng, Rng, RngCore};
-    use std::fmt::Write;
-    use std::ops::Mul;
+    use ark_ec::CurveGroup;
+    use ark_ff::UniformRand;
+    use ark_ff::{BigInt, Field, One, PrimeField, Zero};
+    use eigen_utils::crypto::bls::{g1_point_to_g1_projective, G1Point, G2Point};
+    use rand::{thread_rng, Rng};
     // pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
     //     let mut hex_string = String::new();
     //     for part in bigint.0.iter().rev() {
@@ -1023,42 +1004,40 @@ mod tests {
         let keypair = KeyPair::gen_random().unwrap();
         let pub_key_g2 = keypair.get_pub_key_g2();
         let mut message = [0u8; 32];
-        rand::thread_rng().fill(&mut message);
+        thread_rng().fill(&mut message);
 
         let signature = keypair.sign_message(&message);
-        println!("Signature: {:?}", signature);
         let g1_projective = g1_point_to_g1_projective(&signature.g1_point);
-        println!("G1 Projective: {:?}", g1_projective);
 
-        // Check that the signature is not zero
+        // Make sure the Signature is not Zero
         assert_ne!(g1_projective, G1Projective::zero());
         let mut wrong_message = [0u8; 32];
-        rand::thread_rng().fill(&mut wrong_message);
+        thread_rng().fill(&mut wrong_message);
 
-        // Check that the signature verifies
+        // Ensure the verification of the Signature works correctly
         assert!(signature.verify(&pub_key_g2, &message).unwrap());
         assert!(!signature.verify(&pub_key_g2, &wrong_message).unwrap())
     }
 
-    // #[tokio::test]
-    // async fn test_signature_verification_invalid() {
-    //     let mut rng = thread_rng();
-    //     let keypair = KeyPair::gen_random().unwrap();
-    //
-    //     let mut message = [0u8; 32];
-    //     rand::thread_rng().fill(&mut message);
-    //
-    //     let signature = keypair.sign_message(&message);
-    //     let g1_projective = G1Projective::from(signature.g1_point.to_ark_g1());
-    //
-    //     // Check that the signature is not zero
-    //     assert_ne!(g1_projective, G1Projective::zero());
-    //
-    //     // Check that the signature does not verify with a different public key
-    //     let g2_projective = G2Projective::rand(&mut rng);
-    //     let different_pub_key = G2Point::from_ark_g2(&G2Affine::from(g2_projective));
-    //     assert!(!signature.verify(&different_pub_key, &message).is_ok());
-    // }
+    #[tokio::test]
+    async fn test_signature_verification_invalid() {
+        let mut rng = thread_rng();
+        let keypair = KeyPair::gen_random().unwrap();
+
+        let mut message = [0u8; 32];
+        rand::thread_rng().fill(&mut message);
+
+        let signature = keypair.sign_message(&message);
+        let g1_projective = g1_point_to_g1_projective(&signature.g1_point);
+
+        // Check that the signature is not zero
+        assert_ne!(g1_projective, G1Projective::zero());
+
+        // Check that the signature does not verify with a different public key
+        let g2_projective = G2Projective::rand(&mut rng);
+        let different_pub_key = G2Point::from_ark_g2(&G2Affine::from(g2_projective));
+        assert!(!signature.verify(&different_pub_key, &message).unwrap());
+    }
 
     #[tokio::test]
     async fn test_keypair_from_string() {

@@ -1,8 +1,6 @@
-use crate::crypto::bls::{g1_point_to_g1_projective, G1Point};
 use crate::types::AvsError;
 use alloy_primitives::U256;
-use ark_bn254::{Bn254, Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
-use ark_ec::{AffineRepr, CurveGroup};
+use ark_bn254::{Fq2, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ff::{BigInteger, BigInteger256};
 use ark_ff::{Field, One, PrimeField};
 use std::ops::Mul;
@@ -13,11 +11,11 @@ use ark_bn254::Fq as F;
 pub fn map_to_curve(digest: &[u8; 32]) -> G1Projective {
     let one = F::one();
     let three = F::from(3u64);
-    let mut x = F::from_be_bytes_mod_order(&digest.as_slice());
+    let mut x = F::from_be_bytes_mod_order(digest.as_slice());
 
     loop {
         let x_cubed = x.pow([3]);
-        let mut y = x_cubed + three;
+        let y = x_cubed + three;
 
         if y.legendre().is_qr() {
             let y = y.sqrt().unwrap();

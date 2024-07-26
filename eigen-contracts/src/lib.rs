@@ -23,7 +23,7 @@ sol!(
 );
 
 sol!(
-    #[allow(missing_docs)]
+    #[allow(missing_docs, clippy::too_many_arguments)]
     #[sol(rpc)]
     RegistryCoordinator,
     "out/RegistryCoordinator.sol/RegistryCoordinator.json"

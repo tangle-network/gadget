@@ -5,12 +5,11 @@ use alloy_provider::Provider;
 use alloy_rpc_types::TransactionReceipt;
 use alloy_signer::k256::ecdsa;
 use alloy_signer::Signer;
-use ark_bn254::Fq;
 use eigen_contracts::RegistryCoordinator;
 use k256::ecdsa::VerifyingKey;
 
 use crate::crypto::bls::{G1Point, KeyPair};
-use crate::crypto::bn254::u256_to_bigint256;
+use crate::crypto::bn254::u256_to_point;
 use crate::crypto::ecdsa::ToAddress;
 use crate::el_contracts::reader::ElReader;
 use crate::{types::*, Config};
@@ -58,10 +57,9 @@ impl<T: Config> AvsRegistryChainWriterTrait for AvsRegistryContractManager<T> {
         let verifying_key = VerifyingKey::from(operator_ecdsa_private_key);
         let operator_addr = verifying_key.to_address();
 
-        log::info!("Registering operator with the AVS's registry coordinator");
-
         let registry_coordinator =
             RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
+
         let g1_hashed_msg_to_sign = registry_coordinator
             .pubkeyRegistrationMessageHash(operator_addr)
             .call()
@@ -69,21 +67,20 @@ impl<T: Config> AvsRegistryChainWriterTrait for AvsRegistryContractManager<T> {
             .map(|x| x._0)
             .map_err(AvsError::from)?;
 
-        let signed_msg = bls_key_pair.sign_hashed_to_curve_message(&G1Point::new(
-            Fq::from(u256_to_bigint256(g1_hashed_msg_to_sign.X)),
-            Fq::from(u256_to_bigint256(g1_hashed_msg_to_sign.Y)),
-        ));
+        let g1_point = G1Point { x: g1_hashed_msg_to_sign.X, y: g1_hashed_msg_to_sign.Y };
+        let signed_msg = bls_key_pair.sign_hashed_to_curve_message(&g1_point);
+
         let g1_pubkey_bn254 = bls_key_pair.get_pub_key_g1();
         let g2_pubkey_bn254 = bls_key_pair.get_pub_key_g2();
 
         let pubkey_reg_params = RegistryCoordinator::PubkeyRegistrationParams {
             pubkeyRegistrationSignature: RegistryCoordinator::G1Point {
-                X: U256::from_limbs(signed_msg.g1_point.x.as_limbs().clone()),
-                Y: U256::from_limbs(signed_msg.g1_point.y.as_limbs().clone()),
+                X: U256::from_limbs(*signed_msg.g1_point.x.as_limbs()),
+                Y: U256::from_limbs(*signed_msg.g1_point.y.as_limbs()),
             },
             pubkeyG1: RegistryCoordinator::G1Point {
-                X: U256::from_limbs(g1_pubkey_bn254.x.as_limbs().clone()),
-                Y: U256::from_limbs(g1_pubkey_bn254.y.as_limbs().clone()),
+                X: U256::from_limbs(*g1_pubkey_bn254.x.as_limbs()),
+                Y: U256::from_limbs(*g1_pubkey_bn254.y.as_limbs()),
             },
             pubkeyG2: RegistryCoordinator::G2Point {
                 X: g2_pubkey_bn254.x,
