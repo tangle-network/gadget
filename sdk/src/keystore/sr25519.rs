@@ -1,5 +1,6 @@
 //! Schnorrkel keypair implementation.
 
+use rand::prelude::ThreadRng;
 pub use schnorrkel::PublicKey as Public;
 pub use schnorrkel::SecretKey as Secret;
 pub use schnorrkel::Signature;

@@ -3,7 +3,7 @@ use crate::network::gossip::NetworkService;
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
     pub(crate) async fn handle_identify_event(&mut self, event: libp2p::identify::Event) {
-        use libp2p::identify::Event::*;
+        use libp2p::identify::Event::{Error, Pushed, Received, Sent};
         match event {
             Received { peer_id, info } => {
                 // TODO: Verify the peer info, for example the protocol version, agent version, etc.

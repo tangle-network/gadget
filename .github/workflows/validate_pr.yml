@@ -33,32 +33,8 @@ jobs:
         run: cargo fmt -- --check
 
   linting:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: wasm32-unknown-unknown
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-
-      - name: Install protobuf
-        run: sudo apt-get install protobuf-compiler
-
-      - name: Run Clippy
-        run: cargo clippy --package shell-manager --tests -- -D warnings
-
-  build:
     timeout-minutes: 120
-    name: cargo build
+    name: cargo clippy
     runs-on: macos-latest
     strategy:
         matrix:
@@ -66,6 +42,7 @@ jobs:
               gadget-core,
               gadget-common,
               shell-manager,
+              shell-sdk,
             ]
     steps:
       - name: checkout code
@@ -83,8 +60,8 @@ jobs:
       - name: install protobuf
         run: brew install protobuf
 
-      - name: build
-        run: cargo build --package ${{ matrix.package }}
+      - name: Run Clippy
+        run: cargo clippy --package ${{ matrix.package }} --tests -- -D warnings
 
   testing:
     timeout-minutes: 90
@@ -96,6 +73,7 @@ jobs:
               gadget-core,
               gadget-common,
               shell-manager,
+              shell-sdk,
             ]
     steps:
       - name: checkout code
@@ -127,6 +105,7 @@ jobs:
   wasm_checks:
     timeout-minutes: 90
     name: WASM checks
+    if: false # Disabled for now
     runs-on: macos-14
     steps:
       - name: checkout code

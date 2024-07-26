@@ -4,7 +4,7 @@ use libp2p::mdns;
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
     pub(crate) async fn handle_mdns_event(&mut self, event: mdns::Event) {
-        use mdns::Event::*;
+        use mdns::Event::{Discovered, Expired};
         match event {
             Discovered(list) => {
                 for (peer_id, multiaddr) in list {

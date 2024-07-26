@@ -207,6 +207,7 @@ anyhow = "1.0.79"
 libsecp256k1 = "0.7.1"
 rayon = { version = "1.8.0" }
 thiserror = { version = "1" }
+elliptic-curve = { version = "0.13.8" }
 aes-gcm = { version = "0.10", default-features = false, features = [
     "aes",
     "alloc",
