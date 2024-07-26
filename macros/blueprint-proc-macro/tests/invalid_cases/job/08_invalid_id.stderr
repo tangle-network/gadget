@@ -1,0 +1,16 @@
+warning: unused variable: `n`
+ --> tests/invalid_cases/job/08_invalid_id.rs:4:11
+  |
+4 | fn keygen(n: u16) -> Vec<u8> {
+  |           ^ help: if this is intentional, prefix it with an underscore: `_n`
+  |
+  = note: `#[warn(unused_variables)]` on by default
+
+error: literal out of range for `u8`
+ --> tests/invalid_cases/job/08_invalid_id.rs:3:12
+  |
+3 | #[job(id = 300, params(n), result(Vec<u8>))]
+  |            ^^^
+  |
+  = note: the literal `300` does not fit into the type `u8` whose range is `0..=255`
+  = note: `#[deny(overflowing_literals)]` on by default

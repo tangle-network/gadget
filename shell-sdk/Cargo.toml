@@ -90,9 +90,6 @@ tangle-primitives = { workspace = true }
 [target.'cfg(target_family = "wasm")'.dev-dependencies]
 wasm-bindgen-test = "0.3.34"
 
-[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
-tangle-test-utils = { workspace = true }
-
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
 features = [
