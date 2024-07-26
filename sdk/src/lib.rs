@@ -14,7 +14,6 @@
     clippy::pedantic,
     clippy::exhaustive_enums
 )]
-#![allow(dead_code)]
 //! Gadget SDK
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -43,3 +42,14 @@ pub mod events_watcher;
 
 /// Gadget Environment Module
 pub mod env;
+
+/// Transaction Management Module
+pub mod tx;
+
+// Exporting the macros
+#[cfg(feature = "macros")]
+pub use gadget_blueprint_proc_macro::{job, registration_hook, request_hook};
+
+#[doc(hidden)]
+#[cfg(feature = "macros")]
+pub use tangle_subxt;

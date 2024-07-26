@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 import {
   http,
@@ -6,7 +7,6 @@ import {
   createWalletClient,
   createPublicClient,
   getContractAddress,
-  numberToHex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { ApiPromise, WsProvider } from "@polkadot/api";
@@ -80,10 +80,16 @@ const deployContract = async (path: string) => {
 
 console.log("|- Using account to deploy contracts...", DEPLOYER.address);
 console.log("|-- Deploying contracts...");
-const verifier = await deployContract(blueprint.jobs[0].verifier.Evm);
-blueprint.jobs[0].verifier.Evm = verifier;
+for (const job of blueprint.jobs) {
+  // get the absolute path of the contract
+  const realPath = path.resolve(job.verifier.Evm);
+  const verifier = await deployContract(realPath);
+  job.verifier.Evm = verifier;
+  console.log(
+    `|--- Verifier contract for ${job.metadata.name} deployed at: ${verifier}`,
+  );
+}
 
-console.log(`|--- Verifier contract deployed at: ${verifier}`);
 console.log();
 
 const api = await ApiPromise.create({
@@ -128,8 +134,10 @@ console.log();
 
 const jobCallId = await api.query.services.nextJobCallId();
 console.log(`|- Bob is calling job with id: ${jobCallId}`);
-const x = numberToHex(5, { size: 32 });
-const xsquareJobTx = api.tx.services.call(serviceInstanceId, 0, [{ Bytes: x }]);
+const x = 5;
+const xsquareJobTx = api.tx.services.call(serviceInstanceId, 0, [
+  { Uint64: x },
+]);
 await signAndSend(bobSr25519, xsquareJobTx);
 console.log();
 console.log("Done!");

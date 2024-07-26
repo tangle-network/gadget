@@ -1,7 +1,7 @@
-use gadget_blueprint_proc_macro::{job, registration_hook, request_hook};
+use gadget_sdk::{job, registration_hook, request_hook};
 
 #[derive(Debug, Clone, Copy)]
-enum Error {
+pub enum Error {
     InvalidKeygen,
     InvalidSignature,
     InvalidRefresh,
@@ -20,12 +20,12 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-struct MyContext;
+pub struct MyContext;
 
 /// Simple Threashold (t) Keygen Job for n parties.
 #[job(id = 0, params(n, t), result(_), verifier(evm = "KeygenContract"))]
-pub fn keygen(ctx: MyContext, n: u16, t: u8) -> Result<Vec<u8>, Error> {
-    let _ = (n, t);
+pub fn keygen(ctx: &MyContext, n: u16, t: u8) -> Result<Vec<u8>, Error> {
+    let _ = (n, t, ctx);
     Ok(vec![0; 33])
 }
 

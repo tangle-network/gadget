@@ -1,62 +1,39 @@
 {
-  "gadget": {
-    "Native": {
-      "soruces": [
-        {
-          "fetcher": {
-            "Github": {
-              "binaries": [
-                {
-                  "arch": "Amd64",
-                  "name": "incredible-squaring-gadget",
-                  "os": "Linux",
-                  "sha256": ""
-                },
-                {
-                  "arch": "Arm64",
-                  "name": "incredible-squaring-gadget",
-                  "os": "MacOS",
-                  "sha256": ""
-                }
-              ],
-              "owner": "webb-tools",
-              "repo": "gadget",
-              "tag": "0.1.0"
-            }
-          }
-        }
-      ]
-    }
+  "metadata": {
+    "name": "incredible-squaring-blueprint",
+    "description": "A Simple Blueprint to demo how blueprints work on Tangle Network",
+    "author": "Webb Technologies Inc.",
+    "category": null,
+    "code_repository": "https://github.com/webb-tools/gadget",
+    "logo": null,
+    "website": "https://tangle.tools",
+    "license": "Unlicense"
   },
   "jobs": [
     {
       "metadata": {
-        "description": "Returns the square of the input as `U256` bytes in BE format.",
-        "name": "xsquare"
+        "name": "xsquare",
+        "description": "Returns x^2 saturating to [`u64::MAX`] if overflow occurs."
       },
       "params": [
-        "Bytes"
+        "Uint64"
       ],
       "result": [
-        "Bytes"
+        "Uint64"
       ],
       "verifier": {
-        "Evm": "./contracts/out/IncredibleSquaringBlueprint.sol/IncredibleSquaringBlueprint.json"
+        "Evm": "contracts/out/IncredibleSquaringBlueprint.sol/IncredibleSquaringBlueprint.json"
       }
     }
   ],
-  "metadata": {
-    "author": "Webb Technologies Inc.",
-    "category": "Cryptographic Services",
-    "codeRepository": "https://github.com/webb-tools/gadget",
-    "description": "A Simple Blueprint to demo how blueprints work on Tangle Network",
-    "license": "Unlicense",
-    "logo": "https://example.com/logo.png",
-    "name": "incredible-squaring-blueprint",
-    "website": "https://tangle.tools"
-  },
-  "registrationHook": "None",
-  "registrationParams": [],
-  "requestHook": "None",
-  "requestParams": []
+  "registration_hook": "None",
+  "registration_params": [],
+  "request_hook": "None",
+  "request_params": [],
+  "gadget": {
+    "Wasm": {
+      "runtime": "Wasmtime",
+      "soruces": []
+    }
+  }
 }

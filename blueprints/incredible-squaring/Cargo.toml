@@ -16,17 +16,15 @@ required-features = ["gadget"]
 [dependencies]
 tracing = { workspace = true }
 async-trait = { workspace = true }
-tangle-subxt-v2 = { workspace = true }
-alloy-primitives = { workspace = true }
+gadget-sdk = { workspace = true, default-features = false, features = ["std", "keystore", "events-watcher", "macros", "tx-tangle"] }
 
 color-eyre = { workspace = true, optional = true }
 tokio = { workspace = true, default-features = false, features = ["full"], optional = true }
-gadget-sdk = { workspace = true, default-features = false, features = ["std", "keystore", "events-watcher"] }
 subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"], optional = true }
 tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"], optional = true }
 
 [build-dependencies]
-serde_json = { workspace = true }
+blueprint-metadata = { workspace = true }
 
 [features]
 default = []
