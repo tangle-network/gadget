@@ -31,6 +31,7 @@ impl<T: Config> ElChainContractManager<T> {
             DelegationManager::new(delegation_manager_addr, eth_client_http.clone());
         log::info!("About to get Slasher Address");
         let slasher_addr = delegation_manager.slasher().call().await.map(|a| a._0)?;
+        log::info!("Slasher Address: {:?}", slasher_addr);
         log::info!("About to get Strategy Manager Address");
         let strategy_manager_addr = delegation_manager
             .strategyManager()

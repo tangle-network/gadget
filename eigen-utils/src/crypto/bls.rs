@@ -250,6 +250,13 @@ pub fn g1_point_to_g1_projective(pt: &G1Point) -> G1Projective {
     G1Projective::from(affine)
 }
 
+/// Converts a [G1Projective] to a [G1Point].
+pub fn g1_projective_to_g1_point(pt: &G1Projective) -> G1Point {
+    let affine = pt.into_affine();
+    let g1_point = ark_point_to_g1_point(&affine);
+    g1_point
+}
+
 /// Converts a [G1Affine] to a [G1Point].
 pub fn ark_point_to_g1_point(pt: &G1Affine) -> G1Point {
     G1Point {
@@ -535,8 +542,7 @@ impl KeyPair {
     }
 
     pub fn get_pub_key_g1(&self) -> G1Point {
-        // let point = G1Point { point: self.pub_key};
-        G1Point::new(self.pub_key.x, self.pub_key.y)
+        g1_projective_to_g1_point(&self.pub_key)
     }
 }
 

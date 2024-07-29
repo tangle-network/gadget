@@ -1,5 +1,5 @@
 #![allow(async_fn_in_trait)]
-use alloy_primitives::{Address, Bytes, FixedBytes, U256};
+use alloy_primitives::{Address, address, Bytes, FixedBytes, U256};
 use alloy_provider::Provider;
 
 use alloy_rpc_types::TransactionReceipt;
@@ -7,9 +7,10 @@ use alloy_signer::k256::ecdsa;
 use alloy_signer::Signer;
 use eigen_contracts::RegistryCoordinator;
 use k256::ecdsa::VerifyingKey;
-
+use eigen_contracts::RegistryCoordinator::{OperatorSetParam, StrategyParams};
+use eigen_contracts::StakeRegistry::StakeRegistryCalls::strategyParams;
 use crate::crypto::bls::{G1Point, KeyPair};
-use crate::crypto::bn254::u256_to_point;
+use crate::crypto::bn254::{point_to_u256, u256_to_point};
 use crate::crypto::ecdsa::ToAddress;
 use crate::el_contracts::reader::ElReader;
 use crate::{types::*, Config};
@@ -56,6 +57,8 @@ impl<T: Config> AvsRegistryChainWriterTrait for AvsRegistryContractManager<T> {
     ) -> AvsRegistryContractResult<TransactionReceipt> {
         let verifying_key = VerifyingKey::from(operator_ecdsa_private_key);
         let operator_addr = verifying_key.to_address();
+        // let operator_addr = alloy_primitives::address!("f39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+        log::info!("Operator address: {:?}", operator_addr);
 
         let registry_coordinator =
             RegistryCoordinator::new(self.registry_coordinator_addr, self.eth_client_http.clone());
@@ -66,21 +69,27 @@ impl<T: Config> AvsRegistryChainWriterTrait for AvsRegistryContractManager<T> {
             .await
             .map(|x| x._0)
             .map_err(AvsError::from)?;
+        log::info!("G1 Hashed msg to sign: X: {:?}, Y: {:?}", g1_hashed_msg_to_sign.X, g1_hashed_msg_to_sign.Y);
 
         let g1_point = G1Point { x: g1_hashed_msg_to_sign.X, y: g1_hashed_msg_to_sign.Y };
+        log::info!("G1 Point: {:?}", g1_point);
+
         let signed_msg = bls_key_pair.sign_hashed_to_curve_message(&g1_point);
 
         let g1_pubkey_bn254 = bls_key_pair.get_pub_key_g1();
+        log::info!("G1 Pubkey: {:?}", g1_pubkey_bn254);
+
         let g2_pubkey_bn254 = bls_key_pair.get_pub_key_g2();
+        log::info!("G2 Pubkey: {:?}", g2_pubkey_bn254);
 
         let pubkey_reg_params = RegistryCoordinator::PubkeyRegistrationParams {
             pubkeyRegistrationSignature: RegistryCoordinator::G1Point {
-                X: U256::from_limbs(*signed_msg.g1_point.x.as_limbs()),
-                Y: U256::from_limbs(*signed_msg.g1_point.y.as_limbs()),
+                X: signed_msg.g1_point.x,
+                Y: signed_msg.g1_point.y,
             },
             pubkeyG1: RegistryCoordinator::G1Point {
-                X: U256::from_limbs(*g1_pubkey_bn254.x.as_limbs()),
-                Y: U256::from_limbs(*g1_pubkey_bn254.y.as_limbs()),
+                X: g1_pubkey_bn254.x,
+                Y: g1_pubkey_bn254.y,
             },
             pubkeyG2: RegistryCoordinator::G2Point {
                 X: g2_pubkey_bn254.x,

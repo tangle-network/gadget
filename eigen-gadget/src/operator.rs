@@ -313,7 +313,7 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
         // );
         let current_block_number = eth_client_http.get_block_number().await.unwrap();
         let expiry: U256 = U256::from(current_block_number + 20);
-        let quorum_nums = Bytes::from(vec![0]);
+        let quorum_nums = Bytes::from(vec![0, 1]);
         let register_result = avs_registry_contract_manager
             .register_operator_in_quorum_with_avs_registry_coordinator(
                 &ecdsa_signing_key,
@@ -519,8 +519,10 @@ mod tests {
             Address::from(address!("e7f1725e7734ce288f8367e1bb143e90bb3f0512"));
         let strategy_manager_addr =
             Address::from(address!("8fbdb2318678afecb368f032d93f642f64180aa6"));
-        let _task_manager_addr =
-            Address::from(address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"));
+        // let _task_manager_addr =
+        //     Address::from(address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"));
+        let registry_coordinator_addr =
+            Address::from(address!("502aaA39b223FE8D0A0e5C4A27eAD9083C756Cc4"));
         // todo: task manager address is unused
 
         let registry_coordinator = RegistryCoordinator::deploy(
@@ -532,6 +534,18 @@ mod tests {
         )
         .await
         .unwrap();
+        // let registry_coordinator_addr = RegistryCoordinator::deploy_builder(
+        //     provider.clone(),
+        //     service_manager_addr,
+        //     stake_registry_addr,
+        //     bls_apk_registry_addr,
+        //     index_registry_addr,
+        // ).from(from).deploy()
+        // .await
+        // .unwrap();
+        // let registry_coordinator = RegistryCoordinator::new(registry_coordinator_addr, provider.clone());
+        // let owner = registry_coordinator.owner().call().await.unwrap();
+        // println!("REGISTRY COORDINATOR OWNER: {:?}", owner._0);
         let registry_coordinator_addr = registry_coordinator.address();
         println!("Registry Coordinator returned");
         api.mine_one().await;
@@ -539,6 +553,64 @@ mod tests {
             "Registry Coordinator deployed at: {:?}",
             registry_coordinator_addr
         );
+
+        let owner = registry_coordinator.owner().call().await.unwrap();
+        log::info!("Owner: {:?}", owner._0);
+
+        let quorum_count = registry_coordinator.quorumCount().call().await.unwrap();
+        log::info!("Quorum count: {:?}", quorum_count._0);
+
+        let _test_add_quorum = registry_coordinator
+            .createQuorum(
+                OperatorSetParam {
+                    maxOperatorCount: 10,
+                    kickBIPsOfOperatorStake: 1,
+                    kickBIPsOfTotalStake: 1,
+                },
+                0,
+                vec![StrategyParams {
+                    strategy: strategy_manager_addr.clone(),
+                    multiplier: 1,
+                }],
+            )
+            .call()
+            .await
+            .unwrap();
+
+        let add_quorum = registry_coordinator
+            .createQuorum(
+                OperatorSetParam {
+                    maxOperatorCount: 10,
+                    kickBIPsOfOperatorStake: 1,
+                    kickBIPsOfTotalStake: 1,
+                },
+                0,
+                vec![StrategyParams {
+                    strategy: strategy_manager_addr.clone(),
+                    multiplier: 1,
+                }],
+            )
+            .send()
+            .await
+            .unwrap()
+            .get_receipt()
+            .await
+            .unwrap();
+        log::info!("Receipt from Creating Quorum: {:?}", add_quorum);
+
+        let quorum_count = registry_coordinator.quorumCount().call().await.unwrap();
+        log::info!("Updated Quorum count: {:?}", quorum_count._0);
+
+        let real = registry_coordinator
+            .updateOperatorsForQuorum(vec![vec![from]], Bytes::from(vec![0, 1]))
+            .send()
+            .await
+            .unwrap()
+            .get_receipt()
+            .await
+            .unwrap();
+
+        log::info!("Updated operators for quorum: {:?}", real);
 
         let index_registry = IndexRegistry::deploy(provider.clone()).await.unwrap();
         let index_registry_addr = index_registry.address();
@@ -624,7 +696,7 @@ mod tests {
         let task_manager = IncredibleSquaringTaskManager::deploy(
             provider.clone(),
             *registry_coordinator_addr,
-            1u32,
+            5u32,
         )
         .await
         .unwrap();
@@ -842,10 +914,15 @@ mod tests {
         assert_eq!(bls_pair.pub_key, bls_keys.pub_key);
 
         //---------------- ECDSA ----------------
-        let signing_key = SigningKey::random(&mut OsRng);
-        let secret_key = SecretKey::from(signing_key.clone());
+        // let signing_key = SigningKey::random(&mut OsRng);
+        // let secret_key = SecretKey::from_str("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80").unwrap();
+        let hex_key =
+            hex::decode("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
+                .unwrap();
+        let secret_key = SecretKey::from_slice(&hex_key).unwrap();
+        let signing_key = SigningKey::from(secret_key.clone());
         let public_key = secret_key.public_key();
-        let verifying_key = VerifyingKey::from(&signing_key);
+        let verifying_key = VerifyingKey::from(public_key);
         eigen_utils::crypto::ecdsa::write_key("./keystore/ecdsa", &secret_key, ECDSA_PASSWORD)
             .unwrap();
 
@@ -932,7 +1009,9 @@ mod tests {
     use ark_ec::CurveGroup;
     use ark_ff::UniformRand;
     use ark_ff::{BigInt, Field, One, PrimeField, Zero};
+    use eigen_contracts::RegistryCoordinator::{OperatorSetParam, StrategyParams};
     use eigen_utils::crypto::bls::{g1_point_to_g1_projective, G1Point, G2Point};
+    use k256::ecdsa;
     use rand::{thread_rng, Rng};
     // pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
     //     let mut hex_string = String::new();
