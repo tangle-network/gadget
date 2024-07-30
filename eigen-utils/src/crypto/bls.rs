@@ -4,8 +4,8 @@ use ark_bn254::Fq as F;
 use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine};
 use ark_ec::pairing::Pairing;
 use ark_ec::{AffineRepr, CurveGroup, Group};
-use ark_ff::{QuadExtField, Zero};
 use ark_ff::{BigInteger256, PrimeField};
+use ark_ff::{QuadExtField, Zero};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
 use ark_std::One;
 use ark_std::UniformRand;
@@ -375,12 +375,10 @@ impl KeyPair {
         let pub_key_point_result = mul_by_generator_g1(sk);
 
         match pub_key_point_result {
-            Ok(pub_key_point) => {
-                Ok(Self {
-                    priv_key: sk,
-                    pub_key: pub_key_point,
-                })
-            }
+            Ok(pub_key_point) => Ok(Self {
+                priv_key: sk,
+                pub_key: pub_key_point,
+            }),
             Err(_) => Err(AvsError::KeyError(
                 "Failed to generate new key pair".to_string(),
             )),

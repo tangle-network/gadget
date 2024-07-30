@@ -1,19 +1,19 @@
 #![allow(async_fn_in_trait)]
-use alloy_primitives::{Address, address, Bytes, FixedBytes, U256};
+use alloy_primitives::{address, Address, Bytes, FixedBytes, U256};
 use alloy_provider::Provider;
 
-use alloy_rpc_types::TransactionReceipt;
-use alloy_signer::k256::ecdsa;
-use alloy_signer::Signer;
-use eigen_contracts::RegistryCoordinator;
-use k256::ecdsa::VerifyingKey;
-use eigen_contracts::RegistryCoordinator::{OperatorSetParam, StrategyParams};
-use eigen_contracts::StakeRegistry::StakeRegistryCalls::strategyParams;
 use crate::crypto::bls::{G1Point, KeyPair};
 use crate::crypto::bn254::{point_to_u256, u256_to_point};
 use crate::crypto::ecdsa::ToAddress;
 use crate::el_contracts::reader::ElReader;
 use crate::{types::*, Config};
+use alloy_rpc_types::TransactionReceipt;
+use alloy_signer::k256::ecdsa;
+use alloy_signer::Signer;
+use eigen_contracts::RegistryCoordinator;
+use eigen_contracts::RegistryCoordinator::{OperatorSetParam, StrategyParams};
+use eigen_contracts::StakeRegistry::StakeRegistryCalls::strategyParams;
+use k256::ecdsa::VerifyingKey;
 
 use super::{AvsRegistryContractManager, AvsRegistryContractResult};
 
@@ -69,9 +69,16 @@ impl<T: Config> AvsRegistryChainWriterTrait for AvsRegistryContractManager<T> {
             .await
             .map(|x| x._0)
             .map_err(AvsError::from)?;
-        log::info!("G1 Hashed msg to sign: X: {:?}, Y: {:?}", g1_hashed_msg_to_sign.X, g1_hashed_msg_to_sign.Y);
+        log::info!(
+            "G1 Hashed msg to sign: X: {:?}, Y: {:?}",
+            g1_hashed_msg_to_sign.X,
+            g1_hashed_msg_to_sign.Y
+        );
 
-        let g1_point = G1Point { x: g1_hashed_msg_to_sign.X, y: g1_hashed_msg_to_sign.Y };
+        let g1_point = G1Point {
+            x: g1_hashed_msg_to_sign.X,
+            y: g1_hashed_msg_to_sign.Y,
+        };
         log::info!("G1 Point: {:?}", g1_point);
 
         let signed_msg = bls_key_pair.sign_hashed_to_curve_message(&g1_point);

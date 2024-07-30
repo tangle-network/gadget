@@ -554,63 +554,40 @@ mod tests {
             registry_coordinator_addr
         );
 
-        let owner = registry_coordinator.owner().call().await.unwrap();
-        log::info!("Owner: {:?}", owner._0);
-
-        let quorum_count = registry_coordinator.quorumCount().call().await.unwrap();
-        log::info!("Quorum count: {:?}", quorum_count._0);
-
-        let _test_add_quorum = registry_coordinator
-            .createQuorum(
-                OperatorSetParam {
-                    maxOperatorCount: 10,
-                    kickBIPsOfOperatorStake: 1,
-                    kickBIPsOfTotalStake: 1,
-                },
-                0,
-                vec![StrategyParams {
-                    strategy: strategy_manager_addr.clone(),
-                    multiplier: 1,
-                }],
-            )
-            .call()
-            .await
-            .unwrap();
-
-        let add_quorum = registry_coordinator
-            .createQuorum(
-                OperatorSetParam {
-                    maxOperatorCount: 10,
-                    kickBIPsOfOperatorStake: 1,
-                    kickBIPsOfTotalStake: 1,
-                },
-                0,
-                vec![StrategyParams {
-                    strategy: strategy_manager_addr.clone(),
-                    multiplier: 1,
-                }],
-            )
-            .send()
-            .await
-            .unwrap()
-            .get_receipt()
-            .await
-            .unwrap();
-        log::info!("Receipt from Creating Quorum: {:?}", add_quorum);
-
-        let quorum_count = registry_coordinator.quorumCount().call().await.unwrap();
-        log::info!("Updated Quorum count: {:?}", quorum_count._0);
-
-        let real = registry_coordinator
-            .updateOperatorsForQuorum(vec![vec![from]], Bytes::from(vec![0, 1]))
-            .send()
-            .await
-            .unwrap()
-            .get_receipt()
-            .await
-            .unwrap();
-
-        log::info!("Updated operators for quorum: {:?}", real);
+        // let add_quorum = registry_coordinator
+        //     .createQuorum(
+        //         OperatorSetParam {
+        //             maxOperatorCount: 10,
+        //             kickBIPsOfOperatorStake: 1,
+        //             kickBIPsOfTotalStake: 1,
+        //         },
+        //         0,
+        //         vec![StrategyParams {
+        //             strategy: strategy_manager_addr.clone(),
+        //             multiplier: 1,
+        //         }],
+        //     )
+        //     .send()
+        //     .await
+        //     .unwrap()
+        //     .get_receipt()
+        //     .await
+        //     .unwrap();
+        // log::info!("Receipt from Creating Quorum: {:?}", add_quorum);
+        //
+        // let quorum_count = registry_coordinator.quorumCount().call().await.unwrap();
+        // log::info!("Updated Quorum count: {:?}", quorum_count._0);
+        //
+        // let real = registry_coordinator
+        //     .updateOperatorsForQuorum(vec![vec![from]], Bytes::from(vec![0, 1]))
+        //     .send()
+        //     .await
+        //     .unwrap()
+        //     .get_receipt()
+        //     .await
+        //     .unwrap();
+        //
+        // log::info!("Updated operators for quorum: {:?}", real);
 
         let index_registry = IndexRegistry::deploy(provider.clone()).await.unwrap();
         let index_registry_addr = index_registry.address();
@@ -732,6 +709,38 @@ mod tests {
             "Incredible Squaring Service Manager deployed at: {:?}",
             service_manager_addr
         );
+
+        let owner = registry_coordinator.owner().call().await.unwrap();
+        log::info!("Owner: {:?}", owner._0);
+
+        let quorum_count = registry_coordinator.quorumCount().call().await.unwrap();
+        log::info!("Quorum count: {:?}", quorum_count._0);
+
+        let eigen_strategy = EigenStrategy::deploy(provider.clone(), strategy_manager_addr)
+            .await
+            .unwrap();
+        let eigen_strategy_addr = eigen_strategy.address();
+
+        assert_eq!(stake_registry_addr, stake_registry.address());
+        assert_eq!(index_registry_addr, index_registry.address());
+        assert_eq!(bls_apk_registry_addr, bls_apk_registry.address());
+
+        let _test_add_quorum = registry_coordinator
+            .createQuorum(
+                OperatorSetParam {
+                    maxOperatorCount: 10,
+                    kickBIPsOfOperatorStake: 2,
+                    kickBIPsOfTotalStake: 5,
+                },
+                10,
+                vec![StrategyParams {
+                    strategy: eigen_strategy_addr.clone(),
+                    multiplier: 2,
+                }],
+            )
+            .call()
+            .await
+            .unwrap();
 
         log::info!("About to create new task");
         tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
