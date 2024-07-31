@@ -7,10 +7,14 @@ use tangle_primitives::services::JobCallResult;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
-use gadget_common::tangle_subxt::subxt::Config;
+use gadget_common::tangle_runtime::{AccountId32, api};
+use gadget_common::tangle_subxt::subxt::{Config, OnlineClient, SubstrateConfig};
+use gadget_common::tangle_subxt::subxt::client::OnlineClientT;
 
 pub mod sync;
 pub mod test_ext;
+
+pub type TestClient = OnlineClient<SubstrateConfig>;
 
 /// Sets up the default logging as well as setting a panic hook for tests
 pub fn setup_log() {
@@ -41,9 +45,14 @@ pub async fn wait_for_job_completion<T: Config>(
     }
 }
 
-pub fn remove_job(role_type: RoleType, job_id: JobId) {
-    SubmittedJobs::<Runtime>::remove(role_type, job_id);
-    SubmittedJobsRole::<Runtime>::remove(job_id);
+pub async fn remove_job(client: &TestClient, user: &AccountId32, service_id: u64, job_id: u64) {
+    let remove_job = api::storage().services().remove_job(service_id, job_id);
+    let _ = client.tx().sign_and_submit_then_watch_default(&remove_job, user)
+        .await
+        .expect("Should submit tx")
+        .wait_for_finalized_success()
+        .await
+        .expect("Should finalize tx");
 }
 
 #[macro_export]

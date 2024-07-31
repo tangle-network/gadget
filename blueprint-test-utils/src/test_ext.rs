@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 use async_trait::async_trait;
 use environment_utils::transaction_manager::tangle::SubxtPalletSubmitter;
 use frame_support::pallet_prelude::*;
@@ -30,8 +29,6 @@ use gadget_core::job_manager::{ProtocolMessageMetadata, SendFuture, WorkManagerI
 use pallet_services::EvmRunner;
 use sp_application_crypto::ecdsa;
 use sp_core::{sr25519, Pair};
-use sp_keystore::testing::MemoryKeystore;
-use sp_keystore::{KeystoreExt, KeystorePtr};
 use sp_runtime::traits::Block as BlockT;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
@@ -168,7 +165,7 @@ pub async fn new_test_ext<
 >(
     additional_params: D,
     f: F,
-) -> MultiThreadedTestExternalities {
+) -> LocalhostTestExt {
     let role_pairs = (0..N)
         .map(|i| id_to_ecdsa_pair(i as u8))
         .collect::<Vec<_>>();
@@ -180,15 +177,18 @@ pub async fn new_test_ext<
     let pairs = (0..N)
         .map(|i| id_to_sr25519_pair(i as u8))
         .collect::<Vec<_>>();
+
+    /*
     let account_ids = pairs
         .iter()
         .map(|pair| pair.public().into())
         .collect::<Vec<AccountId>>();
 
+
     let balances = account_ids
         .iter()
         .map(|public| (public.clone(), 100u128))
-        .collect::<Vec<_>>();
+        .collect::<Vec<_>>();*/
 
     let networks = (0..K)
         .map(|_| MockNetwork::setup(&roles_identities))
@@ -204,10 +204,9 @@ pub async fn new_test_ext<
         })
         .collect::<Vec<_>>();
 
-    let mut ext = sp_io::TestExternalities::new(t);
-    ext.register_extension(KeystoreExt(Arc::new(MemoryKeystore::new()) as KeystorePtr));
-
-    let ext = MultiThreadedTestExternalities::new(ext);
+    // Each client connects to ws://127.0.0.1:9944. This client is for the test environment
+    let client = OnlineClient::<SubstrateConfig>::new().await.expect("Failed to create primary localhost client");
+    let localhost_externalities = LocalhostTestExt::from(client);
 
     for (node_index, ((role_pair, pair), networks)) in
         role_pairs.into_iter().zip(pairs).zip(networks).enumerate()
@@ -249,7 +248,7 @@ pub async fn new_test_ext<
         gadget_io::tokio::task::spawn(task);
     }
 
-    ext
+    localhost_externalities
 }
 
 pub fn mock_pub_key(id: u8) -> AccountId {
@@ -262,19 +261,19 @@ pub struct LocalhostTestExt {
 
 impl LocalhostTestExt {
     /// An identity function (For future reverse-compatible changes)
-    pub fn execute_with<T: FnOnce() -> R + Send + 'static, R: Send + 'static>(
+    pub fn execute_with<T: FnOnce(&OnlineClient<SubstrateConfig>) -> R + Send + 'static, R: Send + 'static>(
         &self,
         function: T,
     ) -> R {
-        function()
+        function(&self.client)
     }
 
     /// An identity function (For future reverse-compatible changes)
-    pub async fn execute_with_async<T: FnOnce() -> R + Send + 'static, R: Send + 'static>(
+    pub async fn execute_with_async<T: FnOnce(&OnlineClient<SubstrateConfig>) -> R + Send + 'static, R: Send + 'static>(
         &self,
         function: T,
     ) -> R {
-        function()
+        function(&self.client)
     }
 }
 
