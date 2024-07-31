@@ -22,15 +22,16 @@ impl std::error::Error for Error {}
 
 pub struct MyContext;
 
-/// Simple Threashold (t) Keygen Job for n parties.
+/// Simple Threshold (t) Keygen Job for n parties.
 #[job(id = 0, params(n, t), result(_), verifier(evm = "KeygenContract"))]
-pub fn keygen(ctx: &MyContext, n: u16, t: u8) -> Result<Vec<u8>, Error> {
+pub fn keygen(ctx: &MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
     let _ = (n, t, ctx);
     Ok(vec![0; 33])
 }
 
-#[report(id = 0)]
-pub fn keygen_report(result: &Result<Vec<u8>, Error>, ctx: &MyContext, n: u16, t: u8) -> u8 {
+/// Example report for the keygen job.
+#[report(id = 0, params(n, t, output), result(_))]
+pub fn keygen_report(ctx: &MyContext, n: u16, t: u16, output: Vec<u8>) -> u32 {
     // Implement your logic here to calculate the percentage of stake to be slashed
     0
 }
@@ -42,22 +43,10 @@ pub async fn sign(keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
     Ok(vec![0; 65])
 }
 
-#[report(id = 1)]
-pub fn sign_report(result: &Result<Vec<u8>, Error>, keygen_id: u64, data: Vec<u8>) -> u8 {
-    // Implement your logic here to calculate the percentage of stake to be slashed
-    0
-}
-
 #[job(id = 2, params(keygen_id, new_t), result(_))]
 pub fn refresh(keygen_id: u64, new_t: Option<u8>) -> Result<Vec<u64>, Error> {
     let _ = (keygen_id, new_t);
     Ok(vec![0; 33])
-}
-
-#[report(id = 2)]
-pub fn refresh_report(result: &Result<Vec<u64>, Error>, keygen_id: u64, new_t: Option<u8>) -> u8 {
-    // Implement your logic here to calculate the percentage of stake to be slashed
-    0
 }
 
 #[registration_hook(evm = "RegistrationContract")]

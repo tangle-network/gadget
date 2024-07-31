@@ -24,6 +24,8 @@ mod blueprint;
 mod hooks;
 /// Blueprint Job proc-macro
 mod job;
+/// Report proc-macro
+mod report;
 
 /// A procedural macro that annotates a function as a job.
 ///
@@ -106,11 +108,15 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// /// A Report Definition for the [`report_add`] function.
 /// #[automatically_derived]
-/// pub const REPORT_ADD_REPORT_DEF: &str = r#"{"metadata":{"name":"report_add","description":"A function to report the addition of two numbers"},"params":["Uint32", "Uint32"],"result":["Uint32"],"verifier":"None"}"#;
+/// pub const REPORT_ADD_REPORT_DEF: &str = r#"{"metadata":{"name":"report_add","description":"A function to report the incorrect addition of two numbers"},"params":["Uint32", "Uint32", "Uint32"],"result":["Uint32"],"verifier":"None"}"#;
 ///
 /// /// A function to report the addition of two numbers.
-/// pub fn report_add(a: u32, b: u32) -> u32 {
-///   a + b
+/// pub fn report_add(a: u32, b: u32, c: SignedResult<u32>) -> u32 {
+///    if a + b == c {
+///       0
+///    } else {
+///      1
+///    }
 /// }
 ///
 /// pub struct ReportAddEventHandler {
@@ -129,17 +135,6 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
 ///    It can be omitted if the return type is simple to infer, like `u32` or `Vec<u8>` by using `_`.
 /// - `skip_codegen`: A flag to skip the code generation for the report, useful for manual event
 /// handling.
-#[proc_macro_attribute]
-pub fn report(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(args as report::ReportArgs);
-    let input = parse_macro_input!(input as syn::ItemFn);
-
-    match report::report_impl(&args, &input) {
-        Ok(tokens) => tokens,
-        Err(err) => err.to_compile_error().into(),
-    }
-}
-
 #[proc_macro_attribute]
 pub fn report(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(args as report::ReportArgs);

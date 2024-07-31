@@ -125,7 +125,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
 }
 
 #[allow(clippy::too_many_lines)]
-fn generate_event_handler_for(
+pub fn generate_event_handler_for(
     f: &ItemFn,
     job_args: &JobArgs,
     param_types: &BTreeMap<Ident, Type>,
@@ -315,7 +315,7 @@ fn generate_event_handler_for(
     }
 }
 
-fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
+pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
     match t {
         FieldType::Void => unreachable!("void type should not be in params"),
         FieldType::Bool => {
@@ -390,7 +390,7 @@ fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::Token
     }
 }
 
-fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
+pub fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
     match t {
         FieldType::Void => quote! {},
         FieldType::Bool => quote! { result.push(Field::Bool(#ident)); },
@@ -451,7 +451,7 @@ fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::Toke
 }
 
 /// Convert a `snake_case` string to `PascalCase`
-fn pascal_case(s: &str) -> String {
+pub fn pascal_case(s: &str) -> String {
     s.split('_')
         .map(|word| {
             let mut c = word.chars();
@@ -542,7 +542,7 @@ impl Parse for JobArgs {
 }
 
 #[derive(Debug)]
-struct Params(Vec<Ident>);
+pub struct Params(pub Vec<Ident>);
 
 impl Parse for Params {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
@@ -568,7 +568,7 @@ impl Parse for Params {
     }
 }
 
-enum ResultsKind {
+pub enum ResultsKind {
     Infered,
     Types(Vec<Type>),
 }
@@ -583,7 +583,7 @@ impl std::fmt::Debug for ResultsKind {
 }
 
 #[derive(Debug)]
-struct Results(ResultsKind);
+pub struct Results(pub ResultsKind);
 
 impl Parse for Results {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
@@ -610,7 +610,7 @@ impl Parse for Results {
 }
 
 #[derive(Debug)]
-enum Verifier {
+pub enum Verifier {
     None,
     // #[job(verifier(evm = "MyVerifierContract"))]
     Evm(String),
@@ -674,7 +674,7 @@ pub fn type_to_field_type(ty: &Type) -> syn::Result<FieldType> {
     }
 }
 
-fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
+pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
     // take the last segment of the path
     let seg = &path
         .segments
@@ -732,7 +732,7 @@ fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
     }
 }
 
-fn ident_to_field_type(ident: &Ident) -> syn::Result<FieldType> {
+pub fn ident_to_field_type(ident: &Ident) -> syn::Result<FieldType> {
     match ident.to_string().as_str() {
         "u8" => Ok(FieldType::Uint8),
         "u16" => Ok(FieldType::Uint16),
