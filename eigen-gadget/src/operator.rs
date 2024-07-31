@@ -507,260 +507,141 @@ mod tests {
 
         let _gas_price = provider.get_gas_price().await.unwrap();
 
-        let delegation_manager_addr =
-            Address::from(address!("0165878a594ca255338adfa4d48449f69242eb8f"));
-        let service_manager_addr =
-            Address::from(address!("610178da211fef7d417bc0e6fed39f05609ad788"));
-        let stake_registry_addr =
-            Address::from(address!("cf7ed3acca5a467e9e704c703e8d87f634fb0fc9"));
-        let bls_apk_registry_addr =
-            Address::from(address!("9fe46736679d2d9a65f0992f2272de9f3c7fa6e0"));
-        let index_registry_addr =
-            Address::from(address!("e7f1725e7734ce288f8367e1bb143e90bb3f0512"));
-        let strategy_manager_addr =
-            Address::from(address!("8fbdb2318678afecb368f032d93f642f64180aa6"));
-        // let _task_manager_addr =
-        //     Address::from(address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"));
-        let registry_coordinator_addr =
-            Address::from(address!("502aaA39b223FE8D0A0e5C4A27eAD9083C756Cc4"));
-        // todo: task manager address is unused
+        // Empty address for initial deployment of all contracts
+        let empty_address = Address::default();
 
+        let strategy_manager_addr = address!("Dc64a140Aa3E981100a9becA4E685f962f0cF6C9");
+        let delegation_manager_addr = address!("Cf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9");
+        let avs_directory_addr = address!("5FC8d32690cc91D4c39d9d3abcBD16989F875707");
+        let proxy_admin_addr = address!("5FbDB2315678afecb367f032d93F642f64180aa3");
+        let pauser_registry_addr = address!("e7f1725E7734CE288F8367e1Bb143E90bb3F0512");
+        let base_strategy_addr = address!("322813Fd9A801c5507c9de605d63CEA4f2CE6c44");
+
+        let istrategy_manager = IStrategyManager::new(strategy_manager_addr, provider.clone());
+        let idelegation_manager =
+            IDelegationManager::new(delegation_manager_addr, provider.clone());
+        let iavs_directory = IAVSDirectory::new(avs_directory_addr, provider.clone());
+        let proxy_admin = ProxyAdmin::new(proxy_admin_addr, provider.clone());
+        let pauser_registry = PauserRegistry::new(pauser_registry_addr, provider.clone());
+        let base_strategy = StrategyBaseTVLLimits::new(base_strategy_addr, provider.clone());
+
+        // let erc20_mock = ERC20Mock::new(
+        //     TransparentUpgradeableProxy::deploy(
+        //         provider.clone(),
+        //         base_strategy_addr,
+        //         proxy_admin_addr,
+        //     )
+        // );
+
+        // Deploy contracts for Incredible Squaring
         let registry_coordinator = RegistryCoordinator::deploy(
             provider.clone(),
-            service_manager_addr,
-            stake_registry_addr,
-            bls_apk_registry_addr,
-            index_registry_addr,
+            empty_address,
+            empty_address,
+            empty_address,
+            empty_address,
         )
         .await
         .unwrap();
-        // let registry_coordinator_addr = RegistryCoordinator::deploy_builder(
-        //     provider.clone(),
-        //     service_manager_addr,
-        //     stake_registry_addr,
-        //     bls_apk_registry_addr,
-        //     index_registry_addr,
-        // ).from(from).deploy()
-        // .await
-        // .unwrap();
-        // let registry_coordinator = RegistryCoordinator::new(registry_coordinator_addr, provider.clone());
-        // let owner = registry_coordinator.owner().call().await.unwrap();
-        // println!("REGISTRY COORDINATOR OWNER: {:?}", owner._0);
         let registry_coordinator_addr = registry_coordinator.address();
-        println!("Registry Coordinator returned");
-        api.mine_one().await;
-        println!(
-            "Registry Coordinator deployed at: {:?}",
-            registry_coordinator_addr
-        );
-
-        // let add_quorum = registry_coordinator
-        //     .createQuorum(
-        //         OperatorSetParam {
-        //             maxOperatorCount: 10,
-        //             kickBIPsOfOperatorStake: 1,
-        //             kickBIPsOfTotalStake: 1,
-        //         },
-        //         0,
-        //         vec![StrategyParams {
-        //             strategy: strategy_manager_addr.clone(),
-        //             multiplier: 1,
-        //         }],
-        //     )
-        //     .send()
-        //     .await
-        //     .unwrap()
-        //     .get_receipt()
-        //     .await
-        //     .unwrap();
-        // log::info!("Receipt from Creating Quorum: {:?}", add_quorum);
-        //
-        // let quorum_count = registry_coordinator.quorumCount().call().await.unwrap();
-        // log::info!("Updated Quorum count: {:?}", quorum_count._0);
-        //
-        // let real = registry_coordinator
-        //     .updateOperatorsForQuorum(vec![vec![from]], Bytes::from(vec![0, 1]))
-        //     .send()
-        //     .await
-        //     .unwrap()
-        //     .get_receipt()
-        //     .await
-        //     .unwrap();
-        //
-        // log::info!("Updated operators for quorum: {:?}", real);
 
         let index_registry = IndexRegistry::deploy(provider.clone()).await.unwrap();
         let index_registry_addr = index_registry.address();
-        println!("Index Registry returned");
-        api.mine_one().await;
-        println!("Index Registry deployed at: {:?}", index_registry_addr);
 
-        let bls_apk_registry = BlsApkRegistry::deploy(provider.clone(), *registry_coordinator_addr)
+        let bls_apk_registry = BlsApkRegistry::deploy(provider.clone(), empty_address)
             .await
             .unwrap();
         let bls_apk_registry_addr = bls_apk_registry.address();
-        println!("BLS APK Registry returned");
-        api.mine_one().await;
-        println!("BLS APK Registry deployed at: {:?}", bls_apk_registry_addr);
 
-        let stake_registry = StakeRegistry::deploy(
-            provider.clone(),
-            *registry_coordinator_addr,
-            delegation_manager_addr,
-        )
-        .await
-        .unwrap();
+        let stake_registry = StakeRegistry::deploy(provider.clone(), empty_address, empty_address)
+            .await
+            .unwrap();
         let stake_registry_addr = stake_registry.address();
-        println!("Stake Registry returned");
-        api.mine_one().await;
-        println!("Stake Registry deployed at: {:?}", stake_registry_addr);
 
         let slasher = ISlasher::deploy(provider.clone()).await.unwrap();
         let slasher_addr = slasher.address();
-        println!("Slasher deployed at: {:?}", slasher_addr);
 
         let eigen_pod_manager = EigenPodManager::deploy(
             provider.clone(),
-            Address::from(address!("73e42f117e8643cc03a4197c6c3ab38d8e5bd281")), //ethPOS
-            Address::from(address!("83e42f117e8643cc01741973ac7cb3ad8e5bd282")), //eigenPodBeacon
-            strategy_manager_addr,
-            *slasher_addr,
-            delegation_manager_addr,
+            empty_address,
+            empty_address,
+            empty_address,
+            empty_address,
+            empty_address,
         )
         .await
         .unwrap();
         let eigen_pod_manager_addr = eigen_pod_manager.address();
-        println!(
-            "Eigen Pod Manager deployed at: {:?}",
-            eigen_pod_manager_addr
-        );
 
         let delegation_manager = DelegationManager::deploy(
             provider.clone(),
-            strategy_manager_addr,
-            *slasher_addr,
-            *eigen_pod_manager_addr,
+            empty_address,
+            empty_address,
+            empty_address,
         )
         .await
         .unwrap();
         let delegation_manager_addr = delegation_manager.address();
-        println!("Delegation Manager returned");
-        api.mine_one().await;
-        println!(
-            "Delegation Manager deployed at: {:?}",
-            delegation_manager_addr
-        );
 
-        let avs_directory = AVSDirectory::deploy(provider.clone(), delegation_manager_addr.clone())
+        let avs_directory = AVSDirectory::deploy(provider.clone(), empty_address.clone())
             .await
             .unwrap();
         let avs_directory_addr = avs_directory.address();
-        println!("AVS Directory returned");
-        api.mine_one().await;
-        println!("AVS Directory deployed at: {:?}", avs_directory_addr);
 
         let state_retriever = OperatorStateRetriever::deploy(provider.clone())
             .await
             .unwrap();
         let state_retriever_addr = state_retriever.address();
-        println!("Operator State Retriever returned");
-        api.mine_one().await;
-        println!(
-            "Operator State Retriever deployed at: {:?}",
-            state_retriever_addr
-        );
 
-        let task_manager = IncredibleSquaringTaskManager::deploy(
-            provider.clone(),
-            *registry_coordinator_addr,
-            5u32,
-        )
-        .await
-        .unwrap();
+        let task_manager =
+            IncredibleSquaringTaskManager::deploy(provider.clone(), empty_address, 5u32)
+                .await
+                .unwrap();
         let task_manager_addr = task_manager.address();
-        println!("Incredible Squaring Task Manager returned");
-        api.mine_one().await;
-        println!(
-            "Incredible Squaring Task Manager deployed at: {:?}",
-            task_manager_addr
-        );
-        // let task_manager = IncredibleSquaringTaskManager::new(task_manager_addr, provider.clone());
-        // let task_manager_addr = task_manager.address();
-        // println!("Incredible Squaring Task Manager returned");
-        // api.mine_one().await;
-        // println!(
-        //     "Incredible Squaring Task Manager deployed at: {:?}",
-        //     task_manager_addr
-        // );
 
         let service_manager = IncredibleSquaringServiceManager::deploy(
             provider.clone(),
-            *avs_directory_addr,
-            *registry_coordinator_addr,
-            *stake_registry_addr,
-            *task_manager_addr,
+            empty_address,
+            empty_address,
+            empty_address,
+            empty_address,
         )
         .await
         .unwrap();
         let service_manager_addr = service_manager.address();
-        println!("Incredible Squaring Service Manager returned");
-        api.mine_one().await;
-        println!(
-            "Incredible Squaring Service Manager deployed at: {:?}",
-            service_manager_addr
-        );
 
-        let owner = registry_coordinator.owner().call().await.unwrap();
-        log::info!("Owner: {:?}", owner._0);
-
-        let quorum_count = registry_coordinator.quorumCount().call().await.unwrap();
-        log::info!("Quorum count: {:?}", quorum_count._0);
-
-        let eigen_strategy = EigenStrategy::deploy(provider.clone(), strategy_manager_addr)
+        let eigen_strategy = EigenStrategy::deploy(provider.clone(), empty_address)
             .await
             .unwrap();
         let eigen_strategy_addr = eigen_strategy.address();
 
-        assert_eq!(stake_registry_addr, stake_registry.address());
-        assert_eq!(index_registry_addr, index_registry.address());
-        assert_eq!(bls_apk_registry_addr, bls_apk_registry.address());
+        api.mine_one().await;
 
-        let _test_add_quorum = registry_coordinator
-            .createQuorum(
-                OperatorSetParam {
+        let rc_init = registry_coordinator
+            .initialize(
+                from,
+                from,
+                from,
+                pauser_registry_addr,
+                Default::default(),
+                vec![OperatorSetParam {
                     maxOperatorCount: 10,
-                    kickBIPsOfOperatorStake: 2,
-                    kickBIPsOfTotalStake: 5,
-                },
-                10,
-                vec![StrategyParams {
-                    strategy: eigen_strategy_addr.clone(),
-                    multiplier: 2,
+                    kickBIPsOfOperatorStake: 5,
+                    kickBIPsOfTotalStake: 2,
                 }],
+                vec![10],
+                vec![vec![StrategyParams {
+                    strategy: *eigen_strategy_addr,
+                    multiplier: 2,
+                }]],
             )
-            .call()
-            .await
-            .unwrap();
-
-        log::info!("About to create new task");
-        tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
-        let result = task_manager
-            .createNewTask(U256::from(2), 100u32, Bytes::from("0"))
-            .call()
-            .await
-            .unwrap();
-        log::info!("Created new task: {:?}", result);
-        let latest_task = task_manager.latestTaskNum().call().await.unwrap()._0;
-        log::info!("Latest task: {:?}", latest_task);
-        let task_hash = task_manager
-            .allTaskHashes(latest_task)
-            .call()
+            .send()
             .await
             .unwrap()
-            ._0;
-        log::info!("Task info: {:?}", task_hash);
-
-        api.mine_one().await;
+            .get_receipt()
+            .await
+            .unwrap();
+        println!("Registry Coordinator Initialization Receipt: {:?}", rc_init);
 
         let _block = provider
             .get_block(BlockId::latest(), false.into())
@@ -1021,6 +902,7 @@ mod tests {
     use eigen_contracts::RegistryCoordinator::{OperatorSetParam, StrategyParams};
     use eigen_utils::crypto::bls::{g1_point_to_g1_projective, G1Point, G2Point};
     use k256::ecdsa;
+    use k256::elliptic_curve::consts::U96;
     use rand::{thread_rng, Rng};
     // pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
     //     let mut hex_string = String::new();

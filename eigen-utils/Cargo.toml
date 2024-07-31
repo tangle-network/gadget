@@ -61,3 +61,8 @@ dirs = "5.0.1"
 gadget-common.workspace = true
 aes = "0.8.4"
 ctr = "0.9.2"
+
+# Anvil testnet dependencies
+nix = "0.24.3"
+tempfile = "3.10.1"
+anvil = { workspace = true }

@@ -46,8 +46,22 @@ sol!(
 sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
+    IAVSDirectory,
+    "out/IAVSDirectory.sol/IAVSDirectory.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
     DelegationManager,
     "out/DelegationManager.sol/DelegationManager.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    IDelegationManager,
+    "out/IDelegationManager.sol/IDelegationManager.json"
 );
 
 sol!(
@@ -88,6 +102,13 @@ sol!(
 sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
+    IStrategyManager,
+    "out/IStrategyManager.sol/IStrategyManager.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
     EigenPodManager,
     "out/EigenPodManager.sol/EigenPodManager.json"
 );
@@ -97,4 +118,46 @@ sol!(
     #[sol(rpc)]
     EigenStrategy,
     "lib/eigenlayer-contracts/out/EigenStrategy.sol/EigenStrategy.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    EigenPod,
+    "lib/eigenlayer-contracts/out/EigenPod.sol/EigenPod.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    PauserRegistry,
+    "lib/eigenlayer-middleware/out/IPauserRegistry.sol/IPauserRegistry.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    ProxyAdmin,
+    "lib/eigenlayer-contracts/out/ProxyAdmin.sol/ProxyAdmin.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    TransparentUpgradeableProxy,
+    "lib/eigenlayer-contracts/out/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    StrategyBaseTVLLimits,
+    "lib/eigenlayer-contracts/out/StrategyBaseTVLLimits.sol/StrategyBaseTVLLimits.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    ERC20Mock,
+    "lib/eigenlayer-contracts/out/ERC20Mock.sol/ERC20Mock.json"
 );
