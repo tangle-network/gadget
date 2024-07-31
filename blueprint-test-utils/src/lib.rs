@@ -1,17 +1,16 @@
-use crate::mock::{Jobs, Runtime};
 use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
 pub use gadget_core::job_manager::SendFuture;
 pub use log;
 use std::time::Duration;
-use tangle_primitives::jobs::{JobId, PhaseResult};
-use tangle_primitives::roles::RoleType;
 use tangle_primitives::AccountId;
+use tangle_primitives::services::JobCallResult;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
+use gadget_common::tangle_subxt::subxt::Config;
 
-pub mod mock;
 pub mod sync;
+pub mod test_ext;
 
 /// Sets up the default logging as well as setting a panic hook for tests
 pub fn setup_log() {
@@ -26,25 +25,15 @@ pub fn setup_log() {
     }));
 }
 
-pub async fn wait_for_job_completion(
+pub async fn wait_for_job_completion<T: Config>(
     ext: &MultiThreadedTestExternalities,
     role_type: RoleType,
     job_id: u64,
-) -> PhaseResult<
-    AccountId,
-    mock::BlockNumber,
-    mock::MaxParticipants,
-    mock::MaxKeyLen,
-    mock::MaxDataLen,
-    mock::MaxSignatureLen,
-    mock::MaxSubmissionLen,
-    mock::MaxProofLen,
-    mock::MaxAdditionalParamsLen,
-> {
+) ->  Result<JobCallResult<T::Constraints, T::AccountId>, Error<T>> {
     loop {
         gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
         if let Some(ret) = ext
-            .execute_with_async(move || Jobs::known_results(role_type, job_id))
+            .execute_with_async(move || Services::job_results(role_type, job_id))
             .await
         {
             return ret;
