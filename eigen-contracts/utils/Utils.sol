@@ -2,8 +2,8 @@
 pragma solidity ^0.8.12;
 
 import "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
-import "../lib/eigenlayer-contracts/src/contracts/strategies/StrategyBase.sol";
-import "../lib/eigenlayer-contracts/lib/openzeppelin-contracts/contracts/mocks/ERC20Mock.sol";
+import "lib/eigenlayer-contracts/src/contracts/strategies/StrategyBase.sol";
+import "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";

@@ -4,3 +4,4 @@ ds-test/=lib/ds-test/src/
 eigenlayer-contracts/=lib/eigenlayer-middleware/lib/eigenlayer-contracts
 eigenlayer-middleware/=lib/eigenlayer-middleware/
 forge-std/=lib/forge-std/src/
+eigen-gadget/=../eigen-gadget/

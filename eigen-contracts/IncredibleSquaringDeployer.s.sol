@@ -18,10 +18,10 @@ import {IndexRegistry} from "eigenlayer-middleware/src/IndexRegistry.sol";
 import {StakeRegistry} from "eigenlayer-middleware/src/StakeRegistry.sol";
 import "eigenlayer-middleware/src/OperatorStateRetriever.sol";
 
-import {IncredibleSquaringServiceManager, IServiceManager} from "./../eigen-gadget/contracts/src/IncredibleSquaringServiceManager.sol";
-import {IncredibleSquaringTaskManager} from "./../eigen-gadget/contracts/src/IncredibleSquaringTaskManager.sol";
-import {IIncredibleSquaringTaskManager} from "./../eigen-gadget/contracts/src/IIncredibleSquaringTaskManager.sol";
-import "./../eigen-gadget/contracts/src/ERC20Mock.sol";
+import {IncredibleSquaringServiceManager, IServiceManager} from "eigen-gadget/contracts/src/IncredibleSquaringServiceManager.sol";
+import {IncredibleSquaringTaskManager} from "eigen-gadget/contracts/src/IncredibleSquaringTaskManager.sol";
+import {IIncredibleSquaringTaskManager} from "eigen-gadget/contracts/src/IIncredibleSquaringTaskManager.sol";
+import "eigen-gadget/contracts/src/ERC20Mock.sol";
 
 import {Utils} from "./utils/Utils.sol";
 

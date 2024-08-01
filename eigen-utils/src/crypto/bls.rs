@@ -546,13 +546,13 @@ impl KeyPair {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use ark_ec::bn::G1Projective;
-    use ark_ff::{BigInt, Zero};
-    use ark_ff::{BigInteger256, UniformRand};
-    use gadget_common::sp_core::crypto::Ss58Codec;
-    use hex::FromHex;
-    use rand::{thread_rng, Rng, RngCore};
+    use crate::crypto::bls::{g1_point_to_g1_projective, G1Point, G2Point, KeyPair};
+    use ark_bn254::Fq as F;
+    use ark_bn254::{Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+    use ark_ec::CurveGroup;
+    use ark_ff::UniformRand;
+    use ark_ff::{BigInt, Field, One, PrimeField, Zero};
+    use rand::{thread_rng, Rng};
 
     #[tokio::test]
     async fn test_keypair_generation() {
@@ -573,26 +573,42 @@ mod tests {
         assert_ne!(signature.g1_point, G1Point::zero());
     }
 
+    fn hash_to_g1(digest: &[u8; 32]) -> G1Affine {
+        let one = F::one();
+        let three = F::from(3u64);
+        let mut x = F::from_le_bytes_mod_order(digest);
+
+        loop {
+            let x_cubed = x.square() * x;
+            let y_squared = x_cubed + three;
+
+            if let Some(y) = y_squared.sqrt() {
+                let point = G1Projective::new(x, y, F::one());
+                return point.into_affine();
+            } else {
+                x += &one;
+            }
+        }
+    }
+
     #[tokio::test]
     async fn test_signature_verification() {
         let keypair = KeyPair::gen_random().unwrap();
         let pub_key_g2 = keypair.get_pub_key_g2();
-        // generate a random message
         let mut message = [0u8; 32];
-        rand::thread_rng().fill(&mut message);
+        thread_rng().fill(&mut message);
 
         let signature = keypair.sign_message(&message);
+        let g1_projective = g1_point_to_g1_projective(&signature.g1_point);
 
-        let g1_projective = G1Projective::from(signature.g1_point.to_ark_g1());
-
-        // Check that the signature is not zero
+        // Make sure the Signature is not Zero
         assert_ne!(g1_projective, G1Projective::zero());
         let mut wrong_message = [0u8; 32];
-        rand::thread_rng().fill(&mut wrong_message);
+        thread_rng().fill(&mut wrong_message);
 
-        // Check that the signature verifies
-        assert!(signature.verify(&pub_key_g2, &message));
-        assert!(!signature.verify(&pub_key_g2, &wrong_message))
+        // Ensure the verification of the Signature works correctly
+        assert!(signature.verify(&pub_key_g2, &message).unwrap());
+        assert!(!signature.verify(&pub_key_g2, &wrong_message).unwrap())
     }
 
     #[tokio::test]
@@ -604,14 +620,15 @@ mod tests {
         rand::thread_rng().fill(&mut message);
 
         let signature = keypair.sign_message(&message);
-        let g1_projective = G1Projective::from(signature.g1_point.to_ark_g1());
+        let g1_projective = g1_point_to_g1_projective(&signature.g1_point);
 
         // Check that the signature is not zero
         assert_ne!(g1_projective, G1Projective::zero());
 
         // Check that the signature does not verify with a different public key
-        let different_pub_key = G2Point::rand(&mut rng);
-        assert!(!signature.verify(&different_pub_key, &message));
+        let g2_projective = G2Projective::rand(&mut rng);
+        let different_pub_key = G2Point::from_ark_g2(&G2Affine::from(g2_projective));
+        assert!(!signature.verify(&different_pub_key, &message).unwrap());
     }
 
     #[tokio::test]
@@ -622,8 +639,8 @@ mod tests {
             5417847382009744817,
             1586467664616413849,
         ]);
-        let hex_string = bigint_to_hex(&bigint);
-        let converted_bigint = hex_string_to_biginteger256(&hex_string);
+        let hex_string = crate::crypto::bls::bigint_to_hex(&bigint);
+        let converted_bigint = crate::crypto::bls::hex_string_to_biginteger256(&hex_string);
         assert_eq!(bigint, converted_bigint);
         let keypair_result_from_string = KeyPair::from_string(hex_string);
         let keypair_result_normal = KeyPair::new(Fr::from(bigint));

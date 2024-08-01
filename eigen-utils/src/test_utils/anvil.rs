@@ -1,5 +1,11 @@
-use alloy_primitives::Address;
-use k256::SecretKey;
+use crate::test_utils;
+use ethers::core::k256::{
+    ecdsa::SigningKey, elliptic_curve::generic_array::GenericArray, SecretKey,
+};
+use ethers::{
+    types::{Address, Chain},
+    utils::secret_key_to_address,
+};
 use std::{
     io::{BufRead, BufReader},
     path::PathBuf,
@@ -92,7 +98,7 @@ impl Drop for AnvilInstance {
 /// # Example
 ///
 /// ```no_run
-/// use webb_evm_test_utils::anvil::Anvil;
+/// use eigen_utils::test_utils::anvil::Anvil;
 ///
 /// let port = 8545u16;
 /// let url = format!("http://localhost:{}", port).to_string();
@@ -125,7 +131,7 @@ impl Anvil {
     /// # Example
     ///
     /// ```no_run
-    /// # use webb_evm_test_utils::anvil::Anvil;
+    /// # use eigen_utils::test_utils::anvil::Anvil;
     /// fn a() {
     ///  let anvil = Anvil::default().spawn();
     ///
@@ -141,7 +147,7 @@ impl Anvil {
     /// # Example
     ///
     /// ```no_run
-    /// # use webb_evm_test_utils::anvil::Anvil;
+    /// # use eigen_utils::test_utils::anvil::Anvil;
     /// fn a() {
     ///  let anvil = Anvil::at("~/.foundry/bin/anvil").spawn();
     ///
@@ -247,7 +253,7 @@ impl Anvil {
         let port = if let Some(port) = self.port {
             port
         } else {
-            crate::random_port::random_port()
+            test_utils::random_port::random_port()
         };
         cmd.arg("-p").arg(port.to_string());
 
@@ -314,7 +320,7 @@ impl Anvil {
                     .unwrap_or_else(|| panic!("could not parse private key: {}", line))
                     .trim();
                 let key_hex = hex::decode(key_str).expect("could not parse as hex");
-                let key = K256SecretKey::from_bytes(&GenericArray::clone_from_slice(&key_hex))
+                let key = SecretKey::from_bytes(&GenericArray::clone_from_slice(&key_hex))
                     .expect("did not get private key");
                 addresses.push(secret_key_to_address(&SigningKey::from(&key)));
                 private_keys.push(key);
