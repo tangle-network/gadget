@@ -1,15 +1,13 @@
-use crate::sync::substrate_test_channel::MultiThreadedTestExternalities;
+use gadget_common::tangle_runtime::api;
+use gadget_common::tangle_runtime::api::services::storage::types::job_results::JobResults;
+use gadget_common::tangle_subxt::subxt::{Config, OnlineClient, SubstrateConfig};
 pub use gadget_core::job_manager::SendFuture;
 pub use log;
+use std::error::Error;
 use std::time::Duration;
-use tangle_primitives::AccountId;
-use tangle_primitives::services::JobCallResult;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
-use gadget_common::tangle_runtime::{AccountId32, api};
-use gadget_common::tangle_subxt::subxt::{Config, OnlineClient, SubstrateConfig};
-use gadget_common::tangle_subxt::subxt::client::OnlineClientT;
 
 pub mod sync;
 pub mod test_ext;
@@ -29,30 +27,20 @@ pub fn setup_log() {
     }));
 }
 
-pub async fn wait_for_job_completion<T: Config>(
-    ext: &MultiThreadedTestExternalities,
-    role_type: RoleType,
+pub async fn wait_for_completion_of_job<T: Config>(
+    client: &TestClient,
+    service_id: u64,
     job_id: u64,
-) ->  Result<JobCallResult<T::Constraints, T::AccountId>, Error<T>> {
+) -> Result<JobResults, Box<dyn Error>> {
     loop {
         gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
-        if let Some(ret) = ext
-            .execute_with_async(move || Services::job_results(role_type, job_id))
-            .await
-        {
-            return ret;
+        let call = api::storage().services().job_results(service_id, job_id);
+        let res = client.storage().at_latest().await?.fetch(&call).await?;
+
+        if let Some(ret) = res {
+            return Ok(ret);
         }
     }
-}
-
-pub async fn remove_job(client: &TestClient, user: &AccountId32, service_id: u64, job_id: u64) {
-    let remove_job = api::storage().services().remove_job(service_id, job_id);
-    let _ = client.tx().sign_and_submit_then_watch_default(&remove_job, user)
-        .await
-        .expect("Should submit tx")
-        .wait_for_finalized_success()
-        .await
-        .expect("Should finalize tx");
 }
 
 #[macro_export]

@@ -1,4 +1,5 @@
 use crate::gadget::TangleEvent;
+use crate::runtime::TangleConfig;
 use crate::work_manager::TangleWorkManager;
 use environment_utils::transaction_manager::tangle::{SubxtPalletSubmitter, TanglePalletSubmitter};
 use gadget::{SubxtConfig, TangleJobMetadata};
@@ -92,7 +93,7 @@ impl GadgetEnvironment for TangleEnvironment {
 
     async fn setup_runtime(&self) -> Result<Self::Client, Self::Error> {
         let subxt_client =
-            gadget_common::tangle_subxt::subxt::OnlineClient::<PolkadotConfig>::from_url(
+            gadget_common::tangle_subxt::subxt::OnlineClient::<TangleConfig>::from_url(
                 &self.subxt_config.endpoint,
             )
             .await
