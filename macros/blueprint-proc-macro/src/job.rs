@@ -7,6 +7,11 @@ use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, ItemFn, LitInt, LitStr, Token, Type};
 
+use crate::utils::{
+    field_type_to_param_token, field_type_to_result_token, ident_to_field_type, pascal_case,
+    type_to_field_type,
+};
+
 // Defines custom keywords
 mod kw {
     syn::custom_keyword!(id);
@@ -315,154 +320,6 @@ pub fn generate_event_handler_for(
     }
 }
 
-pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
-    match t {
-        FieldType::Void => unreachable!("void type should not be in params"),
-        FieldType::Bool => {
-            quote! { let Some(Field::Bool(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Uint8 => {
-            quote! { let Some(Field::Uint8(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Int8 => {
-            quote! { let Some(Field::Int8(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Uint16 => {
-            quote! { let Some(Field::Uint16(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Int16 => {
-            quote! { let Some(Field::Int16(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Uint32 => {
-            quote! { let Some(Field::Uint32(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Int32 => {
-            quote! { let Some(Field::Int32(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Uint64 => {
-            quote! { let Some(Field::Uint64(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Int64 => {
-            quote! { let Some(Field::Int64(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::String => {
-            quote! { let Some(Field::String(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Bytes => {
-            quote! { let Some(Field::Bytes(BoundedVec(#ident))) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Optional(t_x) => {
-            let inner_ident = format_ident!("{}_inner", ident);
-            let x_ident = format_ident!("{}_option", ident);
-            let x_inner = field_type_to_param_token(&x_ident, t_x);
-            let inner = quote! {
-                let Some(#inner_ident) = args_iter.next() else {  continue; };
-            };
-            quote! {
-                #inner
-                let #ident = match #inner_ident {
-                    _ => {
-                        #x_inner
-                        Some(#x_ident)
-                    },
-                    Field::None => None,
-                };
-            }
-        }
-        FieldType::Array(_, _) => todo!("Handle array"),
-        FieldType::List(_) => {
-            let inner_ident = format_ident!("{}_inner", ident);
-            let inner = quote! {
-                let Some(Field::List(BoundedVec(#inner_ident))) = args_iter.next() else { continue; };
-            };
-
-            quote! {
-                #inner
-                let #ident = #inner_ident
-                    .into_iter()
-                    .map(|item| item.0)
-                    .collect::<Vec<_>>();
-            }
-        }
-        FieldType::AccountId => {
-            quote! { let Some(Field::AccountId(#ident)) = args_iter.next() else { continue; }; }
-        }
-    }
-}
-
-pub fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
-    match t {
-        FieldType::Void => quote! {},
-        FieldType::Bool => quote! { result.push(Field::Bool(#ident)); },
-        FieldType::Uint8 => quote! { result.push(Field::Uint8(#ident)); },
-        FieldType::Int8 => quote! { result.push(Field::Int8(#ident)); },
-        FieldType::Uint16 => quote! { result.push(Field::Uint16(#ident)); },
-        FieldType::Int16 => quote! { result.push(Field::Int16(#ident)); },
-        FieldType::Uint32 => quote! { result.push(Field::Uint32(#ident)); },
-        FieldType::Int32 => quote! { result.push(Field::Int32(#ident)); },
-        FieldType::Uint64 => quote! { result.push(Field::Uint64(#ident)); },
-        FieldType::Int64 => quote! { result.push(Field::Int64(#ident)); },
-        FieldType::String => quote! { result.push(Field::String(#ident)); },
-        FieldType::Bytes => quote! { result.push(Field::Bytes(BoundedVec(#ident))); },
-        FieldType::Optional(t_x) => {
-            let v_ident = format_ident!("v");
-            let tokens = field_type_to_result_token(&v_ident, t_x);
-            quote! {
-                match #ident {
-                    Some(v) => #tokens,
-                    None => result.push(Field::None),
-                }
-            }
-        }
-        FieldType::Array(_, _) => todo!("Handle array"),
-        FieldType::List(t_x) => {
-            let inner_ident = format_ident!("{}_inner", ident);
-            let field = match **t_x {
-                FieldType::Void => unreachable!(),
-                FieldType::Bool => quote! { Field::Bool(item) },
-                FieldType::Uint8 => quote! { Field::Uint8(item) },
-                FieldType::Int8 => quote! { Field::Int8(item) },
-                FieldType::Uint16 => quote! { Field::Uint16(item) },
-                FieldType::Int16 => quote! { Field::Int16(item) },
-                FieldType::Uint32 => quote! { Field::Uint32(item) },
-                FieldType::Int32 => quote! { Field::Int32(item) },
-                FieldType::Uint64 => quote! { Field::Uint64(item) },
-                FieldType::Int64 => quote! { Field::Int64(item) },
-                FieldType::String => quote! { Field::String(item) },
-                FieldType::Bytes => quote! { Field::Bytes(BoundedVec(item)) },
-                FieldType::Optional(_) => todo!("handle optionals into lists"),
-                FieldType::Array(_, _) => todo!("handle arrays into lists"),
-                FieldType::List(_) => todo!("handle nested lists"),
-                FieldType::AccountId => quote! { Field::AccountId(item) },
-            };
-            let inner = quote! {
-               let #inner_ident = #ident.into_iter().map(|item| #field).collect::<Vec<_>>();
-            };
-
-            quote! {
-                #inner
-                result.push(Field::List(BoundedVec(#inner_ident)));
-            }
-        }
-        FieldType::AccountId => {
-            quote! { result.push(Field::AccountId(#ident)); }
-        }
-    }
-}
-
-/// Convert a `snake_case` string to `PascalCase`
-pub fn pascal_case(s: &str) -> String {
-    s.split('_')
-        .map(|word| {
-            let mut c = word.chars();
-            match c.next() {
-                None => String::new(),
-                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-            }
-        })
-        .collect()
-}
-
 /// `JobArgs` type to handle parsing of attributes
 pub(crate) struct JobArgs {
     /// Unique identifier for the job in the blueprint
@@ -568,72 +425,6 @@ impl Parse for Params {
     }
 }
 
-pub enum ResultsKind {
-    Infered,
-    Types(Vec<Type>),
-}
-
-impl std::fmt::Debug for ResultsKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Infered => write!(f, "Infered"),
-            Self::Types(_) => write!(f, "Types"),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct Results(pub ResultsKind);
-
-impl Parse for Results {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let _ = input.parse::<kw::result>();
-        let content;
-        let _ = syn::parenthesized!(content in input);
-        let names = content.parse_terminated(Type::parse, Token![,])?;
-        if names.is_empty() {
-            return Err(syn::Error::new_spanned(
-                names,
-                "Expected at least one parameter",
-            ));
-        }
-        if names.iter().any(|ty| matches!(ty, Type::Infer(_))) {
-            // Infer the types from the retun type
-            return Ok(Self(ResultsKind::Infered));
-        }
-        let mut items = Vec::new();
-        for name in names {
-            items.push(name);
-        }
-        Ok(Self(ResultsKind::Types(items)))
-    }
-}
-
-#[derive(Debug)]
-pub enum Verifier {
-    None,
-    // #[job(verifier(evm = "MyVerifierContract"))]
-    Evm(String),
-}
-
-impl Parse for Verifier {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let _ = input.parse::<kw::verifier>()?;
-        let content;
-        let _ = syn::parenthesized!(content in input);
-        let lookahead = content.lookahead1();
-        // parse `(evm = "MyVerifierContract")`
-        if lookahead.peek(kw::evm) {
-            let _ = content.parse::<kw::evm>()?;
-            let _ = content.parse::<Token![=]>()?;
-            let contract = content.parse::<LitStr>()?;
-            Ok(Verifier::Evm(contract.value()))
-        } else {
-            Ok(Verifier::None)
-        }
-    }
-}
-
 impl JobArgs {
     fn params_to_field_types(
         &self,
@@ -665,88 +456,69 @@ impl JobArgs {
         }
     }
 }
+pub enum ResultsKind {
+    Infered,
+    Types(Vec<Type>),
+}
 
-pub fn type_to_field_type(ty: &Type) -> syn::Result<FieldType> {
-    match ty {
-        Type::Array(_) => Err(syn::Error::new_spanned(ty, "TODO: support arrays")),
-        Type::Path(inner) => path_to_field_type(&inner.path),
-        _ => Err(syn::Error::new_spanned(ty, "unsupported type")),
+impl std::fmt::Debug for ResultsKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Infered => write!(f, "Infered"),
+            Self::Types(_) => write!(f, "Types"),
+        }
     }
 }
 
-pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
-    // take the last segment of the path
-    let seg = &path
-        .segments
-        .last()
-        .ok_or_else(|| syn::Error::new_spanned(path, "path must have at least one segment"))?;
-    let ident = &seg.ident;
-    let args = &seg.arguments;
-    match args {
-        syn::PathArguments::None => ident_to_field_type(ident),
-        // Support for Vec<T> where T is a simple type
-        syn::PathArguments::AngleBracketed(inner) if ident.eq("Vec") && inner.args.len() == 1 => {
-            let inner_arg = &inner.args[0];
-            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
-                let inner_type = type_to_field_type(inner_ty)?;
-                match inner_type {
-                    FieldType::Uint8 => Ok(FieldType::Bytes),
-                    others => Ok(FieldType::List(Box::new(others))),
-                }
-            } else {
-                Err(syn::Error::new_spanned(
-                    inner_arg,
-                    "unsupported complex type",
-                ))
-            }
+#[derive(Debug)]
+struct Results(ResultsKind);
+
+impl Parse for Results {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let _ = input.parse::<kw::result>();
+        let content;
+        let _ = syn::parenthesized!(content in input);
+        let names = content.parse_terminated(Type::parse, Token![,])?;
+        if names.is_empty() {
+            return Err(syn::Error::new_spanned(
+                names,
+                "Expected at least one parameter",
+            ));
         }
-        // Support for Option<T> where T is a simple type
-        syn::PathArguments::AngleBracketed(inner)
-            if ident.eq("Option") && inner.args.len() == 1 =>
-        {
-            let inner_arg = &inner.args[0];
-            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
-                let inner_type = type_to_field_type(inner_ty)?;
-                Ok(FieldType::Optional(Box::new(inner_type)))
-            } else {
-                Err(syn::Error::new_spanned(
-                    inner_arg,
-                    "unsupported complex type",
-                ))
-            }
+        if names.iter().any(|ty| matches!(ty, Type::Infer(_))) {
+            // Infer the types from the retun type
+            return Ok(Self(ResultsKind::Infered));
         }
-        // Support for Result<T, E> where T is a simple type
-        syn::PathArguments::AngleBracketed(inner) if ident.eq("Result") => {
-            let inner_arg = &inner.args[0];
-            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
-                let inner_type = type_to_field_type(inner_ty)?;
-                Ok(inner_type)
-            } else {
-                Err(syn::Error::new_spanned(
-                    inner_arg,
-                    "unsupported complex type",
-                ))
-            }
+        let mut items = Vec::new();
+        for name in names {
+            items.push(name);
         }
-        _ => Err(syn::Error::new_spanned(args, "unsupported complex type")),
+        Ok(Self(ResultsKind::Types(items)))
     }
 }
 
-pub fn ident_to_field_type(ident: &Ident) -> syn::Result<FieldType> {
-    match ident.to_string().as_str() {
-        "u8" => Ok(FieldType::Uint8),
-        "u16" => Ok(FieldType::Uint16),
-        "u32" => Ok(FieldType::Uint32),
-        "u64" => Ok(FieldType::Uint64),
-        "i8" => Ok(FieldType::Int8),
-        "i16" => Ok(FieldType::Int16),
-        "i32" => Ok(FieldType::Int32),
-        "i64" => Ok(FieldType::Int64),
-        "bool" => Ok(FieldType::Bool),
-        "String" => Ok(FieldType::String),
-        "Bytes" => Ok(FieldType::Bytes),
-        "AccountId" => Ok(FieldType::AccountId),
-        _ => Err(syn::Error::new_spanned(ident, "unsupported type")),
+#[derive(Debug)]
+enum Verifier {
+    None,
+    // #[job(verifier(evm = "MyVerifierContract"))]
+    Evm(String),
+}
+
+impl Parse for Verifier {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let _ = input.parse::<kw::verifier>()?;
+        let content;
+        let _ = syn::parenthesized!(content in input);
+        let lookahead = content.lookahead1();
+        // parse `(evm = "MyVerifierContract")`
+        if lookahead.peek(kw::evm) {
+            let _ = content.parse::<kw::evm>()?;
+            let _ = content.parse::<Token![=]>()?;
+            let contract = content.parse::<LitStr>()?;
+            Ok(Verifier::Evm(contract.value()))
+        } else {
+            Ok(Verifier::None)
+        }
     }
 }
 

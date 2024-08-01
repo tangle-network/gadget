@@ -61,16 +61,22 @@ pub fn on_request(nft_id: u64);
 // ==================
 
 #[report(job_id = 0, params(n), result(u32), report_type = "job")]
-fn minimal_report(n: u16) -> Result<u32, Error> {
-    Ok(0)
+fn minimal_report(n: u16) -> u32 {
+    0
 }
 
 /// Report function for the keygen job.
-// #[report(job_id = 0, params(n, t, msgs), result(u32), report_type = "job", verifier(evm = "KeygenContract"))]
-// fn check_keygen(n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
-//     let _ = (n, t, msgs);
-//     0
-// }
+#[report(
+    job_id = 0,
+    params(n, t, msgs),
+    result(u32),
+    report_type = "job",
+    verifier(evm = "KeygenContract")
+)]
+fn check_keygen(n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
+    let _ = (n, t, msgs);
+    0
+}
 
 // /// Report function for the service uptime.
 // #[report(params(operator), result(u32), report_type = "qos", interval = 3600, metric_thresholds(uptime = 99))]

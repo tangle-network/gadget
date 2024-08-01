@@ -29,6 +29,9 @@ mod qos;
 /// Report proc-macro
 mod report;
 
+/// Utilities for the Blueprint Macros
+mod utils;
+
 /// A procedural macro that annotates a function as a job.
 ///
 /// # Example

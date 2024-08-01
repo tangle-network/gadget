@@ -7,13 +7,12 @@ use std::{collections::BTreeMap, time::Duration};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
-    Ident, ItemFn, LitInt, Token, Type,
+    Ident, ItemFn, LitInt, LitStr, Token, Type,
 };
 use tokio::time::Instant;
 
-use crate::job::{
+use crate::utils::{
     field_type_to_param_token, field_type_to_result_token, pascal_case, type_to_field_type,
-    Results, ResultsKind, Verifier,
 };
 
 mod kw {
@@ -24,6 +23,7 @@ mod kw {
     syn::custom_keyword!(interval);
     syn::custom_keyword!(metric_thresholds);
     syn::custom_keyword!(verifier);
+    syn::custom_keyword!(evm);
     syn::custom_keyword!(skip_codegen);
 }
 
@@ -67,7 +67,7 @@ impl Parse for ReportArgs {
             } else if lookahead.peek(kw::report_type) {
                 let _ = input.parse::<kw::report_type>()?;
                 let _ = input.parse::<Token![=]>()?;
-                let type_str: syn::LitStr = input.parse()?;
+                let type_str: LitStr = input.parse()?;
                 report_type = Some(match type_str.value().as_str() {
                     "job" => ReportType::Job,
                     "qos" => ReportType::QoS,
@@ -317,77 +317,6 @@ fn generate_job_report_event_handler(
         .as_ref()
         .expect("Job ID must be present for job reports");
 
-    let params_tokens = params
-        .iter()
-        .enumerate()
-        .map(|(i, t)| {
-            let ident = format_ident!("param{i}");
-            field_type_to_param_token(&ident, t)
-        })
-        .collect::<Vec<_>>();
-
-    let fn_call_params = params
-        .iter()
-        .enumerate()
-        .map(|(i, _)| {
-            let ident = format_ident!("param{i}");
-            quote! {
-                #ident,
-            }
-        })
-        .collect::<Vec<_>>();
-
-    let fn_call = if input.sig.asyncness.is_some() {
-        quote! {
-            let report_result = #fn_name(
-                #(#fn_call_params)*
-            ).await;
-        }
-    } else {
-        quote! {
-            let report_result = #fn_name(
-                #(#fn_call_params)*
-            );
-        }
-    };
-
-    let result_processing = if result.len() == 1 {
-        let result_token = field_type_to_result_token(&format_ident!("report_value"), &result[0]);
-        quote! {
-            let report_value = match report_result {
-                Ok(v) => v,
-                Err(e) => {
-                    tracing::error!("Error in report: {e}");
-                    use gadget_sdk::events_watcher::Error;
-                    return Err(Error::Handler(Box::new(e)));
-                }
-            };
-            let mut result = Vec::new();
-            #result_token
-        }
-    } else {
-        let result_tokens = result.iter().enumerate().map(|(i, t)| {
-            let ident = format_ident!("result_{}", i);
-            let token = field_type_to_result_token(&ident, t);
-            quote! {
-                let #ident = report_value.#i;
-                #token
-            }
-        });
-        quote! {
-            let report_value = match report_result {
-                Ok(v) => v,
-                Err(e) => {
-                    tracing::error!("Error in report: {e}");
-                    use gadget_sdk::events_watcher::Error;
-                    return Err(Error::Handler(Box::new(e)));
-                }
-            };
-            let mut result = Vec::new();
-            #(#result_tokens)*
-        }
-    };
-
     quote! {
         pub struct #struct_name {
             pub service_id: u64,
@@ -412,41 +341,26 @@ fn generate_job_report_event_handler(
 
             async fn handle_events(
                 &self,
-                client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                _client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::events_watcher::tangle::TangleConfig>,
                 (events, block_number): (
                     gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
                     u64
                 ),
             ) -> Result<(), gadget_sdk::events_watcher::Error> {
-                use gadget_sdk::tangle_subxt::{
-                    subxt,
-                    tangle_testnet_runtime::api::{
-                        self as TangleApi,
-                        runtime_types::{
-                            bounded_collections::bounded_vec::BoundedVec, tangle_primitives::services::field::Field,
-                        },
-                        services::events::JobResultSubmitted,
-                    },
-                };
+                use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted;
+
                 let job_results: Vec<_> = events
                     .find::<JobResultSubmitted>()
                     .flatten()
-                    .filter(|event| {
-                        event.service_id == self.service_id && event.job == #job_id
-                    })
+                    .filter(|event| event.service_id == self.service_id && event.job == #job_id)
                     .collect();
-                for result in job_results {
-                    tracing::info!("Handling JobResultSubmitted Event: #{block_number}",);
 
-                    let mut args_iter = result.result.into_iter();
-                    #(#params_tokens)*
-                    #fn_call
-                    #result_processing
+                for job_result in job_results {
+                    tracing::info!("Handling JobResultSubmitted Event: #{block_number}");
 
-                    if !result.is_empty() {
-                        // TODO: Submit the report here
-                    }
+                    // We'll implement parameter extraction and report function call here in the next step
                 }
+
                 Ok(())
             }
         }
@@ -538,7 +452,7 @@ fn generate_qos_report_event_handler(
                     let report_result = #fn_call?;
 
                     if !report_result {  // Assuming false means QoS breach
-                        // TODO: Submit the report here
+                        // TODO:Submit the report here
                     }
 
                     let elapsed = start.elapsed();
@@ -547,6 +461,72 @@ fn generate_qos_report_event_handler(
                     }
                 }
             }
+        }
+    }
+}
+
+pub enum ResultsKind {
+    Infered,
+    Types(Vec<Type>),
+}
+
+impl std::fmt::Debug for ResultsKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Infered => write!(f, "Infered"),
+            Self::Types(_) => write!(f, "Types"),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Results(ResultsKind);
+
+impl Parse for Results {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let _ = input.parse::<kw::result>();
+        let content;
+        let _ = syn::parenthesized!(content in input);
+        let names = content.parse_terminated(Type::parse, Token![,])?;
+        if names.is_empty() {
+            return Err(syn::Error::new_spanned(
+                names,
+                "Expected at least one parameter",
+            ));
+        }
+        if names.iter().any(|ty| matches!(ty, Type::Infer(_))) {
+            // Infer the types from the retun type
+            return Ok(Self(ResultsKind::Infered));
+        }
+        let mut items = Vec::new();
+        for name in names {
+            items.push(name);
+        }
+        Ok(Self(ResultsKind::Types(items)))
+    }
+}
+
+#[derive(Debug)]
+enum Verifier {
+    None,
+    // #[job(verifier(evm = "MyVerifierContract"))]
+    Evm(String),
+}
+
+impl Parse for Verifier {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let _ = input.parse::<kw::verifier>()?;
+        let content;
+        let _ = syn::parenthesized!(content in input);
+        let lookahead = content.lookahead1();
+        // parse `(evm = "MyVerifierContract")`
+        if lookahead.peek(kw::evm) {
+            let _ = content.parse::<kw::evm>()?;
+            let _ = content.parse::<Token![=]>()?;
+            let contract = content.parse::<LitStr>()?;
+            Ok(Verifier::Evm(contract.value()))
+        } else {
+            Ok(Verifier::None)
         }
     }
 }
