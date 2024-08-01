@@ -351,7 +351,7 @@ fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::Token
             quote! {
                 let Some(Field::String(BoundedString(BoundedVec(#inner_ident)))) = args_iter.next() else { continue; };
                 // Convert the BoundedVec to a String
-                let #ident = match String::from_utf8(#inner_ident.as_slice()) {
+                let #ident = match String::from_utf8(#inner_ident) {
                     Ok(s) => s,
                     Err(e) => {
                         tracing::warn!("failed to convert bytes to a valid utf8 string: {e}");
