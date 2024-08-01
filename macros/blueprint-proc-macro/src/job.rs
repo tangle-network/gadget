@@ -68,7 +68,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     }
 
     let job_id = &args.id;
-    let params_type = args.params_to_to_field_types(&param_types)?;
+    let params_type = args.params_to_field_types(&param_types)?;
     let result_type = args.result_to_field_types(result)?;
 
     let event_handler_gen = if args.skip_codegen {
@@ -635,7 +635,7 @@ impl Parse for Verifier {
 }
 
 impl JobArgs {
-    fn params_to_to_field_types(
+    fn params_to_field_types(
         &self,
         param_types: &BTreeMap<Ident, Type>,
     ) -> syn::Result<Vec<FieldType>> {

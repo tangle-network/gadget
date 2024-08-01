@@ -118,6 +118,43 @@ pub enum JobResultVerifier {
     Evm(String),
 }
 
+pub type ReportResultVerifier = JobResultVerifier;
+
+/// A report type can be directly related to a Job or a Quality of Service (QoS)
+/// report related to a long-running background service.
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ReportType {
+    #[default]
+    Job,
+    QoS,
+}
+
+/// A Report Definition is a definition of a report that can be called.
+/// It contains the input and output fields of the report.
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ReportDefinition<'a> {
+    /// The metadata of the job.
+    pub metadata: ReportMetadata<'a>,
+    /// These are parameters that are required for this repot.
+    /// i.e. the input.
+    pub params: Vec<FieldType>,
+    /// These are the result, the return values of this repot.
+    /// i.e. the output.
+    pub result: Vec<FieldType>,
+    /// The verifier of the report.
+    pub verifier: ReportResultVerifier,
+    /// The report type
+    pub report_type: ReportType,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ReportMetadata<'a> {
+    /// The Job name.
+    pub name: BlueprintString<'a>,
+    /// The Job description.
+    pub description: Option<BlueprintString<'a>>,
+}
+
 /// Service Registration hook is a hook that will be called before registering the restaker as
 /// an operator for the service.
 #[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
