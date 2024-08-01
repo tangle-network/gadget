@@ -138,7 +138,7 @@ fn extract_jobs_from_module<'a>(
                 jobs.extend(extract_jobs_from_module(_root, index, m));
             }
             // Handle only the constant items that are automatically derived and have the JOB_DEF in their name
-            ItemEnum::Constant(c)
+            ItemEnum::Constant { const_: c, .. }
                 if item.attrs.contains(&automatically_derived)
                     && item
                         .name
@@ -184,7 +184,7 @@ fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Mod
             ItemEnum::Module(m) => {
                 hooks.extend(extract_hooks_from_module(_root, index, m));
             }
-            ItemEnum::Constant(c)
+            ItemEnum::Constant { const_: c, .. }
                 if item.attrs.contains(&automatically_derived)
                     && item
                         .name
@@ -200,7 +200,7 @@ fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Mod
                 hooks.push(Hook::Registration(value));
             }
 
-            ItemEnum::Constant(c)
+            ItemEnum::Constant { const_: c, .. }
                 if item.attrs.contains(&automatically_derived)
                     && item
                         .name
@@ -216,7 +216,7 @@ fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Mod
                 hooks.push(Hook::Request(value));
             }
 
-            ItemEnum::Constant(c)
+            ItemEnum::Constant { const_: c, .. }
                 if item.attrs.contains(&automatically_derived)
                     && item
                         .name
@@ -229,7 +229,7 @@ fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Mod
                 hooks.push(Hook::RequestParams(value));
             }
 
-            ItemEnum::Constant(c)
+            ItemEnum::Constant { const_: c, .. }
                 if item.attrs.contains(&automatically_derived)
                     && item
                         .name
@@ -260,31 +260,33 @@ fn resolve_evm_contract_path_by_name(name: &str) -> PathBuf {
 struct Locked;
 
 struct LockFile {
-    path: std::path::PathBuf,
+    file: std::fs::File,
 }
 
 impl LockFile {
     fn new(base_path: &Path) -> Self {
         std::fs::create_dir_all(base_path).expect("Failed to create lock file directory");
-        let path = base_path.join("CODEGEN_LOCK");
-        Self { path }
+        let path = base_path.join("blueprint.lock");
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&path)
+            .expect("Failed to create lock file");
+        Self { file }
     }
 
     fn try_lock(&self) -> Result<(), Locked> {
-        // if the file exists, it's already locked
-        if self.path.exists() {
-            return Err(Locked);
-        }
-        std::fs::File::create(&self.path)
-            .map(|_| ())
-            .map_err(|_| Locked)
+        use fs2::FileExt;
+        self.file.try_lock_exclusive().map_err(|_| Locked)
     }
 }
 
 impl Drop for LockFile {
     fn drop(&mut self) {
-        // Delete the file when the lock goes out of scope
-        let _ = std::fs::remove_file(&self.path);
+        // Unlock the file
+        use fs2::FileExt;
+        let _ = self.file.unlock();
     }
 }
 
@@ -298,8 +300,7 @@ fn generate_rustdoc() -> Crate {
     let lock = LockFile::new(root);
     if lock.try_lock().is_err() {
         eprintln!(
-            "{}: Already locked; skipping rustdoc generation",
-            lock.path.display()
+            "Already locked; skipping rustdoc generation",
         );
         // Exit early if the lock file exists
         std::process::exit(0);
@@ -374,8 +375,8 @@ fn generate_rustdoc() -> Crate {
     let json_string = std::fs::read_to_string(&json_path).expect("Failed to read rustdoc JSON");
     let krate: Crate = serde_json::from_str(&json_string).expect("Failed to parse rustdoc JSON");
     assert!(
-        krate.format_version >= 28,
-        "This tool expects JSON format version >= 28",
+        krate.format_version >= 30,
+        "This tool expects JSON format version >= 30",
     );
     krate
 }
