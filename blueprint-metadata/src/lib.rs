@@ -376,7 +376,7 @@ fn generate_rustdoc() -> Crate {
     let krate: Crate = serde_json::from_str(&json_string).expect("Failed to parse rustdoc JSON");
     assert!(
         krate.format_version >= 30,
-        "This tool expects JSON format version >= 28",
+        "This tool expects JSON format version >= 30",
     );
     krate
 }
