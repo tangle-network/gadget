@@ -2984,6 +2984,7 @@ dependencies = [
 name = "blueprint-metadata"
 version = "0.1.0"
 dependencies = [
+ "fs2",
  "gadget-blueprint-proc-macro-core",
  "rustdoc-types",
  "serde_json",
@@ -12094,7 +12095,7 @@ dependencies = [
  "p256 0.13.2",
  "revm-primitives",
  "ripemd",
- "secp256k1 0.28.2",
+ "secp256k1 0.29.0",
  "sha2 0.10.8",
  "substrate-bn",
 ]
@@ -12430,9 +12431,9 @@ dependencies = [
 
 [[package]]
 name = "rustdoc-types"
-version = "0.25.0"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60966414633fced9e2341cd3d51a329d72306367325ba3d34e7e517c3bb84f3c"
+checksum = "0b9be1bc4a0ec3445cfa2e4ba112827544890d43d68b7d1eda5359a9c09d2cd8"
 dependencies = [
  "serde",
 ]
@@ -13707,7 +13708,6 @@ version = "0.28.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d24b59d129cdadea20aea4fb2352fa053712e5d713eee47d700cd4b2bc002f10"
 dependencies = [
- "rand",
  "secp256k1-sys 0.9.2",
 ]
 
@@ -13717,6 +13717,7 @@ version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e0cc0f1cf93f4969faf3ea1c7d8a9faed25918d96affa959720823dfe86d4f3"
 dependencies = [
+ "rand",
  "secp256k1-sys 0.10.0",
 ]
 
