@@ -299,9 +299,7 @@ fn generate_rustdoc() -> Crate {
         .join("target");
     let lock = LockFile::new(root);
     if lock.try_lock().is_err() {
-        eprintln!(
-            "Already locked; skipping rustdoc generation",
-        );
+        eprintln!("Already locked; skipping rustdoc generation",);
         // Exit early if the lock file exists
         std::process::exit(0);
     }

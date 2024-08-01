@@ -1,3 +1,4 @@
+use gadget_blueprint_proc_macro::{job, registration_hook, request_hook};
 use gadget_sdk::{job, registration_hook, request_hook};
 
 #[derive(Debug, Clone, Copy)]
@@ -19,7 +20,6 @@ impl std::fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
-
 pub struct MyContext;
 
 /// Simple Threashold (t) Keygen Job for n parties.

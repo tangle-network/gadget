@@ -16,26 +16,25 @@
 
 use async_trait::async_trait;
 use environment_utils::transaction_manager::tangle::SubxtPalletSubmitter;
-use frame_support::pallet_prelude::*;
 use gadget_common::config::Network;
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::prelude::{
-    DebugLogger, ECDSAKeyStore, GadgetEnvironment, InMemoryBackend, NodeInput,
+    DebugLogger, ECDSAKeyStore, GadgetEnvironment, InMemoryBackend, NodeInput, PairSigner,
     PrometheusConfig, UnboundedReceiver, UnboundedSender,
 };
+use gadget_common::tangle_subxt::subxt::ext::subxt_core::utils;
 use gadget_common::tangle_subxt::subxt::{OnlineClient, SubstrateConfig};
 use gadget_common::Error;
 use gadget_core::job_manager::{ProtocolMessageMetadata, SendFuture, WorkManagerInterface};
-use pallet_services::EvmRunner;
 use sp_application_crypto::ecdsa;
 use sp_core::{sr25519, Pair};
-use sp_runtime::traits::Block as BlockT;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Duration;
-use tangle_primitives::AccountId;
+use tangle_environment::runtime::{TangleConfig, TangleRuntime};
 use tangle_environment::TangleEnvironment;
+use tangle_primitives::AccountId;
 
 pub fn id_to_ecdsa_pair(id: u8) -> ecdsa::Pair {
     ecdsa::Pair::from_string(&format!("//Alice///{id}"), None).expect("static values are valid")
@@ -54,7 +53,7 @@ pub fn id_to_sr25519_public(id: u8) -> sr25519::Public {
 }
 
 type PeersRx<Env> =
-Arc<HashMap<ecdsa::Public, gadget_io::tokio::sync::Mutex<UnboundedReceiver<Env>>>>;
+    Arc<HashMap<ecdsa::Public, gadget_io::tokio::sync::Mutex<UnboundedReceiver<Env>>>>;
 
 pub struct MockNetwork<Env: GadgetEnvironment> {
     peers_tx: Arc<
@@ -158,9 +157,7 @@ pub async fn new_test_ext<
     const N: usize,
     const K: usize,
     D: Send + Clone + 'static,
-    F: Fn(
-        NodeInput<TangleEnvironment, MockNetwork<TangleEnvironment>, InMemoryBackend, D>,
-    ) -> Fut,
+    F: Fn(NodeInput<TangleEnvironment, MockNetwork<TangleEnvironment>, InMemoryBackend, D>) -> Fut,
     Fut: SendFuture<'static, ()>,
 >(
     additional_params: D,
@@ -205,29 +202,38 @@ pub async fn new_test_ext<
         .collect::<Vec<_>>();
 
     // Each client connects to ws://127.0.0.1:9944. This client is for the test environment
-    let client = OnlineClient::<SubstrateConfig>::new().await.expect("Failed to create primary localhost client");
+    let client = OnlineClient::<SubstrateConfig>::new()
+        .await
+        .expect("Failed to create primary localhost client");
     let localhost_externalities = LocalhostTestExt::from(client);
 
     for (node_index, ((role_pair, pair), networks)) in
         role_pairs.into_iter().zip(pairs).zip(networks).enumerate()
     {
+        let account_id: utils::AccountId32 = pair.public().0.into();
         let mut localhost_clients = Vec::new();
 
         for _ in 0..K {
             // Each client connects to ws://127.0.0.1:9944
-            let client = OnlineClient::<SubstrateConfig>::new().await.expect("Failed to create localhost client");
+            let client = OnlineClient::<SubstrateConfig>::new()
+                .await
+                .expect("Failed to create localhost client");
+
+            let client = TangleRuntime::new(client, account_id.clone());
             localhost_clients.push(client);
         }
-
-        let account_id: AccountId = pair.public().into();
 
         let logger = DebugLogger {
             id: format!("Peer {node_index}"),
         };
 
-        let tx_manager = Arc::new(Arc::new(
-            SubxtPalletSubmitter::new(account_id.clone(), logger.clone()).await.expect("Failed to create tx manager"),
-        ));
+        let pair_signer = PairSigner::<TangleConfig>::new(pair);
+
+        let tx_manager = Arc::new(
+            SubxtPalletSubmitter::new(pair_signer, logger.clone())
+                .await
+                .expect("Failed to create tx manager"),
+        );
 
         let keystore = ECDSAKeyStore::in_memory(role_pair);
         let prometheus_config = PrometheusConfig::Disabled;
@@ -235,7 +241,7 @@ pub async fn new_test_ext<
         let input = NodeInput {
             clients: localhost_clients,
             networks,
-            account_id: sr25519::Public(account_id.into()),
+            account_id: sr25519::Public(account_id.0),
             logger,
             tx_manager: tx_manager as _,
             keystore,
@@ -256,12 +262,15 @@ pub fn mock_pub_key(id: u8) -> AccountId {
 }
 
 pub struct LocalhostTestExt {
-    client: OnlineClient<SubstrateConfig>
+    client: OnlineClient<SubstrateConfig>,
 }
 
 impl LocalhostTestExt {
     /// An identity function (For future reverse-compatible changes)
-    pub fn execute_with<T: FnOnce(&OnlineClient<SubstrateConfig>) -> R + Send + 'static, R: Send + 'static>(
+    pub fn execute_with<
+        T: FnOnce(&OnlineClient<SubstrateConfig>) -> R + Send + 'static,
+        R: Send + 'static,
+    >(
         &self,
         function: T,
     ) -> R {
@@ -269,7 +278,10 @@ impl LocalhostTestExt {
     }
 
     /// An identity function (For future reverse-compatible changes)
-    pub async fn execute_with_async<T: FnOnce(&OnlineClient<SubstrateConfig>) -> R + Send + 'static, R: Send + 'static>(
+    pub async fn execute_with_async<
+        T: FnOnce(&OnlineClient<SubstrateConfig>) -> R + Send + 'static,
+        R: Send + 'static,
+    >(
         &self,
         function: T,
     ) -> R {
