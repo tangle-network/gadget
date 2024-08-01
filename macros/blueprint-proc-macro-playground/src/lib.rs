@@ -22,6 +22,10 @@ impl std::error::Error for Error {}
 
 pub struct MyContext;
 
+// ==================
+//       Jobs
+// ==================
+
 /// Simple Threshold (t) Keygen Job for n parties.
 #[job(id = 0, params(n, t), result(_), verifier(evm = "KeygenContract"))]
 pub fn keygen(ctx: &MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
@@ -42,11 +46,53 @@ pub fn refresh(keygen_id: u64, new_t: Option<u8>) -> Result<Vec<u64>, Error> {
     Ok(vec![0; 33])
 }
 
+// ==================
+//       Hooks
+// ==================
+
 #[registration_hook(evm = "RegistrationContract")]
 pub fn on_register(pubkey: Vec<u8>);
 
 #[request_hook(evm = "RequestContract")]
 pub fn on_request(nft_id: u64);
+
+// ==================
+//      Reports
+// ==================
+
+#[report(job_id = 0, params(n), result(u32), report_type = "job")]
+fn minimal_report(n: u16) -> Result<u32, Error> {
+    Ok(0)
+}
+
+/// Report function for the keygen job.
+// #[report(job_id = 0, params(n, t, msgs), result(u32), report_type = "job", verifier(evm = "KeygenContract"))]
+// fn check_keygen(n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
+//     let _ = (n, t, msgs);
+//     0
+// }
+
+// /// Report function for the service uptime.
+// #[report(params(operator), result(u32), report_type = "qos", interval = 3600, metric_thresholds(uptime = 99))]
+// fn report_uptime(operator: Vec<u8>) -> u32 {
+//     let _  = operator;
+//     0
+// }
+
+// #[report(
+//     params(cpu_usage, memory_usage, request_latency),
+//     result(u8),
+//     report_type = "qos",
+//     interval = 300,
+//     metric_thresholds(cpu_usage = 80, memory_usage = 90, request_latency = 200)
+// )]
+// fn check_system_health(cpu_usage: u64, memory_usage: u64, request_latency: u64) -> u8 {
+//     let mut issues = 0;
+//     if cpu_usage > 80 { issues += 1; }
+//     if memory_usage > 90 { issues += 1; }
+//     if request_latency > 200 { issues += 1; }
+//     issues
+// }
 
 #[cfg(test)]
 mod tests {

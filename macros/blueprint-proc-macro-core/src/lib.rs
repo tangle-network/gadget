@@ -118,33 +118,57 @@ pub enum JobResultVerifier {
     Evm(String),
 }
 
-pub type ReportResultVerifier = JobResultVerifier;
-
-/// A report type can be directly related to a Job or a Quality of Service (QoS)
-/// report related to a long-running background service.
+/// Represents the definition of a report, including its metadata, parameters, and result type.
 #[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ReportDefinition<'a> {
+    /// Metadata about the report, including its name and description.
+    pub metadata: ReportMetadata<'a>,
+
+    /// List of parameter types for the report function.
+    pub params: Vec<FieldType>,
+
+    /// List of result types for the report function.
+    pub result: Vec<FieldType>,
+
+    /// The type of report (Job or QoS).
+    pub report_type: ReportType,
+
+    /// The ID of the job this report is associated with (for job reports only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub job_id: Option<u8>,
+
+    /// The interval at which this report should be run (for QoS reports only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interval: Option<u64>,
+
+    /// Optional metric thresholds for QoS reports.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metric_thresholds: Option<Vec<(String, u64)>>,
+
+    /// The verifier to use for this report's results.
+    pub verifier: ReportResultVerifier,
+}
+
+/// Enum representing the type of report (Job or QoS).
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ReportType {
+    /// A report associated with a specific job.
     #[default]
     Job,
+    /// A report for Quality of Service metrics.
     QoS,
 }
 
-/// A Report Definition is a definition of a report that can be called.
-/// It contains the input and output fields of the report.
+/// Enum representing the type of verifier for the report result.
 #[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct ReportDefinition<'a> {
-    /// The metadata of the job.
-    pub metadata: ReportMetadata<'a>,
-    /// These are parameters that are required for this repot.
-    /// i.e. the input.
-    pub params: Vec<FieldType>,
-    /// These are the result, the return values of this repot.
-    /// i.e. the output.
-    pub result: Vec<FieldType>,
-    /// The verifier of the report.
-    pub verifier: ReportResultVerifier,
-    /// The report type
-    pub report_type: ReportType,
+#[serde(rename_all = "lowercase")]
+pub enum ReportResultVerifier {
+    /// No verifier specified.
+    #[default]
+    None,
+    /// An EVM-based verifier contract.
+    Evm(String),
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

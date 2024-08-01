@@ -43,7 +43,7 @@ pub async fn collect_qos_metrics() -> Result<QoSMetrics, QoSError> {
     };
 
     let collection_time = start.elapsed();
-    tracing::info!("QoS metrics collected in {:?}", collection_time);
+    // tracing::info!("QoS metrics collected in {:?}", collection_time);
 
     Ok(metrics)
 }
