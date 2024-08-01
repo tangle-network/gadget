@@ -57,6 +57,21 @@
         }
       ],
       "verifier": "None"
+    },
+    {
+      "metadata": {
+        "name": "say_hello",
+        "description": "Say hello to someone or the world."
+      },
+      "params": [
+        {
+          "Optional": "String"
+        }
+      ],
+      "result": [
+        "String"
+      ],
+      "verifier": "None"
     }
   ],
   "registration_hook": {

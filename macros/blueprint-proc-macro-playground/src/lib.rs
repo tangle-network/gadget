@@ -42,6 +42,15 @@ pub fn refresh(keygen_id: u64, new_t: Option<u8>) -> Result<Vec<u64>, Error> {
     Ok(vec![0; 33])
 }
 
+/// Say hello to someone or the world.
+#[job(id = 3, params(who), result(_))]
+pub fn say_hello(who: Option<String>) -> Result<String, Error> {
+    match who {
+        Some(who) => Ok(format!("Hello, {}!", who)),
+        None => Ok("Hello, World!".to_string()),
+    }
+}
+
 #[registration_hook(evm = "RegistrationContract")]
 pub fn on_register(pubkey: Vec<u8>);
 

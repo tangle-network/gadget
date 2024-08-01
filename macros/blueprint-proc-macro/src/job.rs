@@ -281,9 +281,10 @@ fn generate_event_handler_for(
                     tangle_testnet_runtime::api::{
                         self as TangleApi,
                         runtime_types::{
-                            bounded_collections::bounded_vec::BoundedVec, tangle_primitives::services::field::Field,
+                            bounded_collections::bounded_vec::BoundedVec,
+                            tangle_primitives::services::field::{Field, BoundedString},
                         },
-                        services::events::{JobCalled, JobResultSubmitted},
+                        services::events::JobCalled,
                     },
                 };
                 let job_events: Vec<_> = events
@@ -294,7 +295,7 @@ fn generate_event_handler_for(
                     })
                     .collect();
                 for call in job_events {
-                    tracing::info!("Handling JobCalled Events: #{block_number}",);
+                    tracing::debug!("Handling JobCalled Events: #{block_number}",);
 
                     let mut args_iter = call.args.into_iter();
                     #(#params_tokens)*
@@ -346,7 +347,19 @@ fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::Token
             quote! { let Some(Field::Int64(#ident)) = args_iter.next() else { continue; }; }
         }
         FieldType::String => {
-            quote! { let Some(Field::String(#ident)) = args_iter.next() else { continue; }; }
+            let inner_ident = format_ident!("{}_inner", ident);
+            quote! {
+                let Some(Field::String(BoundedString(BoundedVec(#inner_ident)))) = args_iter.next() else { continue; };
+                // Convert the BoundedVec to a String
+                let #ident = match String::from_utf8(#inner_ident.as_slice()) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        tracing::warn!("failed to convert bytes to a valid utf8 string: {e}");
+                        use gadget_sdk::events_watcher::Error;
+                        return Err(Error::Handler(Box::new(e)));
+                    }
+                };
+            }
         }
         FieldType::Bytes => {
             quote! { let Some(Field::Bytes(BoundedVec(#ident))) = args_iter.next() else { continue; }; }
@@ -402,7 +415,9 @@ fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::Toke
         FieldType::Int32 => quote! { result.push(Field::Int32(#ident)); },
         FieldType::Uint64 => quote! { result.push(Field::Uint64(#ident)); },
         FieldType::Int64 => quote! { result.push(Field::Int64(#ident)); },
-        FieldType::String => quote! { result.push(Field::String(#ident)); },
+        FieldType::String => {
+            quote! { result.push(Field::String(BoundedString(BoundedVec(#ident.into_bytes())))); }
+        }
         FieldType::Bytes => quote! { result.push(Field::Bytes(BoundedVec(#ident))); },
         FieldType::Optional(t_x) => {
             let v_ident = format_ident!("v");
@@ -428,7 +443,9 @@ fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::Toke
                 FieldType::Int32 => quote! { Field::Int32(item) },
                 FieldType::Uint64 => quote! { Field::Uint64(item) },
                 FieldType::Int64 => quote! { Field::Int64(item) },
-                FieldType::String => quote! { Field::String(item) },
+                FieldType::String => {
+                    quote! { Field::String(BoundedString(BoundedVec(item.into_bytes()))) }
+                }
                 FieldType::Bytes => quote! { Field::Bytes(BoundedVec(item)) },
                 FieldType::Optional(_) => todo!("handle optionals into lists"),
                 FieldType::Array(_, _) => todo!("handle arrays into lists"),
