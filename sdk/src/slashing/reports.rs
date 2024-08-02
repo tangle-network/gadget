@@ -59,8 +59,6 @@ impl QoSReporter for DefaultQoSReporter {
 }
 
 async fn collect_qos_metrics() -> Result<QoSMetrics, QoSError> {
-    let start = Instant::now();
-
     let uptime = get_service_uptime().await?;
     let response_time = measure_response_time().await?;
     let error_rate = calculate_error_rate().await?;

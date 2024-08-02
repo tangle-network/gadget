@@ -39,10 +39,6 @@ pub mod env;
 /// Transaction Management Module
 pub mod tx;
 
-// Exporting the macros
-pub use gadget_blueprint_proc_macro::{job, registration_hook, report, request_hook};
-
-#[doc(hidden)]
 pub use tangle_subxt;
 
 pub mod network;

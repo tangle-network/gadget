@@ -12,11 +12,11 @@ use libp2p::{
     swarm::dial_opts::DialOpts, StreamProtocol,
 };
 
-use gadget_common::sp_core::ecdsa;
 use gadget_io::tokio::select;
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use gadget_io::tokio::task::{spawn, JoinHandle};
 use libp2p::Multiaddr;
+use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::error::Error;
 use std::io;

@@ -27,7 +27,7 @@ pub enum Error {
     ForceRestart,
     /// An error occurred in the event handler.
     #[error(transparent)]
-    Handler(Box<dyn std::error::Error + Send + Sync>),
+    Handler(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// A type alias to extract the event handler type from the event watcher.

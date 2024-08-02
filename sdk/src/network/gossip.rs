@@ -7,7 +7,6 @@
 use async_trait::async_trait;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, Network};
-use gadget_common::sp_core::ecdsa;
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
 use gadget_io::tokio::sync::mpsc::UnboundedSender;
 use gadget_io::tokio::sync::{Mutex, RwLock};
@@ -17,6 +16,7 @@ use libp2p::{
     gossipsub, mdns, request_response, swarm::NetworkBehaviour, swarm::SwarmEvent, PeerId,
 };
 use serde::{Deserialize, Serialize};
+use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;

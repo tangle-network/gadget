@@ -1,10 +1,10 @@
 use crate::config::ShellManagerOpts;
 use crate::protocols::resolver::NativeGithubMetadata;
 use gadget_common::config::DebugLogger;
-use gadget_common::sp_core::H256;
 use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::{defaults, ShellTomlConfig};
 use sha2::Digest;
+use sp_core::H256;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;

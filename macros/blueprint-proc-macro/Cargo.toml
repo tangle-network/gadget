@@ -19,6 +19,7 @@ gadget-blueprint-proc-macro-core = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
+gadget-sdk = { workspace = true }
 
 [dev-dependencies]
 trybuild = "1.0"

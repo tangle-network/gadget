@@ -357,8 +357,6 @@ fn generate_job_report_event_handler(
                     .collect();
 
                 for job_result in job_results {
-                    tracing::info!("Handling JobResultSubmitted Event: #{block_number}");
-
                     // TODO: Implement parameter extraction and report function call
                     // This part will depend on the specific structure of your JobResultSubmitted event
                     // and how you want to handle the report function call
@@ -408,7 +406,7 @@ fn generate_qos_report_event_handler(
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name<T> {
+        impl gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
             async fn can_handle_events(
                 &self,
                 _events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
@@ -425,10 +423,10 @@ fn generate_qos_report_event_handler(
                 ),
             ) -> Result<(), gadget_sdk::events_watcher::Error> {
                 use std::time::Duration;
-                use gadget_sdk::slashing::reports::{QosReporter, DefaultQoSReporter};
+                use gadget_sdk::slashing::reports::{QoSReporter, DefaultQoSReporter};
 
 
-                let mut reporter = DefaultQoSReporter { self.service_id };
+                let mut reporter = DefaultQoSReporter { service_id: self.service_id };
                 let interval = Duration::from_secs(#interval);
                 let mut next_check = std::time::Instant::now();
 
@@ -440,7 +438,6 @@ fn generate_qos_report_event_handler(
                         let report_result = reporter.report(&metrics).await
                             .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e))?;
 
-                        tracing::info!("QoS report result: {:?}", report_result);
                         next_check = std::time::Instant::now() + interval;
                     }
                     std::thread::sleep(Duration::from_millis(100));
@@ -512,6 +509,132 @@ impl Parse for Verifier {
             Ok(Verifier::Evm(contract.value()))
         } else {
             Ok(Verifier::None)
+        }
+    }
+}
+
+#[doc = "Report definition for the function "]
+#[doc = "report_keygen"]
+pub
+const REPORT_KEYGEN_REPORT_DEF : & str =
+"{\"metadata\":{\"name\":\"report_keygen\",\"description\":null},\"params\":[\"Uint16\",\"Uint16\",{\"List\":\"Bytes\"}],\"result\":[\"Uint32\"],\"report_type\":\"job\",\"job_id\":0,\"verifier\":{\"evm\":\"KeygenContract\"}}";
+#[doc = " Report function for the keygen job."]
+fn report_keygen(n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
+    let _ = (n, t, msgs);
+    0
+}
+pub struct ReportKeygenJobReportEventHandler {
+    pub service_id: u64,
+    pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
+}
+#[automatically_derived]
+#[async_trait::async_trait]
+impl gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig>
+    for ReportKeygenJobReportEventHandler
+{
+    async fn can_handle_events(
+        &self,
+        events: gadget_sdk::tangle_subxt::subxt::events::Events<
+            gadget_sdk::events_watcher::tangle::TangleConfig,
+        >,
+    ) -> Result<bool, gadget_sdk::events_watcher::Error> {
+        use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted;
+        let has_event = events
+            .find::<JobResultSubmitted>()
+            .flatten()
+            .any(|event| event.service_id == self.service_id && event.job == 0);
+        Ok(has_event)
+    }
+    async fn handle_events(
+        &self,
+        _client: gadget_sdk::tangle_subxt::subxt::OnlineClient<
+            gadget_sdk::events_watcher::tangle::TangleConfig,
+        >,
+        (events, block_number): (
+            gadget_sdk::tangle_subxt::subxt::events::Events<
+                gadget_sdk::events_watcher::tangle::TangleConfig,
+            >,
+            u64,
+        ),
+    ) -> Result<(), gadget_sdk::events_watcher::Error> {
+        use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted;
+        let job_results: Vec<_> = events
+            .find::<JobResultSubmitted>()
+            .flatten()
+            .filter(|event| event.service_id == self.service_id && event.job == 0)
+            .collect();
+        for job_result in job_results {}
+        Ok(())
+    }
+}
+
+#[doc = "Report definition for the function "]
+#[doc = "report_service_health"]
+pub const REPORT_SERVICE_HEALTH_REPORT_DEF :
+& str =
+"{\"metadata\":{\"name\":\"report_service_health\",\"description\":null},\"params\":[\"Float64\",\"Uint64\",\"Float64\"],\"result\":[\"Bytes\"],\"report_type\":\"qos\",\"interval\":3600,\"metric_thresholds\":[[\"uptime\",99],[\"response_time\",1000],[\"error_rate\",5]],\"verifier\":\"none\"}";
+fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Vec<u8> {
+    let mut issues = Vec::new();
+    if uptime < 99.0 {
+        issues.push(b"Low uptime".to_vec());
+    }
+    if response_time > 1000 {
+        issues.push(b"High response time".to_vec());
+    }
+    if error_rate > 5.0 {
+        issues.push(b"High error rate".to_vec());
+    }
+    issues.concat()
+}
+pub struct ReportServiceHealthQoSReportEventHandler {
+    pub service_id: u64,
+    pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
+}
+#[automatically_derived]
+#[async_trait::async_trait]
+impl gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig>
+    for ReportServiceHealthQoSReportEventHandler
+{
+    async fn can_handle_events(
+        &self,
+        _events: gadget_sdk::tangle_subxt::subxt::events::Events<
+            gadget_sdk::events_watcher::tangle::TangleConfig,
+        >,
+    ) -> Result<bool, gadget_sdk::events_watcher::Error> {
+        Ok(true)
+    }
+    async fn handle_events(
+        &self,
+        _client: gadget_sdk::tangle_subxt::subxt::OnlineClient<
+            gadget_sdk::events_watcher::tangle::TangleConfig,
+        >,
+        (_events, _block_number): (
+            gadget_sdk::tangle_subxt::subxt::events::Events<
+                gadget_sdk::events_watcher::tangle::TangleConfig,
+            >,
+            u64,
+        ),
+    ) -> Result<(), gadget_sdk::events_watcher::Error> {
+        use gadget_sdk::slashing::reports::{DefaultQoSReporter, QoSReporter};
+        use std::time::Duration;
+        let mut reporter = DefaultQoSReporter {
+            service_id: self.service_id,
+        };
+        let interval = Duration::from_secs(3600);
+        let mut next_check = std::time::Instant::now();
+        loop {
+            if std::time::Instant::now() >= next_check {
+                let metrics = reporter
+                    .collect_metrics()
+                    .await
+                    .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e))?;
+                let report_result = reporter
+                    .report(&metrics)
+                    .await
+                    .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e))?;
+                next_check = std::time::Instant::now() + interval;
+            }
+            std::thread::sleep(Duration::from_millis(100));
         }
     }
 }

@@ -8,18 +8,16 @@ edition = "2021"
 [features]
 default = ["std"]
 std = [
-  "gadget-common/default",
-  "gadget-io/default",
+  "gadget-common/std",
+  "gadget-io/std",
   "sc-keystore",
-  "sp-core/default",
-  "sp-io/default",
-  "sp-application-crypto/default",
+  "sp-core/std",
+  "sp-io/std",
+  "sp-application-crypto/std",
 ]
 wasm = [
   "gadget-common/wasm",
   "gadget-io/wasm",
-  "sp-core/serde",
-  "sp-core/full_crypto",
   "sp-io/disable_panic_handler",
   "sp-io/disable_oom",
   "sp-io/disable_allocator",

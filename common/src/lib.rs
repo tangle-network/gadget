@@ -11,7 +11,6 @@ pub use gadget_core::job_manager::WorkManagerInterface;
 pub use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
 use gadget_io::tokio::task::JoinError;
 use parking_lot::RwLock;
-pub use sp_core;
 use sp_core::ecdsa;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
