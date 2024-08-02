@@ -86,12 +86,12 @@ std = [
   "serde_bytes/std",
   "tracing/std",
   "tracing/attributes",
-    "sp-api/std",
-    "sp-io/std",
-    "sp-core/std",
-    "sp-runtime/std",
-    "sp-application-crypto/std",
-    "sp-tracing/std",
+  "sp-api/std",
+  "sp-io/std",
+  "sp-core/std",
+  "sp-runtime/std",
+  "sp-application-crypto/std",
+  "sp-tracing/std",
 ]
 wasm = [
     "gadget-io/wasm",

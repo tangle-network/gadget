@@ -59,7 +59,7 @@ log = { version = "0.4", default-features = false }
 gadget-core = { workspace = true }
 gadget-common = { workspace = true, default-features = false, features = ["tangle-testnet"] }
 gadget-io = { workspace = true, default-features = false }
-gadget-sdk = { workspace = true, features = ["networking-libp2p"] }
+gadget-sdk = { workspace = true }
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 sp-keystore = { workspace = true }

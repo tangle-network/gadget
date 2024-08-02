@@ -14,7 +14,7 @@ substrate = []
 
 [dependencies]
 parking_lot = { workspace = true }
-gadget-io = { workspace = true, default-features = false }
+gadget-io = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
 log = { workspace = true }
 async-trait = { workspace = true }

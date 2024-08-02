@@ -27,15 +27,11 @@ pub mod keystore;
 // #[cfg(feature = "metrics")]
 // pub mod metrics;
 
-/// Logging Module
-#[cfg(feature = "logging")]
-pub mod logging;
 /// Randomness generation module
 #[cfg(not(feature = "wasm"))]
 pub mod random;
 
 /// Blockchain Events Watcher Module
-#[cfg(feature = "events-watcher")]
 pub mod events_watcher;
 
 /// Gadget Environment Module
@@ -45,11 +41,12 @@ pub mod env;
 pub mod tx;
 
 // Exporting the macros
-#[cfg(feature = "macros")]
+// #[cfg(feature = "macros")]
 pub use gadget_blueprint_proc_macro::{job, registration_hook, report, request_hook};
 
 #[doc(hidden)]
-#[cfg(feature = "macros")]
+// #[cfg(feature = "macros")]
 pub use tangle_subxt;
-#[cfg(feature = "networking-libp2p")]
+
+// #[cfg(feature = "networking-libp2p")]
 pub mod network;

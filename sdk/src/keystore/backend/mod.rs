@@ -4,7 +4,6 @@
 pub mod mem;
 
 /// Filesystem Keystore Backend
-#[cfg(all(feature = "keystore-fs", feature = "std"))]
 pub mod fs;
 
 /// A Generic Key Store that can be backed by different keystore backends.
@@ -14,7 +13,6 @@ pub enum GenericKeyStore {
     /// In-Memory Keystore
     Mem(mem::InMemoryKeystore),
     /// Filesystem Keystore
-    #[cfg(all(feature = "keystore-fs", feature = "std"))]
     Fs(fs::FilesystemKeystore),
 }
 
@@ -25,7 +23,6 @@ impl super::Backend for GenericKeyStore {
     ) -> Result<super::sr25519::Public, super::Error> {
         match self {
             Self::Mem(backend) => backend.sr25519_generate_new(seed),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.sr25519_generate_new(seed),
         }
     }
@@ -37,7 +34,6 @@ impl super::Backend for GenericKeyStore {
     ) -> Result<Option<super::sr25519::Signature>, super::Error> {
         match self {
             Self::Mem(backend) => backend.sr25519_sign(public, msg),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.sr25519_sign(public, msg),
         }
     }
@@ -48,7 +44,6 @@ impl super::Backend for GenericKeyStore {
     ) -> Result<super::ed25519::Public, super::Error> {
         match self {
             Self::Mem(backend) => backend.ed25519_generate_new(seed),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.ed25519_generate_new(seed),
         }
     }
@@ -60,7 +55,6 @@ impl super::Backend for GenericKeyStore {
     ) -> Result<Option<super::ed25519::Signature>, super::Error> {
         match self {
             Self::Mem(backend) => backend.ed25519_sign(public, msg),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.ed25519_sign(public, msg),
         }
     }
@@ -71,7 +65,6 @@ impl super::Backend for GenericKeyStore {
     ) -> Result<super::ecdsa::Public, super::Error> {
         match self {
             Self::Mem(backend) => backend.ecdsa_generate_new(seed),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.ecdsa_generate_new(seed),
         }
     }
@@ -83,7 +76,6 @@ impl super::Backend for GenericKeyStore {
     ) -> Result<Option<super::ecdsa::Signature>, super::Error> {
         match self {
             Self::Mem(backend) => backend.ecdsa_sign(public, msg),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.ecdsa_sign(public, msg),
         }
     }
@@ -94,7 +86,6 @@ impl super::Backend for GenericKeyStore {
     ) -> Result<super::bls381::Public, super::Error> {
         match self {
             Self::Mem(backend) => backend.bls381_generate_new(seed),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.bls381_generate_new(seed),
         }
     }
@@ -106,7 +97,6 @@ impl super::Backend for GenericKeyStore {
     ) -> Result<Option<super::bls381::Signature>, super::Error> {
         match self {
             Self::Mem(backend) => backend.bls381_sign(public, msg),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.bls381_sign(public, msg),
         }
     }
@@ -117,7 +107,6 @@ impl super::Backend for GenericKeyStore {
     ) -> Result<Option<super::sr25519::Secret>, super::Error> {
         match self {
             Self::Mem(backend) => backend.expose_sr25519_secret(public),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.expose_sr25519_secret(public),
         }
     }
@@ -128,7 +117,6 @@ impl super::Backend for GenericKeyStore {
     ) -> Result<Option<super::ecdsa::Secret>, super::Error> {
         match self {
             Self::Mem(backend) => backend.expose_ecdsa_secret(public),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.expose_ecdsa_secret(public),
         }
     }
@@ -139,7 +127,6 @@ impl super::Backend for GenericKeyStore {
     ) -> Result<Option<super::ed25519::Secret>, super::Error> {
         match self {
             Self::Mem(backend) => backend.expose_ed25519_secret(public),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.expose_ed25519_secret(public),
         }
     }
@@ -150,7 +137,6 @@ impl super::Backend for GenericKeyStore {
     ) -> Result<Option<super::bls381::Secret>, super::Error> {
         match self {
             Self::Mem(backend) => backend.expose_bls381_secret(public),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.expose_bls381_secret(public),
         }
     }
@@ -158,7 +144,6 @@ impl super::Backend for GenericKeyStore {
     fn iter_sr25519(&self) -> impl Iterator<Item = super::sr25519::Public> {
         match self {
             Self::Mem(backend) => backend.iter_sr25519().collect::<Vec<_>>().into_iter(),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.iter_sr25519().collect::<Vec<_>>().into_iter(),
         }
     }
@@ -166,7 +151,6 @@ impl super::Backend for GenericKeyStore {
     fn iter_ecdsa(&self) -> impl Iterator<Item = super::ecdsa::Public> {
         match self {
             Self::Mem(backend) => backend.iter_ecdsa().collect::<Vec<_>>().into_iter(),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.iter_ecdsa().collect::<Vec<_>>().into_iter(),
         }
     }
@@ -174,7 +158,6 @@ impl super::Backend for GenericKeyStore {
     fn iter_ed25519(&self) -> impl Iterator<Item = super::ed25519::Public> {
         match self {
             Self::Mem(backend) => backend.iter_ed25519().collect::<Vec<_>>().into_iter(),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.iter_ed25519().collect::<Vec<_>>().into_iter(),
         }
     }
@@ -182,7 +165,6 @@ impl super::Backend for GenericKeyStore {
     fn iter_bls381(&self) -> impl Iterator<Item = super::bls381::Public> {
         match self {
             Self::Mem(backend) => backend.iter_bls381().collect::<Vec<_>>().into_iter(),
-            #[cfg(all(feature = "keystore-fs", feature = "std"))]
             Self::Fs(backend) => backend.iter_bls381().collect::<Vec<_>>().into_iter(),
         }
     }

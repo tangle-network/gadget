@@ -1,4 +1,4 @@
-use gadget_sdk::{job, registration_hook, report, request_hook};
+use gadget_blueprint_proc_macro::{job, registration_hook, report, request_hook};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Error {
@@ -82,52 +82,52 @@ fn report_keygen(n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
     0
 }
 
-#[report(
-    params(uptime, response_time, error_rate),
-    result(Vec<u8>),
-    report_type = "qos",
-    interval = 3600,
-    metric_thresholds(uptime = 99, response_time = 1000, error_rate = 5)
-)]
-fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Vec<u8> {
-    let mut issues = Vec::new();
-    if uptime < 99.0 {
-        issues.push(b"Low uptime".to_vec());
-    }
-    if response_time > 1000 {
-        issues.push(b"High response time".to_vec());
-    }
-    if error_rate > 5.0 {
-        issues.push(b"High error rate".to_vec());
-    }
-    issues.concat()
-}
+// #[report(
+//     params(uptime, response_time, error_rate),
+//     result(Vec<u8>),
+//     report_type = "qos",
+//     interval = 3600,
+//     metric_thresholds(uptime = 99, response_time = 1000, error_rate = 5)
+// )]
+// fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Vec<u8> {
+//     let mut issues = Vec::new();
+//     if uptime < 99.0 {
+//         issues.push(b"Low uptime".to_vec());
+//     }
+//     if response_time > 1000 {
+//         issues.push(b"High response time".to_vec());
+//     }
+//     if error_rate > 5.0 {
+//         issues.push(b"High error rate".to_vec());
+//     }
+//     issues.concat()
+// }
 
-#[report(
-    params(cpu_usage, memory_usage, request_latency),
-    result(u8),
-    report_type = "qos",
-    interval = 300,
-    metric_thresholds(cpu_usage = 80, memory_usage = 90, request_latency = 200)
-)]
-fn report_system_health(cpu_usage: u64, memory_usage: u64, request_latency: u64) -> u8 {
-    let mut issues = 0;
-    if cpu_usage > 80 {
-        issues += 1;
-    }
-    if memory_usage > 90 {
-        issues += 1;
-    }
-    if request_latency > 200 {
-        issues += 1;
-    }
-    issues
-}
+// #[report(
+//     params(cpu_usage, memory_usage, request_latency),
+//     result(u8),
+//     report_type = "qos",
+//     interval = 300,
+//     metric_thresholds(cpu_usage = 80, memory_usage = 90, request_latency = 200)
+// )]
+// fn report_system_health(cpu_usage: u64, memory_usage: u64, request_latency: u64) -> u8 {
+//     let mut issues = 0;
+//     if cpu_usage > 80 {
+//         issues += 1;
+//     }
+//     if memory_usage > 90 {
+//         issues += 1;
+//     }
+//     if request_latency > 200 {
+//         issues += 1;
+//     }
+//     issues
+// }
 
-#[report(params(uptime), result(bool), report_type = "qos", interval = 3600)]
-fn simple_qos_report(uptime: f64) -> bool {
-    uptime >= 99.0
-}
+// #[report(params(uptime), result(bool), report_type = "qos", interval = 3600)]
+// fn simple_qos_report(uptime: f64) -> bool {
+//     uptime >= 99.0
+// }
 
 #[cfg(test)]
 mod tests {

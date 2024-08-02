@@ -16,7 +16,7 @@ required-features = ["gadget"]
 [dependencies]
 tracing = { workspace = true }
 async-trait = { workspace = true }
-gadget-sdk = { workspace = true, default-features = false, features = ["std", "keystore", "events-watcher", "macros", "tx-tangle"] }
+gadget-sdk = { workspace = true }
 
 color-eyre = { workspace = true, optional = true }
 tokio = { workspace = true, default-features = false, features = ["full"], optional = true }

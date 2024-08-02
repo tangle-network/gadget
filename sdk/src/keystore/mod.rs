@@ -25,19 +25,20 @@
 /// Backend modules
 pub mod backend;
 /// BLS381 Support
-#[cfg(feature = "keystore-bls381")]
 mod bls381;
+
 /// ECDSA Support
-#[cfg(feature = "keystore-ecdsa")]
 mod ecdsa;
+
 /// Ed25519 Support
-#[cfg(feature = "keystore-ed25519")]
 mod ed25519;
+
 /// Keystore errors module
 mod error;
+
 /// Schnorrkel Support
-#[cfg(feature = "keystore-sr25519")]
 mod sr25519;
+
 
 pub use error::Error;
 
@@ -52,7 +53,6 @@ pub trait Backend {
     ///
     /// # Errors
     /// An `Err` will be returned if generating the key pair operation itself failed.
-    #[cfg(feature = "keystore-sr25519")]
     fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public, Error>;
     /// Generate an sr25519 signature for a given message.
     ///
@@ -63,7 +63,6 @@ pub trait Backend {
     /// `public` doesn't exist in the keystore.
     /// # Errors
     /// An `Err` will be returned if generating the signature itself failed.
-    #[cfg(feature = "keystore-sr25519")]
     fn sr25519_sign(
         &self,
         public: &sr25519::Public,
@@ -76,7 +75,6 @@ pub trait Backend {
     ///
     /// # Errors
     /// An `Err` will be returned if generating the key pair operation itself failed.
-    #[cfg(feature = "keystore-ed25519")]
     fn ed25519_generate_new(&self, seed: Option<&[u8]>) -> Result<ed25519::Public, Error>;
     /// Generate an ed25519 signature for a given message.
     ///
@@ -87,7 +85,6 @@ pub trait Backend {
     /// `public` doesn't exist in the keystore.
     /// # Errors
     /// An `Err` will be returned if generating the signature itself failed.
-    #[cfg(feature = "keystore-ed25519")]
     fn ed25519_sign(
         &self,
         public: &ed25519::Public,
@@ -99,7 +96,6 @@ pub trait Backend {
     /// something failed during key generation.
     /// # Errors
     /// An `Err` will be returned if generating the key pair operation itself failed.
-    #[cfg(feature = "keystore-ecdsa")]
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error>;
     /// Generate an ecdsa signature for a given message.
     ///
@@ -110,7 +106,6 @@ pub trait Backend {
     /// `public` doesn't exist in the keystore.
     /// # Errors
     /// An `Err` will be returned if generating the signature itself failed.
-    #[cfg(feature = "keystore-ecdsa")]
     fn ecdsa_sign(
         &self,
         public: &ecdsa::Public,
@@ -122,7 +117,6 @@ pub trait Backend {
     /// something failed during key generation.
     /// # Errors
     /// An `Err` will be returned if generating the key pair operation itself failed.
-    #[cfg(feature = "keystore-bls381")]
     fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<bls381::Public, Error>;
     /// Generate an bls381 signature for a given message.
     ///
@@ -133,7 +127,6 @@ pub trait Backend {
     /// `public` doesn't exist in the keystore.
     /// # Errors
     /// An `Err` will be returned if generating the signature itself failed.
-    #[cfg(feature = "keystore-bls381")]
     fn bls381_sign(
         &self,
         public: &bls381::Public,
@@ -142,7 +135,6 @@ pub trait Backend {
     /// Returns the Keypair for the given [`sr25519::Public`] if it does exist, otherwise returns `None`.
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.
-    #[cfg(feature = "keystore-sr25519")]
     fn expose_sr25519_secret(
         &self,
         public: &sr25519::Public,
@@ -150,12 +142,10 @@ pub trait Backend {
     /// Returns the [`ecdsa::Secret`] for the given [`ecdsa::Public`] if it does exist, otherwise returns `None`.
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.
-    #[cfg(feature = "keystore-ecdsa")]
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error>;
     /// Returns the [`ed25519::Secret`] for the given [`ed25519::Public`] if it does exist, otherwise returns `None`.
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.
-    #[cfg(feature = "keystore-ed25519")]
     fn expose_ed25519_secret(
         &self,
         public: &ed25519::Public,
@@ -163,21 +153,16 @@ pub trait Backend {
     /// Returns the [`bls381::Secret`] for the given [`bls381::Public`] if it does exist, otherwise returns `None`.
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.
-    #[cfg(feature = "keystore-bls381")]
     fn expose_bls381_secret(
         &self,
         public: &bls381::Public,
     ) -> Result<Option<bls381::Secret>, Error>;
     /// Returns an iterator over all [`sr25519::Public`] keys that exist in the keystore.
-    #[cfg(feature = "keystore-sr25519")]
     fn iter_sr25519(&self) -> impl Iterator<Item = sr25519::Public>;
     /// Returns an iterator over all [`bls381::Public`] keys that exist in the keystore.
-    #[cfg(feature = "keystore-ecdsa")]
     fn iter_ecdsa(&self) -> impl Iterator<Item = ecdsa::Public>;
     /// Returns an iterator over all [`ed25519::Public`] keys that exist in the keystore.
-    #[cfg(feature = "keystore-ed25519")]
     fn iter_ed25519(&self) -> impl Iterator<Item = ed25519::Public>;
     /// Returns an iterator over all [`bls381::Public`] keys that exist in the keystore.
-    #[cfg(feature = "keystore-bls381")]
     fn iter_bls381(&self) -> impl Iterator<Item = bls381::Public>;
 }
