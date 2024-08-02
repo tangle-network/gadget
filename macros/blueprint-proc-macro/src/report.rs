@@ -1,3 +1,4 @@
+use crate::utils::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{
     FieldType, ReportDefinition, ReportMetadata, ReportResultVerifier, ReportType,
 };
@@ -9,8 +10,6 @@ use syn::{
     parse::{Parse, ParseStream},
     Ident, ItemFn, LitInt, LitStr, Token, Type,
 };
-
-use crate::utils::{pascal_case, type_to_field_type};
 
 mod kw {
     syn::custom_keyword!(params);
@@ -183,7 +182,7 @@ impl ReportArgs {
 
 /// Implements the core functionality of the `report` attribute macro.
 ///
-/// This function generates the necessary code for both job reports and QoS reports,
+/// This function generates the necessary code for both job reports and `QoS` reports,
 /// including the report definition and the appropriate event handler.
 ///
 /// # Arguments
@@ -284,7 +283,7 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
         #event_handler_gen
     };
 
-    println!("Generated code:\n{}", gen);
+    println!("Generated code:\n{gen}");
 
     Ok(gen.into())
 }
@@ -371,9 +370,9 @@ fn generate_job_report_event_handler(
     }
 }
 
-/// Generates an event handler for QoS reports.
+/// Generates an event handler for `QoS` reports.
 ///
-/// This function creates a struct that periodically collects QoS metrics
+/// This function creates a struct that periodically collects `QoS` metrics
 /// and triggers the report function at specified intervals.
 ///
 /// # Arguments
@@ -402,7 +401,7 @@ fn generate_qos_report_event_handler(
         .expect("Interval must be present for QoS reports");
 
     quote! {
-        pub struct #struct_name<T: gadget_sdk::QoSReporter> {
+        pub struct #struct_name<T: QoSReporter> {
             pub service_id: u64,
             pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
             pub reporter: T,
@@ -410,7 +409,7 @@ fn generate_qos_report_event_handler(
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl<T: gadget_sdk::QoSReporter + Send + Sync> gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name<T> {
+        impl<T: QoSReporter + Send + Sync> gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name<T> {
             async fn can_handle_events(
                 &self,
                 _events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,

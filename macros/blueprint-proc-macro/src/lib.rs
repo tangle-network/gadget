@@ -28,7 +28,6 @@ mod job;
 mod qos;
 /// Report proc-macro
 mod report;
-
 /// Utilities for the Blueprint Macros
 mod utils;
 

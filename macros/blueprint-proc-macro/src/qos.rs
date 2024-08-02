@@ -2,6 +2,16 @@ use async_trait::async_trait;
 use std::time::Duration;
 use tokio::time::Instant;
 
+#[async_trait]
+pub trait QoSReporter {
+    type Metrics;
+    type ReportResult;
+    type Error;
+
+    async fn collect_metrics(&self) -> Result<Self::Metrics, Self::Error>;
+    async fn report(&self, metrics: &Self::Metrics) -> Result<Self::ReportResult, Self::Error>;
+}
+
 #[derive(Debug)]
 pub struct QoSReport {
     pub service_id: u64,
@@ -27,6 +37,10 @@ pub struct DefaultQoSReporter {
 
 #[async_trait]
 impl QoSReporter for DefaultQoSReporter {
+    type Metrics = QoSMetrics;
+    type ReportResult = QoSReport;
+    type Error = QoSError;
+
     async fn collect_metrics(&self) -> Result<QoSMetrics, QoSError> {
         collect_qos_metrics().await
     }
@@ -63,7 +77,6 @@ async fn collect_qos_metrics() -> Result<QoSMetrics, QoSError> {
     };
 
     let collection_time = start.elapsed();
-    tracing::info!("QoS metrics collected in {:?}", collection_time);
 
     Ok(metrics)
 }

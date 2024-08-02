@@ -8,8 +8,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::{Ident, ItemFn, LitInt, LitStr, Token, Type};
 
 use crate::utils::{
-    field_type_to_param_token, field_type_to_result_token, ident_to_field_type, pascal_case,
-    type_to_field_type,
+    field_type_to_param_token, field_type_to_result_token, pascal_case, type_to_field_type,
 };
 
 // Defines custom keywords
