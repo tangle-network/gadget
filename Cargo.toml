@@ -1,29 +1,22 @@
 [workspace]
 resolver = "2"
 members = [
+    "blueprint-metadata",
+    "blueprints/*",
     "core",
     "common",
+    "executor",
+    "environments/tangle",
+    "environments/utils",
     "gadget-io",
-    "tangle-test-utils",
+    "macros/blueprint-proc-macro",
+    "macros/blueprint-proc-macro-core",
+    "macros/blueprint-proc-macro-playground",
     "protocol-macros",
     "shell-manager",
     "shell-sdk",
     "sdk",
-    "macros/blueprint-proc-macro",
-    "macros/blueprint-proc-macro-core",
-    "macros/blueprint-proc-macro-playground",
-    "executor",
-    "environments/tangle",
-    "environments/utils",
-    "blueprint-metadata",
-    "eigen-contracts",
-    "eigen-gadget",
-    "eigen-utils",
-    "fireblocks-client",
-    "aws",
-    "eigen-gadget",
-    "eigen-tangle-avs",
-    "blueprints/*",
+    "tangle-test-utils",
 ]
 
 [workspace.package]
@@ -45,13 +38,6 @@ shell-sdk = { path = "./shell-sdk", default-features = false }
 shell-manager = { path = "./shell-manager" }
 tangle-environment = { path = "./environments/tangle" }
 environment-utils = { path = "./environments/utils" }
-
-eigen-contracts = { path = "./eigen-contracts" }
-eigen-gadget = { path = "./eigen-gadget" }
-eigen-utils = { path = "./eigen-utils" }
-eigen-tangle-avs = { path = "./eigen-tangle-avs" }
-fireblocks-client = { path = "./fireblocks-client" }
-gadget-aws-kms = { path = "./aws" }
 
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core" }

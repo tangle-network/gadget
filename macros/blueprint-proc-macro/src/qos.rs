@@ -76,8 +76,6 @@ async fn collect_qos_metrics() -> Result<QoSMetrics, QoSError> {
         cpu_usage,
     };
 
-    let collection_time = start.elapsed();
-
     Ok(metrics)
 }
 
