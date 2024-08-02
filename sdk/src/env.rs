@@ -48,7 +48,6 @@ pub enum Error {
 }
 
 /// Loads the [`GadgetEnvironment`] from the current environment.
-#[cfg(feature = "std")]
 pub fn load() -> Result<GadgetEnvironment, Error> {
     Ok(GadgetEnvironment {
         tangle_rpc_endpoint: std::env::var("RPC_URL")
@@ -73,9 +72,7 @@ pub fn load() -> Result<GadgetEnvironment, Error> {
 
 impl GadgetEnvironment {
     /// Loads the `KeyStore` from the current environment.
-    #[cfg(feature = "keystore")]
     pub fn keystore(&self) -> Result<crate::keystore::backend::GenericKeyStore, Error> {
-        #[cfg(all(feature = "keystore-fs", feature = "std"))]
         use crate::keystore::backend::fs::FilesystemKeystore;
         use crate::keystore::backend::{mem::InMemoryKeystore, GenericKeyStore};
 
@@ -83,20 +80,12 @@ impl GadgetEnvironment {
             uri if uri == "file::memory:" || uri == ":memory:" => {
                 Ok(GenericKeyStore::Mem(InMemoryKeystore::new()))
             }
-            #[cfg(feature = "keystore-fs")]
             uri if uri.starts_with("file:") || uri.starts_with("file://") => {
                 let path = uri
                     .trim_start_matches("file://")
                     .trim_start_matches("file:");
                 tracing::debug!("Reading keystore from: {path}");
                 Ok(GenericKeyStore::Fs(FilesystemKeystore::open(path)?))
-            }
-
-            #[cfg(not(feature = "keystore-fs"))]
-            uri if uri.starts_with("file:") || uri.starts_with("file://") => {
-                Err(Error::UnsupportedKeystoreUri(String::from(
-                    "using `file:` URI without `keystore-fs` feature",
-                )))
             }
             otherwise => Err(Error::UnsupportedKeystoreUri(otherwise.to_string())),
         }

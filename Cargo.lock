@@ -3796,6 +3796,7 @@ dependencies = [
  "sp-io",
  "subxt",
  "tangle-subxt",
+ "tangle-test-utils",
  "thiserror",
  "tokio",
  "tracing 0.1.40",

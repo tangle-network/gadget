@@ -55,9 +55,6 @@ tangle-subxt = { workspace = true, default-features = false }
 subxt = { workspace = true, default-features = false }
 backoff = { workspace = true }
 
-[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
-hyper = { version = "0.14.16", default-features = false, features = ["client"] }
-
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
 features = [
@@ -84,11 +81,14 @@ features = [
 workspace = true
 default-features = false
 
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
+hyper = { version = "0.14.16", default-features = false, features = ["client"] }
+
+[dev-dependencies]
+tangle-test-utils = { workspace = true }
+
 [features]
-default = [
-  # "full",
-  "std"
-]
+default = ["std"]
 std = [
   "alloc",
   "rand",
@@ -96,15 +96,6 @@ std = [
   "hex/std",
 ]
 alloc = ["rand_core/alloc", "hex/alloc"]
-# full = [
-#   "events-watcher",
-#   "keystore",
-#   "macros",
-#   "tx-tangle",
-#   "networking-libp2p",
-# ]
-# networking-libp2p = ["gadget-io", "bincode", "libp2p", "gadget-common", "serde", "async-trait", "futures", "gadget-core", "sp-io", "sp-core"]
-
 wasm = [
   "getrandom/js",
   "tracing-wasm",
@@ -113,27 +104,3 @@ wasm = [
 
 # Randomness
 getrandom = ["rand_core/getrandom"]
-
-# Keystore features
-# keystore = [
-#   "keystore-ecdsa",
-#   "keystore-sr25519",
-#   "keystore-ed25519",
-#   "keystore-bls381",
-#   "keystore-fs",
-# ]
-# keystore-ecdsa = ["k256", "elliptic-curve/sec1"]
-# keystore-sr25519 = ["schnorrkel"]
-# keystore-ed25519 = ["ed25519-zebra"]
-# keystore-bls381 = ["w3f-bls"]
-# Keystore backends
-# Requires: std
-# keystore-fs = []
-
-# metrics = ["hyper", "prometheus", "tokio"]
-# logging = ["tracing-subscriber"]
-
-# macros = ["gadget-blueprint-proc-macro", "tangle-subxt"]
-
-# events-watcher = ["subxt/jsonrpsee", "subxt/native", "backoff", "tokio/time"]
-# tx-tangle = ["tangle-subxt", "backoff"]

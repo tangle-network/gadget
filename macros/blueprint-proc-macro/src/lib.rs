@@ -24,8 +24,6 @@ mod blueprint;
 mod hooks;
 /// Blueprint Job proc-macro
 mod job;
-/// Quality of service functions for misbehavior reports
-mod qos;
 /// Report proc-macro
 mod report;
 /// Utilities for the Blueprint Macros

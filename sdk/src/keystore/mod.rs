@@ -39,7 +39,6 @@ mod error;
 /// Schnorrkel Support
 mod sr25519;
 
-
 pub use error::Error;
 
 /// The Keystore [`Backend`] trait defines the necessary functions that a keystore backend

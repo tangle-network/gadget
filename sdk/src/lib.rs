@@ -24,7 +24,6 @@ extern crate alloc;
 pub mod keystore;
 
 /// Metrics Module
-// #[cfg(feature = "metrics")]
 // pub mod metrics;
 
 /// Randomness generation module
@@ -41,12 +40,11 @@ pub mod env;
 pub mod tx;
 
 // Exporting the macros
-// #[cfg(feature = "macros")]
 pub use gadget_blueprint_proc_macro::{job, registration_hook, report, request_hook};
 
 #[doc(hidden)]
-// #[cfg(feature = "macros")]
 pub use tangle_subxt;
 
-// #[cfg(feature = "networking-libp2p")]
 pub mod network;
+
+pub mod slashing;

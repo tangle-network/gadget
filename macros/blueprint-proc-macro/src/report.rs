@@ -401,15 +401,14 @@ fn generate_qos_report_event_handler(
         .expect("Interval must be present for QoS reports");
 
     quote! {
-        pub struct #struct_name<T: QoSReporter> {
+        pub struct #struct_name {
             pub service_id: u64,
             pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
-            pub reporter: T,
         }
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl<T: QoSReporter + Send + Sync> gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name<T> {
+        impl gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name<T> {
             async fn can_handle_events(
                 &self,
                 _events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
@@ -426,19 +425,22 @@ fn generate_qos_report_event_handler(
                 ),
             ) -> Result<(), gadget_sdk::events_watcher::Error> {
                 use std::time::Duration;
+                use gadget_sdk::slashing::reports::{QosReporter, DefaultQoSReporter};
 
+
+                let mut reporter = DefaultQoSReporter { self.service_id };
                 let interval = Duration::from_secs(#interval);
                 let mut next_check = std::time::Instant::now();
 
                 loop {
                     if std::time::Instant::now() >= next_check {
-                        let metrics = self.reporter.collect_metrics().await
+                        let metrics = reporter.collect_metrics().await
                             .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e))?;
 
-                        let report_result = self.reporter.report(&metrics).await
+                        let report_result = reporter.report(&metrics.clone()).await
                             .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e))?;
 
-                        tracing::info!("QoS report result: {:?}", report_result);
+                        tracing::info!("QoS report result: {:?}", report_result.clone());
                         next_check = std::time::Instant::now() + interval;
                     }
                     std::thread::sleep(Duration::from_millis(100));

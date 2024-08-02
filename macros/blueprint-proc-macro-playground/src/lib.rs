@@ -82,26 +82,26 @@ fn report_keygen(n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
     0
 }
 
-// #[report(
-//     params(uptime, response_time, error_rate),
-//     result(Vec<u8>),
-//     report_type = "qos",
-//     interval = 3600,
-//     metric_thresholds(uptime = 99, response_time = 1000, error_rate = 5)
-// )]
-// fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Vec<u8> {
-//     let mut issues = Vec::new();
-//     if uptime < 99.0 {
-//         issues.push(b"Low uptime".to_vec());
-//     }
-//     if response_time > 1000 {
-//         issues.push(b"High response time".to_vec());
-//     }
-//     if error_rate > 5.0 {
-//         issues.push(b"High error rate".to_vec());
-//     }
-//     issues.concat()
-// }
+#[report(
+    params(uptime, response_time, error_rate),
+    result(Vec<u8>),
+    report_type = "qos",
+    interval = 3600,
+    metric_thresholds(uptime = 99, response_time = 1000, error_rate = 5)
+)]
+fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Vec<u8> {
+    let mut issues = Vec::new();
+    if uptime < 99.0 {
+        issues.push(b"Low uptime".to_vec());
+    }
+    if response_time > 1000 {
+        issues.push(b"High response time".to_vec());
+    }
+    if error_rate > 5.0 {
+        issues.push(b"High error rate".to_vec());
+    }
+    issues.concat()
+}
 
 // #[report(
 //     params(cpu_usage, memory_usage, request_latency),
