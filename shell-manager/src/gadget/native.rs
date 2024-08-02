@@ -23,7 +23,7 @@ pub async fn maybe_handle(
     logger: &DebugLogger,
 ) -> color_eyre::Result<()> {
     for (gh, fetcher) in onchain_services.iter().zip(onchain_gh_fetchers) {
-        let native_wasm_metadata = NativeGithubMetadata {
+        let native_github_metadata = NativeGithubMetadata {
             git: gh.git.clone(),
             tag: gh.tag.clone(),
             owner: gh.owner.clone(),
@@ -34,7 +34,7 @@ pub async fn maybe_handle(
 
         if let Err(err) = handle_github_source(
             blueprints,
-            &native_wasm_metadata,
+            &native_github_metadata,
             shell_config,
             shell_manager_opts,
             fetcher,

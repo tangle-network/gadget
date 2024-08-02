@@ -1,8 +1,10 @@
+#![allow(unused_results)]
+
 use crate::network::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
 use libp2p::gossipsub::IdentTopic;
 
+use gadget_common::sp_core::{keccak_256, Pair};
 use libp2p::{request_response, PeerId};
-use sp_core::{keccak_256, Pair};
 use sp_io::crypto::ecdsa_verify_prehashed;
 
 impl NetworkService<'_> {
@@ -11,7 +13,7 @@ impl NetworkService<'_> {
         &mut self,
         event: request_response::Event<MyBehaviourRequest, MyBehaviourResponse>,
     ) {
-        use request_response::Event::*;
+        use request_response::Event::{InboundFailure, Message, OutboundFailure, ResponseSent};
         match event {
             Message { peer, message } => {
                 self.logger
@@ -46,7 +48,7 @@ impl NetworkService<'_> {
         peer: PeerId,
         message: request_response::Message<MyBehaviourRequest, MyBehaviourResponse>,
     ) {
-        use request_response::Message::*;
+        use request_response::Message::{Request, Response};
         match message {
             Request {
                 request,
@@ -75,10 +77,10 @@ impl NetworkService<'_> {
     async fn handle_p2p_response(
         &mut self,
         peer: PeerId,
-        _request_id: request_response::OutboundRequestId,
+        request_id: request_response::OutboundRequestId,
         message: MyBehaviourResponse,
     ) {
-        use crate::network::gossip::MyBehaviourResponse::*;
+        use crate::network::gossip::MyBehaviourResponse::{Handshaked, MessageHandled};
         match message {
             Handshaked {
                 ecdsa_public_key,
@@ -115,7 +117,7 @@ impl NetworkService<'_> {
         req: MyBehaviourRequest,
         channel: request_response::ResponseChannel<MyBehaviourResponse>,
     ) {
-        use crate::network::gossip::MyBehaviourRequest::*;
+        use crate::network::gossip::MyBehaviourRequest::{Handshake, Message};
         let result = match req {
             Handshake {
                 ecdsa_public_key,

@@ -9,7 +9,7 @@ use w3f_bls::SerializableToBytes;
 
 use parking_lot::RwLock;
 
-use crate::keystore::{bls381, ecdsa, ed25519, sr25519, Backend};
+use crate::keystore::{bls381, ecdsa, ed25519, sr25519, Backend, Error};
 
 /// The type alias for the In Memory `KeyMap`.
 type KeyMap<P, S> = Arc<RwLock<BTreeMap<P, S>>>;
@@ -95,10 +95,7 @@ impl InMemoryKeystore {
 
 impl Backend for InMemoryKeystore {
     #[cfg(feature = "keystore-sr25519")]
-    fn sr25519_generate_new(
-        &self,
-        seed: Option<&[u8]>,
-    ) -> Result<sr25519::Public, crate::keystore::Error> {
+    fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public, Error> {
         let secret = sr25519::generate_with_optional_seed(seed)?;
         let public = secret.to_public();
         let old = self.sr25519.write().insert(public, secret);
@@ -111,7 +108,7 @@ impl Backend for InMemoryKeystore {
         &self,
         public: &sr25519::Public,
         msg: &[u8],
-    ) -> Result<Option<sr25519::Signature>, crate::keystore::Error> {
+    ) -> Result<Option<sr25519::Signature>, Error> {
         let lock = self.sr25519.read();
         let secret = lock.get(public);
         if let Some(secret) = secret {
@@ -122,10 +119,7 @@ impl Backend for InMemoryKeystore {
     }
 
     #[cfg(feature = "keystore-ed25519")]
-    fn ed25519_generate_new(
-        &self,
-        seed: Option<&[u8]>,
-    ) -> Result<ed25519::Public, crate::keystore::Error> {
+    fn ed25519_generate_new(&self, seed: Option<&[u8]>) -> Result<ed25519::Public, Error> {
         let secret = ed25519::generate_with_optional_seed(seed)?;
         let public = ed25519::to_public(&secret);
         let old = self
@@ -141,7 +135,7 @@ impl Backend for InMemoryKeystore {
         &self,
         public: &ed25519::Public,
         msg: &[u8],
-    ) -> Result<Option<ed25519::Signature>, crate::keystore::Error> {
+    ) -> Result<Option<ed25519::Signature>, Error> {
         let lock = self.ed25519.read();
         let secret = lock.get(&Ed25519PublicWrapper(*public));
         if let Some(secret) = secret {
@@ -152,11 +146,8 @@ impl Backend for InMemoryKeystore {
     }
 
     #[cfg(feature = "keystore-ecdsa")]
-    fn ecdsa_generate_new(
-        &self,
-        seed: Option<&[u8]>,
-    ) -> Result<ecdsa::Public, crate::keystore::Error> {
-        let secret = ecdsa::generate_with_optional_seed(seed)?;
+    fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error> {
+        let secret = ecdsa::generate_with_optional_seed(seed).map_err(Error::Ecdsa)?;
         let public = secret.public_key();
         let old = self.ecdsa.write().insert(public, secret);
         assert!(old.is_none(), "generated key already exists");
@@ -168,7 +159,7 @@ impl Backend for InMemoryKeystore {
         &self,
         public: &ecdsa::Public,
         msg: &[u8],
-    ) -> Result<Option<ecdsa::Signature>, crate::keystore::Error> {
+    ) -> Result<Option<ecdsa::Signature>, Error> {
         let lock = self.ecdsa.read();
         let secret = lock.get(public);
         if let Some(secret) = secret {
@@ -179,10 +170,7 @@ impl Backend for InMemoryKeystore {
     }
 
     #[cfg(feature = "keystore-bls381")]
-    fn bls381_generate_new(
-        &self,
-        seed: Option<&[u8]>,
-    ) -> Result<bls381::Public, crate::keystore::Error> {
+    fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<bls381::Public, Error> {
         let secret = bls381::generate_with_optional_seed(seed);
         let public = bls381::to_public(&secret);
         let old = self
@@ -198,7 +186,7 @@ impl Backend for InMemoryKeystore {
         &self,
         public: &bls381::Public,
         msg: &[u8],
-    ) -> Result<Option<bls381::Signature>, crate::keystore::Error> {
+    ) -> Result<Option<bls381::Signature>, Error> {
         let mut lock = self.bls381.write();
         let secret = lock.get_mut(&Bls381PublicWrapper(*public));
         if let Some(secret) = secret {
@@ -212,16 +200,13 @@ impl Backend for InMemoryKeystore {
     fn expose_sr25519_secret(
         &self,
         public: &sr25519::Public,
-    ) -> Result<Option<sr25519::Secret>, crate::keystore::Error> {
+    ) -> Result<Option<sr25519::Secret>, Error> {
         let lock = self.sr25519.read();
         Ok(lock.get(public).cloned())
     }
 
     #[cfg(feature = "keystore-ecdsa")]
-    fn expose_ecdsa_secret(
-        &self,
-        public: &ecdsa::Public,
-    ) -> Result<Option<ecdsa::Secret>, crate::keystore::Error> {
+    fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error> {
         let lock = self.ecdsa.read();
         Ok(lock.get(public).cloned())
     }
@@ -230,7 +215,7 @@ impl Backend for InMemoryKeystore {
     fn expose_ed25519_secret(
         &self,
         public: &ed25519::Public,
-    ) -> Result<Option<ed25519::Secret>, crate::keystore::Error> {
+    ) -> Result<Option<ed25519::Secret>, Error> {
         let lock = self.ed25519.read();
         Ok(lock.get(&Ed25519PublicWrapper(*public)).copied())
     }
@@ -239,7 +224,7 @@ impl Backend for InMemoryKeystore {
     fn expose_bls381_secret(
         &self,
         public: &bls381::Public,
-    ) -> Result<Option<bls381::Secret>, crate::keystore::Error> {
+    ) -> Result<Option<bls381::Secret>, Error> {
         let lock = self.bls381.read();
         Ok(lock.get(&Bls381PublicWrapper(*public)).cloned())
     }
