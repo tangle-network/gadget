@@ -441,29 +441,30 @@ impl<T: Config, I: OperatorInfoServiceTrait> Operator<T, I> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_primitives::{address, Address};
+    use alloy_provider::Provider;
     use alloy_provider::ProviderBuilder;
     use alloy_signer_local::PrivateKeySigner;
     use alloy_transport_ws::WsConnect;
-    use avs::IncredibleSquaringServiceManager;
-    use eigen_contracts::*;
-    use gadget_common::subxt_signer::bip39::rand_core::OsRng;
     use k256::ecdsa::VerifyingKey;
     use k256::elliptic_curve::SecretKey;
+    use std::path::Path;
+    use std::time::Duration; //, Bytes, U256};
 
     static BLS_PASSWORD: &str = "BLS_PASSWORD";
     static ECDSA_PASSWORD: &str = "ECDSA_PASSWORD";
 
-    // --------- IMPORTS FOR ANVIL TEST ---------
     // use alloy::signers::Signer;
-    use alloy_primitives::{address, Address, Bytes, U256};
     // use alloy_provider::network::{TransactionBuilder, TxSigner};
-    use crate::avs;
-    use alloy_provider::Provider;
-    use alloy_rpc_types_eth::BlockId;
-    use anvil::spawn;
-    use ark_bn254::Fq as F;
-    use ark_bn254::{Fr, G1Affine, G2Affine, G2Projective};
-    use url::Url;
+    // use crate::avs;
+    // use avs::IncredibleSquaringServiceManager;
+    // use eigen_contracts::*;
+    // use gadget_common::subxt_signer::bip39::rand_core::OsRng;
+    // use alloy_rpc_types_eth::BlockId;
+    // use anvil::spawn;
+    // use ark_bn254::Fq as F;
+    // use ark_bn254::{Fr, G1Affine, G2Affine, G2Projective};
+    // use url::Url;
 
     struct ContractAddresses {
         pub service_manager: Address,
@@ -474,378 +475,279 @@ mod tests {
         pub operator: Address,
     }
 
-    async fn run_anvil_testnet() -> ContractAddresses {
-        // Initialize the logger
-        env_logger::init();
-
-        let (api, mut handle) = spawn(anvil::NodeConfig::test().with_port(33125)).await;
-        api.anvil_auto_impersonate_account(true).await.unwrap();
-        // let http_provider = handle.http_provider();
-        // let ws_provider = handle.ws_provider();
-
-        let _http_provider = ProviderBuilder::new()
-            .on_http(Url::parse(&handle.http_endpoint()).unwrap())
-            .root()
-            .clone();
-        // todo: http_provider is unused
-
-        // let provider = ProviderBuilder::new().on_ws(WsConnect::new(handle.ws_endpoint())).await.unwrap();
-
-        let provider = ProviderBuilder::new()
-            .on_builtin(&handle.ws_endpoint())
-            .await
-            .unwrap();
-
-        let accounts = handle.dev_wallets().collect::<Vec<_>>();
-        let from = accounts[0].address();
-        let _to = accounts[1].address();
-
-        let _amount = handle
-            .genesis_balance()
-            .checked_div(U256::from(2u64))
-            .unwrap();
-
-        let _gas_price = provider.get_gas_price().await.unwrap();
-
-        let delegation_manager_addr =
-            Address::from(address!("0165878a594ca255338adfa4d48449f69242eb8f"));
-        let service_manager_addr =
-            Address::from(address!("610178da211fef7d417bc0e6fed39f05609ad788"));
-        let stake_registry_addr =
-            Address::from(address!("cf7ed3acca5a467e9e704c703e8d87f634fb0fc9"));
-        let bls_apk_registry_addr =
-            Address::from(address!("9fe46736679d2d9a65f0992f2272de9f3c7fa6e0"));
-        let index_registry_addr =
-            Address::from(address!("e7f1725e7734ce288f8367e1bb143e90bb3f0512"));
-        let strategy_manager_addr =
-            Address::from(address!("8fbdb2318678afecb368f032d93f642f64180aa6"));
-        // let _task_manager_addr =
-        //     Address::from(address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"));
-        let registry_coordinator_addr =
-            Address::from(address!("502aaA39b223FE8D0A0e5C4A27eAD9083C756Cc4"));
-        // todo: task manager address is unused
-
-        let registry_coordinator = RegistryCoordinator::deploy(
-            provider.clone(),
-            service_manager_addr,
-            stake_registry_addr,
-            bls_apk_registry_addr,
-            index_registry_addr,
-        )
-        .await
-        .unwrap();
-        // let registry_coordinator_addr = RegistryCoordinator::deploy_builder(
-        //     provider.clone(),
-        //     service_manager_addr,
-        //     stake_registry_addr,
-        //     bls_apk_registry_addr,
-        //     index_registry_addr,
-        // ).from(from).deploy()
-        // .await
-        // .unwrap();
-        // let registry_coordinator = RegistryCoordinator::new(registry_coordinator_addr, provider.clone());
-        // let owner = registry_coordinator.owner().call().await.unwrap();
-        // println!("REGISTRY COORDINATOR OWNER: {:?}", owner._0);
-        let registry_coordinator_addr = registry_coordinator.address();
-        println!("Registry Coordinator returned");
-        api.mine_one().await;
-        println!(
-            "Registry Coordinator deployed at: {:?}",
-            registry_coordinator_addr
-        );
-
-        // let add_quorum = registry_coordinator
-        //     .createQuorum(
-        //         OperatorSetParam {
-        //             maxOperatorCount: 10,
-        //             kickBIPsOfOperatorStake: 1,
-        //             kickBIPsOfTotalStake: 1,
-        //         },
-        //         0,
-        //         vec![StrategyParams {
-        //             strategy: strategy_manager_addr.clone(),
-        //             multiplier: 1,
-        //         }],
-        //     )
-        //     .send()
-        //     .await
-        //     .unwrap()
-        //     .get_receipt()
-        //     .await
-        //     .unwrap();
-        // log::info!("Receipt from Creating Quorum: {:?}", add_quorum);
-        //
-        // let quorum_count = registry_coordinator.quorumCount().call().await.unwrap();
-        // log::info!("Updated Quorum count: {:?}", quorum_count._0);
-        //
-        // let real = registry_coordinator
-        //     .updateOperatorsForQuorum(vec![vec![from]], Bytes::from(vec![0, 1]))
-        //     .send()
-        //     .await
-        //     .unwrap()
-        //     .get_receipt()
-        //     .await
-        //     .unwrap();
-        //
-        // log::info!("Updated operators for quorum: {:?}", real);
-
-        let index_registry = IndexRegistry::deploy(provider.clone()).await.unwrap();
-        let index_registry_addr = index_registry.address();
-        println!("Index Registry returned");
-        api.mine_one().await;
-        println!("Index Registry deployed at: {:?}", index_registry_addr);
-
-        let bls_apk_registry = BlsApkRegistry::deploy(provider.clone(), *registry_coordinator_addr)
-            .await
-            .unwrap();
-        let bls_apk_registry_addr = bls_apk_registry.address();
-        println!("BLS APK Registry returned");
-        api.mine_one().await;
-        println!("BLS APK Registry deployed at: {:?}", bls_apk_registry_addr);
-
-        let stake_registry = StakeRegistry::deploy(
-            provider.clone(),
-            *registry_coordinator_addr,
-            delegation_manager_addr,
-        )
-        .await
-        .unwrap();
-        let stake_registry_addr = stake_registry.address();
-        println!("Stake Registry returned");
-        api.mine_one().await;
-        println!("Stake Registry deployed at: {:?}", stake_registry_addr);
-
-        let slasher = ISlasher::deploy(provider.clone()).await.unwrap();
-        let slasher_addr = slasher.address();
-        println!("Slasher deployed at: {:?}", slasher_addr);
-
-        let eigen_pod_manager = EigenPodManager::deploy(
-            provider.clone(),
-            Address::from(address!("73e42f117e8643cc03a4197c6c3ab38d8e5bd281")), //ethPOS
-            Address::from(address!("83e42f117e8643cc01741973ac7cb3ad8e5bd282")), //eigenPodBeacon
-            strategy_manager_addr,
-            *slasher_addr,
-            delegation_manager_addr,
-        )
-        .await
-        .unwrap();
-        let eigen_pod_manager_addr = eigen_pod_manager.address();
-        println!(
-            "Eigen Pod Manager deployed at: {:?}",
-            eigen_pod_manager_addr
-        );
-
-        let delegation_manager = DelegationManager::deploy(
-            provider.clone(),
-            strategy_manager_addr,
-            *slasher_addr,
-            *eigen_pod_manager_addr,
-        )
-        .await
-        .unwrap();
-        let delegation_manager_addr = delegation_manager.address();
-        println!("Delegation Manager returned");
-        api.mine_one().await;
-        println!(
-            "Delegation Manager deployed at: {:?}",
-            delegation_manager_addr
-        );
-
-        let avs_directory = AVSDirectory::deploy(provider.clone(), delegation_manager_addr.clone())
-            .await
-            .unwrap();
-        let avs_directory_addr = avs_directory.address();
-        println!("AVS Directory returned");
-        api.mine_one().await;
-        println!("AVS Directory deployed at: {:?}", avs_directory_addr);
-
-        let state_retriever = OperatorStateRetriever::deploy(provider.clone())
-            .await
-            .unwrap();
-        let state_retriever_addr = state_retriever.address();
-        println!("Operator State Retriever returned");
-        api.mine_one().await;
-        println!(
-            "Operator State Retriever deployed at: {:?}",
-            state_retriever_addr
-        );
-
-        let task_manager = IncredibleSquaringTaskManager::deploy(
-            provider.clone(),
-            *registry_coordinator_addr,
-            5u32,
-        )
-        .await
-        .unwrap();
-        let task_manager_addr = task_manager.address();
-        println!("Incredible Squaring Task Manager returned");
-        api.mine_one().await;
-        println!(
-            "Incredible Squaring Task Manager deployed at: {:?}",
-            task_manager_addr
-        );
-        // let task_manager = IncredibleSquaringTaskManager::new(task_manager_addr, provider.clone());
-        // let task_manager_addr = task_manager.address();
-        // println!("Incredible Squaring Task Manager returned");
-        // api.mine_one().await;
-        // println!(
-        //     "Incredible Squaring Task Manager deployed at: {:?}",
-        //     task_manager_addr
-        // );
-
-        let service_manager = IncredibleSquaringServiceManager::deploy(
-            provider.clone(),
-            *avs_directory_addr,
-            *registry_coordinator_addr,
-            *stake_registry_addr,
-            *task_manager_addr,
-        )
-        .await
-        .unwrap();
-        let service_manager_addr = service_manager.address();
-        println!("Incredible Squaring Service Manager returned");
-        api.mine_one().await;
-        println!(
-            "Incredible Squaring Service Manager deployed at: {:?}",
-            service_manager_addr
-        );
-
-        let owner = registry_coordinator.owner().call().await.unwrap();
-        log::info!("Owner: {:?}", owner._0);
-
-        let quorum_count = registry_coordinator.quorumCount().call().await.unwrap();
-        log::info!("Quorum count: {:?}", quorum_count._0);
-
-        let eigen_strategy = EigenStrategy::deploy(provider.clone(), strategy_manager_addr)
-            .await
-            .unwrap();
-        let eigen_strategy_addr = eigen_strategy.address();
-
-        assert_eq!(stake_registry_addr, stake_registry.address());
-        assert_eq!(index_registry_addr, index_registry.address());
-        assert_eq!(bls_apk_registry_addr, bls_apk_registry.address());
-
-        let _test_add_quorum = registry_coordinator
-            .createQuorum(
-                OperatorSetParam {
-                    maxOperatorCount: 10,
-                    kickBIPsOfOperatorStake: 2,
-                    kickBIPsOfTotalStake: 5,
-                },
-                10,
-                vec![StrategyParams {
-                    strategy: eigen_strategy_addr.clone(),
-                    multiplier: 2,
-                }],
-            )
-            .call()
-            .await
-            .unwrap();
-
-        log::info!("About to create new task");
-        tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
-        let result = task_manager
-            .createNewTask(U256::from(2), 100u32, Bytes::from("0"))
-            .call()
-            .await
-            .unwrap();
-        log::info!("Created new task: {:?}", result);
-        let latest_task = task_manager.latestTaskNum().call().await.unwrap()._0;
-        log::info!("Latest task: {:?}", latest_task);
-        let task_hash = task_manager
-            .allTaskHashes(latest_task)
-            .call()
-            .await
-            .unwrap()
-            ._0;
-        log::info!("Task info: {:?}", task_hash);
-
-        api.mine_one().await;
-
-        let _block = provider
-            .get_block(BlockId::latest(), false.into())
-            .await
-            .unwrap()
-            .unwrap();
-
-        api.anvil_set_auto_mine(true).await.unwrap();
-        let run_testnet = async move {
-            let serv = handle.servers.pop().unwrap();
-            let res = serv.await.unwrap();
-            res.unwrap();
-        };
-        let spawner_task_manager_address = task_manager_addr.clone();
-        // let spawner_provider = provider.clone();
-        let spawner_provider = provider;
-        let task_spawner = async move {
-            let manager = IncredibleSquaringTaskManager::new(
-                spawner_task_manager_address,
-                spawner_provider.clone(),
-            );
-            loop {
-                api.mine_one().await;
-                log::info!("About to create new task");
-                tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
-                let result = manager
-                    .createNewTask(U256::from(2), 100u32, Bytes::from("0"))
-                    .send()
-                    .await
-                    .unwrap()
-                    .watch()
-                    .await
-                    .unwrap();
-                api.mine_one().await;
-                log::info!("Created new task: {:?}", result);
-                // let latest_task = manager.latestTaskNum().call().await.unwrap()._0;
-                // log::info!("Latest task: {:?}", latest_task);
-                // let task_hash = manager.allTaskHashes(latest_task).call().await.unwrap()._0;
-                // log::info!("Task info: {:?}", task_hash);
-            }
-        };
-        tokio::spawn(run_testnet);
-        tokio::spawn(task_spawner);
-
-        // let ws = ProviderBuilder::new().on_ws(WsConnect::new(handle.ws_endpoint())).await.unwrap();
-        //
-        // // Subscribe to new blocks.
-        // let sub = ws.subscribe_blocks().await.unwrap();
-        //
-        // // Wait and take the next 4 blocks.
-        // let mut stream = sub.into_stream();
-        //
-        // log::warn!("Awaiting blocks...");
-        //
-        // // Take the stream and print the block number upon receiving a new block.
-        // let handle = tokio::spawn(async move {
-        //     log::warn!("About to mine blocks...");
-        //     api.mine_one().await;
-        //     while let Some(block) = stream.next().await {
-        //         log::warn!(
-        //             "Latest block number: {}",
-        //             block.header.number.expect("Failed to get block number")
-        //         );
-        //         api.mine_one().await;
-        //     }
-        // });
-        //
-        // handle.await.unwrap();
-
-        ContractAddresses {
-            service_manager: *service_manager_addr,
-            registry_coordinator: *registry_coordinator_addr,
-            operator_state_retriever: *state_retriever_addr,
-            delegation_manager: *delegation_manager_addr,
-            avs_directory: *avs_directory_addr,
-            operator: from,
-        }
-    }
+    // async fn run_anvil_testnet() -> ContractAddresses {
+    //     // Initialize the logger
+    //     env_logger::init();
+    //
+    //     let (api, mut handle) = spawn(anvil::NodeConfig::test().with_port(33125)).await;
+    //     api.anvil_auto_impersonate_account(true).await.unwrap();
+    //     // let http_provider = handle.http_provider();
+    //     // let ws_provider = handle.ws_provider();
+    //
+    //     let _http_provider = ProviderBuilder::new()
+    //         .on_http(Url::parse(&handle.http_endpoint()).unwrap())
+    //         .root()
+    //         .clone();
+    //     // todo: http_provider is unused
+    //
+    //     // let provider = ProviderBuilder::new().on_ws(WsConnect::new(handle.ws_endpoint())).await.unwrap();
+    //
+    //     let provider = ProviderBuilder::new()
+    //         .on_builtin(&handle.ws_endpoint())
+    //         .await
+    //         .unwrap();
+    //
+    //     let accounts = handle.dev_wallets().collect::<Vec<_>>();
+    //     let from = accounts[0].address();
+    //     let _to = accounts[1].address();
+    //
+    //     let _amount = handle
+    //         .genesis_balance()
+    //         .checked_div(U256::from(2u64))
+    //         .unwrap();
+    //
+    //     let _gas_price = provider.get_gas_price().await.unwrap();
+    //
+    //     // Empty address for initial deployment of all contracts
+    //     let empty_address = Address::default();
+    //
+    //     let strategy_manager_addr = address!("Dc64a140Aa3E981100a9becA4E685f962f0cF6C9");
+    //     let delegation_manager_addr = address!("Cf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9");
+    //     let avs_directory_addr = address!("5FC8d32690cc91D4c39d9d3abcBD16989F875707");
+    //     let proxy_admin_addr = address!("5FbDB2315678afecb367f032d93F642f64180aa3");
+    //     let pauser_registry_addr = address!("e7f1725E7734CE288F8367e1Bb143E90bb3F0512");
+    //     let base_strategy_addr = address!("322813Fd9A801c5507c9de605d63CEA4f2CE6c44");
+    //
+    //     let istrategy_manager = IStrategyManager::new(strategy_manager_addr, provider.clone());
+    //     let idelegation_manager =
+    //         IDelegationManager::new(delegation_manager_addr, provider.clone());
+    //     let iavs_directory = IAVSDirectory::new(avs_directory_addr, provider.clone());
+    //     let proxy_admin = ProxyAdmin::new(proxy_admin_addr, provider.clone());
+    //     let pauser_registry = PauserRegistry::new(pauser_registry_addr, provider.clone());
+    //     let base_strategy = StrategyBaseTVLLimits::new(base_strategy_addr, provider.clone());
+    //
+    //     // let erc20_mock = ERC20Mock::new(
+    //     //     TransparentUpgradeableProxy::deploy(
+    //     //         provider.clone(),
+    //     //         base_strategy_addr,
+    //     //         proxy_admin_addr,
+    //     //     )
+    //     // );
+    //
+    //     // Deploy contracts for Incredible Squaring
+    //     let registry_coordinator = RegistryCoordinator::deploy(
+    //         provider.clone(),
+    //         empty_address,
+    //         empty_address,
+    //         empty_address,
+    //         empty_address,
+    //     )
+    //     .await
+    //     .unwrap();
+    //     let registry_coordinator_addr = registry_coordinator.address();
+    //
+    //     let index_registry = IndexRegistry::deploy(provider.clone()).await.unwrap();
+    //     let index_registry_addr = index_registry.address();
+    //
+    //     let bls_apk_registry = BlsApkRegistry::deploy(provider.clone(), empty_address)
+    //         .await
+    //         .unwrap();
+    //     let bls_apk_registry_addr = bls_apk_registry.address();
+    //
+    //     let stake_registry = StakeRegistry::deploy(provider.clone(), empty_address, empty_address)
+    //         .await
+    //         .unwrap();
+    //     let stake_registry_addr = stake_registry.address();
+    //
+    //     let slasher = ISlasher::deploy(provider.clone()).await.unwrap();
+    //     let slasher_addr = slasher.address();
+    //
+    //     let eigen_pod_manager = EigenPodManager::deploy(
+    //         provider.clone(),
+    //         empty_address,
+    //         empty_address,
+    //         empty_address,
+    //         empty_address,
+    //         empty_address,
+    //     )
+    //     .await
+    //     .unwrap();
+    //     let eigen_pod_manager_addr = eigen_pod_manager.address();
+    //
+    //     let delegation_manager = DelegationManager::deploy(
+    //         provider.clone(),
+    //         empty_address,
+    //         empty_address,
+    //         empty_address,
+    //     )
+    //     .await
+    //     .unwrap();
+    //     let delegation_manager_addr = delegation_manager.address();
+    //
+    //     let avs_directory = AVSDirectory::deploy(provider.clone(), empty_address.clone())
+    //         .await
+    //         .unwrap();
+    //     let avs_directory_addr = avs_directory.address();
+    //
+    //     let state_retriever = OperatorStateRetriever::deploy(provider.clone())
+    //         .await
+    //         .unwrap();
+    //     let state_retriever_addr = state_retriever.address();
+    //
+    //     let task_manager =
+    //         IncredibleSquaringTaskManager::deploy(provider.clone(), empty_address, 5u32)
+    //             .await
+    //             .unwrap();
+    //     let task_manager_addr = task_manager.address();
+    //
+    //     let service_manager = IncredibleSquaringServiceManager::deploy(
+    //         provider.clone(),
+    //         empty_address,
+    //         empty_address,
+    //         empty_address,
+    //         empty_address,
+    //     )
+    //     .await
+    //     .unwrap();
+    //     let service_manager_addr = service_manager.address();
+    //
+    //     let eigen_strategy = EigenStrategy::deploy(provider.clone(), empty_address)
+    //         .await
+    //         .unwrap();
+    //     let eigen_strategy_addr = eigen_strategy.address();
+    //
+    //     api.mine_one().await;
+    //
+    //     let rc_init = registry_coordinator
+    //         .initialize(
+    //             from,
+    //             from,
+    //             from,
+    //             pauser_registry_addr,
+    //             Default::default(),
+    //             vec![OperatorSetParam {
+    //                 maxOperatorCount: 10,
+    //                 kickBIPsOfOperatorStake: 5,
+    //                 kickBIPsOfTotalStake: 2,
+    //             }],
+    //             vec![10],
+    //             vec![vec![StrategyParams {
+    //                 strategy: *eigen_strategy_addr,
+    //                 multiplier: 2,
+    //             }]],
+    //         )
+    //         .send()
+    //         .await
+    //         .unwrap()
+    //         .get_receipt()
+    //         .await
+    //         .unwrap();
+    //     println!("Registry Coordinator Initialization Receipt: {:?}", rc_init);
+    //
+    //     let _block = provider
+    //         .get_block(BlockId::latest(), false.into())
+    //         .await
+    //         .unwrap()
+    //         .unwrap();
+    //
+    //     api.anvil_set_auto_mine(true).await.unwrap();
+    //     let run_testnet = async move {
+    //         let serv = handle.servers.pop().unwrap();
+    //         let res = serv.await.unwrap();
+    //         res.unwrap();
+    //     };
+    //     let spawner_task_manager_address = task_manager_addr.clone();
+    //     // let spawner_provider = provider.clone();
+    //     let spawner_provider = provider;
+    //     let task_spawner = async move {
+    //         let manager = IncredibleSquaringTaskManager::new(
+    //             spawner_task_manager_address,
+    //             spawner_provider.clone(),
+    //         );
+    //         loop {
+    //             api.mine_one().await;
+    //             log::info!("About to create new task");
+    //             tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
+    //             let result = manager
+    //                 .createNewTask(U256::from(2), 100u32, Bytes::from("0"))
+    //                 .send()
+    //                 .await
+    //                 .unwrap()
+    //                 .watch()
+    //                 .await
+    //                 .unwrap();
+    //             api.mine_one().await;
+    //             log::info!("Created new task: {:?}", result);
+    //             // let latest_task = manager.latestTaskNum().call().await.unwrap()._0;
+    //             // log::info!("Latest task: {:?}", latest_task);
+    //             // let task_hash = manager.allTaskHashes(latest_task).call().await.unwrap()._0;
+    //             // log::info!("Task info: {:?}", task_hash);
+    //         }
+    //     };
+    //     tokio::spawn(run_testnet);
+    //     tokio::spawn(task_spawner);
+    //
+    //     // let ws = ProviderBuilder::new().on_ws(WsConnect::new(handle.ws_endpoint())).await.unwrap();
+    //     //
+    //     // // Subscribe to new blocks.
+    //     // let sub = ws.subscribe_blocks().await.unwrap();
+    //     //
+    //     // // Wait and take the next 4 blocks.
+    //     // let mut stream = sub.into_stream();
+    //     //
+    //     // log::warn!("Awaiting blocks...");
+    //     //
+    //     // // Take the stream and print the block number upon receiving a new block.
+    //     // let handle = tokio::spawn(async move {
+    //     //     log::warn!("About to mine blocks...");
+    //     //     api.mine_one().await;
+    //     //     while let Some(block) = stream.next().await {
+    //     //         log::warn!(
+    //     //             "Latest block number: {}",
+    //     //             block.header.number.expect("Failed to get block number")
+    //     //         );
+    //     //         api.mine_one().await;
+    //     //     }
+    //     // });
+    //     //
+    //     // handle.await.unwrap();
+    //
+    //     ContractAddresses {
+    //         service_manager: *service_manager_addr,
+    //         registry_coordinator: *registry_coordinator_addr,
+    //         operator_state_retriever: *state_retriever_addr,
+    //         delegation_manager: *delegation_manager_addr,
+    //         avs_directory: *avs_directory_addr,
+    //         operator: from,
+    //     }
+    // }
 
     #[tokio::test]
     async fn test_anvil() {
-        let contract_addresses = run_anvil_testnet().await;
+        env_logger::init();
+        // let contract_addresses = run_anvil_testnet().await;
+        let chain = eigen_utils::test_utils::local_chain::LocalEvmChain::new_with_chain_state(
+            31337,
+            String::from("eigen-testnet"),
+            Path::new("../../eigen-utils/saved-anvil-state.json"),
+            Some(8545u16),
+        );
+        let chain_id = chain.chain_id();
+        let chain_name = chain.name();
+        println!("chain_id: {:?}", chain_id);
+        println!("chain_name: {:?}", chain_name);
 
-        let http_endpoint = "http://127.0.0.1:33125";
-        let ws_endpoint = "ws://127.0.0.1:33125";
+        let contract_addresses = ContractAddresses {
+            service_manager: address!("84eA74d481Ee0A5332c457a4d796187F6Ba67fEB"),
+            registry_coordinator: address!("a82fF9aFd8f496c3d6ac40E2a0F282E47488CFc9"),
+            operator_state_retriever: address!("95401dc811bb5740090279Ba06cfA8fcF6113778"),
+            delegation_manager: address!("Cf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
+            avs_directory: address!("5FC8d32690cc91D4c39d9d3abcBD16989F875707"),
+            operator: address!("f39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
+        };
+
+        let http_endpoint = "http://127.0.0.1:8545";
+        let ws_endpoint = "ws://127.0.0.1:8545";
         let node_config = NodeConfig {
             node_api_ip_port_address: "127.0.0.1:9808".to_string(),
             eth_rpc_url: http_endpoint.to_string(),
@@ -872,6 +774,8 @@ mod tests {
             signer: PrivateKeySigner::random(),
         };
 
+        println!("Creating HTTP Provider...");
+
         let http_provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .on_http(http_endpoint.parse().unwrap())
@@ -879,7 +783,7 @@ mod tests {
             .clone()
             .boxed();
 
-        println!("About to set up WS Provider");
+        println!("Creating WS Provider...");
 
         let ws_provider = ProviderBuilder::new()
             .with_recommended_fillers()
@@ -890,7 +794,7 @@ mod tests {
             .clone()
             .boxed();
 
-        println!("About to set up Operator");
+        println!("Now setting up Operator!");
 
         let operator = Operator::<NodeConfig, OperatorInfoService>::new_from_config(
             node_config.clone(),
@@ -910,6 +814,27 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_start_chain_from_state() {
+        env_logger::init();
+
+        let chain = eigen_utils::test_utils::local_chain::LocalEvmChain::new_with_chain_state(
+            31337,
+            String::from("eigen-testnet"),
+            Path::new("../../eigen-utils/eigen-gadget-anvil-state.json"),
+            Some(8545u16),
+        );
+        let chain_id = chain.chain_id();
+        let chain_name = chain.name();
+        println!("chain_id: {:?}", chain_id);
+        println!("chain_name: {:?}", chain_name);
+        let addresses = chain.addresses();
+        println!("addresses: {:?}", addresses);
+        tokio::time::sleep(Duration::from_secs(5)).await;
+        println!("Now shutting down...");
+        chain.shutdown();
+    }
+
+    #[tokio::test]
     async fn test_generate_keys() {
         env_logger::init();
 
@@ -923,8 +848,6 @@ mod tests {
         assert_eq!(bls_pair.pub_key, bls_keys.pub_key);
 
         //---------------- ECDSA ----------------
-        // let signing_key = SigningKey::random(&mut OsRng);
-        // let secret_key = SecretKey::from_str("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80").unwrap();
         let hex_key =
             hex::decode("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
                 .unwrap();
@@ -945,204 +868,5 @@ mod tests {
         assert_eq!(public_key, read_ecdsa_public_key);
         assert_eq!(signing_key, read_ecdsa_signing_key);
         assert_eq!(verifying_key, read_ecdsa_verifying_key);
-    }
-
-    // #[tokio::test]
-    // async fn test_run_operator() {
-    //     env_logger::init();
-    //     let http_endpoint = "http://127.0.0.1:33125";
-    //     let ws_endpoint = "ws://127.0.0.1:33125";
-    //     let node_config = NodeConfig {
-    //         node_api_ip_port_address: "127.0.0.1:9808".to_string(),
-    //         eth_rpc_url: http_endpoint.to_string(),
-    //         eth_ws_url: ws_endpoint.to_string(),
-    //         bls_private_key_store_path: "./keystore/bls".to_string(),
-    //         ecdsa_private_key_store_path: "./keystore/ecdsa".to_string(),
-    //         incredible_squaring_service_manager_addr: "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9"
-    //             .to_string(),
-    //         avs_registry_coordinator_addr: "0x5fbdb2315678afecb367f032d93f642f64180aa3".to_string(),
-    //         operator_state_retriever_addr: "0xdc64a140aa3e981100a9beca4e685f962f0cf6c9".to_string(),
-    //         eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
-    //         delegation_manager_addr: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512".to_string(),
-    //         avs_directory_addr: "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0".to_string(),
-    //         operator_address: "0x0000000000000000000000000000000000000006".to_string(),
-    //         enable_metrics: false,
-    //         enable_node_api: false,
-    //         server_ip_port_address: "".to_string(),
-    //     };
-    //
-    //     let operator_info_service = OperatorInfoService {};
-    //
-    //     let signer = EigenGadgetSigner {
-    //         signer: PrivateKeySigner::random(),
-    //     };
-    //
-    //     let http_provider = ProviderBuilder::new()
-    //         .with_recommended_fillers()
-    //         .on_http(http_endpoint.parse().unwrap())
-    //         .root()
-    //         .clone()
-    //         .boxed();
-    //
-    //     println!("About to set up WS Provider");
-    //
-    //     let ws_provider = ProviderBuilder::new()
-    //         .with_recommended_fillers()
-    //         .on_ws(WsConnect::new(ws_endpoint))
-    //         .await
-    //         .unwrap()
-    //         .root()
-    //         .clone()
-    //         .boxed();
-    //
-    //     println!("About to set up Operator");
-    //
-    //     let operator = Operator::<NodeConfig, OperatorInfoService>::new_from_config(
-    //         node_config.clone(),
-    //         EigenGadgetProvider {
-    //             provider: http_provider,
-    //         },
-    //         EigenGadgetProvider {
-    //             provider: ws_provider,
-    //         },
-    //         operator_info_service,
-    //         signer,
-    //     )
-    //     .await
-    //     .unwrap();
-    //
-    //     operator.start().await.unwrap();
-    // }
-
-    use ark_bn254::G1Projective;
-    use ark_ec::CurveGroup;
-    use ark_ff::UniformRand;
-    use ark_ff::{BigInt, Field, One, PrimeField, Zero};
-    use eigen_contracts::RegistryCoordinator::{OperatorSetParam, StrategyParams};
-    use eigen_utils::crypto::bls::{g1_point_to_g1_projective, G1Point, G2Point};
-    use k256::ecdsa;
-    use rand::{thread_rng, Rng};
-    // pub fn bigint_to_hex(bigint: &BigInteger256) -> String {
-    //     let mut hex_string = String::new();
-    //     for part in bigint.0.iter().rev() {
-    //         write!(&mut hex_string, "{:016x}", part).unwrap();
-    //     }
-    //     hex_string
-    // }
-    //
-    // pub fn hex_string_to_biginteger256(hex_str: &str) -> BigInteger256 {
-    //     let bytes = Vec::from_hex(hex_str).unwrap();
-    //
-    //     assert!(bytes.len() <= 32, "Byte length exceeds 32 bytes");
-    //
-    //     let mut padded_bytes = vec![0u8; 32];
-    //     let start = 32 - bytes.len();
-    //     padded_bytes[start..].copy_from_slice(&bytes);
-    //
-    //     let mut limbs = [0u64; 4];
-    //     for (i, chunk) in padded_bytes.chunks(8).rev().enumerate() {
-    //         let mut array = [0u8; 8];
-    //         let len = chunk.len().min(8);
-    //         array[..len].copy_from_slice(&chunk[..len]); // Copy the bytes into the fixed-size array
-    //         limbs[i] = u64::from_be_bytes(array);
-    //     }
-    //
-    //     BigInteger256::new(limbs)
-    // }
-
-    #[tokio::test]
-    async fn test_keypair_generation() {
-        let keypair = KeyPair::gen_random().unwrap();
-
-        // Check that the public key is not zero
-        assert_ne!(keypair.pub_key, G1Projective::zero());
-    }
-
-    #[tokio::test]
-    async fn test_signature_generation() {
-        let keypair = KeyPair::gen_random().unwrap();
-
-        let message = [0u8; 32];
-        let signature = keypair.sign_message(&message);
-
-        // Check that the signature is not zero
-        assert_ne!(signature.g1_point, G1Point::zero());
-    }
-
-    fn hash_to_g1(digest: &[u8; 32]) -> G1Affine {
-        let one = F::one();
-        let three = F::from(3u64);
-        let mut x = F::from_le_bytes_mod_order(digest);
-
-        loop {
-            let x_cubed = x.square() * x;
-            let y_squared = x_cubed + three;
-
-            if let Some(y) = y_squared.sqrt() {
-                let point = G1Projective::new(x, y, F::one());
-                return point.into_affine();
-            } else {
-                x += &one;
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn test_signature_verification() {
-        let keypair = KeyPair::gen_random().unwrap();
-        let pub_key_g2 = keypair.get_pub_key_g2();
-        let mut message = [0u8; 32];
-        thread_rng().fill(&mut message);
-
-        let signature = keypair.sign_message(&message);
-        let g1_projective = g1_point_to_g1_projective(&signature.g1_point);
-
-        // Make sure the Signature is not Zero
-        assert_ne!(g1_projective, G1Projective::zero());
-        let mut wrong_message = [0u8; 32];
-        thread_rng().fill(&mut wrong_message);
-
-        // Ensure the verification of the Signature works correctly
-        assert!(signature.verify(&pub_key_g2, &message).unwrap());
-        assert!(!signature.verify(&pub_key_g2, &wrong_message).unwrap())
-    }
-
-    #[tokio::test]
-    async fn test_signature_verification_invalid() {
-        let mut rng = thread_rng();
-        let keypair = KeyPair::gen_random().unwrap();
-
-        let mut message = [0u8; 32];
-        rand::thread_rng().fill(&mut message);
-
-        let signature = keypair.sign_message(&message);
-        let g1_projective = g1_point_to_g1_projective(&signature.g1_point);
-
-        // Check that the signature is not zero
-        assert_ne!(g1_projective, G1Projective::zero());
-
-        // Check that the signature does not verify with a different public key
-        let g2_projective = G2Projective::rand(&mut rng);
-        let different_pub_key = G2Point::from_ark_g2(&G2Affine::from(g2_projective));
-        assert!(!signature.verify(&different_pub_key, &message).unwrap());
-    }
-
-    #[tokio::test]
-    async fn test_keypair_from_string() {
-        let bigint = BigInt([
-            12844100841192127628,
-            7068359412155877604,
-            5417847382009744817,
-            1586467664616413849,
-        ]);
-        let hex_string = eigen_utils::crypto::bls::bigint_to_hex(&bigint);
-        let converted_bigint = eigen_utils::crypto::bls::hex_string_to_biginteger256(&hex_string);
-        assert_eq!(bigint, converted_bigint);
-        let keypair_result_from_string = KeyPair::from_string(hex_string);
-        let keypair_result_normal = KeyPair::new(Fr::from(bigint));
-
-        let keypair_from_string = keypair_result_from_string.unwrap();
-        let keypair_from_new = keypair_result_normal.unwrap();
-        assert_eq!(keypair_from_new.priv_key, keypair_from_string.priv_key);
     }
 }

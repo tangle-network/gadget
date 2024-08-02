@@ -58,6 +58,12 @@ k256.workspace = true
 aes-gcm = "0.10.3"
 secp256k1 = "0.29.0"
 dirs = "5.0.1"
-gadget-common.workspace = true
+#gadget-common.workspace = true
 aes = "0.8.4"
 ctr = "0.9.2"
+
+# Anvil testnet dependencies
+ethers = "2.0.4"
+nix = "0.24.3"
+tempfile = "3.10.1"
+anvil = { workspace = true }

@@ -285,9 +285,10 @@ pub fn generate_event_handler_for(
                     tangle_testnet_runtime::api::{
                         self as TangleApi,
                         runtime_types::{
-                            bounded_collections::bounded_vec::BoundedVec, tangle_primitives::services::field::Field,
+                            bounded_collections::bounded_vec::BoundedVec,
+                            tangle_primitives::services::field::{Field, BoundedString},
                         },
-                        services::events::{JobCalled, JobResultSubmitted},
+                        services::events::JobCalled,
                     },
                 };
                 let job_events: Vec<_> = events
@@ -298,7 +299,7 @@ pub fn generate_event_handler_for(
                     })
                     .collect();
                 for call in job_events {
-                    tracing::info!("Handling JobCalled Events: #{block_number}",);
+                    tracing::debug!("Handling JobCalled Events: #{block_number}",);
 
                     let mut args_iter = call.args.into_iter();
                     #(#params_tokens)*
