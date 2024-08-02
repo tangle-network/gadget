@@ -9,7 +9,7 @@ use crate::random;
 pub fn generate_with_optional_seed(seed: Option<&[u8]>) -> Result<Secret, ed25519_zebra::Error> {
     match seed {
         Some(seed) => Secret::try_from(seed).map_err(|_| ed25519_zebra::Error::InvalidSliceLength),
-        None => Ok(Secret::new(&mut random::getrandom_or_panic())),
+        None => Ok(Secret::new(random::getrandom_or_panic())),
     }
 }
 

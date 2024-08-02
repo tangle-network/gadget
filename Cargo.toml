@@ -38,6 +38,7 @@ gadget-core = { path = "./core" }
 gadget-common = { path = "./common", default-features = false }
 gadget-io = { path = "./gadget-io", default-features = false }
 gadget-executor = { path = "./executor" }
+gadget-sdk = { path = "./sdk" }
 tangle-test-utils = { path = "./tangle-test-utils" }
 protocol-macros = { path = "./protocol-macros" }
 shell-sdk = { path = "./shell-sdk", default-features = false }
@@ -207,6 +208,7 @@ anyhow = "1.0.79"
 libsecp256k1 = "0.7.1"
 rayon = { version = "1.8.0" }
 thiserror = { version = "1" }
+elliptic-curve = { version = "0.13.8" }
 aes-gcm = { version = "0.10", default-features = false, features = [
     "aes",
     "alloc",
