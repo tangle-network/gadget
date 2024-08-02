@@ -22,7 +22,7 @@ std = [
 [dependencies]
 gadget-common = { workspace = true, features = ["substrate"] }
 environment-utils = { workspace = true, features = ["tangle"] }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 gadget-core = { workspace = true }
 parking_lot = { workspace = true }
 sp-core = { workspace = true }
