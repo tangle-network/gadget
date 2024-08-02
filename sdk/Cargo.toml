@@ -10,8 +10,6 @@ repository.workspace = true
 [dependencies]
 thiserror = { workspace = true }
 tracing = { workspace = true }
-async-trait = { workspace = true }
-futures = { workspace = true }
 parking_lot = { workspace = true }
 rand_core = { version = "0.6.4", default-features = false }
 rand = { workspace = true, optional = true }
@@ -20,7 +18,6 @@ elliptic-curve = { workspace = true }
 
 # Keystore deps
 k256 = { version = "0.13.3", optional = true }
-elliptic-curve = { version = "0.13", default-features = false, optional = true }
 ed25519-zebra = { version = "4", default-features = false, optional = true, features = [] }
 schnorrkel = { version = "0.11.4", default-features = false, optional = true, features = ["preaudit_deprecated", "getrandom"] }
 w3f-bls = { version = "0.1.3", default-features = false, optional = true }

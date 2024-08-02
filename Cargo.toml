@@ -53,7 +53,6 @@ eigen-tangle-avs = { path = "./eigen-tangle-avs" }
 fireblocks-client = { path = "./fireblocks-client" }
 gadget-aws-kms = { path = "./aws" }
 
-gadget-sdk = { path = "./sdk", default-features = false }
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core" }
 blueprint-metadata = { path = "./blueprint-metadata" }
