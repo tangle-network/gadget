@@ -46,6 +46,9 @@ pub mod env;
 /// Transaction Management Module
 pub mod tx;
 
+/// Reports Module
+pub mod reports;
+
 // Exporting the macros
 #[cfg(feature = "macros")]
 pub use gadget_blueprint_proc_macro::{job, registration_hook, report, request_hook};

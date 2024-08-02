@@ -3,17 +3,14 @@ use gadget_blueprint_proc_macro_core::{
 };
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use std::{collections::BTreeMap, time::Duration};
+use std::collections::BTreeMap;
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
     Ident, ItemFn, LitInt, LitStr, Token, Type,
 };
-use tokio::time::Instant;
 
-use crate::utils::{
-    field_type_to_param_token, field_type_to_result_token, pascal_case, type_to_field_type,
-};
+use crate::utils::{pascal_case, type_to_field_type};
 
 mod kw {
     syn::custom_keyword!(params);
@@ -112,6 +109,7 @@ impl Parse for ReportArgs {
             }
         }
 
+        // Validation logic
         let report_type = report_type
             .ok_or_else(|| input.error("Missing `type` argument in report attribute"))?;
 
@@ -229,7 +227,7 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
     let report_def = ReportDefinition {
         metadata: ReportMetadata {
             name: fn_name_string.clone().into(),
-            description: None,
+            description: None, // TODO: Add support for description
         },
         params: params_type.clone(),
         result: result_type.clone(),
@@ -270,7 +268,9 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
             ReportType::Job => {
                 generate_job_report_event_handler(args, input, &params_type, &result_type)
             }
-            ReportType::QoS => quote! { /* QoS handler placeholder */ },
+            ReportType::QoS => {
+                generate_qos_report_event_handler(args, input, &params_type, &result_type)
+            }
         }
     };
 
@@ -283,6 +283,8 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
 
         #event_handler_gen
     };
+
+    println!("Generated code:\n{}", gen);
 
     Ok(gen.into())
 }
@@ -358,7 +360,9 @@ fn generate_job_report_event_handler(
                 for job_result in job_results {
                     tracing::info!("Handling JobResultSubmitted Event: #{block_number}");
 
-                    // We'll implement parameter extraction and report function call here in the next step
+                    // TODO: Implement parameter extraction and report function call
+                    // This part will depend on the specific structure of your JobResultSubmitted event
+                    // and how you want to handle the report function call
                 }
 
                 Ok(())
@@ -386,7 +390,6 @@ fn generate_job_report_event_handler(
 fn generate_qos_report_event_handler(
     args: &ReportArgs,
     input: &ItemFn,
-    param_types: &BTreeMap<Ident, Type>,
     params: &[FieldType],
     result: &[FieldType],
 ) -> proc_macro2::TokenStream {
@@ -398,67 +401,48 @@ fn generate_qos_report_event_handler(
         .as_ref()
         .expect("Interval must be present for QoS reports");
 
-    // Generate parameter extraction code
-    let param_extractions: Vec<_> = params
-        .iter()
-        .enumerate()
-        .map(|(i, _)| {
-            let param_name = format_ident!("param{}", i);
-            quote! {
-                let #param_name = qos_metrics.#param_name;
-            }
-        })
-        .collect();
-
-    // Generate function call
-    let fn_call = if input.sig.asyncness.is_some() {
-        quote! { #fn_name(#(#param_extractions),*).await }
-    } else {
-        quote! { #fn_name(#(#param_extractions),*) }
-    };
-
     quote! {
-        pub struct #struct_name {
+        pub struct #struct_name<T: gadget_sdk::QoSReporter> {
             pub service_id: u64,
             pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
+            pub reporter: T,
         }
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
+        impl<T: gadget_sdk::QoSReporter + Send + Sync> gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name<T> {
             async fn can_handle_events(
                 &self,
                 _events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
             ) -> Result<bool, gadget_sdk::events_watcher::Error> {
-                Ok(true)  // QoS reports are always handleable
+                Ok(true)
             }
 
             async fn handle_events(
                 &self,
-                client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::events_watcher::tangle::TangleConfig>,
-                (_events, block_number): (
+                _client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                (_events, _block_number): (
                     gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
                     u64
                 ),
             ) -> Result<(), gadget_sdk::events_watcher::Error> {
-                use std::time::{Duration, Instant};
-                use tokio::time::sleep;
+                use std::time::Duration;
+
+                let interval = Duration::from_secs(#interval);
+                let mut next_check = std::time::Instant::now();
 
                 loop {
-                    let start = Instant::now();
+                    if std::time::Instant::now() >= next_check {
+                        let metrics = self.reporter.collect_metrics().await
+                            .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e))?;
 
-                    let qos_metrics = collect_qos_metrics().await?;
-                    #(#param_extractions)*
-                    let report_result = #fn_call?;
+                        let report_result = self.reporter.report(&metrics).await
+                            .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e))?;
 
-                    if !report_result {  // Assuming false means QoS breach
-                        // TODO:Submit the report here
+                        tracing::info!("QoS report result: {:?}", report_result);
+                        next_check = std::time::Instant::now() + interval;
                     }
-
-                    let elapsed = start.elapsed();
-                    if elapsed < Duration::from_secs(#interval) {
-                        sleep(Duration::from_secs(#interval) - elapsed).await;
-                    }
+                    std::thread::sleep(Duration::from_millis(100));
                 }
             }
         }

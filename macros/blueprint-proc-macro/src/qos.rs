@@ -1,6 +1,15 @@
+use async_trait::async_trait;
 use std::time::Duration;
-
 use tokio::time::Instant;
+
+#[derive(Debug)]
+pub struct QoSReport {
+    pub service_id: u64,
+    pub block_number: u64,
+    pub metrics: QoSMetrics,
+    pub breached_metrics: Vec<String>,
+    pub custom_report: Vec<u8>,
+}
 
 #[derive(Debug, Clone)]
 pub struct QoSMetrics {
@@ -12,25 +21,36 @@ pub struct QoSMetrics {
     pub cpu_usage: f64,
 }
 
-pub async fn collect_qos_metrics() -> Result<QoSMetrics, QoSError> {
+pub struct DefaultQoSReporter {
+    pub service_id: u64,
+}
+
+#[async_trait]
+impl QoSReporter for DefaultQoSReporter {
+    async fn collect_metrics(&self) -> Result<QoSMetrics, QoSError> {
+        collect_qos_metrics().await
+    }
+
+    async fn report(&self, metrics: &QoSMetrics) -> Result<QoSReport, QoSError> {
+        let breached_metrics = check_breached_metrics(metrics);
+        Ok(QoSReport {
+            service_id: self.service_id,
+            block_number: 0, // This should be updated with the actual block number
+            metrics: metrics.clone(),
+            breached_metrics,
+            custom_report: Vec::new(), // This should be updated based on your custom report logic
+        })
+    }
+}
+
+async fn collect_qos_metrics() -> Result<QoSMetrics, QoSError> {
     let start = Instant::now();
 
-    // Collect uptime
     let uptime = get_service_uptime().await?;
-
-    // Measure response time (e.g., by pinging a key endpoint)
     let response_time = measure_response_time().await?;
-
-    // Calculate error rate
     let error_rate = calculate_error_rate().await?;
-
-    // Measure throughput (e.g., requests per second)
     let throughput = measure_throughput().await?;
-
-    // Get memory usage
     let memory_usage = get_memory_usage().await?;
-
-    // Get CPU usage
     let cpu_usage = get_cpu_usage().await?;
 
     let metrics = QoSMetrics {
@@ -43,44 +63,64 @@ pub async fn collect_qos_metrics() -> Result<QoSMetrics, QoSError> {
     };
 
     let collection_time = start.elapsed();
-    // tracing::info!("QoS metrics collected in {:?}", collection_time);
+    tracing::info!("QoS metrics collected in {:?}", collection_time);
 
     Ok(metrics)
 }
 
+fn check_breached_metrics(metrics: &QoSMetrics) -> Vec<String> {
+    let mut breached = Vec::new();
+
+    // These thresholds should be configurable
+    if metrics.uptime < Duration::from_secs(3600) {
+        breached.push("uptime".to_string());
+    }
+    if metrics.response_time > Duration::from_millis(500) {
+        breached.push("response_time".to_string());
+    }
+    if metrics.error_rate > 0.05 {
+        breached.push("error_rate".to_string());
+    }
+    if metrics.throughput < 100 {
+        breached.push("throughput".to_string());
+    }
+    if metrics.memory_usage > 0.9 {
+        breached.push("memory_usage".to_string());
+    }
+    if metrics.cpu_usage > 0.8 {
+        breached.push("cpu_usage".to_string());
+    }
+
+    breached
+}
+
 async fn get_service_uptime() -> Result<Duration, QoSError> {
     // Implementation to get service uptime
-    // This could involve querying a system API or reading from a file
     todo!()
 }
 
 async fn measure_response_time() -> Result<Duration, QoSError> {
     // Implementation to measure response time
-    // This could involve making a request to a key endpoint and timing the response
     todo!()
 }
 
 async fn calculate_error_rate() -> Result<f64, QoSError> {
     // Implementation to calculate error rate
-    // This could involve querying logs or a monitoring system
     todo!()
 }
 
 async fn measure_throughput() -> Result<u64, QoSError> {
     // Implementation to measure throughput
-    // This could involve querying a load balancer or application metrics
     todo!()
 }
 
 async fn get_memory_usage() -> Result<f64, QoSError> {
     // Implementation to get memory usage
-    // This could involve querying system APIs or reading from /proc on Linux
     todo!()
 }
 
 async fn get_cpu_usage() -> Result<f64, QoSError> {
     // Implementation to get CPU usage
-    // This could involve querying system APIs or reading from /proc on Linux
     todo!()
 }
 

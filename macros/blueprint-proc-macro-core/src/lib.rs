@@ -25,6 +25,12 @@ pub enum FieldType {
     Uint64,
     /// A Field of `i64` type.
     Int64,
+    /// A field of `u128` type.
+    Uint128,
+    /// A field of `i128` type.
+    Int128,
+    /// A field of `f64` type.
+    Float64,
     /// A Field of `String` type.
     String,
     /// A Field of `Vec<u8>` type.

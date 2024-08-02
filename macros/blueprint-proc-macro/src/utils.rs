@@ -34,6 +34,15 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
         FieldType::Int64 => {
             quote! { let Some(Field::Int64(#ident)) = args_iter.next() else { continue; }; }
         }
+        FieldType::Uint128 => {
+            quote! { let Some(Field::Uint128(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::Int128 => {
+            quote! { let Some(Field::Int128(#ident)) = args_iter.next() else { continue; }; }
+        }
+        FieldType::Float64 => {
+            quote! { let Some(Field::Float64(#ident)) = args_iter.next() else { continue; }; }
+        }
         FieldType::String => {
             quote! { let Some(Field::String(#ident)) = args_iter.next() else { continue; }; }
         }
@@ -91,6 +100,9 @@ pub fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::
         FieldType::Int32 => quote! { result.push(Field::Int32(#ident)); },
         FieldType::Uint64 => quote! { result.push(Field::Uint64(#ident)); },
         FieldType::Int64 => quote! { result.push(Field::Int64(#ident)); },
+        FieldType::Uint128 => quote! { result.push(Field::Uint128(#ident)); },
+        FieldType::Int128 => quote! { result.push(Field::Int128(#ident)); },
+        FieldType::Float64 => quote! { result.push(Field::Float64(#ident)); },
         FieldType::String => quote! { result.push(Field::String(#ident)); },
         FieldType::Bytes => quote! { result.push(Field::Bytes(BoundedVec(#ident))); },
         FieldType::Optional(t_x) => {
@@ -117,6 +129,9 @@ pub fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::
                 FieldType::Int32 => quote! { Field::Int32(item) },
                 FieldType::Uint64 => quote! { Field::Uint64(item) },
                 FieldType::Int64 => quote! { Field::Int64(item) },
+                FieldType::Uint128 => quote! { Field::Uint128(item) },
+                FieldType::Int128 => quote! { Field::Int128(item) },
+                FieldType::Float64 => quote! { Field::Float64(item) },
                 FieldType::String => quote! { Field::String(item) },
                 FieldType::Bytes => quote! { Field::Bytes(BoundedVec(item)) },
                 FieldType::Optional(_) => todo!("handle optionals into lists"),
@@ -162,6 +177,9 @@ pub fn ident_to_field_type(ident: &Ident) -> syn::Result<FieldType> {
         "i16" => Ok(FieldType::Int16),
         "i32" => Ok(FieldType::Int32),
         "i64" => Ok(FieldType::Int64),
+        "u128" => Ok(FieldType::Uint128),
+        "i128" => Ok(FieldType::Int128),
+        "f64" => Ok(FieldType::Float64),
         "bool" => Ok(FieldType::Bool),
         "String" => Ok(FieldType::String),
         "Bytes" => Ok(FieldType::Bytes),
