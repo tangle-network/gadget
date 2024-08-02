@@ -253,8 +253,8 @@ pub fn g1_point_to_g1_projective(pt: &G1Point) -> G1Projective {
 /// Converts a [G1Projective] to a [G1Point].
 pub fn g1_projective_to_g1_point(pt: &G1Projective) -> G1Point {
     let affine = pt.into_affine();
-    let g1_point = ark_point_to_g1_point(&affine);
-    g1_point
+
+    ark_point_to_g1_point(&affine)
 }
 
 /// Converts a [G1Affine] to a [G1Point].

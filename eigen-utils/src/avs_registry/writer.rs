@@ -1,9 +1,8 @@
 #![allow(async_fn_in_trait)]
-use alloy_primitives::{address, Address, Bytes, FixedBytes, U256};
+use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use alloy_provider::Provider;
 
 use crate::crypto::bls::{G1Point, KeyPair};
-use crate::crypto::bn254::{point_to_u256, u256_to_point};
 use crate::crypto::ecdsa::ToAddress;
 use crate::el_contracts::reader::ElReader;
 use crate::{types::*, Config};
@@ -11,8 +10,6 @@ use alloy_rpc_types::TransactionReceipt;
 use alloy_signer::k256::ecdsa;
 use alloy_signer::Signer;
 use eigen_contracts::RegistryCoordinator;
-use eigen_contracts::RegistryCoordinator::{OperatorSetParam, StrategyParams};
-use eigen_contracts::StakeRegistry::StakeRegistryCalls::strategyParams;
 use k256::ecdsa::VerifyingKey;
 
 use super::{AvsRegistryContractManager, AvsRegistryContractResult};

@@ -1,4 +1,4 @@
-use gadget_sdk::{job, registration_hook, request_hook};
+use gadget_sdk::{job, registration_hook, report, request_hook};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Error {
@@ -22,9 +22,13 @@ impl std::error::Error for Error {}
 
 pub struct MyContext;
 
-/// Simple Threashold (t) Keygen Job for n parties.
+// ==================
+//       Jobs
+// ==================
+
+/// Simple Threshold (t) Keygen Job for n parties.
 #[job(id = 0, params(n, t), result(_), verifier(evm = "KeygenContract"))]
-pub fn keygen(ctx: &MyContext, n: u16, t: u8) -> Result<Vec<u8>, Error> {
+pub fn keygen(ctx: &MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
     let _ = (n, t, ctx);
     Ok(vec![0; 33])
 }
@@ -51,19 +55,94 @@ pub fn say_hello(who: Option<String>) -> Result<String, Error> {
     }
 }
 
+// ==================
+//       Hooks
+// ==================
+
 #[registration_hook(evm = "RegistrationContract")]
 pub fn on_register(pubkey: Vec<u8>);
 
 #[request_hook(evm = "RequestContract")]
 pub fn on_request(nft_id: u64);
 
+// ==================
+//      Reports
+// ==================
+
+/// Report function for the keygen job.
+#[report(
+    job_id = 0,
+    params(n, t, msgs),
+    result(_),
+    report_type = "job",
+    verifier(evm = "KeygenContract")
+)]
+fn report_keygen(n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
+    let _ = (n, t, msgs);
+    0
+}
+
+#[report(
+    params(uptime, response_time, error_rate),
+    result(Vec<u8>),
+    report_type = "qos",
+    interval = 3600,
+    metric_thresholds(uptime = 99, response_time = 1000, error_rate = 5)
+)]
+fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Vec<u8> {
+    let mut issues = Vec::new();
+    if uptime < 99.0 {
+        issues.push(b"Low uptime".to_vec());
+    }
+    if response_time > 1000 {
+        issues.push(b"High response time".to_vec());
+    }
+    if error_rate > 5.0 {
+        issues.push(b"High error rate".to_vec());
+    }
+    issues.concat()
+}
+
+#[report(
+    params(cpu_usage, memory_usage, request_latency),
+    result(u8),
+    report_type = "qos",
+    interval = 300,
+    metric_thresholds(cpu_usage = 80, memory_usage = 90, request_latency = 200)
+)]
+fn report_system_health(cpu_usage: u64, memory_usage: u64, request_latency: u64) -> u8 {
+    let mut issues = 0;
+    if cpu_usage > 80 {
+        issues += 1;
+    }
+    if memory_usage > 90 {
+        issues += 1;
+    }
+    if request_latency > 200 {
+        issues += 1;
+    }
+    issues
+}
+
+#[report(params(uptime), result(bool), report_type = "qos", interval = 3600)]
+fn simple_qos_report(uptime: f64) -> bool {
+    uptime >= 99.0
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     #[test]
     fn generated_blueprint() {
         eprintln!("{}", super::KEYGEN_JOB_DEF);
         assert_eq!(super::KEYGEN_JOB_ID, 0);
         eprintln!("{}", super::REGISTRATION_HOOK);
+
+        // Example usage of the generated report function
+        let result = Ok(vec![0; 33]);
+        let ctx = MyContext;
+        let slash_percentage = keygen_report(&result, &ctx, 10, 2);
+        assert_eq!(slash_percentage, 0);
     }
 }

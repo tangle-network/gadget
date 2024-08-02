@@ -46,7 +46,7 @@ pub mod tx;
 
 // Exporting the macros
 #[cfg(feature = "macros")]
-pub use gadget_blueprint_proc_macro::{job, registration_hook, request_hook};
+pub use gadget_blueprint_proc_macro::{job, registration_hook, report, request_hook};
 
 #[doc(hidden)]
 #[cfg(feature = "macros")]

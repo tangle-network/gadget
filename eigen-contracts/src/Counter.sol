@@ -11,6 +11,7 @@ import "eigenlayer-middleware/src/interfaces/IRegistryCoordinator.sol";
 import "eigenlayer-contracts/src/contracts/core/DelegationManager.sol";
 import "eigenlayer-contracts/src/contracts/interfaces/ISlasher.sol";
 import "eigenlayer-contracts/src/contracts/core/StrategyManager.sol";
+import "eigenlayer-contracts/src/contracts/strategies/EigenStrategy.sol";
 import "eigenlayer-contracts/src/contracts/pods/EigenPod.sol";
 import "eigenlayer-contracts/src/contracts/pods/EigenPodManager.sol";
 import "eigenlayer-contracts/src/contracts/interfaces/IStrategy.sol";

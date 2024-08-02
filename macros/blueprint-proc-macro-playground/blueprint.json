@@ -13,11 +13,11 @@
     {
       "metadata": {
         "name": "keygen",
-        "description": "Simple Threashold (t) Keygen Job for n parties."
+        "description": "Simple Threshold (t) Keygen Job for n parties."
       },
       "params": [
         "Uint16",
-        "Uint8"
+        "Uint16"
       ],
       "result": [
         "Bytes"

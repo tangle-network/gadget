@@ -19,3 +19,4 @@ target/
 .direnv
 certs
 .DS_Store
+CODEGEN_LOCK

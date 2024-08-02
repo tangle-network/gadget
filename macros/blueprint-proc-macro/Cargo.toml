@@ -16,6 +16,9 @@ quote = "1.0"
 proc-macro2 = "1.0"
 serde_json = { workspace = true }
 gadget-blueprint-proc-macro-core = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
 
 [dev-dependencies]
 trybuild = "1.0"

@@ -24,6 +24,12 @@ mod blueprint;
 mod hooks;
 /// Blueprint Job proc-macro
 mod job;
+/// Quality of service functions for misbehavior reports
+mod qos;
+/// Report proc-macro
+mod report;
+/// Utilities for the Blueprint Macros
+mod utils;
 
 /// A procedural macro that annotates a function as a job.
 ///
@@ -75,6 +81,70 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ItemFn);
 
     match job::job_impl(&args, &input) {
+        Ok(tokens) => tokens,
+        Err(err) => err.to_compile_error().into(),
+    }
+}
+
+///
+/// The `report` macro is used to annotate a function as a report handler for misbehaviors. This macro generates
+/// the necessary code to handle events and process reports within the service blueprint. Reports are specifically
+/// for submitting incorrect job results, attributable malicious behavior, or otherwise machine failures and reliability degradation.
+///
+/// # Example
+/// ```rust
+/// # use gadget_blueprint_proc_macro::report;
+/// #[report(id = 1, params(a, b, c), result(u32))]
+/// pub fn report_add(a: u32, b: u32, c: SignedResult<u32>) -> u32 {
+///    if a + b == c {
+///       0
+///    } else {
+///      1
+///    }
+/// }
+/// ```
+///
+/// The `report` macro generates the following code:
+/// ```rust
+/// /// A Report Definition ID for the [`report_add`] function.
+/// #[automatically_derived]
+/// pub const REPORT_ADD_REPORT_ID: u8 = 1;
+///
+/// /// A Report Definition for the [`report_add`] function.
+/// #[automatically_derived]
+/// pub const REPORT_ADD_REPORT_DEF: &str = r#"{"metadata":{"name":"report_add","description":"A function to report the incorrect addition of two numbers"},"params":["Uint32", "Uint32", "Uint32"],"result":["Uint32"],"verifier":"None"}"#;
+///
+/// /// A function to report the addition of two numbers.
+/// pub fn report_add(a: u32, b: u32, c: SignedResult<u32>) -> u32 {
+///    if a + b == c {
+///       0
+///    } else {
+///      1
+///    }
+/// }
+///
+/// pub struct ReportAddEventHandler {
+///    pub service_id: u64,
+///    pub signer: subxt_signer::sr25519::Keypair,
+///    // ... other fields
+/// }
+/// ```
+/// In addition to the generated code, the `report` macro also generates an Event Handler struct that
+/// implements the `EventHandler` trait for you.
+///
+/// # Parameters
+/// - `id`: The unique identifier for the report (must be in the range of 0..[`u8::MAX`])
+/// - `params`: The parameters of the report function, must be a tuple of identifiers in the function signature.
+/// - `result`: The result of the report function, must be a type that this report returns.
+///    It can be omitted if the return type is simple to infer, like `u32` or `Vec<u8>` by using `_`.
+/// - `skip_codegen`: A flag to skip the code generation for the report, useful for manual event
+/// handling.
+#[proc_macro_attribute]
+pub fn report(args: TokenStream, input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(args as report::ReportArgs);
+    let input = parse_macro_input!(input as syn::ItemFn);
+
+    match report::report_impl(&args, &input) {
         Ok(tokens) => tokens,
         Err(err) => err.to_compile_error().into(),
     }

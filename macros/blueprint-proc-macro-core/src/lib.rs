@@ -25,6 +25,12 @@ pub enum FieldType {
     Uint64,
     /// A Field of `i64` type.
     Int64,
+    /// A field of `u128` type.
+    Uint128,
+    /// A field of `i128` type.
+    Int128,
+    /// A field of `f64` type.
+    Float64,
     /// A Field of `String` type.
     String,
     /// A Field of `Vec<u8>` type.
@@ -116,6 +122,67 @@ pub enum JobResultVerifier {
     None,
     /// An EVM Contract Address that will verify the result.
     Evm(String),
+}
+
+/// Represents the definition of a report, including its metadata, parameters, and result type.
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ReportDefinition<'a> {
+    /// Metadata about the report, including its name and description.
+    pub metadata: ReportMetadata<'a>,
+
+    /// List of parameter types for the report function.
+    pub params: Vec<FieldType>,
+
+    /// List of result types for the report function.
+    pub result: Vec<FieldType>,
+
+    /// The type of report (Job or QoS).
+    pub report_type: ReportType,
+
+    /// The ID of the job this report is associated with (for job reports only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub job_id: Option<u8>,
+
+    /// The interval at which this report should be run (for QoS reports only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interval: Option<u64>,
+
+    /// Optional metric thresholds for QoS reports.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metric_thresholds: Option<Vec<(String, u64)>>,
+
+    /// The verifier to use for this report's results.
+    pub verifier: ReportResultVerifier,
+}
+
+/// Enum representing the type of report (Job or QoS).
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ReportType {
+    /// A report associated with a specific job.
+    #[default]
+    Job,
+    /// A report for Quality of Service metrics.
+    QoS,
+}
+
+/// Enum representing the type of verifier for the report result.
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ReportResultVerifier {
+    /// No verifier specified.
+    #[default]
+    None,
+    /// An EVM-based verifier contract.
+    Evm(String),
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ReportMetadata<'a> {
+    /// The Job name.
+    pub name: BlueprintString<'a>,
+    /// The Job description.
+    pub description: Option<BlueprintString<'a>>,
 }
 
 /// Service Registration hook is a hook that will be called before registering the restaker as
