@@ -437,10 +437,10 @@ fn generate_qos_report_event_handler(
                         let metrics = reporter.collect_metrics().await
                             .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e))?;
 
-                        let report_result = reporter.report(&metrics.clone()).await
+                        let report_result = reporter.report(&metrics).await
                             .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e))?;
 
-                        tracing::info!("QoS report result: {:?}", report_result.clone());
+                        tracing::info!("QoS report result: {:?}", report_result);
                         next_check = std::time::Instant::now() + interval;
                     }
                     std::thread::sleep(Duration::from_millis(100));

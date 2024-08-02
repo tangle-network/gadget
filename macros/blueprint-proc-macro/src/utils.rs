@@ -42,7 +42,19 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
             quote! { let Some(Field::Float64(#ident)) = args_iter.next() else { continue; }; }
         }
         FieldType::String => {
-            quote! { let Some(Field::String(#ident)) = args_iter.next() else { continue; }; }
+            let inner_ident = format_ident!("{}_inner", ident);
+            quote! {
+                let Some(Field::String(BoundedString(BoundedVec(#inner_ident)))) = args_iter.next() else { continue; };
+                // Convert the BoundedVec to a String
+                let #ident = match String::from_utf8(#inner_ident) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        tracing::warn!("failed to convert bytes to a valid utf8 string: {e}");
+                        use gadget_sdk::events_watcher::Error;
+                        return Err(Error::Handler(Box::new(e)));
+                    }
+                };
+            }
         }
         FieldType::Bytes => {
             quote! { let Some(Field::Bytes(BoundedVec(#ident))) = args_iter.next() else { continue; }; }
@@ -101,7 +113,9 @@ pub fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::
         FieldType::Uint128 => quote! { result.push(Field::Uint128(#ident)); },
         FieldType::Int128 => quote! { result.push(Field::Int128(#ident)); },
         FieldType::Float64 => quote! { result.push(Field::Float64(#ident)); },
-        FieldType::String => quote! { result.push(Field::String(#ident)); },
+        FieldType::String => {
+            quote! { result.push(Field::String(BoundedString(BoundedVec(#ident.into_bytes())))); }
+        }
         FieldType::Bytes => quote! { result.push(Field::Bytes(BoundedVec(#ident))); },
         FieldType::Optional(t_x) => {
             let v_ident = format_ident!("v");
@@ -130,7 +144,9 @@ pub fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::
                 FieldType::Uint128 => quote! { Field::Uint128(item) },
                 FieldType::Int128 => quote! { Field::Int128(item) },
                 FieldType::Float64 => quote! { Field::Float64(item) },
-                FieldType::String => quote! { Field::String(item) },
+                FieldType::String => {
+                    quote! { Field::String(BoundedString(BoundedVec(item.into_bytes()))) }
+                }
                 FieldType::Bytes => quote! { Field::Bytes(BoundedVec(item)) },
                 FieldType::Optional(_) => todo!("handle optionals into lists"),
                 FieldType::Array(_, _) => todo!("handle arrays into lists"),

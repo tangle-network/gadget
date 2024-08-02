@@ -12,7 +12,7 @@ pub trait QoSReporter {
     async fn report(&self, metrics: &Self::Metrics) -> Result<Self::ReportResult, Self::Error>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QoSReport {
     pub service_id: u64,
     pub block_number: u64,
@@ -21,7 +21,7 @@ pub struct QoSReport {
     pub custom_report: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct QoSMetrics {
     pub uptime: Duration,
     pub response_time: Duration,
@@ -31,6 +31,7 @@ pub struct QoSMetrics {
     pub cpu_usage: f64,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct DefaultQoSReporter {
     pub service_id: u64,
 }
