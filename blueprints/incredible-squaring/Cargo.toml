@@ -23,6 +23,8 @@ tokio = { workspace = true, default-features = false, features = ["full"], optio
 subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"], optional = true }
 tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"], optional = true }
 
+gadget-blueprint-proc-macro = { workspace = true }
+
 [build-dependencies]
 blueprint-metadata = { workspace = true }
 

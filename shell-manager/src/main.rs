@@ -8,7 +8,7 @@ use gadget_io::ShellTomlConfig;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::keystore::load_keys_from_keystore;
 use shell_sdk::{entry, Client, DebugLogger};
-use sp_core::Pair;
+use sp_core::crypto::Pair;
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use structopt::StructOpt;

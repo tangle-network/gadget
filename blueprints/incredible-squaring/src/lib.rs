@@ -1,4 +1,4 @@
-use gadget_sdk::job;
+use gadget_blueprint_proc_macro::job;
 use std::convert::Infallible;
 
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.

@@ -19,6 +19,7 @@ wasm = [
 ]
 
 [dependencies]
+sp-core = { workspace = true }
 shell-sdk = { workspace = true }
 gadget-common = { workspace = true }
 gadget-io = { workspace = true }
