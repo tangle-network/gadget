@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use std::time::Duration;
-use tokio::time::Instant;
 
 #[async_trait]
 pub trait QoSReporter {
@@ -51,7 +50,7 @@ impl QoSReporter for DefaultQoSReporter {
         Ok(QoSReport {
             service_id: self.service_id,
             block_number: 0, // This should be updated with the actual block number
-            metrics: metrics.clone(),
+            metrics: *metrics,
             breached_metrics,
             custom_report: Vec::new(), // This should be updated based on your custom report logic
         })

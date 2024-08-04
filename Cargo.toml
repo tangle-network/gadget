@@ -9,14 +9,15 @@ members = [
     "environments/tangle",
     "environments/utils",
     "gadget-io",
-    "macros/blueprint-proc-macro",
-    "macros/blueprint-proc-macro-core",
-    "macros/blueprint-proc-macro-playground",
     "protocol-macros",
     "shell-manager",
     "shell-sdk",
     "sdk",
     "tangle-test-utils",
+
+    "macros/blueprint-proc-macro",
+    "macros/blueprint-proc-macro-core",
+    "macros/blueprint-proc-macro-playground",
 ]
 
 [workspace.package]

@@ -14,7 +14,6 @@ use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
 use parking_lot::RwLock;
-use sp_application_crypto::RuntimePublic;
 use sp_core::ecdsa::{Public, Signature};
 use sp_core::{keccak_256, sr25519};
 use std::sync::Arc;
@@ -225,7 +224,7 @@ where
                 if sp_core::ecdsa::Pair::verify_prehashed(
                     &payload_and_signature.signature,
                     &hashed_message,
-                    &sp_core::ecdsa::Public::from_raw(peer_public_key.to_raw_vec().try_into().unwrap()),
+                    &sp_core::ecdsa::Public::from_raw(peer_public_key.0),
                 ) {
                     *message.payload_mut() = payload_and_signature.payload;
                     crate::prometheus::BYTES_RECEIVED.inc_by(message.payload().len() as u64);
