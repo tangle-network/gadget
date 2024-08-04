@@ -149,7 +149,7 @@ where
 }
 
 /// N: number of nodes
-/// K: Number of networks accessible per node
+/// K: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
 /// D: Any data that you want to pass to pass with NodeInput.
 /// F: A function that generates a service's execution via a series of shells. Each shell executes a subset of the service,
 /// as each service may have a set of operations that are executed in parallel, sequentially, or concurrently.

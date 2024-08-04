@@ -2981,6 +2981,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "blueprint-manager"
+version = "0.1.0"
+dependencies = [
+ "color-eyre",
+ "gadget-common",
+ "gadget-io",
+ "hex",
+ "libp2p 0.53.2",
+ "rand",
+ "reqwest",
+ "serde",
+ "sha2 0.10.8",
+ "shell-sdk",
+ "structopt",
+ "tangle-environment",
+ "tangle-subxt",
+ "tokio",
+ "toml 0.8.15",
+ "tracing 0.1.40",
+ "tracing-subscriber 0.3.18",
+ "url",
+]
+
+[[package]]
 name = "blueprint-metadata"
 version = "0.1.0"
 dependencies = [
@@ -14086,30 +14110,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
-]
-
-[[package]]
-name = "shell-manager"
-version = "0.1.0"
-dependencies = [
- "color-eyre",
- "gadget-common",
- "gadget-io",
- "hex",
- "libp2p 0.53.2",
- "rand",
- "reqwest",
- "serde",
- "sha2 0.10.8",
- "shell-sdk",
- "structopt",
- "tangle-environment",
- "tangle-subxt",
- "tokio",
- "toml 0.8.15",
- "tracing 0.1.40",
- "tracing-subscriber 0.3.18",
- "url",
 ]
 
 [[package]]

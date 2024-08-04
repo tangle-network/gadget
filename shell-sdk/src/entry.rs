@@ -2,7 +2,7 @@ use crate::shell::ShellNodeInput;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, KeystoreBackend};
 use gadget_core::job_manager::SendFuture;
-use gadget_io::{defaults, ShellTomlConfig, SupportedChains};
+use gadget_io::{defaults, GadgetConfig, SupportedChains};
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 use tracing_subscriber::fmt::SubscriberBuilder;
@@ -43,7 +43,7 @@ where
 {
     let args = std::env::args();
     println!("Args: {args:?}");
-    let config = ShellTomlConfig::from_iter_safe(args);
+    let config = GadgetConfig::from_iter_safe(args);
 
     if config.is_err() {
         return Err(color_eyre::Report::msg(format!(

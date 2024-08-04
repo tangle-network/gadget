@@ -1,5 +1,5 @@
 [package]
-name = "shell-manager"
+name = "blueprint-manager"
 version = "0.1.0"
 edition = "2021"
 
@@ -17,6 +17,10 @@ wasm = [
     "gadget-common/wasm",
     "gadget-io/wasm"
 ]
+
+[[bin]]
+name = "blueprint-manager"
+path = "src/cli.rs"
 
 [dependencies]
 shell-sdk = { workspace = true }

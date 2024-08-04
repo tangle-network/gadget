@@ -43,6 +43,25 @@ pub async fn wait_for_completion_of_job<T: Config>(
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_ext::new_test_ext;
+
+    #[gadget_io::tokio::test(flavor = "multi_thread")]
+    async fn test_externalities_gadget_starts() {
+        setup_log();
+        new_test_ext::<1, 1, (), _, _>((), |input| async move {
+            // TODO: Execute the blueprint manager using input
+        })
+        .await
+        .execute_with_async(|client| {
+            assert_eq!(1, 1);
+        })
+        .await
+    }
+}
+
 #[macro_export]
 /// When using this macro, the `generate_setup_and_run_command` macro should be used to generate the `setup_node` function.
 /// If not, you must manually create a function named `setup_node` in your crate's lib.rs that accepts a NodeInput and
