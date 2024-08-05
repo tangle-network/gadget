@@ -8,7 +8,6 @@
       url = "github:oxalica/rust-overlay";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
       };
     };
     foundry = {
@@ -57,6 +56,7 @@
             pkgs.nodePackages.typescript-language-server
             pkgs.nodejs_22
             pkgs.nodePackages.yarn
+            pkgs.taplo
           ];
           packages = [
             pkgs.cargo-nextest
