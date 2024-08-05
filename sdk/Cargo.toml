@@ -97,6 +97,7 @@ std = [
   "rand",
   "getrandom",
   "hex/std",
+  "sp-io/std",
 ]
 alloc = ["rand_core/alloc", "hex/alloc"]
 wasm = [

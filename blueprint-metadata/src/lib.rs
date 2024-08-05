@@ -271,6 +271,7 @@ impl LockFile {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(&path)
             .expect("Failed to create lock file");
         Self { file }

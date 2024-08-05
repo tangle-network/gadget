@@ -71,8 +71,7 @@ mod utils;
 /// - `params`: The parameters of the job function, must be a tuple of identifiers in the function signature.
 /// - `result`: The result of the job function, must be a type that this job returns.
 ///    also, it can be omitted if the return type is simple to infer, like `u32` or `Vec<u8>` just use `_`.
-/// - `skip_codegen`: A flag to skip the code generation for the job, useful for manual event
-/// handling.
+/// - `skip_codegen`: A flag to skip the code generation for the job, useful for manual event handling.
 #[proc_macro_attribute]
 pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(args as job::JobArgs);
@@ -135,8 +134,7 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
 /// - `params`: The parameters of the report function, must be a tuple of identifiers in the function signature.
 /// - `result`: The result of the report function, must be a type that this report returns.
 ///    It can be omitted if the return type is simple to infer, like `u32` or `Vec<u8>` by using `_`.
-/// - `skip_codegen`: A flag to skip the code generation for the report, useful for manual event
-/// handling.
+/// - `skip_codegen`: A flag to skip the code generation for the report, useful for manual event handling.
 #[proc_macro_attribute]
 pub fn report(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(args as report::ReportArgs);

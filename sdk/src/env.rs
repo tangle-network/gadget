@@ -48,6 +48,7 @@ pub enum Error {
 }
 
 /// Loads the [`GadgetEnvironment`] from the current environment.
+#[cfg(feature = "std")]
 pub fn load() -> Result<GadgetEnvironment, Error> {
     Ok(GadgetEnvironment {
         tangle_rpc_endpoint: std::env::var("RPC_URL")
