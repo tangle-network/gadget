@@ -49,5 +49,3 @@ tokio = { workspace = true, features = ["full"] }
 url = { workspace = true, features = ["serde"] }
 libp2p = { workspace = true }
 rand = { workspace = true }
-
-[dev-dependencies]

@@ -307,8 +307,8 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
 fn generate_job_report_event_handler(
     args: &ReportArgs,
     input: &ItemFn,
-    params: &[FieldType],
-    result: &[FieldType],
+    _params: &[FieldType],
+    _result: &[FieldType],
 ) -> proc_macro2::TokenStream {
     let fn_name = &input.sig.ident;
     let fn_name_string = fn_name.to_string();
@@ -387,8 +387,8 @@ fn generate_job_report_event_handler(
 fn generate_qos_report_event_handler(
     args: &ReportArgs,
     input: &ItemFn,
-    params: &[FieldType],
-    result: &[FieldType],
+    _params: &[FieldType],
+    _result: &[FieldType],
 ) -> proc_macro2::TokenStream {
     let fn_name = &input.sig.ident;
     let fn_name_string = fn_name.to_string();

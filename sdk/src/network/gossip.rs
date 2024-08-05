@@ -20,6 +20,7 @@ use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
+use ecdsa::Public;
 
 /// Maximum allowed size for a Signed Message.
 pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
@@ -372,7 +373,7 @@ impl<Env: GadgetEnvironment> Network<Env> for GossipHandle {
                 .ecdsa_peer_id_to_libp2p_id
                 .read()
                 .await
-                .get(&to)
+                .get(&Public::from_raw(to.0))
                 .copied()
                 .ok_or_else(|| gadget_common::Error::NetworkError {
                     err: format!(

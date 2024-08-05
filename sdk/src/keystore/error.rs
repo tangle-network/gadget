@@ -12,7 +12,7 @@ pub enum Error {
     Sr25519(schnorrkel::errors::SignatureError),
     /// An error occurred during ecdsa module operation
     #[error("ecdsa: {0}")]
-    Ecdsa(#[from] elliptic_curve::Error),
+    Ecdsa(elliptic_curve::Error),
     /// An error occurred during ed25519 module operation
     #[error("ed25519: {0}")]
     Ed25519(ed25519_zebra::Error),

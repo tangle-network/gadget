@@ -24,17 +24,12 @@ shell-sdk = { workspace = true }
 gadget-common = { workspace = true }
 gadget-io = { workspace = true }
 color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
-libp2p = { workspace = true }
 serde = { workspace = true }
-tracing = { workspace = true, features = ["log"] }
-tracing-subscriber = { workspace = true, features = ["env-filter", "ansi"] }
-rand = { workspace = true }
 structopt = { workspace = true }
 tangle-subxt = { workspace = true }
 toml = "0.8.11"
 hex = { workspace = true }
 tokio = { workspace = true, features = ["process", "io-util", "signal"] }
 reqwest = { version = "0.12.3" }
-url = { workspace = true, features = ["serde"] }
 sha2 = { workspace = true }
 tangle-environment = { workspace = true }

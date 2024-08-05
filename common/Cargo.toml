@@ -3,8 +3,6 @@ name = "gadget-common"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
 crate-type = ["cdylib", "rlib"]
 
@@ -22,8 +20,6 @@ log = { workspace = true }
 parking_lot = { workspace = true }
 futures-util = { workspace = true }
 hex = { workspace = true }
-serde_bytes = { workspace = true }
-anyhow = { workspace = true }
 futures = { workspace = true }
 round-based = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
@@ -41,18 +37,12 @@ subxt = { workspace = true, optional = true }
 sp-api = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false, features = ["full_crypto"] }
-sp-application-crypto = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
 sp-tracing = { workspace = true, default-features = false }
 sp-runtime-interface = { workspace = true}
-sc-service = { workspace = true, optional = true }
-sc-client-api = { workspace = true, optional = true }
 substrate-prometheus-endpoint = { workspace = true, optional = true }
-frame-support = { workspace = true }
-linked-hash-map = { workspace = true, optional = true }
 
 parity-scale-codec = { workspace = true, optional = true }
-scale-info = { workspace = true, optional = true, features = ["derive"] }
 thiserror = { workspace = true }
 
 [features]
@@ -66,31 +56,24 @@ substrate = [
   "subxt-signer",
   "subxt/native",
   "subxt/jsonrpsee",
-  "sc-client-api",
-  "frame-support/std",
-  "linked-hash-map",
   "substrate-prometheus-endpoint",
   "parity-scale-codec",
-  "scale-info",
 ]
 std = [
   "sqlx",
   "serde/std",
-  "serde_bytes/std",
   "tracing/std",
   "tracing/attributes",
   "sp-api/std",
   "sp-io/std",
   "sp-core/std",
   "sp-runtime/std",
-  "sp-application-crypto/std",
   "sp-tracing/std",
 ]
 wasm = [
     "gadget-io/wasm",
     "serde/alloc",
     "serde/derive",
-    "serde_bytes/alloc",
     "tracing/alloc",
     "getrandom/js",
     "gadget-core/substrate",
@@ -101,11 +84,7 @@ wasm = [
     "sp-io/disable_oom",
     "sp-io/disable_allocator",
     "sp-runtime/serde",
-    "sp-application-crypto/serde",
-    "sp-application-crypto/full_crypto",
-    "linked-hash-map",
     "parity-scale-codec",
-    "scale-info",
 ]
 testing = []
 
