@@ -10,3 +10,4 @@ repository.workspace = true
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
 clap-cargo = "0.14"
+cargo-generate = "0.21.3"

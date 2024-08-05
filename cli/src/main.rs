@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
 
+mod generate;
+
 /// Gadget CLI tool
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -11,7 +13,7 @@ struct Cli {
     #[command(flatten)]
     features: clap_cargo::Features,
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
 
 #[derive(Subcommand)]
@@ -26,4 +28,10 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
+    match cli.command {
+        Commands::Generate { name } => {
+            println!("Generating blueprint with name: {}", name);
+            generate::generate_blueprint(&name);
+        }
+    }
 }
