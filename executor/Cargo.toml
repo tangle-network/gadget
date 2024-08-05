@@ -8,13 +8,10 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-tokio = "1.38.0"
-futures = "0.3.30"
-serde_json = "1.0.117"
-gadget-common = { workspace = true, features = ["default"] }
-gadget-io = { workspace = true, features = ["default"] }
-failure = "0.1.8"
-nix = { version = "0.29.0", features = ["process", "signal"] }
-serde = { version = "1.0.203", features = ["derive"] }
-itertools = "0.13.0"
-sysinfo = { version = "0.30.12" }
+tokio = { workspace = true }
+futures = { workspace = true }
+serde_json = { workspace = true }
+failure = { workspace = true }
+nix = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+sysinfo = { workspace = true }

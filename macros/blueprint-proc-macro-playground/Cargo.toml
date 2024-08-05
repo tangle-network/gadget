@@ -8,9 +8,9 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-gadget-blueprint-proc-macro = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
+gadget-sdk = { workspace = true, features = ["default"] }
 
 [build-dependencies]
 blueprint-metadata = { workspace = true }

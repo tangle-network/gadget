@@ -55,6 +55,8 @@ impl GadgetProcessManager {
         Ok(identifier)
     }
 
+    /// Focuses on the given service until its stream is exhausted, meaning that the process ran to completion. Returns a
+    /// ProcessOutput with its output (if there is any).
     pub(crate) async fn focus_service_to_completion(
         &mut self,
         service: String,
@@ -64,7 +66,7 @@ impl GadgetProcessManager {
             .get_mut(&service)
             .ok_or(format!("Failed to focus on {service}, it does not exist"))?;
         loop {
-            match process.read().await {
+            match process.read_until_default_timeout().await {
                 ProcessOutput::Output(output) => {
                     println!("{output:?}");
                     continue;
@@ -79,6 +81,23 @@ impl GadgetProcessManager {
             }
         }
         Ok(())
+    }
+
+    /// Focuses on the given service until its output includes the substring provided. Returns a
+    /// ProcessOutput. ProcessOutput::Output means that the substring was received,
+    /// ProcessOutput::Exhausted means that the substring was not found and the stream was
+    /// exhausted, ProcessOutput::Waiting means that the substring was never found and the stream
+    /// is not exhausted (an error likely occurred).
+    pub(crate) async fn focus_service_until_output_contains(
+        &mut self,
+        service: String,
+        specified_output: String,
+    ) -> Result<ProcessOutput, Box<dyn Error>> {
+        let process = self
+            .children
+            .get_mut(&service)
+            .ok_or(format!("Failed to focus on {service}, it does not exist"))?;
+        Ok(process.read_until_receiving_string(specified_output).await)
     }
 
     /// Removes processes that are no longer running from the manager. Returns a Vector of the names of processes removed

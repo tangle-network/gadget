@@ -1,12 +1,9 @@
 [package]
 name = "gadget-core"
 version = "0.0.1"
-authors = ["Thomas P Braun"]
+authors = ["Webb Developers <hello@webb.tools>"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
-
-[lib]
-crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["substrate"]
@@ -14,7 +11,7 @@ substrate = []
 
 [dependencies]
 parking_lot = { workspace = true }
-gadget-io = { workspace = true, default-features = false }
+gadget-io = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
 log = { workspace = true }
 async-trait = { workspace = true }
@@ -22,7 +19,7 @@ auto_impl = { workspace = true }
 futures = { workspace = true }
 sp-core = { workspace = true }
 futures-timer = "3.0.3"
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 wasm-bindgen-test = "0.3.34"

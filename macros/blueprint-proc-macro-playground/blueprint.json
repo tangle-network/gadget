@@ -13,11 +13,11 @@
     {
       "metadata": {
         "name": "keygen",
-        "description": "Simple Threashold (t) Keygen Job for n parties."
+        "description": "Simple Threshold (t) Keygen Job for n parties."
       },
       "params": [
         "Uint16",
-        "Uint8"
+        "Uint16"
       ],
       "result": [
         "Bytes"
@@ -37,6 +37,39 @@
       ],
       "result": [
         "Bytes"
+      ],
+      "verifier": "None"
+    },
+    {
+      "metadata": {
+        "name": "refresh",
+        "description": null
+      },
+      "params": [
+        "Uint64",
+        {
+          "Optional": "Uint8"
+        }
+      ],
+      "result": [
+        {
+          "List": "Uint64"
+        }
+      ],
+      "verifier": "None"
+    },
+    {
+      "metadata": {
+        "name": "say_hello",
+        "description": "Say hello to someone or the world."
+      },
+      "params": [
+        {
+          "Optional": "String"
+        }
+      ],
+      "result": [
+        "String"
       ],
       "verifier": "None"
     }

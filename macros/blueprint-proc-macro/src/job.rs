@@ -7,6 +7,10 @@ use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, ItemFn, LitInt, LitStr, Token, Type};
 
+use crate::utils::{
+    field_type_to_param_token, field_type_to_result_token, pascal_case, type_to_field_type,
+};
+
 // Defines custom keywords
 mod kw {
     syn::custom_keyword!(id);
@@ -68,7 +72,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     }
 
     let job_id = &args.id;
-    let params_type = args.params_to_to_field_types(&param_types)?;
+    let params_type = args.params_to_field_types(&param_types)?;
     let result_type = args.result_to_field_types(result)?;
 
     let event_handler_gen = if args.skip_codegen {
@@ -125,7 +129,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
 }
 
 #[allow(clippy::too_many_lines)]
-fn generate_event_handler_for(
+pub fn generate_event_handler_for(
     f: &ItemFn,
     job_args: &JobArgs,
     param_types: &BTreeMap<Ident, Type>,
@@ -145,7 +149,11 @@ fn generate_event_handler_for(
     let additional_params = diff
         .iter()
         .map(|ident| {
-            let ty = &param_types[**ident];
+            let mut ty = param_types[**ident].clone();
+            // remove the reference from the type and use the inner type
+            if let Type::Reference(r) = ty {
+                ty = *r.elem;
+            }
             quote! {
                 pub #ident: #ty,
             }
@@ -165,7 +173,7 @@ fn generate_event_handler_for(
             } else if is_ref {
                 quote! { &self.#ident, }
             } else {
-                quote! { self.#ident }
+                quote! { self.#ident, }
             }
         })
         .collect::<Vec<_>>();
@@ -198,7 +206,8 @@ fn generate_event_handler_for(
                 Ok(r) => r,
                 Err(e) => {
                     tracing::error!("Error in job: {e}");
-                    return Err(format!("Error: {e}"));
+                    use gadget_sdk::events_watcher::Error;
+                    return Err(Error::Handler(Box::new(e)));
                 }
             };
         }
@@ -211,7 +220,8 @@ fn generate_event_handler_for(
                 Ok(r) => r,
                 Err(e) => {
                     tracing::error!("Error in job: {e}");
-                    return Err(format!("Error: {e}"));
+                    use gadget_sdk::events_watcher::Error;
+                    return Err(Error::Handler(Box::new(e)));
                 }
             };
         }
@@ -240,9 +250,9 @@ fn generate_event_handler_for(
         #[doc = "[`"]
         #[doc = #fn_name_string]
         #[doc = "`]"]
-        struct #struct_name {
+        pub struct #struct_name {
             pub service_id: u64,
-            pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Kaypair,
+            pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
             #(#additional_params)*
         }
 
@@ -275,9 +285,10 @@ fn generate_event_handler_for(
                     tangle_testnet_runtime::api::{
                         self as TangleApi,
                         runtime_types::{
-                            bounded_collections::bounded_vec::BoundedVec, tangle_primitives::services::field::Field,
+                            bounded_collections::bounded_vec::BoundedVec,
+                            tangle_primitives::services::field::{Field, BoundedString},
                         },
-                        services::events::{JobCalled, JobResultSubmitted},
+                        services::events::JobCalled,
                     },
                 };
                 let job_events: Vec<_> = events
@@ -288,9 +299,9 @@ fn generate_event_handler_for(
                     })
                     .collect();
                 for call in job_events {
-                    tracing::info!("Handling JobCalled Events: #{block_number}",);
+                    tracing::debug!("Handling JobCalled Events: #{block_number}",);
 
-                    let mut args_iter = call.args.iter();
+                    let mut args_iter = call.args.into_iter();
                     #(#params_tokens)*
                     #fn_call
 
@@ -301,160 +312,12 @@ fn generate_event_handler_for(
                         TangleApi::tx()
                             .services()
                             .submit_result(self.service_id, call.call_id, result);
-                    gadget_sdk::tx::send(client, &self.signer, response).await?;
+                    gadget_sdk::tx::tangle::send(&client, &self.signer, &response).await?;
                 }
                 Ok(())
             }
         }
     }
-}
-
-fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
-    match t {
-        FieldType::Void => unreachable!("void type should not be in params"),
-        FieldType::Bool => {
-            quote! { let Some(Field::Bool(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Uint8 => {
-            quote! { let Some(Field::Uint8(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Int8 => {
-            quote! { let Some(Field::Int8(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Uint16 => {
-            quote! { let Some(Field::Uint16(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Int16 => {
-            quote! { let Some(Field::Int16(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Uint32 => {
-            quote! { let Some(Field::Uint32(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Int32 => {
-            quote! { let Some(Field::Int32(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Uint64 => {
-            quote! { let Some(Field::Uint64(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Int64 => {
-            quote! { let Some(Field::Int64(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::String => {
-            quote! { let Some(Field::String(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Bytes => {
-            quote! { let Some(Field::Bytes(#ident)) = args_iter.next() else { continue; }; }
-        }
-        FieldType::Optional(t_x) => {
-            let inner_ident = format_ident!("{}_inner", ident);
-            let x_ident = format_ident!("{}_option", ident);
-            let x_inner = field_type_to_param_token(&x_ident, t_x);
-            let inner = quote! {
-                let Some(#inner_ident) = args_iter.next() else {  continue; };
-            };
-            quote! {
-                #inner
-                let #ident = match #inner_ident {
-                    _ => {
-                        #x_inner
-                        Some(#x_ident)
-                    },
-                    Field::None => None,
-                };
-            }
-        }
-        FieldType::Array(_, _) => todo!("Handle array"),
-        FieldType::List(_) => {
-            let inner_ident = format_ident!("{}_inner", ident);
-            let inner = quote! {
-                let Some(Field::List(BoundedVec(#inner_ident))) = args_iter.next() else { continue; };
-            };
-
-            quote! {
-                #inner
-                let #ident = #inner_ident
-                    .into_iter()
-                    .map(|item| item.0)
-                    .collect::<Vec<_>>();
-            }
-        }
-        FieldType::AccountId => {
-            quote! { let Some(Field::AccountId(#ident)) = args_iter.next() else { continue; }; }
-        }
-    }
-}
-
-fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
-    match t {
-        FieldType::Void => quote! {},
-        FieldType::Bool => quote! { result.push(Field::Bool(#ident)); },
-        FieldType::Uint8 => quote! { result.push(Field::Uint8(#ident)); },
-        FieldType::Int8 => quote! { result.push(Field::Int8(#ident)); },
-        FieldType::Uint16 => quote! { result.push(Field::Uint16(#ident)); },
-        FieldType::Int16 => quote! { result.push(Field::Int16(#ident)); },
-        FieldType::Uint32 => quote! { result.push(Field::Uint32(#ident)); },
-        FieldType::Int32 => quote! { result.push(Field::Int32(#ident)); },
-        FieldType::Uint64 => quote! { result.push(Field::Uint64(#ident)); },
-        FieldType::Int64 => quote! { result.push(Field::Int64(#ident)); },
-        FieldType::String => quote! { result.push(Field::String(#ident)); },
-        FieldType::Bytes => quote! { result.push(Field::Bytes(#ident)); },
-        FieldType::Optional(t_x) => {
-            let v_ident = format_ident!("v");
-            let tokens = field_type_to_result_token(&v_ident, t_x);
-            quote! {
-                match #ident {
-                    Some(v) => #tokens,
-                    None => result.push(Field::None),
-                }
-            }
-        }
-        FieldType::Array(_, _) => todo!("Handle array"),
-        FieldType::List(t_x) => {
-            let inner_ident = format_ident!("{}_inner", ident);
-            let field = match **t_x {
-                FieldType::Void => unreachable!(),
-                FieldType::Bool => quote! { Field::Bool(item) },
-                FieldType::Uint8 => quote! { Field::Uint8(item) },
-                FieldType::Int8 => quote! { Field::Int8(item) },
-                FieldType::Uint16 => quote! { Field::Uint16(item) },
-                FieldType::Int16 => quote! { Field::Int16(item) },
-                FieldType::Uint32 => quote! { Field::Uint32(item) },
-                FieldType::Int32 => quote! { Field::Int32(item) },
-                FieldType::Uint64 => quote! { Field::Uint64(item) },
-                FieldType::Int64 => quote! { Field::Int64(item) },
-                FieldType::String => quote! { Field::String(item) },
-                FieldType::Bytes => quote! { Field::Bytes(item) },
-                FieldType::Optional(_) => todo!("handle optionals into lists"),
-                FieldType::Array(_, _) => todo!("handle arrays into lists"),
-                FieldType::List(_) => todo!("handle nested lists"),
-                FieldType::AccountId => quote! { Field::AccountId(item) },
-            };
-            let inner = quote! {
-               let #inner_ident = #ident.into_iter().map(|item| #field).collect::<Vec<_>>();
-            };
-
-            quote! {
-                #inner
-                result.push(Field::List(BoundedVec(#inner_ident)));
-            }
-        }
-        FieldType::AccountId => {
-            quote! { result.push(Field::AccountId(#ident)); }
-        }
-    }
-}
-
-/// Convert a `snake_case` string to `PascalCase`
-fn pascal_case(s: &str) -> String {
-    s.split('_')
-        .map(|word| {
-            let mut c = word.chars();
-            match c.next() {
-                None => String::new(),
-                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-            }
-        })
-        .collect()
 }
 
 /// `JobArgs` type to handle parsing of attributes
@@ -536,7 +399,7 @@ impl Parse for JobArgs {
 }
 
 #[derive(Debug)]
-struct Params(Vec<Ident>);
+pub struct Params(pub Vec<Ident>);
 
 impl Parse for Params {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
@@ -562,7 +425,38 @@ impl Parse for Params {
     }
 }
 
-enum ResultsKind {
+impl JobArgs {
+    fn params_to_field_types(
+        &self,
+        param_types: &BTreeMap<Ident, Type>,
+    ) -> syn::Result<Vec<FieldType>> {
+        let params = self
+            .params
+            .iter()
+            .map(|ident| {
+                param_types.get(ident).ok_or_else(|| {
+                    syn::Error::new_spanned(ident, "parameter not declared in the function")
+                })
+            })
+            .map(|ty| type_to_field_type(ty?))
+            .collect::<syn::Result<Vec<_>>>()?;
+        Ok(params)
+    }
+
+    fn result_to_field_types(&self, result: &Type) -> syn::Result<Vec<FieldType>> {
+        match &self.result {
+            ResultsKind::Infered => type_to_field_type(result).map(|x| vec![x]),
+            ResultsKind::Types(types) => {
+                let xs = types
+                    .iter()
+                    .map(type_to_field_type)
+                    .collect::<syn::Result<Vec<_>>>()?;
+                Ok(xs)
+            }
+        }
+    }
+}
+pub enum ResultsKind {
     Infered,
     Types(Vec<Type>),
 }
@@ -625,122 +519,6 @@ impl Parse for Verifier {
         } else {
             Ok(Verifier::None)
         }
-    }
-}
-
-impl JobArgs {
-    fn params_to_to_field_types(
-        &self,
-        param_types: &BTreeMap<Ident, Type>,
-    ) -> syn::Result<Vec<FieldType>> {
-        let params = self
-            .params
-            .iter()
-            .map(|ident| {
-                param_types.get(ident).ok_or_else(|| {
-                    syn::Error::new_spanned(ident, "parameter not declared in the function")
-                })
-            })
-            .map(|ty| type_to_field_type(ty?))
-            .collect::<syn::Result<Vec<_>>>()?;
-        Ok(params)
-    }
-
-    fn result_to_field_types(&self, result: &Type) -> syn::Result<Vec<FieldType>> {
-        match &self.result {
-            ResultsKind::Infered => type_to_field_type(result).map(|x| vec![x]),
-            ResultsKind::Types(types) => {
-                let xs = types
-                    .iter()
-                    .map(type_to_field_type)
-                    .collect::<syn::Result<Vec<_>>>()?;
-                Ok(xs)
-            }
-        }
-    }
-}
-
-pub fn type_to_field_type(ty: &Type) -> syn::Result<FieldType> {
-    match ty {
-        Type::Array(_) => Err(syn::Error::new_spanned(ty, "TODO: support arrays")),
-        Type::Path(inner) => path_to_field_type(&inner.path),
-        _ => Err(syn::Error::new_spanned(ty, "unsupported type")),
-    }
-}
-
-fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
-    // take the last segment of the path
-    let seg = &path
-        .segments
-        .last()
-        .ok_or_else(|| syn::Error::new_spanned(path, "path must have at least one segment"))?;
-    let ident = &seg.ident;
-    let args = &seg.arguments;
-    match args {
-        syn::PathArguments::None => ident_to_field_type(ident),
-        // Support for Vec<T> where T is a simple type
-        syn::PathArguments::AngleBracketed(inner) if ident.eq("Vec") && inner.args.len() == 1 => {
-            let inner_arg = &inner.args[0];
-            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
-                let inner_type = type_to_field_type(inner_ty)?;
-                match inner_type {
-                    FieldType::Uint8 => Ok(FieldType::Bytes),
-                    others => Ok(FieldType::List(Box::new(others))),
-                }
-            } else {
-                Err(syn::Error::new_spanned(
-                    inner_arg,
-                    "unsupported complex type",
-                ))
-            }
-        }
-        // Support for Option<T> where T is a simple type
-        syn::PathArguments::AngleBracketed(inner)
-            if ident.eq("Option") && inner.args.len() == 1 =>
-        {
-            let inner_arg = &inner.args[0];
-            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
-                let inner_type = type_to_field_type(inner_ty)?;
-                Ok(FieldType::Optional(Box::new(inner_type)))
-            } else {
-                Err(syn::Error::new_spanned(
-                    inner_arg,
-                    "unsupported complex type",
-                ))
-            }
-        }
-        // Support for Result<T, E> where T is a simple type
-        syn::PathArguments::AngleBracketed(inner) if ident.eq("Result") => {
-            let inner_arg = &inner.args[0];
-            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
-                let inner_type = type_to_field_type(inner_ty)?;
-                Ok(inner_type)
-            } else {
-                Err(syn::Error::new_spanned(
-                    inner_arg,
-                    "unsupported complex type",
-                ))
-            }
-        }
-        _ => Err(syn::Error::new_spanned(args, "unsupported complex type")),
-    }
-}
-
-fn ident_to_field_type(ident: &Ident) -> syn::Result<FieldType> {
-    match ident.to_string().as_str() {
-        "u8" => Ok(FieldType::Uint8),
-        "u16" => Ok(FieldType::Uint16),
-        "u32" => Ok(FieldType::Uint32),
-        "u64" => Ok(FieldType::Uint64),
-        "i8" => Ok(FieldType::Int8),
-        "i16" => Ok(FieldType::Int16),
-        "i32" => Ok(FieldType::Int32),
-        "i64" => Ok(FieldType::Int64),
-        "bool" => Ok(FieldType::Bool),
-        "String" => Ok(FieldType::String),
-        "Bytes" => Ok(FieldType::Bytes),
-        "AccountId" => Ok(FieldType::AccountId),
-        _ => Err(syn::Error::new_spanned(ident, "unsupported type")),
     }
 }
 

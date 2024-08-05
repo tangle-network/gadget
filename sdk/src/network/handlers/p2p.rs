@@ -3,8 +3,8 @@
 use crate::network::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
 use libp2p::gossipsub::IdentTopic;
 
-use gadget_common::sp_core::{keccak_256, Pair};
 use libp2p::{request_response, PeerId};
+use sp_core::{keccak_256, Pair};
 use sp_io::crypto::ecdsa_verify_prehashed;
 
 impl NetworkService<'_> {

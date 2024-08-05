@@ -8,7 +8,7 @@ edition = "2021"
 [features]
 default = ["std"]
 std = [
-    "sp-core/default",
+    "sp-core/std",
     "sp-application-crypto/default",
     "sp-io/default",
     "sp-runtime/default",
@@ -26,8 +26,6 @@ std = [
     "pallet-balances/default",
 ]
 wasm = [
-    "sp-core/serde",
-    "sp-core/full_crypto",
     "sp-application-crypto/serde",
     "sp-runtime/serde",
     "sp-io/disable_panic_handler",

@@ -224,7 +224,7 @@ where
                 if sp_core::ecdsa::Pair::verify_prehashed(
                     &payload_and_signature.signature,
                     &hashed_message,
-                    &peer_public_key,
+                    &sp_core::ecdsa::Public::from_raw(peer_public_key.0),
                 ) {
                     *message.payload_mut() = payload_and_signature.payload;
                     crate::prometheus::BYTES_RECEIVED.inc_by(message.payload().len() as u64);

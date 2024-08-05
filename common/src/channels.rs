@@ -7,8 +7,7 @@ use crate::utils::deserialize;
 use futures::StreamExt;
 use gadget_core::job_manager::ProtocolMessageMetadata;
 use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use round_based::Msg;
-use round_based_21::{Incoming, MessageDestination, MessageType, MsgId, Outgoing, PartyIndex};
+use round_based::{Incoming, MessageDestination, MessageType, MsgId, Outgoing, PartyIndex};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
@@ -16,6 +15,36 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub type UserID = u16;
+
+/// Represent a message transmitting between parties on wire
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Msg<B> {
+    /// Index of the sender
+    ///
+    /// Lies in range `[1; n]` where `n` is number of parties involved in computation
+    pub sender: u16,
+    /// Index of receiver
+    ///
+    /// `None` indicates that it's broadcast message. Receiver index, if set, lies in range `[1; n]`
+    /// where `n` is number of parties involved in computation
+    pub receiver: Option<u16>,
+    /// Message body
+    pub body: B,
+}
+
+impl<B> Msg<B> {
+    /// Applies closure to message body
+    pub fn map_body<T, F>(self, f: F) -> Msg<T>
+    where
+        F: FnOnce(B) -> T,
+    {
+        Msg {
+            sender: self.sender,
+            receiver: self.receiver,
+            body: f(self.body),
+        }
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 pub fn create_job_manager_to_async_protocol_channel_split<

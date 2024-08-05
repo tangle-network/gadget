@@ -1,0 +1,31 @@
+[package]
+name = "incredible-squaring-blueprint"
+version = "0.1.0"
+description = "A Simple Blueprint to demo how blueprints work on Tangle Network"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "incredible-squaring-gadget"
+path = "./src/main.rs"
+required-features = ["gadget"]
+
+[dependencies]
+tracing = { workspace = true }
+async-trait = { workspace = true }
+gadget-sdk = { workspace = true, features = ["default"] }
+
+color-eyre = { workspace = true, optional = true }
+tokio = { workspace = true, default-features = false, features = ["full"], optional = true }
+subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"], optional = true }
+tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"], optional = true }
+
+[build-dependencies]
+blueprint-metadata = { workspace = true }
+
+[features]
+default = []
+gadget = ["dep:tokio", "dep:color-eyre", "dep:subxt-signer", "dep:tracing-subscriber"]

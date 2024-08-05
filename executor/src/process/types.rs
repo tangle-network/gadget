@@ -14,7 +14,8 @@ use sysinfo::ProcessStatus::{
 use sysinfo::{Pid, ProcessStatus, System};
 use tokio::io::{BufReader, Lines};
 pub use tokio::process::Child;
-use tokio::time::timeout;
+
+const DEFAULT_READ_TIMEOUT: u64 = 1000;
 
 /// A Process spawned by gadget-executor, running some service or command(s)
 #[derive(Serialize, Deserialize, Debug)]
@@ -55,13 +56,16 @@ impl GadgetProcess {
         })
     }
 
-    /// Read output from this GadgetProcess, returning None if there was no output
-    pub async fn read(&mut self) -> ProcessOutput {
-        let messages = Vec::new();
+    /// Continually reads output from this GadgetProcess, eventually returning a ProcessOutput.
+    /// Will loop and wait for output from the process, returning upon timeout or completion
+    /// of output stream.
+    pub async fn read_until_timeout(&mut self, timeout: u64) -> ProcessOutput {
+        let mut messages = Vec::new();
         if let Some(stream) = &mut self.stream {
             // Read lines until we time out, meaning we are still waiting for output - continue for now
             loop {
-                let read_result = timeout(Duration::from_millis(500), stream.next_line()).await;
+                let read_result =
+                    tokio::time::timeout(Duration::from_millis(timeout), stream.next_line()).await;
                 match read_result {
                     Ok(output) => {
                         if output.is_err() {
@@ -87,18 +91,19 @@ impl GadgetProcess {
                                         self.process_name.clone(),
                                         streamed_output.clone()
                                     );
+                                    messages.push(streamed_output.clone());
                                     self.output.push(streamed_output);
                                 }
                             }
                         }
                     }
-                    Err(timeout) => {
+                    Err(_timeout) => {
                         // TODO: Log
-                        println!(
-                            "{} read attempt timed out after {}, continuing...",
-                            self.process_name.clone(),
-                            timeout
-                        );
+                        // println!(
+                        //     "{} read attempt timed out after {}, continuing...",
+                        //     self.process_name.clone(),
+                        //     timeout
+                        // );
                         break;
                     }
                 }
@@ -114,6 +119,63 @@ impl GadgetProcess {
             println!("{} encountered read error", self.process_name.clone());
             ProcessOutput::Waiting
         }
+    }
+
+    /// Continually reads output from this GadgetProcess, eventually returning a ProcessOutput.
+    /// Will loop and wait for output from the process, returns early if no output is received
+    /// for a default timeout period of 1 second.
+    pub(crate) async fn read_until_default_timeout(&mut self) -> ProcessOutput {
+        self.read_until_timeout(DEFAULT_READ_TIMEOUT).await
+    }
+
+    /// Continually reads output from this GadgetProcess, eventually returning a ProcessOutput.
+    /// Will loop and wait for output to contain the specified substring.
+    pub async fn read_until_receiving_string(&mut self, substring: String) -> ProcessOutput {
+        let mut messages = Vec::new();
+        if let Some(stream) = &mut self.stream {
+            // Read lines until we receive the desired substring
+            loop {
+                let read_result = stream.next_line().await;
+                match read_result {
+                    Ok(output) => {
+                        match output {
+                            None => {
+                                // Stream is completed - process is finished
+                                println!(
+                                    "{} : STREAM COMPLETED - ENDING",
+                                    self.process_name.clone()
+                                );
+                                return ProcessOutput::Exhausted(messages);
+                            }
+                            Some(streamed_output) => {
+                                // We received output from child process
+                                // TODO: Log
+                                println!(
+                                    "{} : MESSAGE LOG : {}",
+                                    self.process_name.clone(),
+                                    streamed_output.clone()
+                                );
+                                messages.push(streamed_output.clone());
+                                self.output.push(streamed_output.clone());
+                                if streamed_output.contains(&substring) {
+                                    // We should now return with the output
+                                    return ProcessOutput::Output(messages);
+                                }
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        // TODO: Log
+                        println!("{} read attempt failed: {}", self.process_name.clone(), err);
+                        break;
+                    }
+                }
+            }
+        }
+        // Reaching this point means there was some sort of error - we never got the substring
+        // TODO: Error logging
+        println!("{} encountered read error", self.process_name.clone());
+        ProcessOutput::Waiting
     }
 
     /// Restart a GadgetProcess, killing the previously running process if it exists. Returns the new GadgetProcess

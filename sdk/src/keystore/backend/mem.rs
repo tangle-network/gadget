@@ -2,9 +2,8 @@
 
 #[cfg(not(feature = "std"))]
 use alloc::{collections::BTreeMap, sync::Arc};
-#[cfg(feature = "std")]
+
 use std::{collections::BTreeMap, sync::Arc};
-#[cfg(feature = "keystore-bls381")]
 use w3f_bls::SerializableToBytes;
 
 use parking_lot::RwLock;
@@ -14,46 +13,38 @@ use crate::keystore::{bls381, ecdsa, ed25519, sr25519, Backend, Error};
 /// The type alias for the In Memory `KeyMap`.
 type KeyMap<P, S> = Arc<RwLock<BTreeMap<P, S>>>;
 
-#[cfg(feature = "keystore-ed25519")]
 #[derive(Debug, Clone)]
 struct Ed25519PublicWrapper(ed25519::Public);
 
-#[cfg(feature = "keystore-ed25519")]
 impl PartialEq for Ed25519PublicWrapper {
     fn eq(&self, other: &Self) -> bool {
         self.0.as_ref() == other.0.as_ref()
     }
 }
 
-#[cfg(feature = "keystore-ed25519")]
 impl Eq for Ed25519PublicWrapper {}
 
-#[cfg(feature = "keystore-ed25519")]
 impl Ord for Ed25519PublicWrapper {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.0.as_ref().cmp(other.0.as_ref())
     }
 }
 
-#[cfg(feature = "keystore-ed25519")]
 impl PartialOrd for Ed25519PublicWrapper {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-#[cfg(feature = "keystore-bls381")]
 #[derive(Clone, PartialEq, Eq)]
 struct Bls381PublicWrapper(bls381::Public);
 
-#[cfg(feature = "keystore-bls381")]
 impl PartialOrd for Bls381PublicWrapper {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-#[cfg(feature = "keystore-bls381")]
 impl Ord for Bls381PublicWrapper {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.0.to_bytes().cmp(&other.0.to_bytes())
@@ -94,7 +85,6 @@ impl InMemoryKeystore {
 }
 
 impl Backend for InMemoryKeystore {
-    #[cfg(feature = "keystore-sr25519")]
     fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public, Error> {
         let secret = sr25519::generate_with_optional_seed(seed)?;
         let public = secret.to_public();
@@ -103,7 +93,6 @@ impl Backend for InMemoryKeystore {
         Ok(public)
     }
 
-    #[cfg(feature = "keystore-sr25519")]
     fn sr25519_sign(
         &self,
         public: &sr25519::Public,
@@ -118,7 +107,6 @@ impl Backend for InMemoryKeystore {
         }
     }
 
-    #[cfg(feature = "keystore-ed25519")]
     fn ed25519_generate_new(&self, seed: Option<&[u8]>) -> Result<ed25519::Public, Error> {
         let secret = ed25519::generate_with_optional_seed(seed)?;
         let public = ed25519::to_public(&secret);
@@ -130,7 +118,6 @@ impl Backend for InMemoryKeystore {
         Ok(public)
     }
 
-    #[cfg(feature = "keystore-ed25519")]
     fn ed25519_sign(
         &self,
         public: &ed25519::Public,
@@ -145,7 +132,6 @@ impl Backend for InMemoryKeystore {
         }
     }
 
-    #[cfg(feature = "keystore-ecdsa")]
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error> {
         let secret = ecdsa::generate_with_optional_seed(seed).map_err(Error::Ecdsa)?;
         let public = secret.public_key();
@@ -154,7 +140,6 @@ impl Backend for InMemoryKeystore {
         Ok(public)
     }
 
-    #[cfg(feature = "keystore-ecdsa")]
     fn ecdsa_sign(
         &self,
         public: &ecdsa::Public,
@@ -169,7 +154,6 @@ impl Backend for InMemoryKeystore {
         }
     }
 
-    #[cfg(feature = "keystore-bls381")]
     fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<bls381::Public, Error> {
         let secret = bls381::generate_with_optional_seed(seed);
         let public = bls381::to_public(&secret);
@@ -181,7 +165,6 @@ impl Backend for InMemoryKeystore {
         Ok(public)
     }
 
-    #[cfg(feature = "keystore-bls381")]
     fn bls381_sign(
         &self,
         public: &bls381::Public,
@@ -196,7 +179,6 @@ impl Backend for InMemoryKeystore {
         }
     }
 
-    #[cfg(feature = "keystore-sr25519")]
     fn expose_sr25519_secret(
         &self,
         public: &sr25519::Public,
@@ -205,13 +187,11 @@ impl Backend for InMemoryKeystore {
         Ok(lock.get(public).cloned())
     }
 
-    #[cfg(feature = "keystore-ecdsa")]
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error> {
         let lock = self.ecdsa.read();
         Ok(lock.get(public).cloned())
     }
 
-    #[cfg(feature = "keystore-ed25519")]
     fn expose_ed25519_secret(
         &self,
         public: &ed25519::Public,
@@ -220,7 +200,6 @@ impl Backend for InMemoryKeystore {
         Ok(lock.get(&Ed25519PublicWrapper(*public)).copied())
     }
 
-    #[cfg(feature = "keystore-bls381")]
     fn expose_bls381_secret(
         &self,
         public: &bls381::Public,
@@ -229,28 +208,24 @@ impl Backend for InMemoryKeystore {
         Ok(lock.get(&Bls381PublicWrapper(*public)).cloned())
     }
 
-    #[cfg(feature = "keystore-sr25519")]
     fn iter_sr25519(&self) -> impl Iterator<Item = sr25519::Public> {
         let lock = self.sr25519.read();
         let iter = lock.keys().copied().collect::<Vec<_>>();
         iter.into_iter()
     }
 
-    #[cfg(feature = "keystore-ecdsa")]
     fn iter_ecdsa(&self) -> impl Iterator<Item = ecdsa::Public> {
         let lock = self.ecdsa.read();
         let iter = lock.keys().copied().collect::<Vec<_>>();
         iter.into_iter()
     }
 
-    #[cfg(feature = "keystore-ed25519")]
     fn iter_ed25519(&self) -> impl Iterator<Item = ed25519::Public> {
         let lock = self.ed25519.read();
         let iter = lock.keys().map(|k| k.0).collect::<Vec<_>>();
         iter.into_iter()
     }
 
-    #[cfg(feature = "keystore-bls381")]
     fn iter_bls381(&self) -> impl Iterator<Item = bls381::Public> {
         let lock = self.bls381.read();
         let iter = lock.keys().map(|k| k.0).collect::<Vec<_>>();

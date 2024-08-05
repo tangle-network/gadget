@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::process::manager::GadgetProcessManager;
 use crate::process::types::GadgetInstructionData;
 use crate::process::types::{CommandOrSequence, ProcessOutput};
@@ -46,7 +47,7 @@ pub async fn run_executor(instructions: &str) {
         println!("LOG : Process {}", service.clone());
         let status = process.status().unwrap();
         println!("\tSTATUS: {:?}", status);
-        let output = process.read().await;
+        let output = process.read_until_default_timeout().await;
         println!("\n{} read result:\n\t {:?}\n", service, output);
         if let ProcessOutput::Exhausted(_) = output {
             println!("{} ended, removing from Manager", service);
@@ -64,14 +65,24 @@ pub async fn run_executor(instructions: &str) {
 pub async fn run_tangle_validator() -> Result<(), Box<dyn Error>> {
     let mut manager = GadgetProcessManager::new();
 
-    // let install = manager.run(&*"binary_install", &*"wget https://github.com/webb-tools/tangle/releases/download/v1.0.0/tangle-default-linux-amd64".to_string()).await?;
-    // let make_executable = manager.run(&*"make_executable", &*"chmod +x tangle-default-linux-amd64".to_string()).await?;
+    let install = manager.run("binary_install".to_string(), "wget https://github.com/webb-tools/tangle/releases/download/v1.0.0/tangle-default-linux-amd64").await?;
+    manager.focus_service_to_completion(install).await?;
 
-    // let start_validator = manager.run("tangle_validator".to_string(), "./tangle-default-linux-amd64").await?;
-    let ping_test = manager
-        .run("ping_test".to_string(), "ping -c 5 localhost")
+    let make_executable = manager
+        .run(
+            "make_executable".to_string(),
+            "chmod +x tangle-default-linux-amd64",
+        )
         .await?;
-    manager.focus_service_to_completion(ping_test).await?;
+    manager.focus_service_to_completion(make_executable).await?;
+
+    let start_validator = manager
+        .run(
+            "tangle_validator".to_string(),
+            "./tangle-default-linux-amd64",
+        )
+        .await?;
+    manager.focus_service_to_completion(start_validator).await?;
 
     Ok(())
 }

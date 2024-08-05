@@ -12,7 +12,6 @@
     clippy::pedantic,
     clippy::exhaustive_enums
 )]
-#![allow(dead_code)]
 //! Gadget SDK
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -27,11 +26,23 @@ pub mod keystore;
 /// Metrics Module
 // pub mod metrics;
 
-/// Logging Module
-pub mod logging;
 /// Randomness generation module
 #[cfg(not(feature = "wasm"))]
 pub mod random;
 
-#[cfg(feature = "networking-libp2p")]
+/// Blockchain Events Watcher Module
+pub mod events_watcher;
+
+/// Gadget Environment Module
+pub mod env;
+
+/// Transaction Management Module
+pub mod tx;
+
+pub use tangle_subxt;
+
 pub mod network;
+
+pub mod slashing;
+
+pub use gadget_blueprint_proc_macro::*;

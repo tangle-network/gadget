@@ -61,8 +61,23 @@ impl FilesystemKeystore {
     fn secret_by_type(&self, public: &[u8], key_type: KeyType) -> Result<Option<Vec<u8>>, Error> {
         let path = self.key_file_path(public, key_type);
         if path.exists() {
-            let content = fs::read(path)?;
-            Ok(Some(content))
+            let content = fs::read(&path)?;
+            if content.is_empty() {
+                return Ok(None);
+            }
+            // check if the contents are hex encoded
+            // if so, we need to decode them
+            if content.iter().all(|&b| b.is_ascii_hexdigit()) {
+                if let Ok(decoded) = hex::decode(&content) {
+                    tracing::debug!("Decoded hex-encoded key from file {:?}", path);
+                    Ok(Some(decoded))
+                } else {
+                    tracing::warn!("Invalid hex encoding in file {:?}", path);
+                    Ok(None)
+                }
+            } else {
+                Ok(Some(content))
+            }
         } else {
             Ok(None)
         }
@@ -92,7 +107,6 @@ impl FilesystemKeystore {
 }
 
 impl Backend for FilesystemKeystore {
-    #[cfg(feature = "keystore-sr25519")]
     fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public, Error> {
         let secret = sr25519::generate_with_optional_seed(seed)?;
         let public = secret.to_public();
@@ -101,7 +115,6 @@ impl Backend for FilesystemKeystore {
         Ok(public)
     }
 
-    #[cfg(feature = "keystore-sr25519")]
     fn sr25519_sign(
         &self,
         public: &sr25519::Public,
@@ -116,7 +129,6 @@ impl Backend for FilesystemKeystore {
         }
     }
 
-    #[cfg(feature = "keystore-ed25519")]
     fn ed25519_generate_new(&self, seed: Option<&[u8]>) -> Result<ed25519::Public, Error> {
         let secret = ed25519::generate_with_optional_seed(seed)?;
         let public = ed25519::to_public(&secret);
@@ -125,7 +137,6 @@ impl Backend for FilesystemKeystore {
         Ok(public)
     }
 
-    #[cfg(feature = "keystore-ed25519")]
     fn ed25519_sign(
         &self,
         public: &ed25519::Public,
@@ -140,7 +151,6 @@ impl Backend for FilesystemKeystore {
         }
     }
 
-    #[cfg(feature = "keystore-ecdsa")]
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error> {
         let secret = ecdsa::generate_with_optional_seed(seed).map_err(Error::Ecdsa)?;
         let public = secret.public_key();
@@ -149,7 +159,6 @@ impl Backend for FilesystemKeystore {
         Ok(public)
     }
 
-    #[cfg(feature = "keystore-ecdsa")]
     fn ecdsa_sign(
         &self,
         public: &ecdsa::Public,
@@ -164,7 +173,6 @@ impl Backend for FilesystemKeystore {
         }
     }
 
-    #[cfg(feature = "keystore-bls381")]
     fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<bls381::Public, Error> {
         use w3f_bls::SerializableToBytes;
 
@@ -175,7 +183,6 @@ impl Backend for FilesystemKeystore {
         Ok(public)
     }
 
-    #[cfg(feature = "keystore-bls381")]
     fn bls381_sign(
         &self,
         public: &bls381::Public,
@@ -192,7 +199,6 @@ impl Backend for FilesystemKeystore {
         }
     }
 
-    #[cfg(feature = "keystore-sr25519")]
     fn expose_sr25519_secret(
         &self,
         public: &sr25519::Public,
@@ -205,7 +211,6 @@ impl Backend for FilesystemKeystore {
         }
     }
 
-    #[cfg(feature = "keystore-ecdsa")]
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error> {
         let secret_bytes = self.secret_by_type(&public.to_sec1_bytes(), KeyType::Ecdsa)?;
         if let Some(buf) = secret_bytes {
@@ -215,7 +220,6 @@ impl Backend for FilesystemKeystore {
         }
     }
 
-    #[cfg(feature = "keystore-ed25519")]
     fn expose_ed25519_secret(
         &self,
         public: &ed25519::Public,
@@ -228,7 +232,6 @@ impl Backend for FilesystemKeystore {
         }
     }
 
-    #[cfg(feature = "keystore-bls381")]
     fn expose_bls381_secret(
         &self,
         public: &bls381::Public,
@@ -243,25 +246,21 @@ impl Backend for FilesystemKeystore {
         }
     }
 
-    #[cfg(feature = "keystore-sr25519")]
     fn iter_sr25519(&self) -> impl Iterator<Item = sr25519::Public> {
         self.iter_keys(KeyType::Sr25519)
             .flat_map(|b| sr25519::Public::from_bytes(&b))
     }
 
-    #[cfg(feature = "keystore-ecdsa")]
     fn iter_ecdsa(&self) -> impl Iterator<Item = ecdsa::Public> {
         self.iter_keys(KeyType::Ecdsa)
             .flat_map(|b| ecdsa::Public::from_sec1_bytes(&b))
     }
 
-    #[cfg(feature = "keystore-ed25519")]
     fn iter_ed25519(&self) -> impl Iterator<Item = ed25519::Public> {
         self.iter_keys(KeyType::Ed25519)
             .flat_map(|b| ed25519::Public::try_from(b.as_slice()))
     }
 
-    #[cfg(feature = "keystore-bls381")]
     fn iter_bls381(&self) -> impl Iterator<Item = bls381::Public> {
         use w3f_bls::SerializableToBytes;
 

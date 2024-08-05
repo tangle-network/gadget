@@ -11,7 +11,6 @@ pub use gadget_core::job_manager::WorkManagerInterface;
 pub use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
 use gadget_io::tokio::task::JoinError;
 use parking_lot::RwLock;
-pub use sp_core;
 use sp_core::ecdsa;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
@@ -21,6 +20,7 @@ pub mod environments;
 use crate::environments::GadgetEnvironment;
 use gadget_core::gadget::general::Client;
 pub mod module;
+
 #[allow(ambiguous_glob_reexports)]
 pub mod prelude {
     pub use crate::client::*;
@@ -49,7 +49,6 @@ pub use color_eyre;
 pub use gadget_io;
 pub use tangle_subxt;
 
-//#[cfg(feature = "tangle-mainnet")]
 pub mod tangle_runtime {
     pub use tangle_subxt::subxt::utils::AccountId32;
     pub use tangle_subxt::tangle_testnet_runtime::api;

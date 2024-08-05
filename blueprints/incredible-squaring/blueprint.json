@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "name": "incredible-squaring-blueprint",
+    "description": "A Simple Blueprint to demo how blueprints work on Tangle Network",
+    "author": "Webb Technologies Inc.",
+    "category": null,
+    "code_repository": "https://github.com/webb-tools/gadget",
+    "logo": null,
+    "website": "https://tangle.tools",
+    "license": "Unlicense"
+  },
+  "jobs": [
+    {
+      "metadata": {
+        "name": "xsquare",
+        "description": "Returns x^2 saturating to [`u64::MAX`] if overflow occurs."
+      },
+      "params": [
+        "Uint64"
+      ],
+      "result": [
+        "Uint64"
+      ],
+      "verifier": {
+        "Evm": "contracts/out/IncredibleSquaringBlueprint.sol/IncredibleSquaringBlueprint.json"
+      }
+    }
+  ],
+  "registration_hook": "None",
+  "registration_params": [],
+  "request_hook": "None",
+  "request_params": [],
+  "gadget": {
+    "Wasm": {
+      "runtime": "Wasmtime",
+      "soruces": []
+    }
+  }
+}
