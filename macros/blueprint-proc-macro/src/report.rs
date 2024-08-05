@@ -283,8 +283,6 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
         #event_handler_gen
     };
 
-    println!("Generated code:\n{gen}");
-
     Ok(gen.into())
 }
 

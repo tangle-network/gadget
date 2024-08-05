@@ -44,3 +44,5 @@ pub use tangle_subxt;
 pub mod network;
 
 pub mod slashing;
+
+pub use gadget_blueprint_proc_macro::*;

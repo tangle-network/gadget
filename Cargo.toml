@@ -13,7 +13,8 @@ members = [
     "shell-manager",
     "shell-sdk",
     "sdk",
-    "tangle-test-utils",
+    # Commented out, since it uses jobs-v1 code
+    #"tangle-test-utils",
 
     "macros/blueprint-proc-macro",
     "macros/blueprint-proc-macro-core",
@@ -28,21 +29,21 @@ homepage = "https://tangle.tools"
 repository = "https://github.com/webb-tools/gadget"
 
 [workspace.dependencies]
-gadget-core = { path = "./core" }
-gadget-common = { path = "./common" }
-gadget-io = { path = "./gadget-io" }
-gadget-executor = { path = "./executor" }
-gadget-sdk = { path = "./sdk" }
-tangle-test-utils = { path = "./tangle-test-utils" }
-protocol-macros = { path = "./protocol-macros" }
-shell-sdk = { path = "./shell-sdk" }
-shell-manager = { path = "./shell-manager" }
-tangle-environment = { path = "./environments/tangle" }
-environment-utils = { path = "./environments/utils" }
+gadget-core = { path = "./core", default-features = false }
+gadget-common = { path = "./common", default-features = false }
+gadget-io = { path = "./gadget-io", default-features = false }
+gadget-executor = { path = "./executor", default-features = false }
+gadget-sdk = { path = "./sdk", default-features = false }
+# tangle-test-utils = { path = "./tangle-test-utils", default-features = false }
+protocol-macros = { path = "./protocol-macros", default-features = false }
+shell-sdk = { path = "./shell-sdk", default-features = false }
+shell-manager = { path = "./shell-manager", default-features = false }
+tangle-environment = { path = "./environments/tangle", default-features = false }
+environment-utils = { path = "./environments/utils", default-features = false }
 
-gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro" }
-gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core" }
-blueprint-metadata = { path = "./blueprint-metadata" }
+gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false }
+gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false }
+blueprint-metadata = { path = "./blueprint-metadata", default-features = false }
 
 # Tangle-related dependencies
 pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
@@ -172,7 +173,7 @@ color-eyre = { version = "0.6", features = [
 ] }
 hex-literal = "0.4.1"
 rand = "0.8.5"
-rand_core = "0.6"
+rand_core = {version = "0.6", default-features = false }
 getrandom = { version = "0.2.15", default-features = false }
 rand_chacha = { version = "0.3.1" }
 jsonrpsee = "0.16.2"
@@ -226,7 +227,7 @@ aws-sdk-s3 = "1.32.0"
 aws-sdk-secretsmanager = "1.31.0"
 aws-sdk-kms = "1.29.0"
 picky-asn1-der = "0.5.0"
-hyper = "1.3.1"
+hyper = { version = "1.3.1", default-features = false }
 pin-project-lite = "0.2.14"
 http-body-util = "0.1.1"
 backoff = { version = "0.4.0", features = ["tokio"] }

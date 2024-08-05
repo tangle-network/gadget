@@ -1,4 +1,4 @@
-use gadget_blueprint_proc_macro::{job, registration_hook, report, request_hook};
+use gadget_sdk::{job, registration_hook, report, request_hook};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Error {

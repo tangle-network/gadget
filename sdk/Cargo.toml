@@ -34,10 +34,10 @@ tracing-subscriber = { workspace = true, default-features = false }
 tracing-wasm = { workspace = true, optional = true }
 
 # Networking deps
-gadget-io = { workspace = true }
-gadget-core = { workspace = true }
+gadget-io = { workspace = true, features = ["std"] }
+gadget-core = { workspace = true, features = ["substrate"] }
 bincode = { workspace = true }
-gadget-common = { workspace = true }
+gadget-common = { workspace = true, features = ["default"] }
 serde = { workspace = true }
 async-trait = { workspace = true }
 futures = { workspace = true }
@@ -54,6 +54,9 @@ wasm-bindgen-test = { workspace = true, optional = true }
 tangle-subxt = { workspace = true, default-features = false }
 subxt = { workspace = true, default-features = false }
 backoff = { workspace = true }
+
+# Macros
+gadget-blueprint-proc-macro = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
@@ -85,7 +88,7 @@ default-features = false
 hyper = { version = "0.14.16", default-features = false, features = ["client"] }
 
 [dev-dependencies]
-tangle-test-utils = { workspace = true }
+# tangle-test-utils = { workspace = true }
 
 [features]
 default = ["std"]

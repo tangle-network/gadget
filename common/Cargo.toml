@@ -3,9 +3,6 @@ name = "gadget-common"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
 libsecp256k1 = { version = "0.7" }
 gadget-core = { workspace = true }

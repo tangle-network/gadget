@@ -5,6 +5,7 @@
     clippy::exhaustive_enums
 )]
 use async_trait::async_trait;
+use ecdsa::Public;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, Network};
 use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
@@ -20,7 +21,6 @@ use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
-use ecdsa::Public;
 
 /// Maximum allowed size for a Signed Message.
 pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
