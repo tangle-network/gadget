@@ -10,15 +10,23 @@ use structopt::StructOpt;
 async fn main() -> color_eyre::Result<()> {
     //color_eyre::install()?;
     let blueprint_manager_config = &BlueprintManagerConfig::from_args();
+
     entry::setup_shell_logger(
         blueprint_manager_config.verbose,
         blueprint_manager_config.pretty,
         "gadget",
     )?;
-    let gadget_config_settings =
-        std::fs::read_to_string(blueprint_manager_config.gadget_config.clone())?;
-    let gadget_config: GadgetConfig = toml::from_str(&gadget_config_settings)
-        .map_err(|err| utils::msg_to_error(err.to_string()))?;
 
-    run_blueprint_manager(blueprint_manager_config, gadget_config).await
+    if let Some(gadget_config) = blueprint_manager_config.gadget_config.as_ref() {
+        let gadget_config_settings = std::fs::read_to_string(gadget_config)?;
+        let gadget_config: GadgetConfig = toml::from_str(&gadget_config_settings)
+            .map_err(|err| utils::msg_to_error(err.to_string()))?;
+
+        run_blueprint_manager(blueprint_manager_config, gadget_config).await
+    } else {
+        Err(utils::msg_to_error(
+            "Gadget config file is required when running the blueprint manager in CLI mode"
+                .to_string(),
+        ))
+    }
 }

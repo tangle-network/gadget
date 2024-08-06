@@ -1,18 +1,74 @@
+use crate::test_ext::MockNetwork;
+use blueprint_manager::config::BlueprintManagerConfig;
+use gadget_common::prelude::{InMemoryBackend, NodeInput};
 use gadget_common::tangle_runtime::api;
 use gadget_common::tangle_runtime::api::services::storage::types::job_results::JobResults;
 use gadget_common::tangle_subxt::subxt::{Config, OnlineClient, SubstrateConfig};
 pub use gadget_core::job_manager::SendFuture;
+use gadget_io::{GadgetConfig, SupportedChains};
+use libp2p::Multiaddr;
 pub use log;
 use std::error::Error;
+use std::net::IpAddr;
+use std::path::PathBuf;
+use std::str::FromStr;
 use std::time::Duration;
+use tangle_environment::TangleEnvironment;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
+use url::Url;
 
 pub mod sync;
 pub mod test_ext;
 
 pub type TestClient = OnlineClient<SubstrateConfig>;
+
+pub struct PerTestNodeInput<T> {
+    instance_id: u64,
+    bind_ip: IpAddr,
+    bind_port: u16,
+    bootnodes: Vec<Multiaddr>,
+    // Should be in the form: ../tangle/tmp/alice
+    base_path: String,
+    verbose: i32,
+    pretty: bool,
+    extra_input: T,
+    local_tangle_node: Url,
+}
+
+/// Runs a test node using a top-down approach and invoking the blueprint manager to auto manage
+/// execution of blueprints and their associated services for the test node.
+pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(input: PerTestNodeInput<T>) {
+    let blueprint_manager_config = BlueprintManagerConfig {
+        gadget_config: None,
+        verbose: input.verbose,
+        pretty: input.pretty,
+        instance_id: Some(format!("Test Node {}", input.instance_id)),
+    };
+
+    let node_key = format!(
+        "000000000000000000000000000000000000000000000000000000000000000{}",
+        input.instance_id
+    );
+
+    let gadget_config = GadgetConfig {
+        bind_ip: input.bind_ip,
+        bind_port: input.bind_port,
+        url: input.local_tangle_node,
+        bootnodes: input.bootnodes,
+        node_key: Some(node_key),
+        base_path: PathBuf::from(input.base_path),
+        keystore_password: None,
+        chain: SupportedChains::LocalTestnet,
+        verbose: input.verbose,
+        pretty: input.pretty,
+    };
+
+    blueprint_manager::run_blueprint_manager(&blueprint_manager_config, gadget_config)
+        .await
+        .expect("Failed to run blueprint manager");
+}
 
 /// Sets up the default logging as well as setting a panic hook for tests
 pub fn setup_log() {
@@ -46,150 +102,16 @@ pub async fn wait_for_completion_of_job<T: Config>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_ext::new_test_ext;
+    use crate::test_ext::new_test_ext_blueprint_manager;
 
     #[gadget_io::tokio::test(flavor = "multi_thread")]
     async fn test_externalities_gadget_starts() {
         setup_log();
-        new_test_ext::<1, 1, (), _, _>((), |input| async move {
-            // TODO: Execute the blueprint manager using input
-        })
-        .await
-        .execute_with_async(|client| {
-            assert_eq!(1, 1);
-        })
-        .await
+        new_test_ext_blueprint_manager::<1, 1, (), _, _>((), run_test_blueprint_manager)
+            .await
+            .execute_with_async(|_client| {
+                assert_eq!(1, 1);
+            })
+            .await
     }
-}
-
-#[macro_export]
-/// When using this macro, the `generate_setup_and_run_command` macro should be used to generate the `setup_node` function.
-/// If not, you must manually create a function named `setup_node` in your crate's lib.rs that accepts a NodeInput and
-/// returns a future that runs the protocols.
-#[allow(clippy::crate_in_macro_def)]
-macro_rules! generate_signing_and_keygen_tss_tests {
-    ($t:expr, $n:expr, $proto_count:expr, $threshold_sig_ty:expr) => {
-        #[cfg(test)]
-        mod tests {
-            use std::sync::Arc;
-            use tangle_primitives::jobs::{
-                DKGTSSPhaseOneJobType, DKGTSSPhaseTwoJobType, JobId, JobSubmission, JobType,
-            };
-            use tangle_primitives::roles::{RoleType, ThresholdSignatureRoleType};
-            use tangle_primitives::AccountId;
-            use gadget_common::full_protocol::FullProtocolConfig;
-            use test_utils::mock::{id_to_public, id_to_sr25519_public, Jobs, MockBackend, RuntimeOrigin};
-            use test_utils::sync::substrate_test_channel::MultiThreadedTestExternalities;
-            use gadget_io::tokio;
-
-            #[gadget_io::tokio::test(flavor = "multi_thread")]
-            async fn test_externalities_gadget_starts() {
-                test_utils::setup_log();
-                new_test_ext::<1>()
-                    .await
-                    .execute_with_async(|| {
-                        assert_eq!(1, 1);
-                    })
-                    .await
-            }
-
-            #[gadget_io::tokio::test(flavor = "multi_thread")]
-            async fn test_externalities_keygen() {
-                test_utils::setup_log();
-                const N: usize = $n;
-                const T: usize = $t;
-
-                let ext = new_test_ext::<N>().await;
-                assert_eq!(wait_for_keygen::<N, T>(&ext).await, 0);
-            }
-
-            #[gadget_io::tokio::test(flavor = "multi_thread")]
-            async fn test_externalities_signing() {
-                test_utils::setup_log();
-                const N: usize = $n;
-                const T: usize = $t;
-
-                let ext = new_test_ext::<N>().await;
-                let keygen_job_id = wait_for_keygen::<N, T>(&ext).await;
-                assert_eq!(wait_for_signing::<N>(&ext, keygen_job_id).await, 1);
-            }
-
-            async fn wait_for_keygen<const N: usize, const T: usize>(
-                ext: &MultiThreadedTestExternalities,
-            ) -> JobId {
-                let job_id = ext
-                    .execute_with_async(|| {
-                        let job_id = Jobs::next_job_id();
-                        let identities = (0..N).map(|i| id_to_sr25519_public(i as u8)).map(AccountId::from).collect::<Vec<_>>();
-
-                        let submission = JobSubmission {
-                            fallback: tangle_primitives::jobs::FallbackOptions::Destroy,
-                            expiry: 100,
-                            ttl: 100,
-                            job_type: JobType::DKGTSSPhaseOne(DKGTSSPhaseOneJobType {
-                                participants: identities.clone().try_into().unwrap(),
-                                threshold: T as _,
-                                permitted_caller: None,
-                                hd_wallet: false,
-                                role_type: $threshold_sig_ty,
-                            }),
-                        };
-
-                        assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), submission).is_ok());
-
-                        $crate::log::info!(target: "gadget", "******* Submitted Keygen Job {job_id}");
-                        job_id
-                    })
-                    .await;
-
-                test_utils::wait_for_job_completion(
-                    ext,
-                    RoleType::Tss($threshold_sig_ty),
-                    job_id,
-                )
-                .await;
-                job_id
-            }
-
-            async fn wait_for_signing<const N: usize>(
-                ext: &MultiThreadedTestExternalities,
-                keygen_job_id: JobId,
-            ) -> JobId {
-                let job_id = ext
-                    .execute_with_async(move || {
-                        let job_id = Jobs::next_job_id();
-                        let identities = (0..N).map(|i| id_to_sr25519_public(i as u8)).map(AccountId::from).collect::<Vec<_>>();
-                        let submission = JobSubmission {
-                            fallback: tangle_primitives::jobs::FallbackOptions::Destroy,
-                            expiry: 100,
-                            ttl: 100,
-                            job_type: JobType::DKGTSSPhaseTwo(DKGTSSPhaseTwoJobType {
-                                phase_one_id: keygen_job_id,
-                                derivation_path: None,
-                                submission: Vec::from("Hello, world!").try_into().unwrap(),
-                                role_type: $threshold_sig_ty,
-                            }),
-                        };
-
-                        assert!(Jobs::submit_job(RuntimeOrigin::signed(identities[0].clone()), submission).is_ok());
-
-                        $crate::log::info!(target: "gadget", "******* Submitted Signing Job {job_id}");
-                        job_id
-                    })
-                    .await;
-
-                test_utils::wait_for_job_completion(
-                    ext,
-                    RoleType::Tss($threshold_sig_ty),
-                    job_id,
-                )
-                .await;
-                job_id
-            }
-
-            async fn new_test_ext<const N: usize>() -> MultiThreadedTestExternalities {
-                test_utils::mock::new_test_ext::<N, $proto_count, (), _, _>((), crate::setup_node).await
-            }
-        }
-    };
 }

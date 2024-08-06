@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::PerTestNodeInput;
 use async_trait::async_trait;
 use environment_utils::transaction_manager::tangle::SubxtPalletSubmitter;
 use gadget_common::config::Network;
@@ -26,15 +27,19 @@ use gadget_common::tangle_subxt::subxt::ext::subxt_core::utils;
 use gadget_common::tangle_subxt::subxt::{OnlineClient, SubstrateConfig};
 use gadget_common::Error;
 use gadget_core::job_manager::{ProtocolMessageMetadata, SendFuture, WorkManagerInterface};
+use libp2p::Multiaddr;
 use sp_application_crypto::ecdsa;
 use sp_core::{sr25519, Pair};
 use std::collections::HashMap;
+use std::net::IpAddr;
 use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tangle_environment::runtime::{TangleConfig, TangleRuntime};
 use tangle_environment::TangleEnvironment;
 use tangle_primitives::AccountId;
+use url::Url;
 
 pub fn id_to_ecdsa_pair(id: u8) -> ecdsa::Pair {
     ecdsa::Pair::from_string(&format!("//Alice///{id}"), None).expect("static values are valid")
@@ -148,9 +153,88 @@ where
     }
 }
 
+const LOCAL_BIND_ADDR: &str = "127.0.0.1";
+
 /// N: number of nodes
 /// K: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
 /// D: Any data that you want to pass to pass with NodeInput.
+/// F: A function that generates a service's execution via a series of shells. Each shell executes a subset of the service,
+/// as each service may have a set of operations that are executed in parallel, sequentially, or concurrently.
+pub async fn new_test_ext_blueprint_manager<
+    const N: usize,
+    const K: usize,
+    D: Send + Clone + 'static,
+    F: Fn(PerTestNodeInput<D>) -> Fut,
+    Fut: SendFuture<'static, ()>,
+>(
+    additional_params: D,
+    f: F,
+) -> LocalhostTestExt {
+    const LOCAL_TANGLE_NODE: &str = "ws://127.0.0.1:9944";
+    const NAME_IDS: [&str; 3] = ["alice", "bob", "charlie"];
+
+    assert!(N < 4, "Only up to 3 nodes are supported");
+
+    let bind_addrs = (0..N)
+        .into_iter()
+        .map(|_| find_open_tcp_bind_port())
+        .map(|port| {
+            (
+                Multiaddr::from_str(&format!("/ip4/{LOCAL_BIND_ADDR}/tcp/{port}"))
+                    .expect("Should parse MultiAddr"),
+                port,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let multi_addrs = bind_addrs
+        .iter()
+        .map(|(addr, _)| addr.clone())
+        .collect::<Vec<_>>();
+
+    for (node_index, (my_addr, my_port)) in bind_addrs.iter().enumerate() {
+        let my_alias = NAME_IDS[node_index];
+
+        let test_input = PerTestNodeInput {
+            instance_id: *node_index as _,
+            bind_ip: IpAddr::try_from(LOCAL_BIND_ADDR).expect("Should be a valid IP"),
+            bind_port: *my_port,
+            bootnodes: multi_addrs
+                .iter()
+                .filter(|addr| *addr != my_addr)
+                .cloned()
+                .collect(),
+            base_path: format!("../tangle/tmp/{my_alias}"),
+            verbose: 4,
+            pretty: false,
+            extra_input: additional_params.clone(),
+            local_tangle_node: Url::parse(LOCAL_TANGLE_NODE).expect("Should parse URL"),
+        };
+
+        let task = f(test_input);
+        gadget_io::tokio::task::spawn(task);
+    }
+
+    // The local test node runs on ws://127.0.0.1:9944
+    let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
+        .await
+        .expect("Failed to create primary localhost client");
+    let localhost_externalities = LocalhostTestExt::from(client);
+
+    localhost_externalities
+}
+
+fn find_open_tcp_bind_port() -> u16 {
+    let listener = std::net::TcpListener::bind(LOCAL_BIND_ADDR).expect("Should bind to localhost");
+    listener
+        .local_addr()
+        .expect("Should have a local address")
+        .port()
+}
+
+/// N: number of nodes
+/// K: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
+/// D: Any data that you want to pass with NodeInput.
 /// F: A function that generates a service's execution via a series of shells. Each shell executes a subset of the service,
 /// as each service may have a set of operations that are executed in parallel, sequentially, or concurrently.
 pub async fn new_test_ext<
