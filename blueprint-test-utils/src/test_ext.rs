@@ -196,8 +196,8 @@ pub async fn new_test_ext_blueprint_manager<
         let my_alias = NAME_IDS[node_index];
 
         let test_input = PerTestNodeInput {
-            instance_id: *node_index as _,
-            bind_ip: IpAddr::try_from(LOCAL_BIND_ADDR).expect("Should be a valid IP"),
+            instance_id: node_index as _,
+            bind_ip: IpAddr::from_str(LOCAL_BIND_ADDR).expect("Should be a valid IP"),
             bind_port: *my_port,
             bootnodes: multi_addrs
                 .iter()

@@ -1,6 +1,4 @@
-use crate::test_ext::MockNetwork;
 use blueprint_manager::config::BlueprintManagerConfig;
-use gadget_common::prelude::{InMemoryBackend, NodeInput};
 use gadget_common::tangle_runtime::api;
 use gadget_common::tangle_runtime::api::services::storage::types::job_results::JobResults;
 use gadget_common::tangle_subxt::subxt::{Config, OnlineClient, SubstrateConfig};
@@ -11,9 +9,7 @@ pub use log;
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::time::Duration;
-use tangle_environment::TangleEnvironment;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -33,6 +29,7 @@ pub struct PerTestNodeInput<T> {
     base_path: String,
     verbose: i32,
     pretty: bool,
+    #[allow(dead_code)]
     extra_input: T,
     local_tangle_node: Url,
 }

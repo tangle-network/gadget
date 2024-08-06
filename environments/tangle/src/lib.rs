@@ -9,7 +9,6 @@ use gadget_common::client::PairSigner;
 use gadget_common::config::DebugLogger;
 use gadget_common::environments::{EventMetadata, GadgetEnvironment};
 use gadget_common::tangle_subxt::subxt::tx::Signer;
-use gadget_common::tangle_subxt::subxt::PolkadotConfig;
 use gadget_common::utils::serialize;
 use gadget_common::WorkManagerInterface;
 use message::TangleProtocolMessage;

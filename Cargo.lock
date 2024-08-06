@@ -1309,6 +1309,7 @@ name = "blueprint-test-utils"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "blueprint-manager",
  "environment-utils",
  "frame-support",
  "frame-system",
@@ -1317,6 +1318,7 @@ dependencies = [
  "gadget-core",
  "gadget-io",
  "getrandom",
+ "libp2p",
  "log",
  "pallet-balances",
  "pallet-evm",
@@ -1344,6 +1346,7 @@ dependencies = [
  "tangle-environment",
  "tangle-primitives",
  "tracing-subscriber 0.3.18",
+ "url",
 ]
 
 [[package]]
