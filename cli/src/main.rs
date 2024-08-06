@@ -1,10 +1,16 @@
 use clap::{Parser, Subcommand};
 
-mod generate;
+mod create;
 
 /// Gadget CLI tool
 #[derive(Parser)]
-#[command(version, about, long_about = None)]
+#[clap(
+    bin_name = "cargo-gadget",
+    version,
+    propagate_version = true,
+    arg_required_else_help = true
+)]
+#[command(version = version())]
 struct Cli {
     #[command(flatten)]
     manifest: clap_cargo::Manifest,
@@ -18,8 +24,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Generate a new blueprint
-    Generate {
+    /// Create a new blueprint
+    Create {
         /// The name of the blueprint
         #[arg(short, long)]
         name: String,
@@ -27,11 +33,18 @@ enum Commands {
 }
 
 fn main() {
-    let cli = Cli::parse();
+    // since this runs as a cargo subcommand, we need to skip the first argument
+    // to get the actual arguments for the subcommand
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let cli = Cli::parse_from(args);
     match cli.command {
-        Commands::Generate { name } => {
+        Commands::Create { name } => {
             println!("Generating blueprint with name: {}", name);
-            generate::generate_blueprint(&name);
+            create::new_blueprint(&name);
         }
     }
+}
+
+fn version() -> &'static str {
+    option_env!("CARGO_VERSION_INFO").unwrap_or(env!("CARGO_PKG_VERSION"))
 }

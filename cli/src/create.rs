@@ -1,4 +1,4 @@
-pub fn generate_blueprint(name: &str) {
+pub fn new_blueprint(name: &str) {
     let path = cargo_generate::generate(cargo_generate::GenerateArgs {
         template_path: cargo_generate::TemplatePath {
             auto_path: None,
