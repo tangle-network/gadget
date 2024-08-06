@@ -39,11 +39,13 @@ wasm = [
 ]
 
 [dependencies]
+blueprint-manager = { workspace = true }
 getrandom = { workspace = true, optional = true, default-features = false }
 environment-utils = { workspace = true }
 parking_lot = { workspace = true }
 futures = { workspace = true }
 sp-io = { workspace = true, default-features = false }
+libp2p = { workspace = true, default-features = false }
 log = { workspace = true }
 async-trait = { workspace = true }
 frame-support = { workspace = true, default-features = false }
@@ -77,3 +79,4 @@ pallet-session = { workspace = true }
 pallet-staking = { workspace = true }
 pallet-evm = { workspace = true }
 sp-staking = { workspace = true }
+url = { workspace = true }

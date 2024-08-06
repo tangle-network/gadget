@@ -9,7 +9,7 @@ use structopt::StructOpt;
 pub struct BlueprintManagerConfig {
     /// The path to the shell configuration file
     #[structopt(parse(from_os_str), short = "s", long = "shell-config")]
-    pub gadget_config: PathBuf,
+    pub gadget_config: Option<PathBuf>,
     /// The verbosity level, can be used multiple times
     #[structopt(long, short = "v", parse(from_occurrences))]
     pub verbose: i32,
