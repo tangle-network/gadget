@@ -1383,12 +1383,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8318a53db07bb3f8dca91a600466bdb3f2eaadeedfdbcf02e1accbad9271ba50"
 
 [[package]]
+name = "camino"
+version = "1.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0ec6b951b160caa93cc0c7b209e5a3bff7aae9062213451ac99493cd844c239"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "cargo-gadget"
 version = "0.1.0"
 dependencies = [
  "cargo-generate",
+ "cargo_metadata",
  "clap 4.5.13",
  "clap-cargo",
+ "color-eyre",
+ "gadget-blueprint-proc-macro-core",
+ "serde_json",
+ "tangle-subxt",
+ "tokio",
 ]
 
 [[package]]
@@ -1431,6 +1446,29 @@ dependencies = [
  "time",
  "toml 0.8.19",
  "walkdir",
+]
+
+[[package]]
+name = "cargo-platform"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24b1f0365a6c6bb4020cd05806fd0d33c44d38046b8bd7f0e40814b9763cabfc"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d886547e41f740c616ae73108f6eb70afe6d940c7bc697cb30f13daec073037"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -1618,12 +1656,6 @@ name = "clap_lex"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1462739cb27611015575c0c11df5df7601141071f07518d56fcc1be504cbec97"
-
-[[package]]
-name = "cobs"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67ba02a97a2bd10f4b59b25c7973101c79642302776489e030cd13cdab09ed15"
 
 [[package]]
 name = "color-eyre"
@@ -2097,12 +2129,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "debugless-unwrap"
-version = "0.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f400d0750c0c069e8493f2256cb4da6f604b6d2eeb69a0ca8863acde352f8400"
-
-[[package]]
 name = "der"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2490,12 +2516,6 @@ dependencies = [
  "subtle",
  "zeroize",
 ]
-
-[[package]]
-name = "embedded-io"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef1a6892d9eef45c8fa6b9e0086428a2cca8491aca8f787c534a3d6d0bcb3ced"
 
 [[package]]
 name = "encode_unicode"
@@ -3158,23 +3178,6 @@ dependencies = [
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0)",
  "sp-version",
  "sp-weights",
-]
-
-[[package]]
-name = "frost-core"
-version = "1.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#11ce26d70589719324087cfee9cf21971046833a"
-dependencies = [
- "byteorder",
- "debugless-unwrap",
- "hex",
- "parity-scale-codec 3.6.12",
- "postcard",
- "serde",
- "serdect",
- "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0)",
- "subtle",
- "zeroize",
 ]
 
 [[package]]
@@ -4309,7 +4312,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.5.7",
+ "socket2 0.4.10",
  "tokio",
  "tower-service",
  "tracing 0.1.40",
@@ -4417,7 +4420,7 @@ dependencies = [
  "iana-time-zone-haiku",
  "js-sys",
  "wasm-bindgen",
- "windows-core 0.52.0",
+ "windows-core 0.51.1",
 ]
 
 [[package]]
@@ -6573,8 +6576,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-services"
-version = "1.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#11ce26d70589719324087cfee9cf21971046833a"
+version = "2.0.0"
+source = "git+https://github.com/webb-tools/tangle.git#cf4497905c14b1e7917c2320af605f4666e675a2"
 dependencies = [
  "ethabi",
  "fp-evm",
@@ -6591,7 +6594,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.7.0)",
- "tangle-crypto-primitives",
  "tangle-primitives",
 ]
 
@@ -6992,17 +6994,6 @@ name = "portable-atomic"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da544ee218f0d287a911e9c99a39a8c9bc8fcad3cb8db5959940044ecfc67265"
-
-[[package]]
-name = "postcard"
-version = "1.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a55c51ee6c0db07e68448e336cf8ea4131a620edefebf9893e759b2d793420f8"
-dependencies = [
- "cobs",
- "embedded-io",
- "serde",
-]
 
 [[package]]
 name = "powerfmt"
@@ -8421,16 +8412,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serdect"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a84f14a19e9a014bb9f4512488d9829a68e04ecabffb0f9904cd1ace94598177"
-dependencies = [
- "base16ct",
- "serde",
-]
-
-[[package]]
 name = "sha-1"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9005,7 +8986,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ce6938ae92b77b54aa367e6d367a4d490dede7c4"
+source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -9072,7 +9053,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ce6938ae92b77b54aa367e6d367a4d490dede7c4"
+source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -9093,7 +9074,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ce6938ae92b77b54aa367e6d367a4d490dede7c4"
+source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
 dependencies = [
  "environmental",
  "parity-scale-codec 3.6.12",
@@ -9228,7 +9209,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ce6938ae92b77b54aa367e6d367a4d490dede7c4"
+source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -9260,7 +9241,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ce6938ae92b77b54aa367e6d367a4d490dede7c4"
+source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
 dependencies = [
  "Inflector",
  "expander",
@@ -9313,7 +9294,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ce6938ae92b77b54aa367e6d367a4d490dede7c4"
+source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
 
 [[package]]
 name = "sp-storage"
@@ -9331,7 +9312,7 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ce6938ae92b77b54aa367e6d367a4d490dede7c4"
+source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
 dependencies = [
  "impl-serde",
  "parity-scale-codec 3.6.12",
@@ -9368,7 +9349,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ce6938ae92b77b54aa367e6d367a4d490dede7c4"
+source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "tracing 0.1.40",
@@ -9444,7 +9425,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ce6938ae92b77b54aa367e6d367a4d490dede7c4"
+source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
 dependencies = [
  "impl-trait-for-tuples",
  "log",
@@ -10091,16 +10072,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tangle-crypto-primitives"
-version = "1.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#11ce26d70589719324087cfee9cf21971046833a"
-dependencies = [
- "parity-scale-codec 3.6.12",
- "scale-info",
- "sp-application-crypto",
-]
-
-[[package]]
 name = "tangle-environment"
 version = "0.1.0"
 dependencies = [
@@ -10120,8 +10091,8 @@ dependencies = [
 
 [[package]]
 name = "tangle-primitives"
-version = "1.1.0"
-source = "git+https://github.com/webb-tools/tangle.git#11ce26d70589719324087cfee9cf21971046833a"
+version = "2.0.0"
+source = "git+https://github.com/webb-tools/tangle.git#cf4497905c14b1e7917c2320af605f4666e675a2"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -10133,7 +10104,6 @@ dependencies = [
  "educe 0.5.11",
  "ethabi",
  "frame-support",
- "frost-core",
  "log",
  "parity-scale-codec 3.6.12",
  "scale-info",
@@ -10150,10 +10120,11 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "0.1.4"
-source = "git+https://github.com/webb-tools/tangle.git#11ce26d70589719324087cfee9cf21971046833a"
+source = "git+https://github.com/webb-tools/tangle.git#cf4497905c14b1e7917c2320af605f4666e675a2"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "scale-info",
+ "serde",
  "subxt",
  "subxt-signer",
 ]
