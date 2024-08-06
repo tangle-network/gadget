@@ -1,28 +1,28 @@
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
 
 mod create;
+mod deploy;
 
 /// Gadget CLI tool
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[clap(
     bin_name = "cargo-gadget",
     version,
     propagate_version = true,
     arg_required_else_help = true
 )]
-#[command(version = version())]
 struct Cli {
     #[command(flatten)]
     manifest: clap_cargo::Manifest,
-    #[command(flatten)]
-    workspace: clap_cargo::Workspace,
     #[command(flatten)]
     features: clap_cargo::Features,
     #[command(subcommand)]
     command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 enum Commands {
     /// Create a new blueprint
     Create {
@@ -30,21 +30,54 @@ enum Commands {
         #[arg(short, long)]
         name: String,
     },
+
+    /// Deploy a blueprint to the Tangle Network.
+    Deploy {
+        /// Tangle RPC URL to use
+        #[arg(long, value_name = "URL", default_value = "wss://rpc.tangle.tools")]
+        rpc_url: String,
+        /// The package to deploy (if the workspace has multiple packages).
+        #[arg(short, long, value_name = "PACKAGE")]
+        package: Option<String>,
+    },
 }
 
-fn main() {
-    // since this runs as a cargo subcommand, we need to skip the first argument
-    // to get the actual arguments for the subcommand
-    let args: Vec<String> = std::env::args().skip(1).collect();
+#[tokio::main]
+async fn main() -> color_eyre::Result<()> {
+    let args: Vec<String> = if std::env::args()
+        .next()
+        .map(|x| x.eq("cargo"))
+        .unwrap_or(false)
+    {
+        eprintln!("Running as cargo subcommand ...");
+        // since this runs as a cargo subcommand, we need to skip the first argument
+        // to get the actual arguments for the subcommand
+        std::env::args().skip(1).collect()
+    } else {
+        eprintln!("Running as standalone binary ...");
+        std::env::args().collect()
+    };
+
+    // Parse the CLI arguments
     let cli = Cli::parse_from(args);
+
     match cli.command {
         Commands::Create { name } => {
             println!("Generating blueprint with name: {}", name);
             create::new_blueprint(&name);
         }
+        Commands::Deploy { rpc_url, package } => {
+            let manifest_path = cli
+                .manifest
+                .manifest_path
+                .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
+            deploy::deploy_to_tangle(deploy::Opts {
+                rpc_url,
+                manifest_path,
+                pkg_name: package,
+            })
+            .await?;
+        }
     }
-}
-
-fn version() -> &'static str {
-    option_env!("CARGO_VERSION_INFO").unwrap_or(env!("CARGO_PKG_VERSION"))
+    Ok(())
 }
