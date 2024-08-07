@@ -21,6 +21,7 @@ members = [
   "macros/blueprint-proc-macro-core",
   "macros/blueprint-proc-macro-playground",
 ]
+exclude = ["example"]
 
 [workspace.package]
 authors = ["Webb Technologies Inc."]
@@ -226,6 +227,7 @@ foundry-common = { git = "https://github.com/foundry-rs/foundry.git" }
 alloy-chains = "0.1.23"
 alloy-primitives = "0.7.7"
 alloy-dyn-abi = "0.7.7"
+alloy-json-abi = "0.7.7"
 alloy-sol-types = "0.7.7"
 alloy-rlp = "0.3.7"
 alloy-trie = "0.4.1"

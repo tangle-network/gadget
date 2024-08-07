@@ -1,4 +1,4 @@
-use color_eyre::eyre::{self, OptionExt, Result};
+use color_eyre::eyre::{self, Context, OptionExt, Result};
 use gadget_blueprint_proc_macro_core::{
     JobResultVerifier, ServiceBlueprint, ServiceRegistrationHook, ServiceRequestHook,
 };
@@ -28,16 +28,12 @@ pub async fn deploy_to_tangle(
         .no_deps()
         .exec()?;
     let package = find_package(&metadata, pkg_name.as_ref())?;
-    let blueprint_json_path = package
-        .manifest_path
-        .parent()
-        .map(|p| p.join("blueprint.json"))
-        .ok_or_eyre("Could not find blueprint.json; did you run `cargo build`?")?;
+    let mut blueprint = load_blueprnt_metadata(package)?;
 
-    let blueprint_json = std::fs::read_to_string(blueprint_json_path)?;
-    let mut blueprint = serde_json::from_str::<ServiceBlueprint<'_>>(&blueprint_json)?;
+    build_contracts_if_needed(package, &blueprint)?;
 
-    // TODO: Deploy Contracts.
+    deploy_contracts_to_tangle(&rpc_url, package, &mut blueprint).await?;
+
     for job in blueprint.jobs.iter_mut() {
         job.verifier = JobResultVerifier::None;
     }
@@ -71,6 +67,109 @@ pub async fn deploy_to_tangle(
     Ok(())
 }
 
+fn load_blueprnt_metadata(package: &cargo_metadata::Package) -> Result<ServiceBlueprint> {
+    let blueprint_json_path = package
+        .manifest_path
+        .parent()
+        .map(|p| p.join("blueprint.json"))
+        .unwrap();
+
+    if !blueprint_json_path.exists() {
+        eprintln!("Could not find blueprint.json; running `cargo build`...");
+        // Need to run cargo build for the current package.
+        escargot::CargoBuild::new()
+            .manifest_path(&package.manifest_path)
+            .package(&package.name)
+            .run()
+            .context("Failed to build the package")?;
+    }
+    // should have the blueprnt.json
+    let blueprint_json =
+        std::fs::read_to_string(blueprint_json_path).context("Reading blueprnt.json file")?;
+    let blueprint = serde_json::from_str::<ServiceBlueprint<'_>>(&blueprint_json)?;
+    Ok(blueprint)
+}
+
+async fn deploy_contracts_to_tangle(
+    rpc_url: &str,
+    package: &cargo_metadata::Package,
+    blueprint: &mut ServiceBlueprint<'_>,
+) -> Result<()> {
+    let mut contract_paths = Vec::new();
+    match blueprint.registration_hook {
+        ServiceRegistrationHook::None => {}
+        ServiceRegistrationHook::Evm(ref path) => contract_paths.push(path),
+    };
+
+    match blueprint.request_hook {
+        ServiceRequestHook::None => {}
+        ServiceRequestHook::Evm(ref path) => contract_paths.push(path),
+    };
+
+    for job in blueprint.jobs.iter() {
+        match job.verifier {
+            JobResultVerifier::None => {}
+            JobResultVerifier::Evm(ref path) => contract_paths.push(path),
+        };
+    }
+
+    let abs_contract_paths: Vec<_> = contract_paths
+        .into_iter()
+        .map(|path| resolve_path_relative_to_package(package, path))
+        .collect();
+    let contracts = abs_contract_paths
+        .iter()
+        .flat_map(|path| std::fs::read_to_string(path))
+        .flat_map(|json| serde_json::from_str(&json))
+        .map(alloy_contract::Interface::new)
+        .collect::<Vec<_>>();
+
+    for contract in contracts {
+        eprintln!("{:?}", contract.abi());
+    }
+    Ok(())
+}
+
+/// Checks if the contracts need to be built and builds them if needed.
+fn build_contracts_if_needed(
+    package: &cargo_metadata::Package,
+    blueprint: &ServiceBlueprint,
+) -> Result<()> {
+    let mut pathes_to_check = Vec::new();
+
+    match blueprint.registration_hook {
+        ServiceRegistrationHook::None => {}
+        ServiceRegistrationHook::Evm(ref path) => pathes_to_check.push(path),
+    };
+
+    match blueprint.request_hook {
+        ServiceRequestHook::None => {}
+        ServiceRequestHook::Evm(ref path) => pathes_to_check.push(path),
+    };
+
+    for job in blueprint.jobs.iter() {
+        match job.verifier {
+            JobResultVerifier::None => {}
+            JobResultVerifier::Evm(ref path) => pathes_to_check.push(path),
+        };
+    }
+
+    let abs_pathes_to_check: Vec<_> = pathes_to_check
+        .into_iter()
+        .map(|path| resolve_path_relative_to_package(package, path))
+        .collect();
+
+    let needs_build = abs_pathes_to_check.iter().any(|path| !path.exists());
+
+    if needs_build {
+        let mut foundry = crate::foundry::FoundryToolchain::new();
+        foundry.check_installed_or_exit();
+        foundry.forge.build()?;
+    }
+
+    Ok(())
+}
+
 /// Converts the ServiceBlueprint to a format that can be sent to the Tangle Network.
 fn bake_blueprint(
     blueprint: ServiceBlueprint,
@@ -97,6 +196,18 @@ fn convert_to_bytes_or_null(v: &mut serde_json::Value) {
             *v = serde_json::Value::Array(s.bytes().map(serde_json::Value::from).collect());
         }
         _ => {}
+    }
+}
+
+/// Resolves a path relative to the package manifest.
+fn resolve_path_relative_to_package(
+    package: &cargo_metadata::Package,
+    path: &str,
+) -> std::path::PathBuf {
+    if path.starts_with('/') {
+        std::path::PathBuf::from(path)
+    } else {
+        package.manifest_path.parent().unwrap().join(path).into()
     }
 }
 
