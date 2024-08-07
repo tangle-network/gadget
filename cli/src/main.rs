@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 
 mod create;
 mod deploy;
+mod foundry;
 
 /// Gadget CLI tool
 #[derive(Parser, Debug)]
@@ -45,8 +46,8 @@ enum Commands {
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
     let args: Vec<String> = if std::env::args()
-        .next()
-        .map(|x| x.eq("cargo"))
+        .nth(1)
+        .map(|x| x.eq("gadget"))
         .unwrap_or(false)
     {
         eprintln!("Running as cargo subcommand ...");
