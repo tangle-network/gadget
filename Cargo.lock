@@ -289,9 +289,12 @@ dependencies = [
  "alloy-network",
  "alloy-network-primitives",
  "alloy-primitives",
+ "alloy-pubsub",
  "alloy-rpc-client",
  "alloy-rpc-types-eth",
  "alloy-transport",
+ "alloy-transport-http",
+ "alloy-transport-ws",
  "async-stream",
  "async-trait",
  "auto_impl",
@@ -300,9 +303,30 @@ dependencies = [
  "futures-utils-wasm",
  "lru",
  "pin-project",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",
+ "tracing 0.1.40",
+ "url",
+]
+
+[[package]]
+name = "alloy-pubsub"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f5da2c55cbaf229bad3c5f8b00b5ab66c74ef093e5f3a753d874cfecf7d2281"
+dependencies = [
+ "alloy-json-rpc",
+ "alloy-primitives",
+ "alloy-transport",
+ "bimap",
+ "futures",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tower",
  "tracing 0.1.40",
 ]
 
@@ -335,16 +359,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b38e3ffdb285df5d9f60cb988d336d9b8e3505acb78750c3bc60336a7af41d3"
 dependencies = [
  "alloy-json-rpc",
+ "alloy-primitives",
+ "alloy-pubsub",
  "alloy-transport",
  "alloy-transport-http",
+ "alloy-transport-ws",
  "futures",
  "pin-project",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",
  "tokio-stream",
  "tower",
  "tracing 0.1.40",
+ "url",
+]
+
+[[package]]
+name = "alloy-rpc-types"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6c31a3750b8f5a350d17354e46a52b0f2f19ec5f2006d816935af599dedc521"
+dependencies = [
+ "alloy-rpc-types-eth",
+ "alloy-serde",
+ "serde",
 ]
 
 [[package]]
@@ -388,6 +428,22 @@ dependencies = [
  "auto_impl",
  "elliptic-curve",
  "k256",
+ "thiserror",
+]
+
+[[package]]
+name = "alloy-signer-local"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b0707d4f63e4356a110b30ef3add8732ab6d181dd7be4607bf79b8777105cee"
+dependencies = [
+ "alloy-consensus",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-signer",
+ "async-trait",
+ "k256",
+ "rand",
  "thiserror",
 ]
 
@@ -485,8 +541,31 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2437d145d80ea1aecde8574d2058cceb8b3c9cba05f6aea8e67907c660d46698"
 dependencies = [
+ "alloy-json-rpc",
  "alloy-transport",
+ "reqwest",
+ "serde_json",
+ "tower",
+ "tracing 0.1.40",
  "url",
+]
+
+[[package]]
+name = "alloy-transport-ws"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af855163e7df008799941aa6dd324a43ef2bf264b08ba4b22d44aad6ced65300"
+dependencies = [
+ "alloy-pubsub",
+ "alloy-transport",
+ "futures",
+ "http 1.1.0",
+ "rustls 0.23.12",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing 0.1.40",
+ "ws_stream_wasm",
 ]
 
 [[package]]
@@ -1617,6 +1696,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bimap"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "230c5f1ca6a325a32553f8640d31ac9b49f2411e901e427570154868b46da4f7"
+
+[[package]]
 name = "bincode"
 version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1892,6 +1977,12 @@ version = "0.1.0"
 dependencies = [
  "alloy-contract",
  "alloy-json-abi",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-signer",
+ "alloy-signer-local",
  "cargo-generate",
  "cargo_metadata",
  "clap 4.5.13",
@@ -1902,6 +1993,8 @@ dependencies = [
  "serde_json",
  "tangle-subxt",
  "tokio",
+ "tracing 0.1.40",
+ "tracing-subscriber 0.3.18",
 ]
 
 [[package]]
@@ -7155,7 +7248,7 @@ dependencies = [
 [[package]]
 name = "pallet-services"
 version = "2.0.0"
-source = "git+https://github.com/webb-tools/tangle.git#cf4497905c14b1e7917c2320af605f4666e675a2"
+source = "git+https://github.com/webb-tools/tangle.git#e4a92c8ca1c399b8ce547679d5ba0c7f1fe14664"
 dependencies = [
  "ethabi",
  "fp-evm",
@@ -9672,7 +9765,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
+source = "git+https://github.com/paritytech/polkadot-sdk#eb0a9e593fb6a0f2bbfdb75602a51f4923995529"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -9739,7 +9832,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
+source = "git+https://github.com/paritytech/polkadot-sdk#eb0a9e593fb6a0f2bbfdb75602a51f4923995529"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -9760,7 +9853,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
+source = "git+https://github.com/paritytech/polkadot-sdk#eb0a9e593fb6a0f2bbfdb75602a51f4923995529"
 dependencies = [
  "environmental",
  "parity-scale-codec 3.6.12",
@@ -9895,7 +9988,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
+source = "git+https://github.com/paritytech/polkadot-sdk#eb0a9e593fb6a0f2bbfdb75602a51f4923995529"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -9927,7 +10020,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
+source = "git+https://github.com/paritytech/polkadot-sdk#eb0a9e593fb6a0f2bbfdb75602a51f4923995529"
 dependencies = [
  "Inflector",
  "expander",
@@ -9980,7 +10073,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
+source = "git+https://github.com/paritytech/polkadot-sdk#eb0a9e593fb6a0f2bbfdb75602a51f4923995529"
 
 [[package]]
 name = "sp-storage"
@@ -9998,7 +10091,7 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
+source = "git+https://github.com/paritytech/polkadot-sdk#eb0a9e593fb6a0f2bbfdb75602a51f4923995529"
 dependencies = [
  "impl-serde",
  "parity-scale-codec 3.6.12",
@@ -10035,7 +10128,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
+source = "git+https://github.com/paritytech/polkadot-sdk#eb0a9e593fb6a0f2bbfdb75602a51f4923995529"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "tracing 0.1.40",
@@ -10111,7 +10204,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#291c082cbbb0c838c886f38040e54424c55d9618"
+source = "git+https://github.com/paritytech/polkadot-sdk#eb0a9e593fb6a0f2bbfdb75602a51f4923995529"
 dependencies = [
  "impl-trait-for-tuples",
  "log",
@@ -10812,7 +10905,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "2.0.0"
-source = "git+https://github.com/webb-tools/tangle.git#cf4497905c14b1e7917c2320af605f4666e675a2"
+source = "git+https://github.com/webb-tools/tangle.git#e4a92c8ca1c399b8ce547679d5ba0c7f1fe14664"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -10840,7 +10933,7 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "0.1.4"
-source = "git+https://github.com/webb-tools/tangle.git#cf4497905c14b1e7917c2320af605f4666e675a2"
+source = "git+https://github.com/webb-tools/tangle.git#e4a92c8ca1c399b8ce547679d5ba0c7f1fe14664"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "scale-info",
@@ -11094,6 +11187,22 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tokio-util",
+]
+
+[[package]]
+name = "tokio-tungstenite"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6989540ced10490aaf14e6bad2e3d33728a2813310a0c71d1574304c49631cd"
+dependencies = [
+ "futures-util",
+ "log",
+ "rustls 0.23.12",
+ "rustls-pki-types",
+ "tokio",
+ "tokio-rustls 0.26.0",
+ "tungstenite",
+ "webpki-roots 0.26.3",
 ]
 
 [[package]]
@@ -11457,6 +11566,8 @@ dependencies = [
  "httparse",
  "log",
  "rand",
+ "rustls 0.23.12",
+ "rustls-pki-types",
  "sha1",
  "thiserror",
  "utf-8",
