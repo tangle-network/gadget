@@ -45,17 +45,17 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
+    color_eyre::install()?;
+    init_tracing_subscriber();
     let args: Vec<String> = if std::env::args()
         .nth(1)
         .map(|x| x.eq("gadget"))
         .unwrap_or(false)
     {
-        eprintln!("Running as cargo subcommand ...");
         // since this runs as a cargo subcommand, we need to skip the first argument
         // to get the actual arguments for the subcommand
         std::env::args().skip(1).collect()
     } else {
-        eprintln!("Running as standalone binary ...");
         std::env::args().collect()
     };
 
@@ -81,4 +81,19 @@ async fn main() -> color_eyre::Result<()> {
         }
     }
     Ok(())
+}
+
+fn init_tracing_subscriber() {
+    use tracing_subscriber::fmt::format::FmtSpan;
+    use tracing_subscriber::prelude::*;
+
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .with_target(false)
+        .with_span_events(FmtSpan::CLOSE)
+        .pretty();
+
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .with(fmt_layer)
+        .init();
 }

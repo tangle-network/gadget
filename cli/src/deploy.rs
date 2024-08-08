@@ -1,3 +1,7 @@
+use std::str::FromStr;
+
+use alloy_provider::network::TransactionBuilder;
+use alloy_provider::Provider;
 use color_eyre::eyre::{self, Context, OptionExt, Result};
 use gadget_blueprint_proc_macro_core::{
     JobResultVerifier, ServiceBlueprint, ServiceRegistrationHook, ServiceRequestHook,
@@ -34,12 +38,6 @@ pub async fn deploy_to_tangle(
 
     deploy_contracts_to_tangle(&rpc_url, package, &mut blueprint).await?;
 
-    for job in blueprint.jobs.iter_mut() {
-        job.verifier = JobResultVerifier::None;
-    }
-    blueprint.request_hook = ServiceRequestHook::None;
-    blueprint.registration_hook = ServiceRegistrationHook::None;
-
     let blueprint = bake_blueprint(blueprint)?;
 
     let client = subxt::OnlineClient::<PolkadotConfig>::from_url(rpc_url).await?;
@@ -52,7 +50,6 @@ pub async fn deploy_to_tangle(
 
     let create_blueprint_tx = TangleApi::tx().services().create_blueprint(blueprint);
 
-    eprintln!("Creating Blueprint: {:?}", create_blueprint_tx);
     // TODO: get the signer from the user.
     let signer = tangle_subxt::subxt_signer::sr25519::dev::alice();
     let progress = client
@@ -95,37 +92,103 @@ async fn deploy_contracts_to_tangle(
     package: &cargo_metadata::Package,
     blueprint: &mut ServiceBlueprint<'_>,
 ) -> Result<()> {
+    enum ContractKind {
+        RegistrationHook,
+        RequestHook,
+        JobVerifier(usize),
+    }
+    let rpc_url = rpc_url.replace("ws", "http").replace("wss", "https");
     let mut contract_paths = Vec::new();
     match blueprint.registration_hook {
         ServiceRegistrationHook::None => {}
-        ServiceRegistrationHook::Evm(ref path) => contract_paths.push(path),
+        ServiceRegistrationHook::Evm(ref path) => {
+            contract_paths.push((ContractKind::RegistrationHook, path))
+        }
     };
 
     match blueprint.request_hook {
         ServiceRequestHook::None => {}
-        ServiceRequestHook::Evm(ref path) => contract_paths.push(path),
+        ServiceRequestHook::Evm(ref path) => contract_paths.push((ContractKind::RequestHook, path)),
     };
 
-    for job in blueprint.jobs.iter() {
+    for (id, job) in blueprint.jobs.iter().enumerate() {
         match job.verifier {
             JobResultVerifier::None => {}
-            JobResultVerifier::Evm(ref path) => contract_paths.push(path),
+            JobResultVerifier::Evm(ref path) => {
+                contract_paths.push((ContractKind::JobVerifier(id), path))
+            }
         };
     }
 
     let abs_contract_paths: Vec<_> = contract_paths
         .into_iter()
-        .map(|path| resolve_path_relative_to_package(package, path))
+        .map(|(kind, path)| (kind, resolve_path_relative_to_package(package, path)))
         .collect();
+
     let contracts = abs_contract_paths
         .iter()
-        .flat_map(|path| std::fs::read_to_string(path))
-        .flat_map(|json| serde_json::from_str(&json))
-        .map(alloy_contract::Interface::new)
+        .flat_map(|(kind, path)| {
+            std::fs::read_to_string(path).map(|content| {
+                (
+                    kind,
+                    path.file_stem().unwrap_or_default().to_string_lossy(),
+                    content,
+                )
+            })
+        })
+        .flat_map(|(kind, contract_name, json)| {
+            serde_json::from_str::<alloy_json_abi::ContractObject>(&json)
+                .map(|contract| (kind, contract_name, contract))
+        })
         .collect::<Vec<_>>();
 
-    for contract in contracts {
-        eprintln!("{:?}", contract.abi());
+    if contracts.is_empty() {
+        return Ok(());
+    }
+
+    // TODO: get the signer from the user.
+    const ALICE: &str = "0x99b3c12287537e38c90a9219d4cb074a89a16e9cdb20bf85728ebd97c343e342";
+    let signer = alloy_signer_local::PrivateKeySigner::from_str(ALICE)?;
+    let wallet = alloy_provider::network::EthereumWallet::from(signer);
+    let provider = alloy_provider::ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(wallet)
+        .on_http(rpc_url.parse()?);
+
+    let chain_id = provider.get_chain_id().await?;
+    eprintln!("Chain ID: {chain_id}");
+
+    for (kind, name, contract) in contracts {
+        eprintln!("Deploying contract: {name} ...");
+        let Some(bytecode) = contract.bytecode.clone() else {
+            eprintln!("Contract {name} does not have deployed bytecode! Skipping ...");
+            continue;
+        };
+        let tx = alloy_rpc_types::TransactionRequest::default().with_deploy_code(bytecode);
+        // Deploy the contract.
+        let receipt = provider.send_transaction(tx).await?.get_receipt().await?;
+        // Check the receipt status.
+        if receipt.status() {
+            let contract_address =
+                alloy_network::ReceiptResponse::contract_address(&receipt).unwrap();
+            eprintln!("Contract {name} deployed at: {contract_address}");
+            match kind {
+                ContractKind::RegistrationHook => {
+                    blueprint.registration_hook =
+                        ServiceRegistrationHook::Evm(contract_address.to_string());
+                }
+                ContractKind::RequestHook => {
+                    blueprint.request_hook = ServiceRequestHook::Evm(contract_address.to_string());
+                }
+                ContractKind::JobVerifier(id) => {
+                    blueprint.jobs[*id].verifier =
+                        JobResultVerifier::Evm(contract_address.to_string());
+                }
+            }
+        } else {
+            eprintln!("Contract {name} deployment failed!");
+            eprintln!("Receipt: {receipt:#?}");
+        }
     }
     Ok(())
 }
