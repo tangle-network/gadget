@@ -9,7 +9,7 @@ use structopt::StructOpt;
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
     //color_eyre::install()?;
-    let blueprint_manager_config = &BlueprintManagerConfig::from_args();
+    let blueprint_manager_config = BlueprintManagerConfig::from_args();
 
     entry::setup_shell_logger(
         blueprint_manager_config.verbose,
@@ -22,7 +22,15 @@ async fn main() -> color_eyre::Result<()> {
         let gadget_config: GadgetConfig = toml::from_str(&gadget_config_settings)
             .map_err(|err| utils::msg_to_error(err.to_string()))?;
 
-        run_blueprint_manager(blueprint_manager_config, gadget_config).await
+        // Allow CTRL-C to shutdown this CLI application instance
+        let shutdown_signal = async move {
+            let _ = tokio::signal::ctrl_c().await;
+        };
+
+        let mut handle =
+            run_blueprint_manager(blueprint_manager_config, gadget_config, shutdown_signal).await?;
+
+        handle.await
     } else {
         Err(utils::msg_to_error(
             "Gadget config file is required when running the blueprint manager in CLI mode"

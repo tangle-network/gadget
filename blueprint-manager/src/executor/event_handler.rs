@@ -14,23 +14,27 @@ use tangle_subxt::tangle_testnet_runtime::api::services::events::{
     JobCalled, JobResultSubmitted, Registered, ServiceInitiated, Unregistered,
 };
 
-pub(crate) async fn handle_blueprint_events(
-    event: TangleEvent,
+/// Returns true if the blueprint manager needs to update the list of operator-subscribed blueprints
+pub(crate) async fn check_blueprint_events(
+    event: &TangleEvent,
     logger: &DebugLogger,
     active_shells: &mut ActiveShells,
     account_id: &AccountId32,
-) {
+) -> bool {
     let registered_events = event.events.find::<Registered>();
     let unregistered_events = event.events.find::<Unregistered>();
     let service_initiated_events = event.events.find::<ServiceInitiated>();
     let job_called_events = event.events.find::<JobCalled>();
     let job_result_submitted_events = event.events.find::<JobResultSubmitted>();
 
-    // Handle registered events
+    let mut needs_update = false;
+
+    // Handle blueprint registered events
     for evt in registered_events {
         match evt {
             Ok(evt) => {
-                logger.info(format!("Registered event: {evt:?}"));
+                logger.info(format!("Blueprint registered event: {evt:?}"));
+                needs_update = true;
             }
             Err(err) => {
                 logger.warn(format!("Error handling registered event: {err:?}"));
@@ -49,6 +53,8 @@ pub(crate) async fn handle_blueprint_events(
                         "Removed all services for blueprint_id: {}",
                         evt.blueprint_id,
                     ));
+
+                    needs_update = true;
                 }
             }
             Err(err) => {
@@ -94,9 +100,11 @@ pub(crate) async fn handle_blueprint_events(
             }
         }
     }
+
+    needs_update
 }
 
-pub(crate) async fn handle_tangle_event(
+pub(crate) async fn maybe_handle_state_update(
     event: &TangleEvent,
     blueprints: &Vec<RpcServicesWithBlueprint>,
     logger: &DebugLogger,

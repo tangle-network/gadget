@@ -23,6 +23,12 @@ pub fn keystore_from_base_path(
     }
 }
 
+pub fn node_key_to_bytes<T: AsRef<[u8]>>(hex: T) -> color_eyre::Result<[u8; 32]> {
+    hex::decode(hex)?
+        .try_into()
+        .map_err(|_| color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string"))
+}
+
 /// Runs a shell for a given protocol.
 pub async fn run_shell_for_protocol<
     Env: GadgetEnvironment,
@@ -53,14 +59,20 @@ where
 
     let config = config.unwrap();
     let keystore_backend = keystore_backend().await;
-    setup_shell_logger(config.verbose, config.pretty, "gadget")?;
     let keystore =
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);
 
     let logger = DebugLogger {
         id: "test".to_string(),
     };
+
     logger.info("Starting shell with config: {config:?}");
+
+    let node_key = node_key_to_bytes(
+        &config
+            .node_key
+            .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
+    )?;
 
     let (node_input, network_handle) = crate::generate_node_input(crate::ShellConfig {
         keystore_backend,
@@ -71,21 +83,12 @@ where
         bind_ip: config.bind_ip,
         bind_port: config.bind_port,
         bootnodes: config.bootnodes,
-        node_key: hex::decode(
-            config
-                .node_key
-                .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
-        )?
-        .try_into()
-        .map_err(|_| {
-            color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
-        })?,
+        node_key,
         n_protocols,
     })
     .await?;
 
     let protocol_future = gadget_io::tokio::task::spawn(executor(node_input));
-    let ctrlc_future = gadget_io::tokio::signal::ctrl_c();
 
     gadget_io::tokio::select! {
         res0 = protocol_future => {
@@ -95,10 +98,6 @@ where
         res1 = network_handle => {
             Err(color_eyre::Report::msg(format!("Networking future unexpectedly finished: {res1:?}")))
         },
-
-        _ = ctrlc_future => {
-            Ok(())
-        }
     }
 }
 

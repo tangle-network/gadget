@@ -16,12 +16,19 @@
 
 use crate::PerTestNodeInput;
 use async_trait::async_trait;
+use blueprint_manager::executor::BlueprintManagerHandle;
 use environment_utils::transaction_manager::tangle::SubxtPalletSubmitter;
 use gadget_common::config::Network;
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::prelude::{
     DebugLogger, ECDSAKeyStore, GadgetEnvironment, InMemoryBackend, NodeInput, PairSigner,
     PrometheusConfig, UnboundedReceiver, UnboundedSender,
+};
+use gadget_common::tangle_runtime::api;
+use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::ApprovalPrefrence;
+use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
+use gadget_common::tangle_runtime::api::services::calls::types::register::{
+    Preferences, RegistrationArgs,
 };
 use gadget_common::tangle_subxt::subxt::ext::subxt_core::utils;
 use gadget_common::tangle_subxt::subxt::{OnlineClient, SubstrateConfig};
@@ -31,8 +38,8 @@ use libp2p::Multiaddr;
 use sp_application_crypto::ecdsa;
 use sp_core::{sr25519, Pair};
 use std::collections::HashMap;
+use std::future::Future;
 use std::net::IpAddr;
-use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -154,6 +161,7 @@ where
 }
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
+const LOCAL_TANGLE_NODE: &str = "ws://127.0.0.1:9944";
 
 /// N: number of nodes
 /// K: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
@@ -165,12 +173,12 @@ pub async fn new_test_ext_blueprint_manager<
     const K: usize,
     D: Send + Clone + 'static,
     F: Fn(PerTestNodeInput<D>) -> Fut,
-    Fut: SendFuture<'static, ()>,
+    Fut: SendFuture<'static, BlueprintManagerHandle>,
 >(
     additional_params: D,
+    blueprint: Blueprint,
     f: F,
 ) -> LocalhostTestExt {
-    const LOCAL_TANGLE_NODE: &str = "ws://127.0.0.1:9944";
     const NAME_IDS: [&str; 3] = ["alice", "bob", "charlie"];
 
     assert!(N < 4, "Only up to 3 nodes are supported");
@@ -192,6 +200,8 @@ pub async fn new_test_ext_blueprint_manager<
         .map(|(addr, _)| addr.clone())
         .collect::<Vec<_>>();
 
+    let mut handles = vec![];
+
     for (node_index, (my_addr, my_port)) in bind_addrs.iter().enumerate() {
         let my_alias = NAME_IDS[node_index];
 
@@ -211,17 +221,55 @@ pub async fn new_test_ext_blueprint_manager<
             local_tangle_node: Url::parse(LOCAL_TANGLE_NODE).expect("Should parse URL"),
         };
 
-        let task = f(test_input);
-        gadget_io::tokio::task::spawn(task);
+        let handle = f(test_input).await;
+        handles.push(handle);
     }
 
-    // The local test node runs on ws://127.0.0.1:9944
     let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
         .await
         .expect("Failed to create primary localhost client");
-    let localhost_externalities = LocalhostTestExt::from(client);
 
-    localhost_externalities
+    // Step 0: Assume Alice's identity to create a blueprint, getting the required args
+    let sr25519_keypair = handles[0].sr25519_id().clone();
+    // TODO: Ensure that the passed in instance of `blueprint` also has the field we need below
+    let blueprint_id = blueprint.id;
+
+    // Step 1: Create the blueprint using alice's identity
+    super::create_blueprint(&client, &sr25519_keypair, blueprint)
+        .await
+        .expect("Failed to register blueprint");
+
+    // Step 2: Have each identity register to a blueprint
+    let registration_args = RegistrationArgs::new();
+
+    for handle in handles.iter() {
+        let keypair = handle.sr25519_id().clone();
+        let key = api::runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().public().0);
+
+        let preferences = Preferences {
+            key,
+            approval: ApprovalPrefrence::None,
+        };
+
+        super::register_blueprint(
+            &client,
+            &keypair,
+            blueprint_id,
+            preferences,
+            registration_args.clone(),
+        )
+        .await
+        .expect("Failed to register to blueprint");
+    }
+
+    // Now, start every blueprint manager. With the blueprint submitted and every operator registered
+    // to the blueprint, we can now start the blueprint manager, expecting that the blueprint manager
+    // will start the services associated with the blueprint as gadgets.
+    for handle in handles.iter_mut() {
+        handle.start().expect("Failed to start blueprint manager");
+    }
+
+    LocalhostTestExt { client, handles }
 }
 
 fn find_open_tcp_bind_port() -> u16 {
@@ -242,7 +290,7 @@ pub async fn new_test_ext<
     const K: usize,
     D: Send + Clone + 'static,
     F: Fn(NodeInput<TangleEnvironment, MockNetwork<TangleEnvironment>, InMemoryBackend, D>) -> Fut,
-    Fut: SendFuture<'static, ()>,
+    Fut: SendFuture<'static, BlueprintManagerHandle>,
 >(
     additional_params: D,
     f: F,
@@ -286,10 +334,11 @@ pub async fn new_test_ext<
         .collect::<Vec<_>>();
 
     // Each client connects to ws://127.0.0.1:9944. This client is for the test environment
-    let client = OnlineClient::<SubstrateConfig>::new()
+    let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
         .await
         .expect("Failed to create primary localhost client");
-    let localhost_externalities = LocalhostTestExt::from(client);
+
+    let mut handles = vec![];
 
     for (node_index, ((role_pair, pair), networks)) in
         role_pairs.into_iter().zip(pairs).zip(networks).enumerate()
@@ -299,7 +348,7 @@ pub async fn new_test_ext<
 
         for _ in 0..K {
             // Each client connects to ws://127.0.0.1:9944
-            let client = OnlineClient::<SubstrateConfig>::new()
+            let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
                 .await
                 .expect("Failed to create localhost client");
 
@@ -334,11 +383,11 @@ pub async fn new_test_ext<
             prometheus_config,
         };
 
-        let task = f(input);
-        gadget_io::tokio::task::spawn(task);
+        let handle = f(input).await;
+        handles.push(handle);
     }
 
-    localhost_externalities
+    LocalhostTestExt { handles, client }
 }
 
 pub fn mock_pub_key(id: u8) -> AccountId {
@@ -347,48 +396,30 @@ pub fn mock_pub_key(id: u8) -> AccountId {
 
 pub struct LocalhostTestExt {
     client: OnlineClient<SubstrateConfig>,
+    handles: Vec<BlueprintManagerHandle>,
 }
 
 impl LocalhostTestExt {
     /// An identity function (For future reverse-compatible changes)
     pub fn execute_with<
-        T: FnOnce(&OnlineClient<SubstrateConfig>) -> R + Send + 'static,
+        T: FnOnce(&OnlineClient<SubstrateConfig>, &Vec<BlueprintManagerHandle>) -> R + Send + 'static,
         R: Send + 'static,
     >(
         &self,
         function: T,
     ) -> R {
-        function(&self.client)
+        function(&self.client, &self.handles)
     }
 
     /// An identity function (For future reverse-compatible changes)
     pub async fn execute_with_async<
-        T: FnOnce(&OnlineClient<SubstrateConfig>) -> R + Send + 'static,
-        R: Send + 'static,
+        T: FnOnce(&OnlineClient<SubstrateConfig>, &Vec<BlueprintManagerHandle>) -> R + Send + 'static,
+        R: Future<Output = Out> + Send + 'static,
+        Out: Send + 'static,
     >(
         &self,
         function: T,
-    ) -> R {
-        function(&self.client)
-    }
-}
-
-impl Deref for LocalhostTestExt {
-    type Target = OnlineClient<SubstrateConfig>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.client
-    }
-}
-
-impl DerefMut for LocalhostTestExt {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.client
-    }
-}
-
-impl From<OnlineClient<SubstrateConfig>> for LocalhostTestExt {
-    fn from(client: OnlineClient<SubstrateConfig>) -> Self {
-        Self { client }
+    ) -> Out {
+        function(&self.client, &self.handles).await
     }
 }

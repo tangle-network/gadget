@@ -1278,6 +1278,7 @@ name = "blueprint-manager"
 version = "0.1.0"
 dependencies = [
  "color-eyre",
+ "futures",
  "gadget-common",
  "gadget-io",
  "hex",
