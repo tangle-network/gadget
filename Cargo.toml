@@ -13,6 +13,7 @@ members = [
     "blueprint-test-utils",
     "protocol-macros",
     "blueprint-manager",
+    "blueprint-test-utils/stub-blueprint",
     "shell-sdk",
     "sdk",
     # Commented out, since it uses jobs-v1 code
@@ -32,6 +33,7 @@ homepage = "https://tangle.tools"
 repository = "https://github.com/webb-tools/gadget"
 
 [workspace.dependencies]
+hello-world-blueprint = { path = "./blueprint-test-utils/stub-blueprint", default-features = false }
 gadget-core = { path = "./core", default-features = false }
 gadget-common = { path = "./common", default-features = false }
 gadget-io = { path = "./gadget-io", default-features = false }
@@ -261,3 +263,4 @@ wasm-bindgen-test = { version = "0.3.42" }
 
 [profile.dev.package.backtrace]
 opt-level = 3
+
