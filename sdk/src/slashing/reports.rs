@@ -1,3 +1,5 @@
+#![allow(clippy::unused_async)]
+
 use async_trait::async_trait;
 use std::time::Duration;
 
@@ -133,7 +135,9 @@ async fn get_cpu_usage() -> Result<f64, QoSError> {
     todo!()
 }
 
+/// Error type for `QoS` reporting
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum QoSError {
     #[error("Failed to collect uptime: {0}")]
     UptimeError(String),

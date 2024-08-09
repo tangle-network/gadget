@@ -15,6 +15,7 @@ pub mod tangle;
 
 /// An error type for the event watcher.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     /// An error occurred in Subxt.
     #[error(transparent)]
@@ -153,11 +154,8 @@ where
                         tokio::time::sleep(Duration::from_secs(6)).await;
                         continue;
                     }
-                    Some(true) => {
-                        // new block, handle it.
-                    }
-                    None => {
-                        // first block, no need to check
+                    Some(true) | None => {
+                        // first block or a new block, handle it.
                     }
                 }
                 let events = latest_block

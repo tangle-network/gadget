@@ -1,6 +1,10 @@
 use tangle_subxt::subxt;
 
 /// Send a transaction to the Tangle network.
+/// # Errors
+///
+/// Returns a [`subxt::Error`] if the transaction fails.
+#[tracing::instrument(skip(client, signer, xt))]
 pub async fn send<T, S, X>(
     client: &subxt::OnlineClient<T>,
     signer: &S,
