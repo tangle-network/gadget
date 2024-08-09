@@ -1,8 +1,6 @@
-use std::str::FromStr;
-
 use alloy_provider::network::TransactionBuilder;
 use alloy_provider::Provider;
-use color_eyre::eyre::{self, Context, OptionExt, Result};
+use color_eyre::eyre::{self, Context, ContextCompat, OptionExt, Result};
 use gadget_blueprint_proc_macro_core::{
     JobResultVerifier, ServiceBlueprint, ServiceRegistrationHook, ServiceRequestHook,
 };
@@ -30,36 +28,44 @@ pub async fn deploy_to_tangle(
     let metadata = cargo_metadata::MetadataCommand::new()
         .manifest_path(manifest_path)
         .no_deps()
-        .exec()?;
+        .exec()
+        .context("Getting Metadata about the workspace")?;
     let package = find_package(&metadata, pkg_name.as_ref())?;
     let mut blueprint = load_blueprnt_metadata(package)?;
 
-    build_contracts_if_needed(package, &blueprint)?;
+    build_contracts_if_needed(package, &blueprint).context("Building contracts")?;
 
     deploy_contracts_to_tangle(&rpc_url, package, &mut blueprint).await?;
 
     let blueprint = bake_blueprint(blueprint)?;
 
+    let signer = crate::signer::load_signer_from_env()?;
+    let my_account_id = signer.public_key().to_account_id();
     let client = subxt::OnlineClient::<PolkadotConfig>::from_url(rpc_url).await?;
-    let blueprint_id = client
-        .storage()
-        .at_latest()
-        .await?
-        .fetch_or_default(&TangleApi::storage().services().next_blueprint_id())
-        .await?;
 
     let create_blueprint_tx = TangleApi::tx().services().create_blueprint(blueprint);
 
-    // TODO: get the signer from the user.
-    let signer = tangle_subxt::subxt_signer::sr25519::dev::alice();
     let progress = client
         .tx()
         .sign_and_submit_then_watch_default(&create_blueprint_tx, &signer)
         .await?;
     let result = progress.wait_for_finalized_success().await?;
-    eprintln!(
-        "Blueprint #{blueprint_id} Created: {:?}",
-        result.extrinsic_hash()
+    let event = result
+        .find::<TangleApi::services::events::BlueprintCreated>()
+        .flatten()
+        .find(|e| e.owner == my_account_id)
+        .context("Finding the `BlueprintCreated` event")
+        .map_err(|e| {
+            eyre::eyre!(
+                "Trying to find the `BlueprintCreated` event with your account Id: {:?}",
+                e
+            )
+        })?;
+    println!(
+        "Blueprint #{} created successfully by {} with extrinsic hash: {}",
+        event.blueprint_id,
+        event.owner,
+        result.extrinsic_hash(),
     );
     Ok(())
 }
@@ -146,9 +152,7 @@ async fn deploy_contracts_to_tangle(
         return Ok(());
     }
 
-    // TODO: get the signer from the user.
-    const ALICE: &str = "0x99b3c12287537e38c90a9219d4cb074a89a16e9cdb20bf85728ebd97c343e342";
-    let signer = alloy_signer_local::PrivateKeySigner::from_str(ALICE)?;
+    let signer = crate::signer::load_evm_signer_from_env()?;
     let wallet = alloy_provider::network::EthereumWallet::from(signer);
     let provider = alloy_provider::ProviderBuilder::new()
         .with_recommended_fillers()
