@@ -5,6 +5,7 @@ use clap::{Parser, Subcommand};
 mod create;
 mod deploy;
 mod foundry;
+mod signer;
 
 /// Gadget CLI tool
 #[derive(Parser, Debug)]
