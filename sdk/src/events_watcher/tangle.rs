@@ -1,3 +1,4 @@
+#![allow(clippy::module_name_repetitions)]
 /// An event watcher for the Tangle network.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct TangleEventsWatcher;

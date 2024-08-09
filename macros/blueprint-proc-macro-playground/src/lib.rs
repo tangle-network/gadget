@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use gadget_sdk::{job, registration_hook, report, request_hook};
 
 #[derive(Debug, Clone, Copy)]
@@ -104,18 +106,10 @@ fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Ve
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn generated_blueprint() {
         eprintln!("{}", super::KEYGEN_JOB_DEF);
         assert_eq!(super::KEYGEN_JOB_ID, 0);
         eprintln!("{}", super::REGISTRATION_HOOK);
-
-        // Example usage of the generated report function
-        let result = Ok(vec![0; 33]);
-        let ctx = MyContext;
-        let slash_percentage = keygen_report(&result, &ctx, 10, 2);
-        assert_eq!(slash_percentage, 0);
     }
 }

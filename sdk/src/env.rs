@@ -1,5 +1,6 @@
 /// Gadget environment.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct GadgetEnvironment {
     /// Tangle RPC endpoint.
     pub tangle_rpc_endpoint: String,
@@ -20,6 +21,7 @@ pub struct GadgetEnvironment {
 
 /// An error type for the gadget environment.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     /// Missing `RPC_URL` environment variable.
     #[error("Missing Tangle RPC endpoint")]
@@ -48,6 +50,9 @@ pub enum Error {
 }
 
 /// Loads the [`GadgetEnvironment`] from the current environment.
+/// # Errors
+///
+/// This function will return an error if any of the required environment variables are missing.
 #[cfg(feature = "std")]
 pub fn load() -> Result<GadgetEnvironment, Error> {
     Ok(GadgetEnvironment {
@@ -73,6 +78,9 @@ pub fn load() -> Result<GadgetEnvironment, Error> {
 
 impl GadgetEnvironment {
     /// Loads the `KeyStore` from the current environment.
+    /// # Errors
+    ///
+    /// This function will return an error if the keystore URI is unsupported.
     pub fn keystore(&self) -> Result<crate::keystore::backend::GenericKeyStore, Error> {
         use crate::keystore::backend::fs::FilesystemKeystore;
         use crate::keystore::backend::{mem::InMemoryKeystore, GenericKeyStore};

@@ -1,0 +1,33 @@
+[package]
+name = "cargo-gadget"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+# CLI
+clap = { workspace = true, features = ["derive", "wrap_help"] }
+clap-cargo = { version = "0.14" }
+cargo-generate = { version = "0.21.3" }
+cargo_metadata = { version = "0.18.1" }
+escargot = { version = "0.5.12" }
+
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "ansi"] }
+color-eyre = { workspace = true }
+tangle-subxt = { workspace = true }
+gadget-blueprint-proc-macro-core = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+
+alloy-contract = { workspace = true }
+alloy-json-abi = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-network = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-signer-local = { workspace = true }
