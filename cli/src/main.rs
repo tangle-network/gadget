@@ -1,11 +1,7 @@
 use std::path::PathBuf;
 
+use cargo_gadget::*;
 use clap::{Parser, Subcommand};
-
-mod create;
-mod deploy;
-mod foundry;
-mod signer;
 
 /// Gadget CLI tool
 #[derive(Parser, Debug)]

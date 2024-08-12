@@ -229,10 +229,12 @@ pub async fn new_test_ext_blueprint_manager<
         .await
         .expect("Failed to create primary localhost client");
 
+    let blueprint_id = crate::get_next_blueprint_id(&client)
+        .await
+        .expect("Failed to get next blueprint id");
+
     // Step 0: Assume Alice's identity to create a blueprint, getting the required args
     let sr25519_keypair = handles[0].sr25519_id().clone();
-    // TODO: Ensure that the passed in instance of `blueprint` also has the field we need below
-    let blueprint_id = blueprint.id;
 
     // Step 1: Create the blueprint using alice's identity
     super::create_blueprint(&client, &sr25519_keypair, blueprint)

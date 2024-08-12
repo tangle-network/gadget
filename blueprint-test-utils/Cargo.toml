@@ -78,3 +78,10 @@ pallet-staking = { workspace = true }
 pallet-evm = { workspace = true }
 sp-staking = { workspace = true }
 url = { workspace = true }
+
+gadget-blueprint-proc-macro-core = { workspace = true }
+
+[dev-dependencies]
+cargo-gadget = { workspace = true, default-features = true }
+cargo_metadata = { workspace = true }
+tokio = { workspace = true, features = ["full"] }

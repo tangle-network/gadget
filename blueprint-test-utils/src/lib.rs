@@ -163,16 +163,55 @@ pub async fn wait_for_completion_of_job(
     }
 }
 
+pub async fn get_next_blueprint_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
+    let call = api::storage().services().next_blueprint_id();
+    let res = client.storage().at_latest().await?.fetch(&call).await?;
+    if let Some(ret) = res {
+        Ok(ret)
+    } else {
+        Err("Failed to get next blueprint id".into())
+    }
+}
+
+pub async fn get_next_service_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
+    let call = api::storage().services().next_instance_id();
+    let res = client.storage().at_latest().await?.fetch(&call).await?;
+    if let Some(ret) = res {
+        Ok(ret)
+    } else {
+        Err("Failed to get next service id".into())
+    }
+}
+
+pub async fn get_next_job_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
+    let call = api::storage().services().next_job_call_id();
+    let res = client.storage().at_latest().await?.fetch(&call).await?;
+    if let Some(ret) = res {
+        Ok(ret)
+    } else {
+        Err("Failed to get next job id".into())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
 
-    #[gadget_io::tokio::test(flavor = "multi_thread")]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_externalities_gadget_starts() {
         setup_log();
-        // TODO: Load a real blueprint
-        let init_blueprint: Blueprint = Default::default();
+
+        let init_blueprint = cargo_gadget::deploy::generate_service_blueprint(
+            "../../blueprints/incredible-squaring/",
+            Some(&"incredible-squaring-blueprint".to_string()),
+            "ws://127.0.0.1:9944",
+        )
+        .await
+        .expect("Service blueprint generation failed");
+
+        const INPUT: u64 = 10;
+        const OUTPUT: u64 = INPUT.pow(2);
 
         new_test_ext_blueprint_manager::<1, 1, (), _, _>(
             (),
@@ -186,28 +225,42 @@ mod tests {
 
             // What's left: Submit a job, wait for the job to finish, then assert the job results
             let keypair = handles[0].sr25519_id().clone();
-            let next_job_id: u64 = 0;
-            let job_args = Args::new();
-            // TODO: Add args to the job_args
+            // Important! The tests can only run serially, not in parallel, in order to not cause a race condition in IDs
+            let service_id = get_next_service_id(client)
+                .await
+                .expect("Failed to get next service id");
+            let job_id = get_next_job_id(client)
+                .await
+                .expect("Failed to get next job id");
 
-            // Step 1: submitting a job under that blueprint/service_id
+            // Pass the argument
+            let mut job_args = Args::new();
+            let input =
+                api::runtime_types::tangle_primitives::services::field::Field::Uint64(INPUT);
+            job_args.push(input);
+
+            // Next step: submit a job under that service/job id
             submit_job(
                 client,
                 &keypair,
                 service_id,
-                Job::from(next_job_id as u8),
+                Job::from(job_id as u8),
                 job_args,
             )
             .await
             .expect("Failed to submit job");
 
             // Step 2: wait for the job to complete
-            let job_results = wait_for_completion_of_job(client, service_id, next_job_id)
+            let job_results = wait_for_completion_of_job(client, service_id, job_id)
                 .await
                 .expect("Failed to wait for job completion");
 
             // Step 3: Get the job results, compare to expected value(s)
+            let expected_result =
+                api::runtime_types::tangle_primitives::services::field::Field::Uint64(OUTPUT);
             assert_eq!(job_results.service_id, service_id);
+            assert_eq!(job_results.call_id, job_id);
+            assert_eq!(job_results.result.0[0], expected_result);
         })
         .await
     }

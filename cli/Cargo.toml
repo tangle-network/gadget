@@ -12,7 +12,7 @@ repository.workspace = true
 clap = { workspace = true, features = ["derive", "wrap_help"] }
 clap-cargo = { version = "0.14" }
 cargo-generate = { version = "0.21.3" }
-cargo_metadata = { version = "0.18.1" }
+cargo_metadata = { workspace = true }
 escargot = { version = "0.5.12" }
 
 tracing = { workspace = true }
