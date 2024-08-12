@@ -23,6 +23,7 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     manifest_metadata_path: P,
     pkg_name: Option<&String>,
     rpc_url: T,
+    deploy: bool,
 ) -> Result<types::create_blueprint::Blueprint> {
     let manifest_path = manifest_metadata_path.into();
     let metadata = cargo_metadata::MetadataCommand::new()
@@ -35,7 +36,10 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     let mut blueprint = load_blueprint_metadata(package)?;
 
     build_contracts_if_needed(package, &blueprint).context("Building contracts")?;
-    deploy_contracts_to_tangle(rpc_url.as_ref(), package, &mut blueprint).await?;
+
+    if deploy {
+        deploy_contracts_to_tangle(rpc_url.as_ref(), package, &mut blueprint).await?;
+    }
 
     bake_blueprint(blueprint)
 }
@@ -48,7 +52,8 @@ pub async fn deploy_to_tangle(
     }: Opts,
 ) -> Result<()> {
     // Load the manifest file into cargo metadata
-    let blueprint = generate_service_blueprint(&manifest_path, pkg_name.as_ref(), &rpc_url).await?;
+    let blueprint =
+        generate_service_blueprint(&manifest_path, pkg_name.as_ref(), &rpc_url, true).await?;
 
     let signer = crate::signer::load_signer_from_env()?;
     let my_account_id = signer.public_key().to_account_id();

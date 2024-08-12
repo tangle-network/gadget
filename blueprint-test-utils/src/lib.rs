@@ -224,6 +224,7 @@ macro_rules! test_blueprint {
                 current_dir,
                 Some(&$blueprint_name.to_string()),
                 ws_addr,
+                false,
             )
             .await
             .expect("Service blueprint generation failed");
@@ -312,6 +313,7 @@ mod tests_standard {
             manifest_path,
             Some(&"incredible-squaring-blueprint".to_string()),
             "ws://127.0.0.1:9944",
+            false,
         )
         .await
         .expect("Service blueprint generation failed");
