@@ -194,7 +194,7 @@ pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>
     }
 }
 
-macro_rules! test_externalities_gadget {
+macro_rules! test_blueprint {
     (
         $test_name:ident,
         $blueprint_path:expr,
@@ -281,11 +281,11 @@ macro_rules! test_externalities_gadget {
 mod test_macros {
     use super::*;
 
-    test_externalities_gadget!(
-        test_incredible_squaring,
-        "./blueprints/incredible-squaring/Cargo.toml",
-        "incredible-squaring-blueprint",
-        Some("ws://127.0.0.1:9944"),
+    test_blueprint!(
+        test_incredible_squaring,                      // Name of function
+        "./blueprints/incredible-squaring/Cargo.toml", // Path to the blueprint's toml
+        "incredible-squaring-blueprint",               // Name of the package
+        Some("ws://127.0.0.1:9944"),                   // The address of the local node
         [InputValue::Uint64(5)],
         [OutputValue::Uint64(25)] // Expected output: each input squared
     );
@@ -296,19 +296,20 @@ mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
 
+    // This test requires that `yarn install` has been executed inside the `./blueprints/incredible-squaring/` directory
+    // The other requirement is that there is a locally-running tangle node
     #[tokio::test(flavor = "multi_thread")]
     async fn test_externalities_gadget_starts() {
         setup_log();
 
-        let mut current_dir = std::env::current_dir().expect("Failed to get current directory");
-        current_dir.pop();
-        current_dir.push("./blueprints/incredible-squaring/Cargo.toml");
-        current_dir
+        let mut manifest_path = std::env::current_dir().expect("Failed to get current directory");
+        manifest_path.push("../blueprints/incredible-squaring/Cargo.toml");
+        manifest_path
             .canonicalize()
-            .expect("File could not be normalized normalized");
+            .expect("File could not be normalized");
 
         let init_blueprint = cargo_gadget::deploy::generate_service_blueprint(
-            current_dir,
+            manifest_path,
             Some(&"incredible-squaring-blueprint".to_string()),
             "ws://127.0.0.1:9944",
         )

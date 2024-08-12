@@ -107,6 +107,18 @@ export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
 ```
 Note: You need to set these environment variables each time you start a new shell session or append them to your .zshrc file.
 
+### Foundry
+In order to use the incredible-squaring blueprint, you need to have the Foundry CLI installed. You can install it here: [Foundry CLI](https://ethereum-blockchain-developer.com/2022-06-nft-truffle-hardhat-foundry/14-foundry-setup/)
+
+Then, run:
+```bash
+cd blueprints/incredible-squaring
+yarn install
+forge build --root ./contracts
+```
+
+This is required for testing and GitHub pipelines.
+
 ## Contributing
 
 We welcome contributions to Gadget! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request.
