@@ -184,7 +184,6 @@ pub async fn new_test_ext_blueprint_manager<
     assert!(N < 4, "Only up to 3 nodes are supported");
 
     let bind_addrs = (0..N)
-        .into_iter()
         .map(|_| find_open_tcp_bind_port())
         .map(|port| {
             (
