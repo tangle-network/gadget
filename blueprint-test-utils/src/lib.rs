@@ -1,13 +1,13 @@
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use gadget_common::subxt_signer::sr25519;
-use gadget_common::tangle_runtime::api;
 use gadget_common::tangle_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
 use gadget_common::tangle_runtime::api::services::calls::types::register::{
     Preferences, RegistrationArgs,
 };
 use gadget_common::tangle_runtime::api::services::storage::types::job_results::JobResults;
+use gadget_common::tangle_runtime::{api, AccountId32};
 use gadget_common::tangle_subxt::subxt::OnlineClient;
 pub use gadget_core::job_manager::SendFuture;
 use gadget_io::{GadgetConfig, SupportedChains};
@@ -22,6 +22,9 @@ use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
+
+pub type InputValue = api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
+pub type OutputValue = api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 
 pub mod sync;
 pub mod test_ext;
@@ -191,8 +194,105 @@ pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>
     }
 }
 
+macro_rules! test_externalities_gadget {
+    (
+        $test_name:ident,
+        $blueprint_path:expr,
+        $blueprint_name:expr,
+        $ws_addr:expr,
+        [$($input:expr),+],
+        [$($expected_output:expr),+]
+    ) => {
+        use $crate::{
+            get_next_call_id, get_next_service_id, run_test_blueprint_manager,
+            setup_log, submit_job, wait_for_completion_of_job,
+        };
+
+        use $crate::test_ext::new_test_ext_blueprint_manager;
+
+        #[tokio::test(flavor = "multi_thread")]
+        async fn $test_name() {
+            setup_log();
+
+            let mut current_dir = std::env::current_dir().expect("Failed to get current directory");
+            current_dir.push($blueprint_path);
+            current_dir.canonicalize().expect("File could not be normalized");
+
+            let ws_addr = $ws_addr.unwrap_or("ws://127.0.0.1:9944");
+
+            let init_blueprint = cargo_gadget::deploy::generate_service_blueprint(
+                current_dir,
+                Some(&$blueprint_name.to_string()),
+                ws_addr,
+            )
+            .await
+            .expect("Service blueprint generation failed");
+
+            new_test_ext_blueprint_manager::<1, 1, (), _, _>(
+                (),
+                init_blueprint.clone(),
+                run_test_blueprint_manager,
+            )
+            .await
+            .execute_with_async(move |client, handles| async move {
+                let keypair = handles[0].sr25519_id().clone();
+                let service_id = get_next_service_id(client)
+                    .await
+                    .expect("Failed to get next service id");
+                let call_id = get_next_call_id(client)
+                    .await
+                    .expect("Failed to get next job id");
+
+                let mut job_args = Args::new();
+                for input in [$($input),+] {
+                    job_args.push(input);
+                }
+
+                submit_job(
+                    client,
+                    &keypair,
+                    service_id,
+                    Job::from(call_id as u8),
+                    job_args,
+                )
+                .await
+                .expect("Failed to submit job");
+
+                let job_results = wait_for_completion_of_job(client, service_id, call_id)
+                    .await
+                    .expect("Failed to wait for job completion");
+
+                assert_eq!(job_results.service_id, service_id);
+                assert_eq!(job_results.call_id, call_id);
+
+                let expected_outputs = vec![$($expected_output),+];
+                assert_eq!(job_results.result.0.len(), expected_outputs.len(), "Number of outputs doesn't match expected");
+
+                for (result, expected) in job_results.result.0.into_iter().zip(expected_outputs.into_iter()) {
+                    assert_eq!(result, expected);
+                }
+            })
+            .await
+        }
+    };
+}
+
 #[cfg(test)]
-mod tests {
+mod test_macros {
+    use super::*;
+
+    test_externalities_gadget!(
+        test_incredible_squaring,
+        "./blueprints/incredible-squaring/Cargo.toml",
+        "incredible-squaring-blueprint",
+        Some("ws://127.0.0.1:9944"),
+        [InputValue::Uint64(5)],
+        [OutputValue::Uint64(25)] // Expected output: each input squared
+    );
+}
+
+#[cfg(test)]
+mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
 
@@ -200,8 +300,15 @@ mod tests {
     async fn test_externalities_gadget_starts() {
         setup_log();
 
+        let mut current_dir = std::env::current_dir().expect("Failed to get current directory");
+        current_dir.pop();
+        current_dir.push("./blueprints/incredible-squaring/Cargo.toml");
+        current_dir
+            .canonicalize()
+            .expect("File could not be normalized normalized");
+
         let init_blueprint = cargo_gadget::deploy::generate_service_blueprint(
-            "../../blueprints/incredible-squaring/",
+            current_dir,
             Some(&"incredible-squaring-blueprint".to_string()),
             "ws://127.0.0.1:9944",
         )

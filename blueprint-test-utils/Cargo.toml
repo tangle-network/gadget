@@ -41,6 +41,7 @@ blueprint-manager = { workspace = true }
 getrandom = { workspace = true, optional = true, default-features = false }
 environment-utils = { workspace = true }
 parking_lot = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 futures = { workspace = true }
 sp-io = { workspace = true, default-features = false }
 libp2p = { workspace = true, default-features = false }
@@ -84,4 +85,3 @@ gadget-blueprint-proc-macro-core = { workspace = true }
 [dev-dependencies]
 cargo-gadget = { workspace = true, default-features = true }
 cargo_metadata = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
