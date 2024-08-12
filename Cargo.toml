@@ -51,7 +51,7 @@ blueprint-metadata = { path = "./blueprint-metadata", default-features = false, 
 pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
 pallet-services-rpc = { git = "https://github.com/webb-tools/tangle.git" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
-tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", default-features = false }
+tangle-subxt = { version = "0.1.4", default-features = false }
 
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }

@@ -37,7 +37,6 @@ pub mod prelude {
     pub use gadget_core::job_manager::WorkManagerError;
     pub use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
     pub use parking_lot::Mutex;
-    pub use protocol_macros::protocol;
     pub use sp_runtime::traits::Block;
     pub use std::pin::Pin;
     pub use std::sync::Arc;
