@@ -21,7 +21,10 @@ members = [
   "macros/blueprint-proc-macro-core",
   "macros/blueprint-proc-macro-playground",
 ]
-exclude = ["example"]
+exclude = [
+  "tangle-test-utils",
+  "example"
+]
 
 [workspace.package]
 authors = ["Webb Technologies Inc."]
