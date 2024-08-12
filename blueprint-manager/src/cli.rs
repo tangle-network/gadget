@@ -27,7 +27,7 @@ async fn main() -> color_eyre::Result<()> {
             let _ = tokio::signal::ctrl_c().await;
         };
 
-        let mut handle =
+        let handle =
             run_blueprint_manager(blueprint_manager_config, gadget_config, shutdown_signal).await?;
 
         handle.await
