@@ -30,6 +30,12 @@ impl CommandInstalled for Command {
     }
 }
 
+impl Default for FoundryToolchain {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FoundryToolchain {
     /// Creates a new FoundryToolchain instance.
     pub fn new() -> Self {

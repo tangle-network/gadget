@@ -148,14 +148,12 @@ pub async fn submit_job(
 pub async fn wait_for_completion_of_job(
     client: &TestClient,
     service_id: u64,
-    job_id: u64,
+    call_id: u64,
 ) -> Result<JobResults, Box<dyn Error>> {
     loop {
         gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
-        // Most of what we need is here: api::tx().services() [..] .create_blueprint()
-        let call = api::storage().services().job_results(service_id, job_id);
+        let call = api::storage().services().job_results(service_id, call_id);
         let res = client.storage().at_latest().await?.fetch(&call).await?;
-        // client.tx() to send something to the chain
 
         if let Some(ret) = res {
             return Ok(ret);
@@ -183,7 +181,7 @@ pub async fn get_next_service_id(client: &TestClient) -> Result<u64, Box<dyn Err
     }
 }
 
-pub async fn get_next_job_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
+pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
     let call = api::storage().services().next_job_call_id();
     let res = client.storage().at_latest().await?.fetch(&call).await?;
     if let Some(ret) = res {
@@ -219,7 +217,7 @@ mod tests {
             run_test_blueprint_manager,
         )
         .await
-        .execute_with_async(|client, handles| async move {
+        .execute_with_async(move |client, handles| async move {
             // At this point, init_blueprint has been deployed, and, every node has registered
             // as an operator to the init_blueprint provided
 
@@ -229,7 +227,7 @@ mod tests {
             let service_id = get_next_service_id(client)
                 .await
                 .expect("Failed to get next service id");
-            let job_id = get_next_job_id(client)
+            let call_id = get_next_call_id(client)
                 .await
                 .expect("Failed to get next job id");
 
@@ -244,14 +242,14 @@ mod tests {
                 client,
                 &keypair,
                 service_id,
-                Job::from(job_id as u8),
+                Job::from(call_id as u8),
                 job_args,
             )
             .await
             .expect("Failed to submit job");
 
             // Step 2: wait for the job to complete
-            let job_results = wait_for_completion_of_job(client, service_id, job_id)
+            let job_results = wait_for_completion_of_job(client, service_id, call_id)
                 .await
                 .expect("Failed to wait for job completion");
 
@@ -259,7 +257,7 @@ mod tests {
             let expected_result =
                 api::runtime_types::tangle_primitives::services::field::Field::Uint64(OUTPUT);
             assert_eq!(job_results.service_id, service_id);
-            assert_eq!(job_results.call_id, job_id);
+            assert_eq!(job_results.call_id, call_id);
             assert_eq!(job_results.result.0[0], expected_result);
         })
         .await

@@ -414,11 +414,13 @@ impl LocalhostTestExt {
 
     /// An identity function (For future reverse-compatible changes)
     pub async fn execute_with_async<
-        T: FnOnce(&OnlineClient<SubstrateConfig>, &Vec<BlueprintManagerHandle>) -> R + Send + 'static,
-        R: Future<Output = Out> + Send + 'static,
-        Out: Send + 'static,
+        'a,
+        'b: 'a,
+        T: FnOnce(&'a OnlineClient<SubstrateConfig>, &'a Vec<BlueprintManagerHandle>) -> R + Send + 'a,
+        R: Future<Output = Out> + Send + 'a,
+        Out: Send + 'b,
     >(
-        &self,
+        &'a self,
         function: T,
     ) -> Out {
         function(&self.client, &self.handles).await

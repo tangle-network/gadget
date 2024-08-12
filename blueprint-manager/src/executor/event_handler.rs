@@ -27,14 +27,12 @@ pub(crate) async fn check_blueprint_events(
     let job_called_events = event.events.find::<JobCalled>();
     let job_result_submitted_events = event.events.find::<JobResultSubmitted>();
 
-    let mut needs_update = false;
-
     // Handle blueprint registered events
     for evt in registered_events {
         match evt {
             Ok(evt) => {
                 logger.info(format!("Blueprint registered event: {evt:?}"));
-                needs_update = true;
+                return true;
             }
             Err(err) => {
                 logger.warn(format!("Error handling registered event: {err:?}"));
@@ -49,12 +47,9 @@ pub(crate) async fn check_blueprint_events(
                 logger.info(format!("Unregistered event: {evt:?}"));
                 if &evt.operator == account_id && active_shells.remove(&evt.blueprint_id).is_some()
                 {
-                    logger.info(format!(
-                        "Removed all services for blueprint_id: {}",
-                        evt.blueprint_id,
-                    ));
+                    logger.info(format!("Removed blueprint_id: {}", evt.blueprint_id,));
 
-                    needs_update = true;
+                    return true;
                 }
             }
             Err(err) => {
@@ -101,7 +96,7 @@ pub(crate) async fn check_blueprint_events(
         }
     }
 
-    needs_update
+    false
 }
 
 pub(crate) async fn maybe_handle_state_update(

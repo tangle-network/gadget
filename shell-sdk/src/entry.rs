@@ -69,7 +69,7 @@ where
     logger.info("Starting shell with config: {config:?}");
 
     let node_key = node_key_to_bytes(
-        &config
+        config
             .node_key
             .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
     )?;

@@ -150,12 +150,11 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let mut active_shells = HashMap::new();
 
     // With the basics setup, we must now implement the main logic
-    /*
-       * Query to get Vec<RpcServicesWithBlueprint>
-       * For each RpcServicesWithBlueprint, fetch the associated gadget binary (fetch/download)
-        -> If the services field is empty, just emit and log inside the executed binary "that states a new service instance got created by one of these blueprints"
-        -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
-    */
+    //
+    // * Query to get Vec<RpcServicesWithBlueprint>
+    // * For each RpcServicesWithBlueprint, fetch the associated gadget binary (fetch/download)
+    //   -> If the services field is empty, just emit and log inside the executed binary "that states a new service instance got created by one of these blueprints"
+    //   -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
 
     let (mut operator_subscribed_blueprints, init_event) =
         if let Some(event) = tangle_runtime.next_event().await {
@@ -172,6 +171,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         operator_subscribed_blueprints.len()
     ));
 
+    // Immediately poll, handling the initial state
     event_handler::maybe_handle_state_update(
         &init_event,
         &operator_subscribed_blueprints,
@@ -184,7 +184,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
     let logger_manager = logger.clone();
     let manager_task = async move {
-        // Step 2: Listen to FinalityNotifications and poll for new/deleted services that correspond to the blueprints above
+        // Listen to FinalityNotifications and poll for new/deleted services that correspond to the blueprints above
         while let Some(event) = tangle_runtime.next_event().await {
             // Check for any events to see if we require an update to our list of operator-subscribed blueprints
             let needs_update = event_handler::check_blueprint_events(
