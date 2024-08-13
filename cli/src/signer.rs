@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_load_signer_from_env() -> color_eyre::Result<()> {
-        color_eyre::install().unwrap_or_else(|_| ());
+        color_eyre::install().unwrap_or(());
         let s = [1u8; 32];
         let secret = bip39::Mnemonic::from_entropy(&s[..])?.to_string();
         // Test with a valid mnemonic phrase
@@ -119,7 +119,7 @@ mod tests {
 
     #[test]
     fn test_load_evm_signer_from_env() -> color_eyre::Result<()> {
-        color_eyre::install().unwrap_or_else(|_| ());
+        color_eyre::install().unwrap_or(());
         let s = [1u8; 32];
         let secret = bip39::Mnemonic::from_entropy(&s[..])?.to_string();
         // Test with a valid mnemonic phrase
