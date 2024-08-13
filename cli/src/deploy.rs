@@ -258,11 +258,8 @@ fn bake_blueprint(
 }
 
 fn convert_to_bytes_or_null(v: &mut serde_json::Value) {
-    match v {
-        serde_json::Value::String(s) => {
-            *v = serde_json::Value::Array(s.bytes().map(serde_json::Value::from).collect());
-        }
-        _ => {}
+    if let serde_json::Value::String(s) = v {
+        *v = serde_json::Value::Array(s.bytes().map(serde_json::Value::from).collect());
     }
 }
 
@@ -284,7 +281,7 @@ fn find_package<'m>(
     pkg_name: Option<&String>,
 ) -> Result<&'m cargo_metadata::Package, eyre::Error> {
     match metadata.workspace_members.len() {
-        0 => return Err(eyre::eyre!("No packages found in the workspace")),
+        0 => Err(eyre::eyre!("No packages found in the workspace")),
         1 => metadata
             .packages
             .iter()
@@ -301,9 +298,9 @@ fn find_package<'m>(
                 eprintln!("Found: {}", package.name);
             }
             eprintln!();
-            return Err(eyre::eyre!(
+            Err(eyre::eyre!(
                 "The workspace has multiple packages, please specify the package to deploy"
-            ));
+            ))
         }
     }
 }

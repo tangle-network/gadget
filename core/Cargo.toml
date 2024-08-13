@@ -4,6 +4,9 @@ version = "0.0.1"
 authors = ["Webb Developers <hello@webb.tools>"]
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 edition = "2021"
+description = "Tangle's gadget core library for writing Tangle blueprints"
+repository.workspace = true
+homepage.workspace = true
 
 [features]
 default = ["substrate"]

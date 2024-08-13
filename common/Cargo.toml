@@ -2,12 +2,14 @@
 name = "gadget-common"
 version = "0.1.0"
 edition = "2021"
+description = "Common utilities for writing gadgets for Tangle blueprint"
+homepage.workspace = true
+license.workspace = true
 
 [dependencies]
 libsecp256k1 = { version = "0.7" }
 gadget-core = { workspace = true }
 gadget-io = { workspace = true, default-features = false }
-protocol-macros = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 prometheus = { workspace = true, default-features = false }
@@ -22,9 +24,9 @@ round-based = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
 lazy_static = { workspace = true }
 getrandom = { workspace = true }
-tracing = { git = "https://github.com/tokio-rs/tracing", default-features = false, features = ["alloc"] }
-tracing-subscriber = { git = "https://github.com/tokio-rs/tracing", default-features = false, features = ["alloc"] }
-tracing-core = { git = "https://github.com/tokio-rs/tracing", default-features = false, features = ["alloc"] }
+tracing = { workspace = true, default-features = false }
+tracing-subscriber = { workspace = true, default-features = false }
+tracing-core = { workspace = true, default-features = false }
 color-eyre = { workspace = true }
 
 # Substrate
@@ -71,7 +73,6 @@ wasm = [
     "gadget-io/wasm",
     "serde/alloc",
     "serde/derive",
-    "tracing/alloc",
     "getrandom/js",
     "gadget-core/substrate",
     "subxt-signer/web",
