@@ -14,7 +14,7 @@ clap-cargo = { version = "0.14" }
 cargo-generate = { version = "0.21.3" }
 cargo_metadata = { workspace = true }
 escargot = { version = "0.5.12" }
-
+k256 = { workspace = true, features = ["ecdsa"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "ansi"] }
 color-eyre = { workspace = true }

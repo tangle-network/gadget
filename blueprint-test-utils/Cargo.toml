@@ -81,7 +81,7 @@ sp-staking = { workspace = true }
 url = { workspace = true }
 
 gadget-blueprint-proc-macro-core = { workspace = true }
+cargo-gadget = { workspace = true, default-features = true }
 
 [dev-dependencies]
-cargo-gadget = { workspace = true, default-features = true }
 cargo_metadata = { workspace = true }

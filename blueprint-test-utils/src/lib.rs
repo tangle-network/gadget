@@ -1,5 +1,6 @@
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
+use cargo_gadget::deploy::Opts;
 use gadget_common::subxt_signer::sr25519;
 use gadget_common::tangle_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
@@ -196,42 +197,39 @@ pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>
 
 macro_rules! test_blueprint {
     (
-        $test_name:ident,
         $blueprint_path:expr,
         $blueprint_name:expr,
-        $ws_addr:expr,
         [$($input:expr),+],
         [$($expected_output:expr),+]
     ) => {
         use $crate::{
             get_next_call_id, get_next_service_id, run_test_blueprint_manager,
-            setup_log, submit_job, wait_for_completion_of_job,
+            setup_log, submit_job, wait_for_completion_of_job, Opts,
         };
 
         use $crate::test_ext::new_test_ext_blueprint_manager;
 
         #[tokio::test(flavor = "multi_thread")]
-        async fn $test_name() {
+        async fn test_externalities_standard() {
             setup_log();
 
-            let mut current_dir = std::env::current_dir().expect("Failed to get current directory");
-            current_dir.push($blueprint_path);
-            current_dir.canonicalize().expect("File could not be normalized");
+            let mut manifest_path = std::env::current_dir().expect("Failed to get current directory");
+            manifest_path.push($blueprint_path);
+            manifest_path.canonicalize().expect("File could not be normalized");
 
-            let ws_addr = $ws_addr.unwrap_or("ws://127.0.0.1:9944");
+            let ws_addr = "ws://127.0.0.1:9944";
 
-            let init_blueprint = cargo_gadget::deploy::generate_service_blueprint(
-                current_dir,
-                Some(&$blueprint_name.to_string()),
-                ws_addr,
-                false,
-            )
-            .await
-            .expect("Service blueprint generation failed");
+            let opts = Opts {
+                pkg_name: Some($blueprint_name.to_string()),
+                rpc_url: ws_addr.to_string(),
+                manifest_path,
+                signer: None,
+                signer_evm: None,
+            };
 
             new_test_ext_blueprint_manager::<1, 1, (), _, _>(
                 (),
-                init_blueprint.clone(),
+                opts,
                 run_test_blueprint_manager,
             )
             .await
@@ -283,10 +281,8 @@ mod test_macros {
     use super::*;
 
     test_blueprint!(
-        test_incredible_squaring,                      // Name of function
         "./blueprints/incredible-squaring/Cargo.toml", // Path to the blueprint's toml
         "incredible-squaring-blueprint",               // Name of the package
-        Some("ws://127.0.0.1:9944"),                   // The address of the local node
         [InputValue::Uint64(5)],
         [OutputValue::Uint64(25)] // Expected output: each input squared
     );
@@ -296,6 +292,7 @@ mod test_macros {
 mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
+    use cargo_gadget::deploy::Opts;
 
     // This test requires that `yarn install` has been executed inside the `./blueprints/incredible-squaring/` directory
     // The other requirement is that there is a locally-running tangle node
@@ -309,67 +306,62 @@ mod tests_standard {
             .canonicalize()
             .expect("File could not be normalized");
 
-        let init_blueprint = cargo_gadget::deploy::generate_service_blueprint(
+        let opts = Opts {
+            pkg_name: Some("incredible-squaring-blueprint".to_string()),
+            rpc_url: "ws://127.0.0.1:9944".to_string(),
             manifest_path,
-            Some(&"incredible-squaring-blueprint".to_string()),
-            "ws://127.0.0.1:9944",
-            false,
-        )
-        .await
-        .expect("Service blueprint generation failed");
+            signer: None,
+            signer_evm: None,
+        };
 
         const INPUT: u64 = 10;
         const OUTPUT: u64 = INPUT.pow(2);
 
-        new_test_ext_blueprint_manager::<1, 1, (), _, _>(
-            (),
-            init_blueprint.clone(),
-            run_test_blueprint_manager,
-        )
-        .await
-        .execute_with_async(move |client, handles| async move {
-            // At this point, init_blueprint has been deployed, and, every node has registered
-            // as an operator to the init_blueprint provided
-
-            // What's left: Submit a job, wait for the job to finish, then assert the job results
-            let keypair = handles[0].sr25519_id().clone();
-            // Important! The tests can only run serially, not in parallel, in order to not cause a race condition in IDs
-            let service_id = get_next_service_id(client)
-                .await
-                .expect("Failed to get next service id");
-            let call_id = get_next_call_id(client)
-                .await
-                .expect("Failed to get next job id");
-
-            // Pass the argument
-            let mut job_args = Args::new();
-            let input =
-                api::runtime_types::tangle_primitives::services::field::Field::Uint64(INPUT);
-            job_args.push(input);
-
-            // Next step: submit a job under that service/job id
-            submit_job(
-                client,
-                &keypair,
-                service_id,
-                Job::from(call_id as u8),
-                job_args,
-            )
+        new_test_ext_blueprint_manager::<1, 1, (), _, _>((), opts, run_test_blueprint_manager)
             .await
-            .expect("Failed to submit job");
+            .execute_with_async(move |client, handles| async move {
+                // At this point, init_blueprint has been deployed, and, every node has registered
+                // as an operator to the init_blueprint provided
 
-            // Step 2: wait for the job to complete
-            let job_results = wait_for_completion_of_job(client, service_id, call_id)
+                // What's left: Submit a job, wait for the job to finish, then assert the job results
+                let keypair = handles[0].sr25519_id().clone();
+                // Important! The tests can only run serially, not in parallel, in order to not cause a race condition in IDs
+                let service_id = get_next_service_id(client)
+                    .await
+                    .expect("Failed to get next service id");
+                let call_id = get_next_call_id(client)
+                    .await
+                    .expect("Failed to get next job id");
+
+                // Pass the argument
+                let mut job_args = Args::new();
+                let input =
+                    api::runtime_types::tangle_primitives::services::field::Field::Uint64(INPUT);
+                job_args.push(input);
+
+                // Next step: submit a job under that service/job id
+                submit_job(
+                    client,
+                    &keypair,
+                    service_id,
+                    Job::from(call_id as u8),
+                    job_args,
+                )
                 .await
-                .expect("Failed to wait for job completion");
+                .expect("Failed to submit job");
 
-            // Step 3: Get the job results, compare to expected value(s)
-            let expected_result =
-                api::runtime_types::tangle_primitives::services::field::Field::Uint64(OUTPUT);
-            assert_eq!(job_results.service_id, service_id);
-            assert_eq!(job_results.call_id, call_id);
-            assert_eq!(job_results.result.0[0], expected_result);
-        })
-        .await
+                // Step 2: wait for the job to complete
+                let job_results = wait_for_completion_of_job(client, service_id, call_id)
+                    .await
+                    .expect("Failed to wait for job completion");
+
+                // Step 3: Get the job results, compare to expected value(s)
+                let expected_result =
+                    api::runtime_types::tangle_primitives::services::field::Field::Uint64(OUTPUT);
+                assert_eq!(job_results.service_id, service_id);
+                assert_eq!(job_results.call_id, call_id);
+                assert_eq!(job_results.result.0[0], expected_result);
+            })
+            .await
     }
 }

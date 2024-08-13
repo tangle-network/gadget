@@ -2060,6 +2060,7 @@ dependencies = [
  "color-eyre",
  "escargot",
  "gadget-blueprint-proc-macro-core",
+ "k256",
  "serde_json",
  "tangle-subxt",
  "tokio",

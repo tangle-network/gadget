@@ -17,6 +17,7 @@
 use crate::PerTestNodeInput;
 use async_trait::async_trait;
 use blueprint_manager::executor::BlueprintManagerHandle;
+use cargo_gadget::deploy::{Opts, PrivateKeySigner};
 use environment_utils::transaction_manager::tangle::SubxtPalletSubmitter;
 use gadget_common::config::Network;
 use gadget_common::locks::TokioMutexExt;
@@ -26,7 +27,6 @@ use gadget_common::prelude::{
 };
 use gadget_common::tangle_runtime::api;
 use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::ApprovalPrefrence;
-use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
 use gadget_common::tangle_runtime::api::services::calls::types::register::{
     Preferences, RegistrationArgs,
 };
@@ -176,7 +176,7 @@ pub async fn new_test_ext_blueprint_manager<
     Fut: SendFuture<'static, BlueprintManagerHandle>,
 >(
     additional_params: D,
-    blueprint: Blueprint,
+    mut opts: Opts,
     f: F,
 ) -> LocalhostTestExt {
     const NAME_IDS: [&str; 3] = ["alice", "bob", "charlie"];
@@ -213,14 +213,26 @@ pub async fn new_test_ext_blueprint_manager<
                 .filter(|addr| *addr != my_addr)
                 .cloned()
                 .collect(),
-            base_path: format!("../tangle/tmp/{my_alias}"),
+            // Assumes that that tangle has initialized a dir with a keystore at ../../tangle/tmp/
+            base_path: format!("../../tangle/tmp/{my_alias}"),
             verbose: 4,
             pretty: false,
             extra_input: additional_params.clone(),
-            local_tangle_node: Url::parse(LOCAL_TANGLE_NODE).expect("Should parse URL"),
+            local_tangle_node: Url::parse(&opts.rpc_url).expect("Should parse URL"),
         };
 
         let handle = f(test_input).await;
+
+        if node_index == 0 {
+            // Replace the None signer and signer_evm values inside opts with alice's keys
+            opts.signer = Some(handle.sr25519_id().clone());
+            let k256_ecdsa_secret_key = handle.ecdsa_id().seed();
+            opts.signer_evm = Some(
+                PrivateKeySigner::from_slice(&k256_ecdsa_secret_key)
+                    .expect("Should create a private key signer"),
+            );
+        }
+
         handles.push(handle);
     }
 
@@ -228,17 +240,10 @@ pub async fn new_test_ext_blueprint_manager<
         .await
         .expect("Failed to create primary localhost client");
 
-    let blueprint_id = crate::get_next_blueprint_id(&client)
-        .await
-        .expect("Failed to get next blueprint id");
-
-    // Step 0: Assume Alice's identity to create a blueprint, getting the required args
-    let sr25519_keypair = handles[0].sr25519_id().clone();
-
     // Step 1: Create the blueprint using alice's identity
-    super::create_blueprint(&client, &sr25519_keypair, blueprint)
+    let blueprint_id = cargo_gadget::deploy::deploy_to_tangle(opts)
         .await
-        .expect("Failed to register blueprint");
+        .expect("Failed to deploy Blueprint to Tangle");
 
     // Step 2: Have each identity register to a blueprint
     let registration_args = RegistrationArgs::new();
@@ -274,7 +279,8 @@ pub async fn new_test_ext_blueprint_manager<
 }
 
 fn find_open_tcp_bind_port() -> u16 {
-    let listener = std::net::TcpListener::bind(LOCAL_BIND_ADDR).expect("Should bind to localhost");
+    let listener = std::net::TcpListener::bind(format!("{LOCAL_BIND_ADDR}:0"))
+        .expect("Should bind to localhost");
     listener
         .local_addr()
         .expect("Should have a local address")

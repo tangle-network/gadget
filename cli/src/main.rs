@@ -69,7 +69,7 @@ async fn main() -> color_eyre::Result<()> {
                 .manifest
                 .manifest_path
                 .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
-            deploy::deploy_to_tangle(deploy::Opts {
+            let _ = deploy::deploy_to_tangle(deploy::Opts {
                 rpc_url,
                 manifest_path,
                 pkg_name: package,

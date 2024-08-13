@@ -6,8 +6,8 @@ use gadget_common::config::DebugLogger;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::subxt_signer::sr25519;
 use gadget_common::tangle_runtime::AccountId32;
-use gadget_io::{defaults, GadgetConfig};
-use shell_sdk::entry::{keystore_from_base_path, node_key_to_bytes};
+use gadget_io::{GadgetConfig, SubstrateKeystore};
+use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::keystore::load_keys_from_keystore;
 use shell_sdk::{Client, SendFuture};
 use sp_core::{ecdsa, Pair};
@@ -125,14 +125,12 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         gadget_config.keystore_password.clone(),
     );
 
-    // TODO: Ensure the sr25519 key below is equivalent to the keystore one for symmetricity
-    let sr25519_private_key_bytes = node_key_to_bytes(
-        gadget_config
-            .node_key
-            .clone()
-            .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
-    )?;
-    let sr25519_private_key = sr25519::Keypair::from_secret_key(sr25519_private_key_bytes)
+    let sr25519_keypair = keystore.sr25519_key()?;
+
+    let mut secret_key = [0u8; 32];
+    secret_key.clone_from_slice(&sr25519_keypair.as_ref().secret.to_bytes()[..32]);
+
+    let sr25519_private_key = sr25519::Keypair::from_secret_key(secret_key)
         .map_err(|err| Report::msg(format!("Failed to create SR25519 keypair: {err:?}")))?;
 
     let (role_key, acco_key) = load_keys_from_keystore(&keystore)?;
