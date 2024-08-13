@@ -1,7 +1,7 @@
 use crate::config::ShellManagerOpts;
 use crate::gadget::ActiveShells;
 use crate::protocols::resolver::NativeGithubMetadata;
-use crate::{EventPollResult, utils};
+use crate::utils;
 use crate::utils::get_service_str;
 use color_eyre::eyre::OptionExt;
 use gadget_common::prelude::DebugLogger;
@@ -14,23 +14,27 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
 use tokio::io::AsyncWriteExt;
 
 pub async fn maybe_handle(
-    blueprints: &Vec<RpcServicesWithBlueprint>,
+    blueprints: &[RpcServicesWithBlueprint],
     onchain_services: &[NativeGithubMetadata],
     onchain_gh_fetchers: &[&GithubFetcher],
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
     active_shells: &mut ActiveShells,
     logger: &DebugLogger,
-    event_poll_result: EventPollResult,
+    registration_modes: &[bool],
 ) -> color_eyre::Result<()> {
-    for ((gh, fetcher), blueprint_id) in onchain_services.iter().zip(onchain_gh_fetchers).zip(event_poll_result.registration_mode.clone()) {
+    for ((gh, fetcher), registration_mode) in onchain_services
+        .iter()
+        .zip(onchain_gh_fetchers)
+        .zip(registration_modes)
+    {
         let native_github_metadata = NativeGithubMetadata {
             git: gh.git.clone(),
             tag: gh.tag.clone(),
             owner: gh.owner.clone(),
             repo: gh.repo.clone(),
             gadget_binaries: fetcher.binaries.0.clone(),
-            blueprint_id,
+            blueprint_id: gh.blueprint_id,
         };
 
         if let Err(err) = handle_github_source(
@@ -41,6 +45,7 @@ pub async fn maybe_handle(
             fetcher,
             active_shells,
             logger,
+            *registration_mode,
         )
         .await
         {
@@ -52,14 +57,14 @@ pub async fn maybe_handle(
 }
 
 async fn handle_github_source(
-    blueprints: &Vec<RpcServicesWithBlueprint>,
+    blueprints: &[RpcServicesWithBlueprint],
     service: &NativeGithubMetadata,
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
     github: &GithubFetcher,
     active_shells: &mut ActiveShells,
     logger: &DebugLogger,
-    event_poll_result: EventPollResult,
+    registration_mode: bool,
 ) -> color_eyre::Result<()> {
     let blueprint_id = service.blueprint_id;
     let service_str = get_service_str(service);
@@ -131,6 +136,15 @@ async fn handle_github_source(
                         service_id,
                     )?;
 
+                    let env_vars = if registration_mode {
+                        let mut env_vars = std::env::vars().collect::<Vec<_>>();
+                        env_vars.push(("REGISTRATION_MODE".to_string(), "true".to_string()));
+                        // TODO: Finish remaining env vars
+                        env_vars
+                    } else {
+                        std::env::vars().collect::<Vec<_>>()
+                    };
+
                     logger.info(format!("Starting protocol: {sub_service_str}"));
 
                     // Now that the file is loaded, spawn the process
@@ -140,7 +154,7 @@ async fn handle_github_source(
                         .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
                         .stdin(std::process::Stdio::null())
                         .current_dir(&std::env::current_dir()?)
-                        .envs(std::env::vars().collect::<Vec<_>>())
+                        .envs(env_vars)
                         .args(arguments)
                         .spawn()?;
 

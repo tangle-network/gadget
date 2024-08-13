@@ -32,6 +32,27 @@ impl<C: Config> ServicesClient<C>
 where
     BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
 {
+    pub async fn get_blueprint_by_id(
+        &self,
+        at: [u8; 32],
+        blueprint_id: u64,
+    ) -> Result<Option<RpcServicesWithBlueprint>, gadget_common::Error> {
+        let call = api::storage().services().blueprints(blueprint_id);
+        let at = BlockRef::from_hash(H256::from_slice(&at));
+        let ret: Option<RpcServicesWithBlueprint> = self
+            .rpc_client
+            .runtime_api()
+            .at(at)
+            .call(call)
+            .await
+            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })?
+            .map_err(|err| gadget_common::Error::ClientError {
+                err: format!("{err:?}"),
+            })?;
+
+        Ok(ret)
+    }
+
     pub async fn query_operator_blueprints(
         &self,
         at: [u8; 32],

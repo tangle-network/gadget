@@ -33,3 +33,4 @@ tokio = { workspace = true, features = ["process", "io-util", "signal"] }
 reqwest = { version = "0.12.3" }
 sha2 = { workspace = true }
 tangle-environment = { workspace = true }
+async-recursion2 = { workspace = true }

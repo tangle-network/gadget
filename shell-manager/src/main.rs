@@ -1,5 +1,7 @@
 use crate::gadget::ActiveShells;
 use crate::utils::github_fetcher_to_native_github_metadata;
+use async_recursion2::async_recursion;
+use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
 use config::ShellManagerOpts;
 use gadget_common::gadget_io;
@@ -17,6 +19,7 @@ use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
 use tangle_environment::gadget::{SubxtConfig, TangleEvent};
 use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::utils::AccountId32;
+use tangle_subxt::subxt::{PolkadotConfig, SubstrateConfig};
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{
@@ -77,6 +80,9 @@ async fn main() -> color_eyre::Result<()> {
     };
 
     logger.info(format!("Received {} blueprints", blueprints.len()));
+
+    let poll_result =
+        handle_tangle_block(&init_event, logger, &mut active_shells, &sub_account_id).await;
     handle_tangle_event(
         &init_event,
         &blueprints,
@@ -84,16 +90,20 @@ async fn main() -> color_eyre::Result<()> {
         &shell_config,
         opt,
         &mut active_shells,
+        poll_result,
+        &runtime,
     )
     .await?;
 
     let manager_task = async move {
         // Step 2: Listen to FinalityNotifications and poll for new/deleted services that correspond to the blueprints above
         while let Some(event) = tangle_runtime.next_event().await {
-            let result = handle_tangle_block(&event, logger, &mut active_shells, &sub_account_id).await;
+            let result =
+                handle_tangle_block(&event, logger, &mut active_shells, &sub_account_id).await;
 
             if result.needs_update {
-                blueprints = utils::get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?;
+                blueprints =
+                    utils::get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?;
             }
 
             handle_tangle_event(
@@ -104,6 +114,7 @@ async fn main() -> color_eyre::Result<()> {
                 opt,
                 &mut active_shells,
                 result,
+                &runtime,
             )
             .await?;
         }
@@ -129,7 +140,7 @@ async fn main() -> color_eyre::Result<()> {
 struct EventPollResult {
     needs_update: bool,
     // A vec of blueprints we have not yet become registered to
-    registration_mode: Vec<u64>,
+    blueprint_registrations: Vec<u64>,
 }
 
 async fn handle_tangle_block(
@@ -151,7 +162,7 @@ async fn handle_tangle_block(
         match evt {
             Ok(evt) => {
                 if &evt.operator == account_id {
-                    result.registration_mode.push(evt.blueprint_id);
+                    result.blueprint_registrations.push(evt.blueprint_id);
                     logger.info(format!("Pre-registered event: {evt:?}"));
                 }
             }
@@ -236,6 +247,7 @@ async fn handle_tangle_block(
     result
 }
 
+#[async_recursion]
 async fn handle_tangle_event(
     event: &TangleEvent,
     blueprints: &Vec<RpcServicesWithBlueprint>,
@@ -243,17 +255,56 @@ async fn handle_tangle_event(
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
     active_shells: &mut ActiveShells,
-    poll_result: EventPollResult,
+    mut poll_result: EventPollResult,
+    client: &ServicesClient<PolkadotConfig>,
 ) -> color_eyre::Result<()> {
     logger.info(format!("Received notification {}", event.number));
+
+    let mut registration_blueprints = vec![];
+    // First, check to see if we need to register any new services invoked by the PreRegistration event
+    if !poll_result.blueprint_registrations.is_empty() {
+        // Finally, re-call this function. This will allow the use to instantly run the gadgets
+        // after calling registering this node as an operator. We register this node as an operator
+        // by calling the gadget in REGISTRATION_MODE_ON
+
+        for blueprint_id in &poll_result.blueprint_registrations {
+            let blueprint = client
+                .get_blueprint_by_id(event.hash, *blueprint_id)
+                .await?
+                .ok_or_eyre("Unable to retrieve blueprint for registration mode")?;
+            registration_blueprints.push(blueprint);
+        }
+
+        poll_result.blueprint_registrations = vec![];
+        return handle_tangle_event(
+            event,
+            blueprints,
+            logger,
+            shell_config,
+            shell_manager_opts,
+            active_shells,
+            poll_result,
+            client,
+        )
+        .await;
+    }
+
     // TODO: Refactor into Vec<SourceMetadata<T>> where T: NativeGithubMetadata + [...]
     let mut onchain_services = vec![];
     let mut fetchers = vec![];
     let mut service_ids = vec![];
-
+    let mut registration_modes = vec![];
     let mut valid_blueprint_ids = vec![];
 
-    for blueprint in blueprints {
+    let mut blueprints_filtered = vec![];
+
+    let registration_iter = registration_blueprints.iter().map(|r| (r, true));
+
+    for (blueprint, registration_mode) in blueprints
+        .iter()
+        .map(|r| (r, false))
+        .chain(registration_iter)
+    {
         let mut services_for_this_blueprint = vec![];
         if let runtime_types::tangle_primitives::services::Gadget::Native(gadget) =
             &blueprint.blueprint.gadget
@@ -261,9 +312,11 @@ async fn handle_tangle_event(
             let gadget_source = &gadget.soruces.0[0];
             if let GadgetSourceFetcher::Github(gh) = &gadget_source.fetcher {
                 let metadata = github_fetcher_to_native_github_metadata(gh, blueprint.blueprint_id);
+                blueprints_filtered.push(blueprint);
                 onchain_services.push(metadata);
                 fetchers.push(gh);
                 valid_blueprint_ids.push(blueprint.blueprint_id);
+                registration_modes.push(registration_mode);
 
                 for service in &blueprint.services {
                     services_for_this_blueprint.push(service.id);
@@ -291,14 +344,14 @@ async fn handle_tangle_event(
 
     // Step 3: Check to see if we need to start any new services
     gadget::native::maybe_handle(
-        blueprints,
+        blueprints_filtered.as_ref(),
         &onchain_services,
         &fetchers,
         shell_config,
         shell_manager_opts,
         active_shells,
         logger,
-        poll_result,
+        &registration_modes,
     )
     .await?;
 
