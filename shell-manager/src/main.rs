@@ -4,6 +4,7 @@ use color_eyre::Report;
 use config::ShellManagerOpts;
 use gadget_common::gadget_io;
 use gadget_common::prelude::GadgetEnvironment;
+use gadget_common::tangle_runtime::api::services::events::PreRegistration;
 use gadget_io::ShellTomlConfig;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::keystore::load_keys_from_keystore;
@@ -125,12 +126,23 @@ async fn handle_tangle_block(
     active_shells: &mut ActiveShells,
     account_id: &AccountId32,
 ) {
+    let pre_registation_events = event.events.find::<PreRegistration>();
     let registered_events = event.events.find::<Registered>();
     let unregistered_events = event.events.find::<Unregistered>();
     let service_initiated_events = event.events.find::<ServiceInitiated>();
     let job_called_events = event.events.find::<JobCalled>();
     let job_result_submitted_events = event.events.find::<JobResultSubmitted>();
 
+    for evt in pre_registation_events {
+        match evt {
+            Ok(evt) => {
+                logger.info(format!("Pre-registered event: {evt:?}"));
+            }
+            Err(err) => {
+                logger.warn(format!("Error handling pre-registered event: {err:?}"));
+            }
+        }
+    }
     // Handle registered events
     for evt in registered_events {
         match evt {
