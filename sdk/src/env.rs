@@ -23,7 +23,7 @@ pub struct GadgetEnvironment {
     /// Always check for is `is_registration` flag before using this.
     pub service_id: Option<u64>,
 
-    /// The Current Environment is for the PreRegisteration of the Gadget
+    /// The Current Environment is for the `PreRegisteration` of the Gadget
     ///
     /// The gadget will now start in the Registration mode and will try to register the current operator on that blueprint
     /// There is no Service ID for this mode, since we need to register the operator first on the blueprint.
@@ -167,7 +167,7 @@ impl GadgetEnvironment {
         self.is_registration
     }
 
-    /// Returns a new OnlineClient for the Tangle.
+    /// Returns a new [`subxt::OnlineClient`] for the Tangle.
     ///
     /// # Errors
     /// This function will return an error if we are unable to connect to the Tangle RPC endpoint.
