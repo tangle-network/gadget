@@ -1,6 +1,6 @@
 use crate::config::BlueprintManagerConfig;
 use crate::gadget;
-use crate::gadget::ActiveShells;
+use crate::gadget::ActiveGadgets;
 use crate::utils::github_fetcher_to_native_github_metadata;
 use gadget_common::config::DebugLogger;
 use gadget_common::tangle_runtime::AccountId32;
@@ -18,7 +18,7 @@ use tangle_subxt::tangle_testnet_runtime::api::services::events::{
 pub(crate) async fn check_blueprint_events(
     event: &TangleEvent,
     logger: &DebugLogger,
-    active_shells: &mut ActiveShells,
+    active_gadgets: &mut ActiveGadgets,
     account_id: &AccountId32,
 ) -> bool {
     let registered_events = event.events.find::<Registered>();
@@ -45,7 +45,7 @@ pub(crate) async fn check_blueprint_events(
         match evt {
             Ok(evt) => {
                 logger.info(format!("Unregistered event: {evt:?}"));
-                if &evt.operator == account_id && active_shells.remove(&evt.blueprint_id).is_some()
+                if &evt.operator == account_id && active_gadgets.remove(&evt.blueprint_id).is_some()
                 {
                     logger.info(format!("Removed blueprint_id: {}", evt.blueprint_id,));
 
@@ -103,9 +103,9 @@ pub(crate) async fn maybe_handle_state_update(
     event: &TangleEvent,
     blueprints: &Vec<RpcServicesWithBlueprint>,
     logger: &DebugLogger,
-    shell_config: &GadgetConfig,
-    shell_manager_opts: &BlueprintManagerConfig,
-    active_shells: &mut ActiveShells,
+    gadget_config: &GadgetConfig,
+    blueprint_manager_opts: &BlueprintManagerConfig,
+    active_gadgets: &mut ActiveGadgets,
 ) -> color_eyre::Result<()> {
     logger.info(format!("Received notification {}", event.number));
     // TODO: Refactor into Vec<SourceMetadata<T>> where T: NativeGithubMetadata + [...]
@@ -153,9 +153,9 @@ pub(crate) async fn maybe_handle_state_update(
         blueprints,
         &onchain_services,
         &fetchers,
-        shell_config,
-        shell_manager_opts,
-        active_shells,
+        gadget_config,
+        blueprint_manager_opts,
+        active_gadgets,
         logger,
     )
     .await?;
@@ -165,7 +165,7 @@ pub(crate) async fn maybe_handle_state_update(
 
     // Loop through locally running gadget(s). If the validator no longer needs to
     // run the gadget(s), the process corresponding to the gadget gets killed and dropped
-    for (blueprint_id, process_handles) in &mut *active_shells {
+    for (blueprint_id, process_handles) in &mut *active_gadgets {
         for (service_id, process_handle) in process_handles {
             // TODO: verify logic
             if !onchain_services
@@ -189,7 +189,7 @@ pub(crate) async fn maybe_handle_state_update(
     }
 
     // Check to see if any process handles have died, triggering a restart later in the loop for that process
-    for (blueprint_id, process_handles) in &mut *active_shells {
+    for (blueprint_id, process_handles) in &mut *active_gadgets {
         for (service_id, process_handle) in process_handles {
             if !process_handle.0.load(Ordering::Relaxed) {
                 // By removing any killed processes, we will auto-restart them on the next finality notification if required
@@ -200,15 +200,15 @@ pub(crate) async fn maybe_handle_state_update(
 
     for (blueprint_id, service_id) in to_remove {
         let mut should_delete_blueprint = false;
-        if let Some(shells) = active_shells.get_mut(&blueprint_id) {
-            shells.remove(&service_id);
-            if shells.is_empty() {
+        if let Some(gadget) = active_gadgets.get_mut(&blueprint_id) {
+            gadget.remove(&service_id);
+            if gadget.is_empty() {
                 should_delete_blueprint = true;
             }
         }
 
         if should_delete_blueprint {
-            active_shells.remove(&blueprint_id);
+            active_gadgets.remove(&blueprint_id);
         }
     }
 

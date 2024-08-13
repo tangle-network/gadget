@@ -1,5 +1,5 @@
 use crate::config::BlueprintManagerConfig;
-use crate::gadget::ActiveShells;
+use crate::gadget::ActiveGadgets;
 use crate::protocols::resolver::NativeGithubMetadata;
 use crate::utils;
 use crate::utils::get_service_str;
@@ -17,9 +17,9 @@ pub async fn maybe_handle(
     blueprints: &Vec<RpcServicesWithBlueprint>,
     onchain_services: &[NativeGithubMetadata],
     onchain_gh_fetchers: &[&GithubFetcher],
-    shell_config: &GadgetConfig,
-    shell_manager_opts: &BlueprintManagerConfig,
-    active_shells: &mut ActiveShells,
+    gadget_config: &GadgetConfig,
+    blueprint_manager_opts: &BlueprintManagerConfig,
+    active_gadgets: &mut ActiveGadgets,
     logger: &DebugLogger,
 ) -> color_eyre::Result<()> {
     for (gh, fetcher) in onchain_services.iter().zip(onchain_gh_fetchers) {
@@ -35,10 +35,10 @@ pub async fn maybe_handle(
         if let Err(err) = handle_github_source(
             blueprints,
             &native_github_metadata,
-            shell_config,
-            shell_manager_opts,
+            gadget_config,
+            blueprint_manager_opts,
             fetcher,
-            active_shells,
+            active_gadgets,
             logger,
         )
         .await
@@ -53,15 +53,15 @@ pub async fn maybe_handle(
 async fn handle_github_source(
     blueprints: &Vec<RpcServicesWithBlueprint>,
     service: &NativeGithubMetadata,
-    shell_config: &GadgetConfig,
-    shell_manager_opts: &BlueprintManagerConfig,
+    gadget_config: &GadgetConfig,
+    blueprint_manager_opts: &BlueprintManagerConfig,
     github: &GithubFetcher,
-    active_shells: &mut ActiveShells,
+    active_gadgets: &mut ActiveGadgets,
     logger: &DebugLogger,
 ) -> color_eyre::Result<()> {
     let blueprint_id = service.blueprint_id;
     let service_str = get_service_str(service);
-    if !active_shells.contains_key(&blueprint_id) {
+    if !active_gadgets.contains_key(&blueprint_id) {
         // Maybe add in the protocol to the active shells
         let relevant_binary =
             get_gadget_binary(&github.binaries.0).ok_or_eyre("Unable to find matching binary")?;
@@ -122,8 +122,8 @@ async fn handle_github_source(
                     let sub_service_str = format!("{service_str}-{service_id}");
                     // Each spawned binary will effectively run a single "RoleType" in old parlance
                     let arguments = utils::generate_process_arguments(
-                        shell_config,
-                        shell_manager_opts,
+                        gadget_config,
+                        blueprint_manager_opts,
                         blueprint_id,
                         service_id,
                     )?;
@@ -147,7 +147,7 @@ async fn handle_github_source(
                         &sub_service_str,
                     );
 
-                    active_shells
+                    active_gadgets
                         .entry(blueprint_id)
                         .or_default()
                         .insert(service_id, (status_handle, Some(abort)));

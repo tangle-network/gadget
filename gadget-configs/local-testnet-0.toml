@@ -1,8 +1,6 @@
 bind_ip = "0.0.0.0"
 bind_port = 30555
 bootnodes = []
-# 12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN
-node_key = "0000000000000000000000000000000000000000000000000000000000000000"
 chain = "local_testnet"
 base_path = "../tangle/tmp/alice"
 verbose=1

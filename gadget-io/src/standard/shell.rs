@@ -1,4 +1,3 @@
-use color_eyre::Result;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
@@ -62,7 +61,7 @@ impl Display for SupportedChains {
 }
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
-/// All shells should expect this as CLI input. The Shell Manager will be responsible for passing these values to the shell.
+/// All shells should expect this as CLI input. The Blueprint Manager will be responsible for passing these values to this gadget binary
 pub struct GadgetConfig {
     /// The IP address to bind to for the libp2p node.
     #[structopt(long = "bind-ip", short = "i", default_value = defaults::BIND_IP)]
@@ -80,10 +79,6 @@ pub struct GadgetConfig {
     #[structopt(long = "bootnodes", parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
     #[serde(default)]
     pub bootnodes: Vec<Multiaddr>,
-    /// The node key in hex format. If not provided, a random node key will be generated.
-    #[structopt(long = "node-key", env, parse(try_from_str = parse_node_key))]
-    #[serde(skip_serializing)]
-    pub node_key: Option<String>,
     /// The base path to store the shell-sdk data, and read data from the keystore.
     #[structopt(
         parse(from_os_str),
@@ -133,21 +128,4 @@ pub mod defaults {
     pub fn bind_port() -> u16 {
         BIND_PORT.parse().expect("Default bind port is valid")
     }
-
-    /// Generates a random node key
-    pub fn generate_node_key() -> [u8; 32] {
-        use rand::Rng;
-
-        let mut rng = rand::thread_rng();
-        let mut array = [0u8; 32];
-        rng.fill(&mut array);
-        array
-    }
-}
-
-fn parse_node_key(s: &str) -> Result<String> {
-    let result: [u8; 32] = hex::decode(s.replace("0x", ""))?.try_into().map_err(|_| {
-        color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
-    })?;
-    Ok(hex::encode(result))
 }

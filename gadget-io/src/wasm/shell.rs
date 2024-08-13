@@ -13,8 +13,8 @@ pub struct Opt {
     pub verbose: i32,
     /// Whether to use pretty logging
     pub pretty: bool,
-    /// The options for the shell
-    pub options: ShellTomlConfig,
+    /// The options for the gadget
+    pub options: GadgetTomlConfig,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Tsify)]
@@ -30,8 +30,8 @@ pub enum SupportedChains {
 
 #[derive(Debug, Serialize, Deserialize, Tsify)]
 #[tsify(from_wasm_abi)]
-/// All shells should expect this as CLI input. The Shell Manager will be responsible for passing these values to the shell.
-pub struct ShellTomlConfig {
+/// All gadgets should expect this as CLI input. The Blueprint Manager will be responsible for passing these values to the gadget binary.
+pub struct GadgetTomlConfig {
     /// The IP address to bind to for the libp2p node.
     pub bind_ip: IpAddr,
     /// The port to bind to for the libp2p node.
@@ -40,8 +40,6 @@ pub struct ShellTomlConfig {
     pub url: url::Url,
     /// The List of bootnodes to connect to
     pub bootnodes: Vec<Multiaddr>,
-    /// The node key in hex format. If not provided, a random node key will be generated.
-    pub node_key: Option<String>,
     /// The base path to store the shell-sdk data, and read data from the keystore.
     pub base_path: PathBuf,
     /// Keystore Password, if not provided, the password will be read from the environment variable.

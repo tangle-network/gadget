@@ -3,12 +3,12 @@ use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
-    name = "Shell Manager",
+    name = "Blueprint Manager",
     about = "An program executor that connects to the Tangle network and runs protocols dynamically on the fly"
 )]
 pub struct BlueprintManagerConfig {
     /// The path to the shell configuration file
-    #[structopt(parse(from_os_str), short = "s", long = "shell-config")]
+    #[structopt(parse(from_os_str), short = "s", long = "gadget-config")]
     pub gadget_config: Option<PathBuf>,
     /// The verbosity level, can be used multiple times
     #[structopt(long, short = "v", parse(from_occurrences))]

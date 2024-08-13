@@ -145,7 +145,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
     let tangle_runtime = tangle_environment.setup_runtime().await?;
     let runtime = ServicesClient::new(logger.clone(), tangle_runtime.client());
-    let mut active_shells = HashMap::new();
+    let mut active_gadgets = HashMap::new();
 
     // With the basics setup, we must now implement the main logic
     //
@@ -176,7 +176,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         logger,
         &gadget_config,
         &blueprint_manager_config,
-        &mut active_shells,
+        &mut active_gadgets,
     )
     .await?;
 
@@ -188,7 +188,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
             let needs_update = event_handler::check_blueprint_events(
                 &event,
                 &logger_manager,
-                &mut active_shells,
+                &mut active_gadgets,
                 &sub_account_id,
             )
             .await;
@@ -208,7 +208,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
                 &logger_manager,
                 &gadget_config,
                 &blueprint_manager_config,
-                &mut active_shells,
+                &mut active_gadgets,
             )
             .await?;
         }

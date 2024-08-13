@@ -21,16 +21,16 @@ cargo build --release
 bash ./scripts/run-standalone-local.sh --clean
 ```
 
-### Setup Gadget Shell
+### Setup the Gadget Binary
 
-1. Compile the Gadget Shell in release mode
+1. Compile the Gadget Binary in release mode
 ```bash
 cargo build --release
 ```
-2. Run the `target/release/gadget-shell` binary using the following command:
+2. Run the `target/release/gadget-binary` binary using the following command:
 
 ```bash
-./target/release/gadget-shell-sdk --config shell-sdk-configs/local-testnet-0.toml -vvv
+./target/release/gadget-binary-sdk --config gadget-sdk-configs/local-testnet-0.toml -vvv
 ```
 
 > Note: The `--config` flag is used to specify the configuration file to use. In this case, we are using the `local-testnet-0.toml` configuration file.
@@ -38,11 +38,11 @@ cargo build --release
 3. Run different shells with different configurations to simulate a network of shells.
 
 ```bash
-./target/release/gadget-shell-sdk --config shell-sdk-configs/local-testnet-1.toml -vvv
+./target/release/gadget-binary-sdk --config gadget-sdk-configs/local-testnet-1.toml -vvv
 ```
 
 ```bash
-./target/release/gadget-shell-sdk --config shell-sdk-configs/local-testnet-2.toml -vvv
+./target/release/gadget-binary-sdk --config gadget-sdk-configs/local-testnet-2.toml -vvv
 ```
 
 > Note: You will notice they automatically connect to each other and start exchanging messages.

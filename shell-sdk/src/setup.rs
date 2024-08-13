@@ -11,28 +11,30 @@ use gadget_common::{
     keystore::ECDSAKeyStore,
 };
 use gadget_io::tokio::task::JoinHandle;
-use sp_core::{ed25519, keccak_256, sr25519, Pair};
+use sp_core::{keccak_256, sr25519, Pair};
 
-use crate::config::ShellConfig;
+use crate::config::SingleGadgetConfig;
 pub use gadget_io::KeystoreContainer;
 use gadget_sdk::network::gossip::GossipHandle;
 use gadget_sdk::network::setup::NetworkConfig;
 use itertools::Itertools;
 use libp2p::Multiaddr;
 
-pub type ShellNodeInput<KBE, Env> = NodeInput<Env, GossipHandle, KBE, ()>;
+pub type SingleGadgetInput<KBE, Env> = NodeInput<Env, GossipHandle, KBE, ()>;
 
 /// Generates the NodeInput and handle to the networking layer for the given config.
 #[tracing::instrument(skip(config))]
 pub async fn generate_node_input<KBE: KeystoreBackend, Env: GadgetEnvironment>(
-    config: ShellConfig<KBE, Env>,
-) -> color_eyre::Result<(ShellNodeInput<KBE, Env>, JoinHandle<()>)> {
+    config: SingleGadgetConfig<KBE, Env>,
+) -> color_eyre::Result<(SingleGadgetInput<KBE, Env>, JoinHandle<()>)> {
     let (role_key, acco_key) = load_keys_from_keystore(&config.keystore)?;
-    let network_key = ed25519::Pair::from_seed(&config.node_key);
+    //let network_key = ed25519::Pair::from_seed(&config.node_key).to_raw_vec();
     let logger = DebugLogger::default();
     let wrapped_keystore = ECDSAKeyStore::new(config.keystore_backend.clone(), role_key.clone());
 
-    let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key.to_raw_vec())
+    // Use the first 32 bytes of the sr25519 account key as the network key
+    let network_key = &mut acco_key.as_ref().to_half_ed25519_bytes()[..32];
+    let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key)
         .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))?;
 
     // Create a network for each subprotocol in the protocol (e.g., keygen, signing, refresh, rotate, = 4 total subprotocols = n_protocols)
@@ -81,7 +83,7 @@ pub fn generate_node_input_for_role_group<KBE, Env: GadgetEnvironment>(
     logger: DebugLogger,
     tx_manager: Env::TransactionManager,
     keystore: ECDSAKeyStore<KBE>,
-) -> color_eyre::Result<ShellNodeInput<KBE, Env>>
+) -> color_eyre::Result<SingleGadgetInput<KBE, Env>>
 where
     KBE: KeystoreBackend,
 {
@@ -113,7 +115,7 @@ pub async fn generate_node_input_for_required_protocols<KBE, Env: GadgetEnvironm
     acco_key: sr25519::Pair,
     logger: DebugLogger,
     keystore: ECDSAKeyStore<KBE>,
-) -> color_eyre::Result<ShellNodeInput<KBE, Env>>
+) -> color_eyre::Result<SingleGadgetInput<KBE, Env>>
 where
     KBE: KeystoreBackend,
 {

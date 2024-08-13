@@ -58,18 +58,11 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         instance_id: Some(format!("Test Node {}", input.instance_id)),
     };
 
-    // The same format as the node_key in ./shell-configs/local-testnet-{input.instance_id}.toml
-    let node_key = format!(
-        "000000000000000000000000000000000000000000000000000000000000000{}",
-        input.instance_id
-    );
-
     let gadget_config = GadgetConfig {
         bind_ip: input.bind_ip,
         bind_port: input.bind_port,
         url: input.local_tangle_node,
         bootnodes: input.bootnodes,
-        node_key: Some(node_key),
         base_path: PathBuf::from(input.base_path),
         keystore_password: None,
         chain: SupportedChains::LocalTestnet,

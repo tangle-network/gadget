@@ -46,14 +46,14 @@ cd gadget
 cargo build --release
 ```
 
-### Running the Gadget Shell
-The gadget shell is a standalone application that provides a command-line interface for interacting with the Gadget and the blockchain. To run the shell, use the following command:
+### Running the Gadget Binary
+The gadget binary is a standalone application that provides a command-line interface for interacting with the Gadget and the blockchain. To run the shell, use the following command:
 
 ```bash
-./target/release/blueprint-manager --protocols-config ./global_protocols.toml --shell-config shell-configs/local-testnet-0.toml -vvv
+./target/release/blueprint-manager --protocols-config ./global_protocols.toml --gadget-config gadget-configs/local-testnet-0.toml -vvv
 ```
 
-Before running that command, make sure that a [tangle](https://github.com/webb-tools/tangle/) node is running, otherwise, the shell will fail.
+Before running that command, make sure that a [tangle](https://github.com/webb-tools/tangle/) node is running, otherwise, the gadget binary will fail.
 
 ### Creating a New Protocol
 To create a new protocol using Gadget, clone the [protocol-template](https://github.com/webb-tools/protocol-template) and begin hacking!
@@ -70,7 +70,7 @@ RUST_LOG=gadget=trace cargo nextest run
 ```
 
 ### Integration testing
-Integration testing involves a multi-step process that includes running a tangle node, running multiple gadget shells each with a separate config, and submitting jobs manually.
+Integration testing involves a multi-step process that includes running a tangle node, running multiple gadget binaries each with a separate config, and submitting jobs manually.
 To run the integration tests, make sure the aforementioned steps are followed for building the executables, then, follow these steps:
 
 1. Run a tangle node from the [tangle repository](https://github.com/webb-tools/tangle/)
@@ -83,7 +83,7 @@ bash ./scripts/run-standalone-local.sh --clean
 bash ./scripts/run-gadget-local.sh
 ```
 
-3. Once the shells are running, open a separate terminal, navigate to the tangle directory, and run:
+3. Once the gadgets are running, open a separate terminal, navigate to the tangle directory, and run:
 ```bash
 cd types && yarn && ts-node playground.ts 
 ```
@@ -105,7 +105,7 @@ brew install gmp
 export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
 export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
 ```
-Note: You need to set these environment variables each time you start a new shell session or append them to your .zshrc file.
+Note: You need to set these environment variables each time you start a new gadget session or append them to your .zshrc file.
 
 ### Foundry
 In order to use the incredible-squaring blueprint, you need to have the Foundry CLI installed. You can install it here: [Foundry CLI](https://ethereum-blockchain-developer.com/2022-06-nft-truffle-hardhat-foundry/14-foundry-setup/)

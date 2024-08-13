@@ -11,7 +11,7 @@ async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
     let blueprint_manager_config = BlueprintManagerConfig::from_args();
 
-    entry::setup_shell_logger(
+    entry::setup_blueprint_manager_logger(
         blueprint_manager_config.verbose,
         blueprint_manager_config.pretty,
         "gadget",

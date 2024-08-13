@@ -1,8 +1,8 @@
-use crate::shell::ShellNodeInput;
+use crate::setup::SingleGadgetInput;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, KeystoreBackend};
 use gadget_core::job_manager::SendFuture;
-use gadget_io::{defaults, GadgetConfig, SupportedChains};
+use gadget_io::{GadgetConfig, SupportedChains};
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 use tracing_subscriber::fmt::SubscriberBuilder;
@@ -23,17 +23,11 @@ pub fn keystore_from_base_path(
     }
 }
 
-pub fn node_key_to_bytes<T: AsRef<[u8]>>(hex: T) -> color_eyre::Result<[u8; 32]> {
-    hex::decode(hex)?
-        .try_into()
-        .map_err(|_| color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string"))
-}
-
-/// Runs a shell for a given protocol.
-pub async fn run_shell_for_protocol<
+/// Runs a gadget for a given protocol.
+pub async fn run_gadget_for_protocol<
     Env: GadgetEnvironment,
     KBE: KeystoreBackend,
-    T: FnOnce(ShellNodeInput<KBE, Env>) -> F,
+    T: FnOnce(SingleGadgetInput<KBE, Env>) -> F,
     F,
     T2: FnOnce() -> F2,
     F2: SendFuture<'static, KBE>,
@@ -53,7 +47,7 @@ where
 
     if config.is_err() {
         return Err(color_eyre::Report::msg(format!(
-            "Failed to parse shell config: {config:?}"
+            "Failed to parse gadget config: {config:?}"
         )));
     }
 
@@ -66,15 +60,9 @@ where
         id: "test".to_string(),
     };
 
-    logger.info("Starting shell with config: {config:?}");
+    logger.info("Starting gadget with config: {config:?}");
 
-    let node_key = node_key_to_bytes(
-        config
-            .node_key
-            .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
-    )?;
-
-    let (node_input, network_handle) = crate::generate_node_input(crate::ShellConfig {
+    let (node_input, network_handle) = crate::generate_node_input(crate::SingleGadgetConfig {
         keystore_backend,
         services,
         keystore,
@@ -83,7 +71,6 @@ where
         bind_ip: config.bind_ip,
         bind_port: config.bind_port,
         bootnodes: config.bootnodes,
-        node_key,
         n_protocols,
     })
     .await?;
@@ -102,7 +89,11 @@ where
 }
 
 /// Sets up the logger for the shell-sdk, based on the verbosity level passed in.
-pub fn setup_shell_logger(verbose: i32, pretty: bool, filter: &str) -> color_eyre::Result<()> {
+pub fn setup_blueprint_manager_logger(
+    verbose: i32,
+    pretty: bool,
+    filter: &str,
+) -> color_eyre::Result<()> {
     use tracing::Level;
     let log_level = match verbose {
         0 => Level::ERROR,
