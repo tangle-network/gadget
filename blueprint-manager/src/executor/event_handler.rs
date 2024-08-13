@@ -11,7 +11,7 @@ use tangle_environment::gadget::TangleEvent;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{
-    JobCalled, JobResultSubmitted, Registered, ServiceInitiated, Unregistered,
+    JobCalled, JobResultSubmitted, PreRegistration, Registered, ServiceInitiated, Unregistered,
 };
 
 /// Returns true if the blueprint manager needs to update the list of operator-subscribed blueprints
@@ -21,18 +21,35 @@ pub(crate) async fn check_blueprint_events(
     active_gadgets: &mut ActiveGadgets,
     account_id: &AccountId32,
 ) -> bool {
+    let preregistered_events = event.events.find::<PreRegistration>();
     let registered_events = event.events.find::<Registered>();
     let unregistered_events = event.events.find::<Unregistered>();
     let service_initiated_events = event.events.find::<ServiceInitiated>();
     let job_called_events = event.events.find::<JobCalled>();
     let job_result_submitted_events = event.events.find::<JobResultSubmitted>();
 
+    let mut needs_update = false;
+    // Handle preregistered events
+    for evt in preregistered_events {
+        match evt {
+            Ok(evt) => {
+                if &evt.operator == account_id {
+                    logger.info(format!("Pre-registered event: {evt:?}"));
+                    needs_update = true;
+                }
+            }
+            Err(err) => {
+                logger.warn(format!("Error handling pre-registered event: {err:?}"));
+            }
+        }
+    }
+
     // Handle blueprint registered events
     for evt in registered_events {
         match evt {
             Ok(evt) => {
                 logger.info(format!("Blueprint registered event: {evt:?}"));
-                return true;
+                needs_update = true;
             }
             Err(err) => {
                 logger.warn(format!("Error handling registered event: {err:?}"));
@@ -48,8 +65,7 @@ pub(crate) async fn check_blueprint_events(
                 if &evt.operator == account_id && active_gadgets.remove(&evt.blueprint_id).is_some()
                 {
                     logger.info(format!("Removed blueprint_id: {}", evt.blueprint_id,));
-
-                    return true;
+                    needs_update = true;
                 }
             }
             Err(err) => {
@@ -96,7 +112,7 @@ pub(crate) async fn check_blueprint_events(
         }
     }
 
-    false
+    needs_update
 }
 
 pub(crate) async fn maybe_handle_state_update(

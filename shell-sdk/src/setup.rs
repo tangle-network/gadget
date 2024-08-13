@@ -32,7 +32,9 @@ pub async fn generate_node_input<KBE: KeystoreBackend, Env: GadgetEnvironment>(
     let logger = DebugLogger::default();
     let wrapped_keystore = ECDSAKeyStore::new(config.keystore_backend.clone(), role_key.clone());
 
-    // Use the first 32 bytes of the sr25519 account key as the network key
+    // Use the first 32 bytes of the sr25519 account key as the network key. We discard the 32 remaining nonce seed bytes
+    // thus ensuring that the network key, when used, will actually have slightly different properties than the original
+    // key since the nonces will not be the same.
     let network_key = &mut acco_key.as_ref().to_half_ed25519_bytes()[..32];
     let libp2p_key = libp2p::identity::Keypair::ed25519_from_bytes(network_key)
         .map_err(|e| color_eyre::eyre::eyre!("Failed to create libp2p keypair: {e}"))?;

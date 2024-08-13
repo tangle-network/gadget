@@ -117,6 +117,8 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         id: format!("blueprint-manager-{}", logger_id),
     };
 
+    logger.info("Starting blueprint manager ...");
+
     let logger_clone = logger.clone();
 
     let keystore = keystore_from_base_path(
@@ -128,6 +130,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let sr25519_keypair = keystore.sr25519_key()?;
 
     let mut secret_key = [0u8; 32];
+    // The `secret` field is 64 bytes. The first 32 bytes are the secret key, the last 32 bytes are seeds to the nonces.
     secret_key.clone_from_slice(&sr25519_keypair.as_ref().secret.to_bytes()[..32]);
 
     let sr25519_private_key = sr25519::Keypair::from_secret_key(secret_key)
