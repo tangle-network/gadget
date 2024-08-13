@@ -67,7 +67,7 @@ async fn main() -> color_eyre::Result<()> {
         -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
     */
 
-    let (blueprints, init_event) = if let Some(event) = tangle_runtime.next_event().await {
+    let (mut blueprints, init_event) = if let Some(event) = tangle_runtime.next_event().await {
         (
             utils::get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?,
             event,
@@ -90,6 +90,12 @@ async fn main() -> color_eyre::Result<()> {
     let manager_task = async move {
         // Step 2: Listen to FinalityNotifications and poll for new/deleted services that correspond to the blueprints above
         while let Some(event) = tangle_runtime.next_event().await {
+            let result = handle_tangle_block(&event, logger, &mut active_shells, &sub_account_id).await;
+
+            if result.needs_update {
+                blueprints = utils::get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?;
+            }
+
             handle_tangle_event(
                 &event,
                 &blueprints,
@@ -97,10 +103,9 @@ async fn main() -> color_eyre::Result<()> {
                 &shell_config,
                 opt,
                 &mut active_shells,
+                result,
             )
             .await?;
-
-            handle_tangle_block(event, logger, &mut active_shells, &sub_account_id).await;
         }
 
         Err::<(), _>(utils::msg_to_error("Finality Notification stream died"))
@@ -120,12 +125,19 @@ async fn main() -> color_eyre::Result<()> {
     }
 }
 
+#[derive(Default, Debug)]
+struct EventPollResult {
+    needs_update: bool,
+    // A vec of blueprints we have not yet become registered to
+    registration_mode: Vec<u64>,
+}
+
 async fn handle_tangle_block(
-    event: TangleEvent,
+    event: &TangleEvent,
     logger: &DebugLogger,
     active_shells: &mut ActiveShells,
     account_id: &AccountId32,
-) {
+) -> EventPollResult {
     let pre_registation_events = event.events.find::<PreRegistration>();
     let registered_events = event.events.find::<Registered>();
     let unregistered_events = event.events.find::<Unregistered>();
@@ -133,21 +145,28 @@ async fn handle_tangle_block(
     let job_called_events = event.events.find::<JobCalled>();
     let job_result_submitted_events = event.events.find::<JobResultSubmitted>();
 
+    let mut result = EventPollResult::default();
+
     for evt in pre_registation_events {
         match evt {
             Ok(evt) => {
-                logger.info(format!("Pre-registered event: {evt:?}"));
+                if &evt.operator == account_id {
+                    result.registration_mode.push(evt.blueprint_id);
+                    logger.info(format!("Pre-registered event: {evt:?}"));
+                }
             }
             Err(err) => {
                 logger.warn(format!("Error handling pre-registered event: {err:?}"));
             }
         }
     }
+
     // Handle registered events
     for evt in registered_events {
         match evt {
             Ok(evt) => {
                 logger.info(format!("Registered event: {evt:?}"));
+                result.needs_update = true;
             }
             Err(err) => {
                 logger.warn(format!("Error handling registered event: {err:?}"));
@@ -163,9 +182,11 @@ async fn handle_tangle_block(
                 if &evt.operator == account_id && active_shells.remove(&evt.blueprint_id).is_some()
                 {
                     logger.info(format!(
-                        "Removed all services for blueprint_id: {}",
+                        "Removed services for blueprint_id: {}",
                         evt.blueprint_id,
                     ));
+
+                    result.needs_update = true;
                 }
             }
             Err(err) => {
@@ -211,6 +232,8 @@ async fn handle_tangle_block(
             }
         }
     }
+
+    result
 }
 
 async fn handle_tangle_event(
@@ -220,12 +243,15 @@ async fn handle_tangle_event(
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
     active_shells: &mut ActiveShells,
+    poll_result: EventPollResult,
 ) -> color_eyre::Result<()> {
     logger.info(format!("Received notification {}", event.number));
     // TODO: Refactor into Vec<SourceMetadata<T>> where T: NativeGithubMetadata + [...]
     let mut onchain_services = vec![];
     let mut fetchers = vec![];
     let mut service_ids = vec![];
+
+    let mut valid_blueprint_ids = vec![];
 
     for blueprint in blueprints {
         let mut services_for_this_blueprint = vec![];
@@ -237,6 +263,7 @@ async fn handle_tangle_event(
                 let metadata = github_fetcher_to_native_github_metadata(gh, blueprint.blueprint_id);
                 onchain_services.push(metadata);
                 fetchers.push(gh);
+                valid_blueprint_ids.push(blueprint.blueprint_id);
 
                 for service in &blueprint.services {
                     services_for_this_blueprint.push(service.id);
@@ -271,6 +298,7 @@ async fn handle_tangle_event(
         shell_manager_opts,
         active_shells,
         logger,
+        poll_result,
     )
     .await?;
 

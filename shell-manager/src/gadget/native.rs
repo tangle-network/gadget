@@ -1,7 +1,7 @@
 use crate::config::ShellManagerOpts;
 use crate::gadget::ActiveShells;
 use crate::protocols::resolver::NativeGithubMetadata;
-use crate::utils;
+use crate::{EventPollResult, utils};
 use crate::utils::get_service_str;
 use color_eyre::eyre::OptionExt;
 use gadget_common::prelude::DebugLogger;
@@ -21,15 +21,16 @@ pub async fn maybe_handle(
     shell_manager_opts: &ShellManagerOpts,
     active_shells: &mut ActiveShells,
     logger: &DebugLogger,
+    event_poll_result: EventPollResult,
 ) -> color_eyre::Result<()> {
-    for (gh, fetcher) in onchain_services.iter().zip(onchain_gh_fetchers) {
+    for ((gh, fetcher), blueprint_id) in onchain_services.iter().zip(onchain_gh_fetchers).zip(event_poll_result.registration_mode.clone()) {
         let native_github_metadata = NativeGithubMetadata {
             git: gh.git.clone(),
             tag: gh.tag.clone(),
             owner: gh.owner.clone(),
             repo: gh.repo.clone(),
             gadget_binaries: fetcher.binaries.0.clone(),
-            blueprint_id: gh.blueprint_id,
+            blueprint_id,
         };
 
         if let Err(err) = handle_github_source(
@@ -58,6 +59,7 @@ async fn handle_github_source(
     github: &GithubFetcher,
     active_shells: &mut ActiveShells,
     logger: &DebugLogger,
+    event_poll_result: EventPollResult,
 ) -> color_eyre::Result<()> {
     let blueprint_id = service.blueprint_id;
     let service_str = get_service_str(service);
@@ -115,6 +117,7 @@ async fn handle_github_source(
             }
         }
 
+        // TODO: Scan for pre-registers here.
         for blueprint in blueprints {
             if blueprint.blueprint_id == blueprint_id {
                 for svc in &blueprint.services {
