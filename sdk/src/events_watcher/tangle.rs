@@ -3,7 +3,7 @@
 #[derive(Debug, Default, Clone, Copy)]
 pub struct TangleEventsWatcher;
 
-/// A Type alias for the Tangle configuration [`subxt::SubstrateConfig`].
+/// A Type alias for the Tangle configuration [`subxt::PolkadotConfig`].
 pub type TangleConfig = subxt::PolkadotConfig;
 
 #[async_trait::async_trait]
