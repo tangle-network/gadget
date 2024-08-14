@@ -1,3 +1,0 @@
-[profile.default]
-test-threads = 1
-retries = 2
