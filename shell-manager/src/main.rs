@@ -1,9 +1,12 @@
+use crate::gadget::native::FilteredBlueprint;
 use crate::gadget::ActiveShells;
 use crate::utils::github_fetcher_to_native_github_metadata;
+use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
 use config::ShellManagerOpts;
 use gadget_common::gadget_io;
 use gadget_common::prelude::GadgetEnvironment;
+use gadget_common::tangle_runtime::api::services::events::PreRegistration;
 use gadget_io::ShellTomlConfig;
 use shell_sdk::entry::keystore_from_base_path;
 use shell_sdk::keystore::load_keys_from_keystore;
@@ -16,6 +19,7 @@ use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
 use tangle_environment::gadget::{SubxtConfig, TangleEvent};
 use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::utils::AccountId32;
+use tangle_subxt::subxt::PolkadotConfig;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{
@@ -66,7 +70,7 @@ async fn main() -> color_eyre::Result<()> {
         -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
     */
 
-    let (blueprints, init_event) = if let Some(event) = tangle_runtime.next_event().await {
+    let (mut blueprints, init_event) = if let Some(event) = tangle_runtime.next_event().await {
         (
             utils::get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?,
             event,
@@ -76,6 +80,9 @@ async fn main() -> color_eyre::Result<()> {
     };
 
     logger.info(format!("Received {} blueprints", blueprints.len()));
+
+    let poll_result =
+        handle_tangle_block(&init_event, logger, &mut active_shells, &sub_account_id).await;
     handle_tangle_event(
         &init_event,
         &blueprints,
@@ -83,12 +90,22 @@ async fn main() -> color_eyre::Result<()> {
         &shell_config,
         opt,
         &mut active_shells,
+        poll_result,
+        &runtime,
     )
     .await?;
 
     let manager_task = async move {
         // Step 2: Listen to FinalityNotifications and poll for new/deleted services that correspond to the blueprints above
         while let Some(event) = tangle_runtime.next_event().await {
+            let result =
+                handle_tangle_block(&event, logger, &mut active_shells, &sub_account_id).await;
+
+            if result.needs_update {
+                blueprints =
+                    utils::get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?;
+            }
+
             handle_tangle_event(
                 &event,
                 &blueprints,
@@ -96,10 +113,10 @@ async fn main() -> color_eyre::Result<()> {
                 &shell_config,
                 opt,
                 &mut active_shells,
+                result,
+                &runtime,
             )
             .await?;
-
-            handle_tangle_block(event, logger, &mut active_shells, &sub_account_id).await;
         }
 
         Err::<(), _>(utils::msg_to_error("Finality Notification stream died"))
@@ -119,23 +136,48 @@ async fn main() -> color_eyre::Result<()> {
     }
 }
 
+#[derive(Default, Debug)]
+struct EventPollResult {
+    needs_update: bool,
+    // A vec of blueprints we have not yet become registered to
+    blueprint_registrations: Vec<u64>,
+}
+
 async fn handle_tangle_block(
-    event: TangleEvent,
+    event: &TangleEvent,
     logger: &DebugLogger,
     active_shells: &mut ActiveShells,
     account_id: &AccountId32,
-) {
+) -> EventPollResult {
+    let pre_registation_events = event.events.find::<PreRegistration>();
     let registered_events = event.events.find::<Registered>();
     let unregistered_events = event.events.find::<Unregistered>();
     let service_initiated_events = event.events.find::<ServiceInitiated>();
     let job_called_events = event.events.find::<JobCalled>();
     let job_result_submitted_events = event.events.find::<JobResultSubmitted>();
 
+    let mut result = EventPollResult::default();
+
+    for evt in pre_registation_events {
+        match evt {
+            Ok(evt) => {
+                if &evt.operator == account_id {
+                    result.blueprint_registrations.push(evt.blueprint_id);
+                    logger.info(format!("Pre-registered event: {evt:?}"));
+                }
+            }
+            Err(err) => {
+                logger.warn(format!("Error handling pre-registered event: {err:?}"));
+            }
+        }
+    }
+
     // Handle registered events
     for evt in registered_events {
         match evt {
             Ok(evt) => {
                 logger.info(format!("Registered event: {evt:?}"));
+                result.needs_update = true;
             }
             Err(err) => {
                 logger.warn(format!("Error handling registered event: {err:?}"));
@@ -151,9 +193,11 @@ async fn handle_tangle_block(
                 if &evt.operator == account_id && active_shells.remove(&evt.blueprint_id).is_some()
                 {
                     logger.info(format!(
-                        "Removed all services for blueprint_id: {}",
+                        "Removed services for blueprint_id: {}",
                         evt.blueprint_id,
                     ));
+
+                    result.needs_update = true;
                 }
             }
             Err(err) => {
@@ -199,36 +243,81 @@ async fn handle_tangle_block(
             }
         }
     }
+
+    result
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_tangle_event(
     event: &TangleEvent,
-    blueprints: &Vec<RpcServicesWithBlueprint>,
+    blueprints: &[RpcServicesWithBlueprint],
     logger: &DebugLogger,
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
     active_shells: &mut ActiveShells,
+    poll_result: EventPollResult,
+    client: &ServicesClient<PolkadotConfig>,
 ) -> color_eyre::Result<()> {
     logger.info(format!("Received notification {}", event.number));
+
+    let mut registration_blueprints = vec![];
+    // First, check to see if we need to register any new services invoked by the PreRegistration event
+    if !poll_result.blueprint_registrations.is_empty() {
+        for blueprint_id in &poll_result.blueprint_registrations {
+            let blueprint = client
+                .get_blueprint_by_id(event.hash, *blueprint_id)
+                .await?
+                .ok_or_eyre("Unable to retrieve blueprint for registration mode")?;
+
+            let general_blueprint = FilteredBlueprint {
+                blueprint_id: *blueprint_id,
+                services: vec![0], // Add a dummy service id for now, since it does not matter for registration mode
+                gadget: blueprint.gadget,
+                registration_mode: true,
+            };
+
+            registration_blueprints.push(general_blueprint);
+        }
+    }
+
     // TODO: Refactor into Vec<SourceMetadata<T>> where T: NativeGithubMetadata + [...]
     let mut onchain_services = vec![];
     let mut fetchers = vec![];
     let mut service_ids = vec![];
+    let mut valid_blueprint_ids = vec![];
 
-    for blueprint in blueprints {
+    let mut blueprints_filtered = vec![];
+
+    for blueprint in blueprints
+        .iter()
+        .map(|r| {
+            let r = FilteredBlueprint {
+                blueprint_id: r.blueprint_id,
+                services: r.services.iter().map(|r| r.id).collect(),
+                gadget: r.blueprint.gadget.clone(),
+                registration_mode: false,
+            };
+
+            r
+        })
+        .chain(registration_blueprints)
+    {
         let mut services_for_this_blueprint = vec![];
         if let runtime_types::tangle_primitives::services::Gadget::Native(gadget) =
-            &blueprint.blueprint.gadget
+            &blueprint.gadget
         {
             let gadget_source = &gadget.soruces.0[0];
             if let GadgetSourceFetcher::Github(gh) = &gadget_source.fetcher {
                 let metadata = github_fetcher_to_native_github_metadata(gh, blueprint.blueprint_id);
                 onchain_services.push(metadata);
-                fetchers.push(gh);
+                fetchers.push(gh.clone());
+                valid_blueprint_ids.push(blueprint.blueprint_id);
 
                 for service in &blueprint.services {
-                    services_for_this_blueprint.push(service.id);
+                    services_for_this_blueprint.push(*service);
                 }
+
+                blueprints_filtered.push(blueprint);
             } else {
                 logger.warn(
                     "Blueprint does not contain a Github fetcher and thus currently unsupported",
@@ -252,7 +341,7 @@ async fn handle_tangle_event(
 
     // Step 3: Check to see if we need to start any new services
     gadget::native::maybe_handle(
-        blueprints,
+        &blueprints_filtered,
         &onchain_services,
         &fetchers,
         shell_config,

@@ -7,16 +7,23 @@ use color_eyre::eyre::OptionExt;
 use gadget_common::prelude::DebugLogger;
 use gadget_io::ShellTomlConfig;
 use std::fmt::Write;
-use tangle_environment::api::RpcServicesWithBlueprint;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
-    GadgetBinary, GithubFetcher,
+    Gadget, GadgetBinary, GithubFetcher,
 };
 use tokio::io::AsyncWriteExt;
 
+pub struct FilteredBlueprint {
+    pub blueprint_id: u64,
+    pub services: Vec<u64>,
+    pub gadget: Gadget,
+    pub registration_mode: bool,
+}
+
+#[allow(clippy::too_many_arguments)]
 pub async fn maybe_handle(
-    blueprints: &Vec<RpcServicesWithBlueprint>,
+    blueprints: &[FilteredBlueprint],
     onchain_services: &[NativeGithubMetadata],
-    onchain_gh_fetchers: &[&GithubFetcher],
+    onchain_gh_fetchers: &[GithubFetcher],
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
     active_shells: &mut ActiveShells,
@@ -50,8 +57,9 @@ pub async fn maybe_handle(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_github_source(
-    blueprints: &Vec<RpcServicesWithBlueprint>,
+    blueprints: &[FilteredBlueprint],
     service: &NativeGithubMetadata,
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
@@ -117,16 +125,38 @@ async fn handle_github_source(
 
         for blueprint in blueprints {
             if blueprint.blueprint_id == blueprint_id {
-                for svc in &blueprint.services {
-                    let service_id = svc.id;
+                for service_id in &blueprint.services {
                     let sub_service_str = format!("{service_str}-{service_id}");
                     // Each spawned binary will effectively run a single "RoleType" in old parlance
                     let arguments = utils::generate_process_arguments(
                         shell_config,
                         shell_manager_opts,
                         blueprint_id,
-                        service_id,
+                        *service_id,
                     )?;
+
+                    let env_vars = if blueprint.registration_mode {
+                        let mut env_vars = std::env::vars().collect::<Vec<_>>();
+                        // RPC_URL: The remote RPC url for tangle
+                        // KEYSTORE_URI: the keystore file where the keys are stored and could be retrieved.
+                        // DATA_DIR: is an isolated path for where this gadget should store its data (database, secrets, …etc)
+                        // BLUEPRINT_ID: the active blueprint ID for this gadget
+                        // REGISTRATION_MODE_ON set to any value.
+                        env_vars.push(("RPC_URL".to_string(), shell_config.url.to_string()));
+                        env_vars.push((
+                            "KEYSTORE_URI".to_string(),
+                            shell_manager_opts.keystore_uri.clone(),
+                        ));
+                        env_vars.push((
+                            "DATA_DIR".to_string(),
+                            format!("{}", shell_config.base_path.display()),
+                        ));
+                        env_vars.push(("BLUEPRINT_ID".to_string(), format!("{}", blueprint_id)));
+                        env_vars.push(("REGISTRATION_MODE_ON".to_string(), "true".to_string()));
+                        env_vars
+                    } else {
+                        std::env::vars().collect::<Vec<_>>()
+                    };
 
                     logger.info(format!("Starting protocol: {sub_service_str}"));
 
@@ -137,20 +167,35 @@ async fn handle_github_source(
                         .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
                         .stdin(std::process::Stdio::null())
                         .current_dir(&std::env::current_dir()?)
-                        .envs(std::env::vars().collect::<Vec<_>>())
+                        .envs(env_vars)
                         .args(arguments)
                         .spawn()?;
 
-                    let (status_handle, abort) = utils::generate_running_process_status_handle(
-                        process_handle,
-                        logger,
-                        &sub_service_str,
-                    );
+                    if blueprint.registration_mode {
+                        // We must wait for the process to exit successfully
+                        let status = process_handle.wait_with_output().await?;
+                        if !status.status.success() {
+                            logger.error(format!(
+                                "Protocol (registration mode) {sub_service_str} failed to execute: {status:?}"
+                            ));
+                        } else {
+                            logger.info(format!(
+                                "***Protocol (registration mode) {sub_service_str} executed successfully***"
+                            ));
+                        }
+                    } else {
+                        // A normal running gadget binary. Store the process handle and let the event loop handle the rest
+                        let (status_handle, abort) = utils::generate_running_process_status_handle(
+                            process_handle,
+                            logger,
+                            &sub_service_str,
+                        );
 
-                    active_shells
-                        .entry(blueprint_id)
-                        .or_default()
-                        .insert(service_id, (status_handle, Some(abort)));
+                        active_shells
+                            .entry(blueprint_id)
+                            .or_default()
+                            .insert(*service_id, (status_handle, Some(abort)));
+                    }
                 }
             }
         }

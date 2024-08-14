@@ -158,7 +158,7 @@ pub trait Backend {
     ) -> Result<Option<bls381::Secret>, Error>;
     /// Returns an iterator over all [`sr25519::Public`] keys that exist in the keystore.
     fn iter_sr25519(&self) -> impl Iterator<Item = sr25519::Public>;
-    /// Returns an iterator over all [`bls381::Public`] keys that exist in the keystore.
+    /// Returns an iterator over all [`ecdsa::Public`] keys that exist in the keystore.
     fn iter_ecdsa(&self) -> impl Iterator<Item = ecdsa::Public>;
     /// Returns an iterator over all [`ed25519::Public`] keys that exist in the keystore.
     fn iter_ed25519(&self) -> impl Iterator<Item = ed25519::Public>;

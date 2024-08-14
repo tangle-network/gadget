@@ -1,7 +1,11 @@
-use color_eyre::{eyre::OptionExt, Result};
+use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
 use gadget_sdk::{
-    events_watcher::tangle::TangleEventsWatcher, events_watcher::SubstrateEventWatcher,
-    keystore::Backend, tangle_subxt::subxt,
+    events_watcher::{tangle::TangleEventsWatcher, SubstrateEventWatcher},
+    keystore::Backend,
+    tangle_subxt::tangle_testnet_runtime::api::{
+        self, runtime_types::sp_core::ecdsa, runtime_types::tangle_primitives::services,
+    },
+    tx,
 };
 
 use incredible_squaring_blueprint as blueprint;
@@ -17,35 +21,46 @@ async fn main() -> Result<()> {
     logger.init();
 
     let env = gadget_sdk::env::load()?;
-    let keystore = env.keystore()?;
-    let client = subxt::OnlineClient::from_url(&env.tangle_rpc_endpoint).await?;
+    let client = env.client().await?;
+    let signer = env.first_signer()?;
+    if env.should_run_registration() {
+        // We should register our operator on the blueprint.
+        let keystore = env.keystore()?;
+        // get the first ECDSA key from the keystore and register with it.
+        let ecdsa_key = keystore
+            .iter_ecdsa()
+            .next()
+            .map(|v| v.to_sec1_bytes().to_vec().try_into())
+            .transpose()
+            .map_err(|_| eyre!("Failed to convert ECDSA key"))?
+            .ok_or_eyre("No ECDSA key found")?;
+        let xt = api::tx().services().register(
+            env.blueprint_id,
+            services::OperatorPreferences {
+                key: ecdsa::Public(ecdsa_key),
+                approval: services::ApprovalPrefrence::None,
+            },
+            Default::default(),
+        );
+        // send the tx to the tangle and exit.
+        tx::tangle::send(&client, &signer, &xt).await?;
+    } else {
+        // otherwise, we should start the event watcher and run the gadget.
+        let x_square = blueprint::XsquareEventHandler {
+            service_id: env.service_id.unwrap(),
+            signer,
+        };
 
-    let sr25519_pubkey = keystore
-        .iter_sr25519()
-        .next()
-        .ok_or_eyre("No sr25519 keys found in the keystore")?;
-    let sr25519_secret = keystore
-        .expose_sr25519_secret(&sr25519_pubkey)?
-        .ok_or_eyre("No sr25519 secret found in the keystore")?;
+        tracing::info!("Starting the event watcher ...");
 
-    let mut seed = [0u8; 32];
-    seed.copy_from_slice(&sr25519_secret.to_bytes()[0..32]);
-    let signer = subxt_signer::sr25519::Keypair::from_secret_key(seed)?;
-
-    let x_square = blueprint::XsquareEventHandler {
-        service_id: env.service_id,
-        signer,
-    };
-
-    tracing::info!("Starting the event watcher ...");
-
-    SubstrateEventWatcher::run(
-        &TangleEventsWatcher,
-        client,
-        // Add more handler here if we have more functions.
-        vec![Box::new(x_square)],
-    )
-    .await?;
+        SubstrateEventWatcher::run(
+            &TangleEventsWatcher,
+            client,
+            // Add more handler here if we have more functions.
+            vec![Box::new(x_square)],
+        )
+        .await?;
+    }
 
     Ok(())
 }
