@@ -145,7 +145,7 @@ async fn handle_github_source(
                         env_vars.push(("RPC_URL".to_string(), shell_config.url.to_string()));
                         env_vars.push((
                             "KEYSTORE_URI".to_string(),
-                            "file://./target/keystore".to_string(),
+                            shell_manager_opts.keystore_uri.clone(),
                         ));
                         env_vars.push((
                             "DATA_DIR".to_string(),

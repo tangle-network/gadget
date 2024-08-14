@@ -12,6 +12,9 @@ pub struct ShellManagerOpts {
     pub shell_config: PathBuf,
     #[structopt(parse(from_os_str), short = "p", long = "protocols-config")]
     pub protocols_config: PathBuf,
+    /// The path to the keystore
+    #[structopt(short = "k", long = "keystore-uri")]
+    pub keystore_uri: String,
     /// The verbosity level, can be used multiple times
     #[structopt(long, short = "v", parse(from_occurrences))]
     pub verbose: i32,
