@@ -247,7 +247,6 @@ async fn handle_tangle_block(
     result
 }
 
-#[async_recursion]
 async fn handle_tangle_event(
     event: &TangleEvent,
     blueprints: &Vec<RpcServicesWithBlueprint>,
@@ -263,10 +262,6 @@ async fn handle_tangle_event(
     let mut registration_blueprints = vec![];
     // First, check to see if we need to register any new services invoked by the PreRegistration event
     if !poll_result.blueprint_registrations.is_empty() {
-        // Finally, re-call this function. This will allow the use to instantly run the gadgets
-        // after calling registering this node as an operator. We register this node as an operator
-        // by calling the gadget in REGISTRATION_MODE_ON
-
         for blueprint_id in &poll_result.blueprint_registrations {
             let blueprint = client
                 .get_blueprint_by_id(event.hash, *blueprint_id)
@@ -274,19 +269,6 @@ async fn handle_tangle_event(
                 .ok_or_eyre("Unable to retrieve blueprint for registration mode")?;
             registration_blueprints.push(blueprint);
         }
-
-        poll_result.blueprint_registrations = vec![];
-        return handle_tangle_event(
-            event,
-            blueprints,
-            logger,
-            shell_config,
-            shell_manager_opts,
-            active_shells,
-            poll_result,
-            client,
-        )
-        .await;
     }
 
     // TODO: Refactor into Vec<SourceMetadata<T>> where T: NativeGithubMetadata + [...]
