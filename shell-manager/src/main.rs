@@ -1,3 +1,4 @@
+use crate::gadget::native::FilteredBlueprint;
 use crate::gadget::ActiveShells;
 use crate::utils::github_fetcher_to_native_github_metadata;
 use color_eyre::eyre::OptionExt;
@@ -246,14 +247,15 @@ async fn handle_tangle_block(
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_tangle_event(
     event: &TangleEvent,
-    blueprints: &Vec<RpcServicesWithBlueprint>,
+    blueprints: &[RpcServicesWithBlueprint],
     logger: &DebugLogger,
     shell_config: &ShellTomlConfig,
     shell_manager_opts: &ShellManagerOpts,
     active_shells: &mut ActiveShells,
-    mut poll_result: EventPollResult,
+    poll_result: EventPollResult,
     client: &ServicesClient<PolkadotConfig>,
 ) -> color_eyre::Result<()> {
     logger.info(format!("Received notification {}", event.number));
@@ -266,7 +268,14 @@ async fn handle_tangle_event(
                 .get_blueprint_by_id(event.hash, *blueprint_id)
                 .await?
                 .ok_or_eyre("Unable to retrieve blueprint for registration mode")?;
-            registration_blueprints.push(blueprint);
+
+            let general_blueprint = FilteredBlueprint {
+                blueprint_id: *blueprint_id,
+                services: vec![0], // Add a dummy service id for now, since it does not matter for registration mode
+                gadget: blueprint.gadget,
+            };
+
+            registration_blueprints.push(general_blueprint);
         }
     }
 
@@ -279,29 +288,38 @@ async fn handle_tangle_event(
 
     let mut blueprints_filtered = vec![];
 
-    let registration_iter = registration_blueprints.iter().map(|r| (r, true));
+    let registration_iter = registration_blueprints.into_iter().map(|r| (r, true));
 
     for (blueprint, registration_mode) in blueprints
         .iter()
-        .map(|r| (r, false))
+        .map(|r| {
+            let r = FilteredBlueprint {
+                blueprint_id: r.blueprint_id,
+                services: r.services.iter().map(|r| r.id).collect(),
+                gadget: r.blueprint.gadget.clone(),
+            };
+
+            (r, false)
+        })
         .chain(registration_iter)
     {
         let mut services_for_this_blueprint = vec![];
         if let runtime_types::tangle_primitives::services::Gadget::Native(gadget) =
-            &blueprint.blueprint.gadget
+            &blueprint.gadget
         {
             let gadget_source = &gadget.soruces.0[0];
             if let GadgetSourceFetcher::Github(gh) = &gadget_source.fetcher {
                 let metadata = github_fetcher_to_native_github_metadata(gh, blueprint.blueprint_id);
-                blueprints_filtered.push(blueprint);
                 onchain_services.push(metadata);
-                fetchers.push(gh);
+                fetchers.push(gh.clone());
                 valid_blueprint_ids.push(blueprint.blueprint_id);
                 registration_modes.push(registration_mode);
 
                 for service in &blueprint.services {
-                    services_for_this_blueprint.push(service.id);
+                    services_for_this_blueprint.push(*service);
                 }
+
+                blueprints_filtered.push(blueprint);
             } else {
                 logger.warn(
                     "Blueprint does not contain a Github fetcher and thus currently unsupported",
@@ -325,7 +343,7 @@ async fn handle_tangle_event(
 
     // Step 3: Check to see if we need to start any new services
     gadget::native::maybe_handle(
-        blueprints_filtered.as_ref(),
+        &blueprints_filtered,
         &onchain_services,
         &fetchers,
         shell_config,
