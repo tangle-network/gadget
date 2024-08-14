@@ -1,6 +1,5 @@
 use crate::gadget::ActiveShells;
 use crate::utils::github_fetcher_to_native_github_metadata;
-use async_recursion2::async_recursion;
 use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
 use config::ShellManagerOpts;
@@ -19,7 +18,7 @@ use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
 use tangle_environment::gadget::{SubxtConfig, TangleEvent};
 use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::utils::AccountId32;
-use tangle_subxt::subxt::{PolkadotConfig, SubstrateConfig};
+use tangle_subxt::subxt::PolkadotConfig;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{

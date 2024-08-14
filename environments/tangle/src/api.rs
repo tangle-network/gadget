@@ -1,5 +1,6 @@
 use gadget_common::config::DebugLogger;
 use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services;
+use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 use gadget_common::tangle_runtime::AccountId32;
 use gadget_common::tangle_subxt::subxt::backend::BlockRef;
 use gadget_common::tangle_subxt::subxt::utils::H256;
@@ -36,19 +37,17 @@ where
         &self,
         at: [u8; 32],
         blueprint_id: u64,
-    ) -> Result<Option<RpcServicesWithBlueprint>, gadget_common::Error> {
+    ) -> Result<Option<ServiceBlueprint>, gadget_common::Error> {
         let call = api::storage().services().blueprints(blueprint_id);
         let at = BlockRef::from_hash(H256::from_slice(&at));
-        let ret: Option<RpcServicesWithBlueprint> = self
+        let ret: Option<ServiceBlueprint> = self
             .rpc_client
-            .runtime_api()
+            .storage()
             .at(at)
-            .call(call)
+            .fetch(&call)
             .await
             .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })?
-            .map_err(|err| gadget_common::Error::ClientError {
-                err: format!("{err:?}"),
-            })?;
+            .map(|r| r.1);
 
         Ok(ret)
     }

@@ -1376,17 +1376,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-recursion2"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f284119961383470f7407f2d60f244ea5d91a5b38ee161eee539d257b9d3b027"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.72",
-]
-
-[[package]]
 name = "async-signal"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9318,7 +9307,6 @@ dependencies = [
 name = "shell-manager"
 version = "0.1.0"
 dependencies = [
- "async-recursion2",
  "color-eyre",
  "gadget-common",
  "gadget-io",
