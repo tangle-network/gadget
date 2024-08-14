@@ -273,6 +273,7 @@ async fn handle_tangle_event(
                 blueprint_id: *blueprint_id,
                 services: vec![0], // Add a dummy service id for now, since it does not matter for registration mode
                 gadget: blueprint.gadget,
+                registration_mode: true,
             };
 
             registration_blueprints.push(general_blueprint);
@@ -283,25 +284,23 @@ async fn handle_tangle_event(
     let mut onchain_services = vec![];
     let mut fetchers = vec![];
     let mut service_ids = vec![];
-    let mut registration_modes = vec![];
     let mut valid_blueprint_ids = vec![];
 
     let mut blueprints_filtered = vec![];
 
-    let registration_iter = registration_blueprints.into_iter().map(|r| (r, true));
-
-    for (blueprint, registration_mode) in blueprints
+    for blueprint in blueprints
         .iter()
         .map(|r| {
             let r = FilteredBlueprint {
                 blueprint_id: r.blueprint_id,
                 services: r.services.iter().map(|r| r.id).collect(),
                 gadget: r.blueprint.gadget.clone(),
+                registration_mode: false,
             };
 
-            (r, false)
+            r
         })
-        .chain(registration_iter)
+        .chain(registration_blueprints)
     {
         let mut services_for_this_blueprint = vec![];
         if let runtime_types::tangle_primitives::services::Gadget::Native(gadget) =
@@ -313,7 +312,6 @@ async fn handle_tangle_event(
                 onchain_services.push(metadata);
                 fetchers.push(gh.clone());
                 valid_blueprint_ids.push(blueprint.blueprint_id);
-                registration_modes.push(registration_mode);
 
                 for service in &blueprint.services {
                     services_for_this_blueprint.push(*service);
@@ -350,7 +348,6 @@ async fn handle_tangle_event(
         shell_manager_opts,
         active_shells,
         logger,
-        &registration_modes,
     )
     .await?;
 

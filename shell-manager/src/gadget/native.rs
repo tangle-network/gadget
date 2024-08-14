@@ -16,6 +16,7 @@ pub struct FilteredBlueprint {
     pub blueprint_id: u64,
     pub services: Vec<u64>,
     pub gadget: Gadget,
+    pub registration_mode: bool,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -27,13 +28,8 @@ pub async fn maybe_handle(
     shell_manager_opts: &ShellManagerOpts,
     active_shells: &mut ActiveShells,
     logger: &DebugLogger,
-    registration_modes: &[bool],
 ) -> color_eyre::Result<()> {
-    for ((gh, fetcher), registration_mode) in onchain_services
-        .iter()
-        .zip(onchain_gh_fetchers)
-        .zip(registration_modes)
-    {
+    for (gh, fetcher) in onchain_services.iter().zip(onchain_gh_fetchers) {
         let native_github_metadata = NativeGithubMetadata {
             git: gh.git.clone(),
             tag: gh.tag.clone(),
@@ -51,7 +47,6 @@ pub async fn maybe_handle(
             fetcher,
             active_shells,
             logger,
-            *registration_mode,
         )
         .await
         {
@@ -71,7 +66,6 @@ async fn handle_github_source(
     github: &GithubFetcher,
     active_shells: &mut ActiveShells,
     logger: &DebugLogger,
-    registration_mode: bool,
 ) -> color_eyre::Result<()> {
     let blueprint_id = service.blueprint_id;
     let service_str = get_service_str(service);
@@ -141,10 +135,24 @@ async fn handle_github_source(
                         *service_id,
                     )?;
 
-                    let env_vars = if registration_mode {
+                    let env_vars = if blueprint.registration_mode {
                         let mut env_vars = std::env::vars().collect::<Vec<_>>();
-                        env_vars.push(("REGISTRATION_MODE".to_string(), "true".to_string()));
-                        // TODO: Finish remaining env vars
+                        // RPC_URL: The remote RPC url for tangle
+                        // KEYSTORE_URI: the keystore file where the keys are stored and could be retrieved.
+                        // DATA_DIR: is an isolated path for where this gadget should store its data (database, secrets, …etc)
+                        // BLUEPRINT_ID: the active blueprint ID for this gadget
+                        // REGISTRATION_MODE_ON set to any value.
+                        env_vars.push(("RPC_URL".to_string(), shell_config.url.to_string()));
+                        env_vars.push((
+                            "KEYSTORE_URI".to_string(),
+                            "file://./target/keystore".to_string(),
+                        ));
+                        env_vars.push((
+                            "DATA_DIR".to_string(),
+                            format!("{}", shell_config.base_path.display()),
+                        ));
+                        env_vars.push(("BLUEPRINT_ID".to_string(), format!("{}", blueprint_id)));
+                        env_vars.push(("REGISTRATION_MODE_ON".to_string(), "true".to_string()));
                         env_vars
                     } else {
                         std::env::vars().collect::<Vec<_>>()
@@ -163,7 +171,7 @@ async fn handle_github_source(
                         .args(arguments)
                         .spawn()?;
 
-                    if registration_mode {
+                    if blueprint.registration_mode {
                         // We must wait for the process to exit successfully
                         let status = process_handle.wait_with_output().await?;
                         if !status.status.success() {
