@@ -1,2 +1,0 @@
-target/zk/job_1.json filter=lfs diff=lfs merge=lfs -text
-target/zk/proving_key.bin filter=lfs diff=lfs merge=lfs -text
