@@ -1,6 +1,5 @@
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
-use cargo_gadget::deploy::Opts;
 use gadget_common::subxt_signer::sr25519;
 use gadget_common::tangle_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
@@ -53,6 +52,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
 ) -> BlueprintManagerHandle {
     let blueprint_manager_config = BlueprintManagerConfig {
         gadget_config: None,
+        keystore_uri: "./target/keystore".to_string(),
         verbose: input.verbose,
         pretty: input.pretty,
         instance_id: Some(format!("Test Node {}", input.instance_id)),
@@ -188,6 +188,7 @@ pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>
     }
 }
 
+#[macro_export]
 macro_rules! test_blueprint {
     (
         $blueprint_path:expr,

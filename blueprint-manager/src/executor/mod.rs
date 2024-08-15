@@ -113,7 +113,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         "local"
     };
 
-    let logger = &DebugLogger {
+    let logger = DebugLogger {
         id: format!("blueprint-manager-{}", logger_id),
     };
 
@@ -173,13 +173,22 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     ));
 
     // Immediately poll, handling the initial state
-    event_handler::maybe_handle(
+    let poll_result = event_handler::check_blueprint_events(
+        &init_event,
+        &logger,
+        &mut active_gadgets,
+        &sub_account_id,
+    )
+    .await;
+    event_handler::handle_tangle_event(
         &init_event,
         &operator_subscribed_blueprints,
-        logger,
+        &logger,
         &gadget_config,
         &blueprint_manager_config,
         &mut active_gadgets,
+        poll_result,
+        &runtime,
     )
     .await?;
 
@@ -187,8 +196,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let manager_task = async move {
         // Listen to FinalityNotifications and poll for new/deleted services that correspond to the blueprints above
         while let Some(event) = tangle_runtime.next_event().await {
-            // Check for any events to see if we require an update to our list of operator-subscribed blueprints
-            let needs_update = event_handler::check_blueprint_events(
+            let result = event_handler::check_blueprint_events(
                 &event,
                 &logger_manager,
                 &mut active_gadgets,
@@ -196,22 +204,20 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
             )
             .await;
 
-            if needs_update {
-                logger_manager.info("Updating the list of operator-subscribed blueprints");
+            if result.needs_update {
                 operator_subscribed_blueprints =
                     utils::get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?;
             }
 
-            // With the synchronization, we can now handle the tangle event again, but with a focus on ensuring that
-            // everything that needs to be downloaded/executed is done so, and that everything that does not need to be
-            // is not.
-            event_handler::maybe_handle_state_update(
+            event_handler::handle_tangle_event(
                 &event,
                 &operator_subscribed_blueprints,
                 &logger_manager,
                 &gadget_config,
                 &blueprint_manager_config,
                 &mut active_gadgets,
+                result,
+                &runtime,
             )
             .await?;
         }

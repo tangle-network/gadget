@@ -45,7 +45,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tangle_environment::runtime::{TangleConfig, TangleRuntime};
 use tangle_environment::TangleEnvironment;
-use tangle_primitives::AccountId;
 use url::Url;
 
 pub fn id_to_ecdsa_pair(id: u8) -> ecdsa::Pair {
@@ -395,10 +394,6 @@ pub async fn new_test_ext<
     }
 
     LocalhostTestExt { handles, client }
-}
-
-pub fn mock_pub_key(id: u8) -> AccountId {
-    sr25519::Public::from_raw([id; 32]).into()
 }
 
 pub struct LocalhostTestExt {
