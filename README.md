@@ -107,12 +107,23 @@ export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
 ```
 Note: You need to set these environment variables each time you start a new shell session or append them to your .zshrc file.
 
+## License
+Gadget is licensed under either of
+
+* Apache License, Version 2.0
+  ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+* MIT license
+  ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+at your option.
+
 ## Contributing
 
 We welcome contributions to Gadget! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request.
 
-## License
-Gadget is licensed under the MIT License
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.
 
 ## Acknowledgements
 We would like to thank the following projects for their inspiration and contributions to this repository:
