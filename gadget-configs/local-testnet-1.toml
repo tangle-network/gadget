@@ -1,0 +1,7 @@
+bind_ip = "0.0.0.0"
+bind_port = 30556
+bootnodes = []
+chain = "local_testnet"
+base_path = "../tangle/tmp/bob"
+verbose=1
+pretty=true

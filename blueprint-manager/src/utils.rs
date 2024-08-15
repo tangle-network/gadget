@@ -1,8 +1,8 @@
-use crate::config::ShellManagerOpts;
+use crate::config::BlueprintManagerConfig;
 use crate::protocols::resolver::NativeGithubMetadata;
 use gadget_common::config::DebugLogger;
 use gadget_common::tangle_runtime::AccountId32;
-use gadget_io::{defaults, ShellTomlConfig};
+use gadget_io::GadgetConfig;
 use sha2::Digest;
 use sp_core::H256;
 use std::path::Path;
@@ -47,39 +47,32 @@ pub fn github_fetcher_to_native_github_metadata(
 }
 
 pub fn generate_process_arguments(
-    shell_config: &ShellTomlConfig,
-    opt: &ShellManagerOpts,
+    gadget_config: &GadgetConfig,
+    opt: &BlueprintManagerConfig,
     blueprint_id: u64,
     service_id: u64,
 ) -> color_eyre::Result<Vec<String>> {
     let mut arguments = vec![
-        format!("--bind-ip={}", shell_config.bind_ip),
-        format!("--url={}", shell_config.url),
+        format!("--bind-ip={}", gadget_config.bind_ip),
+        format!("--url={}", gadget_config.url),
         format!(
             "--bootnodes={}",
-            shell_config
+            gadget_config
                 .bootnodes
                 .iter()
                 .map(|r| r.to_string())
                 .collect::<Vec<String>>()
                 .join(",")
         ),
-        format!(
-            "--node-key={}",
-            shell_config
-                .node_key
-                .clone()
-                .unwrap_or_else(|| { hex::encode(defaults::generate_node_key()) })
-        ),
         format!("--blueprint-id={}", blueprint_id),
         format!("--service-id={}", service_id),
-        format!("--base-path={}", shell_config.base_path.display()),
-        format!("--chain={}", shell_config.chain.to_string()),
+        format!("--base-path={}", gadget_config.base_path.display()),
+        format!("--chain={}", gadget_config.chain.to_string()),
         format!("--verbose={}", opt.verbose),
         format!("--pretty={}", opt.pretty),
     ];
 
-    if let Some(keystore_password) = &shell_config.keystore_password {
+    if let Some(keystore_password) = &gadget_config.keystore_password {
         arguments.push(format!("--keystore-password={}", keystore_password));
     }
 

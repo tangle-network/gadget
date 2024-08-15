@@ -1,13 +1,19 @@
 use alloy_provider::network::TransactionBuilder;
 use alloy_provider::Provider;
+pub use alloy_signer_local::PrivateKeySigner;
 use color_eyre::eyre::{self, Context, ContextCompat, OptionExt, Result};
 use gadget_blueprint_proc_macro_core::{
     JobResultVerifier, ServiceBlueprint, ServiceRegistrationHook, ServiceRequestHook,
 };
+pub use k256;
+use std::fmt::Debug;
+use std::path::PathBuf;
 use tangle_subxt::subxt::{self, PolkadotConfig};
+use tangle_subxt::subxt_signer::sr25519;
 use tangle_subxt::tangle_testnet_runtime::api as TangleApi;
+use tangle_subxt::tangle_testnet_runtime::api::services::calls::types;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Opts {
     /// The name of the package to deploy (if the workspace has multiple packages)
     pub pkg_name: Option<String>,
@@ -15,6 +21,43 @@ pub struct Opts {
     pub rpc_url: String,
     /// The path to the manifest file
     pub manifest_path: std::path::PathBuf,
+    /// The signer for deploying the blueprint
+    pub signer: Option<sr25519::Keypair>,
+    /// The signer for deploying the smart contract
+    pub signer_evm: Option<PrivateKeySigner>,
+}
+
+impl Debug for Opts {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Opts")
+            .field("pkg_name", &self.pkg_name)
+            .field("rpc_url", &self.rpc_url)
+            .field("manifest_path", &self.manifest_path)
+            .finish()
+    }
+}
+
+pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
+    manifest_metadata_path: P,
+    pkg_name: Option<&String>,
+    rpc_url: T,
+    signer_evm: Option<PrivateKeySigner>,
+) -> Result<types::create_blueprint::Blueprint> {
+    let manifest_path = manifest_metadata_path.into();
+    let metadata = cargo_metadata::MetadataCommand::new()
+        .manifest_path(manifest_path)
+        .no_deps()
+        .exec()
+        .context("Getting Metadata about the workspace")?;
+
+    let package = find_package(&metadata, pkg_name)?;
+    let mut blueprint = load_blueprint_metadata(package)?;
+
+    build_contracts_if_needed(package, &blueprint).context("Building contracts")?;
+
+    deploy_contracts_to_tangle(rpc_url.as_ref(), package, &mut blueprint, signer_evm).await?;
+
+    bake_blueprint(blueprint)
 }
 
 pub async fn deploy_to_tangle(
@@ -22,24 +65,20 @@ pub async fn deploy_to_tangle(
         pkg_name,
         rpc_url,
         manifest_path,
+        signer,
+        signer_evm,
     }: Opts,
-) -> Result<()> {
+) -> Result<u64> {
     // Load the manifest file into cargo metadata
-    let metadata = cargo_metadata::MetadataCommand::new()
-        .manifest_path(manifest_path)
-        .no_deps()
-        .exec()
-        .context("Getting Metadata about the workspace")?;
-    let package = find_package(&metadata, pkg_name.as_ref())?;
-    let mut blueprint = load_blueprnt_metadata(package)?;
+    let blueprint =
+        generate_service_blueprint(&manifest_path, pkg_name.as_ref(), &rpc_url, signer_evm).await?;
 
-    build_contracts_if_needed(package, &blueprint).context("Building contracts")?;
+    let signer = if let Some(signer) = signer {
+        signer
+    } else {
+        crate::signer::load_signer_from_env()?
+    };
 
-    deploy_contracts_to_tangle(&rpc_url, package, &mut blueprint).await?;
-
-    let blueprint = bake_blueprint(blueprint)?;
-
-    let signer = crate::signer::load_signer_from_env()?;
     let my_account_id = signer.public_key().to_account_id();
     let client = subxt::OnlineClient::<PolkadotConfig>::from_url(rpc_url).await?;
 
@@ -67,10 +106,11 @@ pub async fn deploy_to_tangle(
         event.owner,
         result.extrinsic_hash(),
     );
-    Ok(())
+
+    Ok(event.blueprint_id)
 }
 
-fn load_blueprnt_metadata(package: &cargo_metadata::Package) -> Result<ServiceBlueprint> {
+pub fn load_blueprint_metadata(package: &cargo_metadata::Package) -> Result<ServiceBlueprint> {
     let blueprint_json_path = package
         .manifest_path
         .parent()
@@ -88,7 +128,7 @@ fn load_blueprnt_metadata(package: &cargo_metadata::Package) -> Result<ServiceBl
     }
     // should have the blueprnt.json
     let blueprint_json =
-        std::fs::read_to_string(blueprint_json_path).context("Reading blueprnt.json file")?;
+        std::fs::read_to_string(blueprint_json_path).context("Reading blueprint.json file")?;
     let blueprint = serde_json::from_str::<ServiceBlueprint<'_>>(&blueprint_json)?;
     Ok(blueprint)
 }
@@ -97,6 +137,7 @@ async fn deploy_contracts_to_tangle(
     rpc_url: &str,
     package: &cargo_metadata::Package,
     blueprint: &mut ServiceBlueprint<'_>,
+    signer_evm: Option<PrivateKeySigner>,
 ) -> Result<()> {
     enum ContractKind {
         RegistrationHook,
@@ -152,7 +193,12 @@ async fn deploy_contracts_to_tangle(
         return Ok(());
     }
 
-    let signer = crate::signer::load_evm_signer_from_env()?;
+    let signer = if let Some(signer) = signer_evm {
+        signer
+    } else {
+        crate::signer::load_evm_signer_from_env()?
+    };
+
     let wallet = alloy_provider::network::EthereumWallet::from(signer);
     let provider = alloy_provider::ProviderBuilder::new()
         .with_recommended_fillers()
@@ -253,6 +299,7 @@ fn bake_blueprint(
         convert_to_bytes_or_null(&mut job["metadata"]["name"]);
         convert_to_bytes_or_null(&mut job["metadata"]["description"]);
     }
+    println!("Job: {blueprint_json}");
     let blueprint = serde_json::from_value(blueprint_json)?;
     Ok(blueprint)
 }

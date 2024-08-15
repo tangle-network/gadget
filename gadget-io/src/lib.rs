@@ -7,13 +7,13 @@ pub mod wasm;
 #[cfg(target_family = "wasm")]
 pub use wasm::{
     keystore::{KeystoreConfig, KeystoreContainer, SubstrateKeystore},
-    shell::{Opt, ShellTomlConfig, SupportedChains},
+    shell::{GadgetTomlConfig, Opt, SupportedChains},
 };
 
 #[cfg(not(target_family = "wasm"))]
 pub use standard::{
     keystore::{KeystoreConfig, KeystoreContainer, SubstrateKeystore},
-    shell::{defaults, Opt, ShellTomlConfig, SupportedChains},
+    shell::{defaults, GadgetConfig, Opt, SupportedChains},
 };
 
 #[cfg(target_family = "wasm")]

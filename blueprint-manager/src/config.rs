@@ -3,15 +3,13 @@ use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
-    name = "Shell Manager",
+    name = "Blueprint Manager",
     about = "An program executor that connects to the Tangle network and runs protocols dynamically on the fly"
 )]
-pub struct ShellManagerOpts {
-    /// The path to the shell configuration file
-    #[structopt(parse(from_os_str), short = "s", long = "shell-config")]
-    pub shell_config: PathBuf,
-    #[structopt(parse(from_os_str), short = "p", long = "protocols-config")]
-    pub protocols_config: PathBuf,
+pub struct BlueprintManagerConfig {
+    /// The path to the gadget configuration file
+    #[structopt(parse(from_os_str), short = "s", long = "gadget-config")]
+    pub gadget_config: Option<PathBuf>,
     /// The path to the keystore
     #[structopt(short = "k", long = "keystore-uri")]
     pub keystore_uri: String,
@@ -21,4 +19,8 @@ pub struct ShellManagerOpts {
     /// Whether to use pretty logging
     #[structopt(long)]
     pub pretty: bool,
+    /// An optional unique string identifier for the blueprint manager to differentiate between multiple
+    /// running instances of a BlueprintManager (mostly for debugging purposes)
+    #[structopt(long, short = "id")]
+    pub instance_id: Option<String>,
 }

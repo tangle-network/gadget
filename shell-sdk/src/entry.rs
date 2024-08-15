@@ -1,8 +1,8 @@
-use crate::shell::ShellNodeInput;
+use crate::setup::SingleGadgetInput;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, KeystoreBackend};
 use gadget_core::job_manager::SendFuture;
-use gadget_io::{defaults, ShellTomlConfig, SupportedChains};
+use gadget_io::{GadgetConfig, SupportedChains};
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 use tracing_subscriber::fmt::SubscriberBuilder;
@@ -23,11 +23,11 @@ pub fn keystore_from_base_path(
     }
 }
 
-/// Runs a shell for a given protocol.
-pub async fn run_shell_for_protocol<
+/// Runs a gadget for a given protocol.
+pub async fn run_gadget_for_protocol<
     Env: GadgetEnvironment,
     KBE: KeystoreBackend,
-    T: FnOnce(ShellNodeInput<KBE, Env>) -> F,
+    T: FnOnce(SingleGadgetInput<KBE, Env>) -> F,
     F,
     T2: FnOnce() -> F2,
     F2: SendFuture<'static, KBE>,
@@ -43,26 +43,26 @@ where
 {
     let args = std::env::args();
     println!("Args: {args:?}");
-    let config = ShellTomlConfig::from_iter_safe(args);
+    let config = GadgetConfig::from_iter_safe(args);
 
     if config.is_err() {
         return Err(color_eyre::Report::msg(format!(
-            "Failed to parse shell config: {config:?}"
+            "Failed to parse gadget config: {config:?}"
         )));
     }
 
     let config = config.unwrap();
     let keystore_backend = keystore_backend().await;
-    setup_shell_logger(config.verbose, config.pretty, "gadget")?;
     let keystore =
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);
 
     let logger = DebugLogger {
         id: "test".to_string(),
     };
-    logger.info("Starting shell with config: {config:?}");
 
-    let (node_input, network_handle) = crate::generate_node_input(crate::ShellConfig {
+    logger.info("Starting gadget with config: {config:?}");
+
+    let (node_input, network_handle) = crate::generate_node_input(crate::SingleGadgetConfig {
         keystore_backend,
         services,
         keystore,
@@ -71,21 +71,11 @@ where
         bind_ip: config.bind_ip,
         bind_port: config.bind_port,
         bootnodes: config.bootnodes,
-        node_key: hex::decode(
-            config
-                .node_key
-                .unwrap_or_else(|| hex::encode(defaults::generate_node_key())),
-        )?
-        .try_into()
-        .map_err(|_| {
-            color_eyre::eyre::eyre!("Invalid node key length, expect 32 bytes hex string")
-        })?,
         n_protocols,
     })
     .await?;
 
     let protocol_future = gadget_io::tokio::task::spawn(executor(node_input));
-    let ctrlc_future = gadget_io::tokio::signal::ctrl_c();
 
     gadget_io::tokio::select! {
         res0 = protocol_future => {
@@ -95,15 +85,15 @@ where
         res1 = network_handle => {
             Err(color_eyre::Report::msg(format!("Networking future unexpectedly finished: {res1:?}")))
         },
-
-        _ = ctrlc_future => {
-            Ok(())
-        }
     }
 }
 
 /// Sets up the logger for the shell-sdk, based on the verbosity level passed in.
-pub fn setup_shell_logger(verbose: i32, pretty: bool, filter: &str) -> color_eyre::Result<()> {
+pub fn setup_blueprint_manager_logger(
+    verbose: i32,
+    pretty: bool,
+    filter: &str,
+) -> color_eyre::Result<()> {
     use tracing::Level;
     let log_level = match verbose {
         0 => Level::ERROR,

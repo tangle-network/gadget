@@ -1,11 +1,7 @@
 use std::path::PathBuf;
 
+use cargo_gadget::{create, deploy};
 use clap::{Parser, Subcommand};
-
-mod create;
-mod deploy;
-mod foundry;
-mod signer;
 
 /// Tangle CLI tool
 #[derive(Parser, Debug)]
@@ -83,10 +79,12 @@ async fn main() -> color_eyre::Result<()> {
                     .manifest
                     .manifest_path
                     .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
-                deploy::deploy_to_tangle(deploy::Opts {
+                let _ = deploy::deploy_to_tangle(deploy::Opts {
                     rpc_url,
                     manifest_path,
                     pkg_name: package,
+                    signer: None,
+                    signer_evm: None,
                 })
                 .await?;
             }

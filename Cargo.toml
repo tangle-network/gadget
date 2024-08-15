@@ -1,21 +1,22 @@
 [workspace]
 resolver = "2"
 members = [
-  "blueprint-metadata",
-  "blueprints/*",
-  "cli",
-  "core",
-  "common",
-  "executor",
-  "environments/tangle",
-  "environments/utils",
-  "gadget-io",
-  "protocol-macros",
-  "shell-manager",
-  "shell-sdk",
-  "sdk",
-  # Commented out, since it uses jobs-v1 code
-  #"tangle-test-utils",
+    "blueprint-metadata",
+    "blueprints/*",
+    "cli",
+    "core",
+    "common",
+    "executor",
+    "environments/tangle",
+    "environments/utils",
+    "gadget-io",
+    "blueprint-test-utils",
+    "protocol-macros",
+    "blueprint-manager",
+    "shell-sdk",
+    "sdk",
+    # Commented out, since it uses jobs-v1 code
+    #"tangle-test-utils",
 
   "macros/blueprint-proc-macro",
   "macros/blueprint-proc-macro-core",
@@ -34,18 +35,20 @@ repository = "https://github.com/webb-tools/gadget"
 gadget-core = { version = "0.0.1", path = "./core", default-features = false }
 gadget-common = { version = "0.1.0", path = "./common", default-features = false }
 gadget-io = { version = "0.0.1",  path = "./gadget-io", default-features = false }
-gadget-executor = { version = "0.1.0", path = "./executor", default-features = false }
-gadget-sdk = { version = "0.1.0", path = "./sdk", default-features = false }
-# tangle-test-utils = { path = "./tangle-test-utils", default-features = false }
-protocol-macros = { path = "./protocol-macros", default-features = false }
+gadget-executor = { version = "0.1.0", path = "./executor" }
+blueprint-manager = { version = "0.1.0", path = "./blueprint-manager"}
+blueprint-test-utils = { path = "./blueprint-test-utils" }
+gadget-sdk = { path = "./sdk", default-features = false }
+protocol-macros = { path = "./protocol-macros" }
 shell-sdk = { path = "./shell-sdk", default-features = false }
-shell-manager = { path = "./shell-manager", default-features = false }
 tangle-environment = { path = "./environments/tangle", default-features = false }
 environment-utils = { path = "./environments/utils", default-features = false }
 
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.0" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.0" }
 blueprint-metadata = { path = "./blueprint-metadata", default-features = false, version = "0.1.0" }
+cargo-tangle = { path = "./cli" }
+cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
 pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
@@ -261,3 +264,4 @@ wasm-bindgen-test = { version = "0.3.42" }
 
 [profile.dev.package.backtrace]
 opt-level = 3
+

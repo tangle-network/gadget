@@ -185,7 +185,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         .with_behaviour(|key, relay_client| {
             // Set a custom gossipsub configuration
             let gossipsub_config = gossipsub::ConfigBuilder::default()
-                .protocol_id_prefix("/tangle/gadget-shell-sdk/meshsub")
+                .protocol_id_prefix("/tangle/gadget-binary-sdk/meshsub")
                 .max_transmit_size(MAX_MESSAGE_SIZE)
                 .validate_messages()
                 .validation_mode(gossipsub::ValidationMode::Strict) // This sets the kind of message validation. The default is Strict (enforce message signing)

@@ -1,9 +1,0 @@
-bind_ip = "0.0.0.0"
-bind_port = 30556
-bootnodes = []
-# 12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
-node_key = "0000000000000000000000000000000000000000000000000000000000000001"
-chain = "local_testnet"
-base_path = "../tangle/tmp/bob"
-verbose=1
-pretty=true

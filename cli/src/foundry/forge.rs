@@ -7,6 +7,12 @@ pub struct Forge {
     cmd: Command,
 }
 
+impl Default for Forge {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Forge {
     /// Creates a new Forge instance.
     pub fn new() -> Forge {
