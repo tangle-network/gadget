@@ -12,7 +12,6 @@ pub use setup::generate_node_input;
 
 pub mod prelude {
     pub use crate::async_trait;
-    pub use crate::protocol;
     pub use crate::BuiltExecutableJobWrapper;
     pub use crate::DebugLogger;
     pub use crate::ECDSAKeyStore;

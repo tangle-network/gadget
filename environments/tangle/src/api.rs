@@ -1,5 +1,6 @@
 use gadget_common::config::DebugLogger;
 use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services;
+use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 use gadget_common::tangle_runtime::AccountId32;
 use gadget_common::tangle_subxt::subxt::backend::BlockRef;
 use gadget_common::tangle_subxt::subxt::utils::H256;
@@ -32,6 +33,25 @@ impl<C: Config> ServicesClient<C>
 where
     BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
 {
+    pub async fn get_blueprint_by_id(
+        &self,
+        at: [u8; 32],
+        blueprint_id: u64,
+    ) -> Result<Option<ServiceBlueprint>, gadget_common::Error> {
+        let call = api::storage().services().blueprints(blueprint_id);
+        let at = BlockRef::from_hash(H256::from_slice(&at));
+        let ret: Option<ServiceBlueprint> = self
+            .rpc_client
+            .storage()
+            .at(at)
+            .fetch(&call)
+            .await
+            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })?
+            .map(|r| r.1);
+
+        Ok(ret)
+    }
+
     pub async fn query_operator_blueprints(
         &self,
         at: [u8; 32],

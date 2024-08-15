@@ -7,9 +7,12 @@ use structopt::StructOpt;
     about = "An program executor that connects to the Tangle network and runs protocols dynamically on the fly"
 )]
 pub struct BlueprintManagerConfig {
-    /// The path to the shell configuration file
+    /// The path to the gadget configuration file
     #[structopt(parse(from_os_str), short = "s", long = "gadget-config")]
     pub gadget_config: Option<PathBuf>,
+    /// The path to the keystore
+    #[structopt(short = "k", long = "keystore-uri")]
+    pub keystore_uri: String,
     /// The verbosity level, can be used multiple times
     #[structopt(long, short = "v", parse(from_occurrences))]
     pub verbose: i32,

@@ -173,7 +173,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     ));
 
     // Immediately poll, handling the initial state
-    event_handler::maybe_handle_state_update(
+    event_handler::maybe_handle(
         &init_event,
         &operator_subscribed_blueprints,
         logger,

@@ -172,9 +172,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
     let mut swarm = libp2p::SwarmBuilder::with_existing_identity(identity)
         .with_tokio()
         .with_tcp(
-            libp2p::tcp::Config::default()
-                .port_reuse(true)
-                .nodelay(true), // Allow port reuse for TCP-hole punching
+            libp2p::tcp::Config::default().nodelay(true), // Allow port reuse for TCP-hole punching
             libp2p::noise::Config::new,
             libp2p::yamux::Config::default,
         )?

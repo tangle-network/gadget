@@ -1,232 +1,235 @@
 use crate::config::BlueprintManagerConfig;
-use crate::gadget;
 use crate::gadget::ActiveGadgets;
-use crate::utils::github_fetcher_to_native_github_metadata;
-use gadget_common::config::DebugLogger;
-use gadget_common::tangle_runtime::AccountId32;
+use crate::protocols::resolver::NativeGithubMetadata;
+use crate::utils;
+use crate::utils::get_service_str;
+use color_eyre::eyre::OptionExt;
+use gadget_common::prelude::DebugLogger;
 use gadget_io::GadgetConfig;
-use std::sync::atomic::Ordering;
-use tangle_environment::api::RpcServicesWithBlueprint;
-use tangle_environment::gadget::TangleEvent;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher;
-use tangle_subxt::tangle_testnet_runtime::api::services::events::{
-    JobCalled, JobResultSubmitted, PreRegistration, Registered, ServiceInitiated, Unregistered,
+use std::fmt::Write;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
+    Gadget, GadgetBinary, GithubFetcher,
 };
+use tokio::io::AsyncWriteExt;
 
-/// Returns true if the blueprint manager needs to update the list of operator-subscribed blueprints
-pub(crate) async fn check_blueprint_events(
-    event: &TangleEvent,
-    logger: &DebugLogger,
-    active_gadgets: &mut ActiveGadgets,
-    account_id: &AccountId32,
-) -> bool {
-    let preregistered_events = event.events.find::<PreRegistration>();
-    let registered_events = event.events.find::<Registered>();
-    let unregistered_events = event.events.find::<Unregistered>();
-    let service_initiated_events = event.events.find::<ServiceInitiated>();
-    let job_called_events = event.events.find::<JobCalled>();
-    let job_result_submitted_events = event.events.find::<JobResultSubmitted>();
-
-    let mut needs_update = false;
-    // Handle preregistered events
-    for evt in preregistered_events {
-        match evt {
-            Ok(evt) => {
-                if &evt.operator == account_id {
-                    logger.info(format!("Pre-registered event: {evt:?}"));
-                    needs_update = true;
-                }
-            }
-            Err(err) => {
-                logger.warn(format!("Error handling pre-registered event: {err:?}"));
-            }
-        }
-    }
-
-    // Handle blueprint registered events
-    for evt in registered_events {
-        match evt {
-            Ok(evt) => {
-                logger.info(format!("Blueprint registered event: {evt:?}"));
-                needs_update = true;
-            }
-            Err(err) => {
-                logger.warn(format!("Error handling registered event: {err:?}"));
-            }
-        }
-    }
-
-    // Handle unregistered events
-    for evt in unregistered_events {
-        match evt {
-            Ok(evt) => {
-                logger.info(format!("Unregistered event: {evt:?}"));
-                if &evt.operator == account_id && active_gadgets.remove(&evt.blueprint_id).is_some()
-                {
-                    logger.info(format!("Removed blueprint_id: {}", evt.blueprint_id,));
-                    needs_update = true;
-                }
-            }
-            Err(err) => {
-                logger.warn(format!("Error handling unregistered event: {err:?}"));
-            }
-        }
-    }
-
-    // Handle service initiated events
-    for evt in service_initiated_events {
-        match evt {
-            Ok(evt) => {
-                logger.info(format!("Service initiated event: {evt:?}"));
-            }
-            Err(err) => {
-                logger.warn(format!("Error handling service initiated event: {err:?}"));
-            }
-        }
-    }
-
-    // Handle job called events
-    for evt in job_called_events {
-        match evt {
-            Ok(evt) => {
-                logger.info(format!("Job called event: {evt:?}"));
-            }
-            Err(err) => {
-                logger.warn(format!("Error handling job called event: {err:?}"));
-            }
-        }
-    }
-
-    // Handle job result submitted events
-    for evt in job_result_submitted_events {
-        match evt {
-            Ok(evt) => {
-                logger.info(format!("Job result submitted event: {evt:?}"));
-            }
-            Err(err) => {
-                logger.warn(format!(
-                    "Error handling job result submitted event: {err:?}"
-                ));
-            }
-        }
-    }
-
-    needs_update
+pub struct FilteredBlueprint {
+    pub blueprint_id: u64,
+    pub services: Vec<u64>,
+    pub gadget: Gadget,
+    pub registration_mode: bool,
 }
 
-pub(crate) async fn maybe_handle_state_update(
-    event: &TangleEvent,
-    blueprints: &Vec<RpcServicesWithBlueprint>,
+#[allow(clippy::too_many_arguments)]
+pub async fn maybe_handle(
+    blueprints: &[FilteredBlueprint],
+    onchain_services: &[NativeGithubMetadata],
+    onchain_gh_fetchers: &[GithubFetcher],
+    shell_config: &GadgetConfig,
+    shell_manager_opts: &BlueprintManagerConfig,
+    active_shells: &mut ActiveGadgets,
     logger: &DebugLogger,
-    gadget_config: &GadgetConfig,
-    blueprint_manager_opts: &BlueprintManagerConfig,
-    active_gadgets: &mut ActiveGadgets,
 ) -> color_eyre::Result<()> {
-    logger.info(format!("Received notification {}", event.number));
-    // TODO: Refactor into Vec<SourceMetadata<T>> where T: NativeGithubMetadata + [...]
-    let mut onchain_services = vec![];
-    let mut fetchers = vec![];
-    let mut service_ids = vec![];
+    for (gh, fetcher) in onchain_services.iter().zip(onchain_gh_fetchers) {
+        let native_github_metadata = NativeGithubMetadata {
+            git: gh.git.clone(),
+            tag: gh.tag.clone(),
+            owner: gh.owner.clone(),
+            repo: gh.repo.clone(),
+            gadget_binaries: fetcher.binaries.0.clone(),
+            blueprint_id: gh.blueprint_id,
+        };
 
-    for blueprint in blueprints {
-        let mut services_for_this_blueprint = vec![];
-        if let runtime_types::tangle_primitives::services::Gadget::Native(gadget) =
-            &blueprint.blueprint.gadget
+        if let Err(err) = handle_github_source(
+            blueprints,
+            &native_github_metadata,
+            shell_config,
+            shell_manager_opts,
+            fetcher,
+            active_shells,
+            logger,
+        )
+            .await
         {
-            let gadget_source = &gadget.soruces.0[0];
-            if let GadgetSourceFetcher::Github(gh) = &gadget_source.fetcher {
-                let metadata = github_fetcher_to_native_github_metadata(gh, blueprint.blueprint_id);
-                onchain_services.push(metadata);
-                fetchers.push(gh);
-
-                for service in &blueprint.services {
-                    services_for_this_blueprint.push(service.id);
-                }
-            } else {
-                logger.warn(
-                    "Blueprint does not contain a Github fetcher and thus currently unsupported",
-                );
-            }
-
-            service_ids.push(services_for_this_blueprint);
-        } else {
-            logger
-                .warn("Blueprint does not contain a native gadget and thus currently unsupported");
-        }
-    }
-
-    logger.trace(format!(
-        "OnChain services: {:?}",
-        onchain_services
-            .iter()
-            .map(|r| r.git.clone())
-            .collect::<Vec<_>>()
-    ));
-
-    // Step 3: Check to see if we need to start any new services
-    gadget::native::maybe_handle(
-        blueprints,
-        &onchain_services,
-        &fetchers,
-        gadget_config,
-        blueprint_manager_opts,
-        active_gadgets,
-        logger,
-    )
-    .await?;
-
-    // Check to see if local is running services that are not on-chain
-    let mut to_remove: Vec<(u64, u64)> = vec![];
-
-    // Loop through locally running gadget(s). If the validator no longer needs to
-    // run the gadget(s), the process corresponding to the gadget gets killed and dropped
-    for (blueprint_id, process_handles) in &mut *active_gadgets {
-        for (service_id, process_handle) in process_handles {
-            // TODO: verify logic
-            if !onchain_services
-                .iter()
-                .zip(&service_ids)
-                .all(|(r, s)| r.blueprint_id != *blueprint_id && !s.contains(service_id))
-            {
-                logger.warn(format!(
-                    "Killing service that is no longer on-chain: bid={blueprint_id}//sid={service_id}",
-                ));
-                if let Some(abort_handle) = process_handle.1.take() {
-                    if abort_handle.send(()).is_err() {
-                        logger.error(format!(
-                            "Failed to send abort signal to service: bid={blueprint_id}//sid={service_id}",
-                        ));
-                    }
-                }
-                to_remove.push((*blueprint_id, *service_id));
-            }
-        }
-    }
-
-    // Check to see if any process handles have died, triggering a restart later in the loop for that process
-    for (blueprint_id, process_handles) in &mut *active_gadgets {
-        for (service_id, process_handle) in process_handles {
-            if !process_handle.0.load(Ordering::Relaxed) {
-                // By removing any killed processes, we will auto-restart them on the next finality notification if required
-                to_remove.push((*blueprint_id, *service_id));
-            }
-        }
-    }
-
-    for (blueprint_id, service_id) in to_remove {
-        let mut should_delete_blueprint = false;
-        if let Some(gadget) = active_gadgets.get_mut(&blueprint_id) {
-            gadget.remove(&service_id);
-            if gadget.is_empty() {
-                should_delete_blueprint = true;
-            }
-        }
-
-        if should_delete_blueprint {
-            active_gadgets.remove(&blueprint_id);
+            logger.warn(err)
         }
     }
 
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn handle_github_source(
+    blueprints: &[FilteredBlueprint],
+    service: &NativeGithubMetadata,
+    shell_config: &GadgetConfig,
+    shell_manager_opts: &BlueprintManagerConfig,
+    github: &GithubFetcher,
+    active_shells: &mut ActiveGadgets,
+    logger: &DebugLogger,
+) -> color_eyre::Result<()> {
+    let blueprint_id = service.blueprint_id;
+    let service_str = get_service_str(service);
+    if !active_shells.contains_key(&blueprint_id) {
+        // Maybe add in the protocol to the active shells
+        let relevant_binary =
+            get_gadget_binary(&github.binaries.0).ok_or_eyre("Unable to find matching binary")?;
+        let expected_hash = slice_32_to_sha_hex_string(relevant_binary.sha256);
+
+        let current_dir = std::env::current_dir()?;
+        let mut binary_download_path =
+            format!("{}/protocol-{:?}", current_dir.display(), github.tag);
+
+        if utils::is_windows() {
+            binary_download_path += ".exe"
+        }
+
+        logger.info(format!("Downloading to {binary_download_path}"));
+
+        // Check if the binary exists, if not download it
+        let retrieved_hash =
+            if !utils::valid_file_exists(&binary_download_path, &expected_hash).await {
+                let url = utils::get_download_url(&service.git, &service.tag);
+
+                let download = reqwest::get(&url)
+                    .await
+                    .map_err(|err| utils::msg_to_error(err.to_string()))?
+                    .bytes()
+                    .await
+                    .map_err(|err| utils::msg_to_error(err.to_string()))?;
+                let retrieved_hash = utils::hash_bytes_to_hex(&download);
+
+                // Write the binary to disk
+                let mut file = tokio::fs::File::create(&binary_download_path).await?;
+                file.write_all(&download).await?;
+                file.flush().await?;
+                Some(retrieved_hash)
+            } else {
+                None
+            };
+
+        if let Some(retrieved_hash) = retrieved_hash {
+            if retrieved_hash.trim() != expected_hash.trim() {
+                logger.error(format!(
+                    "Binary hash {} mismatched expected hash of {} for protocol: {}",
+                    retrieved_hash, expected_hash, service_str
+                ));
+                return Ok(());
+            }
+        }
+
+        if !utils::is_windows() {
+            if let Err(err) = utils::chmod_x_file(&binary_download_path).await {
+                logger.warn(format!("Failed to chmod +x the binary: {err}"));
+            }
+        }
+
+        for blueprint in blueprints {
+            if blueprint.blueprint_id == blueprint_id {
+                for service_id in &blueprint.services {
+                    let sub_service_str = format!("{service_str}-{service_id}");
+                    // Each spawned binary will effectively run a single "RoleType" in old parlance
+                    let arguments = utils::generate_process_arguments(
+                        shell_config,
+                        shell_manager_opts,
+                        blueprint_id,
+                        *service_id,
+                    )?;
+
+                    let env_vars = if blueprint.registration_mode {
+                        let mut env_vars = std::env::vars().collect::<Vec<_>>();
+                        // RPC_URL: The remote RPC url for tangle
+                        // KEYSTORE_URI: the keystore file where the keys are stored and could be retrieved.
+                        // DATA_DIR: is an isolated path for where this gadget should store its data (database, secrets, …etc)
+                        // BLUEPRINT_ID: the active blueprint ID for this gadget
+                        // REGISTRATION_MODE_ON set to any value.
+                        env_vars.push(("RPC_URL".to_string(), shell_config.url.to_string()));
+                        env_vars.push((
+                            "KEYSTORE_URI".to_string(),
+                            shell_manager_opts.keystore_uri.clone(),
+                        ));
+                        env_vars.push((
+                            "DATA_DIR".to_string(),
+                            format!("{}", shell_config.base_path.display()),
+                        ));
+                        env_vars.push(("BLUEPRINT_ID".to_string(), format!("{}", blueprint_id)));
+                        env_vars.push(("REGISTRATION_MODE_ON".to_string(), "true".to_string()));
+                        env_vars
+                    } else {
+                        std::env::vars().collect::<Vec<_>>()
+                    };
+
+                    logger.info(format!("Starting protocol: {sub_service_str}"));
+
+                    // Now that the file is loaded, spawn the process
+                    let process_handle = tokio::process::Command::new(&binary_download_path)
+                        .kill_on_drop(true)
+                        .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
+                        .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
+                        .stdin(std::process::Stdio::null())
+                        .current_dir(&std::env::current_dir()?)
+                        .envs(env_vars)
+                        .args(arguments)
+                        .spawn()?;
+
+                    if blueprint.registration_mode {
+                        // We must wait for the process to exit successfully
+                        let status = process_handle.wait_with_output().await?;
+                        if !status.status.success() {
+                            logger.error(format!(
+                                "Protocol (registration mode) {sub_service_str} failed to execute: {status:?}"
+                            ));
+                        } else {
+                            logger.info(format!(
+                                "***Protocol (registration mode) {sub_service_str} executed successfully***"
+                            ));
+                        }
+                    } else {
+                        // A normal running gadget binary. Store the process handle and let the event loop handle the rest
+                        let (status_handle, abort) = utils::generate_running_process_status_handle(
+                            process_handle,
+                            logger,
+                            &sub_service_str,
+                        );
+
+                        active_shells
+                            .entry(blueprint_id)
+                            .or_default()
+                            .insert(*service_id, (status_handle, Some(abort)));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn slice_32_to_sha_hex_string(hash: [u8; 32]) -> String {
+    hash.iter().fold(String::new(), |mut acc, byte| {
+        write!(&mut acc, "{:02x}", byte).expect("Should be able to write");
+        acc
+    })
+}
+
+fn get_gadget_binary(gadget_binaries: &[GadgetBinary]) -> Option<&GadgetBinary> {
+    let os = utils::get_formatted_os_string().to_lowercase();
+    let arch = std::env::consts::ARCH.to_lowercase();
+    for binary in gadget_binaries {
+        let binary_str = format!("{:?}", binary.os).to_lowercase();
+        if binary_str.contains(&os) || os.contains(&binary_str) || binary_str == os {
+            let mut arch_str = format!("{:?}", binary.arch).to_lowercase();
+
+            if arch_str == "amd" {
+                arch_str = "x86".to_string()
+            } else if arch_str == "amd64" {
+                arch_str = "x86_64".to_string()
+            }
+
+            if arch_str == arch {
+                return Some(binary);
+            }
+        }
+    }
+
+    None
 }
