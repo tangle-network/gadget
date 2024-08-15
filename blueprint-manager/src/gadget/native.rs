@@ -1,4 +1,4 @@
-use crate::utils;
+use crate::sdk::utils::get_formatted_os_string;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
     Gadget, GadgetBinary,
 };
@@ -11,7 +11,7 @@ pub struct FilteredBlueprint {
 }
 
 pub fn get_gadget_binary(gadget_binaries: &[GadgetBinary]) -> Option<&GadgetBinary> {
-    let os = utils::get_formatted_os_string().to_lowercase();
+    let os = get_formatted_os_string().to_lowercase();
     let arch = std::env::consts::ARCH.to_lowercase();
     for binary in gadget_binaries {
         let binary_str = format!("{:?}", binary.os).to_lowercase();

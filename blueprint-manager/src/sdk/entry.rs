@@ -1,8 +1,9 @@
-use crate::setup::SingleGadgetInput;
+use crate::sdk::setup::SingleGadgetInput;
+use crate::sdk::{generate_node_input, SingleGadgetConfig};
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, KeystoreBackend};
 use gadget_core::job_manager::SendFuture;
-use gadget_io::{GadgetConfig, SupportedChains};
+use gadget_io::{GadgetConfig, KeystoreConfig, SupportedChains};
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 use tracing_subscriber::fmt::SubscriberBuilder;
@@ -13,8 +14,8 @@ pub fn keystore_from_base_path(
     base_path: &std::path::Path,
     chain: SupportedChains,
     keystore_password: Option<String>,
-) -> crate::KeystoreConfig {
-    crate::KeystoreConfig::Path {
+) -> KeystoreConfig {
+    KeystoreConfig::Path {
         path: base_path
             .join("chains")
             .join(chain.to_string())
@@ -62,7 +63,7 @@ where
 
     logger.info("Starting gadget with config: {config:?}");
 
-    let (node_input, network_handle) = crate::generate_node_input(crate::SingleGadgetConfig {
+    let (node_input, network_handle) = generate_node_input(SingleGadgetConfig {
         keystore_backend,
         services,
         keystore,

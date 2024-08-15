@@ -1,31 +1,12 @@
 use crate::config::BlueprintManagerConfig;
 use crate::protocols::resolver::NativeGithubMetadata;
 use gadget_common::config::DebugLogger;
-use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::GadgetConfig;
 use sha2::Digest;
-use sp_core::H256;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
-use tangle_subxt::subxt::backend::BlockRef;
-use tangle_subxt::subxt::Config;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GithubFetcher;
-
-pub async fn get_blueprints<C: Config>(
-    runtime: &ServicesClient<C>,
-    block_hash: [u8; 32],
-    account_id: AccountId32,
-) -> color_eyre::Result<Vec<RpcServicesWithBlueprint>>
-where
-    BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
-{
-    runtime
-        .query_operator_blueprints(block_hash, account_id)
-        .await
-        .map_err(|err| msg_to_error(err.to_string()))
-}
 
 pub fn github_fetcher_to_native_github_metadata(
     gh: &GithubFetcher,

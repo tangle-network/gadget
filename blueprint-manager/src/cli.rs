@@ -1,9 +1,10 @@
+use crate::sdk::entry;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::run_blueprint_manager;
-use blueprint_manager::utils;
+use blueprint_manager::sdk;
+use blueprint_manager::sdk::utils::msg_to_error;
 use gadget_common::gadget_io;
 use gadget_io::GadgetConfig;
-use shell_sdk::entry;
 use structopt::StructOpt;
 
 #[tokio::main]
@@ -19,8 +20,8 @@ async fn main() -> color_eyre::Result<()> {
 
     if let Some(gadget_config) = blueprint_manager_config.gadget_config.as_ref() {
         let gadget_config_settings = std::fs::read_to_string(gadget_config)?;
-        let gadget_config: GadgetConfig = toml::from_str(&gadget_config_settings)
-            .map_err(|err| utils::msg_to_error(err.to_string()))?;
+        let gadget_config: GadgetConfig =
+            toml::from_str(&gadget_config_settings).map_err(|err| msg_to_error(err.to_string()))?;
 
         // Allow CTRL-C to shutdown this CLI application instance
         let shutdown_signal = async move {
@@ -32,7 +33,7 @@ async fn main() -> color_eyre::Result<()> {
 
         handle.await
     } else {
-        Err(utils::msg_to_error(
+        Err(msg_to_error(
             "Gadget config file is required when running the blueprint manager in CLI mode"
                 .to_string(),
         ))

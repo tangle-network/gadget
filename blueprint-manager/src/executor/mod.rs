@@ -1,5 +1,8 @@
 use crate::config::BlueprintManagerConfig;
-use crate::utils;
+use crate::sdk::entry::keystore_from_base_path;
+use crate::sdk::utils::msg_to_error;
+use crate::sdk::{keystore::load_keys_from_keystore, utils};
+use crate::sdk::{Client, SendFuture};
 use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
 use gadget_common::config::DebugLogger;
@@ -7,20 +10,33 @@ use gadget_common::environments::GadgetEnvironment;
 use gadget_common::subxt_signer::sr25519;
 use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::{GadgetConfig, SubstrateKeystore};
-use shell_sdk::entry::keystore_from_base_path;
-use shell_sdk::keystore::load_keys_from_keystore;
-use shell_sdk::{Client, SendFuture};
-use sp_core::{ecdsa, Pair};
+use sp_core::{ecdsa, Pair, H256};
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use tangle_environment::api::ServicesClient;
+use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
 use tangle_environment::gadget::SubxtConfig;
 use tangle_environment::TangleEnvironment;
+use tangle_subxt::subxt::blocks::BlockRef;
+use tangle_subxt::subxt::Config;
 use tokio::task::JoinHandle;
 
 pub(crate) mod event_handler;
+
+pub async fn get_blueprints<C: Config>(
+    runtime: &ServicesClient<C>,
+    block_hash: [u8; 32],
+    account_id: AccountId32,
+) -> color_eyre::Result<Vec<RpcServicesWithBlueprint>>
+where
+    BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
+{
+    runtime
+        .query_operator_blueprints(block_hash, account_id)
+        .await
+        .map_err(|err| msg_to_error(err.to_string()))
+}
 
 pub struct BlueprintManagerHandle {
     shutdown_call: Option<tokio::sync::oneshot::Sender<()>>,
@@ -160,7 +176,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let (mut operator_subscribed_blueprints, init_event) =
         if let Some(event) = tangle_runtime.next_event().await {
             (
-                utils::get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?,
+                get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?,
                 event,
             )
         } else {
@@ -206,7 +222,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
             if result.needs_update {
                 operator_subscribed_blueprints =
-                    utils::get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?;
+                    get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?;
             }
 
             event_handler::handle_tangle_event(

@@ -2,6 +2,7 @@ pub mod config;
 pub mod entry;
 pub mod keystore;
 pub mod setup;
+pub mod utils;
 
 pub use config::*;
 pub use entry::run_gadget_for_protocol;
@@ -11,21 +12,21 @@ pub use gadget_sdk::network::setup::{start_p2p_network, NetworkConfig};
 pub use setup::generate_node_input;
 
 pub mod prelude {
-    pub use crate::async_trait;
-    pub use crate::BuiltExecutableJobWrapper;
-    pub use crate::DebugLogger;
-    pub use crate::ECDSAKeyStore;
-    pub use crate::FullProtocolConfig;
-    pub use crate::JobError;
-    pub use crate::JobsClient;
-    pub use crate::KeystoreBackend;
-    pub use crate::Mutex;
-    pub use crate::Network;
-    pub use crate::NodeInput;
-    pub use crate::ProtocolWorkManager;
-    pub use crate::SendFuture;
-    pub use crate::UnboundedReceiver;
-    pub use crate::WorkManagerInterface;
+    pub use crate::sdk::async_trait;
+    pub use crate::sdk::BuiltExecutableJobWrapper;
+    pub use crate::sdk::DebugLogger;
+    pub use crate::sdk::ECDSAKeyStore;
+    pub use crate::sdk::FullProtocolConfig;
+    pub use crate::sdk::JobError;
+    pub use crate::sdk::JobsClient;
+    pub use crate::sdk::KeystoreBackend;
+    pub use crate::sdk::Mutex;
+    pub use crate::sdk::Network;
+    pub use crate::sdk::NodeInput;
+    pub use crate::sdk::ProtocolWorkManager;
+    pub use crate::sdk::SendFuture;
+    pub use crate::sdk::UnboundedReceiver;
+    pub use crate::sdk::WorkManagerInterface;
     pub use gadget_common::full_protocol::SharedOptional;
 
     pub use gadget_common::prelude::InMemoryBackend;

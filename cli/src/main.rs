@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use cargo_gadget::{create, deploy};
+use cargo_tangle::{create, deploy};
 use clap::{Parser, Subcommand};
 
 /// Tangle CLI tool

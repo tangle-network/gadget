@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::keystore::load_keys_from_keystore;
+use crate::sdk::keystore::load_keys_from_keystore;
 
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::keystore::KeystoreBackend;
@@ -13,7 +13,7 @@ use gadget_common::{
 use gadget_io::tokio::task::JoinHandle;
 use sp_core::{keccak_256, sr25519, Pair};
 
-use crate::config::SingleGadgetConfig;
+use crate::sdk::config::SingleGadgetConfig;
 pub use gadget_io::KeystoreContainer;
 use gadget_sdk::network::gossip::GossipHandle;
 use gadget_sdk::network::setup::NetworkConfig;

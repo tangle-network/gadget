@@ -8,10 +8,6 @@ description = "Tangle's gadget core library for writing Tangle blueprints"
 repository.workspace = true
 homepage.workspace = true
 
-[features]
-default = ["substrate"]
-substrate = []
-
 [dependencies]
 parking_lot = { workspace = true }
 gadget-io = { workspace = true }
@@ -26,3 +22,7 @@ serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros"] }
+
+[features]
+default = ["substrate"]
+substrate = []
