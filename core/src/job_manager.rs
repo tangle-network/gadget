@@ -10,11 +10,6 @@ use std::{
     sync::Arc,
 };
 
-#[cfg(target_family = "wasm")]
-use wasm_bindgen_test::*;
-#[cfg(target_family = "wasm")]
-wasm_bindgen_test_configure!(run_in_browser);
-
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum PollMethod {
     Interval { millis: u64 },
