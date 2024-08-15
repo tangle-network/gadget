@@ -1,5 +1,6 @@
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
+use cargo_gadget::deploy::Opts;
 use gadget_common::subxt_signer::sr25519;
 use gadget_common::tangle_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
