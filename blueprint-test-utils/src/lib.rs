@@ -1,6 +1,6 @@
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
-use cargo_gadget::deploy::Opts;
+use cargo_tangle::deploy::Opts;
 use gadget_common::subxt_signer::sr25519;
 use gadget_common::tangle_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
@@ -287,7 +287,7 @@ mod test_macros {
 mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
-    use cargo_gadget::deploy::Opts;
+    use cargo_tangle::deploy::Opts;
 
     // This test requires that `yarn install` has been executed inside the `./blueprints/incredible-squaring/` directory
     // The other requirement is that there is a locally-running tangle node

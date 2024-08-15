@@ -1909,7 +1909,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "blueprint-manager",
- "cargo-gadget",
+ "cargo-tangle",
  "cargo_metadata",
  "environment-utils",
  "frame-support 29.0.2",
@@ -2041,33 +2041,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cargo-gadget"
-version = "0.1.0"
-dependencies = [
- "alloy-contract",
- "alloy-json-abi",
- "alloy-network",
- "alloy-primitives",
- "alloy-provider",
- "alloy-rpc-types",
- "alloy-signer",
- "alloy-signer-local",
- "cargo-generate",
- "cargo_metadata",
- "clap 4.5.15",
- "clap-cargo",
- "color-eyre",
- "escargot",
- "gadget-blueprint-proc-macro-core",
- "k256",
- "serde_json",
- "tangle-subxt",
- "tokio",
- "tracing",
- "tracing-subscriber 0.3.18",
-]
-
-[[package]]
 name = "cargo-generate"
 version = "0.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2116,6 +2089,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24b1f0365a6c6bb4020cd05806fd0d33c44d38046b8bd7f0e40814b9763cabfc"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "cargo-tangle"
+version = "0.1.0"
+dependencies = [
+ "alloy-contract",
+ "alloy-json-abi",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-signer",
+ "alloy-signer-local",
+ "cargo-generate",
+ "cargo_metadata",
+ "clap 4.5.15",
+ "clap-cargo",
+ "color-eyre",
+ "escargot",
+ "gadget-blueprint-proc-macro-core",
+ "k256",
+ "serde_json",
+ "tangle-subxt",
+ "tokio",
+ "tracing",
+ "tracing-subscriber 0.3.18",
 ]
 
 [[package]]

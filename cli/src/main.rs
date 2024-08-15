@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
-use cargo_gadget::*;
+use cargo_gadget::{create, deploy};
 use clap::{Parser, Subcommand};
 
-/// Gadget CLI tool
+/// Tangle CLI tool
 #[derive(Parser, Debug)]
 #[clap(
-    bin_name = "cargo-gadget",
+    bin_name = "cargo-tangle",
     version,
     propagate_version = true,
     arg_required_else_help = true
@@ -22,6 +22,15 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Gadget subcommand
+    Gadget {
+        #[command(subcommand)]
+        subcommand: GadgetCommands,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum GadgetCommands {
     /// Create a new blueprint
     Create {
         /// The name of the blueprint
@@ -46,7 +55,7 @@ async fn main() -> color_eyre::Result<()> {
     init_tracing_subscriber();
     let args: Vec<String> = if std::env::args()
         .nth(1)
-        .map(|x| x.eq("gadget"))
+        .map(|x| x.eq("tangle"))
         .unwrap_or(false)
     {
         // since this runs as a cargo subcommand, we need to skip the first argument
@@ -60,22 +69,26 @@ async fn main() -> color_eyre::Result<()> {
     let cli = Cli::parse_from(args);
 
     match cli.command {
-        Commands::Create { name } => {
-            println!("Generating blueprint with name: {}", name);
-            create::new_blueprint(&name);
-        }
-        Commands::Deploy { rpc_url, package } => {
-            let manifest_path = cli
-                .manifest
-                .manifest_path
-                .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
-            let _ = deploy::deploy_to_tangle(deploy::Opts {
-                rpc_url,
-                manifest_path,
-                pkg_name: package,
-            })
-            .await?;
-        }
+        Commands::Gadget { subcommand } => match subcommand {
+            GadgetCommands::Create { name } => {
+                println!("Generating blueprint with name: {}", name);
+                create::new_blueprint(&name);
+            }
+            GadgetCommands::Deploy { rpc_url, package } => {
+                let manifest_path = cli
+                    .manifest
+                    .manifest_path
+                    .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
+                let _ = deploy::deploy_to_tangle(deploy::Opts {
+                    rpc_url,
+                    manifest_path,
+                    pkg_name: package,
+                    signer: None,
+                    signer_evm: None,
+                })
+                .await?;
+            }
+        },
     }
     Ok(())
 }

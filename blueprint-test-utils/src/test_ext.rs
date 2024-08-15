@@ -17,7 +17,7 @@
 use crate::PerTestNodeInput;
 use async_trait::async_trait;
 use blueprint_manager::executor::BlueprintManagerHandle;
-use cargo_gadget::deploy::{Opts, PrivateKeySigner};
+use cargo_tangle::deploy::{Opts, PrivateKeySigner};
 use environment_utils::transaction_manager::tangle::SubxtPalletSubmitter;
 use gadget_common::config::Network;
 use gadget_common::locks::TokioMutexExt;
@@ -240,7 +240,7 @@ pub async fn new_test_ext_blueprint_manager<
         .expect("Failed to create primary localhost client");
 
     // Step 1: Create the blueprint using alice's identity
-    let blueprint_id = cargo_gadget::deploy::deploy_to_tangle(opts)
+    let blueprint_id = cargo_tangle::deploy::deploy_to_tangle(opts)
         .await
         .expect("Failed to deploy Blueprint to Tangle");
 
