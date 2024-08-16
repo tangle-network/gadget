@@ -41,6 +41,7 @@ gadget-core = { workspace = true, features = ["substrate"] }
 bincode = { workspace = true }
 gadget-common = { workspace = true, features = ["default"] }
 serde = { workspace = true }
+serde_json = { workspace = true }
 async-trait = { workspace = true }
 futures = { workspace = true }
 
@@ -52,13 +53,26 @@ sp-core = { workspace = true, default-features = false, features = ["full_crypto
 getrandom = { workspace = true, optional = true }
 wasm-bindgen-test = { workspace = true, optional = true }
 
-# Event Watchers and Handlers
+# Substrate Event Watchers and Handlers
 tangle-subxt = { workspace = true, default-features = false }
 subxt = { workspace = true, default-features = false }
 backoff = { workspace = true }
 
+# EVM Event Watchers and Handlers
+alloy-contract = { workspace = true }
+alloy-network = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-pubsub = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-sol-types = { workspace = true }
+alloy-transport = { workspace = true }
+
 # Macros
 gadget-blueprint-proc-macro = { workspace = true }
+toml = { workspace = true }
+derive_more = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true

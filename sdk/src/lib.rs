@@ -36,6 +36,9 @@ pub mod events_watcher;
 /// Gadget Environment Module
 pub mod env;
 
+/// Local database storage
+pub mod store;
+
 /// Transaction Management Module
 pub mod tx;
 

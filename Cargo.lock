@@ -264,7 +264,7 @@ dependencies = [
  "bytes",
  "cfg-if",
  "const-hex",
- "derive_more",
+ "derive_more 0.99.18",
  "hex-literal",
  "itoa",
  "k256",
@@ -2809,6 +2809,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_more"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05"
+dependencies = [
+ "derive_more-impl",
+]
+
+[[package]]
+name = "derive_more-impl"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.74",
+ "unicode-xid",
+]
+
+[[package]]
 name = "dialoguer"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4346,9 +4367,19 @@ dependencies = [
 name = "gadget-sdk"
 version = "0.1.0"
 dependencies = [
+ "alloy-contract",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-pubsub",
+ "alloy-rpc-types",
+ "alloy-signer",
+ "alloy-sol-types",
+ "alloy-transport",
  "async-trait",
  "backoff",
  "bincode",
+ "derive_more 1.0.0",
  "ed25519-zebra 4.0.3",
  "elliptic-curve",
  "futures",
@@ -4369,12 +4400,14 @@ dependencies = [
  "rand_core 0.6.4",
  "schnorrkel",
  "serde",
+ "serde_json",
  "sp-core 29.0.0",
  "sp-io 31.0.0",
  "subxt",
  "tangle-subxt",
  "thiserror",
  "tokio",
+ "toml 0.8.19",
  "tracing",
  "tracing-log 0.2.0",
  "tracing-subscriber 0.3.18",
@@ -8888,7 +8921,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "58c4eb8a81997cf040a091d1f7e1938aeab6749d3a0dfa73af43cdc32393483d"
 dependencies = [
  "byteorder",
- "derive_more",
+ "derive_more 0.99.18",
  "twox-hash",
 ]
 
@@ -9098,7 +9131,7 @@ version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e98f3262c250d90e700bb802eb704e1f841e03331c2eb815e46516c4edbf5b27"
 dependencies = [
- "derive_more",
+ "derive_more 0.99.18",
  "parity-scale-codec 3.6.12",
  "primitive-types 0.12.2",
  "scale-bits",
@@ -9125,7 +9158,7 @@ version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ba0b9c48dc0eb20c60b083c29447c0c4617cb7c4a4c9fef72aa5c5bc539e15e"
 dependencies = [
- "derive_more",
+ "derive_more 0.99.18",
  "parity-scale-codec 3.6.12",
  "primitive-types 0.12.2",
  "scale-bits",
@@ -9155,7 +9188,7 @@ checksum = "eca070c12893629e2cc820a9761bedf6ce1dcddc9852984d1dc734b8bd9bd024"
 dependencies = [
  "bitvec 1.0.1",
  "cfg-if",
- "derive_more",
+ "derive_more 0.99.18",
  "parity-scale-codec 3.6.12",
  "scale-info-derive",
  "serde",
@@ -9204,7 +9237,7 @@ checksum = "ba4d772cfb7569e03868400344a1695d16560bf62b86b918604773607d39ec84"
 dependencies = [
  "base58",
  "blake2",
- "derive_more",
+ "derive_more 0.99.18",
  "either",
  "frame-metadata 15.1.0",
  "parity-scale-codec 3.6.12",
@@ -9686,7 +9719,7 @@ dependencies = [
  "bs58",
  "chacha20",
  "crossbeam-queue",
- "derive_more",
+ "derive_more 0.99.18",
  "ed25519-zebra 4.0.3",
  "either",
  "event-listener 4.0.3",
@@ -9736,7 +9769,7 @@ dependencies = [
  "async-lock",
  "base64 0.21.7",
  "blake2-rfc",
- "derive_more",
+ "derive_more 0.99.18",
  "either",
  "event-listener 4.0.3",
  "fnv",
