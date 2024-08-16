@@ -40,7 +40,7 @@ pub struct GadgetTomlConfig {
     pub url: url::Url,
     /// The List of bootnodes to connect to
     pub bootnodes: Vec<Multiaddr>,
-    /// The base path to store the shell-sdk data, and read data from the keystore.
+    /// The base path to store the blueprint manager data, and read data from the keystore.
     pub base_path: PathBuf,
     /// Keystore Password, if not provided, the password will be read from the environment variable.
     pub keystore_password: Option<String>,

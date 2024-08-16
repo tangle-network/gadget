@@ -2,8 +2,11 @@ use crate::config::BlueprintManagerConfig;
 use crate::gadget::native::{get_gadget_binary, FilteredBlueprint};
 use crate::gadget::ActiveGadgets;
 use crate::protocols::resolver::NativeGithubMetadata;
-use crate::utils;
-use crate::utils::{get_service_str, github_fetcher_to_native_github_metadata};
+use crate::sdk::utils::{
+    chmod_x_file, generate_process_arguments, generate_running_process_status_handle,
+    get_download_url, get_service_str, github_fetcher_to_native_github_metadata, hash_bytes_to_hex,
+    is_windows, msg_to_error, valid_file_exists,
+};
 use color_eyre::eyre::OptionExt;
 use gadget_common::prelude::DebugLogger;
 use gadget_common::tangle_runtime::AccountId32;
@@ -81,33 +84,32 @@ async fn handle_github_source(
         let mut binary_download_path =
             format!("{}/protocol-{:?}", current_dir.display(), github.tag);
 
-        if utils::is_windows() {
+        if is_windows() {
             binary_download_path += ".exe"
         }
 
         logger.info(format!("Downloading to {binary_download_path}"));
 
         // Check if the binary exists, if not download it
-        let retrieved_hash =
-            if !utils::valid_file_exists(&binary_download_path, &expected_hash).await {
-                let url = utils::get_download_url(&service.git, &service.tag);
+        let retrieved_hash = if !valid_file_exists(&binary_download_path, &expected_hash).await {
+            let url = get_download_url(&service.git, &service.tag);
 
-                let download = reqwest::get(&url)
-                    .await
-                    .map_err(|err| utils::msg_to_error(err.to_string()))?
-                    .bytes()
-                    .await
-                    .map_err(|err| utils::msg_to_error(err.to_string()))?;
-                let retrieved_hash = utils::hash_bytes_to_hex(&download);
+            let download = reqwest::get(&url)
+                .await
+                .map_err(|err| msg_to_error(err.to_string()))?
+                .bytes()
+                .await
+                .map_err(|err| msg_to_error(err.to_string()))?;
+            let retrieved_hash = hash_bytes_to_hex(&download);
 
-                // Write the binary to disk
-                let mut file = tokio::fs::File::create(&binary_download_path).await?;
-                file.write_all(&download).await?;
-                file.flush().await?;
-                Some(retrieved_hash)
-            } else {
-                None
-            };
+            // Write the binary to disk
+            let mut file = tokio::fs::File::create(&binary_download_path).await?;
+            file.write_all(&download).await?;
+            file.flush().await?;
+            Some(retrieved_hash)
+        } else {
+            None
+        };
 
         if let Some(retrieved_hash) = retrieved_hash {
             if retrieved_hash.trim() != expected_hash.trim() {
@@ -119,8 +121,8 @@ async fn handle_github_source(
             }
         }
 
-        if !utils::is_windows() {
-            if let Err(err) = utils::chmod_x_file(&binary_download_path).await {
+        if !is_windows() {
+            if let Err(err) = chmod_x_file(&binary_download_path).await {
                 logger.warn(format!("Failed to chmod +x the binary: {err}"));
             }
         }
@@ -130,7 +132,7 @@ async fn handle_github_source(
                 for service_id in &blueprint.services {
                     let sub_service_str = format!("{service_str}-{service_id}");
                     // Each spawned binary will effectively run a single "RoleType" in old parlance
-                    let arguments = utils::generate_process_arguments(
+                    let arguments = generate_process_arguments(
                         gadget_config,
                         blueprint_manager_opts,
                         blueprint_id,
@@ -187,7 +189,7 @@ async fn handle_github_source(
                         }
                     } else {
                         // A normal running gadget binary. Store the process handle and let the event loop handle the rest
-                        let (status_handle, abort) = utils::generate_running_process_status_handle(
+                        let (status_handle, abort) = generate_running_process_status_handle(
                             process_handle,
                             logger,
                             &sub_service_str,

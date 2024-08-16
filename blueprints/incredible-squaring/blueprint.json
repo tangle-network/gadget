@@ -7,7 +7,7 @@
     "code_repository": "https://github.com/webb-tools/gadget",
     "logo": null,
     "website": "https://tangle.tools",
-    "license": "Unlicense"
+    "license": "MIT OR Apache-2.0"
   },
   "jobs": [
     {

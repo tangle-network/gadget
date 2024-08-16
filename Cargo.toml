@@ -13,7 +13,6 @@ members = [
     "blueprint-test-utils",
     "protocol-macros",
     "blueprint-manager",
-    "shell-sdk",
     "sdk",
     # Commented out, since it uses jobs-v1 code
     #"tangle-test-utils",
@@ -36,11 +35,10 @@ gadget-core = { version = "0.0.1", path = "./core", default-features = false }
 gadget-common = { version = "0.1.0", path = "./common", default-features = false }
 gadget-io = { version = "0.0.1",  path = "./gadget-io", default-features = false }
 gadget-executor = { version = "0.1.0", path = "./executor" }
-blueprint-manager = { version = "0.1.0", path = "./blueprint-manager"}
+blueprint-manager = { version = "0.1.1", path = "./blueprint-manager"}
 blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false }
 protocol-macros = { path = "./protocol-macros" }
-shell-sdk = { path = "./shell-sdk", default-features = false }
 tangle-environment = { path = "./environments/tangle", default-features = false }
 environment-utils = { path = "./environments/utils", default-features = false }
 

@@ -41,8 +41,7 @@ jobs:
             package: [
               gadget-core,
               gadget-common,
-              blueprint-manager,
-              shell-sdk,
+              blueprint-manager
             ]
     steps:
       - name: checkout code
@@ -73,7 +72,6 @@ jobs:
               gadget-core,
               gadget-common,
               blueprint-manager,
-              shell-sdk,
             ]
     steps:
       - name: checkout code

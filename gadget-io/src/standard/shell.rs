@@ -79,7 +79,7 @@ pub struct GadgetConfig {
     #[structopt(long = "bootnodes", parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
     #[serde(default)]
     pub bootnodes: Vec<Multiaddr>,
-    /// The base path to store the shell-sdk data, and read data from the keystore.
+    /// The base path to store the blueprint manager data, and read data from the keystore.
     #[structopt(
         parse(from_os_str),
         long,
