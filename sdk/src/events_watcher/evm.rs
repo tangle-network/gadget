@@ -1,39 +1,16 @@
-use alloy_network::ReceiptResponse;
-use alloy_primitives::FixedBytes;
-use alloy_rpc_types::BlockNumberOrTag;
-use core::{ops::Deref, time::Duration};
-
-use std::sync::Arc;
-
-use crate::events_watcher::ConstantWithMaxRetryCount;
+use crate::events_watcher::{error::Error, ConstantWithMaxRetryCount};
 use crate::store::LocalDatabase;
 use alloy_network::Network;
+use alloy_network::ReceiptResponse;
+use alloy_primitives::FixedBytes;
 use alloy_provider::Provider;
+use alloy_rpc_types::BlockNumberOrTag;
 use alloy_rpc_types::{Filter, Log};
 use alloy_sol_types::SolEvent;
 use alloy_transport::Transport;
 use futures::TryFutureExt;
-
-/// An error type for the event watcher.
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum Error {
-    /// An error occurred in Alloy transport.
-    #[error(transparent)]
-    AlloyTransport(#[from] alloy_transport::TransportError),
-    /// An error occurred in Alloy Contract.
-    #[error(transparent)]
-    AlloyContract(#[from] alloy_contract::Error),
-    /// An error occurred in the backoff mechanism.
-    #[error(transparent)]
-    Backoff(#[from] backoff::Error<subxt::Error>),
-    /// An error occurred in the event watcher and we need to restart it.
-    #[error("An error occurred in the event watcher and we need to restart it.")]
-    ForceRestart,
-    /// An error occurred in the event handler.
-    #[error(transparent)]
-    Handler(#[from] Box<dyn std::error::Error + Send + Sync>),
-}
+use std::sync::Arc;
+use std::{ops::Deref, time::Duration};
 
 /// A helper type to extract the [`EventHandler`] from the [`EventWatcher`] trait.
 pub type EventHandlerFor<W, T, P, N> = Box<
@@ -169,7 +146,6 @@ where
     )]
     async fn run(
         &self,
-        genesis_tx_hash: FixedBytes<32>,
         provider: Arc<P>,
         contract: Self::Contract,
         handlers: Vec<EventHandlerFor<Self, T, P, N>>,
@@ -185,11 +161,8 @@ where
                 .map_err(backoff::Error::transient)
                 .await?;
 
-            // saves the last time we printed sync progress.
-            let instant = std::time::Instant::now();
             // we only query this once, at the start of the events watcher.
             // then we will update it later once we fully synced.
-
             let mut target_block_number: u64 = provider
                 .get_block_number()
                 .map_err(Into::into)

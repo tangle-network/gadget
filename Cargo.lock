@@ -5447,6 +5447,13 @@ dependencies = [
 name = "incredible-squaring-blueprint"
 version = "0.1.0"
 dependencies = [
+ "alloy-contract",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-sol-types",
+ "alloy-transport",
  "async-trait",
  "blueprint-metadata",
  "color-eyre",

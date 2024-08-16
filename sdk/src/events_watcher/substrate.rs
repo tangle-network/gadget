@@ -5,28 +5,10 @@
 //! of an event watcher polls for blocks. Implementations of the event watcher trait define an
 //! action to take when the specified event is found in a block at the `handle_event` api.
 
-use crate::events_watcher::ConstantWithMaxRetryCount;
+use crate::events_watcher::{error::Error, ConstantWithMaxRetryCount};
 use core::time::Duration;
 use futures::TryFutureExt;
 use subxt::OnlineClient;
-
-/// An error type for the event watcher.
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum Error {
-    /// An error occurred in Subxt.
-    #[error(transparent)]
-    Subxt(#[from] subxt::Error),
-    /// An error occurred in the backoff mechanism.
-    #[error(transparent)]
-    Backoff(#[from] backoff::Error<subxt::Error>),
-    /// An error occurred in the event watcher and we need to restart it.
-    #[error("An error occurred in the event watcher and we need to restart it.")]
-    ForceRestart,
-    /// An error occurred in the event handler.
-    #[error(transparent)]
-    Handler(#[from] Box<dyn std::error::Error + Send + Sync>),
-}
 
 /// A type alias to extract the event handler type from the event watcher.
 pub type EventHandlerFor<RuntimeConfig> =

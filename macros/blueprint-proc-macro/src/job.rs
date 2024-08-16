@@ -18,6 +18,7 @@ mod kw {
     syn::custom_keyword!(result);
     syn::custom_keyword!(verifier);
     syn::custom_keyword!(evm);
+    syn::custom_keyword!(event_handler_type);
     syn::custom_keyword!(skip_codegen);
 }
 
@@ -140,6 +141,7 @@ pub fn generate_event_handler_for(
     let fn_name_string = fn_name.to_string();
     let struct_name = format_ident!("{}EventHandler", pascal_case(&fn_name_string));
     let job_id = &job_args.id;
+    let event_handler_type = &job_args.event_handler_type;
 
     // Get all the params names inside the param_types map
     // and not in the params list to be added to the event handler.
@@ -206,8 +208,8 @@ pub fn generate_event_handler_for(
                 Ok(r) => r,
                 Err(e) => {
                     tracing::error!("Error in job: {e}");
-                    use gadget_sdk::events_watcher::Error;
-                    return Err(Error::Handler(Box::new(e)));
+                    let error = gadget_sdk::events_watcher::Error::Handler(Box::new(e));
+                    return Err(error);
                 }
             };
         }
@@ -220,8 +222,8 @@ pub fn generate_event_handler_for(
                 Ok(r) => r,
                 Err(e) => {
                     tracing::error!("Error in job: {e}");
-                    use gadget_sdk::events_watcher::Error;
-                    return Err(Error::Handler(Box::new(e)));
+                    let error = gadget_sdk::events_watcher::Error::Handler(Box::new(e));
+                    return Err(error);
                 }
             };
         }
@@ -245,76 +247,119 @@ pub fn generate_event_handler_for(
             .collect::<Vec<_>>()
     };
 
-    quote! {
-        /// Event handler for the function
-        #[doc = "[`"]
-        #[doc = #fn_name_string]
-        #[doc = "`]"]
-        pub struct #struct_name {
-            pub service_id: u64,
-            pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
-            #(#additional_params)*
-        }
+    if event_handler_type == &EventHandlerType::EVM {
+        quote! {
+            use alloy_network::Network;
+            use alloy_provider::Provider;
+            use alloy_transport::Transport;
 
-        #[automatically_derived]
-        #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
-            async fn can_handle_events(
-                &self,
-                events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
-            ) -> Result<bool, gadget_sdk::events_watcher::Error> {
-                use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
-
-                let has_event = events.find::<JobCalled>().flatten().any(|event| {
-                    event.service_id == self.service_id && event.job == #job_id
-                });
-
-                Ok(has_event)
+            /// Event handler for the function
+            #[doc = "[`"]
+            #[doc = #fn_name_string]
+            #[doc = "`]"]
+            pub struct #struct_name<T: Transport, P: Provider<T, N>, N: Network> {
+                pub contract_address: alloy_primitives::Address,
+                pub provider: std::sync::Arc<P>,
+                #(#additional_params)*
             }
 
-            async fn handle_events(
-                &self,
-                client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::events_watcher::tangle::TangleConfig>,
-                (events, block_number): (
-                    gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
-                    u64
-                ),
-            ) -> Result<(), gadget_sdk::events_watcher::Error> {
-                use gadget_sdk::tangle_subxt::{
-                    subxt,
-                    tangle_testnet_runtime::api::{
-                        self as TangleApi,
-                        runtime_types::{
-                            bounded_collections::bounded_vec::BoundedVec,
-                            tangle_primitives::services::field::{Field, BoundedString},
-                        },
-                        services::events::JobCalled,
-                    },
-                };
-                let job_events: Vec<_> = events
-                    .find::<JobCalled>()
-                    .flatten()
-                    .filter(|event| {
-                        event.service_id == self.service_id && event.job == #job_id
-                    })
-                    .collect();
-                for call in job_events {
-                    tracing::debug!("Handling JobCalled Events: #{block_number}",);
+            #[automatically_derived]
+            #[async_trait::async_trait]
+            impl<T: Transport, P: Provider<T, N>, N: Network> gadget_sdk::events_watcher::evm::EventHandler<T, P, N> for #struct_name<T, P, N> {
+                type Contract = alloy_contract::ContractInstance<T, P, N>;
+                type Events = alloy_sol_types::SolEvent;
 
-                    let mut args_iter = call.args.into_iter();
-                    #(#params_tokens)*
-                    #fn_call
-
-                    let mut result = Vec::new();
-                    #(#result_tokens)*
-
-                    let response =
-                        TangleApi::tx()
-                            .services()
-                            .submit_result(self.service_id, call.call_id, result);
-                    gadget_sdk::tx::tangle::send(&client, &self.signer, &response).await?;
+                async fn can_handle_events(
+                    &self,
+                    (event, log): (Self::Events, alloy_rpc_types::Log),
+                    _contract: &Self::Contract,
+                ) -> Result<bool, gadget_sdk::events_watcher::Error> {
+                    // Implement logic to check if the event can be handled
+                    Ok(true)
                 }
-                Ok(())
+
+                async fn handle_event(
+                    &self,
+                    contract: &Self::Contract,
+                    (event, log): (Self::Events, alloy_rpc_types::Log),
+                ) -> Result<(), gadget_sdk::events_watcher::Error> {
+                    // Implement logic to handle the event
+                    Ok(())
+                }
+            }
+        }
+    } else {
+        quote! {
+            /// Event handler for the function
+            #[doc = "[`"]
+            #[doc = #fn_name_string]
+            #[doc = "`]"]
+            pub struct #struct_name {
+                pub service_id: u64,
+                pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
+                #(#additional_params)*
+            }
+
+            #[automatically_derived]
+            #[async_trait::async_trait]
+            impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
+                async fn can_handle_events(
+                    &self,
+                    events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                ) -> Result<bool, gadget_sdk::events_watcher::Error> {
+                    use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
+
+                    let has_event = events.find::<JobCalled>().flatten().any(|event| {
+                        event.service_id == self.service_id && event.job == #job_id
+                    });
+
+                    Ok(has_event)
+                }
+
+                async fn handle_events(
+                    &self,
+                    client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                    (events, block_number): (
+                        gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                        u64
+                    ),
+                ) -> Result<(), gadget_sdk::events_watcher::Error> {
+                    use gadget_sdk::tangle_subxt::{
+                        subxt,
+                        tangle_testnet_runtime::api::{
+                            self as TangleApi,
+                            runtime_types::{
+                                bounded_collections::bounded_vec::BoundedVec,
+                                tangle_primitives::services::field::{Field, BoundedString},
+                            },
+                            services::events::JobCalled,
+                        },
+                    };
+                    let job_events: Vec<_> = events
+                        .find::<JobCalled>()
+                        .flatten()
+                        .filter(|event| {
+                            event.service_id == self.service_id && event.job == #job_id
+                        })
+                        .collect();
+                    for call in job_events {
+                        tracing::debug!("Handling JobCalled Events: #{block_number}",);
+
+                        let mut args_iter = call.args.into_iter();
+                        #(#params_tokens)*
+                        #fn_call
+
+                        let mut result = Vec::new();
+                        #(#result_tokens)*
+
+                        let response =
+                            TangleApi::tx()
+                                .services()
+                                .submit_result(self.service_id, call.call_id, result);
+                        gadget_sdk::tx::tangle::send(&client, &self.signer, &response).await?;
+                    }
+                    Ok(())
+                }
             }
         }
     }
@@ -335,6 +380,9 @@ pub(crate) struct JobArgs {
     /// Optional: Verifier for the job result, currently only supports EVM verifier.
     /// `#[job(verifier(evm = "MyVerifierContract"))]`
     verifier: Verifier,
+    /// Optional: Event handler type for the job.
+    /// `#[job(event_handler_type = "tangle")]`
+    event_handler_type: EventHandlerType,
     /// Optional: Skip code generation for this job.
     /// `#[job(skip_codegen)]`
     /// this is useful if the developer want to impl a custom event handler
@@ -348,6 +396,7 @@ impl Parse for JobArgs {
         let mut result = None;
         let mut id = None;
         let mut verifier = Verifier::None;
+        let mut event_handler_type = EventHandlerType::Tangle;
         let mut skip_codegen = false;
 
         while !input.is_empty() {
@@ -364,6 +413,8 @@ impl Parse for JobArgs {
                 result = Some(r);
             } else if lookahead.peek(kw::verifier) {
                 verifier = input.parse()?;
+            } else if lookahead.peek(kw::event_handler_type) {
+                event_handler_type = input.parse()?;
             } else if lookahead.peek(kw::skip_codegen) {
                 let _ = input.parse::<kw::skip_codegen>()?;
                 skip_codegen = true;
@@ -393,6 +444,7 @@ impl Parse for JobArgs {
             params,
             result,
             verifier,
+            event_handler_type,
             skip_codegen,
         })
     }
@@ -518,6 +570,29 @@ impl Parse for Verifier {
             Ok(Verifier::Evm(contract.value()))
         } else {
             Ok(Verifier::None)
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum EventHandlerType {
+    Tangle,
+    EVM,
+}
+
+impl Parse for EventHandlerType {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let _ = input.parse::<kw::event_handler_type>()?;
+        let content;
+        let _ = syn::parenthesized!(content in input);
+        let s = content.parse::<LitStr>()?;
+        match s.value().as_str() {
+            "tangle" => Ok(EventHandlerType::Tangle),
+            "evm" => Ok(EventHandlerType::EVM),
+            _ => Err(syn::Error::new_spanned(
+                s,
+                "Expected `tangle` or `evm` as event handler type",
+            )),
         }
     }
 }
