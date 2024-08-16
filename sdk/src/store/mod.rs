@@ -14,8 +14,8 @@ impl<T> LocalDatabase<T>
 where
     T: Serialize + DeserializeOwned + Clone + Default,
 {
-    /// Creates a new LocalDatabase instance with the given path.
-    pub fn new(path: &str) -> Self {
+    /// Creates a new `LocalDatabase` instance with the given path.
+    #[must_use] pub fn new(path: &str) -> Self {
         let data = if Path::new(path).exists() {
             let content = fs::read_to_string(path).expect("Failed to read the file");
             serde_json::from_str(&content).unwrap_or_default()

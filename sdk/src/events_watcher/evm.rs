@@ -1,5 +1,3 @@
-use alloy_contract::ContractInstance;
-use alloy_network::Ethereum;
 use alloy_network::ReceiptResponse;
 use alloy_primitives::FixedBytes;
 use alloy_rpc_types::BlockNumberOrTag;
@@ -11,7 +9,7 @@ use crate::events_watcher::ConstantWithMaxRetryCount;
 use crate::store::LocalDatabase;
 use alloy_network::Network;
 use alloy_provider::Provider;
-use alloy_rpc_types::{Filter, FilterBlockOption, Log};
+use alloy_rpc_types::{Filter, Log};
 use alloy_sol_types::SolEvent;
 use alloy_transport::Transport;
 use futures::TryFutureExt;
@@ -188,7 +186,7 @@ where
                 .await?;
 
             // saves the last time we printed sync progress.
-            let mut instant = std::time::Instant::now();
+            let instant = std::time::Instant::now();
             // we only query this once, at the start of the events watcher.
             // then we will update it later once we fully synced.
 
@@ -200,7 +198,7 @@ where
 
             local_db.set(
                 &format!("TARGET_BLOCK_NUMBER_{}", contract.address()),
-                target_block_number.into(),
+                target_block_number,
             );
 
             let deployed_at = provider
@@ -214,7 +212,7 @@ where
             loop {
                 let block = local_db
                     .get(&format!("LAST_BLOCK_NUMBER_{}", contract.address()))
-                    .unwrap_or_else(|| deployed_at);
+                    .unwrap_or(deployed_at);
                 let dest_block = core::cmp::min(block + step, target_block_number);
 
                 let events_filter = contract.event::<Self::Events>(
@@ -230,7 +228,7 @@ where
                     .map_err(backoff::Error::transient)?;
                 let number_of_events = events.len();
                 tracing::trace!("Found #{number_of_events} events");
-                for (event, log) in events.into_iter() {
+                for (event, log) in events {
                     // Wraps each handler future in a retry logic, that will retry the handler
                     // if it fails, up to `MAX_RETRY_COUNT`, after this it will ignore that event for
                     // that specific handler.
@@ -254,15 +252,15 @@ where
                     let mark_as_handled = result.iter().any(Result::is_ok);
                     // also, for all the failed event handlers, we should print what went
                     // wrong.
-                    result.iter().for_each(|r| {
+                    for r in &result {
                         if let Err(e) = r {
                             tracing::error!(?e, %chain_id, "Error while handling the event");
                         }
-                    });
+                    }
                     if mark_as_handled {
                         local_db.set(
                             &format!("LAST_BLOCK_NUMBER_{}", contract.address()),
-                            log.block_number.unwrap_or_default().into(),
+                            log.block_number.unwrap_or_default(),
                         );
                     } else {
                         tracing::error!(%chain_id, "Error while handling event, all handlers failed.");
@@ -275,7 +273,7 @@ where
                 // move the block pointer to the destination block
                 local_db.set(
                     &format!("LAST_BLOCK_NUMBER_{}", contract.address()),
-                    dest_block.into(),
+                    dest_block,
                 );
                 // if we fully synced, we can update the target block number
                 let should_cooldown = dest_block == target_block_number;
@@ -291,7 +289,7 @@ where
                         .await?;
                     local_db.set(
                         &format!("TARGET_BLOCK_NUMBER_{}", contract.address()),
-                        target_block_number.into(),
+                        target_block_number,
                     );
                 }
             }
