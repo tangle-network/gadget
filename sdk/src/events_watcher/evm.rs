@@ -100,7 +100,6 @@ where
     T: Transport + Clone + Send + Sync,
     P: Provider<T, N> + Send + Sync,
     N: Network + Send + Sync,
-    <Self as EventHandler<T, P, N>>::Events: 'async_trait,
 {
     /// A method to be called with the event information,
     /// it is up to the handler to decide what to do with the event.
@@ -141,7 +140,6 @@ where
     T: Transport + Clone + Send + Sync,
     P: Provider<T, N> + Send + Sync,
     N: Network + Send + Sync,
-    <X as EventHandler<T, P, N>>::Events: 'async_trait,
 {
 }
 
