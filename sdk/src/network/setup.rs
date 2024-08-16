@@ -26,7 +26,7 @@ use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 
-/// The version of the shell-sdk
+/// The version of the gadget sdk
 pub const AGENT_VERSION: &str = "tangle/gadget-sdk/1.0.0";
 /// The version of the client
 pub const CLIENT_VERSION: &str = "1.0.0";

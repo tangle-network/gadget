@@ -316,7 +316,7 @@ mod tests_standard {
         new_test_ext_blueprint_manager::<1, 1, (), _, _>((), opts, run_test_blueprint_manager)
             .await
             .execute_with_async(move |client, handles| async move {
-                // At this point, init_blueprint has been deployed, and, every node has registered
+                // At this point, init_blueprint has been deployed, and every node has registered
                 // as an operator to the init_blueprint provided
 
                 // What's left: Submit a job, wait for the job to finish, then assert the job results

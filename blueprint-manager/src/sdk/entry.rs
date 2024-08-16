@@ -89,7 +89,7 @@ where
     }
 }
 
-/// Sets up the logger for the shell-sdk, based on the verbosity level passed in.
+/// Sets up the logger for the blueprint manager, based on the verbosity level passed in.
 pub fn setup_blueprint_manager_logger(
     verbose: i32,
     pretty: bool,
