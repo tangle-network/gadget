@@ -1,7 +1,7 @@
-#[allow(unused_imports)]
-use cargo_tangle::deploy::Opts;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
+#[allow(unused_imports)]
+use cargo_tangle::deploy::Opts;
 #[allow(unused_imports)]
 use cargo_tangle::deploy::Opts;
 use gadget_common::subxt_signer::sr25519;

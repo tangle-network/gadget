@@ -23,6 +23,9 @@ pub enum Error {
     /// An error occurred in Alloy transport.
     #[error(transparent)]
     AlloyTransport(#[from] alloy_transport::TransportError),
+    /// An error occurred in Alloy Contract.
+    #[error(transparent)]
+    AlloyContract(#[from] alloy_contract::Error),
     /// An error occurred in the backoff mechanism.
     #[error(transparent)]
     Backoff(#[from] backoff::Error<subxt::Error>),
@@ -35,12 +38,7 @@ pub enum Error {
 }
 
 /// A helper type to extract the [`EventHandler`] from the [`EventWatcher`] trait.
-pub type EventHandlerFor<
-    W,
-    T: Transport + Clone + Send + Sync,
-    P: Provider<T, N> + Send + Sync,
-    N: Network + Send + Sync,
-> = Box<
+pub type EventHandlerFor<W, T, P, N> = Box<
     dyn EventHandler<
             T,
             P,
@@ -48,7 +46,8 @@ pub type EventHandlerFor<
             Contract = <W as EventWatcher<T, P, N>>::Contract,
             Events = <W as EventWatcher<T, P, N>>::Events,
         > + Send
-        + Sync,
+        + Sync
+        + 'static,
 >;
 
 /// A trait that defines a handler for a specific set of event types.
@@ -58,15 +57,15 @@ pub type EventHandlerFor<
 #[async_trait::async_trait]
 pub trait EventHandler<T, P, N>: Send + Sync
 where
-    T: Transport + Clone + Send + Sync,
-    P: Provider<T, N> + Send + Sync,
-    N: Network + Send + Sync,
+    T: Transport + Clone + Send + Sync + 'static,
+    P: Provider<T, N> + Send + Sync + 'static,
+    N: Network + Send + Sync + 'static,
 {
     /// The Type of contract this handler is for, Must be the same as the contract type in the
     /// watcher.
-    type Contract: Deref<Target = alloy_contract::ContractInstance<T, P, N>> + Send + Sync;
+    type Contract: Deref<Target = alloy_contract::ContractInstance<T, P, N>> + Send + Sync + 'static;
     /// The type of event this handler is for.
-    type Events: SolEvent + Clone + Send + Sync;
+    type Events: SolEvent + Clone + Send + Sync + 'static;
 
     /// a method to be called with the event information,
     /// it is up to the handler to decide what to do with the event.
@@ -94,12 +93,11 @@ where
 ///
 /// this trait is automatically implemented for all the event handlers.
 #[async_trait::async_trait]
-#[async_trait::async_trait]
-pub trait EventHandlerWithRetry<T, P, N>: EventHandler<T, P, N> + Send + Sync
+pub trait EventHandlerWithRetry<T, P, N>: EventHandler<T, P, N> + Send + Sync + 'static
 where
-    T: Transport + Clone + Send + Sync,
-    P: Provider<T, N> + Send + Sync,
-    N: Network + Send + Sync,
+    T: Transport + Clone + Send + Sync + 'static,
+    P: Provider<T, N> + Send + Sync + 'static,
+    N: Network + Send + Sync + 'static,
 {
     /// A method to be called with the event information,
     /// it is up to the handler to decide what to do with the event.
@@ -136,10 +134,10 @@ where
 #[async_trait::async_trait]
 impl<X, T, P, N> EventHandlerWithRetry<T, P, N> for X
 where
-    X: EventHandler<T, P, N> + Send + Sync,
-    T: Transport + Clone + Send + Sync,
-    P: Provider<T, N> + Send + Sync,
-    N: Network + Send + Sync,
+    X: EventHandler<T, P, N> + Send + Sync + 'static + ?Sized,
+    T: Transport + Clone + Send + Sync + 'static,
+    P: Provider<T, N> + Send + Sync + 'static,
+    N: Network + Send + Sync + 'static,
 {
 }
 
@@ -148,16 +146,16 @@ where
 #[async_trait::async_trait]
 pub trait EventWatcher<T, P, N>: Send + Sync
 where
-    T: Transport + Clone + Send + Sync,
-    P: Provider<T, N> + Send + Sync,
-    N: Network + Send + Sync,
+    T: Transport + Clone + Send + Sync + 'static,
+    P: Provider<T, N> + Send + Sync + 'static,
+    N: Network + Send + Sync + 'static,
 {
     /// A Helper tag used to identify the event watcher during the logs.
     const TAG: &'static str;
     /// The contract that this event watcher is watching.
-    type Contract: Deref<Target = alloy_contract::ContractInstance<T, P, N>> + Send + Sync;
+    type Contract: Deref<Target = alloy_contract::ContractInstance<T, P, N>> + Send + Sync + 'static;
     /// The type of event this handler is for.
-    type Events: SolEvent + Clone + Send + Sync;
+    type Events: SolEvent + Clone + Send + Sync + 'static;
     /// The genesis transaction hash for the contract.
     const GENESIS_TX_HASH: FixedBytes<32>;
 
@@ -208,7 +206,8 @@ where
             let deployed_at = provider
                 .get_transaction_receipt(Self::GENESIS_TX_HASH)
                 .await
-                .map_err(Into::into)?
+                .map_err(Into::into)
+                .map_err(backoff::Error::transient)?
                 .map(|receipt| receipt.block_number().unwrap_or_default())
                 .unwrap_or_default();
 
@@ -218,13 +217,17 @@ where
                     .unwrap_or_else(|| deployed_at);
                 let dest_block = core::cmp::min(block + step, target_block_number);
 
-                let events_filter = contract.event(
+                let events_filter = contract.event::<Self::Events>(
                     Filter::new()
                         .from_block(BlockNumberOrTag::Number(block + 1))
                         .to_block(BlockNumberOrTag::Number(dest_block)),
                 );
 
-                let events = events_filter.query().await.map_err(Into::into)?;
+                let events = events_filter
+                    .query()
+                    .await
+                    .map_err(Into::into)
+                    .map_err(backoff::Error::transient)?;
                 let number_of_events = events.len();
                 tracing::trace!("Found #{number_of_events} events");
                 for (event, log) in events.into_iter() {

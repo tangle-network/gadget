@@ -4,6 +4,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Mutex;
 
+#[derive(Debug)]
 pub struct LocalDatabase<T> {
     path: String,
     data: Mutex<HashMap<String, T>>,
@@ -31,7 +32,7 @@ where
     /// Adds or updates a key-value pair in the database.
     pub fn set(&self, key: &str, value: T) {
         let mut data = self.data.lock().unwrap();
-        data.insert(key.to_string(), value);
+        let _old = data.insert(key.to_string(), value);
         self.save();
     }
 
