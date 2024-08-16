@@ -71,7 +71,6 @@ alloy-transport = { workspace = true }
 
 # Macros
 gadget-blueprint-proc-macro = { workspace = true }
-toml = { workspace = true }
 derive_more = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
