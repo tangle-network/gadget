@@ -380,7 +380,7 @@ pub async fn new_test_ext<
         let input = NodeInput {
             clients: localhost_clients,
             networks,
-            account_id: sr25519::Public(account_id.0),
+            account_id: sr25519::Public::from_raw(account_id.0),
             logger,
             tx_manager: tx_manager as _,
             keystore,
