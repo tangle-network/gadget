@@ -32,7 +32,7 @@ wasm = [
     "sp-io/disable_oom",
     "sp-io/disable_allocator",
     "gadget-common/wasm",
-    "gadget-io/wasm",
+    "gadget-io/wasm-bindgen",
     "getrandom/js",
 ]
 

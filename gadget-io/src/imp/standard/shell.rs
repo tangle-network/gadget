@@ -1,6 +1,7 @@
-use libp2p::Multiaddr;
+use crate::shared::shell::SupportedChains;
+use multiaddr::Multiaddr;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, net::IpAddr, path::PathBuf, str::FromStr};
+use std::{net::IpAddr, path::PathBuf};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -22,42 +23,6 @@ pub struct Opt {
     /// The options for the shell
     #[structopt(flatten)]
     pub options: GadgetConfig,
-}
-
-#[derive(Copy, Clone, Default, Debug, StructOpt, Serialize, Deserialize)]
-#[structopt(rename_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum SupportedChains {
-    #[default]
-    LocalTestnet,
-    LocalMainnet,
-    Testnet,
-    Mainnet,
-}
-
-impl FromStr for SupportedChains {
-    type Err = String;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        match s {
-            "local_testnet" => Ok(SupportedChains::LocalTestnet),
-            "local_mainnet" => Ok(SupportedChains::LocalMainnet),
-            "testnet" => Ok(SupportedChains::Testnet),
-            "mainnet" => Ok(SupportedChains::Mainnet),
-            _ => Err(format!("Invalid chain: {}", s)),
-        }
-    }
-}
-
-impl Display for SupportedChains {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SupportedChains::LocalTestnet => write!(f, "local_testnet"),
-            SupportedChains::LocalMainnet => write!(f, "local_mainnet"),
-            SupportedChains::Testnet => write!(f, "testnet"),
-            SupportedChains::Mainnet => write!(f, "mainnet"),
-        }
-    }
 }
 
 #[derive(Debug, StructOpt, Serialize, Deserialize)]
