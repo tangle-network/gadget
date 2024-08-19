@@ -1,18 +1,26 @@
 //! When delivering messages to an async protocol, we want o make sure we don't mix up voting and public key gossip messages
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
-use crate::environments::GadgetEnvironment;
-use crate::module::network::Network;
-use crate::prelude::DebugLogger;
-use crate::utils::deserialize;
-use futures::StreamExt;
-use gadget_core::job_manager::ProtocolMessageMetadata;
-use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use round_based::{Incoming, MessageDestination, MessageType, MsgId, Outgoing, PartyIndex};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use sp_core::ecdsa;
-use std::collections::HashMap;
-use std::sync::Arc;
+
+use alloc::vec::Vec;
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "std")] {
+        use crate::environments::GadgetEnvironment;
+        use crate::module::network::Network;
+        use crate::prelude::DebugLogger;
+        use crate::utils::deserialize;
+        use futures::StreamExt;
+        use gadget_core::job::protocol::ProtocolMessageMetadata;
+        use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+        use sp_core::ecdsa;
+
+        use std::collections::HashMap;
+        use std::sync::Arc;
+    }
+}
 
 pub type UserID = u16;
 
@@ -47,6 +55,7 @@ impl<B> Msg<B> {
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "std")]
 pub fn create_job_manager_to_async_protocol_channel_split<
     Env: GadgetEnvironment,
     N: Network<Env>,
@@ -171,6 +180,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     )
 }
 
+#[cfg(feature = "std")]
 pub fn get_to_and_from_account_id<Env: GadgetEnvironment>(
     mapping: &HashMap<u16, ecdsa::Public>,
     from: u16,
@@ -482,6 +492,7 @@ pub type DuplexedChannel<O, I, C2> = (
 );
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "std")]
 pub fn create_job_manager_to_async_protocol_channel_split_io<
     Env: GadgetEnvironment,
     N: Network<Env>,
@@ -667,6 +678,7 @@ pub type TriplexedChannel<O1, I1, O2, I2, C2> = (
 );
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "std")]
 pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
     Env: GadgetEnvironment,
     N: Network<Env> + 'static,
@@ -860,6 +872,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "std")]
 async fn wrap_message_and_forward_to_network<
     Env: GadgetEnvironment,
     N: Network<Env>,

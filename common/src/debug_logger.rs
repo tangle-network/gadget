@@ -1,4 +1,6 @@
-use std::fmt::Display;
+#[cfg(not(feature = "std"))]
+use alloc::string::String;
+use core::fmt::Display;
 
 #[derive(Clone, Default)]
 pub struct DebugLogger {

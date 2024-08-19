@@ -1,10 +1,13 @@
+use alloc::boxed::Box;
+use alloc::fmt::{Debug, Display};
+use alloc::string::String;
+use alloc::vec::Vec;
 use async_trait::async_trait;
+use core::error::Error;
 use gadget_core::gadget::general::Client;
-use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
+use gadget_core::job::protocol::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
-use std::error::Error;
-use std::fmt::{Debug, Display};
 
 pub trait EventMetadata<Env: GadgetEnvironment> {
     fn number(&self) -> <Env as GadgetEnvironment>::Clock;

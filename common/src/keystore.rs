@@ -1,20 +1,24 @@
-use crate::utils::{deserialize, serialize};
 use crate::Error;
+use alloc::boxed::Box;
 use async_trait::async_trait;
-use parking_lot::RwLock;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sp_core::ecdsa::Pair as EcdsaPair;
 use sp_core::sr25519::Pair as Sr25519Pair;
 use sp_core::{keccak_256, Pair};
-use std::collections::HashMap;
-use std::sync::Arc;
 
-#[cfg(feature = "std")]
-use sqlx::{
-    sqlite::SqlitePoolOptions,
-    {Pool, Row, Sqlite},
-};
+cfg_if::cfg_if! {
+    if #[cfg(feature = "std")] {
+        use crate::utils::{deserialize, serialize};
+
+        use parking_lot::RwLock;
+        use sqlx::sqlite::SqlitePoolOptions;
+        use sqlx::{Pool, Row, Sqlite};
+
+        use std::collections::HashMap;
+        use std::sync::Arc;
+    }
+}
 
 pub type ECDSAKeyStore<BE> = GenericKeyStore<BE, EcdsaPair>;
 pub type Sr25519KeyStore<BE> = GenericKeyStore<BE, Sr25519Pair>;
@@ -25,6 +29,7 @@ pub struct GenericKeyStore<BE: KeystoreBackend, P: Pair> {
     pair: P,
 }
 
+#[cfg(feature = "std")]
 impl<P: Pair> GenericKeyStore<InMemoryBackend, P> {
     pub fn in_memory(pair: P) -> Self {
         GenericKeyStore {
@@ -55,26 +60,19 @@ impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
 }
 
 impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
-    pub async fn get<T: DeserializeOwned>(
-        &self,
-        key: &[u8; 32],
-    ) -> Result<Option<T>, crate::Error> {
+    pub async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, Error> {
         self.backend.get(key).await
     }
 
     pub async fn get_job_result<T: DeserializeOwned>(
         &self,
         job_id: u64,
-    ) -> Result<Option<T>, crate::Error> {
+    ) -> Result<Option<T>, Error> {
         let key = keccak_256(&job_id.to_be_bytes());
         self.get(&key).await
     }
 
-    pub async fn set<T: Serialize + Send>(
-        &self,
-        key: &[u8; 32],
-        value: T,
-    ) -> Result<(), crate::Error> {
+    pub async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), Error> {
         self.backend.set(key, value).await
     }
 
@@ -82,7 +80,7 @@ impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
         &self,
         job_id: u64,
         value: T,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), Error> {
         let key = keccak_256(&job_id.to_be_bytes());
         self.set(&key, value).await
     }
@@ -90,21 +88,24 @@ impl<P: Pair, BE: KeystoreBackend> GenericKeyStore<BE, P> {
 
 #[async_trait]
 pub trait KeystoreBackend: Clone + Send + Sync + 'static {
-    async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, crate::Error>;
-    async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), crate::Error>;
+    async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, Error>;
+    async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), Error>;
 }
 
 #[derive(Clone)]
+#[cfg(feature = "std")]
 pub struct InMemoryBackend {
     map: Arc<RwLock<HashMap<[u8; 32], Vec<u8>>>>,
 }
 
+#[cfg(feature = "std")]
 impl Default for InMemoryBackend {
     fn default() -> Self {
         Self::new()
     }
 }
 
+#[cfg(feature = "std")]
 impl InMemoryBackend {
     pub fn new() -> Self {
         Self {
@@ -114,10 +115,11 @@ impl InMemoryBackend {
 }
 
 #[async_trait]
+#[cfg(feature = "std")]
 impl KeystoreBackend for InMemoryBackend {
-    async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, crate::Error> {
+    async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, Error> {
         if let Some(bytes) = self.map.read().get(key).cloned() {
-            let value: T = deserialize(&bytes).map_err(|rr| crate::Error::KeystoreError {
+            let value: T = deserialize(&bytes).map_err(|rr| Error::KeystoreError {
                 err: format!("Failed to deserialize value: {:?}", rr),
             })?;
             Ok(Some(value))
@@ -126,8 +128,8 @@ impl KeystoreBackend for InMemoryBackend {
         }
     }
 
-    async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), crate::Error> {
-        let serialized = serialize(&value).map_err(|rr| crate::Error::KeystoreError {
+    async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), Error> {
+        let serialized = serialize(&value).map_err(|rr| Error::KeystoreError {
             err: format!("Failed to serialize value: {:?}", rr),
         })?;
         self.map.write().insert(*key, serialized);
@@ -165,7 +167,7 @@ impl SqliteBackend {
 }
 
 #[async_trait]
-#[cfg(not(target_family = "wasm"))]
+#[cfg(all(feature = "std", not(target_family = "wasm")))]
 impl KeystoreBackend for SqliteBackend {
     async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, Error> {
         let key = key_to_string(key);
@@ -207,7 +209,7 @@ impl KeystoreBackend for SqliteBackend {
     }
 }
 
-#[cfg(not(target_family = "wasm"))]
+#[cfg(all(feature = "std", not(target_family = "wasm")))]
 fn key_to_string(key: &[u8; 32]) -> String {
     hex::encode(key)
 }
