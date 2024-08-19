@@ -18,6 +18,7 @@ mod kw {
     syn::custom_keyword!(result);
     syn::custom_keyword!(verifier);
     syn::custom_keyword!(evm);
+    syn::custom_keyword!(function_signature);
     syn::custom_keyword!(event_handler_type);
     syn::custom_keyword!(skip_codegen);
 }
@@ -93,7 +94,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         params: params_type,
         result: result_type,
         verifier: match &args.verifier {
-            Verifier::Evm(contract) => JobResultVerifier::Evm(contract.clone()),
+            Verifier::Evm(contract, _) => JobResultVerifier::Evm(contract.clone()),
             Verifier::None => JobResultVerifier::None,
         },
     };
@@ -247,31 +248,32 @@ pub fn generate_event_handler_for(
             .collect::<Vec<_>>()
     };
 
-    if event_handler_type == &EventHandlerType::EVM {
+    if event_handler_type == &EventHandlerType::Eigenlayer {
         quote! {
             use alloy_network::Network;
             use alloy_provider::Provider;
             use alloy_transport::Transport;
+            use gadget_sdk::events_watcher::evm::{Event, Log, Config};
 
             /// Event handler for the function
             #[doc = "[`"]
             #[doc = #fn_name_string]
             #[doc = "`]"]
-            pub struct #struct_name<T: Transport, P: Provider<T, N>, N: Network> {
+            pub struct #struct_name<T: Config> {
                 pub contract_address: alloy_primitives::Address,
-                pub provider: std::sync::Arc<P>,
+                pub provider: std::sync::Arc<T::P>,
                 #(#additional_params)*
             }
 
             #[automatically_derived]
             #[async_trait::async_trait]
-            impl<T: Transport, P: Provider<T, N>, N: Network> gadget_sdk::events_watcher::evm::EventHandler<T, P, N> for #struct_name<T, P, N> {
+            impl<T: Config> gadget_sdk::events_watcher::evm::EventHandler<T> for #struct_name<T> {
                 type Contract = alloy_contract::ContractInstance<T, P, N>;
                 type Events = alloy_sol_types::SolEvent;
 
                 async fn can_handle_events(
                     &self,
-                    (event, log): (Self::Events, alloy_rpc_types::Log),
+                    (event, log): (Event<T::T, T::P, Self::Event, T::N>, Log),
                     _contract: &Self::Contract,
                 ) -> Result<bool, gadget_sdk::events_watcher::Error> {
                     // Implement logic to check if the event can be handled
@@ -281,10 +283,22 @@ pub fn generate_event_handler_for(
                 async fn handle_event(
                     &self,
                     contract: &Self::Contract,
-                    (event, log): (Self::Events, alloy_rpc_types::Log),
+                    (event, log): (Event<T::T, T::P, Self::Event, T::N>, Log),
                 ) -> Result<(), gadget_sdk::events_watcher::Error> {
-                    // Implement logic to handle the event
-                    Ok(())
+                    use alloy_sol_types::keccak256;
+
+                    let mut args_iter = call.args.into_iter();
+                    #(#params_tokens)*
+                    #fn_call
+
+                    let mut result = Vec::new();
+                    #(#result_tokens)*
+
+                    if let Verifier::Evm(_, Some(ref function_signature)) = job_args.verifier {
+                        let hash = keccak256(function_signature.as_bytes());
+                        let selector = &hash[0..4];
+                        contract.call(selector, &args_iter.collect::<Vec<_>>()).await?;
+                    }
                 }
             }
         }
@@ -552,8 +566,10 @@ impl Parse for Results {
 #[derive(Debug)]
 enum Verifier {
     None,
-    // #[job(verifier(evm = "MyVerifierContract"))]
-    Evm(String),
+    /// #[job(verifier(evm = "MyVerifierContract"))]
+    /// The second argument is optional and is used to specify the function signature
+    /// #[job(verifier(evm = "MyVerifierContract", function_signature = "submitVerifiedResult(uint64,bytes)")]
+    Evm(String, Option<String>),
 }
 
 impl Parse for Verifier {
@@ -562,12 +578,20 @@ impl Parse for Verifier {
         let content;
         let _ = syn::parenthesized!(content in input);
         let lookahead = content.lookahead1();
-        // parse `(evm = "MyVerifierContract")`
+        // parse `(evm = "MyVerifierContract")` or `(evm = "MyVerifierContract", function_signature = "submitVerifiedResult(uint64,bytes)")`
         if lookahead.peek(kw::evm) {
             let _ = content.parse::<kw::evm>()?;
             let _ = content.parse::<Token![=]>()?;
             let contract = content.parse::<LitStr>()?;
-            Ok(Verifier::Evm(contract.value()))
+            let function_signature = if content.peek(Token![,]) {
+                let _ = content.parse::<Token![,]>()?;
+                let _ = content.parse::<kw::function_signature>()?;
+                let _ = content.parse::<Token![=]>()?;
+                Some(content.parse::<LitStr>()?.value())
+            } else {
+                None
+            };
+            Ok(Verifier::Evm(contract.value(), function_signature))
         } else {
             Ok(Verifier::None)
         }
@@ -577,7 +601,7 @@ impl Parse for Verifier {
 #[derive(Debug, PartialEq)]
 pub enum EventHandlerType {
     Tangle,
-    EVM,
+    Eigenlayer,
 }
 
 impl Parse for EventHandlerType {
@@ -588,10 +612,10 @@ impl Parse for EventHandlerType {
         let s = content.parse::<LitStr>()?;
         match s.value().as_str() {
             "tangle" => Ok(EventHandlerType::Tangle),
-            "evm" => Ok(EventHandlerType::EVM),
+            "eigenlayer" => Ok(EventHandlerType::Eigenlayer),
             _ => Err(syn::Error::new_spanned(
                 s,
-                "Expected `tangle` or `evm` as event handler type",
+                "Expected `tangle` or `eigenlayer` as event handler type",
             )),
         }
     }

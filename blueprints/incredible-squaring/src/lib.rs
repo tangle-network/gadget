@@ -18,8 +18,8 @@ pub fn xsquare(x: u64) -> Result<u64, Infallible> {
     id = 1,
     params(x),
     result(_),
-    verifier(evm = "IncredibleSquaringBlueprint")
-    event_handler_type("evm"),
+    verifier(evm = "IncredibleSquaringBlueprint", function_signature = "submitXCube(uint64)")
+    event_handler_type("eigenlayer"),
 )]
 pub fn xcube(x: u64) -> Result<u64, Infallible> {
     Ok(x.saturating_pow(3u32))
