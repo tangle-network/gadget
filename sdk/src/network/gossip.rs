@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use ecdsa::Public;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, Network};
-use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
+use gadget_core::job::protocol::{ProtocolMessageMetadata, WorkManagerInterface};
 use gadget_io::tokio::sync::mpsc::UnboundedSender;
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use libp2p::gossipsub::IdentTopic;

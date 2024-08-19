@@ -1,36 +1,22 @@
-use crate::job_manager::SendFuture;
+pub mod builder;
+pub mod error;
+#[cfg(feature = "std")]
+pub mod manager;
+pub mod protocol;
+
+use alloc::boxed::Box;
 use async_trait::async_trait;
-use std::error::Error;
-use std::fmt::Display;
-use std::future::Future;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use core::future::Future;
+use core::pin::Pin;
+use error::JobError;
 
 pub enum ProceedWithExecution {
     True,
     False,
 }
 
-#[derive(Debug)]
-pub struct JobError {
-    pub reason: String,
-}
-
-impl<T: Into<String>> From<T> for JobError {
-    fn from(value: T) -> Self {
-        Self {
-            reason: value.into(),
-        }
-    }
-}
-
-impl Display for JobError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{reason}", reason = self.reason)
-    }
-}
-
-impl Error for JobError {}
+pub trait SendFuture<'a, T>: Send + Future<Output = T> + 'a {}
+impl<'a, F: Send + Future<Output = T> + 'a, T> SendFuture<'a, T> for F {}
 
 #[async_trait]
 pub trait ExecutableJob: Send + 'static {
@@ -109,124 +95,10 @@ where
     }
 }
 
-#[derive(Default)]
-pub struct JobBuilder {
-    pre: Option<Pin<Box<PreJobHook>>>,
-    protocol: Option<Pin<Box<ProtocolJobHook>>>,
-    post: Option<Pin<Box<PostJobHook>>>,
-    catch: Option<Pin<Box<CatchJobHook>>>,
-}
-
-pub type PreJobHook = dyn SendFuture<'static, Result<ProceedWithExecution, JobError>>;
-pub type PostJobHook = dyn SendFuture<'static, Result<(), JobError>>;
-pub type ProtocolJobHook = dyn SendFuture<'static, Result<(), JobError>>;
-pub type CatchJobHook = dyn SendFuture<'static, ()>;
-
-pub struct DefaultPreJobHook;
-impl Future for DefaultPreJobHook {
-    type Output = Result<ProceedWithExecution, JobError>;
-
-    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(Ok(ProceedWithExecution::True))
-    }
-}
-
-pub struct DefaultPostJobHook;
-impl Future for DefaultPostJobHook {
-    type Output = Result<(), JobError>;
-
-    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(Ok(()))
-    }
-}
-
-struct DefaultCatchJobHook;
-
-impl Future for DefaultCatchJobHook {
-    type Output = ();
-
-    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(())
-    }
-}
-
-pub type BuiltExecutableJobWrapper = ExecutableJobWrapper<
-    dyn SendFuture<'static, Result<ProceedWithExecution, JobError>>,
-    dyn SendFuture<'static, Result<(), JobError>>,
-    dyn SendFuture<'static, Result<(), JobError>>,
-    dyn SendFuture<'static, ()>,
->;
-
-impl JobBuilder {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn pre<Pre>(mut self, pre: Pre) -> Self
-    where
-        Pre: SendFuture<'static, Result<ProceedWithExecution, JobError>>,
-    {
-        self.pre = Some(Box::pin(pre));
-        self
-    }
-
-    pub fn protocol<Protocol>(mut self, protocol: Protocol) -> Self
-    where
-        Protocol: SendFuture<'static, Result<(), JobError>>,
-    {
-        self.protocol = Some(Box::pin(protocol));
-        self
-    }
-
-    pub fn post<Post>(mut self, post: Post) -> Self
-    where
-        Post: SendFuture<'static, Result<(), JobError>>,
-    {
-        self.post = Some(Box::pin(post));
-        self
-    }
-
-    pub fn catch<Catch>(mut self, catch: Catch) -> Self
-    where
-        Catch: SendFuture<'static, ()>,
-    {
-        self.catch = Some(Box::pin(catch));
-        self
-    }
-
-    pub fn build(self) -> BuiltExecutableJobWrapper {
-        let pre = if let Some(pre) = self.pre {
-            pre
-        } else {
-            Box::pin(DefaultPreJobHook)
-        };
-
-        let post = if let Some(post) = self.post {
-            post
-        } else {
-            Box::pin(DefaultPostJobHook)
-        };
-
-        let catch = if let Some(catch) = self.catch {
-            catch
-        } else {
-            Box::pin(DefaultCatchJobHook)
-        };
-
-        let protocol = Box::pin(self.protocol.expect("Must specify protocol"));
-
-        ExecutableJobWrapper {
-            pre,
-            protocol,
-            post,
-            catch,
-        }
-    }
-}
-
 #[cfg(test)]
 #[cfg(not(target_family = "wasm"))]
 mod tests {
+    use crate::job::builder::JobBuilder;
     use crate::job::ExecutableJob;
     use gadget_io::tokio;
 
@@ -295,7 +167,7 @@ mod tests {
         let counter_clone2 = counter.clone();
         let counter_final = counter.clone();
 
-        let mut job = super::JobBuilder::new()
+        let mut job = JobBuilder::new()
             .pre(async move {
                 counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 Ok(super::ProceedWithExecution::True)
@@ -321,7 +193,7 @@ mod tests {
         let counter_clone2 = counter.clone();
         let counter_final = counter.clone();
 
-        let mut job = super::JobBuilder::default()
+        let mut job = JobBuilder::default()
             .protocol(async move {
                 counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 Ok(())
@@ -342,7 +214,7 @@ mod tests {
         let counter_clone = counter.clone();
         let counter_final = counter.clone();
 
-        let mut job = super::JobBuilder::default()
+        let mut job = JobBuilder::default()
             .pre(async move {
                 counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 Ok(super::ProceedWithExecution::True)
@@ -363,7 +235,7 @@ mod tests {
         let counter_clone = counter.clone();
         let counter_final = counter.clone();
 
-        let mut job = super::JobBuilder::default()
+        let mut job = JobBuilder::default()
             .protocol(async move {
                 counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 Ok(())
