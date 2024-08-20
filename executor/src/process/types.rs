@@ -6,6 +6,7 @@ use nix::sys::signal;
 use nix::sys::signal::Signal;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+use std::ffi::OsString;
 use std::time::Duration;
 use sysinfo::ProcessStatus::{
     Dead, Idle, LockBlocked, Parked, Run, Sleep, Stop, Tracing, UninterruptibleDiskSleep, Unknown,
@@ -23,7 +24,7 @@ pub(crate) struct GadgetProcess {
     /// The command executed
     pub(crate) command: String,
     /// The name of the process itself
-    pub(crate) process_name: String,
+    pub(crate) process_name: OsString,
     /// Process ID
     pub(crate) pid: u32,
     /// History of output from process for reviewing/tracking progress
@@ -46,7 +47,7 @@ impl GadgetProcess {
             .process(Pid::from_u32(pid))
             .ok_or(format!("Process {pid} doesn't exist"))?
             .name()
-            .to_string();
+            .to_os_string();
         Ok(GadgetProcess {
             command,
             process_name,
@@ -70,7 +71,7 @@ impl GadgetProcess {
                     Ok(output) => {
                         if output.is_err() {
                             // TODO: Error logging
-                            println!("{} encountered read error", self.process_name.clone());
+                            println!("{} encountered read error", self.process_name.to_string_lossy());
                         } else {
                             let inbound_message = output.unwrap();
                             match inbound_message {
@@ -78,7 +79,7 @@ impl GadgetProcess {
                                     // Stream is completed - process is finished
                                     println!(
                                         "{} : STREAM COMPLETED - ENDING",
-                                        self.process_name.clone()
+                                        self.process_name.to_string_lossy()
                                     );
                                     // TODO: Log
                                     return ProcessOutput::Exhausted(messages);
@@ -88,7 +89,7 @@ impl GadgetProcess {
                                     // TODO: Log
                                     println!(
                                         "{} : MESSAGE LOG : {}",
-                                        self.process_name.clone(),
+                                        self.process_name.to_string_lossy(),
                                         streamed_output.clone()
                                     );
                                     messages.push(streamed_output.clone());
@@ -116,7 +117,7 @@ impl GadgetProcess {
             }
         } else {
             // TODO: Error logging
-            println!("{} encountered read error", self.process_name.clone());
+            println!("{} encountered read error", self.process_name.to_string_lossy());
             ProcessOutput::Waiting
         }
     }
@@ -143,7 +144,7 @@ impl GadgetProcess {
                                 // Stream is completed - process is finished
                                 println!(
                                     "{} : STREAM COMPLETED - ENDING",
-                                    self.process_name.clone()
+                                    self.process_name.to_string_lossy()
                                 );
                                 return ProcessOutput::Exhausted(messages);
                             }
@@ -152,7 +153,7 @@ impl GadgetProcess {
                                 // TODO: Log
                                 println!(
                                     "{} : MESSAGE LOG : {}",
-                                    self.process_name.clone(),
+                                    self.process_name.to_string_lossy(),
                                     streamed_output.clone()
                                 );
                                 messages.push(streamed_output.clone());
@@ -166,7 +167,7 @@ impl GadgetProcess {
                     }
                     Err(err) => {
                         // TODO: Log
-                        println!("{} read attempt failed: {}", self.process_name.clone(), err);
+                        println!("{} read attempt failed: {}", self.process_name.to_string_lossy(), err);
                         break;
                     }
                 }
@@ -174,7 +175,7 @@ impl GadgetProcess {
         }
         // Reaching this point means there was some sort of error - we never got the substring
         // TODO: Error logging
-        println!("{} encountered read error", self.process_name.clone());
+        println!("{} encountered read error", self.process_name.to_string_lossy());
         ProcessOutput::Waiting
     }
 
@@ -214,7 +215,7 @@ impl GadgetProcess {
 
     /// Gets process name by PID
     #[allow(dead_code)]
-    pub(crate) fn get_name(&self) -> Result<String, Box<dyn Error>> {
+    pub(crate) fn get_name(&self) -> Result<OsString, Box<dyn Error>> {
         let s = System::new_all();
         let name = s
             .process(Pid::from_u32(self.pid))
@@ -234,8 +235,8 @@ impl GadgetProcess {
         } else {
             Err(Box::from(format_err!(
                 "Expected {} and found {} running instead - process termination aborted",
-                self.process_name,
-                running_process
+                self.process_name.to_string_lossy(),
+                running_process.to_string_lossy()
             )))
         }
     }
