@@ -19,4 +19,4 @@ serde_json = { workspace = true }
 gadget-blueprint-proc-macro-core = { workspace = true }
 
 [dev-dependencies]
-trybuild = "1.0"
+trybuild = { workspace = true }

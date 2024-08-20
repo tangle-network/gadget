@@ -17,7 +17,7 @@ async-trait = { workspace = true }
 auto_impl = { workspace = true }
 futures = { workspace = true }
 sp-core = { workspace = true }
-futures-timer = "3.0.3"
+futures-timer = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]

@@ -19,7 +19,7 @@ sp-core = { workspace = true, features = ["serde", "full_crypto"] }
 multiaddr = { workspace = true, default-features = false }
 url = { workspace = true, default-features = false, features = ["alloc", "serde"] }
 thiserror = { workspace = true }
-tsify = { version = "0.4.5", optional = true }
+tsify = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = [
     "time",
