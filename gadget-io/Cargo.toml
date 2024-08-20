@@ -9,31 +9,31 @@ homepage.workspace = true
 
 [dependencies]
 cfg-if = { workspace = true }
-tracing = { workspace = true, default-features = false, features = ["log", "attributes"] }
 hex = { workspace = true }
-scale-info = { workspace = true, optional = true }
+multiaddr = { workspace = true, default-features = false }
 parity-scale-codec = { workspace = true, optional = true }
+sc-keystore = { workspace = true, optional = true }
+scale-info = { workspace = true, optional = true }
 serde = { workspace = true }
 sp-application-crypto = { workspace = true, default-features = false, features = ["full_crypto"] }
 sp-core = { workspace = true, features = ["serde", "full_crypto"] }
-multiaddr = { workspace = true, default-features = false }
-url = { workspace = true, default-features = false, features = ["alloc", "serde"] }
-thiserror = { workspace = true }
-tsify = { workspace = true, optional = true }
 sp-keystore = { workspace = true, optional = true }
-sc-keystore = { workspace = true, optional = true }
 structopt = { workspace = true, optional = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, optional = true, features = [
     "time",
     "rt",
     "sync",
 ] }
+tracing = { workspace = true, default-features = false, features = ["log", "attributes"] }
+url = { workspace = true, default-features = false, features = ["alloc", "serde"] }
 
 # WASM
+js-sys = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+tsify = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
-serde-wasm-bindgen = { workspace = true, optional = true }
-js-sys = { workspace = true, optional = true }
 wasmtimer = { workspace = true, optional = true }
 
 [features]
@@ -56,7 +56,4 @@ wasm-bindgen = [
     "dep:js-sys",
     "dep:wasmtimer",
 ]
-typescript = [
-    "dep:tsify",
-    "wasm-bindgen",
-]
+typescript = ["dep:tsify", "wasm-bindgen"]
