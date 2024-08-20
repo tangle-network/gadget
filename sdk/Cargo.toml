@@ -87,7 +87,7 @@ workspace = true
 default-features = false
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
-hyper = { version = "0.14.16", default-features = false, features = ["client"] }
+hyper = { workspace = true, features = ["client"] }
 
 [dev-dependencies]
 # tangle-test-utils = { workspace = true }
