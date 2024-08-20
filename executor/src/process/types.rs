@@ -71,7 +71,10 @@ impl GadgetProcess {
                     Ok(output) => {
                         if output.is_err() {
                             // TODO: Error logging
-                            println!("{} encountered read error", self.process_name.to_string_lossy());
+                            println!(
+                                "{} encountered read error",
+                                self.process_name.to_string_lossy()
+                            );
                         } else {
                             let inbound_message = output.unwrap();
                             match inbound_message {
@@ -117,7 +120,10 @@ impl GadgetProcess {
             }
         } else {
             // TODO: Error logging
-            println!("{} encountered read error", self.process_name.to_string_lossy());
+            println!(
+                "{} encountered read error",
+                self.process_name.to_string_lossy()
+            );
             ProcessOutput::Waiting
         }
     }
@@ -167,7 +173,11 @@ impl GadgetProcess {
                     }
                     Err(err) => {
                         // TODO: Log
-                        println!("{} read attempt failed: {}", self.process_name.to_string_lossy(), err);
+                        println!(
+                            "{} read attempt failed: {}",
+                            self.process_name.to_string_lossy(),
+                            err
+                        );
                         break;
                     }
                 }
@@ -175,7 +185,10 @@ impl GadgetProcess {
         }
         // Reaching this point means there was some sort of error - we never got the substring
         // TODO: Error logging
-        println!("{} encountered read error", self.process_name.to_string_lossy());
+        println!(
+            "{} encountered read error",
+            self.process_name.to_string_lossy()
+        );
         ProcessOutput::Waiting
     }
 
