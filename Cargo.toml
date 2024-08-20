@@ -190,7 +190,9 @@ picky-asn1-der = "0.5.0"
 pin-project-lite = "0.2.14"
 postcard = "1.0.8"
 pretty_env_logger = "0.5.0"
+proc-macro2 = "1.0"
 prometheus = { version = "0.13.0", default-features = false }
+quote = "1.0"
 rand = "0.8.5"
 rand_chacha = { version = "0.3.1" }
 rand_core = { version = "0.6", default-features = false }
@@ -210,6 +212,7 @@ starknet-crypto = "0.6.1"
 structopt = "0.3.26"
 strum = "0.26"
 substrate-prometheus-endpoint = { version = "0.17.0", default-features = false }
+syn = "2.0.48"
 sysinfo = "0.30.12"
 # TODO: Stop using this fork once https://github.com/dtolnay/thiserror/pull/304 lands
 thiserror = { git = "https://github.com/quartiq/thiserror", branch = "no-std", default-features = false }

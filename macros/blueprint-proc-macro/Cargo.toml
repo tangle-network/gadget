@@ -12,9 +12,9 @@ description = "Procedural macros for writing Tangle blueprints"
 proc-macro = true
 
 [dependencies]
-syn = { version = "2.0", features = ["full"] }
-quote = "1.0"
-proc-macro2 = "1.0"
+syn = { workspace = true, features = ["full"] }
+quote = { workspace = true }
+proc-macro2 = { workspace = true }
 serde_json = { workspace = true }
 gadget-blueprint-proc-macro-core = { workspace = true }
 
