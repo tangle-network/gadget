@@ -1,6 +1,5 @@
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
-#[allow(unused_imports)]
 use cargo_tangle::deploy::Opts;
 use gadget_common::subxt_signer::sr25519;
 use gadget_common::tangle_runtime::api::services::calls::types::call::{Args, Job};
@@ -309,7 +308,7 @@ mod tests_standard {
             signer: None,
             signer_evm: None,
         };
-
+        // --ws-external
         const INPUT: u64 = 10;
         const OUTPUT: u64 = INPUT.pow(2);
 

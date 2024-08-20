@@ -81,6 +81,7 @@ pub enum Error {
     WorkManagerError { err: WorkManagerError },
     ProtocolRemoteError { err: String },
     ClientError { err: String },
+    DispatchError { err: String },
     JobError { err: JobError },
     NetworkError { err: String },
     KeystoreError { err: String },

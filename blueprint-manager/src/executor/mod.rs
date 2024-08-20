@@ -1,4 +1,5 @@
 use crate::config::BlueprintManagerConfig;
+use crate::gadget::ActiveGadgets;
 use crate::sdk::entry::keystore_from_base_path;
 use crate::sdk::utils::msg_to_error;
 use crate::sdk::{keystore::load_keys_from_keystore, utils};
@@ -17,9 +18,10 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
 use tangle_environment::gadget::SubxtConfig;
+use tangle_environment::runtime::TangleRuntime;
 use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::blocks::BlockRef;
-use tangle_subxt::subxt::Config;
+use tangle_subxt::subxt::{Config, SubstrateConfig};
 use tokio::task::JoinHandle;
 
 pub(crate) mod event_handler;
@@ -130,10 +132,10 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     };
 
     let logger = DebugLogger {
-        id: format!("blueprint-manager-{}", logger_id),
+        id: format!("Blueprint-Manager-{}", logger_id),
     };
 
-    logger.info("Starting blueprint manager ...");
+    logger.info("Starting blueprint manager ... waiting for start signal ...");
 
     let logger_clone = logger.clone();
 
@@ -166,50 +168,24 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let runtime = ServicesClient::new(logger.clone(), tangle_runtime.client());
     let mut active_gadgets = HashMap::new();
 
-    // With the basics setup, we must now implement the main logic
-    //
-    // * Query to get Vec<RpcServicesWithBlueprint>
-    // * For each RpcServicesWithBlueprint, fetch the associated gadget binary (fetch/download)
-    //   -> If the services field is empty, just emit and log inside the executed binary "that states a new service instance got created by one of these blueprints"
-    //   -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
-
-    let (mut operator_subscribed_blueprints, init_event) =
-        if let Some(event) = tangle_runtime.next_event().await {
-            (
-                get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?,
-                event,
-            )
-        } else {
-            return Err(Report::msg("Failed to get initial block hash"));
-        };
-
-    logger.info(format!(
-        "Received {} initial blueprints this operator is registered to",
-        operator_subscribed_blueprints.len()
-    ));
-
-    // Immediately poll, handling the initial state
-    let poll_result = event_handler::check_blueprint_events(
-        &init_event,
-        &logger,
-        &mut active_gadgets,
-        &sub_account_id,
-    )
-    .await;
-    event_handler::handle_tangle_event(
-        &init_event,
-        &operator_subscribed_blueprints,
-        &logger,
-        &gadget_config,
-        &blueprint_manager_config,
-        &mut active_gadgets,
-        poll_result,
-        &runtime,
-    )
-    .await?;
-
     let logger_manager = logger.clone();
     let manager_task = async move {
+        // With the basics setup, we must now implement the main logic of the Blueprint Manager
+        // Handle initialization logic
+        // NOTE: The node running this code should be registered as an operator for the blueprints, otherwise, this
+        // code will fail
+        let mut operator_subscribed_blueprints = handle_init(
+            &tangle_runtime,
+            &runtime,
+            &logger_manager,
+            &sub_account_id,
+            &mut active_gadgets,
+            &gadget_config,
+            &blueprint_manager_config,
+        )
+        .await?;
+
+        // Now, run the main event loop
         // Listen to FinalityNotifications and poll for new/deleted services that correspond to the blueprints above
         while let Some(event) = tangle_runtime.next_event().await {
             let result = event_handler::check_blueprint_events(
@@ -286,4 +262,54 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     };
 
     Ok(handle)
+}
+
+/// * Query to get Vec<RpcServicesWithBlueprint>
+/// * For each RpcServicesWithBlueprint, fetch the associated gadget binary (fetch/download)
+///   -> If the services field is empty, just emit and log inside the executed binary "that states a new service instance got created by one of these blueprints"
+///   -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
+async fn handle_init(
+    tangle_runtime: &TangleRuntime,
+    services_client: &ServicesClient<SubstrateConfig>,
+    logger: &DebugLogger,
+    sub_account_id: &AccountId32,
+    active_gadgets: &mut ActiveGadgets,
+    gadget_config: &GadgetConfig,
+    blueprint_manager_config: &BlueprintManagerConfig,
+) -> color_eyre::Result<Vec<RpcServicesWithBlueprint>> {
+    let (operator_subscribed_blueprints, init_event) =
+        if let Some(event) = tangle_runtime.next_event().await {
+            (
+                get_blueprints(services_client, event.hash, sub_account_id.clone())
+                    .await
+                    .map_err(|err| Report::msg(format!("Failed to obtain blueprints: {err}")))?,
+                event,
+            )
+        } else {
+            return Err(Report::msg("Failed to get initial block hash"));
+        };
+
+    logger.info(format!(
+        "Received {} initial blueprints this operator is registered to",
+        operator_subscribed_blueprints.len()
+    ));
+
+    // Immediately poll, handling the initial state
+    let poll_result =
+        event_handler::check_blueprint_events(&init_event, logger, active_gadgets, sub_account_id)
+            .await;
+
+    event_handler::handle_tangle_event(
+        &init_event,
+        &operator_subscribed_blueprints,
+        logger,
+        gadget_config,
+        blueprint_manager_config,
+        active_gadgets,
+        poll_result,
+        services_client,
+    )
+    .await?;
+
+    Ok(operator_subscribed_blueprints)
 }

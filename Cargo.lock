@@ -11654,6 +11654,7 @@ dependencies = [
  "environment-utils",
  "gadget-common",
  "gadget-core",
+ "hex",
  "parity-scale-codec 3.6.12",
  "parking_lot",
  "scale-info",

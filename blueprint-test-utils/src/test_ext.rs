@@ -220,6 +220,7 @@ pub async fn new_test_ext_blueprint_manager<
             local_tangle_node: Url::parse(&opts.rpc_url).expect("Should parse URL"),
         };
 
+        // This node is now running in the background
         let handle = f(test_input).await;
 
         if node_index == 0 {
