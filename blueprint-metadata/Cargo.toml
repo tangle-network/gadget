@@ -9,8 +9,8 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-typed-builder = { version = "0.19" }
+typed-builder = { workspace = true }
 gadget-blueprint-proc-macro-core = { workspace = true }
 serde_json = { workspace = true }
-rustdoc-types = "0.29.1"
-fs2 = "0.4"
+rustdoc-types = { workspace = true }
+fs2 = { workspace = true }

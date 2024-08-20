@@ -19,7 +19,7 @@ sp-core = { workspace = true, features = ["serde", "full_crypto"] }
 multiaddr = { workspace = true, default-features = false }
 url = { workspace = true, default-features = false, features = ["alloc", "serde"] }
 thiserror = { workspace = true }
-tsify = { version = "0.4.5", optional = true }
+tsify = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = [
     "time",
@@ -28,12 +28,12 @@ tokio = { workspace = true, optional = true, features = [
 ] }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
-wasm-bindgen-futures = { version = "0.4.42" }
+wasm-bindgen-futures = { workspace = true }
 
-serde-wasm-bindgen = { version = "0.6.5" }
-js-sys = "0.3.69"
+serde-wasm-bindgen = { workspace = true }
+js-sys = { workspace = true }
 tokio = { workspace = true, features = ["sync", "macros", "io-util", "rt", "time"] }
-wasmtimer = { version = "0.2" }
+wasmtimer = { workspace = true }
 
 p256 = { workspace = true, features = ["alloc", "ecdsa"], default-features = false }
 
@@ -41,7 +41,7 @@ p256 = { workspace = true, features = ["alloc", "ecdsa"], default-features = fal
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 sp-keystore = { workspace = true }
 sc-keystore = { workspace = true }
-structopt = "0.3.26"
+structopt = { workspace = true }
 
 [features]
 default = ["std"]

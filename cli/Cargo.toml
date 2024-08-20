@@ -10,10 +10,10 @@ repository.workspace = true
 [dependencies]
 # CLI
 clap = { workspace = true, features = ["derive", "wrap_help"] }
-clap-cargo = { version = "0.14" }
-cargo-generate = { version = "0.21.3" }
+clap-cargo = { workspace = true }
+cargo-generate = { workspace = true }
 cargo_metadata = { workspace = true }
-escargot = { version = "0.5.12" }
+escargot = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "ansi"] }
