@@ -13,14 +13,14 @@ use futures::TryFutureExt;
 use std::sync::Arc;
 use std::{ops::Deref, time::Duration};
 
-pub trait Config {
+pub trait Config: Send + Sync + 'static {
     type T: Transport + Clone + Send + Sync + 'static;
     type P: Provider<Self::T, Self::N> + Send + Sync + 'static;
     type N: Network + Send + Sync + 'static;
 }
 
 /// A helper type to extract the [`EventHandler`] from the [`EventWatcher`] trait.
-pub type EventHandlerFor<W, T: Config> = Box<
+pub type EventHandlerFor<W, T> = Box<
     dyn EventHandler<
             T,
             Contract = <W as EventWatcher<T>>::Contract,
@@ -38,7 +38,10 @@ pub type EventHandlerFor<W, T: Config> = Box<
 pub trait EventHandler<T: Config>: Send + Sync {
     /// The Type of contract this handler is for, Must be the same as the contract type in the
     /// watcher.
-    type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>> + Send + Sync + 'static;
+    type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>
+        + Send
+        + Sync
+        + 'static;
 
     type Event: SolEvent + Clone + Send + Sync + 'static;
     /// a method to be called with the event information,
@@ -52,15 +55,8 @@ pub trait EventHandler<T: Config>: Send + Sync {
     async fn handle_event(
         &self,
         contract: &Self::Contract,
-        (event, log): (Event<T::T, T::P, Self::Event, T::N>, Log),
+        (event, log): (Self::Event, Log),
     ) -> Result<(), Error>;
-
-    /// Whether any of the events could be handled by the handler
-    async fn can_handle_events(
-        &self,
-        (event, log): (Event<T::T, T::P, Self::Event, T::N>, Log),
-        wrapper: &Self::Contract,
-    ) -> Result<bool, Error>;
 }
 
 /// An Auxiliary trait to handle events with retry logic.
@@ -81,18 +77,12 @@ pub trait EventHandlerWithRetry<T: Config>: EventHandler<T> + Send + Sync + 'sta
     async fn handle_event_with_retry(
         &self,
         contract: &Self::Contract,
-        (event, log): (Event<T::T, T::P, Self::Event, T::N>, Log),
+        (event, log): (Self::Event, Log),
         backoff: impl backoff::backoff::Backoff + Send + Sync + 'static,
     ) -> Result<(), Error> {
-        if !self
-            .can_handle_events((event, log.clone()), contract)
-            .await?
-        {
-            return Ok(());
-        };
-
+        let ev = event.clone();
         let wrapped_task = || {
-            self.handle_event(contract, (event, log.clone()))
+            self.handle_event(contract, (ev.clone(), log.clone()))
                 .map_err(backoff::Error::transient)
         };
         backoff::future::retry(backoff, wrapped_task).await?;
@@ -101,9 +91,8 @@ pub trait EventHandlerWithRetry<T: Config>: EventHandler<T> + Send + Sync + 'sta
 }
 
 #[async_trait::async_trait]
-impl<X, T: Config> EventHandlerWithRetry<T> for X
-where
-    X: EventHandler<T> + Send + Sync + 'static + ?Sized,
+impl<X, T: Config> EventHandlerWithRetry<T> for X where
+    X: EventHandler<T> + Send + Sync + 'static + ?Sized
 {
 }
 
@@ -114,7 +103,10 @@ pub trait EventWatcher<T: Config>: Send + Sync {
     /// A Helper tag used to identify the event watcher during the logs.
     const TAG: &'static str;
     /// The contract that this event watcher is watching.
-    type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>> + Send + Sync + 'static;
+    type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>
+        + Send
+        + Sync
+        + 'static;
     /// The type of event this handler is for.
     type Event: SolEvent + Clone + Send + Sync + 'static;
     /// The genesis transaction hash for the contract.
@@ -133,7 +125,6 @@ pub trait EventWatcher<T: Config>: Send + Sync {
     async fn run(
         &self,
         provider: Arc<T::P>,
-        events: Vec<Event<T::T, T::P, Self::Event, T::N>>,
         contract: Self::Contract,
         handlers: Vec<EventHandlerFor<Self, T>>,
     ) -> Result<(), Error> {
@@ -201,7 +192,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
                         );
                         handler.handle_event_with_retry(
                             &contract,
-                            (event, log.clone()),
+                            (event.clone(), log.clone()),
                             backoff,
                         )
                     });

@@ -1,3 +1,4 @@
+use alloy_sol_types::{sol, SolEvent};
 use gadget_sdk::job;
 use std::convert::Infallible;
 
@@ -7,19 +8,27 @@ use std::convert::Infallible;
     params(x),
     result(_),
     verifier(evm = "IncredibleSquaringBlueprint")
-    event_handler_type("tangle"),
 )]
 pub fn xsquare(x: u64) -> Result<u64, Infallible> {
     Ok(x.saturating_pow(2u32))
 }
 
-/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
+// Codegen from ABI file to interact with the contract.
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    IncredibleSquaringTaskManager,
+    "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
+);
+
+/// Returns x^3 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
     id = 1,
     params(x),
     result(_),
-    verifier(evm = "IncredibleSquaringBlueprint", function_signature = "submitXCube(uint64)")
-    event_handler_type("eigenlayer"),
+    verifier(evm = "IncredibleSquaringTaskManager"),
+    event_handler(protocol = "eigenlayer", instance = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance, event = IncredibleSquaringTaskManager::Event::Verify, callback = IncredibleSquaringTaskManager),
+    // event_handler("eigenlayer"), generator = "createTask(uint256)", generate_event = "TaskCreated(uint256)", callback = "submitTask(uint256)")
 )]
 pub fn xcube(x: u64) -> Result<u64, Infallible> {
     Ok(x.saturating_pow(3u32))

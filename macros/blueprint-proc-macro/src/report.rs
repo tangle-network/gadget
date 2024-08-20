@@ -156,6 +156,7 @@ pub(crate) struct ReportArgs {
     verifier: Verifier,
     /// Optional: Event handler type for the report.
     /// `#[report(event_handler_type = "tangle")]`
+    #[allow(dead_code)]
     event_handler_type: EventHandlerType,
     /// Optional: Skip code generation for this report.
     /// `#[report(skip_codegen)]`

@@ -5,7 +5,7 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
-use syn::{Ident, ItemFn, LitInt, LitStr, Token, Type};
+use syn::{Ident, ItemFn, ItemStruct, LitInt, LitStr, Token, Type};
 
 use crate::utils::{
     field_type_to_param_token, field_type_to_result_token, pascal_case, type_to_field_type,
@@ -18,8 +18,11 @@ mod kw {
     syn::custom_keyword!(result);
     syn::custom_keyword!(verifier);
     syn::custom_keyword!(evm);
-    syn::custom_keyword!(function_signature);
-    syn::custom_keyword!(event_handler_type);
+    syn::custom_keyword!(event_handler);
+    syn::custom_keyword!(protocol);
+    syn::custom_keyword!(instance);
+    syn::custom_keyword!(event);
+    syn::custom_keyword!(callback);
     syn::custom_keyword!(skip_codegen);
 }
 
@@ -94,7 +97,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         params: params_type,
         result: result_type,
         verifier: match &args.verifier {
-            Verifier::Evm(contract, _) => JobResultVerifier::Evm(contract.clone()),
+            Verifier::Evm(contract) => JobResultVerifier::Evm(contract.clone()),
             Verifier::None => JobResultVerifier::None,
         },
     };
@@ -142,7 +145,7 @@ pub fn generate_event_handler_for(
     let fn_name_string = fn_name.to_string();
     let struct_name = format_ident!("{}EventHandler", pascal_case(&fn_name_string));
     let job_id = &job_args.id;
-    let event_handler_type = &job_args.event_handler_type;
+    let event_handler = &job_args.event_handler;
 
     // Get all the params names inside the param_types map
     // and not in the params list to be added to the event handler.
@@ -248,12 +251,12 @@ pub fn generate_event_handler_for(
             .collect::<Vec<_>>()
     };
 
-    if event_handler_type == &EventHandlerType::Eigenlayer {
+    if event_handler.is_eigenlayer() {
         quote! {
             use alloy_network::Network;
             use alloy_provider::Provider;
             use alloy_transport::Transport;
-            use gadget_sdk::events_watcher::evm::{Event, Log, Config};
+            use gadget_sdk::events_watcher::evm::Config;
 
             /// Event handler for the function
             #[doc = "[`"]
@@ -268,37 +271,15 @@ pub fn generate_event_handler_for(
             #[automatically_derived]
             #[async_trait::async_trait]
             impl<T: Config> gadget_sdk::events_watcher::evm::EventHandler<T> for #struct_name<T> {
-                type Contract = alloy_contract::ContractInstance<T, P, N>;
-                type Events = alloy_sol_types::SolEvent;
-
-                async fn can_handle_events(
-                    &self,
-                    (event, log): (Event<T::T, T::P, Self::Event, T::N>, Log),
-                    _contract: &Self::Contract,
-                ) -> Result<bool, gadget_sdk::events_watcher::Error> {
-                    // Implement logic to check if the event can be handled
-                    Ok(true)
-                }
+                type Contract = alloy_contract::ContractInstance<T::T, T::P, T::N>;
+                type Event = alloy_sol_types::SolEvent;
 
                 async fn handle_event(
                     &self,
                     contract: &Self::Contract,
-                    (event, log): (Event<T::T, T::P, Self::Event, T::N>, Log),
+                    (event, log): (Self::Event, Log),
                 ) -> Result<(), gadget_sdk::events_watcher::Error> {
-                    use alloy_sol_types::keccak256;
-
-                    let mut args_iter = call.args.into_iter();
-                    #(#params_tokens)*
-                    #fn_call
-
-                    let mut result = Vec::new();
-                    #(#result_tokens)*
-
-                    if let Verifier::Evm(_, Some(ref function_signature)) = job_args.verifier {
-                        let hash = keccak256(function_signature.as_bytes());
-                        let selector = &hash[0..4];
-                        contract.call(selector, &args_iter.collect::<Vec<_>>()).await?;
-                    }
+                    Ok(())
                 }
             }
         }
@@ -395,8 +376,8 @@ pub(crate) struct JobArgs {
     /// `#[job(verifier(evm = "MyVerifierContract"))]`
     verifier: Verifier,
     /// Optional: Event handler type for the job.
-    /// `#[job(event_handler_type = "tangle")]`
-    event_handler_type: EventHandlerType,
+    /// `#[job(event_handler = "tangle")]`
+    event_handler: EventHandlerArgs,
     /// Optional: Skip code generation for this job.
     /// `#[job(skip_codegen)]`
     /// this is useful if the developer want to impl a custom event handler
@@ -410,7 +391,7 @@ impl Parse for JobArgs {
         let mut result = None;
         let mut id = None;
         let mut verifier = Verifier::None;
-        let mut event_handler_type = EventHandlerType::Tangle;
+        let mut event_handler = EventHandlerArgs::Tangle;
         let mut skip_codegen = false;
 
         while !input.is_empty() {
@@ -427,8 +408,8 @@ impl Parse for JobArgs {
                 result = Some(r);
             } else if lookahead.peek(kw::verifier) {
                 verifier = input.parse()?;
-            } else if lookahead.peek(kw::event_handler_type) {
-                event_handler_type = input.parse()?;
+            } else if lookahead.peek(kw::event_handler) {
+                event_handler = input.parse()?;
             } else if lookahead.peek(kw::skip_codegen) {
                 let _ = input.parse::<kw::skip_codegen>()?;
                 skip_codegen = true;
@@ -458,7 +439,7 @@ impl Parse for JobArgs {
             params,
             result,
             verifier,
-            event_handler_type,
+            event_handler,
             skip_codegen,
         })
     }
@@ -567,9 +548,7 @@ impl Parse for Results {
 enum Verifier {
     None,
     /// #[job(verifier(evm = "MyVerifierContract"))]
-    /// The second argument is optional and is used to specify the function signature
-    /// #[job(verifier(evm = "MyVerifierContract", function_signature = "submitVerifiedResult(uint64,bytes)")]
-    Evm(String, Option<String>),
+    Evm(String),
 }
 
 impl Parse for Verifier {
@@ -578,44 +557,87 @@ impl Parse for Verifier {
         let content;
         let _ = syn::parenthesized!(content in input);
         let lookahead = content.lookahead1();
-        // parse `(evm = "MyVerifierContract")` or `(evm = "MyVerifierContract", function_signature = "submitVerifiedResult(uint64,bytes)")`
+        // parse `(evm = "MyVerifierContract")`
         if lookahead.peek(kw::evm) {
             let _ = content.parse::<kw::evm>()?;
             let _ = content.parse::<Token![=]>()?;
             let contract = content.parse::<LitStr>()?;
-            let function_signature = if content.peek(Token![,]) {
-                let _ = content.parse::<Token![,]>()?;
-                let _ = content.parse::<kw::function_signature>()?;
-                let _ = content.parse::<Token![=]>()?;
-                Some(content.parse::<LitStr>()?.value())
-            } else {
-                None
-            };
-            Ok(Verifier::Evm(contract.value(), function_signature))
+            Ok(Verifier::Evm(contract.value()))
         } else {
             Ok(Verifier::None)
         }
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum EventHandlerType {
+pub(crate) enum EventHandlerArgs {
     Tangle,
-    Eigenlayer,
+    Eigenlayer {
+        instance: Option<Type>,
+        event: Option<Type>,
+        callback: Option<Type>,
+    },
 }
 
-impl Parse for EventHandlerType {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let _ = input.parse::<kw::event_handler_type>()?;
+impl EventHandlerArgs {
+    fn is_eigenlayer(&self) -> bool {
+        matches!(self, Self::Eigenlayer { .. })
+    }
+
+    fn is_tangle(&self) -> bool {
+        matches!(self, Self::Tangle)
+    }
+}
+
+impl Parse for EventHandlerArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let _ = input.parse::<kw::event_handler>()?;
         let content;
-        let _ = syn::parenthesized!(content in input);
-        let s = content.parse::<LitStr>()?;
-        match s.value().as_str() {
-            "tangle" => Ok(EventHandlerType::Tangle),
-            "eigenlayer" => Ok(EventHandlerType::Eigenlayer),
+        syn::parenthesized!(content in input);
+
+        let protocol = if content.peek(kw::protocol) {
+            let _ = content.parse::<kw::protocol>()?;
+            let _ = content.parse::<Token![=]>()?;
+            content.parse::<LitStr>()?.value()
+        } else {
+            "tangle".to_string()
+        };
+
+        match protocol.as_str() {
+            "tangle" => Ok(EventHandlerArgs::Tangle),
+            "eigenlayer" => {
+                let mut instance = None;
+                let mut event = None;
+                let mut callback = None;
+
+                while !content.is_empty() {
+                    if content.peek(kw::instance) {
+                        let _ = content.parse::<kw::instance>()?;
+                        let _ = content.parse::<Token![=]>()?;
+                        instance = Some(content.parse::<Type>()?);
+                    } else if content.peek(kw::event) {
+                        let _ = content.parse::<kw::event>()?;
+                        let _ = content.parse::<Token![=]>()?;
+                        event = Some(content.parse::<Type>()?);
+                    } else if content.peek(kw::callback) {
+                        let _ = content.parse::<kw::callback>()?;
+                        let _ = content.parse::<Token![=]>()?;
+                        callback = Some(content.parse::<Type>()?);
+                    } else if content.peek(Token![,]) {
+                        let _ = content.parse::<Token![,]>()?;
+                    } else {
+                        return Err(content.error("Unexpected token"));
+                    }
+                }
+
+                Ok(EventHandlerArgs::Eigenlayer {
+                    instance,
+                    event,
+                    callback,
+                })
+            }
             _ => Err(syn::Error::new_spanned(
-                s,
-                "Expected `tangle` or `eigenlayer` as event handler type",
+                protocol,
+                "Expected `tangle` or `eigenlayer` as event handler protocol",
             )),
         }
     }

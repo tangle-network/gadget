@@ -120,7 +120,7 @@ pub enum JobResultVerifier {
     /// No verification is needed.
     #[default]
     None,
-    /// An EVM Contract Address that will verify the result.
+    /// An EVM Contract Address or path to the contract ABI that will verify the result.
     Evm(String),
 }
 

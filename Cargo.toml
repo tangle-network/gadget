@@ -233,21 +233,7 @@ tracing-log = { version = "0.2", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
 tracing-wasm = { version = "0.2.1" }
 tree_magic_mini = "3.1.5"
-jsonwebtoken = "9.3.0"
-rsa = "0.9.6"
-pretty_env_logger = "0.5.0"
-scrypt = "0.11.0"
-chacha20poly1305 = "0.10.1"
-aws-config = "1.5.0"
-aws-types = "1.3.0"
-aws-sdk-s3 = "1.32.0"
-aws-sdk-secretsmanager = "1.31.0"
-aws-sdk-kms = "1.29.0"
-picky-asn1-der = "0.5.0"
-hyper = { version = "1.3.1", default-features = false }
-pin-project-lite = "0.2.14"
-http-body-util = "0.1.1"
-backoff = { version = "0.4.0", features = ["tokio"] }
+
 derive_more = { version = "1.0.0", features = ["display"] }
 trybuild = "1.0"
 tsify = "0.4.5"
