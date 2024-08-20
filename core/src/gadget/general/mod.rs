@@ -1,8 +1,9 @@
-use crate::gadget::manager::AbstractGadget;
+use crate::gadget::AbstractGadget;
+use alloc::boxed::Box;
+use alloc::sync::Arc;
 use async_trait::async_trait;
 use auto_impl::auto_impl;
-use std::marker::PhantomData;
-use std::sync::Arc;
+use core::marker::PhantomData;
 
 /// Endows the abstract gadget with a client
 #[async_trait]
@@ -53,7 +54,7 @@ where
     Module: GadgetWithClient<ProtocolMessage, Event, Error>,
     Event: Send + Sync + 'static,
     ProtocolMessage: Send + Sync + 'static,
-    Error: std::error::Error + Send + Sync + 'static,
+    Error: core::error::Error + Send + Sync + 'static,
 {
     type Event = Event;
     type ProtocolMessage = ProtocolMessage;

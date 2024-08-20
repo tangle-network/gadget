@@ -1,10 +1,16 @@
-use futures::Stream;
-use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
+use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 use sp_io::EcdsaVerifyError;
-use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "std")] {
+        use futures::Stream;
+        use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
+        use core::sync::atomic::AtomicBool;
+        use std::sync::Arc;
+    }
+}
 
 pub const ECDSA_SIGNATURE_LENGTH: usize = 65;
 
@@ -21,6 +27,7 @@ pub fn serialize(object: &impl Serialize) -> Result<Vec<u8>, serde_json::Error> 
     serde_json::to_vec(object)
 }
 
+#[cfg(feature = "std")]
 /// A Channel Receiver that can be cloned.
 ///
 /// On the second clone, the original channel will stop receiving new messages
@@ -30,12 +37,13 @@ pub struct CloneableUnboundedReceiver<T> {
     is_in_use: Arc<AtomicBool>,
 }
 
+#[cfg(feature = "std")]
 impl<T: Clone> Clone for CloneableUnboundedReceiver<T> {
     fn clone(&self) -> Self {
         // on the clone, we switch the is_in_use flag to false
         // and we return a new channel
         self.is_in_use
-            .store(false, std::sync::atomic::Ordering::SeqCst);
+            .store(false, core::sync::atomic::Ordering::SeqCst);
         Self {
             rx: self.rx.clone(),
             is_in_use: Arc::new(AtomicBool::new(true)),
@@ -43,6 +51,7 @@ impl<T: Clone> Clone for CloneableUnboundedReceiver<T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T> From<UnboundedReceiver<T>> for CloneableUnboundedReceiver<T> {
     fn from(rx: UnboundedReceiver<T>) -> Self {
         Self {
@@ -52,18 +61,19 @@ impl<T> From<UnboundedReceiver<T>> for CloneableUnboundedReceiver<T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T> Stream for CloneableUnboundedReceiver<T> {
     type Item = T;
     fn poll_next(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        if !self.is_in_use.load(std::sync::atomic::Ordering::SeqCst) {
-            return std::task::Poll::Ready(None);
+        self: core::pin::Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> core::task::Poll<Option<Self::Item>> {
+        if !self.is_in_use.load(core::sync::atomic::Ordering::SeqCst) {
+            return core::task::Poll::Ready(None);
         }
         let mut rx = match self.rx.try_lock() {
             Ok(rx) => rx,
-            Err(_) => return std::task::Poll::Pending,
+            Err(_) => return core::task::Poll::Pending,
         };
         let rx = &mut *rx;
         gadget_io::tokio::pin!(rx);

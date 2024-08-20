@@ -1,8 +1,9 @@
 use crate::environments::GadgetEnvironment;
 use crate::module::Job;
 use async_trait::async_trait;
-use gadget_core::job::{BuiltExecutableJobWrapper, JobError};
-use gadget_core::job_manager::{ProtocolRemote, ShutdownReason, WorkManagerInterface};
+use gadget_core::job::builder::BuiltExecutableJobWrapper;
+use gadget_core::job::error::JobError;
+use gadget_core::job::protocol::{ProtocolRemote, ShutdownReason, WorkManagerInterface};
 use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};

@@ -1,7 +1,7 @@
-use gadget_core::job::ExecutableJob;
-use gadget_core::job::JobError;
-use gadget_core::job::{BuiltExecutableJobWrapper, JobBuilder, ProceedWithExecution};
-use gadget_core::job_manager::ShutdownReason;
+use gadget_core::job::builder::{BuiltExecutableJobWrapper, JobBuilder};
+use gadget_core::job::error::JobError;
+use gadget_core::job::protocol::ShutdownReason;
+use gadget_core::job::{ExecutableJob, ProceedWithExecution};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 

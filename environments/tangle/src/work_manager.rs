@@ -1,6 +1,6 @@
 use crate::message::TangleProtocolMessage;
 use gadget_common::config::DebugLogger;
-use gadget_core::job_manager::WorkManagerInterface;
+use gadget_core::job::protocol::WorkManagerInterface;
 use parking_lot::RwLock;
 use std::sync::Arc;
 

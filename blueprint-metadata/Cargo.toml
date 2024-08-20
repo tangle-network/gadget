@@ -12,5 +12,5 @@ repository.workspace = true
 typed-builder = { version = "0.19" }
 gadget-blueprint-proc-macro-core = { workspace = true }
 serde_json = { workspace = true }
-rustdoc-types = "0.26"
+rustdoc-types = "0.29.1"
 fs2 = "0.4"

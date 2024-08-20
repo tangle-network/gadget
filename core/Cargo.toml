@@ -24,5 +24,11 @@ serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["macros"] }
 
 [features]
-default = ["substrate"]
+default = ["std", "substrate"]
 substrate = []
+std = [
+    "gadget-io/std",
+    "log/std",
+    "serde/std",
+    "sp-core/std",
+]
