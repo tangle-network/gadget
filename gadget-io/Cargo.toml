@@ -11,8 +11,8 @@ homepage.workspace = true
 cfg-if = { workspace = true }
 tracing = { workspace = true, default-features = false, features = ["log", "attributes"] }
 hex = { workspace = true }
-scale-info = { workspace = true}
-parity-scale-codec = { workspace = true }
+scale-info = { workspace = true, optional = true }
+parity-scale-codec = { workspace = true, optional = true }
 serde = { workspace = true }
 sp-application-crypto = { workspace = true, default-features = false, features = ["full_crypto"] }
 sp-core = { workspace = true, features = ["serde", "full_crypto"] }
@@ -20,39 +20,41 @@ multiaddr = { workspace = true, default-features = false }
 url = { workspace = true, default-features = false, features = ["alloc", "serde"] }
 thiserror = { workspace = true }
 tsify = { workspace = true, optional = true }
-wasm-bindgen = { workspace = true, optional = true }
+sp-keystore = { workspace = true, optional = true }
+sc-keystore = { workspace = true, optional = true }
+structopt = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = [
     "time",
     "rt",
     "sync",
 ] }
 
-[target.'cfg(target_family = "wasm")'.dependencies]
-wasm-bindgen-futures = { workspace = true }
-
-serde-wasm-bindgen = { workspace = true }
-js-sys = { workspace = true }
-tokio = { workspace = true, features = ["sync", "macros", "io-util", "rt", "time"] }
-wasmtimer = { workspace = true }
-
-p256 = { workspace = true, features = ["alloc", "ecdsa"], default-features = false }
-
-
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
-sp-keystore = { workspace = true }
-sc-keystore = { workspace = true }
-structopt = { workspace = true }
+# WASM
+wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+wasmtimer = { workspace = true, optional = true }
 
 [features]
 default = ["std"]
 std = [
     "dep:tokio",
     "sp-application-crypto/std",
+    "dep:sp-keystore",
+    "dep:sc-keystore",
+    "dep:structopt",
+    "dep:scale-info",
+    "dep:parity-scale-codec",
     "tracing/std",
     "url/std",
 ]
 wasm-bindgen = [
     "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+    "dep:serde-wasm-bindgen",
+    "dep:js-sys",
+    "dep:wasmtimer",
 ]
 typescript = [
     "dep:tsify",
