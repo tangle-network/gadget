@@ -2,7 +2,7 @@ use crate::sdk::setup::SingleGadgetInput;
 use crate::sdk::{generate_node_input, SingleGadgetConfig};
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, KeystoreBackend};
-use gadget_core::job_manager::SendFuture;
+use gadget_core::job::SendFuture;
 use gadget_io::{GadgetConfig, KeystoreConfig, SupportedChains};
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;

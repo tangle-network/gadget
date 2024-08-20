@@ -12,6 +12,7 @@
     clippy::pedantic,
     clippy::exhaustive_enums
 )]
+#![allow(clippy::single_match_else)]
 //! Gadget SDK
 
 #![cfg_attr(not(feature = "std"), no_std)]

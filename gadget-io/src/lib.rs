@@ -1,47 +1,46 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
 pub mod shared;
-#[cfg(not(target_family = "wasm"))]
-pub mod standard;
-#[cfg(target_family = "wasm")]
-pub mod wasm;
+pub use shared::keystore::*;
+pub use shared::shell::*;
 
-#[cfg(target_family = "wasm")]
-pub use wasm::{
-    keystore::{KeystoreConfig, KeystoreContainer, SubstrateKeystore},
-    shell::{GadgetTomlConfig, Opt, SupportedChains},
-};
+mod error;
+mod imp;
 
-#[cfg(not(target_family = "wasm"))]
-pub use standard::{
-    keystore::{KeystoreConfig, KeystoreContainer, SubstrateKeystore},
-    shell::{defaults, GadgetConfig, Opt, SupportedChains},
-};
+pub use imp::*;
 
-#[cfg(target_family = "wasm")]
+#[cfg(all(feature = "std", target_family = "wasm"))]
 pub use {tokio, wasm_bindgen_futures::spawn_local as spawn};
 
-#[cfg(not(target_family = "wasm"))]
+#[cfg(all(feature = "std", not(target_family = "wasm")))]
 pub use {tokio, tokio::task::spawn};
 
-#[cfg(target_family = "wasm")]
+#[cfg(all(feature = "std", target_family = "wasm"))]
 pub use wasmtimer::tokio as time;
 
-#[cfg(not(target_family = "wasm"))]
+#[cfg(all(feature = "std", not(target_family = "wasm")))]
 pub use tokio::time;
 
-#[cfg(not(target_family = "wasm"))]
+#[cfg(all(feature = "std", not(feature = "wasm-bindgen")))]
 pub fn log(s: &str) {
     println!("{}", s);
 }
 
-#[cfg(target_family = "wasm")]
+#[cfg(feature = "wasm-bindgen")]
 use wasm_bindgen::prelude::*;
 
-#[cfg(target_family = "wasm")]
-pub fn into_js_error(err: impl std::error::Error) -> JsValue {
+#[cfg(feature = "wasm-bindgen")]
+pub fn into_js_error(err: impl core::error::Error) -> JsValue {
+    #[cfg(not(feature = "std"))]
+    use alloc::string::ToString;
+
     js_sys::Error::new(&err.to_string()).into()
 }
 
-#[cfg(target_family = "wasm")]
+#[cfg(feature = "wasm-bindgen")]
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]

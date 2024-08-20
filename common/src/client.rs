@@ -2,6 +2,7 @@ use crate::debug_logger::DebugLogger;
 use crate::environments::GadgetEnvironment;
 use async_trait::async_trait;
 use gadget_core::gadget::general::Client;
+#[cfg(feature = "substrate")]
 use sp_core::Pair;
 use std::sync::Arc;
 #[cfg(feature = "substrate")]

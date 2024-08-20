@@ -1,3 +1,6 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
 pub mod gadget;
 pub mod job;
-pub mod job_manager;

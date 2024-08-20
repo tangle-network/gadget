@@ -1,53 +1,83 @@
-use crate::config::ProtocolConfig;
-use crate::environments::EventMetadata;
-use crate::module::network::Network;
-use crate::module::{GadgetProtocol, GeneralModule};
-use crate::prelude::PrometheusConfig;
-use gadget_core::gadget::general::GeneralGadget;
-use gadget_core::gadget::manager::{AbstractGadget, GadgetError, GadgetManager};
-pub use gadget_core::job::JobError;
-pub use gadget_core::job::*;
-pub use gadget_core::job_manager::WorkManagerInterface;
-pub use gadget_core::job_manager::{PollMethod, ProtocolWorkManager, WorkManagerError};
-use gadget_io::tokio::task::JoinError;
-use parking_lot::RwLock;
-use sp_core::ecdsa;
-use std::fmt::{Debug, Display, Formatter};
-use std::sync::Arc;
+#![cfg_attr(not(feature = "std"), no_std)]
 
-pub use subxt_signer;
+extern crate alloc;
+
+use alloc::fmt::{Debug, Display, Formatter};
+use alloc::string::String;
+
+use gadget_core::gadget::error::GadgetError;
+#[cfg(feature = "std")]
+pub use gadget_core::job::manager::{ProtocolWorkManager, WorkManagerError};
+pub use gadget_core::job::{
+    error::JobError,
+    protocol::{PollMethod, WorkManagerInterface},
+};
+
+use sp_core::ecdsa;
+
+cfg_if::cfg_if! {
+    if #[cfg(all(feature = "std", feature = "substrate"))] {
+        use crate::config::ProtocolConfig;
+        use crate::prelude::PrometheusConfig;
+        use crate::module::network::Network;
+        use crate::module::{GeneralModule, GadgetProtocol};
+        use crate::environments::{EventMetadata, GadgetEnvironment};
+        use gadget_core::gadget::general::GeneralGadget;
+        use gadget_core::gadget::AbstractGadget;
+        use gadget_core::gadget::manager::GadgetManager;
+        use gadget_core::gadget::general::Client;
+        use parking_lot::RwLock;
+        use std::sync::Arc;
+
+        pub mod module;
+        pub mod config;
+        pub mod full_protocol;
+        pub mod protocol;
+    }
+}
+
 pub mod environments;
-use crate::environments::GadgetEnvironment;
-use gadget_core::gadget::general::Client;
-pub mod module;
 
 #[allow(ambiguous_glob_reexports)]
 pub mod prelude {
+    #[cfg(feature = "std")]
     pub use crate::client::*;
+    #[cfg(all(feature = "std", feature = "substrate"))]
     pub use crate::config::*;
     pub use crate::environments::*;
+    #[cfg(all(feature = "std", feature = "substrate"))]
     pub use crate::full_protocol::{FullProtocolConfig, NodeInput};
     pub use crate::generate_setup_and_run_command;
-    pub use crate::keystore::{ECDSAKeyStore, InMemoryBackend, KeystoreBackend};
+    #[cfg(feature = "std")]
+    pub use crate::keystore::InMemoryBackend;
+    pub use crate::keystore::{ECDSAKeyStore, KeystoreBackend};
+    #[cfg(all(feature = "std", feature = "substrate"))]
     pub use crate::module::WorkManagerConfig;
-    pub use crate::{BuiltExecutableJobWrapper, JobBuilder, JobError, WorkManagerInterface};
+    pub use alloc::sync::Arc;
     pub use async_trait::async_trait;
-    pub use gadget_core::job_manager::ProtocolWorkManager;
-    pub use gadget_core::job_manager::SendFuture;
-    pub use gadget_core::job_manager::WorkManagerError;
+    pub use core::pin::Pin;
+    pub use gadget_core::job::builder::{BuiltExecutableJobWrapper, JobBuilder};
+    pub use gadget_core::job::error::JobError;
+    #[cfg(feature = "std")]
+    pub use gadget_core::job::manager::{ProtocolWorkManager, WorkManagerError};
+    pub use gadget_core::job::protocol::WorkManagerInterface;
+    pub use gadget_core::job::SendFuture;
+    #[cfg(feature = "std")]
     pub use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
     pub use parking_lot::Mutex;
     pub use sp_runtime::traits::Block;
-    pub use std::pin::Pin;
-    pub use std::sync::Arc;
 }
 
 // Convenience re-exports
 pub use async_trait;
 pub use color_eyre;
 pub use gadget_io;
+#[cfg(feature = "substrate")]
+pub use subxt_signer;
+#[cfg(feature = "substrate")]
 pub use tangle_subxt;
 
+#[cfg(feature = "substrate")]
 pub mod tangle_runtime {
     pub use tangle_subxt::subxt::utils::AccountId32;
     pub use tangle_subxt::tangle_testnet_runtime::api;
@@ -57,54 +87,95 @@ pub mod tangle_runtime {
 }
 
 pub mod channels;
+#[cfg(feature = "std")]
 pub mod client;
-pub mod config;
 pub mod debug_logger;
-pub mod full_protocol;
+#[cfg(feature = "std")]
 pub mod helpers;
 pub mod keystore;
+#[cfg(feature = "std")]
 pub mod locks;
+#[cfg(feature = "substrate")]
 pub mod prometheus;
-pub mod protocol;
+#[cfg(feature = "std")]
 pub mod tracer;
 pub mod utils;
 
 #[derive(Debug)]
 pub enum Error {
-    RegistryCreateError { err: String },
-    RegistrySendError { err: String },
-    RegistryRecvError { err: String },
-    RegistrySerializationError { err: String },
-    RegistryListenError { err: String },
-    GadgetManagerError { err: GadgetError },
-    InitError { err: String },
-    WorkManagerError { err: WorkManagerError },
-    ProtocolRemoteError { err: String },
-    ClientError { err: String },
-    JobError { err: JobError },
-    NetworkError { err: String },
-    KeystoreError { err: String },
+    RegistryCreateError {
+        err: String,
+    },
+    RegistrySendError {
+        err: String,
+    },
+    RegistryRecvError {
+        err: String,
+    },
+    RegistrySerializationError {
+        err: String,
+    },
+    RegistryListenError {
+        err: String,
+    },
+    GadgetManagerError {
+        err: GadgetError,
+    },
+    InitError {
+        err: String,
+    },
+    #[cfg(feature = "std")]
+    WorkManagerError {
+        err: WorkManagerError,
+    },
+    ProtocolRemoteError {
+        err: String,
+    },
+    ClientError {
+        err: String,
+    },
+    JobError {
+        err: JobError,
+    },
+    NetworkError {
+        err: String,
+    },
+    KeystoreError {
+        err: String,
+    },
     MissingNetworkId,
-    PeerNotFound { id: ecdsa::Public },
-    JoinError { err: JoinError },
-    ParticipantNotSelected { id: ecdsa::Public, reason: String },
-    PrometheusError { err: String },
-    Other { err: String },
+    PeerNotFound {
+        id: ecdsa::Public,
+    },
+    #[cfg(feature = "std")]
+    JoinError {
+        err: gadget_io::tokio::task::JoinError,
+    },
+    ParticipantNotSelected {
+        id: ecdsa::Public,
+        reason: String,
+    },
+    PrometheusError {
+        err: String,
+    },
+    Other {
+        err: String,
+    },
 }
 
-impl From<String> for crate::Error {
+impl From<String> for Error {
     fn from(err: String) -> Self {
         Self::Other { err }
     }
 }
 
 impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         Debug::fmt(self, f)
     }
 }
 
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}
 
 impl From<JobError> for Error {
     fn from(err: JobError) -> Self {
@@ -112,6 +183,7 @@ impl From<JobError> for Error {
     }
 }
 
+#[cfg(all(feature = "std", feature = "substrate"))]
 pub async fn run_protocol<Env: GadgetEnvironment, T: ProtocolConfig<Env>>(
     mut protocol_config: T,
 ) -> Result<(), Error> {
@@ -157,6 +229,7 @@ pub async fn run_protocol<Env: GadgetEnvironment, T: ProtocolConfig<Env>>(
     gadget_io::tokio::try_join!(network_future, gadget_future).map(|_| ())
 }
 
+#[cfg(all(feature = "std", feature = "substrate"))]
 /// Creates a work manager
 pub async fn create_work_manager<Env: GadgetEnvironment, P: GadgetProtocol<Env>>(
     latest_event: &<Env as GadgetEnvironment>::Event,
@@ -185,6 +258,7 @@ pub async fn create_work_manager<Env: GadgetEnvironment, P: GadgetProtocol<Env>>
     ))
 }
 
+#[cfg(all(feature = "std", feature = "substrate"))]
 async fn get_latest_event_from_client<Env: GadgetEnvironment>(
     client: &<Env as GadgetEnvironment>::Client,
 ) -> Result<<Env as GadgetEnvironment>::Event, Error> {

@@ -1,43 +1,10 @@
-use async_trait::async_trait;
-use std::error::Error;
-use std::fmt::{Display, Formatter};
+use super::error::GadgetError;
+use super::AbstractGadget;
 use std::future::Future;
 use std::pin::Pin;
 
 pub struct GadgetManager<'a> {
     gadget: Pin<Box<dyn Future<Output = Result<(), GadgetError>> + Send + 'a>>,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum GadgetError {
-    FinalityNotificationStreamEnded,
-    ProtocolMessageStreamEnded,
-}
-
-impl Display for GadgetError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self, f)
-    }
-}
-
-impl Error for GadgetError {}
-
-#[async_trait]
-pub trait AbstractGadget: Send + Sync + 'static {
-    type Event: Send + Sync + 'static;
-    type ProtocolMessage: Send + Sync + 'static;
-    type Error: Error + Send + Sync + 'static;
-
-    async fn next_event(&self) -> Option<Self::Event>;
-    async fn get_next_protocol_message(&self) -> Option<Self::ProtocolMessage>;
-
-    async fn on_event_received(&self, notification: Self::Event) -> Result<(), Self::Error>;
-    async fn process_protocol_message(
-        &self,
-        message: Self::ProtocolMessage,
-    ) -> Result<(), Self::Error>;
-
-    async fn process_error(&self, error: Self::Error);
 }
 
 impl<'a> GadgetManager<'a> {

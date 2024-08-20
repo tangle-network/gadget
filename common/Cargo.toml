@@ -7,12 +7,13 @@ homepage.workspace = true
 license.workspace = true
 
 [dependencies]
-libsecp256k1 = { version = "0.7" }
+cfg-if = { workspace = true }
+libsecp256k1 = { workspace = true }
 gadget-core = { workspace = true }
-gadget-io = { workspace = true, default-features = false }
-serde = { workspace = true, features = ["derive"] }
+gadget-io = { workspace = true }
+serde = { workspace = true, features = ["derive", "alloc"] }
 serde_json = { workspace = true }
-prometheus = { workspace = true, default-features = false }
+prometheus = { workspace = true }
 auto_impl = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
@@ -33,58 +34,43 @@ color-eyre = { workspace = true }
 tangle-subxt = { workspace = true, optional = true }
 subxt-signer = { workspace = true, features = ["subxt", "sr25519"], optional = true }
 subxt = { workspace = true, optional = true }
-sp-api = { workspace = true, default-features = false }
-sp-io = { workspace = true, default-features = false }
-sp-core = { workspace = true, default-features = false, features = ["full_crypto"] }
-sp-runtime = { workspace = true, default-features = false }
-sp-tracing = { workspace = true, default-features = false }
-sp-runtime-interface = { workspace = true}
+sp-io = { workspace = true, features = ["disable_allocator", "disable_panic_handler", "disable_oom"] }
+sp-core = { workspace = true, features = ["full_crypto"] }
+sp-runtime = { workspace = true, features = ["serde"] }
 substrate-prometheus-endpoint = { workspace = true, optional = true }
 
 parity-scale-codec = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
+[target.'cfg(all(any(target_arch = "wasm32", target_arch = "wasm64"), target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, features = ["js"] }
+
 [features]
-default = ["substrate", "std", "tangle-testnet"]
+default = ["substrate", "std", "tangle-testnet", "subxt/native"]
 tangle-testnet = []
 tangle-mainnet = []
 substrate = [
   "gadget-core/substrate",
-  "gadget-io/default",
   "tangle-subxt",
   "subxt-signer",
-  "subxt/native",
   "subxt/jsonrpsee",
   "substrate-prometheus-endpoint",
   "parity-scale-codec",
 ]
 std = [
-  "sqlx",
+  "gadget-io/std",
+  "gadget-core/std",
+  "dep:sqlx",
   "serde/std",
   "tracing/std",
   "tracing/attributes",
-  "sp-api/std",
   "sp-io/std",
-  "sp-core/std",
   "sp-runtime/std",
-  "sp-tracing/std",
 ]
 wasm = [
-    "gadget-io/wasm",
-    "serde/alloc",
-    "serde/derive",
-    "getrandom/js",
-    "gadget-core/substrate",
     "subxt-signer/web",
     "subxt/web",
     "subxt/jsonrpsee",
-    "sp-io/disable_panic_handler",
-    "sp-io/disable_oom",
-    "sp-io/disable_allocator",
-    "sp-runtime/serde",
     "parity-scale-codec",
 ]
 testing = []
-
-[dev-dependencies]
-wasm-bindgen-test = "0.3.34"
