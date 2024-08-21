@@ -1,3 +1,4 @@
+use crate::test_ext::NAME_IDS;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use cargo_tangle::deploy::Opts;
@@ -56,7 +57,8 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         keystore_uri: "./target/keystore".to_string(),
         verbose: input.verbose,
         pretty: input.pretty,
-        instance_id: Some(format!("Test Node {}", input.instance_id)),
+        instance_id: Some(NAME_IDS[input.instance_id as usize].to_string()),
+        test_mode: true,
     };
 
     let gadget_config = GadgetConfig {

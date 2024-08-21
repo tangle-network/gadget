@@ -1,8 +1,8 @@
 use crate::config::BlueprintManagerConfig;
 use crate::gadget::ActiveGadgets;
 use crate::sdk::entry::keystore_from_base_path;
+use crate::sdk::utils;
 use crate::sdk::utils::msg_to_error;
-use crate::sdk::{keystore::load_keys_from_keystore, utils};
 use crate::sdk::{Client, SendFuture};
 use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
@@ -10,8 +10,10 @@ use gadget_common::config::DebugLogger;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::subxt_signer::sr25519;
 use gadget_common::tangle_runtime::AccountId32;
-use gadget_io::{GadgetConfig, SubstrateKeystore};
-use sp_core::{ecdsa, Pair, H256};
+use gadget_io::standard::keystore::crypto;
+use gadget_io::{GadgetConfig, KeystoreConfig, KeystoreContainer, SubstrateKeystore};
+use sp_core::crypto::KeyTypeId;
+use sp_core::{ecdsa, ByteArray, Pair, Public, H256};
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -45,7 +47,8 @@ pub struct BlueprintManagerHandle {
     start_tx: Option<tokio::sync::oneshot::Sender<()>>,
     process: JoinHandle<color_eyre::Result<()>>,
     logger: DebugLogger,
-    sr25519_id: sr25519::Keypair,
+    keystore_container: KeystoreContainer,
+    sr25519_id: sp_core::sr25519::Pair,
     ecdsa_id: ecdsa::Pair,
 }
 
@@ -67,8 +70,15 @@ impl BlueprintManagerHandle {
     }
 
     /// Returns the SR25519 keypair for this blueprint manager
-    pub fn sr25519_id(&self) -> &sr25519::Keypair {
-        &self.sr25519_id
+    pub fn sr25519_id(&self) -> sr25519::Keypair {
+        let secret_key = self.expose_sr25519_secret();
+        sr25519::Keypair::from_secret_key(secret_key).expect("Failed to create SR25519 keypair")
+    }
+
+    pub fn expose_sr25519_secret(&self) -> [u8; 32] {
+        self.sr25519_id.as_ref().secret.to_bytes()[..32]
+            .try_into()
+            .unwrap()
     }
 
     /// Returns the ECDSA keypair for this blueprint manager
@@ -83,6 +93,16 @@ impl BlueprintManagerHandle {
             .map(|tx| tx.send(()))
             .ok_or_eyre("Shutdown already called")?
             .map_err(|_| Report::msg("Failed to send shutdown signal to Blueprint Manager"))
+    }
+
+    /// Returns the keystore container for this blueprint manager
+    pub fn key_store(&self) -> &KeystoreContainer {
+        &self.keystore_container
+    }
+
+    /// Returns the logger for this blueprint manager
+    pub fn logger(&self) -> &DebugLogger {
+        &self.logger
     }
 }
 
@@ -139,22 +159,37 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
     let logger_clone = logger.clone();
 
-    let keystore = keystore_from_base_path(
-        &gadget_config.base_path,
-        gadget_config.chain,
-        gadget_config.keystore_password.clone(),
+    let keystore_container = if blueprint_manager_config.test_mode {
+        let seed = blueprint_manager_config
+            .instance_id
+            .clone()
+            .expect("Should always exist for testing");
+        logger.info(format!(
+            "Running in test mode, auto-adding default keys for //{seed} ..."
+        ));
+
+        let keystore = KeystoreContainer::new(&KeystoreConfig::InMemory)?;
+        let key_type = crypto::acco::KEY_TYPE;
+
+        // Add both sr25519 and ECDSA account keys
+        add_key_to_keystore::<sp_core::sr25519::Public>(&seed, key_type, &keystore)?;
+        add_key_to_keystore::<ecdsa::Public>(&seed, key_type, &keystore)?;
+
+        keystore
+    } else {
+        // For ordinary runs, we will default to the keystore path
+        let keystore = keystore_from_base_path(
+            &gadget_config.base_path,
+            gadget_config.chain,
+            gadget_config.keystore_password.clone(),
+        );
+        KeystoreContainer::new(&keystore)?
+    };
+
+    let (role_key, acco_key) = (
+        keystore_container.ecdsa_key()?,
+        keystore_container.sr25519_key()?,
     );
-
-    let sr25519_keypair = keystore.sr25519_key()?;
-
-    let mut secret_key = [0u8; 32];
-    // The `secret` field is 64 bytes. The first 32 bytes are the secret key, the last 32 bytes are seeds to the nonces.
-    secret_key.clone_from_slice(&sr25519_keypair.as_ref().secret.to_bytes()[..32]);
-
-    let sr25519_private_key = sr25519::Keypair::from_secret_key(secret_key)
-        .map_err(|err| Report::msg(format!("Failed to create SR25519 keypair: {err:?}")))?;
-
-    let (role_key, acco_key) = load_keys_from_keystore(&keystore)?;
     let ecdsa_key = role_key.clone();
 
     let sub_account_id = AccountId32(acco_key.public().0);
@@ -162,7 +197,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         endpoint: gadget_config.url.clone(),
     };
 
-    let tangle_environment = TangleEnvironment::new(subxt_config, acco_key, logger.clone());
+    let tangle_environment = TangleEnvironment::new(subxt_config, acco_key.clone(), logger.clone());
 
     let tangle_runtime = tangle_environment.setup_runtime().await?;
     let runtime = ServicesClient::new(logger.clone(), tangle_runtime.client());
@@ -257,8 +292,9 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         shutdown_call: Some(tx_stop),
         process: handle,
         logger: logger_clone,
-        sr25519_id: sr25519_private_key,
+        sr25519_id: acco_key,
         ecdsa_id: ecdsa_key,
+        keystore_container,
     };
 
     Ok(handle)
@@ -312,4 +348,28 @@ async fn handle_init(
     .await?;
 
     Ok(operator_subscribed_blueprints)
+}
+
+fn add_key_to_keystore<TPublic: Public>(
+    seed: &str,
+    key_type: KeyTypeId,
+    keystore: &KeystoreContainer,
+) -> color_eyre::Result<()> {
+    let pub_key = get_from_seed::<TPublic>(seed).to_raw_vec();
+    let keystore = keystore.keystore();
+    if keystore
+        .insert(key_type, &format!("//{seed}"), &pub_key)
+        .is_err()
+    {
+        Err(Report::msg("Failed to insert key into keystore"))
+    } else {
+        Ok(())
+    }
+}
+
+/// Helper function to generate a crypto pair from seed.
+pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+    TPublic::Pair::from_string(&format!("//{seed}"), None)
+        .expect("static values are valid; qed")
+        .public()
 }

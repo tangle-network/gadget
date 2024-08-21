@@ -7398,7 +7398,6 @@ dependencies = [
 [[package]]
 name = "pallet-services"
 version = "2.0.0"
-source = "git+https://github.com/webb-tools/tangle.git#050d607fe9fc663d69e545a8d55a17974039ed04"
 dependencies = [
  "ethabi",
  "fp-evm",
@@ -11667,7 +11666,6 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "2.0.0"
-source = "git+https://github.com/webb-tools/tangle.git#050d607fe9fc663d69e545a8d55a17974039ed04"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",

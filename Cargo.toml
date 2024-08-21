@@ -49,9 +49,13 @@ cargo-tangle = { path = "./cli" }
 cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
-pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
-pallet-services-rpc = { git = "https://github.com/webb-tools/tangle.git" }
-tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
+#pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
+#pallet-services-rpc = { git = "https://github.com/webb-tools/tangle.git" }
+#tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
+pallet-services = { path = "../tangle/pallets/services/" }
+pallet-services-rpc = { path = "../tangle/pallets/services/rpc/" }
+tangle-primitives = { path = "../tangle/primitives/" }
+
 tangle-subxt = { version = "0.1.4", default-features = false }
 
 subxt-signer = { version = "0.37.0", default-features = false }

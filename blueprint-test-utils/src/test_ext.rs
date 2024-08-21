@@ -161,6 +161,7 @@ where
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 const LOCAL_TANGLE_NODE: &str = "ws://127.0.0.1:9944";
+pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
 
 /// N: number of nodes
 /// K: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
@@ -178,9 +179,7 @@ pub async fn new_test_ext_blueprint_manager<
     mut opts: Opts,
     f: F,
 ) -> LocalhostTestExt {
-    const NAME_IDS: [&str; 3] = ["alice", "bob", "charlie"];
-
-    assert!(N < 4, "Only up to 3 nodes are supported");
+    assert!(N < NAME_IDS.len(), "Only up to 5 nodes are supported");
 
     let bind_addrs = (0..N)
         .map(|_| find_open_tcp_bind_port())
@@ -226,11 +225,12 @@ pub async fn new_test_ext_blueprint_manager<
         if node_index == 0 {
             // Replace the None signer and signer_evm values inside opts with alice's keys
             opts.signer = Some(handle.sr25519_id().clone());
-            let k256_ecdsa_secret_key = handle.ecdsa_id().seed();
-            opts.signer_evm = Some(
-                PrivateKeySigner::from_slice(&k256_ecdsa_secret_key)
-                    .expect("Should create a private key signer"),
-            );
+            let k256_ecdsa_secret_key = handle.expose_sr25519_secret();
+            let priv_key = PrivateKeySigner::from_slice(&k256_ecdsa_secret_key)
+                .expect("Should create a private key signer");
+            let addr = priv_key.address();
+            handle.logger().info(format!("Signer EVM address: {addr}"));
+            opts.signer_evm = Some(priv_key);
         }
 
         handles.push(handle);
