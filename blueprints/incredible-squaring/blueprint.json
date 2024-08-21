@@ -27,14 +27,30 @@
     },
     {
       "metadata": {
-        "name": "xcube",
+        "name": "xsquare_eigen",
         "description": "Returns x^3 saturating to [`u64::MAX`] if overflow occurs."
       },
       "params": [
-        "Uint64"
+        {
+          "Struct": [
+            "Task",
+            []
+          ]
+        },
+        {
+          "Struct": [
+            "NonSignerStakesAndSignature",
+            []
+          ]
+        }
       ],
       "result": [
-        "Uint64"
+        {
+          "Struct": [
+            "respondToTaskCall",
+            []
+          ]
+        }
       ],
       "verifier": "None"
     }

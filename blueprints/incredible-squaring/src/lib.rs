@@ -1,6 +1,10 @@
+use alloy_primitives::U256;
 use alloy_sol_types::sol;
 use gadget_sdk::job;
 use std::convert::Infallible;
+use IncredibleSquaringTaskManager::{
+    respondToTaskCall, NonSignerStakesAndSignature, Task, TaskResponse,
+};
 
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
@@ -24,7 +28,7 @@ sol!(
 /// Returns x^3 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
     id = 1,
-    params(x),
+    params(task, non_signer_stakes_and_signature),
     result(_),
     event_handler(
         protocol = "eigenlayer",
@@ -33,8 +37,18 @@ sol!(
         callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
     ),
 )]
-pub fn xcube(x: u64) -> Result<u64, Infallible> {
-    Ok(x.saturating_pow(3u32))
+pub fn xsquare_eigen(
+    task: Task,
+    non_signer_stakes_and_signature: NonSignerStakesAndSignature,
+) -> Result<respondToTaskCall, Infallible> {
+    Ok(respondToTaskCall {
+        task: task.clone(),
+        taskResponse: TaskResponse {
+            referenceTaskIndex: task.taskCreatedBlock,
+            numberSquared: task.numberToBeSquared.saturating_pow(U256::from(2u32)),
+        },
+        nonSignerStakesAndSignature: non_signer_stakes_and_signature,
+    })
 }
 
 #[cfg(test)]

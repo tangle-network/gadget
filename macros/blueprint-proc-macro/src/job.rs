@@ -1,15 +1,13 @@
-use std::collections::{BTreeMap, HashSet};
-
+use crate::eigenlayer::event_listener::generate_eigenlayer_event_handler;
+use crate::shared::{pascal_case, type_to_field_type};
+use crate::tangle::event_listener::generate_tangle_event_handler;
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata, JobResultVerifier};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
+use std::collections::{BTreeMap, HashSet};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, ItemFn, LitInt, LitStr, Token, Type};
-
-use crate::utils::{
-    field_type_to_param_token, field_type_to_result_token, pascal_case, type_to_field_type,
-};
 
 // Defines custom keywords
 mod kw {
@@ -130,6 +128,9 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         #event_handler_gen
     };
 
+    // // Print the generated code
+    // println!("{}", gen);
+
     Ok(gen.into())
 }
 
@@ -189,7 +190,7 @@ pub fn generate_event_handler_for(
         .enumerate()
         .map(|(i, t)| {
             let ident = format_ident!("param{i}");
-            field_type_to_param_token(&ident, t)
+            crate::tangle::field_type_to_param_token(&ident, t)
         })
         .collect::<Vec<_>>();
 
@@ -235,14 +236,16 @@ pub fn generate_event_handler_for(
 
     let result_tokens = if result.len() == 1 {
         let ident = format_ident!("job_result");
-        vec![field_type_to_result_token(&ident, &result[0])]
+        vec![crate::tangle::field_type_to_result_token(
+            &ident, &result[0],
+        )]
     } else {
         result
             .iter()
             .enumerate()
             .map(|(i, t)| {
                 let ident = format_ident!("result_{i}");
-                let s = field_type_to_result_token(&ident, t);
+                let s = crate::tangle::field_type_to_result_token(&ident, t);
                 quote! {
                     let #ident = job_result[#i];
                     #s
@@ -252,123 +255,22 @@ pub fn generate_event_handler_for(
     };
 
     if event_handler.is_eigenlayer() {
-        let instance_base = event_handler.instance().unwrap();
-        let instance_name = format_ident!("{}Instance", instance_base);
-        let instance = quote! { #instance_base::#instance_name<T::T, T::P, T::N> };
-        let event = event_handler.event().unwrap();
-        let _callback = event_handler.callback().unwrap();
-
-        quote! {
-            use alloy_network::Network;
-            use alloy_provider::Provider;
-            use alloy_transport::Transport;
-            use alloy_rpc_types::Log;
-            use std::ops::Deref;
-            use gadget_sdk::events_watcher::evm::Config;
-
-            /// Event handler for the function
-            #[doc = "[`"]
-            #[doc = #fn_name_string]
-            #[doc = "`]"]
-            pub struct #struct_name<T: Config> {
-                pub contract_address: alloy_primitives::Address,
-                pub provider: std::sync::Arc<T::P>,
-                #(#additional_params)*
-            }
-
-            #[automatically_derived]
-            #[async_trait::async_trait]
-            impl<T> gadget_sdk::events_watcher::evm::EventHandler<T> for #struct_name<T>
-            where
-                T: Config,
-                #instance: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>,
-            {
-                type Contract = #instance;
-                type Event = #event;
-
-                async fn handle_event(
-                    &self,
-                    contract: &Self::Contract,
-                    (event, log): (Self::Event, Log),
-                ) -> Result<(), gadget_sdk::events_watcher::Error> {
-                    Ok(())
-                }
-            }
-        }
+        generate_eigenlayer_event_handler(
+            &fn_name_string,
+            &struct_name,
+            event_handler,
+            &additional_params,
+        )
     } else {
-        quote! {
-            /// Event handler for the function
-            #[doc = "[`"]
-            #[doc = #fn_name_string]
-            #[doc = "`]"]
-            pub struct #struct_name {
-                pub service_id: u64,
-                pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
-                #(#additional_params)*
-            }
-
-            #[automatically_derived]
-            #[async_trait::async_trait]
-            impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
-                async fn can_handle_events(
-                    &self,
-                    events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
-                ) -> Result<bool, gadget_sdk::events_watcher::Error> {
-                    use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
-
-                    let has_event = events.find::<JobCalled>().flatten().any(|event| {
-                        event.service_id == self.service_id && event.job == #job_id
-                    });
-
-                    Ok(has_event)
-                }
-
-                async fn handle_events(
-                    &self,
-                    client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::events_watcher::tangle::TangleConfig>,
-                    (events, block_number): (
-                        gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
-                        u64
-                    ),
-                ) -> Result<(), gadget_sdk::events_watcher::Error> {
-                    use gadget_sdk::tangle_subxt::{
-                        subxt,
-                        tangle_testnet_runtime::api::{
-                            self as TangleApi,
-                            runtime_types::{
-                                bounded_collections::bounded_vec::BoundedVec,
-                                tangle_primitives::services::field::{Field, BoundedString},
-                            },
-                            services::events::JobCalled,
-                        },
-                    };
-                    let job_events: Vec<_> = events
-                        .find::<JobCalled>()
-                        .flatten()
-                        .filter(|event| {
-                            event.service_id == self.service_id && event.job == #job_id
-                        })
-                        .collect();
-                    for call in job_events {
-                        tracing::debug!("Handling JobCalled Events: #{block_number}",);
-
-                        let mut args_iter = call.args.into_iter();
-                        #(#params_tokens)*
-                        #fn_call
-
-                        let mut result = Vec::new();
-                        #(#result_tokens)*
-
-                        let response =
-                            TangleApi::tx()
-                                .services()
-                                .submit_result(self.service_id, call.call_id, result);
-                        gadget_sdk::tx::tangle::send(&client, &self.signer, &response).await?;
-                    }
-                    Ok(())
-                }
-            }
-        }
+        generate_tangle_event_handler(
+            &fn_name_string,
+            &struct_name,
+            job_id,
+            &params_tokens,
+            &result_tokens,
+            &additional_params,
+            &fn_call,
+        )
     }
 }
 
@@ -591,25 +493,25 @@ pub(crate) enum EventHandlerArgs {
 }
 
 impl EventHandlerArgs {
-    fn is_eigenlayer(&self) -> bool {
+    pub fn is_eigenlayer(&self) -> bool {
         matches!(self, Self::Eigenlayer { .. })
     }
 
-    fn instance(&self) -> Option<Ident> {
+    pub fn instance(&self) -> Option<Ident> {
         match self {
             Self::Eigenlayer { instance, .. } => instance.clone(),
             _ => None,
         }
     }
 
-    fn event(&self) -> Option<Type> {
+    pub fn event(&self) -> Option<Type> {
         match self {
             Self::Eigenlayer { event, .. } => event.clone(),
             _ => None,
         }
     }
 
-    fn callback(&self) -> Option<Type> {
+    pub fn callback(&self) -> Option<Type> {
         match self {
             Self::Eigenlayer { callback, .. } => callback.clone(),
             _ => None,
@@ -668,26 +570,6 @@ impl Parse for EventHandlerArgs {
                 protocol,
                 "Expected `tangle` or `eigenlayer` as event handler protocol",
             )),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn pascal_case_works() {
-        let input = [
-            "hello_world",
-            "keygen",
-            "_internal_function",
-            "cggmp21_sign",
-        ];
-        let expected = ["HelloWorld", "Keygen", "InternalFunction", "Cggmp21Sign"];
-
-        for (i, e) in input.iter().zip(expected.iter()) {
-            assert_eq!(pascal_case(i), *e);
         }
     }
 }

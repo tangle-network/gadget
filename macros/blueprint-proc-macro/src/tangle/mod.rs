@@ -1,6 +1,8 @@
+pub mod event_listener;
+
 use gadget_blueprint_proc_macro_core::FieldType;
 use quote::{format_ident, quote};
-use syn::{Ident, Type};
+use syn::Ident;
 
 pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
     match t {
@@ -92,6 +94,31 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
                     .collect::<Vec<_>>();
             }
         }
+        FieldType::Struct(name, fields) => {
+            let struct_ident = format_ident!("{}", name);
+            let field_tokens: Vec<_> = fields
+                .iter()
+                .map(|(field_name, field_type)| {
+                    let field_ident = format_ident!("{}", field_name);
+                    let inner_ident = format_ident!("{}_{}", ident, field_name);
+                    let inner_token = field_type_to_param_token(&inner_ident, field_type);
+                    quote! {
+                        #inner_token
+                        #field_ident: #inner_ident,
+                    }
+                })
+                .collect();
+
+            quote! {
+                let Some(Field::Struct(#ident)) = args_iter.next() else { continue; };
+                let mut #ident = #ident.into_iter();
+                #(#field_tokens)*
+                let #ident = #struct_ident {
+                    #(#field_tokens)*
+                };
+            }
+        }
+
         FieldType::AccountId => {
             quote! { let Some(Field::AccountId(#ident)) = args_iter.next() else { continue; }; }
         }
@@ -151,6 +178,7 @@ pub fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::
                 FieldType::Optional(_) => todo!("handle optionals into lists"),
                 FieldType::Array(_, _) => todo!("handle arrays into lists"),
                 FieldType::List(_) => todo!("handle nested lists"),
+                FieldType::Struct(_, _) => todo!("handle nested structs"),
                 FieldType::AccountId => quote! { Field::AccountId(item) },
             };
             let inner = quote! {
@@ -162,108 +190,32 @@ pub fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::
                 result.push(Field::List(BoundedVec(#inner_ident)));
             }
         }
+        FieldType::Struct(name, fields) => {
+            let field_tokens: Vec<_> = fields
+                .iter()
+                .map(|(field_name, field_type)| {
+                    let field_ident = format_ident!("{}", field_name);
+                    let inner_ident = format_ident!("{}_{}", ident, field_name);
+                    let inner_token = field_type_to_result_token(&inner_ident, field_type);
+                    quote! {
+                        let #inner_ident = #ident.#field_ident;
+                        let field_name = BoundedString::<C::MaxFieldsSize>::from(#field_name);
+                        let field_value = Box::new(#inner_ident);
+                        fields_vec.push((field_name, field_value));
+                        #inner_token
+                    }
+                })
+                .collect();
+
+            quote! {
+                #(#field_tokens)*
+                let struct_name = BoundedString::<C::MaxFieldsSize>::from(#name);
+                let fields_vec = vec![#(#field_tokens),*];
+                result.push(Field::Struct(struct_name, BoundedVec(fields_vec)));
+            }
+        }
         FieldType::AccountId => {
             quote! { result.push(Field::AccountId(#ident)); }
         }
-    }
-}
-
-/// Convert a `snake_case` string to `PascalCase`
-pub fn pascal_case(s: &str) -> String {
-    s.split('_')
-        .map(|word| {
-            let mut c = word.chars();
-            match c.next() {
-                None => String::new(),
-                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-            }
-        })
-        .collect()
-}
-
-pub fn ident_to_field_type(ident: &Ident) -> syn::Result<FieldType> {
-    match ident.to_string().as_str() {
-        "u8" => Ok(FieldType::Uint8),
-        "u16" => Ok(FieldType::Uint16),
-        "u32" => Ok(FieldType::Uint32),
-        "u64" => Ok(FieldType::Uint64),
-        "i8" => Ok(FieldType::Int8),
-        "i16" => Ok(FieldType::Int16),
-        "i32" => Ok(FieldType::Int32),
-        "i64" => Ok(FieldType::Int64),
-        "u128" => Ok(FieldType::Uint128),
-        "i128" => Ok(FieldType::Int128),
-        "f64" => Ok(FieldType::Float64),
-        "bool" => Ok(FieldType::Bool),
-        "String" => Ok(FieldType::String),
-        "Bytes" => Ok(FieldType::Bytes),
-        "AccountId" => Ok(FieldType::AccountId),
-        _ => Err(syn::Error::new_spanned(ident, "unsupported type")),
-    }
-}
-
-pub fn type_to_field_type(ty: &Type) -> syn::Result<FieldType> {
-    match ty {
-        Type::Array(_) => Err(syn::Error::new_spanned(ty, "TODO: support arrays")),
-        Type::Path(inner) => path_to_field_type(&inner.path),
-        _ => Err(syn::Error::new_spanned(ty, "unsupported type")),
-    }
-}
-
-pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
-    // take the last segment of the path
-    let seg = &path
-        .segments
-        .last()
-        .ok_or_else(|| syn::Error::new_spanned(path, "path must have at least one segment"))?;
-    let ident = &seg.ident;
-    let args = &seg.arguments;
-    match args {
-        syn::PathArguments::None => ident_to_field_type(ident),
-        // Support for Vec<T> where T is a simple type
-        syn::PathArguments::AngleBracketed(inner) if ident.eq("Vec") && inner.args.len() == 1 => {
-            let inner_arg = &inner.args[0];
-            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
-                let inner_type = type_to_field_type(inner_ty)?;
-                match inner_type {
-                    FieldType::Uint8 => Ok(FieldType::Bytes),
-                    others => Ok(FieldType::List(Box::new(others))),
-                }
-            } else {
-                Err(syn::Error::new_spanned(
-                    inner_arg,
-                    "unsupported complex type",
-                ))
-            }
-        }
-        // Support for Option<T> where T is a simple type
-        syn::PathArguments::AngleBracketed(inner)
-            if ident.eq("Option") && inner.args.len() == 1 =>
-        {
-            let inner_arg = &inner.args[0];
-            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
-                let inner_type = type_to_field_type(inner_ty)?;
-                Ok(FieldType::Optional(Box::new(inner_type)))
-            } else {
-                Err(syn::Error::new_spanned(
-                    inner_arg,
-                    "unsupported complex type",
-                ))
-            }
-        }
-        // Support for Result<T, E> where T is a simple type
-        syn::PathArguments::AngleBracketed(inner) if ident.eq("Result") => {
-            let inner_arg = &inner.args[0];
-            if let syn::GenericArgument::Type(inner_ty) = inner_arg {
-                let inner_type = type_to_field_type(inner_ty)?;
-                Ok(inner_type)
-            } else {
-                Err(syn::Error::new_spanned(
-                    inner_arg,
-                    "unsupported complex type",
-                ))
-            }
-        }
-        _ => Err(syn::Error::new_spanned(args, "unsupported complex type")),
     }
 }

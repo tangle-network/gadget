@@ -41,6 +41,8 @@ pub enum FieldType {
     Array(u64, Box<FieldType>),
     /// A List of items of type [`FieldType`].
     List(Box<FieldType>),
+    /// A Struct of items of type [`FieldType`].
+    Struct(String, Vec<(String, Box<FieldType>)>),
     // NOTE: Special types starts from 100
     /// A special type for AccountId
     AccountId,
