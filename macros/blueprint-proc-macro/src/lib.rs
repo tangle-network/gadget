@@ -19,6 +19,9 @@
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
+/// Benchmarking proc-macro
+mod benchmark;
+/// Blueprint proc-macro
 mod blueprint;
 /// Blueprint Hooks proc-macro
 mod hooks;
@@ -177,6 +180,27 @@ pub fn request_hook(args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ForeignItemFn);
     let args = parse_macro_input!(args as hooks::HookArgs);
     match hooks::request_hook_impl(&args, &input) {
+        Ok(tokens) => tokens,
+        Err(err) => err.to_compile_error().into(),
+    }
+}
+
+/// A procedural macro that annotates a function as a benchmark hook, mainly used
+/// during the benchmarking phase.
+///
+/// # Example
+/// ```rust,no_run
+/// # use gadget_blueprint_proc_macro::benchmark;
+/// #[benchmark(threads = 4)]
+/// pub fn my_job() {
+///   // call your job with the necessary parameters
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn benchmark(args: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::ItemFn);
+    let args = parse_macro_input!(args as benchmark::BenchmarkArgs);
+    match benchmark::benchmark_impl(&args, &input) {
         Ok(tokens) => tokens,
         Err(err) => err.to_compile_error().into(),
     }

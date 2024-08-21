@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use gadget_sdk::{job, registration_hook, report, request_hook};
+use gadget_sdk::{benchmark, job, registration_hook, report, request_hook};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Error {
@@ -102,6 +102,17 @@ fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Ve
         issues.push(b"High error rate".to_vec());
     }
     issues.concat()
+}
+
+// ==================
+//   Benchmarks
+// ==================
+#[benchmark(threads = 2)]
+fn keygen() {
+    let n = 7;
+    let t = 3;
+    let result = keygen(&MyContext, n, t);
+    assert!(result.is_ok());
 }
 
 #[cfg(test)]
