@@ -1,6 +1,5 @@
 use crate::events_watcher::{error::Error, ConstantWithMaxRetryCount};
 use crate::store::LocalDatabase;
-use alloy_contract::Event;
 use alloy_network::Network;
 use alloy_network::ReceiptResponse;
 use alloy_primitives::FixedBytes;

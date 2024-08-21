@@ -1,4 +1,4 @@
-use alloy_sol_types::{sol, SolEvent};
+use alloy_sol_types::sol;
 use gadget_sdk::job;
 use std::convert::Infallible;
 
@@ -26,9 +26,12 @@ sol!(
     id = 1,
     params(x),
     result(_),
-    verifier(evm = "IncredibleSquaringTaskManager"),
-    event_handler(protocol = "eigenlayer", instance = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance, event = IncredibleSquaringTaskManager::Event::Verify, callback = IncredibleSquaringTaskManager),
-    // event_handler("eigenlayer"), generator = "createTask(uint256)", generate_event = "TaskCreated(uint256)", callback = "submitTask(uint256)")
+    event_handler(
+        protocol = "eigenlayer",
+        instance = IncredibleSquaringTaskManager,
+        event = IncredibleSquaringTaskManager::NewTaskCreated,
+        callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
+    ),
 )]
 pub fn xcube(x: u64) -> Result<u64, Infallible> {
     Ok(x.saturating_pow(3u32))

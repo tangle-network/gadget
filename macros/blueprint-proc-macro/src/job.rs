@@ -5,7 +5,7 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
-use syn::{Ident, ItemFn, ItemStruct, LitInt, LitStr, Token, Type};
+use syn::{Ident, ItemFn, LitInt, LitStr, Token, Type};
 
 use crate::utils::{
     field_type_to_param_token, field_type_to_result_token, pascal_case, type_to_field_type,
@@ -252,10 +252,18 @@ pub fn generate_event_handler_for(
     };
 
     if event_handler.is_eigenlayer() {
+        let instance_base = event_handler.instance().unwrap();
+        let instance_name = format_ident!("{}Instance", instance_base);
+        let instance = quote! { #instance_base::#instance_name<T::T, T::P, T::N> };
+        let event = event_handler.event().unwrap();
+        let _callback = event_handler.callback().unwrap();
+
         quote! {
             use alloy_network::Network;
             use alloy_provider::Provider;
             use alloy_transport::Transport;
+            use alloy_rpc_types::Log;
+            use std::ops::Deref;
             use gadget_sdk::events_watcher::evm::Config;
 
             /// Event handler for the function
@@ -270,9 +278,13 @@ pub fn generate_event_handler_for(
 
             #[automatically_derived]
             #[async_trait::async_trait]
-            impl<T: Config> gadget_sdk::events_watcher::evm::EventHandler<T> for #struct_name<T> {
-                type Contract = alloy_contract::ContractInstance<T::T, T::P, T::N>;
-                type Event = alloy_sol_types::SolEvent;
+            impl<T> gadget_sdk::events_watcher::evm::EventHandler<T> for #struct_name<T>
+            where
+                T: Config,
+                #instance: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>,
+            {
+                type Contract = #instance;
+                type Event = #event;
 
                 async fn handle_event(
                     &self,
@@ -572,7 +584,7 @@ impl Parse for Verifier {
 pub(crate) enum EventHandlerArgs {
     Tangle,
     Eigenlayer {
-        instance: Option<Type>,
+        instance: Option<Ident>,
         event: Option<Type>,
         callback: Option<Type>,
     },
@@ -583,8 +595,25 @@ impl EventHandlerArgs {
         matches!(self, Self::Eigenlayer { .. })
     }
 
-    fn is_tangle(&self) -> bool {
-        matches!(self, Self::Tangle)
+    fn instance(&self) -> Option<Ident> {
+        match self {
+            Self::Eigenlayer { instance, .. } => instance.clone(),
+            _ => None,
+        }
+    }
+
+    fn event(&self) -> Option<Type> {
+        match self {
+            Self::Eigenlayer { event, .. } => event.clone(),
+            _ => None,
+        }
+    }
+
+    fn callback(&self) -> Option<Type> {
+        match self {
+            Self::Eigenlayer { callback, .. } => callback.clone(),
+            _ => None,
+        }
     }
 }
 
@@ -613,7 +642,7 @@ impl Parse for EventHandlerArgs {
                     if content.peek(kw::instance) {
                         let _ = content.parse::<kw::instance>()?;
                         let _ = content.parse::<Token![=]>()?;
-                        instance = Some(content.parse::<Type>()?);
+                        instance = Some(content.parse::<Ident>()?);
                     } else if content.peek(kw::event) {
                         let _ = content.parse::<kw::event>()?;
                         let _ = content.parse::<Token![=]>()?;
