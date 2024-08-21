@@ -9,15 +9,15 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
-parking_lot = { workspace = true }
+async-trait = { workspace = true }
+auto_impl = { workspace = true }
+futures-timer = { workspace = true }
 gadget-io = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
 log = { workspace = true }
-async-trait = { workspace = true }
-auto_impl = { workspace = true }
-sp-core = { workspace = true }
-futures-timer = { workspace = true }
+parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+sp-core = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros"] }
