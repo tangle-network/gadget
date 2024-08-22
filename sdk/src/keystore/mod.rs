@@ -24,20 +24,21 @@
 
 /// Backend modules
 pub mod backend;
+
 /// BLS381 Support
-mod bls381;
+pub mod bls381;
 
 /// ECDSA Support
-mod ecdsa;
+pub mod ecdsa;
 
 /// Ed25519 Support
-mod ed25519;
+pub mod ed25519;
 
 /// Keystore errors module
-mod error;
+pub mod error;
 
 /// Schnorrkel Support
-mod sr25519;
+pub mod sr25519;
 
 pub use error::Error;
 
