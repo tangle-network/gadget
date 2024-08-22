@@ -1,7 +1,10 @@
 #![allow(clippy::unused_async)]
 
+use alloc::boxed::Box;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 use async_trait::async_trait;
-use std::time::Duration;
+use core::time::Duration;
 
 #[async_trait]
 pub trait QoSReporter {
