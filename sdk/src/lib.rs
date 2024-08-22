@@ -27,7 +27,6 @@ pub mod keystore;
 // pub mod metrics;
 
 /// Randomness generation module
-#[cfg(not(feature = "wasm"))]
 pub mod random;
 
 /// Blockchain Events Watcher Module
