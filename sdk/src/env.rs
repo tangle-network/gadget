@@ -1,4 +1,5 @@
 use crate::events_watcher::tangle::TangleConfig;
+use alloc::string::{String, ToString};
 
 /// Gadget environment.
 #[derive(Debug, Clone)]
