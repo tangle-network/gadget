@@ -17,7 +17,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(not(feature = "std"))]
 extern crate alloc;
 
 /// Keystore Module
@@ -42,6 +41,7 @@ pub mod tx;
 
 pub use tangle_subxt;
 
+#[cfg(feature = "std")]
 pub mod network;
 
 pub mod slashing;
