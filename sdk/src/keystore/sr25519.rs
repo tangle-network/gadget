@@ -1,5 +1,6 @@
 //! Schnorrkel keypair implementation.
 
+use rand_core::RngCore;
 pub use schnorrkel::PublicKey as Public;
 pub use schnorrkel::SecretKey as Secret;
 pub use schnorrkel::Signature;
@@ -29,7 +30,7 @@ pub fn secret_from_bytes(bytes: &[u8]) -> Result<Secret, schnorrkel::SignatureEr
         let mut final_bytes = [0u8; 64];
         final_bytes[..32].copy_from_slice(bytes);
         let mut rng = crate::random::getrandom_or_panic();
-        rand::Rng::fill(&mut rng, &mut final_bytes[32..]);
+        rng.fill_bytes(&mut final_bytes[32..]);
         Secret::from_bytes(&final_bytes[..])
     } else {
         Secret::from_bytes(bytes)
