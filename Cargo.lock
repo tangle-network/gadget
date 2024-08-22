@@ -1725,6 +1725,7 @@ dependencies = [
  "serde",
  "sha2 0.10.8",
  "sp-core 29.0.0",
+ "sp-keystore 0.35.0",
  "structopt",
  "tangle-environment",
  "tangle-primitives",

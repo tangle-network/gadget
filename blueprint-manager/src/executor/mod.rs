@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use sp_keystore::Keystore;
 use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
 use tangle_environment::gadget::SubxtConfig;
 use tangle_environment::runtime::TangleRuntime;
@@ -148,7 +149,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let logger_id = if let Some(custom_id) = &blueprint_manager_config.instance_id {
         custom_id.as_str()
     } else {
-        "local"
+        "Local"
     };
 
     let logger = DebugLogger {
@@ -172,8 +173,12 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         let key_type = crypto::acco::KEY_TYPE;
 
         // Add both sr25519 and ECDSA account keys
-        add_key_to_keystore::<sp_core::sr25519::Public>(&seed, key_type, &keystore)?;
-        add_key_to_keystore::<ecdsa::Public>(&seed, key_type, &keystore)?;
+        add_key_to_keystore::<sp_core::sr25519::Public>(&seed, key_type, &keystore, &logger)?;
+        add_key_to_keystore::<ecdsa::Public>(&seed, key_type, &keystore, &logger)?;
+
+        let total_key_count = keystore.keystore().sr25519_public_keys(key_type).len()
+            + keystore.keystore().ecdsa_public_keys(key_type).len();
+        logger.info(format!("There are now {total_key_count} keys in the keystore"));
 
         keystore
     } else {
@@ -350,26 +355,40 @@ async fn handle_init(
     Ok(operator_subscribed_blueprints)
 }
 
+// Logic inspired from: https://github.com/webb-tools/tangle/blob/050d607fe9fc663d69e545a8d55a17974039ed04/node/src/utils.rs#L4
 fn add_key_to_keystore<TPublic: Public>(
     seed: &str,
     key_type: KeyTypeId,
     keystore: &KeystoreContainer,
+    logger: &DebugLogger
 ) -> color_eyre::Result<()> {
     let pub_key = get_from_seed::<TPublic>(seed).to_raw_vec();
     let keystore = keystore.keystore();
-    if keystore
-        .insert(key_type, &format!("//{seed}"), &pub_key)
+    if sp_keystore::Keystore::insert(&keystore, key_type, &format!("//{seed}"), &pub_key)
         .is_err()
     {
         Err(Report::msg("Failed to insert key into keystore"))
     } else {
+        let encoded = hex::encode(&pub_key);
+        logger.trace(format!("Successfully added key to keystore for //{seed}. Public Key: 0x{encoded}", ));
         Ok(())
     }
 }
 
 /// Helper function to generate a crypto pair from seed.
-pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-    TPublic::Pair::from_string(&format!("//{seed}"), None)
+pub fn get_from_seed<TPublic: Public>(node_name: &str) -> <TPublic::Pair as Pair>::Public {
+    TPublic::Pair::from_string(&format!("//{node_name}"), None)
         .expect("static values are valid; qed")
         .public()
+    /*let (_, seed) =
+        <TPublic::Pair as Pair>::from_string_with_seed(&format!("//{node_name}"), None)
+            .unwrap();
+    let seed: [u8; 32] = seed.expect("32 bytes seed")
+        .as_ref()
+        .try_into()
+        .expect("seed length is 32; qed");
+    let seed_hex = format!("0x{}", hex::encode(seed));
+    <TPublic::Pair as Pair>::from_string(&seed_hex, None)
+        .unwrap()
+        .public()*/
 }

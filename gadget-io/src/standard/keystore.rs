@@ -82,9 +82,9 @@ pub mod crypto {
     }
 }
 
-impl SubstrateKeystore for KeystoreContainer {
+impl SubstrateKeystore for KeystoreConfig {
     fn ecdsa_key(&self) -> color_eyre::Result<ecdsa::Pair> {
-        let keystore_container = self;
+        let keystore_container = KeystoreContainer::new(self);;
         let keystore = keystore_container.local_keystore();
         tracing::debug!("Loaded keystore from path");
         let ecdsa_keys = keystore.ecdsa_public_keys(crypto::acco::KEY_TYPE);
