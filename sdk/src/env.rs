@@ -115,6 +115,7 @@ impl GadgetEnvironment {
     ///
     /// This function will return an error if the keystore URI is unsupported.
     pub fn keystore(&self) -> Result<crate::keystore::backend::GenericKeyStore, Error> {
+        #[cfg(feature = "std")]
         use crate::keystore::backend::fs::FilesystemKeystore;
         use crate::keystore::backend::{mem::InMemoryKeystore, GenericKeyStore};
 
@@ -122,6 +123,7 @@ impl GadgetEnvironment {
             uri if uri == "file::memory:" || uri == ":memory:" => {
                 Ok(GenericKeyStore::Mem(InMemoryKeystore::new()))
             }
+            #[cfg(feature = "std")]
             uri if uri.starts_with("file:") || uri.starts_with("file://") => {
                 let path = uri
                     .trim_start_matches("file://")
