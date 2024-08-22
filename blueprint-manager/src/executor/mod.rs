@@ -10,15 +10,15 @@ use gadget_common::config::DebugLogger;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::subxt_signer::sr25519;
 use gadget_common::tangle_runtime::AccountId32;
-use gadget_io::standard::keystore::crypto;
+use gadget_io::crypto;
 use gadget_io::{GadgetConfig, KeystoreConfig, KeystoreContainer, SubstrateKeystore};
 use sp_core::crypto::KeyTypeId;
 use sp_core::{ecdsa, ByteArray, Pair, Public, H256};
+use sp_keystore::Keystore;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use sp_keystore::Keystore;
 use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
 use tangle_environment::gadget::SubxtConfig;
 use tangle_environment::runtime::TangleRuntime;
@@ -178,7 +178,9 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
         let total_key_count = keystore.keystore().sr25519_public_keys(key_type).len()
             + keystore.keystore().ecdsa_public_keys(key_type).len();
-        logger.info(format!("There are now {total_key_count} keys in the keystore"));
+        logger.info(format!(
+            "There are now {total_key_count} keys in the keystore"
+        ));
 
         keystore
     } else {
@@ -360,17 +362,17 @@ fn add_key_to_keystore<TPublic: Public>(
     seed: &str,
     key_type: KeyTypeId,
     keystore: &KeystoreContainer,
-    logger: &DebugLogger
+    logger: &DebugLogger,
 ) -> color_eyre::Result<()> {
     let pub_key = get_from_seed::<TPublic>(seed).to_raw_vec();
     let keystore = keystore.keystore();
-    if sp_keystore::Keystore::insert(&keystore, key_type, &format!("//{seed}"), &pub_key)
-        .is_err()
-    {
+    if sp_keystore::Keystore::insert(&keystore, key_type, &format!("//{seed}"), &pub_key).is_err() {
         Err(Report::msg("Failed to insert key into keystore"))
     } else {
         let encoded = hex::encode(&pub_key);
-        logger.trace(format!("Successfully added key to keystore for //{seed}. Public Key: 0x{encoded}", ));
+        logger.trace(format!(
+            "Successfully added key to keystore for //{seed}. Public Key: 0x{encoded}",
+        ));
         Ok(())
     }
 }

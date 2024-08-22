@@ -1,6 +1,6 @@
 use crate::work_manager::TangleWorkManager;
 use gadget_common::utils::serialize;
-use gadget_core::job_manager::{ProtocolMessageMetadata, WorkManagerInterface};
+use gadget_core::job::protocol::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 

@@ -33,7 +33,8 @@ use gadget_common::tangle_runtime::api::services::calls::types::register::{
 use gadget_common::tangle_subxt::subxt::ext::subxt_core::utils;
 use gadget_common::tangle_subxt::subxt::{OnlineClient, SubstrateConfig};
 use gadget_common::Error;
-use gadget_core::job_manager::{ProtocolMessageMetadata, SendFuture, WorkManagerInterface};
+use gadget_core::job::protocol::{ProtocolMessageMetadata, WorkManagerInterface};
+use gadget_core::job::SendFuture;
 use libp2p::Multiaddr;
 use sp_application_crypto::ecdsa;
 use sp_core::{sr25519, Pair};
@@ -381,7 +382,7 @@ pub async fn new_test_ext<
         let input = NodeInput {
             clients: localhost_clients,
             networks,
-            account_id: sr25519::Public(account_id.0),
+            account_id: sr25519::Public::from_raw(account_id.0),
             logger,
             tx_manager: tx_manager as _,
             keystore,

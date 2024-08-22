@@ -1,3 +1,4 @@
+use super::AbstractGadget;
 use crate::client::JobsClient;
 use crate::debug_logger::DebugLogger;
 use crate::environments::GadgetEnvironment;
@@ -7,9 +8,10 @@ use crate::Error;
 use async_trait::async_trait;
 use gadget_core::gadget::general::Client;
 use gadget_core::gadget::general::GadgetWithClient;
-use gadget_core::gadget::manager::AbstractGadget;
-use gadget_core::job::{BuiltExecutableJobWrapper, ExecutableJob, JobBuilder};
-use gadget_core::job_manager::{ProtocolWorkManager, WorkManagerInterface};
+use gadget_core::job::builder::{BuiltExecutableJobWrapper, JobBuilder};
+use gadget_core::job::manager::ProtocolWorkManager;
+use gadget_core::job::protocol::WorkManagerInterface;
+use gadget_core::job::ExecutableJob;
 use parking_lot::{Mutex, RwLock};
 use sp_core::sr25519;
 use std::sync::Arc;

@@ -10,52 +10,45 @@ license.workspace = true
 
 
 [dependencies]
-thiserror = { workspace = true }
-parking_lot = { workspace = true }
-rand_core = { workspace = true, default-features = false }
-rand = { workspace = true, optional = true }
-hex = { workspace = true, default-features = false }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
+hex = { workspace = true }
+parking_lot = { workspace = true }
+rand_core = { workspace = true }
+rand = { workspace = true, optional = true }
+thiserror = { workspace = true }
 
 # Keystore deps
-k256 = { workspace = true, features = ["ecdsa", "ecdsa-core", "arithmetic"] }
 ed25519-zebra = { workspace = true }
+k256 = { workspace = true, features = ["ecdsa", "ecdsa-core", "arithmetic"] }
 schnorrkel = { workspace = true }
 w3f-bls = { workspace = true }
 
 # Metrics deps
-hyper = { workspace = true, default-features = false, features = ["http1", "server"] }
-prometheus = { workspace = true, default-features = false }
+hyper = { workspace = true, features = ["http1", "server"] }
+prometheus = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"] }
 
 # Logging deps
 log = { workspace = true }
 tracing = { workspace = true }
-tracing-log = { workspace = true, default-features = false }
-tracing-subscriber = { workspace = true, default-features = false }
-tracing-wasm = { workspace = true, optional = true }
 
 # Networking deps
-gadget-io = { workspace = true, features = ["std"] }
-gadget-core = { workspace = true, features = ["substrate"] }
-bincode = { workspace = true }
-gadget-common = { workspace = true, features = ["default"] }
-serde = { workspace = true }
 async-trait = { workspace = true }
+bincode = { workspace = true }
 futures = { workspace = true }
+gadget-core = { workspace = true, features = ["substrate"] }
+gadget-common = { workspace = true, features = ["default"] }
+gadget-io = { workspace = true, features = ["std"] }
+serde = { workspace = true }
 
 # Substrate
+sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
-sp-core = { workspace = true, default-features = false, features = ["full_crypto"] }
-
-# WASM-only deps
-getrandom = { workspace = true, optional = true }
-wasm-bindgen-test = { workspace = true, optional = true }
 
 # Event Watchers and Handlers
-tangle-subxt = { workspace = true, default-features = false }
-subxt = { workspace = true, default-features = false }
 backoff = { workspace = true }
+subxt = { workspace = true }
+tangle-subxt = { workspace = true }
 
 # Macros
 gadget-blueprint-proc-macro = { workspace = true }
@@ -82,14 +75,15 @@ features = [
   "autonat"
 ]
 
-[target.'cfg(target_family = "wasm")'.dependencies.libp2p]
-workspace = true
-default-features = false
+# WASM-only deps
+[target.'cfg(all(any(target_arch = "wasm32", target_arch = "wasm64"), target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, features = ["js"] }
+libp2p = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
-hyper = { version = "0.14.16", default-features = false, features = ["client"] }
+hyper = { workspace = true, features = ["client"] }
 
-[dev-dependencies]
+# [dev-dependencies]
 # tangle-test-utils = { workspace = true }
 
 [features]
@@ -102,11 +96,7 @@ std = [
   "sp-io/std",
 ]
 alloc = ["rand_core/alloc", "hex/alloc"]
-wasm = [
-  "getrandom/js",
-  "tracing-wasm",
-  "wasm-bindgen-test",
-]
+wasm = []
 
 # Randomness
 getrandom = ["rand_core/getrandom"]

@@ -1,7 +1,8 @@
 use crate::prometheus::{BYTES_RECEIVED, BYTES_SENT, REGISTRY};
-use std::net::SocketAddr;
-use std::str::FromStr;
-use std::sync::atomic::AtomicBool;
+use alloc::string::ToString;
+use core::net::SocketAddr;
+use core::str::FromStr;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 #[derive(Debug, Clone)]
 pub enum PrometheusConfig {
@@ -20,11 +21,11 @@ impl Default for PrometheusConfig {
 pub async fn setup(config: PrometheusConfig) -> Result<(), crate::Error> {
     if let PrometheusConfig::Enabled { bind_addr } = config {
         static HAS_REGISTERED: AtomicBool = AtomicBool::new(false);
-        if HAS_REGISTERED.load(std::sync::atomic::Ordering::SeqCst) {
+        if HAS_REGISTERED.load(Ordering::SeqCst) {
             return Ok(());
         }
 
-        HAS_REGISTERED.store(true, std::sync::atomic::Ordering::SeqCst);
+        HAS_REGISTERED.store(true, Ordering::SeqCst);
 
         substrate_prometheus_endpoint::register(BYTES_RECEIVED.clone(), &REGISTRY).map_err(
             |err| crate::Error::PrometheusError {

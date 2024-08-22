@@ -32,7 +32,7 @@ wasm = [
     "sp-io/disable_oom",
     "sp-io/disable_allocator",
     "gadget-common/wasm",
-    "gadget-io/wasm",
+    "gadget-io/wasm-bindgen",
     "getrandom/js",
 ]
 
@@ -66,7 +66,7 @@ tangle-primitives = { workspace = true, features = ["verifying"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 parity-scale-codec = { workspace = true }
 serde = { workspace = true }
-tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 sp-npos-elections = { workspace = true }
 sp-session = { workspace = true }
 

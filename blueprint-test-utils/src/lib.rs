@@ -11,7 +11,7 @@ use gadget_common::tangle_runtime::api::services::calls::types::register::{
 use gadget_common::tangle_runtime::api::services::storage::types::job_results::JobResults;
 use gadget_common::tangle_runtime::{api, AccountId32};
 use gadget_common::tangle_subxt::subxt::OnlineClient;
-pub use gadget_core::job_manager::SendFuture;
+pub use gadget_core::job::SendFuture;
 use gadget_io::{GadgetConfig, SupportedChains};
 use libp2p::Multiaddr;
 pub use log;

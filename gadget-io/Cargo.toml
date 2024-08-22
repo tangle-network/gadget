@@ -7,41 +7,53 @@ description = "Tangle's gadget IO library for writing Tangle blueprints"
 repository.workspace = true
 homepage.workspace = true
 
+[dependencies]
+cfg-if = { workspace = true }
+hex = { workspace = true }
+multiaddr = { workspace = true, default-features = false }
+parity-scale-codec = { workspace = true, optional = true }
+sc-keystore = { workspace = true, optional = true }
+scale-info = { workspace = true, optional = true }
+serde = { workspace = true }
+sp-application-crypto = { workspace = true, default-features = false, features = ["full_crypto"] }
+sp-core = { workspace = true, features = ["serde", "full_crypto"] }
+sp-keystore = { workspace = true, optional = true }
+structopt = { workspace = true, optional = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, optional = true, features = [
+    "time",
+    "rt",
+    "sync",
+] }
+tracing = { workspace = true, default-features = false, features = ["log", "attributes"] }
+url = { workspace = true, default-features = false, features = ["alloc", "serde"] }
+
+# WASM
+js-sys = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+tsify = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
+wasmtimer = { workspace = true, optional = true }
+
 [features]
 default = ["std"]
-std = []
-wasm = []
-
-[dependencies]
-tracing = { workspace = true, features = ["log", "attributes"] }
-hex = { workspace = true }
-scale-info = { workspace = true}
-parity-scale-codec = { workspace = true }
-serde = { workspace = true }
-
-[target.'cfg(target_family = "wasm")'.dependencies]
-getrandom = { workspace = true, features = ["js"] }
-wasm-bindgen = { version = "0.2.92" }
-wasm-bindgen-futures = { version = "0.4.42" }
-tsify = { version = "0.4.5" }
-serde-wasm-bindgen = { version = "0.6.5" }
-js-sys = "0.3.69"
-color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
-sp-core = { workspace = true, features = ["serde", "full_crypto"] }
-tokio = { workspace = true, features = ["sync", "macros", "io-util", "rt", "time"] }
-wasmtimer = { version = "0.2" }
-
-p256 = { workspace = true, features = ["alloc", "ecdsa"], default-features = false }
-
-
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
-color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace", "issue-url"] }
-sp-core = { workspace = true, features = ["default"] }
-sp-application-crypto = { workspace = true }
-sp-keystore = { workspace = true }
-sc-keystore = { workspace = true }
-structopt = "0.3.26"
-tokio = { workspace = true, features = ["full"] }
-url = { workspace = true, features = ["serde"] }
-libp2p = { workspace = true }
-rand = { workspace = true }
+std = [
+    "dep:tokio",
+    "sp-application-crypto/std",
+    "dep:sp-keystore",
+    "dep:sc-keystore",
+    "dep:structopt",
+    "dep:scale-info",
+    "dep:parity-scale-codec",
+    "tracing/std",
+    "url/std",
+]
+wasm-bindgen = [
+    "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+    "dep:serde-wasm-bindgen",
+    "dep:js-sys",
+    "dep:wasmtimer",
+]
+typescript = ["dep:tsify", "wasm-bindgen"]

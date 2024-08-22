@@ -1,5 +1,6 @@
+use alloc::string::ToString;
+use core::net::SocketAddr;
 use prometheus::IntCounter;
-use std::net::SocketAddr;
 
 #[derive(Debug, Clone)]
 pub enum PrometheusConfig {
