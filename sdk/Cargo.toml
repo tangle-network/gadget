@@ -24,7 +24,10 @@ schnorrkel = { workspace = true }
 w3f-bls = { workspace = true }
 
 # Metrics deps
-hyper = { workspace = true, default-features = false, features = ["http1", "server"] }
+hyper = { workspace = true, default-features = false, features = [
+    "http1",
+    "server",
+] }
 prometheus = { workspace = true, default-features = false }
 tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"] }
 
@@ -46,7 +49,9 @@ futures = { workspace = true }
 
 # Substrate
 sp-io = { workspace = true }
-sp-core = { workspace = true, default-features = false, features = ["full_crypto"] }
+sp-core = { workspace = true, default-features = false, features = [
+    "full_crypto",
+] }
 
 # WASM-only deps
 getrandom = { workspace = true, optional = true }
@@ -60,26 +65,29 @@ backoff = { workspace = true }
 # Macros
 gadget-blueprint-proc-macro = { workspace = true }
 
+# Benchmarking deps
+sysinfo = { workspace = true }
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
 features = [
-  "tokio",
-  "gossipsub",
-  "mdns",
-  "noise",
-  "macros",
-  "yamux",
-  "tcp",
-  "quic",
-  "request-response",
-  "cbor",
-  "identify",
-  "kad",
-  "dcutr",
-  "relay",
-  "ping",
-  "dns",
-  "autonat"
+    "tokio",
+    "gossipsub",
+    "mdns",
+    "noise",
+    "macros",
+    "yamux",
+    "tcp",
+    "quic",
+    "request-response",
+    "cbor",
+    "identify",
+    "kad",
+    "dcutr",
+    "relay",
+    "ping",
+    "dns",
+    "autonat",
 ]
 
 [target.'cfg(target_family = "wasm")'.dependencies.libp2p]
@@ -94,19 +102,9 @@ hyper = { workspace = true, features = ["client"] }
 
 [features]
 default = ["std"]
-std = [
-  "alloc",
-  "rand",
-  "getrandom",
-  "hex/std",
-  "sp-io/std",
-]
+std = ["alloc", "rand", "getrandom", "hex/std", "sp-io/std"]
 alloc = ["rand_core/alloc", "hex/alloc"]
-wasm = [
-  "getrandom/js",
-  "tracing-wasm",
-  "wasm-bindgen-test",
-]
+wasm = ["getrandom/js", "tracing-wasm", "wasm-bindgen-test"]
 
 # Randomness
 getrandom = ["rand_core/getrandom"]

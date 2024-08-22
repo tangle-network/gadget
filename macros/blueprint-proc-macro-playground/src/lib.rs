@@ -107,10 +107,10 @@ fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Ve
 // ==================
 //   Benchmarks
 // ==================
-#[benchmark(threads = 2)]
-fn keygen() {
-    let n = 7;
-    let t = 3;
+#[benchmark(job_id = 0, threads = 2)]
+fn keygen_2_of_3() {
+    let n = 3;
+    let t = 2;
     let result = keygen(&MyContext, n, t);
     assert!(result.is_ok());
 }
@@ -122,5 +122,10 @@ mod tests {
         eprintln!("{}", super::KEYGEN_JOB_DEF);
         assert_eq!(super::KEYGEN_JOB_ID, 0);
         eprintln!("{}", super::REGISTRATION_HOOK);
+    }
+
+    #[test]
+    fn example_benchmark() {
+        super::keygen_2_of_3_benchmark();
     }
 }
