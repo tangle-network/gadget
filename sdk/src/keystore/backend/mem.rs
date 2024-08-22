@@ -1,9 +1,8 @@
 //! In-Memory Keystore Backend that supports different cryptographic key operations such as key generation, signing, and public key retrieval.
 
-#[cfg(not(feature = "std"))]
-use alloc::{collections::BTreeMap, sync::Arc};
-
-use std::{collections::BTreeMap, sync::Arc};
+use alloc::collections::BTreeMap;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 use w3f_bls::SerializableToBytes;
 
 use parking_lot::RwLock;

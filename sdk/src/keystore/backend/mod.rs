@@ -1,5 +1,7 @@
 //! Keystore backend implementations.
 
+use alloc::vec::Vec;
+
 /// In-Memory Keystore Backend
 pub mod mem;
 
