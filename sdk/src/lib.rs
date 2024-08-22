@@ -20,7 +20,6 @@
 extern crate alloc;
 
 /// Keystore Module
-#[cfg(not(feature = "wasm"))]
 pub mod keystore;
 
 /// Metrics Module
