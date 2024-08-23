@@ -70,7 +70,6 @@ pub mod prelude {
 
 // Convenience re-exports
 pub use async_trait;
-pub use color_eyre;
 pub use gadget_io;
 #[cfg(feature = "substrate")]
 pub use subxt_signer;
@@ -158,6 +157,10 @@ pub enum Error {
     PrometheusError {
         err: String,
     },
+    #[cfg(feature = "substrate")]
+    Subxt {
+        err: subxt::Error,
+    },
     Other {
         err: String,
     },
@@ -180,6 +183,13 @@ impl core::error::Error for Error {}
 impl From<JobError> for Error {
     fn from(err: JobError) -> Self {
         Error::JobError { err }
+    }
+}
+
+#[cfg(feature = "substrate")]
+impl From<subxt::Error> for Error {
+    fn from(err: subxt::Error) -> Self {
+        Error::Subxt { err }
     }
 }
 
