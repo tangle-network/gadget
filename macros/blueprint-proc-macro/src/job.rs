@@ -20,6 +20,7 @@ mod kw {
     syn::custom_keyword!(protocol);
     syn::custom_keyword!(instance);
     syn::custom_keyword!(event);
+    syn::custom_keyword!(event_converter);
     syn::custom_keyword!(callback);
     syn::custom_keyword!(skip_codegen);
 }
@@ -190,7 +191,15 @@ pub fn generate_event_handler_for(
         .enumerate()
         .map(|(i, t)| {
             let ident = format_ident!("param{i}");
-            crate::tangle::field_type_to_param_token(&ident, t)
+            let index = syn::Index::from(i);
+            match event_handler {
+                EventHandlerArgs::Eigenlayer { .. } => {
+                    quote! {
+                        let #ident = inputs.#index;
+                    }
+                }
+                EventHandlerArgs::Tangle => crate::tangle::field_type_to_param_token(&ident, t),
+            }
         })
         .collect::<Vec<_>>();
 
@@ -236,19 +245,35 @@ pub fn generate_event_handler_for(
 
     let result_tokens = if result.len() == 1 {
         let ident = format_ident!("job_result");
-        vec![crate::tangle::field_type_to_result_token(
-            &ident, &result[0],
-        )]
+        match event_handler {
+            EventHandlerArgs::Eigenlayer { .. } => {
+                vec![quote! { let #ident = job_result; }]
+            }
+            EventHandlerArgs::Tangle => {
+                vec![crate::tangle::field_type_to_result_token(
+                    &ident, &result[0],
+                )]
+            }
+        }
     } else {
         result
             .iter()
             .enumerate()
             .map(|(i, t)| {
                 let ident = format_ident!("result_{i}");
-                let s = crate::tangle::field_type_to_result_token(&ident, t);
-                quote! {
-                    let #ident = job_result[#i];
-                    #s
+                match event_handler {
+                    EventHandlerArgs::Eigenlayer { .. } => {
+                        quote! {
+                            let #ident = job_result[#i];
+                        }
+                    }
+                    EventHandlerArgs::Tangle => {
+                        let s = crate::tangle::field_type_to_result_token(&ident, t);
+                        quote! {
+                            let #ident = job_result[#i];
+                            #s
+                        }
+                    }
                 }
             })
             .collect::<Vec<_>>()
@@ -258,8 +283,12 @@ pub fn generate_event_handler_for(
         generate_eigenlayer_event_handler(
             &fn_name_string,
             &struct_name,
+            job_id,
             event_handler,
+            &params_tokens,
+            &result_tokens,
             &additional_params,
+            &fn_call,
         )
     } else {
         generate_tangle_event_handler(
@@ -488,6 +517,7 @@ pub(crate) enum EventHandlerArgs {
     Eigenlayer {
         instance: Option<Ident>,
         event: Option<Type>,
+        event_converter: Option<Type>,
         callback: Option<Type>,
     },
 }
@@ -507,6 +537,15 @@ impl EventHandlerArgs {
     pub fn event(&self) -> Option<Type> {
         match self {
             Self::Eigenlayer { event, .. } => event.clone(),
+            _ => None,
+        }
+    }
+
+    pub fn event_converter(&self) -> Option<Type> {
+        match self {
+            Self::Eigenlayer {
+                event_converter, ..
+            } => event_converter.clone(),
             _ => None,
         }
     }
@@ -538,6 +577,7 @@ impl Parse for EventHandlerArgs {
             "eigenlayer" => {
                 let mut instance = None;
                 let mut event = None;
+                let mut event_converter = None;
                 let mut callback = None;
 
                 while !content.is_empty() {
@@ -549,6 +589,10 @@ impl Parse for EventHandlerArgs {
                         let _ = content.parse::<kw::event>()?;
                         let _ = content.parse::<Token![=]>()?;
                         event = Some(content.parse::<Type>()?);
+                    } else if content.peek(kw::event_converter) {
+                        let _ = content.parse::<kw::event_converter>()?;
+                        let _ = content.parse::<Token![=]>()?;
+                        event_converter = Some(content.parse::<Type>()?);
                     } else if content.peek(kw::callback) {
                         let _ = content.parse::<kw::callback>()?;
                         let _ = content.parse::<Token![=]>()?;
@@ -563,6 +607,7 @@ impl Parse for EventHandlerArgs {
                 Ok(EventHandlerArgs::Eigenlayer {
                     instance,
                     event,
+                    event_converter,
                     callback,
                 })
             }

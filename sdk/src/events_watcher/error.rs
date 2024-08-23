@@ -17,6 +17,10 @@ pub enum Error {
     // TODO: Add feature flag for EVM/eigenlayer/etc.
     #[error(transparent)]
     AlloyContract(#[from] alloy_contract::Error),
+    /// An error for sol types.
+    /// TODO: Add feature flag for EVM/eigenlayer/etc.
+    #[error(transparent)]
+    SolTypes(#[from] alloy_sol_types::Error),
     /// An error occurred in the event watcher and we need to restart it.
     #[error("An error occurred in the event watcher and we need to restart it.")]
     ForceRestart,
