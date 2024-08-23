@@ -12,15 +12,15 @@ pub mod fs;
 /// A Generic Key Store that can be backed by different keystore backends.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum GenericKeyStore {
+pub enum GenericKeyStore<RwLock: lock_api::RawRwLock> {
     /// In-Memory Keystore
-    Mem(mem::InMemoryKeystore),
+    Mem(mem::InMemoryKeystore<RwLock>),
     /// Filesystem Keystore
     #[cfg(feature = "std")]
     Fs(fs::FilesystemKeystore),
 }
 
-impl super::Backend for GenericKeyStore {
+impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
     fn sr25519_generate_new(
         &self,
         seed: Option<&[u8]>,

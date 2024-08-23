@@ -5,12 +5,10 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use w3f_bls::SerializableToBytes;
 
-use parking_lot::RwLock;
-
 use crate::keystore::{bls381, ecdsa, ed25519, sr25519, Backend, Error};
 
 /// The type alias for the In Memory `KeyMap`.
-type KeyMap<P, S> = Arc<RwLock<BTreeMap<P, S>>>;
+type KeyMap<R, P, S> = Arc<lock_api::RwLock<R, BTreeMap<P, S>>>;
 
 #[derive(Debug, Clone)]
 struct Ed25519PublicWrapper(ed25519::Public);
@@ -56,15 +54,26 @@ impl Ord for Bls381PublicWrapper {
 /// It implements the [`crate::keystore::Backend`] trait.
 ///
 /// Note: Cloning this backend is cheap, as it uses [`Arc`] and [`RwLock`] internally.
-#[derive(Default, Clone)]
-pub struct InMemoryKeystore {
-    sr25519: KeyMap<sr25519::Public, sr25519::Secret>,
-    ecdsa: KeyMap<ecdsa::Public, ecdsa::Secret>,
-    ed25519: KeyMap<Ed25519PublicWrapper, ed25519::Secret>,
-    bls381: KeyMap<Bls381PublicWrapper, bls381::Secret>,
+#[derive(Clone)]
+pub struct InMemoryKeystore<R: lock_api::RawRwLock> {
+    sr25519: KeyMap<R, sr25519::Public, sr25519::Secret>,
+    ecdsa: KeyMap<R, ecdsa::Public, ecdsa::Secret>,
+    ed25519: KeyMap<R, Ed25519PublicWrapper, ed25519::Secret>,
+    bls381: KeyMap<R, Bls381PublicWrapper, bls381::Secret>,
 }
 
-impl core::fmt::Debug for InMemoryKeystore {
+impl<R: lock_api::RawRwLock> Default for InMemoryKeystore<R> {
+    fn default() -> Self {
+        Self {
+            sr25519: Arc::new(lock_api::RwLock::new(BTreeMap::new())),
+            ecdsa: Arc::new(lock_api::RwLock::new(BTreeMap::new())),
+            ed25519: Arc::new(lock_api::RwLock::new(BTreeMap::new())),
+            bls381: Arc::new(lock_api::RwLock::new(BTreeMap::new())),
+        }
+    }
+}
+
+impl<R: lock_api::RawRwLock> core::fmt::Debug for InMemoryKeystore<R> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("InMemoryKeystore")
             .field("sr25519", &"<hidden>")
@@ -75,7 +84,7 @@ impl core::fmt::Debug for InMemoryKeystore {
     }
 }
 
-impl InMemoryKeystore {
+impl<RwLock: lock_api::RawRwLock> InMemoryKeystore<RwLock> {
     /// Create a new In-Memory Keystore Backend.
     #[must_use]
     pub fn new() -> Self {
@@ -83,7 +92,7 @@ impl InMemoryKeystore {
     }
 }
 
-impl Backend for InMemoryKeystore {
+impl<RwLock: lock_api::RawRwLock> Backend for InMemoryKeystore<RwLock> {
     fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public, Error> {
         let secret = sr25519::generate_with_optional_seed(seed)?;
         let public = secret.to_public();

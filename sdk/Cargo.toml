@@ -12,6 +12,7 @@ license.workspace = true
 [dependencies]
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
 hex = { workspace = true }
+lock_api = { workspace = true }
 parking_lot = { workspace = true }
 rand_core = { workspace = true }
 rand = { workspace = true, optional = true }
@@ -56,23 +57,23 @@ gadget-blueprint-proc-macro = { workspace = true }
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
 features = [
-  "tokio",
-  "gossipsub",
-  "mdns",
-  "noise",
-  "macros",
-  "yamux",
-  "tcp",
-  "quic",
-  "request-response",
-  "cbor",
-  "identify",
-  "kad",
-  "dcutr",
-  "relay",
-  "ping",
-  "dns",
-  "autonat"
+    "tokio",
+    "gossipsub",
+    "mdns",
+    "noise",
+    "macros",
+    "yamux",
+    "tcp",
+    "quic",
+    "request-response",
+    "cbor",
+    "identify",
+    "kad",
+    "dcutr",
+    "relay",
+    "ping",
+    "dns",
+    "autonat"
 ]
 
 # WASM-only deps
@@ -89,11 +90,11 @@ hyper = { workspace = true, features = ["client"] }
 [features]
 default = ["std"]
 std = [
-  "alloc",
-  "rand",
-  "getrandom",
-  "hex/std",
-  "sp-io/std",
+    "alloc",
+    "rand",
+    "getrandom",
+    "hex/std",
+    "sp-io/std",
 ]
 alloc = ["rand_core/alloc", "hex/alloc"]
 wasm = []
