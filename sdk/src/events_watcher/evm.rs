@@ -43,7 +43,7 @@ pub trait EventHandler<T: Config>: Send + Sync {
         + 'static;
 
     type Event: SolEvent + Clone + Send + Sync + 'static;
-    /// a method to be called with the event information,
+    /// A method to be called with the event information,
     /// it is up to the handler to decide what to do with the event.
     ///
     /// If this method returned an error, the handler will be considered as failed and will
