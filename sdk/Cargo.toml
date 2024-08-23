@@ -11,10 +11,10 @@ license.workspace = true
 
 [dependencies]
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
-hex = { workspace = true }
+hex = { workspace = true, features = ["alloc"] }
 lock_api = { workspace = true }
 parking_lot = { workspace = true }
-rand_core = { workspace = true }
+rand_core = { workspace = true, features = ["alloc"] }
 rand = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
@@ -90,13 +90,11 @@ hyper = { workspace = true, features = ["client"] }
 [features]
 default = ["std"]
 std = [
-    "alloc",
     "rand",
     "getrandom",
     "hex/std",
     "sp-io/std",
 ]
-alloc = ["rand_core/alloc", "hex/alloc"]
 wasm = []
 
 # Randomness
