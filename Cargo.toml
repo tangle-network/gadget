@@ -233,7 +233,7 @@ tracing-log = { version = "0.2", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
 tracing-wasm = { version = "0.2.1" }
 tree_magic_mini = "3.1.5"
-
+spec_version = "0.1.0"
 derive_more = { version = "1.0.0", features = ["display"] }
 trybuild = "1.0"
 tsify = "0.4.5"
