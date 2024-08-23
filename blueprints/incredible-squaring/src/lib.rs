@@ -6,16 +6,16 @@ use IncredibleSquaringTaskManager::{
     respondToTaskCall, G1Point, G2Point, NonSignerStakesAndSignature, Task, TaskResponse,
 };
 
-// /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
-// #[job(
-//     id = 0,
-//     params(x),
-//     result(_),
-//     verifier(evm = "IncredibleSquaringBlueprint")
-// )]
-// pub fn xsquare(x: u64) -> Result<u64, Infallible> {
-//     Ok(x.saturating_pow(2u32))
-// }
+/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
+#[job(
+    id = 0,
+    params(x),
+    result(_),
+    verifier(evm = "IncredibleSquaringBlueprint")
+)]
+pub fn xsquare(x: u64) -> Result<u64, Infallible> {
+    Ok(x.saturating_pow(2u32))
+}
 
 // Codegen from ABI file to interact with the contract.
 sol!(
