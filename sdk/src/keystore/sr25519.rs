@@ -1,6 +1,6 @@
 //! Schnorrkel keypair implementation.
 
-use rand_core::RngCore;
+use rand::RngCore;
 pub use schnorrkel::PublicKey as Public;
 pub use schnorrkel::SecretKey as Secret;
 pub use schnorrkel::Signature;

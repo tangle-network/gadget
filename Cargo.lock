@@ -4369,7 +4369,6 @@ dependencies = [
  "parking_lot",
  "prometheus",
  "rand",
- "rand_core 0.6.4",
  "schnorrkel",
  "serde",
  "sp-core 34.0.0",

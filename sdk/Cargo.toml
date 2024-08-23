@@ -14,8 +14,7 @@ elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
 hex = { workspace = true, features = ["alloc"] }
 lock_api = { workspace = true }
 parking_lot = { workspace = true }
-rand_core = { workspace = true, features = ["alloc"] }
-rand = { workspace = true, optional = true }
+rand = { version = "0.8", default-features = false, features = ["alloc"] }
 thiserror = { workspace = true }
 
 # Keystore deps
@@ -90,12 +89,13 @@ hyper = { workspace = true, features = ["client"] }
 [features]
 default = ["std"]
 std = [
-    "rand",
     "getrandom",
     "hex/std",
+    "rand/std",
+    "rand/std_rng",
     "sp-io/std",
 ]
 wasm = []
 
 # Randomness
-getrandom = ["rand_core/getrandom"]
+getrandom = ["rand/getrandom"]
