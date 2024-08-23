@@ -72,7 +72,7 @@ pub trait EventHandlerWithRetry<T: Config>: EventHandler<T> + Send + Sync + 'sta
     ///
     /// If this method returns Ok(true), the event will be marked as handled.
     ///
-    /// **Note**: this method is automatically implemented for all the event handlers.
+    /// **Note**: This method is automatically implemented for all the event handlers.
     async fn handle_event_with_retry(
         &self,
         contract: &Self::Contract,
