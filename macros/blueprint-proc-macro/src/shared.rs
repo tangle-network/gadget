@@ -110,7 +110,9 @@ pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
             args,
             "unsupported parenthesized arguments",
         )),
-        _ => Err(syn::Error::new_spanned(args, "unsupported complex type")),
+        syn::PathArguments::AngleBracketed(_) => {
+            Err(syn::Error::new_spanned(args, "unsupported complex type"))
+        }
     }
 }
 

@@ -142,7 +142,6 @@ pub type NetworkResult = Result<(HashMap<String, GossipHandle>, JoinHandle<()>),
 /// # Panics
 ///
 /// Panics if the network name is invalid.
-
 pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
     // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
     let NetworkConfig {

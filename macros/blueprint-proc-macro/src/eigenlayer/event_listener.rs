@@ -1,16 +1,14 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Ident, LitInt};
+use syn::Ident;
 
 use crate::job::EventHandlerArgs;
 
 pub(crate) fn generate_eigenlayer_event_handler(
     fn_name_string: &str,
     struct_name: &Ident,
-    _job_id: &LitInt,
     event_handler: &EventHandlerArgs,
     params_tokens: &[TokenStream],
-    _result_tokens: &[TokenStream],
     additional_params: &[TokenStream],
     fn_call: &TokenStream,
 ) -> TokenStream {

@@ -11,7 +11,6 @@
     rustdoc::broken_intra_doc_links,
     unused_results,
     clippy::all,
-    clippy::pedantic,
     clippy::exhaustive_enums
 )]
 //! Blueprint Macros

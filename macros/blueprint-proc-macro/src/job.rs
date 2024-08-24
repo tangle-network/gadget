@@ -280,10 +280,8 @@ pub fn generate_event_handler_for(
         generate_eigenlayer_event_handler(
             &fn_name_string,
             &struct_name,
-            job_id,
             event_handler,
             &params_tokens,
-            &result_tokens,
             &additional_params,
             &fn_call,
         )
@@ -487,7 +485,7 @@ impl Parse for Results {
 #[derive(Debug)]
 enum Verifier {
     None,
-    /// #[job(verifier(evm = "MyVerifierContract"))]
+    /// #[job(verifier(evm = "`MyVerifierContract`"))]
     Evm(String),
 }
 
@@ -527,14 +525,14 @@ impl EventHandlerArgs {
     pub fn instance(&self) -> Option<Ident> {
         match self {
             Self::Eigenlayer { instance, .. } => instance.clone(),
-            _ => None,
+            Self::Tangle => None,
         }
     }
 
     pub fn event(&self) -> Option<Type> {
         match self {
             Self::Eigenlayer { event, .. } => event.clone(),
-            _ => None,
+            Self::Tangle => None,
         }
     }
 
@@ -543,14 +541,14 @@ impl EventHandlerArgs {
             Self::Eigenlayer {
                 event_converter, ..
             } => event_converter.clone(),
-            _ => None,
+            Self::Tangle => None,
         }
     }
 
     pub fn callback(&self) -> Option<Type> {
         match self {
             Self::Eigenlayer { callback, .. } => callback.clone(),
-            _ => None,
+            Self::Tangle => None,
         }
     }
 }

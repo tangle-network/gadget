@@ -166,6 +166,7 @@ pub(crate) struct ReportArgs {
 
 /// Parses the arguments provided to the `report` attribute macro.
 impl Parse for ReportArgs {
+    #[allow(clippy::too_many_lines)]
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut params = Vec::new();
         let mut result = None;
@@ -541,7 +542,7 @@ impl Parse for Verifier {
 #[derive(Debug, PartialEq)]
 pub enum EventHandlerType {
     Tangle,
-    EVM,
+    Evm,
 }
 
 impl Parse for EventHandlerType {
@@ -552,7 +553,7 @@ impl Parse for EventHandlerType {
         let s = content.parse::<LitStr>()?;
         match s.value().as_str() {
             "tangle" => Ok(EventHandlerType::Tangle),
-            "evm" => Ok(EventHandlerType::EVM),
+            "evm" => Ok(EventHandlerType::Evm),
             _ => Err(syn::Error::new_spanned(
                 s,
                 "Expected `tangle` or `evm` as event handler type",

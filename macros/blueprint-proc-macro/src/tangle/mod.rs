@@ -4,6 +4,7 @@ use gadget_blueprint_proc_macro_core::FieldType;
 use quote::{format_ident, quote};
 use syn::Ident;
 
+#[allow(clippy::too_many_lines)]
 pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
     match t {
         FieldType::Void => unreachable!("void type should not be in params"),
