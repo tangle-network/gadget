@@ -1,6 +1,5 @@
 use crate::config::BlueprintManagerConfig;
 use crate::gadget::ActiveGadgets;
-use crate::sdk::entry::keystore_from_base_path;
 use crate::sdk::utils;
 use crate::sdk::utils::msg_to_error;
 use crate::sdk::{Client, SendFuture};
@@ -8,16 +7,20 @@ use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
 use gadget_common::config::DebugLogger;
 use gadget_common::environments::GadgetEnvironment;
-use gadget_common::subxt_signer::sr25519;
+use gadget_common::subxt_signer;
+use gadget_common::subxt_signer::ExposeSecret;
 use gadget_common::tangle_runtime::AccountId32;
-use gadget_io::crypto;
-use gadget_io::{GadgetConfig, KeystoreConfig, KeystoreContainer, SubstrateKeystore};
-use sp_core::crypto::KeyTypeId;
-use sp_core::{ecdsa, ByteArray, Pair, Public, H256};
+use gadget_io::{GadgetConfig, SubstrateKeystore};
+use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
+use gadget_sdk::keystore::backend::GenericKeyStore;
+use gadget_sdk::keystore::{Backend, BackendExt};
+use hex::FromHex;
+use sp_core::{Pair, H256};
 use sp_keystore::Keystore;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+use std::str::FromStr;
 use std::task::{Context, Poll};
 use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
 use tangle_environment::gadget::SubxtConfig;
@@ -25,6 +28,7 @@ use tangle_environment::runtime::TangleRuntime;
 use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::blocks::BlockRef;
 use tangle_subxt::subxt::{Config, SubstrateConfig};
+use tangle_subxt::subxt_signer::SecretUri;
 use tokio::task::JoinHandle;
 
 pub(crate) mod event_handler;
@@ -48,9 +52,10 @@ pub struct BlueprintManagerHandle {
     start_tx: Option<tokio::sync::oneshot::Sender<()>>,
     process: JoinHandle<color_eyre::Result<()>>,
     logger: DebugLogger,
-    keystore_container: KeystoreContainer,
-    sr25519_id: sp_core::sr25519::Pair,
-    ecdsa_id: ecdsa::Pair,
+    // sr25519_id: sp_core::sr25519::Pair,
+    // ecdsa_id: sp_core::ecdsa::Pair,
+    sr25519_id: subxt_signer::sr25519::Keypair,
+    ecdsa_id: subxt_signer::ecdsa::Keypair,
 }
 
 impl BlueprintManagerHandle {
@@ -71,19 +76,16 @@ impl BlueprintManagerHandle {
     }
 
     /// Returns the SR25519 keypair for this blueprint manager
-    pub fn sr25519_id(&self) -> sr25519::Keypair {
-        let secret_key = self.expose_sr25519_secret();
-        sr25519::Keypair::from_secret_key(secret_key).expect("Failed to create SR25519 keypair")
+    pub fn sr25519_id(&self) -> &subxt_signer::sr25519::Keypair {
+        &self.sr25519_id
     }
 
-    pub fn expose_sr25519_secret(&self) -> [u8; 32] {
-        self.sr25519_id.as_ref().secret.to_bytes()[..32]
-            .try_into()
-            .unwrap()
+    pub fn expose_ecdsa_secret(&self) -> [u8; 32] {
+        self.ecdsa_id.0.secret_bytes()
     }
 
     /// Returns the ECDSA keypair for this blueprint manager
-    pub fn ecdsa_id(&self) -> &ecdsa::Pair {
+    pub fn ecdsa_id(&self) -> &subxt_signer::ecdsa::Keypair {
         &self.ecdsa_id
     }
 
@@ -94,11 +96,6 @@ impl BlueprintManagerHandle {
             .map(|tx| tx.send(()))
             .ok_or_eyre("Shutdown already called")?
             .map_err(|_| Report::msg("Failed to send shutdown signal to Blueprint Manager"))
-    }
-
-    /// Returns the keystore container for this blueprint manager
-    pub fn key_store(&self) -> &KeystoreContainer {
-        &self.keystore_container
     }
 
     /// Returns the logger for this blueprint manager
@@ -160,51 +157,37 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
     let logger_clone = logger.clone();
 
-    let keystore_container = if blueprint_manager_config.test_mode {
+    let (tangle_key, ecdsa_key) = if blueprint_manager_config.test_mode {
         let seed = blueprint_manager_config
             .instance_id
-            .clone()
+            .as_deref()
             .expect("Should always exist for testing");
+
+        let seed = format!("//{seed}");
+
         logger.info(format!(
-            "Running in test mode, auto-adding default keys for //{seed} ..."
+            "Running in test mode, auto-adding default keys for {seed} ..."
         ));
 
-        let keystore = KeystoreContainer::new(&KeystoreConfig::InMemory)?;
-        let key_type = crypto::acco::KEY_TYPE;
+        let secret_uri = SecretUri::from_str(&seed)?;
 
-        // Add both sr25519 and ECDSA account keys
-        add_key_to_keystore::<sp_core::sr25519::Public>(&seed, key_type, &keystore, &logger)?;
-        add_key_to_keystore::<ecdsa::Public>(&seed, key_type, &keystore, &logger)?;
+        let sr_keypair = subxt_signer::sr25519::Keypair::from_uri(&secret_uri)?;
+        let ecdsa_keypair = subxt_signer::ecdsa::Keypair::from_uri(&secret_uri)?;
 
-        let total_key_count = keystore.keystore().sr25519_public_keys(key_type).len()
-            + keystore.keystore().ecdsa_public_keys(key_type).len();
-        logger.info(format!(
-            "There are now {total_key_count} keys in the keystore"
-        ));
-
-        keystore
+        (sr_keypair, ecdsa_keypair)
     } else {
         // For ordinary runs, we will default to the keystore path
-        let keystore = keystore_from_base_path(
-            &gadget_config.base_path,
-            gadget_config.chain,
-            gadget_config.keystore_password.clone(),
-        );
-        KeystoreContainer::new(&keystore)?
+        let keystore = GenericKeyStore::Fs(FilesystemKeystore::open(&gadget_config.base_path)?);
+        (keystore.sr25519_key()?, keystore.ecdsa_key()?)
     };
 
-    let (role_key, acco_key) = (
-        keystore_container.ecdsa_key()?,
-        keystore_container.sr25519_key()?,
-    );
-    let ecdsa_key = role_key.clone();
-
-    let sub_account_id = AccountId32(acco_key.public().0);
+    let sub_account_id = tangle_key.public_key().to_account_id();
     let subxt_config = SubxtConfig {
         endpoint: gadget_config.url.clone(),
     };
 
-    let tangle_environment = TangleEnvironment::new(subxt_config, acco_key.clone(), logger.clone());
+    let tangle_environment =
+        TangleEnvironment::new(subxt_config, tangle_key.clone(), logger.clone());
 
     let tangle_runtime = tangle_environment.setup_runtime().await?;
     let runtime = ServicesClient::new(logger.clone(), tangle_runtime.client());
@@ -299,9 +282,8 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         shutdown_call: Some(tx_stop),
         process: handle,
         logger: logger_clone,
-        sr25519_id: acco_key,
+        sr25519_id: tangle_key,
         ecdsa_id: ecdsa_key,
-        keystore_container,
     };
 
     Ok(handle)
@@ -355,42 +337,4 @@ async fn handle_init(
     .await?;
 
     Ok(operator_subscribed_blueprints)
-}
-
-// Logic inspired from: https://github.com/webb-tools/tangle/blob/050d607fe9fc663d69e545a8d55a17974039ed04/node/src/utils.rs#L4
-fn add_key_to_keystore<TPublic: Public>(
-    seed: &str,
-    key_type: KeyTypeId,
-    keystore: &KeystoreContainer,
-    logger: &DebugLogger,
-) -> color_eyre::Result<()> {
-    let pub_key = get_from_seed::<TPublic>(seed).to_raw_vec();
-    let keystore = keystore.keystore();
-    if sp_keystore::Keystore::insert(&keystore, key_type, &format!("//{seed}"), &pub_key).is_err() {
-        Err(Report::msg("Failed to insert key into keystore"))
-    } else {
-        let encoded = hex::encode(&pub_key);
-        logger.trace(format!(
-            "Successfully added key to keystore for //{seed}. Public Key: 0x{encoded}",
-        ));
-        Ok(())
-    }
-}
-
-/// Helper function to generate a crypto pair from seed.
-pub fn get_from_seed<TPublic: Public>(node_name: &str) -> <TPublic::Pair as Pair>::Public {
-    TPublic::Pair::from_string(&format!("//{node_name}"), None)
-        .expect("static values are valid; qed")
-        .public()
-    /*let (_, seed) =
-        <TPublic::Pair as Pair>::from_string_with_seed(&format!("//{node_name}"), None)
-            .unwrap();
-    let seed: [u8; 32] = seed.expect("32 bytes seed")
-        .as_ref()
-        .try_into()
-        .expect("seed length is 32; qed");
-    let seed_hex = format!("0x{}", hex::encode(seed));
-    <TPublic::Pair as Pair>::from_string(&seed_hex, None)
-        .unwrap()
-        .public()*/
 }

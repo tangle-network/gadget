@@ -1767,6 +1767,7 @@ dependencies = [
 name = "blueprint-test-utils"
 version = "0.1.0"
 dependencies = [
+ "alloy-signer-local",
  "async-trait",
  "blueprint-manager",
  "cargo-tangle",
@@ -1780,6 +1781,7 @@ dependencies = [
  "gadget-core",
  "gadget-io",
  "getrandom",
+ "hex",
  "libp2p",
  "log",
  "pallet-balances",
@@ -7398,7 +7400,6 @@ dependencies = [
 [[package]]
 name = "pallet-services"
 version = "2.0.0"
-source = "git+https://github.com/webb-tools/tangle.git#050d607fe9fc663d69e545a8d55a17974039ed04"
 dependencies = [
  "ethabi",
  "fp-evm",
@@ -11752,7 +11753,6 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "2.0.0"
-source = "git+https://github.com/webb-tools/tangle.git#050d607fe9fc663d69e545a8d55a17974039ed04"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",

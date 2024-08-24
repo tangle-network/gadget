@@ -180,7 +180,8 @@ pub async fn new_test_ext_blueprint_manager<
     mut opts: Opts,
     f: F,
 ) -> LocalhostTestExt {
-    assert!(N < NAME_IDS.len(), "Only up to 5 nodes are supported");
+    assert!(N > 0, "At least one node is required");
+    assert!(N <= NAME_IDS.len(), "Only up to 5 nodes are supported");
 
     let bind_addrs = (0..N)
         .map(|_| find_open_tcp_bind_port())
@@ -220,18 +221,28 @@ pub async fn new_test_ext_blueprint_manager<
             local_tangle_node: Url::parse(&opts.rpc_url).expect("Should parse URL"),
         };
 
-        // This node is now running in the background
         let handle = f(test_input).await;
 
+        let k256_ecdsa_secret_key = handle.ecdsa_id().0.secret_bytes();
+        let priv_key = PrivateKeySigner::from_slice(&k256_ecdsa_secret_key)
+            .expect("Should create a private key signer");
+
+        let tg_addr = handle.sr25519_id().public_key().to_account_id();
+        let evm_addr = handle.ecdsa_id().public_key().to_account_id();
+        handle
+            .logger()
+            .info(format!("Signer TG address: {tg_addr}"));
+        handle
+            .logger()
+            .info(format!("Signer EVM address: {evm_addr}"));
+        handle
+            .logger()
+            .info(format!("Signer EVM(alloy) address: {}", priv_key.address()));
+
         if node_index == 0 {
-            // Replace the None signer and signer_evm values inside opts with alice's keys
-            opts.signer = Some(handle.sr25519_id().clone());
-            let k256_ecdsa_secret_key = handle.expose_sr25519_secret();
-            let priv_key = PrivateKeySigner::from_slice(&k256_ecdsa_secret_key)
-                .expect("Should create a private key signer");
-            let addr = priv_key.address();
-            handle.logger().info(format!("Signer EVM address: {addr}"));
+            // Replace the None signer and signer_evm values inside opts with Alice's keys
             opts.signer_evm = Some(priv_key);
+            opts.signer = Some(handle.sr25519_id().clone());
         }
 
         handles.push(handle);
@@ -248,25 +259,30 @@ pub async fn new_test_ext_blueprint_manager<
 
     // Step 2: Have each identity register to a blueprint
     let registration_args = RegistrationArgs::new();
-
     for handle in handles.iter() {
         let keypair = handle.sr25519_id().clone();
-        let key = api::runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().public().0);
+        let key = api::runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().public_key().0);
 
         let preferences = Preferences {
             key,
             approval: ApprovalPrefrence::None,
         };
 
-        super::register_blueprint(
+        if let Err(err) = super::register_blueprint(
             &client,
             &keypair,
             blueprint_id,
             preferences,
             registration_args.clone(),
+            handle.logger(),
         )
         .await
-        .expect("Failed to register to blueprint");
+        {
+            handle
+                .logger()
+                .error(format!("Failed to register to blueprint: {err}"));
+            panic!("Failed to register to blueprint");
+        }
     }
 
     // Now, start every blueprint manager. With the blueprint submitted and every operator registered

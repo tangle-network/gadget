@@ -79,6 +79,8 @@ pallet-staking = { workspace = true }
 pallet-evm = { workspace = true }
 sp-staking = { workspace = true }
 url = { workspace = true }
+hex = { workspace = true }
+alloy-signer-local = { workspace = true }
 
 gadget-blueprint-proc-macro-core = { workspace = true }
 cargo-tangle = { workspace = true, default-features = true }

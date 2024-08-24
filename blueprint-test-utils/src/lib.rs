@@ -2,6 +2,7 @@ use crate::test_ext::NAME_IDS;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use cargo_tangle::deploy::Opts;
+use gadget_common::prelude::DebugLogger;
 use gadget_common::subxt_signer::sr25519;
 use gadget_common::tangle_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
@@ -117,7 +118,20 @@ pub async fn register_blueprint(
     blueprint_id: u64,
     preferences: Preferences,
     registration_args: RegistrationArgs,
+    logger: &DebugLogger,
 ) -> Result<(), Box<dyn Error>> {
+    logger.info(format!(
+        "Registering to blueprint {blueprint_id} to become an operator ..."
+    ));
+    let call_pre = api::tx()
+        .multi_asset_delegation()
+        .join_operators(1_000_000_000_000_000);
+    let res_pre = client
+        .tx()
+        .sign_and_submit_then_watch_default(&call_pre, account_id)
+        .await?;
+    res_pre.wait_for_finalized_success().await?;
+
     let call = api::tx()
         .services()
         .register(blueprint_id, preferences, registration_args);
@@ -125,6 +139,7 @@ pub async fn register_blueprint(
         .tx()
         .sign_and_submit_then_watch_default(&call, account_id)
         .await?;
+    logger.info("Waiting for registration to be finalized ...");
     res.wait_for_finalized_success().await?;
     Ok(())
 }
@@ -314,7 +329,7 @@ mod tests_standard {
         const INPUT: u64 = 10;
         const OUTPUT: u64 = INPUT.pow(2);
 
-        new_test_ext_blueprint_manager::<1, 1, (), _, _>((), opts, run_test_blueprint_manager)
+        new_test_ext_blueprint_manager::<5, 1, (), _, _>((), opts, run_test_blueprint_manager)
             .await
             .execute_with_async(move |client, handles| async move {
                 // At this point, init_blueprint has been deployed, and every node has registered
