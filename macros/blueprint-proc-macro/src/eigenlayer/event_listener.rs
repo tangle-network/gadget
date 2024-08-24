@@ -26,15 +26,13 @@ pub(crate) fn generate_eigenlayer_event_handler(
         #[doc = "[`"]
         #[doc = #fn_name_string]
         #[doc = "`]"]
-        pub struct #struct_name<T: gadget_sdk::events_watcher::evm::Config> {
-            pub contract_address: alloy_primitives::Address,
-            pub provider: std::sync::Arc<T::P>,
+        pub struct #struct_name {
             #(#additional_params)*
         }
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl<T> gadget_sdk::events_watcher::evm::EventHandler<T> for #struct_name<T>
+        impl<T> gadget_sdk::events_watcher::evm::EventHandler<T> for #struct_name
         where
             T: gadget_sdk::events_watcher::evm::Config,
             #instance: std::ops::Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>,

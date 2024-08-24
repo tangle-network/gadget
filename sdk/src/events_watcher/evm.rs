@@ -9,7 +9,6 @@ use alloy_rpc_types::{Filter, Log};
 use alloy_sol_types::SolEvent;
 use alloy_transport::Transport;
 use futures::TryFutureExt;
-use std::sync::Arc;
 use std::{ops::Deref, time::Duration};
 
 pub trait Config: Send + Sync + 'static {
@@ -123,7 +122,6 @@ pub trait EventWatcher<T: Config>: Send + Sync {
     )]
     async fn run(
         &self,
-        provider: Arc<T::P>,
         contract: Self::Contract,
         handlers: Vec<EventHandlerFor<Self, T>>,
     ) -> Result<(), Error> {
@@ -131,7 +129,8 @@ pub trait EventWatcher<T: Config>: Send + Sync {
         let backoff = backoff::backoff::Constant::new(Duration::from_secs(1));
         let task = || async {
             let step = 100;
-            let chain_id: u64 = provider
+            let chain_id: u64 = contract
+                .provider()
                 .root()
                 .get_chain_id()
                 .map_err(Into::into)
@@ -140,7 +139,8 @@ pub trait EventWatcher<T: Config>: Send + Sync {
 
             // we only query this once, at the start of the events watcher.
             // then we will update it later once we fully synced.
-            let mut target_block_number: u64 = provider
+            let mut target_block_number: u64 = contract
+                .provider()
                 .get_block_number()
                 .map_err(Into::into)
                 .map_err(backoff::Error::transient)
@@ -151,7 +151,8 @@ pub trait EventWatcher<T: Config>: Send + Sync {
                 target_block_number,
             );
 
-            let deployed_at = provider
+            let deployed_at = contract
+                .provider()
                 .get_transaction_receipt(Self::GENESIS_TX_HASH)
                 .await
                 .map_err(Into::into)
@@ -232,7 +233,8 @@ pub trait EventWatcher<T: Config>: Send + Sync {
                     tracing::trace!("Cooldown a bit for {}ms", duration.as_millis());
                     tokio::time::sleep(duration).await;
                     // update the latest block number
-                    target_block_number = provider
+                    target_block_number = contract
+                        .provider()
                         .get_block_number()
                         .map_err(Into::into)
                         .map_err(backoff::Error::transient)

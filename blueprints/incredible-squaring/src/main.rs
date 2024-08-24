@@ -1,39 +1,44 @@
+use alloy_network::EthereumWallet;
+use alloy_primitives::{Address, FixedBytes};
+use alloy_provider::ProviderBuilder;
+use alloy_signer::k256::ecdsa::SigningKey;
+use alloy_signer_local::PrivateKeySigner;
 use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
 use gadget_sdk::{
-    events_watcher::{tangle::TangleEventsWatcher, SubstrateEventWatcher},
+    env::Protocol,
+    events_watcher::{
+        evm::{Config, EventWatcher},
+        tangle::TangleEventsWatcher,
+        SubstrateEventWatcher,
+    },
     keystore::Backend,
     tangle_subxt::tangle_testnet_runtime::api::{
-        self, runtime_types::sp_core::ecdsa, runtime_types::tangle_primitives::services,
+        self,
+        runtime_types::{sp_core::ecdsa, tangle_primitives::services},
     },
     tx,
 };
 
-use incredible_squaring_blueprint as blueprint;
+use incredible_squaring_blueprint::{self as blueprint, IncredibleSquaringTaskManager};
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    color_eyre::install()?;
-    let env_filter = tracing_subscriber::EnvFilter::from_default_env();
-    let logger = tracing_subscriber::fmt()
-        .compact()
-        .with_target(true)
-        .with_env_filter(env_filter);
-    logger.init();
+use std::sync::Arc;
 
-    let env = gadget_sdk::env::load()?;
-    let client = env.client().await?;
-    let signer = env.first_signer()?;
-    if env.should_run_registration() {
-        // We should register our operator on the blueprint.
-        let keystore = env.keystore()?;
-        // get the first ECDSA key from the keystore and register with it.
-        let ecdsa_key = keystore
-            .iter_ecdsa()
-            .next()
-            .map(|v| v.to_sec1_bytes().to_vec().try_into())
-            .transpose()
-            .map_err(|_| eyre!("Failed to convert ECDSA key"))?
-            .ok_or_eyre("No ECDSA key found")?;
+#[async_trait::async_trait]
+trait GadgetRunner {
+    async fn register(&self) -> Result<()>;
+    async fn run(&self) -> Result<()>;
+}
+
+struct TangleGadgetRunner {
+    env: gadget_sdk::env::GadgetConfiguration,
+}
+
+#[async_trait::async_trait]
+impl GadgetRunner for TangleGadgetRunner {
+    async fn register(&self) -> Result<()> {
+        let client = self.env.client().await?;
+        let signer = self.env.first_signer()?;
+
         let xt = api::tx().services().register(
             env.blueprint_id,
             services::OperatorPreferences {
@@ -43,9 +48,16 @@ async fn main() -> Result<()> {
             Default::default(),
         );
         // send the tx to the tangle and exit.
-        tx::tangle::send(&client, &signer, &xt).await?;
-    } else {
-        // otherwise, we should start the event watcher and run the gadget.
+        let result = tx::tangle::send(&client, &signer, &xt).await?;
+        tracing::info!("Registered operator with hash: {:?}", result);
+        Ok(())
+    }
+
+    async fn run(&self) -> Result<()> {
+        let env = gadget_sdk::env::load(None)?;
+        let client = env.client().await?;
+        let signer = env.first_signer()?;
+
         let x_square = blueprint::XsquareEventHandler {
             service_id: env.service_id.unwrap(),
             signer,
@@ -60,7 +72,119 @@ async fn main() -> Result<()> {
             vec![Box::new(x_square)],
         )
         .await?;
+
+        Ok(())
     }
+}
+
+struct EigenlayerGadgetRunner {
+    env: gadget_sdk::env::GadgetConfiguration,
+}
+
+struct EigenlayerEventWatcher<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T: Config> EventWatcher for EigenlayerEventWatcher<T> {
+    const TAG: &'static str = "eigenlayer";
+    type Contract =
+        IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance<T::T, T::P, T::N>;
+    type Event = IncredibleSquaringTaskManager::NewTaskCreated;
+    const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes::from_slice(&[0; 32]);
+}
+
+#[async_trait::async_trait]
+impl GadgetRunner for EigenlayerGadgetRunner {
+    async fn register(&self) -> Result<()> {
+        let keystore = self.env.keystore()?;
+        let ecdsa_key = keystore
+            .iter_ecdsa()
+            .next()
+            .map(|v| v.to_sec1_bytes().to_vec().try_into())
+            .transpose()
+            .map_err(|_| eyre!("Failed to convert ECDSA key"))?
+            .ok_or_eyre("No ECDSA key found")?;
+        let signing_key: SigningKey = SigningKey::from_bytes(&ecdsa_key)?;
+        let signer: PrivateKeySigner = PrivateKeySigner::from_signing_key(signing_key);
+
+        // Implement Eigenlayer-specific registration logic here
+        // For example:
+        // let contract = YourEigenlayerContract::new(contract_address, provider);
+        // contract.register_operator(signer).await?;
+
+        tracing::info!("Registered operator for Eigenlayer");
+        Ok(())
+    }
+
+    async fn run(&self) -> Result<()> {
+        let env = gadget_sdk::env::load(Some(Protocol::Eigenlayer))?;
+        let keystore = env.keystore()?;
+        // get the first ECDSA key from the keystore and register with it.
+        let ecdsa_key = keystore
+            .iter_ecdsa()
+            .next()
+            .map(|v| v.to_sec1_bytes().to_vec().try_into())
+            .transpose()
+            .map_err(|_| eyre!("Failed to convert ECDSA key"))?
+            .ok_or_eyre("No ECDSA key found")?;
+        let signing_key: SigningKey = SigningKey::from_bytes(&ecdsa_key)?;
+        let priv_key_signer: PrivateKeySigner = PrivateKeySigner::from_signing_key(signing_key);
+        let wallet = EthereumWallet::from(signer.clone());
+        // Set up eignelayer AVS
+        let contract_address = Address::from_slice(&[0; 20]);
+        // Set up the HTTP provider with the `reqwest` crate.
+        let provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .wallet(wallet)
+            .on_http(env.rpc_endpoint);
+        let x_square_eigen = blueprint::XsquareEigenEventHandler {};
+
+        let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::<
+            T::T,
+            T::P,
+            T::N,
+        >::new(contract_address, provider);
+
+        EventWatcher::run(
+            &EigenlayerEventWatcher,
+            contract,
+            // Add more handler here if we have more functions.
+            vec![Box::new(x_square_eigen)],
+        )
+        .await?;
+
+        Ok(())
+    }
+}
+
+fn create_gadget_runner(protocol: Protocol) -> (GadgetConfiguration, Arc<dyn GadgetRunner>) {
+    let env = gadget_sdk::env::load(Some(protocol)).expect("Failed to load environment");
+    match protocol {
+        Protocol::Tangle => (env, Arc::new(TangleGadgetRunner { env })),
+        Protocol::Eigenlayer => (env, Arc::new(EigenlayerGadgetRunner { env })),
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    color_eyre::install()?;
+    let env_filter = tracing_subscriber::EnvFilter::from_default_env();
+    let logger = tracing_subscriber::fmt()
+        .compact()
+        .with_target(true)
+        .with_env_filter(env_filter);
+    logger.init();
+
+    // Load the environment and create the gadget runner
+    let protocol = Protocol::from_env().unwrap_or(Protocol::Tangle);
+    let (env, runner) = create_gadget_runner(protocol);
+    // Register the operator if needed
+    if env.should_run_registration() {
+        runner.register().await?;
+    }
+
+    // Run the gadget / AVS
+    runner.run().await?;
 
     Ok(())
 }

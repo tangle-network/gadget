@@ -1,11 +1,18 @@
 use crate::events_watcher::tangle::TangleConfig;
 
+#[derive(Default, Debug, Clone, Copy)]
+pub enum Protocol {
+    #[default]
+    Tangle,
+    Eigenlayer,
+}
+
 /// Gadget environment.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub struct GadgetEnvironment {
+pub struct GadgetConfiguration {
     /// Tangle RPC endpoint.
-    pub tangle_rpc_endpoint: String,
+    pub rpc_endpoint: String,
     /// Keystore URI
     ///
     /// * In Memory: `file::memory:` or `:memory:`
@@ -30,6 +37,9 @@ pub struct GadgetEnvironment {
     ///
     /// If this is set to true, the gadget should do some work and register the operator on the blueprint.
     pub is_registration: bool,
+
+    /// The type of protocol the gadget is executing on.
+    pub protocol: Protocol,
 }
 
 /// An error type for the gadget environment.
@@ -70,18 +80,25 @@ pub enum Error {
     /// Invalid Sr25519 keypair found in the keystore.
     #[error("Invalid Sr25519 keypair found in the keystore")]
     InvalidSr25519Keypair,
+
+    /// No ECDSA keypair found in the keystore.
+    #[error("No ECDSA keypair found in the keystore")]
+    NoEcdsaKeypair,
+
+    /// Invalid ECDSA keypair found in the keystore.
+    #[error("Invalid ECDSA keypair found in the keystore")]
+    InvalidEcdsaKeypair,
 }
 
-/// Loads the [`GadgetEnvironment`] from the current environment.
+/// Loads the [`GadgetConfiguration`] from the current environment.
 /// # Errors
 ///
 /// This function will return an error if any of the required environment variables are missing.
 #[cfg(feature = "std")]
-pub fn load() -> Result<GadgetEnvironment, Error> {
+pub fn load(protocol: Option<Protocol>) -> Result<GadgetConfiguration, Error> {
     let is_registration = std::env::var("REGISTRATION_MODE_ON").is_ok();
-    Ok(GadgetEnvironment {
-        tangle_rpc_endpoint: std::env::var("RPC_URL")
-            .map_err(|_| Error::MissingTangleRpcEndpoint)?,
+    Ok(GadgetConfiguration {
+        rpc_endpoint: std::env::var("RPC_URL").map_err(|_| Error::MissingTangleRpcEndpoint)?,
         keystore_uri: std::env::var("KEYSTORE_URI").map_err(|_| Error::MissingKeystoreUri)?,
         data_dir_path: std::env::var("DATA_DIR").ok(),
         blueprint_id: std::env::var("BLUEPRINT_ID")
@@ -100,15 +117,16 @@ pub fn load() -> Result<GadgetEnvironment, Error> {
             )
         },
         is_registration,
+        protocol: protocol.unwrap_or(Protocol::Tangle),
     })
 }
 
 #[cfg(not(feature = "std"))]
-pub fn load() -> Result<GadgetEnvironment, Error> {
+pub fn load() -> Result<GadgetConfiguration, Error> {
     unimplemented!("Implement loading env for no_std")
 }
 
-impl GadgetEnvironment {
+impl GadgetConfiguration {
     /// Loads the `KeyStore` from the current environment.
     ///
     /// # Errors
@@ -155,6 +173,27 @@ impl GadgetEnvironment {
             .map_err(|_| Error::InvalidSr25519Keypair)
     }
 
+    /// Returns the first ECDSA signer keypair from the keystore.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if no ECDSA keypair is found in the keystore.
+    /// or if the keypair seed is invalid.
+    #[doc(alias = "ecdsa_signer")]
+    pub fn first_ecdsa_signer(&self) -> Result<tangle_subxt::subxt_signer::ecdsa::Keypair, Error> {
+        let keystore = self.keystore()?;
+        let ecdsa_pubkey = crate::keystore::Backend::iter_ecdsa(&keystore)
+            .next()
+            .ok_or_else(|| Error::NoEcdsaKeypair)?;
+        let ecdsa_secret = crate::keystore::Backend::expose_ecdsa_secret(&keystore, &ecdsa_pubkey)?
+            .ok_or_else(|| Error::NoEcdsaKeypair)?;
+
+        let mut seed = [0u8; 32];
+        seed.copy_from_slice(&ecdsa_secret.to_bytes()[0..32]);
+        tangle_subxt::subxt_signer::ecdsa::Keypair::from_secret_key(seed)
+            .map_err(|_| Error::InvalidEcdsaKeypair)
+    }
+
     /// Returns whether the gadget should run in memory.
     #[must_use]
     pub const fn should_run_in_memory(&self) -> bool {
@@ -173,7 +212,7 @@ impl GadgetEnvironment {
     /// This function will return an error if we are unable to connect to the Tangle RPC endpoint.
     pub async fn client(&self) -> Result<subxt::OnlineClient<TangleConfig>, Error> {
         let client =
-            subxt::OnlineClient::<TangleConfig>::from_url(self.tangle_rpc_endpoint.clone()).await?;
+            subxt::OnlineClient::<TangleConfig>::from_url(self.rpc_endpoint.clone()).await?;
         Ok(client)
     }
 }

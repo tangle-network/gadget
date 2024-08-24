@@ -29,6 +29,8 @@ alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
 alloy-rpc-types = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true, features = ["json"] }
 alloy-transport = { workspace = true }
 
