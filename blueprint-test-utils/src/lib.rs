@@ -160,6 +160,29 @@ pub async fn submit_job(
     Ok(())
 }
 
+/// Registers a service for a given blueprint. This is meant for testing, and will allow any node
+/// to make a call to run a service, and will have all nodes running the service.
+pub async fn register_service(
+    client: &TestClient,
+    user: &sr25519::Keypair,
+    blueprint_id: u64,
+    test_nodes: Vec<AccountId32>,
+) -> Result<(), Box<dyn Error>> {
+    let call = api::tx().services().request(
+        blueprint_id,
+        test_nodes.clone(),
+        test_nodes,
+        1000,
+        Default::default(),
+    );
+    let res = client
+        .tx()
+        .sign_and_submit_then_watch_default(&call, user)
+        .await?;
+    res.wait_for_finalized_success().await?;
+    Ok(())
+}
+
 pub async fn wait_for_completion_of_job(
     client: &TestClient,
     service_id: u64,
@@ -178,32 +201,35 @@ pub async fn wait_for_completion_of_job(
 
 pub async fn get_next_blueprint_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
     let call = api::storage().services().next_blueprint_id();
-    let res = client.storage().at_latest().await?.fetch(&call).await?;
-    if let Some(ret) = res {
-        Ok(ret)
-    } else {
-        Err("Failed to get next blueprint id".into())
-    }
+    let res = client
+        .storage()
+        .at_latest()
+        .await?
+        .fetch_or_default(&call)
+        .await?;
+    Ok(res)
 }
 
 pub async fn get_next_service_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
     let call = api::storage().services().next_instance_id();
-    let res = client.storage().at_latest().await?.fetch(&call).await?;
-    if let Some(ret) = res {
-        Ok(ret)
-    } else {
-        Err("Failed to get next service id".into())
-    }
+    let res = client
+        .storage()
+        .at_latest()
+        .await?
+        .fetch_or_default(&call)
+        .await?;
+    Ok(res)
 }
 
 pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
     let call = api::storage().services().next_job_call_id();
-    let res = client.storage().at_latest().await?.fetch(&call).await?;
-    if let Some(ret) = res {
-        Ok(ret)
-    } else {
-        Err("Failed to get next job id".into())
-    }
+    let res = client
+        .storage()
+        .at_latest()
+        .await?
+        .fetch_or_default(&call)
+        .await?;
+    Ok(res)
 }
 
 #[macro_export]
@@ -211,6 +237,7 @@ macro_rules! test_blueprint {
     (
         $blueprint_path:expr,
         $blueprint_name:expr,
+        $N:expr,
         [$($input:expr),+],
         [$($expected_output:expr),+]
     ) => {
@@ -239,7 +266,7 @@ macro_rules! test_blueprint {
                 signer_evm: None,
             };
 
-            new_test_ext_blueprint_manager::<1, 1, (), _, _>(
+            new_test_ext_blueprint_manager::<$N, 1, (), _, _>(
                 (),
                 opts,
                 run_test_blueprint_manager,
@@ -295,6 +322,7 @@ mod test_macros {
     test_blueprint!(
         "./blueprints/incredible-squaring/Cargo.toml", // Path to the blueprint's toml
         "incredible-squaring-blueprint",               // Name of the package
+        5,                                             // Number of nodes
         [InputValue::Uint64(5)],
         [OutputValue::Uint64(25)] // Expected output: each input squared
     );
@@ -345,14 +373,14 @@ mod tests_standard {
                     .await
                     .expect("Failed to get next job id");
 
-                // Pass the argument
+                // Pass the arguments
                 let mut job_args = Args::new();
                 let input =
                     api::runtime_types::tangle_primitives::services::field::Field::Uint64(INPUT);
                 job_args.push(input);
 
                 // Next step: submit a job under that service/job id
-                submit_job(
+                if let Err(err) = submit_job(
                     client,
                     &keypair,
                     service_id,
@@ -360,7 +388,12 @@ mod tests_standard {
                     job_args,
                 )
                 .await
-                .expect("Failed to submit job");
+                {
+                    handles[0]
+                        .logger()
+                        .error(format!("Failed to submit job: {err}"));
+                    panic!("Failed to submit job: {err}");
+                }
 
                 // Step 2: wait for the job to complete
                 let job_results = wait_for_completion_of_job(client, service_id, call_id)

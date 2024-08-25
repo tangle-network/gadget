@@ -19,6 +19,8 @@ use async_trait::async_trait;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use cargo_tangle::deploy::{Opts, PrivateKeySigner};
 use environment_utils::transaction_manager::tangle::SubxtPalletSubmitter;
+use futures::stream::FuturesOrdered;
+use futures::StreamExt;
 use gadget_common::config::Network;
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::prelude::{
@@ -248,41 +250,86 @@ pub async fn new_test_ext_blueprint_manager<
         handles.push(handle);
     }
 
-    let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
-        .await
-        .expect("Failed to create primary localhost client");
-
     // Step 1: Create the blueprint using alice's identity
     let blueprint_id = cargo_tangle::deploy::deploy_to_tangle(opts)
         .await
         .expect("Failed to deploy Blueprint to Tangle");
 
     // Step 2: Have each identity register to a blueprint
+    let mut futures_ordered = FuturesOrdered::new();
     let registration_args = RegistrationArgs::new();
-    for handle in handles.iter() {
-        let keypair = handle.sr25519_id().clone();
-        let key = api::runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().public_key().0);
+    // TODO: allow the function callee to specify the registration args
 
-        let preferences = Preferences {
-            key,
-            approval: ApprovalPrefrence::None,
+    for handle in handles {
+        let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
+            .await
+            .expect("Failed to create an account-based localhost client");
+        let registration_args = registration_args.clone();
+
+        let task = async move {
+            let keypair = handle.sr25519_id().clone();
+            let key = api::runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().public_key().0);
+
+            let preferences = Preferences {
+                key,
+                approval: ApprovalPrefrence::None,
+            };
+
+            if let Err(err) = super::register_blueprint(
+                &client,
+                &keypair,
+                blueprint_id,
+                preferences,
+                registration_args.clone(),
+                handle.logger(),
+            )
+            .await
+            {
+                let err_str = format!("{err}");
+                if err_str.contains("MultiAssetDelegation::AlreadyOperator") {
+                    handle.logger().warn(format!(
+                        "{} is already an operator",
+                        keypair.public_key().to_account_id()
+                    ));
+                } else {
+                    handle
+                        .logger()
+                        .error(format!("Failed to register as operator: {err}"));
+                    panic!("Failed to register as operator: {err}");
+                }
+            }
+
+            handle
         };
 
-        if let Err(err) = super::register_blueprint(
-            &client,
-            &keypair,
-            blueprint_id,
-            preferences,
-            registration_args.clone(),
-            handle.logger(),
-        )
+        futures_ordered.push_back(task);
+    }
+
+    let mut handles = futures_ordered
+        .collect::<Vec<BlueprintManagerHandle>>()
+        .await;
+
+    let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
         .await
-        {
-            handle
-                .logger()
-                .error(format!("Failed to register to blueprint: {err}"));
-            panic!("Failed to register to blueprint");
-        }
+        .expect("Failed to create primary localhost client");
+
+    // Step 3: register a service
+    let all_nodes = handles
+        .iter()
+        .map(|handle| handle.sr25519_id().public_key().to_account_id())
+        .collect();
+
+    // Use Alice's account to register the service
+    handles[0].logger().info(format!(
+        "Registering service for blueprint ID {blueprint_id} using Alice's keys ..."
+    ));
+    if let Err(err) =
+        super::register_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes).await
+    {
+        handles[0]
+            .logger()
+            .error(format!("Failed to register service: {err}"));
+        panic!("Failed to register service: {err}");
     }
 
     // Now, start every blueprint manager. With the blueprint submitted and every operator registered

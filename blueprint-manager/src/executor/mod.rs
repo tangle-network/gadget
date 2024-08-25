@@ -302,6 +302,7 @@ async fn handle_init(
     gadget_config: &GadgetConfig,
     blueprint_manager_config: &BlueprintManagerConfig,
 ) -> color_eyre::Result<Vec<RpcServicesWithBlueprint>> {
+    logger.info("Beginning initialization of Blueprint Manager");
     let (operator_subscribed_blueprints, init_event) =
         if let Some(event) = tangle_runtime.next_event().await {
             (
