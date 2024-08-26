@@ -191,7 +191,7 @@ pub fn request_hook(args: TokenStream, input: TokenStream) -> TokenStream {
 /// # Example
 /// ```rust,no_run
 /// # use gadget_blueprint_proc_macro::benchmark;
-/// #[benchmark(threads = 4)]
+/// #[benchmark(job_id = 1, cores = 4)]
 /// pub fn my_job() {
 ///   // call your job with the necessary parameters
 /// }
