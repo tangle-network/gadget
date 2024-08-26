@@ -1,4 +1,6 @@
 use crate::events_watcher::tangle::TangleConfig;
+use crate::keystore::backend::GenericKeyStore;
+use alloc::string::{String, ToString};
 
 #[derive(Default, Debug, Clone, Copy)]
 pub enum Protocol {
@@ -10,7 +12,7 @@ pub enum Protocol {
 /// Gadget environment.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub struct GadgetConfiguration {
+pub struct GadgetEnvironment<RwLock: lock_api::RawRwLock> {
     /// Tangle RPC endpoint.
     pub rpc_endpoint: String,
     /// Keystore URI
@@ -40,6 +42,8 @@ pub struct GadgetConfiguration {
 
     /// The type of protocol the gadget is executing on.
     pub protocol: Protocol,
+
+    _lock: core::marker::PhantomData<RwLock>,
 }
 
 /// An error type for the gadget environment.
@@ -95,7 +99,23 @@ pub enum Error {
 ///
 /// This function will return an error if any of the required environment variables are missing.
 #[cfg(feature = "std")]
-pub fn load(protocol: Option<Protocol>) -> Result<GadgetConfiguration, Error> {
+pub fn load() -> Result<GadgetEnvironment<parking_lot::RawRwLock>, Error> {
+    load_with_lock::<parking_lot::RawRwLock>()
+}
+
+/// Loads the [`GadgetEnvironment`] from the current environment.
+///
+/// This allows callers to specify the `RwLock` implementation to use.
+///
+/// # Errors
+///
+/// This function will return an error if any of the required environment variables are missing.
+pub fn load_with_lock<RwLock: lock_api::RawRwLock>() -> Result<GadgetEnvironment<RwLock>, Error> {
+    load_inner::<RwLock>()
+}
+
+#[cfg(feature = "std")]
+fn load_inner<RwLock: lock_api::RawRwLock>() -> Result<GadgetEnvironment<RwLock>, Error> {
     let is_registration = std::env::var("REGISTRATION_MODE_ON").is_ok();
     Ok(GadgetConfiguration {
         rpc_endpoint: std::env::var("RPC_URL").map_err(|_| Error::MissingTangleRpcEndpoint)?,
@@ -118,21 +138,23 @@ pub fn load(protocol: Option<Protocol>) -> Result<GadgetConfiguration, Error> {
         },
         is_registration,
         protocol: protocol.unwrap_or(Protocol::Tangle),
+        _lock: core::marker::PhantomData,
     })
 }
 
 #[cfg(not(feature = "std"))]
-pub fn load() -> Result<GadgetConfiguration, Error> {
+pub fn load_inner<RwLock: lock_api::RawRwLock>() -> Result<GadgetEnvironment<RwLock>, Error> {
     unimplemented!("Implement loading env for no_std")
 }
 
-impl GadgetConfiguration {
+impl<RwLock: lock_api::RawRwLock> GadgetEnvironment<RwLock> {
     /// Loads the `KeyStore` from the current environment.
     ///
     /// # Errors
     ///
     /// This function will return an error if the keystore URI is unsupported.
-    pub fn keystore(&self) -> Result<crate::keystore::backend::GenericKeyStore, Error> {
+    pub fn keystore(&self) -> Result<GenericKeyStore<RwLock>, Error> {
+        #[cfg(feature = "std")]
         use crate::keystore::backend::fs::FilesystemKeystore;
         use crate::keystore::backend::{mem::InMemoryKeystore, GenericKeyStore};
 
@@ -140,6 +162,7 @@ impl GadgetConfiguration {
             uri if uri == "file::memory:" || uri == ":memory:" => {
                 Ok(GenericKeyStore::Mem(InMemoryKeystore::new()))
             }
+            #[cfg(feature = "std")]
             uri if uri.starts_with("file:") || uri.starts_with("file://") => {
                 let path = uri
                     .trim_start_matches("file://")

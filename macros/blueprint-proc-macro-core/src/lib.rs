@@ -342,7 +342,7 @@ pub struct WasmGadget<'a> {
     /// Which runtime to use to execute the WASM binary.
     pub runtime: WasmRuntime,
     /// Where the WASM binary is stored.
-    pub soruces: Vec<GadgetSource<'a>>,
+    pub sources: Vec<GadgetSource<'a>>,
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -357,11 +357,11 @@ pub enum WasmRuntime {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct NativeGadget<'a> {
     /// Where the WASM binary is stored.
-    pub soruces: Vec<GadgetSource<'a>>,
+    pub sources: Vec<GadgetSource<'a>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ContainerGadget<'a> {
     /// Where the Image of the gadget binary is stored.
-    pub soruces: Vec<GadgetSource<'a>>,
+    pub sources: Vec<GadgetSource<'a>>,
 }
