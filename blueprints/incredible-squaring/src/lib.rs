@@ -29,7 +29,7 @@ sol!(
 
 #[derive(Clone)]
 pub struct MyContext {
-    network: GossipHandle,
+    pub network: GossipHandle,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
