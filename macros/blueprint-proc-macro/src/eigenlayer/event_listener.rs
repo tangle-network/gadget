@@ -16,7 +16,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
     let instance_name = format_ident!("{}Instance", instance_base);
     let instance = quote! { #instance_base::#instance_name<T::T, T::P, T::N> };
     let event = event_handler.event().unwrap();
-    let event_converter = event_handler.event_converter().unwrap();
+    let event_converter = event_handler.event_converter();
     let callback = event_handler.callback().unwrap();
 
     quote! {
@@ -49,8 +49,14 @@ pub(crate) fn generate_eigenlayer_event_handler(
 
                 // Convert the event to inputs
                 let decoded: alloy_primitives::Log<Self::Event> = <Self::Event as SolEvent>::decode_log(&log.inner, true)?;
-                // Convert the event to inputs using the event converter
-                let inputs = #event_converter(decoded.data);
+                // Convert the event to inputs using the event converter.
+                // If no converted is provided, the #[job] must consume the
+                // event directly, as specified in the `event = <EVENT>`.
+                let inputs = if let Some(converter) = #event_converter {
+                    converter(decoded.data)
+                } else {
+                    decoded.data
+                }
 
                 // Apply the function
                 #(#params_tokens)*

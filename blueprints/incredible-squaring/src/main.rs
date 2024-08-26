@@ -137,7 +137,11 @@ impl GadgetRunner for EigenlayerGadgetRunner {
             .with_recommended_fillers()
             .wallet(wallet)
             .on_http(env.rpc_endpoint);
-        let x_square_eigen = blueprint::XsquareEigenEventHandler {};
+        let x_square_eigen = blueprint::XsquareEigenEventHandler {
+            ctx: blueprint::MyContext {
+                network: Default::default(),
+            },
+        };
 
         let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::<
             T::T,

@@ -26,6 +26,10 @@ pub mod events_watcher;
 /// Gadget Environment Module
 pub mod env;
 
+/// Gadget Executor / Process Module
+#[cfg(feature = "std")]
+pub mod executor;
+
 /// Local database storage
 pub mod store;
 

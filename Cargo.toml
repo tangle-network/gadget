@@ -6,7 +6,6 @@ members = [
     "cli",
     "core",
     "common",
-    "executor",
     "environments/tangle",
     "environments/utils",
     "gadget-io",
@@ -48,7 +47,6 @@ broken_intra_doc_links = "deny"
 gadget-core = { version = "0.0.1", path = "./core", default-features = false }
 gadget-common = { version = "0.1.0", path = "./common", default-features = false }
 gadget-io = { version = "0.0.1", path = "./gadget-io", default-features = false }
-gadget-executor = { version = "0.1.0", path = "./executor" }
 blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false }
@@ -298,6 +296,9 @@ wasm-bindgen-futures = "0.4.43"
 wasmer = { version = "4.3.5", default-features = false }
 wasmtime = { version = "23.0.2", default-features = false }
 wasmtimer = "0.2"
+
+# Eigenlayer
+eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git" }
 
 [profile.dev.package.backtrace]
 opt-level = 3
