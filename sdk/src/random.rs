@@ -1,7 +1,7 @@
 //! Returns `OsRng` with `getrandom`, or a `CryptoRng` which panics without `getrandom`.
 
 /// Re-export [`rand_core`] types to simplify dependences
-pub use rand_core::{self, CryptoRng, CryptoRngCore, RngCore, SeedableRng};
+pub use rand::{self, CryptoRng, RngCore, SeedableRng};
 
 /// Returns `OsRng` with `getrandom`, or a `CryptoRng` which panics without `getrandom`.
 #[cfg(all(feature = "getrandom", not(feature = "std")))]

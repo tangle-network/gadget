@@ -11,6 +11,7 @@ pub type Secret = w3f_bls::SecretKey<TinyBLS381>;
 /// BLS12-381 signature.
 pub type Signature = w3f_bls::Signature<TinyBLS381>;
 
+#[must_use]
 pub fn generate_with_optional_seed(seed: Option<&[u8]>) -> Secret {
     match seed {
         Some(seed) => Secret::from_seed(seed),
@@ -23,10 +24,12 @@ pub fn sign(secret: &mut Secret, msg: &[u8]) -> Signature {
     secret.sign(&message, &mut random::getrandom_or_panic())
 }
 
+#[must_use]
 pub fn to_public(secret: &Secret) -> Public {
     secret.clone().into_public()
 }
 
+#[must_use]
 pub fn secret_from_bytes(bytes: &[u8]) -> Secret {
     Secret::from_seed(bytes)
 }

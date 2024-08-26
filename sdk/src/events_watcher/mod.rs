@@ -5,6 +5,8 @@
 //! of an event watcher polls for blocks. Implementations of the event watcher trait define an
 //! action to take when the specified event is found in a block at the `handle_event` api.
 
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use core::time::Duration;
 
 use futures::TryFutureExt;
@@ -28,7 +30,7 @@ pub enum Error {
     ForceRestart,
     /// An error occurred in the event handler.
     #[error(transparent)]
-    Handler(#[from] Box<dyn std::error::Error + Send + Sync>),
+    Handler(#[from] Box<dyn core::error::Error + Send + Sync>),
 }
 
 /// A type alias to extract the event handler type from the event watcher.

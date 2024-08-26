@@ -33,7 +33,7 @@
   "gadget": {
     "Wasm": {
       "runtime": "Wasmtime",
-      "soruces": []
+      "sources": []
     }
   }
 }
