@@ -9,15 +9,21 @@ use alloc::vec::Vec;
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         use crate::environments::GadgetEnvironment;
+        #[cfg(feature = "substrate")]
         use crate::module::network::Network;
         use crate::prelude::DebugLogger;
+        #[cfg(feature = "substrate")]
         use crate::utils::deserialize;
+        #[cfg(feature = "substrate")]
         use futures::StreamExt;
+        #[cfg(feature = "substrate")]
         use gadget_core::job::protocol::ProtocolMessageMetadata;
+        #[cfg(feature = "substrate")]
         use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
         use sp_core::ecdsa;
 
         use std::collections::HashMap;
+        #[cfg(feature = "substrate")]
         use std::sync::Arc;
     }
 }
@@ -55,7 +61,7 @@ impl<B> Msg<B> {
 }
 
 #[allow(clippy::too_many_arguments)]
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", feature = "substrate"))]
 pub fn create_job_manager_to_async_protocol_channel_split<
     Env: GadgetEnvironment,
     N: Network<Env>,
@@ -492,7 +498,7 @@ pub type DuplexedChannel<O, I, C2> = (
 );
 
 #[allow(clippy::too_many_arguments)]
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", feature = "substrate"))]
 pub fn create_job_manager_to_async_protocol_channel_split_io<
     Env: GadgetEnvironment,
     N: Network<Env>,
@@ -678,7 +684,7 @@ pub type TriplexedChannel<O1, I1, O2, I2, C2> = (
 );
 
 #[allow(clippy::too_many_arguments)]
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", feature = "substrate"))]
 pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
     Env: GadgetEnvironment,
     N: Network<Env> + 'static,
@@ -872,7 +878,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
 }
 
 #[allow(clippy::too_many_arguments)]
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", feature = "substrate"))]
 async fn wrap_message_and_forward_to_network<
     Env: GadgetEnvironment,
     N: Network<Env>,

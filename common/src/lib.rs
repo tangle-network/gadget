@@ -44,6 +44,7 @@ pub mod prelude {
     pub use crate::client::*;
     #[cfg(all(feature = "std", feature = "substrate"))]
     pub use crate::config::*;
+    pub use crate::debug_logger::DebugLogger;
     pub use crate::environments::*;
     #[cfg(all(feature = "std", feature = "substrate"))]
     pub use crate::full_protocol::{FullProtocolConfig, NodeInput};
