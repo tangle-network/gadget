@@ -379,9 +379,9 @@ pub(crate) async fn handle_tangle_event(
     {
         let mut services_for_this_blueprint = vec![];
         if let Gadget::Native(gadget) = &blueprint.gadget {
-            let gadget_source = &gadget.soruces.0[0];
+            let gadget_source = &gadget.sources.0[0];
             if let gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher::Github(gh) = &gadget_source.fetcher {
-                let metadata = github_fetcher_to_native_github_metadata(&gh, blueprint.blueprint_id);
+                let metadata = github_fetcher_to_native_github_metadata(gh, blueprint.blueprint_id);
                 onchain_services.push(metadata);
                 fetchers.push(gh.clone());
                 valid_blueprint_ids.push(blueprint.blueprint_id);

@@ -7443,7 +7443,7 @@ dependencies = [
 [[package]]
 name = "pallet-services"
 version = "2.0.0"
-source = "git+https://github.com/webb-tools/tangle.git#379a4d5036f94e16be95adc35ae80c2db21a50af"
+source = "git+https://github.com/webb-tools/tangle.git#8771f1e2aacc03ef99bc831c87eefa7f09c78de1"
 dependencies = [
  "ethabi",
  "fp-evm",
@@ -11796,7 +11796,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "2.0.0"
-source = "git+https://github.com/webb-tools/tangle.git#379a4d5036f94e16be95adc35ae80c2db21a50af"
+source = "git+https://github.com/webb-tools/tangle.git#8771f1e2aacc03ef99bc831c87eefa7f09c78de1"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -11823,9 +11823,9 @@ dependencies = [
 
 [[package]]
 name = "tangle-subxt"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5dea1c930b6e54193425aa5d4c734b5daad55ca60f9494c9fae153f22f4343c"
+checksum = "4552f79989b8ac33dd612cd9292b90401bdb8dbfd91de1c689ea944ffd31e2d2"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "scale-info",
