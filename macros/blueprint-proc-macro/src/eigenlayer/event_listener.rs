@@ -15,9 +15,9 @@ pub(crate) fn generate_eigenlayer_event_handler(
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
     let instance = quote! { #instance_base::#instance_name<T::T, T::P, T::N> };
-    let event = event_handler.event().unwrap();
+    let ev = event_handler.event().unwrap();
     let event_converter = event_handler.event_converter();
-    let callback = event_handler.callback().unwrap();
+    let callback = event_handler.callback();
 
     quote! {
         /// Event handler for the function
@@ -36,7 +36,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
             #instance: std::ops::Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>,
         {
             type Contract = #instance;
-            type Event = #event;
+            type Event = #ev;
 
             async fn handle_event(
                 &self,
@@ -63,11 +63,14 @@ pub(crate) fn generate_eigenlayer_event_handler(
                 #fn_call;
 
                 // Call the callback with the job result
-                let call = #callback(job_result);
+                if let Some(cb) = #callback {
+                    let call = cb(job_result);
 
-                // Submit the transaction
-                let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
-                tx.watch().await?;
+                    // Submit the transaction
+                    let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
+                    tx.watch().await?;
+                }
+
                 Ok(())
             }
         }
