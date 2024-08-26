@@ -47,6 +47,7 @@ serde_json = { workspace = true }
 sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
 
+
 # Event Watchers and Handlers
 backoff = { workspace = true }
 subxt = { workspace = true }
@@ -66,6 +67,9 @@ alloy-transport = { workspace = true }
 # Macros
 gadget-blueprint-proc-macro = { workspace = true }
 derive_more = { workspace = true }
+
+# Benchmarking deps
+sysinfo = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
@@ -97,6 +101,7 @@ hyper = { workspace = true, features = ["client"] }
 
 [features]
 default = ["std"]
+
 std = [
     "getrandom",
     "hex/std",
