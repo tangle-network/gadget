@@ -1,3 +1,4 @@
+#[cfg(any(feature = "std", feature = "wasm"))]
 use crate::events_watcher::tangle::TangleConfig;
 use crate::keystore::backend::GenericKeyStore;
 use alloc::string::{String, ToString};
@@ -128,6 +129,7 @@ pub enum Error {
     Keystore(#[from] crate::keystore::Error),
     /// Subxt error.
     #[error(transparent)]
+    #[cfg(any(feature = "std", feature = "wasm"))]
     Subxt(#[from] subxt::Error),
 
     /// No Sr25519 keypair found in the keystore.
@@ -240,7 +242,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// This function will return an error if no Sr25519 keypair is found in the keystore.
     /// or if the keypair seed is invalid.
     #[doc(alias = "sr25519_signer")]
-    pub fn first_signer(&self) -> Result<tangle_subxt::subxt_signer::sr25519::Keypair, Error> {
+    pub fn first_signer(&self) -> Result<subxt_signer::sr25519::Keypair, Error> {
         let keystore = self.keystore()?;
         let sr25519_pubkey = crate::keystore::Backend::iter_sr25519(&keystore)
             .next()
@@ -251,7 +253,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
 
         let mut seed = [0u8; 32];
         seed.copy_from_slice(&sr25519_secret.to_bytes()[0..32]);
-        tangle_subxt::subxt_signer::sr25519::Keypair::from_secret_key(seed)
+        subxt_signer::sr25519::Keypair::from_secret_key(seed)
             .map_err(|_| Error::InvalidSr25519Keypair)
     }
 
@@ -298,6 +300,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     ///
     /// # Errors
     /// This function will return an error if we are unable to connect to the Tangle RPC endpoint.
+    #[cfg(any(feature = "std", feature = "wasm"))]
     pub async fn client(&self) -> Result<subxt::OnlineClient<TangleConfig>, Error> {
         let client =
             subxt::OnlineClient::<TangleConfig>::from_url(self.rpc_endpoint.clone()).await?;

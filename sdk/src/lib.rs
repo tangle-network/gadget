@@ -21,6 +21,7 @@ pub mod keystore;
 pub mod random;
 
 /// Blockchain Events Watcher Module
+#[cfg(any(feature = "std", feature = "wasm"))]
 pub mod events_watcher;
 
 /// Gadget Environment Module
@@ -30,8 +31,10 @@ pub mod env;
 pub mod store;
 
 /// Transaction Management Module
+#[cfg(any(feature = "std", feature = "wasm"))]
 pub mod tx;
 
+#[cfg(feature = "std")]
 pub use tangle_subxt;
 
 /// Network Module
