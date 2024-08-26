@@ -5,16 +5,16 @@ use syn::{ItemFn, Token};
 
 // Defines custom keywords
 mod kw {
-    syn::custom_keyword!(threads);
+    syn::custom_keyword!(cores);
     syn::custom_keyword!(job_id);
 }
 
 /// `BenchmarkArgs` is a struct that holds the arguments for the `benchmark` macro.
 pub(crate) struct BenchmarkArgs {
-    /// The number of threads this benchmark should run with.
+    /// The max number of cores this benchmark should run with.
     ///
-    /// `#[benchmark(threads = 4)]`
-    threads: syn::LitInt,
+    /// `#[benchmark(cores = 4)]`
+    cores: syn::LitInt,
     /// The job identifier for the benchmark.
     ///
     /// `#[benchmark(job_id = 1)]`
@@ -22,7 +22,7 @@ pub(crate) struct BenchmarkArgs {
 }
 
 pub(crate) fn benchmark_impl(args: &BenchmarkArgs, input: &ItemFn) -> syn::Result<TokenStream> {
-    let threads = &args.threads;
+    let cores = &args.cores;
     let job_id = &args.job_id;
     let original_name = &input.sig.ident;
     let name = format_ident!("{}_benchmark", original_name);
@@ -30,15 +30,15 @@ pub(crate) fn benchmark_impl(args: &BenchmarkArgs, input: &ItemFn) -> syn::Resul
     let expanded = quote! {
         #[doc(hidden)]
         pub fn #name() {
-            let threads: usize = #threads;
+            let cores: usize = #cores;
             let rt = gadget_sdk::benchmark::tokio::runtime::Builder::new_multi_thread()
-                .worker_threads(threads)
-                .max_blocking_threads(threads)
+                .worker_threads(cores)
+                .max_blocking_threads(cores)
                 .enable_all()
                 .build()
                 .unwrap();
             let _guard = rt.enter();
-            let b = gadget_sdk::benchmark::Bencher::new(threads, gadget_sdk::benchmark::TokioRuntime);
+            let b = gadget_sdk::benchmark::Bencher::new(cores, gadget_sdk::benchmark::TokioRuntime);
             b.block_on(async move { #block });
             let summary = b.stop(stringify!(#original_name), #job_id);
             eprintln!("{}", summary);
@@ -50,14 +50,14 @@ pub(crate) fn benchmark_impl(args: &BenchmarkArgs, input: &ItemFn) -> syn::Resul
 
 impl Parse for BenchmarkArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut threads = None;
+        let mut cores = None;
         let mut job_id = None;
         while !input.is_empty() {
             let lookahead = input.lookahead1();
-            if lookahead.peek(kw::threads) {
-                let _ = input.parse::<kw::threads>()?;
+            if lookahead.peek(kw::cores) {
+                let _ = input.parse::<kw::cores>()?;
                 let _ = input.parse::<Token![=]>()?;
-                threads = Some(input.parse()?);
+                cores = Some(input.parse()?);
             } else if lookahead.peek(kw::job_id) {
                 let _ = input.parse::<kw::job_id>()?;
                 let _ = input.parse::<Token![=]>()?;
@@ -69,11 +69,10 @@ impl Parse for BenchmarkArgs {
             }
         }
 
-        let threads =
-            threads.ok_or_else(|| input.error("Missing `threads` argument in attribute"))?;
+        let cores = cores.ok_or_else(|| input.error("Missing `cores` argument in attribute"))?;
 
         let job_id = job_id.ok_or_else(|| input.error("Missing `job_id` argument in attribute"))?;
 
-        Ok(Self { threads, job_id })
+        Ok(Self { cores, job_id })
     }
 }

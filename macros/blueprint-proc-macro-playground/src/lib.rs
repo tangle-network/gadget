@@ -107,7 +107,7 @@ fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Ve
 // ==================
 //   Benchmarks
 // ==================
-#[benchmark(job_id = 0, threads = 2)]
+#[benchmark(job_id = 0, cores = 2)]
 fn keygen_2_of_3() {
     let n = 3;
     let t = 2;

@@ -27,8 +27,8 @@ pub struct Bencher<R> {
     runtime: R,
     /// The time at which the benchmark started.
     started_at: std::time::Instant,
-    /// The number of threads to run the benchmark with.
-    threads: usize,
+    /// The max number of cores for this benchmark.
+    cores: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -39,8 +39,8 @@ pub struct BenchmarkSummary {
     pub job_id: u8,
     /// The duration of the benchmark.
     pub elapsed: std::time::Duration,
-    /// The number of threads the benchmark was run with.
-    pub threads: usize,
+    /// The number of cores the benchmark was run with.
+    pub cores: usize,
     /// The amount of memory used by the benchmark (in bytes).
     pub ram_usage: u64,
 }
@@ -50,7 +50,7 @@ impl<R: Runtime> Bencher<R> {
         Self {
             runtime,
             started_at: std::time::Instant::now(),
-            threads,
+            cores: threads,
         }
     }
 
@@ -74,7 +74,7 @@ impl<R: Runtime> Bencher<R> {
             name: name.to_string(),
             job_id,
             elapsed: self.started_at.elapsed(),
-            threads: self.threads,
+            cores: self.cores,
             ram_usage,
         }
     }
@@ -99,7 +99,7 @@ impl std::fmt::Display for BenchmarkSummary {
         write!(
             f,
             "Benchmark: {}\nJob ID: {}\nElapsed: {:?}\nvCPU: {}\nRAM Usage: {ram_usage:.2} {unit}\n",
-            self.name, self.job_id, self.elapsed, self.threads,
+            self.name, self.job_id, self.elapsed, self.cores,
         )
     }
 }
