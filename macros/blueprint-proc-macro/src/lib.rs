@@ -80,9 +80,9 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 }
 
+/// The `report` macro is used to annotate a function as a report handler for misbehaviors.
 ///
-/// The `report` macro is used to annotate a function as a report handler for misbehaviors. This macro generates
-/// the necessary code to handle events and process reports within the service blueprint. Reports are specifically
+/// This macro generates the necessary code to handle events and process reports within the service blueprint. Reports are specifically
 /// for submitting incorrect job results, attributable malicious behavior, or otherwise machine failures and reliability degradation.
 ///
 /// # Example
