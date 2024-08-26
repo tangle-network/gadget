@@ -41,6 +41,8 @@ pub enum FieldType {
     Array(u64, Box<FieldType>),
     /// A List of items of type [`FieldType`].
     List(Box<FieldType>),
+    /// A Struct of items of type [`FieldType`].
+    Struct(String, Vec<(String, Box<FieldType>)>),
     // NOTE: Special types starts from 100
     /// A special type for AccountId
     AccountId,
@@ -120,7 +122,7 @@ pub enum JobResultVerifier {
     /// No verification is needed.
     #[default]
     None,
-    /// An EVM Contract Address that will verify the result.
+    /// An EVM Contract Address or path to the contract ABI that will verify the result.
     Evm(String),
 }
 

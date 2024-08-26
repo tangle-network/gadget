@@ -1,4 +1,4 @@
-use crate::utils::{pascal_case, type_to_field_type};
+use crate::shared::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{
     FieldType, ReportDefinition, ReportMetadata, ReportResultVerifier, ReportType,
 };
@@ -20,164 +20,8 @@ mod kw {
     syn::custom_keyword!(metric_thresholds);
     syn::custom_keyword!(verifier);
     syn::custom_keyword!(evm);
+    syn::custom_keyword!(event_handler_type);
     syn::custom_keyword!(skip_codegen);
-}
-
-/// Represents the arguments passed to the `report` attribute macro.
-pub(crate) struct ReportArgs {
-    params: Vec<Ident>,
-    result: ResultsKind,
-    report_type: ReportType,
-    job_id: Option<LitInt>,
-    interval: Option<LitInt>,
-    metric_thresholds: Option<Vec<(Ident, LitInt)>>,
-    verifier: Verifier,
-    skip_codegen: bool,
-}
-
-/// Parses the arguments provided to the `report` attribute macro.
-impl Parse for ReportArgs {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut params = Vec::new();
-        let mut result = None;
-        let mut report_type = None;
-        let mut job_id = None;
-        let mut interval = None;
-        let mut metric_thresholds = None;
-        let mut verifier = Verifier::None;
-        let mut skip_codegen = false;
-
-        while !input.is_empty() {
-            let lookahead = input.lookahead1();
-            if lookahead.peek(kw::params) {
-                let _ = input.parse::<kw::params>()?;
-                let content;
-                parenthesized!(content in input);
-                params = content
-                    .parse_terminated(Ident::parse, Token![,])?
-                    .into_iter()
-                    .collect();
-            } else if lookahead.peek(kw::result) {
-                let Results(r) = input.parse()?;
-                result = Some(r);
-            } else if lookahead.peek(kw::report_type) {
-                let _ = input.parse::<kw::report_type>()?;
-                let _ = input.parse::<Token![=]>()?;
-                let type_str: LitStr = input.parse()?;
-                report_type = Some(match type_str.value().as_str() {
-                    "job" => ReportType::Job,
-                    "qos" => ReportType::QoS,
-                    _ => {
-                        return Err(syn::Error::new(
-                            type_str.span(),
-                            "Invalid report type. Expected 'job' or 'qos'.",
-                        ))
-                    }
-                });
-            } else if lookahead.peek(kw::job_id) {
-                let _ = input.parse::<kw::job_id>()?;
-                let _ = input.parse::<Token![=]>()?;
-                job_id = Some(input.parse::<LitInt>()?);
-            } else if lookahead.peek(kw::interval) {
-                let _ = input.parse::<kw::interval>()?;
-                let _ = input.parse::<Token![=]>()?;
-                interval = Some(input.parse::<LitInt>()?);
-            } else if lookahead.peek(kw::metric_thresholds) {
-                let _ = input.parse::<kw::metric_thresholds>()?;
-                let content;
-                parenthesized!(content in input);
-                let thresholds = content.parse_terminated(
-                    |input| {
-                        let name = input.parse::<Ident>()?;
-                        let _ = input.parse::<Token![=]>()?;
-                        let value = input.parse::<LitInt>()?;
-                        Ok((name, value))
-                    },
-                    Token![,],
-                )?;
-                metric_thresholds = Some(thresholds.into_iter().collect());
-            } else if lookahead.peek(kw::verifier) {
-                verifier = input.parse()?;
-            } else if lookahead.peek(kw::skip_codegen) {
-                let _ = input.parse::<kw::skip_codegen>()?;
-                skip_codegen = true;
-            } else if lookahead.peek(Token![,]) {
-                let _ = input.parse::<Token![,]>()?;
-            } else {
-                return Err(lookahead.error());
-            }
-        }
-
-        // Validation logic
-        let report_type = report_type
-            .ok_or_else(|| input.error("Missing `type` argument in report attribute"))?;
-
-        if params.is_empty() {
-            return Err(input.error("Missing `params` argument in report attribute"));
-        }
-
-        let result =
-            result.ok_or_else(|| input.error("Missing `result` argument in report attribute"))?;
-
-        match report_type {
-            ReportType::Job => {
-                if job_id.is_none() {
-                    return Err(input.error("Missing `job_id` for job report"));
-                }
-            }
-            ReportType::QoS => {
-                if interval.is_none() {
-                    return Err(input.error("Missing `interval` for QoS report"));
-                }
-                if job_id.is_some() {
-                    return Err(input.error("Unexpected `job_id` for QoS report"));
-                }
-            }
-        }
-
-        Ok(ReportArgs {
-            params,
-            result,
-            report_type,
-            job_id,
-            interval,
-            metric_thresholds,
-            verifier,
-            skip_codegen,
-        })
-    }
-}
-
-impl ReportArgs {
-    fn params_to_field_types(
-        &self,
-        param_types: &BTreeMap<Ident, Type>,
-    ) -> syn::Result<Vec<FieldType>> {
-        let params = self
-            .params
-            .iter()
-            .map(|ident| {
-                param_types.get(ident).ok_or_else(|| {
-                    syn::Error::new_spanned(ident, "parameter not declared in the function")
-                })
-            })
-            .map(|ty| type_to_field_type(ty?))
-            .collect::<syn::Result<Vec<_>>>()?;
-        Ok(params)
-    }
-
-    fn result_to_field_types(&self, result: &Type) -> syn::Result<Vec<FieldType>> {
-        match &self.result {
-            ResultsKind::Infered => type_to_field_type(result).map(|x| vec![x]),
-            ResultsKind::Types(types) => {
-                let xs = types
-                    .iter()
-                    .map(type_to_field_type)
-                    .collect::<syn::Result<Vec<_>>>()?;
-                Ok(xs)
-            }
-        }
-    }
 }
 
 /// Implements the core functionality of the `report` attribute macro.
@@ -286,6 +130,190 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
     Ok(gen.into())
 }
 
+/// `ReportArgs` type to handle parsing of attributes for the `report` macro.
+pub(crate) struct ReportArgs {
+    /// List of parameters for the report, in order.
+    /// `#[report(params(a, b, c))]`
+    params: Vec<Ident>,
+    /// List of return types for the report, could be inferred from the function return type.
+    /// `#[report(result(u32, u64))]`
+    /// `#[report(result(_))]`
+    result: ResultsKind,
+    /// Type of the report, either `job` or `qos`.
+    /// `#[report(report_type = "job")]`
+    report_type: ReportType,
+    /// Optional: Unique identifier for the job in the blueprint.
+    /// `#[report(job_id = 1)]`
+    job_id: Option<LitInt>,
+    /// Optional: Interval for the report.
+    /// `#[report(interval = 10)]`
+    interval: Option<LitInt>,
+    /// Optional: Metric thresholds for the report.
+    /// `#[report(metric_thresholds(a = 10, b = 20))]`
+    metric_thresholds: Option<Vec<(Ident, LitInt)>>,
+    /// Optional: Verifier for the report result, currently only supports EVM verifier.
+    /// `#[report(verifier(evm = "MyVerifierContract"))]`
+    verifier: Verifier,
+    /// Optional: Event handler type for the report.
+    /// `#[report(event_handler_type = "tangle")]`
+    #[allow(dead_code)]
+    event_handler_type: EventHandlerType,
+    /// Optional: Skip code generation for this report.
+    /// `#[report(skip_codegen)]`
+    /// This is useful if the developer wants to implement a custom event handler for this report.
+    skip_codegen: bool,
+}
+
+/// Parses the arguments provided to the `report` attribute macro.
+impl Parse for ReportArgs {
+    #[allow(clippy::too_many_lines)]
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut params = Vec::new();
+        let mut result = None;
+        let mut report_type = None;
+        let mut job_id = None;
+        let mut interval = None;
+        let mut metric_thresholds = None;
+        let mut verifier = Verifier::None;
+        let mut event_handler_type = EventHandlerType::Tangle;
+        let mut skip_codegen = false;
+
+        while !input.is_empty() {
+            let lookahead = input.lookahead1();
+            if lookahead.peek(kw::params) {
+                let _ = input.parse::<kw::params>()?;
+                let content;
+                parenthesized!(content in input);
+                params = content
+                    .parse_terminated(Ident::parse, Token![,])?
+                    .into_iter()
+                    .collect();
+            } else if lookahead.peek(kw::result) {
+                let Results(r) = input.parse()?;
+                result = Some(r);
+            } else if lookahead.peek(kw::report_type) {
+                let _ = input.parse::<kw::report_type>()?;
+                let _ = input.parse::<Token![=]>()?;
+                let type_str: LitStr = input.parse()?;
+                report_type = Some(match type_str.value().as_str() {
+                    "job" => ReportType::Job,
+                    "qos" => ReportType::QoS,
+                    _ => {
+                        return Err(syn::Error::new(
+                            type_str.span(),
+                            "Invalid report type. Expected 'job' or 'qos'.",
+                        ))
+                    }
+                });
+            } else if lookahead.peek(kw::job_id) {
+                let _ = input.parse::<kw::job_id>()?;
+                let _ = input.parse::<Token![=]>()?;
+                job_id = Some(input.parse::<LitInt>()?);
+            } else if lookahead.peek(kw::interval) {
+                let _ = input.parse::<kw::interval>()?;
+                let _ = input.parse::<Token![=]>()?;
+                interval = Some(input.parse::<LitInt>()?);
+            } else if lookahead.peek(kw::metric_thresholds) {
+                let _ = input.parse::<kw::metric_thresholds>()?;
+                let content;
+                parenthesized!(content in input);
+                let thresholds = content.parse_terminated(
+                    |input| {
+                        let name = input.parse::<Ident>()?;
+                        let _ = input.parse::<Token![=]>()?;
+                        let value = input.parse::<LitInt>()?;
+                        Ok((name, value))
+                    },
+                    Token![,],
+                )?;
+                metric_thresholds = Some(thresholds.into_iter().collect());
+            } else if lookahead.peek(kw::verifier) {
+                verifier = input.parse()?;
+            } else if lookahead.peek(kw::event_handler_type) {
+                event_handler_type = input.parse()?;
+            } else if lookahead.peek(kw::skip_codegen) {
+                let _ = input.parse::<kw::skip_codegen>()?;
+                skip_codegen = true;
+            } else if lookahead.peek(Token![,]) {
+                let _ = input.parse::<Token![,]>()?;
+            } else {
+                return Err(lookahead.error());
+            }
+        }
+
+        // Validation logic
+        let report_type = report_type
+            .ok_or_else(|| input.error("Missing `type` argument in report attribute"))?;
+
+        if params.is_empty() {
+            return Err(input.error("Missing `params` argument in report attribute"));
+        }
+
+        let result =
+            result.ok_or_else(|| input.error("Missing `result` argument in report attribute"))?;
+
+        match report_type {
+            ReportType::Job => {
+                if job_id.is_none() {
+                    return Err(input.error("Missing `job_id` for job report"));
+                }
+            }
+            ReportType::QoS => {
+                if interval.is_none() {
+                    return Err(input.error("Missing `interval` for QoS report"));
+                }
+                if job_id.is_some() {
+                    return Err(input.error("Unexpected `job_id` for QoS report"));
+                }
+            }
+        }
+
+        Ok(ReportArgs {
+            params,
+            result,
+            report_type,
+            job_id,
+            interval,
+            metric_thresholds,
+            verifier,
+            event_handler_type,
+            skip_codegen,
+        })
+    }
+}
+
+impl ReportArgs {
+    fn params_to_field_types(
+        &self,
+        param_types: &BTreeMap<Ident, Type>,
+    ) -> syn::Result<Vec<FieldType>> {
+        let params = self
+            .params
+            .iter()
+            .map(|ident| {
+                param_types.get(ident).ok_or_else(|| {
+                    syn::Error::new_spanned(ident, "parameter not declared in the function")
+                })
+            })
+            .map(|ty| type_to_field_type(ty?))
+            .collect::<syn::Result<Vec<_>>>()?;
+        Ok(params)
+    }
+
+    fn result_to_field_types(&self, result: &Type) -> syn::Result<Vec<FieldType>> {
+        match &self.result {
+            ResultsKind::Infered => type_to_field_type(result).map(|x| vec![x]),
+            ResultsKind::Types(types) => {
+                let xs = types
+                    .iter()
+                    .map(type_to_field_type)
+                    .collect::<syn::Result<Vec<_>>>()?;
+                Ok(xs)
+            }
+        }
+    }
+}
+
 /// Generates an event handler for job reports.
 ///
 /// This function creates a struct that listens for job result submissions
@@ -324,7 +352,7 @@ fn generate_job_report_event_handler(
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
+        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
             async fn can_handle_events(
                 &self,
                 events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
@@ -404,7 +432,7 @@ fn generate_qos_report_event_handler(
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
+        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
             async fn can_handle_events(
                 &self,
                 _events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
@@ -507,6 +535,29 @@ impl Parse for Verifier {
             Ok(Verifier::Evm(contract.value()))
         } else {
             Ok(Verifier::None)
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum EventHandlerType {
+    Tangle,
+    Evm,
+}
+
+impl Parse for EventHandlerType {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let _ = input.parse::<kw::event_handler_type>()?;
+        let content;
+        let _ = syn::parenthesized!(content in input);
+        let s = content.parse::<LitStr>()?;
+        match s.value().as_str() {
+            "tangle" => Ok(EventHandlerType::Tangle),
+            "evm" => Ok(EventHandlerType::Evm),
+            _ => Err(syn::Error::new_spanned(
+                s,
+                "Expected `tangle` or `evm` as event handler type",
+            )),
         }
     }
 }

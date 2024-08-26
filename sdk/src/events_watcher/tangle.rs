@@ -7,7 +7,7 @@ pub struct TangleEventsWatcher;
 pub type TangleConfig = subxt::PolkadotConfig;
 
 #[async_trait::async_trait]
-impl super::SubstrateEventWatcher<TangleConfig> for TangleEventsWatcher {
+impl super::substrate::SubstrateEventWatcher<TangleConfig> for TangleEventsWatcher {
     const TAG: &'static str = "tangle";
     const PALLET_NAME: &'static str = "Services";
 }

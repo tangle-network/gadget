@@ -13,15 +13,19 @@
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
-mod blueprint;
 /// Blueprint Hooks proc-macro
 mod hooks;
 /// Blueprint Job proc-macro
 mod job;
 /// Report proc-macro
 mod report;
-/// Utilities for the Blueprint Macros
-mod utils;
+/// Shared utilities for the Blueprint Macros
+mod shared;
+
+/// Utilities for Eigenlayer Blueprint macro generation
+mod eigenlayer;
+/// Utilities for Tangle Blueprint macro generation
+mod tangle;
 
 /// A procedural macro that annotates a function as a job.
 ///

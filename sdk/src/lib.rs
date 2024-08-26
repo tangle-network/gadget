@@ -3,8 +3,7 @@
     missing_copy_implementations,
     unsafe_code,
     unstable_features,
-    unused_results,
-    clippy::exhaustive_enums
+    unused_results
 )]
 //! Gadget SDK
 
@@ -26,6 +25,9 @@ pub mod events_watcher;
 
 /// Gadget Environment Module
 pub mod env;
+
+/// Local database storage
+pub mod store;
 
 /// Transaction Management Module
 pub mod tx;
