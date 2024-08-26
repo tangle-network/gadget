@@ -277,11 +277,12 @@ async fn get_latest_event_from_client<Env: GadgetEnvironment>(
         })
 }
 
-/// Generates a run function that returns a future that runs all the supplied protocols run concurrently.
+/// Generates a `run` and `setup_node` function that runs all the protocols concurrently
 ///
-/// It also generates a setup_node function that sets up the future that runs all the protocols concurrently.
-#[allow(clippy::crate_in_macro_def)]
+/// - `run`: runs all the protocols concurrently
+/// - `setup_node`: sets up a future that runs all the protocols concurrently
 #[macro_export]
+#[allow(clippy::crate_in_macro_def)]
 macro_rules! generate_setup_and_run_command {
     ($( $config:ident ),*) => {
         /// Sets up a future that runs all the protocols concurrently
