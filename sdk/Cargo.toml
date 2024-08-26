@@ -11,10 +11,11 @@ license.workspace = true
 
 [dependencies]
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
-hex = { workspace = true }
+getrandom = { workspace = true }
+hex = { workspace = true, features = ["alloc"] }
+lock_api = { workspace = true }
 parking_lot = { workspace = true }
-rand_core = { workspace = true }
-rand = { workspace = true, optional = true }
+rand = { version = "0.8", default-features = false, features = ["alloc"] }
 thiserror = { workspace = true }
 
 # Keystore deps
@@ -56,29 +57,24 @@ gadget-blueprint-proc-macro = { workspace = true }
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
 features = [
-  "tokio",
-  "gossipsub",
-  "mdns",
-  "noise",
-  "macros",
-  "yamux",
-  "tcp",
-  "quic",
-  "request-response",
-  "cbor",
-  "identify",
-  "kad",
-  "dcutr",
-  "relay",
-  "ping",
-  "dns",
-  "autonat"
+    "tokio",
+    "gossipsub",
+    "mdns",
+    "noise",
+    "macros",
+    "yamux",
+    "tcp",
+    "quic",
+    "request-response",
+    "cbor",
+    "identify",
+    "kad",
+    "dcutr",
+    "relay",
+    "ping",
+    "dns",
+    "autonat"
 ]
-
-# WASM-only deps
-[target.'cfg(all(any(target_arch = "wasm32", target_arch = "wasm64"), target_os = "unknown"))'.dependencies]
-getrandom = { workspace = true, features = ["js"] }
-libp2p = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 hyper = { workspace = true, features = ["client"] }
@@ -89,14 +85,15 @@ hyper = { workspace = true, features = ["client"] }
 [features]
 default = ["std"]
 std = [
-  "alloc",
-  "rand",
-  "getrandom",
-  "hex/std",
-  "sp-io/std",
+    "getrandom",
+    "hex/std",
+    "rand/std",
+    "rand/std_rng",
+    "sp-io/std",
 ]
-alloc = ["rand_core/alloc", "hex/alloc"]
-wasm = []
+wasm = [
+    "getrandom/js",
+]
 
 # Randomness
-getrandom = ["rand_core/getrandom"]
+getrandom = ["rand/getrandom"]

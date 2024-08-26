@@ -6,7 +6,7 @@
 //! Currently, we support different backends:
 //!
 //! - `memory`: A simple in-memory storage (enabled by default)
-//! - `file`: A storage that saves the keys to a file (`keystore-fs` feature)
+//! - `file`: A storage that saves the keys to a file (`std` feature, enabled by default)
 //! - `kms`: A storage that uses a AWS Key Management System (`keystore-kms` feature)*
 //! - `substrate`: Uses Substrate's Framework keystore (`keystore-substrate` feature)*
 //! and a lot more to be added in the future.
@@ -24,20 +24,21 @@
 
 /// Backend modules
 pub mod backend;
+
 /// BLS381 Support
-mod bls381;
+pub mod bls381;
 
 /// ECDSA Support
-mod ecdsa;
+pub mod ecdsa;
 
 /// Ed25519 Support
-mod ed25519;
+pub mod ed25519;
 
 /// Keystore errors module
-mod error;
+pub mod error;
 
 /// Schnorrkel Support
-mod sr25519;
+pub mod sr25519;
 
 pub use error::Error;
 
