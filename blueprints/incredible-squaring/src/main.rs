@@ -5,18 +5,14 @@ use alloy_signer::k256::ecdsa::SigningKey;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
 use gadget_sdk::{
-    env::Protocol,
-    events_watcher::{
+    env::Protocol, events_watcher::{
         evm::{Config, EventWatcher},
         tangle::TangleEventsWatcher,
         SubstrateEventWatcher,
-    },
-    keystore::Backend,
-    tangle_subxt::tangle_testnet_runtime::api::{
+    }, keystore::Backend, tangle_subxt::tangle_testnet_runtime::api::{
         self,
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
-    },
-    tx,
+    }, tx
 };
 
 use incredible_squaring_blueprint::{self as blueprint, IncredibleSquaringTaskManager};
@@ -137,6 +133,9 @@ impl GadgetRunner for EigenlayerGadgetRunner {
             .with_recommended_fillers()
             .wallet(wallet)
             .on_http(env.rpc_endpoint);
+
+
+        let network: network
         let x_square_eigen = blueprint::XsquareEigenEventHandler {
             ctx: blueprint::MyContext {
                 network: Default::default(),

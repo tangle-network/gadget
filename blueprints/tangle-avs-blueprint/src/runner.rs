@@ -22,3 +22,13 @@ pub async fn run_tangle_validator() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_validator() {
+        run_tangle_validator().await.unwrap();
+    }
+}

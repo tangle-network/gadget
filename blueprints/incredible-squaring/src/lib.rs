@@ -2,7 +2,7 @@ use alloy_primitives::{Bytes, U256};
 use alloy_sol_types::sol;
 use eigensdk_rs::eigen_utils::crypto::bls::Signature;
 use gadget_common::{module::network::Network, subxt_signer::bip39::serde::Serialize};
-use gadget_sdk::{job, keystore::ecdsa, network::gossip::GossipHandle, store::LocalDatabase};
+use gadget_sdk::{job, keystore::{backend::GenericKeyStore, ecdsa}, network::gossip::GossipHandle, store::LocalDatabase};
 use std::{collections::HashMap, convert::Infallible};
 use IncredibleSquaringTaskManager::{
     respondToTaskCall, G1Point, G2Point, NonSignerStakesAndSignature, Task, TaskResponse,
@@ -28,8 +28,9 @@ sol!(
 );
 
 #[derive(Clone)]
-pub struct MyContext {
+pub struct MyContext<RwLock: lock_api::RawRwLock> {
     pub network: GossipHandle,
+    pub keystore: GenericKeyStore<RwLock>
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

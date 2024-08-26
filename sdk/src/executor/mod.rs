@@ -1,8 +1,8 @@
 #![allow(dead_code)]
-use crate::process::manager::GadgetProcessManager;
-use crate::process::types::GadgetInstructionData;
-use crate::process::types::{CommandOrSequence, ProcessOutput};
-use crate::process::utils::*;
+use crate::executor::process::manager::GadgetProcessManager;
+use crate::executor::process::types::GadgetInstructionData;
+use crate::executor::process::types::{CommandOrSequence, ProcessOutput};
+use crate::executor::process::utils::*;
 use std::error::Error;
 
 mod process;
@@ -76,10 +76,5 @@ mod tests {
             ]
         }"#;
         run_executor(the_file).await;
-    }
-
-    #[tokio::test]
-    async fn test_validator() {
-        run_tangle_validator().await.unwrap();
     }
 }
