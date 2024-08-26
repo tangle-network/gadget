@@ -12,7 +12,7 @@ pub enum Protocol {
 /// Gadget environment.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub struct GadgetEnvironment<RwLock: lock_api::RawRwLock> {
+pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     /// Tangle RPC endpoint.
     pub rpc_endpoint: String,
     /// Keystore URI
@@ -99,23 +99,29 @@ pub enum Error {
 ///
 /// This function will return an error if any of the required environment variables are missing.
 #[cfg(feature = "std")]
-pub fn load() -> Result<GadgetEnvironment<parking_lot::RawRwLock>, Error> {
-    load_with_lock::<parking_lot::RawRwLock>()
+pub fn load(
+    protocol: Option<Protocol>,
+) -> Result<GadgetConfiguration<parking_lot::RawRwLock>, Error> {
+    load_with_lock::<parking_lot::RawRwLock>(protocol)
 }
 
-/// Loads the [`GadgetEnvironment`] from the current environment.
+/// Loads the [`GadgetConfiguration`] from the current environment.
 ///
 /// This allows callers to specify the `RwLock` implementation to use.
 ///
 /// # Errors
 ///
 /// This function will return an error if any of the required environment variables are missing.
-pub fn load_with_lock<RwLock: lock_api::RawRwLock>() -> Result<GadgetEnvironment<RwLock>, Error> {
-    load_inner::<RwLock>()
+pub fn load_with_lock<RwLock: lock_api::RawRwLock>(
+    protocol: Option<Protocol>,
+) -> Result<GadgetConfiguration<RwLock>, Error> {
+    load_inner::<RwLock>(protocol)
 }
 
 #[cfg(feature = "std")]
-fn load_inner<RwLock: lock_api::RawRwLock>() -> Result<GadgetEnvironment<RwLock>, Error> {
+fn load_inner<RwLock: lock_api::RawRwLock>(
+    protocol: Option<Protocol>,
+) -> Result<GadgetConfiguration<RwLock>, Error> {
     let is_registration = std::env::var("REGISTRATION_MODE_ON").is_ok();
     Ok(GadgetConfiguration {
         rpc_endpoint: std::env::var("RPC_URL").map_err(|_| Error::MissingTangleRpcEndpoint)?,
@@ -143,11 +149,11 @@ fn load_inner<RwLock: lock_api::RawRwLock>() -> Result<GadgetEnvironment<RwLock>
 }
 
 #[cfg(not(feature = "std"))]
-pub fn load_inner<RwLock: lock_api::RawRwLock>() -> Result<GadgetEnvironment<RwLock>, Error> {
+pub fn load_inner<RwLock: lock_api::RawRwLock>() -> Result<GadgetConfiguration<RwLock>, Error> {
     unimplemented!("Implement loading env for no_std")
 }
 
-impl<RwLock: lock_api::RawRwLock> GadgetEnvironment<RwLock> {
+impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// Loads the `KeyStore` from the current environment.
     ///
     /// # Errors

@@ -3,8 +3,7 @@
     missing_copy_implementations,
     unsafe_code,
     unstable_features,
-    unused_results,
-    clippy::exhaustive_enums
+    unused_results
 )]
 //! Gadget SDK
 
