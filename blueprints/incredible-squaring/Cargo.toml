@@ -7,6 +7,7 @@ edition.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
+spec_version.workspace = true
 
 [[bin]]
 name = "incredible-squaring-gadget"
@@ -22,6 +23,16 @@ color-eyre = { workspace = true, optional = true }
 tokio = { workspace = true, default-features = false, features = ["full"], optional = true }
 subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"], optional = true }
 tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"], optional = true }
+
+alloy-contract = { workspace = true }
+alloy-network = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-signer-local = { workspace = true }
+alloy-sol-types = { workspace = true, features = ["json"] }
+alloy-transport = { workspace = true }
 
 [build-dependencies]
 blueprint-metadata = { workspace = true }

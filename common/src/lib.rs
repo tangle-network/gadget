@@ -80,9 +80,7 @@ pub use tangle_subxt;
 pub mod tangle_runtime {
     pub use tangle_subxt::subxt::utils::AccountId32;
     pub use tangle_subxt::tangle_testnet_runtime::api;
-    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::{
-        bounded_collections::bounded_vec::BoundedVec,
-    };
+    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 }
 
 pub mod channels;

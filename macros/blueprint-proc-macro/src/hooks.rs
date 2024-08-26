@@ -39,7 +39,7 @@ pub(crate) fn registration_hook_impl(
 
     let params = param_types
         .values()
-        .map(crate::utils::type_to_field_type)
+        .map(crate::shared::type_to_field_type)
         .collect::<syn::Result<Vec<_>>>()?;
 
     let hook = match args {
@@ -97,7 +97,7 @@ pub(crate) fn request_hook_impl(
 
     let params = param_types
         .values()
-        .map(crate::utils::type_to_field_type)
+        .map(crate::shared::type_to_field_type)
         .collect::<syn::Result<Vec<_>>>()?;
 
     let hook = match args {

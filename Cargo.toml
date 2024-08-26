@@ -66,7 +66,7 @@ cargo_metadata = { version = "0.18.1" }
 pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
 pallet-services-rpc = { git = "https://github.com/webb-tools/tangle.git" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
-tangle-subxt = { version = "0.1.4", default-features = false }
+tangle-subxt = { version = "0.1.5", default-features = false }
 
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
@@ -248,6 +248,8 @@ tracing-log = { version = "0.2", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
 tracing-wasm = { version = "0.2.1" }
 tree_magic_mini = "3.1.5"
+spec_version = "0.1.0"
+derive_more = { version = "1.0.0", features = ["display"] }
 trybuild = "1.0"
 tsify = "0.4.5"
 typed-builder = "0.19"
