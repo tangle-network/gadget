@@ -22,7 +22,7 @@ gadget-sdk = { workspace = true, features = ["std"] }
 gadget-common = { workspace = true, features = ["std"] }
 
 color-eyre = { workspace = true, optional = true }
-lock-api = { workspace = true }
+lock_api = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["full"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

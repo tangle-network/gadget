@@ -8051,6 +8051,7 @@ dependencies = [
  "eigensdk-rs",
  "gadget-common 0.1.0",
  "gadget-sdk",
+ "lock_api",
  "serde",
  "serde_json",
  "subxt-signer",

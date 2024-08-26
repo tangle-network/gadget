@@ -5,14 +5,22 @@ use alloy_signer::k256::ecdsa::SigningKey;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
 use gadget_sdk::{
-    env::Protocol, events_watcher::{
+    env::Protocol,
+    events_watcher::{
         evm::{Config, EventWatcher},
         tangle::TangleEventsWatcher,
         SubstrateEventWatcher,
-    }, keystore::Backend, tangle_subxt::tangle_testnet_runtime::api::{
+    },
+    keystore::Backend,
+    network::{
+        gossip::NetworkService,
+        setup::{start_p2p_network, NetworkConfig},
+    },
+    tangle_subxt::tangle_testnet_runtime::api::{
         self,
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
-    }, tx
+    },
+    tx,
 };
 
 use incredible_squaring_blueprint::{self as blueprint, IncredibleSquaringTaskManager};
@@ -134,11 +142,22 @@ impl GadgetRunner for EigenlayerGadgetRunner {
             .wallet(wallet)
             .on_http(env.rpc_endpoint);
 
-
-        let network: network
+        // TODO: Fill in and find the correct values for the network configuration
+        // TODO: Implementations for reading set of operators from Tangle & Eigenlayer
+        let network_config: NetworkConfig = NetworkConfig {
+            identity: todo!(),
+            role_key: todo!(),
+            bootnodes: todo!(),
+            bind_ip: todo!(),
+            bind_port: todo!(),
+            topics: todo!(),
+            logger: todo!(),
+        };
+        let network: GossipHandle = start_p2p_network(network_config);
         let x_square_eigen = blueprint::XsquareEigenEventHandler {
             ctx: blueprint::MyContext {
-                network: Default::default(),
+                network,
+                keystore,
             },
         };
 
