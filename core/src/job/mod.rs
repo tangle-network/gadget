@@ -96,31 +96,33 @@ where
 }
 
 #[cfg(test)]
-#[cfg(not(target_family = "wasm"))]
+#[cfg(feature = "std")]
 mod tests {
     use crate::job::builder::JobBuilder;
     use crate::job::ExecutableJob;
+    use alloc::sync::Arc;
+    use core::sync::atomic::{AtomicUsize, Ordering};
     use gadget_io::tokio;
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_executable_job_wrapper_proceed() {
-        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::new(AtomicUsize::new(0));
         let counter_clone = counter.clone();
         let counter_clone2 = counter.clone();
         let counter_final = counter.clone();
 
         let pre = async move {
-            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            counter.fetch_add(1, Ordering::SeqCst);
             Ok(super::ProceedWithExecution::True)
         };
 
         let protocol = async move {
-            counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            counter_clone.fetch_add(1, Ordering::SeqCst);
             Ok(())
         };
 
         let post = async move {
-            counter_clone2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            counter_clone2.fetch_add(1, Ordering::SeqCst);
             Ok(())
         };
 
@@ -128,28 +130,28 @@ mod tests {
 
         let mut job = super::ExecutableJobWrapper::new(pre, protocol, post, catch);
         job.execute().await.unwrap();
-        assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 3);
+        assert_eq!(counter_final.load(Ordering::SeqCst), 3);
     }
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_executable_job_wrapper_no_proceed() {
-        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::new(AtomicUsize::new(0));
         let counter_clone = counter.clone();
         let counter_clone2 = counter.clone();
         let counter_final = counter.clone();
 
         let pre = async move {
-            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            counter.fetch_add(1, Ordering::SeqCst);
             Ok(super::ProceedWithExecution::False)
         };
 
         let protocol = async move {
-            counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            counter_clone.fetch_add(1, Ordering::SeqCst);
             Ok(())
         };
 
         let post = async move {
-            counter_clone2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            counter_clone2.fetch_add(1, Ordering::SeqCst);
             Ok(())
         };
 
@@ -157,120 +159,120 @@ mod tests {
 
         let mut job = super::ExecutableJobWrapper::new(pre, protocol, post, catch);
         job.execute().await.unwrap();
-        assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(counter_final.load(Ordering::SeqCst), 1);
     }
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_job_builder() {
-        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::new(AtomicUsize::new(0));
         let counter_clone = counter.clone();
         let counter_clone2 = counter.clone();
         let counter_final = counter.clone();
 
         let mut job = JobBuilder::new()
             .pre(async move {
-                counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                counter.fetch_add(1, Ordering::SeqCst);
                 Ok(super::ProceedWithExecution::True)
             })
             .protocol(async move {
-                counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                counter_clone.fetch_add(1, Ordering::SeqCst);
                 Ok(())
             })
             .post(async move {
-                counter_clone2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                counter_clone2.fetch_add(1, Ordering::SeqCst);
                 Ok(())
             })
             .build();
 
         job.execute().await.unwrap();
-        assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 3);
+        assert_eq!(counter_final.load(Ordering::SeqCst), 3);
     }
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_job_builder_no_pre() {
-        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::new(AtomicUsize::new(0));
         let counter_clone = counter.clone();
         let counter_clone2 = counter.clone();
         let counter_final = counter.clone();
 
         let mut job = JobBuilder::default()
             .protocol(async move {
-                counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                counter_clone.fetch_add(1, Ordering::SeqCst);
                 Ok(())
             })
             .post(async move {
-                counter_clone2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                counter_clone2.fetch_add(1, Ordering::SeqCst);
                 Ok(())
             })
             .build();
 
         job.execute().await.unwrap();
-        assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert_eq!(counter_final.load(Ordering::SeqCst), 2);
     }
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_job_builder_no_post() {
-        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::new(AtomicUsize::new(0));
         let counter_clone = counter.clone();
         let counter_final = counter.clone();
 
         let mut job = JobBuilder::default()
             .pre(async move {
-                counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                counter.fetch_add(1, Ordering::SeqCst);
                 Ok(super::ProceedWithExecution::True)
             })
             .protocol(async move {
-                counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                counter_clone.fetch_add(1, Ordering::SeqCst);
                 Ok(())
             })
             .build();
 
         job.execute().await.unwrap();
-        assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert_eq!(counter_final.load(Ordering::SeqCst), 2);
     }
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_job_builder_no_pre_no_post() {
-        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::new(AtomicUsize::new(0));
         let counter_clone = counter.clone();
         let counter_final = counter.clone();
 
         let mut job = JobBuilder::default()
             .protocol(async move {
-                counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                counter_clone.fetch_add(1, Ordering::SeqCst);
                 Ok(())
             })
             .build();
 
         job.execute().await.unwrap();
-        assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(counter_final.load(Ordering::SeqCst), 1);
     }
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_protocol_err_catch_performs_increment() {
-        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::new(AtomicUsize::new(0));
         let counter_clone = counter.clone();
         let counter_clone2 = counter.clone();
         let counter_final = counter.clone();
 
         let pre = async move {
-            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            counter.fetch_add(1, Ordering::SeqCst);
             Ok(super::ProceedWithExecution::True)
         };
 
         let protocol = async move {
-            counter_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            counter_clone.fetch_add(1, Ordering::SeqCst);
             Err(super::JobError::from("Protocol error"))
         };
 
         let post = async move { unreachable!("Post should not be called") };
 
         let catch = async move {
-            counter_clone2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            counter_clone2.fetch_add(1, Ordering::SeqCst);
         };
 
         let mut job = super::ExecutableJobWrapper::new(pre, protocol, post, catch);
         job.execute().await.unwrap_err();
-        assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 3);
+        assert_eq!(counter_final.load(Ordering::SeqCst), 3);
     }
 }
