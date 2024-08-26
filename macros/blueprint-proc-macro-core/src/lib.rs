@@ -1,5 +1,3 @@
-#![allow(clippy::too_long_first_doc_paragraph)]
-
 type BlueprintString<'a> = std::borrow::Cow<'a, str>;
 /// A type that represents an EVM Address.
 pub type Address = ethereum_types::H160;
