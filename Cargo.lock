@@ -15410,7 +15410,6 @@ dependencies = [
  "blueprint-metadata 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "color-eyre",
  "gadget-sdk",
- "tangle-avs",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.18",

@@ -155,10 +155,7 @@ impl GadgetRunner for EigenlayerGadgetRunner {
         };
         let network: GossipHandle = start_p2p_network(network_config);
         let x_square_eigen = blueprint::XsquareEigenEventHandler {
-            ctx: blueprint::MyContext {
-                network,
-                keystore,
-            },
+            ctx: blueprint::MyContext { network, keystore },
         };
 
         let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::<

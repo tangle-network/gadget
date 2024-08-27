@@ -299,7 +299,6 @@ wasmtimer = "0.2"
 
 # Eigenlayer
 eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git" }
-tangle-avs = { git = "https://github.com/webb-tools/eigensdk-rs.git" }
 
 [profile.dev.package.backtrace]
 opt-level = 3

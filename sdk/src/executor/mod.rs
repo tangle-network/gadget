@@ -3,7 +3,6 @@ use crate::executor::process::manager::GadgetProcessManager;
 use crate::executor::process::types::GadgetInstructionData;
 use crate::executor::process::types::{CommandOrSequence, ProcessOutput};
 use crate::executor::process::utils::*;
-use std::error::Error;
 
 mod process;
 

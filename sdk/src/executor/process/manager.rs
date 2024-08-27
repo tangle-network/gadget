@@ -1,6 +1,7 @@
-use crate::process::types::{GadgetProcess, ProcessOutput, Status};
-use crate::process::utils::*;
-use crate::{craft_child_process, run_command, OS_COMMAND};
+use crate::executor::process::types::{GadgetProcess, ProcessOutput, Status};
+use crate::executor::process::utils::*;
+use crate::executor::OS_COMMAND;
+use crate::{craft_child_process, run_command};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
@@ -45,6 +46,7 @@ impl GadgetProcessManager {
     }
 
     /// Runs the given command and stores it using the identifier as the key. Returns the identifier used
+    #[allow(unused_results)]
     pub(crate) async fn run(
         &mut self,
         identifier: String,
@@ -129,7 +131,7 @@ impl GadgetProcessManager {
 
     /// Finds all dead processes that still exist in map and starts them again. This function
     /// is used to restart all processes after loading a Manager from a file.
-    #[allow(dead_code)]
+    #[allow(unused_results)]
     pub(crate) async fn restart_dead(&mut self) -> Result<(), Box<dyn Error>> {
         let mut restarted_processes = Vec::new();
         let mut to_remove = Vec::new();

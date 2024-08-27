@@ -1,5 +1,6 @@
 use crate::executor::process::utils::*;
-use crate::executor::{craft_child_process, run_command, OS_COMMAND};
+use crate::executor::OS_COMMAND;
+use crate::{craft_child_process, run_command};
 use failure::format_err;
 use nix::libc::pid_t;
 use nix::sys::signal;
