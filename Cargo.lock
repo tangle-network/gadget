@@ -1727,6 +1727,7 @@ dependencies = [
 name = "blueprint-manager"
 version = "0.1.1"
 dependencies = [
+ "auto_impl",
  "color-eyre",
  "futures",
  "gadget-common",
@@ -7400,7 +7401,6 @@ dependencies = [
 [[package]]
 name = "pallet-services"
 version = "2.0.0"
-source = "git+https://github.com/webb-tools/tangle.git#5b067650320f53cca8ac685aa56f1c13f4cb484c"
 dependencies = [
  "ethabi",
  "fp-evm",
@@ -11754,7 +11754,6 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "2.0.0"
-source = "git+https://github.com/webb-tools/tangle.git#5b067650320f53cca8ac685aa56f1c13f4cb484c"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -11781,9 +11780,7 @@ dependencies = [
 
 [[package]]
 name = "tangle-subxt"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5dea1c930b6e54193425aa5d4c734b5daad55ca60f9494c9fae153f22f4343c"
+version = "0.1.5"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "scale-info",

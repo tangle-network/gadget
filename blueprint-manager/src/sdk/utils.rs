@@ -6,7 +6,9 @@ use sha2::Digest;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GithubFetcher;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
+    GadgetBinary, GithubFetcher,
+};
 
 pub fn github_fetcher_to_native_github_metadata(
     gh: &GithubFetcher,
@@ -88,34 +90,22 @@ pub fn get_formatted_os_string() -> String {
     }
 }
 
-pub fn get_download_url<T: Into<String>>(git: T, tag: &str) -> String {
+pub fn get_download_url<T: Into<String>>(binary: &GadgetBinary, fetcher: &GithubFetcher) -> String {
     let os = get_formatted_os_string();
-    let arch = std::env::consts::ARCH;
-
-    let mut git = git.into();
-
-    // Ensure the first part of the url ends with `/`
-    if git.ends_with(".git") {
-        git = git.replace(".git", "/")
-    }
-
-    if !git.ends_with('/') {
-        git.push('/')
-    }
-
     let ext = if os == "windows" { ".exe" } else { "" };
+    let owner = String::from_utf8(fetcher.owner.0 .0.clone()).expect("Should be a valid owner");
+    let repo = String::from_utf8(fetcher.repo.0 .0.clone()).expect("Should be a valid repo");
+    let tag = String::from_utf8(fetcher.tag.0 .0.clone()).expect("Should be a valid tag");
+    let binary_name =
+        String::from_utf8(binary.name.0 .0.clone()).expect("Should be a valid binary name");
+    let os_name = format!("{:?}", binary.os).to_lowercase();
+    let arch_name = format!("{:?}", binary.arch).to_lowercase();
     // https://github.com/<owner>/<repo>/releases/download/v<tag>/<path>
-    format!("{git}releases/download/v{tag}/protocol-{os}-{arch}{ext}")
+    format!("https://github.com/{owner}/{repo}/releases/download/v{tag}/{binary_name}-{os_name}-{arch_name}{ext}")
 }
 
 pub fn msg_to_error<T: Into<String>>(msg: T) -> color_eyre::Report {
     color_eyre::Report::msg(msg.into())
-}
-
-pub fn get_service_str(svc: &NativeGithubMetadata) -> String {
-    let repo = svc.git.clone();
-    let vals: Vec<&str> = repo.split(".com/").collect();
-    vals[1].to_string()
 }
 
 pub async fn chmod_x_file<P: AsRef<Path>>(path: P) -> color_eyre::Result<()> {
@@ -172,4 +162,11 @@ pub fn generate_running_process_status_handle(
 
 pub fn bytes_to_utf8_string<T: Into<Vec<u8>>>(input: T) -> color_eyre::Result<String> {
     String::from_utf8(input.into()).map_err(|err| msg_to_error(err.to_string()))
+}
+
+pub fn slice_32_to_sha_hex_string(hash: [u8; 32]) -> String {
+    hash.iter().fold(String::new(), |mut acc, byte| {
+        write!(&mut acc, "{:02x}", byte).expect("Should be able to write");
+        acc
+    })
 }
