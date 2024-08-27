@@ -82,7 +82,7 @@ impl Config {
                 .unwrap_or_default(),
             gadget: Gadget::Wasm(WasmGadget {
                 runtime: WasmRuntime::Wasmtime,
-                soruces: vec![],
+                sources: vec![],
             }),
         };
 

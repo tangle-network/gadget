@@ -1,17 +1,11 @@
 #![deny(
     missing_debug_implementations,
     missing_copy_implementations,
-    trivial_casts,
-    trivial_numeric_casts,
     unsafe_code,
     unstable_features,
-    unused_import_braces,
     unused_qualifications,
     missing_docs,
-    rustdoc::broken_intra_doc_links,
     unused_results,
-    clippy::all,
-    clippy::pedantic,
     clippy::exhaustive_enums
 )]
 //! Blueprint Macros
@@ -19,15 +13,21 @@
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
-mod blueprint;
+/// Benchmarking proc-macro
+mod benchmark;
 /// Blueprint Hooks proc-macro
 mod hooks;
 /// Blueprint Job proc-macro
 mod job;
 /// Report proc-macro
 mod report;
-/// Utilities for the Blueprint Macros
-mod utils;
+/// Shared utilities for the Blueprint Macros
+mod shared;
+
+/// Utilities for Eigenlayer Blueprint macro generation
+mod eigenlayer;
+/// Utilities for Tangle Blueprint macro generation
+mod tangle;
 
 /// A procedural macro that annotates a function as a job.
 ///
@@ -83,9 +83,9 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 }
 
+/// The `report` macro is used to annotate a function as a report handler for misbehaviors.
 ///
-/// The `report` macro is used to annotate a function as a report handler for misbehaviors. This macro generates
-/// the necessary code to handle events and process reports within the service blueprint. Reports are specifically
+/// This macro generates the necessary code to handle events and process reports within the service blueprint. Reports are specifically
 /// for submitting incorrect job results, attributable malicious behavior, or otherwise machine failures and reliability degradation.
 ///
 /// # Example
@@ -177,6 +177,27 @@ pub fn request_hook(args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ForeignItemFn);
     let args = parse_macro_input!(args as hooks::HookArgs);
     match hooks::request_hook_impl(&args, &input) {
+        Ok(tokens) => tokens,
+        Err(err) => err.to_compile_error().into(),
+    }
+}
+
+/// A procedural macro that annotates a function as a benchmark hook, mainly used
+/// during the benchmarking phase.
+///
+/// # Example
+/// ```rust,no_run
+/// # use gadget_blueprint_proc_macro::benchmark;
+/// #[benchmark(job_id = 1, cores = 4)]
+/// pub fn my_job() {
+///   // call your job with the necessary parameters
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn benchmark(args: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::ItemFn);
+    let args = parse_macro_input!(args as benchmark::BenchmarkArgs);
+    match benchmark::benchmark_impl(&args, &input) {
         Ok(tokens) => tokens,
         Err(err) => err.to_compile_error().into(),
     }

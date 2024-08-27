@@ -1,4 +1,5 @@
-//! When delivering messages to an async protocol, we want o make sure we don't mix up voting and public key gossip messages
+//! When delivering messages to an async protocol, we want o make sure we don't mix up voting and public key gossip messages;
+//!
 //! Thus, this file contains a function that takes a channel from the gadget to the async protocol and splits it into two channels
 use round_based::{Incoming, MessageDestination, MessageType, MsgId, Outgoing, PartyIndex};
 use serde::de::DeserializeOwned;

@@ -80,9 +80,7 @@ pub use tangle_subxt;
 pub mod tangle_runtime {
     pub use tangle_subxt::subxt::utils::AccountId32;
     pub use tangle_subxt::tangle_testnet_runtime::api;
-    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::{
-        bounded_collections::bounded_vec::BoundedVec,
-    };
+    pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 }
 
 pub mod channels;
@@ -282,10 +280,11 @@ async fn get_latest_event_from_client<Env: GadgetEnvironment>(
         })
 }
 
-#[macro_export]
-/// Generates a run function that returns a future that runs all the supplied protocols run concurrently
-/// Also generates a setup_node function that sets up the future that runs all the protocols concurrently
+/// Generates a run function that returns a future that runs all the supplied protocols run concurrently.
+///
+/// It also generates a setup_node function that sets up the future that runs all the protocols concurrently.
 #[allow(clippy::crate_in_macro_def)]
+#[macro_export]
 macro_rules! generate_setup_and_run_command {
     ($( $config:ident ),*) => {
         /// Sets up a future that runs all the protocols concurrently

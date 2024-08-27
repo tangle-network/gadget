@@ -17,9 +17,9 @@ members = [
     # Commented out, since it uses jobs-v1 code
     #"tangle-test-utils",
 
-  "macros/blueprint-proc-macro",
-  "macros/blueprint-proc-macro-core",
-  "macros/blueprint-proc-macro-playground",
+    "macros/blueprint-proc-macro",
+    "macros/blueprint-proc-macro-core",
+    "macros/blueprint-proc-macro-playground",
 ]
 exclude = ["tangle-test-utils", "example"]
 
@@ -30,12 +30,26 @@ license = "MIT OR Apache-2.0"
 homepage = "https://tangle.tools"
 repository = "https://github.com/webb-tools/gadget"
 
+[workspace.lints.rust]
+rust_2018_idioms = { level = "deny", priority = -1 }
+trivial_casts = "deny"
+trivial_numeric_casts = "deny"
+unused_import_braces = "deny"
+
+[workspace.lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+all = { level = "deny", priority = -1 }
+single_match_else = "allow"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+
 [workspace.dependencies]
 gadget-core = { version = "0.0.1", path = "./core", default-features = false }
 gadget-common = { version = "0.1.0", path = "./common", default-features = false }
-gadget-io = { version = "0.0.1",  path = "./gadget-io", default-features = false }
+gadget-io = { version = "0.0.1", path = "./gadget-io", default-features = false }
 gadget-executor = { version = "0.1.0", path = "./executor" }
-blueprint-manager = { version = "0.1.1", path = "./blueprint-manager"}
+blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false }
 protocol-macros = { path = "./protocol-macros" }
@@ -49,14 +63,10 @@ cargo-tangle = { path = "./cli" }
 cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
-#pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
-#pallet-services-rpc = { git = "https://github.com/webb-tools/tangle.git" }
-#tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
-pallet-services = { path = "../tangle/pallets/services" }
-pallet-services-rpc = { path = "../tangle/pallets/services/rpc" }
-tangle-primitives = { path = "../tangle/primitives" }
-
-tangle-subxt = { path = "../tangle/tangle-subxt", default-features = false }
+pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
+pallet-services-rpc = { git = "https://github.com/webb-tools/tangle.git" }
+tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
+tangle-subxt = { version = "0.1.4", default-features = false }
 
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
@@ -190,6 +200,7 @@ lazy_static = "1.5.0"
 libp2p = { version = "0.54", default-features = false }
 libsecp256k1 = "0.7.1"
 linked-hash-map = { version = "0.5.6", default-features = false }
+lock_api = "0.4.12"
 log = "0.4.22"
 multiaddr = { version = "0.18.1", default-features = false }
 nix = { version = "0.29.0", features = ["process", "signal"] }
@@ -237,6 +248,8 @@ tracing-log = { version = "0.2", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
 tracing-wasm = { version = "0.2.1" }
 tree_magic_mini = "3.1.5"
+spec_version = "0.1.0"
+derive_more = { version = "1.0.0", features = ["display"] }
 trybuild = "1.0"
 tsify = "0.4.5"
 typed-builder = "0.19"

@@ -1,15 +1,13 @@
-use std::collections::{BTreeMap, HashSet};
-
+use crate::eigenlayer::event_listener::generate_eigenlayer_event_handler;
+use crate::shared::{pascal_case, type_to_field_type};
+use crate::tangle::event_listener::generate_tangle_event_handler;
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata, JobResultVerifier};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
+use std::collections::{BTreeMap, HashSet};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, ItemFn, LitInt, LitStr, Token, Type};
-
-use crate::utils::{
-    field_type_to_param_token, field_type_to_result_token, pascal_case, type_to_field_type,
-};
 
 // Defines custom keywords
 mod kw {
@@ -18,6 +16,12 @@ mod kw {
     syn::custom_keyword!(result);
     syn::custom_keyword!(verifier);
     syn::custom_keyword!(evm);
+    syn::custom_keyword!(event_handler);
+    syn::custom_keyword!(protocol);
+    syn::custom_keyword!(instance);
+    syn::custom_keyword!(event);
+    syn::custom_keyword!(event_converter);
+    syn::custom_keyword!(callback);
     syn::custom_keyword!(skip_codegen);
 }
 
@@ -140,6 +144,7 @@ pub fn generate_event_handler_for(
     let fn_name_string = fn_name.to_string();
     let struct_name = format_ident!("{}EventHandler", pascal_case(&fn_name_string));
     let job_id = &job_args.id;
+    let event_handler = &job_args.event_handler;
 
     // Get all the params names inside the param_types map
     // and not in the params list to be added to the event handler.
@@ -183,7 +188,15 @@ pub fn generate_event_handler_for(
         .enumerate()
         .map(|(i, t)| {
             let ident = format_ident!("param{i}");
-            field_type_to_param_token(&ident, t)
+            let index = syn::Index::from(i);
+            match event_handler {
+                EventHandlerArgs::Eigenlayer { .. } => {
+                    quote! {
+                        let #ident = inputs.#index;
+                    }
+                }
+                EventHandlerArgs::Tangle => crate::tangle::field_type_to_param_token(&ident, t),
+            }
         })
         .collect::<Vec<_>>();
 
@@ -206,8 +219,8 @@ pub fn generate_event_handler_for(
                 Ok(r) => r,
                 Err(e) => {
                     tracing::error!("Error in job: {e}");
-                    use gadget_sdk::events_watcher::Error;
-                    return Err(Error::Handler(Box::new(e)));
+                    let error = gadget_sdk::events_watcher::Error::Handler(Box::new(e));
+                    return Err(error);
                 }
             };
         }
@@ -220,8 +233,8 @@ pub fn generate_event_handler_for(
                 Ok(r) => r,
                 Err(e) => {
                     tracing::error!("Error in job: {e}");
-                    use gadget_sdk::events_watcher::Error;
-                    return Err(Error::Handler(Box::new(e)));
+                    let error = gadget_sdk::events_watcher::Error::Handler(Box::new(e));
+                    return Err(error);
                 }
             };
         }
@@ -229,94 +242,59 @@ pub fn generate_event_handler_for(
 
     let result_tokens = if result.len() == 1 {
         let ident = format_ident!("job_result");
-        vec![field_type_to_result_token(&ident, &result[0])]
+        match event_handler {
+            EventHandlerArgs::Eigenlayer { .. } => {
+                vec![quote! { let #ident = job_result; }]
+            }
+            EventHandlerArgs::Tangle => {
+                vec![crate::tangle::field_type_to_result_token(
+                    &ident, &result[0],
+                )]
+            }
+        }
     } else {
         result
             .iter()
             .enumerate()
             .map(|(i, t)| {
                 let ident = format_ident!("result_{i}");
-                let s = field_type_to_result_token(&ident, t);
-                quote! {
-                    let #ident = job_result[#i];
-                    #s
+                match event_handler {
+                    EventHandlerArgs::Eigenlayer { .. } => {
+                        quote! {
+                            let #ident = job_result[#i];
+                        }
+                    }
+                    EventHandlerArgs::Tangle => {
+                        let s = crate::tangle::field_type_to_result_token(&ident, t);
+                        quote! {
+                            let #ident = job_result[#i];
+                            #s
+                        }
+                    }
                 }
             })
             .collect::<Vec<_>>()
     };
 
-    quote! {
-        /// Event handler for the function
-        #[doc = "[`"]
-        #[doc = #fn_name_string]
-        #[doc = "`]"]
-        pub struct #struct_name {
-            pub service_id: u64,
-            pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
-            #(#additional_params)*
-        }
-
-        #[automatically_derived]
-        #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
-            async fn can_handle_events(
-                &self,
-                events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
-            ) -> Result<bool, gadget_sdk::events_watcher::Error> {
-                use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
-
-                let has_event = events.find::<JobCalled>().flatten().any(|event| {
-                    event.service_id == self.service_id && event.job == #job_id
-                });
-
-                Ok(has_event)
-            }
-
-            async fn handle_events(
-                &self,
-                client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::events_watcher::tangle::TangleConfig>,
-                (events, block_number): (
-                    gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
-                    u64
-                ),
-            ) -> Result<(), gadget_sdk::events_watcher::Error> {
-                use gadget_sdk::tangle_subxt::{
-                    subxt,
-                    tangle_testnet_runtime::api::{
-                        self as TangleApi,
-                        runtime_types::{
-                            bounded_collections::bounded_vec::BoundedVec,
-                            tangle_primitives::services::field::{Field, BoundedString},
-                        },
-                        services::events::JobCalled,
-                    },
-                };
-                let job_events: Vec<_> = events
-                    .find::<JobCalled>()
-                    .flatten()
-                    .filter(|event| {
-                        event.service_id == self.service_id && event.job == #job_id
-                    })
-                    .collect();
-                for call in job_events {
-                    tracing::debug!("Handling JobCalled Events: #{block_number}",);
-
-                    let mut args_iter = call.args.into_iter();
-                    #(#params_tokens)*
-                    #fn_call
-
-                    let mut result = Vec::new();
-                    #(#result_tokens)*
-
-                    let response =
-                        TangleApi::tx()
-                            .services()
-                            .submit_result(self.service_id, call.call_id, result);
-                    gadget_sdk::tx::tangle::send(&client, &self.signer, &response).await?;
-                }
-                Ok(())
-            }
-        }
+    if event_handler.is_eigenlayer() {
+        generate_eigenlayer_event_handler(
+            &fn_name_string,
+            &struct_name,
+            event_handler,
+            &params_tokens,
+            &additional_params,
+            &fn_call,
+        )
+    } else {
+        generate_tangle_event_handler(
+            &fn_name_string,
+            &struct_name,
+            job_id,
+            &params_tokens,
+            &result_tokens,
+            &additional_params,
+            &fn_call,
+        )
     }
 }
 
@@ -335,6 +313,9 @@ pub(crate) struct JobArgs {
     /// Optional: Verifier for the job result, currently only supports EVM verifier.
     /// `#[job(verifier(evm = "MyVerifierContract"))]`
     verifier: Verifier,
+    /// Optional: Event handler type for the job.
+    /// `#[job(event_handler = "tangle")]`
+    event_handler: EventHandlerArgs,
     /// Optional: Skip code generation for this job.
     /// `#[job(skip_codegen)]`
     /// this is useful if the developer want to impl a custom event handler
@@ -348,6 +329,7 @@ impl Parse for JobArgs {
         let mut result = None;
         let mut id = None;
         let mut verifier = Verifier::None;
+        let mut event_handler = EventHandlerArgs::Tangle;
         let mut skip_codegen = false;
 
         while !input.is_empty() {
@@ -364,6 +346,8 @@ impl Parse for JobArgs {
                 result = Some(r);
             } else if lookahead.peek(kw::verifier) {
                 verifier = input.parse()?;
+            } else if lookahead.peek(kw::event_handler) {
+                event_handler = input.parse()?;
             } else if lookahead.peek(kw::skip_codegen) {
                 let _ = input.parse::<kw::skip_codegen>()?;
                 skip_codegen = true;
@@ -393,6 +377,7 @@ impl Parse for JobArgs {
             params,
             result,
             verifier,
+            event_handler,
             skip_codegen,
         })
     }
@@ -500,7 +485,7 @@ impl Parse for Results {
 #[derive(Debug)]
 enum Verifier {
     None,
-    // #[job(verifier(evm = "MyVerifierContract"))]
+    /// #[job(verifier(evm = "`MyVerifierContract`"))]
     Evm(String),
 }
 
@@ -522,22 +507,109 @@ impl Parse for Verifier {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub(crate) enum EventHandlerArgs {
+    Tangle,
+    Eigenlayer {
+        instance: Option<Ident>,
+        event: Option<Type>,
+        event_converter: Option<Type>,
+        callback: Option<Type>,
+    },
+}
 
-    #[test]
-    fn pascal_case_works() {
-        let input = [
-            "hello_world",
-            "keygen",
-            "_internal_function",
-            "cggmp21_sign",
-        ];
-        let expected = ["HelloWorld", "Keygen", "InternalFunction", "Cggmp21Sign"];
+impl EventHandlerArgs {
+    pub fn is_eigenlayer(&self) -> bool {
+        matches!(self, Self::Eigenlayer { .. })
+    }
 
-        for (i, e) in input.iter().zip(expected.iter()) {
-            assert_eq!(pascal_case(i), *e);
+    pub fn instance(&self) -> Option<Ident> {
+        match self {
+            Self::Eigenlayer { instance, .. } => instance.clone(),
+            Self::Tangle => None,
+        }
+    }
+
+    pub fn event(&self) -> Option<Type> {
+        match self {
+            Self::Eigenlayer { event, .. } => event.clone(),
+            Self::Tangle => None,
+        }
+    }
+
+    pub fn event_converter(&self) -> Option<Type> {
+        match self {
+            Self::Eigenlayer {
+                event_converter, ..
+            } => event_converter.clone(),
+            Self::Tangle => None,
+        }
+    }
+
+    pub fn callback(&self) -> Option<Type> {
+        match self {
+            Self::Eigenlayer { callback, .. } => callback.clone(),
+            Self::Tangle => None,
+        }
+    }
+}
+
+impl Parse for EventHandlerArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let _ = input.parse::<kw::event_handler>()?;
+        let content;
+        syn::parenthesized!(content in input);
+
+        let protocol = if content.peek(kw::protocol) {
+            let _ = content.parse::<kw::protocol>()?;
+            let _ = content.parse::<Token![=]>()?;
+            content.parse::<LitStr>()?.value()
+        } else {
+            "tangle".to_string()
+        };
+
+        match protocol.as_str() {
+            "tangle" => Ok(EventHandlerArgs::Tangle),
+            "eigenlayer" => {
+                let mut instance = None;
+                let mut event = None;
+                let mut event_converter = None;
+                let mut callback = None;
+
+                while !content.is_empty() {
+                    if content.peek(kw::instance) {
+                        let _ = content.parse::<kw::instance>()?;
+                        let _ = content.parse::<Token![=]>()?;
+                        instance = Some(content.parse::<Ident>()?);
+                    } else if content.peek(kw::event) {
+                        let _ = content.parse::<kw::event>()?;
+                        let _ = content.parse::<Token![=]>()?;
+                        event = Some(content.parse::<Type>()?);
+                    } else if content.peek(kw::event_converter) {
+                        let _ = content.parse::<kw::event_converter>()?;
+                        let _ = content.parse::<Token![=]>()?;
+                        event_converter = Some(content.parse::<Type>()?);
+                    } else if content.peek(kw::callback) {
+                        let _ = content.parse::<kw::callback>()?;
+                        let _ = content.parse::<Token![=]>()?;
+                        callback = Some(content.parse::<Type>()?);
+                    } else if content.peek(Token![,]) {
+                        let _ = content.parse::<Token![,]>()?;
+                    } else {
+                        return Err(content.error("Unexpected token"));
+                    }
+                }
+
+                Ok(EventHandlerArgs::Eigenlayer {
+                    instance,
+                    event,
+                    event_converter,
+                    callback,
+                })
+            }
+            _ => Err(syn::Error::new_spanned(
+                protocol,
+                "Expected `tangle` or `eigenlayer` as event handler protocol",
+            )),
         }
     }
 }

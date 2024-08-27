@@ -41,12 +41,15 @@ pub enum FieldType {
     Array(u64, Box<FieldType>),
     /// A List of items of type [`FieldType`].
     List(Box<FieldType>),
+    /// A Struct of items of type [`FieldType`].
+    Struct(String, Vec<(String, Box<FieldType>)>),
     // NOTE: Special types starts from 100
     /// A special type for AccountId
     AccountId,
 }
 
 /// A Service Blueprint is a the main definition of a service.
+///
 /// it contains the metadata of the service, the job definitions, and other hooks, along with the
 /// gadget that will be executed when one of the jobs is calling this service.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -120,7 +123,7 @@ pub enum JobResultVerifier {
     /// No verification is needed.
     #[default]
     None,
-    /// An EVM Contract Address that will verify the result.
+    /// An EVM Contract Address or path to the contract ABI that will verify the result.
     Evm(String),
 }
 
@@ -220,6 +223,7 @@ pub enum Gadget<'a> {
 }
 
 /// A binary that is stored in the Github release.
+///
 /// this will constuct the URL to the release and download the binary.
 /// The URL will be in the following format:
 /// https://github.com/<owner>/<repo>/releases/download/v<tag>/<path>
@@ -340,7 +344,7 @@ pub struct WasmGadget<'a> {
     /// Which runtime to use to execute the WASM binary.
     pub runtime: WasmRuntime,
     /// Where the WASM binary is stored.
-    pub soruces: Vec<GadgetSource<'a>>,
+    pub sources: Vec<GadgetSource<'a>>,
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -355,11 +359,11 @@ pub enum WasmRuntime {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct NativeGadget<'a> {
     /// Where the WASM binary is stored.
-    pub soruces: Vec<GadgetSource<'a>>,
+    pub sources: Vec<GadgetSource<'a>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ContainerGadget<'a> {
     /// Where the Image of the gadget binary is stored.
-    pub soruces: Vec<GadgetSource<'a>>,
+    pub sources: Vec<GadgetSource<'a>>,
 }

@@ -6,6 +6,7 @@
 pub enum Error {
     /// An I/O error occurred
     #[error(transparent)]
+    #[cfg(feature = "std")]
     Io(#[from] std::io::Error),
     /// An error occurred during sr25519 module operation
     #[error("sr25519: {0}")]
