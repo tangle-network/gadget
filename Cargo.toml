@@ -63,10 +63,10 @@ cargo-tangle = { path = "./cli" }
 cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
-pallet-services = { git = "https://github.com/webb-tools/tangle.git", branch = "test-source-blueprints" }
-pallet-services-rpc = { git = "https://github.com/webb-tools/tangle.git", branch = "test-source-blueprints" }
-tangle-primitives = { git = "https://github.com/webb-tools/tangle.git", branch = "test-source-blueprints" }
-tangle-subxt = { git = "https://github.com/webb-tools/tangle.git", branch = "test-source-blueprints" }
+pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
+pallet-services-rpc = { git = "https://github.com/webb-tools/tangle.git" }
+tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
+tangle-subxt = { git = "https://github.com/webb-tools/tangle.git" }
 
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
