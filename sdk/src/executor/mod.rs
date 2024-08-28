@@ -4,7 +4,7 @@ use crate::executor::process::types::GadgetInstructionData;
 use crate::executor::process::types::{CommandOrSequence, ProcessOutput};
 use crate::executor::process::utils::*;
 
-mod process;
+pub mod process;
 
 // TODO: Gadget Setup following V2 - yet to be implemented
 

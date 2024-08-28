@@ -1,3 +1,6 @@
+use gadget_sdk::executor::process::manager::GadgetProcessManager;
+use std::error::Error;
+
 pub async fn run_tangle_validator() -> Result<(), Box<dyn Error>> {
     let mut manager = GadgetProcessManager::new();
 

@@ -16,8 +16,8 @@ pub(crate) fn generate_eigenlayer_event_handler(
     let instance_name = format_ident!("{}Instance", instance_base);
     let instance = quote! { #instance_base::#instance_name<T::T, T::P, T::N> };
     let ev = event_handler.event().unwrap();
-    let event_converter = event_handler.event_converter();
-    let callback = event_handler.callback();
+    let event_converter = event_handler.event_converter().unwrap();
+    let callback = event_handler.callback().unwrap();
 
     quote! {
         /// Event handler for the function
@@ -50,26 +50,33 @@ pub(crate) fn generate_eigenlayer_event_handler(
                 // Convert the event to inputs
                 let decoded: alloy_primitives::Log<Self::Event> = <Self::Event as SolEvent>::decode_log(&log.inner, true)?;
                 // Convert the event to inputs using the event converter.
-                // If no converted is provided, the #[job] must consume the
+                // TODO: If no converter is provided, the #[job] must consume the
                 // event directly, as specified in the `event = <EVENT>`.
-                let inputs = if let Some(converter) = #event_converter {
-                    converter(decoded.data)
-                } else {
-                    decoded.data
-                }
+
+                // let inputs = if let Some(converter) = #event_converter {
+                //     converter(decoded.data)
+                // } else {
+                //     decoded.data
+                // };
+                let inputs = #event_converter(decoded.data);
 
                 // Apply the function
                 #(#params_tokens)*
                 #fn_call;
 
                 // Call the callback with the job result
-                if let Some(cb) = #callback {
-                    let call = cb(job_result);
-
-                    // Submit the transaction
-                    let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
-                    tx.watch().await?;
-                }
+                // TODO: Check if the callback is None
+                // if let Some(cb) = #callback {
+                //     let call = cb(job_result);
+                //
+                //     // Submit the transaction
+                //     let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
+                //     tx.watch().await?;
+                // }
+                let call = #callback(job_result);
+                // Submit the transaction
+                let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
+                tx.watch().await?;
 
                 Ok(())
             }

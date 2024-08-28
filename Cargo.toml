@@ -235,7 +235,8 @@ substrate-prometheus-endpoint = { version = "0.17.0", default-features = false }
 syn = "2.0.75"
 sysinfo = "0.31.2"
 # TODO: Stop using this fork once https://github.com/dtolnay/thiserror/pull/304 lands
-thiserror = { git = "https://github.com/quartiq/thiserror", branch = "no-std", default-features = false }
+#thiserror = { git = "https://github.com/quartiq/thiserror", branch = "no-std", default-features = false }
+thiserror = { version = "1.0.63", default-features = false }
 tokio = { version = "1.39.3", default-features = false }
 tokio-rustls = "0.26.0"
 tokio-util = { version = "0.7.11", default-features = false }
@@ -257,8 +258,9 @@ uuid = "1.10.0"
 w3f-bls = { version = "0.1.4", default-features = false }
 zeroize = { version = "1", default-features = false, features = ["alloc", "zeroize_derive"] }
 
-anvil = { git = "https://github.com/foundry-rs/foundry.git" }
-foundry-common = { git = "https://github.com/foundry-rs/foundry.git" }
+#anvil = { git = "https://github.com/foundry-rs/foundry.git" }
+#foundry-common = { git = "https://github.com/foundry-rs/foundry.git" }
+#revm = { version = "13.0.0", default-features = false }
 alloy-chains = "0.1.27"
 alloy-primitives = "0.7.7"
 alloy-dyn-abi = "0.7.7"

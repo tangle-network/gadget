@@ -14,7 +14,7 @@ path = "./src/main.rs"
 required-features = ["gadget"]
 
 [dependencies]
-eigensdk-rs = { workspace = true }
+#eigensdk-rs = { workspace = true }
 
 tracing = { workspace = true }
 async-trait = { workspace = true }
