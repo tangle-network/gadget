@@ -9,8 +9,6 @@ use ecdsa::Public;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, Network};
 use gadget_core::job::protocol::{ProtocolMessageMetadata, WorkManagerInterface};
-use gadget_io::tokio::sync::mpsc::UnboundedSender;
-use gadget_io::tokio::sync::{Mutex, RwLock};
 use libp2p::gossipsub::IdentTopic;
 use libp2p::kad::store::MemoryStore;
 use libp2p::{
@@ -21,6 +19,8 @@ use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
+use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::{Mutex, RwLock};
 
 /// Maximum allowed size for a Signed Message.
 pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
@@ -267,7 +267,7 @@ impl<'a> NetworkService<'a> {
 pub struct GossipHandle {
     pub topic: IdentTopic,
     pub tx_to_outbound: UnboundedSender<IntraNodePayload>,
-    pub rx_from_inbound: Arc<Mutex<gadget_io::tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
+    pub rx_from_inbound: Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
     pub logger: DebugLogger,
     pub connected_peers: Arc<AtomicU32>,
     pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,

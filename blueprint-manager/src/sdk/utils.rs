@@ -1,7 +1,7 @@
 use crate::config::BlueprintManagerConfig;
 use crate::protocols::resolver::NativeGithubMetadata;
 use gadget_common::config::DebugLogger;
-use gadget_io::GadgetConfig;
+use gadget_sdk::io::GadgetConfig;
 use sha2::Digest;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -68,7 +68,7 @@ pub fn hash_bytes_to_hex<T: AsRef<[u8]>>(input: T) -> String {
 
 pub async fn valid_file_exists(path: &str, expected_hash: &str) -> bool {
     // The hash is sha3_256 of the binary
-    if let Ok(file) = gadget_io::tokio::fs::read(path).await {
+    if let Ok(file) = tokio::fs::read(path).await {
         // Compute the SHA3-256
         let retrieved_bytes = hash_bytes_to_hex(file);
         expected_hash == retrieved_bytes.as_str()
@@ -119,7 +119,7 @@ pub fn get_service_str(svc: &NativeGithubMetadata) -> String {
 }
 
 pub async fn chmod_x_file<P: AsRef<Path>>(path: P) -> color_eyre::Result<()> {
-    let success = gadget_io::tokio::process::Command::new("chmod")
+    let success = tokio::process::Command::new("chmod")
         .arg("+x")
         .arg(format!("{}", path.as_ref().display()))
         .spawn()?
@@ -143,11 +143,11 @@ pub fn is_windows() -> bool {
 }
 
 pub fn generate_running_process_status_handle(
-    process: gadget_io::tokio::process::Child,
+    process: tokio::process::Child,
     logger: &DebugLogger,
     role_type: &str,
-) -> (Arc<AtomicBool>, gadget_io::tokio::sync::oneshot::Sender<()>) {
-    let (stop_tx, stop_rx) = gadget_io::tokio::sync::oneshot::channel::<()>();
+) -> (Arc<AtomicBool>, tokio::sync::oneshot::Sender<()>) {
+    let (stop_tx, stop_rx) = tokio::sync::oneshot::channel::<()>();
     let status = Arc::new(AtomicBool::new(true));
     let status_clone = status.clone();
     let logger = logger.clone();
@@ -160,13 +160,13 @@ pub fn generate_running_process_status_handle(
     };
 
     let task = async move {
-        gadget_io::tokio::select! {
+        tokio::select! {
             _ = stop_rx => {},
             _ = task => {},
         }
     };
 
-    gadget_io::tokio::spawn(task);
+    tokio::spawn(task);
     (status, stop_tx)
 }
 

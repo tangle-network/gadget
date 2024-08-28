@@ -1,4 +1,4 @@
-pub use gadget_io::SubstrateKeystore;
+use gadget_sdk::io::SubstrateKeystore;
 use sp_core::{ecdsa, sr25519};
 
 pub fn load_keys_from_keystore<T: SubstrateKeystore>(

@@ -191,11 +191,11 @@ trait MetricizedJob: ExecutableJob {
     where
         Self: Sized,
     {
-        let job = Arc::new(gadget_io::tokio::sync::Mutex::new(self));
+        let job = Arc::new(tokio::sync::Mutex::new(self));
         let job2 = job.clone();
         let job3 = job.clone();
         let job4 = job.clone();
-        let _tokio_metrics = gadget_io::tokio::runtime::Handle::current().metrics();
+        let _tokio_metrics = tokio::runtime::Handle::current().metrics();
         // crate::prometheus::TOKIO_ACTIVE_TASKS.set(tokio_metrics.active_tasks_count() as f64);
         let now_init = Arc::new(Mutex::new(None));
         let now_clone = now_init.clone();

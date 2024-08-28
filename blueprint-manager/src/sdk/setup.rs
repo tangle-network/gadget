@@ -10,15 +10,14 @@ use gadget_common::{
     full_protocol::NodeInput,
     keystore::ECDSAKeyStore,
 };
-use gadget_io::tokio::task::JoinHandle;
 use sp_core::{keccak_256, sr25519, Pair};
 
 use crate::sdk::config::SingleGadgetConfig;
-pub use gadget_io::KeystoreContainer;
 use gadget_sdk::network::gossip::GossipHandle;
 use gadget_sdk::network::setup::NetworkConfig;
 use itertools::Itertools;
 use libp2p::Multiaddr;
+use tokio::task::JoinHandle;
 
 pub type SingleGadgetInput<KBE, Env> = NodeInput<Env, GossipHandle, KBE, ()>;
 
@@ -148,7 +147,7 @@ pub async fn wait_for_connection_to_bootnodes(
         "Waiting for {n_required} peers to show up across {n_networks} networks"
     ));
 
-    let mut tasks = gadget_io::tokio::task::JoinSet::new();
+    let mut tasks = tokio::task::JoinSet::new();
 
     // For each network, we start a task that checks if we have enough peers connected
     // and then we wait for all of them to finish.
@@ -161,7 +160,7 @@ pub async fn wait_for_connection_to_bootnodes(
             }
             let topic = handle.topic();
             logger.debug(format!("`{topic}`: We currently have {n_connected}/{n_required} peers connected to network"));
-            gadget_io::tokio::time::sleep(Duration::from_millis(1000)).await;
+            tokio::time::sleep(Duration::from_millis(1000)).await;
         }
     };
 

@@ -1,5 +1,5 @@
-use crate::error::{GadgetIoError, Result};
-pub use crate::shared::keystore::SubstrateKeystore;
+use crate::io::error::{GadgetIoError, Result};
+use crate::io::SubstrateKeystore;
 use sp_core::{ecdsa, sr25519, ByteArray};
 use std::path::{Path, PathBuf};
 use tracing;
@@ -9,6 +9,7 @@ use sp_keystore::KeystorePtr;
 use std::sync::Arc;
 
 /// Construct a local keystore shareable container
+#[allow(missing_debug_implementations)]
 pub struct KeystoreContainer(Arc<LocalKeystore>);
 
 impl KeystoreContainer {

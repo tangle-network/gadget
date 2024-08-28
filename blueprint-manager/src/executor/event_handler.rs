@@ -10,7 +10,7 @@ use crate::sdk::utils::{
 use color_eyre::eyre::OptionExt;
 use gadget_common::prelude::DebugLogger;
 use gadget_common::tangle_runtime::AccountId32;
-use gadget_io::GadgetConfig;
+use gadget_sdk::io::GadgetConfig;
 use std::fmt::Write;
 use std::sync::atomic::Ordering;
 use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};

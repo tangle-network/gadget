@@ -35,9 +35,8 @@ pub mod crypto {
 pub struct TangleRuntime {
     client: subxt::OnlineClient<SubstrateConfig>,
     finality_notification_stream:
-        Arc<gadget_common::gadget_io::tokio::sync::Mutex<Option<TangleBlockStream>>>,
-    latest_finality_notification:
-        Arc<gadget_common::gadget_io::tokio::sync::Mutex<Option<TangleEvent>>>,
+        Arc<gadget_sdk::io::tokio::sync::Mutex<Option<TangleBlockStream>>>,
+    latest_finality_notification: Arc<gadget_sdk::io::tokio::sync::Mutex<Option<TangleEvent>>>,
     account_id: AccountId32,
 }
 
@@ -46,12 +45,8 @@ impl TangleRuntime {
     pub fn new(client: subxt::OnlineClient<SubstrateConfig>, account_id: AccountId32) -> Self {
         Self {
             client,
-            finality_notification_stream: Arc::new(
-                gadget_common::gadget_io::tokio::sync::Mutex::new(None),
-            ),
-            latest_finality_notification: Arc::new(
-                gadget_common::gadget_io::tokio::sync::Mutex::new(None),
-            ),
+            finality_notification_stream: Arc::new(gadget_sdk::io::tokio::sync::Mutex::new(None)),
+            latest_finality_notification: Arc::new(gadget_sdk::io::tokio::sync::Mutex::new(None)),
             account_id,
         }
     }

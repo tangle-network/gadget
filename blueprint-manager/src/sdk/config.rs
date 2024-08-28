@@ -1,5 +1,5 @@
 use gadget_common::environments::GadgetEnvironment;
-pub use gadget_io::KeystoreConfig;
+use gadget_sdk::io::KeystoreConfig;
 use libp2p::Multiaddr;
 use std::net::IpAddr;
 use std::path::PathBuf;

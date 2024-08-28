@@ -64,8 +64,7 @@ pub fn id_to_sr25519_public(id: u8) -> sr25519::Public {
     id_to_sr25519_pair(id).public()
 }
 
-type PeersRx<Env> =
-    Arc<HashMap<ecdsa::Public, gadget_io::tokio::sync::Mutex<UnboundedReceiver<Env>>>>;
+type PeersRx<Env> = Arc<HashMap<ecdsa::Public, tokio::sync::Mutex<UnboundedReceiver<Env>>>>;
 
 pub struct MockNetwork<Env: GadgetEnvironment> {
     peers_tx: Arc<
@@ -95,9 +94,9 @@ impl<Env: GadgetEnvironment> MockNetwork<Env> {
         let mut networks = Vec::new();
 
         for id in ids {
-            let (tx, rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
             peers_tx.insert(*id, tx);
-            peers_rx.insert(*id, gadget_io::tokio::sync::Mutex::new(rx));
+            peers_rx.insert(*id, tokio::sync::Mutex::new(rx));
         }
 
         let peers_tx = Arc::new(peers_tx);

@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::io::error::Result;
 use sp_core::{ecdsa, sr25519};
 
 pub trait SubstrateKeystore {

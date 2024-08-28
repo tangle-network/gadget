@@ -12,13 +12,13 @@ use gadget_core::job::builder::BuiltExecutableJobWrapper;
 use gadget_core::job::error::JobError;
 use gadget_core::job::manager::ProtocolWorkManager;
 use gadget_core::job::protocol::ProtocolMessageMetadata;
-use gadget_io::tokio::sync::mpsc::UnboundedReceiver;
 use parity_scale_codec::{Decode, Encode};
 use parking_lot::Mutex;
 use parking_lot::RwLock;
 use sp_core::ecdsa::{Public, Signature};
 use sp_core::{keccak_256, sr25519};
 use std::sync::Arc;
+use tokio::sync::mpsc::UnboundedReceiver;
 
 pub type SharedOptional<T> = Arc<Mutex<Option<T>>>;
 

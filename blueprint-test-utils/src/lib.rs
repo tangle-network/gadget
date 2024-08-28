@@ -12,7 +12,7 @@ use gadget_common::tangle_runtime::api::services::storage::types::job_results::J
 use gadget_common::tangle_runtime::{api, AccountId32};
 use gadget_common::tangle_subxt::subxt::OnlineClient;
 pub use gadget_core::job::SendFuture;
-use gadget_io::{GadgetConfig, SupportedChains};
+use gadget_sdk::io::{GadgetConfig, SupportedChains};
 use libp2p::Multiaddr;
 pub use log;
 use std::error::Error;
@@ -150,7 +150,7 @@ pub async fn wait_for_completion_of_job(
     call_id: u64,
 ) -> Result<JobResults, Box<dyn Error>> {
     loop {
-        gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
         let call = api::storage().services().job_results(service_id, call_id);
         let res = client.storage().at_latest().await?.fetch(&call).await?;
 

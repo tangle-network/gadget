@@ -10,6 +10,7 @@ license.workspace = true
 
 
 [dependencies]
+cfg-if = { workspace = true }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
 getrandom = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
@@ -18,10 +19,19 @@ parking_lot = { workspace = true }
 rand = { version = "0.8", default-features = false, features = ["alloc"] }
 thiserror = { workspace = true }
 
+# Shell deps
+multiaddr = { workspace = true, default-features = false }
+structopt = { workspace = true, optional = true }
+url = { workspace = true, default-features = false, features = ["alloc", "serde"] }
+
 # Keystore deps
 ed25519-zebra = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "ecdsa-core", "arithmetic"] }
+parity-scale-codec = { workspace = true, optional = true }
+sc-keystore = { workspace = true, optional = true }
+scale-info = { workspace = true, optional = true }
 schnorrkel = { workspace = true }
+sp-keystore = { workspace = true, optional = true }
 w3f-bls = { workspace = true }
 
 # Metrics deps
@@ -39,14 +49,13 @@ bincode = { workspace = true }
 futures = { workspace = true }
 gadget-core = { workspace = true, features = ["substrate"] }
 gadget-common = { workspace = true, features = ["default"] }
-gadget-io = { workspace = true, features = ["std"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
 # Substrate
+sp-application-crypto = { workspace = true, default-features = false, features = ["full_crypto"] }
 sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
-
 
 # Event Watchers and Handlers
 backoff = { workspace = true }
@@ -70,6 +79,14 @@ derive_more = { workspace = true }
 
 # Benchmarking deps
 sysinfo = { workspace = true }
+
+# WASM
+js-sys = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+tsify = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
+wasmtimer = { workspace = true, optional = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
@@ -103,6 +120,11 @@ hyper = { workspace = true, features = ["client"] }
 default = ["std"]
 
 std = [
+    "dep:parity-scale-codec",
+    "dep:scale-info",
+    "dep:sp-keystore",
+    "dep:sc-keystore",
+    "dep:structopt",
     "getrandom",
     "hex/std",
     "rand/std",
@@ -110,8 +132,14 @@ std = [
     "sp-io/std",
 ]
 wasm = [
+    "dep:js-sys",
+    "dep:serde-wasm-bindgen",
+    "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+    "dep:wasmtimer",
     "getrandom/js",
 ]
+typescript = ["dep:tsify", "wasm"]
 
 # Randomness
 getrandom = ["rand/getrandom"]

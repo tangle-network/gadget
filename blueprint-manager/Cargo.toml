@@ -11,7 +11,6 @@ path = "src/cli.rs"
 sp-core = { workspace = true }
 gadget-core = { workspace = true }
 gadget-common = { workspace = true }
-gadget-io = { workspace = true }
 gadget-sdk = { workspace = true }
 color-eyre = { workspace = true, features = ["tracing-error", "color-spantrace", "issue-url"] }
 serde = { workspace = true }
@@ -36,6 +35,5 @@ libp2p = { workspace = true }
 default = ["std"]
 std = [
     "gadget-common/std",
-    "gadget-io/std",
     "gadget-sdk/std",
 ]

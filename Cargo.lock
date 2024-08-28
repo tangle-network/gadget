@@ -1735,7 +1735,6 @@ dependencies = [
  "futures",
  "gadget-common",
  "gadget-core",
- "gadget-io",
  "gadget-sdk",
  "hex",
  "itertools 0.13.0",
@@ -1781,7 +1780,7 @@ dependencies = [
  "gadget-blueprint-proc-macro-core",
  "gadget-common",
  "gadget-core",
- "gadget-io",
+ "gadget-sdk",
  "getrandom",
  "libp2p",
  "log",
@@ -3254,7 +3253,6 @@ dependencies = [
  "anyhow",
  "auto_impl",
  "gadget-common",
- "gadget-io",
  "tangle-subxt",
  "tokio",
 ]
@@ -4292,7 +4290,6 @@ dependencies = [
  "cfg-if",
  "futures",
  "gadget-core",
- "gadget-io",
  "getrandom",
  "hex",
  "lazy_static",
@@ -4313,6 +4310,7 @@ dependencies = [
  "subxt-signer",
  "tangle-subxt",
  "thiserror 1.0.61",
+ "tokio",
 ]
 
 [[package]]
@@ -4322,7 +4320,6 @@ dependencies = [
  "async-trait",
  "auto_impl",
  "futures-timer",
- "gadget-io",
  "hex",
  "log",
  "parking_lot",
@@ -4345,33 +4342,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-io"
-version = "0.0.1"
-dependencies = [
- "cfg-if",
- "hex",
- "js-sys",
- "multiaddr",
- "parity-scale-codec 3.6.12",
- "sc-keystore",
- "scale-info",
- "serde",
- "serde-wasm-bindgen",
- "sp-application-crypto 38.0.0",
- "sp-core 34.0.0",
- "sp-keystore 0.40.0",
- "structopt",
- "thiserror 1.0.61",
- "tokio",
- "tracing",
- "tsify",
- "url 2.5.2 (git+https://github.com/domenukk/rust-url?branch=no_std)",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasmtimer",
-]
-
-[[package]]
 name = "gadget-sdk"
 version = "0.1.0"
 dependencies = [
@@ -4387,6 +4357,7 @@ dependencies = [
  "async-trait",
  "backoff",
  "bincode",
+ "cfg-if",
  "derive_more 1.0.0",
  "ed25519-zebra 4.0.3",
  "elliptic-curve",
@@ -4394,29 +4365,42 @@ dependencies = [
  "gadget-blueprint-proc-macro",
  "gadget-common",
  "gadget-core",
- "gadget-io",
  "getrandom",
  "hex",
  "hyper 1.4.1",
+ "js-sys",
  "k256",
  "libp2p",
  "lock_api",
  "log",
+ "multiaddr",
+ "parity-scale-codec 3.6.12",
  "parking_lot",
  "prometheus",
  "rand",
+ "sc-keystore",
+ "scale-info",
  "schnorrkel",
  "serde",
+ "serde-wasm-bindgen",
  "serde_json",
+ "sp-application-crypto 38.0.0",
  "sp-core 34.0.0",
  "sp-io 38.0.0",
+ "sp-keystore 0.40.0",
+ "structopt",
  "subxt",
  "sysinfo",
  "tangle-subxt",
  "thiserror 1.0.61",
  "tokio",
  "tracing",
+ "tsify",
+ "url 2.5.2 (git+https://github.com/domenukk/rust-url?branch=no_std)",
  "w3f-bls",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasmtimer",
 ]
 
 [[package]]
@@ -11785,6 +11769,7 @@ dependencies = [
  "environment-utils",
  "gadget-common",
  "gadget-core",
+ "gadget-sdk",
  "parity-scale-codec 3.6.12",
  "parking_lot",
  "scale-info",

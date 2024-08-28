@@ -9,7 +9,7 @@ use gadget_common::config::DebugLogger;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::subxt_signer::sr25519;
 use gadget_common::tangle_runtime::AccountId32;
-use gadget_io::{GadgetConfig, SubstrateKeystore};
+use gadget_sdk::io::{GadgetConfig, SubstrateKeystore};
 use sp_core::{ecdsa, Pair, H256};
 use std::collections::HashMap;
 use std::future::Future;

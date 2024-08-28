@@ -50,7 +50,7 @@ where
     F: Send + 'static,
 {
     let client = client.clone();
-    gadget_io::tokio::task::spawn_blocking(move || function(&client))
+    tokio::task::spawn_blocking(move || function(&client))
         .await
         .expect("Failed to spawn blocking task")
 }

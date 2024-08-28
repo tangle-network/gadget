@@ -100,9 +100,9 @@ where
 mod tests {
     use crate::job::builder::JobBuilder;
     use crate::job::ExecutableJob;
-    use gadget_io::tokio;
+    use tokio;
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_executable_job_wrapper_proceed() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
@@ -131,7 +131,7 @@ mod tests {
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 3);
     }
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_executable_job_wrapper_no_proceed() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
@@ -160,7 +160,7 @@ mod tests {
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_job_builder() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
@@ -186,7 +186,7 @@ mod tests {
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 3);
     }
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_job_builder_no_pre() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
@@ -208,7 +208,7 @@ mod tests {
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 2);
     }
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_job_builder_no_post() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
@@ -229,7 +229,7 @@ mod tests {
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 2);
     }
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_job_builder_no_pre_no_post() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();
@@ -246,7 +246,7 @@ mod tests {
         assert_eq!(counter_final.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     async fn test_protocol_err_catch_performs_increment() {
         let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter_clone = counter.clone();

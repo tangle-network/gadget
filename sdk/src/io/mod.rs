@@ -1,13 +1,7 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+mod shared;
+pub use shared::*;
 
-#[cfg(not(feature = "std"))]
-extern crate alloc;
-
-pub mod shared;
-pub use shared::keystore::*;
-pub use shared::shell::*;
-
-mod error;
+pub mod error;
 mod imp;
 
 pub use imp::*;
@@ -24,15 +18,15 @@ pub use wasmtimer::tokio as time;
 #[cfg(all(feature = "std", not(target_family = "wasm")))]
 pub use tokio::time;
 
-#[cfg(all(feature = "std", not(feature = "wasm-bindgen")))]
+#[cfg(all(feature = "std", not(feature = "wasm")))]
 pub fn log(s: &str) {
     println!("{}", s);
 }
 
-#[cfg(feature = "wasm-bindgen")]
+#[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
-#[cfg(feature = "wasm-bindgen")]
+#[cfg(feature = "wasm")]
 pub fn into_js_error(err: impl core::error::Error) -> JsValue {
     #[cfg(not(feature = "std"))]
     use alloc::string::ToString;
@@ -40,7 +34,7 @@ pub fn into_js_error(err: impl core::error::Error) -> JsValue {
     js_sys::Error::new(&err.to_string()).into()
 }
 
-#[cfg(feature = "wasm-bindgen")]
+#[cfg(feature = "wasm")]
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]

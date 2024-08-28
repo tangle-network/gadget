@@ -12,9 +12,6 @@ use libp2p::{
     swarm::dial_opts::DialOpts, StreamProtocol,
 };
 
-use gadget_io::tokio::select;
-use gadget_io::tokio::sync::{Mutex, RwLock};
-use gadget_io::tokio::task::{spawn, JoinHandle};
 use libp2p::Multiaddr;
 use sp_core::ecdsa;
 use std::collections::HashMap;
@@ -25,6 +22,9 @@ use std::str::FromStr;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::select;
+use tokio::sync::{Mutex, RwLock};
+use tokio::task::{spawn, JoinHandle};
 
 /// The version of the gadget sdk
 pub const AGENT_VERSION: &str = "tangle/gadget-sdk/1.0.0";
@@ -257,13 +257,13 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
     // Subscribe to all networks
     let mut inbound_mapping = Vec::new();
     let (tx_to_outbound, mut rx_to_outbound) =
-        gadget_io::tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
+        tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
     let ecdsa_peer_id_to_libp2p_id = Arc::new(RwLock::new(HashMap::new()));
     let mut handles_ret = HashMap::with_capacity(networks.len());
     for network in networks {
         let topic = IdentTopic::new(network.clone());
         swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
-        let (inbound_tx, inbound_rx) = gadget_io::tokio::sync::mpsc::unbounded_channel();
+        let (inbound_tx, inbound_rx) = tokio::sync::mpsc::unbounded_channel();
         let connected_peers = Arc::new(AtomicU32::new(0));
         inbound_mapping.push((topic.clone(), inbound_tx, connected_peers.clone()));
 

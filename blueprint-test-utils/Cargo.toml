@@ -18,7 +18,7 @@ std = [
     "frame-support/default",
     "frame-system/default",
     "gadget-common/default",
-    "gadget-io/default",
+    "gadget-sdk/std",
     "tangle-primitives/default",
     "sc-client-api",
     "sc-utils/default",
@@ -32,7 +32,7 @@ wasm = [
     "sp-io/disable_oom",
     "sp-io/disable_allocator",
     "gadget-common/wasm",
-    "gadget-io/wasm-bindgen",
+    "gadget-sdk/wasm",
     "getrandom/js",
 ]
 
@@ -51,7 +51,7 @@ frame-support = { workspace = true, default-features = false }
 frame-system = { workspace = true, default-features = false }
 gadget-common = { workspace = true, default-features = false }
 gadget-core = { workspace = true }
-gadget-io = { workspace = true, default-features = false }
+gadget-sdk = { workspace = true }
 tangle-environment.workspace = true
 sc-client-api = { workspace = true, optional = true, default-features = false }
 sc-utils = { workspace = true, optional = true, default-features = false }

@@ -218,9 +218,8 @@ fn key_to_string(key: &[u8; 32]) -> String {
 #[cfg(not(target_family = "wasm"))]
 mod tests {
     use crate::keystore::KeystoreBackend;
-    use gadget_io::tokio;
 
-    #[gadget_io::tokio::test]
+    #[tokio::test]
     #[cfg(feature = "std")]
     async fn test_in_memory_kv_store() {
         let store = super::SqliteBackend::in_memory().await.unwrap();

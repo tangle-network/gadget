@@ -8,8 +8,8 @@ use std::sync::Arc;
 /// Wraps an async protocol with logic that makes it compatible with the job manager
 pub fn create_job_manager_compatible_job(
     is_done: Arc<AtomicBool>,
-    start_rx: gadget_io::tokio::sync::oneshot::Receiver<()>,
-    shutdown_rx: gadget_io::tokio::sync::oneshot::Receiver<ShutdownReason>,
+    start_rx: tokio::sync::oneshot::Receiver<()>,
+    shutdown_rx: tokio::sync::oneshot::Receiver<ShutdownReason>,
     mut async_protocol: BuiltExecutableJobWrapper,
 ) -> BuiltExecutableJobWrapper {
     let pre_hook = async move {
@@ -28,7 +28,7 @@ pub fn create_job_manager_compatible_job(
     // This wrapped future enables proper functionality between the async protocol and the
     // job manager
     let wrapped_future = async move {
-        gadget_io::tokio::select! {
+        tokio::select! {
             res0 = async_protocol.execute() => res0,
             res1 = shutdown_rx => {
                 match res1 {

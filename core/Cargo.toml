@@ -12,12 +12,16 @@ homepage.workspace = true
 async-trait = { workspace = true }
 auto_impl = { workspace = true }
 futures-timer = { workspace = true }
-gadget-io = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
 log = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 sp-core = { workspace = true }
+tokio = { workspace = true, optional = true, features = [
+    "time",
+    "rt",
+    "sync",
+] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros"] }
@@ -26,7 +30,7 @@ tokio = { workspace = true, features = ["macros"] }
 default = ["std", "substrate"]
 substrate = []
 std = [
-    "gadget-io/std",
+    "dep:tokio",
     "log/std",
     "serde/std",
     "sp-core/std",

@@ -3,8 +3,7 @@ use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::run_blueprint_manager;
 use blueprint_manager::sdk;
 use blueprint_manager::sdk::utils::msg_to_error;
-use gadget_common::gadget_io;
-use gadget_io::GadgetConfig;
+use gadget_sdk::io::GadgetConfig;
 use structopt::StructOpt;
 
 #[tokio::main]

@@ -1,4 +1,4 @@
-use crate::shared::shell::SupportedChains;
+use crate::io::SupportedChains;
 use multiaddr::Multiaddr;
 use serde::{Deserialize, Serialize};
 use std::{net::IpAddr, path::PathBuf};

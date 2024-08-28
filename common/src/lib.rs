@@ -62,15 +62,14 @@ pub mod prelude {
     pub use gadget_core::job::manager::{ProtocolWorkManager, WorkManagerError};
     pub use gadget_core::job::protocol::WorkManagerInterface;
     pub use gadget_core::job::SendFuture;
-    #[cfg(feature = "std")]
-    pub use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
     pub use parking_lot::Mutex;
     pub use sp_runtime::traits::Block;
+    #[cfg(feature = "std")]
+    pub use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 }
 
 // Convenience re-exports
 pub use async_trait;
-pub use gadget_io;
 #[cfg(feature = "substrate")]
 pub use subxt_signer;
 #[cfg(feature = "substrate")]
@@ -146,7 +145,7 @@ pub enum Error {
     },
     #[cfg(feature = "std")]
     JoinError {
-        err: gadget_io::tokio::task::JoinError,
+        err: tokio::task::JoinError,
     },
     ParticipantNotSelected {
         id: ecdsa::Public,
@@ -234,7 +233,7 @@ pub async fn run_protocol<Env: GadgetEnvironment, T: ProtocolConfig<Env>>(
     }
 
     // Run both the network and the gadget together
-    gadget_io::tokio::try_join!(network_future, gadget_future).map(|_| ())
+    tokio::try_join!(network_future, gadget_future).map(|_| ())
 }
 
 #[cfg(all(feature = "std", feature = "substrate"))]

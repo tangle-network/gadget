@@ -3,7 +3,7 @@ use crate::sdk::{generate_node_input, SingleGadgetConfig};
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::prelude::{DebugLogger, KeystoreBackend};
 use gadget_core::job::SendFuture;
-use gadget_io::{GadgetConfig, KeystoreConfig, SupportedChains};
+use gadget_sdk::io::{GadgetConfig, KeystoreConfig, SupportedChains};
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 use tracing_subscriber::fmt::SubscriberBuilder;
@@ -76,9 +76,9 @@ where
     })
     .await?;
 
-    let protocol_future = gadget_io::tokio::task::spawn(executor(node_input));
+    let protocol_future = tokio::task::spawn(executor(node_input));
 
-    gadget_io::tokio::select! {
+    tokio::select! {
         res0 = protocol_future => {
             Err(color_eyre::Report::msg(format!("Protocol future unexpectedly finished: {res0:?}")))
         },
