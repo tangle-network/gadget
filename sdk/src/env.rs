@@ -9,23 +9,67 @@ pub enum Protocol {
     Eigenlayer,
 }
 
+impl Protocol {
+    /// Returns the protocol from the environment variable `PROTOCOL`.
+    #[cfg(feature = "std")]
+    pub fn from_env() -> Self {
+        std::env::var("PROTOCOL")
+            .map(|v| v.parse::<Protocol>().unwrap_or_default())
+            .unwrap_or_default()
+    }
+
+    /// Returns the protocol from the environment variable `PROTOCOL`.
+    #[cfg(not(feature = "std"))]
+    pub fn from_env() -> Self {
+        Self::Tangle
+    }
+}
+
+impl core::fmt::Display for Protocol {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        match self {
+            Self::Tangle => write!(f, "tangle"),
+            Self::Eigenlayer => write!(f, "eigenlayer"),
+        }
+    }
+}
+
+impl core::str::FromStr for Protocol {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "tangle" => Ok(Self::Tangle),
+            "eigenlayer" => Ok(Self::Eigenlayer),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Gadget environment using the `parking_lot` RwLock.
+#[cfg(feature = "std")]
+pub type StdGadgetConfiguration = GadgetConfiguration<parking_lot::RawRwLock>;
+
 /// Gadget environment.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
-    /// Tangle RPC endpoint.
+    /// RPC endpoint.
     pub rpc_endpoint: String,
     /// Keystore URI
     ///
     /// * In Memory: `file::memory:` or `:memory:`
     /// * Filesystem: `file:/path/to/keystore` or `file:///path/to/keystore`
     pub keystore_uri: String,
+
     /// Data directory path.
     /// This is used to store the data for the gadget.
     /// If not provided, the gadget is expected to store the data in memory.
     pub data_dir_path: Option<String>,
+
     /// Blueprint ID for this gadget.
     pub blueprint_id: u64,
+
     /// Service ID for this gadget.
     ///
     /// This is only set to `None` when the gadget is in the registration mode.
@@ -39,6 +83,14 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     ///
     /// If this is set to true, the gadget should do some work and register the operator on the blueprint.
     pub is_registration: bool,
+
+    /// The Current Environment is for the `Benchmarking` of the Gadget
+    ///
+    /// The gadget will now start in the Benchmarking mode and will try to benchmark the current operator on that blueprint
+    /// There is no Service ID for this mode, since we need to benchmark the operator first on the blueprint.
+    ///
+    /// If this is set to true, the gadget should do some work and benchmark the operator on the blueprint.
+    pub is_benchmarking: bool,
 
     /// The type of protocol the gadget is executing on.
     pub protocol: Protocol,
@@ -88,7 +140,6 @@ pub enum Error {
     /// No ECDSA keypair found in the keystore.
     #[error("No ECDSA keypair found in the keystore")]
     NoEcdsaKeypair,
-
     /// Invalid ECDSA keypair found in the keystore.
     #[error("Invalid ECDSA keypair found in the keystore")]
     InvalidEcdsaKeypair,
@@ -123,6 +174,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
     protocol: Option<Protocol>,
 ) -> Result<GadgetConfiguration<RwLock>, Error> {
     let is_registration = std::env::var("REGISTRATION_MODE_ON").is_ok();
+    let is_benchmarking = std::env::var("BENCHMARKING_MODE_ON").is_ok();
     Ok(GadgetConfiguration {
         rpc_endpoint: std::env::var("RPC_URL").map_err(|_| Error::MissingTangleRpcEndpoint)?,
         keystore_uri: std::env::var("KEYSTORE_URI").map_err(|_| Error::MissingKeystoreUri)?,
@@ -131,8 +183,8 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
             .map_err(|_| Error::MissingBlueprintId)?
             .parse()
             .map_err(Error::MalformedBlueprintId)?,
-        // If the registration mode is on, we don't need the service ID
-        service_id: if is_registration {
+        // If the registration mode is on, or benchmarking mode, we don't need the service ID
+        service_id: if is_registration || is_benchmarking {
             None
         } else {
             Some(
@@ -143,6 +195,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
             )
         },
         is_registration,
+        is_benchmarking,
         protocol: protocol.unwrap_or(Protocol::Tangle),
         _lock: core::marker::PhantomData,
     })
@@ -233,6 +286,12 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     #[must_use]
     pub const fn should_run_registration(&self) -> bool {
         self.is_registration
+    }
+
+    /// Returns whether the gadget should run in benchmarking mode.
+    #[must_use]
+    pub const fn should_run_benchmarks(&self) -> bool {
+        self.is_benchmarking
     }
 
     /// Returns a new [`subxt::OnlineClient`] for the Tangle.
