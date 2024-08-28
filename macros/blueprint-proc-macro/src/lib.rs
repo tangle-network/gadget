@@ -83,10 +83,11 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 }
 
-/// The `report` macro is used to annotate a function as a report handler for misbehaviors.
+/// Creates a misbehavior report handler for the given function.
 ///
-/// This macro generates the necessary code to handle events and process reports within the service blueprint. Reports are specifically
-/// for submitting incorrect job results, attributable malicious behavior, or otherwise machine failures and reliability degradation.
+/// This macro generates the necessary code to handle events and process reports within the
+/// service blueprint. Reports are specifically for submitting incorrect job results, attributable
+/// malicious behavior, or otherwise machine failures and reliability degradation.
 ///
 /// # Example
 /// ```rust
@@ -126,6 +127,7 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
 ///    // ... other fields
 /// }
 /// ```
+///
 /// In addition to the generated code, the `report` macro also generates an Event Handler struct that
 /// implements the `EventHandler` trait for you.
 ///

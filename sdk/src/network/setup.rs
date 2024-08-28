@@ -104,12 +104,12 @@ impl NetworkConfig {
     }
 }
 
-/// Each service will only have one network.
+
+/// Start a P2P network with the given configuration.
 ///
-/// It is necessary that each service calling this function
+/// Each service will only have one network. It is necessary that each service calling this function
 /// uses a distinct network name, otherwise, the network will not be able to distinguish between
 /// the different services.
-/// Starts the P2P network with the given configuration.
 ///
 /// # Arguments
 ///
