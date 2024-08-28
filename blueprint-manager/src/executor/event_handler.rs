@@ -381,7 +381,7 @@ pub(crate) async fn handle_tangle_event(
         if let Gadget::Native(gadget) = &blueprint.gadget {
             // TODO: fix typo in soruces -> sources
             // needs to update the tangle-subxt to fix the typo
-            let gadget_source = &gadget.soruces.0[0];
+            let gadget_source = &gadget.sources.0[0];
             if let gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher::Github(gh) = &gadget_source.fetcher {
                 let metadata = github_fetcher_to_native_github_metadata(gh, blueprint.blueprint_id);
                 onchain_services.push(metadata);

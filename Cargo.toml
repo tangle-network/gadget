@@ -235,8 +235,8 @@ substrate-prometheus-endpoint = { version = "0.17.0", default-features = false }
 syn = "2.0.75"
 sysinfo = "0.31.2"
 # TODO: Stop using this fork once https://github.com/dtolnay/thiserror/pull/304 lands
-#thiserror = { git = "https://github.com/quartiq/thiserror", branch = "no-std", default-features = false }
-thiserror = { version = "1.0.63", default-features = false }
+thiserror = { git = "https://github.com/quartiq/thiserror", branch = "no-std", default-features = false }
+#thiserror = { version = "1.0.63", default-features = false }
 tokio = { version = "1.39.3", default-features = false }
 tokio-rustls = "0.26.0"
 tokio-util = { version = "0.7.11", default-features = false }
@@ -300,7 +300,8 @@ wasmtime = { version = "23.0.2", default-features = false }
 wasmtimer = "0.2"
 
 # Eigenlayer
-eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git" }
+# TODO: Remove this branch, point to main once https://github.com/webb-tools/eigensdk-rs/pull/20 is merged
+eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = "donovan/maintenance" }
 
 [profile.dev.package.backtrace]
 opt-level = 3

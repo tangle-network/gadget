@@ -13,14 +13,13 @@ keywords = ["tangle", "blueprint", "avs"]
 rust-version = "1.79"
 
 [dependencies]
-tracing = "0.1"
-async-trait = "0.1"
-
-color-eyre = "0.6"
-tokio = { version = "1.39", default-features = false, features = ["full"] }
-tracing-subscriber = { version = "0.3", features = ["parking_lot", "env-filter"] }
-
+tracing.workspace = true
+async-trait.workspace = true
+color-eyre.workspace = true
+tokio = { workspace = true, default-features = false, features = ["full"] }
+tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"] }
 gadget-sdk = { workspace = true, features = ["std"] }
+eigensdk-rs = { workspace = true }
 
 [build-dependencies]
-blueprint-metadata = "0.1"
+blueprint-metadata.workspace = true
