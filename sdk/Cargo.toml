@@ -27,7 +27,7 @@ w3f-bls = { workspace = true }
 # Metrics deps
 hyper = { workspace = true, features = ["http1", "server"] }
 prometheus = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot", "process"] }
 
 # Logging deps
 log = { workspace = true }
@@ -46,7 +46,6 @@ serde_json = { workspace = true }
 # Substrate
 sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
-
 
 # Event Watchers and Handlers
 backoff = { workspace = true }
@@ -67,6 +66,10 @@ alloy-transport = { workspace = true }
 # Macros
 gadget-blueprint-proc-macro = { workspace = true }
 derive_more = { workspace = true }
+
+# Executor
+failure = { workspace = true }
+nix = { workspace = true }
 
 # Benchmarking deps
 sysinfo = { workspace = true }

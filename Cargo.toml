@@ -6,7 +6,6 @@ members = [
     "cli",
     "core",
     "common",
-    "executor",
     "environments/tangle",
     "environments/utils",
     "gadget-io",
@@ -48,7 +47,6 @@ broken_intra_doc_links = "deny"
 gadget-core = { version = "0.0.1", path = "./core", default-features = false }
 gadget-common = { version = "0.1.0", path = "./common", default-features = false }
 gadget-io = { version = "0.0.1", path = "./gadget-io", default-features = false }
-gadget-executor = { version = "0.1.0", path = "./executor" }
 blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false }
@@ -238,6 +236,7 @@ syn = "2.0.75"
 sysinfo = "0.31.2"
 # TODO: Stop using this fork once https://github.com/dtolnay/thiserror/pull/304 lands
 thiserror = { git = "https://github.com/quartiq/thiserror", branch = "no-std", default-features = false }
+#thiserror = { version = "1.0.63", default-features = false }
 tokio = { version = "1.39.3", default-features = false }
 tokio-rustls = "0.26.0"
 tokio-util = { version = "0.7.11", default-features = false }
@@ -259,8 +258,9 @@ uuid = "1.10.0"
 w3f-bls = { version = "0.1.4", default-features = false }
 zeroize = { version = "1", default-features = false, features = ["alloc", "zeroize_derive"] }
 
-anvil = { git = "https://github.com/foundry-rs/foundry.git" }
-foundry-common = { git = "https://github.com/foundry-rs/foundry.git" }
+#anvil = { git = "https://github.com/foundry-rs/foundry.git" }
+#foundry-common = { git = "https://github.com/foundry-rs/foundry.git" }
+#revm = { version = "13.0.0", default-features = false }
 alloy-chains = "0.1.27"
 alloy-primitives = "0.7.7"
 alloy-dyn-abi = "0.7.7"
@@ -298,6 +298,10 @@ wasm-bindgen-futures = "0.4.43"
 wasmer = { version = "4.3.5", default-features = false }
 wasmtime = { version = "23.0.2", default-features = false }
 wasmtimer = "0.2"
+
+# Eigenlayer
+# TODO: Remove this branch, point to main once https://github.com/webb-tools/eigensdk-rs/pull/20 is merged
+eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = "donovan/maintenance" }
 
 [profile.dev.package.backtrace]
 opt-level = 3

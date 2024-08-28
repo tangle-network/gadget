@@ -1,5 +1,6 @@
-use crate::process::utils::*;
-use crate::{craft_child_process, run_command, OS_COMMAND};
+use crate::executor::process::utils::*;
+use crate::executor::OS_COMMAND;
+use crate::{craft_child_process, run_command};
 use failure::format_err;
 use nix::libc::pid_t;
 use nix::sys::signal;
@@ -20,18 +21,18 @@ const DEFAULT_READ_TIMEOUT: u64 = 1000;
 
 /// A Process spawned by gadget-executor, running some service or command(s)
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct GadgetProcess {
+pub struct GadgetProcess {
     /// The command executed
-    pub(crate) command: String,
+    pub command: String,
     /// The name of the process itself
-    pub(crate) process_name: OsString,
+    pub process_name: OsString,
     /// Process ID
-    pub(crate) pid: u32,
+    pub pid: u32,
     /// History of output from process for reviewing/tracking progress
-    pub(crate) output: Vec<String>,
+    pub output: Vec<String>,
     /// Stream for output from child process
     #[serde(skip_serializing, skip_deserializing)]
-    pub(crate) stream: Option<Lines<BufReader<tokio::process::ChildStdout>>>,
+    pub stream: Option<Lines<BufReader<tokio::process::ChildStdout>>>,
 }
 
 impl GadgetProcess {
@@ -257,7 +258,7 @@ impl GadgetProcess {
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub(crate) enum ProcessOutput {
+pub enum ProcessOutput {
     /// Normal collection of output lines from a given process
     Output(Vec<String>),
     /// Output lines from a given process that successfully completed

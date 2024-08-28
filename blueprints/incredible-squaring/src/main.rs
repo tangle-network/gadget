@@ -12,6 +12,10 @@ use gadget_sdk::{
         SubstrateEventWatcher,
     },
     keystore::Backend,
+    network::{
+        gossip::NetworkService,
+        setup::{start_p2p_network, NetworkConfig},
+    },
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
@@ -137,7 +141,22 @@ impl GadgetRunner for EigenlayerGadgetRunner {
             .with_recommended_fillers()
             .wallet(wallet)
             .on_http(env.rpc_endpoint);
-        let x_square_eigen = blueprint::XsquareEigenEventHandler {};
+
+        // TODO: Fill in and find the correct values for the network configuration
+        // TODO: Implementations for reading set of operators from Tangle & Eigenlayer
+        let network_config: NetworkConfig = NetworkConfig {
+            identity: todo!(),
+            role_key: todo!(),
+            bootnodes: todo!(),
+            bind_ip: todo!(),
+            bind_port: todo!(),
+            topics: todo!(),
+            logger: todo!(),
+        };
+        let network: GossipHandle = start_p2p_network(network_config);
+        let x_square_eigen = blueprint::XsquareEigenEventHandler {
+            ctx: blueprint::MyContext { network, keystore },
+        };
 
         let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::<
             T::T,

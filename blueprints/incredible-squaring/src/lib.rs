@@ -1,6 +1,15 @@
 use alloy_primitives::{Bytes, U256};
 use alloy_sol_types::sol;
 use gadget_sdk::job;
+// use eigensdk_rs::eigen_utils::crypto::bls::Signature;
+// use gadget_common::{module::network::Network, subxt_signer::bip39::serde::Serialize};
+// use gadget_sdk::{
+//     job,
+//     keystore::{backend::GenericKeyStore, ecdsa},
+//     network::gossip::GossipHandle,
+//     store::LocalDatabase,
+// };
+// use std::{collections::HashMap, convert::Infallible};
 use std::convert::Infallible;
 use IncredibleSquaringTaskManager::{
     respondToTaskCall, G1Point, G2Point, NonSignerStakesAndSignature, Task, TaskResponse,
@@ -25,6 +34,18 @@ sol!(
     "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
 );
 
+// #[derive(Clone)]
+// pub struct MyContext<RwLock: lock_api::RawRwLock> {
+//     pub network: GossipHandle,
+//     pub keystore: GenericKeyStore<RwLock>,
+// }
+//
+// #[derive(Clone, Debug, Serialize, Deserialize)]
+// pub struct MyMessage {
+//     pub xsquare: U256,
+//     pub signature: Signature,
+// }
+
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
     id = 1,
@@ -38,12 +59,46 @@ sol!(
         callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
     ),
 )]
-pub fn xsquare_eigen(
+pub async fn xsquare_eigen(
+    // TODO: Add Context
+    // ctx: &MyContext,
     number_to_be_squared: U256,
     task_created_block: u32,
     quorum_numbers: Bytes,
     quorum_threshold_percentage: u32,
 ) -> Result<respondToTaskCall, Infallible> {
+    // TODO: Send our task response to Aggregator RPC server
+    // TODO: OR we use the gossip protocol to send the response to peers
+    // TODO: Where is by BLS key?
+
+    // // 1. Calculate the squared number and save the response
+    // let my_msg = MyMessage {
+    //     xsquare: number_to_be_squared.saturating_pow(U256::from(2u32)),
+    //     signature: Signature::new_zero(),
+    // };
+    //
+    // let responses: HashMap<ecdsa::Public, MyMessage> = HashMap::new();
+    // responses.insert(ecdsa::Public::new_zero(), my_msg);
+    //
+    // // 2. Gossip the squared result BLS signature
+    // let handle = &ctx.network;
+    // let my_msg_json = serde_json::to_string(&my_msg).unwrap();
+    // handle.send_message(my_msg_json).await;
+    //
+    // // 3. Receive gossiped results from peers
+    // let quorum_size = 1;
+    // let mut rx = handle.rx_from_inbound.lock().await;
+    // while let Some(message) = rx.recv().await {
+    //     let message: MyMessage = serde_json::from_str(&message).unwrap();
+    //     let public_key = ecdsa::Public::new_zero();
+    //     responses.insert(public_key, message);
+    //
+    //     if responses.len() >= quorum_size {
+    //         break;
+    //     }
+    // }
+    //
+    // // 4. Once we have a quorum, we calculate the non signers/participants and stakes
     let non_signer_stakes_and_signature: NonSignerStakesAndSignature =
         NonSignerStakesAndSignature {
             nonSignerQuorumBitmapIndices: vec![], // Vec<u32>,
@@ -61,6 +116,8 @@ pub fn xsquare_eigen(
             quorumApkIndices: vec![],  // Vec<u32>,
             totalStakeIndices: vec![], // Vec<u32>,
         };
+
+    // 5. We submit the full task response
     Ok(respondToTaskCall {
         task: Task {
             numberToBeSquared: number_to_be_squared,

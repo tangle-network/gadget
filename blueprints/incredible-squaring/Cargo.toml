@@ -7,22 +7,24 @@ edition.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-spec_version.workspace = true
 
 [[bin]]
 name = "incredible-squaring-gadget"
 path = "./src/main.rs"
 
 [dependencies]
+eigensdk-rs = { workspace = true }
 tracing = { workspace = true }
 async-trait = { workspace = true }
-gadget-sdk = { workspace = true, features = ["default"] }
-
+gadget-sdk = { workspace = true, features = ["std"] }
+gadget-common = { workspace = true, features = ["std"] }
 color-eyre = { workspace = true, optional = true }
+lock_api = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["full"], optional = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"], optional = true }
 tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"], optional = true }
-
 alloy-contract = { workspace = true }
 alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }

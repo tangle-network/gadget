@@ -31,6 +31,7 @@ macro_rules! craft_child_process {
     }};
 }
 
+#[allow(unused_results)]
 pub(crate) fn create_stream(mut child: Child) -> Lines<BufReader<tokio::process::ChildStdout>> {
     // Create stream to read output
     let stdout = child
