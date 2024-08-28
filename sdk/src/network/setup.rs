@@ -104,7 +104,6 @@ impl NetworkConfig {
     }
 }
 
-
 /// Start a P2P network with the given configuration.
 ///
 /// Each service will only have one network. It is necessary that each service calling this function
