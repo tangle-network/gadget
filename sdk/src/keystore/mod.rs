@@ -42,8 +42,9 @@ pub mod sr25519;
 
 pub use error::Error;
 
-/// The Keystore [`Backend`] trait defines the necessary functions that a keystore backend
-/// must implement to support various cryptographic key operations such as key generation,
+/// Functions that a keystore backend must implement
+///
+/// This adds support for various cryptographic key operations such as key generation,
 /// signing, and public key retrieval.
 pub trait Backend {
     /// Generate a new sr25519 key pair with an optional seed.

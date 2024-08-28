@@ -162,11 +162,11 @@ where
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 const LOCAL_TANGLE_NODE: &str = "ws://127.0.0.1:9944";
 
-/// N: number of nodes
-/// K: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
-/// D: Any data that you want to pass to pass with NodeInput.
-/// F: A function that generates a service's execution via a series of shells. Each shell executes a subset of the service,
-/// as each service may have a set of operations that are executed in parallel, sequentially, or concurrently.
+/// - `N`: number of nodes
+/// - `K`: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
+/// - `D`: Any data that you want to pass to pass with NodeInput.
+/// - `F`: A function that generates a service's execution via a series of shells. Each shell executes a subset of the service,
+///        as each service may have a set of operations that are executed in parallel, sequentially, or concurrently.
 pub async fn new_test_ext_blueprint_manager<
     const N: usize,
     const K: usize,
@@ -286,11 +286,11 @@ fn find_open_tcp_bind_port() -> u16 {
         .port()
 }
 
-/// N: number of nodes
-/// K: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
-/// D: Any data that you want to pass with NodeInput.
-/// F: A function that generates a service's execution via a series of shells. Each shell executes a subset of the service,
-/// as each service may have a set of operations that are executed in parallel, sequentially, or concurrently.
+/// - `N`: number of nodes
+/// - `K`: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
+/// - `D`: Any data that you want to pass with NodeInput.
+/// - `F`: A function that generates a service's execution via a series of shells. Each shell executes a subset of the service,
+///        as each service may have a set of operations that are executed in parallel, sequentially, or concurrently.
 pub async fn new_test_ext<
     const N: usize,
     const K: usize,

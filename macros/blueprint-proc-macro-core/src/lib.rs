@@ -48,9 +48,9 @@ pub enum FieldType {
     AccountId,
 }
 
-/// A Service Blueprint is a the main definition of a service.
+/// The main definition of a service.
 ///
-/// it contains the metadata of the service, the job definitions, and other hooks, along with the
+/// This contains the metadata of the service, the job definitions, and other hooks, along with the
 /// gadget that will be executed when one of the jobs is calling this service.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ServiceBlueprint<'a> {
@@ -222,11 +222,12 @@ pub enum Gadget<'a> {
     Container(ContainerGadget<'a>),
 }
 
-/// A binary that is stored in the Github release.
+/// A binary that is stored in the GitHub release.
 ///
-/// this will constuct the URL to the release and download the binary.
+/// This will construct the URL to the release and download the binary.
 /// The URL will be in the following format:
-/// https://github.com/<owner>/<repo>/releases/download/v<tag>/<path>
+///
+/// `https://github.com/<owner>/<repo>/releases/download/v<tag>/<path>`
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GithubFetcher<'a> {
     /// The owner of the repository.
