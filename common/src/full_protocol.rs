@@ -268,9 +268,11 @@ where
     }
 }
 
-/// Used for constructing an instance of a node. If there is both a keygen and a signing protocol, then,
-/// the length of the vectors are 2. The length of the vector is equal to the numbers of protocols that
-/// the constructed node is going to concurrently execute
+/// Used for constructing an instance of a node.
+///
+/// If there is both a keygen and a signing protocol, then the length of the vectors are 2.
+/// The length of the vector is equal to the numbers of protocols that the constructed node
+/// is going to concurrently execute.
 pub struct NodeInput<Env: GadgetEnvironment, N: Network<Env>, KBE: KeystoreBackend, D> {
     pub clients: Vec<Env::Client>,
     pub networks: Vec<N>,

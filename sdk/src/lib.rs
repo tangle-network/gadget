@@ -43,4 +43,6 @@ pub mod network;
 
 pub mod slashing;
 
+pub mod benchmark;
+
 pub use gadget_blueprint_proc_macro::*;

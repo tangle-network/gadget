@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use gadget_sdk::{job, registration_hook, report, request_hook};
+use gadget_sdk::{benchmark, job, registration_hook, report, request_hook};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Error {
@@ -104,6 +104,17 @@ fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Ve
     issues.concat()
 }
 
+// ==================
+//   Benchmarks
+// ==================
+#[benchmark(job_id = 0, cores = 2)]
+fn keygen_2_of_3() {
+    let n = 3;
+    let t = 2;
+    let result = keygen(&MyContext, n, t);
+    assert!(result.is_ok());
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -111,5 +122,10 @@ mod tests {
         eprintln!("{}", super::KEYGEN_JOB_DEF);
         assert_eq!(super::KEYGEN_JOB_ID, 0);
         eprintln!("{}", super::REGISTRATION_HOOK);
+    }
+
+    #[test]
+    fn example_benchmark() {
+        super::keygen_2_of_3_benchmark();
     }
 }

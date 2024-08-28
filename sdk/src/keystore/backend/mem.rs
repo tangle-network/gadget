@@ -48,10 +48,12 @@ impl Ord for Bls381PublicWrapper {
     }
 }
 
-/// The In-Memory Keystore Backend. It stores everything in memory
-/// and does not persist anything, once dropped all the keys are lost, so use with caution.
+/// The In-Memory Keystore Backend.
+///
+/// It stores everything in memory and does not persist anything. Once dropped,
+/// all the keys are lost, so use with caution.
+///
 /// This is useful for testing and development purposes.
-/// It implements the [`crate::keystore::Backend`] trait.
 ///
 /// Note: Cloning this backend is cheap, as it uses [`Arc`] and [`RwLock`] internally.
 #[derive(Clone)]
