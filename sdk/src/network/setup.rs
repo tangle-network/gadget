@@ -32,6 +32,7 @@ pub const AGENT_VERSION: &str = "tangle/gadget-sdk/1.0.0";
 pub const CLIENT_VERSION: &str = "1.0.0";
 
 /// The base network configuration for a blueprint's libp2p network.
+///
 /// This configuration is used to setup the libp2p network for a blueprint.
 /// Construct using `NetworkConfig::new` for advanced users or `NetworkConfig::new_service_network` ordinarily.
 pub struct NetworkConfig {
@@ -103,7 +104,9 @@ impl NetworkConfig {
     }
 }
 
-/// Each service will only have one network. It is necessary that each service calling this function
+/// Each service will only have one network.
+///
+/// It is necessary that each service calling this function
 /// uses a distinct network name, otherwise, the network will not be able to distinguish between
 /// the different services.
 /// Starts the P2P network with the given configuration.
