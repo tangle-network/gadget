@@ -37,6 +37,7 @@ Gadget is a comprehensive framework for building multi-party computation (MPC) a
 
 ```bash
 git clone https://github.com/webb-tools/gadget/
+git submodule update --init --recursive
 cd gadget
 ```
    

@@ -9,7 +9,6 @@ use gadget_sdk::{
     events_watcher::{
         evm::{Config, EventWatcher},
         tangle::TangleEventsWatcher,
-        SubstrateEventWatcher,
     },
     keystore::Backend,
     network::{
@@ -22,6 +21,7 @@ use gadget_sdk::{
     },
     tx,
 };
+use gadget_sdk::env::GadgetConfiguration;
 
 use incredible_squaring_blueprint::{self as blueprint, IncredibleSquaringTaskManager};
 
@@ -34,7 +34,7 @@ trait GadgetRunner {
 }
 
 struct TangleGadgetRunner {
-    env: gadget_sdk::env::GadgetConfiguration,
+    env: gadget_sdk::env::GadgetConfiguration<parking_lot::RawRwLock>,
 }
 
 #[async_trait::async_trait]
@@ -82,14 +82,14 @@ impl GadgetRunner for TangleGadgetRunner {
 }
 
 struct EigenlayerGadgetRunner {
-    env: gadget_sdk::env::GadgetConfiguration,
+    env: gadget_sdk::env::GadgetConfiguration<parking_lot::RawRwLock>,
 }
 
 struct EigenlayerEventWatcher<T> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Config> EventWatcher for EigenlayerEventWatcher<T> {
+impl<T: Config> EventWatcher<T> for EigenlayerEventWatcher<T> {
     const TAG: &'static str = "eigenlayer";
     type Contract =
         IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance<T::T, T::P, T::N>;
@@ -176,7 +176,7 @@ impl GadgetRunner for EigenlayerGadgetRunner {
     }
 }
 
-fn create_gadget_runner(protocol: Protocol) -> (GadgetConfiguration, Arc<dyn GadgetRunner>) {
+fn create_gadget_runner(protocol: Protocol) -> (GadgetConfiguration<parking_lot::RawRwLock>, Arc<dyn GadgetRunner>) {
     let env = gadget_sdk::env::load(Some(protocol)).expect("Failed to load environment");
     match protocol {
         Protocol::Tangle => (env, Arc::new(TangleGadgetRunner { env })),

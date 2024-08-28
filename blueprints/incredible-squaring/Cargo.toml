@@ -34,6 +34,7 @@ alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true, features = ["json"] }
 alloy-transport = { workspace = true }
+parking_lot = { workspace = true }
 
 [build-dependencies]
 blueprint-metadata = { workspace = true }
