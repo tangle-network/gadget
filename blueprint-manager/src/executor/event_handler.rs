@@ -1,8 +1,6 @@
 use crate::config::BlueprintManagerConfig;
 use crate::gadget::native::FilteredBlueprint;
 use crate::gadget::ActiveGadgets;
-use crate::protocols::resolver::NativeGithubMetadata;
-use crate::sdk::utils::github_fetcher_to_native_github_metadata;
 use crate::sources::github::GithubBinaryFetcher;
 use crate::sources::BinarySourceFetcher;
 use color_eyre::eyre::OptionExt;
@@ -13,16 +11,14 @@ use std::sync::atomic::Ordering;
 use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
 use tangle_environment::gadget::TangleEvent;
 use tangle_subxt::subxt::SubstrateConfig;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
-    Gadget, GithubFetcher,
-};
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::Gadget;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{
     JobCalled, JobResultSubmitted, PreRegistration, Registered, ServiceInitiated, Unregistered,
 };
 
-pub async fn handle_services(
+pub async fn handle_services<'a>(
     blueprints: &[FilteredBlueprint],
-    fetchers: &[Box<dyn BinarySourceFetcher>],
+    fetchers: &[Box<dyn BinarySourceFetcher + 'a>],
     gadget_config: &GadgetConfig,
     blueprint_manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
@@ -213,7 +209,7 @@ pub(crate) async fn handle_tangle_event(
             match &gadget_source.fetcher {
                 gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher::Github(gh) => {
                     let fetcher = GithubBinaryFetcher {
-                        fetcher: gh,
+                        fetcher: gh.clone(),
                         blueprint_id: blueprint.blueprint_id,
                         logger,
                         gadget_name: blueprint.name.clone(),
@@ -224,7 +220,7 @@ pub(crate) async fn handle_tangle_event(
 
                 gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher::Testing(test) => {
                     let fetcher = crate::sources::testing::TestSourceFetcher {
-                        fetcher: test,
+                        fetcher: test.clone(),
                         blueprint_id: blueprint.blueprint_id,
                         logger,
                         gadget_name: blueprint.name.clone(),

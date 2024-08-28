@@ -171,6 +171,7 @@ pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
 /// - `D`: Any data that you want to pass to pass with NodeInput.
 /// - `F`: A function that generates a service's execution via a series of shells. Each shell executes a subset of the service,
 ///        as each service may have a set of operations that are executed in parallel, sequentially, or concurrently.
+#[allow(clippy::async_yields_async)]
 pub async fn new_test_ext_blueprint_manager<
     const N: usize,
     const K: usize,

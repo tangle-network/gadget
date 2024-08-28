@@ -1742,6 +1742,7 @@ dependencies = [
  "itertools 0.13.0",
  "libp2p",
  "log",
+ "parking_lot",
  "reqwest",
  "serde",
  "sha2 0.10.8",
@@ -7448,7 +7449,7 @@ dependencies = [
 [[package]]
 name = "pallet-services"
 version = "2.0.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=test-source-blueprints#38d69934702b6f45ff12057dd56c1b0ba0f7f813"
+source = "git+https://github.com/webb-tools/tangle.git#b275f14d423586a5be2729ac10065ad99ff69800"
 dependencies = [
  "ethabi",
  "fp-evm",
@@ -11802,7 +11803,7 @@ dependencies = [
 [[package]]
 name = "tangle-primitives"
 version = "2.0.0"
-source = "git+https://github.com/webb-tools/tangle.git?branch=test-source-blueprints#38d69934702b6f45ff12057dd56c1b0ba0f7f813"
+source = "git+https://github.com/webb-tools/tangle.git#b275f14d423586a5be2729ac10065ad99ff69800"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -11830,7 +11831,7 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "0.1.5"
-source = "git+https://github.com/webb-tools/tangle.git?branch=test-source-blueprints#38d69934702b6f45ff12057dd56c1b0ba0f7f813"
+source = "git+https://github.com/webb-tools/tangle.git#b275f14d423586a5be2729ac10065ad99ff69800"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "scale-info",

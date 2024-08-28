@@ -1,16 +1,12 @@
-use crate::config::BlueprintManagerConfig;
-use crate::gadget::native::FilteredBlueprint;
-use crate::gadget::ActiveGadgets;
 use crate::sdk::async_trait;
 use crate::sources::BinarySourceFetcher;
 use color_eyre::Report;
 use gadget_common::prelude::DebugLogger;
-use gadget_io::GadgetConfig;
 use std::path::PathBuf;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::TestFetcher;
 
 pub struct TestSourceFetcher<'a> {
-    pub fetcher: &'a TestFetcher,
+    pub fetcher: TestFetcher,
     pub blueprint_id: u64,
     pub logger: &'a DebugLogger,
     pub gadget_name: String,
@@ -24,7 +20,7 @@ impl BinarySourceFetcher for TestSourceFetcher<'_> {
             cargo_bin,
             base_path,
             ..
-        } = self.fetcher;
+        } = &self.fetcher;
         let cargo_bin = String::from_utf8(cargo_bin.0 .0.clone())
             .map_err(|err| Report::msg(format!("Failed to parse `cargo_bin`: {:?}", err)))?;
         let base_path = String::from_utf8(base_path.0 .0.clone())

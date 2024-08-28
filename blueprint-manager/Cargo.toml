@@ -32,6 +32,7 @@ tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
 libp2p = { workspace = true }
 auto_impl = { workspace = true }
+parking_lot = { workspace = true }
 [features]
 default = ["std"]
 std = [

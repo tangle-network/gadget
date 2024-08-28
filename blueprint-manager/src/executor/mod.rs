@@ -8,15 +8,12 @@ use color_eyre::Report;
 use gadget_common::config::DebugLogger;
 use gadget_common::environments::GadgetEnvironment;
 use gadget_common::subxt_signer;
-use gadget_common::subxt_signer::ExposeSecret;
 use gadget_common::tangle_runtime::AccountId32;
-use gadget_io::{GadgetConfig, SubstrateKeystore};
+use gadget_io::GadgetConfig;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
-use gadget_sdk::keystore::{Backend, BackendExt};
-use hex::FromHex;
-use sp_core::{Pair, H256};
-use sp_keystore::Keystore;
+use gadget_sdk::keystore::BackendExt;
+use sp_core::H256;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -177,7 +174,9 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         (sr_keypair, ecdsa_keypair)
     } else {
         // For ordinary runs, we will default to the keystore path
-        let keystore = GenericKeyStore::Fs(FilesystemKeystore::open(&gadget_config.base_path)?);
+        let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
+            &gadget_config.base_path,
+        )?);
         (keystore.sr25519_key()?, keystore.ecdsa_key()?)
     };
 

@@ -20,6 +20,7 @@ pub fn github_fetcher_to_native_github_metadata(
     let git = format!("https://github.com/{owner}/{repo}");
 
     NativeGithubMetadata {
+        fetcher: gh.clone(),
         git,
         tag,
         repo,
@@ -90,7 +91,7 @@ pub fn get_formatted_os_string() -> String {
     }
 }
 
-pub fn get_download_url<T: Into<String>>(binary: &GadgetBinary, fetcher: &GithubFetcher) -> String {
+pub fn get_download_url(binary: &GadgetBinary, fetcher: &GithubFetcher) -> String {
     let os = get_formatted_os_string();
     let ext = if os == "windows" { ".exe" } else { "" };
     let owner = String::from_utf8(fetcher.owner.0 .0.clone()).expect("Should be a valid owner");
@@ -165,6 +166,7 @@ pub fn bytes_to_utf8_string<T: Into<Vec<u8>>>(input: T) -> color_eyre::Result<St
 }
 
 pub fn slice_32_to_sha_hex_string(hash: [u8; 32]) -> String {
+    use std::fmt::Write;
     hash.iter().fold(String::new(), |mut acc, byte| {
         write!(&mut acc, "{:02x}", byte).expect("Should be able to write");
         acc

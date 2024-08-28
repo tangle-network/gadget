@@ -3,8 +3,7 @@ use crate::gadget::native::FilteredBlueprint;
 use crate::gadget::ActiveGadgets;
 use crate::sdk::async_trait;
 use crate::sdk::utils::{
-    chmod_x_file, generate_process_arguments, generate_running_process_status_handle,
-    get_service_str, is_windows,
+    chmod_x_file, generate_process_arguments, generate_running_process_status_handle, is_windows,
 };
 use gadget_common::prelude::DebugLogger;
 use gadget_io::GadgetConfig;
@@ -15,14 +14,14 @@ pub mod testing;
 
 #[async_trait]
 #[auto_impl::auto_impl(Box)]
-pub trait BinarySourceFetcher {
+pub trait BinarySourceFetcher: Send + Sync {
     async fn get_binary(&self) -> color_eyre::Result<PathBuf>;
     fn blueprint_id(&self) -> u64;
     fn name(&self) -> String;
 }
 
-pub async fn handle<T: BinarySourceFetcher>(
-    service_source: T,
+pub async fn handle(
+    service_source: &dyn BinarySourceFetcher,
     blueprints: &[FilteredBlueprint],
     gadget_config: &GadgetConfig,
     blueprint_manager_opts: &BlueprintManagerConfig,
@@ -37,13 +36,11 @@ pub async fn handle<T: BinarySourceFetcher>(
 
         // Ensure the binary is executable
         if is_windows() {
-            if !binary_download_path.extension().is_none() {
+            if binary_download_path.extension().is_none() {
                 binary_download_path.set_extension("exe");
             }
-        } else {
-            if let Err(err) = chmod_x_file(&binary_download_path).await {
-                logger.warn(format!("Failed to chmod +x the binary: {err}"));
-            }
+        } else if let Err(err) = chmod_x_file(&binary_download_path).await {
+            logger.warn(format!("Failed to chmod +x the binary: {err}"));
         }
 
         for blueprint in blueprints {
