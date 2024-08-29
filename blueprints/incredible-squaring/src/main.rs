@@ -178,7 +178,7 @@ impl GadgetRunner for EigenlayerGadgetRunner {
         let env = gadget_sdk::env::load(Some(Protocol::Eigenlayer))?;
         let client = env.client().await?;
         let signer = env.first_signer()?;
-        let xsquare_summery = blueprint::xsquare_benchmark();
+        let xsquare_summary = blueprint::xsquare_benchmark();
         Ok(())
     }
 }
