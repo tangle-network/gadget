@@ -1,3 +1,4 @@
+use std::net::IpAddr;
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, FixedBytes};
 use alloy_provider::ProviderBuilder;
@@ -29,6 +30,9 @@ use gadget_sdk::events_watcher::tangle::TangleConfig;
 use gadget_sdk::tangle_subxt::subxt;
 use lock_api::{GuardSend, RwLock};
 use std::sync::Arc;
+use gadget_common::config::DebugLogger;
+use gadget_sdk::env::GadgetConfiguration;
+use gadget_sdk::network::gossip::GossipHandle;
 
 #[async_trait::async_trait]
 trait GadgetRunner {
@@ -41,18 +45,16 @@ struct TangleGadgetRunner<R: lock_api::RawRwLock> {
 }
 
 #[async_trait::async_trait]
-impl GadgetRunner for TangleGadgetRunner<dyn lock_api::RawRwLock<GuardMarker = GuardSend>> {
+impl GadgetRunner for TangleGadgetRunner<parking_lot::RawRwLock> {
     async fn register(&self) -> Result<()> {
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
         let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
-
-        // TODO: Get ECDSA key from store as expected
-        let ecdsa_key = [0; 32];
+        let ecdsa_pair = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
 
         let xt = api::tx().services().register(
             self.env.blueprint_id,
             services::OperatorPreferences {
-                key: ecdsa::Public(ecdsa_key),
+                key: ecdsa::Public(ecdsa_pair.public_key().0),
                 approval: services::ApprovalPrefrence::None,
             },
             Default::default(),
@@ -64,7 +66,7 @@ impl GadgetRunner for TangleGadgetRunner<dyn lock_api::RawRwLock<GuardMarker = G
     }
 
     async fn run(&self) -> Result<()> {
-        let env = gadget_sdk::env::load(None)?;
+        let env = gadget_sdk::env::load(None).map_err(|e| eyre!(e))?;
         let client = env.client().await.map_err(|e| eyre!(e))?;
         let signer = env.first_signer().map_err(|e| eyre!(e))?;
 
@@ -87,15 +89,15 @@ impl GadgetRunner for TangleGadgetRunner<dyn lock_api::RawRwLock<GuardMarker = G
     }
 }
 
-struct EigenlayerGadgetRunner {
-    env: gadget_sdk::env::GadgetConfiguration,
+struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
+    env: GadgetConfiguration<R>,
 }
 
 struct EigenlayerEventWatcher<T> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Config> EventWatcher for EigenlayerEventWatcher<T> {
+impl<T: Config> EventWatcher<T> for EigenlayerEventWatcher<T> {
     const TAG: &'static str = "eigenlayer";
     type Contract =
         IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance<T::T, T::P, T::N>;
@@ -104,17 +106,11 @@ impl<T: Config> EventWatcher for EigenlayerEventWatcher<T> {
 }
 
 #[async_trait::async_trait]
-impl GadgetRunner for EigenlayerGadgetRunner {
+impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
     async fn register(&self) -> Result<()> {
-        let keystore = self.env.keystore()?;
-        let ecdsa_key = keystore
-            .iter_ecdsa()
-            .next()
-            .map(|v| v.to_sec1_bytes().to_vec().try_into())
-            .transpose()
-            .map_err(|_| eyre!("Failed to convert ECDSA key"))?
-            .ok_or_eyre("No ECDSA key found")?;
-        let signing_key: SigningKey = SigningKey::from_bytes(&ecdsa_key)?;
+        let keystore = self.env.keystore().map_err(|e| eyre!(e))?;
+        let ecdsa_key = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
+        let signing_key = SigningKey::from(ecdsa_key.public_key());
         let signer: PrivateKeySigner = PrivateKeySigner::from_signing_key(signing_key);
 
         // Implement Eigenlayer-specific registration logic here
@@ -127,66 +123,58 @@ impl GadgetRunner for EigenlayerGadgetRunner {
     }
 
     async fn run(&self) -> Result<()> {
-        let env = gadget_sdk::env::load(Some(Protocol::Eigenlayer))?;
-        let keystore = env.keystore()?;
+        let env = gadget_sdk::env::load(Some(Protocol::Eigenlayer)).map_err(|e| eyre!(e))?;
+        let keystore = env.keystore().map_err(|e| eyre!(e))?;
         // get the first ECDSA key from the keystore and register with it.
-        let ecdsa_key = keystore
-            .iter_ecdsa()
-            .next()
-            .map(|v| v.to_sec1_bytes().to_vec().try_into())
-            .transpose()
-            .map_err(|_| eyre!("Failed to convert ECDSA key"))?
-            .ok_or_eyre("No ECDSA key found")?;
-        let signing_key: SigningKey = SigningKey::from_bytes(&ecdsa_key)?;
+        let ecdsa_key = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
+        let signing_key = SigningKey::from(ecdsa_key.public_key());
         let priv_key_signer: PrivateKeySigner = PrivateKeySigner::from_signing_key(signing_key);
-        let wallet = EthereumWallet::from(signer.clone());
+        let wallet = EthereumWallet::from(priv_key_signer.clone());
         // Set up eignelayer AVS
         let contract_address = Address::from_slice(&[0; 20]);
         // Set up the HTTP provider with the `reqwest` crate.
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_http(env.rpc_endpoint);
+            .on_http(env.rpc_endpoint.parse()?);
+
+
 
         // TODO: Fill in and find the correct values for the network configuration
         // TODO: Implementations for reading set of operators from Tangle & Eigenlayer
         let network_config: NetworkConfig = NetworkConfig {
-            identity: todo!(),
-            role_key: todo!(),
-            bootnodes: todo!(),
-            bind_ip: todo!(),
-            bind_port: todo!(),
-            topics: todo!(),
-            logger: todo!(),
+            identity: self.env.first_signer().map_err(|e| eyre!(e))?,
+            role_key: self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?, // TODO: ROLE KEY IS DEPRECATED
+            bootnodes: vec![],
+            bind_ip: IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
+            bind_port: 9999u16,
+            topics: vec!["PLACEHOLDER".to_string()],
+            logger: DebugLogger::default(),
         };
-        let network: GossipHandle = start_p2p_network(network_config);
-        let x_square_eigen = blueprint::XsquareEigenEventHandler {
-            ctx: blueprint::MyContext { network, keystore },
-        };
-
-        let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::<
-            T::T,
-            T::P,
-            T::N,
-        >::new(contract_address, provider);
-
-        EventWatcher::run(
-            &EigenlayerEventWatcher,
-            contract,
-            // Add more handler here if we have more functions.
-            vec![Box::new(x_square_eigen)],
-        )
-        .await?;
+        let network: GossipHandle = start_p2p_network(network_config).map_err(|e| eyre!(e))?;
+        // let x_square_eigen = blueprint::XsquareEigenEventHandler {
+        //     ctx: blueprint::MyContext { network, keystore },
+        // };
+        //
+        // let contract: IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(contract_address, provider);
+        //
+        // EventWatcher::run(
+        //     &EigenlayerEventWatcher,
+        //     contract,
+        //     // Add more handler here if we have more functions.
+        //     vec![Box::new(x_square_eigen)],
+        // )
+        // .await?;
 
         Ok(())
     }
 }
 
-fn create_gadget_runner(protocol: Protocol) -> (GadgetConfiguration, Arc<dyn GadgetRunner>) {
+fn create_gadget_runner(protocol: Protocol) -> (GadgetConfiguration<parking_lot::RawRwLock>, Arc<dyn GadgetRunner>) {
     let env = gadget_sdk::env::load(Some(protocol)).expect("Failed to load environment");
     match protocol {
-        Protocol::Tangle => (env, Arc::new(TangleGadgetRunner { env })),
-        Protocol::Eigenlayer => (env, Arc::new(EigenlayerGadgetRunner { env })),
+        Protocol::Tangle => (env.clone(), Arc::new(TangleGadgetRunner { env })),
+        Protocol::Eigenlayer => (env.clone(), Arc::new(EigenlayerGadgetRunner { env })),
     }
 }
 

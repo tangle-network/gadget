@@ -11,7 +11,7 @@ repository.workspace = true
 [[bin]]
 name = "incredible-squaring-gadget"
 path = "./src/main.rs"
-#required-features = ["gadget"]
+required-features = ["default"]
 
 [dependencies]
 eigensdk-rs = { workspace = true }
@@ -35,10 +35,12 @@ alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true, features = ["json"] }
 alloy-transport = { workspace = true }
+multiaddr = { workspace = true }
+parking_lot = "0.12.3"
 
 [build-dependencies]
 blueprint-metadata = { workspace = true }
 
 [features]
-#default = []
-default = ["dep:tokio", "dep:color-eyre", "dep:subxt-signer", "dep:tracing-subscriber"]
+default = ["std"]
+std = ["dep:tokio", "dep:color-eyre", "dep:subxt-signer", "dep:tracing-subscriber"]
