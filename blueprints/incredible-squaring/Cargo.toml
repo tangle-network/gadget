@@ -40,4 +40,5 @@ parking_lot = { workspace = true }
 blueprint-metadata = { workspace = true }
 
 [features]
+#default = []
 default = ["dep:tokio", "dep:color-eyre", "dep:subxt-signer", "dep:tracing-subscriber"]

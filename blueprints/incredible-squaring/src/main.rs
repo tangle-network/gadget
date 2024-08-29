@@ -8,6 +8,7 @@ use gadget_sdk::{
     env::Protocol,
     events_watcher::{
         evm::{Config, EventWatcher},
+        substrate::SubstrateEventWatcher,
         tangle::TangleEventsWatcher,
     },
     keystore::Backend,
@@ -25,6 +26,9 @@ use gadget_sdk::env::GadgetConfiguration;
 
 use incredible_squaring_blueprint::{self as blueprint, IncredibleSquaringTaskManager};
 
+use gadget_sdk::events_watcher::tangle::TangleConfig;
+use gadget_sdk::tangle_subxt::subxt;
+use lock_api::{GuardSend, RwLock};
 use std::sync::Arc;
 
 #[async_trait::async_trait]
@@ -40,11 +44,22 @@ struct TangleGadgetRunner {
 #[async_trait::async_trait]
 impl GadgetRunner for TangleGadgetRunner {
     async fn register(&self) -> Result<()> {
-        let client = self.env.client().await?;
-        let signer = self.env.first_signer()?;
+        let client = self.env.client().await.map_err(|e| eyre!(e))?;
+        let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
+
+        let keystore = self.env.keystore()?;
+        // get the first ECDSA key from the keystore and register with it.
+        let ecdsa_key = keystore
+            .iter_ecdsa()
+            .next()
+            .map(|v| v.to_sec1_bytes().to_vec().try_into())
+            .transpose()
+            .map_err(|_| eyre!("Failed to convert ECDSA key"))?
+            .ok_or_eyre("No ECDSA key found")?;
+        let signing_key: SigningKey = SigningKey::from_bytes(&ecdsa_key)?;
 
         let xt = api::tx().services().register(
-            env.blueprint_id,
+            self.env.blueprint_id,
             services::OperatorPreferences {
                 key: ecdsa::Public(ecdsa_key),
                 approval: services::ApprovalPrefrence::None,
@@ -59,8 +74,8 @@ impl GadgetRunner for TangleGadgetRunner {
 
     async fn run(&self) -> Result<()> {
         let env = gadget_sdk::env::load(None)?;
-        let client = env.client().await?;
-        let signer = env.first_signer()?;
+        let client = env.client().await.map_err(|e| eyre!(e))?;
+        let signer = env.first_signer().map_err(|e| eyre!(e))?;
 
         let x_square = blueprint::XsquareEventHandler {
             service_id: env.service_id.unwrap(),
