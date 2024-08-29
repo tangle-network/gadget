@@ -1,6 +1,9 @@
 use crate::events_watcher::tangle::TangleConfig;
 use crate::keystore::backend::GenericKeyStore;
 use alloc::string::{String, ToString};
+use core::fmt::Debug;
+use gadget_common::prelude::DebugLogger;
+use std::net::IpAddr;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub enum Protocol {
@@ -10,7 +13,6 @@ pub enum Protocol {
 }
 
 /// Gadget environment.
-#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     /// Tangle RPC endpoint.
@@ -39,11 +41,54 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     ///
     /// If this is set to true, the gadget should do some work and register the operator on the blueprint.
     pub is_registration: bool,
-
     /// The type of protocol the gadget is executing on.
     pub protocol: Protocol,
-
+    /// Bind port
+    pub bind_port: u16,
+    /// Bind addr
+    pub bind_addr: IpAddr,
+    /// logger
+    pub logger: DebugLogger,
+    /// Whether or not the gadget is in test mode
+    pub test_mode: bool,
     _lock: core::marker::PhantomData<RwLock>,
+}
+
+impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("GadgetConfiguration")
+            .field("rpc_endpoint", &self.rpc_endpoint)
+            .field("keystore_uri", &self.keystore_uri)
+            .field("data_dir_path", &self.data_dir_path)
+            .field("blueprint_id", &self.blueprint_id)
+            .field("service_id", &self.service_id)
+            .field("is_registration", &self.is_registration)
+            .field("protocol", &self.protocol)
+            .field("bind_port", &self.bind_port)
+            .field("bind_addr", &self.bind_addr)
+            .field("logger", &self.logger)
+            .field("test_mode", &self.test_mode)
+            .finish()
+    }
+}
+
+impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
+    fn clone(&self) -> Self {
+        Self {
+            rpc_endpoint: self.rpc_endpoint.clone(),
+            keystore_uri: self.keystore_uri.clone(),
+            data_dir_path: self.data_dir_path.clone(),
+            blueprint_id: self.blueprint_id,
+            service_id: self.service_id,
+            is_registration: self.is_registration,
+            protocol: self.protocol,
+            bind_port: self.bind_port,
+            bind_addr: self.bind_addr,
+            logger: self.logger.clone(),
+            test_mode: self.test_mode,
+            _lock: core::marker::PhantomData,
+        }
+    }
 }
 
 /// An error type for the gadget environment.
@@ -92,17 +137,47 @@ pub enum Error {
     /// Invalid ECDSA keypair found in the keystore.
     #[error("Invalid ECDSA keypair found in the keystore")]
     InvalidEcdsaKeypair,
+    /// Missing `KEYSTORE_URI` environment
+    #[error("Missing keystore URI")]
+    TestSetup(String),
+}
+
+#[derive(Clone, Debug)]
+// TODO: Rename
+pub struct AdditionalConfig {
+    pub bind_addr: IpAddr,
+    pub bind_port: u16,
+    pub test_mode: bool,
+    pub logger: DebugLogger,
+}
+
+impl AdditionalConfig {
+    pub fn new_test(bind_addr: IpAddr, logger: DebugLogger) -> Result<Self, Error> {
+        let unused_port = std::net::TcpListener::bind(format!("{bind_addr}:0"))
+            .map_err(|err| Error::TestSetup(err.to_string()))?
+            .local_addr()
+            .map_err(|err| Error::TestSetup(err.to_string()))?
+            .port();
+        Ok(Self {
+            bind_addr,
+            bind_port: unused_port,
+            test_mode: true,
+            logger,
+        })
+    }
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.
 /// # Errors
 ///
 /// This function will return an error if any of the required environment variables are missing.
+// TODO: ensure that this function takes-in the bind addr, bind port, and test_mode status
 #[cfg(feature = "std")]
 pub fn load(
     protocol: Option<Protocol>,
+    additional_config: AdditionalConfig,
 ) -> Result<GadgetConfiguration<parking_lot::RawRwLock>, Error> {
-    load_with_lock::<parking_lot::RawRwLock>(protocol)
+    load_with_lock::<parking_lot::RawRwLock>(protocol, additional_config)
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.
@@ -114,16 +189,22 @@ pub fn load(
 /// This function will return an error if any of the required environment variables are missing.
 pub fn load_with_lock<RwLock: lock_api::RawRwLock>(
     protocol: Option<Protocol>,
+    additional_config: AdditionalConfig,
 ) -> Result<GadgetConfiguration<RwLock>, Error> {
-    load_inner::<RwLock>(protocol)
+    load_inner::<RwLock>(protocol, additional_config)
 }
 
 #[cfg(feature = "std")]
 fn load_inner<RwLock: lock_api::RawRwLock>(
     protocol: Option<Protocol>,
+    additional_config: AdditionalConfig,
 ) -> Result<GadgetConfiguration<RwLock>, Error> {
     let is_registration = std::env::var("REGISTRATION_MODE_ON").is_ok();
     Ok(GadgetConfiguration {
+        bind_addr: additional_config.bind_addr,
+        bind_port: additional_config.bind_port,
+        test_mode: additional_config.test_mode,
+        logger: additional_config.logger,
         rpc_endpoint: std::env::var("RPC_URL").map_err(|_| Error::MissingTangleRpcEndpoint)?,
         keystore_uri: std::env::var("KEYSTORE_URI").map_err(|_| Error::MissingKeystoreUri)?,
         data_dir_path: std::env::var("DATA_DIR").ok(),

@@ -360,8 +360,8 @@ mod tests_standard {
         new_test_ext_blueprint_manager::<5, 1, (), _, _>((), opts, run_test_blueprint_manager)
             .await
             .execute_with_async(move |client, handles| async move {
-                // At this point, init_blueprint has been deployed, and every node has registered
-                // as an operator to the init_blueprint provided
+                // At this point, blueprint has been deployed, and every node has registered
+                // as an operator for the relevant services
 
                 // What's left: Submit a job, wait for the job to finish, then assert the job results
                 let keypair = handles[0].sr25519_id().clone();
