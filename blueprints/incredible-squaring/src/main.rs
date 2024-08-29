@@ -3,7 +3,7 @@ use alloy_primitives::{Address, FixedBytes};
 use alloy_provider::ProviderBuilder;
 use alloy_signer::k256::ecdsa::SigningKey;
 use alloy_signer_local::PrivateKeySigner;
-use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
+use color_eyre::{eyre, eyre::eyre, eyre::OptionExt, Result};
 use gadget_sdk::{
     env::{Protocol, StdGadgetConfiguration},
     events_watcher::{
@@ -12,6 +12,7 @@ use gadget_sdk::{
         tangle::TangleEventsWatcher,
     },
     keystore::Backend,
+    run::GadgetRunner,
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
@@ -23,20 +24,14 @@ use incredible_squaring_blueprint::{self as blueprint, IncredibleSquaringTaskMan
 
 use std::sync::Arc;
 
-#[async_trait::async_trait]
-trait GadgetRunner {
-    fn env(&self) -> &StdGadgetConfiguration;
-    async fn register(&self) -> Result<()>;
-    async fn benchmark(&self) -> Result<()>;
-    async fn run(&self) -> Result<()>;
-}
-
 struct TangleGadgetRunner {
     env: StdGadgetConfiguration,
 }
 
 #[async_trait::async_trait]
 impl GadgetRunner for TangleGadgetRunner {
+    type Error = eyre::Report;
+
     fn env(&self) -> &StdGadgetConfiguration {
         &self.env
     }
@@ -111,6 +106,8 @@ impl<C: Config> EventWatcher<C> for EigenlayerEventWatcher<C> {
 
 #[async_trait::async_trait]
 impl GadgetRunner for EigenlayerGadgetRunner {
+    type Error = eyre::Report;
+
     fn env(&self) -> &StdGadgetConfiguration {
         &self.env
     }

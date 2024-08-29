@@ -44,4 +44,7 @@ pub mod slashing;
 #[cfg(feature = "std")]
 pub mod benchmark;
 
+/// Gadget Runner Module
+pub mod run;
+
 pub use gadget_blueprint_proc_macro::*;
