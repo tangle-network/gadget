@@ -11,7 +11,7 @@ repository.workspace = true
 [[bin]]
 name = "incredible-squaring-gadget"
 path = "./src/main.rs"
-required-features = ["gadget"]
+#required-features = ["gadget"]
 
 [dependencies]
 eigensdk-rs = { workspace = true }
@@ -40,5 +40,5 @@ alloy-transport = { workspace = true }
 blueprint-metadata = { workspace = true }
 
 [features]
-default = []
-gadget = ["dep:tokio", "dep:color-eyre", "dep:subxt-signer", "dep:tracing-subscriber"]
+#default = []
+default = ["dep:tokio", "dep:color-eyre", "dep:subxt-signer", "dep:tracing-subscriber"]

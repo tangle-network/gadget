@@ -8,8 +8,8 @@ use gadget_sdk::{
     env::Protocol,
     events_watcher::{
         evm::{Config, EventWatcher},
+        substrate::SubstrateEventWatcher,
         tangle::TangleEventsWatcher,
-        SubstrateEventWatcher,
     },
     keystore::Backend,
     network::{
@@ -25,6 +25,9 @@ use gadget_sdk::{
 
 use incredible_squaring_blueprint::{self as blueprint, IncredibleSquaringTaskManager};
 
+use gadget_sdk::events_watcher::tangle::TangleConfig;
+use gadget_sdk::tangle_subxt::subxt;
+use lock_api::{GuardSend, RwLock};
 use std::sync::Arc;
 
 #[async_trait::async_trait]
@@ -33,18 +36,21 @@ trait GadgetRunner {
     async fn run(&self) -> Result<()>;
 }
 
-struct TangleGadgetRunner {
-    env: gadget_sdk::env::GadgetConfiguration,
+struct TangleGadgetRunner<R: lock_api::RawRwLock> {
+    env: gadget_sdk::env::GadgetConfiguration<R>,
 }
 
 #[async_trait::async_trait]
-impl GadgetRunner for TangleGadgetRunner {
+impl GadgetRunner for TangleGadgetRunner<dyn lock_api::RawRwLock<GuardMarker = GuardSend>> {
     async fn register(&self) -> Result<()> {
-        let client = self.env.client().await?;
-        let signer = self.env.first_signer()?;
+        let client = self.env.client().await.map_err(|e| eyre!(e))?;
+        let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
+
+        // TODO: Get ECDSA key from store as expected
+        let ecdsa_key = [0; 32];
 
         let xt = api::tx().services().register(
-            env.blueprint_id,
+            self.env.blueprint_id,
             services::OperatorPreferences {
                 key: ecdsa::Public(ecdsa_key),
                 approval: services::ApprovalPrefrence::None,
@@ -59,8 +65,8 @@ impl GadgetRunner for TangleGadgetRunner {
 
     async fn run(&self) -> Result<()> {
         let env = gadget_sdk::env::load(None)?;
-        let client = env.client().await?;
-        let signer = env.first_signer()?;
+        let client = env.client().await.map_err(|e| eyre!(e))?;
+        let signer = env.first_signer().map_err(|e| eyre!(e))?;
 
         let x_square = blueprint::XsquareEventHandler {
             service_id: env.service_id.unwrap(),
