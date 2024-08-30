@@ -13,12 +13,14 @@ keywords = ["tangle", "blueprint", "avs"]
 rust-version = "1.79"
 
 [dependencies]
-tracing = "0.1"
-async-trait = "0.1"
+tracing = { workspace = true }
+async-trait = { workspace = true }
+gadget-sdk = { workspace = true, features = ["default"] }
 
-color-eyre = "0.6"
-tokio = { version = "1.39", default-features = false, features = ["full"] }
-tracing-subscriber = { version = "0.3", features = ["parking_lot", "env-filter"] }
+color-eyre = { workspace = true, optional = true }
+tokio = { workspace = true, default-features = false, features = ["full"], optional = true }
+subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"], optional = true }
+tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"], optional = true }
 
 cggmp21 = { version = "0.4" }
 cggmp21-keygen = { version = "0.3" }
@@ -34,7 +36,6 @@ sha2 = { version = "0.10", default-features = false }
 [build-dependencies]
 blueprint-metadata = "0.1"
 
-[dependencies.gadget-sdk]
-version = "0.1"
-default-features = false
-features = ["std", "rand", "getrandom"]
+[features]
+default = []
+gadget = ["dep:tokio", "dep:color-eyre", "dep:subxt-signer", "dep:tracing-subscriber"]

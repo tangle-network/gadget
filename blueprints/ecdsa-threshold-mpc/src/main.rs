@@ -26,9 +26,9 @@ async fn main() -> Result<()> {
     // Initialize the environment
     let env = sdk::env::load()?;
     let keystore = env.keystore()?;
-    let signer = extract_signer_from_keystore(&keystore)?;
+    let signer = env.first_signer()?;
     let client: subxt::OnlineClient<PolkadotConfig> =
-        subxt::OnlineClient::from_url(&env.tangle_rpc_endpoint).await?;
+        subxt::OnlineClient::from_url(&env.rpc_endpoint).await?;
 
     // // Create the event handler from the job
     // let keygen_job = KeygenEventHandler {
@@ -60,20 +60,4 @@ async fn main() -> Result<()> {
     // )
     // .await?;
     Ok(())
-}
-
-fn extract_signer_from_keystore(
-    keystore: &GenericKeyStore,
-) -> Result<subxt_signer::sr25519::Keypair> {
-    let sr25519_pubkey = keystore
-        .iter_sr25519()
-        .next()
-        .ok_or_eyre("No sr25519 keys found in the keystore")?;
-    let sr25519_secret = keystore
-        .expose_sr25519_secret(&sr25519_pubkey)?
-        .ok_or_eyre("No sr25519 secret found in the keystore")?;
-
-    let mut seed = [0u8; 32];
-    seed.copy_from_slice(&sr25519_secret.to_bytes()[0..32]);
-    subxt_signer::sr25519::Keypair::from_secret_key(seed).map_err(Into::into)
 }
