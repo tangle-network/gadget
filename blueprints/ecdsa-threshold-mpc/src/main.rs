@@ -4,12 +4,12 @@ use subxt::PolkadotConfig;
 
 use color_eyre::{eyre::OptionExt, Result};
 use sdk::{
-    events_watcher::tangle::TangleEventsWatcher, events_watcher::SubstrateEventWatcher,
-    keystore::backend::GenericKeyStore, keystore::Backend, tangle_subxt::*,
+    events_watcher::tangle::TangleEventsWatcher, keystore::backend::GenericKeyStore,
+    keystore::Backend, tangle_subxt::*,
 };
 
 pub mod jobs;
-pub use jobs::*;
+pub mod mpc;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
         .init();
 
     // Initialize the environment
-    let env = sdk::env::load()?;
+    let env = sdk::env::load(None)?;
     let keystore = env.keystore()?;
     let signer = env.first_signer()?;
     let client: subxt::OnlineClient<PolkadotConfig> =

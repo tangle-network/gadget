@@ -1,11 +1,7 @@
 use gadget_sdk as sdk;
 use std::convert::Infallible;
 
-use color_eyre::{eyre::OptionExt, Result};
-use sdk::{
-    events_watcher::tangle::TangleEventsWatcher, events_watcher::SubstrateEventWatcher,
-    keystore::backend::GenericKeyStore, keystore::Backend, tangle_subxt::*,
-};
+use color_eyre::Result;
 
 #[sdk::job(
     id = 2,

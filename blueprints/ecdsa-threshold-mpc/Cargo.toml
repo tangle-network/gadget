@@ -15,12 +15,17 @@ rust-version = "1.79"
 [dependencies]
 tracing = { workspace = true }
 async-trait = { workspace = true }
-gadget-sdk = { workspace = true, features = ["default"] }
+gadget-sdk = { workspace = true, features = ["std"] }
+gadget-common = { workspace = true, features = ["std"] }
 
-color-eyre = { workspace = true, optional = true }
-tokio = { workspace = true, default-features = false, features = ["full"], optional = true }
-subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"], optional = true }
-tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"], optional = true }
+color-eyre = { workspace = true }
+tokio = { workspace = true, default-features = false, features = ["full"] }
+subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"] }
+tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sp-core = { workspace = true, features = ["std"] }
+itertools = { workspace = true }
 
 cggmp21 = { version = "0.4" }
 cggmp21-keygen = { version = "0.3" }
@@ -37,5 +42,5 @@ sha2 = { version = "0.10", default-features = false }
 blueprint-metadata = "0.1"
 
 [features]
-default = []
-gadget = ["dep:tokio", "dep:color-eyre", "dep:subxt-signer", "dep:tracing-subscriber"]
+default = ["std"]
+std = []
