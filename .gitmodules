@@ -1,6 +1,16 @@
+# For the incredible-squaring blueprint
 [submodule "blueprints/incredible-squaring/contracts/lib/forge-std"]
 	path = blueprints/incredible-squaring/contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
 [submodule "blueprints/incredible-squaring/contracts/lib/eigenlayer-middleware"]
 	path = blueprints/incredible-squaring/contracts/lib/eigenlayer-middleware
 	url = https://github.com/Layr-Labs/eigenlayer-middleware
+
+# For the ecdsa-threshold-mpc blueprint
+[submodule "blueprints/ecdsa-threshold-mpc/contracts/lib/forge-std"]
+	path = blueprints/ecdsa-threshold-mpc/contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "blueprints/ecdsa-threshold-mpc/contracts/lib/tnt-core"]
+	path = blueprints/ecdsa-threshold-mpc/contracts/lib/tnt-core
+	url = https://github.com/webb-tools/tnt-core
+	branch = main
