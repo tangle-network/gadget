@@ -29,20 +29,24 @@ pub(crate) fn benchmark_impl(args: &BenchmarkArgs, input: &ItemFn) -> syn::Resul
     let block = &input.block;
     let expanded = quote! {
         #[doc(hidden)]
-        pub fn #name() {
+        #[cfg(feature = "gadget")]
+        pub fn #name() -> gadget_sdk::benchmark::BenchmarkSummary {
+            use gadget_sdk::benchmark::*;
+
             let cores: usize = #cores;
-            let rt = gadget_sdk::benchmark::tokio::runtime::Builder::new_multi_thread()
+            let rt = tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(cores)
                 .max_blocking_threads(cores)
                 .enable_all()
                 .build()
-                .unwrap();
+                .expect("build tokio runtime");
             let _guard = rt.enter();
-            let b = gadget_sdk::benchmark::Bencher::new(cores, gadget_sdk::benchmark::TokioRuntime);
-            b.block_on(async move { #block });
+            let b = Bencher::new(cores, TokioRuntime);
+            let _ = b.block_on(async move { #block });
+            // shutdown the runtime.
+            rt.shutdown_background();
             let summary = b.stop(stringify!(#original_name), #job_id);
-            eprintln!("{}", summary);
-            return;
+            return summary;
         }
     };
     Ok(expanded.into())

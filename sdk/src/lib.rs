@@ -34,11 +34,17 @@ pub mod tx;
 
 pub use tangle_subxt;
 
+/// Network Module
 #[cfg(feature = "std")]
 pub mod network;
 
 pub mod slashing;
 
+/// Benchmark Module
+#[cfg(feature = "std")]
 pub mod benchmark;
+
+/// Gadget Runner Module
+pub mod run;
 
 pub use gadget_blueprint_proc_macro::*;

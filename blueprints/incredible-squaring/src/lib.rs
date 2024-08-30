@@ -1,6 +1,6 @@
 use alloy_primitives::{Bytes, U256};
 use alloy_sol_types::sol;
-use gadget_sdk::job;
+use gadget_sdk::{benchmark, job};
 use std::convert::Infallible;
 use IncredibleSquaringTaskManager::{
     respondToTaskCall, G1Point, G2Point, NonSignerStakesAndSignature, Task, TaskResponse,
@@ -94,4 +94,9 @@ pub fn convert_event_to_inputs(
         quorum_numbers,
         quorum_threshold_percentage,
     )
+}
+
+#[benchmark(cores = 1, job_id = 0)]
+fn xsquare() {
+    let _ = xsquare(10).unwrap();
 }
