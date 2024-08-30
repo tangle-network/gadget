@@ -3,15 +3,16 @@ use alloy_primitives::{Address, FixedBytes};
 use alloy_provider::ProviderBuilder;
 use alloy_signer::k256::ecdsa::SigningKey;
 use alloy_signer_local::PrivateKeySigner;
-use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
+use color_eyre::{eyre, eyre::eyre, eyre::OptionExt, Result};
 use gadget_sdk::{
-    env::Protocol,
+    env::{Protocol, StdGadgetConfiguration},
     events_watcher::{
         evm::{Config, EventWatcher},
+        substrate::SubstrateEventWatcher,
         tangle::TangleEventsWatcher,
-        SubstrateEventWatcher,
     },
     keystore::Backend,
+    run::GadgetRunner,
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
@@ -23,24 +24,25 @@ use incredible_squaring_blueprint::{self as blueprint, IncredibleSquaringTaskMan
 
 use std::sync::Arc;
 
-#[async_trait::async_trait]
-trait GadgetRunner {
-    async fn register(&self) -> Result<()>;
-    async fn run(&self) -> Result<()>;
-}
-
 struct TangleGadgetRunner {
-    env: gadget_sdk::env::GadgetConfiguration,
+    env: StdGadgetConfiguration,
 }
 
 #[async_trait::async_trait]
 impl GadgetRunner for TangleGadgetRunner {
+    type Error = eyre::Report;
+
+    fn env(&self) -> &StdGadgetConfiguration {
+        &self.env
+    }
     async fn register(&self) -> Result<()> {
         let client = self.env.client().await?;
         let signer = self.env.first_signer()?;
+        let ecdsa_signer = self.env.first_ecdsa_signer()?;
+        let ecdsa_key = ecdsa_signer.public_key().to_bytes();
 
         let xt = api::tx().services().register(
-            env.blueprint_id,
+            self.env.blueprint_id,
             services::OperatorPreferences {
                 key: ecdsa::Public(ecdsa_key),
                 approval: services::ApprovalPrefrence::None,
@@ -75,26 +77,40 @@ impl GadgetRunner for TangleGadgetRunner {
 
         Ok(())
     }
+
+    async fn benchmark(&self) -> Result<()> {
+        let env = gadget_sdk::env::load(None)?;
+        let client = env.client().await?;
+        let signer = env.first_signer()?;
+        let xsquare_summary = blueprint::xsquare_benchmark();
+        Ok(())
+    }
 }
 
 struct EigenlayerGadgetRunner {
-    env: gadget_sdk::env::GadgetConfiguration,
+    env: StdGadgetConfiguration,
 }
 
-struct EigenlayerEventWatcher<T> {
-    _phantom: std::marker::PhantomData<T>,
+#[derive(Debug, Default, Clone)]
+struct EigenlayerEventWatcher<C> {
+    _phantom: std::marker::PhantomData<C>,
 }
 
-impl<T: Config> EventWatcher for EigenlayerEventWatcher<T> {
+impl<C: Config> EventWatcher<C> for EigenlayerEventWatcher<C> {
     const TAG: &'static str = "eigenlayer";
     type Contract =
-        IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance<T::T, T::P, T::N>;
+        IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance<C::T, C::P, C::N>;
     type Event = IncredibleSquaringTaskManager::NewTaskCreated;
-    const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes::from_slice(&[0; 32]);
+    const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
 }
 
 #[async_trait::async_trait]
 impl GadgetRunner for EigenlayerGadgetRunner {
+    type Error = eyre::Report;
+
+    fn env(&self) -> &StdGadgetConfiguration {
+        &self.env
+    }
     async fn register(&self) -> Result<()> {
         let keystore = self.env.keystore()?;
         let ecdsa_key = keystore
@@ -129,24 +145,23 @@ impl GadgetRunner for EigenlayerGadgetRunner {
             .ok_or_eyre("No ECDSA key found")?;
         let signing_key: SigningKey = SigningKey::from_bytes(&ecdsa_key)?;
         let priv_key_signer: PrivateKeySigner = PrivateKeySigner::from_signing_key(signing_key);
-        let wallet = EthereumWallet::from(signer.clone());
+        let wallet = EthereumWallet::from(priv_key_signer.clone());
         // Set up eignelayer AVS
         let contract_address = Address::from_slice(&[0; 20]);
         // Set up the HTTP provider with the `reqwest` crate.
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_http(env.rpc_endpoint);
+            .on_http(env.rpc_endpoint.parse()?);
         let x_square_eigen = blueprint::XsquareEigenEventHandler {};
 
-        let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::<
-            T::T,
-            T::P,
-            T::N,
-        >::new(contract_address, provider);
+        let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
+            contract_address,
+            provider,
+        );
 
         EventWatcher::run(
-            &EigenlayerEventWatcher,
+            &EigenlayerEventWatcher::default(),
             contract,
             // Add more handler here if we have more functions.
             vec![Box::new(x_square_eigen)],
@@ -155,13 +170,21 @@ impl GadgetRunner for EigenlayerGadgetRunner {
 
         Ok(())
     }
+
+    async fn benchmark(&self) -> Result<()> {
+        let env = gadget_sdk::env::load(Some(Protocol::Eigenlayer))?;
+        let client = env.client().await?;
+        let signer = env.first_signer()?;
+        let xsquare_summary = blueprint::xsquare_benchmark();
+        Ok(())
+    }
 }
 
-fn create_gadget_runner(protocol: Protocol) -> (GadgetConfiguration, Arc<dyn GadgetRunner>) {
+fn create_gadget_runner(protocol: Protocol) -> Arc<dyn GadgetRunner> {
     let env = gadget_sdk::env::load(Some(protocol)).expect("Failed to load environment");
     match protocol {
-        Protocol::Tangle => (env, Arc::new(TangleGadgetRunner { env })),
-        Protocol::Eigenlayer => (env, Arc::new(EigenlayerGadgetRunner { env })),
+        Protocol::Tangle => Arc::new(TangleGadgetRunner { env }),
+        Protocol::Eigenlayer => Arc::new(EigenlayerGadgetRunner { env }),
     }
 }
 
@@ -176,11 +199,15 @@ async fn main() -> Result<()> {
     logger.init();
 
     // Load the environment and create the gadget runner
-    let protocol = Protocol::from_env().unwrap_or(Protocol::Tangle);
-    let (env, runner) = create_gadget_runner(protocol);
+    let protocol = Protocol::from_env();
+    let runner = create_gadget_runner(protocol);
     // Register the operator if needed
-    if env.should_run_registration() {
+    if runner.env().should_run_registration() {
         runner.register().await?;
+    }
+    // Run benchmark if needed
+    if runner.env().should_run_benchmarks() {
+        runner.benchmark().await?;
     }
 
     // Run the gadget / AVS
