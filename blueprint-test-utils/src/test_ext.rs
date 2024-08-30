@@ -19,6 +19,8 @@ use async_trait::async_trait;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use cargo_tangle::deploy::{Opts, PrivateKeySigner};
 use environment_utils::transaction_manager::tangle::SubxtPalletSubmitter;
+use futures::stream::FuturesOrdered;
+use futures::StreamExt;
 use gadget_common::config::Network;
 use gadget_common::locks::TokioMutexExt;
 use gadget_common::prelude::{
@@ -162,12 +164,14 @@ where
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 const LOCAL_TANGLE_NODE: &str = "ws://127.0.0.1:9944";
+pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
 
 /// - `N`: number of nodes
 /// - `K`: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
 /// - `D`: Any data that you want to pass to pass with NodeInput.
 /// - `F`: A function that generates a service's execution via a series of shells. Each shell executes a subset of the service,
 ///        as each service may have a set of operations that are executed in parallel, sequentially, or concurrently.
+#[allow(clippy::async_yields_async)]
 pub async fn new_test_ext_blueprint_manager<
     const N: usize,
     const K: usize,
@@ -179,9 +183,8 @@ pub async fn new_test_ext_blueprint_manager<
     mut opts: Opts,
     f: F,
 ) -> LocalhostTestExt {
-    const NAME_IDS: [&str; 3] = ["alice", "bob", "charlie"];
-
-    assert!(N < 4, "Only up to 3 nodes are supported");
+    assert!(N > 0, "At least one node is required");
+    assert!(N <= NAME_IDS.len(), "Only up to 5 nodes are supported");
 
     let bind_addrs = (0..N)
         .map(|_| find_open_tcp_bind_port())
@@ -223,22 +226,30 @@ pub async fn new_test_ext_blueprint_manager<
 
         let handle = f(test_input).await;
 
+        let k256_ecdsa_secret_key = handle.ecdsa_id().0.secret_bytes();
+        let priv_key = PrivateKeySigner::from_slice(&k256_ecdsa_secret_key)
+            .expect("Should create a private key signer");
+
+        let tg_addr = handle.sr25519_id().public_key().to_account_id();
+        let evm_addr = handle.ecdsa_id().public_key().to_account_id();
+        handle
+            .logger()
+            .info(format!("Signer TG address: {tg_addr}"));
+        handle
+            .logger()
+            .info(format!("Signer EVM address: {evm_addr}"));
+        handle
+            .logger()
+            .info(format!("Signer EVM(alloy) address: {}", priv_key.address()));
+
         if node_index == 0 {
-            // Replace the None signer and signer_evm values inside opts with alice's keys
+            // Replace the None signer and signer_evm values inside opts with Alice's keys
+            opts.signer_evm = Some(priv_key);
             opts.signer = Some(handle.sr25519_id().clone());
-            let k256_ecdsa_secret_key = handle.ecdsa_id().seed();
-            opts.signer_evm = Some(
-                PrivateKeySigner::from_slice(&k256_ecdsa_secret_key)
-                    .expect("Should create a private key signer"),
-            );
         }
 
         handles.push(handle);
     }
-
-    let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
-        .await
-        .expect("Failed to create primary localhost client");
 
     // Step 1: Create the blueprint using alice's identity
     let blueprint_id = cargo_tangle::deploy::deploy_to_tangle(opts)
@@ -246,26 +257,80 @@ pub async fn new_test_ext_blueprint_manager<
         .expect("Failed to deploy Blueprint to Tangle");
 
     // Step 2: Have each identity register to a blueprint
+    let mut futures_ordered = FuturesOrdered::new();
     let registration_args = RegistrationArgs::new();
+    // TODO: allow the function callee to specify the registration args
 
-    for handle in handles.iter() {
-        let keypair = handle.sr25519_id().clone();
-        let key = api::runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().public().0);
+    for handle in handles {
+        let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
+            .await
+            .expect("Failed to create an account-based localhost client");
+        let registration_args = registration_args.clone();
 
-        let preferences = Preferences {
-            key,
-            approval: ApprovalPrefrence::None,
+        let task = async move {
+            let keypair = handle.sr25519_id().clone();
+            let key = api::runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().public_key().0);
+
+            let preferences = Preferences {
+                key,
+                approval: ApprovalPrefrence::None,
+            };
+
+            if let Err(err) = super::register_blueprint(
+                &client,
+                &keypair,
+                blueprint_id,
+                preferences,
+                registration_args.clone(),
+                handle.logger(),
+            )
+            .await
+            {
+                let err_str = format!("{err}");
+                if err_str.contains("MultiAssetDelegation::AlreadyOperator") {
+                    handle.logger().warn(format!(
+                        "{} is already an operator",
+                        keypair.public_key().to_account_id()
+                    ));
+                } else {
+                    handle
+                        .logger()
+                        .error(format!("Failed to register as operator: {err}"));
+                    panic!("Failed to register as operator: {err}");
+                }
+            }
+
+            handle
         };
 
-        super::register_blueprint(
-            &client,
-            &keypair,
-            blueprint_id,
-            preferences,
-            registration_args.clone(),
-        )
+        futures_ordered.push_back(task);
+    }
+
+    let mut handles = futures_ordered
+        .collect::<Vec<BlueprintManagerHandle>>()
+        .await;
+
+    let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
         .await
-        .expect("Failed to register to blueprint");
+        .expect("Failed to create primary localhost client");
+
+    // Step 3: register a service
+    let all_nodes = handles
+        .iter()
+        .map(|handle| handle.sr25519_id().public_key().to_account_id())
+        .collect();
+
+    // Use Alice's account to register the service
+    handles[0].logger().info(format!(
+        "Registering service for blueprint ID {blueprint_id} using Alice's keys ..."
+    ));
+    if let Err(err) =
+        super::register_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes).await
+    {
+        handles[0]
+            .logger()
+            .error(format!("Failed to register service: {err}"));
+        panic!("Failed to register service: {err}");
     }
 
     // Now, start every blueprint manager. With the blueprint submitted and every operator registered

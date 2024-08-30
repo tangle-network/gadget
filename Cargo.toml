@@ -64,7 +64,7 @@ cargo_metadata = { version = "0.18.1" }
 pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
 pallet-services-rpc = { git = "https://github.com/webb-tools/tangle.git" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
-tangle-subxt = { version = "0.1.5", default-features = false }
+tangle-subxt = { git = "https://github.com/webb-tools/tangle.git" }
 
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }

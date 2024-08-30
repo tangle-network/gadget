@@ -131,6 +131,9 @@ pub enum Error {
     ClientError {
         err: String,
     },
+    DispatchError {
+        err: String,
+    },
     JobError {
         err: JobError,
     },

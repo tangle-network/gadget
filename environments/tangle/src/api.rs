@@ -1,11 +1,13 @@
 use gadget_common::config::DebugLogger;
 use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services;
 use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
+use gadget_common::tangle_runtime::api::DispatchError;
 use gadget_common::tangle_runtime::AccountId32;
 use gadget_common::tangle_subxt::subxt::backend::BlockRef;
 use gadget_common::tangle_subxt::subxt::utils::H256;
 use gadget_common::tangle_subxt::subxt::{Config, OnlineClient};
 use gadget_common::tangle_subxt::tangle_testnet_runtime::api;
+use parity_scale_codec::Encode;
 
 pub type BlockHash = [u8; 32];
 
@@ -54,13 +56,13 @@ where
 
     pub async fn query_operator_blueprints(
         &self,
-        at: [u8; 32],
+        at_block: [u8; 32],
         address: AccountId32,
     ) -> Result<Vec<RpcServicesWithBlueprint>, gadget_common::Error> {
         let call = api::apis()
             .services_api()
             .query_services_with_blueprints_by_operator(address);
-        let at = BlockRef::from_hash(H256::from_slice(&at));
+        let at = BlockRef::from_hash(H256::from_slice(&at_block));
         let ret: Vec<RpcServicesWithBlueprint> = self
             .rpc_client
             .runtime_api()
@@ -68,10 +70,29 @@ where
             .call(call)
             .await
             .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })?
-            .map_err(|err| gadget_common::Error::ClientError {
-                err: format!("{err:?}"),
-            })?;
+            .map_err(|err| self.dispatch_error_to_gadget_common_error(err, &at_block))?;
 
         Ok(ret)
+    }
+
+    pub fn dispatch_error_to_gadget_common_error(
+        &self,
+        err: DispatchError,
+        at: &[u8; 32],
+    ) -> gadget_common::Error {
+        let metadata = self.rpc_client.metadata();
+        let at_hex = hex::encode(at);
+        let dispatch_error = gadget_common::tangle_subxt::subxt::error::DispatchError::decode_from(
+            err.encode(),
+            metadata,
+        );
+        match dispatch_error {
+            Ok(dispatch_error) => gadget_common::Error::DispatchError {
+                err: format!("{dispatch_error}"),
+            },
+            Err(err) => gadget_common::Error::DispatchError {
+                err: format!("Failed to construct DispatchError at block 0x{at_hex}: {err}"),
+            },
+        }
     }
 }

@@ -2,7 +2,7 @@
 use alloc::string::String;
 use core::fmt::Display;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct DebugLogger {
     pub id: String,
 }

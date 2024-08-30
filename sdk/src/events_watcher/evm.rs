@@ -9,7 +9,7 @@ use alloy_rpc_types::{Filter, Log};
 use alloy_sol_types::SolEvent;
 use alloy_transport::Transport;
 use futures::TryFutureExt;
-use std::{ops::Deref, time::Duration};
+use std::time::Duration;
 
 pub trait Config: Send + Sync + 'static {
     type T: Transport + Clone + Send + Sync + 'static;
@@ -36,10 +36,10 @@ pub type EventHandlerFor<W, T> = Box<
 pub trait EventHandler<T: Config>: Send + Sync {
     /// The Type of contract this handler is for, Must be the same as the contract type in the
     /// watcher.
-    type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>
-        + Send
-        + Sync
-        + 'static;
+    type Contract: Into<alloy_contract::ContractInstance<T::T, T::P, T::N>>
+    + Send
+    + Sync
+    + 'static;
 
     type Event: SolEvent + Clone + Send + Sync + 'static;
     /// A method to be called with the event information,
@@ -101,10 +101,10 @@ pub trait EventWatcher<T: Config>: Send + Sync {
     /// A Helper tag used to identify the event watcher during the logs.
     const TAG: &'static str;
     /// The contract that this event watcher is watching.
-    type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>
-        + Send
-        + Sync
-        + 'static;
+    type Contract: Into<alloy_contract::ContractInstance<T::T, T::P, T::N>>
+    + Send
+    + Sync
+    + 'static;
     /// The type of event this handler is for.
     type Event: SolEvent + Clone + Send + Sync + 'static;
     /// The genesis transaction hash for the contract.
@@ -116,7 +116,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
     #[tracing::instrument(
         skip_all,
         fields(
-            address = %contract.address(),
+            address = %contract.into().address(),
             tag = %Self::TAG,
         ),
     )]
@@ -125,6 +125,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
         contract: Self::Contract,
         handlers: Vec<EventHandlerFor<Self, T>>,
     ) -> Result<(), Error> {
+        let contract = contract.into();
         let local_db = LocalDatabase::new("./db");
         let backoff = backoff::backoff::Constant::new(Duration::from_secs(1));
         let task = || async {

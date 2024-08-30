@@ -23,4 +23,6 @@ pub struct BlueprintManagerConfig {
     /// running instances of a BlueprintManager (mostly for debugging purposes)
     #[structopt(long, short = "id")]
     pub instance_id: Option<String>,
+    #[structopt(long, short = "t")]
+    pub test_mode: bool,
 }

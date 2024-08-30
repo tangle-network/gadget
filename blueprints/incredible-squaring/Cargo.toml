@@ -24,9 +24,11 @@ lock_api = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["full"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+sp-core = { version = "34.0.0" }
 subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"], optional = true }
 tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"], optional = true }
 alloy-contract = { workspace = true }
+alloy-json-abi = { workspace = true, features = ["serde_json"] }
 alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
@@ -35,8 +37,10 @@ alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true, features = ["json"] }
 alloy-transport = { workspace = true }
+parking_lot = { workspace = true }
 multiaddr = { workspace = true }
-parking_lot = "0.12.3"
+libp2p = { workspace = true }
+ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde" ,"pem"] }
 
 [build-dependencies]
 blueprint-metadata = { workspace = true }

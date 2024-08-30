@@ -11,6 +11,9 @@ use gadget_sdk::job;
 // };
 // use std::{collections::HashMap, convert::Infallible};
 use std::convert::Infallible;
+use std::ops::Deref;
+use alloy_contract::{ContractInstance, Interface};
+use alloy_sol_types::private::alloy_json_abi::JsonAbi;
 use IncredibleSquaringTaskManager::{
     respondToTaskCall, G1Point, G2Point, NonSignerStakesAndSignature, Task, TaskResponse,
 };
@@ -33,6 +36,19 @@ sol!(
     IncredibleSquaringTaskManager,
     "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
 );
+
+use crate::IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance;
+
+impl<T, P> Into<ContractInstance<T,P>> for IncredibleSquaringTaskManagerInstance<T,P> {
+    fn into(self) -> ContractInstance<T,P> {
+        let provider = self.provider();
+        ContractInstance::<T, P>::new(
+            self.address().clone(),
+            *provider,
+            Interface::new(JsonAbi::from_json_str(include_str!("../contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json")).unwrap()),
+        )
+    }
+}
 
 // #[derive(Clone)]
 // pub struct MyContext<RwLock: lock_api::RawRwLock> {

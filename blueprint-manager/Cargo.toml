@@ -12,7 +12,7 @@ sp-core = { workspace = true }
 gadget-core = { workspace = true }
 gadget-common = { workspace = true }
 gadget-io = { workspace = true }
-gadget-sdk = { workspace = true }
+gadget-sdk = { workspace = true, default-features = true }
 color-eyre = { workspace = true, features = ["tracing-error", "color-spantrace", "issue-url"] }
 serde = { workspace = true }
 structopt = { workspace = true }
@@ -24,13 +24,15 @@ reqwest = { workspace = true }
 sha2 = { workspace = true }
 tangle-environment = { workspace = true }
 futures = { workspace = true }
-
+sp-keystore = { workspace = true }
 log = { workspace = true }
 itertools = { workspace = true }
 tangle-primitives = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
 libp2p = { workspace = true }
+auto_impl = { workspace = true }
+parking_lot = { workspace = true }
 
 [features]
 default = ["std"]

@@ -41,6 +41,7 @@ pub mod error;
 pub mod sr25519;
 
 pub use error::Error;
+use gadget_common::subxt_signer;
 
 /// Functions that a keystore backend must implement
 ///
@@ -166,4 +167,35 @@ pub trait Backend {
     fn iter_ed25519(&self) -> impl Iterator<Item = ed25519::Public>;
     /// Returns an iterator over all [`bls381::Public`] keys that exist in the keystore.
     fn iter_bls381(&self) -> impl Iterator<Item = bls381::Public>;
+}
+
+pub trait BackendExt: Backend {
+    fn ecdsa_key(&self) -> Result<subxt_signer::ecdsa::Keypair, Error> {
+        let first_key = self
+            .iter_ecdsa()
+            .next()
+            .ok_or_else(|| str_to_std_error("No ECDSA keys found"))?;
+        let _secret = self
+            .expose_ecdsa_secret(&first_key)?
+            .ok_or_else(|| str_to_std_error("No ECDSA secret found"))?;
+
+        unimplemented!("Not yet implemented")
+    }
+
+    fn sr25519_key(&self) -> Result<subxt_signer::sr25519::Keypair, Error> {
+        let first_key = self
+            .iter_sr25519()
+            .next()
+            .ok_or_else(|| str_to_std_error("No SR25519 keys found"))?;
+        let _secret = self
+            .expose_sr25519_secret(&first_key)?
+            .ok_or_else(|| str_to_std_error("No SR25519 secret found"))?;
+        unimplemented!("Not yet implemented")
+    }
+}
+
+impl<T: Backend> BackendExt for T {}
+
+fn str_to_std_error(s: &str) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::Other, s)
 }

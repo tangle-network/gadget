@@ -32,3 +32,4 @@ parity-scale-codec = { workspace = true }
 url = { workspace = true }
 auto_impl = { workspace = true }
 anyhow = { workspace = true }
+hex = { workspace = true }
