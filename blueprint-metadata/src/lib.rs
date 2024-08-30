@@ -366,7 +366,6 @@ fn generate_rustdoc() -> Crate {
     cmd.arg("--lib");
     cmd.args(["--target-dir", &custom_target_dir]);
     cmd.arg("--locked");
-    cmd.args(["--", "--document-hidden-items"]);
     cmd.env("RUSTC_BOOTSTRAP", "1");
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
