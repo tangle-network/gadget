@@ -38,15 +38,15 @@ async-trait = { workspace = true }
 bincode = { workspace = true }
 futures = { workspace = true }
 gadget-core = { workspace = true, features = ["substrate"] }
-gadget-common = { workspace = true, features = ["default"] }
+gadget-common = { workspace = true, features = ["std", "substrate"] }
 gadget-io = { workspace = true, features = ["std"] }
-serde = { workspace = true }
+round-based = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
 # Substrate
 sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
-
 
 # Event Watchers and Handlers
 backoff = { workspace = true }

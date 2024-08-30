@@ -162,7 +162,7 @@ async fn pregenerate_primes<S: SecurityLevel, KBE: KeystoreBackend>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn run_full_keygen_protocol<
+pub async fn run_full_keygen_protocol<
     'a,
     E: Curve,
     S: SecurityLevel,
@@ -170,7 +170,7 @@ async fn run_full_keygen_protocol<
     KBE: KeystoreBackend,
     N: Network,
 >(
-    protocol_message_channel: UnboundedReceiver<GadgetProtocolMessage>,
+    protocol_message_channel: UnboundedReceiver<TangleProtocolMessage>,
     associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
     associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
     associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,

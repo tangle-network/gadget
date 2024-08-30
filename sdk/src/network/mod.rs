@@ -8,6 +8,9 @@ pub mod gossip;
 pub mod handlers;
 #[cfg(target_family = "wasm")]
 pub mod matchbox;
+
+pub mod channels;
+
 pub mod setup;
 
 #[async_trait]
