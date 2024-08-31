@@ -222,6 +222,15 @@ pub enum Gadget<'a> {
     Container(ContainerGadget<'a>),
 }
 
+impl Default for Gadget<'_> {
+    fn default() -> Self {
+        Gadget::Wasm(WasmGadget {
+            runtime: WasmRuntime::Wasmtime,
+            sources: vec![],
+        })
+    }
+}
+
 /// A binary that is stored in the GitHub release.
 ///
 /// This will construct the URL to the release and download the binary.
@@ -239,6 +248,13 @@ pub struct GithubFetcher<'a> {
     pub tag: BlueprintString<'a>,
     /// The names of the binary in the release by the arch and the os.
     pub binaries: Vec<GadgetBinary<'a>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct TestFetcher<'a> {
+    pub cargo_package: BlueprintString<'a>,
+    pub cargo_bin: BlueprintString<'a>,
+    pub base_path: BlueprintString<'a>,
 }
 
 /// The CPU or System architecture.
@@ -327,6 +343,8 @@ pub enum GadgetSourceFetcher<'a> {
     Github(GithubFetcher<'a>),
     /// A Gadgets that will be fetched from the container registry.
     ContainerImage(ImageRegistryFetcher<'a>),
+    /// For testing
+    Testing(TestFetcher<'a>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

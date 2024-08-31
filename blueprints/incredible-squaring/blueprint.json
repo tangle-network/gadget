@@ -9,49 +9,7 @@
     "website": "https://tangle.tools",
     "license": "MIT OR Apache-2.0"
   },
-  "jobs": [
-    {
-      "metadata": {
-        "name": "xsquare",
-        "description": "Returns x^2 saturating to [`u64::MAX`] if overflow occurs."
-      },
-      "params": [
-        "Uint64"
-      ],
-      "result": [
-        "Uint64"
-      ],
-      "verifier": {
-        "Evm": "contracts/out/IncredibleSquaringBlueprint.sol/IncredibleSquaringBlueprint.json"
-      }
-    },
-    {
-      "metadata": {
-        "name": "xsquare_eigen",
-        "description": "Returns x^2 saturating to [`u64::MAX`] if overflow occurs."
-      },
-      "params": [
-        {
-          "Struct": [
-            "U256",
-            []
-          ]
-        },
-        "Uint32",
-        "Bytes",
-        "Uint32"
-      ],
-      "result": [
-        {
-          "Struct": [
-            "respondToTaskCall",
-            []
-          ]
-        }
-      ],
-      "verifier": "None"
-    }
-  ],
+  "jobs": [],
   "registration_hook": "None",
   "registration_params": [],
   "request_hook": "None",
