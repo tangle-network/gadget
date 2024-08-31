@@ -112,6 +112,21 @@ pub async fn create_blueprint(
     Ok(())
 }
 
+pub async fn join_delegators(
+    client: &TestClient,
+    account_id: &sr25519::Keypair,
+) -> Result<(), Box<dyn Error>> {
+    let call_pre = api::tx()
+        .multi_asset_delegation()
+        .join_operators(1_000_000_000_000_000);
+    let res_pre = client
+        .tx()
+        .sign_and_submit_then_watch_default(&call_pre, account_id)
+        .await?;
+    res_pre.wait_for_finalized_success().await?;
+    Ok(())
+}
+
 pub async fn register_blueprint(
     client: &TestClient,
     account_id: &sr25519::Keypair,
@@ -123,15 +138,6 @@ pub async fn register_blueprint(
     logger.info(format!(
         "Registering to blueprint {blueprint_id} to become an operator ..."
     ));
-    let call_pre = api::tx()
-        .multi_asset_delegation()
-        .join_operators(1_000_000_000_000_000);
-    let res_pre = client
-        .tx()
-        .sign_and_submit_then_watch_default(&call_pre, account_id)
-        .await?;
-    res_pre.wait_for_finalized_success().await?;
-
     let call = api::tx()
         .services()
         .register(blueprint_id, preferences, registration_args);

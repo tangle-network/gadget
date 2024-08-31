@@ -48,3 +48,15 @@ impl DebugLogger {
         log::error!(target: "gadget", "[{}] {msg}", &self.id);
     }
 }
+
+impl From<&'_ str> for DebugLogger {
+    fn from(id: &str) -> Self {
+        Self::from(id.to_string())
+    }
+}
+
+impl From<String> for DebugLogger {
+    fn from(id: String) -> Self {
+        Self { id }
+    }
+}

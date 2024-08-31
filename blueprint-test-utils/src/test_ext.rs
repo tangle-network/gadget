@@ -252,14 +252,29 @@ pub async fn new_test_ext_blueprint_manager<
     }
 
     // Step 1: Create the blueprint using alice's identity
-    let blueprint_id = cargo_tangle::deploy::deploy_to_tangle(opts)
+    let blueprint_id = match cargo_tangle::deploy::deploy_to_tangle(opts).await {
+        Ok(id) => id,
+        Err(err) => {
+            handles[0]
+                .logger()
+                .error(format!("Failed to deploy blueprint: {err}"));
+            panic!("Failed to deploy blueprint: {err}");
+        }
+    };
+
+    let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
         .await
-        .expect("Failed to deploy Blueprint to Tangle");
+        .expect("Failed to create an account-based localhost client");
 
     // Step 2: Have each identity register to a blueprint
     let mut futures_ordered = FuturesOrdered::new();
     let registration_args = RegistrationArgs::new();
     // TODO: allow the function callee to specify the registration args
+
+    // Step 3: Join the delegator set
+    super::join_delegators(&client, handles[0].sr25519_id())
+        .await
+        .expect("Failed to join delegators");
 
     for handle in handles {
         let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
@@ -309,10 +324,6 @@ pub async fn new_test_ext_blueprint_manager<
     let mut handles = futures_ordered
         .collect::<Vec<BlueprintManagerHandle>>()
         .await;
-
-    let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
-        .await
-        .expect("Failed to create primary localhost client");
 
     // Step 3: register a service
     let all_nodes = handles

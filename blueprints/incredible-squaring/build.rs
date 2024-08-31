@@ -1,5 +1,6 @@
 fn main() {
     println!("cargo:rerun-if-changed=src/cli");
     println!("cargo:rerun-if-changed=src/lib.rs");
-    // blueprint_metadata::generate_json();
+    println!("cargo:rerun-if-changed=src/main.rs");
+    blueprint_metadata::generate_json();
 }

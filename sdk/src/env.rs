@@ -4,12 +4,25 @@ use alloc::string::{String, ToString};
 use core::fmt::Debug;
 use gadget_common::prelude::DebugLogger;
 use std::net::IpAddr;
+use structopt::StructOpt;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub enum Protocol {
     #[default]
     Tangle,
     Eigenlayer,
+}
+
+impl TryFrom<&'_ str> for Protocol {
+    type Error = &'static str;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value.to_lowercase().as_str() {
+            "tangle" => Ok(Self::Tangle),
+            "eigenlayer" => Ok(Self::Eigenlayer),
+            _ => Err("Invalid protocol"),
+        }
+    }
 }
 
 /// Gadget environment.
@@ -142,40 +155,30 @@ pub enum Error {
     TestSetup(String),
 }
 
-#[derive(Clone, Debug)]
-// TODO: Rename
-pub struct AdditionalConfig {
-    pub bind_addr: IpAddr,
+#[derive(Clone, Debug, StructOpt)]
+#[structopt(
+    name = "Context for any given gadget",
+    about = "CLI args that must be passed to the gadget"
+)]
+pub struct ContextConfig {
+    #[structopt(long, short = "b", parse(try_from_str))]
+    pub bind_ip: IpAddr,
+    #[structopt(long, short = "p")]
     pub bind_port: u16,
+    #[structopt(long, short = "t")]
     pub test_mode: bool,
+    #[structopt(long, short = "l", parse(from_str))]
     pub logger: DebugLogger,
-}
-
-impl AdditionalConfig {
-    pub fn new_test(bind_addr: IpAddr, logger: DebugLogger) -> Result<Self, Error> {
-        let unused_port = std::net::TcpListener::bind(format!("{bind_addr}:0"))
-            .map_err(|err| Error::TestSetup(err.to_string()))?
-            .local_addr()
-            .map_err(|err| Error::TestSetup(err.to_string()))?
-            .port();
-        Ok(Self {
-            bind_addr,
-            bind_port: unused_port,
-            test_mode: true,
-            logger,
-        })
-    }
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.
 /// # Errors
 ///
 /// This function will return an error if any of the required environment variables are missing.
-// TODO: ensure that this function takes-in the bind addr, bind port, and test_mode status
 #[cfg(feature = "std")]
 pub fn load(
     protocol: Option<Protocol>,
-    additional_config: AdditionalConfig,
+    additional_config: ContextConfig,
 ) -> Result<GadgetConfiguration<parking_lot::RawRwLock>, Error> {
     load_with_lock::<parking_lot::RawRwLock>(protocol, additional_config)
 }
@@ -189,7 +192,7 @@ pub fn load(
 /// This function will return an error if any of the required environment variables are missing.
 pub fn load_with_lock<RwLock: lock_api::RawRwLock>(
     protocol: Option<Protocol>,
-    additional_config: AdditionalConfig,
+    additional_config: ContextConfig,
 ) -> Result<GadgetConfiguration<RwLock>, Error> {
     load_inner::<RwLock>(protocol, additional_config)
 }
@@ -197,11 +200,11 @@ pub fn load_with_lock<RwLock: lock_api::RawRwLock>(
 #[cfg(feature = "std")]
 fn load_inner<RwLock: lock_api::RawRwLock>(
     protocol: Option<Protocol>,
-    additional_config: AdditionalConfig,
+    additional_config: ContextConfig,
 ) -> Result<GadgetConfiguration<RwLock>, Error> {
     let is_registration = std::env::var("REGISTRATION_MODE_ON").is_ok();
     Ok(GadgetConfiguration {
-        bind_addr: additional_config.bind_addr,
+        bind_addr: additional_config.bind_ip,
         bind_port: additional_config.bind_port,
         test_mode: additional_config.test_mode,
         logger: additional_config.logger,

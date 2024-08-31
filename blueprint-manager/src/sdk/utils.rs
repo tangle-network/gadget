@@ -36,6 +36,7 @@ pub fn generate_process_arguments(
     blueprint_id: u64,
     service_id: u64,
 ) -> color_eyre::Result<Vec<String>> {
+    //"--bind-addr=127.0.0.1 --bind-port=1234 --test-mode --logger=alice-gadget"
     let mut arguments = vec![
         format!("--bind-ip={}", gadget_config.bind_ip),
         format!("--url={}", gadget_config.url),

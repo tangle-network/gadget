@@ -57,9 +57,18 @@
   "request_hook": "None",
   "request_params": [],
   "gadget": {
-    "Wasm": {
-      "runtime": "Wasmtime",
-      "sources": []
+    "Native": {
+      "sources": [
+        {
+          "fetcher": {
+            "Testing": {
+              "cargo_package": "incredible-squaring-blueprint",
+              "cargo_bin": "incredible-squaring-gadget",
+              "base_path": "."
+            }
+          }
+        }
+      ]
     }
   }
 }

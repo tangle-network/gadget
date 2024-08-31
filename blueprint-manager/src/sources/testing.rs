@@ -25,12 +25,16 @@ impl BinarySourceFetcher for TestSourceFetcher<'_> {
             .map_err(|err| Report::msg(format!("Failed to parse `cargo_bin`: {:?}", err)))?;
         let base_path = String::from_utf8(base_path.0 .0.clone())
             .map_err(|err| Report::msg(format!("Failed to parse `base_path`: {:?}", err)))?;
+
         let binary_path = format!("{base_path}/bin/{cargo_bin}");
         let path = PathBuf::from(binary_path);
         let path = path
             .canonicalize()
             .map_err(|err| Report::msg(format!("Failed to canonicalize path: {:?}", err)))?;
 
+        // Note: even if multiple gadgets are built, only the leader will actually build
+        // while the followers will just hang on the Cargo.lock file and then instantly
+        // finish compilation
         let tokio_build_process = tokio::process::Command::new("cargo")
             .arg("install")
             .arg("--path")
