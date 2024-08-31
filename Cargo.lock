@@ -4425,6 +4425,7 @@ version = "0.1.0"
 dependencies = [
  "ethereum-types 0.14.1",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

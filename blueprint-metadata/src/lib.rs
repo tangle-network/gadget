@@ -37,7 +37,6 @@ impl Config {
         let hooks = extract_hooks(&krate);
         let gadget = extract_gadget(&output_file);
 
-        // eprintln!("{gadget:?}");
         eprintln!("Generating blueprint.json to {:?}", output_file);
         let blueprint = ServiceBlueprint {
             metadata: ServiceMetadata {
@@ -112,13 +111,13 @@ fn extract_gadget<'a, T: AsRef<Path> + 'a>(blueprint_json_path: T) -> Gadget<'a>
     let json_string = unescape_json_string(
         &std::fs::read_to_string(blueprint_json_path).expect("Failed to read blueprint.json file"),
     );
-    let blueprint_json: serde_json::Value =
+    let mut blueprint_json: serde_json::Value =
         serde_json::from_str(&json_string).expect("Failed to parse blueprint JSON");
 
-    if let serde_json::Value::Object(map) = blueprint_json {
+    if let serde_json::Value::Object(map) = &blueprint_json {
         if map.contains_key("gadget") {
-            let gadget_json = map.get("gadget").expect("Failed to get gadget JSON");
-            serde_json::from_value(gadget_json.clone()).expect("Failed to deserialize gadget JSON")
+            serde_json::from_value(blueprint_json["gadget"].take())
+                .expect("Failed to deserialize gadget JSON")
         } else {
             panic!("The blueprint.json file does not contain a `gadget` field")
         }
