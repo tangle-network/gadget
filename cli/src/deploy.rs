@@ -52,11 +52,10 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
 
     let package = find_package(&metadata, pkg_name)?;
     let mut blueprint = load_blueprint_metadata(package)?;
-
     build_contracts_if_needed(package, &blueprint).context("Building contracts")?;
-
     deploy_contracts_to_tangle(rpc_url.as_ref(), package, &mut blueprint, signer_evm).await?;
 
+    println!("AB-start");
     bake_blueprint(blueprint)
 }
 
@@ -126,10 +125,10 @@ pub fn load_blueprint_metadata(package: &cargo_metadata::Package) -> Result<Serv
             .run()
             .context("Failed to build the package")?;
     }
-    // should have the blueprnt.json
+    // should have the blueprint.json
     let blueprint_json =
         std::fs::read_to_string(blueprint_json_path).context("Reading blueprint.json file")?;
-    let blueprint = serde_json::from_str::<ServiceBlueprint<'_>>(&blueprint_json)?;
+    let blueprint = serde_json::from_str(&blueprint_json)?;
     Ok(blueprint)
 }
 
@@ -299,8 +298,33 @@ fn bake_blueprint(
         convert_to_bytes_or_null(&mut job["metadata"]["name"]);
         convert_to_bytes_or_null(&mut job["metadata"]["description"]);
     }
+
+    let (_, gadget) = blueprint_json["gadget"]
+        .as_object_mut()
+        .expect("Bad gadget value")
+        .iter_mut()
+        .next()
+        .expect("Should be at least one gadget");
+    let sources = gadget["sources"].as_array_mut().expect("Should be a list");
+
+    for source in sources {
+        for fetcher in source["fetcher"].as_object_mut() {
+            let (_, fetcher_fields) = fetcher
+                .iter_mut()
+                .next()
+                .expect("Should be at least one fetcher");
+            for (key, value) in fetcher_fields
+                .as_object_mut()
+                .expect("Fetcher should be a map")
+            {
+                convert_to_bytes_or_null(value);
+            }
+        }
+    }
+
     println!("Job: {blueprint_json}");
     let blueprint = serde_json::from_value(blueprint_json)?;
+    println!("Here ...");
     Ok(blueprint)
 }
 
