@@ -271,11 +271,6 @@ pub async fn new_test_ext_blueprint_manager<
     let registration_args = RegistrationArgs::new();
     // TODO: allow the function callee to specify the registration args
 
-    // Step 3: Join the delegator set
-    super::join_delegators(&client, handles[0].sr25519_id())
-        .await
-        .expect("Failed to join delegators");
-
     for handle in handles {
         let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
             .await
@@ -291,6 +286,21 @@ pub async fn new_test_ext_blueprint_manager<
                 approval: ApprovalPrefrence::None,
             };
 
+            if let Err(err) = super::join_delegators(&client, &keypair).await {
+                let err_str = format!("{err}");
+                if err_str.contains("MultiAssetDelegation::AlreadyOperator") {
+                    handle.logger().warn(format!(
+                        "{} is already an operator",
+                        keypair.public_key().to_account_id()
+                    ));
+                } else {
+                    handle
+                        .logger()
+                        .error(format!("Failed to join delegators: {err}"));
+                    panic!("Failed to join delegators: {err}");
+                }
+            }
+
             if let Err(err) = super::register_blueprint(
                 &client,
                 &keypair,
@@ -301,18 +311,10 @@ pub async fn new_test_ext_blueprint_manager<
             )
             .await
             {
-                let err_str = format!("{err}");
-                if err_str.contains("MultiAssetDelegation::AlreadyOperator") {
-                    handle.logger().warn(format!(
-                        "{} is already an operator",
-                        keypair.public_key().to_account_id()
-                    ));
-                } else {
-                    handle
-                        .logger()
-                        .error(format!("Failed to register as operator: {err}"));
-                    panic!("Failed to register as operator: {err}");
-                }
+                handle
+                    .logger()
+                    .error(format!("Failed to register as operator: {err}"));
+                panic!("Failed to register as operator: {err}");
             }
 
             handle

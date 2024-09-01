@@ -55,7 +55,6 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     build_contracts_if_needed(package, &blueprint).context("Building contracts")?;
     deploy_contracts_to_tangle(rpc_url.as_ref(), package, &mut blueprint, signer_evm).await?;
 
-    println!("AB-start");
     bake_blueprint(blueprint)
 }
 
@@ -313,7 +312,7 @@ fn bake_blueprint(
                 .iter_mut()
                 .next()
                 .expect("Should be at least one fetcher");
-            for (key, value) in fetcher_fields
+            for (_key, value) in fetcher_fields
                 .as_object_mut()
                 .expect("Fetcher should be a map")
             {
@@ -324,13 +323,19 @@ fn bake_blueprint(
 
     println!("Job: {blueprint_json}");
     let blueprint = serde_json::from_value(blueprint_json)?;
-    println!("Here ...");
     Ok(blueprint)
 }
 
 fn convert_to_bytes_or_null(v: &mut serde_json::Value) {
     if let serde_json::Value::String(s) = v {
         *v = serde_json::Value::Array(s.bytes().map(serde_json::Value::from).collect());
+        return;
+    }
+
+    if let serde_json::Value::Array(vals) = v {
+        for val in vals {
+            convert_to_bytes_or_null(val);
+        }
     }
 }
 

@@ -145,7 +145,6 @@ pub async fn register_blueprint(
         .tx()
         .sign_and_submit_then_watch_default(&call, account_id)
         .await?;
-    logger.info("Waiting for registration to be finalized ...");
     res.wait_for_finalized_success().await?;
     Ok(())
 }
