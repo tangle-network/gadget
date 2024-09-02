@@ -38,7 +38,7 @@
             "Testing": {
               "cargo_package": "incredible-squaring-blueprint",
               "cargo_bin": "incredible-squaring-gadget",
-              "base_path": "."
+              "base_path": "./blueprints/incredible-squaring/"
             }
           }
         }
