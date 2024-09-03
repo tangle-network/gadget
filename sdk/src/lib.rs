@@ -16,16 +16,19 @@ use crate::events_watcher::Error as EventsWatcherError;
 use crate::keystore::Error as KeystoreError;
 #[cfg(feature = "std")]
 use crate::metrics::Error as MetricsError;
+use gadget_io::time::error::Elapsed;
+use gadget_io::tokio::sync::MutexGuard;
 use sp_core::ecdsa;
+use std::time::Duration;
 use thiserror::Error;
 
 /// Benchmark Module
 #[cfg(feature = "std")]
 pub mod benchmark;
-/// Context for the gadget
-pub mod context;
-/// Gadget Environment Module
-pub mod env;
+/// Blockchain clients
+pub mod clients;
+/// Gadget configuration
+pub mod config;
 /// Blockchain Events Watcher Module
 pub mod events_watcher;
 /// Keystore Module
@@ -70,14 +73,17 @@ pub enum Error {
     #[error("Network error: {reason}")]
     NetworkError { reason: String },
 
+    #[error("Storage error: {reason}")]
+    StoreError { reason: String },
+
     #[error("Keystore error: {0}")]
     KeystoreError(#[from] KeystoreError),
 
     #[error("Missing network ID")]
     MissingNetworkId,
 
-    #[error("Peer not found: {0:?}")]
-    PeerNotFound(ecdsa::Public),
+    #[error("Peer not found: {id:?}")]
+    PeerNotFound { id: ecdsa::Public },
 
     #[cfg(feature = "std")]
     #[error("Join error: {0}")]
@@ -99,5 +105,28 @@ pub enum Error {
     MetricsError(#[from] MetricsError),
 
     #[error("Other error: {0}")]
-    Other(#[from] String),
+    Other(String),
+}
+
+impl From<String> for Error {
+    fn from(s: String) -> Self {
+        Error::Other(s)
+    }
+}
+
+#[async_trait::async_trait]
+pub trait TokioMutexExt<T: Send> {
+    async fn try_lock_timeout(&self, timeout: Duration) -> Result<MutexGuard<T>, Elapsed>;
+    async fn lock_timeout(&self, timeout: Duration) -> MutexGuard<T> {
+        self.try_lock_timeout(timeout)
+            .await
+            .expect("Timeout on mutex lock")
+    }
+}
+
+#[async_trait::async_trait]
+impl<T: Send> TokioMutexExt<T> for gadget_io::tokio::sync::Mutex<T> {
+    async fn try_lock_timeout(&self, timeout: Duration) -> Result<MutexGuard<T>, Elapsed> {
+        gadget_io::time::timeout(timeout, self.lock()).await
+    }
 }

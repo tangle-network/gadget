@@ -2,7 +2,7 @@
 use alloc::string::String;
 use core::fmt::Display;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Logger {
     pub target: &'static str,
     pub id: String,

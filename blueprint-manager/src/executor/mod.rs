@@ -1,48 +1,30 @@
 use crate::config::BlueprintManagerConfig;
-use crate::sdk::entry::keystore_from_base_path;
+use crate::sdk::entry::{keystore_from_base_path, SendFuture};
 use crate::sdk::utils::msg_to_error;
 use crate::sdk::{keystore::load_keys_from_keystore, utils};
-use crate::sdk::{Client, SendFuture};
 use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
-use gadget_common::config::DebugLogger;
-use gadget_common::environments::GadgetEnvironment;
-use gadget_common::subxt_signer::sr25519;
-use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::{GadgetConfig, SubstrateKeystore};
-use sp_core::{ecdsa, Pair, H256};
+use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
+use gadget_sdk::clients::tangle::services::ServicesClient;
+use gadget_sdk::clients::Client;
+use gadget_sdk::logger::Logger;
+use sp_core::{ecdsa, Pair};
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
-use tangle_environment::gadget::SubxtConfig;
-use tangle_environment::TangleEnvironment;
-use tangle_subxt::subxt::blocks::BlockRef;
-use tangle_subxt::subxt::Config;
+use tangle_subxt::subxt::utils::AccountId32;
+use tangle_subxt::subxt_signer::sr25519;
 use tokio::task::JoinHandle;
 
 pub(crate) mod event_handler;
-
-pub async fn get_blueprints<C: Config>(
-    runtime: &ServicesClient<C>,
-    block_hash: [u8; 32],
-    account_id: AccountId32,
-) -> color_eyre::Result<Vec<RpcServicesWithBlueprint>>
-where
-    BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
-{
-    runtime
-        .query_operator_blueprints(block_hash, account_id)
-        .await
-        .map_err(|err| msg_to_error(err.to_string()))
-}
 
 pub struct BlueprintManagerHandle {
     shutdown_call: Option<tokio::sync::oneshot::Sender<()>>,
     start_tx: Option<tokio::sync::oneshot::Sender<()>>,
     process: JoinHandle<color_eyre::Result<()>>,
-    logger: DebugLogger,
+    logger: Logger,
     sr25519_id: sr25519::Keypair,
     ecdsa_id: ecdsa::Pair,
 }
@@ -129,7 +111,8 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         "local"
     };
 
-    let logger = DebugLogger {
+    let logger = Logger {
+        target: "blueprint-manager",
         id: format!("blueprint-manager-{}", logger_id),
     };
 
@@ -152,18 +135,13 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let sr25519_private_key = sr25519::Keypair::from_secret_key(secret_key)
         .map_err(|err| Report::msg(format!("Failed to create SR25519 keypair: {err:?}")))?;
 
-    let (role_key, acco_key) = load_keys_from_keystore(&keystore)?;
-    let ecdsa_key = role_key.clone();
+    let (ecdsa_key, acco_key) = load_keys_from_keystore(&keystore)?;
 
-    let sub_account_id = AccountId32(acco_key.public().0);
-    let subxt_config = SubxtConfig {
-        endpoint: gadget_config.url.clone(),
-    };
+    let account_id = AccountId32(acco_key.public().0);
 
-    let tangle_environment = TangleEnvironment::new(subxt_config, acco_key, logger.clone());
-
-    let tangle_runtime = tangle_environment.setup_runtime().await?;
-    let runtime = ServicesClient::new(logger.clone(), tangle_runtime.client());
+    let tangle_client =
+        TangleRuntimeClient::from_url(gadget_config.url.as_str(), account_id.clone()).await?;
+    let services_client = ServicesClient::new(logger.clone(), tangle_client.client());
     let mut active_gadgets = HashMap::new();
 
     // With the basics setup, we must now implement the main logic
@@ -174,11 +152,12 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     //   -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
 
     let (mut operator_subscribed_blueprints, init_event) =
-        if let Some(event) = tangle_runtime.next_event().await {
-            (
-                get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?,
-                event,
-            )
+        if let Some(event) = tangle_client.next_event().await {
+            let blueprints = services_client
+                .query_operator_blueprints(event.hash, account_id.clone())
+                .await
+                .map_err(|err| msg_to_error(err.to_string()))?;
+            (blueprints, event)
         } else {
             return Err(Report::msg("Failed to get initial block hash"));
         };
@@ -193,7 +172,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         &init_event,
         &logger,
         &mut active_gadgets,
-        &sub_account_id,
+        &account_id,
     )
     .await;
     event_handler::handle_tangle_event(
@@ -204,25 +183,27 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         &blueprint_manager_config,
         &mut active_gadgets,
         poll_result,
-        &runtime,
+        &services_client,
     )
     .await?;
 
     let logger_manager = logger.clone();
     let manager_task = async move {
         // Listen to FinalityNotifications and poll for new/deleted services that correspond to the blueprints above
-        while let Some(event) = tangle_runtime.next_event().await {
+        while let Some(event) = tangle_client.next_event().await {
             let result = event_handler::check_blueprint_events(
                 &event,
                 &logger_manager,
                 &mut active_gadgets,
-                &sub_account_id,
+                &account_id.clone(),
             )
             .await;
 
             if result.needs_update {
-                operator_subscribed_blueprints =
-                    get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?;
+                operator_subscribed_blueprints = services_client
+                    .query_operator_blueprints(event.hash, account_id.clone())
+                    .await
+                    .map_err(|err| msg_to_error(err.to_string()))?;
             }
 
             event_handler::handle_tangle_event(
@@ -233,7 +214,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
                 &blueprint_manager_config,
                 &mut active_gadgets,
                 result,
-                &runtime,
+                &services_client,
             )
             .await?;
         }

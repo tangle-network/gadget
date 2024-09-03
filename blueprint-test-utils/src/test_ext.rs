@@ -15,37 +15,32 @@
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::PerTestNodeInput;
-use async_trait::async_trait;
 use blueprint_manager::executor::BlueprintManagerHandle;
+use blueprint_manager::sdk::entry::SendFuture;
+use blueprint_manager::sdk::setup::NodeInput;
 use cargo_tangle::deploy::{Opts, PrivateKeySigner};
-use environment_utils::transaction_manager::tangle::SubxtPalletSubmitter;
-use gadget_common::config::Network;
-use gadget_common::locks::TokioMutexExt;
-use gadget_common::prelude::{
-    DebugLogger, ECDSAKeyStore, GadgetEnvironment, InMemoryBackend, NodeInput, PairSigner,
-    PrometheusConfig, UnboundedReceiver, UnboundedSender,
-};
-use gadget_common::tangle_runtime::api;
-use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::ApprovalPrefrence;
-use gadget_common::tangle_runtime::api::services::calls::types::register::{
-    Preferences, RegistrationArgs,
-};
-use gadget_common::tangle_subxt::subxt::ext::subxt_core::utils;
-use gadget_common::tangle_subxt::subxt::{OnlineClient, SubstrateConfig};
-use gadget_core::job::protocol::{ProtocolMessageMetadata, WorkManagerInterface};
-use gadget_core::job::SendFuture;
+use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
+use gadget_sdk::logger::Logger;
+use gadget_sdk::network::{Network, ParticipantInfo, ProtocolMessage};
+use gadget_sdk::prometheus::PrometheusConfig;
+use gadget_sdk::store::{ECDSAKeyStore, InMemoryBackend};
+use gadget_sdk::tangle_subxt::subxt::utils::AccountId32;
+use gadget_sdk::tangle_subxt::subxt::{OnlineClient, SubstrateConfig};
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ApprovalPrefrence;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
+use gadget_sdk::TokioMutexExt;
 use gadget_sdk::Error;
 use libp2p::Multiaddr;
 use sp_application_crypto::ecdsa;
 use sp_core::{sr25519, Pair};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use std::collections::HashMap;
 use std::future::Future;
 use std::net::IpAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use tangle_environment::runtime::{TangleConfig, TangleRuntime};
-use tangle_environment::TangleEnvironment;
 use url::Url;
 
 pub fn id_to_ecdsa_pair(id: u8) -> ecdsa::Pair {
@@ -67,18 +62,13 @@ pub fn id_to_sr25519_public(id: u8) -> sr25519::Public {
 type PeersRx<Env> =
     Arc<HashMap<ecdsa::Public, gadget_io::tokio::sync::Mutex<UnboundedReceiver<Env>>>>;
 
-pub struct MockNetwork<Env: GadgetEnvironment> {
-    peers_tx: Arc<
-        HashMap<
-            ecdsa::Public,
-            UnboundedSender<<Env::WorkManager as WorkManagerInterface>::ProtocolMessage>,
-        >,
-    >,
-    peers_rx: PeersRx<<Env::WorkManager as WorkManagerInterface>::ProtocolMessage>,
+pub struct MockNetwork {
+    peers_tx: Arc<HashMap<ecdsa::Public, UnboundedSender<ProtocolMessage>>>,
+    peers_rx: PeersRx<ProtocolMessage>,
     my_id: ecdsa::Public,
 }
 
-impl<Env: GadgetEnvironment> Clone for MockNetwork<Env> {
+impl Clone for MockNetwork {
     fn clone(&self) -> Self {
         Self {
             peers_tx: self.peers_tx.clone(),
@@ -88,7 +78,7 @@ impl<Env: GadgetEnvironment> Clone for MockNetwork<Env> {
     }
 }
 
-impl<Env: GadgetEnvironment> MockNetwork<Env> {
+impl MockNetwork {
     pub fn setup(ids: &Vec<ecdsa::Public>) -> Vec<Self> {
         let mut peers_tx = HashMap::new();
         let mut peers_rx = HashMap::new();
@@ -116,14 +106,9 @@ impl<Env: GadgetEnvironment> MockNetwork<Env> {
     }
 }
 
-#[async_trait]
-impl<Env: GadgetEnvironment> Network<Env> for MockNetwork<Env>
-where
-    Env::ProtocolMessage: Clone,
-{
-    async fn next_message(
-        &self,
-    ) -> Option<<Env::WorkManager as WorkManagerInterface>::ProtocolMessage> {
+#[async_trait::async_trait]
+impl Network for MockNetwork {
+    async fn next_message(&self) -> Option<ProtocolMessage> {
         self.peers_rx
             .get(&self.my_id)?
             .lock_timeout(Duration::from_millis(500))
@@ -132,18 +117,19 @@ where
             .await
     }
 
-    async fn send_message(
-        &self,
-        message: <Env::WorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), Error> {
-        let _check_message_has_ids = message.sender_network_id().ok_or(Error::MissingNetworkId)?;
-        if let Some(peer_id) = message.recipient_network_id() {
+    async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error> {
+        let _check_message_has_ids = message.sender.ecdsa_key.ok_or(Error::MissingNetworkId)?;
+        if let Some(ParticipantInfo {
+            ecdsa_key: Some(peer_id),
+            ..
+        }) = message.recipient
+        {
             let tx = self
                 .peers_tx
                 .get(&peer_id)
                 .ok_or(Error::PeerNotFound { id: peer_id })?;
             tx.send(message).map_err(|err| Error::NetworkError {
-                err: err.to_string(),
+                reason: err.to_string(),
             })?;
         } else {
             // Broadcast to everyone except ourself
@@ -151,7 +137,7 @@ where
                 if peer_id != &self.my_id {
                     tx.send(message.clone())
                         .map_err(|err| Error::NetworkError {
-                            err: err.to_string(),
+                            reason: err.to_string(),
                         })?;
                 }
             }
@@ -250,7 +236,7 @@ pub async fn new_test_ext_blueprint_manager<
 
     for handle in handles.iter() {
         let keypair = handle.sr25519_id().clone();
-        let key = api::runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().public().0);
+        let key = runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().public().0);
 
         let preferences = Preferences {
             key,
@@ -296,7 +282,7 @@ pub async fn new_test_ext<
     const N: usize,
     const K: usize,
     D: Send + Clone + 'static,
-    F: Fn(NodeInput<TangleEnvironment, MockNetwork<TangleEnvironment>, InMemoryBackend, D>) -> Fut,
+    F: Fn(NodeInput<MockNetwork, InMemoryBackend, D>) -> Fut,
     Fut: SendFuture<'static, BlueprintManagerHandle>,
 >(
     additional_params: D,
@@ -313,18 +299,6 @@ pub async fn new_test_ext<
     let pairs = (0..N)
         .map(|i| id_to_sr25519_pair(i as u8))
         .collect::<Vec<_>>();
-
-    /*
-    let account_ids = pairs
-        .iter()
-        .map(|pair| pair.public().into())
-        .collect::<Vec<AccountId>>();
-
-
-    let balances = account_ids
-        .iter()
-        .map(|public| (public.clone(), 100u128))
-        .collect::<Vec<_>>();*/
 
     let networks = (0..K)
         .map(|_| MockNetwork::setup(&roles_identities))
@@ -350,7 +324,7 @@ pub async fn new_test_ext<
     for (node_index, ((role_pair, pair), networks)) in
         role_pairs.into_iter().zip(pairs).zip(networks).enumerate()
     {
-        let account_id: utils::AccountId32 = pair.public().0.into();
+        let account_id: AccountId32 = pair.public().0.into();
         let mut localhost_clients = Vec::new();
 
         for _ in 0..K {
@@ -359,21 +333,14 @@ pub async fn new_test_ext<
                 .await
                 .expect("Failed to create localhost client");
 
-            let client = TangleRuntime::new(client, account_id.clone());
+            let client = TangleRuntimeClient::new(client, account_id.clone());
             localhost_clients.push(client);
         }
 
-        let logger = DebugLogger {
+        let logger = Logger {
+            target: "blueprint-test-utils",
             id: format!("Peer {node_index}"),
         };
-
-        let pair_signer = PairSigner::<TangleConfig>::new(pair);
-
-        let tx_manager = Arc::new(
-            SubxtPalletSubmitter::new(pair_signer, logger.clone())
-                .await
-                .expect("Failed to create tx manager"),
-        );
 
         let keystore = ECDSAKeyStore::in_memory(role_pair);
         let prometheus_config = PrometheusConfig::Disabled;
@@ -383,7 +350,6 @@ pub async fn new_test_ext<
             networks,
             account_id: sr25519::Public::from_raw(account_id.0),
             logger,
-            tx_manager: tx_manager as _,
             keystore,
             node_index,
             additional_params: additional_params.clone(),

@@ -1,6 +1,5 @@
 use crate::Error;
 use alloc::boxed::Box;
-use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sp_core::ecdsa::Pair as EcdsaPair;
@@ -14,10 +13,12 @@ use sqlx::{Pool, Row, Sqlite};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::network::{deserialize, serialize};
+
 pub mod local_database;
 pub use local_database::LocalDatabase;
 
-#[async_trait]
+#[async_trait::async_trait]
 pub trait KeyValueStoreBackend: Clone + Send + Sync + 'static {
     async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, Error>;
     async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), Error>;
@@ -26,7 +27,7 @@ pub trait KeyValueStoreBackend: Clone + Send + Sync + 'static {
 pub type ECDSAKeyStore<BE> = GenericKeyStore<BE, EcdsaPair>;
 pub type Sr25519KeyStore<BE> = GenericKeyStore<BE, Sr25519Pair>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GenericKeyStore<BE: KeyValueStoreBackend, P: Pair> {
     backend: BE,
     pair: P,
@@ -72,7 +73,7 @@ impl<P: Pair, BE: KeyValueStoreBackend> GenericKeyStore<BE, P> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[cfg(feature = "std")]
 pub struct InMemoryBackend {
     map: Arc<RwLock<HashMap<[u8; 32], Vec<u8>>>>,
@@ -94,13 +95,13 @@ impl InMemoryBackend {
     }
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 #[cfg(feature = "std")]
 impl KeyValueStoreBackend for InMemoryBackend {
     async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, Error> {
         if let Some(bytes) = self.map.read().get(key).cloned() {
-            let value: T = deserialize(&bytes).map_err(|rr| Error::KeystoreError {
-                err: format!("Failed to deserialize value: {:?}", rr),
+            let value: T = deserialize(&bytes).map_err(|rr| Error::StoreError {
+                reason: format!("Failed to deserialize value: {:?}", rr),
             })?;
             Ok(Some(value))
         } else {
@@ -109,15 +110,15 @@ impl KeyValueStoreBackend for InMemoryBackend {
     }
 
     async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), Error> {
-        let serialized = serialize(&value).map_err(|rr| Error::KeystoreError {
-            err: format!("Failed to serialize value: {:?}", rr),
+        let serialized = serialize(&value).map_err(|rr| Error::StoreError {
+            reason: format!("Failed to serialize value: {:?}", rr),
         })?;
-        self.map.write().insert(*key, serialized);
+        let _ = self.map.write().insert(*key, serialized);
         Ok(())
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[cfg(feature = "std")]
 pub struct SqliteBackend {
     pool: Pool<Sqlite>,
@@ -133,7 +134,7 @@ impl SqliteBackend {
         let pool = SqlitePoolOptions::new().connect(database_url).await?;
 
         // Ensure the table exists
-        sqlx::query(
+        let _ = sqlx::query(
             r"CREATE TABLE IF NOT EXISTS key_value_store (
                 key TEXT PRIMARY KEY,
                 value BLOB NOT NULL
@@ -146,7 +147,7 @@ impl SqliteBackend {
     }
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 #[cfg(all(feature = "std", not(target_family = "wasm")))]
 impl KeyValueStoreBackend for SqliteBackend {
     async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, Error> {
@@ -155,15 +156,15 @@ impl KeyValueStoreBackend for SqliteBackend {
             .bind(key)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|err| Error::KeystoreError {
-                err: format!("Failed to fetch value: {:?}", err),
+            .map_err(|err| Error::StoreError {
+                reason: format!("Failed to fetch value: {:?}", err),
             })?;
 
         match result {
             Some(row) => {
                 let value: Vec<u8> = row.get("value");
-                let value: T = deserialize(&value).map_err(|rr| Error::KeystoreError {
-                    err: format!("Failed to deserialize value: {:?}", rr),
+                let value: T = deserialize(&value).map_err(|rr| Error::StoreError {
+                    reason: format!("Failed to deserialize value: {:?}", rr),
                 })?;
                 Ok(Some(value))
             }
@@ -173,17 +174,17 @@ impl KeyValueStoreBackend for SqliteBackend {
 
     async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), Error> {
         let key = key_to_string(key);
-        let value = serialize(&value).map_err(|rr| Error::KeystoreError {
-            err: format!("Failed to serialize value: {:?}", rr),
+        let value = serialize(&value).map_err(|rr| Error::StoreError {
+            reason: format!("Failed to serialize value: {:?}", rr),
         })?;
 
-        sqlx::query("INSERT INTO key_value_store (key, value) VALUES (?, ?)")
+        let _ = sqlx::query("INSERT INTO key_value_store (key, value) VALUES (?, ?)")
             .bind(key)
             .bind(value)
             .execute(&self.pool)
             .await
-            .map_err(|err| Error::KeystoreError {
-                err: format!("Failed to insert value: {:?}", err),
+            .map_err(|err| Error::StoreError {
+                reason: format!("Failed to insert value: {:?}", err),
             })?;
         Ok(())
     }
@@ -197,7 +198,7 @@ fn key_to_string(key: &[u8; 32]) -> String {
 #[cfg(test)]
 #[cfg(not(target_family = "wasm"))]
 mod tests {
-    use crate::keystore::KeyValueStoreBackend;
+    use crate::store::KeyValueStoreBackend;
     use gadget_io::tokio;
 
     #[gadget_io::tokio::test]

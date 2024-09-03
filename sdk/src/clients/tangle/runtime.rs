@@ -1,57 +1,50 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::gadget::TangleEvent;
-use gadget_common::locks::TokioMutexExt;
-use gadget_common::tangle_subxt::subxt::blocks::{Block, BlockRef};
-use gadget_common::tangle_subxt::subxt::{self, SubstrateConfig};
-use gadget_common::{async_trait, tangle_runtime::*};
-use gadget_core::gadget::general::Client;
+use crate::clients::Client;
+use crate::network::IdentifierInfo;
+use crate::TokioMutexExt;
+use subxt::blocks::{Block, BlockRef};
+use subxt::events::Events;
+use subxt::utils::AccountId32;
+use subxt::{self, SubstrateConfig};
 
 pub type TangleConfig = SubstrateConfig;
 pub type TangleClient = subxt::OnlineClient<TangleConfig>;
 pub type TangleBlock = Block<TangleConfig, TangleClient>;
 pub type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
 
-pub mod crypto {
-    use sp_application_crypto::{app_crypto, ecdsa, sr25519};
-    pub mod acco {
-        use super::*;
-        pub use sp_core::crypto::key_types::ACCOUNT as KEY_TYPE;
-        app_crypto!(sr25519, KEY_TYPE);
-    }
-
-    pub mod role {
-        use super::*;
-        /// Key type for ROLE keys
-        pub const KEY_TYPE: sp_application_crypto::KeyTypeId =
-            sp_application_crypto::KeyTypeId(*b"role");
-
-        app_crypto!(ecdsa, KEY_TYPE);
-    }
+#[derive(Clone, Debug)]
+pub struct TangleEvent {
+    /// Finalized block number.
+    pub number: u64,
+    /// Finalized block header hash.
+    pub hash: [u8; 32],
+    /// Events
+    pub events: Events<TangleConfig>,
 }
 
-#[derive(Clone)]
-pub struct TangleRuntime {
+#[derive(Clone, Debug)]
+pub struct TangleRuntimeClient {
     client: subxt::OnlineClient<SubstrateConfig>,
-    finality_notification_stream:
-        Arc<gadget_common::gadget_io::tokio::sync::Mutex<Option<TangleBlockStream>>>,
-    latest_finality_notification:
-        Arc<gadget_common::gadget_io::tokio::sync::Mutex<Option<TangleEvent>>>,
+    finality_notification_stream: Arc<gadget_io::tokio::sync::Mutex<Option<TangleBlockStream>>>,
+    latest_finality_notification: Arc<gadget_io::tokio::sync::Mutex<Option<TangleEvent>>>,
     account_id: AccountId32,
 }
 
-impl TangleRuntime {
+impl TangleRuntimeClient {
+    /// Create a new Tangle runtime client from a RPC url.
+    pub async fn from_url(url: &str, account_id: AccountId32) -> Result<Self, crate::Error> {
+        let client = subxt::OnlineClient::<SubstrateConfig>::from_url(url).await?;
+        Ok(Self::new(client, account_id))
+    }
+
     /// Create a new TangleRuntime instance.
     pub fn new(client: subxt::OnlineClient<SubstrateConfig>, account_id: AccountId32) -> Self {
         Self {
             client,
-            finality_notification_stream: Arc::new(
-                gadget_common::gadget_io::tokio::sync::Mutex::new(None),
-            ),
-            latest_finality_notification: Arc::new(
-                gadget_common::gadget_io::tokio::sync::Mutex::new(None),
-            ),
+            finality_notification_stream: Arc::new(gadget_io::tokio::sync::Mutex::new(None)),
+            latest_finality_notification: Arc::new(gadget_io::tokio::sync::Mutex::new(None)),
             account_id,
         }
     }
@@ -62,7 +55,7 @@ impl TangleRuntime {
 
     /// Initialize the TangleRuntime instance by listening for finality notifications.
     /// This method must be called before using the instance.
-    async fn initialize(&self) -> Result<(), gadget_sdk::Error> {
+    async fn initialize(&self) -> Result<(), crate::Error> {
         let finality_notification_stream = self.client.blocks().subscribe_finalized().await?;
         *self.finality_notification_stream.lock().await = Some(finality_notification_stream);
         Ok(())
@@ -82,7 +75,7 @@ impl TangleRuntime {
 }
 
 #[async_trait::async_trait]
-impl Client<TangleEvent> for TangleRuntime {
+impl Client<TangleEvent> for TangleRuntimeClient {
     async fn next_event(&self) -> Option<TangleEvent> {
         let mut lock = self
             .finality_notification_stream

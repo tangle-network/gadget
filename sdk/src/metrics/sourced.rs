@@ -34,11 +34,11 @@ pub type SourcedCounter<S> = SourcedMetric<Counter, S>;
 pub type SourcedGauge<S> = SourcedMetric<Gauge, S>;
 
 /// The type of a sourced counter.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Counter {}
 
 /// The type of a sourced gauge.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Gauge {}
 
 /// A metric whose values are obtained from an existing source,

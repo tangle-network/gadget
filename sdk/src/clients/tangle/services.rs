@@ -1,24 +1,22 @@
-use gadget_common::config::DebugLogger;
-use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services;
-use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
-use gadget_common::tangle_runtime::AccountId32;
-use gadget_common::tangle_subxt::subxt::backend::BlockRef;
-use gadget_common::tangle_subxt::subxt::utils::H256;
-use gadget_common::tangle_subxt::subxt::{Config, OnlineClient};
-use gadget_common::tangle_subxt::tangle_testnet_runtime::api;
-
-pub type BlockHash = [u8; 32];
+use crate::logger::Logger;
+use subxt::utils::AccountId32;
+use tangle_subxt::subxt::backend::BlockRef;
+use tangle_subxt::subxt::utils::H256;
+use tangle_subxt::subxt::{Config, OnlineClient};
+use tangle_subxt::tangle_testnet_runtime::api;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 
 /// A client for interacting with the services API
-/// TODO: Make this the object that is used for getting services and submitting transactions as necessary.
+#[derive(Debug)]
 pub struct ServicesClient<C: Config> {
     rpc_client: OnlineClient<C>,
     #[allow(dead_code)]
-    logger: DebugLogger,
+    logger: Logger,
 }
 
 impl<C: Config> ServicesClient<C> {
-    pub fn new(logger: DebugLogger, rpc_client: OnlineClient<C>) -> Self {
+    pub fn new(logger: Logger, rpc_client: OnlineClient<C>) -> Self {
         Self { logger, rpc_client }
     }
 
@@ -37,7 +35,7 @@ where
         &self,
         at: [u8; 32],
         blueprint_id: u64,
-    ) -> Result<Option<ServiceBlueprint>, gadget_sdk::Error> {
+    ) -> Result<Option<ServiceBlueprint>, crate::Error> {
         let call = api::storage().services().blueprints(blueprint_id);
         let at = BlockRef::from_hash(H256::from_slice(&at));
         let ret: Option<ServiceBlueprint> = self
@@ -46,7 +44,7 @@ where
             .at(at)
             .fetch(&call)
             .await
-            .map_err(|e| gadget_sdk::Error::ClientError { err: e.to_string() })?
+            .map_err(|e| crate::Error::ClientError(e.to_string()))?
             .map(|r| r.1);
 
         Ok(ret)
@@ -56,7 +54,7 @@ where
         &self,
         at: [u8; 32],
         address: AccountId32,
-    ) -> Result<Vec<RpcServicesWithBlueprint>, gadget_sdk::Error> {
+    ) -> Result<Vec<RpcServicesWithBlueprint>, crate::Error> {
         let call = api::apis()
             .services_api()
             .query_services_with_blueprints_by_operator(address);
@@ -67,10 +65,8 @@ where
             .at(at)
             .call(call)
             .await
-            .map_err(|e| gadget_sdk::Error::ClientError { err: e.to_string() })?
-            .map_err(|err| gadget_sdk::Error::ClientError {
-                err: format!("{err:?}"),
-            })?;
+            .map_err(|e| crate::Error::ClientError(e.to_string()))?
+            .map_err(|e| crate::Error::ClientError(format!("{e:?}")))?;
 
         Ok(ret)
     }

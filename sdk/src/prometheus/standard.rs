@@ -5,7 +5,7 @@ use core::net::SocketAddr;
 use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, Ordering};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum PrometheusConfig {
     Enabled { bind_addr: SocketAddr },
     Disabled,
@@ -28,13 +28,13 @@ pub async fn setup(config: PrometheusConfig) -> Result<(), crate::Error> {
 
         HAS_REGISTERED.store(true, Ordering::SeqCst);
 
-        metrics::register(BYTES_RECEIVED.clone(), &REGISTRY).map_err(|err| {
+        let _ = metrics::register(BYTES_RECEIVED.clone(), &REGISTRY).map_err(|err| {
             crate::Error::PrometheusError {
                 err: err.to_string(),
             }
         })?;
 
-        metrics::register(BYTES_SENT.clone(), &REGISTRY).map_err(|err| {
+        let _ = metrics::register(BYTES_SENT.clone(), &REGISTRY).map_err(|err| {
             crate::Error::PrometheusError {
                 err: err.to_string(),
             }

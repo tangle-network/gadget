@@ -10,6 +10,8 @@ license.workspace = true
 
 
 [dependencies]
+
+auto_impl = { workspace = true }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
 getrandom = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
@@ -29,6 +31,7 @@ w3f-bls = { workspace = true }
 
 # Metrics deps
 hyper = { workspace = true, features = ["http1", "server"] }
+hyper-util = { workspace = true, features = ["server"] }
 prometheus = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"] }
 

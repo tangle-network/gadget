@@ -120,7 +120,7 @@ async fn init_prometheus_with_listener(
             )
             .into_owned();
 
-        tokio::spawn(async move {
+        let _ = tokio::spawn(async move {
             if let Err(err) = conn.await {
                 log::debug!(target: "prometheus", "connection error: {:?}", err);
             }
