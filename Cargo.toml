@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "blueprint-metadata",
-    "blueprints/*",
+    "blueprints/incredible-squaring",
     "cli",
     "executor",
     "gadget-io",
