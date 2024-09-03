@@ -28,11 +28,11 @@ use super::Context;
 ///   provided/exposed to the developer using our SDK. The variable names should likely indicate uniqueness.
 #[sdk::job(
     id = 0,
-    params(curve, t, num_keys),
+    params(curve, t, num_keys, hd_wallet),
     result(_),
     verifier(evm = "HelloBlueprint")
 )]
-pub async fn keygen(ctx: Context, curve: u8, t: u16, num_keys: u16) -> Result<String, Infallible> {
+pub async fn keygen(ctx: Context, curve: u8, t: u16, num_keys: u16, hd_wallet: bool) -> Result<String, Infallible> {
     // TODO: How to grab the specific operators? What index am I?
     let n = 3 * (t + 1);
     let i = 0;
@@ -53,8 +53,8 @@ pub async fn keygen(ctx: Context, curve: u8, t: u16, num_keys: u16) -> Result<St
         retry_id,
     };
     let rng = rand::rngs::StdRng::from_entropy();
+    // TODO: How to get the raw job bytes?
     let job_id_bytes = vec![0u8; 32];
-    let hd_wallet = true;
     let mix = keccak_256(b"cggmp21-keygen");
     let eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
     let eid = cggmp21::ExecutionId::new(&eid_bytes);
@@ -67,6 +67,8 @@ pub async fn keygen(ctx: Context, curve: u8, t: u16, num_keys: u16) -> Result<St
         id: format!("{}", service_id),
     };
 
+    // TODO: What is the protocol message channel? Can I get it from the network?
+    let protocol_message_channel = ctx.network.protocol_message_channel.clone();
     let mut handles = Vec::new();
     macro_rules! run_keygen_for_curve {
         ($curve:ty) => {
