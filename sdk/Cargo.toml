@@ -10,12 +10,17 @@ license.workspace = true
 
 
 [dependencies]
+
+auto_impl = { workspace = true }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
 getrandom = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
+http-body-util = { workspace = true }
+lazy_static = { workspace = true }
 lock_api = { workspace = true }
 parking_lot = { workspace = true }
-rand = { version = "0.8", default-features = false, features = ["alloc"] }
+rand = { workspace = true, default-features = false, features = ["alloc"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
 thiserror = { workspace = true }
 
 # Keystore deps
@@ -26,6 +31,7 @@ w3f-bls = { workspace = true }
 
 # Metrics deps
 hyper = { workspace = true, features = ["http1", "server"] }
+hyper-util = { workspace = true, features = ["server"] }
 prometheus = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"] }
 
@@ -37,8 +43,6 @@ tracing = { workspace = true }
 async-trait = { workspace = true }
 bincode = { workspace = true }
 futures = { workspace = true }
-gadget-core = { workspace = true, features = ["substrate"] }
-gadget-common = { workspace = true, features = ["std", "substrate"] }
 gadget-io = { workspace = true, features = ["std"] }
 round-based = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
@@ -108,6 +112,7 @@ std = [
     "rand/std",
     "rand/std_rng",
     "sp-io/std",
+    "sqlx",
 ]
 wasm = [
     "getrandom/js",

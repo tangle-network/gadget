@@ -1,10 +1,10 @@
 #![allow(unused_results, missing_docs)]
+use crate::logger::Logger;
 #[cfg(not(target_family = "wasm"))]
 use crate::network::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
 };
 use futures::StreamExt;
-use gadget_common::config::DebugLogger;
 
 #[cfg(not(target_family = "wasm"))]
 use libp2p::{
@@ -42,7 +42,7 @@ pub struct NetworkConfig {
     pub bind_ip: IpAddr,
     pub bind_port: u16,
     pub topics: Vec<String>,
-    pub logger: DebugLogger,
+    pub logger: Logger,
 }
 
 impl std::fmt::Debug for NetworkConfig {
@@ -68,7 +68,7 @@ impl NetworkConfig {
         bind_ip: IpAddr,
         bind_port: u16,
         topics: Vec<String>,
-        logger: DebugLogger,
+        logger: Logger,
     ) -> Self {
         Self {
             identity,
@@ -90,7 +90,7 @@ impl NetworkConfig {
         bind_ip: IpAddr,
         bind_port: u16,
         service_name: T,
-        logger: DebugLogger,
+        logger: Logger,
     ) -> Self {
         Self::new(
             identity,

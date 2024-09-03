@@ -6,9 +6,6 @@
 )]
 use async_trait::async_trait;
 use ecdsa::Public;
-use gadget_common::environments::GadgetEnvironment;
-use gadget_common::prelude::{DebugLogger, Network};
-use gadget_core::job::protocol::{ProtocolMessageMetadata, WorkManagerInterface};
 use gadget_io::tokio::sync::mpsc::UnboundedSender;
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use libp2p::gossipsub::IdentTopic;
@@ -21,6 +18,10 @@ use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
+
+use crate::logger::Logger;
+
+use super::{Network, ParticipantInfo, ProtocolMessage};
 
 /// Maximum allowed size for a Signed Message.
 pub const MAX_MESSAGE_SIZE: usize = 16 * 1024 * 1024;
@@ -42,7 +43,7 @@ pub struct MyBehaviour {
 pub type InboundMapping = (IdentTopic, UnboundedSender<Vec<u8>>, Arc<AtomicU32>);
 
 pub struct NetworkServiceWithoutSwarm<'a> {
-    pub logger: &'a DebugLogger,
+    pub logger: &'a Logger,
     pub inbound_mapping: &'a [InboundMapping],
     pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
     pub role_key: &'a ecdsa::Pair,
@@ -67,7 +68,7 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
 
 pub struct NetworkService<'a> {
     pub swarm: &'a mut libp2p::Swarm<MyBehaviour>,
-    pub logger: &'a DebugLogger,
+    pub logger: &'a Logger,
     pub inbound_mapping: &'a [InboundMapping],
     pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
     pub role_key: &'a ecdsa::Pair,
@@ -268,7 +269,7 @@ pub struct GossipHandle {
     pub topic: IdentTopic,
     pub tx_to_outbound: UnboundedSender<IntraNodePayload>,
     pub rx_from_inbound: Arc<Mutex<gadget_io::tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
-    pub logger: DebugLogger,
+    pub logger: Logger,
     pub connected_peers: Arc<AtomicU32>,
     pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
 }
@@ -343,10 +344,8 @@ enum MessageType {
 }
 
 #[async_trait]
-impl<Env: GadgetEnvironment> Network<Env> for GossipHandle {
-    async fn next_message(
-        &self,
-    ) -> Option<<Env::WorkManager as WorkManagerInterface>::ProtocolMessage> {
+impl Network for GossipHandle {
+    async fn next_message(&self) -> Option<ProtocolMessage> {
         let mut lock = self
             .rx_from_inbound
             .try_lock()
@@ -359,24 +358,25 @@ impl<Env: GadgetEnvironment> Network<Env> for GossipHandle {
                 self.logger
                     .error(format!("Failed to deserialize message: {e}"));
                 drop(lock);
-                Network::<Env>::next_message(self).await
+                Network::next_message(self).await
             }
         }
     }
 
-    async fn send_message(
-        &self,
-        message: <Env::WorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), gadget_common::Error> {
-        let message_type = if let Some(to) = message.recipient_network_id() {
+    async fn send_message(&self, message: ProtocolMessage) -> Result<(), crate::Error> {
+        let message_type = if let Some(ParticipantInfo {
+            ecdsa_key: Some(to),
+            ..
+        }) = message.recipient
+        {
             let libp2p_id = self
                 .ecdsa_peer_id_to_libp2p_id
                 .read()
                 .await
                 .get(&Public::from_raw(to.0))
                 .copied()
-                .ok_or_else(|| gadget_common::Error::NetworkError {
-                    err: format!(
+                .ok_or_else(|| crate::Error::NetworkError {
+                    reason: format!(
                         "No libp2p ID found for ecdsa public key: {to}. No handshake happened?"
                     ),
                 })?;
@@ -405,8 +405,8 @@ impl<Env: GadgetEnvironment> Network<Env> for GossipHandle {
 
         self.tx_to_outbound
             .send(payload)
-            .map_err(|e| gadget_common::Error::NetworkError {
-                err: format!("Failed to send intra-node payload: {e}"),
+            .map_err(|e| crate::Error::NetworkError {
+                reason: format!("Failed to send intra-node payload: {e}"),
             })
     }
 }

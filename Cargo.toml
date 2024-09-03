@@ -4,14 +4,9 @@ members = [
     "blueprint-metadata",
     "blueprints/*",
     "cli",
-    "core",
-    "common",
     "executor",
-    "environments/tangle",
-    "environments/utils",
     "gadget-io",
     "blueprint-test-utils",
-    "protocol-macros",
     "blueprint-manager",
     "sdk",
     # Commented out, since it uses jobs-v1 code
@@ -45,16 +40,11 @@ single_match_else = "allow"
 broken_intra_doc_links = "deny"
 
 [workspace.dependencies]
-gadget-core = { version = "0.0.1", path = "./core", default-features = false }
-gadget-common = { version = "0.1.0", path = "./common", default-features = false }
 gadget-io = { version = "0.0.1", path = "./gadget-io", default-features = false }
 gadget-executor = { version = "0.1.0", path = "./executor" }
 blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false }
-protocol-macros = { path = "./protocol-macros" }
-tangle-environment = { path = "./environments/tangle", default-features = false }
-environment-utils = { path = "./environments/utils", default-features = false }
 
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.0" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.0" }
@@ -192,6 +182,7 @@ hex = { version = "0.4.3", default-features = false }
 hex-literal = "0.4.1"
 http-body-util = "0.1.2"
 hyper = { version = "1.4.1", default-features = false }
+hyper-util = "0.1.7"
 itertools = "0.13.0"
 jsonrpsee = "0.24.3"
 jsonwebtoken = "9.3.0"

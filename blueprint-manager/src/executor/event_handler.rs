@@ -8,16 +8,16 @@ use crate::sdk::utils::{
     is_windows, msg_to_error, valid_file_exists,
 };
 use color_eyre::eyre::OptionExt;
-use gadget_common::prelude::DebugLogger;
-use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::GadgetConfig;
+use gadget_sdk::clients::tangle::runtime::TangleEvent;
+use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
+use gadget_sdk::logger::Logger;
 use std::fmt::Write;
 use std::sync::atomic::Ordering;
-use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
-use tangle_environment::gadget::TangleEvent;
+use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::subxt::SubstrateConfig;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
-    Gadget, GithubFetcher,
+    Gadget, GadgetSourceFetcher, GithubFetcher,
 };
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{
     JobCalled, JobResultSubmitted, PreRegistration, Registered, ServiceInitiated, Unregistered,
@@ -32,7 +32,7 @@ pub async fn maybe_handle(
     gadget_config: &GadgetConfig,
     blueprint_manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
-    logger: &DebugLogger,
+    logger: &Logger,
 ) -> color_eyre::Result<()> {
     for (gh, fetcher) in onchain_services.iter().zip(onchain_gh_fetchers) {
         let native_github_metadata = NativeGithubMetadata {
@@ -70,7 +70,7 @@ async fn handle_github_source(
     blueprint_manager_opts: &BlueprintManagerConfig,
     github: &GithubFetcher,
     active_gadgets: &mut ActiveGadgets,
-    logger: &DebugLogger,
+    logger: &Logger,
 ) -> color_eyre::Result<()> {
     let blueprint_id = service.blueprint_id;
     let service_str = get_service_str(service);
@@ -224,7 +224,7 @@ pub struct EventPollResult {
 
 pub(crate) async fn check_blueprint_events(
     event: &TangleEvent,
-    logger: &DebugLogger,
+    logger: &Logger,
     active_gadgets: &mut ActiveGadgets,
     account_id: &AccountId32,
 ) -> EventPollResult {
@@ -330,7 +330,7 @@ pub(crate) async fn check_blueprint_events(
 pub(crate) async fn handle_tangle_event(
     event: &TangleEvent,
     blueprints: &[RpcServicesWithBlueprint],
-    logger: &DebugLogger,
+    logger: &Logger,
     gadget_config: &GadgetConfig,
     gadget_manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
@@ -380,7 +380,7 @@ pub(crate) async fn handle_tangle_event(
         let mut services_for_this_blueprint = vec![];
         if let Gadget::Native(gadget) = &blueprint.gadget {
             let gadget_source = &gadget.sources.0[0];
-            if let gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher::Github(gh) = &gadget_source.fetcher {
+            if let GadgetSourceFetcher::Github(gh) = &gadget_source.fetcher {
                 let metadata = github_fetcher_to_native_github_metadata(gh, blueprint.blueprint_id);
                 onchain_services.push(metadata);
                 fetchers.push(gh.clone());

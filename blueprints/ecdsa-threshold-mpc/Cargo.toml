@@ -15,8 +15,10 @@ rust-version = "1.79"
 [dependencies]
 tracing = { workspace = true }
 async-trait = { workspace = true }
+thiserror = { workspace = true }
+futures = { workspace = true }
+rand = { workspace = true, default-features = false, features = ["alloc"] }
 gadget-sdk = { workspace = true, features = ["std"] }
-gadget-common = { workspace = true, features = ["std"] }
 
 color-eyre = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["full"] }

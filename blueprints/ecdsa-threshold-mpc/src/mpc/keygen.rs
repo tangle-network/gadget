@@ -14,12 +14,15 @@ use digest::typenum::U32;
 use digest::Digest;
 use futures::channel::mpsc::{TryRecvError, UnboundedSender};
 use futures::StreamExt;
-use gadget_common::channels::UserID;
-use gadget_common::config::DebugLogger;
-use gadget_common::utils::{deserialize, serialize};
-use gadget_common::JobError;
-use gadget_common::WorkManagerInterface;
+use gadget_sdk::logger::Logger;
+use gadget_sdk::network::channels::create_job_manager_to_async_protocol_channel_split_io;
+use gadget_sdk::network::channels::UserID;
+use gadget_sdk::network::deserialize;
+use gadget_sdk::network::serialize;
+use gadget_sdk::network::IdentifierInfo;
 use gadget_sdk::network::Network;
+use gadget_sdk::network::ProtocolMessage;
+use gadget_sdk::store::KeyValueStoreBackend;
 use itertools::Itertools;
 use rand::rngs::{OsRng, StdRng};
 use rand::{CryptoRng, RngCore, SeedableRng};
@@ -33,6 +36,8 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
 
+use super::Error;
+
 #[allow(clippy::too_many_arguments)]
 pub async fn run_and_serialize_keygen<
     'r,
@@ -42,7 +47,7 @@ pub async fn run_and_serialize_keygen<
     D,
     R,
 >(
-    logger: &DebugLogger,
+    logger: &Logger,
     tracer: &mut PerfProfiler,
     eid: cggmp21::ExecutionId<'r>,
     i: u16,
@@ -51,7 +56,7 @@ pub async fn run_and_serialize_keygen<
     hd_wallet: bool,
     party: MpcParty<Msg<E, S, H>, D>,
     mut rng: R,
-) -> Result<Vec<u8>, JobError>
+) -> Result<Vec<u8>, Error>
 where
     D: Delivery<Msg<E, S, H>>,
     R: RngCore + CryptoRng,
@@ -63,13 +68,9 @@ where
         .hd_wallet(hd_wallet)
         .start(&mut rng, party)
         .await
-        .map_err(|err| JobError {
-            reason: format!("Keygen protocol error (run_and_serialize_keygen): {err:?}"),
-        })?;
+        .map_err(Into::into)?;
     logger.debug("Finished AsyncProtocol - Keygen");
-    serialize(&incomplete_key_share).map_err(|err| JobError {
-        reason: format!("Keygen protocol error (run_and_serialize_keygen - serde): {err:?}"),
-    })
+    serialize(&incomplete_key_share)?
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -80,7 +81,7 @@ pub async fn run_and_serialize_keyrefresh<
     H: Digest<OutputSize = U32> + Clone + Send + 'static,
     D,
 >(
-    logger: &DebugLogger,
+    logger: &Logger,
     incomplete_key_share: Vec<u8>,
     pregenerated_primes: PregeneratedPrimes<S>,
     tracer: &mut PerfProfiler,
@@ -89,15 +90,13 @@ pub async fn run_and_serialize_keyrefresh<
     n: u16,
     party: MpcParty<aux_only::Msg<H, S>, D>,
     mut rng: StdRng,
-) -> Result<(Vec<u8>, Vec<u8>), JobError>
+) -> Result<(Vec<u8>, Vec<u8>), Error>
 where
     D: Delivery<aux_only::Msg<H, S>>,
 {
     let incomplete_key_share: cggmp21::key_share::Valid<
         cggmp21::key_share::DirtyIncompleteKeyShare<E>,
-    > = deserialize(&incomplete_key_share).map_err(|err| JobError {
-        reason: format!("Keygen protocol error (run_and_serialize_keyrefresh): {err:?}"),
-    })?;
+    > = deserialize(&incomplete_key_share)?;
 
     let aux_info_builder =
         AuxInfoGenerationBuilder::<S, H>::new_aux_gen(aux_eid, i, n, pregenerated_primes);
@@ -106,12 +105,8 @@ where
         .set_progress_tracer(tracer)
         .start(&mut rng, party)
         .await
-        .map_err(|err| JobError {
-            reason: format!("Aux info protocol error: {err:?}"),
-        })?;
-    let perf_report = tracer.get_report().map_err(|err| JobError {
-        reason: format!("Aux info protocol error: {err:?}"),
-    })?;
+        .map_err(Into::into)?;
+    let perf_report = tracer.get_report()?;
     logger.trace(format!("Aux info protocol report: {perf_report}"));
     logger.debug("Finished AsyncProtocol - Aux Info");
 
@@ -120,25 +115,19 @@ where
         aux: aux_info.into_inner(),
     }
     .validate()
-    .map_err(|err| JobError {
-        reason: format!("Keygen protocol validation error: {err:?}"),
-    })?;
+    .map_err(|e| Error::ValidateError(e.to_string()))?;
     // Serialize the key share and the public key
     serialize(&key_share)
         .map(|ks| (ks, key_share.shared_public_key.to_bytes(true).to_vec()))
-        .map_err(|err| JobError {
-            reason: format!("Keygen protocol error (run_and_serialize_keyrefresh): {err:?}"),
-        })
+        .map_err(Into::into)
 }
 
-async fn pregenerate_primes<S: SecurityLevel, KBE: KeystoreBackend>(
+async fn pregenerate_primes<S: SecurityLevel, KBE: KeyValueStoreBackend>(
     tracer: &PerfProfiler,
-    logger: &DebugLogger,
+    logger: &Logger,
     job_id_bytes: &[u8],
-) -> Result<(PerfProfiler, PregeneratedPrimes<S>), JobError> {
-    let perf_report = tracer.get_report().map_err(|err| JobError {
-        reason: format!("Keygen protocol error (pregenerate_primes): {err:?}"),
-    })?;
+) -> Result<(PerfProfiler, PregeneratedPrimes<S>), Error> {
+    let perf_report = tracer.get_report()?;
     logger.trace(format!("Incomplete Keygen protocol report: {perf_report}"));
     logger.debug("Finished AsyncProtocol - Incomplete Keygen");
     let tracer = PerfProfiler::new();
@@ -150,10 +139,7 @@ async fn pregenerate_primes<S: SecurityLevel, KBE: KeystoreBackend>(
         let mut rng = OsRng;
         cggmp21::PregeneratedPrimes::<S>::generate(&mut rng)
     })
-    .await
-    .map_err(|err| JobError {
-        reason: format!("Failed to generate pregenerated primes: {err:?}"),
-    })?;
+    .await?;
 
     let elapsed = now.elapsed();
     logger.debug(format!("Pregenerated primes took {elapsed:?}"));
@@ -167,14 +153,11 @@ pub async fn run_full_keygen_protocol<
     E: Curve,
     S: SecurityLevel,
     H: Digest<OutputSize = U32> + Clone + Send + 'static,
-    KBE: KeystoreBackend,
+    KBE: KeyValueStoreBackend,
     N: Network,
 >(
-    protocol_message_channel: UnboundedReceiver<TangleProtocolMessage>,
-    associated_block_id: <WorkManager as WorkManagerInterface>::Clock,
-    associated_retry_id: <WorkManager as WorkManagerInterface>::RetryID,
-    associated_session_id: <WorkManager as WorkManagerInterface>::SessionID,
-    associated_task_id: <WorkManager as WorkManagerInterface>::TaskID,
+    protocol_message_channel: UnboundedReceiver<ProtocolMessage>,
+    identifier_info: IdentifierInfo,
     mapping: Arc<HashMap<UserID, ecdsa::Public>>,
     my_role_id: ecdsa::Public,
     network: N,
@@ -186,22 +169,18 @@ pub async fn run_full_keygen_protocol<
     t: u16,
     hd_wallet: bool,
     rng: StdRng,
-    logger: &DebugLogger,
+    logger: &Logger,
     job_id_bytes: &[u8],
-) -> Result<(Vec<u8>, Vec<u8>), JobError> {
-    let (tx0, rx0, tx1, rx1) =
-        gadget_common::channels::create_job_manager_to_async_protocol_channel_split_io(
-            protocol_message_channel,
-            associated_block_id,
-            associated_retry_id,
-            associated_session_id,
-            associated_task_id,
-            mapping,
-            my_role_id,
-            network,
-            logger.clone(),
-            i,
-        );
+) -> Result<(Vec<u8>, Vec<u8>), Error> {
+    let (tx0, rx0, tx1, rx1) = create_job_manager_to_async_protocol_channel_split_io(
+        protocol_message_channel,
+        identifier_info,
+        mapping,
+        my_role_id,
+        network,
+        logger.clone(),
+        i,
+    );
     let delivery = (rx0, tx0);
     let party = MpcParty::<Msg<E, S, H>, _, _>::connected(delivery);
     let incomplete_key_share = run_and_serialize_keygen::<E, S, H, _, _>(
@@ -218,8 +197,6 @@ pub async fn run_full_keygen_protocol<
     .await?;
     let (mut tracer, pregenerated_primes) =
         pregenerate_primes::<S, KBE>(&tracer, logger, job_id_bytes).await?;
-
-    logger.info(format!("Will now run Keygen protocol: {role_type:?}"));
 
     let delivery = (rx1, tx1);
     let party = MpcParty::<aux_only::Msg<H, S>, _, _>::connected(delivery);

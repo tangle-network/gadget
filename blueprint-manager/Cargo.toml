@@ -9,8 +9,6 @@ path = "src/cli.rs"
 
 [dependencies]
 sp-core = { workspace = true }
-gadget-core = { workspace = true }
-gadget-common = { workspace = true }
 gadget-io = { workspace = true }
 gadget-sdk = { workspace = true }
 color-eyre = { workspace = true, features = ["tracing-error", "color-spantrace", "issue-url"] }
@@ -22,7 +20,6 @@ hex = { workspace = true }
 tokio = { workspace = true, features = ["process", "io-util", "signal"] }
 reqwest = { workspace = true }
 sha2 = { workspace = true }
-tangle-environment = { workspace = true }
 futures = { workspace = true }
 
 log = { workspace = true }
@@ -35,7 +32,6 @@ libp2p = { workspace = true }
 [features]
 default = ["std"]
 std = [
-    "gadget-common/std",
     "gadget-io/std",
     "gadget-sdk/std",
 ]

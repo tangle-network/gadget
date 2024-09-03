@@ -34,11 +34,11 @@ pub type SourcedCounter<S> = SourcedMetric<Counter, S>;
 pub type SourcedGauge<S> = SourcedMetric<Gauge, S>;
 
 /// The type of a sourced counter.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Counter {}
 
 /// The type of a sourced gauge.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Gauge {}
 
 /// A metric whose values are obtained from an existing source,
@@ -103,13 +103,13 @@ impl<T: SourcedType, S: MetricSource> Collector for SourcedMetric<T, S> {
                     log::warn!(
                         "Missing label values for sourced metric {}",
                         self.desc.fq_name
-                    );
+                    )
                 }
                 Ordering::Less => {
                     log::warn!(
                         "Too many label values for sourced metric {}",
                         self.desc.fq_name
-                    );
+                    )
                 }
                 Ordering::Equal => {}
             }
@@ -122,7 +122,7 @@ impl<T: SourcedType, S: MetricSource> Collector for SourcedMetric<T, S> {
                     .map(|(l_name, l_value)| {
                         let mut l = proto::LabelPair::default();
                         l.set_name(l_name.to_string());
-                        l.set_value((*l_value).to_string());
+                        l.set_value(l_value.to_string());
                         l
                     })
                     .chain(self.desc.const_label_pairs.iter().cloned())

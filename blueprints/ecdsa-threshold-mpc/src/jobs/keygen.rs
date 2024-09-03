@@ -19,7 +19,7 @@ use super::Context;
 ///   provided/exposed to the developer using our SDK. The variable names should likely indicate uniqueness.
 #[sdk::job(
     id = 0,
-    params(parties, t, num_keys),
+    params(curve, t, num_keys),
     result(_),
     verifier(evm = "HelloBlueprint")
 )]
@@ -35,10 +35,6 @@ pub fn keygen(ctx: Context, curve: Curve, t: u16, num_keys: u16) -> Result<Strin
         let handle = spawn(async move {
             run_full_keygen_protocol(
                 protocol_message_channel,
-                associated_block_id,
-                associated_retry_id,
-                associated_session_id,
-                associated_task_id,
                 mapping,
                 my_role_id,
                 network,

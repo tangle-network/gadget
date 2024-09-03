@@ -118,6 +118,7 @@ impl<T: Tracer> Tracer for Option<T> {
 /// Implements [`Tracer`] trait so it can be embedded into protocol execution. `PerfProfiler` keeps track of time
 /// passed between each step of protocol. After protocol is completed, you can obtain a [`PerfReport`] via
 /// [`.get_report()`](PerfProfiler::get_report) method that contains all the measurements.
+#[derive(Debug)]
 pub struct PerfProfiler {
     last_timestamp: Option<Instant>,
     ongoing_stage: Option<usize>,
@@ -154,7 +155,7 @@ pub struct RoundDuration {
 }
 
 /// Performance of specific stage (part of [`PerfReport`])
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct StageDuration {
     /// Stage name
     pub name: &'static str,

@@ -2,31 +2,30 @@ use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 #[allow(unused_imports)]
 use cargo_tangle::deploy::Opts;
-use gadget_common::subxt_signer::sr25519;
-use gadget_common::tangle_runtime::api::services::calls::types::call::{Args, Job};
-use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
-use gadget_common::tangle_runtime::api::services::calls::types::register::{
-    Preferences, RegistrationArgs,
-};
-use gadget_common::tangle_runtime::api::services::storage::types::job_results::JobResults;
-use gadget_common::tangle_runtime::{api, AccountId32};
-use gadget_common::tangle_subxt::subxt::OnlineClient;
-pub use gadget_core::job::SendFuture;
 use gadget_io::{GadgetConfig, SupportedChains};
+use gadget_sdk::clients::tangle::runtime::TangleConfig;
+use gadget_sdk::tangle_subxt::subxt::utils::AccountId32;
+use gadget_sdk::tangle_subxt::subxt::OnlineClient;
+use gadget_sdk::tangle_subxt::subxt_signer::sr25519;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::create_blueprint::Blueprint;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::storage::types::job_results::JobResults;
 use libp2p::Multiaddr;
 pub use log;
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::time::Duration;
-use tangle_environment::runtime::TangleConfig;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
 
-pub type InputValue = api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
-pub type OutputValue = api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
+pub type InputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
+pub type OutputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 
 pub mod sync;
 pub mod test_ext;

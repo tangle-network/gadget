@@ -1750,8 +1750,6 @@ version = "0.1.1"
 dependencies = [
  "color-eyre",
  "futures",
- "gadget-common",
- "gadget-core",
  "gadget-io",
  "gadget-sdk",
  "hex",
@@ -1763,7 +1761,6 @@ dependencies = [
  "sha2 0.10.8",
  "sp-core 34.0.0",
  "structopt",
- "tangle-environment",
  "tangle-primitives",
  "tangle-subxt",
  "tokio",
@@ -1804,14 +1801,12 @@ dependencies = [
  "blueprint-manager",
  "cargo-tangle",
  "cargo_metadata",
- "environment-utils",
  "frame-support 37.0.0",
  "frame-system 37.1.0",
  "futures",
  "gadget-blueprint-proc-macro-core 0.1.0",
- "gadget-common",
- "gadget-core",
  "gadget-io",
+ "gadget-sdk",
  "getrandom",
  "libp2p",
  "log",
@@ -1838,7 +1833,6 @@ dependencies = [
  "sp-session",
  "sp-staking 34.0.0",
  "sp-std 14.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tangle-environment",
  "tangle-primitives",
  "tokio",
  "tracing-subscriber 0.3.18",
@@ -3142,18 +3136,20 @@ dependencies = [
  "cggmp21-keygen",
  "color-eyre",
  "digest 0.10.7",
- "gadget-common",
+ "futures",
  "gadget-sdk",
  "generic-ec",
  "generic-ec-zkp",
  "itertools 0.13.0",
  "key-share",
+ "rand",
  "round-based",
  "serde",
  "serde_json",
  "sha2 0.10.8",
  "sp-core 34.0.0",
  "subxt-signer",
+ "thiserror 1.0.61",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.18",
@@ -3363,18 +3359,6 @@ dependencies = [
  "env_filter",
  "humantime",
  "log",
-]
-
-[[package]]
-name = "environment-utils"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "auto_impl",
- "gadget-common",
- "gadget-io",
- "tangle-subxt",
- "tokio",
 ]
 
 [[package]]
@@ -4364,10 +4348,6 @@ name = "futures-timer"
 version = "3.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f288b0a4f20f9a56b5d1da57e2227c661b7b16168e2f72365f57b63326e29b24"
-dependencies = [
- "gloo-timers",
- "send_wrapper 0.4.0",
-]
 
 [[package]]
 name = "futures-util"
@@ -4443,54 +4423,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-common"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "auto_impl",
- "cfg-if",
- "futures",
- "gadget-core",
- "gadget-io",
- "getrandom",
- "hex",
- "lazy_static",
- "libsecp256k1",
- "log",
- "parity-scale-codec 3.6.12",
- "parking_lot",
- "prometheus",
- "round-based",
- "serde",
- "serde_json",
- "sp-core 34.0.0",
- "sp-io 38.0.0",
- "sp-runtime 39.0.0",
- "sqlx",
- "substrate-prometheus-endpoint",
- "subxt",
- "subxt-signer",
- "tangle-subxt",
- "thiserror 1.0.61",
-]
-
-[[package]]
-name = "gadget-core"
-version = "0.0.1"
-dependencies = [
- "async-trait",
- "auto_impl",
- "futures-timer",
- "gadget-io",
- "hex",
- "log",
- "parking_lot",
- "serde",
- "sp-core 34.0.0",
- "tokio",
-]
-
-[[package]]
 name = "gadget-executor"
 version = "0.1.0"
 dependencies = [
@@ -4544,6 +4476,7 @@ dependencies = [
  "alloy-sol-types",
  "alloy-transport",
  "async-trait",
+ "auto_impl",
  "backoff",
  "bincode",
  "derive_more 1.0.0",
@@ -4551,13 +4484,14 @@ dependencies = [
  "elliptic-curve",
  "futures",
  "gadget-blueprint-proc-macro",
- "gadget-common",
- "gadget-core",
  "gadget-io",
  "getrandom",
  "hex",
+ "http-body-util",
  "hyper 1.4.1",
+ "hyper-util",
  "k256",
+ "lazy_static",
  "libp2p",
  "lock_api",
  "log",
@@ -4570,6 +4504,7 @@ dependencies = [
  "serde_json",
  "sp-core 34.0.0",
  "sp-io 38.0.0",
+ "sqlx",
  "subxt",
  "sysinfo",
  "tangle-subxt",
@@ -4965,56 +4900,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "gloo-net"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43aaa242d1239a8822c15c645f02166398da4f8b5c4bae795c1f5b44e9eee173"
-dependencies = [
- "futures-channel",
- "futures-core",
- "futures-sink",
- "gloo-utils 0.2.0",
- "http 0.2.12",
- "js-sys",
- "pin-project",
- "serde",
- "serde_json",
- "thiserror 1.0.63",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
-name = "gloo-timers"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b995a66bb87bebce9a0f4a95aed01daca4872c050bfcb21653361c03bc35e5c"
-dependencies = [
- "futures-channel",
- "futures-core",
- "js-sys",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "gloo-utils"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "037fcb07216cb3a30f7292bd0176b050b7b9a052ba830ef7d5d65f6dc64ba58e"
-dependencies = [
- "js-sys",
- "serde",
- "serde_json",
- "wasm-bindgen",
- "web-sys",
-]
-
-[[package]]
-name = "gloo-utils"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b5555354113b18c547c1d3a98fbf7fb32a9ff4f6fa112ce823a21641a0ba3aa"
 dependencies = [
  "js-sys",
  "serde",
@@ -5790,9 +5679,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e0242819d153cba4b4b05a5a8f2a7e9bbf97b6055b2a002b395c96b5ff3c0222"
 dependencies = [
  "cfg-if",
- "js-sys",
- "wasm-bindgen",
- "web-sys",
 ]
 
 [[package]]
@@ -5950,7 +5836,6 @@ checksum = "62b089779ad7f80768693755a031cc14a7766aba707cbe886674e3f79e9b7e47"
 dependencies = [
  "jsonrpsee-core 0.23.2",
  "jsonrpsee-types 0.23.2",
- "jsonrpsee-wasm-client",
  "jsonrpsee-ws-client",
 ]
 
@@ -5960,9 +5845,7 @@ version = "0.22.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4978087a58c3ab02efc5b07c5e5e2803024536106fd5506f558db172c889b3aa"
 dependencies = [
- "futures-channel",
  "futures-util",
- "gloo-net",
  "http 0.2.12",
  "jsonrpsee-core 0.22.5",
  "pin-project",
@@ -5984,9 +5867,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08163edd8bcc466c33d79e10f695cdc98c00d1e6ddfb95cec41b6b0279dd5432"
 dependencies = [
  "base64 0.22.1",
- "futures-channel",
  "futures-util",
- "gloo-net",
  "http 1.1.0",
  "jsonrpsee-core 0.23.2",
  "pin-project",
@@ -6023,7 +5904,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
- "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -6046,7 +5926,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
- "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -6093,17 +5972,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.63",
-]
-
-[[package]]
-name = "jsonrpsee-wasm-client"
-version = "0.23.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4727ac037f834c6f04c0912cada7532dbddb54e92fbc64e33d6cb8c24af313c9"
-dependencies = [
- "jsonrpsee-client-transport 0.23.2",
- "jsonrpsee-core 0.23.2",
- "jsonrpsee-types 0.23.2",
 ]
 
 [[package]]
@@ -8450,15 +8318,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "protocol-macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.76",
-]
-
-[[package]]
 name = "psm"
 version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8673,7 +8532,6 @@ dependencies = [
  "thiserror 1.0.63",
  "tokio",
  "tracing",
- "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -9808,12 +9666,6 @@ checksum = "00b0bef5b7f9e0df16536d3961cfb6e84331c065b4066afb39768d0e319411f7"
 dependencies = [
  "pest",
 ]
-
-[[package]]
-name = "send_wrapper"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f638d531eccd6e23b980caf34876660d38e265409d8e99b397ab71eb3612fad0"
 
 [[package]]
 name = "send_wrapper"
@@ -11911,7 +11763,6 @@ dependencies = [
  "either",
  "frame-metadata 16.0.0",
  "futures",
- "getrandom",
  "hex",
  "impl-serde",
  "instant",
@@ -11944,7 +11795,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d703dca0905cc5272d7cc27a4ac5f37dcaae7671acc7fef0200057cc8c317786"
 dependencies = [
  "frame-metadata 16.0.0",
- "getrandom",
  "heck 0.5.0",
  "hex",
  "jsonrpsee 0.22.5",
@@ -11993,24 +11843,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d9406fbdb9548c110803cb8afa750f8b911d51eefdf95474b11319591d225d9"
 dependencies = [
  "futures",
- "futures-timer",
  "futures-util",
- "getrandom",
- "instant",
- "js-sys",
- "pin-project",
- "send_wrapper 0.6.0",
  "serde",
  "serde_json",
- "smoldot",
  "smoldot-light",
  "thiserror 1.0.63",
  "tokio",
  "tokio-stream",
  "tracing",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]
@@ -12049,7 +11889,6 @@ checksum = "f49888ae6ae90fe01b471193528eea5bd4ed52d8eecd2d13f4a2333b87388850"
 dependencies = [
  "bip39",
  "cfg-if",
- "getrandom",
  "hex",
  "hmac 0.12.1",
  "parity-scale-codec 3.6.12",
@@ -12184,24 +12023,6 @@ checksum = "8e1d1b10ced5ca923a1fcb8d03e96b8d3268065d724548c0211415ff6ac6bac4"
 dependencies = [
  "core-foundation-sys",
  "libc",
-]
-
-[[package]]
-name = "tangle-environment"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "auto_impl",
- "environment-utils",
- "gadget-common",
- "gadget-core",
- "parity-scale-codec 3.6.12",
- "parking_lot",
- "scale-info",
- "serde",
- "sp-application-crypto 38.0.0",
- "sp-core 34.0.0",
- "url 2.5.2 (git+https://github.com/domenukk/rust-url?branch=no_std)",
 ]
 
 [[package]]
@@ -12811,7 +12632,7 @@ version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6b26cf145f2f3b9ff84e182c448eaf05468e247f148cf3d2a7d67d78ff023a0"
 dependencies = [
- "gloo-utils 0.1.7",
+ "gloo-utils",
  "serde",
  "serde_json",
  "tsify-macros",
@@ -13956,7 +13777,7 @@ dependencies = [
  "log",
  "pharos",
  "rustc_version 0.4.0",
- "send_wrapper 0.6.0",
+ "send_wrapper",
  "thiserror 1.0.63",
  "wasm-bindgen",
  "wasm-bindgen-futures",
