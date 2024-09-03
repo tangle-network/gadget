@@ -1,6 +1,7 @@
 use crate::test_ext::NAME_IDS;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
+use blueprint_manager::sdk::prelude::color_eyre;
 use cargo_tangle::deploy::Opts;
 use gadget_common::prelude::DebugLogger;
 use gadget_common::subxt_signer::sr25519;
@@ -18,7 +19,7 @@ use libp2p::Multiaddr;
 pub use log;
 use std::error::Error;
 use std::net::IpAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tangle_environment::runtime::TangleConfig;
 use tracing_subscriber::filter::EnvFilter;
@@ -53,11 +54,18 @@ pub struct PerTestNodeInput<T> {
 pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     input: PerTestNodeInput<T>,
 ) -> BlueprintManagerHandle {
-    // Note: it is required that the keystore EXISTS before this code executes
+    let node_name = NAME_IDS[input.instance_id as usize].to_lowercase();
     let keystore_uri = PathBuf::from(format!(
         "../../tangle/tmp/{}/chains/local_testnet/keystore",
-        NAME_IDS[input.instance_id as usize].to_lowercase()
+        node_name
     ));
+
+    let keystore_uri = std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
+
+    inject_test_sr_keys(&keystore_uri, &node_name)
+        .await
+        .expect("Failed to inject testing-related SR25519 keys");
+
     let keystore_uri = keystore_uri
         .canonicalize()
         .expect("Failed to resolve keystore URI");
@@ -93,6 +101,57 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     )
     .await
     .expect("Failed to run blueprint manager")
+}
+
+async fn inject_test_sr_keys<P: AsRef<Path>>(
+    keystore_path: P,
+    node_name: &str,
+) -> color_eyre::Result<()> {
+    let path = keystore_path.as_ref();
+    let name = node_name.to_lowercase();
+    tokio::fs::create_dir_all(path).await?;
+    // Format: (name, public key, private key)
+    const SR_25519_TEST_KEYS: [(&'static str, &'static str, &'static str); 5] = [
+        (
+            "alice",
+            "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
+            "e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a",
+        ),
+        (
+            "bob",
+            "8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48",
+            "398f0c28f98885e046333d4a41c19cee4c37368a9832c6502f6cfd182e2aef89",
+        ),
+        (
+            "charlie",
+            "90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22",
+            "bc1ede780f784bb6991a585e4f6e61522c14e1cae6ad0895fb57b9a205a8f938",
+        ),
+        (
+            "dave",
+            "306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20",
+            "868020ae0687dda7d57565093a69090211449845a7e11453612800b663307246",
+        ),
+        (
+            "eve",
+            "e659a7a1628cdd93febc04a4e0646ea20e9f5f0ce097d9a05290d4a9e054df4e",
+            "786ad0e2df456fe43dd1f91ebca22e235bc162e0bb8d53c633e8c85b2af68b7a",
+        ),
+    ];
+
+    let (_, public_key_name, private_key_name) = SR_25519_TEST_KEYS
+        .iter()
+        .find(|(n, _, _)| *n == &name)
+        .expect("Invalid test name");
+    // Use 0000 prefix to ensure that the keys are designated as sr25519 in the filename
+    let new_key_path = path.join(format!("0000{public_key_name}"));
+    let new_key_path_contents = private_key_name;
+
+    tokio::fs::write(&new_key_path, new_key_path_contents).await?;
+
+    log::info!(target: "gadget", "Successfully wrote private key {private_key_name} to {}", new_key_path.display());
+
+    Ok(())
 }
 
 /// Sets up the default logging as well as setting a panic hook for tests

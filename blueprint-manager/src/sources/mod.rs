@@ -54,6 +54,7 @@ pub async fn handle(
                         *service_id,
                     )?;
 
+                    // Add required env vars for all child processes/gadgets
                     let mut env_vars = vec![
                         ("RPC_URL".to_string(), gadget_config.url.to_string()),
                         (
@@ -68,6 +69,7 @@ pub async fn handle(
                         ("SERVICE_ID".to_string(), format!("{}", service_id)),
                     ];
 
+                    // Ensure our child process inherits the current processes' environment vars
                     env_vars.extend(std::env::vars());
 
                     if blueprint.registration_mode {

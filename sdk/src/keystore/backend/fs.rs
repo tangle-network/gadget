@@ -204,6 +204,10 @@ impl Backend for FilesystemKeystore {
         public: &sr25519::Public,
     ) -> Result<Option<sr25519::Secret>, Error> {
         let secret_bytes = self.secret_by_type(public.as_ref(), KeyType::Sr25519)?;
+        println!(
+            "Secret bytes len={}: {secret_bytes:?}",
+            secret_bytes.as_ref().map(|r| r.len()).unwrap_or_default()
+        );
         if let Some(buf) = secret_bytes {
             Ok(Some(sr25519::secret_from_bytes(&buf)?))
         } else {
