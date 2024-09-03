@@ -11,7 +11,7 @@ use gadget_sdk::{
 
 use incredible_squaring_blueprint as blueprint;
 
-use gadget_sdk::env::{ContextConfig, GadgetConfiguration};
+use gadget_sdk::env::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration};
 use std::sync::Arc;
 use structopt::StructOpt;
 
@@ -55,10 +55,13 @@ impl GadgetRunner for TangleGadgetRunner {
 
     async fn run(&self) -> Result<()> {
         let config = ContextConfig {
-            bind_ip: self.env.bind_addr,
-            bind_port: self.env.bind_port,
-            test_mode: self.env.test_mode,
-            logger: self.env.logger.clone(),
+            gadget_core_settings: GadgetCLICoreSettings::Run {
+                bind_addr: self.env.bind_addr,
+                bind_port: self.env.bind_port,
+                test_mode: self.env.test_mode,
+                logger: self.env.logger.clone(),
+            },
+            additional_arguments: vec![],
         };
 
         let env = gadget_sdk::env::load(None, config).map_err(|e| eyre!(e))?;

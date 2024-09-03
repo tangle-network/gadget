@@ -53,9 +53,19 @@ pub struct PerTestNodeInput<T> {
 pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     input: PerTestNodeInput<T>,
 ) -> BlueprintManagerHandle {
+    // Note: it is required that the keystore EXISTS before this code executes
+    let keystore_uri = PathBuf::from(format!(
+        "../../tangle/tmp/{}/chains/local_testnet/keystore",
+        NAME_IDS[input.instance_id as usize].to_lowercase()
+    ));
+    let keystore_uri = keystore_uri
+        .canonicalize()
+        .expect("Failed to resolve keystore URI");
+
     let blueprint_manager_config = BlueprintManagerConfig {
         gadget_config: None,
-        keystore_uri: "./target/keystore".to_string(),
+        //keystore_uri: "./target/keystore".to_string(),
+        keystore_uri: format!("file://{}", keystore_uri.display()),
         verbose: input.verbose,
         pretty: input.pretty,
         instance_id: Some(NAME_IDS[input.instance_id as usize].to_string()),
@@ -63,7 +73,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     };
 
     let gadget_config = GadgetConfig {
-        bind_ip: input.bind_ip,
+        bind_addr: input.bind_ip,
         bind_port: input.bind_port,
         url: input.local_tangle_node,
         bootnodes: input.bootnodes,
@@ -373,10 +383,16 @@ mod tests_standard {
                 // Important! The tests can only run serially, not in parallel, in order to not cause a race condition in IDs
                 let service_id = get_next_service_id(client)
                     .await
-                    .expect("Failed to get next service id");
+                    .expect("Failed to get next service id")
+                    .saturating_sub(1);
                 let call_id = get_next_call_id(client)
                     .await
-                    .expect("Failed to get next job id");
+                    .expect("Failed to get next job id")
+                    .saturating_sub(1);
+
+                handles[0].logger().info(format!(
+                    "Submitting job with params service ID: {service_id}, call ID: {call_id}"
+                ));
 
                 // Pass the arguments
                 let mut job_args = Args::new();

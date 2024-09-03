@@ -37,8 +37,23 @@ pub fn generate_process_arguments(
     service_id: u64,
 ) -> color_eyre::Result<Vec<String>> {
     //"--bind-addr=127.0.0.1 --bind-port=1234 --test-mode --logger=alice-gadget"
+    if opt.test_mode {
+        let mut arguments = vec![];
+        arguments.push("run".to_string());
+        arguments.push("--test-mode".to_string());
+        arguments.push(format!("--bind-addr={}", gadget_config.bind_addr));
+        arguments.push(format!("--bind-port={}", gadget_config.bind_port));
+        arguments.push(format!(
+            "--logger={}",
+            opt.instance_id
+                .as_ref()
+                .expect("If test-mode is specified, the instance-id must also be specified")
+        ));
+        return Ok(arguments);
+    }
+
     let mut arguments = vec![
-        format!("--bind-ip={}", gadget_config.bind_ip),
+        format!("--bind-addr={}", gadget_config.bind_addr),
         format!("--url={}", gadget_config.url),
         format!(
             "--bootnodes={}",
@@ -137,17 +152,18 @@ pub fn is_windows() -> bool {
 pub fn generate_running_process_status_handle(
     process: gadget_io::tokio::process::Child,
     logger: &DebugLogger,
-    role_type: &str,
+    service_name: &str,
 ) -> (Arc<AtomicBool>, gadget_io::tokio::sync::oneshot::Sender<()>) {
     let (stop_tx, stop_rx) = gadget_io::tokio::sync::oneshot::channel::<()>();
     let status = Arc::new(AtomicBool::new(true));
     let status_clone = status.clone();
     let logger = logger.clone();
-    let role_type = role_type.to_string();
+    let service_name = service_name.to_string();
 
     let task = async move {
+        logger.info(format!("Starting process execution for {service_name}"));
         let output = process.wait_with_output().await;
-        logger.warn(format!("Process for {role_type} exited: {output:?}"));
+        logger.warn(format!("Process for {service_name} exited: {output:?}"));
         status_clone.store(false, Ordering::Relaxed);
     };
 

@@ -31,8 +31,13 @@ impl BinarySourceFetcher for TestSourceFetcher<'_> {
         let binary_path = git_repo_root.join(&base_path).join("bin").join(&cargo_bin);
         let binary_path = std::path::absolute(&binary_path)?;
 
-        println!("Base Path: {}", base_path.display());
-        println!("Binary Path: {}", binary_path.display());
+        self.logger
+            .trace(format!("Base Path: {}", base_path.display()));
+        self.logger
+            .trace(format!("Binary Path: {}", binary_path.display()));
+        self.logger.info("Building binary...");
+
+        let env = std::env::vars().collect::<Vec<(String, String)>>();
 
         // Note: even if multiple gadgets are built, only the leader will actually build
         // while the followers will just hang on the Cargo.lock file and then instantly
@@ -49,6 +54,7 @@ impl BinarySourceFetcher for TestSourceFetcher<'_> {
             .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
             .stdin(std::process::Stdio::null())
             .current_dir(&std::env::current_dir()?)
+            .envs(env)
             .output()
             .await
             .map_err(|err| Report::msg(format!("Failed to run `cargo install`: {:?}", err)))?;
@@ -66,6 +72,11 @@ impl BinarySourceFetcher for TestSourceFetcher<'_> {
                 binary_path.display()
             )));
         }
+
+        self.logger.info(format!(
+            "Successfully built binary to {}",
+            binary_path.display()
+        ));
 
         Ok(binary_path)
     }

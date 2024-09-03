@@ -155,20 +155,30 @@ pub enum Error {
     TestSetup(String),
 }
 
-#[derive(Clone, Debug, StructOpt)]
-#[structopt(
-    name = "Context for any given gadget",
-    about = "CLI args that must be passed to the gadget"
-)]
+#[derive(Debug, StructOpt)]
+#[structopt(name = "General CLI Context", setting = structopt::clap::AppSettings::TrailingVarArg)]
 pub struct ContextConfig {
-    #[structopt(long, short = "b", parse(try_from_str))]
-    pub bind_ip: IpAddr,
-    #[structopt(long, short = "p")]
-    pub bind_port: u16,
-    #[structopt(long, short = "t")]
-    pub test_mode: bool,
-    #[structopt(long, short = "l", parse(from_str))]
-    pub logger: DebugLogger,
+    /// Pass through arguments to another command
+    #[structopt(subcommand)]
+    pub gadget_core_settings: GadgetCLICoreSettings,
+
+    #[structopt(last = true)]
+    pub additional_arguments: Vec<String>,
+}
+
+#[derive(Debug, StructOpt)]
+pub enum GadgetCLICoreSettings {
+    #[structopt(name = "run")]
+    Run {
+        #[structopt(long, short = "b", parse(try_from_str))]
+        bind_addr: IpAddr,
+        #[structopt(long, short = "p")]
+        bind_port: u16,
+        #[structopt(long, short = "t")]
+        test_mode: bool,
+        #[structopt(long, short = "l", parse(from_str))]
+        logger: DebugLogger,
+    },
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.
@@ -203,33 +213,50 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
     additional_config: ContextConfig,
 ) -> Result<GadgetConfiguration<RwLock>, Error> {
     let is_registration = std::env::var("REGISTRATION_MODE_ON").is_ok();
-    Ok(GadgetConfiguration {
-        bind_addr: additional_config.bind_ip,
-        bind_port: additional_config.bind_port,
-        test_mode: additional_config.test_mode,
-        logger: additional_config.logger,
-        rpc_endpoint: std::env::var("RPC_URL").map_err(|_| Error::MissingTangleRpcEndpoint)?,
-        keystore_uri: std::env::var("KEYSTORE_URI").map_err(|_| Error::MissingKeystoreUri)?,
-        data_dir_path: std::env::var("DATA_DIR").ok(),
-        blueprint_id: std::env::var("BLUEPRINT_ID")
-            .map_err(|_| Error::MissingBlueprintId)?
-            .parse()
-            .map_err(Error::MalformedBlueprintId)?,
-        // If the registration mode is on, we don't need the service ID
-        service_id: if is_registration {
-            None
-        } else {
-            Some(
-                std::env::var("SERVICE_ID")
-                    .map_err(|_| Error::MissingServiceId)?
-                    .parse()
-                    .map_err(Error::MalformedServiceId)?,
-            )
-        },
-        is_registration,
-        protocol: protocol.unwrap_or(Protocol::Tangle),
-        _lock: core::marker::PhantomData,
-    })
+    if let ContextConfig {
+        gadget_core_settings:
+            GadgetCLICoreSettings::Run {
+                bind_addr,
+                bind_port,
+                test_mode,
+                logger,
+                ..
+            },
+        ..
+    } = additional_config
+    {
+        Ok(GadgetConfiguration {
+            bind_addr,
+            bind_port,
+            test_mode,
+            logger,
+            rpc_endpoint: std::env::var("RPC_URL").map_err(|_| Error::MissingTangleRpcEndpoint)?,
+            keystore_uri: std::env::var("KEYSTORE_URI").map_err(|_| Error::MissingKeystoreUri)?,
+            data_dir_path: std::env::var("DATA_DIR").ok(),
+            blueprint_id: std::env::var("BLUEPRINT_ID")
+                .map_err(|_| Error::MissingBlueprintId)?
+                .parse()
+                .map_err(Error::MalformedBlueprintId)?,
+            // If the registration mode is on, we don't need the service ID
+            service_id: if is_registration {
+                None
+            } else {
+                Some(
+                    std::env::var("SERVICE_ID")
+                        .map_err(|_| Error::MissingServiceId)?
+                        .parse()
+                        .map_err(Error::MalformedServiceId)?,
+                )
+            },
+            is_registration,
+            protocol: protocol.unwrap_or(Protocol::Tangle),
+            _lock: core::marker::PhantomData,
+        })
+    } else {
+        Err(Error::TestSetup(
+            "The run command was not invoked".to_string(),
+        ))
+    }
 }
 
 #[cfg(not(feature = "std"))]

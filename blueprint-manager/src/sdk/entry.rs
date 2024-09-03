@@ -69,7 +69,7 @@ where
         keystore,
         environment,
         base_path: config.base_path,
-        bind_ip: config.bind_ip,
+        bind_ip: config.bind_addr,
         bind_port: config.bind_port,
         bootnodes: config.bootnodes,
         n_protocols,
