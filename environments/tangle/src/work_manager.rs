@@ -20,7 +20,7 @@ impl WorkManagerInterface for TangleWorkManager {
     type RetryID = u16;
     type Clock = u64;
     type ProtocolMessage = TangleProtocolMessage;
-    type Error = gadget_common::Error;
+    type Error = gadget_sdk::Error;
     type SessionID = u64;
     type TaskID = [u8; 32];
 

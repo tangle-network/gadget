@@ -32,9 +32,9 @@ use gadget_common::tangle_runtime::api::services::calls::types::register::{
 };
 use gadget_common::tangle_subxt::subxt::ext::subxt_core::utils;
 use gadget_common::tangle_subxt::subxt::{OnlineClient, SubstrateConfig};
-use gadget_common::Error;
 use gadget_core::job::protocol::{ProtocolMessageMetadata, WorkManagerInterface};
 use gadget_core::job::SendFuture;
+use gadget_sdk::Error;
 use libp2p::Multiaddr;
 use sp_application_crypto::ecdsa;
 use sp_core::{sr25519, Pair};

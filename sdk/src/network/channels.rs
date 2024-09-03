@@ -1,26 +1,16 @@
-//! TODO
-
 use round_based::{Incoming, MessageDestination, MessageType, MsgId, Outgoing, PartyIndex};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use alloc::vec::Vec;
+use futures::StreamExt;
+use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use sp_core::ecdsa;
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        use crate::environments::GadgetEnvironment;
-        use crate::module::network::Network;
-        use crate::prelude::DebugLogger;
-        use crate::utils::deserialize;
-        use futures::StreamExt;
-        use gadget_core::job::protocol::ProtocolMessageMetadata;
-        use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-        use sp_core::ecdsa;
+use std::collections::HashMap;
+use std::sync::Arc;
 
-        use std::collections::HashMap;
-        use std::sync::Arc;
-    }
-}
+use crate::logger::Logger;
 
 pub type UserID = u16;
 
@@ -58,7 +48,7 @@ impl<B> Msg<B> {
 #[cfg(feature = "std")]
 pub fn create_job_manager_to_async_protocol_channel_split<
     Env: GadgetEnvironment,
-    N: Network<Env>,
+    N: Network,
     C1: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
 >(
@@ -77,6 +67,8 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     UnboundedSender<C2>,
     UnboundedReceiver<C2>,
 ) {
+    use alloy_network::Network;
+
     let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
     let (tx_to_async_proto_2, rx_for_async_proto_2) =
         gadget_io::tokio::sync::mpsc::unbounded_channel();
@@ -890,11 +882,13 @@ async fn wrap_message_and_forward_to_network<
     associated_retry_id: Env::RetryID,
     associated_task_id: Env::TaskID,
     splitter: impl FnOnce(M) -> MultiplexedChannelMessage<C1, C2, C3>,
-    logger: &DebugLogger,
+    logger: &Logger,
 ) -> Result<(), crate::Error>
 where
     M: MaybeSenderReceiver + Send + 'static,
 {
+    use crate::logger::Logger;
+
     let from = msg.maybe_sender();
     let to = msg.maybe_receiver();
     logger.trace(format!("Sending message from {:?} to {:?}", from, to));

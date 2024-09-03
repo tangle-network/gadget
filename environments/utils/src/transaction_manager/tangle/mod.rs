@@ -15,7 +15,7 @@ pub trait TanglePalletSubmitter: Send + Sync + Debug + 'static {
         service_id: u64,
         call_id: u64,
         result: api::services::calls::types::submit_result::Result,
-    ) -> Result<(), gadget_common::Error>;
+    ) -> Result<(), gadget_sdk::Error>;
 }
 
 pub struct SubxtPalletSubmitter<C, S>
@@ -51,7 +51,7 @@ where
         service_id: u64,
         call_id: u64,
         result: api::services::calls::types::submit_result::Result,
-    ) -> Result<(), gadget_common::Error> {
+    ) -> Result<(), gadget_sdk::Error> {
         let tx = api::tx()
             .services()
             .submit_result(service_id, call_id, result);
@@ -71,7 +71,7 @@ where
                 Ok(())
             }
             Err(err) => {
-                return Err(gadget_common::Error::ClientError {
+                return Err(gadget_sdk::Error::ClientError {
                     err: format!("Failed to submit job result: {err:?}"),
                 })
             }
@@ -87,11 +87,11 @@ where
     C::Hash: std::fmt::Display,
     <C::ExtrinsicParams as subxt::config::ExtrinsicParams<C>>::Params: Default,
 {
-    pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, gadget_common::Error> {
+    pub async fn new(signer: S, logger: DebugLogger) -> Result<Self, gadget_sdk::Error> {
         let subxt_client =
             OnlineClient::<C>::new()
                 .await
-                .map_err(|err| gadget_common::Error::ClientError {
+                .map_err(|err| gadget_sdk::Error::ClientError {
                     err: format!("Failed to setup api: {err:?}"),
                 })?;
         Ok(Self::with_client(subxt_client, signer, logger))

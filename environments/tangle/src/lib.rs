@@ -58,7 +58,7 @@ impl GadgetEnvironment for TangleEnvironment {
     type ProtocolMessage = TangleProtocolMessage;
     type Client = TangleRuntime;
     type WorkManager = TangleWorkManager;
-    type Error = gadget_common::Error;
+    type Error = gadget_sdk::Error;
     type Clock = <Self::WorkManager as WorkManagerInterface>::Clock;
     type RetryID = <Self::WorkManager as WorkManagerInterface>::RetryID;
     type TaskID = <Self::WorkManager as WorkManagerInterface>::TaskID;
@@ -96,7 +96,7 @@ impl GadgetEnvironment for TangleEnvironment {
                 &self.subxt_config.endpoint,
             )
             .await
-            .map_err(|err| gadget_common::Error::ClientError {
+            .map_err(|err| gadget_sdk::Error::ClientError {
                 err: err.to_string(),
             })?;
 

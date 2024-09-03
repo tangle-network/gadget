@@ -11,7 +11,6 @@ repository.workspace = true
 default = ["std"]
 testing = []
 std = [
-    "gadget-common/std",
     "sp-core/std",
     "sp-application-crypto/std",
     "scale-info/std",
@@ -20,10 +19,8 @@ std = [
 ]
 
 [dependencies]
-gadget-common = { workspace = true, features = ["substrate"] }
 environment-utils = { workspace = true, features = ["tangle"] }
 serde = { workspace = true, features = ["derive"] }
-gadget-core = { workspace = true }
 parking_lot = { workspace = true }
 sp-core = { workspace = true }
 sp-application-crypto = { workspace = true }

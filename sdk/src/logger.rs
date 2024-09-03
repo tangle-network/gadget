@@ -3,48 +3,49 @@ use alloc::string::String;
 use core::fmt::Display;
 
 #[derive(Clone, Default)]
-pub struct DebugLogger {
+pub struct Logger {
+    pub target: &'static str,
     pub id: String,
 }
 
-impl DebugLogger {
+impl Logger {
     pub fn trace<T: Display>(&self, msg: T) {
         if self.id.is_empty() {
-            log::trace!(target: "gadget", "{msg}");
+            log::trace!(target: self.target, "{msg}");
             return;
         }
-        log::trace!(target: "gadget", "[{}] {msg}", &self.id);
+        log::trace!(target: self.target, "[{}] {msg}", &self.id);
     }
 
     pub fn debug<T: Display>(&self, msg: T) {
         if self.id.is_empty() {
-            log::debug!(target: "gadget", "{msg}");
+            log::debug!(target: self.target, "{msg}");
             return;
         }
-        log::debug!(target: "gadget", "[{}] {msg}", &self.id);
+        log::debug!(target: self.target, "[{}] {msg}", &self.id);
     }
 
     pub fn info<T: Display>(&self, msg: T) {
         if self.id.is_empty() {
-            log::info!(target: "gadget", "{msg}");
+            log::info!(target: self.target, "{msg}");
             return;
         }
-        log::info!(target: "gadget", "[{}] {msg}", &self.id);
+        log::info!(target: self.target, "[{}] {msg}", &self.id);
     }
 
     pub fn warn<T: Display>(&self, msg: T) {
         if self.id.is_empty() {
-            log::warn!(target: "gadget", "{msg}");
+            log::warn!(target: self.target, "{msg}");
             return;
         }
-        log::warn!(target: "gadget", "[{}] {msg}", &self.id);
+        log::warn!(target: self.target, "[{}] {msg}", &self.id);
     }
 
     pub fn error<T: Display>(&self, msg: T) {
         if self.id.is_empty() {
-            log::error!(target: "gadget", "{msg}");
+            log::error!(target: self.target, "{msg}");
             return;
         }
-        log::error!(target: "gadget", "[{}] {msg}", &self.id);
+        log::error!(target: self.target, "[{}] {msg}", &self.id);
     }
 }

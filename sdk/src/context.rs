@@ -1,9 +1,15 @@
+use alloc::boxed::Box;
+use alloc::fmt::{Debug, Display};
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::fmt::{Debug, Display};
+use async_trait::async_trait;
+use core::error::Error;
 use core::hash::Hash;
 use core::ops::{Add, Sub};
+use gadget_core::gadget::general::Client;
+use gadget_core::job::protocol::{ProtocolMessageMetadata, WorkManagerInterface};
 use serde::{Deserialize, Serialize};
+use sp_core::ecdsa;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum PollMethod {
@@ -88,24 +94,52 @@ pub trait ProtocolMessageMetadata<WM: WorkManagerInterface> {
     fn payload_mut(&mut self) -> &mut Vec<u8>;
 }
 
-/// The [`ProtocolRemote`] is the interface between the [`ProtocolWorkManager`] and the async protocol.
-/// It *must* be unique between each async protocol.
-pub trait ProtocolRemote<WM: WorkManagerInterface>: Send + Sync + 'static {
-    fn start(&self) -> Result<(), WM::Error>;
-    fn session_id(&self) -> WM::SessionID;
-    fn started_at(&self) -> WM::Clock;
-    fn shutdown(&self, reason: ShutdownReason) -> Result<(), WM::Error>;
-    fn is_done(&self) -> bool;
-    fn deliver_message(&self, message: WM::ProtocolMessage) -> Result<(), WM::Error>;
-    fn has_started(&self) -> bool;
-    fn retry_id(&self) -> WM::RetryID;
+#[async_trait]
+pub trait GadgetContext: Debug + Sized + 'static
+where
+    Self::WorkManager: WorkManagerInterface<
+        Clock = Self::Clock,
+        RetryID = Self::RetryID,
+        TaskID = Self::TaskID,
+        SessionID = Self::SessionID,
+        Error = Self::Error,
+        ProtocolMessage = Self::ProtocolMessage,
+    >,
+{
+    type ProtocolMessage: Serialize
+        + for<'de> Deserialize<'de>
+        + Send
+        + Sync
+        + 'static
+        + ProtocolMessageMetadata<Self::WorkManager>;
+    type Client: Client<<Self as GadgetContext>::Event> + Send + Sync + 'static;
+    type WorkManager: WorkManagerInterface;
+    type Error: Error + Send + Sync + From<String> + Into<crate::Error> + 'static;
+    type Clock: Display + Copy + Send + Sync + 'static;
+    type RetryID: Display + Copy + Send + Sync + 'static;
+    type TaskID: Debug + Copy + Send + Sync + 'static;
+    type SessionID: Display + Copy + Send + Sync + 'static;
+    type TransactionManager: Clone + Send + Sync + 'static;
+    type JobInitMetadata: Send + Sync + 'static;
 
-    fn has_stalled(&self, now: WM::Clock) -> bool {
-        now >= self.started_at() + WM::acceptable_block_tolerance()
-    }
+    #[allow(clippy::too_many_arguments)]
+    fn build_protocol_message<Payload: Serialize>(
+        associated_block_id: <Self::WorkManager as WorkManagerInterface>::Clock,
+        associated_session_id: <Self::WorkManager as WorkManagerInterface>::SessionID,
+        associated_retry_id: <Self::WorkManager as WorkManagerInterface>::RetryID,
+        associated_task_id: <Self::WorkManager as WorkManagerInterface>::TaskID,
+        from: u16,
+        to: Option<u16>,
+        payload: &Payload,
+        from_account_id: Option<ecdsa::Public>,
+        to_network_id: Option<ecdsa::Public>,
+    ) -> Self::ProtocolMessage;
 
-    fn is_active(&self) -> bool {
-        // If the protocol has started, is not done, and has not stalled, then it is active
-        self.has_started() && !self.is_done() && !self.has_started()
+    async fn setup_runtime(&self) -> Result<Self::Client, Self::Error>;
+
+    fn transaction_manager(&self) -> Self::TransactionManager;
+
+    fn set_payload(&mut self, input: Vec<u8>, output: &mut Vec<u8>) {
+        *output = input;
     }
 }

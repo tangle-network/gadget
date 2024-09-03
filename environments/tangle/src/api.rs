@@ -37,7 +37,7 @@ where
         &self,
         at: [u8; 32],
         blueprint_id: u64,
-    ) -> Result<Option<ServiceBlueprint>, gadget_common::Error> {
+    ) -> Result<Option<ServiceBlueprint>, gadget_sdk::Error> {
         let call = api::storage().services().blueprints(blueprint_id);
         let at = BlockRef::from_hash(H256::from_slice(&at));
         let ret: Option<ServiceBlueprint> = self
@@ -46,7 +46,7 @@ where
             .at(at)
             .fetch(&call)
             .await
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })?
+            .map_err(|e| gadget_sdk::Error::ClientError { err: e.to_string() })?
             .map(|r| r.1);
 
         Ok(ret)
@@ -56,7 +56,7 @@ where
         &self,
         at: [u8; 32],
         address: AccountId32,
-    ) -> Result<Vec<RpcServicesWithBlueprint>, gadget_common::Error> {
+    ) -> Result<Vec<RpcServicesWithBlueprint>, gadget_sdk::Error> {
         let call = api::apis()
             .services_api()
             .query_services_with_blueprints_by_operator(address);
@@ -67,8 +67,8 @@ where
             .at(at)
             .call(call)
             .await
-            .map_err(|e| gadget_common::Error::ClientError { err: e.to_string() })?
-            .map_err(|err| gadget_common::Error::ClientError {
+            .map_err(|e| gadget_sdk::Error::ClientError { err: e.to_string() })?
+            .map_err(|err| gadget_sdk::Error::ClientError {
                 err: format!("{err:?}"),
             })?;
 

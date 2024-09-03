@@ -367,7 +367,7 @@ impl<Env: GadgetEnvironment> Network<Env> for GossipHandle {
     async fn send_message(
         &self,
         message: <Env::WorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), gadget_common::Error> {
+    ) -> Result<(), crate::Error> {
         let message_type = if let Some(to) = message.recipient_network_id() {
             let libp2p_id = self
                 .ecdsa_peer_id_to_libp2p_id
@@ -375,7 +375,7 @@ impl<Env: GadgetEnvironment> Network<Env> for GossipHandle {
                 .await
                 .get(&Public::from_raw(to.0))
                 .copied()
-                .ok_or_else(|| gadget_common::Error::NetworkError {
+                .ok_or_else(|| crate::Error::NetworkError {
                     err: format!(
                         "No libp2p ID found for ecdsa public key: {to}. No handshake happened?"
                     ),
@@ -405,7 +405,7 @@ impl<Env: GadgetEnvironment> Network<Env> for GossipHandle {
 
         self.tx_to_outbound
             .send(payload)
-            .map_err(|e| gadget_common::Error::NetworkError {
+            .map_err(|e| crate::Error::NetworkError {
                 err: format!("Failed to send intra-node payload: {e}"),
             })
     }

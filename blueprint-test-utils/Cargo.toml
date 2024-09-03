@@ -9,21 +9,20 @@ edition = "2021"
 default = ["std"]
 std = [
     "sp-core/std",
-    "sp-application-crypto/default",
-    "sp-io/default",
-    "sp-runtime/default",
-    "sp-std/default",
-    "sp-keystore/default",
-    "sp-externalities/default",
-    "frame-support/default",
-    "frame-system/default",
-    "gadget-common/default",
-    "gadget-io/default",
-    "tangle-primitives/default",
+    "sp-application-crypto/std",
+    "sp-io/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "sp-keystore/std",
+    "sp-externalities/std",
+    "frame-support/std",
+    "frame-system/std",
+    "gadget-io/std",
+    "tangle-primitives/std",
     "sc-client-api",
-    "sc-utils/default",
-    "pallet-services/default",
-    "pallet-balances/default",
+    "sc-utils",
+    "pallet-services/std",
+    "pallet-balances/std",
 ]
 wasm = [
     "sp-application-crypto/serde",
@@ -31,7 +30,6 @@ wasm = [
     "sp-io/disable_panic_handler",
     "sp-io/disable_oom",
     "sp-io/disable_allocator",
-    "gadget-common/wasm",
     "gadget-io/wasm-bindgen",
     "getrandom/js",
 ]
@@ -49,10 +47,8 @@ log = { workspace = true }
 async-trait = { workspace = true }
 frame-support = { workspace = true, default-features = false }
 frame-system = { workspace = true, default-features = false }
-gadget-common = { workspace = true, default-features = false }
-gadget-core = { workspace = true }
 gadget-io = { workspace = true, default-features = false }
-tangle-environment.workspace = true
+tangle-environment = { workspace = true }
 sc-client-api = { workspace = true, optional = true, default-features = false }
 sc-utils = { workspace = true, optional = true, default-features = false }
 sp-api = { workspace = true, default-features = false }

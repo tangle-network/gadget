@@ -11,6 +11,7 @@ use gadget_common::{
     keystore::ECDSAKeyStore,
 };
 use gadget_io::tokio::task::JoinHandle;
+use gadget_sdk::logger::Logger;
 use sp_core::{keccak_256, sr25519, Pair};
 
 use crate::sdk::config::SingleGadgetConfig;
@@ -29,7 +30,7 @@ pub async fn generate_node_input<KBE: KeystoreBackend, Env: GadgetEnvironment>(
 ) -> color_eyre::Result<(SingleGadgetInput<KBE, Env>, JoinHandle<()>)> {
     let (role_key, acco_key) = load_keys_from_keystore(&config.keystore)?;
     //let network_key = ed25519::Pair::from_seed(&config.node_key).to_raw_vec();
-    let logger = DebugLogger::default();
+    let logger = Logger::default();
     let wrapped_keystore = ECDSAKeyStore::new(config.keystore_backend.clone(), role_key.clone());
 
     // Use the first 32 bytes of the sr25519 account key as the network key. We discard the 32 remaining nonce seed bytes

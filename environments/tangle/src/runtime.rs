@@ -62,7 +62,7 @@ impl TangleRuntime {
 
     /// Initialize the TangleRuntime instance by listening for finality notifications.
     /// This method must be called before using the instance.
-    async fn initialize(&self) -> Result<(), gadget_common::Error> {
+    async fn initialize(&self) -> Result<(), gadget_sdk::Error> {
         let finality_notification_stream = self.client.blocks().subscribe_finalized().await?;
         *self.finality_notification_stream.lock().await = Some(finality_notification_stream);
         Ok(())

@@ -11,7 +11,6 @@ repository.workspace = true
 tangle = []
 
 [dependencies]
-gadget-common = { workspace = true }
 anyhow = { workspace = true }
 auto_impl = { workspace = true }
 tangle-subxt = { workspace = true }
