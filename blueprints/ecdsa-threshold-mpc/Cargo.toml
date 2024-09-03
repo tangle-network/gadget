@@ -30,7 +30,7 @@ sp-core = { workspace = true, features = ["std"] }
 itertools = { workspace = true }
 
 cggmp21 = { version = "0.4", features = ["curve-stark", "curve-secp256k1", "curve-secp256r1"] }
-cggmp21-keygen = { version = "0.3" }
+cggmp21-keygen = { version = "0.3", features = ["hd-wallet"] }
 key-share = { version = "0.4", default-features = false }
 
 generic-ec = { version = "0.4.1", default-features = false } 

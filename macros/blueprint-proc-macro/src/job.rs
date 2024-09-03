@@ -129,6 +129,8 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         #event_handler_gen
     };
 
+    // println!("{}", gen);
+
     Ok(gen.into())
 }
 

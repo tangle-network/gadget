@@ -34,7 +34,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use crate::protocols::{DefaultCryptoHasher, DefaultSecurityLevel};
+use crate::mpc::{DefaultCryptoHasher, DefaultSecurityLevel};
 
 use super::Error;
 
@@ -70,7 +70,7 @@ where
         .await
         .map_err(Into::into)?;
     logger.debug("Finished AsyncProtocol - Keygen");
-    serialize(&incomplete_key_share)?
+    serialize(&incomplete_key_share)
 }
 
 #[allow(clippy::too_many_arguments)]

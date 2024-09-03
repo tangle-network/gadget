@@ -9,6 +9,6 @@ use color_eyre::Result;
     result(_),
     verifier(evm = "HelloBlueprint")
 )]
-pub fn sign(msgs: Vec<Vec<u8>>, is_prehashed: bool) -> Result<String, Infallible> {
+pub fn sign(msgs: Vec<u8>, is_prehashed: bool) -> Result<String, Infallible> {
     Ok("Hello World!".to_string())
 }

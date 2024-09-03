@@ -9,6 +9,6 @@ use color_eyre::Result;
     result(_),
     verifier(evm = "HelloBlueprint")
 )]
-pub fn refresh(keygen_id: u32, new_parties: Vec<u16>, t: u16) -> Result<String, Infallible> {
+pub fn refresh(keygen_id: u32, new_parties: Vec<u8>, t: u16) -> Result<String, Infallible> {
     Ok("Hello World!".to_string())
 }

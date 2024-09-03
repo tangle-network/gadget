@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
         .init();
 
     // Initialize the environment
-    let env = sdk::env::load(None)?;
+    let env = sdk::config::load(None)?;
     let keystore = env.keystore()?;
     let signer = env.first_signer()?;
     let client: subxt::OnlineClient<PolkadotConfig> =

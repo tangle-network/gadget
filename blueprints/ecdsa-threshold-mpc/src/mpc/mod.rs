@@ -16,7 +16,7 @@ pub type DefaultCryptoHasher = Sha256;
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("IO error")]
-    Cggmp21IoError(#[from] cggmp21::errors::IoError),
+    Cggmp21IoError(String),
     #[error("SDK error")]
     SdkError(#[from] gadget_sdk::Error),
     #[error("Serialization error")]
