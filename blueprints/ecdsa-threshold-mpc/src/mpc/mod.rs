@@ -34,15 +34,3 @@ pub enum Error {
     #[error("Tracer profile error")]
     TracerProfileError(#[from] cggmp21::progress::ProfileError),
 }
-
-// impl From<serde_json::Error> for Error {
-//     fn from(e: serde_json::Error) -> Self {
-//         Error::SerializationError(e)
-//     }
-// }
-
-// impl From<ProfileError> for Error {
-//     fn from(e: ProfileError) -> Self {
-//         Error::TracerProfileError(e)
-//     }
-// }

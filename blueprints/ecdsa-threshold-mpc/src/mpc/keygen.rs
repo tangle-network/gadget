@@ -12,8 +12,6 @@ use cggmp21::KeyShare;
 use cggmp21::PregeneratedPrimes;
 use digest::typenum::U32;
 use digest::Digest;
-use futures::channel::mpsc::{TryRecvError, UnboundedSender};
-use futures::StreamExt;
 use gadget_sdk::logger::Logger;
 use gadget_sdk::network::channels::create_job_manager_to_async_protocol_channel_split_io;
 use gadget_sdk::network::channels::UserID;
@@ -67,10 +65,9 @@ where
         .set_threshold(t)
         .hd_wallet(hd_wallet)
         .start(&mut rng, party)
-        .await
-        .map_err(Into::into)?;
+        .await?;
     logger.debug("Finished AsyncProtocol - Keygen");
-    serialize(&incomplete_key_share)
+    serialize(&incomplete_key_share).map_err(Into::into)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -104,8 +101,7 @@ where
     let aux_info = aux_info_builder
         .set_progress_tracer(tracer)
         .start(&mut rng, party)
-        .await
-        .map_err(Into::into)?;
+        .await?;
     let perf_report = tracer.get_report()?;
     logger.trace(format!("Aux info protocol report: {perf_report}"));
     logger.debug("Finished AsyncProtocol - Aux Info");

@@ -2128,6 +2128,7 @@ dependencies = [
  "serde",
  "serde_with 2.3.3",
  "sha2 0.10.8",
+ "slip-10",
  "thiserror 1.0.63",
  "udigest",
 ]
@@ -6032,6 +6033,7 @@ dependencies = [
  "hex",
  "serde",
  "serde_with 2.3.3",
+ "slip-10",
  "thiserror 1.0.63",
 ]
 
@@ -9987,6 +9989,19 @@ name = "slice-group-by"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "826167069c09b99d56f31e9ae5c99049e932a98c9dc2dac47645b08dbbf76ba7"
+
+[[package]]
+name = "slip-10"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10c50b6de806a216bce1d98e9107e03f60b54abcfbe6be3935a528ab57c19f6a"
+dependencies = [
+ "generic-array",
+ "generic-ec",
+ "hmac 0.12.1",
+ "sha2 0.10.8",
+ "subtle",
+]
 
 [[package]]
 name = "smallvec"

@@ -5,12 +5,13 @@ use cggmp21::{
 use gadget_sdk::{
     self as sdk,
     logger::Logger,
-    network::{channels::UserID, IdentifierInfo},
+    network::{channels::UserID, IdentifierInfo, ProtocolMessage},
 };
 use generic_ec::Curve;
 use rand::SeedableRng;
 use sdk::tangle_subxt::subxt::ext::futures::future::try_join_all;
 use sp_core::{ecdsa, keccak_256};
+use std::sync::Arc;
 use std::{collections::HashMap, convert::Infallible, fmt::format};
 use tokio::spawn;
 
@@ -32,14 +33,20 @@ use super::Context;
     result(_),
     verifier(evm = "HelloBlueprint")
 )]
-pub async fn keygen(ctx: Context, curve: u8, t: u16, num_keys: u16, hd_wallet: bool) -> Result<String, Infallible> {
+pub async fn keygen(
+    ctx: Context,
+    curve: u8,
+    t: u16,
+    num_keys: u16,
+    hd_wallet: bool,
+) -> Result<String, crate::mpc::Error> {
     // TODO: How to grab the specific operators? What index am I?
     let n = 3 * (t + 1);
     let i = 0;
     // TODO: Constructing mapping from user IDs to ecdsa keys?
     let mapping: HashMap<UserID, ecdsa::Public> = HashMap::new();
     // TODO: How to get my ecdsa key?
-    let my_ecdsa_key = ecdsa::Public::from_raw([0u8; 64]);
+    let my_ecdsa_key = ecdsa::Public::from_raw([0u8; 33]);
     // TODO: How to grab api / task / job specific onchain metadata?
     // TODO: How to get restake information about this instance?
     // TODO: How to get the service ID?
@@ -68,7 +75,8 @@ pub async fn keygen(ctx: Context, curve: u8, t: u16, num_keys: u16, hd_wallet: b
     };
 
     // TODO: What is the protocol message channel? Can I get it from the network?
-    let protocol_message_channel = ctx.network.protocol_message_channel.clone();
+    let (_dummy_sender, protocol_message_channel) =
+        futures::channel::mpsc::unbounded::<ProtocolMessage>();
     let mut handles = Vec::new();
     macro_rules! run_keygen_for_curve {
         ($curve:ty) => {

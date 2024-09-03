@@ -8,6 +8,7 @@ pub use keygen::*;
 pub use refresh::*;
 pub use sign::*;
 
+#[derive(Clone)]
 pub struct Context {
     pub network: GossipHandle,
 }
