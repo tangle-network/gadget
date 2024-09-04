@@ -1,4 +1,4 @@
-//! Returns `OsRng` with `getrandom`, or a `CryptoRng` which panics without `getrandom`.
+//! Random number generation utilities.
 
 /// Re-export [`rand_core`] types to simplify dependences
 pub use rand::{self, CryptoRng, RngCore, SeedableRng};
