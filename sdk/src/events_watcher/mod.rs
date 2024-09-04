@@ -9,13 +9,8 @@
 pub mod error;
 pub use error::Error;
 
-/// EVM Event Watcher Module
 pub mod evm;
-
-/// Substrate Event Watcher Module
 pub mod substrate;
-
-/// Tangle Event Watcher Implementation
 pub mod tangle;
 
 use core::time::Duration;
@@ -45,14 +40,14 @@ impl ConstantWithMaxRetryCount {
 
 #[cfg(any(feature = "std", feature = "wasm"))]
 impl backoff::backoff::Backoff for ConstantWithMaxRetryCount {
+    fn reset(&mut self) {
+        self.count = 0;
+    }
+
     fn next_backoff(&mut self) -> Option<Duration> {
         (self.count < self.max_retry_count).then(|| {
             self.count += 1;
             self.interval
         })
-    }
-
-    fn reset(&mut self) {
-        self.count = 0;
     }
 }
