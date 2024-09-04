@@ -42,6 +42,10 @@ multiaddr = { workspace = true }
 libp2p = { workspace = true }
 ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde" ,"pem"] }
 
+structopt = { workspace = true }
+url = "2.5.2"
+log = "0.4.22"
+
 [build-dependencies]
 blueprint-metadata = { workspace = true }
 

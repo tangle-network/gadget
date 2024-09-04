@@ -11,3 +11,4 @@ description = "Core proc-macro for generating gadget code"
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 ethereum-types = { workspace = true, features = ["serialize"] }
+serde_json = { workspace = true }

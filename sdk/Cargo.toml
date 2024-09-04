@@ -74,6 +74,8 @@ nix = { workspace = true }
 # Benchmarking deps
 sysinfo = { workspace = true }
 
+structopt = { workspace = true }
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
 features = [

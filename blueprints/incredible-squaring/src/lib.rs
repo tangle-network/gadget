@@ -10,10 +10,10 @@ use gadget_sdk::job;
 //     store::LocalDatabase,
 // };
 // use std::{collections::HashMap, convert::Infallible};
-use std::convert::Infallible;
-use std::ops::Deref;
 use alloy_contract::{ContractInstance, Interface};
 use alloy_sol_types::private::alloy_json_abi::JsonAbi;
+use std::convert::Infallible;
+use std::ops::Deref;
 use IncredibleSquaringTaskManager::{
     respondToTaskCall, G1Point, G2Point, NonSignerStakesAndSignature, Task, TaskResponse,
 };
@@ -39,8 +39,8 @@ sol!(
 
 use crate::IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance;
 
-impl<T, P> Into<ContractInstance<T,P>> for IncredibleSquaringTaskManagerInstance<T,P> {
-    fn into(self) -> ContractInstance<T,P> {
+impl<T, P> Into<ContractInstance<T, P>> for IncredibleSquaringTaskManagerInstance<T, P> {
+    fn into(self) -> ContractInstance<T, P> {
         let provider = self.provider();
         ContractInstance::<T, P>::new(
             self.address().clone(),
@@ -167,4 +167,9 @@ pub fn convert_event_to_inputs(
         quorum_numbers,
         quorum_threshold_percentage,
     )
+}
+
+#[benchmark(cores = 1, job_id = 0)]
+fn xsquare() {
+    let _ = xsquare(10).unwrap();
 }

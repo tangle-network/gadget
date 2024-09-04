@@ -43,9 +43,10 @@ pub mod sr25519;
 pub use error::Error;
 use gadget_common::subxt_signer;
 
-/// Functions that a keystore backend must implement
+/// The Keystore [`Backend`] trait.
 ///
-/// This adds support for various cryptographic key operations such as key generation,
+/// it does defines the necessary functions that a keystore backend
+/// must implement to support various cryptographic key operations such as key generation,
 /// signing, and public key retrieval.
 pub trait Backend {
     /// Generate a new sr25519 key pair with an optional seed.

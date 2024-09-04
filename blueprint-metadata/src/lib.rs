@@ -7,7 +7,7 @@ use std::{
 
 use gadget_blueprint_proc_macro_core::{
     FieldType, Gadget, JobDefinition, JobResultVerifier, ServiceBlueprint, ServiceMetadata,
-    ServiceRegistrationHook, ServiceRequestHook, WasmGadget, WasmRuntime,
+    ServiceRegistrationHook, ServiceRequestHook,
 };
 
 use rustdoc_types::{Crate, Id, Item, ItemEnum, Module};
@@ -35,8 +35,8 @@ impl Config {
         // Extract the job definitions from the rustdoc output
         let jobs = extract_jobs(&krate);
         let hooks = extract_hooks(&krate);
-        // let gadget = extract_gadget(&cargo_toml);
-        // eprintln!("{gadget:?}");
+        let gadget = extract_gadget(&output_file);
+
         eprintln!("Generating blueprint.json to {:?}", output_file);
         let blueprint = ServiceBlueprint {
             metadata: ServiceMetadata {
@@ -80,10 +80,7 @@ impl Config {
                     _ => None,
                 })
                 .unwrap_or_default(),
-            gadget: Gadget::Wasm(WasmGadget {
-                runtime: WasmRuntime::Wasmtime,
-                sources: vec![],
-            }),
+            gadget,
         };
 
         let json = serde_json::to_string_pretty(&blueprint).expect("Failed to serialize blueprint");
@@ -108,6 +105,25 @@ fn extract_hooks(krate: &Crate) -> Vec<Hook> {
         panic!("Failed to get blueprint crate module");
     };
     extract_hooks_from_module(&krate.root, &krate.index, blueprint_crate)
+}
+
+fn extract_gadget<'a, T: AsRef<Path> + 'a>(blueprint_json_path: T) -> Gadget<'a> {
+    let json_string = unescape_json_string(
+        &std::fs::read_to_string(blueprint_json_path).expect("Failed to read blueprint.json file"),
+    );
+    let mut blueprint_json: serde_json::Value =
+        serde_json::from_str(&json_string).expect("Failed to parse blueprint JSON");
+
+    if let serde_json::Value::Object(map) = &blueprint_json {
+        if map.contains_key("gadget") {
+            serde_json::from_value(blueprint_json["gadget"].take())
+                .expect("Failed to deserialize gadget JSON")
+        } else {
+            panic!("The blueprint.json file does not contain a `gadget` field")
+        }
+    } else {
+        panic!("The blueprint.json file is not an OBJECT")
+    }
 }
 
 /// Extract job definitions from the rustdoc output.
