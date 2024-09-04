@@ -23,6 +23,7 @@ ed25519-zebra = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "ecdsa-core", "arithmetic"] }
 schnorrkel = { workspace = true }
 w3f-bls = { workspace = true }
+ark-bn254 = { workspace = true }
 
 # Metrics deps
 hyper = { workspace = true, features = ["http1", "server"] }

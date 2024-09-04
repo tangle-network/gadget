@@ -112,7 +112,7 @@ pub async fn create_blueprint(
     Ok(())
 }
 
-pub async fn join_delegators(
+pub async fn join_operators(
     client: &TestClient,
     account_id: &sr25519::Keypair,
 ) -> Result<(), Box<dyn Error>> {

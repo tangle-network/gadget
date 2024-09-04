@@ -16,7 +16,7 @@ use gadget_sdk::{
         gossip::NetworkService,
         setup::{start_p2p_network, NetworkConfig},
     },
-    // run::GadgetRunner,
+    run::GadgetRunner,
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
@@ -29,7 +29,7 @@ use incredible_squaring_blueprint::{self as blueprint, IncredibleSquaringTaskMan
 
 use alloy_signer::k256::PublicKey;
 use gadget_common::config::DebugLogger;
-use gadget_sdk::env::{AdditionalConfig, GadgetConfiguration};
+use gadget_sdk::env::{ContextConfig, GadgetConfiguration};
 use gadget_sdk::events_watcher::tangle::TangleConfig;
 use gadget_sdk::keystore::BackendExt;
 use gadget_sdk::network::gossip::GossipHandle;
@@ -38,6 +38,7 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_cor
 use lock_api::{GuardSend, RwLock};
 use sp_core::Pair;
 use std::sync::Arc;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 
 struct TangleGadgetRunner {
     env: StdGadgetConfiguration,
@@ -67,6 +68,13 @@ impl GadgetRunner for TangleGadgetRunner {
             services::OperatorPreferences {
                 key: ecdsa::Public(ecdsa_pair.public_key().0),
                 approval: services::ApprovalPrefrence::None,
+                price_targets: PriceTargets {
+                    cpu: 0,
+                    mem: 0,
+                    storage_hdd: 0,
+                    storage_ssd: 0,
+                    storage_nvme: 0,
+                },
             },
             Default::default(),
         );
@@ -111,10 +119,10 @@ impl GadgetRunner for TangleGadgetRunner {
 
 fn create_gadget_runner(
     protocol: Protocol,
-    additional_config: AdditionalConfig,
+    context_config: ContextConfig,
 ) -> Arc<dyn GadgetRunner> {
-    let env = gadget_sdk::env::load(Some(protocol), additional_config)
-        .expect("Failed to load environment");
+    let env =
+        gadget_sdk::env::load(Some(protocol), context_config).expect("Failed to load environment");
     match protocol {
         Protocol::Tangle => Arc::new(TangleGadgetRunner { env }),
         Protocol::Eigenlayer => Arc::new(EigenlayerGadgetRunner { env }),
@@ -140,7 +148,7 @@ async fn main() -> Result<()> {
     let protocol = Protocol::from_env().unwrap_or(Protocol::Tangle);
     let (env, runner) = create_gadget_runner(
         protocol,
-        AdditionalConfig {
+        ContextConfig {
             bind_addr: IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
             bind_port: 0,
             test_mode: false,

@@ -17,7 +17,7 @@ pub struct MatchboxNetworkService<'a> {
     pub inbound_mapping: &'a [InboundMapping],
     pub ecdsa_peer_id_to_matchbox_id:
         &'a Arc<RwLock<HashMap<ecdsa::Public, matchbox_socket::PeerId>>>,
-    pub role_key: &'a ecdsa::Pair,
+    pub ecdsa_key: &'a ecdsa::Pair,
     pub span: &'a tracing::Span,
 }
 

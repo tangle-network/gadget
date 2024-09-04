@@ -10,7 +10,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
-extern crate core;
 
 /// Keystore Module
 pub mod keystore;
@@ -27,10 +26,6 @@ pub mod events_watcher;
 /// Gadget Environment Module
 pub mod env;
 
-/// Gadget Executor / Process Module
-#[cfg(feature = "std")]
-pub mod executor;
-
 /// Local database storage
 pub mod store;
 
@@ -39,11 +34,17 @@ pub mod tx;
 
 pub use tangle_subxt;
 
+/// Network Module
 #[cfg(feature = "std")]
 pub mod network;
 
 pub mod slashing;
 
+/// Benchmark Module
+#[cfg(feature = "std")]
 pub mod benchmark;
+
+/// Gadget Runner Module
+pub mod run;
 
 pub use gadget_blueprint_proc_macro::*;

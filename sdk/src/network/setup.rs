@@ -63,7 +63,7 @@ impl NetworkConfig {
     #[must_use]
     pub fn new(
         identity: libp2p::identity::Keypair,
-        role_key: ecdsa::Pair,
+        ecdsa_key: ecdsa::Pair,
         bootnodes: Vec<Multiaddr>,
         bind_ip: IpAddr,
         bind_port: u16,
@@ -72,7 +72,7 @@ impl NetworkConfig {
     ) -> Self {
         Self {
             identity,
-            ecdsa_key: role_key,
+            ecdsa_key,
             bootnodes,
             bind_ip,
             bind_port,
@@ -85,7 +85,7 @@ impl NetworkConfig {
     /// Each service within a blueprint must have a unique network name.
     pub fn new_service_network<T: Into<String>>(
         identity: libp2p::identity::Keypair,
-        role_key: ecdsa::Pair,
+        ecdsa_key: ecdsa::Pair,
         bootnodes: Vec<Multiaddr>,
         bind_ip: IpAddr,
         bind_port: u16,
@@ -94,7 +94,7 @@ impl NetworkConfig {
     ) -> Self {
         Self::new(
             identity,
-            role_key,
+            ecdsa_key,
             bootnodes,
             bind_ip,
             bind_port,
@@ -153,7 +153,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         bind_port,
         topics,
         logger,
-        ecdsa_key: role_key,
+        ecdsa_key: ecdsa_key,
     } = config;
 
     // Ensure all topics are unique
@@ -320,7 +320,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
             logger: &logger,
             inbound_mapping: &inbound_mapping,
             ecdsa_peer_id_to_libp2p_id,
-            role_key: &role_key,
+            ecdsa_key: &ecdsa_key,
             span: tracing::debug_span!(parent: &span, "network_service"),
         };
         loop {

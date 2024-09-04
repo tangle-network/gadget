@@ -143,11 +143,11 @@ impl NetworkService<'_> {
                 let my_peer_id = self.swarm.local_peer_id();
                 let msg = my_peer_id.to_bytes();
                 let hash = keccak_256(&msg);
-                let signature = self.role_key.sign_prehashed(&hash);
+                let signature = self.ecdsa_key.sign_prehashed(&hash);
                 self.swarm.behaviour_mut().p2p.send_response(
                     channel,
                     MyBehaviourResponse::Handshaked {
-                        ecdsa_public_key: self.role_key.public(),
+                        ecdsa_public_key: self.ecdsa_key.public(),
                         signature,
                     },
                 )

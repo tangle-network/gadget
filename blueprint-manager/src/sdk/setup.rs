@@ -27,10 +27,10 @@ pub async fn generate_node_input<KBE: KeystoreBackend, Env: GadgetEnvironment>(
     config: SingleGadgetConfig<KBE, Env>,
 ) -> color_eyre::Result<(SingleGadgetInput<KBE, Env>, JoinHandle<()>)> {
     let keystore_config = KeystoreContainer::new(&config.keystore)?;
-    let (role_key, acco_key) = (keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?);
+    let (ecdsa_key, acco_key) = (keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?);
     //let network_key = ed25519::Pair::from_seed(&config.node_key).to_raw_vec();
     let logger = DebugLogger::default();
-    let wrapped_keystore = ECDSAKeyStore::new(config.keystore_backend.clone(), role_key.clone());
+    let wrapped_keystore = ECDSAKeyStore::new(config.keystore_backend.clone(), ecdsa_key.clone());
 
     // Use the first 32 bytes of the sr25519 account key as the network key. We discard the 32 remaining nonce seed bytes
     // thus ensuring that the network key, when used, will actually have slightly different properties than the original
@@ -51,7 +51,7 @@ pub async fn generate_node_input<KBE: KeystoreBackend, Env: GadgetEnvironment>(
 
     let libp2p_config = NetworkConfig::new(
         libp2p_key,
-        role_key,
+        ecdsa_key,
         config.bootnodes.clone(),
         config.bind_ip,
         config.bind_port,

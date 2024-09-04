@@ -202,15 +202,14 @@ pub enum Error {
 }
 
 #[derive(Clone, Debug)]
-// TODO: Rename
-pub struct AdditionalConfig {
+pub struct ContextConfig {
     pub bind_addr: IpAddr,
     pub bind_port: u16,
     pub test_mode: bool,
     pub logger: DebugLogger,
 }
 
-impl AdditionalConfig {
+impl ContextConfig {
     pub fn new_test(bind_addr: IpAddr, logger: DebugLogger) -> Result<Self, Error> {
         let unused_port = std::net::TcpListener::bind(format!("{bind_addr}:0"))
             .map_err(|err| Error::TestSetup(err.to_string()))?
@@ -234,9 +233,9 @@ impl AdditionalConfig {
 #[cfg(feature = "std")]
 pub fn load(
     protocol: Option<Protocol>,
-    additional_config: AdditionalConfig,
+    context_config: ContextConfig,
 ) -> Result<GadgetConfiguration<parking_lot::RawRwLock>, Error> {
-    load_with_lock::<parking_lot::RawRwLock>(protocol, additional_config)
+    load_with_lock::<parking_lot::RawRwLock>(protocol, context_config)
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.
@@ -248,23 +247,23 @@ pub fn load(
 /// This function will return an error if any of the required environment variables are missing.
 pub fn load_with_lock<RwLock: lock_api::RawRwLock>(
     protocol: Option<Protocol>,
-    additional_config: AdditionalConfig,
+    context_config: ContextConfig,
 ) -> Result<GadgetConfiguration<RwLock>, Error> {
-    load_inner::<RwLock>(protocol, additional_config)
+    load_inner::<RwLock>(protocol, context_config)
 }
 
 #[cfg(feature = "std")]
 fn load_inner<RwLock: lock_api::RawRwLock>(
     protocol: Option<Protocol>,
-    additional_config: AdditionalConfig,
+    context_config: ContextConfig,
 ) -> Result<GadgetConfiguration<RwLock>, Error> {
     let is_registration = std::env::var("REGISTRATION_MODE_ON").is_ok();
     let is_benchmarking = std::env::var("BENCHMARKING_MODE_ON").is_ok();
     Ok(GadgetConfiguration {
-        bind_addr: additional_config.bind_addr,
-        bind_port: additional_config.bind_port,
-        test_mode: additional_config.test_mode,
-        logger: additional_config.logger,
+        bind_addr: context_config.bind_addr,
+        bind_port: context_config.bind_port,
+        test_mode: context_config.test_mode,
+        logger: context_config.logger,
         rpc_endpoint: std::env::var("RPC_URL").map_err(|_| Error::MissingTangleRpcEndpoint)?,
         keystore_uri: std::env::var("KEYSTORE_URI").map_err(|_| Error::MissingKeystoreUri)?,
         data_dir_path: std::env::var("DATA_DIR").ok(),

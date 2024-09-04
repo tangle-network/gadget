@@ -4466,6 +4466,7 @@ dependencies = [
  "alloy-signer",
  "alloy-sol-types",
  "alloy-transport",
+ "ark-bn254",
  "async-trait",
  "backoff",
  "bincode",
