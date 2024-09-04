@@ -28,13 +28,13 @@ pub mod events_watcher;
 pub mod env;
 
 /// Local database storage
+#[cfg(feature = "std")]
 pub mod store;
 
 /// Transaction Management Module
 #[cfg(any(feature = "std", feature = "wasm"))]
 pub mod tx;
 
-#[cfg(feature = "std")]
 pub use tangle_subxt;
 
 /// Network Module

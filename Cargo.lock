@@ -1748,7 +1748,7 @@ dependencies = [
  "structopt",
  "tangle-environment",
  "tangle-primitives",
- "tangle-subxt",
+ "tangle-subxt 0.1.5",
  "tokio",
  "toml 0.8.19",
  "tracing",
@@ -1976,7 +1976,7 @@ dependencies = [
  "gadget-blueprint-proc-macro-core",
  "k256",
  "serde_json",
- "tangle-subxt",
+ "tangle-subxt 0.1.5",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.18",
@@ -3255,7 +3255,7 @@ dependencies = [
  "auto_impl",
  "gadget-common",
  "gadget-io",
- "tangle-subxt",
+ "tangle-subxt 0.1.5",
  "tokio",
 ]
 
@@ -4311,7 +4311,7 @@ dependencies = [
  "substrate-prometheus-endpoint",
  "subxt",
  "subxt-signer",
- "tangle-subxt",
+ "tangle-subxt 0.1.5",
  "thiserror 1.0.61",
 ]
 
@@ -4413,7 +4413,7 @@ dependencies = [
  "subxt",
  "subxt-signer",
  "sysinfo",
- "tangle-subxt",
+ "tangle-subxt 0.2.0",
  "thiserror 1.0.61",
  "tokio",
  "tracing",
@@ -11833,6 +11833,18 @@ dependencies = [
  "scale-info",
  "serde",
  "subxt",
+ "subxt-signer",
+]
+
+[[package]]
+name = "tangle-subxt"
+version = "0.2.0"
+dependencies = [
+ "parity-scale-codec 3.6.12",
+ "scale-info",
+ "serde",
+ "subxt",
+ "subxt-core",
  "subxt-signer",
 ]
 
