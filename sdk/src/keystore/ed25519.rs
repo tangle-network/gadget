@@ -18,11 +18,13 @@ pub fn generate_with_optional_seed(seed: Option<&[u8]>) -> Result<Secret, ed2551
     }
 }
 
+/// Sign a message with the given secret key.
 #[must_use]
 pub fn sign(secret: &Secret, msg: &[u8]) -> Signature {
     secret.sign(msg)
 }
 
+/// Derive the public key from the given secret key.
 #[must_use]
 pub fn to_public(secret: &Secret) -> Public {
     Public::from(secret)
