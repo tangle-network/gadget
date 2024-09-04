@@ -17,7 +17,6 @@ use sp_core::H256;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::str::FromStr;
 use std::task::{Context, Poll};
 use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
 use tangle_environment::gadget::SubxtConfig;
@@ -25,7 +24,6 @@ use tangle_environment::runtime::TangleRuntime;
 use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::blocks::BlockRef;
 use tangle_subxt::subxt::{Config, SubstrateConfig};
-use tangle_subxt::subxt_signer::SecretUri;
 use tokio::task::JoinHandle;
 
 pub(crate) mod event_handler;
@@ -154,30 +152,17 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
     let logger_clone = logger.clone();
 
-    let (tangle_key, ecdsa_key) = if blueprint_manager_config.test_mode {
-        let seed = blueprint_manager_config
-            .instance_id
-            .as_deref()
-            .expect("Should always exist for testing");
-
-        let seed = format!("//{seed}");
-
-        logger.info(format!(
-            "Running in test mode, auto-adding default keys for {seed} ..."
-        ));
-
-        let secret_uri = SecretUri::from_str(&seed)?;
-
-        let sr_keypair = subxt_signer::sr25519::Keypair::from_uri(&secret_uri)?;
-        let ecdsa_keypair = subxt_signer::ecdsa::Keypair::from_uri(&secret_uri)?;
-
-        (sr_keypair, ecdsa_keypair)
-    } else {
+    let (tangle_key, ecdsa_key) = {
         // For ordinary runs, we will default to the keystore path
         let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
             &gadget_config.base_path,
         )?);
-        (keystore.sr25519_key()?, keystore.ecdsa_key()?)
+        logger.info("Keystore opened successfully");
+        let sr_key = keystore.sr25519_key()?;
+        logger.info("SR25519 key found");
+        let ecdsa_key = keystore.ecdsa_key()?;
+        logger.info("ECDSA key found");
+        (sr_key, ecdsa_key)
     };
 
     let sub_account_id = tangle_key.public_key().to_account_id();

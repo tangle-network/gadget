@@ -205,8 +205,6 @@ pub async fn new_test_ext_blueprint_manager<
     let mut handles = vec![];
 
     for (node_index, (my_addr, my_port)) in bind_addrs.iter().enumerate() {
-        let my_alias = NAME_IDS[node_index];
-
         let test_input = PerTestNodeInput {
             instance_id: node_index as _,
             bind_ip: IpAddr::from_str(LOCAL_BIND_ADDR).expect("Should be a valid IP"),
@@ -216,8 +214,6 @@ pub async fn new_test_ext_blueprint_manager<
                 .filter(|addr| *addr != my_addr)
                 .cloned()
                 .collect(),
-            // Assumes that that tangle has initialized a dir with a keystore at ../../tangle/tmp/
-            base_path: format!("../../tangle/tmp/{my_alias}"),
             verbose: 4,
             pretty: false,
             extra_input: additional_params.clone(),

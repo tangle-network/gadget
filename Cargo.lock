@@ -4550,6 +4550,7 @@ dependencies = [
  "prometheus",
  "rand",
  "schnorrkel",
+ "secp256k1",
  "serde",
  "serde_json",
  "sp-core 34.0.0",

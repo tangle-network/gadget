@@ -299,20 +299,15 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// or if the keypair seed is invalid.
     #[doc(alias = "sr25519_signer")]
     pub fn first_signer(&self) -> Result<tangle_subxt::subxt_signer::sr25519::Keypair, Error> {
-        println!("AB0");
         let keystore = self.keystore()?;
-        println!("AB1");
         let sr25519_pubkey = crate::keystore::Backend::iter_sr25519(&keystore)
             .next()
             .ok_or_else(|| Error::NoSr25519Keypair)?;
-        println!("AB2");
         let sr25519_secret =
             crate::keystore::Backend::expose_sr25519_secret(&keystore, &sr25519_pubkey)?
                 .ok_or_else(|| Error::NoSr25519Keypair)?;
-        println!("AB3");
         let mut seed = [0u8; 32];
         seed.copy_from_slice(&sr25519_secret.to_bytes()[0..32]);
-        println!("AB4");
         tangle_subxt::subxt_signer::sr25519::Keypair::from_secret_key(seed)
             .map_err(|_| Error::InvalidSr25519Keypair)
     }

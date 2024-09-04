@@ -303,6 +303,7 @@ wasm-bindgen-futures = "0.4.43"
 wasmer = { version = "4.3.5", default-features = false }
 wasmtime = { version = "23.0.2", default-features = false }
 wasmtimer = "0.2"
+secp256k1 = "0.28.2"
 
 # Eigenlayer
 # TODO: Remove this branch, point to main once https://github.com/webb-tools/eigensdk-rs/pull/20 is merged

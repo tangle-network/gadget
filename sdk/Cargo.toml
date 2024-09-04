@@ -63,6 +63,8 @@ alloy-signer = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
 
+secp256k1 = { workspace = true }
+
 # Macros
 gadget-blueprint-proc-macro = { workspace = true }
 derive_more = { workspace = true }

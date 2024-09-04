@@ -60,6 +60,7 @@ impl FilesystemKeystore {
     /// Get the key phrase for a given public key and key type.
     fn secret_by_type(&self, public: &[u8], key_type: KeyType) -> Result<Option<Vec<u8>>, Error> {
         let path = self.key_file_path(public, key_type);
+        println!("Looking for {key_type:?} in {}", path.display());
         if path.exists() {
             let content = fs::read(&path)?;
             if content.is_empty() {
@@ -205,7 +206,7 @@ impl Backend for FilesystemKeystore {
     ) -> Result<Option<sr25519::Secret>, Error> {
         let secret_bytes = self.secret_by_type(public.as_ref(), KeyType::Sr25519)?;
         println!(
-            "Secret bytes len={}: {secret_bytes:?}",
+            "[SR] Secret bytes len={}: {secret_bytes:?}",
             secret_bytes.as_ref().map(|r| r.len()).unwrap_or_default()
         );
         if let Some(buf) = secret_bytes {
@@ -217,6 +218,10 @@ impl Backend for FilesystemKeystore {
 
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error> {
         let secret_bytes = self.secret_by_type(&public.to_sec1_bytes(), KeyType::Ecdsa)?;
+        println!(
+            "[ECDSA] Secret bytes len={}: {secret_bytes:?}",
+            secret_bytes.as_ref().map(|r| r.len()).unwrap_or_default()
+        );
         if let Some(buf) = secret_bytes {
             Ok(Some(ecdsa::secret_from_bytes(&buf).map_err(Error::Ecdsa)?))
         } else {
