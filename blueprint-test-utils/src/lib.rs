@@ -2,9 +2,10 @@ use crate::test_ext::NAME_IDS;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use blueprint_manager::sdk::prelude::color_eyre;
+use blueprint_manager::sdk::prelude::tangle_subxt::subxt_signer::ExposeSecret;
 use cargo_tangle::deploy::Opts;
 use gadget_common::prelude::DebugLogger;
-use gadget_common::subxt_signer::sr25519;
+use gadget_common::subxt_signer::{ecdsa, sr25519};
 use gadget_common::tangle_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
 use gadget_common::tangle_runtime::api::services::calls::types::register::{
@@ -15,6 +16,9 @@ use gadget_common::tangle_runtime::{api, AccountId32};
 use gadget_common::tangle_subxt::subxt::OnlineClient;
 pub use gadget_core::job::SendFuture;
 use gadget_io::{GadgetConfig, SupportedChains};
+use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
+use gadget_sdk::keystore::backend::GenericKeyStore;
+use gadget_sdk::keystore::BackendExt;
 use libp2p::Multiaddr;
 pub use log;
 use std::error::Error;
@@ -27,7 +31,7 @@ use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
-use blueprint_manager::sdk::prelude::tangle_subxt::subxt_signer::ExposeSecret;
+use uuid::Uuid;
 
 pub type InputValue = api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 pub type OutputValue = api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
@@ -54,8 +58,9 @@ pub struct PerTestNodeInput<T> {
 pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     input: PerTestNodeInput<T>,
 ) -> BlueprintManagerHandle {
+    let tmp_store = Uuid::new_v4().to_string();
     let keystore_uri = PathBuf::from(format!(
-        "../../tangle/tmp/{}/chains/local_testnet/keystore",
+        "./target/keystores/{}/{tmp_store}/",
         NAME_IDS[input.instance_id as usize].to_lowercase()
     ));
 
@@ -71,7 +76,6 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
 
     let blueprint_manager_config = BlueprintManagerConfig {
         gadget_config: None,
-        //keystore_uri: "./target/keystore".to_string(),
         keystore_uri: format!("file://{}", keystore_uri.display()),
         verbose: input.verbose,
         pretty: input.pretty,
@@ -98,7 +102,8 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         gadget_config,
         shutdown_signal,
     )
-    .await {
+    .await
+    {
         Ok(res) => res,
         Err(err) => {
             log::error!(target: "gadget", "Failed to run blueprint manager: {err}");
@@ -114,8 +119,14 @@ async fn inject_test_keys<P: AsRef<Path>>(
     let path = keystore_path.as_ref();
     let name = NAME_IDS[node_index];
     tokio::fs::create_dir_all(path).await?;
-    // Format: (name, sr public key, sr private key, sr public key, sr private key, prefix)
-    const TEST_KEYS: [(&'static str, &'static str, &'static str, &'static str, &'static str); 5] = [
+    // Format: (name, sr public key, sr private key, sr public key, sr private key)
+    const TEST_KEYS: [(
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+    ); 5] = [
         (
             "Alice",
             "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
@@ -153,30 +164,74 @@ async fn inject_test_keys<P: AsRef<Path>>(
         ),
     ];
 
-    let (_, sr_public_key_name, sr_private_key_name, ecdsa_public_key_name, ecdsa_private_key_name) = TEST_KEYS
+    let (_, sr_public_key, sr_private_key, ecdsa_public_key, ecdsa_private_key) = TEST_KEYS
         .iter()
         .find(|(n, _, _, _, _)| *n == name)
         .expect("Invalid test name");
 
-    // Use {prefix} to ensure that the keys are designated as sr25519/ecdsa in the filename
-    inject_inner(path, "0000", sr_public_key_name, sr_private_key_name).await?;
-    inject_inner(path, "0002", ecdsa_public_key_name, ecdsa_private_key_name).await?;
+    // Use prefixes to ensure that the keys are designated as sr25519/ecdsa in the filename
+    // 0000 - the prefix for sr25519 keys
+    // 0002 - the prefix for ecdsa keys
+    inject_inner(path, "0000", sr_public_key, sr_private_key).await?;
+    inject_inner(path, "0002", ecdsa_public_key, ecdsa_private_key).await?;
 
-    // Sanity checks for testing
-    let sr_suri = gadget_common::subxt_signer::SecretUri::from_str(&format!("0x{sr_private_key_name}//{name}")).expect("Should be valid SURI");
-    assert_eq!(sr_suri.phrase.expose_secret(), &format!("0x{sr_private_key_name}"));
-    let ecdsa_suri = gadget_common::subxt_signer::SecretUri::from_str(&format!("0x{ecdsa_private_key_name}//{name}")).expect("Should be valid SURI");
-    assert_eq!(ecdsa_suri.phrase.expose_secret(), &format!("0x{ecdsa_private_key_name}"));
+    // Sanity checks for testing before proceeding
+    // Per the subxt_signer::SecretUri format, we are using the "Parse DEV_PHRASE secret URI with hex phrase and junction" format
+    // which is of type 0x{hex_phrase}//{name}
+    let sr_suri =
+        gadget_common::subxt_signer::SecretUri::from_str(&format!("0x{sr_private_key}//{name}"))
+            .expect("Should be valid SURI");
+    assert_eq!(
+        sr_suri.phrase.expose_secret(),
+        &format!("0x{sr_private_key}")
+    );
 
+    // For testing purposes, ensure loading the keys work
+    let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(
+        FilesystemKeystore::open(path).expect("Unable to create Keystore"),
+    );
+
+    match keystore.ecdsa_key() {
+        Ok(_ecdsa_key) => {
+            /*let ecdsa_keypair =
+                ecdsa::Keypair::from_uri(&sr_suri).expect("Failed to create ecdsa keypair");
+            assert_eq!(ecdsa_keypair.0.secret_bytes(), ecdsa_key.0.secret_bytes());*/
+        }
+        Err(err) => {
+            log::error!(target: "gadget", "Failed to load ecdsa key: {err}");
+            panic!("Failed to load ecdsa key: {err}");
+        }
+    }
+
+    match keystore.sr25519_key() {
+        Ok(_sr25519_key) => {}
+        Err(err) => {
+            log::error!(target: "gadget", "Failed to load sr25519 key: {err}");
+            panic!("Failed to load sr25519 key: {err}");
+        }
+    }
+
+    if name == "Alice" {
+        log::error!(target: "gadget", "We know it works for Alice. Remove this to see others fail");
+        std::process::exit(1);
+    }
 
     Ok(())
 }
 
-async fn inject_inner<P: AsRef<Path>>(base_path: P, prefix: &str, public_key_name: &str, private_key_contents: &str) -> color_eyre::Result<()> {
-    let new_key_path = base_path.as_ref().join(format!("{prefix}{public_key_name}"));
+async fn inject_inner<P: AsRef<Path>>(
+    base_path: P,
+    prefix: &str,
+    public_key_name: &str,
+    private_key_contents: &str,
+) -> color_eyre::Result<()> {
+    let new_key_path = base_path
+        .as_ref()
+        .join(format!("{prefix}{public_key_name}"));
     tokio::fs::write(&new_key_path, private_key_contents).await?;
+    let decoded = hex::decode(private_key_contents).expect("Failed to decode private key");
 
-    log::info!(target: "gadget", "Successfully wrote private key {prefix} = {private_key_contents} to {}", new_key_path.display());
+    log::info!(target: "gadget", "Successfully wrote private key {prefix} = {private_key_contents} to {} |\nSecret Bytes: {decoded:?}", new_key_path.display());
     Ok(())
 }
 

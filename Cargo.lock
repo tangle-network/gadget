@@ -1807,6 +1807,7 @@ dependencies = [
  "gadget-common",
  "gadget-core",
  "gadget-io",
+ "gadget-sdk",
  "getrandom",
  "hex",
  "libp2p",
@@ -1839,6 +1840,7 @@ dependencies = [
  "tokio",
  "tracing-subscriber 0.3.18",
  "url 2.5.2 (git+https://github.com/domenukk/rust-url?branch=no_std)",
+ "uuid 1.10.0",
 ]
 
 [[package]]

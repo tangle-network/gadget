@@ -181,8 +181,10 @@ pub trait BackendExt: Backend {
 
         let mut seed = [0u8; 32];
         seed.copy_from_slice(&ecdsa_secret.to_bytes()[0..32]);
-        Ok(tangle_subxt::subxt_signer::ecdsa::Keypair::from_secret_key(seed)
-            .map_err(|err| str_to_std_error(err.to_string()))?)
+        Ok(
+            tangle_subxt::subxt_signer::ecdsa::Keypair::from_secret_key(seed)
+                .map_err(|err| str_to_std_error(err.to_string()))?,
+        )
     }
 
     fn sr25519_key(&self) -> Result<subxt_signer::sr25519::Keypair, Error> {
@@ -196,8 +198,10 @@ pub trait BackendExt: Backend {
 
         let mut seed = [0u8; 32];
         seed.copy_from_slice(&secret.to_bytes()[0..32]);
-        Ok(tangle_subxt::subxt_signer::sr25519::Keypair::from_secret_key(seed)
-            .map_err(|err| str_to_std_error(err.to_string()))?)
+        Ok(
+            tangle_subxt::subxt_signer::sr25519::Keypair::from_secret_key(seed)
+                .map_err(|err| str_to_std_error(err.to_string()))?,
+        )
     }
 }
 

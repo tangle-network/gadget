@@ -69,6 +69,8 @@ serde = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 sp-npos-elections = { workspace = true }
 sp-session = { workspace = true }
+gadget-sdk = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
 
 # Pallets
 pallet-timestamp = { workspace = true }
