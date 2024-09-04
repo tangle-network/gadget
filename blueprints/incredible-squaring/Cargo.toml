@@ -9,6 +9,11 @@ homepage.workspace = true
 repository.workspace = true
 publish = false
 
+[[bin]]
+name = "incredible-squaring-eigen"
+path = "./src/eigenlayer.rs"
+required-features = ["default"]
+
 [dependencies]
 eigensdk-rs = { workspace = true }
 tracing = { workspace = true }

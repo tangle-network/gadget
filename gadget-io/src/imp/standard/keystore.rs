@@ -100,7 +100,7 @@ impl SubstrateKeystore for KeystoreContainer {
             GadgetIoError::Other(String::from("Failed to parse public key from keystore"))
         })?;
 
-        let role_key = keystore
+        let ecdsa_key = keystore
             .key_pair::<crypto::role::Pair>(&role_public_key)
             .map_err(|e| GadgetIoError::Other(e.to_string()))?
             .ok_or(GadgetIoError::Other(String::from(
@@ -110,9 +110,9 @@ impl SubstrateKeystore for KeystoreContainer {
 
         tracing::debug!(%role_public_key, "Loaded key from keystore");
         println!("ECDSA KEY: {:?}", role_public_key.to_string());
-        println!("ECDSA SEED: {:?}", role_key.seed());
+        println!("ECDSA SEED: {:?}", ecdsa_key.seed());
         println!("ECDSA RAW: {:?}", ecdsa_keys);
-        Ok(role_key)
+        Ok(ecdsa_key)
     }
 
     // TODO: Return more specific error types

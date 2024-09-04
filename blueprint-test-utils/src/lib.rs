@@ -205,7 +205,7 @@ pub async fn create_blueprint(
     Ok(())
 }
 
-pub async fn join_delegators(
+pub async fn join_operators(
     client: &TestClient,
     account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
     logger: &Logger,
