@@ -5,7 +5,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use w3f_bls::SerializableToBytes;
 
-use crate::keystore::{bls381, ecdsa, ed25519, sr25519, Backend, Error};
+use crate::keystore::{bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error};
 
 /// The type alias for the In Memory `KeyMap`.
 type KeyMap<R, P, S> = Arc<lock_api::RwLock<R, BTreeMap<P, S>>>;
@@ -48,6 +48,21 @@ impl Ord for Bls381PublicWrapper {
     }
 }
 
+#[derive(Clone, PartialEq, Eq)]
+struct BlsBn254PublicWrapper(bn254::Public);
+
+impl PartialOrd for BlsBn254PublicWrapper {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for BlsBn254PublicWrapper {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.0.to_bytes().cmp(&other.0.to_bytes())
+    }
+}
+
 /// The In-Memory Keystore Backend.
 ///
 /// It stores everything in memory and does not persist anything,
@@ -61,6 +76,7 @@ pub struct InMemoryKeystore<R: lock_api::RawRwLock> {
     ecdsa: KeyMap<R, ecdsa::Public, ecdsa::Secret>,
     ed25519: KeyMap<R, Ed25519PublicWrapper, ed25519::Secret>,
     bls381: KeyMap<R, Bls381PublicWrapper, bls381::Secret>,
+    bn254: KeyMap<R, BlsBn254PublicWrapper, bn254::Secret>,
 }
 
 impl<R: lock_api::RawRwLock> Default for InMemoryKeystore<R> {
@@ -70,6 +86,7 @@ impl<R: lock_api::RawRwLock> Default for InMemoryKeystore<R> {
             ecdsa: Arc::new(lock_api::RwLock::new(BTreeMap::new())),
             ed25519: Arc::new(lock_api::RwLock::new(BTreeMap::new())),
             bls381: Arc::new(lock_api::RwLock::new(BTreeMap::new())),
+            bn254: Arc::new(lock_api::RwLock::new(BTreeMap::new())),
         }
     }
 }
@@ -81,6 +98,7 @@ impl<R: lock_api::RawRwLock> core::fmt::Debug for InMemoryKeystore<R> {
             .field("ecdsa", &"<hidden>")
             .field("ed25519", &"<hidden>")
             .field("bls381", &"<hidden>")
+            .field("bn254", &"<hidden>")
             .finish()
     }
 }
@@ -188,6 +206,31 @@ impl<RwLock: lock_api::RawRwLock> Backend for InMemoryKeystore<RwLock> {
         }
     }
 
+    fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<bn254::Public, Error> {
+        let secret = bn254::generate_with_optional_seed(seed);
+        let public = bn254::to_public(&secret);
+        let old = self
+            .bn254
+            .write()
+            .insert(BlsBn254PublicWrapper(public.clone()), secret);
+        assert!(old.is_none(), "generated key already exists");
+        Ok(public)
+    }
+
+    fn bls_bn254_sign(
+        &self,
+        public: &bn254::Public,
+        msg: &[u8],
+    ) -> Result<Option<bn254::Signature>, Error> {
+        let mut lock = self.bn254.write();
+        let secret = lock.get_mut(&BlsBn254PublicWrapper(public.clone()));
+        if let Some(secret) = secret {
+            Ok(Some(bn254::sign(secret, msg)))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn expose_sr25519_secret(
         &self,
         public: &sr25519::Public,
@@ -217,6 +260,14 @@ impl<RwLock: lock_api::RawRwLock> Backend for InMemoryKeystore<RwLock> {
         Ok(lock.get(&Bls381PublicWrapper(*public)).cloned())
     }
 
+    fn expose_bls_bn254_secret(
+        &self,
+        public: &bn254::Public,
+    ) -> Result<Option<bn254::Secret>, Error> {
+        let lock = self.bn254.read();
+        Ok(lock.get(&BlsBn254PublicWrapper(public.clone())).cloned())
+    }
+
     fn iter_sr25519(&self) -> impl Iterator<Item = sr25519::Public> {
         let lock = self.sr25519.read();
         let iter = lock.keys().copied().collect::<Vec<_>>();
@@ -238,6 +289,12 @@ impl<RwLock: lock_api::RawRwLock> Backend for InMemoryKeystore<RwLock> {
     fn iter_bls381(&self) -> impl Iterator<Item = bls381::Public> {
         let lock = self.bls381.read();
         let iter = lock.keys().map(|k| k.0).collect::<Vec<_>>();
+        iter.into_iter()
+    }
+
+    fn iter_bls_bn254(&self) -> impl Iterator<Item = bn254::Public> {
+        let lock = self.bn254.read();
+        let iter = lock.keys().map(|k| k.0.clone()).collect::<Vec<_>>();
         iter.into_iter()
     }
 }

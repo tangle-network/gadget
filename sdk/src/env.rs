@@ -114,42 +114,42 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     _lock: core::marker::PhantomData<RwLock>,
 }
 
-impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("GadgetConfiguration")
-            .field("rpc_endpoint", &self.rpc_endpoint)
-            .field("keystore_uri", &self.keystore_uri)
-            .field("data_dir_path", &self.data_dir_path)
-            .field("blueprint_id", &self.blueprint_id)
-            .field("service_id", &self.service_id)
-            .field("is_registration", &self.is_registration)
-            .field("protocol", &self.protocol)
-            .field("bind_port", &self.bind_port)
-            .field("bind_addr", &self.bind_addr)
-            .field("logger", &self.logger)
-            .field("test_mode", &self.test_mode)
-            .finish()
-    }
-}
-
-impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
-    fn clone(&self) -> Self {
-        Self {
-            rpc_endpoint: self.rpc_endpoint.clone(),
-            keystore_uri: self.keystore_uri.clone(),
-            data_dir_path: self.data_dir_path.clone(),
-            blueprint_id: self.blueprint_id,
-            service_id: self.service_id,
-            is_registration: self.is_registration,
-            protocol: self.protocol,
-            bind_port: self.bind_port,
-            bind_addr: self.bind_addr,
-            logger: self.logger.clone(),
-            test_mode: self.test_mode,
-            _lock: core::marker::PhantomData,
-        }
-    }
-}
+// impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
+//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+//         f.debug_struct("GadgetConfiguration")
+//             .field("rpc_endpoint", &self.rpc_endpoint)
+//             .field("keystore_uri", &self.keystore_uri)
+//             .field("data_dir_path", &self.data_dir_path)
+//             .field("blueprint_id", &self.blueprint_id)
+//             .field("service_id", &self.service_id)
+//             .field("is_registration", &self.is_registration)
+//             .field("protocol", &self.protocol)
+//             .field("bind_port", &self.bind_port)
+//             .field("bind_addr", &self.bind_addr)
+//             .field("logger", &self.logger)
+//             .field("test_mode", &self.test_mode)
+//             .finish()
+//     }
+// }
+//
+// impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
+//     fn clone(&self) -> Self {
+//         Self {
+//             rpc_endpoint: self.rpc_endpoint.clone(),
+//             keystore_uri: self.keystore_uri.clone(),
+//             data_dir_path: self.data_dir_path.clone(),
+//             blueprint_id: self.blueprint_id,
+//             service_id: self.service_id,
+//             is_registration: self.is_registration,
+//             protocol: self.protocol,
+//             bind_port: self.bind_port,
+//             bind_addr: self.bind_addr,
+//             logger: self.logger.clone(),
+//             test_mode: self.test_mode,
+//             _lock: core::marker::PhantomData,
+//         }
+//     }
+// }
 
 /// An error type for the gadget environment.
 #[derive(Debug, thiserror::Error)]

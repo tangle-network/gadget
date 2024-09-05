@@ -2,7 +2,7 @@
 
 use std::{fs, io::Write, path::PathBuf};
 
-use crate::keystore::{bls381, ecdsa, ed25519, sr25519, Backend, Error};
+use crate::keystore::{bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
@@ -11,6 +11,7 @@ enum KeyType {
     Ed25519 = 0x01,
     Ecdsa = 0x02,
     Bls381 = 0x03,
+    BlsBn254 = 0x04,
 }
 
 /// The filesystem keystore backend. It stores keys in files, where each file
@@ -199,6 +200,30 @@ impl Backend for FilesystemKeystore {
         }
     }
 
+    fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<bn254::Public, Error> {
+        let secret = bn254::generate_with_optional_seed(seed);
+        let public = bn254::to_public(&secret);
+        let path = self.key_file_path(&public.to_bytes(), KeyType::BlsBn254);
+        let mut secret_bytes = Vec::new();
+        secret.serialize_compressed(&mut secret_bytes)?;
+        Self::write_to_file(path, &secret_bytes)?;
+        Ok(public)
+    }
+
+    fn bls_bn254_sign(
+        &self,
+        public: &bn254::Public,
+        msg: &[u8],
+    ) -> Result<Option<bn254::Signature>, Error> {
+        let secret_bytes = self.secret_by_type(&public.to_bytes(), KeyType::BlsBn254)?;
+        if let Some(buf) = secret_bytes {
+            let mut secret = bn254::secret_from_bytes(&buf);
+            Ok(Some(bn254::sign(&mut secret, msg)))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn expose_sr25519_secret(
         &self,
         public: &sr25519::Public,
@@ -246,6 +271,18 @@ impl Backend for FilesystemKeystore {
         }
     }
 
+    fn expose_bls_bn254_secret(
+        &self,
+        public: &bn254::Public,
+    ) -> Result<Option<bn254::Secret>, Error> {
+        let secret_bytes = self.secret_by_type(&public.to_bytes(), KeyType::BlsBn254)?;
+        if let Some(buf) = secret_bytes {
+            Ok(Some(bn254::secret_from_bytes(&buf)))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn iter_sr25519(&self) -> impl Iterator<Item = sr25519::Public> {
         self.iter_keys(KeyType::Sr25519)
             .flat_map(|b| sr25519::Public::from_bytes(&b))
@@ -266,5 +303,10 @@ impl Backend for FilesystemKeystore {
 
         self.iter_keys(KeyType::Bls381)
             .flat_map(|b| bls381::Public::from_bytes(&b))
+    }
+
+    fn iter_bls_bn254(&self) -> impl Iterator<Item = bn254::Public> {
+        self.iter_keys(KeyType::BlsBn254)
+            .flat_map(|b| bn254::Public::from_bytes(&b))
     }
 }
