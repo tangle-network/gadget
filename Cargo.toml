@@ -157,7 +157,7 @@ ark-ed25519 = { version = "0.4", default-features = false }
 aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc", "getrandom", "zeroize"] }
 anyhow = "1.0.86"
 async-recursion2 = "1.0.5"
-async-trait = "0.1.81"
+async-trait = "0.1.82"
 auto_impl = "1.2.0"
 aws-config = "1.5.5"
 aws-types = "1.3.3"
