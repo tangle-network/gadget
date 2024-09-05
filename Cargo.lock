@@ -1748,7 +1748,7 @@ dependencies = [
  "structopt",
  "tangle-environment",
  "tangle-primitives",
- "tangle-subxt 0.1.5",
+ "tangle-subxt",
  "tokio",
  "toml 0.8.19",
  "tracing",
@@ -1976,7 +1976,7 @@ dependencies = [
  "gadget-blueprint-proc-macro-core",
  "k256",
  "serde_json",
- "tangle-subxt 0.1.5",
+ "tangle-subxt",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.18",
@@ -3255,7 +3255,7 @@ dependencies = [
  "auto_impl",
  "gadget-common",
  "gadget-io",
- "tangle-subxt 0.1.5",
+ "tangle-subxt",
  "tokio",
 ]
 
@@ -4309,9 +4309,8 @@ dependencies = [
  "sp-runtime 39.0.0",
  "sqlx",
  "substrate-prometheus-endpoint",
- "subxt",
  "subxt-signer",
- "tangle-subxt 0.1.5",
+ "tangle-subxt",
  "thiserror 1.0.61",
 ]
 
@@ -4413,7 +4412,7 @@ dependencies = [
  "subxt",
  "subxt-signer",
  "sysinfo",
- "tangle-subxt 0.2.0",
+ "tangle-subxt",
  "thiserror 1.0.61",
  "tokio",
  "tracing",
@@ -11825,20 +11824,9 @@ dependencies = [
 
 [[package]]
 name = "tangle-subxt"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4552f79989b8ac33dd612cd9292b90401bdb8dbfd91de1c689ea944ffd31e2d2"
-dependencies = [
- "parity-scale-codec 3.6.12",
- "scale-info",
- "serde",
- "subxt",
- "subxt-signer",
-]
-
-[[package]]
-name = "tangle-subxt"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca412d7aa7d2633d9d9234636da15d50f2b4e2824dcba3fb29b7c4cf2952de27"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "scale-info",

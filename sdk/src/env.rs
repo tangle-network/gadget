@@ -204,7 +204,9 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
 }
 
 #[cfg(not(feature = "std"))]
-pub fn load_inner<RwLock: lock_api::RawRwLock>() -> Result<GadgetConfiguration<RwLock>, Error> {
+pub fn load_inner<RwLock: lock_api::RawRwLock>(
+    _protocol: Option<Protocol>,
+) -> Result<GadgetConfiguration<RwLock>, Error> {
     unimplemented!("Implement loading env for no_std")
 }
 

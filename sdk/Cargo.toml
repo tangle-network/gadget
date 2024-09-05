@@ -101,7 +101,7 @@ hyper = { workspace = true, features = ["client"] }
 # tangle-test-utils = { workspace = true }
 
 [features]
-default = ["std"]
+default = ["std", "subxt/native"]
 
 std = [
     "dep:backoff",

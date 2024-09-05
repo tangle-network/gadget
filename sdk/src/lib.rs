@@ -47,7 +47,9 @@ pub mod slashing;
 #[cfg(feature = "std")]
 pub mod benchmark;
 
+// TODO: Currently uses `StdGadgetConfiguration`
 /// Gadget Runner Module
+#[cfg(feature = "std")]
 pub mod run;
 
 pub use gadget_blueprint_proc_macro::*;

@@ -12,6 +12,10 @@ pub use gadget_core::job::{
     error::JobError,
     protocol::{PollMethod, WorkManagerInterface},
 };
+#[cfg(all(feature = "substrate", feature = "std"))]
+use tangle_subxt::subxt::ext::subxt_core;
+#[cfg(all(feature = "substrate", not(feature = "std")))]
+use tangle_subxt::subxt_core;
 
 use sp_core::ecdsa;
 
@@ -79,7 +83,10 @@ pub use tangle_subxt;
 
 #[cfg(feature = "substrate")]
 pub mod tangle_runtime {
-    pub use tangle_subxt::subxt::utils::AccountId32;
+    #[cfg(feature = "std")]
+    pub use tangle_subxt::subxt::ext::subxt_core::utils::AccountId32;
+    #[cfg(not(feature = "std"))]
+    pub use tangle_subxt::subxt_core::utils::AccountId32;
     pub use tangle_subxt::tangle_testnet_runtime::api;
     pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 }
@@ -158,7 +165,7 @@ pub enum Error {
     },
     #[cfg(feature = "substrate")]
     Subxt {
-        err: subxt::Error,
+        err: subxt_core::Error,
     },
     Other {
         err: String,
@@ -186,8 +193,8 @@ impl From<JobError> for Error {
 }
 
 #[cfg(feature = "substrate")]
-impl From<subxt::Error> for Error {
-    fn from(err: subxt::Error) -> Self {
+impl From<subxt_core::Error> for Error {
+    fn from(err: subxt_core::Error) -> Self {
         Error::Subxt { err }
     }
 }
