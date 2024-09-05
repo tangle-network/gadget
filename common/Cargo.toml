@@ -38,7 +38,7 @@ tangle-subxt = { workspace = true, optional = true }
 getrandom = { workspace = true, features = ["js"] }
 
 [features]
-default = ["substrate", "std", "tangle-testnet"]
+default = ["substrate", "std", "tangle-testnet", "tangle-subxt/default"]
 tangle-testnet = []
 tangle-mainnet = []
 substrate = [
