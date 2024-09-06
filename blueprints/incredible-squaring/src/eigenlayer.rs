@@ -31,6 +31,7 @@ use eigensdk_rs::incredible_squaring_avs::*;
 use incredible_squaring_blueprint::{self as blueprint, IncredibleSquaringTaskManager};
 
 use alloy_signer::k256::PublicKey;
+use eigensdk_rs::eigen_utils::types::{operator_id_from_key_pair, OperatorPubkeys};
 use gadget_common::config::DebugLogger;
 use gadget_sdk::env::{ContextConfig, GadgetConfiguration};
 use gadget_sdk::events_watcher::tangle::TangleConfig;
@@ -67,10 +68,9 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             self.env.logger.info("Skipping registration in test mode");
             return Ok(());
         }
-        // TODO: We need to support BLS254 in addition to BLS381 in our keystore
-
-        // TODO: Register to become an operator
         let keystore = self.env.keystore().map_err(|e| eyre!(e))?;
+        let bls_keypair = self.env.first_bls_bn254_signer().map_err(|e| eyre!(e))?;
+
         let ecdsa_keypair = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
         let ecdsa_key = keystore
             .iter_ecdsa()
@@ -128,9 +128,12 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         let operator_info_service = OperatorInfoService::new(
             types::OperatorInfo {
                 socket: "0.0.0.0:0".to_string(),
-                pubkeys: operator_pubkeys,
+                pubkeys: OperatorPubkeys {
+                    g1_pubkey: bls_keypair.get_pub_key_g1(),
+                    g2_pubkey: bls_keypair.get_pub_key_g2(),
+                },
             },
-            operator_id,
+            operator_id_from_key_pair(&bls_keypair),
             signer.address(),
             node_config.clone(),
         );

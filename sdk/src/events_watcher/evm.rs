@@ -9,6 +9,7 @@ use alloy_rpc_types::{Filter, Log};
 use alloy_sol_types::SolEvent;
 use alloy_transport::Transport;
 use futures::TryFutureExt;
+use std::ops::Deref;
 use std::time::Duration;
 
 pub trait Config: Send + Sync + 'static {
@@ -36,7 +37,7 @@ pub type EventHandlerFor<W, T> = Box<
 pub trait EventHandler<T: Config<N = Ethereum>>: Send + Sync {
     /// The Type of contract this handler is for, Must be the same as the contract type in the
     /// watcher.
-    type Contract: Into<alloy_contract::ContractInstance<T::T, T::P, Ethereum>>
+    type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, Ethereum>>
         + Send
         + Sync
         + 'static;
@@ -103,7 +104,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
     /// A Helper tag used to identify the event watcher during the logs.
     const TAG: &'static str;
     /// The contract that this event watcher is watching.
-    type Contract: Into<alloy_contract::ContractInstance<T::T, T::P, T::N>>
+    type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>
         + Send
         + Sync
         + Clone
@@ -119,7 +120,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
     #[tracing::instrument(
         skip_all,
         fields(
-            address = %contract.clone().into().address(),
+            address = %contract.clone().address(),
             tag = %Self::TAG,
         ),
     )]
@@ -128,12 +129,11 @@ pub trait EventWatcher<T: Config>: Send + Sync {
         contract: Self::Contract,
         handlers: Vec<EventHandlerFor<Self, T>>,
     ) -> Result<(), Error> {
-        let contract_instance = contract.clone().into();
         let local_db = LocalDatabase::new("./db");
         let backoff = backoff::backoff::Constant::new(Duration::from_secs(1));
         let task = || async {
             let step = 100;
-            let chain_id: u64 = contract_instance
+            let chain_id: u64 = contract
                 .provider()
                 .root()
                 .get_chain_id()
@@ -143,7 +143,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
 
             // we only query this once, at the start of the events watcher.
             // then we will update it later once we fully synced.
-            let mut target_block_number: u64 = contract_instance
+            let mut target_block_number: u64 = contract
                 .provider()
                 .get_block_number()
                 .map_err(Into::into)
@@ -151,11 +151,11 @@ pub trait EventWatcher<T: Config>: Send + Sync {
                 .await?;
 
             local_db.set(
-                &format!("TARGET_BLOCK_NUMBER_{}", contract_instance.address()),
+                &format!("TARGET_BLOCK_NUMBER_{}", contract.address()),
                 target_block_number,
             );
 
-            let deployed_at = contract_instance
+            let deployed_at = contract
                 .provider()
                 .get_transaction_receipt(Self::GENESIS_TX_HASH)
                 .await
@@ -166,14 +166,11 @@ pub trait EventWatcher<T: Config>: Send + Sync {
 
             loop {
                 let block = local_db
-                    .get(&format!(
-                        "LAST_BLOCK_NUMBER_{}",
-                        contract_instance.address()
-                    ))
+                    .get(&format!("LAST_BLOCK_NUMBER_{}", contract.address()))
                     .unwrap_or(deployed_at);
                 let dest_block = core::cmp::min(block + step, target_block_number);
 
-                let events_filter = contract_instance.event::<Self::Event>(
+                let events_filter = contract.event::<Self::Event>(
                     Filter::new()
                         .from_block(BlockNumberOrTag::Number(block + 1))
                         .to_block(BlockNumberOrTag::Number(dest_block)),
@@ -217,7 +214,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
                     }
                     if mark_as_handled {
                         local_db.set(
-                            &format!("LAST_BLOCK_NUMBER_{}", contract_instance.address()),
+                            &format!("LAST_BLOCK_NUMBER_{}", contract.address()),
                             log.block_number.unwrap_or_default(),
                         );
                     } else {
@@ -230,7 +227,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
 
                 // move the block pointer to the destination block
                 local_db.set(
-                    &format!("LAST_BLOCK_NUMBER_{}", contract_instance.address()),
+                    &format!("LAST_BLOCK_NUMBER_{}", contract.address()),
                     dest_block,
                 );
                 // if we fully synced, we can update the target block number
@@ -240,14 +237,14 @@ pub trait EventWatcher<T: Config>: Send + Sync {
                     tracing::trace!("Cooldown a bit for {}ms", duration.as_millis());
                     tokio::time::sleep(duration).await;
                     // update the latest block number
-                    target_block_number = contract_instance
+                    target_block_number = contract
                         .provider()
                         .get_block_number()
                         .map_err(Into::into)
                         .map_err(backoff::Error::transient)
                         .await?;
                     local_db.set(
-                        &format!("TARGET_BLOCK_NUMBER_{}", contract_instance.address()),
+                        &format!("TARGET_BLOCK_NUMBER_{}", contract.address()),
                         target_block_number,
                     );
                 }

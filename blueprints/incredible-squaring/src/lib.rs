@@ -11,6 +11,7 @@ use gadget_sdk::job;
 // };
 // use std::{collections::HashMap, convert::Infallible};
 use alloy_contract::{ContractInstance, Interface};
+use alloy_network::Ethereum;
 use alloy_sol_types::private::alloy_json_abi::JsonAbi;
 use std::convert::Infallible;
 use std::ops::Deref;
@@ -50,17 +51,18 @@ impl<T, P> Into<ContractInstance<T, P>> for IncredibleSquaringTaskManagerInstanc
     }
 }
 
-// #[derive(Clone)]
-// pub struct MyContext<RwLock: lock_api::RawRwLock> {
-//     pub network: GossipHandle,
-//     pub keystore: GenericKeyStore<RwLock>,
-// }
-//
-// #[derive(Clone, Debug, Serialize, Deserialize)]
-// pub struct MyMessage {
-//     pub xsquare: U256,
-//     pub signature: Signature,
-// }
+impl<T, P> Deref<Target = ContractInstance<T, P>> for IncredibleSquaringTaskManagerInstance<T, P> {
+    type Target = alloy_contract::ContractInstance<T::T, T::P, Ethereum>;
+
+    fn deref(&self) -> &ContractInstance<T, P> {
+        let provider = self.provider();
+        ContractInstance::<T, P>::new(
+            self.address().clone(),
+            *provider,
+            Interface::new(JsonAbi::from_json_str(include_str!("../contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json")).unwrap()),
+        )
+    }
+}
 
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(

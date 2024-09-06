@@ -25,6 +25,9 @@ schnorrkel = { workspace = true }
 w3f-bls = { workspace = true }
 eigensdk-rs = { workspace = true }
 ark-bn254 = { workspace = true }
+ark-serialize = { workspace = true }
+ark-ff = { workspace = true }
+ark-ec = { workspace = true }
 
 # Metrics deps
 hyper = { workspace = true, features = ["http1", "server"] }

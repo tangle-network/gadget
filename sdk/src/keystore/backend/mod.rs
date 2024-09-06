@@ -123,7 +123,7 @@ impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
         }
     }
 
-    fn bls_bn254_sign(&self, public: &Public, msg: &[u8]) -> Result<Option<Signature>, Error> {
+    fn bls_bn254_sign(&self, public: &Public, msg: &[u8; 32]) -> Result<Option<Signature>, Error> {
         match self {
             Self::Mem(backend) => backend.bls_bn254_sign(public, msg),
             #[cfg(feature = "std")]

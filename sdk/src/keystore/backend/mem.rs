@@ -220,7 +220,7 @@ impl<RwLock: lock_api::RawRwLock> Backend for InMemoryKeystore<RwLock> {
     fn bls_bn254_sign(
         &self,
         public: &bn254::Public,
-        msg: &[u8],
+        msg: &[u8; 32],
     ) -> Result<Option<bn254::Signature>, Error> {
         let mut lock = self.bn254.write();
         let secret = lock.get_mut(&BlsBn254PublicWrapper(public.clone()));

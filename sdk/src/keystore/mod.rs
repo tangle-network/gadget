@@ -158,7 +158,7 @@ pub trait Backend {
     fn bls_bn254_sign(
         &self,
         public: &bn254::Public,
-        msg: &[u8],
+        msg: &[u8; 32],
     ) -> Result<Option<bn254::Signature>, Error>;
     /// Returns the Keypair for the given [`sr25519::Public`] if it does exist, otherwise returns `None`.
     /// # Errors

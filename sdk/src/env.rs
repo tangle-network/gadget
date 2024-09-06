@@ -364,6 +364,27 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
             .map_err(|_| Error::InvalidEcdsaKeypair)
     }
 
+    /// Returns the first BLS BN254 signer keypair from the keystore.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if no ECDSA keypair is found in the keystore.
+    /// or if the keypair seed is invalid.
+    #[doc(alias = "bls_bn254_signer")]
+    pub fn first_bls_bn254_signer(
+        &self,
+    ) -> Result<eigensdk_rs::eigen_utils::crypto::bls::KeyPair, Error> {
+        let keystore = self.keystore()?;
+        let bls_pubkey = crate::keystore::Backend::iter_bls_bn254(&keystore)
+            .next()
+            .ok_or_else(|| Error::NoEcdsaKeypair)?;
+        let bls_secret = crate::keystore::Backend::expose_bls_bn254_secret(&keystore, &bls_pubkey)?
+            .ok_or_else(|| Error::NoEcdsaKeypair)?;
+        Ok(eigensdk_rs::eigen_utils::crypto::bls::KeyPair::new(
+            bls_secret,
+        ))
+    }
+
     /// Returns whether the gadget should run in memory.
     #[must_use]
     pub const fn should_run_in_memory(&self) -> bool {

@@ -1,8 +1,8 @@
 //! Filesystem-based keystore backend.
 
-use std::{fs, io::Write, path::PathBuf};
-
 use crate::keystore::{bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error};
+use ark_serialize::CanonicalSerialize;
+use std::{fs, io::Write, path::PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
@@ -205,7 +205,9 @@ impl Backend for FilesystemKeystore {
         let public = bn254::to_public(&secret);
         let path = self.key_file_path(&public.to_bytes(), KeyType::BlsBn254);
         let mut secret_bytes = Vec::new();
-        secret.serialize_compressed(&mut secret_bytes)?;
+        secret
+            .serialize_uncompressed(&mut secret_bytes)
+            .map_err(|e| Error::BlsBn254(e.to_string()))?;
         Self::write_to_file(path, &secret_bytes)?;
         Ok(public)
     }
@@ -213,7 +215,7 @@ impl Backend for FilesystemKeystore {
     fn bls_bn254_sign(
         &self,
         public: &bn254::Public,
-        msg: &[u8],
+        msg: &[u8; 32],
     ) -> Result<Option<bn254::Signature>, Error> {
         let secret_bytes = self.secret_by_type(&public.to_bytes(), KeyType::BlsBn254)?;
         if let Some(buf) = secret_bytes {
