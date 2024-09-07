@@ -7,6 +7,10 @@ use gadget_common::async_trait::async_trait;
 use gadget_common::channels::UserID;
 use gadget_common::config::DebugLogger;
 use gadget_common::environments::{EventMetadata, GadgetEnvironment};
+use gadget_common::tangle_subxt::subxt::ext::sp_core as sp_core2;
+use gadget_common::tangle_subxt::subxt::tx::PairSigner;
+use gadget_common::tangle_subxt::subxt::tx::Signer;
+use gadget_common::tangle_subxt::subxt::SubstrateConfig;
 use gadget_common::utils::serialize;
 use gadget_common::{subxt_signer, WorkManagerInterface};
 use message::TangleProtocolMessage;
@@ -22,11 +26,12 @@ pub mod runtime;
 pub mod work_manager;
 
 pub type TangleTransactionManager = Arc<dyn TanglePalletSubmitter>;
+pub type TanglePairSigner = PairSigner<SubstrateConfig, sp_core2::sr25519::Pair>;
 
 #[derive(Clone)]
 pub struct TangleEnvironment {
     pub subxt_config: SubxtConfig,
-    pub account_key: subxt_signer::sr25519::Keypair,
+    pub account_key: TanglePairSigner,
     pub logger: DebugLogger,
     pub tx_manager: Arc<parking_lot::Mutex<Option<TangleTransactionManager>>>,
 }
@@ -34,7 +39,7 @@ pub struct TangleEnvironment {
 impl TangleEnvironment {
     pub fn new(
         subxt_config: SubxtConfig,
-        account_key: subxt_signer::sr25519::Keypair,
+        account_key: TanglePairSigner,
         logger: DebugLogger,
     ) -> Self {
         Self {
@@ -103,7 +108,7 @@ impl GadgetEnvironment for TangleEnvironment {
             })?;
 
         let pair_signer = self.account_key.clone();
-        let account_id = pair_signer.public_key().to_account_id();
+        let account_id = pair_signer.account_id().clone();
         let mut lock = self.tx_manager.lock();
 
         if lock.is_none() {

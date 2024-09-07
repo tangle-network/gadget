@@ -39,9 +39,13 @@ pub mod error;
 
 /// Schnorrkel Support
 pub mod sr25519;
-
 pub use error::Error;
 use gadget_common::subxt_signer;
+use tangle_subxt::subxt::ext::sp_core;
+use tangle_subxt::subxt::tx::PairSigner;
+use tangle_subxt::subxt::SubstrateConfig;
+
+pub type TanglePairSigner = PairSigner<SubstrateConfig, sp_core::sr25519::Pair>;
 
 /// Functions that a keystore backend must implement
 ///
@@ -187,7 +191,7 @@ pub trait BackendExt: Backend {
         )
     }
 
-    fn sr25519_key(&self) -> Result<subxt_signer::sr25519::Keypair, Error> {
+    fn sr25519_key(&self) -> Result<TanglePairSigner, Error> {
         let first_key = self
             .iter_sr25519()
             .next()
@@ -195,13 +199,10 @@ pub trait BackendExt: Backend {
         let secret = self
             .expose_sr25519_secret(&first_key)?
             .ok_or_else(|| str_to_std_error("No SR25519 secret found"))?;
-
-        let mut seed = [0u8; 32];
-        seed.copy_from_slice(&secret.to_bytes()[0..32]);
-        Ok(
-            tangle_subxt::subxt_signer::sr25519::Keypair::from_secret_key(seed)
-                .map_err(|err| str_to_std_error(err.to_string()))?,
-        )
+        //et pair = gadget_common::tangle_subxt::subxt::ext::sp_core::sr25519::Pair::from(secret);
+        let schnorrkel_kp = schnorrkel::Keypair::from(secret);
+        let res = PairSigner::new(schnorrkel_kp.into());
+        Ok(res)
     }
 }
 

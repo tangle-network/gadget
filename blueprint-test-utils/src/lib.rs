@@ -2,10 +2,12 @@ use crate::test_ext::NAME_IDS;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use blueprint_manager::sdk::prelude::color_eyre;
+use blueprint_manager::sdk::prelude::tangle_subxt::subxt::SubstrateConfig;
 use blueprint_manager::sdk::prelude::tangle_subxt::subxt_signer::ExposeSecret;
 use cargo_tangle::deploy::Opts;
-use gadget_common::prelude::DebugLogger;
-use gadget_common::subxt_signer::{ecdsa, sr25519};
+use gadget_common::prelude::{DebugLogger, PairSigner};
+use gadget_common::subxt_signer::sr25519::SecretKeyBytes;
+use gadget_common::subxt_signer::{ecdsa, sr25519, SecretUri};
 use gadget_common::tangle_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
 use gadget_common::tangle_runtime::api::services::calls::types::register::{
@@ -16,16 +18,24 @@ use gadget_common::tangle_runtime::{api, AccountId32};
 use gadget_common::tangle_subxt::subxt::OnlineClient;
 pub use gadget_core::job::SendFuture;
 use gadget_io::{GadgetConfig, SupportedChains};
+use gadget_sdk::keystore;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
-use gadget_sdk::keystore::BackendExt;
+use gadget_sdk::keystore::{Backend, BackendExt, TanglePairSigner};
+use gadget_sdk::tangle_subxt::subxt::tx::Signer;
+use gadget_sdk::tangle_subxt::subxt::Config;
+use gadget_sdk::tangle_subxt::subxt_signer;
 use libp2p::Multiaddr;
 pub use log;
+use schnorrkel::SecretKey;
+use sp_core::crypto::DEV_PHRASE;
+use sp_core::Pair as PairT;
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::Duration;
+use subxt::ext::sp_core::Pair;
 use tangle_environment::runtime::TangleConfig;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::fmt::SubscriberBuilder;
@@ -119,83 +129,51 @@ async fn inject_test_keys<P: AsRef<Path>>(
     let path = keystore_path.as_ref();
     let name = NAME_IDS[node_index];
     tokio::fs::create_dir_all(path).await?;
-    // Format: (name, sr public key, sr private key, sr public key, sr private key)
-    const TEST_KEYS: [(
-        &'static str,
-        &'static str,
-        &'static str,
-        &'static str,
-        &'static str,
-    ); 5] = [
-        (
-            "Alice",
-            "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
-            "e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a",
-            "020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1",
-            "cb6df9de1efca7a3998a8ead4e02159d5fa99c3e0d4fd6432667390bb4726854",
-        ),
-        (
-            "Bob",
-            "8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48",
-            "398f0c28f98885e046333d4a41c19cee4c37368a9832c6502f6cfd182e2aef89",
-            "0390084fdbf27d2b79d26a4f13f0ccd982cb755a661969143c37cbc49ef5b91f27",
-            "79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf",
-        ),
-        (
-            "Charlie",
-            "90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22",
-            "bc1ede780f784bb6991a585e4f6e61522c14e1cae6ad0895fb57b9a205a8f938",
-            "0389411795514af1627765eceffcbd002719f031604fadd7d188e2dc585b4e1afb",
-            "f8d74108dbe199c4a6e4ef457046db37c325ba3f709b14cabfa1885663e4c589",
-        ),
-        (
-            "Dave",
-            "306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20",
-            "868020ae0687dda7d57565093a69090211449845a7e11453612800b663307246",
-            "03bc9d0ca094bd5b8b3225d7651eac5d18c1c04bf8ae8f8b263eebca4e1410ed0c",
-            "fa6ba451077fecce7510092e307338e04150ffccc7224c13561a2b079935a5f7",
-        ),
-        (
-            "Eve",
-            "e659a7a1628cdd93febc04a4e0646ea20e9f5f0ce097d9a05290d4a9e054df4e",
-            "786ad0e2df456fe43dd1f91ebca22e235bc162e0bb8d53c633e8c85b2af68b7a",
-            "031d10105e323c4afce225208f71a6441ee327a65b9e646e772500c74d31f669aa",
-            "6b30a5e36f608b73e54665c094f97e221554157fcd03e8be7e25ad32f0e1e5b4",
-        ),
-    ];
 
-    let (_, sr_public_key, sr_private_key, ecdsa_public_key, ecdsa_private_key) = TEST_KEYS
-        .iter()
-        .find(|(n, _, _, _, _)| *n == name)
-        .expect("Invalid test name");
+    let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
+        keystore_path.as_ref(),
+    )?);
 
-    // Use prefixes to ensure that the keys are designated as sr25519/ecdsa in the filename
-    // 0000 - the prefix for sr25519 keys
-    // 0002 - the prefix for ecdsa keys
-    inject_inner(path, "0000", sr_public_key, sr_private_key).await?;
-    inject_inner(path, "0002", ecdsa_public_key, ecdsa_private_key).await?;
+    let suri = format!("//{name}"); // <---- is the exact same as the ones in the chainspec
 
-    // Sanity checks for testing before proceeding
-    // Per the subxt_signer::SecretUri format, we are using the "Parse DEV_PHRASE secret URI with hex phrase and junction" format
-    // which is of type 0x{hex_phrase}//{name}
-    let sr_suri =
-        gadget_common::subxt_signer::SecretUri::from_str(&format!("0x{sr_private_key}//{name}"))
-            .expect("Should be valid SURI");
-    assert_eq!(
-        sr_suri.phrase.expose_secret(),
-        &format!("0x{sr_private_key}")
+    let sr = sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
+    // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
+    let sr_seed = &sr.as_ref().secret.to_bytes();
+
+    let ecdsa =
+        sp_core::ecdsa::Pair::from_string(&suri, None).expect("Should be valid ECDSA keypair");
+    // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
+    let ecdsa_seed = ecdsa.seed();
+    println!("SR25519 SEED: {sr_seed:?}");
+    println!("ECDSA SEED: {ecdsa_seed:?}");
+    keystore
+        .sr25519_generate_new(Some(sr_seed))
+        .expect("Should be valid SR25519 seed");
+    keystore
+        .ecdsa_generate_new(Some(&ecdsa_seed))
+        .expect("Should be valid ECDSA seed");
+
+    let sr = sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
+
+    let bytes: [u8; 64] = sr.as_ref().secret.to_bytes();
+    let secret_key_again =
+        gadget_sdk::keystore::sr25519::secret_from_bytes(&bytes).expect("Should be valid");
+    assert_eq!(&bytes[..], &secret_key_again.to_bytes()[..]);
+    let mut slice = [0u8; 32];
+    slice.copy_from_slice(&bytes[..32]);
+
+    use gadget_common::tangle_subxt::subxt::ext::sp_core as sp_core2;
+    let sr2: TanglePairSigner = TanglePairSigner::new(
+        sp_core2::sr25519::Pair::from_seed_slice(&bytes).expect("Should be valid SR25519 keypair"),
     );
 
-    // For testing purposes, ensure loading the keys work
-    let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(
-        FilesystemKeystore::open(path).expect("Unable to create Keystore"),
-    );
+    let sr1_account_id: AccountId32 = AccountId32(sr.as_ref().public.to_bytes());
+    let sr2_account_id: AccountId32 = sr2.account_id().clone();
+    assert_eq!(sr1_account_id, sr2_account_id);
 
     match keystore.ecdsa_key() {
-        Ok(_ecdsa_key) => {
-            /*let ecdsa_keypair =
-                ecdsa::Keypair::from_uri(&sr_suri).expect("Failed to create ecdsa keypair");
-            assert_eq!(ecdsa_keypair.0.secret_bytes(), ecdsa_key.0.secret_bytes());*/
+        Ok(ecdsa_key) => {
+            assert_eq!(ecdsa_key.0.secret_bytes(), ecdsa_seed);
         }
         Err(err) => {
             log::error!(target: "gadget", "Failed to load ecdsa key: {err}");
@@ -204,16 +182,13 @@ async fn inject_test_keys<P: AsRef<Path>>(
     }
 
     match keystore.sr25519_key() {
-        Ok(_sr25519_key) => {}
+        Ok(sr25519_key) => {
+            assert_eq!(sr25519_key.signer().public().0, sr.public().0);
+        }
         Err(err) => {
             log::error!(target: "gadget", "Failed to load sr25519 key: {err}");
             panic!("Failed to load sr25519 key: {err}");
         }
-    }
-
-    if name == "Alice" {
-        log::error!(target: "gadget", "We know it works for Alice. Remove this to see others fail");
-        std::process::exit(1);
     }
 
     Ok(())
@@ -250,7 +225,7 @@ pub fn setup_log() {
 
 pub async fn create_blueprint(
     client: &TestClient,
-    account_id: &sr25519::Keypair,
+    account_id: &TanglePairSigner,
     blueprint: Blueprint,
 ) -> Result<(), Box<dyn Error>> {
     let call = api::tx().services().create_blueprint(blueprint);
@@ -264,7 +239,7 @@ pub async fn create_blueprint(
 
 pub async fn join_delegators(
     client: &TestClient,
-    account_id: &sr25519::Keypair,
+    account_id: &TanglePairSigner,
 ) -> Result<(), Box<dyn Error>> {
     let call_pre = api::tx()
         .multi_asset_delegation()
@@ -279,7 +254,7 @@ pub async fn join_delegators(
 
 pub async fn register_blueprint(
     client: &TestClient,
-    account_id: &sr25519::Keypair,
+    account_id: &TanglePairSigner,
     blueprint_id: u64,
     preferences: Preferences,
     registration_args: RegistrationArgs,
@@ -301,7 +276,7 @@ pub async fn register_blueprint(
 
 pub async fn submit_job(
     client: &TestClient,
-    user: &sr25519::Keypair,
+    user: &TanglePairSigner,
     service_id: u64,
     job_type: Job,
     job_params: Args,
@@ -319,7 +294,7 @@ pub async fn submit_job(
 /// to make a call to run a service, and will have all nodes running the service.
 pub async fn register_service(
     client: &TestClient,
-    user: &sr25519::Keypair,
+    user: &TanglePairSigner,
     blueprint_id: u64,
     test_nodes: Vec<AccountId32>,
 ) -> Result<(), Box<dyn Error>> {

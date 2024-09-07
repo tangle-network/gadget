@@ -110,6 +110,7 @@ impl FilesystemKeystore {
 impl Backend for FilesystemKeystore {
     fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public, Error> {
         let secret = sr25519::generate_with_optional_seed(seed)?;
+        println!("[SR-add] Secret bytes len=64: {:?}", secret.to_bytes());
         let public = secret.to_public();
         let path = self.key_file_path(public.as_ref(), KeyType::Sr25519);
         Self::write_to_file(path, &secret.to_bytes())?;
@@ -210,7 +211,9 @@ impl Backend for FilesystemKeystore {
             secret_bytes.as_ref().map(|r| r.len()).unwrap_or_default()
         );
         if let Some(buf) = secret_bytes {
-            Ok(Some(sr25519::secret_from_bytes(&buf)?))
+            let secret = sr25519::secret_from_bytes(&buf)?;
+            println!("[SR-after] Secret bytes len=64: {:?}", secret.to_bytes());
+            Ok(Some(secret))
         } else {
             Ok(None)
         }

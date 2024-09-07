@@ -17,6 +17,7 @@
 use crate::PerTestNodeInput;
 use async_trait::async_trait;
 use blueprint_manager::executor::BlueprintManagerHandle;
+use blueprint_manager::sdk::prelude::tangle_subxt::subxt::tx::Signer;
 use cargo_tangle::deploy::{Opts, PrivateKeySigner};
 use environment_utils::transaction_manager::tangle::SubxtPalletSubmitter;
 use futures::stream::FuturesOrdered;
@@ -226,7 +227,7 @@ pub async fn new_test_ext_blueprint_manager<
         let priv_key = PrivateKeySigner::from_slice(&k256_ecdsa_secret_key)
             .expect("Should create a private key signer");
 
-        let tg_addr = handle.sr25519_id().public_key().to_account_id();
+        let tg_addr = handle.sr25519_id().account_id();
         let evm_addr = handle.ecdsa_id().public_key().to_account_id();
         handle
             .logger()
@@ -285,10 +286,9 @@ pub async fn new_test_ext_blueprint_manager<
             if let Err(err) = super::join_delegators(&client, &keypair).await {
                 let err_str = format!("{err}");
                 if err_str.contains("MultiAssetDelegation::AlreadyOperator") {
-                    handle.logger().warn(format!(
-                        "{} is already an operator",
-                        keypair.public_key().to_account_id()
-                    ));
+                    handle
+                        .logger()
+                        .warn(format!("{} is already an operator", keypair.account_id()));
                 } else {
                     handle
                         .logger()
@@ -326,7 +326,7 @@ pub async fn new_test_ext_blueprint_manager<
     // Step 3: register a service
     let all_nodes = handles
         .iter()
-        .map(|handle| handle.sr25519_id().public_key().to_account_id())
+        .map(|handle| handle.sr25519_id().account_id().clone())
         .collect();
 
     // Use Alice's account to register the service

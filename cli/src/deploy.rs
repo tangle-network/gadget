@@ -8,10 +8,14 @@ use gadget_blueprint_proc_macro_core::{
 pub use k256;
 use std::fmt::Debug;
 use std::path::PathBuf;
-use tangle_subxt::subxt::{self, PolkadotConfig};
+use tangle_subxt::subxt::ext::sp_core;
+use tangle_subxt::subxt::tx::PairSigner;
+use tangle_subxt::subxt::{self, PolkadotConfig, SubstrateConfig};
 use tangle_subxt::subxt_signer::sr25519;
 use tangle_subxt::tangle_testnet_runtime::api as TangleApi;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types;
+
+pub type TanglePairSigner = PairSigner<SubstrateConfig, sp_core::sr25519::Pair>;
 
 #[derive(Clone)]
 pub struct Opts {
@@ -22,7 +26,7 @@ pub struct Opts {
     /// The path to the manifest file
     pub manifest_path: std::path::PathBuf,
     /// The signer for deploying the blueprint
-    pub signer: Option<sr25519::Keypair>,
+    pub signer: Option<TanglePairSigner>,
     /// The signer for deploying the smart contract
     pub signer_evm: Option<PrivateKeySigner>,
 }
@@ -77,8 +81,8 @@ pub async fn deploy_to_tangle(
         crate::signer::load_signer_from_env()?
     };
 
-    let my_account_id = signer.public_key().to_account_id();
-    let client = subxt::OnlineClient::<PolkadotConfig>::from_url(rpc_url).await?;
+    let my_account_id = signer.account_id();
+    let client = subxt::OnlineClient::<SubstrateConfig>::from_url(rpc_url).await?;
 
     let create_blueprint_tx = TangleApi::tx().services().create_blueprint(blueprint);
 
@@ -90,7 +94,7 @@ pub async fn deploy_to_tangle(
     let event = result
         .find::<TangleApi::services::events::BlueprintCreated>()
         .flatten()
-        .find(|e| e.owner == my_account_id)
+        .find(|e| e.owner.0 == my_account_id.0)
         .context("Finding the `BlueprintCreated` event")
         .map_err(|e| {
             eyre::eyre!(

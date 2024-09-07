@@ -71,6 +71,8 @@ sp-npos-elections = { workspace = true }
 sp-session = { workspace = true }
 gadget-sdk = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
+schnorrkel = { workspace = true }
+subxt = { workspace = true, features = ["substrate-compat"] }
 
 # Pallets
 pallet-timestamp = { workspace = true }

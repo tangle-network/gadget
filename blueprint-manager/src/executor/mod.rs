@@ -12,7 +12,7 @@ use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::GadgetConfig;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
-use gadget_sdk::keystore::BackendExt;
+use gadget_sdk::keystore::{BackendExt, TanglePairSigner};
 use sp_core::H256;
 use std::collections::HashMap;
 use std::future::Future;
@@ -23,6 +23,7 @@ use tangle_environment::gadget::SubxtConfig;
 use tangle_environment::runtime::TangleRuntime;
 use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::blocks::BlockRef;
+use tangle_subxt::subxt::tx::{PairSigner, Signer};
 use tangle_subxt::subxt::{Config, SubstrateConfig};
 use tokio::task::JoinHandle;
 
@@ -47,9 +48,7 @@ pub struct BlueprintManagerHandle {
     start_tx: Option<tokio::sync::oneshot::Sender<()>>,
     process: JoinHandle<color_eyre::Result<()>>,
     logger: DebugLogger,
-    // sr25519_id: sp_core::sr25519::Pair,
-    // ecdsa_id: sp_core::ecdsa::Pair,
-    sr25519_id: subxt_signer::sr25519::Keypair,
+    sr25519_id: TanglePairSigner,
     ecdsa_id: subxt_signer::ecdsa::Keypair,
 }
 
@@ -71,12 +70,8 @@ impl BlueprintManagerHandle {
     }
 
     /// Returns the SR25519 keypair for this blueprint manager
-    pub fn sr25519_id(&self) -> &subxt_signer::sr25519::Keypair {
+    pub fn sr25519_id(&self) -> &TanglePairSigner {
         &self.sr25519_id
-    }
-
-    pub fn expose_ecdsa_secret(&self) -> [u8; 32] {
-        self.ecdsa_id.0.secret_bytes()
     }
 
     /// Returns the ECDSA keypair for this blueprint manager
@@ -153,7 +148,6 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let logger_clone = logger.clone();
 
     let (tangle_key, ecdsa_key) = {
-        // For ordinary runs, we will default to the keystore path
         let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
             &gadget_config.base_path,
         )?);
@@ -165,7 +159,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         (sr_key, ecdsa_key)
     };
 
-    let sub_account_id = tangle_key.public_key().to_account_id();
+    let sub_account_id = tangle_key.account_id().clone();
     let subxt_config = SubxtConfig {
         endpoint: gadget_config.url.clone(),
     };

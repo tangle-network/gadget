@@ -49,7 +49,7 @@ sp-io = { workspace = true }
 
 # Event Watchers and Handlers
 backoff = { workspace = true }
-subxt = { workspace = true }
+subxt = { workspace = true, features = ["substrate-compat"] }
 tangle-subxt = { workspace = true }
 
 # EVM Event Watchers and Handlers
