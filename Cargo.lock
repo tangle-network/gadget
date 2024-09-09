@@ -1326,9 +1326,9 @@ checksum = "8b75356056920673b02621b35afd0f7dda9306d03c79a30f5c56c44cf256e3de"
 
 [[package]]
 name = "async-trait"
-version = "0.1.81"
+version = "0.1.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e0c28dcc82d7c8ead5cb13beb15405b57b8546e93215673ff8ca0349a028107"
+checksum = "a27b8a3a6e1a44fa4c8baf1f653e4172e81486d4941f2237e20dc2d0cf4ddff1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4309,7 +4309,6 @@ dependencies = [
  "sp-runtime 39.0.0",
  "sqlx",
  "substrate-prometheus-endpoint",
- "subxt",
  "subxt-signer",
  "tangle-subxt",
  "thiserror 1.0.61",
@@ -4411,6 +4410,7 @@ dependencies = [
  "sp-core 34.0.0",
  "sp-io 38.0.0",
  "subxt",
+ "subxt-signer",
  "sysinfo",
  "tangle-subxt",
  "thiserror 1.0.61",
@@ -11824,14 +11824,13 @@ dependencies = [
 
 [[package]]
 name = "tangle-subxt"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4552f79989b8ac33dd612cd9292b90401bdb8dbfd91de1c689ea944ffd31e2d2"
+version = "0.3.0"
 dependencies = [
  "parity-scale-codec 3.6.12",
  "scale-info",
  "serde",
  "subxt",
+ "subxt-core",
  "subxt-signer",
 ]
 

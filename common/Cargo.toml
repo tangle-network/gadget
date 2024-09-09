@@ -31,7 +31,6 @@ sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true, features = ["disable_allocator", "disable_panic_handler", "disable_oom"] }
 sp-runtime = { workspace = true, features = ["serde"] }
 substrate-prometheus-endpoint = { workspace = true, optional = true }
-subxt = { workspace = true, optional = true }
 subxt-signer = { workspace = true, features = ["subxt", "sr25519"], optional = true }
 tangle-subxt = { workspace = true, optional = true }
 
@@ -39,7 +38,7 @@ tangle-subxt = { workspace = true, optional = true }
 getrandom = { workspace = true, features = ["js"] }
 
 [features]
-default = ["substrate", "std", "tangle-testnet", "subxt/native"]
+default = ["substrate", "std", "tangle-testnet"]
 tangle-testnet = []
 tangle-mainnet = []
 substrate = [
@@ -47,9 +46,7 @@ substrate = [
     "dep:tangle-subxt",
     "dep:substrate-prometheus-endpoint",
     "dep:subxt-signer",
-    "dep:subxt",
     "gadget-core/substrate",
-    "subxt/jsonrpsee",
 ]
 std = [
     "dep:sqlx",
@@ -58,6 +55,7 @@ std = [
     "serde/std",
     "sp-io/std",
     "sp-runtime/std",
+    "tangle-subxt?/std",
 ]
-wasm = ["subxt-signer?/web", "subxt?/web", "subxt?/jsonrpsee"]
+wasm = ["subxt-signer?/web", "tangle-subxt?/web"]
 testing = []

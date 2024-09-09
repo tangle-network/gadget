@@ -21,15 +21,18 @@ pub mod keystore;
 pub mod random;
 
 /// Blockchain Events Watcher Module
+#[cfg(any(feature = "std", feature = "wasm"))]
 pub mod events_watcher;
 
 /// Gadget Environment Module
 pub mod env;
 
 /// Local database storage
+#[cfg(feature = "std")]
 pub mod store;
 
 /// Transaction Management Module
+#[cfg(any(feature = "std", feature = "wasm"))]
 pub mod tx;
 
 pub use tangle_subxt;
@@ -44,7 +47,9 @@ pub mod slashing;
 #[cfg(feature = "std")]
 pub mod benchmark;
 
+// TODO: Currently uses `StdGadgetConfiguration`
 /// Gadget Runner Module
+#[cfg(feature = "std")]
 pub mod run;
 
 pub use gadget_blueprint_proc_macro::*;

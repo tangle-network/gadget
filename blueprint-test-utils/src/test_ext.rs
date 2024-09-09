@@ -26,7 +26,9 @@ use gadget_common::prelude::{
     PrometheusConfig, UnboundedReceiver, UnboundedSender,
 };
 use gadget_common::tangle_runtime::api;
-use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::ApprovalPrefrence;
+use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::{
+    ApprovalPrefrence, PriceTargets,
+};
 use gadget_common::tangle_runtime::api::services::calls::types::register::{
     Preferences, RegistrationArgs,
 };
@@ -255,6 +257,13 @@ pub async fn new_test_ext_blueprint_manager<
         let preferences = Preferences {
             key,
             approval: ApprovalPrefrence::None,
+            price_targets: PriceTargets {
+                cpu: 0,
+                mem: 0,
+                storage_hdd: 0,
+                storage_ssd: 0,
+                storage_nvme: 0,
+            },
         };
 
         super::register_blueprint(

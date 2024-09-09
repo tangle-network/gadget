@@ -1,5 +1,6 @@
 use super::error::GadgetError;
 use super::AbstractGadget;
+use gadget_io::tokio;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -36,7 +37,7 @@ impl<'a> GadgetManager<'a> {
                 }
             };
 
-            gadget_io::tokio::select! {
+            tokio::select! {
                 res0 = finality_notification_task => res0,
                 res1 = protocol_message_task => res1
             }

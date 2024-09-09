@@ -14,7 +14,7 @@ elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
 getrandom = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
 lock_api = { workspace = true }
-parking_lot = { workspace = true }
+parking_lot = { workspace = true, optional = true }
 rand = { version = "0.8", default-features = false, features = ["alloc"] }
 thiserror = { workspace = true }
 
@@ -25,9 +25,9 @@ schnorrkel = { workspace = true }
 w3f-bls = { workspace = true }
 
 # Metrics deps
-hyper = { workspace = true, features = ["http1", "server"] }
+hyper = { workspace = true, features = ["http1", "server"], optional = true }
 prometheus = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"], optional = true }
 
 # Logging deps
 log = { workspace = true }
@@ -38,8 +38,8 @@ async-trait = { workspace = true }
 bincode = { workspace = true }
 futures = { workspace = true }
 gadget-core = { workspace = true, features = ["substrate"] }
-gadget-common = { workspace = true, features = ["default"] }
-gadget-io = { workspace = true, features = ["std"] }
+gadget-common = { workspace = true, features = ["substrate"] }
+gadget-io = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
@@ -49,8 +49,9 @@ sp-io = { workspace = true }
 
 
 # Event Watchers and Handlers
-backoff = { workspace = true }
-subxt = { workspace = true }
+backoff = { workspace = true, optional = true }
+subxt = { workspace = true, optional = true }
+subxt-signer = { workspace = true, features = ["sr25519"] }
 tangle-subxt = { workspace = true }
 
 # EVM Event Watchers and Handlers
@@ -103,14 +104,29 @@ hyper = { workspace = true, features = ["client"] }
 default = ["std"]
 
 std = [
+    "dep:backoff",
+    "dep:parking_lot",
+    "dep:hyper",
+    "dep:subxt",
+    "dep:tokio",
+    "backoff/tokio",
     "getrandom",
+    "gadget-common/std",
+    "gadget-io/std",
     "hex/std",
     "rand/std",
     "rand/std_rng",
     "sp-io/std",
+    "subxt/native",
+    "tangle-subxt/std",
 ]
 wasm = [
+    "dep:backoff",
+    "dep:subxt",
+    "backoff/wasm-bindgen",
     "getrandom/js",
+    "subxt/web",
+    "tangle-subxt/web",
 ]
 
 # Randomness

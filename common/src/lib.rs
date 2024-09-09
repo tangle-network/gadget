@@ -44,6 +44,7 @@ pub mod prelude {
     pub use crate::client::*;
     #[cfg(all(feature = "std", feature = "substrate"))]
     pub use crate::config::*;
+    pub use crate::debug_logger::DebugLogger;
     pub use crate::environments::*;
     #[cfg(all(feature = "std", feature = "substrate"))]
     pub use crate::full_protocol::{FullProtocolConfig, NodeInput};
@@ -78,7 +79,10 @@ pub use tangle_subxt;
 
 #[cfg(feature = "substrate")]
 pub mod tangle_runtime {
-    pub use tangle_subxt::subxt::utils::AccountId32;
+    #[cfg(feature = "std")]
+    pub use tangle_subxt::subxt::ext::subxt_core::utils::AccountId32;
+    #[cfg(not(feature = "std"))]
+    pub use tangle_subxt::subxt_core::utils::AccountId32;
     pub use tangle_subxt::tangle_testnet_runtime::api;
     pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 }
@@ -157,7 +161,10 @@ pub enum Error {
     },
     #[cfg(feature = "substrate")]
     Subxt {
-        err: subxt::Error,
+        #[cfg(all(feature = "substrate", feature = "std"))]
+        err: tangle_subxt::subxt::Error,
+        #[cfg(all(feature = "substrate", not(feature = "std")))]
+        err: tangle_subxt::subxt_core::Error,
     },
     Other {
         err: String,
@@ -184,9 +191,16 @@ impl From<JobError> for Error {
     }
 }
 
-#[cfg(feature = "substrate")]
-impl From<subxt::Error> for Error {
-    fn from(err: subxt::Error) -> Self {
+#[cfg(all(feature = "substrate", not(feature = "std")))]
+impl From<tangle_subxt::subxt_core::Error> for Error {
+    fn from(err: tangle_subxt::subxt_core::Error) -> Self {
+        Error::Subxt { err }
+    }
+}
+
+#[cfg(all(feature = "substrate", feature = "std"))]
+impl From<tangle_subxt::subxt::Error> for Error {
+    fn from(err: tangle_subxt::subxt::Error) -> Self {
         Error::Subxt { err }
     }
 }

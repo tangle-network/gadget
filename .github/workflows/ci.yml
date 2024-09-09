@@ -1,10 +1,11 @@
-name: Validate PR
+name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [ main ]
   push:
-    branches: [main]
+    branches: [ main ]
+  workflow_dispatch:
 
 concurrency:
   group: rust-validation-${{ github.head_ref }}
@@ -32,17 +33,54 @@ jobs:
       - name: Check Formatting
         run: cargo fmt -- --check
 
+  features:
+    timeout-minutes: 90
+    name: Test building with each feature
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [
+          gadget-core,
+          gadget-common,
+          gadget-sdk,
+        ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+
+      - name: Ensure wasm32-unknown-unknown is installed
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Test each feature
+        run: cargo hack test --each-feature --exclude-features wasm --package=${{ matrix.package }}
+
+  # TODO
+  #      - name: Test wasm build
+  #        run: cargo hack build --target wasm32-unknown-unknown --package=${{ matrix.package }} --no-default-features --features wasm --ignore-unknown-features
+
   linting:
     timeout-minutes: 120
     name: cargo clippy
     runs-on: macos-latest
     strategy:
-        matrix:
-            package: [
-              gadget-core,
-              gadget-common,
-              blueprint-manager
-            ]
+      matrix:
+        package: [
+          gadget-core,
+          gadget-common,
+          blueprint-manager
+        ]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -67,12 +105,12 @@ jobs:
     name: cargo test
     runs-on: macos-14
     strategy:
-        matrix:
-            package: [
-              gadget-core,
-              gadget-common,
-              blueprint-manager,
-            ]
+      matrix:
+        package: [
+          gadget-core,
+          gadget-common,
+          blueprint-manager,
+        ]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -98,36 +136,4 @@ jobs:
         run: cargo install cargo-nextest --locked
 
       - name: tests
-        run: cargo nextest run --release --nocapture --package ${{ matrix.package }}
-
-  wasm_checks:
-    timeout-minutes: 90
-    name: WASM checks
-    if: false # Disabled for now
-    runs-on: macos-14
-    steps:
-      - name: checkout code
-        uses: actions/checkout@v2
-
-      - name: install rust
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          toolchain: stable
-
-      - uses: swatinem/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-
-      - name: install protobuf
-        run: brew install protobuf gmp
-
-      - name: Set Relevant M1 env vars
-        run: |
-          export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
-          export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
-
-      - name: Ensure wasm32-unknown-unknown is installed
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Run wasm checks
-        run: cargo test --target wasm32-unknown-unknown --package=gadget-core --package=gadget-common --no-default-features --features wasm
+        run: cargo nextest run --nocapture --package ${{ matrix.package }}

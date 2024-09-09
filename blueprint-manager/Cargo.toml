@@ -37,5 +37,5 @@ default = ["std"]
 std = [
     "gadget-common/std",
     "gadget-io/std",
-    "gadget-sdk/std",
+    "gadget-sdk/default",
 ]

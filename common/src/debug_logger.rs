@@ -1,4 +1,3 @@
-#[cfg(not(feature = "std"))]
 use alloc::string::String;
 use core::fmt::Display;
 
