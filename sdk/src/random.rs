@@ -20,7 +20,7 @@ pub fn getrandom_or_panic() -> impl RngCore + CryptoRng {
 /// Returns `OsRng` with `getrandom`, or a `CryptoRng` which panics without `getrandom`.
 #[cfg(not(feature = "getrandom"))]
 pub fn getrandom_or_panic() -> impl RngCore + CryptoRng {
-    const PRM: &'static str = "Attempted to use functionality that requires system randomness!!";
+    const PRM: &str = "Attempted to use functionality that requires system randomness!!";
 
     // TODO: Should we panic when invoked or when used?
 

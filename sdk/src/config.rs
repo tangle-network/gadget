@@ -248,10 +248,10 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
         let keystore = self.keystore()?;
         let sr25519_pubkey = crate::keystore::Backend::iter_sr25519(&keystore)
             .next()
-            .ok_or_else(|| Error::NoSr25519Keypair)?;
+            .ok_or(Error::NoSr25519Keypair)?;
         let sr25519_secret =
             crate::keystore::Backend::expose_sr25519_secret(&keystore, &sr25519_pubkey)?
-                .ok_or_else(|| Error::NoSr25519Keypair)?;
+                .ok_or(Error::NoSr25519Keypair)?;
 
         let mut seed = [0u8; 32];
         seed.copy_from_slice(&sr25519_secret.to_bytes()[0..32]);
@@ -270,9 +270,9 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
         let keystore = self.keystore()?;
         let ecdsa_pubkey = crate::keystore::Backend::iter_ecdsa(&keystore)
             .next()
-            .ok_or_else(|| Error::NoEcdsaKeypair)?;
+            .ok_or(Error::NoEcdsaKeypair)?;
         let ecdsa_secret = crate::keystore::Backend::expose_ecdsa_secret(&keystore, &ecdsa_pubkey)?
-            .ok_or_else(|| Error::NoEcdsaKeypair)?;
+            .ok_or(Error::NoEcdsaKeypair)?;
 
         let mut seed = [0u8; 32];
         seed.copy_from_slice(&ecdsa_secret.to_bytes()[0..32]);
