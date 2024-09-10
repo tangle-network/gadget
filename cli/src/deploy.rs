@@ -10,8 +10,7 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 use tangle_subxt::subxt::ext::sp_core;
 use tangle_subxt::subxt::tx::PairSigner;
-use tangle_subxt::subxt::{self, PolkadotConfig, SubstrateConfig};
-use tangle_subxt::subxt_signer::sr25519;
+use tangle_subxt::subxt::{self, SubstrateConfig};
 use tangle_subxt::tangle_testnet_runtime::api as TangleApi;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types;
 
@@ -310,18 +309,21 @@ fn bake_blueprint(
         .expect("Should be at least one gadget");
     let sources = gadget["sources"].as_array_mut().expect("Should be a list");
 
-    for source in sources {
-        for fetcher in source["fetcher"].as_object_mut() {
-            let (_, fetcher_fields) = fetcher
+    for (idx, source) in sources.iter_mut().enumerate() {
+        if let Some(fetchers) = source["fetcher"].as_object_mut() {
+            let fetcher_fields = fetchers
                 .iter_mut()
                 .next()
-                .expect("Should be at least one fetcher");
+                .expect("Should be at least one fetcher")
+                .1;
             for (_key, value) in fetcher_fields
                 .as_object_mut()
                 .expect("Fetcher should be a map")
             {
                 convert_to_bytes_or_null(value);
             }
+        } else {
+            panic!("The source at index {idx} does not have a valid fetcher");
         }
     }
 

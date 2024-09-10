@@ -47,6 +47,8 @@ serde_json = { workspace = true }
 sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
 
+
+
 # Event Watchers and Handlers
 backoff = { workspace = true }
 subxt = { workspace = true, features = ["substrate-compat"] }
@@ -77,6 +79,7 @@ nix = { workspace = true }
 sysinfo = { workspace = true }
 
 structopt = { workspace = true }
+url = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true

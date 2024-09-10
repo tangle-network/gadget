@@ -2,12 +2,8 @@ use crate::test_ext::NAME_IDS;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use blueprint_manager::sdk::prelude::color_eyre;
-use blueprint_manager::sdk::prelude::tangle_subxt::subxt::SubstrateConfig;
-use blueprint_manager::sdk::prelude::tangle_subxt::subxt_signer::ExposeSecret;
 use cargo_tangle::deploy::Opts;
-use gadget_common::prelude::{DebugLogger, PairSigner};
-use gadget_common::subxt_signer::sr25519::SecretKeyBytes;
-use gadget_common::subxt_signer::{ecdsa, sr25519, SecretUri};
+use gadget_common::prelude::DebugLogger;
 use gadget_common::tangle_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
 use gadget_common::tangle_runtime::api::services::calls::types::register::{
@@ -22,18 +18,12 @@ use gadget_sdk::keystore;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
 use gadget_sdk::keystore::{Backend, BackendExt, TanglePairSigner};
-use gadget_sdk::tangle_subxt::subxt::tx::Signer;
-use gadget_sdk::tangle_subxt::subxt::Config;
-use gadget_sdk::tangle_subxt::subxt_signer;
 use libp2p::Multiaddr;
 pub use log;
-use schnorrkel::SecretKey;
-use sp_core::crypto::DEV_PHRASE;
 use sp_core::Pair as PairT;
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::time::Duration;
 use subxt::ext::sp_core::Pair;
 use tangle_environment::runtime::TangleConfig;
@@ -144,8 +134,7 @@ async fn inject_test_keys<P: AsRef<Path>>(
         sp_core::ecdsa::Pair::from_string(&suri, None).expect("Should be valid ECDSA keypair");
     // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
     let ecdsa_seed = ecdsa.seed();
-    println!("SR25519 SEED: {sr_seed:?}");
-    println!("ECDSA SEED: {ecdsa_seed:?}");
+
     keystore
         .sr25519_generate_new(Some(sr_seed))
         .expect("Should be valid SR25519 seed");
@@ -153,14 +142,11 @@ async fn inject_test_keys<P: AsRef<Path>>(
         .ecdsa_generate_new(Some(&ecdsa_seed))
         .expect("Should be valid ECDSA seed");
 
-    let sr = sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
-
+    // Perform sanity checks on conversions between secrets to ensure
+    // consistency as the program executes
     let bytes: [u8; 64] = sr.as_ref().secret.to_bytes();
-    let secret_key_again =
-        gadget_sdk::keystore::sr25519::secret_from_bytes(&bytes).expect("Should be valid");
+    let secret_key_again = keystore::sr25519::secret_from_bytes(&bytes).expect("Should be valid");
     assert_eq!(&bytes[..], &secret_key_again.to_bytes()[..]);
-    let mut slice = [0u8; 32];
-    slice.copy_from_slice(&bytes[..32]);
 
     use gadget_common::tangle_subxt::subxt::ext::sp_core as sp_core2;
     let sr2: TanglePairSigner = TanglePairSigner::new(
@@ -191,22 +177,6 @@ async fn inject_test_keys<P: AsRef<Path>>(
         }
     }
 
-    Ok(())
-}
-
-async fn inject_inner<P: AsRef<Path>>(
-    base_path: P,
-    prefix: &str,
-    public_key_name: &str,
-    private_key_contents: &str,
-) -> color_eyre::Result<()> {
-    let new_key_path = base_path
-        .as_ref()
-        .join(format!("{prefix}{public_key_name}"));
-    tokio::fs::write(&new_key_path, private_key_contents).await?;
-    let decoded = hex::decode(private_key_contents).expect("Failed to decode private key");
-
-    log::info!(target: "gadget", "Successfully wrote private key {prefix} = {private_key_contents} to {} |\nSecret Bytes: {decoded:?}", new_key_path.display());
     Ok(())
 }
 
@@ -382,9 +352,21 @@ macro_rules! test_blueprint {
         async fn test_externalities_standard() {
             setup_log();
 
-            let mut manifest_path = std::env::current_dir().expect("Failed to get current directory");
-            manifest_path.push($blueprint_path);
-            manifest_path.canonicalize().expect("File could not be normalized");
+        let mut base_path = std::env::current_dir().expect("Failed to get current directory");
+
+        base_path.push($blueprint_path);
+        base_path
+            .canonicalize()
+            .expect("File could not be normalized");
+
+        let manifest_path = base_path.join("Cargo.toml");
+        let blueprint_test_file = base_path.join("blueprint-test.json");
+        let blueprint_file = base_path.join("blueprint.json");
+
+        // cp the blueprint-test-file into the blueprint-file
+        tokio::fs::copy(&blueprint_test_file, &blueprint_file)
+            .await
+            .expect("Failed to copy blueprint-test.json to blueprint.json");
 
             let ws_addr = "ws://127.0.0.1:9944";
 
@@ -450,9 +432,9 @@ mod test_macros {
     use super::*;
 
     test_blueprint!(
-        "./blueprints/incredible-squaring/Cargo.toml", // Path to the blueprint's toml
-        "incredible-squaring-blueprint",               // Name of the package
-        5,                                             // Number of nodes
+        "./blueprints/incredible-squaring/", // Path to the blueprint's dir
+        "incredible-squaring-blueprint",     // Name of the package
+        5,                                   // Number of nodes
         [InputValue::Uint64(5)],
         [OutputValue::Uint64(25)] // Expected output: each input squared
     );
@@ -464,17 +446,29 @@ mod tests_standard {
     use crate::test_ext::new_test_ext_blueprint_manager;
     use cargo_tangle::deploy::Opts;
 
-    // This test requires that `yarn install` has been executed inside the `./blueprints/incredible-squaring/` directory
-    // The other requirement is that there is a locally-running tangle node
+    /// This test requires that `yarn install` has been executed inside the
+    /// `./blueprints/incredible-squaring/` directory
+    /// The other requirement is that there is a locally-running tangle node
+
     #[tokio::test(flavor = "multi_thread")]
     async fn test_externalities_gadget_starts() {
         setup_log();
 
-        let mut manifest_path = std::env::current_dir().expect("Failed to get current directory");
-        manifest_path.push("../blueprints/incredible-squaring/Cargo.toml");
-        manifest_path
+        let mut base_path = std::env::current_dir().expect("Failed to get current directory");
+
+        base_path.push("../blueprints/incredible-squaring");
+        base_path
             .canonicalize()
             .expect("File could not be normalized");
+
+        let manifest_path = base_path.join("Cargo.toml");
+        let blueprint_test_file = base_path.join("blueprint-test.json");
+        let blueprint_file = base_path.join("blueprint.json");
+
+        // cp the blueprint-test-file into the blueprint-file
+        tokio::fs::copy(&blueprint_test_file, &blueprint_file)
+            .await
+            .expect("Failed to copy blueprint-test.json to blueprint.json");
 
         let opts = Opts {
             pkg_name: Some("incredible-squaring-blueprint".to_string()),

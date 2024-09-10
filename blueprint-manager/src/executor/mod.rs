@@ -23,7 +23,6 @@ use tangle_environment::gadget::SubxtConfig;
 use tangle_environment::runtime::TangleRuntime;
 use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::blocks::BlockRef;
-use tangle_subxt::subxt::tx::{PairSigner, Signer};
 use tangle_subxt::subxt::{Config, SubstrateConfig};
 use tokio::task::JoinHandle;
 

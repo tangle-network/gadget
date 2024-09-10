@@ -275,18 +275,16 @@ pub(crate) async fn handle_tangle_event(
 
     // Loop through every (blueprint_id, service_id) running. See if the service is still on-chain. If not, kill it and add it to to_remove
     for (blueprint_id, process_handles) in &mut *active_gadgets {
-        for (service_id, _process_handle) in process_handles {
+        for service_id in process_handles.keys() {
             logger.info(format!(
                 "Checking service for on-chain termination: bid={blueprint_id}//sid={service_id}"
             ));
             for (fetcher, services) in fetchers.iter().zip_eq(&service_ids) {
-                if fetcher.blueprint_id() == *blueprint_id {
-                    if !services.contains(service_id) {
-                        logger.warn(format!(
-                            "Killing service that is no longer on-chain: bid={blueprint_id}//sid={service_id}",
-                        ));
-                        to_remove.push((*blueprint_id, *service_id));
-                    }
+                if fetcher.blueprint_id() == *blueprint_id && !services.contains(service_id) {
+                    logger.warn(format!(
+                        "Killing service that is no longer on-chain: bid={blueprint_id}//sid={service_id}",
+                    ));
+                    to_remove.push((*blueprint_id, *service_id));
                 }
             }
         }
@@ -295,12 +293,12 @@ pub(crate) async fn handle_tangle_event(
     // Check to see if any process handles have died
     for (blueprint_id, process_handles) in &mut *active_gadgets {
         for (service_id, process_handle) in process_handles {
-            if !to_remove.contains(&(*blueprint_id, *service_id)) {
-                if !process_handle.0.load(Ordering::Relaxed) {
-                    // By removing any killed processes, we will auto-restart them on the next finality notification if required
-                    logger.warn("Killing service that has died to allow for auto-restart");
-                    to_remove.push((*blueprint_id, *service_id));
-                }
+            if !to_remove.contains(&(*blueprint_id, *service_id))
+                && !process_handle.0.load(Ordering::Relaxed)
+            {
+                // By removing any killed processes, we will auto-restart them on the next finality notification if required
+                logger.warn("Killing service that has died to allow for auto-restart");
+                to_remove.push((*blueprint_id, *service_id));
             }
         }
     }

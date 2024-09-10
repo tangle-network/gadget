@@ -36,41 +36,33 @@ pub fn generate_process_arguments(
     blueprint_id: u64,
     service_id: u64,
 ) -> color_eyre::Result<Vec<String>> {
-    //"--bind-addr=127.0.0.1 --bind-port=1234 --test-mode --logger=alice-gadget"
+    let mut arguments = vec![];
+    arguments.push("run".to_string());
+
     if opt.test_mode {
-        let mut arguments = vec![];
-        arguments.push("run".to_string());
         arguments.push("--test-mode".to_string());
-        arguments.push(format!("--bind-addr={}", gadget_config.bind_addr));
-        arguments.push(format!("--bind-port={}", gadget_config.bind_port));
-        arguments.push(format!(
-            "--logger={}",
-            opt.instance_id
-                .as_ref()
-                .expect("If test-mode is specified, the instance-id must also be specified")
-        ));
-        return Ok(arguments);
     }
 
-    let mut arguments = vec![
+    for bootnode in &gadget_config.bootnodes {
+        arguments.push(format!("--bootnodes={}", bootnode.to_string()));
+    }
+
+    arguments.extend([
         format!("--bind-addr={}", gadget_config.bind_addr),
+        format!("--bind-port={}", gadget_config.bind_port),
         format!("--url={}", gadget_config.url),
         format!(
-            "--bootnodes={}",
-            gadget_config
-                .bootnodes
-                .iter()
-                .map(|r| r.to_string())
-                .collect::<Vec<String>>()
-                .join(",")
+            "--logger=Blueprint-{blueprint_id}-Service-{service_id}-{}",
+            opt.instance_id.clone().unwrap_or_else(|| format!(
+                "{}-{}",
+                gadget_config.bind_addr, gadget_config.bind_port
+            ))
         ),
-        format!("--blueprint-id={}", blueprint_id),
-        format!("--service-id={}", service_id),
         format!("--base-path={}", gadget_config.base_path.display()),
         format!("--chain={}", gadget_config.chain.to_string()),
         format!("--verbose={}", opt.verbose),
         format!("--pretty={}", opt.pretty),
-    ];
+    ]);
 
     if let Some(keystore_password) = &gadget_config.keystore_password {
         arguments.push(format!("--keystore-password={}", keystore_password));

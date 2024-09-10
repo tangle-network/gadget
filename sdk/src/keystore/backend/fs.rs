@@ -60,7 +60,6 @@ impl FilesystemKeystore {
     /// Get the key phrase for a given public key and key type.
     fn secret_by_type(&self, public: &[u8], key_type: KeyType) -> Result<Option<Vec<u8>>, Error> {
         let path = self.key_file_path(public, key_type);
-        println!("Looking for {key_type:?} in {}", path.display());
         if path.exists() {
             let content = fs::read(&path)?;
             if content.is_empty() {
@@ -110,7 +109,6 @@ impl FilesystemKeystore {
 impl Backend for FilesystemKeystore {
     fn sr25519_generate_new(&self, seed: Option<&[u8]>) -> Result<sr25519::Public, Error> {
         let secret = sr25519::generate_with_optional_seed(seed)?;
-        println!("[SR-add] Secret bytes len=64: {:?}", secret.to_bytes());
         let public = secret.to_public();
         let path = self.key_file_path(public.as_ref(), KeyType::Sr25519);
         Self::write_to_file(path, &secret.to_bytes())?;
@@ -206,13 +204,8 @@ impl Backend for FilesystemKeystore {
         public: &sr25519::Public,
     ) -> Result<Option<sr25519::Secret>, Error> {
         let secret_bytes = self.secret_by_type(public.as_ref(), KeyType::Sr25519)?;
-        println!(
-            "[SR] Secret bytes len={}: {secret_bytes:?}",
-            secret_bytes.as_ref().map(|r| r.len()).unwrap_or_default()
-        );
         if let Some(buf) = secret_bytes {
             let secret = sr25519::secret_from_bytes(&buf)?;
-            println!("[SR-after] Secret bytes len=64: {:?}", secret.to_bytes());
             Ok(Some(secret))
         } else {
             Ok(None)

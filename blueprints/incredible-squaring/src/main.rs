@@ -11,9 +11,12 @@ use gadget_sdk::{
 
 use incredible_squaring_blueprint as blueprint;
 
-use gadget_sdk::env::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration};
+use gadget_sdk::env::{ContextConfig, GadgetConfiguration};
 use std::sync::Arc;
 use structopt::StructOpt;
+use tracing_subscriber::fmt::SubscriberBuilder;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::EnvFilter;
 
 #[async_trait::async_trait]
 trait GadgetRunner {
@@ -49,34 +52,45 @@ impl GadgetRunner for TangleGadgetRunner {
 
         // send the tx to the tangle and exit.
         let result = tx::tangle::send(&client, &signer, &xt).await?;
-        tracing::info!("Registered operator with hash: {:?}", result);
+        self.env
+            .logger
+            .info(format!("Registered operator with hash: {:?}", result));
         Ok(())
     }
 
     async fn run(&self) -> Result<()> {
-        let config = ContextConfig {
+        /*        let config = ContextConfig {
             gadget_core_settings: GadgetCLICoreSettings::Run {
                 bind_addr: self.env.bind_addr,
                 bind_port: self.env.bind_port,
                 test_mode: self.env.test_mode,
                 logger: self.env.logger.clone(),
+                url: self.env.ur,
+                bootnodes: None,
+                base_path: Default::default(),
+                chain: Default::default(),
+                verbose: 0,
+                pretty: false,
+                keystore_password: None,
             },
-            additional_arguments: vec![],
-        };
+        };*/
 
-        let env = gadget_sdk::env::load(None, config).map_err(|e| eyre!(e))?;
-        let client = env.client().await.map_err(|e| eyre!(e))?;
-        let signer = env.first_signer().map_err(|e| eyre!(e))?;
+        //let env = gadget_sdk::env::load(None, config).map_err(|e| eyre!(e))?;
+
+        let client = self.env.client().await.map_err(|e| eyre!(e))?;
+        let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
 
         let x_square = blueprint::XsquareEventHandler {
-            service_id: env.service_id.unwrap(),
+            service_id: self.env.service_id.unwrap(),
             signer,
         };
 
-        tracing::info!("Starting the event watcher ...");
+        self.env.logger.info("Starting the event watcher ...");
 
         SubstrateEventWatcher::run(
-            &TangleEventsWatcher,
+            &TangleEventsWatcher {
+                logger: self.env.logger.clone(),
+            },
             client,
             // Add more handler here if we have more functions.
             vec![Box::new(x_square)],
@@ -103,19 +117,20 @@ fn create_gadget_runner(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    color_eyre::install()?;
-    let env_filter = tracing_subscriber::EnvFilter::from_default_env();
-    let logger = tracing_subscriber::fmt()
-        .compact()
-        .with_target(true)
-        .with_env_filter(env_filter);
-    logger.init();
+    // color_eyre::install()?;
+    let _ = SubscriberBuilder::default()
+        .with_env_filter(EnvFilter::from_default_env())
+        .finish()
+        .try_init();
 
     // Load the environment and create the gadget runner
     // TODO: Place protocol in the config
     let protocol = Protocol::Tangle;
     let config = ContextConfig::from_args();
     let (env, runner) = create_gadget_runner(protocol, config);
+    env.logger
+        .info("~~~ Executing the incredible squaring blueprint ~~~");
+
     // Register the operator if needed
     if env.should_run_registration() {
         runner.register().await?;

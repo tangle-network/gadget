@@ -3,11 +3,9 @@ use std::str::FromStr;
 use crate::deploy::TanglePairSigner;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::{eyre::Context, Result, Section};
-use schnorrkel::SecretKey;
 use tangle_subxt::subxt::ext::sp_core;
 use tangle_subxt::subxt::ext::sp_core::Pair;
 use tangle_subxt::subxt_signer::bip39;
-use tangle_subxt::subxt_signer::sr25519;
 use tangle_subxt::subxt_signer::ExposeSecret;
 use tangle_subxt::subxt_signer::SecretUri;
 

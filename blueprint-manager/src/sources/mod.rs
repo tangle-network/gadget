@@ -76,7 +76,9 @@ pub async fn handle(
                         env_vars.push(("REGISTRATION_MODE_ON".to_string(), "true".to_string()));
                     }
 
-                    logger.info(format!("Starting protocol: {sub_service_str}"));
+                    logger.info(format!(
+                        "Starting protocol: {sub_service_str} with args: {arguments:?}"
+                    ));
 
                     // Now that the file is loaded, spawn the process
                     let process_handle = tokio::process::Command::new(&binary_download_path)

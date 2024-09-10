@@ -1,8 +1,9 @@
 #[cfg(not(feature = "std"))]
 use alloc::string::String;
 use core::fmt::Display;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct DebugLogger {
     pub id: String,
 }

@@ -3,8 +3,13 @@ use crate::keystore::backend::GenericKeyStore;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
 use gadget_common::prelude::DebugLogger;
+use gadget_io::SupportedChains;
+use libp2p::Multiaddr;
+use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
+use std::path::PathBuf;
 use structopt::StructOpt;
+use url::Url;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub enum Protocol {
@@ -155,18 +160,15 @@ pub enum Error {
     TestSetup(String),
 }
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "General CLI Context", setting = structopt::clap::AppSettings::TrailingVarArg)]
+#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[structopt(name = "General CLI Context")]
 pub struct ContextConfig {
     /// Pass through arguments to another command
     #[structopt(subcommand)]
     pub gadget_core_settings: GadgetCLICoreSettings,
-
-    #[structopt(last = true)]
-    pub additional_arguments: Vec<String>,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, StructOpt, Serialize, Deserialize)]
 pub enum GadgetCLICoreSettings {
     #[structopt(name = "run")]
     Run {
@@ -177,7 +179,33 @@ pub enum GadgetCLICoreSettings {
         #[structopt(long, short = "t")]
         test_mode: bool,
         #[structopt(long, short = "l", parse(from_str))]
-        logger: DebugLogger,
+        logger: Option<DebugLogger>,
+        #[structopt(long, short = "u", long = "url", parse(try_from_str = url::Url::parse))]
+        #[serde(default = "gadget_io::defaults::rpc_url")]
+        url: Url,
+        #[structopt(long = "bootnodes", parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
+        #[serde(default)]
+        bootnodes: Option<Vec<Multiaddr>>,
+        #[structopt(long, short = "d", parse(from_os_str))]
+        base_path: PathBuf,
+        #[structopt(
+            long,
+            default_value,
+            possible_values = &[
+                "local_testnet",
+                "local_mainnet",
+                "testnet",
+                "mainnet"
+            ]
+        )]
+        chain: SupportedChains,
+        #[structopt(long, short = "v", parse(from_occurrences))]
+        verbose: i32,
+        /// Whether to use pretty logging
+        #[structopt(long)]
+        pretty: bool,
+        #[structopt(long = "keystore-password", env)]
+        keystore_password: Option<String>,
     },
 }
 
@@ -213,7 +241,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
     additional_config: ContextConfig,
 ) -> Result<GadgetConfiguration<RwLock>, Error> {
     let is_registration = std::env::var("REGISTRATION_MODE_ON").is_ok();
-    if let ContextConfig {
+    let ContextConfig {
         gadget_core_settings:
             GadgetCLICoreSettings::Run {
                 bind_addr,
@@ -223,40 +251,37 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 ..
             },
         ..
-    } = additional_config
-    {
-        Ok(GadgetConfiguration {
-            bind_addr,
-            bind_port,
-            test_mode,
-            logger,
-            rpc_endpoint: std::env::var("RPC_URL").map_err(|_| Error::MissingTangleRpcEndpoint)?,
-            keystore_uri: std::env::var("KEYSTORE_URI").map_err(|_| Error::MissingKeystoreUri)?,
-            data_dir_path: std::env::var("DATA_DIR").ok(),
-            blueprint_id: std::env::var("BLUEPRINT_ID")
-                .map_err(|_| Error::MissingBlueprintId)?
-                .parse()
-                .map_err(Error::MalformedBlueprintId)?,
-            // If the registration mode is on, we don't need the service ID
-            service_id: if is_registration {
-                None
-            } else {
-                Some(
-                    std::env::var("SERVICE_ID")
-                        .map_err(|_| Error::MissingServiceId)?
-                        .parse()
-                        .map_err(Error::MalformedServiceId)?,
-                )
-            },
-            is_registration,
-            protocol: protocol.unwrap_or(Protocol::Tangle),
-            _lock: core::marker::PhantomData,
-        })
-    } else {
-        Err(Error::TestSetup(
-            "The run command was not invoked".to_string(),
-        ))
-    }
+    } = additional_config;
+
+    let logger = logger.unwrap_or_default();
+
+    Ok(GadgetConfiguration {
+        bind_addr,
+        bind_port,
+        test_mode,
+        logger,
+        rpc_endpoint: std::env::var("RPC_URL").map_err(|_| Error::MissingTangleRpcEndpoint)?,
+        keystore_uri: std::env::var("KEYSTORE_URI").map_err(|_| Error::MissingKeystoreUri)?,
+        data_dir_path: std::env::var("DATA_DIR").ok(),
+        blueprint_id: std::env::var("BLUEPRINT_ID")
+            .map_err(|_| Error::MissingBlueprintId)?
+            .parse()
+            .map_err(Error::MalformedBlueprintId)?,
+        // If the registration mode is on, we don't need the service ID
+        service_id: if is_registration {
+            None
+        } else {
+            Some(
+                std::env::var("SERVICE_ID")
+                    .map_err(|_| Error::MissingServiceId)?
+                    .parse()
+                    .map_err(Error::MalformedServiceId)?,
+            )
+        },
+        is_registration,
+        protocol: protocol.unwrap_or(Protocol::Tangle),
+        _lock: core::marker::PhantomData,
+    })
 }
 
 #[cfg(not(feature = "std"))]
@@ -284,7 +309,6 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
                 let path = uri
                     .trim_start_matches("file://")
                     .trim_start_matches("file:");
-                tracing::debug!("Reading keystore from: {path}");
                 Ok(GenericKeyStore::Fs(FilesystemKeystore::open(path)?))
             }
             otherwise => Err(Error::UnsupportedKeystoreUri(otherwise.to_string())),

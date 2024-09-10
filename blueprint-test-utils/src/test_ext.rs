@@ -17,7 +17,6 @@
 use crate::PerTestNodeInput;
 use async_trait::async_trait;
 use blueprint_manager::executor::BlueprintManagerHandle;
-use blueprint_manager::sdk::prelude::tangle_subxt::subxt::tx::Signer;
 use cargo_tangle::deploy::{Opts, PrivateKeySigner};
 use environment_utils::transaction_manager::tangle::SubxtPalletSubmitter;
 use futures::stream::FuturesOrdered;

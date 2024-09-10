@@ -1,6 +1,5 @@
 //! Schnorrkel keypair implementation.
 
-use rand::RngCore;
 pub use schnorrkel::PublicKey as Public;
 pub use schnorrkel::SecretKey as Secret;
 pub use schnorrkel::Signature;
@@ -22,12 +21,11 @@ pub fn sign(secret: &Secret, msg: &[u8]) -> Result<Signature, schnorrkel::Signat
 ///
 /// # Errors
 ///
-/// * `seed` is not the correct length (64).
+/// * `seed` is not the correct length (32 or 64).
 /// * `seed` contains an invalid scalar.
 pub fn generate_with_optional_seed(
     seed: Option<&[u8]>,
 ) -> Result<Secret, schnorrkel::SignatureError> {
-    println!("Generating with new seed? {}", seed.is_some());
     if let Some(seed) = seed {
         secret_from_bytes(seed)
     } else {
@@ -49,7 +47,6 @@ pub fn secret_from_bytes(bytes: &[u8]) -> Result<Secret, schnorrkel::SignatureEr
         let mini_secret = schnorrkel::MiniSecretKey::from_bytes(bytes)?;
         Ok(mini_secret.expand(schnorrkel::MiniSecretKey::ED25519_MODE))
     } else {
-        println!("[SR-add2] Secret bytes len={}: {bytes:?}", bytes.len());
         Secret::from_bytes(bytes)
     }
 }
