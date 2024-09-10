@@ -44,8 +44,8 @@ impl<B> Msg<B> {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "std")]
+#[allow(clippy::too_many_arguments, clippy::let_underscore_future)]
 pub fn create_job_manager_to_async_protocol_channel_split<
     N: Network,
     C1: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
@@ -410,8 +410,8 @@ pub type DuplexedChannel<O, I, C2> = (
     futures::channel::mpsc::UnboundedReceiver<C2>,
 );
 
-#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "std")]
+#[allow(clippy::too_many_arguments, clippy::let_underscore_future)]
 pub fn create_job_manager_to_async_protocol_channel_split_io<
     N: Network,
     C2: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
@@ -578,8 +578,8 @@ pub type TriplexedChannel<O1, I1, O2, I2, C2> = (
     futures::channel::mpsc::UnboundedReceiver<C2>,
 );
 
-#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "std")]
+#[allow(clippy::too_many_arguments, clippy::let_underscore_future)]
 pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
     N: Network + 'static,
     C3: Serialize + DeserializeOwned + MaybeSenderReceiver + Send + 'static,
