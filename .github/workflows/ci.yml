@@ -40,8 +40,6 @@ jobs:
     strategy:
       matrix:
         package: [
-          gadget-core,
-          gadget-common,
           gadget-sdk,
         ]
     steps:
