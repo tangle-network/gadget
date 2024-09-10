@@ -1,6 +1,6 @@
+use crate::logging::Logger;
 use crate::network::matchbox::MatchboxEvent::P2p;
 use crate::network::network::NetworkHandle;
-use crate::logging::Logger;
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use matchbox_socket::PeerId;
 use serde::{Deserialize, Serialize};
