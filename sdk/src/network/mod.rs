@@ -1,7 +1,6 @@
 use core::fmt::Display;
 
 use async_trait::async_trait;
-use derive_more::derive::Display;
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 

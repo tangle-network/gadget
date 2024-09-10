@@ -36,7 +36,7 @@ pub async fn run_gadget_for_protocol<
     T2: FnOnce() -> F2,
     F2: SendFuture<'static, KBE>,
 >(
-    client: TangleRuntimeClient,
+    _client: TangleRuntimeClient,
     services: Vec<ServiceBlueprint>,
     n_protocols: usize,
     keystore_backend: T2,

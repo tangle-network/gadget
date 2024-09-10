@@ -2,7 +2,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::clients::Client;
-use crate::network::IdentifierInfo;
 use crate::TokioMutexExt;
 use subxt::blocks::{Block, BlockRef};
 use subxt::events::Events;

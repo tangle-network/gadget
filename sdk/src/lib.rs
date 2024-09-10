@@ -47,6 +47,7 @@ pub mod prometheus;
 /// Randomness generation module
 pub mod random;
 /// Gadget Runner Module
+#[cfg(feature = "std")]
 pub mod run;
 /// Slashing and quality of service utilities
 pub mod slashing;

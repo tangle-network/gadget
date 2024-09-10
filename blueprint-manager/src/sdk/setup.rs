@@ -4,7 +4,6 @@ use std::time::Duration;
 use crate::sdk::keystore::load_keys_from_keystore;
 use gadget_io::tokio::task::JoinHandle;
 use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
-use gadget_sdk::clients::Client;
 use gadget_sdk::logger::Logger;
 use gadget_sdk::network::Network;
 use gadget_sdk::prometheus::PrometheusConfig;

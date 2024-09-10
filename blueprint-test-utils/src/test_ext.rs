@@ -15,6 +15,7 @@
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::PerTestNodeInput;
+use crate::runtime_types::tangle_primitives::services::PriceTargets;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use blueprint_manager::sdk::entry::SendFuture;
 use blueprint_manager::sdk::setup::NodeInput;
@@ -241,6 +242,13 @@ pub async fn new_test_ext_blueprint_manager<
         let preferences = Preferences {
             key,
             approval: ApprovalPrefrence::None,
+            price_targets: PriceTargets {
+                cpu: 0,
+                mem: 0,
+                storage_hdd: 0,
+                storage_ssd: 0,
+                storage_nvme: 0,
+            },
         };
 
         super::register_blueprint(

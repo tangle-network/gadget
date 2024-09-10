@@ -120,6 +120,7 @@ async fn init_prometheus_with_listener(
             )
             .into_owned();
 
+        #[allow(clippy::let_underscore_future)]
         let _ = tokio::spawn(async move {
             if let Err(err) = conn.await {
                 log::debug!(target: "prometheus", "connection error: {:?}", err);
@@ -146,13 +147,13 @@ mod tests {
         let local_addr = listener.local_addr().expect("Returns the local addr");
 
         let registry = Registry::default();
-        register(
+        let _ = register(
             prometheus::Counter::new(METRIC_NAME, "yeah").expect("Creates test counter"),
             &registry,
         )
         .expect("Registers the test metric");
 
-        tokio::spawn(init_prometheus_with_listener(listener, registry));
+        let _ = tokio::spawn(init_prometheus_with_listener(listener, registry));
 
         let client = Client::builder(TokioExecutor::new()).build_http::<Body>();
 

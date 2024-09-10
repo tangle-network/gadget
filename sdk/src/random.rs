@@ -7,7 +7,7 @@ pub use rand::{self, CryptoRng, RngCore, SeedableRng};
 #[cfg(all(feature = "getrandom", not(feature = "std")))]
 #[must_use]
 pub fn getrandom_or_panic() -> impl RngCore + CryptoRng {
-    rand_core::OsRng
+    rand::rngs::OsRng
 }
 
 /// Returns `OsRng` with `getrandom`, or a `CryptoRng` which panics without `getrandom`.
@@ -25,7 +25,7 @@ pub fn getrandom_or_panic() -> impl RngCore + CryptoRng {
     // TODO: Should we panic when invoked or when used?
 
     struct PanicRng;
-    impl rand_core::RngCore for PanicRng {
+    impl RngCore for PanicRng {
         fn next_u32(&mut self) -> u32 {
             panic!("{}", PRM)
         }
@@ -35,11 +35,11 @@ pub fn getrandom_or_panic() -> impl RngCore + CryptoRng {
         fn fill_bytes(&mut self, _dest: &mut [u8]) {
             panic!("{}", PRM)
         }
-        fn try_fill_bytes(&mut self, _dest: &mut [u8]) -> Result<(), rand_core::Error> {
+        fn try_fill_bytes(&mut self, _dest: &mut [u8]) -> Result<(), rand::Error> {
             panic!("{}", PRM)
         }
     }
-    impl rand_core::CryptoRng for PanicRng {}
+    impl CryptoRng for PanicRng {}
 
     PanicRng
 }

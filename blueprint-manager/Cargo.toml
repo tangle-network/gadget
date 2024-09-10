@@ -33,5 +33,5 @@ libp2p = { workspace = true }
 default = ["std"]
 std = [
     "gadget-io/std",
-    "gadget-sdk/std",
+    "gadget-sdk/default",
 ]

@@ -1,4 +1,4 @@
-use crate::network::{deserialize, serialize, IdentifierInfo, Network, ProtocolMessage};
+use crate::network::{deserialize, IdentifierInfo, Network, ProtocolMessage};
 use futures::StreamExt;
 use gadget_io::tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use round_based::{Incoming, MessageDestination, MessageType, MsgId, Outgoing, PartyIndex};
@@ -62,8 +62,6 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     UnboundedSender<C2>,
     UnboundedReceiver<C2>,
 ) {
-    use alloy_network::Network;
-
     let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
     let (tx_to_async_proto_2, rx_for_async_proto_2) =
         gadget_io::tokio::sync::mpsc::unbounded_channel();
@@ -770,8 +768,6 @@ async fn wrap_message_and_forward_to_network<
 where
     M: MaybeSenderReceiver + Send + 'static,
 {
-    use crate::logger::Logger;
-
     let from = msg.maybe_sender();
     let to = msg.maybe_receiver();
     logger.trace(format!("Sending message from {:?} to {:?}", from, to));
