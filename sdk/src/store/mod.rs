@@ -100,7 +100,7 @@ impl InMemoryBackend {
 impl KeyValueStoreBackend for InMemoryBackend {
     async fn get<T: DeserializeOwned>(&self, key: &[u8; 32]) -> Result<Option<T>, Error> {
         if let Some(bytes) = self.map.read().get(key).cloned() {
-            let value: T = deserialize(&bytes).map_err(|rr| Error::StoreError {
+            let value: T = deserialize(&bytes).map_err(|rr| Error::Store {
                 reason: format!("Failed to deserialize value: {:?}", rr),
             })?;
             Ok(Some(value))
@@ -110,7 +110,7 @@ impl KeyValueStoreBackend for InMemoryBackend {
     }
 
     async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), Error> {
-        let serialized = serialize(&value).map_err(|rr| Error::StoreError {
+        let serialized = serialize(&value).map_err(|rr| Error::Store {
             reason: format!("Failed to serialize value: {:?}", rr),
         })?;
         let _ = self.map.write().insert(*key, serialized);
@@ -156,14 +156,14 @@ impl KeyValueStoreBackend for SqliteBackend {
             .bind(key)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|err| Error::StoreError {
+            .map_err(|err| Error::Store {
                 reason: format!("Failed to fetch value: {:?}", err),
             })?;
 
         match result {
             Some(row) => {
                 let value: Vec<u8> = row.get("value");
-                let value: T = deserialize(&value).map_err(|rr| Error::StoreError {
+                let value: T = deserialize(&value).map_err(|rr| Error::Store {
                     reason: format!("Failed to deserialize value: {:?}", rr),
                 })?;
                 Ok(Some(value))
@@ -174,7 +174,7 @@ impl KeyValueStoreBackend for SqliteBackend {
 
     async fn set<T: Serialize + Send>(&self, key: &[u8; 32], value: T) -> Result<(), Error> {
         let key = key_to_string(key);
-        let value = serialize(&value).map_err(|rr| Error::StoreError {
+        let value = serialize(&value).map_err(|rr| Error::Store {
             reason: format!("Failed to serialize value: {:?}", rr),
         })?;
 
@@ -183,7 +183,7 @@ impl KeyValueStoreBackend for SqliteBackend {
             .bind(value)
             .execute(&self.pool)
             .await
-            .map_err(|err| Error::StoreError {
+            .map_err(|err| Error::Store {
                 reason: format!("Failed to insert value: {:?}", err),
             })?;
         Ok(())

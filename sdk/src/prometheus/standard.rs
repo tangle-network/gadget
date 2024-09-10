@@ -30,20 +30,19 @@ pub async fn setup(config: PrometheusConfig) -> Result<(), Error> {
         HAS_REGISTERED.store(true, Ordering::SeqCst);
 
         let _ = metrics::register(BYTES_RECEIVED.clone(), &REGISTRY).map_err(|err| {
-            Error::PrometheusError {
+            Error::Prometheus {
                 err: err.to_string(),
             }
         })?;
 
-        let _ = metrics::register(BYTES_SENT.clone(), &REGISTRY).map_err(|err| {
-            Error::PrometheusError {
+        let _ =
+            metrics::register(BYTES_SENT.clone(), &REGISTRY).map_err(|err| Error::Prometheus {
                 err: err.to_string(),
-            }
-        })?;
+            })?;
 
         metrics::init_prometheus(bind_addr, REGISTRY.clone())
             .await
-            .map_err(|err| Error::PrometheusError {
+            .map_err(|err| Error::Prometheus {
                 err: err.to_string(),
             })?;
     }

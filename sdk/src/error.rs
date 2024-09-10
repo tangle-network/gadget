@@ -6,19 +6,19 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Client error: {0}")]
-    ClientError(String),
+    Client(String),
 
     #[error("Job error: {reason}")]
-    JobError { reason: String },
+    Job { reason: String },
 
     #[error("Network error: {reason}")]
-    NetworkError { reason: String },
+    Network { reason: String },
 
     #[error("Storage error: {reason}")]
-    StoreError { reason: String },
+    Store { reason: String },
 
     #[error("Keystore error: {0}")]
-    KeystoreError(#[from] crate::keystore::error::Error),
+    Keystore(#[from] crate::keystore::error::Error),
 
     #[error("Missing network ID")]
     MissingNetworkId,
@@ -28,7 +28,7 @@ pub enum Error {
 
     #[cfg(feature = "std")]
     #[error("Join error: {0}")]
-    JoinError(#[from] tokio::task::JoinError),
+    Join(#[from] tokio::task::JoinError),
 
     // TODO: Add feature flag for substrate/tangle
     #[error("Subxt error: {0}")]
@@ -37,15 +37,15 @@ pub enum Error {
 
     #[cfg(feature = "std")]
     #[error("Events watcher error: {0}")]
-    EventsWatcherError(#[from] crate::events_watcher::error::Error),
+    EventsWatcher(#[from] crate::events_watcher::error::Error),
 
     #[cfg(feature = "std")]
     #[error("Prometheus error: {err}")]
-    PrometheusError { err: String },
+    Prometheus { err: String },
 
     #[cfg(feature = "std")]
     #[error("Metrics error: {0}")]
-    MetricsError(#[from] crate::metrics::Error),
+    Metrics(#[from] crate::metrics::Error),
 
     #[error("Other error: {0}")]
     Other(String),

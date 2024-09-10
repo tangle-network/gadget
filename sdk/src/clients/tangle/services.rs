@@ -45,7 +45,7 @@ where
             .at(at)
             .fetch(&call)
             .await
-            .map_err(|e| Error::ClientError(e.to_string()))?
+            .map_err(|e| Error::Client(e.to_string()))?
             .map(|r| r.1);
 
         Ok(ret)
@@ -66,8 +66,8 @@ where
             .at(at)
             .call(call)
             .await
-            .map_err(|e| Error::ClientError(e.to_string()))?
-            .map_err(|e| Error::ClientError(format!("{e:?}")))?;
+            .map_err(|e| Error::Client(e.to_string()))?
+            .map_err(|e| Error::Client(format!("{e:?}")))?;
 
         Ok(ret)
     }

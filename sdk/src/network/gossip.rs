@@ -376,7 +376,7 @@ impl Network for GossipHandle {
                 .await
                 .get(&Public::from_raw(to.0))
                 .copied()
-                .ok_or_else(|| Error::NetworkError {
+                .ok_or_else(|| Error::Network {
                     reason: format!(
                         "No libp2p ID found for ecdsa public key: {to}. No handshake happened?"
                     ),
@@ -406,7 +406,7 @@ impl Network for GossipHandle {
 
         self.tx_to_outbound
             .send(payload)
-            .map_err(|e| Error::NetworkError {
+            .map_err(|e| Error::Network {
                 reason: format!("Failed to send intra-node payload: {e}"),
             })
     }
