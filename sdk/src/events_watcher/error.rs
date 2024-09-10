@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 /// An error type for the event watcher.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -8,6 +10,7 @@ pub enum Error {
     Subxt(#[from] subxt::Error),
     /// An error occurred in the backoff mechanism.
     #[error(transparent)]
+    #[cfg(any(feature = "std", feature = "wasm"))]
     Backoff(#[from] backoff::Error<subxt::Error>),
     /// An error occurred in Alloy transport.
     // TODO: Add feature flag for EVM/eigenlayer/etc.
@@ -21,10 +24,10 @@ pub enum Error {
     /// TODO: Add feature flag for EVM/eigenlayer/etc.
     #[error(transparent)]
     SolTypes(#[from] alloy_sol_types::Error),
-    /// An error occurred in the event watcher and we need to restart it.
+    /// An error occurred in the event watcher, and we need to restart it.
     #[error("An error occurred in the event watcher and we need to restart it.")]
     ForceRestart,
     /// An error occurred in the event handler.
     #[error(transparent)]
-    Handler(#[from] Box<dyn std::error::Error + Send + Sync>),
+    Handler(#[from] Box<dyn core::error::Error + Send + Sync>),
 }

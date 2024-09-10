@@ -9,6 +9,7 @@ use sp_core::ecdsa;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::error::Error;
 use crate::logger::Logger;
 
 pub type UserID = u16;
@@ -764,7 +765,7 @@ async fn wrap_message_and_forward_to_network<
     identifier_info: IdentifierInfo,
     splitter: impl FnOnce(M) -> MultiplexedChannelMessage<C1, C2, C3>,
     logger: &Logger,
-) -> Result<(), crate::Error>
+) -> Result<(), Error>
 where
     M: MaybeSenderReceiver + Send + 'static,
 {

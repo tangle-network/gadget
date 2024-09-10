@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use async_trait::async_trait;
 use auto_impl::auto_impl;
 

@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
+use crate::error::Error;
 use crate::logger::Logger;
 
 use super::{Network, ParticipantInfo, ProtocolMessage};
@@ -363,7 +364,7 @@ impl Network for GossipHandle {
         }
     }
 
-    async fn send_message(&self, message: ProtocolMessage) -> Result<(), crate::Error> {
+    async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error> {
         let message_type = if let Some(ParticipantInfo {
             ecdsa_key: Some(to),
             ..
@@ -375,7 +376,7 @@ impl Network for GossipHandle {
                 .await
                 .get(&Public::from_raw(to.0))
                 .copied()
-                .ok_or_else(|| crate::Error::NetworkError {
+                .ok_or_else(|| Error::NetworkError {
                     reason: format!(
                         "No libp2p ID found for ecdsa public key: {to}. No handshake happened?"
                     ),
@@ -405,7 +406,7 @@ impl Network for GossipHandle {
 
         self.tx_to_outbound
             .send(payload)
-            .map_err(|e| crate::Error::NetworkError {
+            .map_err(|e| Error::NetworkError {
                 reason: format!("Failed to send intra-node payload: {e}"),
             })
     }

@@ -1,3 +1,4 @@
+use crate::error::Error;
 use crate::logger::Logger;
 use subxt::utils::AccountId32;
 use tangle_subxt::subxt::backend::BlockRef;
@@ -35,7 +36,7 @@ where
         &self,
         at: [u8; 32],
         blueprint_id: u64,
-    ) -> Result<Option<ServiceBlueprint>, crate::Error> {
+    ) -> Result<Option<ServiceBlueprint>, Error> {
         let call = api::storage().services().blueprints(blueprint_id);
         let at = BlockRef::from_hash(H256::from_slice(&at));
         let ret: Option<ServiceBlueprint> = self
@@ -44,7 +45,7 @@ where
             .at(at)
             .fetch(&call)
             .await
-            .map_err(|e| crate::Error::ClientError(e.to_string()))?
+            .map_err(|e| Error::ClientError(e.to_string()))?
             .map(|r| r.1);
 
         Ok(ret)
@@ -54,7 +55,7 @@ where
         &self,
         at: [u8; 32],
         address: AccountId32,
-    ) -> Result<Vec<RpcServicesWithBlueprint>, crate::Error> {
+    ) -> Result<Vec<RpcServicesWithBlueprint>, Error> {
         let call = api::apis()
             .services_api()
             .query_services_with_blueprints_by_operator(address);
@@ -65,8 +66,8 @@ where
             .at(at)
             .call(call)
             .await
-            .map_err(|e| crate::Error::ClientError(e.to_string()))?
-            .map_err(|e| crate::Error::ClientError(format!("{e:?}")))?;
+            .map_err(|e| Error::ClientError(e.to_string()))?
+            .map_err(|e| Error::ClientError(format!("{e:?}")))?;
 
         Ok(ret)
     }

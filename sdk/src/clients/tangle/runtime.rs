@@ -2,7 +2,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::clients::Client;
-use crate::TokioMutexExt;
+use crate::error::Error;
+use crate::mutex_ext::TokioMutexExt;
 use subxt::blocks::{Block, BlockRef};
 use subxt::events::Events;
 use subxt::utils::AccountId32;
@@ -33,7 +34,7 @@ pub struct TangleRuntimeClient {
 
 impl TangleRuntimeClient {
     /// Create a new Tangle runtime client from a RPC url.
-    pub async fn from_url(url: &str, account_id: AccountId32) -> Result<Self, crate::Error> {
+    pub async fn from_url(url: &str, account_id: AccountId32) -> Result<Self, Error> {
         let client = subxt::OnlineClient::<SubstrateConfig>::from_url(url).await?;
         Ok(Self::new(client, account_id))
     }
@@ -54,7 +55,7 @@ impl TangleRuntimeClient {
 
     /// Initialize the TangleRuntime instance by listening for finality notifications.
     /// This method must be called before using the instance.
-    async fn initialize(&self) -> Result<(), crate::Error> {
+    async fn initialize(&self) -> Result<(), Error> {
         let finality_notification_stream = self.client.blocks().subscribe_finalized().await?;
         *self.finality_notification_stream.lock().await = Some(finality_notification_stream);
         Ok(())

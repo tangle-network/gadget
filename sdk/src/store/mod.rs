@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::error::Error;
 use alloc::boxed::Box;
 use serde::de::DeserializeOwned;
 use serde::Serialize;

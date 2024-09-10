@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
 
-use crate::Error;
+use crate::error::Error;
 
 use self::channels::UserID;
 

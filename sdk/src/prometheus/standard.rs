@@ -1,3 +1,4 @@
+use crate::error::Error;
 use crate::metrics;
 use crate::prometheus::shared::{BYTES_RECEIVED, BYTES_SENT, REGISTRY};
 use alloc::string::ToString;
@@ -19,7 +20,7 @@ impl Default for PrometheusConfig {
     }
 }
 
-pub async fn setup(config: PrometheusConfig) -> Result<(), crate::Error> {
+pub async fn setup(config: PrometheusConfig) -> Result<(), Error> {
     if let PrometheusConfig::Enabled { bind_addr } = config {
         static HAS_REGISTERED: AtomicBool = AtomicBool::new(false);
         if HAS_REGISTERED.load(Ordering::SeqCst) {
@@ -29,20 +30,20 @@ pub async fn setup(config: PrometheusConfig) -> Result<(), crate::Error> {
         HAS_REGISTERED.store(true, Ordering::SeqCst);
 
         let _ = metrics::register(BYTES_RECEIVED.clone(), &REGISTRY).map_err(|err| {
-            crate::Error::PrometheusError {
+            Error::PrometheusError {
                 err: err.to_string(),
             }
         })?;
 
         let _ = metrics::register(BYTES_SENT.clone(), &REGISTRY).map_err(|err| {
-            crate::Error::PrometheusError {
+            Error::PrometheusError {
                 err: err.to_string(),
             }
         })?;
 
         metrics::init_prometheus(bind_addr, REGISTRY.clone())
             .await
-            .map_err(|err| crate::Error::PrometheusError {
+            .map_err(|err| Error::PrometheusError {
                 err: err.to_string(),
             })?;
     }

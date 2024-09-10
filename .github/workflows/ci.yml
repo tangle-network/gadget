@@ -40,8 +40,7 @@ jobs:
     strategy:
       matrix:
         package: [
-          gadget-sdk,
-          blueprint-manager
+          gadget-sdk
         ]
     steps:
       - name: Checkout code
