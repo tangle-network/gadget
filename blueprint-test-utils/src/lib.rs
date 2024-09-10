@@ -18,6 +18,7 @@ use gadget_sdk::keystore;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
 use gadget_sdk::keystore::{Backend, BackendExt, TanglePairSigner};
+pub use gadget_sdk::setup_log;
 use libp2p::Multiaddr;
 pub use log;
 use sp_core::Pair as PairT;
@@ -27,9 +28,6 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use subxt::ext::sp_core::Pair;
 use tangle_environment::runtime::TangleConfig;
-use tracing_subscriber::filter::EnvFilter;
-use tracing_subscriber::fmt::SubscriberBuilder;
-use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
 use uuid::Uuid;
 
@@ -180,19 +178,6 @@ async fn inject_test_keys<P: AsRef<Path>>(
     Ok(())
 }
 
-/// Sets up the default logging as well as setting a panic hook for tests
-pub fn setup_log() {
-    let _ = SubscriberBuilder::default()
-        .with_env_filter(EnvFilter::from_default_env())
-        .finish()
-        .try_init();
-
-    std::panic::set_hook(Box::new(|info| {
-        log::error!(target: "gadget", "Panic occurred: {info:?}");
-        std::process::exit(1);
-    }));
-}
-
 pub async fn create_blueprint(
     client: &TestClient,
     account_id: &TanglePairSigner,
@@ -287,11 +272,16 @@ pub async fn wait_for_completion_of_job(
     client: &TestClient,
     service_id: u64,
     call_id: u64,
+    logger: &DebugLogger,
 ) -> Result<JobResults, Box<dyn Error>> {
     loop {
-        gadget_io::tokio::time::sleep(Duration::from_millis(100)).await;
+        gadget_io::tokio::time::sleep(Duration::from_millis(5000)).await;
         let call = api::storage().services().job_results(service_id, call_id);
         let res = client.storage().at_latest().await?.fetch(&call).await?;
+        logger.info(format!(
+            "Waiting for job completion. Status: {}",
+            res.is_some()
+        ));
 
         if let Some(ret) = res {
             return Ok(ret);
@@ -343,14 +333,14 @@ macro_rules! test_blueprint {
     ) => {
         use $crate::{
             get_next_call_id, get_next_service_id, run_test_blueprint_manager,
-            setup_log, submit_job, wait_for_completion_of_job, Opts,
+            submit_job, wait_for_completion_of_job, Opts,
         };
 
         use $crate::test_ext::new_test_ext_blueprint_manager;
 
         #[tokio::test(flavor = "multi_thread")]
         async fn test_externalities_standard() {
-            setup_log();
+            $crate::setup_log();
 
         let mut base_path = std::env::current_dir().expect("Failed to get current directory");
 
@@ -408,7 +398,7 @@ macro_rules! test_blueprint {
                 .await
                 .expect("Failed to submit job");
 
-                let job_results = wait_for_completion_of_job(client, service_id, call_id)
+                let job_results = wait_for_completion_of_job(client, service_id, call_id, handles[0].logger())
                     .await
                     .expect("Failed to wait for job completion");
 
@@ -526,9 +516,10 @@ mod tests_standard {
                 }
 
                 // Step 2: wait for the job to complete
-                let job_results = wait_for_completion_of_job(client, service_id, call_id)
-                    .await
-                    .expect("Failed to wait for job completion");
+                let job_results =
+                    wait_for_completion_of_job(client, service_id, call_id, handles[0].logger())
+                        .await
+                        .expect("Failed to wait for job completion");
 
                 // Step 3: Get the job results, compare to expected value(s)
                 let expected_result =

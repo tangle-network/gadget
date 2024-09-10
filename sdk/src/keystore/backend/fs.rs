@@ -214,10 +214,6 @@ impl Backend for FilesystemKeystore {
 
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error> {
         let secret_bytes = self.secret_by_type(&public.to_sec1_bytes(), KeyType::Ecdsa)?;
-        println!(
-            "[ECDSA] Secret bytes len={}: {secret_bytes:?}",
-            secret_bytes.as_ref().map(|r| r.len()).unwrap_or_default()
-        );
         if let Some(buf) = secret_bytes {
             Ok(Some(ecdsa::secret_from_bytes(&buf).map_err(Error::Ecdsa)?))
         } else {

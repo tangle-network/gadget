@@ -118,10 +118,7 @@ fn create_gadget_runner(
 #[tokio::main]
 async fn main() -> Result<()> {
     // color_eyre::install()?;
-    let _ = SubscriberBuilder::default()
-        .with_env_filter(EnvFilter::from_default_env())
-        .finish()
-        .try_init();
+    gadget_sdk::setup_log();
 
     // Load the environment and create the gadget runner
     // TODO: Place protocol in the config

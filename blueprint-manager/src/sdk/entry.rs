@@ -6,8 +6,6 @@ use gadget_core::job::SendFuture;
 use gadget_io::{GadgetConfig, KeystoreConfig, SupportedChains};
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
-use tracing_subscriber::fmt::SubscriberBuilder;
-use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 
 pub fn keystore_from_base_path(
@@ -121,14 +119,4 @@ pub fn setup_blueprint_manager_logger(
     //let _ = env_logger::try_init();
 
     Ok(())
-}
-pub fn setup_log() {
-    let _ = SubscriberBuilder::default()
-        .with_env_filter(EnvFilter::from_default_env())
-        .finish()
-        .try_init();
-
-    std::panic::set_hook(Box::new(|info| {
-        log::error!(target: "gadget", "Panic occurred: {info:?}");
-    }));
 }
