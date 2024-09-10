@@ -41,6 +41,7 @@ jobs:
       matrix:
         package: [
           gadget-sdk,
+          blueprint-manager
         ]
     steps:
       - name: Checkout code
@@ -73,11 +74,11 @@ jobs:
     name: cargo clippy
     runs-on: macos-latest
     strategy:
-        matrix:
-            package: [
-              gadget-sdk,
-              blueprint-manager
-            ]
+      matrix:
+        package: [
+          gadget-sdk,
+          blueprint-manager
+        ]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -102,11 +103,11 @@ jobs:
     name: cargo test
     runs-on: macos-14
     strategy:
-        matrix:
-            package: [
-              gadget-sdk,
-              blueprint-manager,
-            ]
+      matrix:
+        package: [
+          gadget-sdk,
+          blueprint-manager,
+        ]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
