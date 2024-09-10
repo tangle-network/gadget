@@ -8,7 +8,7 @@ license = "Unlicense"
 homepage = "https://tangle.tools"
 repository = "https://github.com/webb-tools/ecdsa-threshold-mpc"
 readme = "README.md"
-categories = ["cryptography", "cryptography::cryptocurrencies", "tangle-blueprint"]
+categories = ["cryptography", "cryptography::cryptocurrencies"]
 keywords = ["tangle", "blueprint", "avs"]
 rust-version = "1.79"
 
@@ -33,8 +33,8 @@ cggmp21 = { version = "0.4", features = ["curve-stark", "curve-secp256k1", "curv
 cggmp21-keygen = { version = "0.3", features = ["hd-wallets"] }
 key-share = { version = "0.4", default-features = false }
 
-generic-ec = { version = "0.4.1", default-features = false } 
-generic-ec-zkp = { version = "0.4.1", default-features = false } 
+generic-ec = { version = "0.4.1", default-features = false }
+generic-ec-zkp = { version = "0.4.1", default-features = false }
 round-based = { version = "0.3", default-features = false }
 udigest = { version = "0.2.1", default-features = false }
 digest = { version = "0.10", default-features = false }
