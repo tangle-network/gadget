@@ -1,11 +1,11 @@
 #![allow(clippy::module_name_repetitions)]
 
-use gadget_common::prelude::DebugLogger;
+use crate::logger::Logger;
 
 /// An event watcher for the Tangle network.
 #[derive(Debug, Clone)]
 pub struct TangleEventsWatcher {
-    pub logger: DebugLogger,
+    pub logger: Logger,
 }
 
 /// A Type alias for the Tangle configuration [`subxt::PolkadotConfig`].
@@ -15,7 +15,7 @@ pub type TangleConfig = subxt::PolkadotConfig;
 impl super::substrate::SubstrateEventWatcher<TangleConfig> for TangleEventsWatcher {
     const TAG: &'static str = "tangle";
     const PALLET_NAME: &'static str = "Services";
-    fn logger(&self) -> &DebugLogger {
+    fn logger(&self) -> &Logger {
         &self.logger
     }
 }

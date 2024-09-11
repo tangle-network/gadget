@@ -222,15 +222,6 @@ pub enum Gadget<'a> {
     Container(ContainerGadget<'a>),
 }
 
-impl Default for Gadget<'_> {
-    fn default() -> Self {
-        Gadget::Wasm(WasmGadget {
-            runtime: WasmRuntime::Wasmtime,
-            sources: vec![],
-        })
-    }
-}
-
 /// A binary that is stored in the GitHub release.
 ///
 /// This will construct the URL to the release and download the binary.
@@ -248,13 +239,6 @@ pub struct GithubFetcher<'a> {
     pub tag: BlueprintString<'a>,
     /// The names of the binary in the release by the arch and the os.
     pub binaries: Vec<GadgetBinary<'a>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct TestFetcher<'a> {
-    pub cargo_package: BlueprintString<'a>,
-    pub cargo_bin: BlueprintString<'a>,
-    pub base_path: BlueprintString<'a>,
 }
 
 /// The CPU or System architecture.
@@ -343,8 +327,6 @@ pub enum GadgetSourceFetcher<'a> {
     Github(GithubFetcher<'a>),
     /// A Gadgets that will be fetched from the container registry.
     ContainerImage(ImageRegistryFetcher<'a>),
-    /// For testing
-    Testing(TestFetcher<'a>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -385,59 +367,4 @@ pub struct NativeGadget<'a> {
 pub struct ContainerGadget<'a> {
     /// Where the Image of the gadget binary is stored.
     pub sources: Vec<GadgetSource<'a>>,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_blueprint_deserialization() {
-        // get the root of the git repo using a command, then make a path using {git repo root}/blueprints/incredible-squaring/blueprint-test.json
-        let process = std::process::Command::new("git")
-            .arg("rev-parse")
-            .arg("--show-toplevel")
-            .stdout(std::process::Stdio::piped())
-            .spawn()
-            .expect("Failed to run git command");
-
-        let output = String::from_utf8(
-            process
-                .wait_with_output()
-                .expect("Failed to get output of git command")
-                .stdout,
-        )
-        .expect("Failed to convert command output to string");
-        let blueprint_path = std::path::Path::new(&output.trim())
-            .join("blueprints/incredible-squaring/blueprint-test.json");
-
-        let blueprint_content =
-            std::fs::read_to_string(blueprint_path).expect("Failed to read blueprint-test.json");
-
-        let blueprint_content: serde_json::Value = serde_json::from_str(&blueprint_content)
-            .expect("Failed to deserialize blueprint-test.json file");
-
-        // Deserialize the entire Blueprint
-        let gadget: Gadget = serde_json::from_str(&blueprint_content["gadget"].to_string())
-            .expect("Failed to deserialize blueprint.json");
-
-        // Assertions
-
-        if let Gadget::Native(gadget) = gadget {
-            for src in gadget.sources {
-                if let GadgetSourceFetcher::Testing(testing) = src.fetcher {
-                    assert_eq!(testing.base_path, ".");
-                    assert_eq!(testing.cargo_bin, "incredible-squaring-gadget");
-                    assert_eq!(testing.cargo_package, "incredible-squaring-blueprint");
-                    return;
-                }
-            }
-        } else {
-            panic!("Unexpected Gadget variant");
-        }
-
-        panic!(
-            "The sources included with the `gadget` field does not have a valid entry for Testing"
-        )
-    }
 }

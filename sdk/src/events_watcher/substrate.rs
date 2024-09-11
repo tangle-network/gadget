@@ -6,9 +6,9 @@
 //! action to take when the specified event is found in a block at the `handle_event` api.
 
 use crate::events_watcher::{error::Error, ConstantWithMaxRetryCount};
+use crate::logger::Logger;
 use core::time::Duration;
 use futures::TryFutureExt;
-use gadget_common::prelude::DebugLogger;
 use subxt::OnlineClient;
 
 /// A type alias to extract the event handler type from the event watcher.
@@ -97,7 +97,7 @@ where
 
     /// The name of the pallet that this event watcher is watching.
     const PALLET_NAME: &'static str;
-    fn logger(&self) -> &DebugLogger;
+    fn logger(&self) -> &Logger;
 
     /// Returns a task that should be running in the background
     /// that will watch events

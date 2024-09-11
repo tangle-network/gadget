@@ -57,6 +57,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         verbose: input.verbose,
         pretty: input.pretty,
         instance_id: Some(format!("Test Node {}", input.instance_id)),
+        test_mode: true,
     };
 
     let gadget_config = GadgetConfig {

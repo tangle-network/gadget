@@ -19,14 +19,22 @@ lazy_static = { workspace = true }
 lock_api = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
 parking_lot = { workspace = true, optional = true }
-rand = { version = "0.8", default-features = false, features = ["alloc"] }
+rand = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
+structopt = { workspace = true }
+tracing-subscriber = { workspace = true }
+url = { workspace = true, features = ["serde"] }
 
 # Keystore deps
 ed25519-zebra = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "ecdsa-core", "arithmetic"] }
 schnorrkel = { workspace = true }
 w3f-bls = { workspace = true }
+eigensdk-rs = { workspace = true }
+ark-bn254 = { workspace = true }
+ark-serialize = { workspace = true }
+ark-ff = { workspace = true }
+ark-ec = { workspace = true }
 
 # Metrics deps
 hyper = { workspace = true, features = ["http1", "server"], optional = true }

@@ -11,6 +11,7 @@ path = "src/cli.rs"
 sp-core = { workspace = true }
 gadget-io = { workspace = true }
 gadget-sdk = { workspace = true, default-features = true }
+gadget-blueprint-proc-macro-core = { workspace = true }
 color-eyre = { workspace = true, features = ["tracing-error", "color-spantrace", "issue-url"] }
 serde = { workspace = true }
 structopt = { workspace = true }
@@ -30,6 +31,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "trac
 libp2p = { workspace = true }
 auto_impl = { workspace = true }
 parking_lot = { workspace = true }
+async-trait = { workspace = true }
 
 [features]
 default = ["std"]

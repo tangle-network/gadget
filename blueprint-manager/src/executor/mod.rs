@@ -112,7 +112,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     };
 
     let logger = Logger {
-        target: "blueprint-manager",
+        target: "blueprint-manager".into(),
         id: format!("blueprint-manager-{}", logger_id),
     };
 

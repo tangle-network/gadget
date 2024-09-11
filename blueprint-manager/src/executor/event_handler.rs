@@ -2,17 +2,18 @@ use crate::config::BlueprintManagerConfig;
 use crate::gadget::native::{get_gadget_binary, FilteredBlueprint};
 use crate::gadget::ActiveGadgets;
 use crate::protocols::resolver::NativeGithubMetadata;
+use crate::sdk::utils::slice_32_to_sha_hex_string;
 use crate::sdk::utils::{
-    chmod_x_file, generate_process_arguments, generate_running_process_status_handle,
-    get_download_url, get_service_str, github_fetcher_to_native_github_metadata, hash_bytes_to_hex,
-    is_windows, msg_to_error, valid_file_exists,
+    bounded_string_to_string, chmod_x_file, generate_process_arguments,
+    generate_running_process_status_handle, get_download_url, get_service_str,
+    github_fetcher_to_native_github_metadata, hash_bytes_to_hex, is_windows, msg_to_error,
+    valid_file_exists,
 };
 use color_eyre::eyre::OptionExt;
 use gadget_io::GadgetConfig;
 use gadget_sdk::clients::tangle::runtime::TangleEvent;
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
 use gadget_sdk::logger::Logger;
-use std::fmt::Write;
 use std::sync::atomic::Ordering;
 use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::subxt::SubstrateConfig;
@@ -42,6 +43,7 @@ pub async fn maybe_handle(
             repo: gh.repo.clone(),
             gadget_binaries: fetcher.binaries.0.clone(),
             blueprint_id: gh.blueprint_id,
+            fetcher: fetcher.clone(),
         };
 
         if let Err(err) = handle_github_source(
@@ -92,7 +94,7 @@ async fn handle_github_source(
 
         // Check if the binary exists, if not download it
         let retrieved_hash = if !valid_file_exists(&binary_download_path, &expected_hash).await {
-            let url = get_download_url(&service.git, &service.tag);
+            let url = get_download_url(relevant_binary, &service.fetcher);
 
             let download = reqwest::get(&url)
                 .await
@@ -206,13 +208,6 @@ async fn handle_github_source(
     }
 
     Ok(())
-}
-
-fn slice_32_to_sha_hex_string(hash: [u8; 32]) -> String {
-    hash.iter().fold(String::new(), |mut acc, byte| {
-        write!(&mut acc, "{:02x}", byte).expect("Should be able to write");
-        acc
-    })
 }
 
 #[derive(Default, Debug)]
@@ -352,6 +347,7 @@ pub(crate) async fn handle_tangle_event(
                 blueprint_id: *blueprint_id,
                 services: vec![0], // Add a dummy service id for now, since it does not matter for registration mode
                 gadget: blueprint.gadget,
+                name: bounded_string_to_string(blueprint.metadata.name)?,
                 registration_mode: true,
             };
 
@@ -373,6 +369,8 @@ pub(crate) async fn handle_tangle_event(
             blueprint_id: r.blueprint_id,
             services: r.services.iter().map(|r| r.id).collect(),
             gadget: r.blueprint.gadget.clone(),
+            name: bounded_string_to_string(r.clone().blueprint.metadata.name)
+                .unwrap_or("unknown_blueprint_name".to_string()),
             registration_mode: false,
         })
         .chain(registration_blueprints)

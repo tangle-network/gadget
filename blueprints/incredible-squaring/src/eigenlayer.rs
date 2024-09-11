@@ -11,7 +11,7 @@ use alloy_sol_types::sol;
 use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
 use gadget_sdk::job;
 use gadget_sdk::{
-    env::Protocol,
+    config::Protocol,
     events_watcher::{
         evm::{Config, EventWatcher},
         substrate::SubstrateEventWatcher,
@@ -31,8 +31,8 @@ use IncredibleSquaringTaskManager::{
 use eigensdk_rs::eigen_utils::types::{operator_id_from_key_pair, OperatorPubkeys};
 use eigensdk_rs::eigen_utils::*;
 use eigensdk_rs::incredible_squaring_avs::operator::*;
-use gadget_common::config::DebugLogger;
-use gadget_sdk::env::{ContextConfig, GadgetConfiguration};
+use gadget_sdk::logger::Logger;
+use gadget_sdk::config::{ContextConfig, GadgetConfiguration};
 use gadget_sdk::network::gossip::GossipHandle;
 
 // Codegen from ABI file to interact with the contract.

@@ -45,7 +45,6 @@ pub mod error;
 pub mod sr25519;
 
 pub use error::Error;
-use gadget_common::subxt_signer;
 
 /// The Keystore [`Backend`] trait.
 ///

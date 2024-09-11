@@ -3,9 +3,12 @@ use crate::protocols::resolver::NativeGithubMetadata;
 use gadget_io::GadgetConfig;
 use gadget_sdk::logger::Logger;
 use sha2::Digest;
+use std::fmt::Write;
 use std::path::Path;
+use std::string::FromUtf8Error;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
     GadgetBinary, GithubFetcher,
 };
@@ -20,14 +23,26 @@ pub fn github_fetcher_to_native_github_metadata(
     let git = format!("https://github.com/{owner}/{repo}");
 
     NativeGithubMetadata {
-        fetcher: gh.clone(),
         git,
         tag,
         repo,
         owner,
         gadget_binaries: gh.binaries.0.clone(),
         blueprint_id,
+        fetcher: gh.clone(),
     }
+}
+
+pub fn slice_32_to_sha_hex_string(hash: [u8; 32]) -> String {
+    hash.iter().fold(String::new(), |mut acc, byte| {
+        write!(&mut acc, "{:02x}", byte).expect("Should be able to write");
+        acc
+    })
+}
+
+pub fn bounded_string_to_string(string: BoundedString) -> Result<String, FromUtf8Error> {
+    let bytes: &Vec<u8> = &string.0 .0;
+    String::from_utf8(bytes.clone())
 }
 
 pub fn generate_process_arguments(
@@ -109,6 +124,12 @@ pub fn msg_to_error<T: Into<String>>(msg: T) -> color_eyre::Report {
     color_eyre::Report::msg(msg.into())
 }
 
+pub fn get_service_str(svc: &NativeGithubMetadata) -> String {
+    let repo = svc.git.clone();
+    let vals: Vec<&str> = repo.split(".com/").collect();
+    vals[1].to_string()
+}
+
 pub async fn chmod_x_file<P: AsRef<Path>>(path: P) -> color_eyre::Result<()> {
     let success = gadget_io::tokio::process::Command::new("chmod")
         .arg("+x")
@@ -163,12 +184,4 @@ pub fn generate_running_process_status_handle(
 
 pub fn bytes_to_utf8_string<T: Into<Vec<u8>>>(input: T) -> color_eyre::Result<String> {
     String::from_utf8(input.into()).map_err(|err| msg_to_error(err.to_string()))
-}
-
-pub fn slice_32_to_sha_hex_string(hash: [u8; 32]) -> String {
-    use std::fmt::Write;
-    hash.iter().fold(String::new(), |mut acc, byte| {
-        write!(&mut acc, "{:02x}", byte).expect("Should be able to write");
-        acc
-    })
 }

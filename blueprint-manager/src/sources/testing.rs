@@ -1,14 +1,14 @@
-use crate::sdk::async_trait;
 use crate::sources::BinarySourceFetcher;
+use async_trait::async_trait;
 use color_eyre::Report;
-use gadget_common::prelude::DebugLogger;
+use gadget_sdk::logger::Logger;
 use std::path::PathBuf;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::TestFetcher;
 
 pub struct TestSourceFetcher<'a> {
     pub fetcher: TestFetcher,
     pub blueprint_id: u64,
-    pub logger: &'a DebugLogger,
+    pub logger: &'a Logger,
     pub gadget_name: String,
 }
 

@@ -1,9 +1,9 @@
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::events_watcher::tangle::TangleConfig;
 use crate::keystore::backend::GenericKeyStore;
+use crate::logger::Logger;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
-use gadget_common::prelude::DebugLogger;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
@@ -19,17 +19,46 @@ pub enum Protocol {
     Eigenlayer,
 }
 
-impl TryFrom<&'_ str> for Protocol {
-    type Error = &'static str;
+impl Protocol {
+    /// Returns the protocol from the environment variable `PROTOCOL`.
+    #[cfg(feature = "std")]
+    pub fn from_env() -> Self {
+        std::env::var("PROTOCOL")
+            .map(|v| v.parse::<Protocol>().unwrap_or_default())
+            .unwrap_or_default()
+    }
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value.to_lowercase().as_str() {
-            "tangle" => Ok(Self::Tangle),
-            "eigenlayer" => Ok(Self::Eigenlayer),
-            _ => Err("Invalid protocol"),
+    /// Returns the protocol from the environment variable `PROTOCOL`.
+    #[cfg(not(feature = "std"))]
+    pub fn from_env() -> Self {
+        Self::Tangle
+    }
+}
+
+impl core::fmt::Display for Protocol {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        match self {
+            Self::Tangle => write!(f, "tangle"),
+            Self::Eigenlayer => write!(f, "eigenlayer"),
         }
     }
 }
+
+impl core::str::FromStr for Protocol {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "tangle" => Ok(Self::Tangle),
+            "eigenlayer" => Ok(Self::Eigenlayer),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Gadget environment using the `parking_lot` RwLock.
+#[cfg(feature = "std")]
+pub type StdGadgetConfiguration = GadgetConfiguration<parking_lot::RawRwLock>;
 
 /// Gadget environment.
 #[non_exhaustive]
@@ -67,7 +96,7 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     /// Bind addr
     pub bind_addr: IpAddr,
     /// logger
-    pub logger: DebugLogger,
+    pub logger: Logger,
     /// Whether or not the gadget is in test mode
     pub test_mode: bool,
     _lock: core::marker::PhantomData<RwLock>,
@@ -181,7 +210,7 @@ pub enum GadgetCLICoreSettings {
         #[structopt(long, short = "t")]
         test_mode: bool,
         #[structopt(long, short = "l", parse(from_str))]
-        logger: Option<DebugLogger>,
+        logger: Option<Logger>,
         #[structopt(long, short = "u", long = "url", parse(try_from_str = url::Url::parse))]
         #[serde(default = "gadget_io::defaults::rpc_url")]
         url: Url,

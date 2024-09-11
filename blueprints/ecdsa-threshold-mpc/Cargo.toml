@@ -17,7 +17,7 @@ tracing = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 futures = { workspace = true }
-rand = { workspace = true, default-features = false, features = ["alloc"] }
+rand = { workspace = true, features = ["alloc"] }
 gadget-sdk = { workspace = true, features = ["std"] }
 
 color-eyre = { workspace = true }

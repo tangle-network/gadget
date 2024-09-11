@@ -1,8 +1,7 @@
 use color_eyre::{eyre::eyre, Result};
-use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
-use gadget_sdk::env::{ContextConfig, GadgetConfiguration};
+use gadget_sdk::config::{ContextConfig, GadgetConfiguration};
 use gadget_sdk::{
-    env::Protocol,
+    config::Protocol,
     events_watcher::{substrate::SubstrateEventWatcher, tangle::TangleEventsWatcher},
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
@@ -12,6 +11,8 @@ use gadget_sdk::{
 };
 use incredible_squaring_blueprint as blueprint;
 use std::sync::Arc;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
+use structopt::StructOpt;
 
 #[async_trait::async_trait]
 trait GadgetRunner {
@@ -20,7 +21,7 @@ trait GadgetRunner {
 }
 
 struct TangleGadgetRunner {
-    env: gadget_sdk::env::GadgetConfiguration<parking_lot::RawRwLock>,
+    env: GadgetConfiguration<parking_lot::RawRwLock>,
 }
 
 #[async_trait::async_trait]
@@ -111,7 +112,7 @@ fn create_gadget_runner(
     GadgetConfiguration<parking_lot::RawRwLock>,
     Arc<dyn GadgetRunner>,
 ) {
-    let env = gadget_sdk::env::load(Some(protocol), config).expect("Failed to load environment");
+    let env = gadget_sdk::config::load(Some(protocol), config).expect("Failed to load environment");
     match protocol {
         Protocol::Tangle => (env.clone(), Arc::new(TangleGadgetRunner { env })),
         Protocol::Eigenlayer => panic!("Eigenlayer not implemented yet"),
@@ -120,8 +121,7 @@ fn create_gadget_runner(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // color_eyre::install()?;
-    gadget_sdk::setup_log();
+    gadget_sdk::logger::setup_log();
 
     // Load the environment and create the gadget runner
     // TODO: Place protocol in the config

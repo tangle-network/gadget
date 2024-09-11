@@ -19,7 +19,7 @@ pub mod benchmark;
 pub mod clients;
 /// Gadget configuration
 pub mod config;
-mod error;
+pub mod error;
 /// Blockchain Events Watcher Module
 #[cfg(any(feature = "std", feature = "wasm"))]
 pub mod events_watcher;
