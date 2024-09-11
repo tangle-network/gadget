@@ -9,10 +9,11 @@ use subxt::events::Events;
 use subxt::utils::AccountId32;
 use subxt::{self, SubstrateConfig};
 
+/// The [Config](subxt::Config) providing the runtime types.
 pub type TangleConfig = SubstrateConfig;
 pub type TangleClient = subxt::OnlineClient<TangleConfig>;
-pub type TangleBlock = Block<TangleConfig, TangleClient>;
-pub type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
+type TangleBlock = Block<TangleConfig, TangleClient>;
+type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
 
 #[derive(Clone, Debug)]
 pub struct TangleEvent {
@@ -26,39 +27,38 @@ pub struct TangleEvent {
 
 #[derive(Clone, Debug)]
 pub struct TangleRuntimeClient {
-    client: subxt::OnlineClient<SubstrateConfig>,
-    finality_notification_stream: Arc<gadget_io::tokio::sync::Mutex<Option<TangleBlockStream>>>,
-    latest_finality_notification: Arc<gadget_io::tokio::sync::Mutex<Option<TangleEvent>>>,
+    client: TangleClient,
+    finality_notification_stream: Arc<tokio::sync::Mutex<Option<TangleBlockStream>>>,
+    latest_finality_notification: Arc<tokio::sync::Mutex<Option<TangleEvent>>>,
     account_id: AccountId32,
 }
 
 impl TangleRuntimeClient {
-    /// Create a new Tangle runtime client from a RPC url.
-    pub async fn from_url(url: &str, account_id: AccountId32) -> Result<Self, Error> {
-        let client = subxt::OnlineClient::<SubstrateConfig>::from_url(url).await?;
+    /// Create a new Tangle runtime client from an RPC url.
+    ///
+    /// # Errors
+    ///
+    /// * `url` is not a valid URL.
+    /// * `url` is not a secure (https:// or wss://) URL.
+    /// * `url` cannot be resolved.
+    pub async fn from_url<U: AsRef<str>>(url: U, account_id: AccountId32) -> Result<Self, Error> {
+        let client = TangleClient::from_url(url).await?;
         Ok(Self::new(client, account_id))
     }
 
-    /// Create a new TangleRuntime instance.
-    pub fn new(client: subxt::OnlineClient<SubstrateConfig>, account_id: AccountId32) -> Self {
+    /// Create a new Tangle runtime client from an existing [`TangleClient`].
+    pub fn new(client: TangleClient, account_id: AccountId32) -> Self {
         Self {
             client,
-            finality_notification_stream: Arc::new(gadget_io::tokio::sync::Mutex::new(None)),
-            latest_finality_notification: Arc::new(gadget_io::tokio::sync::Mutex::new(None)),
+            finality_notification_stream: Arc::new(tokio::sync::Mutex::new(None)),
+            latest_finality_notification: Arc::new(tokio::sync::Mutex::new(None)),
             account_id,
         }
     }
 
-    pub fn client(&self) -> subxt::OnlineClient<SubstrateConfig> {
+    /// Get the associated [`TangleClient`]
+    pub fn client(&self) -> TangleClient {
         self.client.clone()
-    }
-
-    /// Initialize the TangleRuntime instance by listening for finality notifications.
-    /// This method must be called before using the instance.
-    async fn initialize(&self) -> Result<(), Error> {
-        let finality_notification_stream = self.client.blocks().subscribe_finalized().await?;
-        *self.finality_notification_stream.lock().await = Some(finality_notification_stream);
-        Ok(())
     }
 
     pub fn runtime_api(
@@ -69,8 +69,30 @@ impl TangleRuntimeClient {
         self.client.runtime_api().at(block_ref)
     }
 
+    /// Get the associated account ID
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
+    /// use subxt::utils::AccountId32;
+    ///
+    /// let account_id = AccountId32::from([0; 32]);
+    /// let client = TangleRuntimeClient::from_url("https://foo.bar", account_id);
+    ///
+    /// assert_eq!(client.account_id(), &account_id);
+    /// ```
     pub fn account_id(&self) -> &AccountId32 {
         &self.account_id
+    }
+
+    // Initialize the `TangleRuntimeClient` to listen for finality notifications.
+    //
+    // NOTE: This method must be called before using the instance.
+    async fn initialize(&self) -> Result<(), Error> {
+        let finality_notification_stream = self.client.blocks().subscribe_finalized().await?;
+        *self.finality_notification_stream.lock().await = Some(finality_notification_stream);
+        Ok(())
     }
 }
 
