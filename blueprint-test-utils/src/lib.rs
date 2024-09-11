@@ -36,6 +36,7 @@ pub type OutputValue = api::runtime_types::tangle_primitives::services::field::F
 
 pub mod sync;
 pub mod test_ext;
+pub mod test_utils;
 
 pub type TestClient = OnlineClient<TangleConfig>;
 
@@ -498,8 +499,12 @@ mod tests_standard {
                     .expect("Failed to get next job id")
                     .saturating_sub(1);
 
+                handles[0].logger().info("Waiting for all nodes to be online ...");
+                let all_paths = handles.iter().map(|r| r.keystore_path().clone()).collect::<Vec<_>>();
+                wait_for_test_ready(all_paths, handles[0].logger()).await;
+
                 handles[0].logger().info(format!(
-                    "Submitting job with params service ID: {service_id}, call ID: {call_id}"
+                    "All nodes online! Submitting job with params service ID: {service_id}, call ID: {call_id}"
                 ));
 
                 // Pass the arguments
@@ -538,5 +543,33 @@ mod tests_standard {
                 assert_eq!(job_results.result[0], expected_result);
             })
             .await
+    }
+}
+
+/// `base_paths`: All the paths pointing to the keystore for each node
+/// This function returns when every file exists
+async fn wait_for_test_ready(base_paths: Vec<PathBuf>, logger: &DebugLogger) {
+    let paths = base_paths
+        .into_iter()
+        .map(|r| r.join("test_started.tmp"))
+        .collect::<Vec<_>>();
+    logger.info(format!("Waiting for these paths to exist: {paths:?}"));
+    loop {
+        let mut ready_count = 0;
+        for path in &paths {
+            if path.exists() {
+                ready_count += 1;
+            }
+        }
+
+        if ready_count == paths.len() {
+            break;
+        }
+
+        logger.info(format!(
+            "Not all paths are ready yet ({ready_count}/{}). Waiting ...",
+            paths.len()
+        ));
+        tokio::time::sleep(Duration::from_secs(3)).await;
     }
 }

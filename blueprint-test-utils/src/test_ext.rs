@@ -40,7 +40,7 @@ use gadget_core::job::SendFuture;
 use libp2p::Multiaddr;
 use sp_application_crypto::ecdsa;
 use sp_core::{sr25519, Pair};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -196,6 +196,12 @@ pub async fn new_test_ext_blueprint_manager<
             )
         })
         .collect::<Vec<_>>();
+
+    // Sanity check: ensure uniqueness
+    assert_eq!(
+        bind_addrs.iter().map(|r| r.1).collect::<HashSet<_>>().len(),
+        bind_addrs.len()
+    );
 
     let multi_addrs = bind_addrs
         .iter()

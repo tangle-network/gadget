@@ -16,6 +16,7 @@ use gadget_sdk::keystore::{BackendExt, TanglePairSigner};
 use sp_core::H256;
 use std::collections::HashMap;
 use std::future::Future;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
@@ -45,10 +46,11 @@ where
 pub struct BlueprintManagerHandle {
     shutdown_call: Option<tokio::sync::oneshot::Sender<()>>,
     start_tx: Option<tokio::sync::oneshot::Sender<()>>,
-    process: JoinHandle<color_eyre::Result<()>>,
+    running_task: JoinHandle<color_eyre::Result<()>>,
     logger: DebugLogger,
     sr25519_id: TanglePairSigner,
     ecdsa_id: subxt_signer::ecdsa::Keypair,
+    keystore_path: PathBuf,
 }
 
 impl BlueprintManagerHandle {
@@ -91,6 +93,11 @@ impl BlueprintManagerHandle {
     pub fn logger(&self) -> &DebugLogger {
         &self.logger
     }
+
+    /// Returns the keystore path for this blueprint manager
+    pub fn keystore_path(&self) -> &PathBuf {
+        &self.keystore_path
+    }
 }
 
 /// Add default behavior for unintentional dropping of the BlueprintManagerHandle
@@ -116,7 +123,7 @@ impl Future for BlueprintManagerHandle {
             }
         }
 
-        let result = futures::ready!(Pin::new(&mut this.process).poll(cx));
+        let result = futures::ready!(Pin::new(&mut this.running_task).poll(cx));
 
         match result {
             Ok(res) => Poll::Ready(res),
@@ -169,6 +176,8 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let tangle_runtime = tangle_environment.setup_runtime().await?;
     let runtime = ServicesClient::new(logger.clone(), tangle_runtime.client());
     let mut active_gadgets = HashMap::new();
+
+    let base_path = gadget_config.base_path.clone();
 
     let logger_manager = logger.clone();
     let manager_task = async move {
@@ -257,10 +266,11 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let handle = BlueprintManagerHandle {
         start_tx: Some(start_tx),
         shutdown_call: Some(tx_stop),
-        process: handle,
+        running_task: handle,
         logger: logger_clone,
         sr25519_id: tangle_key,
         ecdsa_id: ecdsa_key,
+        keystore_path: base_path,
     };
 
     Ok(handle)

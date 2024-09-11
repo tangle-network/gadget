@@ -8,6 +8,7 @@ use gadget_sdk::{
     },
     tx,
 };
+use std::io::Write;
 
 use incredible_squaring_blueprint as blueprint;
 
@@ -108,6 +109,7 @@ fn create_gadget_runner(
     Arc<dyn GadgetRunner>,
 ) {
     let env = gadget_sdk::env::load(Some(protocol), config).expect("Failed to load environment");
+
     match protocol {
         Protocol::Tangle => (env.clone(), Arc::new(TangleGadgetRunner { env })),
         Protocol::Eigenlayer => panic!("Eigenlayer not implemented yet"),
@@ -123,9 +125,13 @@ async fn main() -> Result<()> {
     // TODO: Place protocol in the config
     let protocol = Protocol::Tangle;
     let config = ContextConfig::from_args();
-    let (env, runner) = create_gadget_runner(protocol, config);
+
+    let (env, runner) = create_gadget_runner(protocol, config.clone());
+
     env.logger
         .info("~~~ Executing the incredible squaring blueprint ~~~");
+
+    check_for_test(&env, &config)?;
 
     // Register the operator if needed
     if env.should_run_registration() {
@@ -134,6 +140,33 @@ async fn main() -> Result<()> {
 
     // Run the gadget / AVS
     runner.run().await?;
+
+    Ok(())
+}
+
+#[allow(irrefutable_let_patterns)]
+fn check_for_test(
+    env: &GadgetConfiguration<parking_lot::RawRwLock>,
+    config: &ContextConfig,
+) -> Result<()> {
+    // create a file to denote we have started
+    if let gadget_sdk::env::GadgetCLICoreSettings::Run {
+        base_path,
+        test_mode,
+        ..
+    } = &config.gadget_core_settings
+    {
+        if !*test_mode {
+            return Ok(());
+        }
+        let path = base_path.join("test_started.tmp");
+        let mut file = std::fs::File::create(&path)?;
+        file.write_all(b"test_started")?;
+        env.logger.info(format!(
+            "Successfully wrote test file to {}",
+            path.display()
+        ))
+    }
 
     Ok(())
 }

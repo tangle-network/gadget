@@ -161,7 +161,7 @@ pub enum Error {
     TestSetup(String),
 }
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(name = "General CLI Context")]
 pub struct ContextConfig {
     /// Pass through arguments to another command
@@ -169,7 +169,7 @@ pub struct ContextConfig {
     pub gadget_core_settings: GadgetCLICoreSettings,
 }
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 pub enum GadgetCLICoreSettings {
     #[structopt(name = "run")]
     Run {
