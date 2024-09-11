@@ -20,7 +20,7 @@ pub type EventHandlerFor<RuntimeConfig> =
 /// The handlers are implemented separately from the watchers, so that we can have
 /// one event watcher and many event handlers that will run in parallel.
 #[async_trait::async_trait]
-pub trait EventHandler<RuntimeConfig>
+pub trait EventHandler<RuntimeConfig>: LoggerEnv
 where
     RuntimeConfig: subxt::Config + Send + Sync + 'static,
 {
@@ -68,6 +68,7 @@ where
         backoff: impl backoff::backoff::Backoff + Send + Sync + 'static,
     ) -> Result<(), Error> {
         if !self.can_handle_events(events.clone()).await? {
+            self.logger().info("There are no actionable events ...");
             return Ok(());
         };
         let wrapped_task = || {
@@ -86,9 +87,13 @@ where
 {
 }
 
+pub trait LoggerEnv {
+    fn logger(&self) -> &DebugLogger;
+}
+
 /// Represents a Substrate event watcher.
 #[async_trait::async_trait]
-pub trait SubstrateEventWatcher<RuntimeConfig>
+pub trait SubstrateEventWatcher<RuntimeConfig>: LoggerEnv
 where
     RuntimeConfig: subxt::Config + Send + Sync + 'static,
 {
@@ -97,7 +102,6 @@ where
 
     /// The name of the pallet that this event watcher is watching.
     const PALLET_NAME: &'static str;
-    fn logger(&self) -> &DebugLogger;
 
     /// Returns a task that should be running in the background
     /// that will watch events

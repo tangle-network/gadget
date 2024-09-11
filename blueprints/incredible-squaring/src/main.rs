@@ -2,7 +2,6 @@ use color_eyre::{eyre::eyre, Result};
 use gadget_sdk::{
     env::Protocol,
     events_watcher::{substrate::SubstrateEventWatcher, tangle::TangleEventsWatcher},
-    tangle_subxt,
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
@@ -77,10 +76,12 @@ impl GadgetRunner for TangleGadgetRunner {
 
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
         let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
-        //let signer = tangle_subxt::subxt_signer::sr25519::Keypair::from(signer.signer().clone().as_ref().secret.to_keypair());
+        let logger = self.env.logger.clone();
+
         let x_square = blueprint::XsquareEventHandler {
             service_id: self.env.service_id.unwrap(),
             signer,
+            logger,
         };
 
         self.env.logger.info("Starting the event watcher ...");
