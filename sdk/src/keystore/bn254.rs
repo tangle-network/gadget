@@ -18,7 +18,7 @@ pub fn generate_with_optional_seed(seed: Option<&[u8]>) -> Secret {
     match seed {
         Some(s) => {
             let hashed_seed = keccak256(s);
-            Secret::from_le_bytes_mod_order(&hashed_seed.as_slice())
+            Secret::from_le_bytes_mod_order(hashed_seed.as_slice())
         }
         None => {
             let mut rng = rand::thread_rng();
@@ -37,7 +37,7 @@ pub fn sign(secret: &mut Secret, msg: &[u8; 32]) -> Signature {
 
 #[must_use]
 pub fn to_public(secret: &Secret) -> Public {
-    let public = mul_by_generator_g1(secret.clone());
+    let public = mul_by_generator_g1(*secret);
     g1_projective_to_g1_point(&public)
 }
 

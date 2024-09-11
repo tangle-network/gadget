@@ -1,73 +1,47 @@
-use alloy_network::EthereumWallet;
-use alloy_primitives::{Address, FixedBytes};
-use alloy_provider::ProviderBuilder;
-use alloy_signer::k256::ecdsa::SigningKey;
-use alloy_signer_local::PrivateKeySigner;
-use color_eyre::{eyre, eyre::eyre, eyre::OptionExt, Result};
+use color_eyre::{eyre::eyre, Result};
+use gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
+use gadget_sdk::env::{ContextConfig, GadgetConfiguration};
 use gadget_sdk::{
-    env::{Protocol, StdGadgetConfiguration},
-    events_watcher::{
-        evm::{Config, EventWatcher},
-        substrate::SubstrateEventWatcher,
-        tangle::TangleEventsWatcher,
-    },
-    keystore::Backend,
-    network::{
-        gossip::NetworkService,
-        setup::{start_p2p_network, NetworkConfig},
-    },
-    run::GadgetRunner,
+    env::Protocol,
+    events_watcher::{substrate::SubstrateEventWatcher, tangle::TangleEventsWatcher},
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
     },
     tx,
 };
-use std::net::IpAddr;
-
-use incredible_squaring_blueprint::{self as blueprint, IncredibleSquaringTaskManager};
-
-use alloy_signer::k256::PublicKey;
-use gadget_common::config::DebugLogger;
-use gadget_sdk::env::{ContextConfig, GadgetConfiguration};
-use gadget_sdk::events_watcher::tangle::TangleConfig;
-use gadget_sdk::keystore::BackendExt;
-use gadget_sdk::network::gossip::GossipHandle;
-use gadget_sdk::tangle_subxt::subxt;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_core::ed25519;
-use lock_api::{GuardSend, RwLock};
-use sp_core::Pair;
+use incredible_squaring_blueprint as blueprint;
 use std::sync::Arc;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
+
+#[async_trait::async_trait]
+trait GadgetRunner {
+    async fn register(&self) -> Result<()>;
+    async fn run(&self) -> Result<()>;
+}
 
 struct TangleGadgetRunner {
-    env: StdGadgetConfiguration,
+    env: gadget_sdk::env::GadgetConfiguration<parking_lot::RawRwLock>,
 }
 
 #[async_trait::async_trait]
 impl GadgetRunner for TangleGadgetRunner {
-    type Error = eyre::Report;
-
-    fn env(&self) -> &StdGadgetConfiguration {
-        &self.env
-    }
     async fn register(&self) -> Result<()> {
-        let env = self.env.clone();
         // TODO: Use the function in blueprint-test-utils
-        if env.test_mode {
-            env.logger.info("Skipping registration in test mode");
+        if self.env.test_mode {
+            self.env.logger.info("Skipping registration in test mode");
             return Ok(());
         }
 
-        let client = env.client().await.map_err(|e| eyre!(e))?;
-        let signer = env.first_signer().map_err(|e| eyre!(e))?;
-        let ecdsa_pair = env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
+        let client = self.env.client().await.map_err(|e| eyre!(e))?;
+        let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
+        let ecdsa_pair = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
 
         let xt = api::tx().services().register(
             self.env.blueprint_id,
             services::OperatorPreferences {
                 key: ecdsa::Public(ecdsa_pair.public_key().0),
                 approval: services::ApprovalPrefrence::None,
+                // TODO: Set the price targets
                 price_targets: PriceTargets {
                     cpu: 0,
                     mem: 0,
@@ -81,24 +55,45 @@ impl GadgetRunner for TangleGadgetRunner {
 
         // send the tx to the tangle and exit.
         let result = tx::tangle::send(&client, &signer, &xt).await?;
-        tracing::info!("Registered operator with hash: {:?}", result);
+        self.env
+            .logger
+            .info(format!("Registered operator with hash: {:?}", result));
         Ok(())
     }
 
     async fn run(&self) -> Result<()> {
-        let env = self.env.clone();
-        let client = env.client().await.map_err(|e| eyre!(e))?;
-        let signer = env.first_signer().map_err(|e| eyre!(e))?;
+        /*        let config = ContextConfig {
+            gadget_core_settings: GadgetCLICoreSettings::Run {
+                bind_addr: self.env.bind_addr,
+                bind_port: self.env.bind_port,
+                test_mode: self.env.test_mode,
+                logger: self.env.logger.clone(),
+                url: self.env.ur,
+                bootnodes: None,
+                base_path: Default::default(),
+                chain: Default::default(),
+                verbose: 0,
+                pretty: false,
+                keystore_password: None,
+            },
+        };*/
+
+        //let env = gadget_sdk::env::load(None, config).map_err(|e| eyre!(e))?;
+
+        let client = self.env.client().await.map_err(|e| eyre!(e))?;
+        let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
 
         let x_square = blueprint::XsquareEventHandler {
-            service_id: env.service_id.unwrap(),
+            service_id: self.env.service_id.unwrap(),
             signer,
         };
 
-        tracing::info!("Starting the event watcher ...");
+        self.env.logger.info("Starting the event watcher ...");
 
         SubstrateEventWatcher::run(
-            &TangleEventsWatcher,
+            &TangleEventsWatcher {
+                logger: self.env.logger.clone(),
+            },
             client,
             // Add more handler here if we have more functions.
             vec![Box::new(x_square)],
@@ -107,61 +102,38 @@ impl GadgetRunner for TangleGadgetRunner {
 
         Ok(())
     }
-
-    async fn benchmark(&self) -> Result<()> {
-        let env = gadget_sdk::env::load(None)?;
-        let client = env.client().await?;
-        let signer = env.first_signer()?;
-        let xsquare_summary = blueprint::xsquare_benchmark();
-        Ok(())
-    }
 }
 
 fn create_gadget_runner(
     protocol: Protocol,
-    context_config: ContextConfig,
-) -> Arc<dyn GadgetRunner> {
-    let env =
-        gadget_sdk::env::load(Some(protocol), context_config).expect("Failed to load environment");
+    config: ContextConfig,
+) -> (
+    GadgetConfiguration<parking_lot::RawRwLock>,
+    Arc<dyn GadgetRunner>,
+) {
+    let env = gadget_sdk::env::load(Some(protocol), config).expect("Failed to load environment");
     match protocol {
-        Protocol::Tangle => Arc::new(TangleGadgetRunner { env }),
-        Protocol::Eigenlayer => Arc::new(EigenlayerGadgetRunner { env }),
+        Protocol::Tangle => (env.clone(), Arc::new(TangleGadgetRunner { env })),
+        Protocol::Eigenlayer => panic!("Eigenlayer not implemented yet"),
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    color_eyre::install()?;
-    let env_filter = tracing_subscriber::EnvFilter::from_default_env();
-    let logger = tracing_subscriber::fmt()
-        .compact()
-        .with_target(true)
-        .with_env_filter(env_filter);
-    logger.init();
-
-    // TODO: Ideally, we don't want to have multiple types of loggers?
-    let debug_logger = DebugLogger {
-        id: "incredible-squaring".to_string(),
-    };
+    // color_eyre::install()?;
+    gadget_sdk::setup_log();
 
     // Load the environment and create the gadget runner
-    let protocol = Protocol::from_env().unwrap_or(Protocol::Tangle);
-    let (env, runner) = create_gadget_runner(
-        protocol,
-        ContextConfig {
-            bind_addr: IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-            bind_port: 0,
-            test_mode: false,
-            logger: debug_logger,
-        },
-    );
+    // TODO: Place protocol in the config
+    let protocol = Protocol::Tangle;
+    let config = ContextConfig::from_args();
+    let (env, runner) = create_gadget_runner(protocol, config);
+    env.logger
+        .info("~~~ Executing the incredible squaring blueprint ~~~");
+
     // Register the operator if needed
-    if runner.env().should_run_registration() {
+    if env.should_run_registration() {
         runner.register().await?;
-    }
-    // Run benchmark if needed
-    if runner.env().should_run_benchmarks() {
-        runner.benchmark().await?;
     }
 
     // Run the gadget / AVS

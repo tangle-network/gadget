@@ -20,7 +20,7 @@ pub trait Config: Send + Sync + 'static {
 
 /// A helper type to extract the [`EventHandler`] from the [`EventWatcher`] trait.
 pub type EventHandlerFor<W, T> = Box<
-    dyn EventHandler<
+    dyn EventHandlerWithRetry<
             T,
             Contract = <W as EventWatcher<T>>::Contract,
             Event = <W as EventWatcher<T>>::Event,
@@ -79,7 +79,7 @@ pub trait EventHandlerWithRetry<T: Config<N = Ethereum>>:
         &self,
         contract: &Self::Contract,
         (event, log): (Self::Event, Log),
-        backoff: impl backoff::backoff::Backoff + Send + Sync + 'static,
+        backoff: Box<dyn backoff::backoff::Backoff + Send + Sync>,
     ) -> Result<(), Error> {
         let ev = event.clone();
         let wrapped_task = || {
@@ -100,7 +100,7 @@ impl<X, T: Config<N = Ethereum>> EventHandlerWithRetry<T> for X where
 /// A trait for watching events from a contract.
 /// EventWatcher trait exists for deployments that are smart-contract / EVM based
 #[async_trait::async_trait]
-pub trait EventWatcher<T: Config>: Send + Sync {
+pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync {
     /// A Helper tag used to identify the event watcher during the logs.
     const TAG: &'static str;
     /// The contract that this event watcher is watching.
@@ -129,8 +129,13 @@ pub trait EventWatcher<T: Config>: Send + Sync {
         contract: Self::Contract,
         handlers: Vec<EventHandlerFor<Self, T>>,
     ) -> Result<(), Error> {
+        const MAX_RETRY_COUNT: usize = 5;
+
         let local_db = LocalDatabase::new("./db");
-        let backoff = backoff::backoff::Constant::new(Duration::from_secs(1));
+        let backoff = Box::new(ConstantWithMaxRetryCount::new(
+            Duration::from_millis(1000),
+            MAX_RETRY_COUNT,
+        )) as Box<dyn backoff::backoff::Backoff + Send + Sync>;
         let task = || async {
             let step = 100;
             let chain_id: u64 = contract
@@ -190,10 +195,11 @@ pub trait EventWatcher<T: Config>: Send + Sync {
                     const MAX_RETRY_COUNT: usize = 5;
                     let tasks = handlers.iter().map(|handler| {
                         // a constant backoff with maximum retry count is used here.
-                        let backoff = ConstantWithMaxRetryCount::new(
+                        let backoff = Box::new(ConstantWithMaxRetryCount::new(
                             Duration::from_millis(100),
                             MAX_RETRY_COUNT,
-                        );
+                        ))
+                            as Box<dyn backoff::backoff::Backoff + Send + Sync>;
                         handler.handle_event_with_retry(
                             &contract,
                             (event.clone(), log.clone()),

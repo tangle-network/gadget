@@ -153,7 +153,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         bind_port,
         topics,
         logger,
-        ecdsa_key: ecdsa_key,
+        ecdsa_key,
     } = config;
 
     // Ensure all topics are unique

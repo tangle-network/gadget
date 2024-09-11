@@ -8,6 +8,7 @@
 use crate::events_watcher::{error::Error, ConstantWithMaxRetryCount};
 use core::time::Duration;
 use futures::TryFutureExt;
+use gadget_common::prelude::DebugLogger;
 use subxt::OnlineClient;
 
 /// A type alias to extract the event handler type from the event watcher.
@@ -96,6 +97,7 @@ where
 
     /// The name of the pallet that this event watcher is watching.
     const PALLET_NAME: &'static str;
+    fn logger(&self) -> &DebugLogger;
 
     /// Returns a task that should be running in the background
     /// that will watch events
@@ -142,7 +144,8 @@ where
                     .map_err(Into::into)
                     .map_err(backoff::Error::transient)
                     .await?;
-                tracing::trace!("Found #{} events", events.len());
+                self.logger()
+                    .info(format!("Found #{} events", events.len()));
                 // wraps each handler future in a retry logic, that will retry the handler
                 // if it fails, up to `MAX_RETRY_COUNT`, after this it will ignore that event for
                 // that specific handler.
@@ -165,19 +168,19 @@ where
                 // wrong.
                 for r in &result {
                     if let Err(e) = r {
-                        tracing::error!("{}", e);
+                        self.logger().error(format!("Error from result: {e:?}"));
                     }
                 }
 
                 if mark_as_handled {
-                    tracing::trace!(
-                        "event handled successfully at block #{}",
-                        latest_block_number
-                    );
+                    self.logger().info(format!(
+                        "event handled successfully at block #{latest_block_number}",
+                    ));
                     best_block = Some(latest_block_number);
                 } else {
-                    tracing::error!("Error while handling event, all handlers failed.");
-                    tracing::warn!("Restarting event watcher ...");
+                    self.logger()
+                        .error("Error while handling event, all handlers failed.");
+                    self.logger().warn("Restarting event watcher ...");
                     // this a transient error, so we will retry again.
                     return Err(backoff::Error::transient(Error::ForceRestart));
                 }

@@ -4506,6 +4506,8 @@ dependencies = [
  "thiserror 1.0.63 (git+https://github.com/quartiq/thiserror?branch=no-std)",
  "tokio",
  "tracing",
+ "tracing-subscriber 0.2.25",
+ "url 2.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "w3f-bls",
 ]
 

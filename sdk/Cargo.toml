@@ -80,6 +80,8 @@ nix = { workspace = true }
 sysinfo = { workspace = true }
 
 structopt = { workspace = true }
+tracing-subscriber = "0.2.25"
+url = "2.5.2"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
