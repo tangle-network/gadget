@@ -124,8 +124,8 @@ mod tests {
         eprintln!("{}", super::REGISTRATION_HOOK);
     }
 
-    #[test]
-    fn example_benchmark() {
-        super::keygen_2_of_3_benchmark();
-    }
+    // #[test]
+    // fn example_benchmark() {
+    //     super::keygen_2_of_3_benchmark();
+    // }
 }

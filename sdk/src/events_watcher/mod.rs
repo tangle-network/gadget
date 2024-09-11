@@ -43,6 +43,7 @@ impl ConstantWithMaxRetryCount {
     }
 }
 
+#[cfg(any(feature = "std", feature = "wasm"))]
 impl backoff::backoff::Backoff for ConstantWithMaxRetryCount {
     fn next_backoff(&mut self) -> Option<Duration> {
         (self.count < self.max_retry_count).then(|| {

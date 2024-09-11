@@ -2,15 +2,12 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::sdk::keystore::load_keys_from_keystore;
-
-use gadget_common::environments::GadgetEnvironment;
-use gadget_common::keystore::KeystoreBackend;
-use gadget_common::{
-    config::{DebugLogger, PrometheusConfig},
-    full_protocol::NodeInput,
-    keystore::ECDSAKeyStore,
-};
 use gadget_io::tokio::task::JoinHandle;
+use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
+use gadget_sdk::logger::Logger;
+use gadget_sdk::network::Network;
+use gadget_sdk::prometheus::PrometheusConfig;
+use gadget_sdk::store::{ECDSAKeyStore, KeyValueStoreBackend};
 use sp_core::{keccak_256, sr25519, Pair};
 
 use crate::sdk::config::SingleGadgetConfig;
@@ -20,17 +17,33 @@ use gadget_sdk::network::setup::NetworkConfig;
 use itertools::Itertools;
 use libp2p::Multiaddr;
 
-pub type SingleGadgetInput<KBE, Env> = NodeInput<Env, GossipHandle, KBE, ()>;
+/// Used for constructing an instance of a node.
+///
+/// If there is both a keygen and a signing protocol, then the length of the vectors are 2.
+/// The length of the vector is equal to the numbers of protocols that the constructed node
+/// is going to concurrently execute.
+pub struct NodeInput<N: Network, KBE: KeyValueStoreBackend, D> {
+    pub clients: Vec<TangleRuntimeClient>,
+    pub networks: Vec<N>,
+    pub account_id: sr25519::Public,
+    pub logger: Logger,
+    pub keystore: ECDSAKeyStore<KBE>,
+    pub node_index: usize,
+    pub additional_params: D,
+    pub prometheus_config: PrometheusConfig,
+}
+
+pub type SingleGadgetInput<KBE> = NodeInput<GossipHandle, KBE, ()>;
 
 /// Generates the NodeInput and handle to the networking layer for the given config.
 #[tracing::instrument(skip(config))]
-pub async fn generate_node_input<KBE: KeystoreBackend, Env: GadgetEnvironment>(
-    config: SingleGadgetConfig<KBE, Env>,
-) -> color_eyre::Result<(SingleGadgetInput<KBE, Env>, JoinHandle<()>)> {
-    let (role_key, acco_key) = load_keys_from_keystore(&config.keystore)?;
+pub async fn generate_node_input<KBE: KeyValueStoreBackend>(
+    config: SingleGadgetConfig<KBE>,
+) -> color_eyre::Result<(SingleGadgetInput<KBE>, JoinHandle<()>)> {
+    let (ecdsa_key, acco_key) = load_keys_from_keystore(&config.keystore)?;
     //let network_key = ed25519::Pair::from_seed(&config.node_key).to_raw_vec();
-    let logger = DebugLogger::default();
-    let wrapped_keystore = ECDSAKeyStore::new(config.keystore_backend.clone(), role_key.clone());
+    let logger = Logger::default();
+    let keystore = ECDSAKeyStore::new(config.keystore_backend.clone(), ecdsa_key.clone());
 
     // Use the first 32 bytes of the sr25519 account key as the network key. We discard the 32 remaining nonce seed bytes
     // thus ensuring that the network key, when used, will actually have slightly different properties than the original
@@ -51,7 +64,7 @@ pub async fn generate_node_input<KBE: KeystoreBackend, Env: GadgetEnvironment>(
 
     let libp2p_config = NetworkConfig::new(
         libp2p_key,
-        role_key,
+        ecdsa_key,
         config.bootnodes.clone(),
         config.bind_ip,
         config.bind_port,
@@ -66,80 +79,36 @@ pub async fn generate_node_input<KBE: KeystoreBackend, Env: GadgetEnvironment>(
     logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
     wait_for_connection_to_bootnodes(&config.bootnodes, &networks, &logger).await?;
 
-    let node_input = generate_node_input_for_required_protocols(
-        &config.environment,
-        networks,
-        acco_key,
-        logger,
-        wrapped_keystore,
-    )
-    .await?;
-
-    Ok((node_input, network_task))
-}
-
-pub fn generate_node_input_for_role_group<KBE, Env: GadgetEnvironment>(
-    runtime: Env::Client,
-    networks: HashMap<String, GossipHandle>,
-    account_id: sr25519::Public,
-    logger: DebugLogger,
-    tx_manager: Env::TransactionManager,
-    keystore: ECDSAKeyStore<KBE>,
-) -> color_eyre::Result<SingleGadgetInput<KBE, Env>>
-where
-    KBE: KeystoreBackend,
-{
+    let client =
+        TangleRuntimeClient::from_url(&config.bind_ip.to_string(), acco_key.public().0.into())
+            .await?;
     let networks = networks
         .into_iter()
         .sorted_by_key(|r| r.0.clone())
         .map(|r| r.1)
         .collect::<Vec<_>>();
     let clients = (0..networks.len())
-        .map(|_| runtime.clone())
+        .map(|_| client.clone())
         .collect::<Vec<_>>();
 
-    Ok(NodeInput::<Env, GossipHandle, KBE, ()> {
+    let node_input = NodeInput::<GossipHandle, KBE, ()> {
         clients,
-        account_id,
+        account_id: acco_key.public(),
         logger,
-        tx_manager,
         keystore,
         node_index: 0,
         additional_params: (),
         prometheus_config: PrometheusConfig::Disabled,
         networks,
-    })
-}
+    };
 
-pub async fn generate_node_input_for_required_protocols<KBE, Env: GadgetEnvironment>(
-    env: &Env,
-    networks: HashMap<String, GossipHandle>,
-    acco_key: sr25519::Pair,
-    logger: DebugLogger,
-    keystore: ECDSAKeyStore<KBE>,
-) -> color_eyre::Result<SingleGadgetInput<KBE, Env>>
-where
-    KBE: KeystoreBackend,
-{
-    let runtime = env
-        .setup_runtime()
-        .await
-        .map_err(|err| color_eyre::Report::msg(format!("Failed to setup runtime: {err}")))?;
-    let tx_manager = env.transaction_manager();
-    generate_node_input_for_role_group(
-        runtime,
-        networks.clone(),
-        acco_key.public(),
-        logger.clone(),
-        tx_manager.clone(),
-        keystore.clone(),
-    )
+    Ok((node_input, network_task))
 }
 
 pub async fn wait_for_connection_to_bootnodes(
     bootnodes: &[Multiaddr],
     handles: &HashMap<String, GossipHandle>,
-    logger: &DebugLogger,
+    logger: &Logger,
 ) -> color_eyre::Result<()> {
     let n_required = bootnodes.len();
     let n_networks = handles.len();
@@ -153,7 +122,7 @@ pub async fn wait_for_connection_to_bootnodes(
     // For each network, we start a task that checks if we have enough peers connected
     // and then we wait for all of them to finish.
 
-    let wait_for_peers = |handle: GossipHandle, n_required, logger: DebugLogger| async move {
+    let wait_for_peers = |handle: GossipHandle, n_required, logger: Logger| async move {
         'inner: loop {
             let n_connected = handle.connected_peers();
             if n_connected >= n_required {

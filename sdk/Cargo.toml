@@ -10,10 +10,14 @@ license.workspace = true
 
 
 [dependencies]
+auto_impl = { workspace = true }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
 getrandom = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
+http-body-util = { workspace = true }
+lazy_static = { workspace = true }
 lock_api = { workspace = true }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
 parking_lot = { workspace = true, optional = true }
 rand = { version = "0.8", default-features = false, features = ["alloc"] }
 thiserror = { workspace = true }
@@ -26,6 +30,7 @@ w3f-bls = { workspace = true }
 
 # Metrics deps
 hyper = { workspace = true, features = ["http1", "server"], optional = true }
+hyper-util = { workspace = true, features = ["server"], optional = true }
 prometheus = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"], optional = true }
 
@@ -37,16 +42,14 @@ tracing = { workspace = true }
 async-trait = { workspace = true }
 bincode = { workspace = true }
 futures = { workspace = true }
-gadget-core = { workspace = true, features = ["substrate"] }
-gadget-common = { workspace = true, features = ["substrate"] }
-gadget-io = { workspace = true }
-serde = { workspace = true }
+gadget-io = { workspace = true, features = ["std"] }
+round-based = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
 # Substrate
 sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
-
 
 # Event Watchers and Handlers
 backoff = { workspace = true, optional = true }
@@ -107,16 +110,17 @@ std = [
     "dep:backoff",
     "dep:parking_lot",
     "dep:hyper",
+    "dep:hyper-util",
     "dep:subxt",
     "dep:tokio",
     "backoff/tokio",
     "getrandom",
-    "gadget-common/std",
     "gadget-io/std",
     "hex/std",
     "rand/std",
     "rand/std_rng",
     "sp-io/std",
+    "sqlx",
     "subxt/native",
     "tangle-subxt/std",
 ]

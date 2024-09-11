@@ -40,9 +40,7 @@ jobs:
     strategy:
       matrix:
         package: [
-          gadget-core,
-          gadget-common,
-          gadget-sdk,
+          gadget-sdk
         ]
     steps:
       - name: Checkout code
@@ -77,8 +75,7 @@ jobs:
     strategy:
       matrix:
         package: [
-          gadget-core,
-          gadget-common,
+          gadget-sdk,
           blueprint-manager
         ]
     steps:
@@ -107,8 +104,7 @@ jobs:
     strategy:
       matrix:
         package: [
-          gadget-core,
-          gadget-common,
+          gadget-sdk,
           blueprint-manager,
         ]
     steps:
