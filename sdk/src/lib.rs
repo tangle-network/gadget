@@ -31,7 +31,7 @@ pub mod logger;
 #[cfg(feature = "std")]
 pub mod metrics;
 #[cfg(any(feature = "std", feature = "wasm"))]
-pub mod mutex_ext;
+pub(crate) mod mutex_ext;
 /// Network Module
 #[cfg(feature = "std")]
 pub mod network;
