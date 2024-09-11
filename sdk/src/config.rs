@@ -3,6 +3,7 @@ use crate::events_watcher::tangle::TangleConfig;
 use crate::keystore::backend::GenericKeyStore;
 use alloc::string::{String, ToString};
 
+/// The protocol on which a gadget will be executed.
 #[derive(Default, Debug, Clone, Copy)]
 pub enum Protocol {
     #[default]
@@ -107,7 +108,7 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     _lock: core::marker::PhantomData<RwLock>,
 }
 
-/// An error type for the gadget environment.
+/// Errors that can occur while loading and using the gadget configuration.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -252,8 +253,8 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     ///
     /// # Errors
     ///
-    /// This function will return an error if no Sr25519 keypair is found in the keystore.
-    /// or if the keypair seed is invalid.
+    /// * No sr25519 keypair is found in the keystore.
+    /// * The keypair seed is invalid.
     #[doc(alias = "sr25519_signer")]
     pub fn first_signer(&self) -> Result<subxt_signer::sr25519::Keypair, Error> {
         let keystore = self.keystore()?;
@@ -274,8 +275,8 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     ///
     /// # Errors
     ///
-    /// This function will return an error if no ECDSA keypair is found in the keystore.
-    /// or if the keypair seed is invalid.
+    /// * No ECDSA keypair is found in the keystore.
+    /// * The keypair seed is invalid.
     #[doc(alias = "ecdsa_signer")]
     pub fn first_ecdsa_signer(&self) -> Result<tangle_subxt::subxt_signer::ecdsa::Keypair, Error> {
         let keystore = self.keystore()?;
