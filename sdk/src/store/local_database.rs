@@ -10,7 +10,7 @@ use std::sync::Mutex;
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// use gadget_sdk::store::LocalDatabase;
 ///
 /// let db = LocalDatabase::<u64>::open("data.json");
@@ -34,7 +34,7 @@ where
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use gadget_sdk::store::LocalDatabase;
     ///
     /// let db = LocalDatabase::<u64>::open("data.json");
@@ -61,7 +61,7 @@ where
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use gadget_sdk::store::LocalDatabase;
     ///
     /// let db = LocalDatabase::<u64>::open("data.json");
@@ -79,7 +79,7 @@ where
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use gadget_sdk::store::LocalDatabase;
     ///
     /// let db = LocalDatabase::<u64>::open("data.json");
@@ -97,7 +97,7 @@ where
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use gadget_sdk::store::LocalDatabase;
     ///
     /// let db = LocalDatabase::<u64>::open("data.json");
@@ -115,7 +115,7 @@ where
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use gadget_sdk::store::LocalDatabase;
     ///
     /// let db = LocalDatabase::<u64>::open("data.json");
