@@ -145,7 +145,7 @@ where
                     .map_err(backoff::Error::transient)
                     .await?;
                 self.logger()
-                    .info(format!("Found #{} events", events.len()));
+                    .info(format!("Found #{} events: {:?}", events.len(), events));
                 // wraps each handler future in a retry logic, that will retry the handler
                 // if it fails, up to `MAX_RETRY_COUNT`, after this it will ignore that event for
                 // that specific handler.

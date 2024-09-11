@@ -9,7 +9,7 @@ use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint
 use gadget_common::tangle_runtime::api::services::calls::types::register::{
     Preferences, RegistrationArgs,
 };
-use gadget_common::tangle_runtime::api::services::storage::types::job_results::JobResults;
+use gadget_common::tangle_runtime::api::services::events::JobResultSubmitted;
 use gadget_common::tangle_runtime::{api, AccountId32};
 use gadget_common::tangle_subxt::subxt::OnlineClient;
 pub use gadget_core::job::SendFuture;
@@ -273,19 +273,28 @@ pub async fn wait_for_completion_of_job(
     service_id: u64,
     call_id: u64,
     logger: &DebugLogger,
-) -> Result<JobResults, Box<dyn Error>> {
+) -> Result<JobResultSubmitted, Box<dyn Error>> {
     loop {
-        gadget_io::tokio::time::sleep(Duration::from_millis(5000)).await;
-        let call = api::storage().services().job_results(service_id, call_id);
-        let res = client.storage().at_latest().await?.fetch(&call).await?;
+        let events = client.events().at_latest().await?;
+        let results = events.find::<JobResultSubmitted>().collect::<Vec<_>>();
         logger.info(format!(
-            "Waiting for job completion. Status: {}",
-            res.is_some()
+            "Waiting for job completion. Found {} results ...",
+            results.len()
         ));
-
-        if let Some(ret) = res {
-            return Ok(ret);
+        for result in results {
+            match result {
+                Ok(result) => {
+                    if result.service_id == service_id && result.call_id == call_id {
+                        return Ok(result);
+                    }
+                }
+                Err(err) => {
+                    logger.error(format!("Failed to get job result: {err}"));
+                }
+            }
         }
+
+        tokio::time::sleep(Duration::from_millis(4000)).await;
     }
 }
 
@@ -406,9 +415,9 @@ macro_rules! test_blueprint {
                 assert_eq!(job_results.call_id, call_id);
 
                 let expected_outputs = vec![$($expected_output),+];
-                assert_eq!(job_results.result.0.len(), expected_outputs.len(), "Number of outputs doesn't match expected");
+                assert_eq!(job_results.result.len(), expected_outputs.len(), "Number of outputs doesn't match expected");
 
-                for (result, expected) in job_results.result.0.into_iter().zip(expected_outputs.into_iter()) {
+                for (result, expected) in job_results.result.into_iter().zip(expected_outputs.into_iter()) {
                     assert_eq!(result, expected);
                 }
             })
@@ -526,7 +535,7 @@ mod tests_standard {
                     api::runtime_types::tangle_primitives::services::field::Field::Uint64(OUTPUT);
                 assert_eq!(job_results.service_id, service_id);
                 assert_eq!(job_results.call_id, call_id);
-                assert_eq!(job_results.result.0[0], expected_result);
+                assert_eq!(job_results.result[0], expected_result);
             })
             .await
     }

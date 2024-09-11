@@ -1,5 +1,6 @@
 use crate::events_watcher::tangle::TangleConfig;
 use crate::keystore::backend::GenericKeyStore;
+use crate::keystore::{BackendExt, TanglePairSignerPolkadot};
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
 use gadget_common::prelude::DebugLogger;
@@ -322,18 +323,10 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// This function will return an error if no Sr25519 keypair is found in the keystore.
     /// or if the keypair seed is invalid.
     #[doc(alias = "sr25519_signer")]
-    pub fn first_signer(&self) -> Result<tangle_subxt::subxt_signer::sr25519::Keypair, Error> {
-        let keystore = self.keystore()?;
-        let sr25519_pubkey = crate::keystore::Backend::iter_sr25519(&keystore)
-            .next()
-            .ok_or_else(|| Error::NoSr25519Keypair)?;
-        let sr25519_secret =
-            crate::keystore::Backend::expose_sr25519_secret(&keystore, &sr25519_pubkey)?
-                .ok_or_else(|| Error::NoSr25519Keypair)?;
-        let mut seed = [0u8; 32];
-        seed.copy_from_slice(&sr25519_secret.to_bytes()[0..32]);
-        tangle_subxt::subxt_signer::sr25519::Keypair::from_secret_key(seed)
-            .map_err(|_| Error::InvalidSr25519Keypair)
+    pub fn first_signer(&self) -> Result<TanglePairSignerPolkadot, Error> {
+        self.keystore()?
+            .sr25519_key_polkadot()
+            .map_err(|err| Error::Keystore(err))
     }
 
     /// Returns the first ECDSA signer keypair from the keystore.
@@ -344,17 +337,9 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// or if the keypair seed is invalid.
     #[doc(alias = "ecdsa_signer")]
     pub fn first_ecdsa_signer(&self) -> Result<tangle_subxt::subxt_signer::ecdsa::Keypair, Error> {
-        let keystore = self.keystore()?;
-        let ecdsa_pubkey = crate::keystore::Backend::iter_ecdsa(&keystore)
-            .next()
-            .ok_or_else(|| Error::NoEcdsaKeypair)?;
-        let ecdsa_secret = crate::keystore::Backend::expose_ecdsa_secret(&keystore, &ecdsa_pubkey)?
-            .ok_or_else(|| Error::NoEcdsaKeypair)?;
-
-        let mut seed = [0u8; 32];
-        seed.copy_from_slice(&ecdsa_secret.to_bytes()[0..32]);
-        tangle_subxt::subxt_signer::ecdsa::Keypair::from_secret_key(seed)
-            .map_err(|_| Error::InvalidEcdsaKeypair)
+        self.keystore()?
+            .ecdsa_key()
+            .map_err(|err| Error::Keystore(err))
     }
 
     /// Returns whether the gadget should run in memory.
