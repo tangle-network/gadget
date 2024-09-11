@@ -81,17 +81,17 @@ pub mod crypto {
     }
 }
 
-impl SubstrateKeystore for KeystoreContainer {
+impl SubstrateKeystore for KeystoreConfig {
     // TODO: Return more specific error types
     fn ecdsa_key(&self) -> Result<ecdsa::Pair> {
-        let keystore_container = self;
+        let keystore_container = KeystoreContainer::new(self)?;
         let keystore = keystore_container.local_keystore();
         tracing::debug!("Loaded keystore from path");
-        let ecdsa_keys = keystore.ecdsa_public_keys(crypto::acco::KEY_TYPE);
+        let ecdsa_keys = keystore.ecdsa_public_keys(crypto::role::KEY_TYPE);
 
         if ecdsa_keys.len() != 1 {
             return Err(GadgetIoError::Other(format!(
-                "`acco`: Expected exactly one key in ECDSA keystore, found {}",
+                "`role`: Expected exactly one key in ECDSA keystore, found {}",
                 ecdsa_keys.len()
             )));
         }
@@ -100,7 +100,7 @@ impl SubstrateKeystore for KeystoreContainer {
             GadgetIoError::Other(String::from("Failed to parse public key from keystore"))
         })?;
 
-        let ecdsa_key = keystore
+        let role_key = keystore
             .key_pair::<crypto::role::Pair>(&role_public_key)
             .map_err(|e| GadgetIoError::Other(e.to_string()))?
             .ok_or(GadgetIoError::Other(String::from(
@@ -110,14 +110,14 @@ impl SubstrateKeystore for KeystoreContainer {
 
         tracing::debug!(%role_public_key, "Loaded key from keystore");
         println!("ECDSA KEY: {:?}", role_public_key.to_string());
-        println!("ECDSA SEED: {:?}", ecdsa_key.seed());
+        println!("ECDSA SEED: {:?}", role_key.seed());
         println!("ECDSA RAW: {:?}", ecdsa_keys);
-        Ok(ecdsa_key)
+        Ok(role_key)
     }
 
     // TODO: Return more specific error types
     fn sr25519_key(&self) -> Result<sr25519::Pair> {
-        let keystore_container = self;
+        let keystore_container = KeystoreContainer::new(self)?;
         let keystore = keystore_container.local_keystore();
         tracing::debug!("Loaded keystore from path");
         let sr25519_keys = keystore.sr25519_public_keys(crypto::acco::KEY_TYPE);
