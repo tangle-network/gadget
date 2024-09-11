@@ -1,3 +1,5 @@
+//! Quality of Service (QoS) reporting module.
+
 #![allow(clippy::unused_async)]
 
 use alloc::boxed::Box;
@@ -164,16 +166,22 @@ async fn get_cpu_usage() -> Result<f64, QoSError> {
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum QoSError {
+    /// Failed to collect uptime metric.
     #[error("Failed to collect uptime: {0}")]
     UptimeError(String),
+    /// Failed to measure response time.
     #[error("Failed to measure response time: {0}")]
     ResponseTimeError(String),
+    /// Failed to calculate error rate.
     #[error("Failed to calculate error rate: {0}")]
     ErrorRateError(String),
+    /// Failed to measure throughput.
     #[error("Failed to measure throughput: {0}")]
     ThroughputError(String),
+    /// Failed to get memory usage.
     #[error("Failed to get memory usage: {0}")]
     MemoryUsageError(String),
+    /// Failed to get CPU usage.
     #[error("Failed to get CPU usage: {0}")]
     CpuUsageError(String),
 }
