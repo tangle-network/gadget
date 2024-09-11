@@ -10,11 +10,15 @@ license.workspace = true
 
 
 [dependencies]
+auto_impl = { workspace = true }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
 getrandom = { workspace = true }
 hex = { workspace = true, features = ["alloc"] }
+http-body-util = { workspace = true }
+lazy_static = { workspace = true }
 lock_api = { workspace = true }
-parking_lot = { workspace = true }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
+parking_lot = { workspace = true, optional = true }
 rand = { version = "0.8", default-features = false, features = ["alloc"] }
 thiserror = { workspace = true }
 
@@ -23,16 +27,12 @@ ed25519-zebra = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "ecdsa-core", "arithmetic"] }
 schnorrkel = { workspace = true }
 w3f-bls = { workspace = true }
-eigensdk-rs = { workspace = true }
-ark-bn254 = { workspace = true }
-ark-serialize = { workspace = true }
-ark-ff = { workspace = true }
-ark-ec = { workspace = true }
 
 # Metrics deps
-hyper = { workspace = true, features = ["http1", "server"] }
+hyper = { workspace = true, features = ["http1", "server"], optional = true }
+hyper-util = { workspace = true, features = ["server"], optional = true }
 prometheus = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot", "process"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"], optional = true }
 
 # Logging deps
 log = { workspace = true }
@@ -42,10 +42,9 @@ tracing = { workspace = true }
 async-trait = { workspace = true }
 bincode = { workspace = true }
 futures = { workspace = true }
-gadget-core = { workspace = true, features = ["substrate"] }
-gadget-common = { workspace = true, features = ["default"] }
 gadget-io = { workspace = true, features = ["std"] }
-serde = { workspace = true }
+round-based = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
 # Substrate
@@ -53,8 +52,9 @@ sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
 
 # Event Watchers and Handlers
-backoff = { workspace = true }
-subxt = { workspace = true }
+backoff = { workspace = true, optional = true }
+subxt = { workspace = true, optional = true }
+subxt-signer = { workspace = true, features = ["sr25519"] }
 tangle-subxt = { workspace = true }
 
 # EVM Event Watchers and Handlers
@@ -72,16 +72,8 @@ alloy-transport = { workspace = true }
 gadget-blueprint-proc-macro = { workspace = true }
 derive_more = { workspace = true }
 
-# Executor
-failure = { workspace = true }
-nix = { workspace = true }
-
 # Benchmarking deps
 sysinfo = { workspace = true }
-
-structopt = { workspace = true }
-tracing-subscriber = "0.2.25"
-url = "2.5.2"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
@@ -115,14 +107,30 @@ hyper = { workspace = true, features = ["client"] }
 default = ["std"]
 
 std = [
+    "dep:backoff",
+    "dep:parking_lot",
+    "dep:hyper",
+    "dep:hyper-util",
+    "dep:subxt",
+    "dep:tokio",
+    "backoff/tokio",
     "getrandom",
+    "gadget-io/std",
     "hex/std",
     "rand/std",
     "rand/std_rng",
     "sp-io/std",
+    "sqlx",
+    "subxt/native",
+    "tangle-subxt/std",
 ]
 wasm = [
+    "dep:backoff",
+    "dep:subxt",
+    "backoff/wasm-bindgen",
     "getrandom/js",
+    "subxt/web",
+    "tangle-subxt/web",
 ]
 
 # Randomness

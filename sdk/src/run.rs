@@ -1,4 +1,4 @@
-use crate::env::StdGadgetConfiguration;
+use crate::config::StdGadgetConfiguration;
 
 /// A trait defining the interface for running a gadget.
 ///
@@ -13,7 +13,7 @@ pub trait GadgetRunner {
     ///
     /// # Returns
     /// A reference to the `StdGadgetConfiguration` for this gadget.
-    fn env(&self) -> &StdGadgetConfiguration;
+    fn config(&self) -> &StdGadgetConfiguration;
 
     /// Registers the current operator with the blueprint.
     ///

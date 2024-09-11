@@ -1,5 +1,3 @@
-use tangle_subxt::subxt;
-
 /// Send a transaction to the Tangle network.
 /// # Errors
 ///

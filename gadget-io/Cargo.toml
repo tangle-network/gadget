@@ -24,6 +24,7 @@ tokio = { workspace = true, optional = true, features = [
     "time",
     "rt",
     "sync",
+    "macros",
 ] }
 tracing = { workspace = true, default-features = false, features = ["log", "attributes"] }
 url = { workspace = true, default-features = false, features = ["alloc", "serde"] }

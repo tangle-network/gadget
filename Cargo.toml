@@ -2,15 +2,10 @@
 resolver = "2"
 members = [
     "blueprint-metadata",
-    "blueprints/*",
+    "blueprints/incredible-squaring",
     "cli",
-    "core",
-    "common",
-    "environments/tangle",
-    "environments/utils",
     "gadget-io",
     "blueprint-test-utils",
-    "protocol-macros",
     "blueprint-manager",
     "sdk",
     # Commented out, since it uses jobs-v1 code
@@ -44,15 +39,10 @@ single_match_else = "allow"
 broken_intra_doc_links = "deny"
 
 [workspace.dependencies]
-gadget-core = { version = "0.0.1", path = "./core", default-features = false }
-gadget-common = { version = "0.1.0", path = "./common", default-features = false }
 gadget-io = { version = "0.0.1", path = "./gadget-io", default-features = false }
 blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false }
-protocol-macros = { path = "./protocol-macros" }
-tangle-environment = { path = "./environments/tangle", default-features = false }
-environment-utils = { path = "./environments/utils", default-features = false }
 
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.0" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.0" }
@@ -64,7 +54,7 @@ cargo_metadata = { version = "0.18.1" }
 pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
 pallet-services-rpc = { git = "https://github.com/webb-tools/tangle.git" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
-tangle-subxt = { git = "https://github.com/webb-tools/tangle.git" }
+tangle-subxt = { version = "0.3.0", default-features = false }
 
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
@@ -155,14 +145,14 @@ ark-ed25519 = { version = "0.4", default-features = false }
 aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc", "getrandom", "zeroize"] }
 anyhow = "1.0.86"
 async-recursion2 = "1.0.5"
-async-trait = "0.1.81"
+async-trait = "0.1.82"
 auto_impl = "1.2.0"
 aws-config = "1.5.5"
 aws-types = "1.3.3"
 aws-sdk-kms = "1.40.0"
 aws-sdk-s3 = "1.45.0"
 aws-sdk-secretsmanager = "1.43.0"
-backoff = { version = "0.4.0", features = ["tokio"] }
+backoff = { version = "0.4.0", default-features = false }
 base64 = "0.22.1"
 bincode = "1.3.3"
 bincode2 = { version = "2" }
@@ -190,6 +180,7 @@ hex = { version = "0.4.3", default-features = false }
 hex-literal = "0.4.1"
 http-body-util = "0.1.2"
 hyper = { version = "1.4.1", default-features = false }
+hyper-util = "0.1.7"
 itertools = "0.13.0"
 jsonrpsee = "0.24.3"
 jsonwebtoken = "9.3.0"

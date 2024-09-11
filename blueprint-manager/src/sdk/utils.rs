@@ -1,7 +1,7 @@
 use crate::config::BlueprintManagerConfig;
 use crate::protocols::resolver::NativeGithubMetadata;
-use gadget_common::config::DebugLogger;
 use gadget_io::GadgetConfig;
+use gadget_sdk::logger::Logger;
 use sha2::Digest;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -135,7 +135,7 @@ pub fn is_windows() -> bool {
 
 pub fn generate_running_process_status_handle(
     process: gadget_io::tokio::process::Child,
-    logger: &DebugLogger,
+    logger: &Logger,
     role_type: &str,
 ) -> (Arc<AtomicBool>, gadget_io::tokio::sync::oneshot::Sender<()>) {
     let (stop_tx, stop_rx) = gadget_io::tokio::sync::oneshot::channel::<()>();

@@ -11,55 +11,50 @@
 
 extern crate alloc;
 
-/// Keystore Module
-pub mod keystore;
-
-/// Metrics Module
-// pub mod metrics;
-
-/// Randomness generation module
-pub mod random;
-
-/// Blockchain Events Watcher Module
-pub mod events_watcher;
-
-/// Gadget Environment Module
-pub mod env;
-
-/// Local database storage
-pub mod store;
-
-/// Transaction Management Module
-pub mod tx;
-
-pub use tangle_subxt;
-
-/// Network Module
-#[cfg(feature = "std")]
-pub mod network;
-
-pub mod slashing;
-
 /// Benchmark Module
 #[cfg(feature = "std")]
 pub mod benchmark;
-
+/// Blockchain clients
+#[cfg(any(feature = "std", feature = "wasm"))]
+pub mod clients;
+/// Gadget configuration
+pub mod config;
+mod error;
+/// Blockchain Events Watcher Module
+#[cfg(any(feature = "std", feature = "wasm"))]
+pub mod events_watcher;
+/// Keystore Module
+pub mod keystore;
+/// Debug logger
+pub mod logger;
+/// Metrics Module
+#[cfg(feature = "std")]
+pub mod metrics;
+#[cfg(any(feature = "std", feature = "wasm"))]
+pub mod mutex_ext;
+/// Network Module
+#[cfg(feature = "std")]
+pub mod network;
+/// Prometheus metrics configuration
+#[cfg(feature = "std")]
+pub mod prometheus;
+/// Randomness generation module
+pub mod random;
 /// Gadget Runner Module
+#[cfg(feature = "std")]
 pub mod run;
+/// Slashing and quality of service utilities
+pub mod slashing;
+/// Database storage
+#[cfg(feature = "std")]
+pub mod store;
+/// Protocol execution tracer
+#[cfg(any(feature = "std", feature = "wasm"))]
+pub mod tracer;
+/// Transaction Management Module
+#[cfg(any(feature = "std", feature = "wasm"))]
+pub mod tx;
 
+/// Re-exports
 pub use gadget_blueprint_proc_macro::*;
-
-pub fn setup_log() {
-    use tracing_subscriber::fmt::SubscriberBuilder;
-    use tracing_subscriber::util::SubscriberInitExt;
-    use tracing_subscriber::EnvFilter;
-
-    let _ = SubscriberBuilder::default()
-        .with_env_filter(EnvFilter::from_default_env())
-        .finish()
-        .try_init();
-
-    std::panic::set_hook(Box::new(|info| {
-        log::error!(target: "gadget", "Panic occurred: {info:?}");
-    }));
-}
+pub use tangle_subxt;

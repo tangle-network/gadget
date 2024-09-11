@@ -1,9 +1,10 @@
-use crate::sdk::setup::SingleGadgetInput;
-use crate::sdk::{generate_node_input, SingleGadgetConfig};
-use gadget_common::environments::GadgetEnvironment;
-use gadget_common::prelude::{DebugLogger, KeystoreBackend};
-use gadget_core::job::SendFuture;
+use crate::sdk::config::SingleGadgetConfig;
+use crate::sdk::setup::{generate_node_input, SingleGadgetInput};
+use futures::Future;
 use gadget_io::{GadgetConfig, KeystoreConfig, SupportedChains};
+use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
+use gadget_sdk::logger::Logger;
+use gadget_sdk::store::KeyValueStoreBackend;
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 use tracing_subscriber::fmt::SubscriberBuilder;
@@ -24,16 +25,18 @@ pub fn keystore_from_base_path(
     }
 }
 
+pub trait SendFuture<'a, T>: Send + Future<Output = T> + 'a {}
+impl<'a, F: Send + Future<Output = T> + 'a, T> SendFuture<'a, T> for F {}
+
 /// Runs a gadget for a given protocol.
 pub async fn run_gadget_for_protocol<
-    Env: GadgetEnvironment,
-    KBE: KeystoreBackend,
-    T: FnOnce(SingleGadgetInput<KBE, Env>) -> F,
+    KBE: KeyValueStoreBackend,
+    T: FnOnce(SingleGadgetInput<KBE>) -> F,
     F,
     T2: FnOnce() -> F2,
     F2: SendFuture<'static, KBE>,
 >(
-    environment: Env,
+    _client: TangleRuntimeClient,
     services: Vec<ServiceBlueprint>,
     n_protocols: usize,
     keystore_backend: T2,
@@ -57,8 +60,9 @@ where
     let keystore =
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);
 
-    let logger = DebugLogger {
-        id: "test".to_string(),
+    let logger = Logger {
+        target: "blueprint-manager",
+        id: "run-gadget".to_string(),
     };
 
     logger.info("Starting gadget with config: {config:?}");
@@ -67,7 +71,6 @@ where
         keystore_backend,
         services,
         keystore,
-        environment,
         base_path: config.base_path,
         bind_ip: config.bind_ip,
         bind_port: config.bind_port,
