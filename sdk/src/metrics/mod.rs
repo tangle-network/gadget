@@ -56,6 +56,7 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
+    /// The prometheus port is already in use.
     #[error("Prometheus port {0} already in use.")]
     PortInUse(SocketAddr),
 }
