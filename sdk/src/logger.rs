@@ -2,6 +2,7 @@ use crate::alloc::string::ToString;
 #[cfg(not(feature = "std"))]
 use alloc::string::String;
 use core::fmt::Display;
+use log::Log;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, trace, warn};
 use tracing_subscriber::fmt::format::FmtSpan;
@@ -23,6 +24,15 @@ impl From<&str> for Logger {
 impl From<String> for Logger {
     fn from(id: String) -> Self {
         Logger { id }
+    }
+}
+
+impl From<String> for Logger {
+    fn from(id: String) -> Self {
+        Logger {
+            target: DEFAULT_TARGET.to_string(),
+            id,
+        }
     }
 }
 
