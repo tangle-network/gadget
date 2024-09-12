@@ -57,24 +57,6 @@ impl GadgetRunner for TangleGadgetRunner {
     }
 
     async fn run(&self) -> Result<()> {
-        /*        let config = ContextConfig {
-            gadget_core_settings: GadgetCLICoreSettings::Run {
-                bind_addr: self.env.bind_addr,
-                bind_port: self.env.bind_port,
-                test_mode: self.env.test_mode,
-                logger: self.env.logger.clone(),
-                url: self.env.ur,
-                bootnodes: None,
-                base_path: Default::default(),
-                chain: Default::default(),
-                verbose: 0,
-                pretty: false,
-                keystore_password: None,
-            },
-        };*/
-
-        //let env = gadget_sdk::env::load(None, config).map_err(|e| eyre!(e))?;
-
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
         let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
         let logger = self.env.logger.clone();

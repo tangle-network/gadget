@@ -63,6 +63,8 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         NAME_IDS[input.instance_id as usize].to_lowercase()
     ));
 
+    assert!(!keystore_uri.exists(), "Keystore URI cannot exist: {keystore_uri}");
+
     let keystore_uri = std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
 
     inject_test_keys(&keystore_uri, input.instance_id as usize)
@@ -73,6 +75,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         .canonicalize()
         .expect("Failed to resolve keystore URI");
 
+    // TODO: Why is the gadget config here when there is a config below?
     let blueprint_manager_config = BlueprintManagerConfig {
         gadget_config: None,
         keystore_uri: format!("file://{}", keystore_uri.display()),
@@ -269,7 +272,7 @@ pub async fn register_service(
     Ok(())
 }
 
-pub async fn wait_for_completion_of_job(
+pub async fn wait_for_completion_of_tangle_job(
     client: &TestClient,
     service_id: u64,
     call_id: u64,
@@ -343,7 +346,7 @@ macro_rules! test_blueprint {
     ) => {
         use $crate::{
             get_next_call_id, get_next_service_id, run_test_blueprint_manager,
-            submit_job, wait_for_completion_of_job, Opts,
+            submit_job, wait_for_completion_of_tangle_job, Opts,
         };
 
         use $crate::test_ext::new_test_ext_blueprint_manager;
@@ -408,7 +411,7 @@ macro_rules! test_blueprint {
                 .await
                 .expect("Failed to submit job");
 
-                let job_results = wait_for_completion_of_job(client, service_id, call_id, handles[0].logger())
+                let job_results = wait_for_completion_of_tangle_job(client, service_id, call_id, handles[0].logger())
                     .await
                     .expect("Failed to wait for job completion");
 
@@ -432,7 +435,7 @@ mod test_macros {
     use super::*;
 
     test_blueprint!(
-        "./blueprints/incredible-squaring/", // Path to the blueprint's dir
+        "./blueprints/incredible-squaring-eigen/", // Path to the blueprint's dir
         "incredible-squaring-blueprint",     // Name of the package
         5,                                   // Number of nodes
         [InputValue::Uint64(5)],
@@ -489,7 +492,7 @@ mod tests_standard {
 
                 // What's left: Submit a job, wait for the job to finish, then assert the job results
                 let keypair = handles[0].sr25519_id().clone();
-                // Important! The tests can only run serially, not in parallel, in order to not cause a race condition in IDs
+                // TODO: Important! The tests can only run serially, not in parallel, in order to not cause a race condition in IDs
                 let service_id = get_next_service_id(client)
                     .await
                     .expect("Failed to get next service id")
@@ -504,7 +507,7 @@ mod tests_standard {
                 wait_for_test_ready(all_paths, handles[0].logger()).await;
 
                 handles[0].logger().info(format!(
-                    "All nodes online! Submitting job with params service ID: {service_id}, call ID: {call_id}"
+                    "All gadgets online! Submitting job with params service ID: {service_id}, call ID: {call_id}"
                 ));
 
                 // Pass the arguments
@@ -531,7 +534,7 @@ mod tests_standard {
 
                 // Step 2: wait for the job to complete
                 let job_results =
-                    wait_for_completion_of_job(client, service_id, call_id, handles[0].logger())
+                    wait_for_completion_of_tangle_job(client, service_id, call_id, handles[0].logger())
                         .await
                         .expect("Failed to wait for job completion");
 
@@ -547,7 +550,7 @@ mod tests_standard {
 }
 
 /// `base_paths`: All the paths pointing to the keystore for each node
-/// This function returns when every file exists
+/// This function returns when every test_started.tmp file exists
 async fn wait_for_test_ready(base_paths: Vec<PathBuf>, logger: &DebugLogger) {
     let paths = base_paths
         .into_iter()
