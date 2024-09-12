@@ -31,10 +31,11 @@ pub const AGENT_VERSION: &str = "tangle/gadget-sdk/1.0.0";
 /// The version of the client
 pub const CLIENT_VERSION: &str = "1.0.0";
 
-/// The base network configuration for a blueprint's libp2p network.
+/// The base network configuration for a blueprint's `libp2p` network.
 ///
-/// This configuration is used to setup the libp2p network for a blueprint.
-/// Construct using `NetworkConfig::new` for advanced users or `NetworkConfig::new_service_network` ordinarily.
+/// This configuration is used to setup the `libp2p` network for a blueprint.
+/// Construct using [`NetworkConfig::new`] for advanced users or
+/// [`NetworkConfig::new_service_network`] ordinarily.
 pub struct NetworkConfig {
     pub identity: libp2p::identity::Keypair,
     pub role_key: ecdsa::Pair,

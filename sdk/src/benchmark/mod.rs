@@ -1,4 +1,5 @@
 pub use tokio;
+
 /// The runtime trait that all runtimes must implement.
 pub trait Runtime {
     /// Runs the given future to completion on the runtime.
@@ -7,6 +8,9 @@ pub trait Runtime {
         F: std::future::Future;
 }
 
+/// The [`tokio`](https://crates.io/crates/tokio) runtime.
+///
+/// This will execute the benchmark using the `tokio` runtime.
 #[derive(Debug, Clone, Copy)]
 pub struct TokioRuntime;
 
@@ -31,6 +35,9 @@ pub struct Bencher<R> {
     cores: usize,
 }
 
+/// The results of a benchmark.
+///
+/// This implements [`Display`] to provide a human-readable summary of the benchmark.
 #[derive(Debug, Clone)]
 pub struct BenchmarkSummary {
     /// The name of the benchmark.
@@ -46,6 +53,17 @@ pub struct BenchmarkSummary {
 }
 
 impl<R: Runtime> Bencher<R> {
+    /// Create a new benchmark harness.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use gadget_sdk::benchmark::{Bencher, TokioRuntime};
+    ///
+    /// const THREADS: usize = 4;
+    ///
+    /// let bencher = Bencher::new(THREADS, TokioRuntime);
+    /// ```
     pub fn new(threads: usize, runtime: R) -> Self {
         Self {
             runtime,
@@ -54,7 +72,20 @@ impl<R: Runtime> Bencher<R> {
         }
     }
 
-    /// Runs the given future on the runtime.
+    /// Runs the given future on the [`Runtime`].
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use gadget_sdk::benchmark::{Bencher, TokioRuntime};
+    ///
+    /// const THREADS: usize = 4;
+    ///
+    /// let bencher = Bencher::new(THREADS, TokioRuntime);
+    /// bencher.block_on(async {
+    ///     // Do some work...
+    /// });
+    /// ```
     pub fn block_on<F>(&self, future: F) -> F::Output
     where
         F: std::future::Future,
@@ -62,8 +93,23 @@ impl<R: Runtime> Bencher<R> {
         self.runtime.block_on(future)
     }
 
-    /// Stops the benchmark and returns a summary of the benchmark.
-    pub fn stop(&self, name: &str, job_id: u8) -> BenchmarkSummary {
+    /// Ends the benchmark and returns a summary.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use gadget_sdk::benchmark::{Bencher, TokioRuntime};
+    /// const THREADS: usize = 4;
+    ///
+    /// let bencher = Bencher::new(THREADS, TokioRuntime);
+    /// bencher.block_on(async {
+    ///     // Do some work...
+    /// });
+    ///
+    /// let summary = bencher.stop("my_benchmark", 0);
+    /// println!("{}", summary);
+    /// ```
+    pub fn stop<N: ToString>(&self, name: N, job_id: u8) -> BenchmarkSummary {
         let pid = sysinfo::get_current_pid().expect("Failed to get current process ID");
         let s = sysinfo::System::new_all();
         let process = s

@@ -3,6 +3,7 @@ use crate::events_watcher::tangle::TangleConfig;
 use crate::keystore::backend::GenericKeyStore;
 use alloc::string::{String, ToString};
 
+/// The protocol on which a gadget will be executed.
 #[derive(Default, Debug, Clone, Copy)]
 pub enum Protocol {
     #[default]
@@ -12,17 +13,25 @@ pub enum Protocol {
 
 impl Protocol {
     /// Returns the protocol from the environment variable `PROTOCOL`.
+    ///
+    /// If the environment variable is not set, it defaults to `Protocol::Tangle`.
+    ///
+    /// # Errors
+    ///
+    /// * [`Error::UnsupportedProtocol`] if the protocol is unknown. See [`Protocol`].
     #[cfg(feature = "std")]
-    pub fn from_env() -> Self {
-        std::env::var("PROTOCOL")
-            .map(|v| v.parse::<Protocol>().unwrap_or_default())
-            .unwrap_or_default()
+    pub fn from_env() -> Result<Self, Error> {
+        if let Ok(protocol) = std::env::var("PROTOCOL") {
+            return protocol.to_ascii_lowercase().parse::<Protocol>();
+        }
+
+        Ok(Protocol::default())
     }
 
     /// Returns the protocol from the environment variable `PROTOCOL`.
     #[cfg(not(feature = "std"))]
-    pub fn from_env() -> Self {
-        Self::Tangle
+    pub fn from_env() -> Result<Self, Error> {
+        Ok(Protocol::default())
     }
 }
 
@@ -36,13 +45,13 @@ impl core::fmt::Display for Protocol {
 }
 
 impl core::str::FromStr for Protocol {
-    type Err = ();
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "tangle" => Ok(Self::Tangle),
             "eigenlayer" => Ok(Self::Eigenlayer),
-            _ => Err(()),
+            _ => Err(Error::UnsupportedProtocol(s.to_string())),
         }
     }
 }
@@ -99,7 +108,7 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     _lock: core::marker::PhantomData<RwLock>,
 }
 
-/// An error type for the gadget environment.
+/// Errors that can occur while loading and using the gadget configuration.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -131,6 +140,9 @@ pub enum Error {
     #[error(transparent)]
     #[cfg(any(feature = "std", feature = "wasm"))]
     Subxt(#[from] subxt::Error),
+    /// Error parsing the protocol, from the `PROTOCOL` environment variable.
+    #[error("Unsupported protocol: {0}")]
+    UnsupportedProtocol(String),
 
     /// No Sr25519 keypair found in the keystore.
     #[error("No Sr25519 keypair found in the keystore")]
@@ -241,8 +253,8 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     ///
     /// # Errors
     ///
-    /// This function will return an error if no Sr25519 keypair is found in the keystore.
-    /// or if the keypair seed is invalid.
+    /// * No sr25519 keypair is found in the keystore.
+    /// * The keypair seed is invalid.
     #[doc(alias = "sr25519_signer")]
     pub fn first_signer(&self) -> Result<subxt_signer::sr25519::Keypair, Error> {
         let keystore = self.keystore()?;
@@ -263,8 +275,8 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     ///
     /// # Errors
     ///
-    /// This function will return an error if no ECDSA keypair is found in the keystore.
-    /// or if the keypair seed is invalid.
+    /// * No ECDSA keypair is found in the keystore.
+    /// * The keypair seed is invalid.
     #[doc(alias = "ecdsa_signer")]
     pub fn first_ecdsa_signer(&self) -> Result<tangle_subxt::subxt_signer::ecdsa::Keypair, Error> {
         let keystore = self.keystore()?;

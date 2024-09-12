@@ -1,3 +1,5 @@
+//! Substrate Event Watcher Module
+//!
 //! ## Overview
 //!
 //! Event watcher traits handle the syncing and listening of events for a Substrate network.

@@ -1,3 +1,5 @@
+//! EVM Event Watcher Module
+
 use crate::events_watcher::{error::Error, ConstantWithMaxRetryCount};
 use crate::store::LocalDatabase;
 use alloy_network::Network;
@@ -125,7 +127,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
         contract: Self::Contract,
         handlers: Vec<EventHandlerFor<Self, T>>,
     ) -> Result<(), Error> {
-        let local_db = LocalDatabase::new("./db");
+        let local_db = LocalDatabase::open("./db");
         let backoff = backoff::backoff::Constant::new(Duration::from_secs(1));
         let task = || async {
             let step = 100;
