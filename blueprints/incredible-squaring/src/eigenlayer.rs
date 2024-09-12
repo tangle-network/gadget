@@ -1,4 +1,4 @@
-use alloy_contract::{ContractInstance, Interface};
+/*use alloy_contract::{ContractInstance, Interface};
 use alloy_network::Ethereum;
 use alloy_network::EthereumWallet;
 use alloy_primitives::{address, Address, FixedBytes};
@@ -31,8 +31,8 @@ use IncredibleSquaringTaskManager::{
 use eigensdk_rs::eigen_utils::types::{operator_id_from_key_pair, OperatorPubkeys};
 use eigensdk_rs::eigen_utils::*;
 use eigensdk_rs::incredible_squaring_avs::operator::*;
-use gadget_sdk::logger::Logger;
 use gadget_sdk::config::{ContextConfig, GadgetConfiguration};
+use gadget_sdk::logger::Logger;
 use gadget_sdk::network::gossip::GossipHandle;
 
 // Codegen from ABI file to interact with the contract.
@@ -188,6 +188,8 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             self.env.logger.info("Skipping registration in test mode");
             return Ok(());
         }
+
+        // TODO: Register to become an operator
         let keystore = self.env.keystore().map_err(|e| eyre!(e))?;
         let bls_keypair = self.env.first_bls_bn254_signer().map_err(|e| eyre!(e))?;
 
@@ -285,6 +287,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             logger: self.env.logger.clone(),
         };
 
+        // TODO: do we actually need env here when there is self.env??
         let env =
             gadget_sdk::env::load(Some(Protocol::Eigenlayer), config).map_err(|e| eyre!(e))?;
         let keystore = env.keystore().map_err(|e| eyre!(e))?;
@@ -353,6 +356,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
+    // TODO: add setup_log()
     let env_filter = tracing_subscriber::EnvFilter::from_default_env();
     let logger = tracing_subscriber::fmt()
         .compact()
@@ -376,6 +380,9 @@ async fn main() -> Result<()> {
             logger: debug_logger,
         },
     );
+
+    // TODO: Add test checks for generating a tmp file, refactor into SDK
+
     // Register the operator if needed
     if runner.env().should_run_registration() {
         runner.register().await?;
@@ -390,3 +397,4 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
+*/
