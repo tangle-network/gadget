@@ -2,7 +2,6 @@ use crate::alloc::string::ToString;
 #[cfg(not(feature = "std"))]
 use alloc::string::String;
 use core::fmt::Display;
-use log::Log;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, trace, warn};
 use tracing_subscriber::fmt::format::FmtSpan;

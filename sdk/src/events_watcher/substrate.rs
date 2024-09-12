@@ -71,7 +71,6 @@ where
         backoff: impl backon::BackoffBuilder + 'static,
     ) -> Result<(), Error> {
         if !self.can_handle_events(events.clone()).await? {
-            self.logger().info("There are no actionable events ...");
             return Ok(());
         };
         let wrapped_task = || self.handle_events(client.clone(), (events.clone(), block_number));
