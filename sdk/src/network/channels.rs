@@ -12,6 +12,9 @@ use std::sync::Arc;
 use crate::error::Error;
 use crate::logger::Logger;
 
+/// Unique identifier for an involved party
+///
+/// This is used to identify both senders and receivers in message transmission.
 pub type UserID = u16;
 
 /// Represent a message transmitting between parties on wire
@@ -20,12 +23,12 @@ pub struct Msg<B> {
     /// Index of the sender
     ///
     /// Lies in range `[1; n]` where `n` is number of parties involved in computation
-    pub sender: u16,
+    pub sender: UserID,
     /// Index of receiver
     ///
     /// `None` indicates that it's broadcast message. Receiver index, if set, lies in range `[1; n]`
     /// where `n` is number of parties involved in computation
-    pub receiver: Option<u16>,
+    pub receiver: Option<UserID>,
     /// Message body
     pub body: B,
 }
@@ -53,7 +56,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
 >(
     mut rx_gadget: UnboundedReceiver<ProtocolMessage>,
     identifier_info: IdentifierInfo,
-    user_id_mapping: Arc<HashMap<u16, ecdsa::Public>>,
+    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
     my_account_id: ecdsa::Public,
     network: N,
     logger: Logger,
@@ -149,7 +152,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
             }
         };
 
-        gadget_io::tokio::join!(channel_1_task, channel_2_task);
+        tokio::join!(channel_1_task, channel_2_task);
     });
 
     (
@@ -303,7 +306,7 @@ impl MaybeReceiver {
         matches!(self, Self::Unknown)
     }
 
-    /// Returns the receiver as [`UserID`] if it is knwon.
+    /// Returns the receiver as [`UserID`] if it is known.
     #[must_use]
     pub fn as_user_id(&self) -> Option<UserID> {
         match self {
@@ -420,11 +423,11 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
 >(
     mut rx_gadget: UnboundedReceiver<ProtocolMessage>,
     identifier_info: IdentifierInfo,
-    user_id_mapping: Arc<HashMap<u16, ecdsa::Public>>,
+    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
     my_account_id: ecdsa::Public,
     network: N,
     logger: Logger,
-    i: u16,
+    i: UserID,
 ) -> DuplexedChannel<O, I, C2> {
     let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
     let (tx_to_async_proto_2, rx_for_async_proto_2) = futures::channel::mpsc::unbounded();
@@ -590,7 +593,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
 >(
     mut rx_gadget: UnboundedReceiver<ProtocolMessage>,
     identifier_info: IdentifierInfo,
-    user_id_mapping: Arc<HashMap<u16, ecdsa::Public>>,
+    user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
     my_account_id: ecdsa::Public,
     network: N,
     logger: Logger,
@@ -760,8 +763,8 @@ async fn wrap_message_and_forward_to_network<
 >(
     msg: M,
     network: &N,
-    user_id_mapping: &HashMap<u16, ecdsa::Public>,
-    my_user_id: u16,
+    user_id_mapping: &HashMap<UserID, ecdsa::Public>,
+    my_user_id: UserID,
     identifier_info: IdentifierInfo,
     splitter: impl FnOnce(M) -> MultiplexedChannelMessage<C1, C2, C3>,
     logger: &Logger,
