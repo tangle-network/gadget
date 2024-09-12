@@ -1,6 +1,7 @@
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::events_watcher::tangle::TangleConfig;
 use crate::keystore::backend::GenericKeyStore;
+use crate::keystore::{BackendExt, TanglePairSigner, TanglePairSignerPolkadot};
 use crate::logger::Logger;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
@@ -191,7 +192,7 @@ pub enum Error {
     TestSetup(String),
 }
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(name = "General CLI Context")]
 pub struct ContextConfig {
     /// Pass through arguments to another command
@@ -199,7 +200,7 @@ pub struct ContextConfig {
     pub gadget_core_settings: GadgetCLICoreSettings,
 }
 
-#[derive(Debug, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 pub enum GadgetCLICoreSettings {
     #[structopt(name = "run")]
     Run {
@@ -223,10 +224,10 @@ pub enum GadgetCLICoreSettings {
             long,
             default_value,
             possible_values = &[
-            "local_testnet",
-            "local_mainnet",
-            "testnet",
-            "mainnet"
+                "local_testnet",
+                "local_mainnet",
+                "testnet",
+                "mainnet"
             ]
         )]
         chain: SupportedChains,
@@ -237,6 +238,10 @@ pub enum GadgetCLICoreSettings {
         pretty: bool,
         #[structopt(long = "keystore-password", env)]
         keystore_password: Option<String>,
+        #[structopt(long)]
+        blueprint_id: u64,
+        #[structopt(long)]
+        service_id: Option<u64>,
     },
 }
 
@@ -279,6 +284,10 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 bind_port,
                 test_mode,
                 logger,
+                url,
+                base_path,
+                blueprint_id,
+                service_id,
                 ..
             },
         ..
@@ -286,28 +295,26 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
 
     let logger = logger.unwrap_or_default();
 
+    let data_dir = base_path;
+    let mut keystore_url = format!("{}", data_dir.display());
+    if !keystore_url.starts_with("file:/") && !keystore_url.starts_with("file://") {
+        keystore_url = format!("file://{}", data_dir.display());
+    }
+
     Ok(GadgetConfiguration {
         bind_addr,
         bind_port,
         test_mode,
         logger,
-        rpc_endpoint: std::env::var("RPC_URL").map_err(|_| Error::MissingTangleRpcEndpoint)?,
-        keystore_uri: std::env::var("KEYSTORE_URI").map_err(|_| Error::MissingKeystoreUri)?,
-        data_dir_path: std::env::var("DATA_DIR").ok(),
-        blueprint_id: std::env::var("BLUEPRINT_ID")
-            .map_err(|_| Error::MissingBlueprintId)?
-            .parse()
-            .map_err(Error::MalformedBlueprintId)?,
+        rpc_endpoint: url.to_string(),
+        keystore_uri: keystore_url,
+        data_dir_path: Some(format!("{}", data_dir.display())),
+        blueprint_id,
         // If the registration mode is on, we don't need the service ID
         service_id: if is_registration {
             None
         } else {
-            Some(
-                std::env::var("SERVICE_ID")
-                    .map_err(|_| Error::MissingServiceId)?
-                    .parse()
-                    .map_err(Error::MalformedServiceId)?,
-            )
+            Some(service_id.ok_or_else(|| Error::MissingServiceId)?)
         },
         is_registration,
         protocol: protocol.unwrap_or(Protocol::Tangle),
@@ -355,18 +362,21 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// This function will return an error if no Sr25519 keypair is found in the keystore.
     /// or if the keypair seed is invalid.
     #[doc(alias = "sr25519_signer")]
-    pub fn first_signer(&self) -> Result<subxt_signer::sr25519::Keypair, Error> {
-        let keystore = self.keystore()?;
-        let sr25519_pubkey = crate::keystore::Backend::iter_sr25519(&keystore)
-            .next()
-            .ok_or(Error::NoSr25519Keypair)?;
-        let sr25519_secret =
-            crate::keystore::Backend::expose_sr25519_secret(&keystore, &sr25519_pubkey)?
-                .ok_or_else(|| Error::NoSr25519Keypair)?;
-        let mut seed = [0u8; 32];
-        seed.copy_from_slice(&sr25519_secret.to_bytes()[0..32]);
-        subxt_signer::sr25519::Keypair::from_secret_key(seed)
-            .map_err(|_| Error::InvalidSr25519Keypair)
+    pub fn first_signer(&self) -> Result<TanglePairSigner, Error> {
+        self.keystore()?.sr25519_key().map_err(Error::Keystore)
+    }
+
+    /// Returns the first Sr25519 signer keypair from the keystore.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if no Sr25519 keypair is found in the keystore.
+    /// or if the keypair seed is invalid.
+    #[doc(alias = "sr25519_signer")]
+    pub fn first_signer_polkadot(&self) -> Result<TanglePairSignerPolkadot, Error> {
+        self.keystore()?
+            .sr25519_key_polkadot()
+            .map_err(Error::Keystore)
     }
 
     /// Returns the first ECDSA signer keypair from the keystore.
@@ -377,17 +387,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// or if the keypair seed is invalid.
     #[doc(alias = "ecdsa_signer")]
     pub fn first_ecdsa_signer(&self) -> Result<tangle_subxt::subxt_signer::ecdsa::Keypair, Error> {
-        let keystore = self.keystore()?;
-        let ecdsa_pubkey = crate::keystore::Backend::iter_ecdsa(&keystore)
-            .next()
-            .ok_or(Error::NoEcdsaKeypair)?;
-        let ecdsa_secret = crate::keystore::Backend::expose_ecdsa_secret(&keystore, &ecdsa_pubkey)?
-            .ok_or(Error::NoEcdsaKeypair)?;
-
-        let mut seed = [0u8; 32];
-        seed.copy_from_slice(&ecdsa_secret.to_bytes()[0..32]);
-        tangle_subxt::subxt_signer::ecdsa::Keypair::from_secret_key(seed)
-            .map_err(|_| Error::InvalidEcdsaKeypair)
+        self.keystore()?.ecdsa_key().map_err(Error::Keystore)
     }
 
     /// Returns whether the gadget should run in memory.

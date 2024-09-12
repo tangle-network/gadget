@@ -54,30 +54,31 @@ pub async fn handle(
                         *service_id,
                     )?;
 
-                    let env_vars = if blueprint.registration_mode {
-                        let mut env_vars = std::env::vars().collect::<Vec<_>>();
-                        // RPC_URL: The remote RPC url for tangle
-                        // KEYSTORE_URI: the keystore file where the keys are stored and could be retrieved.
-                        // DATA_DIR: is an isolated path for where this gadget should store its data (database, secrets, …etc)
-                        // BLUEPRINT_ID: the active blueprint ID for this gadget
-                        // REGISTRATION_MODE_ON set to any value.
-                        env_vars.push(("RPC_URL".to_string(), gadget_config.url.to_string()));
-                        env_vars.push((
+                    // Add required env vars for all child processes/gadgets
+                    let mut env_vars = vec![
+                        ("RPC_URL".to_string(), gadget_config.url.to_string()),
+                        (
                             "KEYSTORE_URI".to_string(),
                             blueprint_manager_opts.keystore_uri.clone(),
-                        ));
-                        env_vars.push((
+                        ),
+                        (
                             "DATA_DIR".to_string(),
                             format!("{}", gadget_config.base_path.display()),
-                        ));
-                        env_vars.push(("BLUEPRINT_ID".to_string(), format!("{}", blueprint_id)));
-                        env_vars.push(("REGISTRATION_MODE_ON".to_string(), "true".to_string()));
-                        env_vars
-                    } else {
-                        std::env::vars().collect::<Vec<_>>()
-                    };
+                        ),
+                        ("BLUEPRINT_ID".to_string(), format!("{}", blueprint_id)),
+                        ("SERVICE_ID".to_string(), format!("{}", service_id)),
+                    ];
 
-                    logger.info(format!("Starting protocol: {sub_service_str}"));
+                    // Ensure our child process inherits the current processes' environment vars
+                    env_vars.extend(std::env::vars());
+
+                    if blueprint.registration_mode {
+                        env_vars.push(("REGISTRATION_MODE_ON".to_string(), "true".to_string()));
+                    }
+
+                    logger.info(format!(
+                        "Starting protocol: {sub_service_str} with args: {arguments:?}"
+                    ));
 
                     // Now that the file is loaded, spawn the process
                     let process_handle = tokio::process::Command::new(&binary_download_path)
@@ -104,6 +105,7 @@ pub async fn handle(
                         }
                     } else {
                         // A normal running gadget binary. Store the process handle and let the event loop handle the rest
+
                         let (status_handle, abort) = generate_running_process_status_handle(
                             process_handle,
                             logger,

@@ -22,7 +22,6 @@ parking_lot = { workspace = true, optional = true }
 rand = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 structopt = { workspace = true }
-tracing-subscriber = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 
 # Keystore deps
@@ -44,7 +43,8 @@ tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"], optio
 
 # Logging deps
 log = { workspace = true }
-tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
+tracing = { workspace = true, features = ["log"] }
 
 # Networking deps
 async-trait = { workspace = true }
@@ -60,8 +60,8 @@ sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
 
 # Event Watchers and Handlers
-backoff = { workspace = true, optional = true }
-subxt = { workspace = true, optional = true }
+backoff = { workspace = true }
+subxt = { workspace = true, features = ["substrate-compat"] }
 subxt-signer = { workspace = true, features = ["sr25519"] }
 tangle-subxt = { workspace = true }
 
@@ -75,6 +75,8 @@ alloy-rpc-types = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
+
+secp256k1 = { workspace = true }
 
 # Macros
 gadget-blueprint-proc-macro = { workspace = true }
@@ -115,11 +117,9 @@ hyper = { workspace = true, features = ["client"] }
 default = ["std"]
 
 std = [
-    "dep:backoff",
     "dep:parking_lot",
     "dep:hyper",
     "dep:hyper-util",
-    "dep:subxt",
     "dep:tokio",
     "backoff/tokio",
     "getrandom",
@@ -130,15 +130,12 @@ std = [
     "sp-io/std",
     "sqlx",
     "subxt/native",
-    "tangle-subxt/std",
 ]
+
 wasm = [
-    "dep:backoff",
-    "dep:subxt",
     "backoff/wasm-bindgen",
     "getrandom/js",
     "subxt/web",
-    "tangle-subxt/web",
 ]
 
 # Randomness

@@ -15,7 +15,7 @@
 // along with Tangle.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::PerTestNodeInput;
-use crate::runtime_types::tangle_primitives::services::PriceTargets;
+use futures::StreamExt;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use blueprint_manager::sdk::entry::SendFuture;
 use blueprint_manager::sdk::setup::NodeInput;
@@ -28,7 +28,7 @@ use gadget_sdk::store::{ECDSAKeyStore, InMemoryBackend};
 use gadget_sdk::tangle_subxt::subxt::utils::AccountId32;
 use gadget_sdk::tangle_subxt::subxt::{OnlineClient, SubstrateConfig};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ApprovalPrefrence;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{ApprovalPrefrence, PriceTargets};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
 use gadget_sdk::mutex_ext::TokioMutexExt;
 use gadget_sdk::error::Error;
@@ -36,12 +36,13 @@ use libp2p::Multiaddr;
 use sp_application_crypto::ecdsa;
 use sp_core::{sr25519, Pair};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::net::IpAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
+use futures::stream::FuturesOrdered;
 use url::Url;
 
 pub fn id_to_ecdsa_pair(id: u8) -> ecdsa::Pair {
@@ -148,12 +149,14 @@ impl Network for MockNetwork {
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 const LOCAL_TANGLE_NODE: &str = "ws://127.0.0.1:9944";
+pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
 
 /// - `N`: number of nodes
 /// - `K`: Number of networks accessible per node (should be equal to the number of services in a given blueprint)
 /// - `D`: Any data that you want to pass to pass with NodeInput.
 /// - `F`: A function that generates a service's execution via a series of shells. Each shell executes a subset of the service,
 ///        as each service may have a set of operations that are executed in parallel, sequentially, or concurrently.
+#[allow(clippy::async_yields_async)]
 pub async fn new_test_ext_blueprint_manager<
     const N: usize,
     const K: usize,
@@ -165,9 +168,8 @@ pub async fn new_test_ext_blueprint_manager<
     mut opts: Opts,
     f: F,
 ) -> LocalhostTestExt {
-    const NAME_IDS: [&str; 3] = ["alice", "bob", "charlie"];
-
-    assert!(N < 4, "Only up to 3 nodes are supported");
+    assert!(N > 0, "At least one node is required");
+    assert!(N <= NAME_IDS.len(), "Only up to 5 nodes are supported");
 
     let bind_addrs = (0..N)
         .map(|_| find_open_tcp_bind_port())
@@ -180,6 +182,12 @@ pub async fn new_test_ext_blueprint_manager<
         })
         .collect::<Vec<_>>();
 
+    // Sanity check: ensure uniqueness
+    assert_eq!(
+        bind_addrs.iter().map(|r| r.1).collect::<HashSet<_>>().len(),
+        bind_addrs.len()
+    );
+
     let multi_addrs = bind_addrs
         .iter()
         .map(|(addr, _)| addr.clone())
@@ -188,8 +196,6 @@ pub async fn new_test_ext_blueprint_manager<
     let mut handles = vec![];
 
     for (node_index, (my_addr, my_port)) in bind_addrs.iter().enumerate() {
-        let my_alias = NAME_IDS[node_index];
-
         let test_input = PerTestNodeInput {
             instance_id: node_index as _,
             bind_ip: IpAddr::from_str(LOCAL_BIND_ADDR).expect("Should be a valid IP"),
@@ -199,8 +205,6 @@ pub async fn new_test_ext_blueprint_manager<
                 .filter(|addr| *addr != my_addr)
                 .cloned()
                 .collect(),
-            // Assumes that that tangle has initialized a dir with a keystore at ../../tangle/tmp/
-            base_path: format!("../../tangle/tmp/{my_alias}"),
             verbose: 4,
             pretty: false,
             extra_input: additional_params.clone(),
@@ -209,56 +213,130 @@ pub async fn new_test_ext_blueprint_manager<
 
         let handle = f(test_input).await;
 
+        let k256_ecdsa_secret_key = handle.ecdsa_id().0.secret_bytes();
+        let priv_key = PrivateKeySigner::from_slice(&k256_ecdsa_secret_key)
+            .expect("Should create a private key signer");
+
+        let tg_addr = handle.sr25519_id().account_id();
+        let evm_addr = handle.ecdsa_id().public_key().to_account_id();
+        handle
+            .logger()
+            .info(format!("Signer TG address: {tg_addr}"));
+        handle
+            .logger()
+            .info(format!("Signer EVM address: {evm_addr}"));
+        handle
+            .logger()
+            .info(format!("Signer EVM(alloy) address: {}", priv_key.address()));
+
         if node_index == 0 {
-            // Replace the None signer and signer_evm values inside opts with alice's keys
+            // Replace the None signer and signer_evm values inside opts with Alice's keys
+            opts.signer_evm = Some(priv_key);
             opts.signer = Some(handle.sr25519_id().clone());
-            let k256_ecdsa_secret_key = handle.ecdsa_id().seed();
-            opts.signer_evm = Some(
-                PrivateKeySigner::from_slice(&k256_ecdsa_secret_key)
-                    .expect("Should create a private key signer"),
-            );
         }
 
         handles.push(handle);
     }
 
+    // Step 1: Create the blueprint using alice's identity
+    let blueprint_id = match cargo_tangle::deploy::deploy_to_tangle(opts).await {
+        Ok(id) => id,
+        Err(err) => {
+            handles[0]
+                .logger()
+                .error(format!("Failed to deploy blueprint: {err}"));
+            panic!("Failed to deploy blueprint: {err}");
+        }
+    };
+
     let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
         .await
-        .expect("Failed to create primary localhost client");
-
-    // Step 1: Create the blueprint using alice's identity
-    let blueprint_id = cargo_tangle::deploy::deploy_to_tangle(opts)
-        .await
-        .expect("Failed to deploy Blueprint to Tangle");
+        .expect("Failed to create an account-based localhost client");
 
     // Step 2: Have each identity register to a blueprint
+    let mut futures_ordered = FuturesOrdered::new();
     let registration_args = RegistrationArgs::new();
+    // TODO: allow the function callee to specify the registration args
 
-    for handle in handles.iter() {
-        let keypair = handle.sr25519_id().clone();
-        let key = runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().public().0);
+    for handle in handles {
+        let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
+            .await
+            .expect("Failed to create an account-based localhost client");
+        let registration_args = registration_args.clone();
 
-        let preferences = Preferences {
-            key,
-            approval: ApprovalPrefrence::None,
-            price_targets: PriceTargets {
-                cpu: 0,
-                mem: 0,
-                storage_hdd: 0,
-                storage_ssd: 0,
-                storage_nvme: 0,
-            },
+        let task = async move {
+            let keypair = handle.sr25519_id().clone();
+            let key = runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().public_key().0);
+
+            let preferences = Preferences {
+                key,
+                approval: ApprovalPrefrence::None,
+                price_targets: PriceTargets {
+                    cpu: 0,
+                    mem: 0,
+                    storage_hdd: 0,
+                    storage_ssd: 0,
+                    storage_nvme: 0,
+                },
+            };
+
+            if let Err(err) = super::join_delegators(&client, &keypair).await {
+                let err_str = format!("{err}");
+                if err_str.contains("MultiAssetDelegation::AlreadyOperator") {
+                    handle
+                        .logger()
+                        .warn(format!("{} is already an operator", keypair.account_id()));
+                } else {
+                    handle
+                        .logger()
+                        .error(format!("Failed to join delegators: {err}"));
+                    panic!("Failed to join delegators: {err}");
+                }
+            }
+
+            if let Err(err) = super::register_blueprint(
+                &client,
+                &keypair,
+                blueprint_id,
+                preferences,
+                registration_args.clone(),
+                handle.logger(),
+            )
+            .await
+            {
+                handle
+                    .logger()
+                    .error(format!("Failed to register as operator: {err}"));
+                panic!("Failed to register as operator: {err}");
+            }
+
+            handle
         };
 
-        super::register_blueprint(
-            &client,
-            &keypair,
-            blueprint_id,
-            preferences,
-            registration_args.clone(),
-        )
-        .await
-        .expect("Failed to register to blueprint");
+        futures_ordered.push_back(task);
+    }
+
+    let mut handles = futures_ordered
+        .collect::<Vec<BlueprintManagerHandle>>()
+        .await;
+
+    // Step 3: register a service
+    let all_nodes = handles
+        .iter()
+        .map(|handle| handle.sr25519_id().account_id().clone())
+        .collect();
+
+    // Use Alice's account to register the service
+    handles[0].logger().info(format!(
+        "Registering service for blueprint ID {blueprint_id} using Alice's keys ..."
+    ));
+    if let Err(err) =
+        super::register_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes).await
+    {
+        handles[0]
+            .logger()
+            .error(format!("Failed to register service: {err}"));
+        panic!("Failed to register service: {err}");
     }
 
     // Now, start every blueprint manager. With the blueprint submitted and every operator registered
@@ -344,10 +422,7 @@ pub async fn new_test_ext<
             localhost_clients.push(client);
         }
 
-        let logger = Logger {
-            target: "blueprint-test-utils".to_string(),
-            id: format!("Peer {node_index}"),
-        };
+        let logger = Logger::from(format!("Peer {node_index}"));
 
         let keystore = ECDSAKeyStore::in_memory(role_pair);
         let prometheus_config = PrometheusConfig::Disabled;

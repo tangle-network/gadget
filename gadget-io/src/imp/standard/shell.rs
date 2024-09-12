@@ -31,7 +31,7 @@ pub struct GadgetConfig {
     /// The IP address to bind to for the libp2p node.
     #[structopt(long = "bind-ip", short = "i", default_value = defaults::BIND_IP)]
     #[serde(default = "defaults::bind_ip")]
-    pub bind_ip: IpAddr,
+    pub bind_addr: IpAddr,
     /// The port to bind to for the libp2p node.
     #[structopt(long = "port", short = "p", default_value = defaults::BIND_PORT)]
     #[serde(default = "defaults::bind_port")]

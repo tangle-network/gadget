@@ -7,8 +7,6 @@ use gadget_sdk::logger::Logger;
 use gadget_sdk::store::KeyValueStoreBackend;
 use structopt::StructOpt;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
-use tracing_subscriber::fmt::SubscriberBuilder;
-use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 
 pub fn keystore_from_base_path(
@@ -61,7 +59,6 @@ where
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);
 
     let logger = Logger {
-        target: "blueprint-manager".to_string(),
         id: "run-gadget".to_string(),
     };
 
@@ -72,7 +69,7 @@ where
         services,
         keystore,
         base_path: config.base_path,
-        bind_ip: config.bind_ip,
+        bind_ip: config.bind_addr,
         bind_port: config.bind_port,
         bootnodes: config.bootnodes,
         n_protocols,
@@ -124,14 +121,4 @@ pub fn setup_blueprint_manager_logger(
     //let _ = env_logger::try_init();
 
     Ok(())
-}
-pub fn setup_log() {
-    let _ = SubscriberBuilder::default()
-        .with_env_filter(EnvFilter::from_default_env())
-        .finish()
-        .try_init();
-
-    std::panic::set_hook(Box::new(|info| {
-        log::error!(target: "gadget", "Panic occurred: {info:?}");
-    }));
 }

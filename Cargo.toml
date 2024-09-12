@@ -54,7 +54,12 @@ cargo_metadata = { version = "0.18.1" }
 pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
 pallet-services-rpc = { git = "https://github.com/webb-tools/tangle.git" }
 tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
-tangle-subxt = { version = "0.3.0", default-features = false }
+tangle-subxt = { git = "https://github.com/webb-tools/tangle.git" }
+
+# pallet-services = { path = "../tangle/pallets/services" }
+# pallet-services-rpc = { path = "../tangle/pallets/services/rpc" }
+# tangle-primitives = { path = "../tangle/primitives" }
+# tangle-subxt = { path = "../tangle/tangle-subxt" } # 0.3.0 new version
 
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
@@ -289,6 +294,7 @@ wasm-bindgen-futures = "0.4.43"
 wasmer = { version = "4.3.5", default-features = false }
 wasmtime = { version = "23.0.2", default-features = false }
 wasmtimer = "0.2"
+secp256k1 = "0.28.2"
 
 # Eigenlayer
 # TODO: Remove this branch, point to main once https://github.com/webb-tools/eigensdk-rs/pull/20 is merged
@@ -297,3 +303,5 @@ eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = 
 [profile.dev.package.backtrace]
 opt-level = 3
 
+#[patch.crates-io]
+#tangle-subxt = { path = "../tangle/tangle-subxt" }
