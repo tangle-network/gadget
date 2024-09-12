@@ -22,6 +22,7 @@ tangle-subxt = { workspace = true }
 gadget-blueprint-proc-macro-core = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+schnorrkel = { workspace = true }
 
 alloy-contract = { workspace = true }
 alloy-json-abi = { workspace = true }

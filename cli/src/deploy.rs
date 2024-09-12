@@ -8,10 +8,13 @@ use gadget_blueprint_proc_macro_core::{
 pub use k256;
 use std::fmt::Debug;
 use std::path::PathBuf;
-use tangle_subxt::subxt::{self, PolkadotConfig};
-use tangle_subxt::subxt_signer::sr25519;
+use tangle_subxt::subxt::ext::sp_core;
+use tangle_subxt::subxt::tx::PairSigner;
+use tangle_subxt::subxt::{self, SubstrateConfig};
 use tangle_subxt::tangle_testnet_runtime::api as TangleApi;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types;
+
+pub type TanglePairSigner = PairSigner<SubstrateConfig, sp_core::sr25519::Pair>;
 
 #[derive(Clone)]
 pub struct Opts {
@@ -22,7 +25,7 @@ pub struct Opts {
     /// The path to the manifest file
     pub manifest_path: std::path::PathBuf,
     /// The signer for deploying the blueprint
-    pub signer: Option<sr25519::Keypair>,
+    pub signer: Option<TanglePairSigner>,
     /// The signer for deploying the smart contract
     pub signer_evm: Option<PrivateKeySigner>,
 }
@@ -52,9 +55,7 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
 
     let package = find_package(&metadata, pkg_name)?;
     let mut blueprint = load_blueprint_metadata(package)?;
-
     build_contracts_if_needed(package, &blueprint).context("Building contracts")?;
-
     deploy_contracts_to_tangle(rpc_url.as_ref(), package, &mut blueprint, signer_evm).await?;
 
     bake_blueprint(blueprint)
@@ -79,8 +80,8 @@ pub async fn deploy_to_tangle(
         crate::signer::load_signer_from_env()?
     };
 
-    let my_account_id = signer.public_key().to_account_id();
-    let client = subxt::OnlineClient::<PolkadotConfig>::from_url(rpc_url).await?;
+    let my_account_id = signer.account_id();
+    let client = subxt::OnlineClient::<SubstrateConfig>::from_url(rpc_url).await?;
 
     let create_blueprint_tx = TangleApi::tx().services().create_blueprint(blueprint);
 
@@ -92,7 +93,7 @@ pub async fn deploy_to_tangle(
     let event = result
         .find::<TangleApi::services::events::BlueprintCreated>()
         .flatten()
-        .find(|e| e.owner == my_account_id)
+        .find(|e| e.owner.0 == my_account_id.0)
         .context("Finding the `BlueprintCreated` event")
         .map_err(|e| {
             eyre::eyre!(
@@ -126,10 +127,10 @@ pub fn load_blueprint_metadata(package: &cargo_metadata::Package) -> Result<Serv
             .run()
             .context("Failed to build the package")?;
     }
-    // should have the blueprnt.json
+    // should have the blueprint.json
     let blueprint_json =
         std::fs::read_to_string(blueprint_json_path).context("Reading blueprint.json file")?;
-    let blueprint = serde_json::from_str::<ServiceBlueprint<'_>>(&blueprint_json)?;
+    let blueprint = serde_json::from_str(&blueprint_json)?;
     Ok(blueprint)
 }
 
@@ -299,6 +300,33 @@ fn bake_blueprint(
         convert_to_bytes_or_null(&mut job["metadata"]["name"]);
         convert_to_bytes_or_null(&mut job["metadata"]["description"]);
     }
+
+    let (_, gadget) = blueprint_json["gadget"]
+        .as_object_mut()
+        .expect("Bad gadget value")
+        .iter_mut()
+        .next()
+        .expect("Should be at least one gadget");
+    let sources = gadget["sources"].as_array_mut().expect("Should be a list");
+
+    for (idx, source) in sources.iter_mut().enumerate() {
+        if let Some(fetchers) = source["fetcher"].as_object_mut() {
+            let fetcher_fields = fetchers
+                .iter_mut()
+                .next()
+                .expect("Should be at least one fetcher")
+                .1;
+            for (_key, value) in fetcher_fields
+                .as_object_mut()
+                .expect("Fetcher should be a map")
+            {
+                convert_to_bytes_or_null(value);
+            }
+        } else {
+            panic!("The source at index {idx} does not have a valid fetcher");
+        }
+    }
+
     println!("Job: {blueprint_json}");
     let blueprint = serde_json::from_value(blueprint_json)?;
     Ok(blueprint)
@@ -307,6 +335,13 @@ fn bake_blueprint(
 fn convert_to_bytes_or_null(v: &mut serde_json::Value) {
     if let serde_json::Value::String(s) = v {
         *v = serde_json::Value::Array(s.bytes().map(serde_json::Value::from).collect());
+        return;
+    }
+
+    if let serde_json::Value::Array(vals) = v {
+        for val in vals {
+            convert_to_bytes_or_null(val);
+        }
     }
 }
 

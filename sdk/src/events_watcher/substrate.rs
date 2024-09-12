@@ -68,6 +68,7 @@ where
         backoff: impl backoff::backoff::Backoff + Send + Sync + 'static,
     ) -> Result<(), Error> {
         if !self.can_handle_events(events.clone()).await? {
+            self.logger().info("There are no actionable events ...");
             return Ok(());
         };
         let wrapped_task = || {
@@ -145,7 +146,7 @@ where
                     .map_err(backoff::Error::transient)
                     .await?;
                 self.logger()
-                    .info(format!("Found #{} events", events.len()));
+                    .info(format!("Found #{} events: {:?}", events.len(), events));
                 // wraps each handler future in a retry logic, that will retry the handler
                 // if it fails, up to `MAX_RETRY_COUNT`, after this it will ignore that event for
                 // that specific handler.

@@ -45,6 +45,13 @@ pub mod error;
 pub mod sr25519;
 
 pub use error::Error;
+use subxt::PolkadotConfig;
+use tangle_subxt::subxt::ext::sp_core;
+use tangle_subxt::subxt::tx::PairSigner;
+use tangle_subxt::subxt::SubstrateConfig;
+
+pub type TanglePairSigner = PairSigner<SubstrateConfig, sp_core::sr25519::Pair>;
+pub type TanglePairSignerPolkadot = PairSigner<PolkadotConfig, sp_core::sr25519::Pair>;
 
 /// The Keystore [`Backend`] trait.
 ///
@@ -209,27 +216,49 @@ pub trait BackendExt: Backend {
             .iter_ecdsa()
             .next()
             .ok_or_else(|| str_to_std_error("No ECDSA keys found"))?;
-        let _secret = self
+        let ecdsa_secret = self
             .expose_ecdsa_secret(&first_key)?
             .ok_or_else(|| str_to_std_error("No ECDSA secret found"))?;
 
-        unimplemented!("Not yet implemented")
+        let mut seed = [0u8; 32];
+        seed.copy_from_slice(&ecdsa_secret.to_bytes()[0..32]);
+        Ok(
+            tangle_subxt::subxt_signer::ecdsa::Keypair::from_secret_key(seed)
+                .map_err(|err| str_to_std_error(err.to_string()))?,
+        )
     }
 
-    fn sr25519_key(&self) -> Result<subxt_signer::sr25519::Keypair, Error> {
+    fn sr25519_key(&self) -> Result<TanglePairSigner, Error> {
         let first_key = self
             .iter_sr25519()
             .next()
             .ok_or_else(|| str_to_std_error("No SR25519 keys found"))?;
-        let _secret = self
+        let secret = self
             .expose_sr25519_secret(&first_key)?
             .ok_or_else(|| str_to_std_error("No SR25519 secret found"))?;
-        unimplemented!("Not yet implemented")
+        //et pair = gadget_common::tangle_subxt::subxt::ext::sp_core::sr25519::Pair::from(secret);
+        let schnorrkel_kp = schnorrkel::Keypair::from(secret);
+        let res = PairSigner::new(schnorrkel_kp.into());
+        Ok(res)
+    }
+
+    fn sr25519_key_polkadot(&self) -> Result<TanglePairSignerPolkadot, Error> {
+        let first_key = self
+            .iter_sr25519()
+            .next()
+            .ok_or_else(|| str_to_std_error("No SR25519 keys found"))?;
+        let secret = self
+            .expose_sr25519_secret(&first_key)?
+            .ok_or_else(|| str_to_std_error("No SR25519 secret found"))?;
+        //et pair = gadget_common::tangle_subxt::subxt::ext::sp_core::sr25519::Pair::from(secret);
+        let schnorrkel_kp = schnorrkel::Keypair::from(secret);
+        let res = PairSigner::new(schnorrkel_kp.into());
+        Ok(res)
     }
 }
 
 impl<T: Backend> BackendExt for T {}
 
-fn str_to_std_error(s: &str) -> std::io::Error {
-    std::io::Error::new(std::io::ErrorKind::Other, s)
+fn str_to_std_error<T: Into<String>>(s: T) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::Other, s.into())
 }

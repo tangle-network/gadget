@@ -81,17 +81,17 @@ pub mod crypto {
     }
 }
 
-impl SubstrateKeystore for KeystoreConfig {
+impl SubstrateKeystore for KeystoreContainer {
     // TODO: Return more specific error types
     fn ecdsa_key(&self) -> Result<ecdsa::Pair> {
-        let keystore_container = KeystoreContainer::new(self)?;
+        let keystore_container = self;
         let keystore = keystore_container.local_keystore();
         tracing::debug!("Loaded keystore from path");
-        let ecdsa_keys = keystore.ecdsa_public_keys(crypto::role::KEY_TYPE);
+        let ecdsa_keys = keystore.ecdsa_public_keys(crypto::acco::KEY_TYPE);
 
         if ecdsa_keys.len() != 1 {
             return Err(GadgetIoError::Other(format!(
-                "`role`: Expected exactly one key in ECDSA keystore, found {}",
+                "`acco`: Expected exactly one key in ECDSA keystore, found {}",
                 ecdsa_keys.len()
             )));
         }
@@ -117,7 +117,7 @@ impl SubstrateKeystore for KeystoreConfig {
 
     // TODO: Return more specific error types
     fn sr25519_key(&self) -> Result<sr25519::Pair> {
-        let keystore_container = KeystoreContainer::new(self)?;
+        let keystore_container = self;
         let keystore = keystore_container.local_keystore();
         tracing::debug!("Loaded keystore from path");
         let sr25519_keys = keystore.sr25519_public_keys(crypto::acco::KEY_TYPE);

@@ -1,10 +1,12 @@
 use crate::error::Error;
 use crate::logger::Logger;
+use sp_core::Encode;
 use subxt::utils::AccountId32;
 use tangle_subxt::subxt::backend::BlockRef;
 use tangle_subxt::subxt::utils::H256;
 use tangle_subxt::subxt::{Config, OnlineClient};
 use tangle_subxt::tangle_testnet_runtime::api;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_runtime::DispatchError;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
 
@@ -53,13 +55,13 @@ where
 
     pub async fn query_operator_blueprints(
         &self,
-        at: [u8; 32],
+        at_block: [u8; 32],
         address: AccountId32,
     ) -> Result<Vec<RpcServicesWithBlueprint>, Error> {
         let call = api::apis()
             .services_api()
             .query_services_with_blueprints_by_operator(address);
-        let at = BlockRef::from_hash(H256::from_slice(&at));
+        let at = BlockRef::from_hash(H256::from_slice(&at_block));
         let ret: Vec<RpcServicesWithBlueprint> = self
             .rpc_client
             .runtime_api()
@@ -67,8 +69,21 @@ where
             .call(call)
             .await
             .map_err(|e| Error::Client(e.to_string()))?
-            .map_err(|e| Error::Client(format!("{e:?}")))?;
+            .map_err(|err| self.dispatch_error_to_sdk_error(err, &at_block))?;
 
         Ok(ret)
+    }
+
+    pub fn dispatch_error_to_sdk_error(&self, err: DispatchError, at: &[u8; 32]) -> Error {
+        let metadata = self.rpc_client.metadata();
+        let at_hex = hex::encode(at);
+        let dispatch_error =
+            tangle_subxt::subxt::error::DispatchError::decode_from(err.encode(), metadata);
+        match dispatch_error {
+            Ok(dispatch_error) => Error::Other(format!("{dispatch_error}")),
+            Err(err) => Error::Other(format!(
+                "Failed to construct DispatchError at block 0x{at_hex}: {err}"
+            )),
+        }
     }
 }

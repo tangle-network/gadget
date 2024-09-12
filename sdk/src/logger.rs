@@ -1,6 +1,7 @@
 #[cfg(not(feature = "std"))]
 use alloc::string::String;
 use core::fmt::Display;
+use log::Log;
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_TARGET: &str = "gadget";
@@ -16,6 +17,15 @@ impl From<&str> for Logger {
         Logger {
             target: DEFAULT_TARGET.to_string(),
             id: id.to_string(),
+        }
+    }
+}
+
+impl From<String> for Logger {
+    fn from(id: String) -> Self {
+        Logger {
+            target: DEFAULT_TARGET.to_string(),
+            id,
         }
     }
 }

@@ -11,6 +11,9 @@ pub struct TangleEventsWatcher {
 /// A Type alias for the Tangle configuration [`subxt::PolkadotConfig`].
 pub type TangleConfig = subxt::PolkadotConfig;
 
+// /// A Type alias for the Tangle configuration [`subxt::PolkadotConfig`].
+// pub type TangleConfig = subxt::SubstrateConfig;
+
 #[async_trait::async_trait]
 impl super::substrate::SubstrateEventWatcher<TangleConfig> for TangleEventsWatcher {
     const TAG: &'static str = "tangle";

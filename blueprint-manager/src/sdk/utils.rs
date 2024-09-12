@@ -23,21 +23,14 @@ pub fn github_fetcher_to_native_github_metadata(
     let git = format!("https://github.com/{owner}/{repo}");
 
     NativeGithubMetadata {
+        fetcher: gh.clone(),
         git,
         tag,
         repo,
         owner,
         gadget_binaries: gh.binaries.0.clone(),
         blueprint_id,
-        fetcher: gh.clone(),
     }
-}
-
-pub fn slice_32_to_sha_hex_string(hash: [u8; 32]) -> String {
-    hash.iter().fold(String::new(), |mut acc, byte| {
-        write!(&mut acc, "{:02x}", byte).expect("Should be able to write");
-        acc
-    })
 }
 
 pub fn bounded_string_to_string(string: BoundedString) -> Result<String, FromUtf8Error> {
@@ -51,25 +44,33 @@ pub fn generate_process_arguments(
     blueprint_id: u64,
     service_id: u64,
 ) -> color_eyre::Result<Vec<String>> {
-    let mut arguments = vec![
-        format!("--bind-ip={}", gadget_config.bind_ip),
+    let mut arguments = vec![];
+    arguments.push("run".to_string());
+
+    if opt.test_mode {
+        arguments.push("--test-mode".to_string());
+    }
+
+    for bootnode in &gadget_config.bootnodes {
+        arguments.push(format!("--bootnodes={}", bootnode.to_string()));
+    }
+
+    arguments.extend([
+        format!("--bind-addr={}", gadget_config.bind_addr),
+        format!("--bind-port={}", gadget_config.bind_port),
         format!("--url={}", gadget_config.url),
         format!(
-            "--bootnodes={}",
-            gadget_config
-                .bootnodes
-                .iter()
-                .map(|r| r.to_string())
-                .collect::<Vec<String>>()
-                .join(",")
+            "--logger=Blueprint-{blueprint_id}-Service-{service_id}-{}",
+            opt.instance_id.clone().unwrap_or_else(|| format!(
+                "{}-{}",
+                gadget_config.bind_addr, gadget_config.bind_port
+            ))
         ),
-        format!("--blueprint-id={}", blueprint_id),
-        format!("--service-id={}", service_id),
         format!("--base-path={}", gadget_config.base_path.display()),
         format!("--chain={}", gadget_config.chain.to_string()),
         format!("--verbose={}", opt.verbose),
         format!("--pretty={}", opt.pretty),
-    ];
+    ]);
 
     if let Some(keystore_password) = &gadget_config.keystore_password {
         arguments.push(format!("--keystore-password={}", keystore_password));
@@ -157,17 +158,18 @@ pub fn is_windows() -> bool {
 pub fn generate_running_process_status_handle(
     process: gadget_io::tokio::process::Child,
     logger: &Logger,
-    role_type: &str,
+    service_name: &str,
 ) -> (Arc<AtomicBool>, gadget_io::tokio::sync::oneshot::Sender<()>) {
     let (stop_tx, stop_rx) = gadget_io::tokio::sync::oneshot::channel::<()>();
     let status = Arc::new(AtomicBool::new(true));
     let status_clone = status.clone();
     let logger = logger.clone();
-    let role_type = role_type.to_string();
+    let service_name = service_name.to_string();
 
     let task = async move {
+        logger.info(format!("Starting process execution for {service_name}"));
         let output = process.wait_with_output().await;
-        logger.warn(format!("Process for {role_type} exited: {output:?}"));
+        logger.warn(format!("Process for {service_name} exited: {output:?}"));
         status_clone.store(false, Ordering::Relaxed);
     };
 
