@@ -17,6 +17,12 @@ pub enum Error {
     /// An error occurred during ed25519 module operation
     #[error("ed25519: {0}")]
     Ed25519(ed25519_zebra::Error),
+    /// An error occurred during bls381 module operation
+    #[error("bls381: {0}")]
+    Bls(String),
+    /// An error occurred during bls_bn254 module operation
+    #[error("bls_bn254: {0}")]
+    BlsBn254(String),
 }
 
 impl From<ed25519_zebra::Error> for Error {

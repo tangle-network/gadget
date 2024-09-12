@@ -1,10 +1,10 @@
 #![allow(unused_results, missing_docs)]
+use crate::logger::Logger;
 #[cfg(not(target_family = "wasm"))]
 use crate::network::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
 };
 use futures::StreamExt;
-use gadget_common::config::DebugLogger;
 
 #[cfg(not(target_family = "wasm"))]
 use libp2p::{
@@ -31,10 +31,10 @@ pub const AGENT_VERSION: &str = "tangle/gadget-sdk/1.0.0";
 /// The version of the client
 pub const CLIENT_VERSION: &str = "1.0.0";
 
-/// The base network configuration for a blueprint's `libp2p` network.
+/// The base network configuration for a blueprint's libp2p network.
 ///
-/// This configuration is used to setup the `libp2p` network for a blueprint.
-/// Construct using [`NetworkConfig::new`] for advanced users or [`NetworkConfig::new_service_network`] ordinarily.
+/// This configuration is used to setup the libp2p network for a blueprint.
+/// Construct using `NetworkConfig::new` for advanced users or `NetworkConfig::new_service_network` ordinarily.
 pub struct NetworkConfig {
     pub identity: libp2p::identity::Keypair,
     pub ecdsa_key: ecdsa::Pair,
@@ -42,7 +42,7 @@ pub struct NetworkConfig {
     pub bind_ip: IpAddr,
     pub bind_port: u16,
     pub topics: Vec<String>,
-    pub logger: DebugLogger,
+    pub logger: Logger,
 }
 
 impl std::fmt::Debug for NetworkConfig {
@@ -63,16 +63,16 @@ impl NetworkConfig {
     #[must_use]
     pub fn new(
         identity: libp2p::identity::Keypair,
-        role_key: ecdsa::Pair,
+        ecdsa_key: ecdsa::Pair,
         bootnodes: Vec<Multiaddr>,
         bind_ip: IpAddr,
         bind_port: u16,
         topics: Vec<String>,
-        logger: DebugLogger,
+        logger: Logger,
     ) -> Self {
         Self {
             identity,
-            ecdsa_key: role_key,
+            ecdsa_key,
             bootnodes,
             bind_ip,
             bind_port,
@@ -85,16 +85,16 @@ impl NetworkConfig {
     /// Each service within a blueprint must have a unique network name.
     pub fn new_service_network<T: Into<String>>(
         identity: libp2p::identity::Keypair,
-        role_key: ecdsa::Pair,
+        ecdsa_key: ecdsa::Pair,
         bootnodes: Vec<Multiaddr>,
         bind_ip: IpAddr,
         bind_port: u16,
         service_name: T,
-        logger: DebugLogger,
+        logger: Logger,
     ) -> Self {
         Self::new(
             identity,
-            role_key,
+            ecdsa_key,
             bootnodes,
             bind_ip,
             bind_port,
@@ -153,7 +153,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         bind_port,
         topics,
         logger,
-        ecdsa_key: role_key,
+        ecdsa_key,
     } = config;
 
     // Ensure all topics are unique
@@ -320,7 +320,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
             logger: &logger,
             inbound_mapping: &inbound_mapping,
             ecdsa_peer_id_to_libp2p_id,
-            role_key: &role_key,
+            ecdsa_key: &ecdsa_key,
             span: tracing::debug_span!(parent: &span, "network_service"),
         };
         loop {

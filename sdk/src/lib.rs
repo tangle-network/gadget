@@ -12,41 +12,53 @@
 extern crate alloc;
 extern crate core;
 
+/// Benchmark Module
+#[cfg(feature = "std")]
+pub mod benchmark;
+/// Blockchain clients
+#[cfg(any(feature = "std", feature = "wasm"))]
+pub mod clients;
+/// Gadget configuration
+pub mod config;
+pub mod error;
+/// Blockchain Events Watcher Module
+#[cfg(any(feature = "std", feature = "wasm"))]
+pub mod events_watcher;
 /// Keystore Module
 pub mod keystore;
-
+/// Debug logger
+pub mod logger;
 /// Metrics Module
-// pub mod metrics;
-
-/// Randomness generation module
-pub mod random;
-
-/// Blockchain Events Watcher Module
-pub mod events_watcher;
-
-/// Gadget Environment Module
-pub mod env;
-
-/// Gadget Executor / Process Module
 #[cfg(feature = "std")]
-pub mod executor;
-
-/// Local database storage
-pub mod store;
-
-/// Transaction Management Module
-pub mod tx;
-
-pub use tangle_subxt;
-
+pub mod metrics;
+#[cfg(any(feature = "std", feature = "wasm"))]
+pub mod mutex_ext;
+/// Network Module
 #[cfg(feature = "std")]
 pub mod network;
-
+/// Prometheus metrics configuration
+#[cfg(feature = "std")]
+pub mod prometheus;
+/// Randomness generation module
+pub mod random;
+/// Gadget Runner Module
+#[cfg(feature = "std")]
+pub mod run;
+/// Slashing and quality of service utilities
 pub mod slashing;
+/// Database storage
+#[cfg(feature = "std")]
+pub mod store;
+/// Protocol execution tracer
+#[cfg(any(feature = "std", feature = "wasm"))]
+pub mod tracer;
+/// Transaction Management Module
+#[cfg(any(feature = "std", feature = "wasm"))]
+pub mod tx;
 
-pub mod benchmark;
-
+/// Re-exports
 pub use gadget_blueprint_proc_macro::*;
+pub use tangle_subxt;
 
 pub fn setup_log() {
     use tracing_subscriber::fmt::SubscriberBuilder;

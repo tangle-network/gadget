@@ -20,6 +20,8 @@ tokio = { workspace = true, default-features = false, features = ["full"] }
 tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"] }
 gadget-sdk = { workspace = true, features = ["std"] }
 eigensdk-rs = { workspace = true }
+structopt = "0.3.26"
+parking_lot = "0.12.3"
 
 [build-dependencies]
 blueprint-metadata.workspace = true

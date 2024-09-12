@@ -1,24 +1,23 @@
 use crate::test_ext::NAME_IDS;
+use api::runtime_types;
+use api::services::calls::types::call::{Args, Job};
+use api::services::calls::types::create_blueprint::Blueprint;
+use api::services::calls::types::register::{Preferences, RegistrationArgs};
+use api::services::events::JobResultSubmitted;
+use api::services::storage::types::job_results::JobResults;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
-use blueprint_manager::sdk::prelude::color_eyre;
 use cargo_tangle::deploy::Opts;
-use gadget_common::prelude::DebugLogger;
-use gadget_common::tangle_runtime::api::services::calls::types::call::{Args, Job};
-use gadget_common::tangle_runtime::api::services::calls::types::create_blueprint::Blueprint;
-use gadget_common::tangle_runtime::api::services::calls::types::register::{
-    Preferences, RegistrationArgs,
-};
-use gadget_common::tangle_runtime::api::services::events::JobResultSubmitted;
-use gadget_common::tangle_runtime::{api, AccountId32};
-use gadget_common::tangle_subxt::subxt::OnlineClient;
-pub use gadget_core::job::SendFuture;
 use gadget_io::{GadgetConfig, SupportedChains};
+use gadget_sdk::clients::tangle::runtime::TangleConfig;
 use gadget_sdk::keystore;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
 use gadget_sdk::keystore::{Backend, BackendExt, TanglePairSigner};
+use gadget_sdk::logger::Logger;
 pub use gadget_sdk::setup_log;
+use gadget_sdk::tangle_subxt::subxt_signer::sr25519;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use libp2p::Multiaddr;
 pub use log;
 use sp_core::Pair as PairT;
@@ -27,16 +26,19 @@ use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use subxt::ext::sp_core::Pair;
-use tangle_environment::runtime::TangleConfig;
+use subxt::utils::AccountId32;
+use subxt::OnlineClient;
+use tracing_subscriber::filter::EnvFilter;
+use tracing_subscriber::fmt::SubscriberBuilder;
+use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
 use uuid::Uuid;
 
-pub type InputValue = api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
-pub type OutputValue = api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
+pub type InputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
+pub type OutputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 
 pub mod sync;
 pub mod test_ext;
-pub mod test_utils;
 
 pub type TestClient = OnlineClient<TangleConfig>;
 
@@ -63,7 +65,11 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         NAME_IDS[input.instance_id as usize].to_lowercase()
     ));
 
-    assert!(!keystore_uri.exists(), "Keystore URI cannot exist: {keystore_uri}");
+    assert!(
+        !keystore_uri.exists(),
+        "Keystore URI cannot exist: {}",
+        keystore_uri.display()
+    );
 
     let keystore_uri = std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
 
@@ -150,7 +156,7 @@ async fn inject_test_keys<P: AsRef<Path>>(
     let secret_key_again = keystore::sr25519::secret_from_bytes(&bytes).expect("Should be valid");
     assert_eq!(&bytes[..], &secret_key_again.to_bytes()[..]);
 
-    use gadget_common::tangle_subxt::subxt::ext::sp_core as sp_core2;
+    use gadget_sdk::tangle_subxt::subxt::ext::sp_core as sp_core2;
     let sr2: TanglePairSigner = TanglePairSigner::new(
         sp_core2::sr25519::Pair::from_seed_slice(&bytes).expect("Should be valid SR25519 keypair"),
     );
@@ -217,7 +223,7 @@ pub async fn register_blueprint(
     blueprint_id: u64,
     preferences: Preferences,
     registration_args: RegistrationArgs,
-    logger: &DebugLogger,
+    logger: &Logger,
 ) -> Result<(), Box<dyn Error>> {
     logger.info(format!(
         "Registering to blueprint {blueprint_id} to become an operator ..."
@@ -276,7 +282,7 @@ pub async fn wait_for_completion_of_tangle_job(
     client: &TestClient,
     service_id: u64,
     call_id: u64,
-    logger: &DebugLogger,
+    logger: &Logger,
 ) -> Result<JobResultSubmitted, Box<dyn Error>> {
     loop {
         let events = client.events().at_latest().await?;
@@ -436,8 +442,8 @@ mod test_macros {
 
     test_blueprint!(
         "./blueprints/incredible-squaring-eigen/", // Path to the blueprint's dir
-        "incredible-squaring-blueprint",     // Name of the package
-        5,                                   // Number of nodes
+        "incredible-squaring-blueprint",           // Name of the package
+        5,                                         // Number of nodes
         [InputValue::Uint64(5)],
         [OutputValue::Uint64(25)] // Expected output: each input squared
     );
@@ -551,7 +557,7 @@ mod tests_standard {
 
 /// `base_paths`: All the paths pointing to the keystore for each node
 /// This function returns when every test_started.tmp file exists
-async fn wait_for_test_ready(base_paths: Vec<PathBuf>, logger: &DebugLogger) {
+async fn wait_for_test_ready(base_paths: Vec<PathBuf>, logger: &Logger) {
     let paths = base_paths
         .into_iter()
         .map(|r| r.join("test_started.tmp"))

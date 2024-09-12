@@ -1,6 +1,6 @@
+use crate::logging::Logger;
 use crate::network::matchbox::MatchboxEvent::P2p;
 use crate::network::network::NetworkHandle;
-use gadget_common::{debug_logger::DebugLogger, prelude::*};
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use matchbox_socket::PeerId;
 use serde::{Deserialize, Serialize};
@@ -13,11 +13,11 @@ use std::{
 pub type InboundMapping = (String, UnboundedSender<Vec<u8>>, Arc<AtomicU32>);
 
 pub struct MatchboxNetworkService<'a> {
-    pub logger: &'a DebugLogger,
+    pub logger: &'a Logger,
     pub inbound_mapping: &'a [InboundMapping],
     pub ecdsa_peer_id_to_matchbox_id:
         &'a Arc<RwLock<HashMap<ecdsa::Public, matchbox_socket::PeerId>>>,
-    pub role_key: &'a ecdsa::Pair,
+    pub ecdsa_key: &'a ecdsa::Pair,
     pub span: &'a tracing::Span,
 }
 
@@ -133,7 +133,7 @@ impl Network for MatchboxHandle {
     async fn send_message(
         &self,
         message: <WorkManager as WorkManagerInterface>::ProtocolMessage,
-    ) -> Result<(), gadget_common::Error> {
+    ) -> Result<(), gadget_sdk::Error> {
         let message_type = if let Some(to) = message.to_network_id {
             let matchbox_id = self
                 .ecdsa_peer_id_to_matchbox_id
@@ -141,7 +141,7 @@ impl Network for MatchboxHandle {
                 .await
                 .get(&to)
                 .cloned()
-                .ok_or_else(|| gadget_common::Error::NetworkError {
+                .ok_or_else(|| gadget_sdk::Error::NetworkError {
                     err: format!(
                         "No Matchbox ID found for ecdsa public key: {to:?}. No handshake happened?"
                     ),
@@ -173,7 +173,7 @@ impl Network for MatchboxHandle {
 
         self.tx_to_outbound
             .send(payload)
-            .map_err(|e| gadget_common::Error::NetworkError {
+            .map_err(|e| gadget_sdk::Error::NetworkError {
                 err: format!("Failed to send intra-node payload: {e}"),
             })
     }

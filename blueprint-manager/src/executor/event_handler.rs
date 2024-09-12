@@ -1,17 +1,19 @@
 use crate::config::BlueprintManagerConfig;
 use crate::gadget::native::FilteredBlueprint;
 use crate::gadget::ActiveGadgets;
+use crate::sdk::utils::bounded_string_to_string;
 use crate::sources::github::GithubBinaryFetcher;
 use crate::sources::BinarySourceFetcher;
 use color_eyre::eyre::OptionExt;
-use gadget_common::prelude::DebugLogger;
-use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::GadgetConfig;
+use gadget_sdk::clients::tangle::runtime::TangleEvent;
+use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
+use gadget_sdk::logger::Logger;
 use itertools::Itertools;
 use std::sync::atomic::Ordering;
-use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
-use tangle_environment::gadget::TangleEvent;
+use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::subxt::SubstrateConfig;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::Gadget;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{
     JobCalled, JobResultSubmitted, PreRegistration, Registered, ServiceInitiated, Unregistered,
@@ -23,7 +25,7 @@ pub async fn handle_services<'a>(
     gadget_config: &GadgetConfig,
     blueprint_manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
-    logger: &DebugLogger,
+    logger: &Logger,
 ) -> color_eyre::Result<()> {
     for fetcher in fetchers {
         if let Err(err) = crate::sources::handle(
@@ -52,7 +54,7 @@ pub struct EventPollResult {
 
 pub(crate) async fn check_blueprint_events(
     event: &TangleEvent,
-    logger: &DebugLogger,
+    logger: &Logger,
     active_gadgets: &mut ActiveGadgets,
     account_id: &AccountId32,
 ) -> EventPollResult {
@@ -158,7 +160,7 @@ pub(crate) async fn check_blueprint_events(
 pub(crate) async fn handle_tangle_event(
     event: &TangleEvent,
     blueprints: &[RpcServicesWithBlueprint],
-    logger: &DebugLogger,
+    logger: &Logger,
     gadget_config: &GadgetConfig,
     gadget_manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
@@ -180,8 +182,7 @@ pub(crate) async fn handle_tangle_event(
                 blueprint_id: *blueprint_id,
                 services: vec![0], // Add a dummy service id for now, since it does not matter for registration mode
                 gadget: blueprint.gadget,
-                name: String::from_utf8(blueprint.metadata.name.0 .0.clone())
-                    .expect("Should be valid name"),
+                name: bounded_string_to_string(blueprint.metadata.name)?,
                 registration_mode: true,
             };
 
@@ -199,8 +200,8 @@ pub(crate) async fn handle_tangle_event(
             blueprint_id: r.blueprint_id,
             services: r.services.iter().map(|r| r.id).collect(),
             gadget: r.blueprint.gadget.clone(),
-            name: String::from_utf8(r.blueprint.metadata.name.0 .0.clone())
-                .expect("Should be valid name"),
+            name: bounded_string_to_string(r.clone().blueprint.metadata.name)
+                .unwrap_or("unknown_blueprint_name".to_string()),
             registration_mode: false,
         })
         .chain(registration_blueprints)
@@ -208,7 +209,7 @@ pub(crate) async fn handle_tangle_event(
         if let Gadget::Native(gadget) = &blueprint.gadget {
             let gadget_source = &gadget.sources.0[0];
             match &gadget_source.fetcher {
-                gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher::Github(gh) => {
+                runtime_types::tangle_primitives::services::GadgetSourceFetcher::Github(gh) => {
                     let fetcher = GithubBinaryFetcher {
                         fetcher: gh.clone(),
                         blueprint_id: blueprint.blueprint_id,
@@ -217,9 +218,9 @@ pub(crate) async fn handle_tangle_event(
                     };
 
                     fetchers.push(Box::new(fetcher) as Box<dyn BinarySourceFetcher>);
-                },
+                }
 
-                gadget_common::tangle_runtime::api::runtime_types::tangle_primitives::services::GadgetSourceFetcher::Testing(test) => {
+                runtime_types::tangle_primitives::services::GadgetSourceFetcher::Testing(test) => {
                     let fetcher = crate::sources::testing::TestSourceFetcher {
                         fetcher: test.clone(),
                         blueprint_id: blueprint.blueprint_id,
@@ -228,12 +229,10 @@ pub(crate) async fn handle_tangle_event(
                     };
 
                     fetchers.push(Box::new(fetcher));
-                },
+                }
 
                 _ => {
-                    logger.warn(
-                        "Blueprint does not contain a supported fetcher",
-                    );
+                    logger.warn("Blueprint does not contain a supported fetcher");
                     continue;
                 }
             }

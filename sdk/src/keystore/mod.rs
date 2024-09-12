@@ -7,7 +7,7 @@
 //!
 //! - `memory`: A simple in-memory storage (enabled by default)
 //! - `file`: A storage that saves the keys to a file (`std` feature, enabled by default)
-//! - `kms`: A storage that uses a AWS Key Management System (`keystore-kms` feature)*
+//! - `kms`: A storage that uses an AWS Key Management System (`keystore-kms` feature)*
 //! - `substrate`: Uses Substrate's Framework keystore (`keystore-substrate` feature)*
 //! and a lot more to be added in the future.
 //!
@@ -15,10 +15,11 @@
 //!
 //! In Addition, the module provides a `Keystore` trait that can be implemented by any backend
 //! and this trait offers the following methods:
-//! - `sr25519` methods, to generate, import and export sr25519 keys
-//! - `ed25519` methods, to generate, import and export ed25519 keys
-//! - `ecdsa` methods, to generate, import and export ecdsa keys
-//! - `bls381` methods, to generate, import and export bls381 keys
+//! - `sr25519` methods, to generate, import, and export sr25519 keys
+//! - `ed25519` methods, to generate, import, and export ed25519 keys
+//! - `ecdsa` methods, to generate, import, and export ecdsa keys
+//! - `bls381` methods, to generate, import, and export bls381 keys
+//! - `bn254` methods, to generate, import, and export bn254 bls keys
 //!
 //! with each module is feature gated to allow only the necessary dependencies to be included.
 
@@ -27,6 +28,9 @@ pub mod backend;
 
 /// BLS381 Support
 pub mod bls381;
+
+/// BLS BN254 Support
+pub mod bn254;
 
 /// ECDSA Support
 pub mod ecdsa;
@@ -41,7 +45,6 @@ pub mod error;
 pub mod sr25519;
 
 pub use error::Error;
-use gadget_common::subxt_signer;
 use subxt::PolkadotConfig;
 use tangle_subxt::subxt::ext::sp_core;
 use tangle_subxt::subxt::tx::PairSigner;
@@ -50,9 +53,10 @@ use tangle_subxt::subxt::SubstrateConfig;
 pub type TanglePairSigner = PairSigner<SubstrateConfig, sp_core::sr25519::Pair>;
 pub type TanglePairSignerPolkadot = PairSigner<PolkadotConfig, sp_core::sr25519::Pair>;
 
-/// Functions that a keystore backend must implement
+/// The Keystore [`Backend`] trait.
 ///
-/// This adds support for various cryptographic key operations such as key generation,
+/// It defines the necessary functions that a keystore backend
+/// must implement to support various cryptographic key operations such as key generation,
 /// signing, and public key retrieval.
 pub trait Backend {
     /// Generate a new sr25519 key pair with an optional seed.
@@ -127,7 +131,7 @@ pub trait Backend {
     /// # Errors
     /// An `Err` will be returned if generating the key pair operation itself failed.
     fn bls381_generate_new(&self, seed: Option<&[u8]>) -> Result<bls381::Public, Error>;
-    /// Generate an bls381 signature for a given message.
+    /// Generate a bls381 signature for a given message.
     ///
     /// Receives an [`bls381::Public`] key to be able to map
     /// it to a private key that exists in the keystore.
@@ -141,6 +145,27 @@ pub trait Backend {
         public: &bls381::Public,
         msg: &[u8],
     ) -> Result<Option<bls381::Signature>, Error>;
+    /// Generate a new bls bn254 key pair with an optional seed.
+    ///
+    /// Returns an [`bn254::Public`] key of the generated key pair or an `Err` if
+    /// something failed during key generation.
+    /// # Errors
+    /// An `Err` will be returned if generating the key pair operation itself failed.
+    fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<bn254::Public, Error>;
+    /// Generate a bls bn254 signature for a given message.
+    ///
+    /// Receives an [`bn254::Public`] key to be able to map
+    /// it to a private key that exists in the keystore.
+    ///
+    /// Returns an [`bn254::Signature`] or `None` in case the given
+    /// `public` doesn't exist in the keystore.
+    /// # Errors
+    /// An `Err` will be returned if generating the signature itself failed.
+    fn bls_bn254_sign(
+        &self,
+        public: &bn254::Public,
+        msg: &[u8; 32],
+    ) -> Result<Option<bn254::Signature>, Error>;
     /// Returns the Keypair for the given [`sr25519::Public`] if it does exist, otherwise returns `None`.
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.
@@ -166,6 +191,13 @@ pub trait Backend {
         &self,
         public: &bls381::Public,
     ) -> Result<Option<bls381::Secret>, Error>;
+    /// Returns the [`bn254::Secret`] for the given [`bn254::Public`] if it does exist, otherwise returns `None`.
+    /// # Errors
+    /// An `Err` will be returned if finding the key operation itself failed.
+    fn expose_bls_bn254_secret(
+        &self,
+        public: &bn254::Public,
+    ) -> Result<Option<bn254::Secret>, Error>;
     /// Returns an iterator over all [`sr25519::Public`] keys that exist in the keystore.
     fn iter_sr25519(&self) -> impl Iterator<Item = sr25519::Public>;
     /// Returns an iterator over all [`ecdsa::Public`] keys that exist in the keystore.
@@ -174,6 +206,8 @@ pub trait Backend {
     fn iter_ed25519(&self) -> impl Iterator<Item = ed25519::Public>;
     /// Returns an iterator over all [`bls381::Public`] keys that exist in the keystore.
     fn iter_bls381(&self) -> impl Iterator<Item = bls381::Public>;
+    /// Returns an iterator over all [`bn254::Public`] keys that exist in the keystore.
+    fn iter_bls_bn254(&self) -> impl Iterator<Item = bn254::Public>;
 }
 
 pub trait BackendExt: Backend {

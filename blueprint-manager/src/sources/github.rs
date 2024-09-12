@@ -1,12 +1,12 @@
 use crate::gadget::native::get_gadget_binary;
 use crate::sdk;
-use crate::sdk::async_trait;
 use crate::sdk::utils::{
     get_download_url, hash_bytes_to_hex, is_windows, msg_to_error, valid_file_exists,
 };
 use crate::sources::BinarySourceFetcher;
+use async_trait::async_trait;
 use color_eyre::eyre::OptionExt;
-use gadget_common::config::DebugLogger;
+use gadget_sdk::logger::Logger;
 use std::path::PathBuf;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GithubFetcher;
 use tokio::io::AsyncWriteExt;
@@ -14,7 +14,7 @@ use tokio::io::AsyncWriteExt;
 pub struct GithubBinaryFetcher<'a> {
     pub fetcher: GithubFetcher,
     pub blueprint_id: u64,
-    pub logger: &'a DebugLogger,
+    pub logger: &'a Logger,
     pub gadget_name: String,
 }
 

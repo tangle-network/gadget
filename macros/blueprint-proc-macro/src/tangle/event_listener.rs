@@ -19,12 +19,12 @@ pub(crate) fn generate_tangle_event_handler(
         pub struct #struct_name {
             pub service_id: u64,
             pub signer: gadget_sdk::keystore::TanglePairSigner,
-            pub logger: gadget_common::prelude::DebugLogger,
+            pub logger: gadget_sdk::logger::Logger,
             #(#additional_params)*
         }
 
         impl gadget_sdk::events_watcher::substrate::LoggerEnv for #struct_name {
-            fn logger(&self) -> &gadget_common::prelude::DebugLogger {
+            fn logger(&self) -> &gadget_sdk::logger::Logger {
                 &self.logger
             }
         }

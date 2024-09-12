@@ -1,53 +1,40 @@
 use crate::config::BlueprintManagerConfig;
 use crate::gadget::ActiveGadgets;
+use crate::sdk::entry::{keystore_from_base_path, SendFuture};
 use crate::sdk::utils;
 use crate::sdk::utils::msg_to_error;
-use crate::sdk::{Client, SendFuture};
 use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
-use gadget_common::config::DebugLogger;
-use gadget_common::environments::GadgetEnvironment;
-use gadget_common::subxt_signer;
-use gadget_common::tangle_runtime::AccountId32;
 use gadget_io::GadgetConfig;
+use gadget_io::SubstrateKeystore;
+use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
+use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
+use gadget_sdk::clients::Client;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
 use gadget_sdk::keystore::{BackendExt, TanglePairSigner};
+use gadget_sdk::logger::Logger;
 use sp_core::H256;
+use sp_core::{ecdsa, Pair};
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use tangle_environment::api::{RpcServicesWithBlueprint, ServicesClient};
-use tangle_environment::gadget::SubxtConfig;
-use tangle_environment::runtime::TangleRuntime;
-use tangle_environment::TangleEnvironment;
 use tangle_subxt::subxt::blocks::BlockRef;
+use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::subxt::{Config, SubstrateConfig};
+use tangle_subxt::subxt_signer;
+use tangle_subxt::subxt_signer::sr25519;
 use tokio::task::JoinHandle;
 
 pub(crate) mod event_handler;
-
-pub async fn get_blueprints<C: Config>(
-    runtime: &ServicesClient<C>,
-    block_hash: [u8; 32],
-    account_id: AccountId32,
-) -> color_eyre::Result<Vec<RpcServicesWithBlueprint>>
-where
-    BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
-{
-    runtime
-        .query_operator_blueprints(block_hash, account_id)
-        .await
-        .map_err(|err| msg_to_error(err.to_string()))
-}
 
 pub struct BlueprintManagerHandle {
     shutdown_call: Option<tokio::sync::oneshot::Sender<()>>,
     start_tx: Option<tokio::sync::oneshot::Sender<()>>,
     running_task: JoinHandle<color_eyre::Result<()>>,
-    logger: DebugLogger,
+    logger: Logger,
     sr25519_id: TanglePairSigner,
     ecdsa_id: subxt_signer::ecdsa::Keypair,
     keystore_path: PathBuf,
@@ -90,7 +77,7 @@ impl BlueprintManagerHandle {
     }
 
     /// Returns the logger for this blueprint manager
-    pub fn logger(&self) -> &DebugLogger {
+    pub fn logger(&self) -> &Logger {
         &self.logger
     }
 
@@ -145,7 +132,8 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         "Local"
     };
 
-    let logger = DebugLogger {
+    let logger = Logger {
+        target: "blueprint-manager".into(),
         id: format!("Blueprint-Manager-{}", logger_id),
     };
 
@@ -166,15 +154,10 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     };
 
     let sub_account_id = tangle_key.account_id().clone();
-    let subxt_config = SubxtConfig {
-        endpoint: gadget_config.url.clone(),
-    };
 
-    let tangle_environment =
-        TangleEnvironment::new(subxt_config, tangle_key.clone(), logger.clone());
-
-    let tangle_runtime = tangle_environment.setup_runtime().await?;
-    let runtime = ServicesClient::new(logger.clone(), tangle_runtime.client());
+    let tangle_client =
+        TangleRuntimeClient::from_url(gadget_config.url.as_str(), sub_account_id.clone()).await?;
+    let services_client = ServicesClient::new(logger.clone(), tangle_client.client());
     let mut active_gadgets = HashMap::new();
 
     let base_path = gadget_config.base_path.clone();
@@ -186,8 +169,8 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         // NOTE: The node running this code should be registered as an operator for the blueprints, otherwise, this
         // code will fail
         let mut operator_subscribed_blueprints = handle_init(
-            &tangle_runtime,
-            &runtime,
+            &tangle_client,
+            &services_client,
             &logger_manager,
             &sub_account_id,
             &mut active_gadgets,
@@ -198,18 +181,20 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
         // Now, run the main event loop
         // Listen to FinalityNotifications and poll for new/deleted services that correspond to the blueprints above
-        while let Some(event) = tangle_runtime.next_event().await {
+        while let Some(event) = tangle_client.next_event().await {
             let result = event_handler::check_blueprint_events(
                 &event,
                 &logger_manager,
                 &mut active_gadgets,
-                &sub_account_id,
+                &sub_account_id.clone(),
             )
             .await;
 
             if result.needs_update {
-                operator_subscribed_blueprints =
-                    get_blueprints(&runtime, event.hash, sub_account_id.clone()).await?;
+                operator_subscribed_blueprints = services_client
+                    .query_operator_blueprints(event.hash, sub_account_id.clone())
+                    .await
+                    .map_err(|err| msg_to_error(err.to_string()))?;
             }
 
             event_handler::handle_tangle_event(
@@ -220,7 +205,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
                 &blueprint_manager_config,
                 &mut active_gadgets,
                 result,
-                &runtime,
+                &services_client,
             )
             .await?;
         }
@@ -281,9 +266,9 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 ///   -> If the services field is empty, just emit and log inside the executed binary "that states a new service instance got created by one of these blueprints"
 ///   -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
 async fn handle_init(
-    tangle_runtime: &TangleRuntime,
+    tangle_runtime: &TangleRuntimeClient,
     services_client: &ServicesClient<SubstrateConfig>,
-    logger: &DebugLogger,
+    logger: &Logger,
     sub_account_id: &AccountId32,
     active_gadgets: &mut ActiveGadgets,
     gadget_config: &GadgetConfig,
@@ -325,4 +310,18 @@ async fn handle_init(
     .await?;
 
     Ok(operator_subscribed_blueprints)
+}
+
+pub async fn get_blueprints<C: Config>(
+    runtime: &ServicesClient<C>,
+    block_hash: [u8; 32],
+    account_id: AccountId32,
+) -> color_eyre::Result<Vec<RpcServicesWithBlueprint>>
+where
+    BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
+{
+    runtime
+        .query_operator_blueprints(block_hash, account_id)
+        .await
+        .map_err(|err| msg_to_error(err.to_string()))
 }

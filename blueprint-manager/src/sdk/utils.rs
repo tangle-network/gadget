@@ -1,11 +1,14 @@
 use crate::config::BlueprintManagerConfig;
 use crate::protocols::resolver::NativeGithubMetadata;
-use gadget_common::config::DebugLogger;
 use gadget_io::GadgetConfig;
+use gadget_sdk::logger::Logger;
 use sha2::Digest;
+use std::fmt::Write;
 use std::path::Path;
+use std::string::FromUtf8Error;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
     GadgetBinary, GithubFetcher,
 };
@@ -28,6 +31,11 @@ pub fn github_fetcher_to_native_github_metadata(
         gadget_binaries: gh.binaries.0.clone(),
         blueprint_id,
     }
+}
+
+pub fn bounded_string_to_string(string: BoundedString) -> Result<String, FromUtf8Error> {
+    let bytes: &Vec<u8> = &string.0 .0;
+    String::from_utf8(bytes.clone())
 }
 
 pub fn generate_process_arguments(
@@ -143,7 +151,7 @@ pub fn is_windows() -> bool {
 
 pub fn generate_running_process_status_handle(
     process: gadget_io::tokio::process::Child,
-    logger: &DebugLogger,
+    logger: &Logger,
     service_name: &str,
 ) -> (Arc<AtomicBool>, gadget_io::tokio::sync::oneshot::Sender<()>) {
     let (stop_tx, stop_rx) = gadget_io::tokio::sync::oneshot::channel::<()>();

@@ -13,20 +13,26 @@ name = "incredible-squaring-gadget"
 path = "./src/main.rs"
 required-features = ["default"]
 
+[[bin]]
+name = "incredible-squaring-eigen"
+path = "./src/eigenlayer.rs"
+required-features = ["default"]
+
 [dependencies]
 eigensdk-rs = { workspace = true }
 tracing = { workspace = true }
 async-trait = { workspace = true }
 gadget-sdk = { workspace = true, features = ["std"] }
-gadget-common = { workspace = true, features = ["std"] }
 color-eyre = { workspace = true, optional = true }
 lock_api = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["full"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+sp-core = { version = "34.0.0" }
 subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"], optional = true }
 tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"], optional = true }
 alloy-contract = { workspace = true }
+alloy-json-abi = { workspace = true, features = ["serde_json"] }
 alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
@@ -41,6 +47,8 @@ libp2p = { workspace = true }
 ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde" ,"pem"] }
 
 structopt = { workspace = true }
+url = "2.5.2"
+log = "0.4.22"
 
 [build-dependencies]
 blueprint-metadata = { workspace = true }

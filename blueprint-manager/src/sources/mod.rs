@@ -1,12 +1,12 @@
 use crate::config::BlueprintManagerConfig;
 use crate::gadget::native::FilteredBlueprint;
 use crate::gadget::ActiveGadgets;
-use crate::sdk::async_trait;
 use crate::sdk::utils::{
     chmod_x_file, generate_process_arguments, generate_running_process_status_handle, is_windows,
 };
-use gadget_common::prelude::DebugLogger;
+use async_trait::async_trait;
 use gadget_io::GadgetConfig;
+use gadget_sdk::logger::Logger;
 use std::path::PathBuf;
 
 pub mod github;
@@ -26,7 +26,7 @@ pub async fn handle(
     gadget_config: &GadgetConfig,
     blueprint_manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
-    logger: &DebugLogger,
+    logger: &Logger,
 ) -> color_eyre::Result<()> {
     let blueprint_id = service_source.blueprint_id();
     let service_str = service_source.name();

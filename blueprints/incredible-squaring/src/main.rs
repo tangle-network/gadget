@@ -1,6 +1,7 @@
 use color_eyre::{eyre::eyre, Result};
+use gadget_sdk::config::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration};
 use gadget_sdk::{
-    env::Protocol,
+    config::Protocol,
     events_watcher::{substrate::SubstrateEventWatcher, tangle::TangleEventsWatcher},
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
@@ -12,9 +13,9 @@ use std::io::Write;
 
 use incredible_squaring_blueprint as blueprint;
 
-use gadget_sdk::env::{ContextConfig, GadgetConfiguration};
 use std::sync::Arc;
 use structopt::StructOpt;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 
 #[async_trait::async_trait]
 trait GadgetRunner {
@@ -23,7 +24,7 @@ trait GadgetRunner {
 }
 
 struct TangleGadgetRunner {
-    env: gadget_sdk::env::GadgetConfiguration<parking_lot::RawRwLock>,
+    env: GadgetConfiguration<parking_lot::RawRwLock>,
 }
 
 #[async_trait::async_trait]
@@ -44,6 +45,14 @@ impl GadgetRunner for TangleGadgetRunner {
             services::OperatorPreferences {
                 key: ecdsa::Public(ecdsa_pair.public_key().0),
                 approval: services::ApprovalPrefrence::None,
+                // TODO: Set the price targets
+                price_targets: PriceTargets {
+                    cpu: 0,
+                    mem: 0,
+                    storage_hdd: 0,
+                    storage_ssd: 0,
+                    storage_nvme: 0,
+                },
             },
             Default::default(),
         );
@@ -90,8 +99,7 @@ fn create_gadget_runner(
     GadgetConfiguration<parking_lot::RawRwLock>,
     Arc<dyn GadgetRunner>,
 ) {
-    let env = gadget_sdk::env::load(Some(protocol), config).expect("Failed to load environment");
-
+    let env = gadget_sdk::config::load(Some(protocol), config).expect("Failed to load environment");
     match protocol {
         Protocol::Tangle => (env.clone(), Arc::new(TangleGadgetRunner { env })),
         Protocol::Eigenlayer => panic!("Eigenlayer not implemented yet"),
@@ -100,8 +108,7 @@ fn create_gadget_runner(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // color_eyre::install()?;
-    gadget_sdk::setup_log();
+    gadget_sdk::logger::setup_log();
 
     // Load the environment and create the gadget runner
     // TODO: Place protocol in the config
@@ -132,7 +139,7 @@ fn check_for_test(
     config: &ContextConfig,
 ) -> Result<()> {
     // create a file to denote we have started
-    if let gadget_sdk::env::GadgetCLICoreSettings::Run {
+    if let GadgetCLICoreSettings::Run {
         base_path,
         test_mode,
         ..
