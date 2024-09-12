@@ -13,10 +13,10 @@ name = "incredible-squaring-gadget"
 path = "./src/main.rs"
 required-features = ["default"]
 
-[[bin]]
-name = "incredible-squaring-eigen"
-path = "./src/eigenlayer.rs"
-required-features = ["default"]
+#[[bin]]
+#name = "incredible-squaring-eigen"
+#path = "./src/eigenlayer.rs"
+#required-features = ["default"]
 
 [dependencies]
 eigensdk-rs = { workspace = true }

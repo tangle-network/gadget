@@ -7,9 +7,9 @@ use crate::mutex_ext::TokioMutexExt;
 use subxt::blocks::{Block, BlockRef};
 use subxt::events::Events;
 use subxt::utils::AccountId32;
-use subxt::{self, SubstrateConfig};
+use subxt::{self, PolkadotConfig};
 
-pub type TangleConfig = SubstrateConfig;
+pub type TangleConfig = PolkadotConfig;
 pub type TangleClient = subxt::OnlineClient<TangleConfig>;
 pub type TangleBlock = Block<TangleConfig, TangleClient>;
 pub type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
@@ -26,7 +26,7 @@ pub struct TangleEvent {
 
 #[derive(Clone, Debug)]
 pub struct TangleRuntimeClient {
-    client: subxt::OnlineClient<SubstrateConfig>,
+    client: subxt::OnlineClient<PolkadotConfig>,
     finality_notification_stream: Arc<gadget_io::tokio::sync::Mutex<Option<TangleBlockStream>>>,
     latest_finality_notification: Arc<gadget_io::tokio::sync::Mutex<Option<TangleEvent>>>,
     account_id: AccountId32,
@@ -35,12 +35,12 @@ pub struct TangleRuntimeClient {
 impl TangleRuntimeClient {
     /// Create a new Tangle runtime client from a RPC url.
     pub async fn from_url(url: &str, account_id: AccountId32) -> Result<Self, Error> {
-        let client = subxt::OnlineClient::<SubstrateConfig>::from_url(url).await?;
+        let client = subxt::OnlineClient::<PolkadotConfig>::from_url(url).await?;
         Ok(Self::new(client, account_id))
     }
 
     /// Create a new TangleRuntime instance.
-    pub fn new(client: subxt::OnlineClient<SubstrateConfig>, account_id: AccountId32) -> Self {
+    pub fn new(client: subxt::OnlineClient<PolkadotConfig>, account_id: AccountId32) -> Self {
         Self {
             client,
             finality_notification_stream: Arc::new(gadget_io::tokio::sync::Mutex::new(None)),
@@ -49,7 +49,7 @@ impl TangleRuntimeClient {
         }
     }
 
-    pub fn client(&self) -> subxt::OnlineClient<SubstrateConfig> {
+    pub fn client(&self) -> subxt::OnlineClient<PolkadotConfig> {
         self.client.clone()
     }
 

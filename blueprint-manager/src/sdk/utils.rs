@@ -3,7 +3,6 @@ use crate::protocols::resolver::NativeGithubMetadata;
 use gadget_io::GadgetConfig;
 use gadget_sdk::logger::Logger;
 use sha2::Digest;
-use std::fmt::Write;
 use std::path::Path;
 use std::string::FromUtf8Error;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -52,7 +51,7 @@ pub fn generate_process_arguments(
     }
 
     for bootnode in &gadget_config.bootnodes {
-        arguments.push(format!("--bootnodes={}", bootnode.to_string()));
+        arguments.push(format!("--bootnodes={}", bootnode));
     }
 
     arguments.extend([
@@ -67,7 +66,7 @@ pub fn generate_process_arguments(
             ))
         ),
         format!("--base-path={}", gadget_config.base_path.display()),
-        format!("--chain={}", gadget_config.chain.to_string()),
+        format!("--chain={}", gadget_config.chain),
         format!("--verbose={}", opt.verbose),
         format!("--pretty={}", opt.pretty),
     ]);
@@ -186,4 +185,12 @@ pub fn generate_running_process_status_handle(
 
 pub fn bytes_to_utf8_string<T: Into<Vec<u8>>>(input: T) -> color_eyre::Result<String> {
     String::from_utf8(input.into()).map_err(|err| msg_to_error(err.to_string()))
+}
+
+pub fn slice_32_to_sha_hex_string(hash: [u8; 32]) -> String {
+    use std::fmt::Write;
+    hash.iter().fold(String::new(), |mut acc, byte| {
+        write!(&mut acc, "{:02x}", byte).expect("Should be able to write");
+        acc
+    })
 }

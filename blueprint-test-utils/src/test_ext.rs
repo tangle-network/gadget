@@ -26,7 +26,7 @@ use gadget_sdk::network::{Network, ParticipantInfo, ProtocolMessage};
 use gadget_sdk::prometheus::PrometheusConfig;
 use gadget_sdk::store::{ECDSAKeyStore, InMemoryBackend};
 use gadget_sdk::tangle_subxt::subxt::utils::AccountId32;
-use gadget_sdk::tangle_subxt::subxt::{OnlineClient, SubstrateConfig};
+use gadget_sdk::tangle_subxt::subxt::{OnlineClient, PolkadotConfig};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{ApprovalPrefrence, PriceTargets};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
@@ -249,7 +249,7 @@ pub async fn new_test_ext_blueprint_manager<
         }
     };
 
-    let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
+    let client = OnlineClient::<PolkadotConfig>::from_url(LOCAL_TANGLE_NODE)
         .await
         .expect("Failed to create an account-based localhost client");
 
@@ -259,7 +259,7 @@ pub async fn new_test_ext_blueprint_manager<
     // TODO: allow the function called to specify the registration args
 
     for handle in handles {
-        let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
+        let client = OnlineClient::<PolkadotConfig>::from_url(LOCAL_TANGLE_NODE)
             .await
             .expect("Failed to create an account-based localhost client");
         let registration_args = registration_args.clone();
@@ -400,7 +400,7 @@ pub async fn new_test_ext<
         .collect::<Vec<_>>();
 
     // Each client connects to ws://127.0.0.1:9944. This client is for the test environment
-    let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
+    let client = OnlineClient::<PolkadotConfig>::from_url(LOCAL_TANGLE_NODE)
         .await
         .expect("Failed to create primary localhost client");
 
@@ -414,7 +414,7 @@ pub async fn new_test_ext<
 
         for _ in 0..K {
             // Each client connects to ws://127.0.0.1:9944
-            let client = OnlineClient::<SubstrateConfig>::from_url(LOCAL_TANGLE_NODE)
+            let client = OnlineClient::<PolkadotConfig>::from_url(LOCAL_TANGLE_NODE)
                 .await
                 .expect("Failed to create localhost client");
 
@@ -449,14 +449,14 @@ pub async fn new_test_ext<
 }
 
 pub struct LocalhostTestExt {
-    client: OnlineClient<SubstrateConfig>,
+    client: OnlineClient<PolkadotConfig>,
     handles: Vec<BlueprintManagerHandle>,
 }
 
 impl LocalhostTestExt {
     /// An identity function (For future reverse-compatible changes)
     pub fn execute_with<
-        T: FnOnce(&OnlineClient<SubstrateConfig>, &Vec<BlueprintManagerHandle>) -> R + Send + 'static,
+        T: FnOnce(&OnlineClient<PolkadotConfig>, &Vec<BlueprintManagerHandle>) -> R + Send + 'static,
         R: Send + 'static,
     >(
         &self,
@@ -469,7 +469,7 @@ impl LocalhostTestExt {
     pub async fn execute_with_async<
         'a,
         'b: 'a,
-        T: FnOnce(&'a OnlineClient<SubstrateConfig>, &'a Vec<BlueprintManagerHandle>) -> R + Send + 'a,
+        T: FnOnce(&'a OnlineClient<PolkadotConfig>, &'a Vec<BlueprintManagerHandle>) -> R + Send + 'a,
         R: Future<Output = Out> + Send + 'a,
         Out: Send + 'b,
     >(

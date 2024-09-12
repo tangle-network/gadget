@@ -1,7 +1,6 @@
 #[cfg(not(feature = "std"))]
 use alloc::string::String;
 use core::fmt::Display;
-use log::Log;
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_TARGET: &str = "gadget";

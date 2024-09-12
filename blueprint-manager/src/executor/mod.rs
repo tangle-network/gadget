@@ -1,12 +1,11 @@
 use crate::config::BlueprintManagerConfig;
 use crate::gadget::ActiveGadgets;
-use crate::sdk::entry::{keystore_from_base_path, SendFuture};
+use crate::sdk::entry::SendFuture;
 use crate::sdk::utils::msg_to_error;
-use crate::sdk::{keystore::load_keys_from_keystore, utils};
+use crate::sdk::utils;
 use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
 use gadget_io::GadgetConfig;
-use gadget_io::SubstrateKeystore;
 use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
 use gadget_sdk::clients::Client;
@@ -15,7 +14,6 @@ use gadget_sdk::keystore::backend::GenericKeyStore;
 use gadget_sdk::keystore::{BackendExt, TanglePairSigner};
 use gadget_sdk::logger::Logger;
 use sp_core::H256;
-use sp_core::{ecdsa, Pair};
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::PathBuf;
@@ -23,9 +21,8 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use tangle_subxt::subxt::blocks::BlockRef;
 use tangle_subxt::subxt::utils::AccountId32;
-use tangle_subxt::subxt::{Config, SubstrateConfig};
+use tangle_subxt::subxt::{Config, PolkadotConfig};
 use tangle_subxt::subxt_signer;
-use tangle_subxt::subxt_signer::sr25519;
 use tokio::task::JoinHandle;
 
 pub(crate) mod event_handler;
@@ -281,7 +278,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 ///   -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
 async fn handle_init(
     tangle_runtime: &TangleRuntimeClient,
-    services_client: &ServicesClient<SubstrateConfig>,
+    services_client: &ServicesClient<PolkadotConfig>,
     logger: &Logger,
     sub_account_id: &AccountId32,
     active_gadgets: &mut ActiveGadgets,

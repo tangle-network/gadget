@@ -1,31 +1,22 @@
 use crate::config::BlueprintManagerConfig;
-use crate::gadget::native::{get_gadget_binary, FilteredBlueprint};
+use crate::gadget::native::FilteredBlueprint;
 use crate::gadget::ActiveGadgets;
-use crate::protocols::resolver::NativeGithubMetadata;
 use crate::sources::BinarySourceFetcher;
-use crate::sdk::utils::slice_32_to_sha_hex_string;
-use crate::sdk::utils::{
-    bounded_string_to_string, chmod_x_file, generate_process_arguments,
-    generate_running_process_status_handle, get_download_url, get_service_str,
-    github_fetcher_to_native_github_metadata, hash_bytes_to_hex, is_windows, msg_to_error,
-    valid_file_exists,
-};
+use crate::sdk::utils::bounded_string_to_string;
 use color_eyre::eyre::OptionExt;
 use gadget_io::GadgetConfig;
 use gadget_sdk::clients::tangle::runtime::TangleEvent;
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
 use gadget_sdk::logger::Logger;
-use itertools::Itertools;
 use std::sync::atomic::Ordering;
+use itertools::Itertools;
 use tangle_subxt::subxt::utils::AccountId32;
-use tangle_subxt::subxt::SubstrateConfig;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
-    Gadget, GadgetSourceFetcher, GithubFetcher,
-};
+use tangle_subxt::subxt::PolkadotConfig;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{Gadget, GadgetSourceFetcher};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{
     JobCalled, JobResultSubmitted, PreRegistration, Registered, ServiceInitiated, Unregistered,
 };
-use tokio::io::AsyncWriteExt;
+use crate::sources::github::GithubBinaryFetcher;
 
 pub async fn handle_services<'a>(
     blueprints: &[FilteredBlueprint],
@@ -173,7 +164,7 @@ pub(crate) async fn handle_tangle_event(
     gadget_manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
     poll_result: EventPollResult,
-    client: &ServicesClient<SubstrateConfig>,
+    client: &ServicesClient<PolkadotConfig>,
 ) -> color_eyre::Result<()> {
     logger.info(format!("Received notification {}", event.number));
 
@@ -217,7 +208,7 @@ pub(crate) async fn handle_tangle_event(
         if let Gadget::Native(gadget) = &blueprint.gadget {
             let gadget_source = &gadget.sources.0[0];
             match &gadget_source.fetcher {
-                runtime_types::tangle_primitives::services::GadgetSourceFetcher::Github(gh) => {
+                GadgetSourceFetcher::Github(gh) => {
                     let fetcher = GithubBinaryFetcher {
                         fetcher: gh.clone(),
                         blueprint_id: blueprint.blueprint_id,
@@ -228,7 +219,7 @@ pub(crate) async fn handle_tangle_event(
                     fetchers.push(Box::new(fetcher) as Box<dyn BinarySourceFetcher>);
                 }
 
-                runtime_types::tangle_primitives::services::GadgetSourceFetcher::Testing(test) => {
+                GadgetSourceFetcher::Testing(test) => {
                     let fetcher = crate::sources::testing::TestSourceFetcher {
                         fetcher: test.clone(),
                         blueprint_id: blueprint.blueprint_id,

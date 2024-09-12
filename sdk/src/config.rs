@@ -359,7 +359,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     pub fn first_signer(&self) -> Result<TanglePairSigner, Error> {
         self.keystore()?
             .sr25519_key()
-            .map_err(|err| Error::Keystore(err))
+            .map_err(Error::Keystore)
     }
 
     /// Returns the first Sr25519 signer keypair from the keystore.
@@ -372,7 +372,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     pub fn first_signer_polkadot(&self) -> Result<TanglePairSignerPolkadot, Error> {
         self.keystore()?
             .sr25519_key_polkadot()
-            .map_err(|err| Error::Keystore(err))
+            .map_err(Error::Keystore)
     }
 
     /// Returns the first ECDSA signer keypair from the keystore.
@@ -385,7 +385,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     pub fn first_ecdsa_signer(&self) -> Result<tangle_subxt::subxt_signer::ecdsa::Keypair, Error> {
         self.keystore()?
             .ecdsa_key()
-            .map_err(|err| Error::Keystore(err))
+            .map_err(Error::Keystore)
     }
 
     /// Returns whether the gadget should run in memory.

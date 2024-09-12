@@ -68,7 +68,6 @@ where
         backoff: impl backoff::backoff::Backoff + Send + Sync + 'static,
     ) -> Result<(), Error> {
         if !self.can_handle_events(events.clone()).await? {
-            self.logger().info("There are no actionable events ...");
             return Ok(());
         };
         let wrapped_task = || {
@@ -98,6 +97,8 @@ where
 
     /// The name of the pallet that this event watcher is watching.
     const PALLET_NAME: &'static str;
+
+    /// Returns a reference to the Event Watcher's [`Logger`]
     fn logger(&self) -> &Logger;
 
     /// Returns a task that should be running in the background

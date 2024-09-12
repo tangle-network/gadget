@@ -48,9 +48,7 @@ pub use error::Error;
 use subxt::PolkadotConfig;
 use tangle_subxt::subxt::ext::sp_core;
 use tangle_subxt::subxt::tx::PairSigner;
-use tangle_subxt::subxt::SubstrateConfig;
-
-pub type TanglePairSigner = PairSigner<SubstrateConfig, sp_core::sr25519::Pair>;
+pub type TanglePairSigner = PairSigner<PolkadotConfig, sp_core::sr25519::Pair>;
 pub type TanglePairSignerPolkadot = PairSigner<PolkadotConfig, sp_core::sr25519::Pair>;
 
 /// The Keystore [`Backend`] trait.

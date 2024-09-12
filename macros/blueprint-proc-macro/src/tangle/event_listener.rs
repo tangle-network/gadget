@@ -23,11 +23,11 @@ pub(crate) fn generate_tangle_event_handler(
             #(#additional_params)*
         }
 
-        impl gadget_sdk::events_watcher::substrate::LoggerEnv for #struct_name {
-            fn logger(&self) -> &gadget_sdk::logger::Logger {
-                &self.logger
-            }
-        }
+        // impl gadget_sdk::events_watcher::substrate::LoggerEnv for #struct_name {
+        //     fn logger(&self) -> &gadget_sdk::logger::Logger {
+        //         &self.logger
+        //     }
+        // }
 
         #[automatically_derived]
         #[async_trait::async_trait]

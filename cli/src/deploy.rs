@@ -10,11 +10,11 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 use tangle_subxt::subxt::ext::sp_core;
 use tangle_subxt::subxt::tx::PairSigner;
-use tangle_subxt::subxt::{self, SubstrateConfig};
+use tangle_subxt::subxt::{self, PolkadotConfig};
 use tangle_subxt::tangle_testnet_runtime::api as TangleApi;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types;
 
-pub type TanglePairSigner = PairSigner<SubstrateConfig, sp_core::sr25519::Pair>;
+pub type TanglePairSigner = PairSigner<PolkadotConfig, sp_core::sr25519::Pair>;
 
 #[derive(Clone)]
 pub struct Opts {
@@ -81,7 +81,7 @@ pub async fn deploy_to_tangle(
     };
 
     let my_account_id = signer.account_id();
-    let client = subxt::OnlineClient::<SubstrateConfig>::from_url(rpc_url).await?;
+    let client = subxt::OnlineClient::<PolkadotConfig>::from_url(rpc_url).await?;
 
     let create_blueprint_tx = TangleApi::tx().services().create_blueprint(blueprint);
 

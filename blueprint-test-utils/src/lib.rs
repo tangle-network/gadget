@@ -2,17 +2,15 @@ use crate::test_ext::NAME_IDS;
 use api::services::events::JobResultSubmitted;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
-use cargo_tangle::deploy::Opts;
 use gadget_io::{GadgetConfig, SupportedChains};
 use gadget_sdk::clients::tangle::runtime::TangleConfig;
 use gadget_sdk::logger::Logger;
-use gadget_sdk::tangle_subxt::subxt_signer::sr25519;
+use cargo_tangle::deploy::Opts;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::create_blueprint::Blueprint;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::storage::types::job_results::JobResults;
 use gadget_sdk::keystore;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
@@ -28,11 +26,7 @@ use std::time::Duration;
 use subxt::ext::sp_core::Pair;
 use subxt::utils::AccountId32;
 use subxt::OnlineClient;
-use tracing_subscriber::filter::EnvFilter;
-use tracing_subscriber::fmt::SubscriberBuilder;
-use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
-use gadget_sdk::tangle_subxt::subxt::utils::AccountId32;
 use uuid::Uuid;
 
 pub type InputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
@@ -40,7 +34,6 @@ pub type OutputValue = runtime_types::tangle_primitives::services::field::Field<
 
 pub mod sync;
 pub mod test_ext;
-pub mod test_utils;
 
 pub type TestClient = OnlineClient<TangleConfig>;
 
@@ -354,7 +347,7 @@ macro_rules! test_blueprint {
     ) => {
         use $crate::{
             get_next_call_id, get_next_service_id, run_test_blueprint_manager,
-            submit_job, wait_for_completion_of_tangle_job, Opts,
+            submit_job, wait_for_completion_of_tangle_job,
         };
 
         use $crate::test_ext::new_test_ext_blueprint_manager;
@@ -559,6 +552,7 @@ mod tests_standard {
 
 /// `base_paths`: All the paths pointing to the keystore for each node
 /// This function returns when every test_started.tmp file exists
+#[allow(dead_code)]
 async fn wait_for_test_ready(base_paths: Vec<PathBuf>, logger: &Logger) {
     let paths = base_paths
         .into_iter()
