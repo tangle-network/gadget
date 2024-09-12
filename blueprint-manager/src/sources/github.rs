@@ -3,8 +3,6 @@ use crate::sdk;
 use crate::sdk::utils::{
     get_download_url, hash_bytes_to_hex, is_windows, msg_to_error, valid_file_exists,
 };
-use async_trait::async_trait;
-// use gadget_blueprint_proc_macro_core::GithubFetcher;
 use crate::sources::BinarySourceFetcher;
 use async_trait::async_trait;
 use color_eyre::eyre::OptionExt;
