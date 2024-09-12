@@ -80,7 +80,7 @@ impl TangleRuntimeClient {
     ///
     /// # async fn foo() -> Result<(), gadget_sdk::Error>{
     /// let account_id = AccountId32::from([0; 32]);
-    /// let client = TangleRuntimeClient::from_url("https://foo.bar", account_id).await?;
+    /// let client = TangleRuntimeClient::from_url("https://foo.bar", account_id.clone()).await?;
     ///
     /// assert_eq!(client.account_id(), &account_id);
     /// # Ok(()) }
