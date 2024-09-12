@@ -1,7 +1,9 @@
 use prometheus::{Gauge, Histogram, HistogramOpts, IntCounter, Registry};
 use std::sync::LazyLock;
 
+/// The global Prometheus metrics registry.
 pub static REGISTRY: LazyLock<Registry> = LazyLock::new(Registry::new);
+
 pub static BYTES_RECEIVED: LazyLock<IntCounter> = LazyLock::new(|| {
     IntCounter::new("bytes_received", "Bytes Received").expect("metric can be created")
 });

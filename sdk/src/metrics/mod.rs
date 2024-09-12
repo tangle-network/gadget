@@ -34,6 +34,12 @@ pub use sourced::{MetricSource, SourcedCounter, SourcedGauge, SourcedMetric};
 
 type Body = http_body_util::Full<hyper::body::Bytes>;
 
+/// Register a `metric` within the given `registry`.
+///
+/// # Errors
+///
+/// * The `metric` is already registered.
+/// * The `metric` is otherwise invalid.
 pub fn register<T: Clone + Collector + 'static>(
     metric: T,
     registry: &Registry,
