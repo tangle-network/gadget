@@ -347,7 +347,7 @@ macro_rules! test_blueprint {
     ) => {
         use $crate::{
             get_next_call_id, get_next_service_id, run_test_blueprint_manager,
-            submit_job, wait_for_completion_of_tangle_job,
+            submit_job, wait_for_completion_of_tangle_job, Opts,
         };
 
         use $crate::test_ext::new_test_ext_blueprint_manager;

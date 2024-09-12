@@ -12,6 +12,7 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use url::Url;
+use eigensdk_rs::eigen_utils::crypto::bls as bls_bn254;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub enum Protocol {
@@ -385,6 +386,18 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     pub fn first_ecdsa_signer(&self) -> Result<tangle_subxt::subxt_signer::ecdsa::Keypair, Error> {
         self.keystore()?
             .ecdsa_key()
+            .map_err(Error::Keystore)
+    }
+
+    /// Returns the first BLS BN254 signer keypair from the keystore.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if no BLS BN254 keypair is found in the keystore.
+    #[doc(alias = "bls_bn254_signer")]
+    pub fn first_bls_bn254_signer(&self) -> Result<bls_bn254::KeyPair, Error> {
+        self.keystore()?
+            .bls_bn254_key()
             .map_err(Error::Keystore)
     }
 

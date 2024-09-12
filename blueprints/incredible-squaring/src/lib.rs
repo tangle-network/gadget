@@ -1,6 +1,8 @@
 use gadget_sdk::job;
 use std::convert::Infallible;
 
+mod eigenlayer;
+
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
     id = 0,

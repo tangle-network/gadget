@@ -44,6 +44,7 @@ pub mod error;
 /// Schnorrkel Support
 pub mod sr25519;
 
+use eigensdk_rs::eigen_utils::crypto::bls::{self as bls_bn254, g1_point_to_g1_projective};
 pub use error::Error;
 use subxt::PolkadotConfig;
 use tangle_subxt::subxt::ext::sp_core;
@@ -252,6 +253,23 @@ pub trait BackendExt: Backend {
         let schnorrkel_kp = schnorrkel::Keypair::from(secret);
         let res = PairSigner::new(schnorrkel_kp.into());
         Ok(res)
+    }
+
+    fn bls_bn254_key(&self) -> Result<bls_bn254::KeyPair, Error> {
+        let first_key = self
+            .iter_bls_bn254()
+            .next()
+            .ok_or_else(|| str_to_std_error("No BLS BN254 keys found"))?;
+        let bls_secret = self
+            .expose_bls_bn254_secret(&first_key)?
+            .ok_or_else(|| str_to_std_error("No BLS BN254 secret found"))?;
+
+        Ok(
+            bls_bn254::KeyPair {
+                priv_key: bls_secret,
+                pub_key: g1_point_to_g1_projective(&first_key),
+            }
+        )
     }
 }
 
