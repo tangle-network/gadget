@@ -36,7 +36,7 @@ pub(crate) mod mutex_ext;
 #[cfg(feature = "std")]
 pub mod network;
 /// Prometheus metrics configuration
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "wasm"))]
 pub mod prometheus;
 /// Randomness generation module
 pub mod random;

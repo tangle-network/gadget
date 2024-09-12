@@ -11,6 +11,7 @@ use subxt::{self, SubstrateConfig};
 
 /// The [Config](subxt::Config) providing the runtime types.
 pub type TangleConfig = SubstrateConfig;
+/// The client used to perform API calls, using the [TangleConfig].
 pub type TangleClient = subxt::OnlineClient<TangleConfig>;
 type TangleBlock = Block<TangleConfig, TangleClient>;
 type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
