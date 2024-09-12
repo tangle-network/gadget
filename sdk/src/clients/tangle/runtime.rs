@@ -78,10 +78,12 @@ impl TangleRuntimeClient {
     /// use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
     /// use subxt::utils::AccountId32;
     ///
+    /// # async fn foo() -> Result<(), gadget_sdk::Error>{
     /// let account_id = AccountId32::from([0; 32]);
-    /// let client = TangleRuntimeClient::from_url("https://foo.bar", account_id);
+    /// let client = TangleRuntimeClient::from_url("https://foo.bar", account_id).await?;
     ///
     /// assert_eq!(client.account_id(), &account_id);
+    /// # Ok(()) }
     /// ```
     pub fn account_id(&self) -> &AccountId32 {
         &self.account_id
