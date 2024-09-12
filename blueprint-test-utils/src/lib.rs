@@ -4,7 +4,6 @@ use api::services::calls::types::call::{Args, Job};
 use api::services::calls::types::create_blueprint::Blueprint;
 use api::services::calls::types::register::{Preferences, RegistrationArgs};
 use api::services::events::JobResultSubmitted;
-use api::services::storage::types::job_results::JobResults;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use cargo_tangle::deploy::Opts;
@@ -16,7 +15,6 @@ use gadget_sdk::keystore::backend::GenericKeyStore;
 use gadget_sdk::keystore::{Backend, BackendExt, TanglePairSigner};
 use gadget_sdk::logger::Logger;
 pub use gadget_sdk::setup_log;
-use gadget_sdk::tangle_subxt::subxt_signer::sr25519;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use libp2p::Multiaddr;
 pub use log;
@@ -28,9 +26,6 @@ use std::time::Duration;
 use subxt::ext::sp_core::Pair;
 use subxt::utils::AccountId32;
 use subxt::OnlineClient;
-use tracing_subscriber::filter::EnvFilter;
-use tracing_subscriber::fmt::SubscriberBuilder;
-use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
 use uuid::Uuid;
 
@@ -462,7 +457,6 @@ mod tests_standard {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_externalities_gadget_starts() {
         setup_log();
-
         let mut base_path = std::env::current_dir().expect("Failed to get current directory");
 
         base_path.push("../blueprints/incredible-squaring");

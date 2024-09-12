@@ -108,12 +108,12 @@ fn create_gadget_runner(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    gadget_sdk::logger::setup_log();
-
+    gadget_sdk::setup_log();
     // Load the environment and create the gadget runner
     // TODO: Place protocol in the config
     let protocol = Protocol::Tangle;
     let config = ContextConfig::from_args();
+    println!("Config: {config:?}");
 
     let (env, runner) = create_gadget_runner(protocol, config.clone());
 

@@ -238,6 +238,10 @@ pub enum GadgetCLICoreSettings {
         pretty: bool,
         #[structopt(long = "keystore-password", env)]
         keystore_password: Option<String>,
+        #[structopt(long)]
+        blueprint_id: u64,
+        #[structopt(long)]
+        service_id: Option<u64>,
     },
 }
 
@@ -280,6 +284,10 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 bind_port,
                 test_mode,
                 logger,
+                url,
+                base_path,
+                blueprint_id,
+                service_id,
                 ..
             },
         ..
@@ -287,28 +295,26 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
 
     let logger = logger.unwrap_or_default();
 
+    let data_dir = base_path;
+    let mut keystore_url = format!("{}", data_dir.display());
+    if !keystore_url.starts_with("file:/") && !keystore_url.starts_with("file://") {
+        keystore_url = format!("file://{}", data_dir.display());
+    }
+
     Ok(GadgetConfiguration {
         bind_addr,
         bind_port,
         test_mode,
         logger,
-        rpc_endpoint: std::env::var("RPC_URL").map_err(|_| Error::MissingTangleRpcEndpoint)?,
-        keystore_uri: std::env::var("KEYSTORE_URI").map_err(|_| Error::MissingKeystoreUri)?,
-        data_dir_path: std::env::var("DATA_DIR").ok(),
-        blueprint_id: std::env::var("BLUEPRINT_ID")
-            .map_err(|_| Error::MissingBlueprintId)?
-            .parse()
-            .map_err(Error::MalformedBlueprintId)?,
+        rpc_endpoint: url.to_string(),
+        keystore_uri: keystore_url,
+        data_dir_path: Some(format!("{}", data_dir.display())),
+        blueprint_id,
         // If the registration mode is on, we don't need the service ID
         service_id: if is_registration {
             None
         } else {
-            Some(
-                std::env::var("SERVICE_ID")
-                    .map_err(|_| Error::MissingServiceId)?
-                    .parse()
-                    .map_err(Error::MalformedServiceId)?,
-            )
+            Some(service_id.ok_or_else(|| Error::MissingServiceId)?)
         },
         is_registration,
         protocol: protocol.unwrap_or(Protocol::Tangle),
@@ -357,9 +363,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// or if the keypair seed is invalid.
     #[doc(alias = "sr25519_signer")]
     pub fn first_signer(&self) -> Result<TanglePairSigner, Error> {
-        self.keystore()?
-            .sr25519_key()
-            .map_err(|err| Error::Keystore(err))
+        self.keystore()?.sr25519_key().map_err(Error::Keystore)
     }
 
     /// Returns the first Sr25519 signer keypair from the keystore.
@@ -372,7 +376,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     pub fn first_signer_polkadot(&self) -> Result<TanglePairSignerPolkadot, Error> {
         self.keystore()?
             .sr25519_key_polkadot()
-            .map_err(|err| Error::Keystore(err))
+            .map_err(Error::Keystore)
     }
 
     /// Returns the first ECDSA signer keypair from the keystore.
@@ -383,9 +387,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// or if the keypair seed is invalid.
     #[doc(alias = "ecdsa_signer")]
     pub fn first_ecdsa_signer(&self) -> Result<tangle_subxt::subxt_signer::ecdsa::Keypair, Error> {
-        self.keystore()?
-            .ecdsa_key()
-            .map_err(|err| Error::Keystore(err))
+        self.keystore()?.ecdsa_key().map_err(Error::Keystore)
     }
 
     /// Returns whether the gadget should run in memory.

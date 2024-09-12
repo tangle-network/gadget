@@ -59,7 +59,6 @@ where
         keystore_from_base_path(&config.base_path, config.chain, config.keystore_password);
 
     let logger = Logger {
-        target: "blueprint-manager".to_string(),
         id: "run-gadget".to_string(),
     };
 

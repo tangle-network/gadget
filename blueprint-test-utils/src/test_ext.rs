@@ -422,10 +422,7 @@ pub async fn new_test_ext<
             localhost_clients.push(client);
         }
 
-        let logger = Logger {
-            target: "blueprint-test-utils".to_string(),
-            id: format!("Peer {node_index}"),
-        };
+        let logger = Logger::from(format!("Peer {node_index}"));
 
         let keystore = ECDSAKeyStore::in_memory(role_pair);
         let prometheus_config = PrometheusConfig::Disabled;

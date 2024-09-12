@@ -22,7 +22,6 @@ parking_lot = { workspace = true, optional = true }
 rand = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 structopt = { workspace = true }
-tracing-subscriber = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 
 # Keystore deps
@@ -44,6 +43,7 @@ tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"], optio
 
 # Logging deps
 log = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
 tracing = { workspace = true, features = ["log"] }
 
 # Networking deps

@@ -1,12 +1,11 @@
 use crate::config::BlueprintManagerConfig;
 use crate::gadget::ActiveGadgets;
-use crate::sdk::entry::{keystore_from_base_path, SendFuture};
+use crate::sdk::entry::SendFuture;
 use crate::sdk::utils;
 use crate::sdk::utils::msg_to_error;
 use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
 use gadget_io::GadgetConfig;
-use gadget_io::SubstrateKeystore;
 use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
 use gadget_sdk::clients::Client;
@@ -15,7 +14,6 @@ use gadget_sdk::keystore::backend::GenericKeyStore;
 use gadget_sdk::keystore::{BackendExt, TanglePairSigner};
 use gadget_sdk::logger::Logger;
 use sp_core::H256;
-use sp_core::{ecdsa, Pair};
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::PathBuf;
@@ -25,7 +23,6 @@ use tangle_subxt::subxt::blocks::BlockRef;
 use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::subxt::{Config, SubstrateConfig};
 use tangle_subxt::subxt_signer;
-use tangle_subxt::subxt_signer::sr25519;
 use tokio::task::JoinHandle;
 
 pub(crate) mod event_handler;
@@ -132,10 +129,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         "Local"
     };
 
-    let logger = Logger {
-        target: "blueprint-manager".into(),
-        id: format!("Blueprint-Manager-{}", logger_id),
-    };
+    let logger = Logger::from(format!("Blueprint-Manager-{}", logger_id));
 
     logger.info("Starting blueprint manager ... waiting for start signal ...");
 

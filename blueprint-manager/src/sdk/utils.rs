@@ -3,7 +3,6 @@ use crate::protocols::resolver::NativeGithubMetadata;
 use gadget_io::GadgetConfig;
 use gadget_sdk::logger::Logger;
 use sha2::Digest;
-use std::fmt::Write;
 use std::path::Path;
 use std::string::FromUtf8Error;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -52,7 +51,7 @@ pub fn generate_process_arguments(
     }
 
     for bootnode in &gadget_config.bootnodes {
-        arguments.push(format!("--bootnodes={}", bootnode.to_string()));
+        arguments.push(format!("--bootnodes={}", bootnode));
     }
 
     arguments.extend([
@@ -67,9 +66,11 @@ pub fn generate_process_arguments(
             ))
         ),
         format!("--base-path={}", gadget_config.base_path.display()),
-        format!("--chain={}", gadget_config.chain.to_string()),
+        format!("--chain={}", gadget_config.chain),
         format!("--verbose={}", opt.verbose),
         format!("--pretty={}", opt.pretty),
+        format!("--blueprint-id={}", blueprint_id),
+        format!("--service-id={}", service_id),
     ]);
 
     if let Some(keystore_password) = &gadget_config.keystore_password {

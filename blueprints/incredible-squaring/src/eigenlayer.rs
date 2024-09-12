@@ -1,4 +1,4 @@
-use alloy_contract::{ContractInstance, Interface};
+/*use alloy_contract::{ContractInstance, Interface};
 use alloy_network::Ethereum;
 use alloy_network::EthereumWallet;
 use alloy_primitives::{address, Address, FixedBytes};
@@ -397,3 +397,4 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
+*/
