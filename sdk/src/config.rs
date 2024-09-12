@@ -5,6 +5,7 @@ use crate::keystore::{BackendExt, TanglePairSigner, TanglePairSignerPolkadot};
 use crate::logger::Logger;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
+use eigensdk_rs::eigen_utils::crypto::bls as bls_bn254;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
@@ -12,7 +13,6 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use url::Url;
-use eigensdk_rs::eigen_utils::crypto::bls as bls_bn254;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub enum Protocol {
@@ -364,9 +364,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// or if the keypair seed is invalid.
     #[doc(alias = "sr25519_signer")]
     pub fn first_signer(&self) -> Result<TanglePairSigner, Error> {
-        self.keystore()?
-            .sr25519_key()
-            .map_err(Error::Keystore)
+        self.keystore()?.sr25519_key().map_err(Error::Keystore)
     }
 
     /// Returns the first Sr25519 signer keypair from the keystore.
@@ -390,9 +388,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// or if the keypair seed is invalid.
     #[doc(alias = "ecdsa_signer")]
     pub fn first_ecdsa_signer(&self) -> Result<tangle_subxt::subxt_signer::ecdsa::Keypair, Error> {
-        self.keystore()?
-            .ecdsa_key()
-            .map_err(Error::Keystore)
+        self.keystore()?.ecdsa_key().map_err(Error::Keystore)
     }
 
     /// Returns the first BLS BN254 signer keypair from the keystore.
@@ -402,9 +398,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// This function will return an error if no BLS BN254 keypair is found in the keystore.
     #[doc(alias = "bls_bn254_signer")]
     pub fn first_bls_bn254_signer(&self) -> Result<bls_bn254::KeyPair, Error> {
-        self.keystore()?
-            .bls_bn254_key()
-            .map_err(Error::Keystore)
+        self.keystore()?.bls_bn254_key().map_err(Error::Keystore)
     }
 
     /// Returns whether the gadget should run in memory.

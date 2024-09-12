@@ -1,22 +1,24 @@
 use crate::config::BlueprintManagerConfig;
 use crate::gadget::native::FilteredBlueprint;
 use crate::gadget::ActiveGadgets;
-use crate::sources::BinarySourceFetcher;
 use crate::sdk::utils::bounded_string_to_string;
+use crate::sources::github::GithubBinaryFetcher;
+use crate::sources::BinarySourceFetcher;
 use color_eyre::eyre::OptionExt;
 use gadget_io::GadgetConfig;
 use gadget_sdk::clients::tangle::runtime::TangleEvent;
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
 use gadget_sdk::logger::Logger;
-use std::sync::atomic::Ordering;
 use itertools::Itertools;
+use std::sync::atomic::Ordering;
 use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::subxt::PolkadotConfig;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{Gadget, GadgetSourceFetcher};
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
+    Gadget, GadgetSourceFetcher,
+};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::{
     JobCalled, JobResultSubmitted, PreRegistration, Registered, ServiceInitiated, Unregistered,
 };
-use crate::sources::github::GithubBinaryFetcher;
 
 pub async fn handle_services<'a>(
     blueprints: &[FilteredBlueprint],

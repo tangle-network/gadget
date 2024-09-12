@@ -264,12 +264,10 @@ pub trait BackendExt: Backend {
             .expose_bls_bn254_secret(&first_key)?
             .ok_or_else(|| str_to_std_error("No BLS BN254 secret found"))?;
 
-        Ok(
-            bls_bn254::KeyPair {
-                priv_key: bls_secret,
-                pub_key: g1_point_to_g1_projective(&first_key),
-            }
-        )
+        Ok(bls_bn254::KeyPair {
+            priv_key: bls_secret,
+            pub_key: g1_point_to_g1_projective(&first_key),
+        })
     }
 }
 

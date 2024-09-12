@@ -1,8 +1,8 @@
 use crate::config::BlueprintManagerConfig;
 use crate::gadget::ActiveGadgets;
 use crate::sdk::entry::SendFuture;
-use crate::sdk::utils::msg_to_error;
 use crate::sdk::utils;
+use crate::sdk::utils::msg_to_error;
 use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
 use gadget_io::GadgetConfig;
