@@ -5,16 +5,17 @@ use color_eyre::eyre::{self, Context, ContextCompat, OptionExt, Result};
 use gadget_blueprint_proc_macro_core::{
     JobResultVerifier, ServiceBlueprint, ServiceRegistrationHook, ServiceRequestHook,
 };
+use gadget_sdk::clients::tangle::runtime::TangleConfig;
 pub use k256;
 use std::fmt::Debug;
 use std::path::PathBuf;
+use tangle_subxt::subxt;
 use tangle_subxt::subxt::ext::sp_core;
 use tangle_subxt::subxt::tx::PairSigner;
-use tangle_subxt::subxt::{self, SubstrateConfig};
 use tangle_subxt::tangle_testnet_runtime::api as TangleApi;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types;
 
-pub type TanglePairSigner = PairSigner<SubstrateConfig, sp_core::sr25519::Pair>;
+pub type TanglePairSigner = PairSigner<TangleConfig, sp_core::sr25519::Pair>;
 
 #[derive(Clone)]
 pub struct Opts {

@@ -2,7 +2,7 @@
 pragma solidity >=0.8.13;
 
 import "@eigenlayer/contracts/libraries/BytesLib.sol";
-import "./IIncredibleSquaringTaskManager.sol";
+import "incredible-squaring/IIncredibleSquaringTaskManager.sol";
 import "@eigenlayer-middleware/src/ServiceManagerBase.sol";
 
 /**

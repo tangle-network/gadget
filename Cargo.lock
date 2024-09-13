@@ -1980,6 +1980,7 @@ dependencies = [
  "color-eyre",
  "escargot",
  "gadget-blueprint-proc-macro-core",
+ "gadget-sdk",
  "k256",
  "schnorrkel",
  "serde_json",

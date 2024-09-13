@@ -4,12 +4,12 @@ use std::time::Duration;
 use crate::clients::Client;
 use crate::error::Error;
 use crate::mutex_ext::TokioMutexExt;
+use subxt;
 use subxt::blocks::{Block, BlockRef};
 use subxt::events::Events;
 use subxt::utils::AccountId32;
-use subxt::{self, SubstrateConfig};
 
-pub type TangleConfig = SubstrateConfig;
+pub type TangleConfig = subxt::SubstrateConfig;
 pub type TangleClient = subxt::OnlineClient<TangleConfig>;
 pub type TangleBlock = Block<TangleConfig, TangleClient>;
 pub type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;

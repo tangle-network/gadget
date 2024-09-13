@@ -1,7 +1,7 @@
 use crate::clients::tangle::runtime::TangleConfig;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::backend::GenericKeyStore;
-use crate::keystore::{BackendExt, TanglePairSigner, TanglePairSignerPolkadot};
+use crate::keystore::{BackendExt, TanglePairSigner};
 use crate::logger::Logger;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
@@ -365,19 +365,6 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     #[doc(alias = "sr25519_signer")]
     pub fn first_signer(&self) -> Result<TanglePairSigner, Error> {
         self.keystore()?.sr25519_key().map_err(Error::Keystore)
-    }
-
-    /// Returns the first Sr25519 signer keypair from the keystore.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if no Sr25519 keypair is found in the keystore.
-    /// or if the keypair seed is invalid.
-    #[doc(alias = "sr25519_signer")]
-    pub fn first_signer_polkadot(&self) -> Result<TanglePairSignerPolkadot, Error> {
-        self.keystore()?
-            .sr25519_key_polkadot()
-            .map_err(Error::Keystore)
     }
 
     /// Returns the first ECDSA signer keypair from the keystore.
