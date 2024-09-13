@@ -5,7 +5,7 @@ use blueprint_manager::executor::BlueprintManagerHandle;
 use gadget_io::{GadgetConfig, SupportedChains};
 use gadget_sdk::clients::tangle::runtime::TangleConfig;
 use gadget_sdk::logger::Logger;
-use cargo_tangle::deploy::Opts;
+// use cargo_tangle::deploy::Opts;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};

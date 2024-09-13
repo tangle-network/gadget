@@ -14,7 +14,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
 ) -> TokenStream {
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
-    let instance = quote! { #instance_base::#instance_name<T::T, T::P, T::N> };
+    let instance = quote! { #instance_base::#instance_name<T::T, T::P, alloy_network::Ethereum> };
     let ev = event_handler.event().unwrap();
     let event_converter = event_handler.event_converter().unwrap();
     let callback = event_handler.callback().unwrap();
@@ -32,7 +32,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
         #[async_trait::async_trait]
         impl<T> gadget_sdk::events_watcher::evm::EventHandler<T> for #struct_name
         where
-            T: gadget_sdk::events_watcher::evm::Config,
+            T: gadget_sdk::events_watcher::evm::Config<N = alloy_network::Ethereum>,
             #instance: std::ops::Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>,
         {
             type Contract = #instance;
