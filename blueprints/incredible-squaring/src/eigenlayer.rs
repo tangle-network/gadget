@@ -1,9 +1,10 @@
-/*use alloy_contract::{ContractInstance, Interface};
+use alloy_contract::{ContractInstance, Interface};
 use alloy_network::Ethereum;
 use alloy_network::EthereumWallet;
-use alloy_primitives::{address, Address, FixedBytes};
+use alloy_primitives::{Address, FixedBytes};
 use alloy_primitives::{Bytes, U256};
 use alloy_provider::ProviderBuilder;
+use alloy_provider::Provider;
 use alloy_signer::k256::ecdsa::SigningKey;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::private::alloy_json_abi::JsonAbi;
@@ -11,29 +12,35 @@ use alloy_sol_types::sol;
 use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
 use gadget_sdk::job;
 use gadget_sdk::{
-    config::Protocol,
     events_watcher::{
         evm::{Config, EventWatcher},
-        substrate::SubstrateEventWatcher,
+        // substrate::SubstrateEventWatcher,
     },
     keystore::Backend,
     network::setup::{start_p2p_network, NetworkConfig},
     run::GadgetRunner,
 };
 use std::convert::Infallible;
-use std::net::IpAddr;
 use std::ops::Deref;
 use IncredibleSquaringTaskManager::{
     respondToTaskCall, G1Point, G2Point, IncredibleSquaringTaskManagerInstance,
     NonSignerStakesAndSignature, Task, TaskResponse,
 };
-
+use gadget_sdk::{
+    tangle_subxt::tangle_testnet_runtime::api::{
+        runtime_types::{sp_core::ecdsa, tangle_primitives::services},
+    },
+    tx,
+};
 use eigensdk_rs::eigen_utils::types::{operator_id_from_key_pair, OperatorPubkeys};
 use eigensdk_rs::eigen_utils::*;
 use eigensdk_rs::incredible_squaring_avs::operator::*;
-use gadget_sdk::config::{ContextConfig, GadgetConfiguration};
-use gadget_sdk::logger::Logger;
+use gadget_sdk::config::{
+    GadgetConfiguration, StdGadgetConfiguration,
+};
 use gadget_sdk::network::gossip::GossipHandle;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 
 // Codegen from ABI file to interact with the contract.
 sol!(
@@ -48,7 +55,7 @@ impl<T, P> Deref for IncredibleSquaringTaskManagerInstance<T, P> {
 
     fn deref(&self) -> &ContractInstance<T, P> {
         let provider = self.provider();
-        ContractInstance::<T, P>::new(
+        &ContractInstance::<T, P>::new(
             self.address().clone(),
             *provider,
             Interface::new(JsonAbi::from_json_str(include_str!("../contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json")).unwrap()),
@@ -163,31 +170,73 @@ pub fn convert_event_to_inputs(
     )
 }
 
-struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
-    env: GadgetConfiguration<R>,
+pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
+    pub env: GadgetConfiguration<R>,
     /// The EigenLayer Operator that registers to the AVS and completes the Squaring tasks
-    operator: Operator<NodeConfig, OperatorInfoService>,
+    pub operator: Option<Operator<NodeConfig, OperatorInfoService>>,
+}
+
+impl<R: lock_api::RawRwLock> EigenlayerGadgetRunner<R> {
+    pub async fn new(env: GadgetConfiguration<R>) -> Self {
+        Self { env, operator: None }
+    }
+
+    pub fn set_operator(&mut self, operator: Operator<NodeConfig, OperatorInfoService>) {
+        self.operator = operator.into();
+    }
 }
 
 struct EigenlayerEventWatcher<T> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Config> EventWatcher<T> for EigenlayerEventWatcher<T> {
+impl<T: Config<N = Ethereum>> EventWatcher<T> for EigenlayerEventWatcher<T> {
     const TAG: &'static str = "eigenlayer";
     type Contract =
         IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance<T::T, T::P, T::N>;
     type Event = IncredibleSquaringTaskManager::NewTaskCreated;
-    const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes::from_slice(&[0; 32]);
+    const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
 }
 
 #[async_trait::async_trait]
 impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
+    type Error = color_eyre::eyre::Report;
+
+    fn config(&self) -> &StdGadgetConfiguration {
+        todo!()
+    }
+
     async fn register(&self) -> Result<()> {
         if self.env.test_mode {
             self.env.logger.info("Skipping registration in test mode");
             return Ok(());
         }
+
+        // First we handle the Tangle portion of the Registration
+        let client = self.env.client().await.map_err(|e| eyre!(e))?;
+        let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
+        let ecdsa_pair = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
+        let xt = api::tx().services().register(
+            self.env.blueprint_id,
+            services::OperatorPreferences {
+                key: ecdsa::Public(ecdsa_pair.public_key().0),
+                approval: services::ApprovalPrefrence::None,
+                // TODO: Set the price targets
+                price_targets: PriceTargets {
+                    cpu: 0,
+                    mem: 0,
+                    storage_hdd: 0,
+                    storage_ssd: 0,
+                    storage_nvme: 0,
+                },
+            },
+            Default::default(),
+        );
+        // send the tx to the tangle and exit.
+        let result = tx::tangle::send(&client, &signer, &xt, &self.env.logger).await?;
+        self.env
+            .logger
+            .info(format!("Registered operator with hash: {:?}", result));
 
         // TODO: Register to become an operator
         let keystore = self.env.keystore().map_err(|e| eyre!(e))?;
@@ -203,7 +252,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             .map_err(|e| eyre!(e))?
             .ok_or_eyre("Unable to expose ECDSA secret")?;
         let ecdsa_signing_key =
-            SigningKey::from_slice(ecdsa_secret_key.to_bytes()).map_err(|e| eyre!(e))?;
+            SigningKey::from_slice(&ecdsa_secret_key.to_bytes()).map_err(|e| eyre!(e))?;
         let signer = PrivateKeySigner::from_signing_key(ecdsa_signing_key);
         let wallet = EthereumWallet::from(signer.clone());
         // Implement Eigenlayer-specific registration logic here
@@ -220,15 +269,13 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             eth_ws_url: ws_endpoint.to_string(),
             bls_private_key_store_path: "./keystore/bls".to_string(),
             ecdsa_private_key_store_path: "./keystore/ecdsa".to_string(),
-            incredible_squaring_service_manager_addr: address!(
-                "0x0000000000000000000000000000000000000000"
-            ),
-            avs_registry_coordinator_addr: address!("0x0000000000000000000000000000000000000000"),
-            operator_state_retriever_addr: address!("0x0000000000000000000000000000000000000000"),
+            incredible_squaring_service_manager_addr: Default::default(),
+            avs_registry_coordinator_addr: Default::default(),
+            operator_state_retriever_addr: Default::default(),
             eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
-            delegation_manager_addr: address!("0x0000000000000000000000000000000000000000"),
-            avs_directory_addr: address!("0x0000000000000000000000000000000000000000"),
-            operator_address: address!("0x0000000000000000000000000000000000000000"),
+            delegation_manager_addr: Default::default(),
+            avs_directory_addr: Default::default(),
+            operator_address: Default::default(),
             enable_metrics: false,
             enable_node_api: false,
             server_ip_port_address: "127.0.0.1:8673".to_string(),
@@ -237,22 +284,25 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
                     .to_string(),
         };
 
-        let http_provider = ProviderBuilder::new()
+        let &http_provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(wallet.clone())
-            .on_http(self.env.rpc_endpoint.parse()?);
+            .on_http(self.env.rpc_endpoint.parse()?)
+            .root();
 
-        let ws_provider = ProviderBuilder::new()
+        let &ws_provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_http(self.env.rpc_endpoint.parse()?);
+            .on_http(self.env.rpc_endpoint.parse()?)
+            .root()
+            .boxed();
 
         let operator_info_service = OperatorInfoService::new(
             types::OperatorInfo {
                 socket: "0.0.0.0:0".to_string(),
                 pubkeys: OperatorPubkeys {
-                    g1_pubkey: bls_keypair.get_pub_key_g1(),
-                    g2_pubkey: bls_keypair.get_pub_key_g2(),
+                    g1_pubkey: bls_keypair.get_pub_key_g1().to_ark_g1(),
+                    g2_pubkey: bls_keypair.get_pub_key_g2().to_ark_g2(),
                 },
             },
             operator_id_from_key_pair(&bls_keypair),
@@ -275,22 +325,42 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         .await
         .map_err(|e| eyre!(e))?;
 
+        self.set_operator(operator);
+
         tracing::info!("Registered operator for Eigenlayer");
         Ok(())
     }
 
-    async fn run(&self) -> Result<()> {
-        let config = ContextConfig {
-            bind_addr: self.env.bind_addr,
-            bind_port: self.env.bind_port,
-            test_mode: self.env.test_mode,
-            logger: self.env.logger.clone(),
-        };
+    async fn benchmark(&self) -> std::result::Result<(), Self::Error> {
+        todo!()
+    }
 
-        // TODO: do we actually need env here when there is self.env??
-        let env =
-            gadget_sdk::env::load(Some(Protocol::Eigenlayer), config).map_err(|e| eyre!(e))?;
-        let keystore = env.keystore().map_err(|e| eyre!(e))?;
+    async fn run(&self) -> Result<()> {
+        // Tangle Portion of Run
+        let client = self.env.client().await.map_err(|e| eyre!(e))?;
+        let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
+        let logger = self.env.logger.clone();
+        self.env.logger.info(format!(
+            "Starting the event watcher for {} ...",
+            signer.account_id()
+        ));
+        // let x_square = blueprint::XsquareEventHandler {
+        //     service_id: self.env.service_id.unwrap(),
+        //     signer,
+        //     logger,
+        // };
+        // SubstrateEventWatcher::run(
+        //     &TangleEventsWatcher {
+        //         logger: self.env.logger.clone(),
+        //     },
+        //     client,
+        //     // Add more handler here if we have more functions.
+        //     vec![Box::new(x_square)],
+        // )
+        //     .await?;
+
+        // Then we handle the EigenLayer portion
+        let keystore = self.env.keystore().map_err(|e| eyre!(e))?;
         // get the first ECDSA key from the keystore and register with it.
         let ecdsa_key = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
         let ed_key = keystore
@@ -311,7 +381,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_http(env.rpc_endpoint.parse()?);
+            .on_http(self.env.rpc_endpoint.parse()?);
 
         let sr_secret = keystore
             .expose_ed25519_secret(&ed_public)
@@ -353,48 +423,47 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    color_eyre::install()?;
-    // TODO: add setup_log()
-    let env_filter = tracing_subscriber::EnvFilter::from_default_env();
-    let logger = tracing_subscriber::fmt()
-        .compact()
-        .with_target(true)
-        .with_env_filter(env_filter);
-    logger.init();
-
-    // TODO: Ideally, we don't want to have multiple types of loggers?
-    let debug_logger = DebugLogger {
-        id: "incredible-squaring".to_string(),
-    };
-
-    // Load the environment and create the gadget runner
-    let protocol = Protocol::from_env().unwrap_or(Protocol::Tangle);
-    let (env, runner) = create_gadget_runner(
-        protocol,
-        ContextConfig {
-            bind_addr: IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-            bind_port: 0,
-            test_mode: false,
-            logger: debug_logger,
-        },
-    );
-
-    // TODO: Add test checks for generating a tmp file, refactor into SDK
-
-    // Register the operator if needed
-    if runner.env().should_run_registration() {
-        runner.register().await?;
-    }
-    // Run benchmark if needed
-    if runner.env().should_run_benchmarks() {
-        runner.benchmark().await?;
-    }
-
-    // Run the gadget / AVS
-    runner.run().await?;
-
-    Ok(())
-}
-*/
+// #[tokio::main]
+// async fn main() -> Result<()> {
+//     color_eyre::install()?;
+//     // TODO: add setup_log()
+//     let env_filter = tracing_subscriber::EnvFilter::from_default_env();
+//     let logger = tracing_subscriber::fmt()
+//         .compact()
+//         .with_target(true)
+//         .with_env_filter(env_filter);
+//     logger.init();
+//
+//     let debug_logger = Logger {
+//         target: "incredible-squaring-eigen".to_string(),
+//         id: "incredible-squaring".to_string(),
+//     };
+//
+//     // Load the environment and create the gadget runner
+//     let protocol = Protocol::from_env();
+//     let (env, runner) = create_gadget_runner(
+//         protocol,
+//         ContextConfig {
+//             bind_addr: IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
+//             bind_port: 0,
+//             test_mode: false,
+//             logger: debug_logger,
+//         },
+//     );
+//
+//     // TODO: Add test checks for generating a tmp file, refactor into SDK
+//
+//     // Register the operator if needed
+//     if runner.env().should_run_registration() {
+//         runner.register().await?;
+//     }
+//     // Run benchmark if needed
+//     if runner.env().should_run_benchmarks() {
+//         runner.benchmark().await?;
+//     }
+//
+//     // Run the gadget / AVS
+//     runner.run().await?;
+//
+//     Ok(())
+// }

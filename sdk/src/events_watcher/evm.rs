@@ -14,7 +14,7 @@ use std::time::Duration;
 
 pub trait Config: Send + Sync + 'static {
     type T: Transport + Clone + Send + Sync + 'static;
-    type P: Provider<Self::T, Self::N> + Send + Sync + 'static;
+    type P: Provider<Self::T, Self::N> + Clone + Send + Sync + 'static;
     type N: Network + Send + Sync + 'static;
 }
 
