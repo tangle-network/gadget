@@ -4,7 +4,7 @@ use crate::logger::Logger;
 /// # Errors
 ///
 /// Returns a [`subxt::Error`] if the transaction fails.
-#[tracing::instrument(skip(client, signer, xt, logger))]
+#[tracing::instrument(skip_all)]
 pub async fn send<T, S, X>(
     client: &subxt::OnlineClient<T>,
     signer: &S,

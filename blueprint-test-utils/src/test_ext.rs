@@ -20,7 +20,7 @@ use blueprint_manager::executor::BlueprintManagerHandle;
 use blueprint_manager::sdk::entry::SendFuture;
 use blueprint_manager::sdk::setup::NodeInput;
 use cargo_tangle::deploy::{Opts, PrivateKeySigner};
-use gadget_sdk::clients::tangle::runtime::{TangleConfig, TangleRuntimeClient};
+use gadget_sdk::clients::tangle::runtime::{TangleClient, TangleRuntimeClient};
 use gadget_sdk::logger::Logger;
 use gadget_sdk::network::{Network, ParticipantInfo, ProtocolMessage};
 use gadget_sdk::prometheus::PrometheusConfig;
@@ -44,6 +44,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use futures::stream::FuturesOrdered;
 use url::Url;
+use std::path::PathBuf;
 
 pub fn id_to_ecdsa_pair(id: u8) -> ecdsa::Pair {
     ecdsa::Pair::from_string(&format!("//Alice///{id}"), None).expect("static values are valid")
@@ -171,6 +172,8 @@ pub async fn new_test_ext_blueprint_manager<
     assert!(N > 0, "At least one node is required");
     assert!(N <= NAME_IDS.len(), "Only up to 5 nodes are supported");
 
+    let int_logger = Logger::from("Integration-Test");
+
     let bind_addrs = (0..N)
         .map(|_| find_open_tcp_bind_port())
         .map(|port| {
@@ -219,15 +222,9 @@ pub async fn new_test_ext_blueprint_manager<
 
         let tg_addr = handle.sr25519_id().account_id();
         let evm_addr = handle.ecdsa_id().public_key().to_account_id();
-        handle
-            .logger()
-            .info(format!("Signer TG address: {tg_addr}"));
-        handle
-            .logger()
-            .info(format!("Signer EVM address: {evm_addr}"));
-        handle
-            .logger()
-            .info(format!("Signer EVM(alloy) address: {}", priv_key.address()));
+        int_logger.info(format!("Signer TG address: {tg_addr}"));
+        int_logger.info(format!("Signer EVM address: {evm_addr}"));
+        int_logger.info(format!("Signer EVM(alloy) address: {}", priv_key.address()));
 
         if node_index == 0 {
             // Replace the None signer and signer_evm values inside opts with Alice's keys
@@ -266,6 +263,7 @@ pub async fn new_test_ext_blueprint_manager<
 
         let task = async move {
             let keypair = handle.sr25519_id().clone();
+            let logger = handle.logger();
             let key = runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().public_key().0);
 
             let preferences = Preferences {
@@ -280,7 +278,7 @@ pub async fn new_test_ext_blueprint_manager<
                 },
             };
 
-            if let Err(err) = super::join_delegators(&client, &keypair).await {
+            if let Err(err) = super::join_delegators(&client, &keypair, logger).await {
                 let err_str = format!("{err}");
                 if err_str.contains("MultiAssetDelegation::AlreadyOperator") {
                     handle
@@ -327,15 +325,13 @@ pub async fn new_test_ext_blueprint_manager<
         .collect();
 
     // Use Alice's account to register the service
-    handles[0].logger().info(format!(
+    int_logger.info(format!(
         "Registering service for blueprint ID {blueprint_id} using Alice's keys ..."
     ));
     if let Err(err) =
         super::register_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes).await
     {
-        handles[0]
-            .logger()
-            .error(format!("Failed to register service: {err}"));
+        int_logger.error(format!("Failed to register service: {err}"));
         panic!("Failed to register service: {err}");
     }
 
@@ -346,7 +342,19 @@ pub async fn new_test_ext_blueprint_manager<
         handle.start().expect("Failed to start blueprint manager");
     }
 
-    LocalhostTestExt { client, handles }
+    int_logger.info("Waiting for all nodes to be online ...");
+    let all_paths = handles
+        .iter()
+        .map(|r| r.keystore_path().clone())
+        .collect::<Vec<_>>();
+    wait_for_test_ready(all_paths, &int_logger).await;
+    int_logger.info("All nodes are online");
+
+    LocalhostTestExt {
+        client,
+        handles,
+        logger: int_logger,
+    }
 }
 
 fn find_open_tcp_bind_port() -> u16 {
@@ -422,8 +430,6 @@ pub async fn new_test_ext<
             localhost_clients.push(client);
         }
 
-        let logger = Logger::from("blueprint-test-utils");
-
         let keystore = ECDSAKeyStore::in_memory(role_pair);
         let prometheus_config = PrometheusConfig::Disabled;
 
@@ -431,7 +437,6 @@ pub async fn new_test_ext<
             clients: localhost_clients,
             networks,
             account_id: sr25519::Public::from_raw(account_id.0),
-            logger,
             keystore,
             node_index,
             additional_params: additional_params.clone(),
@@ -442,37 +447,71 @@ pub async fn new_test_ext<
         handles.push(handle);
     }
 
-    LocalhostTestExt { handles, client }
+    let logger = Logger::from("Integration-Test");
+    LocalhostTestExt {
+        handles,
+        client,
+        logger,
+    }
 }
 
 pub struct LocalhostTestExt {
-    client: OnlineClient<TangleConfig>,
+    client: TangleClient,
     handles: Vec<BlueprintManagerHandle>,
+    logger: Logger,
 }
 
 impl LocalhostTestExt {
     /// An identity function (For future reverse-compatible changes)
     pub fn execute_with<
-        T: FnOnce(&OnlineClient<TangleConfig>, &Vec<BlueprintManagerHandle>) -> R + Send + 'static,
+        T: FnOnce(&TangleClient, &Vec<BlueprintManagerHandle>, &Logger) -> R + Send + 'static,
         R: Send + 'static,
     >(
         &self,
         function: T,
     ) -> R {
-        function(&self.client, &self.handles)
+        function(&self.client, &self.handles, &self.logger)
     }
 
     /// An identity function (For future reverse-compatible changes)
     pub async fn execute_with_async<
         'a,
         'b: 'a,
-        T: FnOnce(&'a OnlineClient<TangleConfig>, &'a Vec<BlueprintManagerHandle>) -> R + Send + 'a,
+        T: FnOnce(&'a TangleClient, &'a Vec<BlueprintManagerHandle>, &'a Logger) -> R + Send + 'a,
         R: Future<Output = Out> + Send + 'a,
         Out: Send + 'b,
     >(
         &'a self,
         function: T,
     ) -> Out {
-        function(&self.client, &self.handles).await
+        function(&self.client, &self.handles, &self.logger).await
+    }
+}
+
+/// `base_paths`: All the paths pointing to the keystore for each node
+/// This function returns when every test_started.tmp file exists
+async fn wait_for_test_ready(base_paths: Vec<PathBuf>, logger: &Logger) {
+    let paths = base_paths
+        .into_iter()
+        .map(|r| r.join("test_started.tmp"))
+        .collect::<Vec<_>>();
+    logger.info(format!("Waiting for these paths to exist: {paths:?}"));
+    loop {
+        let mut ready_count = 0;
+        for path in &paths {
+            if path.exists() {
+                ready_count += 1;
+            }
+        }
+
+        if ready_count == paths.len() {
+            break;
+        }
+
+        logger.info(format!(
+            "Not all paths are ready yet ({ready_count}/{}). Waiting ...",
+            paths.len()
+        ));
+        tokio::time::sleep(Duration::from_secs(3)).await;
     }
 }

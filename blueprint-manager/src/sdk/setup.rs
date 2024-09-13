@@ -26,7 +26,6 @@ pub struct NodeInput<N: Network, KBE: KeyValueStoreBackend, D> {
     pub clients: Vec<TangleRuntimeClient>,
     pub networks: Vec<N>,
     pub account_id: sr25519::Public,
-    pub logger: Logger,
     pub keystore: ECDSAKeyStore<KBE>,
     pub node_index: usize,
     pub additional_params: D,
@@ -95,7 +94,6 @@ pub async fn generate_node_input<KBE: KeyValueStoreBackend>(
     let node_input = NodeInput::<GossipHandle, KBE, ()> {
         clients,
         account_id: acco_key.public(),
-        logger,
         keystore,
         node_index: 0,
         additional_params: (),

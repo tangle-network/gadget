@@ -67,18 +67,3 @@ impl Logger {
         error!(target: "gadget", "[{}] {msg}", &self.id);
     }
 }
-
-pub fn setup_log() {
-    use tracing_subscriber::fmt::SubscriberBuilder;
-    use tracing_subscriber::util::SubscriberInitExt;
-    use tracing_subscriber::EnvFilter;
-
-    let _ = SubscriberBuilder::default()
-        .with_env_filter(EnvFilter::from_default_env())
-        .finish()
-        .try_init();
-
-    std::panic::set_hook(Box::new(|info| {
-        log::error!(target: "gadget", "Panic occurred: {info:?}");
-    }));
-}

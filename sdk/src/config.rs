@@ -1,4 +1,4 @@
-use crate::clients::tangle::runtime::TangleConfig;
+use crate::clients::tangle::runtime::{TangleClient, TangleConfig};
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::backend::GenericKeyStore;
 use crate::keystore::{BackendExt, TanglePairSigner};
@@ -93,13 +93,13 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     pub is_registration: bool,
     /// The type of protocol the gadget is executing on.
     pub protocol: Protocol,
-    /// Bind port
+    /// The Port of the Network that will be interacted with
     pub bind_port: u16,
-    /// Bind addr
+    /// The Address of the Network that will be interacted with
     pub bind_addr: IpAddr,
-    /// logger
+    /// The Logger that will be used in this Gadget Configuration
     pub logger: Logger,
-    /// Whether or not the gadget is in test mode
+    /// Whether the gadget is in test mode
     pub test_mode: bool,
     _lock: core::marker::PhantomData<RwLock>,
 }
@@ -298,7 +298,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
 
     let data_dir = base_path;
     let mut keystore_url = format!("{}", data_dir.display());
-    if !keystore_url.starts_with("file:/") && !keystore_url.starts_with("file://") {
+    if !keystore_url.starts_with("file:/") {
         keystore_url = format!("file://{}", data_dir.display());
     }
 
@@ -405,7 +405,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// # Errors
     /// This function will return an error if we are unable to connect to the Tangle RPC endpoint.
     #[cfg(any(feature = "std", feature = "wasm"))]
-    pub async fn client(&self) -> Result<subxt::OnlineClient<TangleConfig>, Error> {
+    pub async fn client(&self) -> Result<TangleClient, Error> {
         let client =
             subxt::OnlineClient::<TangleConfig>::from_url(self.rpc_endpoint.clone()).await?;
         Ok(client)

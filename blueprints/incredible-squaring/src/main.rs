@@ -122,8 +122,6 @@ async fn create_gadget_runner(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    gadget_sdk::setup_log();
-
     // Load the environment and create the gadget runner
     // TODO: Place protocol in the config
     let protocol = Protocol::Tangle;

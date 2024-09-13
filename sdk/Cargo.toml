@@ -43,7 +43,6 @@ tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"], optio
 
 # Logging deps
 log = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
 tracing = { workspace = true, features = ["log"] }
 
 # Networking deps

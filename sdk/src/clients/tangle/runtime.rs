@@ -9,7 +9,7 @@ use subxt::blocks::{Block, BlockRef};
 use subxt::events::Events;
 use subxt::utils::AccountId32;
 
-pub type TangleConfig = subxt::SubstrateConfig;
+pub type TangleConfig = subxt::PolkadotConfig;
 pub type TangleClient = subxt::OnlineClient<TangleConfig>;
 pub type TangleBlock = Block<TangleConfig, TangleClient>;
 pub type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
@@ -26,7 +26,7 @@ pub struct TangleEvent {
 
 #[derive(Clone, Debug)]
 pub struct TangleRuntimeClient {
-    client: subxt::OnlineClient<TangleConfig>,
+    client: TangleClient,
     finality_notification_stream: Arc<gadget_io::tokio::sync::Mutex<Option<TangleBlockStream>>>,
     latest_finality_notification: Arc<gadget_io::tokio::sync::Mutex<Option<TangleEvent>>>,
     account_id: AccountId32,
@@ -40,7 +40,7 @@ impl TangleRuntimeClient {
     }
 
     /// Create a new TangleRuntime instance.
-    pub fn new(client: subxt::OnlineClient<TangleConfig>, account_id: AccountId32) -> Self {
+    pub fn new(client: TangleClient, account_id: AccountId32) -> Self {
         Self {
             client,
             finality_notification_stream: Arc::new(gadget_io::tokio::sync::Mutex::new(None)),
@@ -49,7 +49,7 @@ impl TangleRuntimeClient {
         }
     }
 
-    pub fn client(&self) -> subxt::OnlineClient<TangleConfig> {
+    pub fn client(&self) -> TangleClient {
         self.client.clone()
     }
 

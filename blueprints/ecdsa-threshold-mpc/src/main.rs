@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
     let env = sdk::config::load(None)?;
     let keystore = env.keystore()?;
     let signer = env.first_signer()?;
-    let client: subxt::OnlineClient<TangleConfig> =
+    let client: TangleClient =
         subxt::OnlineClient::from_url(&env.rpc_endpoint).await?;
 
     // // Create the event handler from the job
