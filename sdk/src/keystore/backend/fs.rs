@@ -14,8 +14,10 @@ enum KeyType {
     BlsBn254 = 0x04,
 }
 
-/// The filesystem keystore backend. It stores keys in files, where each file
-/// is named after the public key and contains the private key.
+/// The filesystem keystore backend.
+///
+/// This stores keys in files, where each file is named after the public key and contains the
+/// private key.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilesystemKeystore {
     /// The root directory where the keys are stored.
@@ -26,6 +28,7 @@ impl FilesystemKeystore {
     /// Open the store at the given path.
     ///
     /// # Errors
+    ///
     /// An error will be returned if the root directory cannot be created.
     pub fn open<T: Into<PathBuf>>(path: T) -> Result<Self, Error> {
         let root = path.into();

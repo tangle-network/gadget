@@ -11,7 +11,9 @@ pub mod mem;
 #[cfg(feature = "std")]
 pub mod fs;
 
-/// A Generic Key Store that can be backed by different keystore backends.
+/// A Generic Key Store that can be backed by different keystore [`Backend`]s.
+///
+/// [Backend]: super::Backend
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum GenericKeyStore<RwLock: lock_api::RawRwLock> {

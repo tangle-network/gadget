@@ -22,6 +22,7 @@ pub fn generate_with_optional_seed(seed: Option<&[u8]>) -> elliptic_curve::Resul
     }
 }
 
+/// Sign a message with the given secret key.
 #[must_use]
 pub fn sign(secret: &Secret, msg: &[u8]) -> Signature {
     let mut keypair = k256::ecdsa::SigningKey::from(secret);

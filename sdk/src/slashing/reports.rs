@@ -1,3 +1,5 @@
+//! Quality of Service (QoS) reporting module.
+
 #![allow(clippy::unused_async)]
 
 use alloc::boxed::Box;
@@ -6,16 +8,36 @@ use alloc::vec::Vec;
 use async_trait::async_trait;
 use core::time::Duration;
 
+/// A trait for reporting the quality of service of a service.
+///
+/// The quality of service (QoS) is a measure of the performance of a service. It is used to determine
+/// the quality of a service based on various metrics. With the [`DefaultQoSReporter`], those metrics
+/// include uptime, response time, error rate, throughput, memory usage, and CPU usage.
 #[async_trait]
 pub trait QoSReporter {
+    /// The type of metrics used to determine the quality of a service.
     type Metrics;
+    /// A report describing the quality of a service.
     type ReportResult;
+    /// The associated error which can be returned from the reporter.
     type Error;
 
+    /// Collects the metrics for the service.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the metrics could not be collected.
     async fn collect_metrics(&self) -> Result<Self::Metrics, Self::Error>;
+
+    /// Generates the report for the service based on the collected metrics.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the report could not be generated.
     async fn report(&self, metrics: &Self::Metrics) -> Result<Self::ReportResult, Self::Error>;
 }
 
+/// The default quality of service report.
 #[derive(Debug, Clone)]
 pub struct QoSReport {
     pub service_id: u64,
@@ -25,6 +47,7 @@ pub struct QoSReport {
     pub custom_report: Vec<u8>,
 }
 
+/// The default service metrics.
 #[derive(Debug, Clone, Copy)]
 pub struct QoSMetrics {
     pub uptime: Duration,
@@ -35,6 +58,7 @@ pub struct QoSMetrics {
     pub cpu_usage: f64,
 }
 
+/// The default quality of service reporter.
 #[derive(Debug, Clone, Copy)]
 pub struct DefaultQoSReporter {
     pub service_id: u64,
@@ -142,16 +166,22 @@ async fn get_cpu_usage() -> Result<f64, QoSError> {
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum QoSError {
+    /// Failed to collect uptime metric.
     #[error("Failed to collect uptime: {0}")]
     UptimeError(String),
+    /// Failed to measure response time.
     #[error("Failed to measure response time: {0}")]
     ResponseTimeError(String),
+    /// Failed to calculate error rate.
     #[error("Failed to calculate error rate: {0}")]
     ErrorRateError(String),
+    /// Failed to measure throughput.
     #[error("Failed to measure throughput: {0}")]
     ThroughputError(String),
+    /// Failed to get memory usage.
     #[error("Failed to get memory usage: {0}")]
     MemoryUsageError(String),
+    /// Failed to get CPU usage.
     #[error("Failed to get CPU usage: {0}")]
     CpuUsageError(String),
 }

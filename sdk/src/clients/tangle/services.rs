@@ -19,21 +19,29 @@ pub struct ServicesClient<C: Config> {
 }
 
 impl<C: Config> ServicesClient<C> {
+    /// Create a new services client
     pub fn new(logger: Logger, rpc_client: OnlineClient<C>) -> Self {
         Self { logger, rpc_client }
     }
 
+    /// Get the associated RPC client
     pub fn rpc_client(&self) -> &OnlineClient<C> {
         &self.rpc_client
     }
 }
 
+/// A list of services provided by an operator, along with their blueprint
 pub type RpcServicesWithBlueprint = services::RpcServicesWithBlueprint<AccountId32, u64>;
 
 impl<C: Config> ServicesClient<C>
 where
     BlockRef<<C as Config>::Hash>: From<BlockRef<H256>>,
 {
+    /// Get the blueprint with the given ID at the given block
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the blueprint could not be fetched
     pub async fn get_blueprint_by_id(
         &self,
         at: [u8; 32],
@@ -53,6 +61,11 @@ where
         Ok(ret)
     }
 
+    /// Get the services provided by the operator at `address`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the services could not be fetched
     pub async fn query_operator_blueprints(
         &self,
         at_block: [u8; 32],

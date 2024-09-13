@@ -1,6 +1,7 @@
 use crate::logger::Logger;
 
 /// Send a transaction to the Tangle network.
+///
 /// # Errors
 ///
 /// Returns a [`subxt::Error`] if the transaction fails.

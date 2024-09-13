@@ -4,15 +4,17 @@ use std::time::Duration;
 use crate::clients::Client;
 use crate::error::Error;
 use crate::mutex_ext::TokioMutexExt;
-use subxt;
 use subxt::blocks::{Block, BlockRef};
 use subxt::events::Events;
 use subxt::utils::AccountId32;
+use subxt::{self, PolkadotConfig};
 
-pub type TangleConfig = subxt::PolkadotConfig;
+/// The [Config](subxt::Config) providing the runtime types.
+pub type TangleConfig = PolkadotConfig;
+/// The client used to perform API calls, using the [TangleConfig].
 pub type TangleClient = subxt::OnlineClient<TangleConfig>;
-pub type TangleBlock = Block<TangleConfig, TangleClient>;
-pub type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
+type TangleBlock = Block<TangleConfig, TangleClient>;
+type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;
 
 #[derive(Clone, Debug)]
 pub struct TangleEvent {
@@ -27,28 +29,35 @@ pub struct TangleEvent {
 #[derive(Clone, Debug)]
 pub struct TangleRuntimeClient {
     client: TangleClient,
-    finality_notification_stream: Arc<gadget_io::tokio::sync::Mutex<Option<TangleBlockStream>>>,
-    latest_finality_notification: Arc<gadget_io::tokio::sync::Mutex<Option<TangleEvent>>>,
+    finality_notification_stream: Arc<tokio::sync::Mutex<Option<TangleBlockStream>>>,
+    latest_finality_notification: Arc<tokio::sync::Mutex<Option<TangleEvent>>>,
     account_id: AccountId32,
 }
 
 impl TangleRuntimeClient {
-    /// Create a new Tangle runtime client from a RPC url.
-    pub async fn from_url(url: &str, account_id: AccountId32) -> Result<Self, Error> {
-        let client = subxt::OnlineClient::<TangleConfig>::from_url(url).await?;
+    /// Create a new Tangle runtime client from an RPC url.
+    ///
+    /// # Errors
+    ///
+    /// * `url` is not a valid URL.
+    /// * `url` is not a secure (https:// or wss://) URL.
+    /// * `url` cannot be resolved.
+    pub async fn from_url<U: AsRef<str>>(url: U, account_id: AccountId32) -> Result<Self, Error> {
+        let client = TangleClient::from_url(url).await?;
         Ok(Self::new(client, account_id))
     }
 
-    /// Create a new TangleRuntime instance.
+    /// Create a new Tangle runtime client from an existing [`TangleClient`].
     pub fn new(client: TangleClient, account_id: AccountId32) -> Self {
         Self {
             client,
-            finality_notification_stream: Arc::new(gadget_io::tokio::sync::Mutex::new(None)),
-            latest_finality_notification: Arc::new(gadget_io::tokio::sync::Mutex::new(None)),
+            finality_notification_stream: Arc::new(tokio::sync::Mutex::new(None)),
+            latest_finality_notification: Arc::new(tokio::sync::Mutex::new(None)),
             account_id,
         }
     }
 
+    /// Get the associated [`TangleClient`]
     pub fn client(&self) -> TangleClient {
         self.client.clone()
     }
@@ -69,8 +78,32 @@ impl TangleRuntimeClient {
         self.client.runtime_api().at(block_ref)
     }
 
+    /// Get the associated account ID
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
+    /// use subxt::utils::AccountId32;
+    ///
+    /// # async fn foo() -> Result<(), gadget_sdk::Error>{
+    /// let account_id = AccountId32::from([0; 32]);
+    /// let client = TangleRuntimeClient::from_url("https://foo.bar", account_id.clone()).await?;
+    ///
+    /// assert_eq!(client.account_id(), &account_id);
+    /// # Ok(()) }
+    /// ```
     pub fn account_id(&self) -> &AccountId32 {
         &self.account_id
+    }
+
+    // Initialize the `TangleRuntimeClient` to listen for finality notifications.
+    //
+    // NOTE: This method must be called before using the instance.
+    async fn initialize(&self) -> Result<(), Error> {
+        let finality_notification_stream = self.client.blocks().subscribe_finalized().await?;
+        *self.finality_notification_stream.lock().await = Some(finality_notification_stream);
+        Ok(())
     }
 }
 

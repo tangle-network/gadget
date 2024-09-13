@@ -4405,7 +4405,6 @@ dependencies = [
  "hyper 1.4.1",
  "hyper-util",
  "k256",
- "lazy_static",
  "libp2p",
  "lock_api",
  "log",

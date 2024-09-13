@@ -1,3 +1,5 @@
+//! Tangle Event Watcher Implementation
+
 #![allow(clippy::module_name_repetitions)]
 
 use crate::clients::tangle::runtime::TangleConfig;

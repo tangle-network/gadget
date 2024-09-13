@@ -1,3 +1,5 @@
+//! EVM Event Watcher Module
+
 use crate::events_watcher::{error::Error, ConstantWithMaxRetryCount};
 use crate::store::LocalDatabase;
 use alloy_network::ReceiptResponse;

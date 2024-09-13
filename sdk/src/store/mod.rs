@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use crate::network::{deserialize, serialize};
 
-pub mod local_database;
+mod local_database;
 pub use local_database::LocalDatabase;
 
 #[async_trait::async_trait]
