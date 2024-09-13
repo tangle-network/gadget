@@ -63,5 +63,3 @@ pub mod tx;
 pub use error::Error;
 pub use gadget_blueprint_proc_macro::*;
 pub use tangle_subxt;
-
-pub use logger::setup_log;

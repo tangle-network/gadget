@@ -44,7 +44,6 @@ tokio = { workspace = true, optional = true }
 
 # Logging deps
 log = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
 tracing = { workspace = true, features = ["log"] }
 
 # Networking deps

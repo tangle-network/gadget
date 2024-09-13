@@ -3461,7 +3461,6 @@ dependencies = [
  "thiserror 1.0.63 (git+https://github.com/quartiq/thiserror?branch=no-std)",
  "tokio",
  "tracing",
- "tracing-subscriber 0.3.18",
  "url 2.5.2 (git+https://github.com/domenukk/rust-url?branch=no_std)",
  "w3f-bls",
 ]
