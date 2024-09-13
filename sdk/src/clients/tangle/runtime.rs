@@ -9,7 +9,7 @@ use subxt::blocks::{Block, BlockRef};
 use subxt::events::Events;
 use subxt::utils::AccountId32;
 
-pub type TangleConfig = subxt::SubstrateConfig;
+pub type TangleConfig = subxt::PolkadotConfig;
 pub type TangleClient = subxt::OnlineClient<TangleConfig>;
 pub type TangleBlock = Block<TangleConfig, TangleClient>;
 pub type TangleBlockStream = subxt::backend::StreamOfResults<TangleBlock>;

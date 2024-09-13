@@ -200,7 +200,9 @@ pub async fn create_blueprint(
 pub async fn join_delegators(
     client: &TestClient,
     account_id: &TanglePairSigner,
+    logger: &Logger,
 ) -> Result<(), Box<dyn Error>> {
+    logger.info("Joining delegators ...");
     let call_pre = api::tx()
         .multi_asset_delegation()
         .join_operators(1_000_000_000_000_000);
@@ -208,6 +210,7 @@ pub async fn join_delegators(
         .tx()
         .sign_and_submit_then_watch_default(&call_pre, account_id)
         .await?;
+
     res_pre.wait_for_finalized_success().await?;
     Ok(())
 }
@@ -388,7 +391,7 @@ macro_rules! test_blueprint {
                 run_test_blueprint_manager,
             )
             .await
-            .execute_with_async(move |client, handles| async move {
+            .execute_with_async(move |client, handles, logger| async move {
                 let keypair = handles[0].sr25519_id().clone();
                 let service_id = get_next_service_id(client)
                     .await
@@ -396,6 +399,10 @@ macro_rules! test_blueprint {
                 let call_id = get_next_call_id(client)
                     .await
                     .expect("Failed to get next job id");
+
+                logger.info(format!(
+                    "Submitting job with params service ID: {service_id}, call ID: {call_id}"
+                ));
 
                 let mut job_args = Args::new();
                 for input in [$($input),+] {
@@ -412,7 +419,7 @@ macro_rules! test_blueprint {
                 .await
                 .expect("Failed to submit job");
 
-                let job_results = wait_for_completion_of_tangle_job(client, service_id, call_id, handles[0].logger())
+                let job_results = wait_for_completion_of_tangle_job(client, service_id, call_id, logger)
                     .await
                     .expect("Failed to wait for job completion");
 
@@ -487,12 +494,13 @@ mod tests_standard {
 
         new_test_ext_blueprint_manager::<5, 1, (), _, _>((), opts, run_test_blueprint_manager)
             .await
-            .execute_with_async(move |client, handles| async move {
-                // At this point, blueprint has been deployed, and every node has registered
-                // as an operator for the relevant services
+            .execute_with_async(move |client, handles, logger| async move {
+                // At this point, blueprint has been deployed, every node has registered
+                // as an operator for the relevant services, and, all gadgets are running
 
                 // What's left: Submit a job, wait for the job to finish, then assert the job results
                 let keypair = handles[0].sr25519_id().clone();
+
                 // TODO: Important! The tests can only run serially, not in parallel, in order to not cause a race condition in IDs
                 let service_id = get_next_service_id(client)
                     .await
@@ -503,12 +511,8 @@ mod tests_standard {
                     .expect("Failed to get next job id")
                     .saturating_sub(1);
 
-                handles[0].logger().info("Waiting for all nodes to be online ...");
-                let all_paths = handles.iter().map(|r| r.keystore_path().clone()).collect::<Vec<_>>();
-                wait_for_test_ready(all_paths, handles[0].logger()).await;
-
-                handles[0].logger().info(format!(
-                    "All gadgets online! Submitting job with params service ID: {service_id}, call ID: {call_id}"
+                logger.info(format!(
+                    "Submitting job with params service ID: {service_id}, call ID: {call_id}"
                 ));
 
                 // Pass the arguments
@@ -527,17 +531,19 @@ mod tests_standard {
                 )
                 .await
                 {
-                    handles[0]
-                        .logger()
-                        .error(format!("Failed to submit job: {err}"));
+                    logger.error(format!("Failed to submit job: {err}"));
                     panic!("Failed to submit job: {err}");
                 }
 
                 // Step 2: wait for the job to complete
-                let job_results =
-                    wait_for_completion_of_tangle_job(client, service_id, call_id, handles[0].logger())
-                        .await
-                        .expect("Failed to wait for job completion");
+                let job_results = wait_for_completion_of_tangle_job(
+                    client,
+                    service_id,
+                    call_id,
+                    handles[0].logger(),
+                )
+                .await
+                .expect("Failed to wait for job completion");
 
                 // Step 3: Get the job results, compare to expected value(s)
                 let expected_result =
@@ -547,34 +553,5 @@ mod tests_standard {
                 assert_eq!(job_results.result[0], expected_result);
             })
             .await
-    }
-}
-
-/// `base_paths`: All the paths pointing to the keystore for each node
-/// This function returns when every test_started.tmp file exists
-#[allow(dead_code)]
-async fn wait_for_test_ready(base_paths: Vec<PathBuf>, logger: &Logger) {
-    let paths = base_paths
-        .into_iter()
-        .map(|r| r.join("test_started.tmp"))
-        .collect::<Vec<_>>();
-    logger.info(format!("Waiting for these paths to exist: {paths:?}"));
-    loop {
-        let mut ready_count = 0;
-        for path in &paths {
-            if path.exists() {
-                ready_count += 1;
-            }
-        }
-
-        if ready_count == paths.len() {
-            break;
-        }
-
-        logger.info(format!(
-            "Not all paths are ready yet ({ready_count}/{}). Waiting ...",
-            paths.len()
-        ));
-        tokio::time::sleep(Duration::from_secs(3)).await;
     }
 }

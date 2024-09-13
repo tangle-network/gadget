@@ -105,10 +105,15 @@ fn create_gadget_runner(
     let env = gadget_sdk::config::load(Some(protocol), config).expect("Failed to load environment");
     match protocol {
         Protocol::Tangle => (env.clone(), Arc::new(TangleGadgetRunner { env })),
-        Protocol::Eigenlayer => (
-            env.clone(),
-            Arc::new(blueprint::eigenlayer::EigenlayerGadgetRunner::new(env)),
-        ),
+        Protocol::Eigenlayer => {
+            unimplemented!("Eigenlayer is not supported yet");
+            /*
+                (
+                env.clone(),
+                Arc::new(blueprint::eigenlayer::EigenlayerGadgetRunner::new(env)),
+            ),
+                 */
+        }
     }
 }
 
