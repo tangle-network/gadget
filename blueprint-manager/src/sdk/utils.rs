@@ -69,6 +69,8 @@ pub fn generate_process_arguments(
         format!("--chain={}", gadget_config.chain),
         format!("--verbose={}", opt.verbose),
         format!("--pretty={}", opt.pretty),
+        format!("--blueprint-id={}", blueprint_id),
+        format!("--service-id={}", service_id),
     ]);
 
     if let Some(keystore_password) = &gadget_config.keystore_password {
