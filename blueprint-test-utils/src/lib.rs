@@ -5,7 +5,6 @@ use blueprint_manager::executor::BlueprintManagerHandle;
 use gadget_io::{GadgetConfig, SupportedChains};
 use gadget_sdk::clients::tangle::runtime::TangleConfig;
 use gadget_sdk::logger::Logger;
-use cargo_tangle::deploy::Opts;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
@@ -28,6 +27,9 @@ use subxt::utils::AccountId32;
 use subxt::OnlineClient;
 use url::Url;
 use uuid::Uuid;
+
+#[allow(unused_imports)]
+use cargo_tangle::deploy::Opts;
 
 pub type InputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 pub type OutputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;

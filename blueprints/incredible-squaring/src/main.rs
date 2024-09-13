@@ -1,5 +1,5 @@
 use color_eyre::{eyre::eyre, Result};
-use gadget_sdk::config::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration};
+use gadget_sdk::config::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration, StdGadgetConfiguration};
 use gadget_sdk::{
     config::Protocol,
     events_watcher::{substrate::SubstrateEventWatcher, tangle::TangleEventsWatcher},
@@ -10,18 +10,16 @@ use gadget_sdk::{
     tx,
 };
 use std::io::Write;
-
 use incredible_squaring_blueprint as blueprint;
-
-use std::sync::Arc;
 use structopt::StructOpt;
+use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 
-#[async_trait::async_trait]
-trait GadgetRunner {
-    async fn register(&self) -> Result<()>;
-    async fn run(&self) -> Result<()>;
-}
+// #[async_trait::async_trait]
+// trait GadgetRunner {
+//     async fn register(&self) -> Result<()>;
+//     async fn run(&self) -> Result<()>;
+// }
 
 struct TangleGadgetRunner {
     env: GadgetConfiguration<parking_lot::RawRwLock>,
@@ -29,7 +27,13 @@ struct TangleGadgetRunner {
 
 #[async_trait::async_trait]
 impl GadgetRunner for TangleGadgetRunner {
-    async fn register(&self) -> Result<()> {
+    type Error = color_eyre::eyre::Report;
+
+    fn config(&self) -> &StdGadgetConfiguration {
+        todo!()
+    }
+
+    async fn register(&mut self) -> Result<()> {
         // TODO: Use the function in blueprint-test-utils
         if self.env.test_mode {
             self.env.logger.info("Skipping registration in test mode");
@@ -65,6 +69,10 @@ impl GadgetRunner for TangleGadgetRunner {
         Ok(())
     }
 
+    async fn benchmark(&self) -> std::result::Result<(), Self::Error> {
+        todo!()
+    }
+
     async fn run(&self) -> Result<()> {
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
         let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
@@ -95,19 +103,19 @@ impl GadgetRunner for TangleGadgetRunner {
     }
 }
 
-fn create_gadget_runner(
+async fn create_gadget_runner(
     protocol: Protocol,
     config: ContextConfig,
 ) -> (
     GadgetConfiguration<parking_lot::RawRwLock>,
-    Arc<dyn GadgetRunner>,
+    Box<dyn GadgetRunner<Error = color_eyre::Report>>,
 ) {
     let env = gadget_sdk::config::load(Some(protocol), config).expect("Failed to load environment");
     match protocol {
-        Protocol::Tangle => (env.clone(), Arc::new(TangleGadgetRunner { env })),
+        Protocol::Tangle => (env.clone(), Box::new(TangleGadgetRunner { env })),
         Protocol::Eigenlayer => (
             env.clone(),
-            Arc::new(blueprint::eigenlayer::EigenlayerGadgetRunner::new(env)),
+            Box::new(blueprint::eigenlayer::EigenlayerGadgetRunner::new(env).await),
         ),
     }
 }
@@ -121,7 +129,7 @@ async fn main() -> Result<()> {
     let protocol = Protocol::Tangle;
     let config = ContextConfig::from_args();
 
-    let (env, runner) = create_gadget_runner(protocol, config.clone());
+    let (env, mut runner) = create_gadget_runner(protocol, config.clone()).await;
 
     env.logger
         .info("~~~ Executing the incredible squaring blueprint ~~~");

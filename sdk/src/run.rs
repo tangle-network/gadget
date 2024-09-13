@@ -21,7 +21,7 @@ pub trait GadgetRunner {
     ///
     /// # Returns
     /// A `Result` indicating success or an error if registration fails.
-    async fn register(&self) -> Result<(), Self::Error>;
+    async fn register(&mut self) -> Result<(), Self::Error>;
 
     /// Performs a benchmark of the gadget's performance.
     ///
