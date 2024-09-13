@@ -31,10 +31,10 @@ pub(crate) fn generate_tangle_event_handler(
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
+        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig> for #struct_name {
             async fn can_handle_events(
                 &self,
-                events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::clients::tangle::runtime::TangleConfig>,
             ) -> Result<bool, gadget_sdk::events_watcher::Error> {
                 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 
@@ -54,9 +54,9 @@ pub(crate) fn generate_tangle_event_handler(
 
             async fn handle_events(
                 &self,
-                client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::clients::tangle::runtime::TangleConfig>,
                 (events, block_number): (
-                    gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                    gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::clients::tangle::runtime::TangleConfig>,
                     u64
                 ),
             ) -> Result<(), gadget_sdk::events_watcher::Error> {
@@ -95,7 +95,7 @@ pub(crate) fn generate_tangle_event_handler(
                         TangleApi::tx()
                             .services()
                             .submit_result(self.service_id, call.call_id, result);
-                    gadget_sdk::tx::tangle::send(&client, &self.signer, &response).await?;
+                    gadget_sdk::tx::tangle::send(&client, &self.signer, &response, &self.logger).await?;
                 }
                 Ok(())
             }

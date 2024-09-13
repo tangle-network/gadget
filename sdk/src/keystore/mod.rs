@@ -46,10 +46,10 @@ pub mod sr25519;
 
 use eigensdk_rs::eigen_utils::crypto::bls::{self as bls_bn254, g1_point_to_g1_projective};
 pub use error::Error;
-use subxt::PolkadotConfig;
+use subxt::{PolkadotConfig, SubstrateConfig};
 use tangle_subxt::subxt::ext::sp_core;
 use tangle_subxt::subxt::tx::PairSigner;
-pub type TanglePairSigner = PairSigner<PolkadotConfig, sp_core::sr25519::Pair>;
+pub type TanglePairSigner = PairSigner<SubstrateConfig, sp_core::sr25519::Pair>;
 pub type TanglePairSignerPolkadot = PairSigner<PolkadotConfig, sp_core::sr25519::Pair>;
 
 /// The Keystore [`Backend`] trait.

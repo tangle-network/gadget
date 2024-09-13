@@ -6,7 +6,7 @@ use crate::sdk::utils::msg_to_error;
 use color_eyre::eyre::OptionExt;
 use color_eyre::Report;
 use gadget_io::GadgetConfig;
-use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
+use gadget_sdk::clients::tangle::runtime::{TangleConfig, TangleRuntimeClient};
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
 use gadget_sdk::clients::Client;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
@@ -21,7 +21,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use tangle_subxt::subxt::blocks::BlockRef;
 use tangle_subxt::subxt::utils::AccountId32;
-use tangle_subxt::subxt::{Config, PolkadotConfig};
+use tangle_subxt::subxt::Config;
 use tangle_subxt::subxt_signer;
 use tokio::task::JoinHandle;
 
@@ -143,10 +143,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         "Local"
     };
 
-    let logger = Logger {
-        target: "blueprint-manager".into(),
-        id: format!("Blueprint-Manager-{}", logger_id),
-    };
+    let logger = Logger::from(format!("Blueprint-Manager-{}", logger_id));
 
     logger.info("Starting blueprint manager ... waiting for start signal ...");
 
@@ -156,11 +153,8 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
             &gadget_config.base_path,
         )?);
-        logger.info("Keystore opened successfully");
         let sr_key = keystore.sr25519_key()?;
-        logger.info("SR25519 key found");
         let ecdsa_key = keystore.ecdsa_key()?;
-        logger.info("ECDSA key found");
         (sr_key, ecdsa_key)
     };
 
@@ -278,7 +272,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 ///   -> If the services field is not empty, for each service in RpcServicesWithBlueprint.services, spawn the gadget binary, using params to set the job type to listen to (in terms of our old language, each spawned service represents a single "RoleType")
 async fn handle_init(
     tangle_runtime: &TangleRuntimeClient,
-    services_client: &ServicesClient<PolkadotConfig>,
+    services_client: &ServicesClient<TangleConfig>,
     logger: &Logger,
     sub_account_id: &AccountId32,
     active_gadgets: &mut ActiveGadgets,

@@ -58,7 +58,7 @@ impl GadgetRunner for TangleGadgetRunner {
         );
 
         // send the tx to the tangle and exit.
-        let result = tx::tangle::send(&client, &signer, &xt).await?;
+        let result = tx::tangle::send(&client, &signer, &xt, &self.env.logger).await?;
         self.env
             .logger
             .info(format!("Registered operator with hash: {:?}", result));
@@ -70,13 +70,16 @@ impl GadgetRunner for TangleGadgetRunner {
         let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
         let logger = self.env.logger.clone();
 
+        self.env.logger.info(format!(
+            "Starting the event watcher for {} ...",
+            signer.account_id()
+        ));
+
         let x_square = blueprint::XsquareEventHandler {
             service_id: self.env.service_id.unwrap(),
             signer,
             logger,
         };
-
-        self.env.logger.info("Starting the event watcher ...");
 
         SubstrateEventWatcher::run(
             &TangleEventsWatcher {
@@ -108,7 +111,7 @@ fn create_gadget_runner(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    gadget_sdk::logger::setup_log();
+    gadget_sdk::setup_log();
 
     // Load the environment and create the gadget runner
     // TODO: Place protocol in the config

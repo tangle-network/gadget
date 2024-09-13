@@ -2,82 +2,69 @@
 use alloc::string::String;
 use core::fmt::Display;
 use serde::{Deserialize, Serialize};
-
-const DEFAULT_TARGET: &str = "gadget";
+use tracing::{debug, error, info, trace, warn};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Logger {
-    pub target: String,
     pub id: String,
 }
 
 impl From<&str> for Logger {
     fn from(id: &str) -> Self {
-        Logger {
-            target: DEFAULT_TARGET.to_string(),
-            id: id.to_string(),
-        }
+        Logger::from(id.to_string())
     }
 }
 
 impl From<String> for Logger {
     fn from(id: String) -> Self {
-        Logger {
-            target: DEFAULT_TARGET.to_string(),
-            id,
-        }
+        Logger { id }
     }
 }
 
 impl Logger {
-    /// Method to change the target of the Logger. Defaults to `gadget`.
-    pub fn set_target(&mut self, new_target: &str) {
-        self.target = new_target.to_string(); // Convert &str to String
-    }
-
     /// Calls the [`log::trace!`] macro, using the logger's configurations.
     pub fn trace<T: Display>(&self, msg: T) {
         if self.id.is_empty() {
-            log::trace!(target: &self.target, "{msg}");
+            trace!(target: "gadget", "{msg}");
             return;
         }
-        log::trace!(target: &self.target, "[{}] {msg}", &self.id);
+        trace!(target: "gadget", "[{}] {msg}", &self.id);
     }
 
     /// Calls the [`log::debug!`] macro, using the logger's configurations.
     pub fn debug<T: Display>(&self, msg: T) {
         if self.id.is_empty() {
-            log::debug!(target: &self.target, "{msg}");
+            debug!(target: "gadget", "{msg}");
             return;
         }
-        log::debug!(target: &self.target, "[{}] {msg}", &self.id);
+        debug!(target: "gadget", "[{}] {msg}", &self.id);
     }
 
     /// Calls the [`log::info!`] macro, using the logger's configurations.
     pub fn info<T: Display>(&self, msg: T) {
         if self.id.is_empty() {
-            log::info!(target: &self.target, "{msg}");
+            info!(target: "gadget", "{msg}");
             return;
         }
-        log::info!(target: &self.target, "[{}] {msg}", &self.id);
+        info!(target: "gadget", "[{}] {msg}", &self.id);
     }
 
     /// Calls the [`log::warn!`] macro, using the logger's configurations.
     pub fn warn<T: Display>(&self, msg: T) {
         if self.id.is_empty() {
-            log::warn!(target: &self.target, "{msg}");
+            warn!(target: "gadget", "{msg}");
             return;
         }
-        log::warn!(target: &self.target, "[{}] {msg}", &self.id);
+        warn!(target: "gadget", "[{}] {msg}", &self.id);
     }
 
     /// Calls the [`log::error!`] macro, using the logger's configurations.
     pub fn error<T: Display>(&self, msg: T) {
         if self.id.is_empty() {
-            log::error!(target: &self.target, "{msg}");
+            error!(target: "gadget", "{msg}");
             return;
         }
-        log::error!(target: &self.target, "[{}] {msg}", &self.id);
+        error!(target: "gadget", "[{}] {msg}", &self.id);
     }
 }
 

@@ -1,5 +1,5 @@
+use crate::clients::tangle::runtime::TangleConfig;
 #[cfg(any(feature = "std", feature = "wasm"))]
-use crate::events_watcher::tangle::TangleConfig;
 use crate::keystore::backend::GenericKeyStore;
 use crate::keystore::{BackendExt, TanglePairSigner, TanglePairSignerPolkadot};
 use crate::logger::Logger;

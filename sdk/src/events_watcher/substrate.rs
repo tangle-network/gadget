@@ -192,3 +192,7 @@ where
         Ok(())
     }
 }
+
+pub trait LoggerEnv {
+    fn logger(&self) -> &Logger;
+}

@@ -6,13 +6,12 @@ use crate::sources::github::GithubBinaryFetcher;
 use crate::sources::BinarySourceFetcher;
 use color_eyre::eyre::OptionExt;
 use gadget_io::GadgetConfig;
-use gadget_sdk::clients::tangle::runtime::TangleEvent;
+use gadget_sdk::clients::tangle::runtime::{TangleConfig, TangleEvent};
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
 use gadget_sdk::logger::Logger;
 use itertools::Itertools;
 use std::sync::atomic::Ordering;
 use tangle_subxt::subxt::utils::AccountId32;
-use tangle_subxt::subxt::PolkadotConfig;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
     Gadget, GadgetSourceFetcher,
 };
@@ -166,7 +165,7 @@ pub(crate) async fn handle_tangle_event(
     gadget_manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
     poll_result: EventPollResult,
-    client: &ServicesClient<PolkadotConfig>,
+    client: &ServicesClient<TangleConfig>,
 ) -> color_eyre::Result<()> {
     logger.info(format!("Received notification {}", event.number));
 
