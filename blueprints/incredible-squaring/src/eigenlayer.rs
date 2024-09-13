@@ -178,7 +178,10 @@ pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
 
 impl<R: lock_api::RawRwLock> EigenlayerGadgetRunner<R> {
     pub async fn new(env: GadgetConfiguration<R>) -> Self {
-        Self { env, operator: None }
+        Self {
+            env,
+            operator: None,
+        }
     }
 
     pub fn set_operator(&mut self, operator: Operator<NodeConfig, OperatorInfoService>) {
