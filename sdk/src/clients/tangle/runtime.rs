@@ -96,15 +96,6 @@ impl TangleRuntimeClient {
     pub fn account_id(&self) -> &AccountId32 {
         &self.account_id
     }
-
-    // Initialize the `TangleRuntimeClient` to listen for finality notifications.
-    //
-    // NOTE: This method must be called before using the instance.
-    async fn initialize(&self) -> Result<(), Error> {
-        let finality_notification_stream = self.client.blocks().subscribe_finalized().await?;
-        *self.finality_notification_stream.lock().await = Some(finality_notification_stream);
-        Ok(())
-    }
 }
 
 #[async_trait::async_trait]

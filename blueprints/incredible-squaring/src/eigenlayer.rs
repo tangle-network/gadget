@@ -15,7 +15,6 @@ use gadget_sdk::job;
 use gadget_sdk::{
     events_watcher::{
         evm::{Config, EventWatcher},
-        // substrate::SubstrateEventWatcher,
     },
     keystore::Backend,
     network::setup::{start_p2p_network, NetworkConfig},

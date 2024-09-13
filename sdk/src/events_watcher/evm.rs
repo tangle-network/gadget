@@ -133,7 +133,7 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync {
     ) -> Result<(), Error> {
         const MAX_RETRY_COUNT: usize = 5;
 
-        let local_db = LocalDatabase::new("./db");
+        let local_db = LocalDatabase::open("./db");
         let backoff = Box::new(ConstantWithMaxRetryCount::new(
             Duration::from_millis(1000),
             MAX_RETRY_COUNT,
