@@ -49,11 +49,8 @@ jobs:
       - name: Install Foundry
         run: |
           curl -L https://foundry.paradigm.xyz | bash
-          ~/.foundry/bin/foundryup
-        shell: bash
-
-      - name: Add Foundry to PATH
-        run: echo "${HOME}/.foundry/bin" >> $GITHUB_PATH
+          echo "${HOME}/.foundry/bin" >> $GITHUB_PATH
+          foundryup
 
       - name: Verify Forge installation
         run: forge --version
