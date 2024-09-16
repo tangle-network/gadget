@@ -49,7 +49,7 @@ jobs:
       - name: Install Foundry
         run: |
           curl -L https://foundry.paradigm.xyz | bash
-          source /Users/runner/.bashrc
+          source /home/runner/.bashrc
           foundryup
 
       - name: Add Foundry to PATH
