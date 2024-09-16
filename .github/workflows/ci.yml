@@ -49,8 +49,9 @@ jobs:
       - name: Install Foundry
         run: |
           curl -L https://foundry.paradigm.xyz | bash
-          source /home/runner/.bashrc
+          source ~/.bashrc
           foundryup
+        shell: bash
 
       - name: Add Foundry to PATH
         run: echo "${HOME}/.foundry/bin" >> $GITHUB_PATH
