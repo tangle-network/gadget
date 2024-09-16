@@ -53,7 +53,7 @@ jobs:
         shell: bash
 
       - name: Add Foundry to PATH
-        run: echo "$HOME/.foundry/bin" >> $GITHUB_PATH
+        run: echo "/home/runner/.config/.foundry/bin" >> $GITHUB_PATH
 
       - name: Verify Forge installation
         run: forge --version
