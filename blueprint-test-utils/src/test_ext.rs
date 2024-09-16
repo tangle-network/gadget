@@ -30,7 +30,7 @@ use gadget_sdk::tangle_subxt::subxt::{OnlineClient, SubstrateConfig};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ApprovalPrefrence;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
-use gadget_sdk::TokioMutexExt;
+use gadget_sdk::mutex_ext::TokioMutexExt;
 use gadget_sdk::Error;
 use libp2p::Multiaddr;
 use sp_application_crypto::ecdsa;
@@ -129,17 +129,16 @@ impl Network for MockNetwork {
                 .peers_tx
                 .get(&peer_id)
                 .ok_or(Error::PeerNotFound { id: peer_id })?;
-            tx.send(message).map_err(|err| Error::NetworkError {
+            tx.send(message).map_err(|err| Error::Network {
                 reason: err.to_string(),
             })?;
         } else {
             // Broadcast to everyone except ourself
             for (peer_id, tx) in self.peers_tx.iter() {
                 if peer_id != &self.my_id {
-                    tx.send(message.clone())
-                        .map_err(|err| Error::NetworkError {
-                            reason: err.to_string(),
-                        })?;
+                    tx.send(message.clone()).map_err(|err| Error::Network {
+                        reason: err.to_string(),
+                    })?;
                 }
             }
         }
