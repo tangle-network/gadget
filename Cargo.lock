@@ -4317,6 +4317,8 @@ dependencies = [
 name = "gadget-blueprint-proc-macro"
 version = "0.1.0"
 dependencies = [
+ "alloy-contract",
+ "alloy-json-abi",
  "gadget-blueprint-proc-macro-core",
  "proc-macro2",
  "quote",

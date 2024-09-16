@@ -14,6 +14,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
 ) -> TokenStream {
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
+    let instance_wrapper_name = format_ident!("{}InstanceWrapper", instance_base);
     let instance = quote! { #instance_base::#instance_name<T::T, T::P, alloy_network::Ethereum> };
     let ev = event_handler.event().unwrap();
     let event_converter = event_handler.event_converter().unwrap();
@@ -27,6 +28,55 @@ pub(crate) fn generate_eigenlayer_event_handler(
         pub struct #struct_name {
             #(#additional_params)*
         }
+
+        #[derive(Debug, Clone)]
+        pub struct #instance_wrapper_name<T, P> {
+            instance: #instance_base::#instance_name<T, P>,
+            contract_instance: OnceLock<ContractInstance<T, P, alloy_network::Ethereum>>,
+        }
+
+        impl<T, P> #instance_wrapper_name<T, P>
+        where
+            T: alloy_transport::Transport + Clone + Send + Sync + 'static,
+            P: alloy_provider::Provider<T> + Clone + Send + Sync + 'static,
+        {
+            /// Constructor for creating a new [`#instance_wrapper_name`].
+            pub fn new(instance: #instance_base::#instance_name<T, P>) -> Self {
+            Self {
+                instance,
+                contract_instance: OnceLock::new(),
+            }
+        }
+            /// Lazily creates the [`ContractInstance`] if it does not exist, otherwise returning a reference to it.
+            #[allow(clippy::clone_on_copy)]
+            fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
+            self.contract_instance.get_or_init(|| {
+                let instance_string = stringify!(instance_name);
+                let abi_path = format!("../contracts/out/{instance_string}.sol/{instance_string}.json");
+                let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&abi_path).unwrap());
+                ContractInstance::new(
+                    self.instance.address().clone(),
+                    self.instance.provider().clone(),
+                    abi_location,
+                )
+            })
+        }
+        }
+
+
+        impl<T, P> Deref for #instance_wrapper_name<T, P>
+        where
+            T: Transport + Clone + Send + Sync + 'static,
+            P: Provider<T> + Clone + Send + Sync + 'static,
+        {
+           type Target = ContractInstance<T, P, Ethereum>;
+
+           /// Dereferences the [`#instance_wrapper_name`] to its [`ContractInstance`].
+           fn deref(&self) -> &Self::Target {
+               self.get_contract_instance()
+            }
+        }
+
 
         #[automatically_derived]
         #[async_trait::async_trait]
@@ -80,6 +130,36 @@ pub(crate) fn generate_eigenlayer_event_handler(
 
                 Ok(())
             }
+        }
+
+        pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
+            pub env: GadgetConfiguration<R>,
+            /// The EigenLayer Operator that registers to the AVS and completes given tasks
+            pub operator: Option<Operator<NodeConfig, OperatorInfoService>>,
+        }
+
+        impl<R: lock_api::RawRwLock> EigenlayerGadgetRunner<R> {
+            pub async fn new(env: GadgetConfiguration<R>) -> Self {
+                Self {
+                    env,
+                    operator: None,
+                }
+            }
+
+            pub fn set_operator(&mut self, operator: Operator<NodeConfig, OperatorInfoService>) {
+                self.operator = operator.into();
+            }
+        }
+
+        pub struct EigenlayerEventWatcher<T> {
+            _phantom: std::marker::PhantomData<T>,
+        }
+
+        impl<T: Config<N = Ethereum>> EventWatcher<T> for EigenlayerEventWatcher<T> {
+            const TAG: &'static str = "eigenlayer";
+            type Contract = #instance_wrapper_name<T::T, T::P>;
+            type Event = #instance_base::NewTaskCreated;
+            const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
         }
     }
 }

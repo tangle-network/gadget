@@ -302,6 +302,8 @@ fn bake_blueprint(
         convert_to_bytes_or_null(&mut job["metadata"]["description"]);
     }
 
+    // Retrieves the Gadget information from the blueprint.json file.
+    // From this data, we find the sources of the Gadget.
     let (_, gadget) = blueprint_json["gadget"]
         .as_object_mut()
         .expect("Bad gadget value")
@@ -310,6 +312,8 @@ fn bake_blueprint(
         .expect("Should be at least one gadget");
     let sources = gadget["sources"].as_array_mut().expect("Should be a list");
 
+    // The source includes where to fetch the Blueprint, the name of the blueprint, and
+    // the name of the binary. From this data, we create the blueprint's [`ServiceBlueprint`]
     for (idx, source) in sources.iter_mut().enumerate() {
         if let Some(fetchers) = source["fetcher"].as_object_mut() {
             let fetcher_fields = fetchers
@@ -333,6 +337,9 @@ fn bake_blueprint(
     Ok(blueprint)
 }
 
+/// Recursively converts a JSON string (or array of JSON strings) to bytes.
+///
+/// Empty strings are converted to nulls.
 fn convert_to_bytes_or_null(v: &mut serde_json::Value) {
     if let serde_json::Value::String(s) = v {
         *v = serde_json::Value::Array(s.bytes().map(serde_json::Value::from).collect());

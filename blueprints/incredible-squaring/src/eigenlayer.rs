@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use alloy_contract::{ContractInstance, Interface};
+use alloy_contract::ContractInstance;
 use alloy_network::Ethereum;
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, ChainId, FixedBytes};
@@ -26,7 +26,7 @@ use std::sync::OnceLock;
 use alloy_signer::k256::elliptic_curve::SecretKey;
 use alloy_transport::Transport;
 use IncredibleSquaringTaskManager::{
-    respondToTaskCall, G1Point, G2Point, IncredibleSquaringTaskManagerInstance,
+    respondToTaskCall, G1Point, G2Point,
     NonSignerStakesAndSignature, Task, TaskResponse,
 };
 use gadget_sdk::{
@@ -54,52 +54,6 @@ sol!(
     IncredibleSquaringTaskManager,
     "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
 );
-
-/// A wrapper around [`IncredibleSquaringTaskManagerInstance`] that can be dereferenced to its [`ContractInstance`].
-#[derive(Debug, Clone)]
-struct IncredibleSquaringInstance<T, P> {
-    instance: IncredibleSquaringTaskManagerInstance<T, P>,
-    contract_instance: OnceLock<ContractInstance<T, P, Ethereum>>,
-}
-
-impl<T, P> IncredibleSquaringInstance<T, P>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T> + Clone + Send + Sync + 'static,
-{
-    /// Constructor for creating a new [`IncredibleSquaringInstance`].
-    pub fn new(instance: IncredibleSquaringTaskManagerInstance<T, P>) -> Self {
-        Self {
-            instance,
-            contract_instance: OnceLock::new(),
-        }
-    }
-
-    /// Lazily creates the [`ContractInstance`] if it does not exist, otherwise returning a reference to it.
-    #[allow(clippy::clone_on_copy)]
-    fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
-        self.contract_instance.get_or_init(|| {
-            ContractInstance::new(
-                self.instance.address().clone(),
-                self.instance.provider().clone(),
-                Interface::new(JsonAbi::from_json_str(include_str!("../contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json")).unwrap()),
-            )
-        })
-    }
-}
-
-impl<T, P> Deref for IncredibleSquaringInstance<T, P>
-where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T> + Clone + Send + Sync + 'static,
-{
-    type Target = ContractInstance<T, P, Ethereum>;
-
-    /// Dereferences the [`IncredibleSquaringInstance`] to its [`ContractInstance`].
-    fn deref(&self) -> &Self::Target {
-        self.get_contract_instance()
-    }
-}
 
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
@@ -206,37 +160,6 @@ pub fn convert_event_to_inputs(
         quorum_numbers,
         quorum_threshold_percentage,
     )
-}
-
-pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
-    pub env: GadgetConfiguration<R>,
-    /// The EigenLayer Operator that registers to the AVS and completes the Squaring tasks
-    pub operator: Option<Operator<NodeConfig, OperatorInfoService>>,
-}
-
-impl<R: lock_api::RawRwLock> EigenlayerGadgetRunner<R> {
-    pub async fn new(env: GadgetConfiguration<R>) -> Self {
-        Self {
-            env,
-            operator: None,
-        }
-    }
-
-    pub fn set_operator(&mut self, operator: Operator<NodeConfig, OperatorInfoService>) {
-        self.operator = operator.into();
-    }
-}
-
-struct EigenlayerEventWatcher<T> {
-    _phantom: std::marker::PhantomData<T>,
-}
-
-impl<T: Config<N = Ethereum>> EventWatcher<T> for EigenlayerEventWatcher<T> {
-    const TAG: &'static str = "eigenlayer";
-    // type Contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance<T::T, T::P, T::N>;
-    type Contract = IncredibleSquaringInstance<T::T, T::P>;
-    type Event = IncredibleSquaringTaskManager::NewTaskCreated;
-    const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
 }
 
 #[async_trait::async_trait]

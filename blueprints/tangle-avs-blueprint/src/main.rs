@@ -1,5 +1,3 @@
-pub mod runner;
-
 use color_eyre::{eyre::eyre, Result};
 use gadget_sdk::{
     env::Protocol,
@@ -10,12 +8,12 @@ use gadget_sdk::{
     },
     tx,
 };
-
 use incredible_squaring_blueprint as blueprint;
-
 use gadget_sdk::env::{ContextConfig, GadgetConfiguration};
 use std::sync::Arc;
 use structopt::StructOpt;
+
+pub mod runner;
 
 #[async_trait::async_trait]
 trait GadgetRunner {

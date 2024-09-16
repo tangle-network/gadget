@@ -107,6 +107,7 @@ fn extract_hooks(krate: &Crate) -> Vec<Hook> {
     extract_hooks_from_module(&krate.root, &krate.index, blueprint_crate)
 }
 
+/// Extract the `gadget` field from the rustdoc output.
 fn extract_gadget<'a, T: AsRef<Path> + 'a>(blueprint_json_path: T) -> Gadget<'a> {
     let json_string = unescape_json_string(
         &std::fs::read_to_string(blueprint_json_path).expect("Failed to read blueprint.json file"),
