@@ -46,21 +46,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Install and Debug Foundry
+      - name: Install Foundry
         run: |
           curl -L https://foundry.paradigm.xyz | bash
-          echo "Listing home directory:"
-          ls -la ~
-          echo "Listing .foundry directory (if it exists):"
-          ls -la ~/.foundry || echo ".foundry directory not found"
-          echo "Listing .foundry/bin directory (if it exists):"
-          ls -la ~/.foundry/bin || echo ".foundry/bin directory not found"
-          echo "Checking PATH:"
-          echo $PATH
-          echo "Attempting to run foundryup:"
-          ~/.foundry/bin/foundryup || echo "foundryup not found in expected location"
-          echo "Searching for foundryup:"
-          find ~ -name foundryup
+          /home/runner/.config/.foundry/bin/foundryup
         shell: bash
 
       - name: Add Foundry to PATH
