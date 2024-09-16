@@ -7,6 +7,21 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[package.metadata.gadget]
+type = "Wasm"
+runtime = "Wasmtime"
+
+[[package.metadata.gadget.sources]]
+type = "IPFS"
+cid = "QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB"
+
+[[package.metadata.gadget.sources]]
+type = "Github"
+owner = "webb-tools"
+repo = "incredible-squaring"
+tag = "v0.1.0"
+binaries = [{ arch = "Wasm", os = "Unknown", name = "incredible_squaring_gadget.wasm", sha256 = "" }]
+
 [dependencies]
 async-trait = { workspace = true }
 tracing = { workspace = true }
