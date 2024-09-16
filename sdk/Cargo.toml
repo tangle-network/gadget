@@ -18,7 +18,7 @@ http-body-util = { workspace = true }
 lock_api = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
 parking_lot = { workspace = true, optional = true }
-rand = { version = "0.8", default-features = false, features = ["alloc"] }
+rand = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 
 # Keystore deps
