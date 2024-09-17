@@ -210,7 +210,6 @@ pub enum ServiceRequestHook {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(from = "TaggedGadget<'_>")]
 pub enum Gadget<'a> {
     /// A Gadget that is a WASM binary that will be executed.
     /// inside the shell using the wasm runtime.
@@ -221,30 +220,6 @@ pub enum Gadget<'a> {
     /// A Gadget that is a container that will be executed.
     /// inside the shell using the container runtime (e.g. Docker, Podman, etc.)
     Container(ContainerGadget<'a>),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "type")]
-enum TaggedGadget<'a> {
-    /// A Gadget that is a WASM binary that will be executed.
-    /// inside the shell using the wasm runtime.
-    Wasm(WasmGadget<'a>),
-    /// A Gadget that is a native binary that will be executed.
-    /// inside the shell using the OS.
-    Native(NativeGadget<'a>),
-    /// A Gadget that is a container that will be executed.
-    /// inside the shell using the container runtime (e.g. Docker, Podman, etc.)
-    Container(ContainerGadget<'a>),
-}
-
-impl<'a> From<TaggedGadget<'a>> for Gadget<'a> {
-    fn from(tagged: TaggedGadget<'a>) -> Self {
-        match tagged {
-            TaggedGadget::Wasm(wasm) => Gadget::Wasm(wasm),
-            TaggedGadget::Native(native) => Gadget::Native(native),
-            TaggedGadget::Container(container) => Gadget::Container(container),
-        }
-    }
 }
 
 /// A binary that is stored in the GitHub release.

@@ -87,51 +87,8 @@
     "Uint64"
   ],
   "gadget": {
-    "Wasm": {
-      "runtime": "Wasmtime",
+    "Native": {
       "sources": [
-        {
-          "fetcher": {
-            "IPFS": [
-              1,
-              113,
-              18,
-              32,
-              41,
-              119,
-              46,
-              195,
-              0,
-              149,
-              81,
-              168,
-              63,
-              176,
-              40,
-              43,
-              118,
-              60,
-              191,
-              149,
-              226,
-              240,
-              10,
-              35,
-              152,
-              172,
-              31,
-              178,
-              232,
-              48,
-              180,
-              238,
-              36,
-              196,
-              112,
-              55
-            ]
-          }
-        },
         {
           "fetcher": {
             "Github": {
@@ -140,9 +97,48 @@
               "tag": "0.1.0",
               "binaries": [
                 {
-                  "arch": "Wasm",
-                  "os": "Unknown",
-                  "name": "incredible_squaring_gadget.wasm",
+                  "arch": "Amd64",
+                  "os": "Linux",
+                  "name": "amd64-linux-incredible-squaring-gadget",
+                  "sha256": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "arch": "Arm64",
+                  "os": "Linux",
+                  "name": "arm64-linux-incredible-squaring-gadget",
                   "sha256": [
                     0,
                     0,

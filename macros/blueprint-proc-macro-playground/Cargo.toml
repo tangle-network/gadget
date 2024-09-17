@@ -7,14 +7,13 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
-[package.metadata.gadget]
-type = "Wasm"
-runtime = "Wasmtime"
-sources = [
-    "/ipfs/bafyreibjo4xmgaevkgud7mbifn3dzp4v4lyaui4yvqp3f2bqwtxcjrdqg4",
-    { owner = "webb-tools", repo = "incredible-squaring", tag = "0.1.0", binaries = [
-        { arch = "Wasm", os = "Unknown", name = "incredible_squaring_gadget.wasm" },
-    ] },
+[[package.metadata.gadget.Native.sources]]
+owner = "webb-tools"
+repo = "incredible-squaring"
+tag = "0.1.0"
+binaries = [
+    { arch = "Amd64", os = "Linux", name = "amd64-linux-incredible-squaring-gadget" },
+    { arch = "Arm64", os = "Linux", name = "arm64-linux-incredible-squaring-gadget" },
 ]
 
 [dependencies]
