@@ -9,45 +9,8 @@
 pub mod error;
 pub use error::Error;
 
+#[cfg(feature = "std")]
 pub mod evm;
+mod retry;
 pub mod substrate;
 pub mod tangle;
-
-use core::time::Duration;
-
-/// Constant with Max Retry Count is a backoff policy which always returns
-/// a constant duration, until it exceeds the maximum retry count.
-#[derive(Debug, Clone, Copy)]
-pub struct ConstantWithMaxRetryCount {
-    interval: Duration,
-    max_retry_count: usize,
-    count: usize,
-}
-
-impl ConstantWithMaxRetryCount {
-    /// Creates a new Constant backoff with `interval` and `max_retry_count`.
-    /// `interval` is the duration to wait between retries, and `max_retry_count` is the maximum
-    /// number of retries, after which we return `None` to indicate that we should stop retrying.
-    #[must_use]
-    pub fn new(interval: Duration, max_retry_count: usize) -> Self {
-        Self {
-            interval,
-            max_retry_count,
-            count: 0,
-        }
-    }
-}
-
-#[cfg(any(feature = "std", feature = "wasm"))]
-impl backoff::backoff::Backoff for ConstantWithMaxRetryCount {
-    fn reset(&mut self) {
-        self.count = 0;
-    }
-
-    fn next_backoff(&mut self) -> Option<Duration> {
-        (self.count < self.max_retry_count).then(|| {
-            self.count += 1;
-            self.interval
-        })
-    }
-}
