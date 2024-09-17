@@ -369,7 +369,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             identity,
             ecdsa_key,
             bootnodes: vec![],
-            bind_ip: self.env.bind_addr.parse()?,
+            bind_ip: self.env.bind_addr,
             bind_port: self.env.bind_port,
             topics: vec!["__TESTING_INCREDIBLE_SQUARING".to_string()],
             logger: self.env.logger.clone(),
