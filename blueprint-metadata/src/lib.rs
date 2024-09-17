@@ -36,7 +36,6 @@ impl Config {
         let jobs = extract_jobs(&krate);
         let hooks = extract_hooks(&krate);
         let gadget = generate_gadget().into();
-        eprintln!("{gadget:?}");
         eprintln!("Generating blueprint.json to {:?}", output_file);
         let blueprint = ServiceBlueprint {
             metadata: ServiceMetadata {
@@ -333,11 +332,7 @@ fn generate_gadget() -> Gadget<'static> {
             sources: vec![],
         });
     };
-    eprintln!(
-        "Metadata: {}",
-        serde_json::to_string_pretty(gadget).unwrap()
-    );
-    serde_json::from_value(gadget.clone()).expect("Failed to deserialize metadata")
+    serde_json::from_value(gadget.clone()).expect("Failed to deserialize gadget.")
 }
 
 fn generate_rustdoc() -> Crate {
