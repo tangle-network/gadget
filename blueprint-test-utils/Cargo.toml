@@ -70,6 +70,7 @@ uuid = { workspace = true, features = ["v4"] }
 schnorrkel = { workspace = true }
 subxt = { workspace = true, features = ["substrate-compat"] }
 color-eyre = { workspace = true }
+eigensdk-rs = { workspace = true }
 
 # Pallets
 pallet-timestamp = { workspace = true }
