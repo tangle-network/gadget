@@ -64,7 +64,6 @@ pub trait EventHandler<T: Config>: Send + Sync {
 /// An Auxiliary trait to handle events with retry logic.
 ///
 /// this trait is automatically implemented for all the event handlers.
-#[async_trait::async_trait]
 pub trait EventHandlerWithRetry<T: Config>: EventHandler<T> + Send + Sync + 'static {
     /// A method to be called with the event information,
     /// it is up to the handler to decide what to do with the event.
@@ -76,11 +75,12 @@ pub trait EventHandlerWithRetry<T: Config>: EventHandler<T> + Send + Sync + 'sta
     /// If this method returns Ok(true), the event will be marked as handled.
     ///
     /// **Note**: This method is automatically implemented for all the event handlers.
+    #[allow(async_fn_in_trait)]
     async fn handle_event_with_retry(
         &self,
         contract: &Self::Contract,
         (event, log): (Self::Event, Log),
-        backoff: impl backon::Backoff + Send + Sync + 'static,
+        backoff: impl backon::BackoffBuilder + 'static,
     ) -> Result<(), Error> {
         let ev = event.clone();
         let wrapped_task = || self.handle_event(contract, (ev.clone(), log.clone()));
@@ -134,7 +134,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
                 .provider()
                 .root()
                 .get_chain_id()
-                .map_err(Into::into)
+                .map_err(Into::<Error>::into)
                 .await?;
 
             // we only query this once, at the start of the events watcher.
@@ -142,7 +142,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
             let mut target_block_number: u64 = contract
                 .provider()
                 .get_block_number()
-                .map_err(Into::into)
+                .map_err(Into::<Error>::into)
                 .await?;
 
             local_db.set(
@@ -154,7 +154,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
                 .provider()
                 .get_transaction_receipt(Self::GENESIS_TX_HASH)
                 .await
-                .map_err(Into::into)?
+                .map_err(Into::<Error>::into)?
                 .map(|receipt| receipt.block_number().unwrap_or_default())
                 .unwrap_or_default();
 
@@ -170,7 +170,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
                         .to_block(BlockNumberOrTag::Number(dest_block)),
                 );
 
-                let events = events_filter.query().await.map_err(Into::into)?;
+                let events = events_filter.query().await.map_err(Into::<Error>::into)?;
                 let number_of_events = events.len();
                 tracing::trace!("Found #{number_of_events} events");
                 for (event, log) in events {
@@ -210,7 +210,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
                         tracing::error!(%chain_id, "Error while handling event, all handlers failed.");
                         tracing::warn!(%chain_id, "Restarting event watcher ...");
                         // this a transient error, so we will retry again.
-                        return Err(backoff::Error::transient(Error::ForceRestart));
+                        return Err(Error::ForceRestart);
                     }
                 }
 
@@ -229,7 +229,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
                     target_block_number = contract
                         .provider()
                         .get_block_number()
-                        .map_err(Into::into)
+                        .map_err(Into::<Error>::into)
                         .await?;
                     local_db.set(
                         &format!("TARGET_BLOCK_NUMBER_{}", contract.address()),

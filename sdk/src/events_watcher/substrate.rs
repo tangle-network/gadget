@@ -67,7 +67,7 @@ where
         &self,
         client: OnlineClient<RuntimeConfig>,
         (events, block_number): (subxt::events::Events<RuntimeConfig>, u64),
-        backoff: impl backon::BackoffBuilder + Send + Sync + 'static,
+        backoff: impl backon::BackoffBuilder + 'static,
     ) -> Result<(), Error> {
         if !self.can_handle_events(events.clone()).await? {
             return Ok(());
