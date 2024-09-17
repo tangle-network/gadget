@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 use async_trait::async_trait;
 use auto_impl::auto_impl;
 
+#[cfg(feature = "std")]
 pub mod tangle;
 
 #[async_trait]

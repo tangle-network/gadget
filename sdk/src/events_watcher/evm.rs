@@ -1,6 +1,7 @@
 //! EVM Event Watcher Module
 
 use crate::events_watcher::{error::Error, ConstantWithMaxRetryCount};
+use crate::events_watcher::retry::UnboundedConstantBuilder;
 use crate::store::LocalDatabase;
 use alloy_network::ReceiptResponse;
 use alloy_network::{Ethereum, Network};
@@ -10,9 +11,9 @@ use alloy_rpc_types::BlockNumberOrTag;
 use alloy_rpc_types::{Filter, Log};
 use alloy_sol_types::SolEvent;
 use alloy_transport::Transport;
+use backon::{ConstantBuilder, Retryable};
 use futures::TryFutureExt;
-use std::ops::Deref;
-use std::time::Duration;
+use std::{ops::Deref, time::Duration};
 
 pub trait Config: Send + Sync + 'static {
     type T: Transport + Clone + Send + Sync + 'static;
@@ -81,14 +82,11 @@ pub trait EventHandlerWithRetry<T: Config<N = Ethereum>>:
         &self,
         contract: &Self::Contract,
         (event, log): (Self::Event, Log),
-        backoff: Box<dyn backoff::backoff::Backoff + Send + Sync>,
+        backoff: impl backon::BackoffBuilder + 'static,
     ) -> Result<(), Error> {
         let ev = event.clone();
-        let wrapped_task = || {
-            self.handle_event(contract, (ev.clone(), log.clone()))
-                .map_err(backoff::Error::transient)
-        };
-        backoff::future::retry(backoff, wrapped_task).await?;
+        let wrapped_task = || self.handle_event(contract, (ev.clone(), log.clone()));
+        wrapped_task.retry(backoff).await?;
         Ok(())
     }
 }
@@ -131,21 +129,15 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync {
         contract: Self::Contract,
         handlers: Vec<EventHandlerFor<Self, T>>,
     ) -> Result<(), Error> {
-        const MAX_RETRY_COUNT: usize = 5;
-
         let local_db = LocalDatabase::open("./db");
-        let backoff = Box::new(ConstantWithMaxRetryCount::new(
-            Duration::from_millis(1000),
-            MAX_RETRY_COUNT,
-        )) as Box<dyn backoff::backoff::Backoff + Send + Sync>;
+        let backoff = UnboundedConstantBuilder::new(Duration::from_secs(1));
         let task = || async {
             let step = 100;
             let chain_id: u64 = contract
                 .provider()
                 .root()
                 .get_chain_id()
-                .map_err(Into::into)
-                .map_err(backoff::Error::transient)
+                .map_err(Into::<Error>::into)
                 .await?;
 
             // we only query this once, at the start of the events watcher.
@@ -153,8 +145,7 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync {
             let mut target_block_number: u64 = contract
                 .provider()
                 .get_block_number()
-                .map_err(Into::into)
-                .map_err(backoff::Error::transient)
+                .map_err(Into::<Error>::into)
                 .await?;
 
             local_db.set(
@@ -166,8 +157,7 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync {
                 .provider()
                 .get_transaction_receipt(Self::GENESIS_TX_HASH)
                 .await
-                .map_err(Into::into)
-                .map_err(backoff::Error::transient)?
+                .map_err(Into::<Error>::into)?
                 .map(|receipt| receipt.block_number().unwrap_or_default())
                 .unwrap_or_default();
 
@@ -183,11 +173,7 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync {
                         .to_block(BlockNumberOrTag::Number(dest_block)),
                 );
 
-                let events = events_filter
-                    .query()
-                    .await
-                    .map_err(Into::into)
-                    .map_err(backoff::Error::transient)?;
+                let events = events_filter.query().await.map_err(Into::<Error>::into)?;
                 let number_of_events = events.len();
                 tracing::trace!("Found #{number_of_events} events");
                 for (event, log) in events {
@@ -197,11 +183,9 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync {
                     const MAX_RETRY_COUNT: usize = 5;
                     let tasks = handlers.iter().map(|handler| {
                         // a constant backoff with maximum retry count is used here.
-                        let backoff = Box::new(ConstantWithMaxRetryCount::new(
-                            Duration::from_millis(100),
-                            MAX_RETRY_COUNT,
-                        ))
-                            as Box<dyn backoff::backoff::Backoff + Send + Sync>;
+                        let backoff = ConstantBuilder::default()
+                            .with_delay(Duration::from_millis(100))
+                            .with_max_times(MAX_RETRY_COUNT);
                         handler.handle_event_with_retry(
                             &contract,
                             (event.clone(), log.clone()),
@@ -229,7 +213,7 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync {
                         tracing::error!(%chain_id, "Error while handling event, all handlers failed.");
                         tracing::warn!(%chain_id, "Restarting event watcher ...");
                         // this a transient error, so we will retry again.
-                        return Err(backoff::Error::transient(Error::ForceRestart));
+                        return Err(Error::ForceRestart);
                     }
                 }
 
@@ -248,8 +232,7 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync {
                     target_block_number = contract
                         .provider()
                         .get_block_number()
-                        .map_err(Into::into)
-                        .map_err(backoff::Error::transient)
+                        .map_err(Into::<Error>::into)
                         .await?;
                     local_db.set(
                         &format!("TARGET_BLOCK_NUMBER_{}", contract.address()),
@@ -258,7 +241,7 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync {
                 }
             }
         };
-        backoff::future::retry(backoff, task).await?;
+        task.retry(backoff).await?;
         Ok(())
     }
 }

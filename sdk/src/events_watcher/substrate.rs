@@ -8,6 +8,7 @@
 //! action to take when the specified event is found in a block at the `handle_event` api.
 
 use crate::events_watcher::{error::Error, ConstantWithMaxRetryCount};
+use backon::{ConstantBuilder, ExponentialBuilder, Retryable};
 use crate::logger::Logger;
 use core::time::Duration;
 use futures::TryFutureExt;
@@ -67,16 +68,13 @@ where
         &self,
         client: OnlineClient<RuntimeConfig>,
         (events, block_number): (subxt::events::Events<RuntimeConfig>, u64),
-        backoff: impl backoff::backoff::Backoff + Send + Sync + 'static,
+        backoff: impl backon::BackoffBuilder + 'static,
     ) -> Result<(), Error> {
         if !self.can_handle_events(events.clone()).await? {
             return Ok(());
         };
-        let wrapped_task = || {
-            self.handle_events(client.clone(), (events.clone(), block_number))
-                .map_err(backoff::Error::transient)
-        };
-        backoff::future::retry(backoff, wrapped_task).await?;
+        let wrapped_task = || self.handle_events(client.clone(), (events.clone(), block_number));
+        wrapped_task.retry(backoff).await?;
         Ok(())
     }
 }
@@ -116,19 +114,12 @@ where
     ) -> Result<(), Error> {
         const MAX_RETRY_COUNT: usize = 5;
 
-        let backoff = backoff::ExponentialBackoff {
-            max_elapsed_time: None,
-            ..Default::default()
-        };
+        let backoff = ExponentialBuilder::default().with_max_times(usize::MAX);
         let task = || async {
             let blocks = client.blocks();
             let mut best_block: Option<u64> = None;
             loop {
-                let latest_block = blocks
-                    .at_latest()
-                    .map_err(Into::into)
-                    .map_err(backoff::Error::transient)
-                    .await?;
+                let latest_block = blocks.at_latest().map_err(Into::<Error>::into).await?;
 
                 let latest_block_number: u64 = latest_block.number().into();
 
@@ -143,20 +134,16 @@ where
                         // first block or a new block, handle it.
                     }
                 }
-                let events = latest_block
-                    .events()
-                    .map_err(Into::into)
-                    .map_err(backoff::Error::transient)
-                    .await?;
-                self.logger()
-                    .info(format!("Found #{} events: {:?}", events.len(), events));
+                let events = latest_block.events().map_err(Into::<Error>::into).await?;
+                tracing::trace!("Found #{} events", events.len());
                 // wraps each handler future in a retry logic, that will retry the handler
                 // if it fails, up to `MAX_RETRY_COUNT`, after this it will ignore that event for
                 // that specific handler.
                 let tasks = handlers.iter().map(|handler| {
                     // a constant backoff with maximum retry count is used here.
-                    let backoff =
-                        ConstantWithMaxRetryCount::new(Duration::from_millis(100), MAX_RETRY_COUNT);
+                    let backoff = ConstantBuilder::default()
+                        .with_delay(Duration::from_millis(100))
+                        .with_max_times(MAX_RETRY_COUNT);
                     handler.handle_events_with_retry(
                         client.clone(),
                         (events.clone(), latest_block_number),
@@ -172,25 +159,25 @@ where
                 // wrong.
                 for r in &result {
                     if let Err(e) = r {
-                        self.logger().error(format!("Error from result: {e:?}"));
+                        tracing::error!("{}", e);
                     }
                 }
 
                 if mark_as_handled {
-                    self.logger().info(format!(
-                        "event handled successfully at block #{latest_block_number}",
-                    ));
+                    tracing::trace!(
+                        "event handled successfully at block #{}",
+                        latest_block_number
+                    );
                     best_block = Some(latest_block_number);
                 } else {
-                    self.logger()
-                        .error("Error while handling event, all handlers failed.");
-                    self.logger().warn("Restarting event watcher ...");
+                    tracing::error!("Error while handling event, all handlers failed.");
+                    tracing::warn!("Restarting event watcher ...");
                     // this a transient error, so we will retry again.
-                    return Err(backoff::Error::transient(Error::ForceRestart));
+                    return Err(Error::ForceRestart);
                 }
             }
         };
-        backoff::future::retry(backoff, task).await?;
+        task.retry(backoff).await?;
         Ok(())
     }
 }
