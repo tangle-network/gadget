@@ -334,6 +334,7 @@ impl<'a> From<GadgetSourceFlat<'a>> for GadgetSource<'a> {
 #[serde(from = "UntaggedGadgetSourceFetcher<'_>")]
 pub enum GadgetSourceFetcher<'a> {
     /// A Gadget that will be fetched from the IPFS.
+    #[allow(clippy::upper_case_acronyms)]
     IPFS(Vec<u8>),
     /// A Gadget that will be fetched from the Github release.
     Github(GithubFetcher<'a>),
@@ -361,6 +362,7 @@ impl<'de> serde::Deserialize<'de> for CidWrapper {
 #[serde(untagged)]
 enum UntaggedGadgetSourceFetcher<'a> {
     /// A Gadget that will be fetched from the IPFS.
+    #[allow(clippy::upper_case_acronyms)]
     IPFS(CidWrapper),
     /// A Gadget that will be fetched from the Github release.
     Github(GithubFetcher<'a>),
