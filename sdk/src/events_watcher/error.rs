@@ -8,10 +8,6 @@ pub enum Error {
     // TODO: Add feature flag for substrate/tangle
     #[error(transparent)]
     Subxt(#[from] subxt::Error),
-    /// An error occurred in the backoff mechanism.
-    #[error(transparent)]
-    #[cfg(any(feature = "std", feature = "wasm"))]
-    Backoff(#[from] backoff::Error<subxt::Error>),
     /// An error occurred in Alloy transport.
     // TODO: Add feature flag for EVM/eigenlayer/etc.
     #[error(transparent)]
