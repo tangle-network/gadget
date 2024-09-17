@@ -1,4 +1,4 @@
-type BlueprintString<'a> = std::borrow::Cow<'a, str>;
+pub type BlueprintString<'a> = std::borrow::Cow<'a, str>;
 /// A type that represents an EVM Address.
 pub type Address = ethereum_types::H160;
 
@@ -210,6 +210,7 @@ pub enum ServiceRequestHook {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(from = "TaggedGadget<'_>")]
 pub enum Gadget<'a> {
     /// A Gadget that is a WASM binary that will be executed.
     /// inside the shell using the wasm runtime.
@@ -220,6 +221,30 @@ pub enum Gadget<'a> {
     /// A Gadget that is a container that will be executed.
     /// inside the shell using the container runtime (e.g. Docker, Podman, etc.)
     Container(ContainerGadget<'a>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type")]
+enum TaggedGadget<'a> {
+    /// A Gadget that is a WASM binary that will be executed.
+    /// inside the shell using the wasm runtime.
+    Wasm(WasmGadget<'a>),
+    /// A Gadget that is a native binary that will be executed.
+    /// inside the shell using the OS.
+    Native(NativeGadget<'a>),
+    /// A Gadget that is a container that will be executed.
+    /// inside the shell using the container runtime (e.g. Docker, Podman, etc.)
+    Container(ContainerGadget<'a>),
+}
+
+impl<'a> From<TaggedGadget<'a>> for Gadget<'a> {
+    fn from(tagged: TaggedGadget<'a>) -> Self {
+        match tagged {
+            TaggedGadget::Wasm(wasm) => Gadget::Wasm(wasm),
+            TaggedGadget::Native(native) => Gadget::Native(native),
+            TaggedGadget::Container(container) => Gadget::Container(container),
+        }
+    }
 }
 
 /// A binary that is stored in the GitHub release.
@@ -312,14 +337,26 @@ pub struct GadgetBinary<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(from = "GadgetSourceFlat<'_>")]
 pub struct GadgetSource<'a> {
     /// The fetcher that will fetch the gadget from a remote source.
-    fetcher: GadgetSourceFetcher<'a>,
+    pub fetcher: GadgetSourceFetcher<'a>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+struct GadgetSourceFlat<'a>(GadgetSourceFetcher<'a>);
+
+impl<'a> From<GadgetSourceFlat<'a>> for GadgetSource<'a> {
+    fn from(flat: GadgetSourceFlat<'a>) -> GadgetSource<'a> {
+        Self { fetcher: flat.0 }
+    }
 }
 
 /// A Gadget Source Fetcher is a fetcher that will fetch the gadget
 /// from a remote source.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(from = "UntaggedGadgetSourceFetcher<'_>")]
 pub enum GadgetSourceFetcher<'a> {
     /// A Gadget that will be fetched from the IPFS.
     IPFS(Vec<u8>),
@@ -327,6 +364,45 @@ pub enum GadgetSourceFetcher<'a> {
     Github(GithubFetcher<'a>),
     /// A Gadgets that will be fetched from the container registry.
     ContainerImage(ImageRegistryFetcher<'a>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+struct CidWrapper(cid::Cid);
+
+impl<'de> serde::Deserialize<'de> for CidWrapper {
+    fn deserialize<D>(deserializer: D) -> Result<CidWrapper, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let str_value = String::deserialize(deserializer)?;
+        let cid = cid::Cid::try_from(str_value).map_err(serde::de::Error::custom)?;
+        Ok(CidWrapper(cid))
+    }
+}
+
+/// A Gadget Source Fetcher is a fetcher that will fetch the gadget
+/// from a remote source.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+enum UntaggedGadgetSourceFetcher<'a> {
+    /// A Gadget that will be fetched from the IPFS.
+    IPFS(CidWrapper),
+    /// A Gadget that will be fetched from the Github release.
+    Github(GithubFetcher<'a>),
+    /// A Gadgets that will be fetched from the container registry.
+    ContainerImage(ImageRegistryFetcher<'a>),
+}
+
+impl<'a> From<UntaggedGadgetSourceFetcher<'a>> for GadgetSourceFetcher<'a> {
+    fn from(tagged: UntaggedGadgetSourceFetcher<'a>) -> GadgetSourceFetcher<'a> {
+        match tagged {
+            UntaggedGadgetSourceFetcher::IPFS(hash) => GadgetSourceFetcher::IPFS(hash.0.to_bytes()),
+            UntaggedGadgetSourceFetcher::Github(fetcher) => GadgetSourceFetcher::Github(fetcher),
+            UntaggedGadgetSourceFetcher::ContainerImage(fetcher) => {
+                GadgetSourceFetcher::ContainerImage(fetcher)
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

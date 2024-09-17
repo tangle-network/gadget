@@ -10,17 +10,12 @@ repository.workspace = true
 [package.metadata.gadget]
 type = "Wasm"
 runtime = "Wasmtime"
-
-[[package.metadata.gadget.sources]]
-type = "IPFS"
-cid = "QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB"
-
-[[package.metadata.gadget.sources]]
-type = "Github"
-owner = "webb-tools"
-repo = "incredible-squaring"
-tag = "v0.1.0"
-binaries = [{ arch = "Wasm", os = "Unknown", name = "incredible_squaring_gadget.wasm", sha256 = "" }]
+sources = [
+    "/ipfs/bafyreibjo4xmgaevkgud7mbifn3dzp4v4lyaui4yvqp3f2bqwtxcjrdqg4",
+    { owner = "webb-tools", repo = "incredible-squaring", tag = "0.1.0", binaries = [
+        { arch = "Wasm", os = "Unknown", name = "incredible_squaring_gadget.wasm" },
+    ] },
+]
 
 [dependencies]
 async-trait = { workspace = true }

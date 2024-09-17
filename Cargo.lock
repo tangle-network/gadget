@@ -1753,9 +1753,11 @@ dependencies = [
 name = "blueprint-metadata"
 version = "0.1.0"
 dependencies = [
+ "cargo_metadata",
  "fs2",
  "gadget-blueprint-proc-macro-core",
  "rustdoc-types",
+ "serde",
  "serde_json",
  "typed-builder",
 ]
@@ -2074,6 +2076,20 @@ dependencies = [
  "iana-time-zone",
  "num-traits",
  "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "cid"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3147d8272e8fa0ccd29ce51194dd98f79ddfb8191ba9e3409884e751798acf3a"
+dependencies = [
+ "core2",
+ "multibase",
+ "multihash",
+ "serde",
+ "serde_bytes",
+ "unsigned-varint 0.8.0",
 ]
 
 [[package]]
@@ -4248,6 +4264,7 @@ dependencies = [
 name = "gadget-blueprint-proc-macro-core"
 version = "0.1.0"
 dependencies = [
+ "cid",
  "ethereum-types 0.14.1",
  "serde",
 ]
@@ -6866,6 +6883,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "076d548d76a0e2a0d4ab471d0b1c36c577786dfc4471242035d97a12a735c492"
 dependencies = [
  "core2",
+ "serde",
  "unsigned-varint 0.7.2",
 ]
 
