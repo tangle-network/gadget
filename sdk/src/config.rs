@@ -1,7 +1,8 @@
-use crate::clients::tangle::runtime::{TangleClient, TangleConfig};
-#[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::backend::GenericKeyStore;
-use crate::keystore::{BackendExt, TanglePairSigner};
+#[cfg(any(feature = "std", feature = "wasm"))]
+use crate::keystore::BackendExt;
+#[cfg(any(feature = "std", feature = "wasm"))]
+use crate::keystore::TanglePairSigner;
 use crate::logger::Logger;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
@@ -9,8 +10,6 @@ use eigensdk_rs::eigen_utils::crypto::bls as bls_bn254;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
-use std::net::IpAddr;
-use std::path::PathBuf;
 use structopt::StructOpt;
 use url::Url;
 
@@ -105,7 +104,7 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     /// The Port of the Network that will be interacted with
     pub bind_port: u16,
     /// The Address of the Network that will be interacted with
-    pub bind_addr: IpAddr,
+    pub bind_addr: String,
     /// The Logger that will be used in this Gadget Configuration
     pub logger: Logger,
     /// Whether the gadget is in test mode
@@ -142,7 +141,7 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
             is_registration: self.is_registration,
             protocol: self.protocol,
             bind_port: self.bind_port,
-            bind_addr: self.bind_addr,
+            bind_addr: self.bind_addr.clone(),
             logger: self.logger.clone(),
             test_mode: self.test_mode,
             _lock: core::marker::PhantomData,
@@ -204,6 +203,7 @@ pub enum Error {
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
 #[structopt(name = "General CLI Context")]
+#[cfg(feature = "std")]
 pub struct ContextConfig {
     /// Pass through arguments to another command
     #[structopt(subcommand)]
@@ -211,11 +211,12 @@ pub struct ContextConfig {
 }
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
+#[cfg(feature = "std")]
 pub enum GadgetCLICoreSettings {
     #[structopt(name = "run")]
     Run {
         #[structopt(long, short = "b", parse(try_from_str))]
-        bind_addr: IpAddr,
+        bind_addr: std::net::IpAddr,
         #[structopt(long, short = "p")]
         bind_port: u16,
         #[structopt(long, short = "t")]
@@ -229,7 +230,7 @@ pub enum GadgetCLICoreSettings {
         #[serde(default)]
         bootnodes: Option<Vec<Multiaddr>>,
         #[structopt(long, short = "d", parse(from_os_str))]
-        base_path: PathBuf,
+        base_path: std::path::PathBuf,
         #[structopt(
             long,
             default_value,
@@ -274,6 +275,7 @@ pub fn load(
 /// # Errors
 ///
 /// This function will return an error if any of the required environment variables are missing.
+#[cfg(feature = "std")] // TODO: Add no_std support
 pub fn load_with_lock<RwLock: lock_api::RawRwLock>(
     protocol: Option<Protocol>,
     additional_config: ContextConfig,
@@ -312,7 +314,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
     }
 
     Ok(GadgetConfiguration {
-        bind_addr,
+        bind_addr: bind_addr.to_string(),
         bind_port,
         test_mode,
         logger,
@@ -330,13 +332,6 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         protocol: protocol.unwrap_or(Protocol::Tangle),
         _lock: core::marker::PhantomData,
     })
-}
-
-#[cfg(not(feature = "std"))]
-pub fn load_inner<RwLock: lock_api::RawRwLock>(
-    _protocol: Option<Protocol>,
-) -> Result<GadgetConfiguration<RwLock>, Error> {
-    unimplemented!("Implement loading env for no_std")
 }
 
 impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
@@ -372,6 +367,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// * No sr25519 keypair is found in the keystore.
     /// * The keypair seed is invalid.
     #[doc(alias = "sr25519_signer")]
+    #[cfg(any(feature = "std", feature = "wasm"))]
     pub fn first_signer(&self) -> Result<TanglePairSigner, Error> {
         self.keystore()?.sr25519_key().map_err(Error::Keystore)
     }
@@ -383,6 +379,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// * No ECDSA keypair is found in the keystore.
     /// * The keypair seed is invalid.
     #[doc(alias = "ecdsa_signer")]
+    #[cfg(any(feature = "std", feature = "wasm"))]
     pub fn first_ecdsa_signer(&self) -> Result<tangle_subxt::subxt_signer::ecdsa::Keypair, Error> {
         self.keystore()?.ecdsa_key().map_err(Error::Keystore)
     }
@@ -393,6 +390,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     ///
     /// This function will return an error if no BLS BN254 keypair is found in the keystore.
     #[doc(alias = "bls_bn254_signer")]
+    #[cfg(any(feature = "std", feature = "wasm"))]
     pub fn first_bls_bn254_signer(&self) -> Result<bls_bn254::KeyPair, Error> {
         self.keystore()?.bls_bn254_key().map_err(Error::Keystore)
     }
@@ -414,9 +412,12 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// # Errors
     /// This function will return an error if we are unable to connect to the Tangle RPC endpoint.
     #[cfg(any(feature = "std", feature = "wasm"))]
-    pub async fn client(&self) -> Result<TangleClient, Error> {
+    pub async fn client(&self) -> Result<crate::clients::tangle::runtime::TangleClient, Error> {
         let client =
-            subxt::OnlineClient::<TangleConfig>::from_url(self.rpc_endpoint.clone()).await?;
+            subxt::OnlineClient::<crate::clients::tangle::runtime::TangleConfig>::from_url(
+                self.rpc_endpoint.clone(),
+            )
+            .await?;
         Ok(client)
     }
 }

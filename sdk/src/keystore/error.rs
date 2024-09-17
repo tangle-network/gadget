@@ -1,4 +1,8 @@
 //! Keystore Errors
+#[cfg(not(any(feature = "std", feature = "wasm")))]
+use alloc::string::String;
+#[cfg(any(feature = "std", feature = "wasm"))]
+use std::string::String;
 
 /// Different errors that can occur in the [`crate::keystore`] module
 #[derive(Debug, thiserror::Error)]

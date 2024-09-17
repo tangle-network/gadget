@@ -44,13 +44,17 @@ pub mod error;
 /// Schnorrkel Support
 pub mod sr25519;
 
-use crate::clients::tangle::runtime::TangleConfig;
 use eigensdk_rs::eigen_utils::crypto::bls::{self as bls_bn254, g1_point_to_g1_projective};
 pub use error::Error;
-use tangle_subxt::subxt::ext::sp_core;
-use tangle_subxt::subxt::tx::PairSigner;
 
-pub type TanglePairSigner = PairSigner<TangleConfig, sp_core::sr25519::Pair>;
+#[cfg(any(feature = "std", feature = "wasm"))]
+use tangle_subxt::subxt;
+
+#[cfg(any(feature = "std", feature = "wasm"))]
+pub type TanglePairSigner = subxt::tx::PairSigner<
+    crate::clients::tangle::runtime::TangleConfig,
+    subxt::ext::sp_core::sr25519::Pair,
+>;
 
 /// The Keystore [`Backend`] trait.
 ///
@@ -210,6 +214,7 @@ pub trait Backend {
 }
 
 pub trait BackendExt: Backend {
+    #[cfg(any(feature = "std", feature = "wasm"))]
     fn ecdsa_key(&self) -> Result<subxt_signer::ecdsa::Keypair, Error> {
         let first_key = self
             .iter_ecdsa()
@@ -227,6 +232,7 @@ pub trait BackendExt: Backend {
         )
     }
 
+    #[cfg(any(feature = "std", feature = "wasm"))]
     fn sr25519_key(&self) -> Result<TanglePairSigner, Error> {
         let first_key = self
             .iter_sr25519()
@@ -237,9 +243,11 @@ pub trait BackendExt: Backend {
             .ok_or_else(|| str_to_std_error("No SR25519 secret found"))?;
         //et pair = gadget_common::tangle_subxt::subxt::ext::sp_core::sr25519::Pair::from(secret);
         let schnorrkel_kp = schnorrkel::Keypair::from(secret);
-        let res = PairSigner::new(schnorrkel_kp.into());
+        let res = subxt::tx::PairSigner::new(schnorrkel_kp.into());
         Ok(res)
     }
+
+    #[cfg(any(feature = "std", feature = "wasm"))]
     fn bls_bn254_key(&self) -> Result<bls_bn254::KeyPair, Error> {
         let first_key = self
             .iter_bls_bn254()
@@ -258,6 +266,7 @@ pub trait BackendExt: Backend {
 
 impl<T: Backend> BackendExt for T {}
 
+#[cfg(feature = "std")]
 fn str_to_std_error<T: Into<String>>(s: T) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::Other, s.into())
 }
