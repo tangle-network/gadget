@@ -7,7 +7,7 @@
 )]
 //! Gadget SDK
 
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(all(not(feature = "std"), not(feature = "wasm")), no_std)]
 
 extern crate alloc;
 
@@ -31,7 +31,7 @@ pub mod logger;
 #[cfg(feature = "std")]
 pub mod metrics;
 #[cfg(any(feature = "std", feature = "wasm"))]
-pub(crate) mod mutex_ext;
+pub mod mutex_ext;
 /// Network Module
 #[cfg(feature = "std")]
 pub mod network;

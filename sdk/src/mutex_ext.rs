@@ -1,6 +1,6 @@
+use gadget_io::time::error::Elapsed;
 use std::time::Duration;
 use tokio::sync::MutexGuard;
-use tokio::time::error::Elapsed;
 
 /// An extension trait for tokio Mutex.
 ///

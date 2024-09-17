@@ -18,7 +18,7 @@ http-body-util = { workspace = true }
 lock_api = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
 parking_lot = { workspace = true, optional = true }
-rand = { version = "0.8", default-features = false, features = ["alloc"] }
+rand = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 
 # Keystore deps
@@ -31,7 +31,7 @@ w3f-bls = { workspace = true }
 hyper = { workspace = true, features = ["http1", "server"], optional = true }
 hyper-util = { workspace = true, features = ["server"], optional = true }
 prometheus = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot"], optional = true }
+tokio = { workspace = true, optional = true }
 
 # Logging deps
 log = { workspace = true }
@@ -51,7 +51,7 @@ sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
 
 # Event Watchers and Handlers
-backoff = { workspace = true, optional = true }
+backon = { workspace = true, optional = true }
 subxt = { workspace = true, optional = true }
 subxt-signer = { workspace = true, features = ["sr25519"] }
 tangle-subxt = { workspace = true }
@@ -60,7 +60,7 @@ tangle-subxt = { workspace = true }
 alloy-contract = { workspace = true }
 alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }
-alloy-provider = { workspace = true }
+alloy-provider = { workspace = true, optional = true }
 alloy-pubsub = { workspace = true }
 alloy-rpc-types = { workspace = true }
 alloy-signer = { workspace = true }
@@ -106,13 +106,14 @@ hyper = { workspace = true, features = ["client"] }
 default = ["std"]
 
 std = [
-    "dep:backoff",
+    "dep:alloy-provider",
+    "dep:backon",
     "dep:parking_lot",
     "dep:hyper",
     "dep:hyper-util",
     "dep:subxt",
     "dep:tokio",
-    "backoff/tokio",
+    "backon/tokio-sleep",
     "getrandom",
     "gadget-io/std",
     "hex/std",
@@ -122,11 +123,15 @@ std = [
     "sqlx",
     "subxt/native",
     "tangle-subxt/std",
+    "tokio/rt-multi-thread",
+    "tokio/parking_lot",
 ]
 wasm = [
-    "dep:backoff",
+    "dep:backon",
     "dep:subxt",
-    "backoff/wasm-bindgen",
+    "dep:tokio",
+    "backon/gloo-timers-sleep",
+    "gadget-io/wasm-bindgen",
     "getrandom/js",
     "subxt/web",
     "tangle-subxt/web",
