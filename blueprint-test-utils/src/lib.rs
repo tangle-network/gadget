@@ -554,4 +554,100 @@ mod tests_standard {
             })
             .await
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_eigen_incredible_squaring_blueprint() {
+        let mut base_path = std::env::current_dir().expect("Failed to get current directory");
+
+        base_path.push("../blueprints/incredible-squaring");
+        base_path
+            .canonicalize()
+            .expect("File could not be normalized");
+
+        let manifest_path = base_path.join("Cargo.toml");
+        let blueprint_test_file = base_path.join("blueprint-test.json");
+        let blueprint_file = base_path.join("blueprint.json");
+
+        // cp the blueprint-test-file into the blueprint-file
+        tokio::fs::copy(&blueprint_test_file, &blueprint_file)
+            .await
+            .expect("Failed to copy blueprint-test.json to blueprint.json");
+
+        let opts = Opts {
+            pkg_name: Some("incredible-squaring-blueprint".to_string()),
+            rpc_url: "ws://127.0.0.1:9944".to_string(),
+            manifest_path,
+            signer: None,
+            signer_evm: None,
+        };
+        // --ws-external
+        const INPUT: u64 = 10;
+        const OUTPUT: u64 = INPUT.pow(2);
+
+        // Start Local Anvil Testnet in the background
+        // let _ = eigensdk_rs::test_utils::anvil::testnet::incredible_squaring::run_incredible_squaring_testnet().await;
+        let _ = eigensdk_rs::test_utils::
+
+        new_test_ext_blueprint_manager::<5, 1, (), _, _>((), opts, run_test_blueprint_manager)
+            .await
+            .execute_with_async(move |client, handles, logger| async move {
+                // At this point, blueprint has been deployed, every node has registered
+                // as an operator for the relevant services, and, all gadgets are running
+
+                // What's left: Submit a job, wait for the job to finish, then assert the job results
+                let keypair = handles[0].sr25519_id().clone();
+
+                // TODO: Important! The tests can only run serially, not in parallel, in order to not cause a race condition in IDs
+                let service_id = get_next_service_id(client)
+                    .await
+                    .expect("Failed to get next service id")
+                    .saturating_sub(1);
+                let call_id = get_next_call_id(client)
+                    .await
+                    .expect("Failed to get next job id")
+                    .saturating_sub(1);
+
+                logger.info(format!(
+                    "Submitting job with params service ID: {service_id}, call ID: {call_id}"
+                ));
+
+                // Pass the arguments
+                let mut job_args = Args::new();
+                let input =
+                    api::runtime_types::tangle_primitives::services::field::Field::Uint64(INPUT);
+                job_args.push(input);
+
+                // Next step: submit a job under that service/job id
+                if let Err(err) = submit_job(
+                    client,
+                    &keypair,
+                    service_id,
+                    Job::from(call_id as u8),
+                    job_args,
+                )
+                    .await
+                {
+                    logger.error(format!("Failed to submit job: {err}"));
+                    panic!("Failed to submit job: {err}");
+                }
+
+                // Step 2: wait for the job to complete
+                let job_results = wait_for_completion_of_tangle_job(
+                    client,
+                    service_id,
+                    call_id,
+                    handles[0].logger(),
+                )
+                    .await
+                    .expect("Failed to wait for job completion");
+
+                // Step 3: Get the job results, compare to expected value(s)
+                let expected_result =
+                    api::runtime_types::tangle_primitives::services::field::Field::Uint64(OUTPUT);
+                assert_eq!(job_results.service_id, service_id);
+                assert_eq!(job_results.call_id, call_id);
+                assert_eq!(job_results.result[0], expected_result);
+            })
+            .await
+    }
 }
