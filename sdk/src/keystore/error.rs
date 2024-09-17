@@ -1,8 +1,5 @@
 //! Keystore Errors
-#[cfg(not(any(feature = "std", feature = "wasm")))]
 use alloc::string::String;
-#[cfg(any(feature = "std", feature = "wasm"))]
-use std::string::String;
 
 /// Different errors that can occur in the [`crate::keystore`] module
 #[derive(Debug, thiserror::Error)]
@@ -17,7 +14,7 @@ pub enum Error {
     Sr25519(schnorrkel::errors::SignatureError),
     /// An error occurred during ecdsa module operation
     #[error("ecdsa: {0}")]
-    Ecdsa(elliptic_curve::Error),
+    Ecdsa(String),
     /// An error occurred during ed25519 module operation
     #[error("ed25519: {0}")]
     Ed25519(ed25519_zebra::Error),

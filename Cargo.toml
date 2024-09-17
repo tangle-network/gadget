@@ -58,6 +58,7 @@ tangle-subxt = { version = "0.3.0", default-features = false }
 
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
+subxt-core = { version = "0.37.0", default-features = false }
 round-based = "0.3.0"
 
 sp-core = { version = "34.0.0", default-features = false }

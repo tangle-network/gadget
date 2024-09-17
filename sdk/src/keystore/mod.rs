@@ -44,17 +44,14 @@ pub mod error;
 /// Schnorrkel Support
 pub mod sr25519;
 
+use alloc::string::ToString;
 use eigensdk_rs::eigen_utils::crypto::bls::{self as bls_bn254, g1_point_to_g1_projective};
 pub use error::Error;
+use schnorrkel::SignatureError;
+use subxt_core::config::PolkadotConfig;
+use subxt_core::tx::signer::PairSigner;
 
-#[cfg(any(feature = "std", feature = "wasm"))]
-use tangle_subxt::subxt;
-
-#[cfg(any(feature = "std", feature = "wasm"))]
-pub type TanglePairSigner = subxt::tx::PairSigner<
-    crate::clients::tangle::runtime::TangleConfig,
-    subxt::ext::sp_core::sr25519::Pair,
->;
+pub type TanglePairSigner = PairSigner<PolkadotConfig, subxt_core::ext::sp_core::sr25519::Pair>;
 
 /// The Keystore [`Backend`] trait.
 ///
@@ -214,48 +211,42 @@ pub trait Backend {
 }
 
 pub trait BackendExt: Backend {
-    #[cfg(any(feature = "std", feature = "wasm"))]
     fn ecdsa_key(&self) -> Result<subxt_signer::ecdsa::Keypair, Error> {
         let first_key = self
             .iter_ecdsa()
             .next()
-            .ok_or_else(|| str_to_std_error("No ECDSA keys found"))?;
+            .ok_or_else(|| Error::Ecdsa("No ECDSA keys found".into()))?;
         let ecdsa_secret = self
             .expose_ecdsa_secret(&first_key)?
-            .ok_or_else(|| str_to_std_error("No ECDSA secret found"))?;
+            .ok_or_else(|| Error::Ecdsa("No ECDSA keys found".into()))?;
 
         let mut seed = [0u8; 32];
         seed.copy_from_slice(&ecdsa_secret.to_bytes()[0..32]);
-        Ok(
-            tangle_subxt::subxt_signer::ecdsa::Keypair::from_secret_key(seed)
-                .map_err(|err| str_to_std_error(err.to_string()))?,
-        )
+        tangle_subxt::subxt_signer::ecdsa::Keypair::from_secret_key(seed)
+            .map_err(|err| Error::Ecdsa(err.to_string()))
     }
 
-    #[cfg(any(feature = "std", feature = "wasm"))]
     fn sr25519_key(&self) -> Result<TanglePairSigner, Error> {
         let first_key = self
             .iter_sr25519()
             .next()
-            .ok_or_else(|| str_to_std_error("No SR25519 keys found"))?;
+            .ok_or_else(|| Error::Sr25519(SignatureError::InvalidKey))?;
         let secret = self
             .expose_sr25519_secret(&first_key)?
-            .ok_or_else(|| str_to_std_error("No SR25519 secret found"))?;
-        //et pair = gadget_common::tangle_subxt::subxt::ext::sp_core::sr25519::Pair::from(secret);
+            .ok_or_else(|| Error::Sr25519(SignatureError::InvalidKey))?;
         let schnorrkel_kp = schnorrkel::Keypair::from(secret);
-        let res = subxt::tx::PairSigner::new(schnorrkel_kp.into());
+        let res = PairSigner::new(schnorrkel_kp.into());
         Ok(res)
     }
 
-    #[cfg(any(feature = "std", feature = "wasm"))]
     fn bls_bn254_key(&self) -> Result<bls_bn254::KeyPair, Error> {
         let first_key = self
             .iter_bls_bn254()
             .next()
-            .ok_or_else(|| str_to_std_error("No BLS BN254 keys found"))?;
+            .ok_or_else(|| Error::BlsBn254("No BLS BN254 keys found".into()))?;
         let bls_secret = self
             .expose_bls_bn254_secret(&first_key)?
-            .ok_or_else(|| str_to_std_error("No BLS BN254 secret found"))?;
+            .ok_or_else(|| Error::BlsBn254("No BLS BN254 secret found".into()))?;
 
         Ok(bls_bn254::KeyPair {
             priv_key: bls_secret,
@@ -265,8 +256,3 @@ pub trait BackendExt: Backend {
 }
 
 impl<T: Backend> BackendExt for T {}
-
-#[cfg(feature = "std")]
-fn str_to_std_error<T: Into<String>>(s: T) -> std::io::Error {
-    std::io::Error::new(std::io::ErrorKind::Other, s.into())
-}

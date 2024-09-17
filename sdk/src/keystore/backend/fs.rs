@@ -1,6 +1,7 @@
 //! Filesystem-based keystore backend.
 
 use crate::keystore::{bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error};
+use alloc::string::ToString;
 use ark_serialize::CanonicalSerialize;
 use std::{fs, io::Write, path::PathBuf};
 
@@ -156,7 +157,8 @@ impl Backend for FilesystemKeystore {
     }
 
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error> {
-        let secret = ecdsa::generate_with_optional_seed(seed).map_err(Error::Ecdsa)?;
+        let secret = ecdsa::generate_with_optional_seed(seed)
+            .map_err(|err| Error::Ecdsa(err.to_string()))?;
         let public = secret.public_key();
         let path = self.key_file_path(&public.to_sec1_bytes(), KeyType::Ecdsa);
         Self::write_to_file(path, &secret.to_bytes()[..])?;
@@ -170,7 +172,8 @@ impl Backend for FilesystemKeystore {
     ) -> Result<Option<ecdsa::Signature>, Error> {
         let secret_bytes = self.secret_by_type(&public.to_sec1_bytes(), KeyType::Ecdsa)?;
         if let Some(buf) = secret_bytes {
-            let secret = ecdsa::secret_from_bytes(&buf).map_err(Error::Ecdsa)?;
+            let secret =
+                ecdsa::secret_from_bytes(&buf).map_err(|err| Error::Ecdsa(err.to_string()))?;
             Ok(Some(ecdsa::sign(&secret, msg)))
         } else {
             Ok(None)
@@ -245,7 +248,9 @@ impl Backend for FilesystemKeystore {
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error> {
         let secret_bytes = self.secret_by_type(&public.to_sec1_bytes(), KeyType::Ecdsa)?;
         if let Some(buf) = secret_bytes {
-            Ok(Some(ecdsa::secret_from_bytes(&buf).map_err(Error::Ecdsa)?))
+            Ok(Some(
+                ecdsa::secret_from_bytes(&buf).map_err(|err| Error::Ecdsa(err.to_string()))?,
+            ))
         } else {
             Ok(None)
         }

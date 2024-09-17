@@ -7,9 +7,9 @@
 //! of an event watcher polls for blocks. Implementations of the event watcher trait define an
 //! action to take when the specified event is found in a block at the `handle_event` api.
 
-use crate::events_watcher::{error::Error, ConstantWithMaxRetryCount};
-use backon::{ConstantBuilder, ExponentialBuilder, Retryable};
+use crate::events_watcher::error::Error;
 use crate::logger::Logger;
+use backon::{ConstantBuilder, ExponentialBuilder, Retryable};
 use core::time::Duration;
 use futures::TryFutureExt;
 use subxt::OnlineClient;

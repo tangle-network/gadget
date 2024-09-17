@@ -1,11 +1,9 @@
 use crate::keystore::backend::GenericKeyStore;
-#[cfg(any(feature = "std", feature = "wasm"))]
-use crate::keystore::BackendExt;
-#[cfg(any(feature = "std", feature = "wasm"))]
-use crate::keystore::TanglePairSigner;
+use crate::keystore::{BackendExt, TanglePairSigner};
 use crate::logger::Logger;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
+use core::net::IpAddr;
 use eigensdk_rs::eigen_utils::crypto::bls as bls_bn254;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
@@ -104,7 +102,7 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     /// The Port of the Network that will be interacted with
     pub bind_port: u16,
     /// The Address of the Network that will be interacted with
-    pub bind_addr: String,
+    pub bind_addr: IpAddr,
     /// The Logger that will be used in this Gadget Configuration
     pub logger: Logger,
     /// Whether the gadget is in test mode
@@ -141,7 +139,7 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
             is_registration: self.is_registration,
             protocol: self.protocol,
             bind_port: self.bind_port,
-            bind_addr: self.bind_addr.clone(),
+            bind_addr: self.bind_addr,
             logger: self.logger.clone(),
             test_mode: self.test_mode,
             _lock: core::marker::PhantomData,
@@ -314,7 +312,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
     }
 
     Ok(GadgetConfiguration {
-        bind_addr: bind_addr.to_string(),
+        bind_addr,
         bind_port,
         test_mode,
         logger,
@@ -379,8 +377,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// * No ECDSA keypair is found in the keystore.
     /// * The keypair seed is invalid.
     #[doc(alias = "ecdsa_signer")]
-    #[cfg(any(feature = "std", feature = "wasm"))]
-    pub fn first_ecdsa_signer(&self) -> Result<tangle_subxt::subxt_signer::ecdsa::Keypair, Error> {
+    pub fn first_ecdsa_signer(&self) -> Result<subxt_signer::ecdsa::Keypair, Error> {
         self.keystore()?.ecdsa_key().map_err(Error::Keystore)
     }
 
@@ -390,7 +387,6 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     ///
     /// This function will return an error if no BLS BN254 keypair is found in the keystore.
     #[doc(alias = "bls_bn254_signer")]
-    #[cfg(any(feature = "std", feature = "wasm"))]
     pub fn first_bls_bn254_signer(&self) -> Result<bls_bn254::KeyPair, Error> {
         self.keystore()?.bls_bn254_key().map_err(Error::Keystore)
     }

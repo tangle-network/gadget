@@ -34,6 +34,7 @@ ark-bn254 = { workspace = true }
 ark-serialize = { workspace = true }
 ark-ff = { workspace = true }
 ark-ec = { workspace = true }
+subxt-core = { workspace = true, features = ["substrate-compat"] }
 
 # Metrics deps
 hyper = { workspace = true, features = ["http1", "server"], optional = true }

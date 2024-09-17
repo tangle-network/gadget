@@ -1,6 +1,7 @@
 //! In-Memory Keystore Backend that supports different cryptographic key operations such as key generation, signing, and public key retrieval.
 
 use alloc::collections::BTreeMap;
+use alloc::string::ToString;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use w3f_bls::SerializableToBytes;
@@ -160,7 +161,8 @@ impl<RwLock: lock_api::RawRwLock> Backend for InMemoryKeystore<RwLock> {
     }
 
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error> {
-        let secret = ecdsa::generate_with_optional_seed(seed).map_err(Error::Ecdsa)?;
+        let secret = ecdsa::generate_with_optional_seed(seed)
+            .map_err(|err| Error::Ecdsa(err.to_string()))?;
         let public = secret.public_key();
         let old = self.ecdsa.write().insert(public, secret);
         assert!(old.is_none(), "generated key already exists");

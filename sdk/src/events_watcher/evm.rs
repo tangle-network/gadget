@@ -1,6 +1,6 @@
 //! EVM Event Watcher Module
 
-use crate::events_watcher::{error::Error, ConstantWithMaxRetryCount};
+use crate::events_watcher::error::Error;
 use crate::events_watcher::retry::UnboundedConstantBuilder;
 use crate::store::LocalDatabase;
 use alloy_network::ReceiptResponse;
@@ -23,7 +23,7 @@ pub trait Config: Send + Sync + 'static {
 
 /// A helper type to extract the [`EventHandler`] from the [`EventWatcher`] trait.
 pub type EventHandlerFor<W, T> = Box<
-    dyn EventHandlerWithRetry<
+    dyn EventHandler<
             T,
             Contract = <W as EventWatcher<T>>::Contract,
             Event = <W as EventWatcher<T>>::Event,
@@ -78,6 +78,7 @@ pub trait EventHandlerWithRetry<T: Config<N = Ethereum>>:
     /// If this method returns Ok(true), the event will be marked as handled.
     ///
     /// **Note**: This method is automatically implemented for all the event handlers.
+    #[allow(async_fn_in_trait)]
     async fn handle_event_with_retry(
         &self,
         contract: &Self::Contract,
