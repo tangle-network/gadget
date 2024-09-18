@@ -22,3 +22,8 @@ alloy-json-abi = { workspace = true, features = ["serde_json"] }
 
 [dev-dependencies]
 trybuild = { workspace = true }
+
+
+[features]
+default = ["std"]
+std = ["gadget-blueprint-proc-macro-core/std"]

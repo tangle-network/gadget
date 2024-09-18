@@ -77,7 +77,7 @@ alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
 
 # Macros
-gadget-blueprint-proc-macro = { workspace = true }
+gadget-blueprint-proc-macro = { workspace = true, default-features = false }
 derive_more = { workspace = true }
 
 # Benchmarking deps
@@ -134,6 +134,7 @@ std = [
     "tangle-subxt/std",
     "tokio/rt-multi-thread",
     "tokio/parking_lot",
+    "gadget-blueprint-proc-macro/std",
 ]
 wasm = [
     "dep:backon",

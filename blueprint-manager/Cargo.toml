@@ -11,7 +11,6 @@ path = "src/cli.rs"
 sp-core = { workspace = true }
 gadget-io = { workspace = true }
 gadget-sdk = { workspace = true, default-features = true }
-gadget-blueprint-proc-macro-core = { workspace = true }
 color-eyre = { workspace = true, features = ["tracing-error", "color-spantrace", "issue-url"] }
 serde = { workspace = true }
 structopt = { workspace = true }
@@ -35,4 +34,4 @@ async-trait = { workspace = true }
 
 [features]
 default = ["std"]
-std = ["gadget-io/std", "gadget-blueprint-proc-macro-core/std", "gadget-sdk/default"]
+std = ["gadget-io/std", "gadget-sdk/default"]

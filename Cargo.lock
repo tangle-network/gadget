@@ -1732,7 +1732,6 @@ dependencies = [
  "auto_impl",
  "color-eyre",
  "futures",
- "gadget-blueprint-proc-macro-core",
  "gadget-io",
  "gadget-sdk",
  "hex",
