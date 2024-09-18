@@ -1,6 +1,7 @@
-use crate::process::types::{GadgetProcess, ProcessOutput, Status};
-use crate::process::utils::*;
-use crate::{craft_child_process, run_command, OS_COMMAND};
+use crate::executor::process::types::{GadgetProcess, ProcessOutput, Status};
+use crate::executor::process::utils::*;
+use crate::executor::OS_COMMAND;
+use crate::{craft_child_process, run_command};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
@@ -17,7 +18,7 @@ pub struct GadgetProcessManager {
 }
 
 impl GadgetProcessManager {
-    pub(crate) fn new() -> GadgetProcessManager {
+    pub fn new() -> GadgetProcessManager {
         GadgetProcessManager {
             children: HashMap::new(),
         }
@@ -45,7 +46,8 @@ impl GadgetProcessManager {
     }
 
     /// Runs the given command and stores it using the identifier as the key. Returns the identifier used
-    pub(crate) async fn run(
+    #[allow(unused_results)]
+    pub async fn run(
         &mut self,
         identifier: String,
         command: &str,
@@ -57,7 +59,7 @@ impl GadgetProcessManager {
 
     /// Focuses on the given service until its stream is exhausted, meaning that the process ran to completion. Returns a
     /// ProcessOutput with its output (if there is any).
-    pub(crate) async fn focus_service_to_completion(
+    pub async fn focus_service_to_completion(
         &mut self,
         service: String,
     ) -> Result<(), Box<dyn Error>> {
@@ -129,7 +131,7 @@ impl GadgetProcessManager {
 
     /// Finds all dead processes that still exist in map and starts them again. This function
     /// is used to restart all processes after loading a Manager from a file.
-    #[allow(dead_code)]
+    #[allow(unused_results)]
     pub(crate) async fn restart_dead(&mut self) -> Result<(), Box<dyn Error>> {
         let mut restarted_processes = Vec::new();
         let mut to_remove = Vec::new();
@@ -171,5 +173,11 @@ impl GadgetProcessManager {
         }
 
         Ok(())
+    }
+}
+
+impl Default for GadgetProcessManager {
+    fn default() -> Self {
+        Self::new()
     }
 }

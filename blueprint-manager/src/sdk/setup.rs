@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::sdk::keystore::load_keys_from_keystore;
 use gadget_io::tokio::task::JoinHandle;
 use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
 use gadget_sdk::logger::Logger;
@@ -12,6 +11,7 @@ use sp_core::{keccak_256, sr25519, Pair};
 
 use crate::sdk::config::SingleGadgetConfig;
 pub use gadget_io::KeystoreContainer;
+use gadget_io::SubstrateKeystore;
 use gadget_sdk::network::gossip::GossipHandle;
 use gadget_sdk::network::setup::NetworkConfig;
 use itertools::Itertools;
@@ -26,7 +26,6 @@ pub struct NodeInput<N: Network, KBE: KeyValueStoreBackend, D> {
     pub clients: Vec<TangleRuntimeClient>,
     pub networks: Vec<N>,
     pub account_id: sr25519::Public,
-    pub logger: Logger,
     pub keystore: ECDSAKeyStore<KBE>,
     pub node_index: usize,
     pub additional_params: D,
@@ -40,7 +39,8 @@ pub type SingleGadgetInput<KBE> = NodeInput<GossipHandle, KBE, ()>;
 pub async fn generate_node_input<KBE: KeyValueStoreBackend>(
     config: SingleGadgetConfig<KBE>,
 ) -> color_eyre::Result<(SingleGadgetInput<KBE>, JoinHandle<()>)> {
-    let (ecdsa_key, acco_key) = load_keys_from_keystore(&config.keystore)?;
+    let keystore_config = KeystoreContainer::new(&config.keystore)?;
+    let (ecdsa_key, acco_key) = (keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?);
     //let network_key = ed25519::Pair::from_seed(&config.node_key).to_raw_vec();
     let logger = Logger::default();
     let keystore = ECDSAKeyStore::new(config.keystore_backend.clone(), ecdsa_key.clone());
@@ -94,7 +94,6 @@ pub async fn generate_node_input<KBE: KeyValueStoreBackend>(
     let node_input = NodeInput::<GossipHandle, KBE, ()> {
         clients,
         account_id: acco_key.public(),
-        logger,
         keystore,
         node_index: 0,
         additional_params: (),

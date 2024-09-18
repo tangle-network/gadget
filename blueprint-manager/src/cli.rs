@@ -1,9 +1,9 @@
-use crate::sdk::entry;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::run_blueprint_manager;
 use blueprint_manager::sdk;
 use blueprint_manager::sdk::utils::msg_to_error;
 use gadget_io::GadgetConfig;
+use sdk::entry;
 use structopt::StructOpt;
 
 #[tokio::main]

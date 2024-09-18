@@ -10,6 +10,7 @@
 #![cfg_attr(all(not(feature = "std"), not(feature = "wasm")), no_std)]
 
 extern crate alloc;
+extern crate core;
 
 /// Benchmark Module
 #[cfg(any(feature = "std", feature = "wasm"))]

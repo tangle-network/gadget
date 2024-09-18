@@ -1,0 +1,27 @@
+[package]
+name = "tangle-avs-blueprint"
+version = "0.1.0"
+edition = "2021"
+description = "A blueprint defining a Tangle validator service"
+authors = ["drewstone <drewstone329@gmail.com>"]
+license = "Unlicense"
+homepage = "https://tangle.tools"
+repository = "https://github.com/webb-tools/tangle-avs-blueprint"
+readme = "README.md"
+categories = ["cryptography", "cryptography::cryptocurrencies", "tangle-blueprint"]
+keywords = ["tangle", "blueprint", "avs"]
+rust-version = "1.79"
+
+[dependencies]
+tracing.workspace = true
+async-trait.workspace = true
+color-eyre.workspace = true
+tokio = { workspace = true, default-features = false, features = ["full"] }
+tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"] }
+gadget-sdk = { workspace = true, features = ["std"] }
+eigensdk-rs = { workspace = true }
+structopt = "0.3.26"
+parking_lot = "0.12.3"
+
+[build-dependencies]
+blueprint-metadata.workspace = true

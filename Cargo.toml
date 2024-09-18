@@ -4,7 +4,6 @@ members = [
     "blueprint-metadata",
     "blueprints/incredible-squaring",
     "cli",
-    "executor",
     "gadget-io",
     "blueprint-test-utils",
     "blueprint-manager",
@@ -41,7 +40,6 @@ broken_intra_doc_links = "deny"
 
 [workspace.dependencies]
 gadget-io = { version = "0.0.1", path = "./gadget-io", default-features = false }
-gadget-executor = { version = "0.1.0", path = "./executor" }
 blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false }
@@ -60,6 +58,7 @@ tangle-subxt = { version = "0.3.0", default-features = false }
 
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
+subxt-core = { version = "0.37.0", default-features = false }
 round-based = "0.3.0"
 
 sp-core = { version = "34.0.0", default-features = false }
@@ -139,6 +138,7 @@ tokio = { version = "1.39.3", default-features = false }
 toml = "0.8.19"
 tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
+uuid = "1.10.0"
 derive_more = { version = "1.0.0", features = ["display"] }
 trybuild = "1.0"
 tsify = "0.4.5"
@@ -159,6 +159,12 @@ alloy-network = { version = "0.2.1" }
 alloy-contract = { version = "0.2.1" }
 alloy-transport = { version = "0.2.1" }
 
+ark-bn254 = "0.4.0"
+ark-ec = "0.4.0"
+ark-ff = "0.4.0"
+ark-std = "0.4.0"
+ark-serialize = "0.4.0"
+
 # WebAssembly
 js-sys = "0.3.70"
 serde-wasm-bindgen = "0.6.5"
@@ -166,6 +172,11 @@ wasm-bindgen = "0.2.93"
 wasm-bindgen-futures = "0.4.43"
 wasmtime = { version = "23.0.2", default-features = false }
 wasmtimer = "0.2"
+secp256k1 = "0.29.1"
+
+# Eigenlayer
+# TODO: Remove this branch, point to main once https://github.com/webb-tools/eigensdk-rs/pull/20 is merged
+eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = "donovan/maintenance" }
 
 [profile.dev.package.backtrace]
 opt-level = 3

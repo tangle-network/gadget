@@ -9,7 +9,7 @@ use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, ItemFn, LitInt, LitStr, Token, Type};
 
-// Defines custom keywords
+/// Defines custom keywords for defining Job arguments
 mod kw {
     syn::custom_keyword!(id);
     syn::custom_keyword!(params);
@@ -25,6 +25,7 @@ mod kw {
     syn::custom_keyword!(skip_codegen);
 }
 
+/// Job Macro implementation
 pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStream> {
     // Extract function name and arguments
     let fn_name = &input.sig.ident;
@@ -39,7 +40,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         ));
     };
 
-    // check that the function has a return type of Result<T, E>
+    // Check that the function has a return type of Result<T, E>
     match **result {
         Type::Path(ref path) => {
             let seg = path.path.segments.last().unwrap();
@@ -58,6 +59,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         }
     }
 
+    // Ensures that no duplicate parameters have been given
     let mut param_types = BTreeMap::new();
     for input in &input.sig.inputs {
         if let syn::FnArg::Typed(arg) = input {
@@ -75,10 +77,12 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         }
     }
 
+    // Extracts Job ID and param/result types
     let job_id = &args.id;
     let params_type = args.params_to_field_types(&param_types)?;
     let result_type = args.result_to_field_types(result)?;
 
+    // Generate Event Handler, if not being skipped
     let event_handler_gen = if args.skip_codegen {
         proc_macro2::TokenStream::default()
     } else {
@@ -86,7 +90,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         generate_event_handler_for(input, args, &param_types, &params_type, &result_type)
     };
 
-    // Extract params and result types from args
+    // Creates Job Definition using input parameters
     let job_def = JobDefinition {
         metadata: JobMetadata {
             name: fn_name_string.clone().into(),
@@ -101,6 +105,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         },
     };
 
+    // Serialize Job Definition to JSON string
     let job_def_str = serde_json::to_string(&job_def).map_err(|err| {
         syn::Error::new_spanned(
             input,
@@ -108,6 +113,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         )
     })?;
 
+    // Generates final TokenStream that will be returned
     let gen = quote! {
         #[doc = "Job definition for the function "]
         #[doc = "[`"]
@@ -129,11 +135,10 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         #event_handler_gen
     };
 
-    // println!("{}", gen);
-
     Ok(gen.into())
 }
 
+/// Generates the [`EventHandler`](gadget_sdk::events_watcher::evm::EventHandler) for a Job
 #[allow(clippy::too_many_lines)]
 pub fn generate_event_handler_for(
     f: &ItemFn,
@@ -385,6 +390,7 @@ impl Parse for JobArgs {
     }
 }
 
+/// Contains the Job parameters as a [`Vector`](Vec) of Identifers ([`Ident`](proc_macro2::Ident))
 #[derive(Debug)]
 pub struct Params(pub Vec<Ident>);
 
@@ -520,10 +526,12 @@ pub(crate) enum EventHandlerArgs {
 }
 
 impl EventHandlerArgs {
+    /// Returns true if on EigenLayer
     pub fn is_eigenlayer(&self) -> bool {
         matches!(self, Self::Eigenlayer { .. })
     }
 
+    /// Returns the Event Handler's Instance if on EigenLayer. Otherwise, returns None
     pub fn instance(&self) -> Option<Ident> {
         match self {
             Self::Eigenlayer { instance, .. } => instance.clone(),
@@ -531,6 +539,7 @@ impl EventHandlerArgs {
         }
     }
 
+    /// Returns the Event Handler's event if on EigenLayer. Otherwise, returns None
     pub fn event(&self) -> Option<Type> {
         match self {
             Self::Eigenlayer { event, .. } => event.clone(),
@@ -538,6 +547,7 @@ impl EventHandlerArgs {
         }
     }
 
+    /// Returns the Event Handler's Event Converter if on EigenLayer. Otherwise, returns None
     pub fn event_converter(&self) -> Option<Type> {
         match self {
             Self::Eigenlayer {
@@ -547,6 +557,7 @@ impl EventHandlerArgs {
         }
     }
 
+    /// Returns the Event Handler's Callback if on EigenLayer. Otherwise, returns None
     pub fn callback(&self) -> Option<Type> {
         match self {
             Self::Eigenlayer { callback, .. } => callback.clone(),

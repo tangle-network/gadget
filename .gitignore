@@ -20,4 +20,3 @@ target/
 certs
 .DS_Store
 CODEGEN_LOCK
-blueprints/**/lib
