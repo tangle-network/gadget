@@ -12,7 +12,7 @@
 extern crate alloc;
 
 /// Benchmark Module
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "wasm"))]
 pub mod benchmark;
 /// Blockchain clients
 #[cfg(any(feature = "std", feature = "wasm"))]
@@ -33,7 +33,7 @@ pub mod metrics;
 #[cfg(any(feature = "std", feature = "wasm"))]
 pub mod mutex_ext;
 /// Network Module
-#[cfg(feature = "std")]
+#[cfg(feature = "std")] // TODO: Eventually open this up to WASM
 pub mod network;
 /// Prometheus metrics configuration
 #[cfg(any(feature = "std", feature = "wasm"))]
@@ -41,7 +41,7 @@ pub mod prometheus;
 /// Randomness generation module
 pub mod random;
 /// Gadget Runner Module
-#[cfg(feature = "std")]
+#[cfg(feature = "std")] // TODO: Eventually open this up to WASM
 pub mod run;
 /// Slashing and quality of service utilities
 pub mod slashing;

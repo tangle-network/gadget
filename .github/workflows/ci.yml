@@ -64,9 +64,8 @@ jobs:
       - name: Test each feature
         run: cargo hack test --each-feature --exclude-features wasm --package=${{ matrix.package }}
 
-  # TODO
-  #      - name: Test wasm build
-  #        run: cargo hack build --target wasm32-unknown-unknown --package=${{ matrix.package }} --no-default-features --features wasm --ignore-unknown-features
+      - name: Test wasm build
+        run: cargo hack build --target wasm32-unknown-unknown --package=${{ matrix.package }} --no-default-features --features wasm --ignore-unknown-features
 
   linting:
     timeout-minutes: 120

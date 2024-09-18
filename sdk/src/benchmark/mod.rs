@@ -26,6 +26,7 @@ impl Runtime for TokioRuntime {
 
 /// A benchmarking harness.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Bencher<R> {
     /// The runtime to use for running benchmarks.
     runtime: R,
@@ -109,6 +110,7 @@ impl<R: Runtime> Bencher<R> {
     /// let summary = bencher.stop("my_benchmark", 0);
     /// println!("{}", summary);
     /// ```
+    #[cfg(feature = "std")] // TODO: Benchmark execution time for WASM?
     pub fn stop<N: ToString>(&self, name: N, job_id: u8) -> BenchmarkSummary {
         let pid = sysinfo::get_current_pid().expect("Failed to get current process ID");
         let s = sysinfo::System::new_all();
