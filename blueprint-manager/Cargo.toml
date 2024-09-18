@@ -35,7 +35,4 @@ async-trait = { workspace = true }
 
 [features]
 default = ["std"]
-std = [
-    "gadget-io/std",
-    "gadget-sdk/default",
-]
+std = ["gadget-io/std", "gadget-blueprint-proc-macro-core/std", "gadget-sdk/default"]

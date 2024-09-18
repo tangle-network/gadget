@@ -102,7 +102,7 @@ features = [
     "relay",
     "ping",
     "dns",
-    "autonat"
+    "autonat",
 ]
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]

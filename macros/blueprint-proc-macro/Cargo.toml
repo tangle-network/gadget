@@ -16,7 +16,7 @@ syn = { workspace = true, features = ["full"] }
 quote = { workspace = true }
 proc-macro2 = { workspace = true }
 serde_json = { workspace = true }
-gadget-blueprint-proc-macro-core = { workspace = true }
+gadget-blueprint-proc-macro-core = { workspace = true, default-features = false }
 alloy-contract = { workspace = true }
 alloy-json-abi = { workspace = true, features = ["serde_json"] }
 
