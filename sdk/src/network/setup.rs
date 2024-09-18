@@ -38,7 +38,7 @@ pub const CLIENT_VERSION: &str = "1.0.0";
 /// [`NetworkConfig::new_service_network`] ordinarily.
 pub struct NetworkConfig {
     pub identity: libp2p::identity::Keypair,
-    pub role_key: ecdsa::Pair,
+    pub ecdsa_key: ecdsa::Pair,
     pub bootnodes: Vec<Multiaddr>,
     pub bind_ip: IpAddr,
     pub bind_port: u16,
@@ -64,7 +64,7 @@ impl NetworkConfig {
     #[must_use]
     pub fn new(
         identity: libp2p::identity::Keypair,
-        role_key: ecdsa::Pair,
+        ecdsa_key: ecdsa::Pair,
         bootnodes: Vec<Multiaddr>,
         bind_ip: IpAddr,
         bind_port: u16,
@@ -73,7 +73,7 @@ impl NetworkConfig {
     ) -> Self {
         Self {
             identity,
-            role_key,
+            ecdsa_key,
             bootnodes,
             bind_ip,
             bind_port,
@@ -86,7 +86,7 @@ impl NetworkConfig {
     /// Each service within a blueprint must have a unique network name.
     pub fn new_service_network<T: Into<String>>(
         identity: libp2p::identity::Keypair,
-        role_key: ecdsa::Pair,
+        ecdsa_key: ecdsa::Pair,
         bootnodes: Vec<Multiaddr>,
         bind_ip: IpAddr,
         bind_port: u16,
@@ -95,7 +95,7 @@ impl NetworkConfig {
     ) -> Self {
         Self::new(
             identity,
-            role_key,
+            ecdsa_key,
             bootnodes,
             bind_ip,
             bind_port,
@@ -154,7 +154,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         bind_port,
         topics,
         logger,
-        role_key,
+        ecdsa_key,
     } = config;
 
     // Ensure all topics are unique
@@ -321,7 +321,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
             logger: &logger,
             inbound_mapping: &inbound_mapping,
             ecdsa_peer_id_to_libp2p_id,
-            role_key: &role_key,
+            ecdsa_key: &ecdsa_key,
             span: tracing::debug_span!(parent: &span, "network_service"),
         };
         loop {

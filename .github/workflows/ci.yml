@@ -46,6 +46,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Install Foundry
+        run: |
+          curl -L https://foundry.paradigm.xyz | bash
+          /home/runner/.config/.foundry/bin/foundryup
+        shell: bash
+
+      - name: Add Foundry to PATH
+        run: echo "/home/runner/.config/.foundry/bin" >> $GITHUB_PATH
+
+      - name: Verify Forge installation
+        run: forge --version
+
       - name: Install rust
         uses: dtolnay/rust-toolchain@nightly
         with:
@@ -64,9 +76,8 @@ jobs:
       - name: Test each feature
         run: cargo hack test --each-feature --exclude-features wasm --package=${{ matrix.package }}
 
-  # TODO
-  #      - name: Test wasm build
-  #        run: cargo hack build --target wasm32-unknown-unknown --package=${{ matrix.package }} --no-default-features --features wasm --ignore-unknown-features
+      - name: Test wasm build
+        run: cargo hack build --target wasm32-unknown-unknown --package=${{ matrix.package }} --no-default-features --features wasm --ignore-unknown-features
 
   linting:
     timeout-minutes: 120
@@ -81,6 +92,18 @@ jobs:
     steps:
       - name: checkout code
         uses: actions/checkout@v2
+
+      - name: Install Foundry
+        run: |
+          curl -L https://foundry.paradigm.xyz | bash
+          source /Users/runner/.bashrc
+          foundryup
+
+      - name: Add Foundry to PATH
+        run: echo "${HOME}/.foundry/bin" >> $GITHUB_PATH
+
+      - name: Verify Forge installation
+        run: forge --version
 
       - name: install rust
         uses: actions-rs/toolchain@v1
@@ -110,6 +133,18 @@ jobs:
     steps:
       - name: checkout code
         uses: actions/checkout@v2
+
+      - name: Install Foundry
+        run: |
+          curl -L https://foundry.paradigm.xyz | bash
+          source /Users/runner/.bashrc
+          foundryup
+
+      - name: Add Foundry to PATH
+        run: echo "${HOME}/.foundry/bin" >> $GITHUB_PATH
+
+      - name: Verify Forge installation
+        run: forge --version
 
       - name: install rust
         uses: dtolnay/rust-toolchain@nightly

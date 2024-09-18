@@ -47,7 +47,7 @@ pub struct NetworkServiceWithoutSwarm<'a> {
     pub logger: &'a Logger,
     pub inbound_mapping: &'a [InboundMapping],
     pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
-    pub role_key: &'a ecdsa::Pair,
+    pub ecdsa_key: &'a ecdsa::Pair,
     pub span: tracing::Span,
 }
 
@@ -61,7 +61,7 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
             logger: self.logger,
             inbound_mapping: self.inbound_mapping,
             ecdsa_peer_id_to_libp2p_id: &self.ecdsa_peer_id_to_libp2p_id,
-            role_key: self.role_key,
+            ecdsa_key: self.ecdsa_key,
             span: &self.span,
         }
     }
@@ -72,7 +72,7 @@ pub struct NetworkService<'a> {
     pub logger: &'a Logger,
     pub inbound_mapping: &'a [InboundMapping],
     pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
-    pub role_key: &'a ecdsa::Pair,
+    pub ecdsa_key: &'a ecdsa::Pair,
     pub span: &'a tracing::Span,
 }
 

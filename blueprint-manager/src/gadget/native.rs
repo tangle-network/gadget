@@ -7,6 +7,7 @@ pub struct FilteredBlueprint {
     pub blueprint_id: u64,
     pub services: Vec<u64>,
     pub gadget: Gadget,
+    pub name: String,
     pub registration_mode: bool,
 }
 

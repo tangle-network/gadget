@@ -1,11 +1,10 @@
 #![allow(dead_code)]
-use crate::process::manager::GadgetProcessManager;
-use crate::process::types::GadgetInstructionData;
-use crate::process::types::{CommandOrSequence, ProcessOutput};
-use crate::process::utils::*;
-use std::error::Error;
+use crate::executor::process::manager::GadgetProcessManager;
+use crate::executor::process::types::GadgetInstructionData;
+use crate::executor::process::types::{CommandOrSequence, ProcessOutput};
+use crate::executor::process::utils::*;
 
-mod process;
+pub mod process;
 
 // TODO: Gadget Setup following V2 - yet to be implemented
 
@@ -62,31 +61,6 @@ pub async fn run_executor(instructions: &str) {
     );
 }
 
-pub async fn run_tangle_validator() -> Result<(), Box<dyn Error>> {
-    let mut manager = GadgetProcessManager::new();
-
-    let install = manager.run("binary_install".to_string(), "wget https://github.com/webb-tools/tangle/releases/download/v1.0.0/tangle-default-linux-amd64").await?;
-    manager.focus_service_to_completion(install).await?;
-
-    let make_executable = manager
-        .run(
-            "make_executable".to_string(),
-            "chmod +x tangle-default-linux-amd64",
-        )
-        .await?;
-    manager.focus_service_to_completion(make_executable).await?;
-
-    let start_validator = manager
-        .run(
-            "tangle_validator".to_string(),
-            "./tangle-default-linux-amd64",
-        )
-        .await?;
-    manager.focus_service_to_completion(start_validator).await?;
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -101,10 +75,5 @@ mod tests {
             ]
         }"#;
         run_executor(the_file).await;
-    }
-
-    #[tokio::test]
-    async fn test_validator() {
-        run_tangle_validator().await.unwrap();
     }
 }

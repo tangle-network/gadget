@@ -16,14 +16,14 @@ pub trait GadgetRunner {
     /// A reference to the `StdGadgetConfiguration` for this gadget.
     fn config(&self) -> &StdGadgetConfiguration;
 
-    /// Registers the current operator with the the blueprint.
+    /// Registers the current operator with the blueprint.
     ///
     /// This method should be called only during the registration mode.
     ///
     /// # Errors
     ///
     /// Returns an error if the registration fails.
-    async fn register(&self) -> Result<(), Self::Error>;
+    async fn register(&mut self) -> Result<(), Self::Error>;
 
     /// Performs a benchmark of the gadget's performance.
     ///

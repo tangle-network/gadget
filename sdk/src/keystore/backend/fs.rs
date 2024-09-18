@@ -1,8 +1,9 @@
 //! Filesystem-based keystore backend.
 
+use crate::keystore::{bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error};
+use alloc::string::ToString;
+use ark_serialize::CanonicalSerialize;
 use std::{fs, io::Write, path::PathBuf};
-
-use crate::keystore::{bls381, ecdsa, ed25519, sr25519, Backend, Error};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
@@ -11,6 +12,7 @@ enum KeyType {
     Ed25519 = 0x01,
     Ecdsa = 0x02,
     Bls381 = 0x03,
+    BlsBn254 = 0x04,
 }
 
 /// The filesystem keystore backend.
@@ -155,7 +157,8 @@ impl Backend for FilesystemKeystore {
     }
 
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error> {
-        let secret = ecdsa::generate_with_optional_seed(seed).map_err(Error::Ecdsa)?;
+        let secret = ecdsa::generate_with_optional_seed(seed)
+            .map_err(|err| Error::Ecdsa(err.to_string()))?;
         let public = secret.public_key();
         let path = self.key_file_path(&public.to_sec1_bytes(), KeyType::Ecdsa);
         Self::write_to_file(path, &secret.to_bytes()[..])?;
@@ -169,7 +172,8 @@ impl Backend for FilesystemKeystore {
     ) -> Result<Option<ecdsa::Signature>, Error> {
         let secret_bytes = self.secret_by_type(&public.to_sec1_bytes(), KeyType::Ecdsa)?;
         if let Some(buf) = secret_bytes {
-            let secret = ecdsa::secret_from_bytes(&buf).map_err(Error::Ecdsa)?;
+            let secret =
+                ecdsa::secret_from_bytes(&buf).map_err(|err| Error::Ecdsa(err.to_string()))?;
             Ok(Some(ecdsa::sign(&secret, msg)))
         } else {
             Ok(None)
@@ -202,13 +206,40 @@ impl Backend for FilesystemKeystore {
         }
     }
 
+    fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<bn254::Public, Error> {
+        let secret = bn254::generate_with_optional_seed(seed);
+        let public = bn254::to_public(&secret);
+        let path = self.key_file_path(&public.to_bytes(), KeyType::BlsBn254);
+        let mut secret_bytes = Vec::new();
+        secret
+            .serialize_uncompressed(&mut secret_bytes)
+            .map_err(|e| Error::BlsBn254(e.to_string()))?;
+        Self::write_to_file(path, &secret_bytes)?;
+        Ok(public)
+    }
+
+    fn bls_bn254_sign(
+        &self,
+        public: &bn254::Public,
+        msg: &[u8; 32],
+    ) -> Result<Option<bn254::Signature>, Error> {
+        let secret_bytes = self.secret_by_type(&public.to_bytes(), KeyType::BlsBn254)?;
+        if let Some(buf) = secret_bytes {
+            let mut secret = bn254::secret_from_bytes(&buf);
+            Ok(Some(bn254::sign(&mut secret, msg)))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn expose_sr25519_secret(
         &self,
         public: &sr25519::Public,
     ) -> Result<Option<sr25519::Secret>, Error> {
         let secret_bytes = self.secret_by_type(public.as_ref(), KeyType::Sr25519)?;
         if let Some(buf) = secret_bytes {
-            Ok(Some(sr25519::secret_from_bytes(&buf)?))
+            let secret = sr25519::secret_from_bytes(&buf)?;
+            Ok(Some(secret))
         } else {
             Ok(None)
         }
@@ -217,7 +248,9 @@ impl Backend for FilesystemKeystore {
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error> {
         let secret_bytes = self.secret_by_type(&public.to_sec1_bytes(), KeyType::Ecdsa)?;
         if let Some(buf) = secret_bytes {
-            Ok(Some(ecdsa::secret_from_bytes(&buf).map_err(Error::Ecdsa)?))
+            Ok(Some(
+                ecdsa::secret_from_bytes(&buf).map_err(|err| Error::Ecdsa(err.to_string()))?,
+            ))
         } else {
             Ok(None)
         }
@@ -249,6 +282,18 @@ impl Backend for FilesystemKeystore {
         }
     }
 
+    fn expose_bls_bn254_secret(
+        &self,
+        public: &bn254::Public,
+    ) -> Result<Option<bn254::Secret>, Error> {
+        let secret_bytes = self.secret_by_type(&public.to_bytes(), KeyType::BlsBn254)?;
+        if let Some(buf) = secret_bytes {
+            Ok(Some(bn254::secret_from_bytes(&buf)))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn iter_sr25519(&self) -> impl Iterator<Item = sr25519::Public> {
         self.iter_keys(KeyType::Sr25519)
             .flat_map(|b| sr25519::Public::from_bytes(&b))
@@ -269,5 +314,10 @@ impl Backend for FilesystemKeystore {
 
         self.iter_keys(KeyType::Bls381)
             .flat_map(|b| bls381::Public::from_bytes(&b))
+    }
+
+    fn iter_bls_bn254(&self) -> impl Iterator<Item = bn254::Public> {
+        self.iter_keys(KeyType::BlsBn254)
+            .flat_map(|b| bn254::Public::from_bytes(&b))
     }
 }

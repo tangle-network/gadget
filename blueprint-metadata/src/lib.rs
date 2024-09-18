@@ -7,14 +7,14 @@ use std::{
 
 use gadget_blueprint_proc_macro_core::{
     FieldType, Gadget, JobDefinition, JobResultVerifier, ServiceBlueprint, ServiceMetadata,
-    ServiceRegistrationHook, ServiceRequestHook, WasmGadget, WasmRuntime,
+    ServiceRegistrationHook, ServiceRequestHook,
 };
 
 use rustdoc_types::{Crate, Id, Item, ItemEnum, Module};
 
 /// Generate `blueprint.json` to the current crate working directory next to `build.rs` file.
 pub fn generate_json() {
-    Config::builder().build().generate_json();
+    // Config::builder().build().generate_json();
 }
 
 #[derive(Debug, Clone, Default, typed_builder::TypedBuilder)]
@@ -356,7 +356,6 @@ fn generate_rustdoc() -> Crate {
     cmd.args(["--package", &crate_name]);
     cmd.args(["--target-dir", &custom_target_dir]);
     cmd.arg("--locked");
-    cmd.args(["--", "--document-hidden-items"]);
     cmd.env("RUSTC_BOOTSTRAP", "1");
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());

@@ -352,10 +352,10 @@ fn generate_job_report_event_handler(
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
+        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig> for #struct_name {
             async fn can_handle_events(
                 &self,
-                events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::clients::tangle::runtime::TangleConfig>,
             ) -> Result<bool, gadget_sdk::events_watcher::Error> {
                 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted;
 
@@ -368,9 +368,9 @@ fn generate_job_report_event_handler(
 
             async fn handle_events(
                 &self,
-                _client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                _client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::clients::tangle::runtime::TangleConfig>,
                 (events, block_number): (
-                    gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                    gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::clients::tangle::runtime::TangleConfig>,
                     u64
                 ),
             ) -> Result<(), gadget_sdk::events_watcher::Error> {
@@ -432,19 +432,19 @@ fn generate_qos_report_event_handler(
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::events_watcher::tangle::TangleConfig> for #struct_name {
+        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig> for #struct_name {
             async fn can_handle_events(
                 &self,
-                _events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                _events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::clients::tangle::runtime::TangleConfig>,
             ) -> Result<bool, gadget_sdk::events_watcher::Error> {
                 Ok(true)
             }
 
             async fn handle_events(
                 &self,
-                _client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                _client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::clients::tangle::runtime::TangleConfig>,
                 (_events, _block_number): (
-                    gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::events_watcher::tangle::TangleConfig>,
+                    gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::clients::tangle::runtime::TangleConfig>,
                     u64
                 ),
             ) -> Result<(), gadget_sdk::events_watcher::Error> {

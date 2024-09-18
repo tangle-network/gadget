@@ -1,9 +1,11 @@
 use std::str::FromStr;
 
+use crate::deploy::TanglePairSigner;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::{eyre::Context, Result, Section};
+use tangle_subxt::subxt::ext::sp_core;
+use tangle_subxt::subxt::ext::sp_core::Pair;
 use tangle_subxt::subxt_signer::bip39;
-use tangle_subxt::subxt_signer::sr25519;
 use tangle_subxt::subxt_signer::ExposeSecret;
 use tangle_subxt::subxt_signer::SecretUri;
 
@@ -41,7 +43,7 @@ generally be equivalent to no password at all.
 "#;
 
 /// Loads the Substrate Signer from the environment.
-pub fn load_signer_from_env() -> Result<sr25519::Keypair> {
+pub fn load_signer_from_env() -> Result<TanglePairSigner> {
     let secret = std::env::var(SIGNER_ENV)
         .with_suggestion(|| {
             format!(
@@ -54,7 +56,13 @@ pub fn load_signer_from_env() -> Result<sr25519::Keypair> {
         .with_context(|| "Parsing the SURI into a Secret Key")
         .note(SURI_HELP_MSG)?;
 
-    sr25519::Keypair::from_uri(&uri).with_context(|| "Creating a Sr25519 Keypair from the SURI")
+    let sp_core_keypair = sp_core::sr25519::Pair::from_phrase(
+        uri.phrase.expose_secret(),
+        uri.password.as_ref().map(|r| r.expose_secret().as_str()),
+    )?;
+    Ok(TanglePairSigner::new(
+        sp_core_keypair.0.as_ref().clone().into(),
+    ))
 }
 
 /// Loads the EVM Signer from the environment.

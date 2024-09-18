@@ -1,4 +1,6 @@
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GadgetBinary;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
+    GadgetBinary, GithubFetcher,
+};
 
 #[derive(Debug)]
 pub struct NativeGithubMetadata {
@@ -8,4 +10,5 @@ pub struct NativeGithubMetadata {
     pub repo: String,
     pub gadget_binaries: Vec<GadgetBinary>,
     pub blueprint_id: u64,
+    pub fetcher: GithubFetcher,
 }

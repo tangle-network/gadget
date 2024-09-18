@@ -7,10 +7,10 @@ use crate::mutex_ext::TokioMutexExt;
 use subxt::blocks::{Block, BlockRef};
 use subxt::events::Events;
 use subxt::utils::AccountId32;
-use subxt::{self, SubstrateConfig};
+use subxt::{self, PolkadotConfig};
 
 /// The [Config](subxt::Config) providing the runtime types.
-pub type TangleConfig = SubstrateConfig;
+pub type TangleConfig = PolkadotConfig;
 /// The client used to perform API calls, using the [TangleConfig].
 pub type TangleClient = subxt::OnlineClient<TangleConfig>;
 type TangleBlock = Block<TangleConfig, TangleClient>;
@@ -62,6 +62,14 @@ impl TangleRuntimeClient {
         self.client.clone()
     }
 
+    /// Initialize the TangleRuntime instance by listening for finality notifications.
+    /// This method must be called before using the instance.
+    async fn initialize(&self) -> Result<(), Error> {
+        let finality_notification_stream = self.client.blocks().subscribe_finalized().await?;
+        *self.finality_notification_stream.lock().await = Some(finality_notification_stream);
+        Ok(())
+    }
+
     pub fn runtime_api(
         &self,
         at: [u8; 32],
@@ -87,15 +95,6 @@ impl TangleRuntimeClient {
     /// ```
     pub fn account_id(&self) -> &AccountId32 {
         &self.account_id
-    }
-
-    // Initialize the `TangleRuntimeClient` to listen for finality notifications.
-    //
-    // NOTE: This method must be called before using the instance.
-    async fn initialize(&self) -> Result<(), Error> {
-        let finality_notification_stream = self.client.blocks().subscribe_finalized().await?;
-        *self.finality_notification_stream.lock().await = Some(finality_notification_stream);
-        Ok(())
     }
 }
 

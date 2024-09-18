@@ -8,6 +8,7 @@
 //! action to take when the specified event is found in a block at the `handle_event` api.
 
 use crate::events_watcher::error::Error;
+use crate::logger::Logger;
 use backon::{ConstantBuilder, ExponentialBuilder, Retryable};
 use core::time::Duration;
 use futures::TryFutureExt;
@@ -48,6 +49,7 @@ where
 /// An Auxiliary trait to handle events with retry logic.
 ///
 /// **Note**: This trait is automatically implemented for all the event handlers.
+#[async_trait::async_trait]
 pub trait EventHandlerWithRetry<RuntimeConfig>: EventHandler<RuntimeConfig>
 where
     RuntimeConfig: subxt::Config + Send + Sync + 'static,
@@ -62,7 +64,6 @@ where
     /// If this method returns Ok(true), these events will be marked as handled.
     ///
     /// **Note**: This method is automatically implemented for all the event handlers.
-    #[allow(async_fn_in_trait)]
     async fn handle_events_with_retry(
         &self,
         client: OnlineClient<RuntimeConfig>,
@@ -86,6 +87,7 @@ where
 }
 
 /// Represents a Substrate event watcher.
+#[async_trait::async_trait]
 pub trait SubstrateEventWatcher<RuntimeConfig>
 where
     RuntimeConfig: subxt::Config + Send + Sync + 'static,
@@ -96,13 +98,15 @@ where
     /// The name of the pallet that this event watcher is watching.
     const PALLET_NAME: &'static str;
 
+    /// Returns a reference to the Event Watcher's [`Logger`]
+    fn logger(&self) -> &Logger;
+
     /// Returns a task that should be running in the background
     /// that will watch events
     #[tracing::instrument(
         skip_all,
         fields(tag = %Self::TAG, pallet = %Self::PALLET_NAME)
     )]
-    #[allow(async_fn_in_trait)]
     async fn run(
         &self,
         client: OnlineClient<RuntimeConfig>,
@@ -176,4 +180,8 @@ where
         task.retry(backoff).await?;
         Ok(())
     }
+}
+
+pub trait LoggerEnv {
+    fn logger(&self) -> &Logger;
 }

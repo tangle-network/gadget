@@ -3,8 +3,8 @@
 use crate::events_watcher::error::Error;
 use crate::events_watcher::retry::UnboundedConstantBuilder;
 use crate::store::LocalDatabase;
-use alloy_network::Network;
 use alloy_network::ReceiptResponse;
+use alloy_network::{Ethereum, Network};
 use alloy_primitives::FixedBytes;
 use alloy_provider::Provider;
 use alloy_rpc_types::BlockNumberOrTag;
@@ -17,7 +17,7 @@ use std::{ops::Deref, time::Duration};
 
 pub trait Config: Send + Sync + 'static {
     type T: Transport + Clone + Send + Sync + 'static;
-    type P: Provider<Self::T, Self::N> + Send + Sync + 'static;
+    type P: Provider<Self::T, Self::N> + Clone + Send + Sync + 'static;
     type N: Network + Send + Sync + 'static;
 }
 
@@ -37,10 +37,10 @@ pub type EventHandlerFor<W, T> = Box<
 /// The handlers are implemented separately from the watchers, so that we can have
 /// one event watcher and many event handlers that will run in parallel.
 #[async_trait::async_trait]
-pub trait EventHandler<T: Config>: Send + Sync {
+pub trait EventHandler<T: Config<N = Ethereum>>: Send + Sync {
     /// The Type of contract this handler is for, Must be the same as the contract type in the
     /// watcher.
-    type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>
+    type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, Ethereum>>
         + Send
         + Sync
         + 'static;
@@ -64,7 +64,10 @@ pub trait EventHandler<T: Config>: Send + Sync {
 /// An Auxiliary trait to handle events with retry logic.
 ///
 /// this trait is automatically implemented for all the event handlers.
-pub trait EventHandlerWithRetry<T: Config>: EventHandler<T> + Send + Sync + 'static {
+#[async_trait::async_trait]
+pub trait EventHandlerWithRetry<T: Config<N = Ethereum>>:
+    EventHandler<T> + Send + Sync + 'static
+{
     /// A method to be called with the event information,
     /// it is up to the handler to decide what to do with the event.
     ///
@@ -90,7 +93,7 @@ pub trait EventHandlerWithRetry<T: Config>: EventHandler<T> + Send + Sync + 'sta
 }
 
 #[async_trait::async_trait]
-impl<X, T: Config> EventHandlerWithRetry<T> for X where
+impl<X, T: Config<N = Ethereum>> EventHandlerWithRetry<T> for X where
     X: EventHandler<T> + Send + Sync + 'static + ?Sized
 {
 }
@@ -98,13 +101,14 @@ impl<X, T: Config> EventHandlerWithRetry<T> for X where
 /// A trait for watching events from a contract.
 /// EventWatcher trait exists for deployments that are smart-contract / EVM based
 #[async_trait::async_trait]
-pub trait EventWatcher<T: Config>: Send + Sync {
+pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync {
     /// A Helper tag used to identify the event watcher during the logs.
     const TAG: &'static str;
     /// The contract that this event watcher is watching.
     type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>
         + Send
         + Sync
+        + Clone
         + 'static;
     /// The type of event this handler is for.
     type Event: SolEvent + Clone + Send + Sync + 'static;
@@ -117,7 +121,7 @@ pub trait EventWatcher<T: Config>: Send + Sync {
     #[tracing::instrument(
         skip_all,
         fields(
-            address = %contract.address(),
+            address = %contract.clone().address(),
             tag = %Self::TAG,
         ),
     )]

@@ -1,5 +1,7 @@
 //! Keystore backend implementations.
 
+use crate::keystore::bn254::{Public, Secret, Signature};
+use crate::keystore::Error;
 use alloc::vec::Vec;
 
 /// In-Memory Keystore Backend
@@ -115,6 +117,22 @@ impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
         }
     }
 
+    fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<Public, Error> {
+        match self {
+            Self::Mem(backend) => backend.bls_bn254_generate_new(seed),
+            #[cfg(feature = "std")]
+            Self::Fs(backend) => backend.bls_bn254_generate_new(seed),
+        }
+    }
+
+    fn bls_bn254_sign(&self, public: &Public, msg: &[u8; 32]) -> Result<Option<Signature>, Error> {
+        match self {
+            Self::Mem(backend) => backend.bls_bn254_sign(public, msg),
+            #[cfg(feature = "std")]
+            Self::Fs(backend) => backend.bls_bn254_sign(public, msg),
+        }
+    }
+
     fn expose_sr25519_secret(
         &self,
         public: &super::sr25519::Public,
@@ -159,6 +177,14 @@ impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
         }
     }
 
+    fn expose_bls_bn254_secret(&self, public: &Public) -> Result<Option<Secret>, Error> {
+        match self {
+            Self::Mem(backend) => backend.expose_bls_bn254_secret(public),
+            #[cfg(feature = "std")]
+            Self::Fs(backend) => backend.expose_bls_bn254_secret(public),
+        }
+    }
+
     fn iter_sr25519(&self) -> impl Iterator<Item = super::sr25519::Public> {
         match self {
             Self::Mem(backend) => backend.iter_sr25519().collect::<Vec<_>>().into_iter(),
@@ -188,6 +214,14 @@ impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
             Self::Mem(backend) => backend.iter_bls381().collect::<Vec<_>>().into_iter(),
             #[cfg(feature = "std")]
             Self::Fs(backend) => backend.iter_bls381().collect::<Vec<_>>().into_iter(),
+        }
+    }
+
+    fn iter_bls_bn254(&self) -> impl Iterator<Item = Public> {
+        match self {
+            Self::Mem(backend) => backend.iter_bls_bn254().collect::<Vec<_>>().into_iter(),
+            #[cfg(feature = "std")]
+            Self::Fs(backend) => backend.iter_bls_bn254().collect::<Vec<_>>().into_iter(),
         }
     }
 }
