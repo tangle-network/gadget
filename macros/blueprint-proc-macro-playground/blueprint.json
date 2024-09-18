@@ -15,9 +15,98 @@
   "request_hook": "None",
   "request_params": [],
   "gadget": {
-    "Wasm": {
-      "runtime": "Wasmtime",
-      "sources": []
+    "Native": {
+      "sources": [
+        {
+          "fetcher": {
+            "Github": {
+              "owner": "webb-tools",
+              "repo": "incredible-squaring",
+              "tag": "0.1.0",
+              "binaries": [
+                {
+                  "arch": "Amd64",
+                  "os": "Linux",
+                  "name": "amd64-linux-incredible-squaring-gadget",
+                  "sha256": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                {
+                  "arch": "Arm64",
+                  "os": "Linux",
+                  "name": "arm64-linux-incredible-squaring-gadget",
+                  "sha256": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   }
 }

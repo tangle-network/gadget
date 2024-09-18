@@ -1,4 +1,4 @@
-type BlueprintString<'a> = std::borrow::Cow<'a, str>;
+pub type BlueprintString<'a> = std::borrow::Cow<'a, str>;
 /// A type that represents an EVM Address.
 pub type Address = ethereum_types::H160;
 
@@ -328,16 +328,29 @@ pub struct GadgetBinary<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(from = "GadgetSourceFlat<'_>")]
 pub struct GadgetSource<'a> {
     /// The fetcher that will fetch the gadget from a remote source.
-    fetcher: GadgetSourceFetcher<'a>,
+    pub fetcher: GadgetSourceFetcher<'a>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+struct GadgetSourceFlat<'a>(GadgetSourceFetcher<'a>);
+
+impl<'a> From<GadgetSourceFlat<'a>> for GadgetSource<'a> {
+    fn from(flat: GadgetSourceFlat<'a>) -> GadgetSource<'a> {
+        Self { fetcher: flat.0 }
+    }
 }
 
 /// A Gadget Source Fetcher is a fetcher that will fetch the gadget
 /// from a remote source.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(from = "UntaggedGadgetSourceFetcher<'_>")]
 pub enum GadgetSourceFetcher<'a> {
     /// A Gadget that will be fetched from the IPFS.
+    #[allow(clippy::upper_case_acronyms)]
     IPFS(Vec<u8>),
     /// A Gadget that will be fetched from the Github release.
     Github(GithubFetcher<'a>),
@@ -345,6 +358,46 @@ pub enum GadgetSourceFetcher<'a> {
     ContainerImage(ImageRegistryFetcher<'a>),
     /// For testing
     Testing(TestFetcher<'a>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+struct CidWrapper(cid::Cid);
+
+impl<'de> serde::Deserialize<'de> for CidWrapper {
+    fn deserialize<D>(deserializer: D) -> Result<CidWrapper, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let str_value = String::deserialize(deserializer)?;
+        let cid = cid::Cid::try_from(str_value).map_err(serde::de::Error::custom)?;
+        Ok(CidWrapper(cid))
+    }
+}
+
+/// A Gadget Source Fetcher is a fetcher that will fetch the gadget
+/// from a remote source.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+enum UntaggedGadgetSourceFetcher<'a> {
+    /// A Gadget that will be fetched from the IPFS.
+    #[allow(clippy::upper_case_acronyms)]
+    IPFS(CidWrapper),
+    /// A Gadget that will be fetched from the Github release.
+    Github(GithubFetcher<'a>),
+    /// A Gadgets that will be fetched from the container registry.
+    ContainerImage(ImageRegistryFetcher<'a>),
+}
+
+impl<'a> From<UntaggedGadgetSourceFetcher<'a>> for GadgetSourceFetcher<'a> {
+    fn from(tagged: UntaggedGadgetSourceFetcher<'a>) -> GadgetSourceFetcher<'a> {
+        match tagged {
+            UntaggedGadgetSourceFetcher::IPFS(hash) => GadgetSourceFetcher::IPFS(hash.0.to_bytes()),
+            UntaggedGadgetSourceFetcher::Github(fetcher) => GadgetSourceFetcher::Github(fetcher),
+            UntaggedGadgetSourceFetcher::ContainerImage(fetcher) => {
+                GadgetSourceFetcher::ContainerImage(fetcher)
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

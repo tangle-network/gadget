@@ -35,8 +35,7 @@ impl Config {
         // Extract the job definitions from the rustdoc output
         let jobs = extract_jobs(&krate);
         let hooks = extract_hooks(&krate);
-        let gadget = extract_gadget(&output_file);
-
+        let gadget = generate_gadget().into();
         eprintln!("Generating blueprint.json to {:?}", output_file);
         let blueprint = ServiceBlueprint {
             metadata: ServiceMetadata {
@@ -105,26 +104,6 @@ fn extract_hooks(krate: &Crate) -> Vec<Hook> {
         panic!("Failed to get blueprint crate module");
     };
     extract_hooks_from_module(&krate.root, &krate.index, blueprint_crate)
-}
-
-/// Extract the `gadget` field from the rustdoc output.
-fn extract_gadget<'a, T: AsRef<Path> + 'a>(blueprint_json_path: T) -> Gadget<'a> {
-    let json_string = unescape_json_string(
-        &std::fs::read_to_string(blueprint_json_path).expect("Failed to read blueprint.json file"),
-    );
-    let mut blueprint_json: serde_json::Value =
-        serde_json::from_str(&json_string).expect("Failed to parse blueprint JSON");
-
-    if let serde_json::Value::Object(map) = &blueprint_json {
-        if map.contains_key("gadget") {
-            serde_json::from_value(blueprint_json["gadget"].take())
-                .expect("Failed to deserialize gadget JSON")
-        } else {
-            panic!("The blueprint.json file does not contain a `gadget` field")
-        }
-    } else {
-        panic!("The blueprint.json file is not an OBJECT")
-    }
 }
 
 /// Extract job definitions from the rustdoc output.
@@ -274,6 +253,21 @@ fn resolve_evm_contract_path_by_name(name: &str) -> PathBuf {
         .join(format!("{name}.json"))
 }
 
+/// Finds a package in the workspace to get metadata for.
+fn find_package<'m>(
+    metadata: &'m cargo_metadata::Metadata,
+    pkg_name: &str,
+) -> &'m cargo_metadata::Package {
+    if metadata.workspace_members.is_empty() {
+        unreachable!("There should be at least one package in the workspace");
+    }
+    metadata
+        .packages
+        .iter()
+        .find(|p| p.name == pkg_name)
+        .expect("No package found in the workspace with the specified name")
+}
+
 struct Locked;
 
 struct LockFile {
@@ -306,6 +300,39 @@ impl Drop for LockFile {
         use fs2::FileExt;
         let _ = self.file.unlock();
     }
+}
+
+/// Generates the metadata for the gadget.
+fn generate_gadget() -> Gadget<'static> {
+    let root = std::env::var("CARGO_MANIFEST_DIR").expect("Failed to get manifest directory");
+    let crate_name = std::env::var("CARGO_PKG_NAME").expect("Failed to get package name");
+    let root = std::path::Path::new(&root);
+
+    let lock = LockFile::new(root);
+    if lock.try_lock().is_err() {
+        eprintln!("Already locked; skipping rustdoc generation",);
+        // Exit early if the lock file exists
+        std::process::exit(0);
+    }
+    let metadata = cargo_metadata::MetadataCommand::new()
+        .manifest_path(root.join("Cargo.toml"))
+        .no_deps()
+        .exec()
+        .expect("Failed to get metadata");
+
+    let package = find_package(&metadata, &crate_name);
+    let Some(gadget) = package.metadata.get("gadget") else {
+        eprintln!("No gadget metadata found in the Cargo.toml.");
+        eprintln!("For more information, see:");
+        eprintln!("<TODO>");
+        eprintln!("");
+        // For now, we just return an empty gadget
+        return Gadget::Wasm(WasmGadget {
+            runtime: WasmRuntime::Wasmtime,
+            sources: vec![],
+        });
+    };
+    serde_json::from_value(gadget.clone()).expect("Failed to deserialize gadget.")
 }
 
 fn generate_rustdoc() -> Crate {
