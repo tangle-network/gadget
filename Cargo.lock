@@ -4346,7 +4346,6 @@ dependencies = [
  "cid",
  "ethereum-types",
  "serde",
- "serde_json",
 ]
 
 [[package]]
