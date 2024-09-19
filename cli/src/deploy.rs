@@ -325,7 +325,16 @@ fn bake_blueprint(
                 .as_object_mut()
                 .expect("Fetcher should be a map")
             {
-                convert_to_bytes_or_null(value);
+                if value.is_array() {
+                    let xs = value.as_array_mut().expect("Value should be an array");
+                    for x in xs {
+                        if x.is_object() {
+                            convert_to_bytes_or_null(&mut x["name"]);
+                        }
+                    }
+                } else {
+                    convert_to_bytes_or_null(value);
+                }
             }
         } else {
             panic!("The source at index {idx} does not have a valid fetcher");

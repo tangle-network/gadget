@@ -13,6 +13,9 @@ serde = { workspace = true, features = ["derive"] }
 ethereum-types = { workspace = true, features = ["serialize"] }
 cid = { workspace = true, default-features = false, features = ["alloc", "serde"] }
 
+[dev-dependencies]
+serde_json = { workspace = true }
+
 [features]
 default = ["std"]
 std = ["serde/std", "cid/std"]

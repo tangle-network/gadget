@@ -28,7 +28,7 @@ pub struct MyContext;
 // ==================
 
 /// Simple Threshold (t) Keygen Job for n parties.
-#[job(id = 0, params(n, t), result(_), verifier(evm = "KeygenContract"))]
+#[job(id = 0, params(n, t), result(_))]
 pub fn keygen(ctx: &MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
     let _ = (n, t, ctx);
     Ok(vec![0; 33])
