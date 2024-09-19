@@ -35,7 +35,7 @@ Let's get started!
 To install the Tangle CLI, run the following command:
 
 ```bash
-cargo install --bin tangle-cli --git https://github.com/webb-tools/gadget --force
+cargo install --bin cargo-tangle --git https://github.com/webb-tools/gadget --force
 ```
 
 ### Creating a Blueprint
