@@ -21,34 +21,10 @@ Gadget is a comprehensive framework for building AVS services on Tangle and Eige
 ### Prerequisites
 
 - Rust 1.74.0 or higher
-- Substrate blockchain with compatible job management and submission infrastructure
 
-### Installation
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/webb-tools/gadget/
-git submodule update --init --recursive
-cd gadget
+### Creating a Blueprint
 ```
-   
-2. Build the project:
-
-```bash
-cargo build --release
-```
-## Troubleshooting
-For troubleshooting build issues, refer to [Tangle Troubleshooting](https://github.com/webb-tools/tangle?tab=readme-ov-file#-troubleshooting-) or create an issue.
-
-### Foundry
-In order to use the incredible-squaring blueprint, you need to have the Foundry CLI installed. You can install it here: [Foundry CLI](https://ethereum-blockchain-developer.com/2022-06-nft-truffle-hardhat-foundry/14-foundry-setup/)
-
-Then, run:
-```bash
-cd blueprints/incredible-squaring
-yarn install
-forge build --root ./contracts
+cargo install cargo-tangle
 ```
 
 ## License
