@@ -39,6 +39,22 @@ Replace `<blueprint_name>` with the desired name for your blueprint/gadget.
 cargo tangle gadget create --name my_blueprint
 ```
 
+## Build The Blueprint and the Gadget
+
+To build the blueprint and the gadget, you can simply use cargo as you would with any rust project:
+
+```bash
+cargo build
+```
+
+## Unit Testing
+
+To run the unit tests, use the following command:
+
+```bash
+cargo test
+```
+
 ## Deploying the Blueprint to a Local Tangle Node
 
 To deploy the blueprint to a local Tangle node, use the following command:
