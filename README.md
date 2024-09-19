@@ -1,13 +1,11 @@
-# Gadget: A Powerful distributed AVS Framework
-
 <p align="center">
   <img src="https://github.com/webb-tools/dkg-substrate/raw/master/assets/webb_banner_light.png" alt="Gadget Logo">
 </p>
 
-[![Validate PR](https://github.com/webb-tools/gadget/actions/workflows/validate_pr.yml/badge.svg)](https://github.com/webb-tools/gadget/actions/workflows/validate_pr.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Rust Version](https://img.shields.io/badge/rust-1.74.0%2B-blue.svg)](https://www.rust-lang.org)
 
+# Gadget: A Powerful distributed AVS Framework
 Gadget is a comprehensive framework for building AVS services on Tangle and Eigenlayer. It provides a standardized framework for building task based systems and enables developers to clearly specify jobs, slashing reports, benchmarks, and tests for offchain and onchain service interactions. We plan to integrate with other restaking infrastructures over time, if you are a project that is interested please reach out!
 
 ## Features
