@@ -17,6 +17,7 @@ use gadget_sdk::keystore::sp_core_subxt::Pair;
 use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::tangle_subxt::subxt::tx::Signer;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
+
 struct TangleGadgetRunner {
     env: GadgetConfiguration<parking_lot::RawRwLock>,
 }
@@ -73,7 +74,7 @@ impl GadgetRunner for TangleGadgetRunner {
         todo!()
     }
 
-    async fn run(&self) -> Result<()> {
+    async fn run(&mut self) -> Result<()> {
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
         let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
         let logger = self.env.logger.clone();

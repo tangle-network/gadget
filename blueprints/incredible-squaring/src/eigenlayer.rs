@@ -253,7 +253,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             .clone()
             .boxed();
 
-        let _ws_provider = ProviderBuilder::new()
+        let ws_provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(wallet)
             .on_http(self.env.rpc_endpoint.parse()?)
@@ -261,7 +261,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             .clone()
             .boxed();
 
-        let _operator_info_service = OperatorInfoService::new(
+        let operator_info_service = OperatorInfoService::new(
             types::OperatorInfo {
                 socket: "0.0.0.0:0".to_string(),
                 pubkeys: OperatorPubkeys {
@@ -279,25 +279,25 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             .await
             .map_err(|e| OperatorError::HttpEthClientError(e.to_string()))?;
 
-        let _signer = EigenGadgetSigner::new(
+        let signer = EigenGadgetSigner::new(
             PrivateKeySigner::from_signing_key(ecdsa_signing_key),
             Some(ChainId::from(chain_id)),
         );
 
         // This creates and registers an operator with the given configuration
-        // let operator = Operator::<NodeConfig, OperatorInfoService>::new_from_config(
-        //     node_config.clone(),
-        //     EigenGadgetProvider {
-        //         provider: http_provider,
-        //     },
-        //     EigenGadgetProvider {
-        //         provider: ws_provider,
-        //     },
-        //     operator_info_service,
-        //     signer,
-        // )
-        // .await
-        // .map_err(|e| eyre!(e))?;
+        let operator = Operator::<NodeConfig, OperatorInfoService>::new_from_config(
+            node_config.clone(),
+            EigenGadgetProvider {
+                provider: http_provider.clone(),
+            },
+            EigenGadgetProvider {
+                provider: ws_provider.clone(),
+            },
+            operator_info_service.clone(),
+            signer.clone(),
+        )
+        .await
+        .map_err(|e| eyre!(e))?;
 
         // self.set_operator(operator);
 
@@ -309,7 +309,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         todo!()
     }
 
-    async fn run(&self) -> Result<()> {
+    async fn run(&mut self) -> Result<()> {
         // Tangle Portion of Run
         let _client = self.env.client().await.map_err(|e| eyre!(e))?;
         let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
@@ -390,6 +390,13 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         //     vec![Box::new(x_square_eigen)],
         // )
         // .await?;
+
+        // self.operator.unwrap().start().await?;
+        // if let Some(operator) = &self.operator {
+        //     operator.start().await?;
+        // } else {
+        //     return Err(eyre!("Run Error - No Operator Found"));
+        // }
 
         Ok(())
     }
