@@ -36,7 +36,7 @@ impl Config {
         let jobs = extract_jobs(&krate);
         eprintln!("Extracted {} job definitions", jobs.len());
         let hooks = extract_hooks(&krate);
-        let gadget = generate_gadget().into();
+        let gadget = generate_gadget();
         eprintln!("Generating blueprint.json to {:?}", output_file);
         let blueprint = ServiceBlueprint {
             metadata: ServiceMetadata {
@@ -326,7 +326,7 @@ fn generate_gadget() -> Gadget<'static> {
         eprintln!("No gadget metadata found in the Cargo.toml.");
         eprintln!("For more information, see:");
         eprintln!("<TODO>");
-        eprintln!("");
+        eprintln!();
         // For now, we just return an empty gadget
         return Gadget::Wasm(WasmGadget {
             runtime: WasmRuntime::Wasmtime,

@@ -344,8 +344,8 @@ enum GadgetSourceFlat<'a> {
 impl<'a> From<GadgetSourceFlat<'a>> for GadgetSource<'a> {
     fn from(flat: GadgetSourceFlat<'a>) -> GadgetSource<'a> {
         match flat {
-            GadgetSourceFlat::Plain(fetcher) => return GadgetSource { fetcher },
-            GadgetSourceFlat::WithFetcher { fetcher } => return GadgetSource { fetcher },
+            GadgetSourceFlat::Plain(fetcher) => GadgetSource { fetcher },
+            GadgetSourceFlat::WithFetcher { fetcher } => GadgetSource { fetcher },
         }
     }
 }
