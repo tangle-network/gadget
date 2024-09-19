@@ -176,7 +176,8 @@ secp256k1 = "0.29.1"
 
 # Eigenlayer
 # TODO: Remove this branch, point to main once https://github.com/webb-tools/eigensdk-rs/pull/20 is merged
-eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = "donovan/maintenance" }
+#eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = "donovan/maintenance" }
+eigensdk-rs = { path = "../eigensdk-rs" }
 
 [profile.dev.package.backtrace]
 opt-level = 3

@@ -582,8 +582,7 @@ mod tests_standard {
         const OUTPUT: u64 = INPUT.pow(2);
 
         // Start Local Anvil Testnet in the background
-        // let _ = eigensdk_rs::test_utils::anvil::testnet::incredible_squaring::run_incredible_squaring_testnet().await;
-        let _ = eigensdk_rs::test_utils::
+        let _ = eigensdk_rs::test_utils::anvil::testnet::incredible_squaring::run_incredible_squaring_testnet().await;
 
         new_test_ext_blueprint_manager::<5, 1, (), _, _>((), opts, run_test_blueprint_manager)
             .await
