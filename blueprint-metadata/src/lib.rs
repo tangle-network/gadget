@@ -7,14 +7,14 @@ use std::{
 
 use gadget_blueprint_proc_macro_core::{
     FieldType, Gadget, JobDefinition, JobResultVerifier, ServiceBlueprint, ServiceMetadata,
-    ServiceRegistrationHook, ServiceRequestHook,
+    ServiceRegistrationHook, ServiceRequestHook, WasmGadget, WasmRuntime,
 };
 
 use rustdoc_types::{Crate, Id, Item, ItemEnum, Module};
 
 /// Generate `blueprint.json` to the current crate working directory next to `build.rs` file.
 pub fn generate_json() {
-    // Config::builder().build().generate_json();
+    Config::builder().build().generate_json();
 }
 
 #[derive(Debug, Clone, Default, typed_builder::TypedBuilder)]
@@ -34,6 +34,7 @@ impl Config {
         let krate = generate_rustdoc();
         // Extract the job definitions from the rustdoc output
         let jobs = extract_jobs(&krate);
+        eprintln!("Extracted {} job definitions", jobs.len());
         let hooks = extract_hooks(&krate);
         let gadget = generate_gadget().into();
         eprintln!("Generating blueprint.json to {:?}", output_file);
@@ -354,8 +355,10 @@ fn generate_rustdoc() -> Crate {
     cmd.args(["-Z", "unstable-options"]);
     cmd.args(["--output-format", "json"]);
     cmd.args(["--package", &crate_name]);
+    cmd.arg("--lib");
     cmd.args(["--target-dir", &custom_target_dir]);
     cmd.arg("--locked");
+    cmd.args(["--", "--document-hidden-items"]);
     cmd.env("RUSTC_BOOTSTRAP", "1");
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
@@ -417,8 +420,8 @@ fn generate_rustdoc() -> Crate {
     let json_string = std::fs::read_to_string(&json_path).expect("Failed to read rustdoc JSON");
     let krate: Crate = serde_json::from_str(&json_string).expect("Failed to parse rustdoc JSON");
     assert!(
-        krate.format_version >= 30,
-        "This tool expects JSON format version >= 30",
+        krate.format_version >= 33,
+        "This tool expects JSON format version >= 33",
     );
     krate
 }
