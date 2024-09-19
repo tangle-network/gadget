@@ -8,19 +8,13 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Rust Version](https://img.shields.io/badge/rust-1.74.0%2B-blue.svg)](https://www.rust-lang.org)
 
-Gadget is a comprehensive framework for building multi-party computation (MPC) and restaking service gadgets. It provides a standardized and flexible approach to implementing services that interact with job management systems, such as blockchains with on-chain job management logic, and communicate with other service providers using peer-to-peer or alternative networking stacks.
+Gadget is a comprehensive framework for building AVS services on Tangle and Eigenlayer. It provides a standardized framework for building task based systems and enables developers to clearly specify jobs, slashing reports, benchmarks, and tests for offchain and onchain service interactions. We plan to integrate with other restaking infrastructures over time, if you are a project that is interested please reach out!
 
 ## Features
 
 - Modular and extensible architecture
-- Support for various MPC protocols and services:
-    - [x] [DFNS CGGMP21](https://github.com/dfns/cggmp21/tree/m/cggmp21)
-    - [x] [Threshold BLS](https://github.com/hyperledger-labs/agora-blsful)
-    - [x] [LIT Protocol fork of ZCash Frost](https://github.com/LIT-Protocol/frost)
-    - [x] [Groth16 ZK-SaaS](https://github.com/webb-tools/zk-SaaS)
-    - [x] [DKLS](https://github.com/webb-tools/silent-shard-dkls23-gadget)
-- Integration with Substrate blockchain logic and networking
-- Standardized job allocation, completion, and submission mechanisms
+- Integration with [Tangle](https://twitter.com/tangle_network) and [Eigenlayer](https://www.eigenlayer.xyz/)
+- Standardized job execution and submission mechanisms
 - Protocol-specific blockchain connections, networking layers, and application logic
 - Comprehensive testing framework
 
@@ -46,67 +40,8 @@ cd gadget
 ```bash
 cargo build --release
 ```
-
-### Running the Gadget Binary
-The gadget binary is a standalone application that provides a command-line interface for interacting with the Gadget and the blockchain. To run the shell, use the following command:
-
-```bash
-./target/release/blueprint-manager --protocols-config ./global_protocols.toml --gadget-config gadget-configs/local-testnet-0.toml -vvv
-```
-
-Before running that command, make sure that a [tangle](https://github.com/webb-tools/tangle/) node is running, otherwise, the gadget binary will fail.
-
-### Creating a New Protocol
-To create a new protocol using Gadget, clone the [protocol-template](https://github.com/webb-tools/protocol-template) and begin hacking!
-
-For examples of protocols using this template, check out our [protocol implementations](https://github.com/webb-tools/protocols)
-
-## Testing
-This repository contains unit tests and integration tests to validate the functionality of the Gadget framework and its interaction with the blockchain.
-
-### Unit Testing
-To run the tests, use the following command:
-```bash
-RUST_LOG=gadget=trace cargo nextest run
-```
-
-### Integration testing
-Integration testing involves a multi-step process that includes running a tangle node, running multiple gadget binaries each with a separate config, and submitting jobs manually.
-To run the integration tests, make sure the aforementioned steps are followed for building the executables, then, follow these steps:
-
-1. Run a tangle node from the [tangle repository](https://github.com/webb-tools/tangle/)
-```bash
-bash ./scripts/run-standalone-local.sh --clean 
-```
-
-2. Run Gadgets
-```bash
-bash ./scripts/run-gadget-local.sh
-```
-
-3. Once the gadgets are running, open a separate terminal, navigate to the tangle directory, and run:
-```bash
-cd types && yarn && ts-node playground.ts 
-```
-
-4. View the progress by navigating in a web browser [here](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9944#/explorer)
-
-
 ## Troubleshooting
-
-### GMP Issues
-If you encounter linking errors related to libgmp (e.g., "could not find library -lgmp") when building on a Mac M1, follow these steps:
-
-1. Install GMP using Homebrew:
-```bash
-brew install gmp
-```
-2. Set the LIBRARY_PATH and INCLUDE_PATH environment variables:
-```bash
-export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/lib
-export INCLUDE_PATH=$INCLUDE_PATH:/opt/homebrew/include
-```
-Note: You need to set these environment variables each time you start a new gadget session or append them to your .zshrc file.
+For troubleshooting build issues, refer to [Tangle Troubleshooting](https://github.com/webb-tools/tangle?tab=readme-ov-file#-troubleshooting-) or create an issue.
 
 ### Foundry
 In order to use the incredible-squaring blueprint, you need to have the Foundry CLI installed. You can install it here: [Foundry CLI](https://ethereum-blockchain-developer.com/2022-06-nft-truffle-hardhat-foundry/14-foundry-setup/)
@@ -117,8 +52,6 @@ cd blueprints/incredible-squaring
 yarn install
 forge build --root ./contracts
 ```
-
-This is required for testing and GitHub pipelines.
 
 ## License
 Gadget is licensed under either of
@@ -139,8 +72,8 @@ for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
 
 ## Acknowledgements
-We would like to thank the following projects for their inspiration and contributions to this repository:
-
+We would like to thank the following projects for their inspiration and contributions to this project:
+* 
 * [DFNS CGGMP21](https://github.com/dfns/cggmp21/)
 * [Threshold BLS](https://github.com/mikelodder7/blsful)
 * [LIT Protocol fork of ZCash Frost](https://github.com/LIT-Protocol/frost)
