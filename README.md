@@ -60,6 +60,18 @@ cargo tangle gadget deploy --rpc-url <rpc_url> --package <package_name>
 
 More information on this process can be found in the [CLI documentation](./cli/README.md)
 
+### Testing a blueprint (alpha)
+In order to test a blueprint, you must first have a local Tangle node running. When setting up a local testnet for integration testing, we recommend running this script for testing: [run-standalone-local.sh](https://github.com/webb-tools/tangle/blob/main/scripts/run-standalone-local.sh), passing `--clean` as an argument to reset the chain and any keys.
+
+Then, you can run:
+
+```bash
+cargo test --package blueprint-test-utils tests_standard::test_externalities_gadget_starts -- --nocapture
+```
+
+Since this is an alpha feature with very near-term plans for stabilization [in this PR](https://github.com/webb-tools/gadget/pull/285), we recommend you use rev `a01ba2bcbc37d444a044866b961d716f45d0e6f3` until the PR is merged. Additionally, each time the blueprint is run, you must cancel the testnet and restart it to ensure storage is reset.
+All these nuances and manual requirement of setting up a testnet will be resolved in the near future and will be testable via `cargo tangle gadget test`
+
 ## License
 Gadget is licensed under either of
 
