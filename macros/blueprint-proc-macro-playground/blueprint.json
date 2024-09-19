@@ -22,9 +22,7 @@
       "result": [
         "Bytes"
       ],
-      "verifier": {
-        "Evm": "contracts/out/KeygenContract.sol/KeygenContract.json"
-      }
+      "verifier": "None"
     },
     {
       "metadata": {
