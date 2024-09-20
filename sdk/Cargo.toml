@@ -52,7 +52,7 @@ tracing = { workspace = true, features = ["log"] }
 async-trait = { workspace = true }
 bincode = { workspace = true }
 futures = { workspace = true }
-gadget-io = { workspace = true, features = ["std"] }
+gadget-io = { workspace = true }
 round-based = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
