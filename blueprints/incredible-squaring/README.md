@@ -28,7 +28,7 @@ bash ./scripts/run-standalone-local.sh --clean
 - Then, use the following command to run the gadget that uses the blueprint:
 
 ```bash
-RPC_URL=ws://localhost:9944 KEYSTORE_URI=file://./target/keystore BLUEPRINT_ID=0 SERVICE_ID=0 RUST_LOG=incredible_squaring_gadget,gadget_sdk=trace,error cargo r -p incredible-squaring-blueprint --features=gadget
+RUST_LOG=incredible_squaring_gadget,gadget_sdk=trace,error cargo run -p incredible-squaring-blueprint -- run --url=ws://localhost:9944 --base-path=./target/keystore --blueprint-id=0 --service-id=0 --bind-addr=0.0.0.0 --bind-port=<bind-port>
 ```
 
 That's it! You should see the gadget running and listening for incoming requests on the Local Tangle Network.
