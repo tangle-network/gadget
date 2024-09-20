@@ -9,7 +9,7 @@ Create and Deploy blueprints on Tangle Network.
 3. [Creating a New Blueprint/Gadget](#creating-a-new-blueprintgadget)
 4. [Deploying the Blueprint to a Local Tangle Node](#deploying-the-blueprint-to-a-local-tangle-node)
 5. [Required Environment Variables for Deployment](#required-environment-variables-for-deployment)
-6. [Examples](#examples)
+6. [Example](#example)
 
 ## Overview
 
@@ -20,7 +20,7 @@ The Tangle CLI is a command-line tool that allows you to create and deploy bluep
 To install the Tangle CLI from crates.io, run the following command:
 
 ```bash
-cargo install cargo-tangle
+cargo install --bin tangle-cli --git https://github.com/webb-tools/gadget --force
 ```
 
 ## Creating a New Blueprint/Gadget
@@ -39,11 +39,29 @@ Replace `<blueprint_name>` with the desired name for your blueprint/gadget.
 cargo tangle gadget create --name my_blueprint
 ```
 
+## Build The Blueprint and the Gadget
+
+To build the blueprint and the gadget, you can simply use cargo as you would with any rust project:
+
+```bash
+cargo build
+```
+
+## Unit Testing
+
+To run the unit tests, use the following command:
+
+```bash
+cargo test
+```
+
 ## Deploying the Blueprint to a Local Tangle Node
 
 To deploy the blueprint to a local Tangle node, use the following command:
 
 ```bash
+export SIGNER="//Alice" # Substrate Signer account
+export EVM_SIGNER="0xcb6df9de1efca7a3998a8ead4e02159d5fa99c3e0d4fd6432667390bb4726854" # EVM signer account
 cargo tangle gadget deploy --rpc-url <rpc_url> --package <package_name>
 ```
 
@@ -71,6 +89,6 @@ The following environment variables are required for deploying the blueprint:
 ### Example
 
 ```bash
-export SIGNER="//Alice"
-export EVM_SIGNER="0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+export SIGNER="//Alice" # Substrate Signer account
+export EVM_SIGNER="0xcb6df9de1efca7a3998a8ead4e02159d5fa99c3e0d4fd6432667390bb4726854" # EVM signer account
 ```

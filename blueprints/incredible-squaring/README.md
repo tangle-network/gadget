@@ -1,6 +1,6 @@
 ## Incredible Squaring Blueprint
 
-A simple blueprint that only has one job that takes $x$ and returns $x^2$
+A simple blueprint that only has one job that takes **x** and returns **x<sup>2</sup>**.
 
 ## Building the Blueprint
 

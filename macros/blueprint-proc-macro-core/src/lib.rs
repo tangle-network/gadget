@@ -335,19 +335,25 @@ pub struct GadgetSource<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(transparent)]
-struct GadgetSourceFlat<'a>(GadgetSourceFetcher<'a>);
+#[serde(untagged)]
+enum GadgetSourceFlat<'a> {
+    WithFetcher { fetcher: GadgetSourceFetcher<'a> },
+    Plain(GadgetSourceFetcher<'a>),
+}
 
 impl<'a> From<GadgetSourceFlat<'a>> for GadgetSource<'a> {
     fn from(flat: GadgetSourceFlat<'a>) -> GadgetSource<'a> {
-        Self { fetcher: flat.0 }
+        match flat {
+            GadgetSourceFlat::Plain(fetcher) => GadgetSource { fetcher },
+            GadgetSourceFlat::WithFetcher { fetcher } => GadgetSource { fetcher },
+        }
     }
 }
 
 /// A Gadget Source Fetcher is a fetcher that will fetch the gadget
 /// from a remote source.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(from = "UntaggedGadgetSourceFetcher<'_>")]
+#[serde(from = "DynamicGadgetSourceFetcher<'_>")]
 pub enum GadgetSourceFetcher<'a> {
     /// A Gadget that will be fetched from the IPFS.
     #[allow(clippy::upper_case_acronyms)]
@@ -358,6 +364,13 @@ pub enum GadgetSourceFetcher<'a> {
     ContainerImage(ImageRegistryFetcher<'a>),
     /// For testing
     Testing(TestFetcher<'a>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+enum DynamicGadgetSourceFetcher<'a> {
+    Tagged(TaggedGadgetSourceFetcher<'a>),
+    Untagged(UntaggedGadgetSourceFetcher<'a>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -377,6 +390,19 @@ impl<'de> serde::Deserialize<'de> for CidWrapper {
 /// A Gadget Source Fetcher is a fetcher that will fetch the gadget
 /// from a remote source.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+enum TaggedGadgetSourceFetcher<'a> {
+    /// A Gadget that will be fetched from the IPFS.
+    #[allow(clippy::upper_case_acronyms)]
+    IPFS(CidWrapper),
+    /// A Gadget that will be fetched from the Github release.
+    Github(GithubFetcher<'a>),
+    /// A Gadgets that will be fetched from the container registry.
+    ContainerImage(ImageRegistryFetcher<'a>),
+}
+
+/// A Gadget Source Fetcher is a fetcher that will fetch the gadget
+/// from a remote source.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 enum UntaggedGadgetSourceFetcher<'a> {
     /// A Gadget that will be fetched from the IPFS.
@@ -388,12 +414,33 @@ enum UntaggedGadgetSourceFetcher<'a> {
     ContainerImage(ImageRegistryFetcher<'a>),
 }
 
+impl<'a> From<DynamicGadgetSourceFetcher<'a>> for GadgetSourceFetcher<'a> {
+    fn from(f: DynamicGadgetSourceFetcher<'a>) -> GadgetSourceFetcher<'a> {
+        match f {
+            DynamicGadgetSourceFetcher::Tagged(tagged) => tagged.into(),
+            DynamicGadgetSourceFetcher::Untagged(untagged) => untagged.into(),
+        }
+    }
+}
+
 impl<'a> From<UntaggedGadgetSourceFetcher<'a>> for GadgetSourceFetcher<'a> {
-    fn from(tagged: UntaggedGadgetSourceFetcher<'a>) -> GadgetSourceFetcher<'a> {
-        match tagged {
+    fn from(untagged: UntaggedGadgetSourceFetcher<'a>) -> GadgetSourceFetcher<'a> {
+        match untagged {
             UntaggedGadgetSourceFetcher::IPFS(hash) => GadgetSourceFetcher::IPFS(hash.0.to_bytes()),
             UntaggedGadgetSourceFetcher::Github(fetcher) => GadgetSourceFetcher::Github(fetcher),
             UntaggedGadgetSourceFetcher::ContainerImage(fetcher) => {
+                GadgetSourceFetcher::ContainerImage(fetcher)
+            }
+        }
+    }
+}
+
+impl<'a> From<TaggedGadgetSourceFetcher<'a>> for GadgetSourceFetcher<'a> {
+    fn from(tagged: TaggedGadgetSourceFetcher<'a>) -> GadgetSourceFetcher<'a> {
+        match tagged {
+            TaggedGadgetSourceFetcher::IPFS(hash) => GadgetSourceFetcher::IPFS(hash.0.to_bytes()),
+            TaggedGadgetSourceFetcher::Github(fetcher) => GadgetSourceFetcher::Github(fetcher),
+            TaggedGadgetSourceFetcher::ContainerImage(fetcher) => {
                 GadgetSourceFetcher::ContainerImage(fetcher)
             }
         }
