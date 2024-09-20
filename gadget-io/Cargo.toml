@@ -20,12 +20,7 @@ sp-core = { workspace = true, features = ["serde", "full_crypto"] }
 sp-keystore = { workspace = true, optional = true }
 structopt = { workspace = true, optional = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, optional = true, features = [
-    "time",
-    "rt",
-    "sync",
-    "macros",
-] }
+tokio = { workspace = true, optional = true, features = ["time", "rt", "sync", "macros"] }
 tracing = { workspace = true, default-features = false, features = ["log", "attributes"] }
 url = { workspace = true, default-features = false, features = ["alloc", "serde"] }
 
@@ -50,11 +45,5 @@ std = [
     "tracing/std",
     "url/std",
 ]
-wasm-bindgen = [
-    "dep:wasm-bindgen",
-    "dep:wasm-bindgen-futures",
-    "dep:serde-wasm-bindgen",
-    "dep:js-sys",
-    "dep:wasmtimer",
-]
+wasm-bindgen = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:serde-wasm-bindgen", "dep:js-sys", "dep:wasmtimer"]
 typescript = ["dep:tsify", "wasm-bindgen"]

@@ -15,7 +15,12 @@ members = [
     "macros/blueprint-proc-macro-core",
     "macros/blueprint-proc-macro-playground",
 ]
-exclude = ["tangle-test-utils", "example"]
+exclude = [
+    "tangle-test-utils",
+    "example",
+    # "blueprints/ecdsa-threshold-mpc",
+    # "blueprints/tangle-avs-blueprint"
+]
 
 [workspace.package]
 authors = ["Webb Technologies Inc."]
@@ -51,9 +56,6 @@ cargo-tangle = { path = "./cli" }
 cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
-pallet-services = { git = "https://github.com/webb-tools/tangle.git" }
-pallet-services-rpc = { git = "https://github.com/webb-tools/tangle.git" }
-tangle-primitives = { git = "https://github.com/webb-tools/tangle.git" }
 tangle-subxt = { version = "0.3.0", default-features = false }
 
 subxt-signer = { version = "0.37.0", default-features = false }
@@ -77,17 +79,6 @@ parity-scale-codec = { version = "3.6.12", default-features = false }
 
 scale-info = { version = "2.11.3", default-features = false }
 
-frame-system = { version = "37.1.0", default-features = false }
-frame-support = { version = "37.0.0", default-features = false }
-
-pallet-balances = { version = "38.0.0", default-features = false }
-pallet-timestamp = { version = "36.0.0", default-features = false }
-pallet-session = { version = "37.0.0", default-features = false }
-pallet-staking = { version = "37.0.0" }
-pallet-evm = { git = "https://github.com/paritytech/frontier.git", branch = "polkadot-v1.7.0", default-features = false }
-sp-staking = { version = "34.0.0", default-features = false }
-sp-npos-elections = { version = "34.0.0" }
-sp-session = { version = "35.0.0" }
 
 async-trait = "0.1.82"
 auto_impl = "1.2.0"
@@ -195,6 +186,7 @@ install-path = "CARGO_HOME"
 # Whether to install an updater program
 install-updater = true
 bin-aliases = { cargo-tangle = ["tangle", "tg"] }
+members = ["cargo:/cli"]
 
 [profile.dev.package.backtrace]
 opt-level = 3
