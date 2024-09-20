@@ -9,7 +9,7 @@ Create and Deploy blueprints on Tangle Network.
 3. [Creating a New Blueprint/Gadget](#creating-a-new-blueprintgadget)
 4. [Deploying the Blueprint to a Local Tangle Node](#deploying-the-blueprint-to-a-local-tangle-node)
 5. [Required Environment Variables for Deployment](#required-environment-variables-for-deployment)
-6. [Example](#example)
+6. [Examples](#example)
 
 ## Overview
 
@@ -86,7 +86,7 @@ The following environment variables are required for deploying the blueprint:
 - `SIGNER`: The SURI of the signer account.
 - `EVM_SIGNER`: The SURI of the EVM signer account.
 
-### Example
+### Example of ENV Variables
 
 ```bash
 export SIGNER="//Alice" # Substrate Signer account
