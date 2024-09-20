@@ -11,7 +11,7 @@ repository.workspace = true
 # CLI
 clap = { workspace = true, features = ["derive", "wrap_help"] }
 clap-cargo = { workspace = true }
-cargo-generate = { workspace = true }
+cargo-generate = { workspace = true, default-features = false }
 cargo_metadata = { workspace = true }
 escargot = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa"] }

@@ -117,6 +117,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: "Install Foundry"
+        run: |
+          curl -L https://foundry.paradigm.xyz | bash
+          /home/runner/.config/.foundry/bin/foundryup
+        shell: "bash"
+      - name: "Add Foundry to PATH"
+        run: "echo \"/home/runner/.config/.foundry/bin\" >> $GITHUB_PATH"
+      - name: "Verify Forge installation"
+        run: "forge --version"
       - name: Install cargo-dist
         run: ${{ matrix.install_dist }}
       # Get the dist-manifest

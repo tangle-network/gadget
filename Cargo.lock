@@ -1582,7 +1582,7 @@ checksum = "93f2635620bf0b9d4576eb7bb9a38a55df78bd1205d26fa994b25911a69f212f"
 dependencies = [
  "bitcoin_hashes 0.11.0",
  "rand",
- "rand_core 0.6.4",
+ "rand_core 0.5.1",
  "serde",
  "unicode-normalization",
 ]
@@ -1960,7 +1960,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-tangle"
-version = "0.1.0"
+version = "0.1.1-beta.1"
 dependencies = [
  "alloy-contract",
  "alloy-json-abi",
@@ -5524,7 +5524,7 @@ dependencies = [
 
 [[package]]
 name = "incredible-squaring-blueprint"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "alloy-contract",
  "alloy-json-abi",
@@ -7625,7 +7625,7 @@ checksum = "4e69bf016dc406eff7d53a7d3f7cf1c2e72c82b9088aac1118591e36dd2cd3e9"
 dependencies = [
  "bitcoin_hashes 0.13.0",
  "rand",
- "rand_core 0.6.4",
+ "rand_core 0.5.1",
  "serde",
  "unicode-normalization",
 ]
