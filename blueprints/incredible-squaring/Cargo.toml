@@ -1,6 +1,6 @@
 [package]
 name = "incredible-squaring-blueprint"
-version = "0.1.0"
+version = "0.1.1"
 description = "A Simple Blueprint to demo how blueprints work on Tangle Network"
 authors.workspace = true
 edition.workspace = true
@@ -39,7 +39,7 @@ alloy-transport = { workspace = true }
 parking_lot = { workspace = true }
 multiaddr = { workspace = true }
 libp2p = { workspace = true }
-ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde" ,"pem"] }
+ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde", "pem"] }
 
 structopt = { workspace = true }
 url = "2.5.2"
