@@ -6,8 +6,6 @@ use crate::executor::process::utils::*;
 
 pub mod process;
 
-// TODO: Gadget Setup following V2 - yet to be implemented
-
 pub async fn run_executor(instructions: &str) {
     // TODO: New commands should be received real-time from connection - will follow new V2 structure
     let mut manager = GadgetProcessManager::new();

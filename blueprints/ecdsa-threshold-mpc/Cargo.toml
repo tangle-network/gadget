@@ -1,6 +1,6 @@
 [package]
 name = "ecdsa-threshold-mpc"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "A threshold MPC blueprint allowing key generation, threshold signing, and key refreshes."
 authors = ["drewstone <drewstone329@gmail.com>"]

@@ -22,7 +22,7 @@ structopt = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, optional = true, features = ["time", "rt", "sync", "macros"] }
 tracing = { workspace = true, default-features = false, features = ["log", "attributes"] }
-url = { workspace = true, default-features = false, features = ["alloc", "serde"] }
+url = { workspace = true, default-features = false, features = ["serde"] }
 
 # WASM
 js-sys = { workspace = true, optional = true }
