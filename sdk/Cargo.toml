@@ -23,6 +23,7 @@ rand = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 structopt = { workspace = true }
 url = { workspace = true, features = ["serde"] }
+failure = { workspace = true }
 
 # Keystore deps
 ed25519-zebra = { workspace = true }

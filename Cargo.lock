@@ -1444,6 +1444,7 @@ dependencies = [
  "async-trait",
  "auto_impl",
  "color-eyre",
+ "failure",
  "futures",
  "gadget-io",
  "gadget-sdk",
@@ -1636,7 +1637,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-tangle"
-version = "0.1.1-beta.4"
+version = "0.1.1-beta.5"
 dependencies = [
  "alloy-json-abi",
  "alloy-network",
