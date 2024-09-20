@@ -1755,7 +1755,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-metadata"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cargo_metadata",
  "fs2",
@@ -1768,7 +1768,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-test-utils"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "alloy-signer-local",
  "async-trait",
@@ -1960,7 +1960,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-tangle"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "alloy-contract",
  "alloy-json-abi",
@@ -4348,7 +4348,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "alloy-contract",
  "alloy-json-abi",
@@ -4362,7 +4362,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cid",
  "ethereum-types",
@@ -4372,7 +4372,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro-playground"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "blueprint-metadata",
@@ -4409,7 +4409,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-sdk"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "alloy-contract",
  "alloy-network",
@@ -5548,7 +5548,7 @@ dependencies = [
 
 [[package]]
 name = "incredible-squaring-blueprint"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "alloy-contract",
  "alloy-json-abi",

@@ -1,6 +1,6 @@
 [package]
 name = "incredible-squaring-blueprint"
-version = "0.1.0"
+version = "0.1.1"
 description = "A Simple Blueprint to demo how blueprints work on Tangle Network"
 authors.workspace = true
 edition.workspace = true
