@@ -12,19 +12,8 @@ Development tools for Gadgets targeting Tangle or EigenLayer.
 
 ## Overview
 
-The Gadget SDK is a comprehensive toolkit for Gadget development, providing tools and libraries for 
-Blueprint development on both Tangle and EigenLayer. It offers a wide range of functionalities 
-including benchmarking, keystores, metrics, networking, logging, and process execution/management. 
-The SDK supports Native, WASM, and no-std contexts, making it useful across a variety of environments.
-
-## Installation
-
-To add the Gadget SDK to your project, add the following to your `Cargo.toml`:
-
-```toml
-[dependencies]
-gadget-sdk = { git = "https://github.com/webb-tools/gadget" }
-```
+The Gadget SDK is a comprehensive toolkit for Gadget development, providing tools and libraries for
+Blueprint development on both Tangle and EigenLayer.
 
 ## Features
 
@@ -37,12 +26,20 @@ The Gadget SDK includes the following key features:
 - Logging systems
 - Process execution and management
 - Support for Native, WASM, and no-std contexts
-- Tools for building both Tangle and EigenLayer Blueprints
 
+## Installation
+
+To add the Gadget SDK to your project, add the following to your `Cargo.toml`:
+
+```toml
+[dependencies]
+gadget-sdk = { git = "https://github.com/webb-tools/gadget" }
+```
 
 ### Examples
 
 Example Blueprints can be found [here](./../blueprints):
+
 - [Incredible Squaring](./../blueprints/incredible-squaring)
 - [ECDSA Threshold MPC](./../blueprints/ecdsa-threshold-mpc)
 - [Tangle AVS](./../blueprints/tangle-avs-blueprint)
