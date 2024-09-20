@@ -179,5 +179,28 @@ secp256k1 = "0.29.1"
 # TODO: Remove this branch, point to main once https://github.com/webb-tools/eigensdk-rs/pull/20 is merged
 eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = "donovan/maintenance" }
 
+# Config for 'cargo dist'
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.22.1"
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
+installers = ["shell", "powershell"]
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"]
+# Path that installers should place binaries in
+install-path = "CARGO_HOME"
+# Whether to install an updater program
+install-updater = true
+
+[[workspace.metadata.dist.bin-aliases]]
+cargo-tangle = ["tangle", "tg"]
+
 [profile.dev.package.backtrace]
 opt-level = 3
+
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
