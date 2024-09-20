@@ -193,9 +193,7 @@ targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-
 install-path = "CARGO_HOME"
 # Whether to install an updater program
 install-updater = true
-
-[[workspace.metadata.dist.bin-aliases]]
-cargo-tangle = ["tangle", "tg"]
+bin-aliases = { cargo-tangle = ["tangle", "tg"] }
 
 [profile.dev.package.backtrace]
 opt-level = 3
