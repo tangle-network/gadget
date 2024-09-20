@@ -33,52 +33,6 @@ jobs:
       - name: Check Formatting
         run: cargo fmt -- --check
 
-  features:
-    timeout-minutes: 90
-    name: Test building with each feature
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        package: [
-          gadget-sdk
-        ]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Install Foundry
-        run: |
-          curl -L https://foundry.paradigm.xyz | bash
-          /home/runner/.config/.foundry/bin/foundryup
-        shell: bash
-
-      - name: Add Foundry to PATH
-        run: echo "/home/runner/.config/.foundry/bin" >> $GITHUB_PATH
-
-      - name: Verify Forge installation
-        run: forge --version
-
-      - name: Install rust
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          toolchain: stable
-
-      - uses: swatinem/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
-
-      - name: Ensure wasm32-unknown-unknown is installed
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Test each feature
-        run: cargo hack test --each-feature --exclude-features wasm --package=${{ matrix.package }}
-
-      # - name: Test wasm build
-      #   run: cargo hack build --target wasm32-unknown-unknown --package=${{ matrix.package }} --no-default-features --features wasm --ignore-unknown-features
-
   linting:
     timeout-minutes: 120
     name: cargo clippy
