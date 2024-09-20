@@ -1,6 +1,6 @@
 [package]
 name = "gadget-sdk"
-version = "0.1.0"
+version = "0.1.1"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -12,10 +12,12 @@ license.workspace = true
 [dependencies]
 auto_impl = { workspace = true }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
-getrandom = { workspace = true }
+failure = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true }
 hex = { workspace = true, features = ["alloc"] }
-http-body-util = { workspace = true }
+http-body-util = { workspace = true, optional = true }
 lock_api = { workspace = true }
+nix = { workspace = true, optional = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], optional = true }
 parking_lot = { workspace = true, optional = true }
 rand = { workspace = true, features = ["alloc"] }
@@ -50,7 +52,7 @@ tracing = { workspace = true, features = ["log"] }
 async-trait = { workspace = true }
 bincode = { workspace = true }
 futures = { workspace = true }
-gadget-io = { workspace = true, features = ["std"] }
+gadget-io = { workspace = true }
 round-based = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -123,9 +125,12 @@ std = [
     "dep:subxt",
     "dep:tokio",
     "backon/tokio-sleep",
+    "failure",
     "getrandom",
     "gadget-io/std",
     "hex/std",
+    "http-body-util",
+    "nix",
     "rand/std",
     "rand/std_rng",
     "sp-io/std",
@@ -134,6 +139,7 @@ std = [
     "tangle-subxt/std",
     "tokio/rt-multi-thread",
     "tokio/parking_lot",
+    "tokio/process",
     "gadget-blueprint-proc-macro/std",
 ]
 wasm = [
@@ -148,4 +154,4 @@ wasm = [
 ]
 
 # Randomness
-getrandom = ["rand/getrandom"]
+getrandom = ["dep:getrandom", "rand/getrandom"]

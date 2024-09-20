@@ -44,9 +44,9 @@ blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false }
 
-gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.0" }
-gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.0" }
-blueprint-metadata = { path = "./blueprint-metadata", default-features = false, version = "0.1.0" }
+gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.1" }
+gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.1" }
+blueprint-metadata = { path = "./blueprint-metadata", default-features = false, version = "0.1.1" }
 cargo-tangle = { path = "./cli" }
 cargo_metadata = { version = "0.18.1" }
 
