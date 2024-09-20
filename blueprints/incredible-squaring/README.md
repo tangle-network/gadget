@@ -1,6 +1,6 @@
 ## Incredible Squaring Blueprint
 
-A simple blueprint that only has one job that takes $x$ and returns $x^2$
+A simple blueprint that only has one job that takes **x** and returns **x<sup>2</sup>**.
 
 ## Building the Blueprint
 
@@ -10,15 +10,10 @@ A simple blueprint that only has one job that takes $x$ and returns $x^2$
 cargo build -p incredible-squaring-blueprint
 ```
 
-- and to build the gadget that uses the blueprint, run the following command:
-
-```bash
-cargo build -p incredible-squaring-blueprint --features=gadget
-```
-
 ## Running the Gadget
 
-- To run the gadget on Local Tangle Network, make sure you have tangle running on your local machine first by running the following command:
+- To run the gadget on Local Tangle Network, make sure you have tangle running on your local machine first by running
+  the following command:
 
 ```bash
 bash ./scripts/run-standalone-local.sh --clean
@@ -33,20 +28,22 @@ bash ./scripts/run-standalone-local.sh --clean
 - Then, use the following command to run the gadget that uses the blueprint:
 
 ```bash
-RPC_URL=ws://localhost:9944 KEYSTORE_URI=file://./target/keystore BLUEPRINT_ID=0 SERVICE_ID=0 RUST_LOG=incredible_squaring_gadget,gadget_sdk=trace,error cargo r -p incredible-squaring-blueprint --features=gadget
+RUST_LOG=incredible_squaring_gadget,gadget_sdk=trace,error cargo run -p incredible-squaring-blueprint -- run --url=ws://localhost:9944 --base-path=./target/keystore --blueprint-id=0 --service-id=0 --bind-addr=0.0.0.0 --bind-port=<bind-port>
 ```
 
 That's it! You should see the gadget running and listening for incoming requests on the Local Tangle Network.
 
 ## Deploying the Blueprint to the Tangle
 
-- To deploy the blueprint to the tangle, make sure you have tangle running on your local machine first by running the following command:
+- To deploy the blueprint to the tangle, make sure you have tangle running on your local machine first by running the
+  following command:
 
 ```bash
 bash ./scripts/run-standalone-local.sh --clean
 ```
 
-- (Optionally) Visit [Polkadot JS UI](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9944#/explorer) to check the status of the tangle network.
+- (Optionally) Visit [Polkadot JS UI](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9944#/explorer) to check the
+  status of the tangle network.
 - Install the required dependencies by running the following command:
 
 ```bash
@@ -65,4 +62,5 @@ forge build --root ./contracts
 yarn tsx deploy.ts
 ```
 
-This script will deploy the blueprint to the tangle network, and create a service instance that you can use to interact with the blueprint, then submit a request to the service instance to square a number.
+This script will deploy the blueprint to the tangle network, and create a service instance that you can use to interact
+with the blueprint, then submit a request to the service instance to square a number.

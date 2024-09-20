@@ -9,7 +9,7 @@ Create and Deploy blueprints on Tangle Network.
 3. [Creating a New Blueprint/Gadget](#creating-a-new-blueprintgadget)
 4. [Deploying the Blueprint to a Local Tangle Node](#deploying-the-blueprint-to-a-local-tangle-node)
 5. [Required Environment Variables for Deployment](#required-environment-variables-for-deployment)
-6. [Examples](#examples)
+6. [Example](#example)
 
 ## Overview
 
