@@ -129,6 +129,7 @@ std = [
     "getrandom",
     "gadget-io/std",
     "hex/std",
+    "http-body-util",
     "nix",
     "rand/std",
     "rand/std_rng",
@@ -138,6 +139,7 @@ std = [
     "tangle-subxt/std",
     "tokio/rt-multi-thread",
     "tokio/parking_lot",
+    "tokio/process",
     "gadget-blueprint-proc-macro/std",
 ]
 wasm = [
