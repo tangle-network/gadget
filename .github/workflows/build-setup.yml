@@ -1,11 +1,7 @@
-- name: Install Foundry
-  run: |
-    curl -L https://foundry.paradigm.xyz | bash
-    /home/runner/.config/.foundry/bin/foundryup
-  shell: bash
+# This file is used to install the Foundry toolchain and verify the installation.
 
-- name: Add Foundry to PATH
-  run: echo "/home/runner/.config/.foundry/bin" >> $GITHUB_PATH
+- name: Install Foundry
+  uses: foundry-rs/foundry-toolchain@v1
 
 - name: Verify Forge installation
   run: forge --version
