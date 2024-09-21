@@ -2,6 +2,7 @@
 name = "blueprint-manager"
 version = "0.1.1"
 edition = "2021"
+publish = false
 
 [[bin]]
 name = "blueprint-manager"
@@ -21,17 +22,15 @@ tokio = { workspace = true, features = ["process", "io-util", "signal"] }
 reqwest = { workspace = true }
 sha2 = { workspace = true }
 futures = { workspace = true }
-sp-keystore = { workspace = true }
-log = { workspace = true }
 itertools = { workspace = true }
-tangle-primitives = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
 libp2p = { workspace = true }
 auto_impl = { workspace = true }
 parking_lot = { workspace = true }
 async-trait = { workspace = true }
+failure = { workspace = true }
 
 [features]
 default = ["std"]
-std = ["gadget-io/std", "gadget-sdk/default"]
+std = ["gadget-io/std", "gadget-sdk/std", "tangle-subxt/std"]

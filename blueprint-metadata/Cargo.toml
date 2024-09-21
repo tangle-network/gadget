@@ -15,4 +15,3 @@ serde_json = { workspace = true }
 rustdoc-types = { workspace = true }
 cargo_metadata = { workspace = true }
 fs2 = { workspace = true }
-serde = { workspace = true, features = ["derive"] }

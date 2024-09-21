@@ -62,6 +62,7 @@
             pkgs.cargo-nextest
             pkgs.cargo-machete
             pkgs.cargo-expand
+            pkgs.cargo-dist
           ];
           # Environment variables
           RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";

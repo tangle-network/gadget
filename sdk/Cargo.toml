@@ -12,7 +12,6 @@ license.workspace = true
 [dependencies]
 auto_impl = { workspace = true }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
-failure = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true }
 hex = { workspace = true, features = ["alloc"] }
 http-body-util = { workspace = true, optional = true }
@@ -24,15 +23,14 @@ rand = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 structopt = { workspace = true }
 url = { workspace = true, features = ["serde"] }
+failure = { workspace = true }
 
 # Keystore deps
 ed25519-zebra = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "ecdsa-core", "arithmetic"] }
 schnorrkel = { workspace = true }
-secp256k1 = { workspace = true }
 w3f-bls = { workspace = true }
 eigensdk-rs = { workspace = true }
-ark-bn254 = { workspace = true }
 ark-serialize = { workspace = true }
 ark-ff = { workspace = true }
 ark-ec = { workspace = true }
@@ -72,15 +70,12 @@ alloy-contract = { workspace = true }
 alloy-network = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true, optional = true }
-alloy-pubsub = { workspace = true }
 alloy-rpc-types = { workspace = true }
-alloy-signer = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
 
 # Macros
 gadget-blueprint-proc-macro = { workspace = true, default-features = false }
-derive_more = { workspace = true }
 
 # Benchmarking deps
 sysinfo = { workspace = true }
@@ -125,8 +120,7 @@ std = [
     "dep:subxt",
     "dep:tokio",
     "backon/tokio-sleep",
-    "failure",
-    "getrandom",
+    "dep:getrandom",
     "gadget-io/std",
     "hex/std",
     "http-body-util",
@@ -148,7 +142,7 @@ wasm = [
     "dep:tokio",
     "backon/gloo-timers-sleep",
     "gadget-io/wasm-bindgen",
-    "getrandom/js",
+    "getrandom?/js",
     "subxt/web",
     "tangle-subxt/web",
 ]

@@ -7,6 +7,7 @@ edition.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
+publish = false
 
 [[bin]]
 name = "incredible-squaring-gadget"
@@ -21,11 +22,8 @@ gadget-sdk = { workspace = true, features = ["std"] }
 color-eyre = { workspace = true }
 lock_api = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["full"] }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
 sp-core = { version = "34.0.0" }
 subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"] }
-tracing-subscriber = { workspace = true, features = ["parking_lot", "env-filter"] }
 alloy-contract = { workspace = true }
 alloy-json-abi = { workspace = true, features = ["serde_json"] }
 alloy-network = { workspace = true }
@@ -37,13 +35,10 @@ alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true, features = ["json"] }
 alloy-transport = { workspace = true }
 parking_lot = { workspace = true }
-multiaddr = { workspace = true }
 libp2p = { workspace = true }
-ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde" ,"pem"] }
+ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde", "pem"] }
 
 structopt = { workspace = true }
-url = "2.5.2"
-log = { workspace = true }
 
 [build-dependencies]
 blueprint-metadata = { workspace = true }
