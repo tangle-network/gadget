@@ -1637,7 +1637,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-tangle"
-version = "0.1.1-beta.5"
+version = "0.1.1-beta.7"
 dependencies = [
  "alloy-json-abi",
  "alloy-network",
