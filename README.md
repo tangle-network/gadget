@@ -35,13 +35,21 @@ Let's get started!
 
 To install the Tangle CLI, run the following command:
 
+> Supported on Linux, MacOS, and Windows (WSL2)
+
 ```bash
-cargo install --bin cargo-tangle --git https://github.com/webb-tools/gadget --force
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/webb-tools/gadget/releases/download/cargo-tangle/v0.1.1-beta.7/cargo-tangle-installer.sh | sh
+```
+
+Or, if you prefer to install the CLI from source:
+
+```bash
+cargo install cargo-tangle --git https://github.com/webb-tools/gadget --force
 ```
 
 ### Creating a Blueprint
 
-To create a new blueprint/gadget using the Tangle CLI::
+To create a new blueprint/gadget using the Tangle CLI:
 
 ```bash
 cargo tangle gadget create --name <blueprint_name>

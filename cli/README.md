@@ -17,10 +17,18 @@ The Tangle CLI is a command-line tool that allows you to create and deploy bluep
 
 ## Installation
 
-To install the Tangle CLI from crates.io, run the following command:
+To install the Tangle CLI, run the following command:
+
+> Supported on Linux, MacOS, and Windows (WSL2)
 
 ```bash
-cargo install --git https://github.com/webb-tools/gadget cargo-tangle --force
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/webb-tools/gadget/releases/download/cargo-tangle/v0.1.1-beta.7/cargo-tangle-installer.sh | sh
+```
+
+Or, if you prefer to install the CLI from source:
+
+```bash
+cargo install cargo-tangle --git https://github.com/webb-tools/gadget --force
 ```
 
 ## Creating a New Blueprint/Gadget
