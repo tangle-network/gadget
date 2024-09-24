@@ -10,7 +10,8 @@ repository = "https://github.com/webb-tools/tangle-avs-blueprint"
 readme = "README.md"
 categories = ["cryptography", "cryptography::cryptocurrencies", "tangle-blueprint"]
 keywords = ["tangle", "blueprint", "avs"]
-rust-version = "1.79"
+rust-version = "1.81"
+publish = false
 
 [dependencies]
 tracing.workspace = true
