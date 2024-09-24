@@ -68,8 +68,6 @@ sol!(
     ),
 )]
 pub async fn xsquare_eigen(
-    // TODO: Add Context
-    // ctx: &MyContext,
     number_to_be_squared: U256,
     task_created_block: u32,
     quorum_numbers: Bytes,
@@ -224,15 +222,15 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             node_api_ip_port_address: "127.0.0.1:9808".to_string(),
             eth_rpc_url: http_endpoint.to_string(),
             eth_ws_url: ws_endpoint.to_string(),
-            bls_private_key_store_path: "./keystore/bls".to_string(),
-            ecdsa_private_key_store_path: "./keystore/ecdsa".to_string(),
-            incredible_squaring_service_manager_addr: Default::default(),
-            avs_registry_coordinator_addr: Default::default(),
-            operator_state_retriever_addr: Default::default(),
+            bls_private_key_store_path: "./../eigensdk-rs/test-utils/keystore/bls".to_string(),
+            ecdsa_private_key_store_path: "./../eigensdk-rs/test-utils/keystore/ecdsa".to_string(),
+            incredible_squaring_service_manager_addr: "0DCd1Bf9A1b36cE34237eEaFef220932846BCD82".to_string(),
+            avs_registry_coordinator_addr: "0B306BF915C4d645ff596e518fAf3F9669b97016".to_string(),
+            operator_state_retriever_addr: "3Aa5ebB10DC797CAC828524e59A333d0A371443c".to_string(),
             eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
-            delegation_manager_addr: Default::default(),
-            avs_directory_addr: Default::default(),
-            operator_address: Default::default(),
+            delegation_manager_addr: "a85233C63b9Ee964Add6F2cffe00Fd84eb32338f".to_string(),
+            avs_directory_addr: "c5a5C42992dECbae36851359345FE25997F5C42d".to_string(),
+            operator_address: "f39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string(),
             enable_metrics: false,
             enable_node_api: false,
             server_ip_port_address: "127.0.0.1:8673".to_string(),
@@ -309,7 +307,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         // Tangle Portion of Run
         let _client = self.env.client().await.map_err(|e| eyre!(e))?;
         let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
-        let _logger = self.env.logger.clone();
+        let logger = self.env.logger.clone();
         self.env.logger.info(format!(
             "Starting the event watcher for {} ...",
             signer.account_id()
@@ -374,18 +372,9 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         let _network: GossipHandle =
             start_p2p_network(network_config).map_err(|e| eyre!(e.to_string()))?;
 
-        // let x_square_eigen = blueprint::XsquareEigenEventHandler {
-        //     ctx: blueprint::MyContext { network, keystore },
-        // };
-
-        //
-        // EventWatcher::run(
-        //     &EigenlayerEventWatcher,
-        //     contract,
-        //     // Add more handler here if we have more functions.
-        //     vec![Box::new(x_square_eigen)],
-        // )
-        // .await?;'
+        let x_square_eigen = XsquareEigenEventHandler {
+            logger,
+        };
 
         let operator: Operator<NodeConfig, OperatorInfoService> =
             self.operator.clone().ok_or(eyre!("Operator is None"))?;
@@ -405,9 +394,9 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         event_watcher
             .run(
                 instance,
-                vec![
-                // Box::new(x_square_eigen)
-                ],
+                vec!(
+                   Box::new(x_square_eigen)
+                ),
             )
             .await?;
 

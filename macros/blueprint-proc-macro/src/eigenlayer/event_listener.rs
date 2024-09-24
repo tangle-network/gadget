@@ -15,7 +15,6 @@ pub(crate) fn generate_eigenlayer_event_handler(
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
     let instance_wrapper_name = format_ident!("{}InstanceWrapper", instance_base);
-    let instance = quote! { #instance_base::#instance_name<T::TH, T::PH, alloy_network::Ethereum> };
     let ev = event_handler.event().unwrap();
     let event_converter = event_handler.event_converter().unwrap();
     let callback = event_handler.callback().unwrap();
@@ -26,6 +25,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
         #[doc = #fn_name_string]
         #[doc = "`]"]
         pub struct #struct_name {
+            pub logger: gadget_sdk::logger::Logger,
             #(#additional_params)*
         }
 
@@ -82,9 +82,8 @@ pub(crate) fn generate_eigenlayer_event_handler(
         impl<T> gadget_sdk::events_watcher::evm::EventHandler<T> for #struct_name
         where
             T: gadget_sdk::events_watcher::evm::Config,
-            #instance: std::ops::Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH>>,
         {
-            type Contract = #instance;
+            type Contract = #instance_wrapper_name<T::TH, T::PH>;
             type Event = #ev;
 
             async fn handle_event(
