@@ -4,7 +4,6 @@ use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use gadget_io::{GadgetConfig, SupportedChains};
 use gadget_sdk::clients::tangle::runtime::{TangleClient};
-use gadget_sdk::logger::Logger;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
@@ -26,8 +25,9 @@ use subxt::tx::Signer;
 use subxt::utils::AccountId32;
 use url::Url;
 use uuid::Uuid;
+use gadget_sdk::{info, error};
 
-pub use gadget_sdk::logger::setup_log;
+pub use gadget_sdk::logging::setup_log;
 
 #[allow(unused_imports)]
 use cargo_tangle::deploy::Opts;
@@ -208,9 +208,8 @@ pub async fn create_blueprint(
 pub async fn join_delegators(
     client: &TestClient,
     account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
-    logger: &Logger,
 ) -> Result<(), Box<dyn Error>> {
-    logger.info("Joining delegators ...");
+    info!("Joining delegators ...");
     let call_pre = api::tx()
         .multi_asset_delegation()
         .join_operators(1_000_000_000_000_000);
@@ -229,11 +228,8 @@ pub async fn register_blueprint(
     blueprint_id: u64,
     preferences: Preferences,
     registration_args: RegistrationArgs,
-    logger: &Logger,
 ) -> Result<(), Box<dyn Error>> {
-    logger.info(format!(
-        "Registering to blueprint {blueprint_id} to become an operator ..."
-    ));
+    info!("Registering to blueprint {blueprint_id} to become an operator ...");
     let call = api::tx()
         .services()
         .register(blueprint_id, preferences, registration_args);
@@ -288,17 +284,16 @@ pub async fn wait_for_completion_of_tangle_job(
     client: &TestClient,
     service_id: u64,
     call_id: u64,
-    logger: &Logger,
     required_count: usize,
 ) -> Result<JobResultSubmitted, Box<dyn Error>> {
     let mut count = 0;
     loop {
         let events = client.events().at_latest().await?;
         let results = events.find::<JobResultSubmitted>().collect::<Vec<_>>();
-        logger.info(format!(
+        info!(
             "Waiting for job completion. Found {} results ...",
             results.len()
-        ));
+        );
         for result in results {
             match result {
                 Ok(result) => {
@@ -310,7 +305,7 @@ pub async fn wait_for_completion_of_tangle_job(
                     }
                 }
                 Err(err) => {
-                    logger.error(format!("Failed to get job result: {err}"));
+                    error!("Failed to get job result: {err}");
                 }
             }
         }
@@ -397,7 +392,7 @@ macro_rules! test_blueprint {
                 run_test_blueprint_manager,
             )
             .await
-            .execute_with_async(move |client, handles, logger| async move {
+            .execute_with_async(move |client, handles| async move {
                 let keypair = handles[0].sr25519_id().clone();
                 let service_id = get_next_service_id(client)
                     .await
@@ -406,9 +401,9 @@ macro_rules! test_blueprint {
                     .await
                     .expect("Failed to get next job id");
 
-                logger.info(format!(
+                info!(
                     "Submitting job with params service ID: {service_id}, call ID: {call_id}"
-                ));
+                );
 
                 let mut job_args = Args::new();
                 for input in [$($input),+] {
@@ -425,7 +420,7 @@ macro_rules! test_blueprint {
                 .await
                 .expect("Failed to submit job");
 
-                let job_results = wait_for_completion_of_tangle_job(client, service_id, call_id, logger, $N)
+                let job_results = wait_for_completion_of_tangle_job(client, service_id, call_id, $N)
                     .await
                     .expect("Failed to wait for job completion");
 
@@ -462,7 +457,8 @@ mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
     use cargo_tangle::deploy::Opts;
-    use gadget_sdk::logger::setup_log;
+    use gadget_sdk::logging::setup_log;
+    use gadget_sdk::{error, info};
 
     /// This test requires that `yarn install` has been executed inside the
     /// `./blueprints/incredible-squaring/` directory
@@ -493,7 +489,7 @@ mod tests_standard {
 
         new_test_ext_blueprint_manager::<5, 1, (), _, _>((), opts, run_test_blueprint_manager)
             .await
-            .execute_with_async(move |client, handles, logger| async move {
+            .execute_with_async(move |client, handles| async move {
                 // At this point, blueprint has been deployed, every node has registered
                 // as an operator for the relevant services, and, all gadgets are running
 
@@ -510,9 +506,7 @@ mod tests_standard {
                     .expect("Failed to get next job id")
                     .saturating_sub(1);
 
-                logger.info(format!(
-                    "Submitting job with params service ID: {service_id}, call ID: {call_id}"
-                ));
+                info!("Submitting job with params service ID: {service_id}, call ID: {call_id}");
 
                 // Pass the arguments
                 let mut job_args = Args::new();
@@ -530,20 +524,15 @@ mod tests_standard {
                 )
                 .await
                 {
-                    logger.error(format!("Failed to submit job: {err}"));
+                    error!("Failed to submit job: {err}");
                     panic!("Failed to submit job: {err}");
                 }
 
                 // Step 2: wait for the job to complete
-                let job_results = wait_for_completion_of_tangle_job(
-                    client,
-                    service_id,
-                    call_id,
-                    handles[0].logger(),
-                    handles.len(),
-                )
-                .await
-                .expect("Failed to wait for job completion");
+                let job_results =
+                    wait_for_completion_of_tangle_job(client, service_id, call_id, handles.len())
+                        .await
+                        .expect("Failed to wait for job completion");
 
                 // Step 3: Get the job results, compare to expected value(s)
                 let expected_result =

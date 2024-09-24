@@ -1,6 +1,7 @@
 #![allow(unused_results, clippy::used_underscore_binding)]
 
 use crate::network::gossip::{MyBehaviourRequest, NetworkService};
+use crate::{debug, error};
 use libp2p::PeerId;
 use sp_core::{keccak_256, Pair};
 
@@ -11,7 +12,7 @@ impl NetworkService<'_> {
         peer_id: PeerId,
         num_established: u32,
     ) {
-        self.logger.debug("Connection established");
+        debug!("Connection established");
         if num_established == 1 {
             let my_peer_id = self.swarm.local_peer_id();
             let msg = my_peer_id.to_bytes();
@@ -39,7 +40,7 @@ impl NetworkService<'_> {
         num_established: u32,
         _cause: Option<libp2p::swarm::ConnectionError>,
     ) {
-        self.logger.debug("Connection closed");
+        debug!("Connection closed");
         if num_established == 0 {
             self.swarm
                 .behaviour_mut()
@@ -55,7 +56,7 @@ impl NetworkService<'_> {
         _local_addr: libp2p::Multiaddr,
         _send_back_addr: libp2p::Multiaddr,
     ) {
-        self.logger.debug("Incoming connection");
+        debug!("Incoming connection");
     }
 
     #[tracing::instrument(skip(self))]
@@ -64,8 +65,7 @@ impl NetworkService<'_> {
         peer_id: PeerId,
         _connection_id: libp2p::swarm::ConnectionId,
     ) {
-        self.logger
-            .debug(format!("Outgoing connection to peer: {peer_id}",));
+        debug!("Outgoing connection to peer: {peer_id}");
     }
 
     #[tracing::instrument(skip(self, error))]
@@ -76,8 +76,7 @@ impl NetworkService<'_> {
         _send_back_addr: libp2p::Multiaddr,
         error: libp2p::swarm::ListenError,
     ) {
-        self.logger
-            .error(format!("Incoming connection error: {error}",));
+        error!("Incoming connection error: {error}");
     }
 
     #[tracing::instrument(skip(self, error))]
@@ -87,7 +86,6 @@ impl NetworkService<'_> {
         _peer_id: Option<PeerId>,
         error: libp2p::swarm::DialError,
     ) {
-        self.logger
-            .error(format!("Outgoing connection error: {error}",));
+        error!("Outgoing connection error: {error}");
     }
 }

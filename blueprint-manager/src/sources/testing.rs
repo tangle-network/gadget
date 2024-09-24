@@ -1,19 +1,18 @@
 use crate::sources::BinarySourceFetcher;
 use async_trait::async_trait;
 use color_eyre::Report;
-use gadget_sdk::logger::Logger;
+use gadget_sdk::{info, trace};
 use std::path::PathBuf;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::TestFetcher;
 
-pub struct TestSourceFetcher<'a> {
+pub struct TestSourceFetcher {
     pub fetcher: TestFetcher,
     pub blueprint_id: u64,
-    pub logger: &'a Logger,
     pub gadget_name: String,
 }
 
 #[async_trait]
-impl BinarySourceFetcher for TestSourceFetcher<'_> {
+impl BinarySourceFetcher for TestSourceFetcher {
     async fn get_binary(&self) -> color_eyre::Result<PathBuf> {
         // Step 1: Build the binary. It will be stored in the root directory/bin/
         let TestFetcher {
@@ -31,11 +30,9 @@ impl BinarySourceFetcher for TestSourceFetcher<'_> {
         let binary_path = git_repo_root.join(&base_path).join("bin").join(&cargo_bin);
         let binary_path = std::path::absolute(&binary_path)?;
 
-        self.logger
-            .trace(format!("Base Path: {}", base_path.display()));
-        self.logger
-            .trace(format!("Binary Path: {}", binary_path.display()));
-        self.logger.info("Building binary...");
+        trace!("Base Path: {}", base_path.display());
+        trace!("Binary Path: {}", binary_path.display());
+        info!("Building binary...");
 
         let env = std::env::vars().collect::<Vec<(String, String)>>();
 
@@ -73,10 +70,7 @@ impl BinarySourceFetcher for TestSourceFetcher<'_> {
             )));
         }
 
-        self.logger.info(format!(
-            "Successfully built binary to {}",
-            binary_path.display()
-        ));
+        info!("Successfully built binary to {}", binary_path.display());
 
         Ok(binary_path)
     }

@@ -1,4 +1,5 @@
 use crate::network::gossip::NetworkService;
+use crate::{debug, error, trace};
 
 impl NetworkService<'_> {
     #[tracing::instrument(skip(self, event))]
@@ -13,14 +14,11 @@ impl NetworkService<'_> {
                     format!("Supported Protocols: {:?}", info.protocols),
                 ];
                 let info_lines = info_lines.join(", ");
-                self.logger.debug(format!(
-                    "Received identify event from peer: {peer_id} with info: {info_lines}"
-                ));
+                debug!("Received identify event from peer: {peer_id} with info: {info_lines}");
                 self.swarm.add_external_address(info.observed_addr);
             }
             Sent { peer_id, .. } => {
-                self.logger
-                    .trace(format!("Sent identify event to peer: {peer_id}"));
+                trace!("Sent identify event to peer: {peer_id}");
             }
             Pushed { peer_id, info, .. } => {
                 let info_lines = [
@@ -29,14 +27,10 @@ impl NetworkService<'_> {
                     format!("Supported Protocols: {:?}", info.protocols),
                 ];
                 let info_lines = info_lines.join(", ");
-                self.logger.debug(format!(
-                    "Pushed identify event to peer: {peer_id} with info: {info_lines}"
-                ));
+                debug!("Pushed identify event to peer: {peer_id} with info: {info_lines}");
             }
             Error { peer_id, error, .. } => {
-                self.logger.error(format!(
-                    "Identify error from peer: {peer_id} with error: {error}"
-                ));
+                error!("Identify error from peer: {peer_id} with error: {error}");
             }
         }
     }

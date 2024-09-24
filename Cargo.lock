@@ -1496,6 +1496,7 @@ dependencies = [
  "sp-io 38.0.0",
  "subxt",
  "tokio",
+ "tracing",
  "url 2.5.2 (git+https://github.com/domenukk/rust-url?branch=no_std)",
  "uuid 1.10.0",
 ]
