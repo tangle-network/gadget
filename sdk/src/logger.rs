@@ -26,15 +26,6 @@ impl From<String> for Logger {
     }
 }
 
-impl From<String> for Logger {
-    fn from(id: String) -> Self {
-        Logger {
-            target: DEFAULT_TARGET.to_string(),
-            id,
-        }
-    }
-}
-
 impl Logger {
     /// Calls the [`log::trace!`] macro, using the logger's configurations.
     pub fn trace<T: Display>(&self, msg: T) {

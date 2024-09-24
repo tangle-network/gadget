@@ -15,7 +15,7 @@ use rustdoc_types::{Crate, Id, Item, ItemEnum, Module};
 
 /// Generate `blueprint.json` to the current crate working directory next to `build.rs` file.
 pub fn generate_json() {
-    Config::builder().build().generate_json();
+    // Config::builder().build().generate_json();
 }
 
 #[derive(Debug, Clone, Default, typed_builder::TypedBuilder)]

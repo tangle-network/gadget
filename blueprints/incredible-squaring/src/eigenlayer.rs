@@ -11,7 +11,7 @@ use alloy_signer::k256::elliptic_curve::SecretKey;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::private::alloy_json_abi::JsonAbi;
 use alloy_sol_types::sol;
-use alloy_transport::Transport;
+// use alloy_transport::Transport;
 use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
 use gadget_sdk::job;
 use gadget_sdk::{
@@ -28,17 +28,17 @@ use IIncredibleSquaringTaskManager::{Task, TaskResponse};
 use IncredibleSquaringTaskManager::respondToTaskCall;
 use BN254::{G1Point, G2Point};
 
-use gadget_sdk::{
-    tangle_subxt::tangle_testnet_runtime::api::{
-        runtime_types::{sp_core::ecdsa, tangle_primitives::services},
-    },
-    tx,
-};
 use eigensdk_rs::eigen_utils::types::{operator_id_from_key_pair, OperatorPubkeys};
 use eigensdk_rs::eigen_utils::*;
 use eigensdk_rs::incredible_squaring_avs::operator::*;
+use gadget_sdk::{
+    tangle_subxt::tangle_testnet_runtime::api::runtime_types::{
+        sp_core::ecdsa, tangle_primitives::services,
+    },
+    tx,
+};
 use sp_core::Pair;
-use subxt_signer::ecdsa::SecretKeyBytes;
+// use subxt_signer::ecdsa::SecretKeyBytes;
 use gadget_sdk::config::GadgetConfiguration;
 use gadget_sdk::keystore::sp_core_subxt::Pair as SubxtPair;
 use gadget_sdk::network::gossip::GossipHandle;
@@ -387,14 +387,19 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         // )
         // .await?;'
 
-        let operator = self.operator.ok_or(eyre!("Run Error - No Operator Found"))?;
+        let operator: Operator<NodeConfig, OperatorInfoService> =
+            self.operator.clone().ok_or(eyre!("Operator is None"))?;
 
-        let instance = IncredibleSquaringTaskManagerInstanceWrapper::new(
-            IncredibleSquaringTaskManager::new(
-                operator.incredible_squaring_contract_manager.task_manager_addr.clone(),
-                operator.incredible_squaring_contract_manager.eth_client_http.clone(),
-            ),
-        );
+        let instance =
+            IncredibleSquaringTaskManagerInstanceWrapper::new(IncredibleSquaringTaskManager::new(
+                operator
+                    .incredible_squaring_contract_manager
+                    .task_manager_addr,
+                operator
+                    .incredible_squaring_contract_manager
+                    .eth_client_http
+                    .clone(),
+            ));
 
         let event_watcher: EigenlayerEventWatcher<NodeConfig> = EigenlayerEventWatcher::new();
         event_watcher

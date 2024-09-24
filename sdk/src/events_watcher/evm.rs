@@ -12,10 +12,9 @@ use alloy_rpc_types::{Filter, Log};
 use alloy_sol_types::SolEvent;
 // use alloy_transport::Transport;
 use backon::{ConstantBuilder, Retryable};
+pub use eigensdk_rs::eigen_utils::Config;
 use futures::TryFutureExt;
 use std::{ops::Deref, time::Duration};
-pub use eigensdk_rs::eigen_utils::Config;
-
 
 /// A helper type to extract the [`EventHandler`] from the [`EventWatcher`] trait.
 pub type EventHandlerFor<W, T> = Box<
@@ -61,9 +60,7 @@ pub trait EventHandler<T: Config>: Send + Sync {
 ///
 /// this trait is automatically implemented for all the event handlers.
 #[async_trait::async_trait]
-pub trait EventHandlerWithRetry<T: Config>:
-    EventHandler<T> + Send + Sync + 'static
-{
+pub trait EventHandlerWithRetry<T: Config>: EventHandler<T> + Send + Sync + 'static {
     /// A method to be called with the event information,
     /// it is up to the handler to decide what to do with the event.
     ///
