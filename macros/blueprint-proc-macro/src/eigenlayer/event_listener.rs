@@ -25,7 +25,6 @@ pub(crate) fn generate_eigenlayer_event_handler(
         #[doc = #fn_name_string]
         #[doc = "`]"]
         pub struct #struct_name {
-            pub logger: gadget_sdk::logger::Logger,
             #(#additional_params)*
         }
 

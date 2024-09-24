@@ -1,51 +1,53 @@
 #![allow(dead_code)]
+use std::{convert::Infallible, ops::Deref, sync::OnceLock};
+
 use alloy_contract::ContractInstance;
-use alloy_network::Ethereum;
-use alloy_network::EthereumWallet;
-use alloy_primitives::{Address, ChainId, FixedBytes};
-use alloy_primitives::{Bytes, U256};
-use alloy_provider::Provider;
-use alloy_provider::ProviderBuilder;
-use alloy_signer::k256::ecdsa::SigningKey;
-use alloy_signer::k256::elliptic_curve::SecretKey;
+use alloy_network::{Ethereum, EthereumWallet};
+use alloy_primitives::{Address, Bytes, ChainId, FixedBytes, U256};
+use alloy_provider::{Provider, ProviderBuilder};
+use alloy_signer::k256::{ecdsa::SigningKey, elliptic_curve::SecretKey};
 use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::private::alloy_json_abi::JsonAbi;
-use alloy_sol_types::sol;
-// use alloy_transport::Transport;
-use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
-use gadget_sdk::job;
-use gadget_sdk::{
-    events_watcher::evm::{Config, EventWatcher},
-    keystore::Backend,
-    network::setup::{start_p2p_network, NetworkConfig},
-    run::GadgetRunner,
-    info
+use alloy_sol_types::{private::alloy_json_abi::JsonAbi, sol};
+
+use color_eyre::{
+    eyre::{eyre, OptionExt},
+    Result,
 };
-use std::convert::Infallible;
-use std::ops::Deref;
-use std::sync::OnceLock;
+
+use eigensdk_rs::{
+    eigen_utils::{
+        types::{operator_id_from_key_pair, OperatorPubkeys},
+        *,
+    },
+    incredible_squaring_avs::operator::*,
+};
+
+use gadget_sdk::{
+    config::GadgetConfiguration,
+    events_watcher::evm::{Config, EventWatcher},
+    info, job,
+    keystore::{sp_core_subxt::Pair as SubxtPair, Backend},
+    network::{
+        gossip::GossipHandle,
+        setup::{start_p2p_network, NetworkConfig},
+    },
+    run::GadgetRunner,
+    tangle_subxt::{
+        subxt::tx::Signer,
+        tangle_testnet_runtime::api,
+        tangle_testnet_runtime::api::runtime_types::{
+            sp_core::ecdsa, tangle_primitives::services, tangle_primitives::services::PriceTargets,
+        },
+    },
+    tx,
+};
+
+use sp_core::Pair;
+
 use IBLSSignatureChecker::NonSignerStakesAndSignature;
 use IIncredibleSquaringTaskManager::{Task, TaskResponse};
 use IncredibleSquaringTaskManager::respondToTaskCall;
 use BN254::{G1Point, G2Point};
-
-use eigensdk_rs::eigen_utils::types::{operator_id_from_key_pair, OperatorPubkeys};
-use eigensdk_rs::eigen_utils::*;
-use eigensdk_rs::incredible_squaring_avs::operator::*;
-use gadget_sdk::{
-    tangle_subxt::tangle_testnet_runtime::api::runtime_types::{
-        sp_core::ecdsa, tangle_primitives::services,
-    },
-    tx,
-};
-use sp_core::Pair;
-// use subxt_signer::ecdsa::SecretKeyBytes;
-use gadget_sdk::config::GadgetConfiguration;
-use gadget_sdk::keystore::sp_core_subxt::Pair as SubxtPair;
-use gadget_sdk::network::gossip::GossipHandle;
-use gadget_sdk::tangle_subxt::subxt::tx::Signer;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 
 // Codegen from ABI file to interact with the contract.
 sol!(
@@ -223,7 +225,8 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             eth_ws_url: ws_endpoint.to_string(),
             bls_private_key_store_path: "./../eigensdk-rs/test-utils/keystore/bls".to_string(),
             ecdsa_private_key_store_path: "./../eigensdk-rs/test-utils/keystore/ecdsa".to_string(),
-            incredible_squaring_service_manager_addr: "0DCd1Bf9A1b36cE34237eEaFef220932846BCD82".to_string(),
+            incredible_squaring_service_manager_addr: "0DCd1Bf9A1b36cE34237eEaFef220932846BCD82"
+                .to_string(),
             avs_registry_coordinator_addr: "0B306BF915C4d645ff596e518fAf3F9669b97016".to_string(),
             operator_state_retriever_addr: "3Aa5ebB10DC797CAC828524e59A333d0A371443c".to_string(),
             eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
@@ -366,9 +369,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         let _network: GossipHandle =
             start_p2p_network(network_config).map_err(|e| eyre!(e.to_string()))?;
 
-        let x_square_eigen = XsquareEigenEventHandler {
-            logger,
-        };
+        let x_square_eigen = XsquareEigenEventHandler {};
 
         let operator: Operator<NodeConfig, OperatorInfoService> =
             self.operator.clone().ok_or(eyre!("Operator is None"))?;
@@ -386,27 +387,8 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 
         let event_watcher: EigenlayerEventWatcher<NodeConfig> = EigenlayerEventWatcher::new();
         event_watcher
-            .run(
-                instance,
-                vec!(
-                   Box::new(x_square_eigen)
-                ),
-            )
+            .run(instance, vec![Box::new(x_square_eigen)])
             .await?;
-
-        // self.operator.unwrap().start().await?;
-        // if let Some(operator) = &self.operator {
-        //     operator.start().await?;
-        // } else {
-        //     return Err(eyre!("Run Error - No Operator Found"));
-        // }
-
-        // self.operator.unwrap().start().await?;
-        // if let Some(operator) = &self.operator {
-        //     operator.start().await?;
-        // } else {
-        //     return Err(eyre!("Run Error - No Operator Found"));
-        // }
 
         Ok(())
     }
