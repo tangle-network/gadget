@@ -59,6 +59,9 @@ pub mod tracer;
 #[cfg(any(feature = "std", feature = "wasm"))]
 pub mod tx;
 
+/// Gadget Context and context extensions
+pub mod ctx;
+
 // Re-exports
 pub use error::Error;
 pub use gadget_blueprint_proc_macro::*;
