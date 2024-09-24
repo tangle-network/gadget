@@ -4,18 +4,18 @@ use alloy_network::Ethereum;
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, ChainId, FixedBytes};
 use alloy_primitives::{Bytes, U256};
-use alloy_provider::ProviderBuilder;
 use alloy_provider::Provider;
+use alloy_provider::ProviderBuilder;
 use alloy_signer::k256::ecdsa::SigningKey;
+use alloy_signer::k256::elliptic_curve::SecretKey;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::private::alloy_json_abi::JsonAbi;
 use alloy_sol_types::sol;
+use alloy_transport::Transport;
 use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
 use gadget_sdk::job;
 use gadget_sdk::{
-    events_watcher::{
-        evm::{Config, EventWatcher},
-    },
+    events_watcher::evm::{Config, EventWatcher},
     keystore::Backend,
     network::setup::{start_p2p_network, NetworkConfig},
     run::GadgetRunner,
@@ -23,12 +23,11 @@ use gadget_sdk::{
 use std::convert::Infallible;
 use std::ops::Deref;
 use std::sync::OnceLock;
-use alloy_signer::k256::elliptic_curve::SecretKey;
-use alloy_transport::Transport;
-use IncredibleSquaringTaskManager::{
-    respondToTaskCall, G1Point, G2Point,
-    NonSignerStakesAndSignature, Task, TaskResponse,
-};
+use IBLSSignatureChecker::NonSignerStakesAndSignature;
+use IIncredibleSquaringTaskManager::{Task, TaskResponse};
+use IncredibleSquaringTaskManager::respondToTaskCall;
+use BN254::{G1Point, G2Point};
+
 use gadget_sdk::{
     tangle_subxt::tangle_testnet_runtime::api::{
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
@@ -39,9 +38,8 @@ use eigensdk_rs::eigen_utils::types::{operator_id_from_key_pair, OperatorPubkeys
 use eigensdk_rs::eigen_utils::*;
 use eigensdk_rs::incredible_squaring_avs::operator::*;
 use sp_core::Pair;
-use gadget_sdk::config::{
-    GadgetConfiguration, StdGadgetConfiguration,
-};
+use subxt_signer::ecdsa::SecretKeyBytes;
+use gadget_sdk::config::GadgetConfiguration;
 use gadget_sdk::keystore::sp_core_subxt::Pair as SubxtPair;
 use gadget_sdk::network::gossip::GossipHandle;
 use gadget_sdk::tangle_subxt::subxt::tx::Signer;
@@ -78,8 +76,6 @@ pub async fn xsquare_eigen(
     quorum_threshold_percentage: u32,
 ) -> Result<respondToTaskCall, Infallible> {
     // TODO: Send our task response to Aggregator RPC server
-    // TODO: OR we use the gossip protocol to send the response to peers
-    // TODO: Where is by BLS key?
 
     // // 1. Calculate the squared number and save the response
     // let my_msg = MyMessage {
@@ -167,7 +163,7 @@ pub fn convert_event_to_inputs(
 impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
     type Error = color_eyre::eyre::Report;
 
-    fn config(&self) -> &StdGadgetConfiguration {
+    fn config(&self) -> &GadgetConfiguration<parking_lot::RawRwLock> {
         todo!()
     }
 
@@ -299,7 +295,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         .await
         .map_err(|e| eyre!(e))?;
 
-        // self.set_operator(operator);
+        self.set_operator(operator);
 
         tracing::info!("Registered operator for Eigenlayer");
         Ok(())
@@ -377,11 +373,11 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 
         let _network: GossipHandle =
             start_p2p_network(network_config).map_err(|e| eyre!(e.to_string()))?;
+
         // let x_square_eigen = blueprint::XsquareEigenEventHandler {
         //     ctx: blueprint::MyContext { network, keystore },
         // };
-        //
-        // let contract: IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(contract_address, provider);
+
         //
         // EventWatcher::run(
         //     &EigenlayerEventWatcher,
@@ -389,7 +385,33 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         //     // Add more handler here if we have more functions.
         //     vec![Box::new(x_square_eigen)],
         // )
-        // .await?;
+        // .await?;'
+
+        let operator = self.operator.ok_or(eyre!("Run Error - No Operator Found"))?;
+
+        let instance = IncredibleSquaringTaskManagerInstanceWrapper::new(
+            IncredibleSquaringTaskManager::new(
+                operator.incredible_squaring_contract_manager.task_manager_addr.clone(),
+                operator.incredible_squaring_contract_manager.eth_client_http.clone(),
+            ),
+        );
+
+        let event_watcher: EigenlayerEventWatcher<NodeConfig> = EigenlayerEventWatcher::new();
+        event_watcher
+            .run(
+                instance,
+                vec![
+                // Box::new(x_square_eigen)
+                ],
+            )
+            .await?;
+
+        // self.operator.unwrap().start().await?;
+        // if let Some(operator) = &self.operator {
+        //     operator.start().await?;
+        // } else {
+        //     return Err(eyre!("Run Error - No Operator Found"));
+        // }
 
         // self.operator.unwrap().start().await?;
         // if let Some(operator) = &self.operator {

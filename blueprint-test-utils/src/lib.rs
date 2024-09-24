@@ -13,7 +13,7 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::type
 use gadget_sdk::keystore;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
-use gadget_sdk::keystore::{sp_core_subxt, Backend, BackendExt, TanglePairSigner};
+use gadget_sdk::keystore::{Backend, BackendExt, TanglePairSigner};
 use libp2p::Multiaddr;
 pub use log;
 use sp_core::Pair as PairT;
@@ -22,12 +22,9 @@ use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use subxt::ext::sp_core::Pair;
-use subxt::tx::Signer;
 use subxt::utils::AccountId32;
 use url::Url;
 use uuid::Uuid;
-
-pub use gadget_sdk::logger::setup_log;
 
 #[allow(unused_imports)]
 use cargo_tangle::deploy::Opts;
@@ -69,22 +66,20 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         keystore_uri.display()
     );
 
-    let keystore_uri_normalized =
-        std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
-    let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
+    let keystore_uri = std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
 
-    inject_test_keys(&keystore_uri_normalized, input.instance_id as usize)
+    inject_test_keys(&keystore_uri, input.instance_id as usize)
         .await
         .expect("Failed to inject testing-related SR25519 keys");
 
-    // Canonicalize to prove the directory exists
-    let _ = keystore_uri_normalized
+    let keystore_uri = keystore_uri
         .canonicalize()
         .expect("Failed to resolve keystore URI");
 
+    // TODO: Why is the gadget config here when there is a config below?
     let blueprint_manager_config = BlueprintManagerConfig {
         gadget_config: None,
-        keystore_uri: keystore_uri_str.clone(),
+        keystore_uri: format!("file://{}", keystore_uri.display()),
         verbose: input.verbose,
         pretty: input.pretty,
         instance_id: Some(NAME_IDS[input.instance_id as usize].to_string()),
@@ -96,7 +91,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         bind_port: input.bind_port,
         url: input.local_tangle_node,
         bootnodes: input.bootnodes,
-        keystore_uri: keystore_uri_str,
+        base_path: keystore_uri,
         keystore_password: None,
         chain: SupportedChains::LocalTestnet,
         verbose: input.verbose,
@@ -120,8 +115,6 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     }
 }
 
-/// Adds keys relevant for the test to the keystore, and performs some necessary
-/// cross-compatability tests to ensure key use consistency between different parts of the codebase
 async fn inject_test_keys<P: AsRef<Path>>(
     keystore_path: P,
     node_index: usize,
@@ -158,10 +151,9 @@ async fn inject_test_keys<P: AsRef<Path>>(
     let secret_key_again = keystore::sr25519::secret_from_bytes(&bytes).expect("Should be valid");
     assert_eq!(&bytes[..], &secret_key_again.to_bytes()[..]);
 
-    use gadget_sdk::keystore::sp_core_subxt;
-    let sr2 = TanglePairSigner::new(
-        sp_core_subxt::sr25519::Pair::from_seed_slice(&bytes)
-            .expect("Should be valid SR25519 keypair"),
+    use gadget_sdk::tangle_subxt::subxt::ext::sp_core as sp_core2;
+    let sr2: TanglePairSigner = TanglePairSigner::new(
+        sp_core2::sr25519::Pair::from_seed_slice(&bytes).expect("Should be valid SR25519 keypair"),
     );
 
     let sr1_account_id: AccountId32 = AccountId32(sr.as_ref().public.to_bytes());
@@ -170,7 +162,7 @@ async fn inject_test_keys<P: AsRef<Path>>(
 
     match keystore.ecdsa_key() {
         Ok(ecdsa_key) => {
-            assert_eq!(ecdsa_key.signer().seed(), ecdsa_seed);
+            assert_eq!(ecdsa_key.0.secret_bytes(), ecdsa_seed);
         }
         Err(err) => {
             log::error!(target: "gadget", "Failed to load ecdsa key: {err}");
@@ -193,7 +185,7 @@ async fn inject_test_keys<P: AsRef<Path>>(
 
 pub async fn create_blueprint(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    account_id: &TanglePairSigner,
     blueprint: Blueprint,
 ) -> Result<(), Box<dyn Error>> {
     let call = api::tx().services().create_blueprint(blueprint);
@@ -205,9 +197,9 @@ pub async fn create_blueprint(
     Ok(())
 }
 
-pub async fn join_operators(
+pub async fn join_delegators(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    account_id: &TanglePairSigner,
     logger: &Logger,
 ) -> Result<(), Box<dyn Error>> {
     logger.info("Joining delegators ...");
@@ -225,7 +217,7 @@ pub async fn join_operators(
 
 pub async fn register_blueprint(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    account_id: &TanglePairSigner,
     blueprint_id: u64,
     preferences: Preferences,
     registration_args: RegistrationArgs,
@@ -247,7 +239,7 @@ pub async fn register_blueprint(
 
 pub async fn submit_job(
     client: &TestClient,
-    user: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    user: &TanglePairSigner,
     service_id: u64,
     job_type: Job,
     job_params: Args,
@@ -265,7 +257,7 @@ pub async fn submit_job(
 /// to make a call to run a service, and will have all nodes running the service.
 pub async fn register_service(
     client: &TestClient,
-    user: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    user: &TanglePairSigner,
     blueprint_id: u64,
     test_nodes: Vec<AccountId32>,
 ) -> Result<(), Box<dyn Error>> {
@@ -289,9 +281,7 @@ pub async fn wait_for_completion_of_tangle_job(
     service_id: u64,
     call_id: u64,
     logger: &Logger,
-    required_count: usize,
 ) -> Result<JobResultSubmitted, Box<dyn Error>> {
-    let mut count = 0;
     loop {
         let events = client.events().at_latest().await?;
         let results = events.find::<JobResultSubmitted>().collect::<Vec<_>>();
@@ -303,10 +293,7 @@ pub async fn wait_for_completion_of_tangle_job(
             match result {
                 Ok(result) => {
                     if result.service_id == service_id && result.call_id == call_id {
-                        count += 1;
-                        if count == required_count {
-                            return Ok(result);
-                        }
+                        return Ok(result);
                     }
                 }
                 Err(err) => {
@@ -363,23 +350,29 @@ macro_rules! test_blueprint {
     ) => {
         use $crate::{
             get_next_call_id, get_next_service_id, run_test_blueprint_manager,
-            submit_job, wait_for_completion_of_tangle_job, Opts, setup_log,
+            submit_job, wait_for_completion_of_tangle_job, Opts,
         };
 
         use $crate::test_ext::new_test_ext_blueprint_manager;
 
         #[tokio::test(flavor = "multi_thread")]
         async fn test_externalities_standard() {
-            setup_log();
-            let mut base_path = std::env::current_dir().expect("Failed to get current directory");
 
-            base_path.push($blueprint_path);
-            base_path
-                .canonicalize()
-                .expect("File could not be normalized");
+        let mut base_path = std::env::current_dir().expect("Failed to get current directory");
 
-            let manifest_path = base_path.join("Cargo.toml");
+        base_path.push($blueprint_path);
+        base_path
+            .canonicalize()
+            .expect("File could not be normalized");
 
+        let manifest_path = base_path.join("Cargo.toml");
+        let blueprint_test_file = base_path.join("blueprint-test.json");
+        let blueprint_file = base_path.join("blueprint.json");
+
+        // cp the blueprint-test-file into the blueprint-file
+        tokio::fs::copy(&blueprint_test_file, &blueprint_file)
+            .await
+            .expect("Failed to copy blueprint-test.json to blueprint.json");
 
             let ws_addr = "ws://127.0.0.1:9944";
 
@@ -425,7 +418,7 @@ macro_rules! test_blueprint {
                 .await
                 .expect("Failed to submit job");
 
-                let job_results = wait_for_completion_of_tangle_job(client, service_id, call_id, logger, $N)
+                let job_results = wait_for_completion_of_tangle_job(client, service_id, call_id, logger)
                     .await
                     .expect("Failed to wait for job completion");
 
@@ -462,7 +455,6 @@ mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
     use cargo_tangle::deploy::Opts;
-    use gadget_sdk::logger::setup_log;
 
     /// This test requires that `yarn install` has been executed inside the
     /// `./blueprints/incredible-squaring/` directory
@@ -470,7 +462,6 @@ mod tests_standard {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_externalities_gadget_starts() {
-        setup_log();
         let mut base_path = std::env::current_dir().expect("Failed to get current directory");
 
         base_path.push("../blueprints/incredible-squaring");
@@ -479,6 +470,13 @@ mod tests_standard {
             .expect("File could not be normalized");
 
         let manifest_path = base_path.join("Cargo.toml");
+        let blueprint_test_file = base_path.join("blueprint-test.json");
+        let blueprint_file = base_path.join("blueprint.json");
+
+        // cp the blueprint-test-file into the blueprint-file
+        tokio::fs::copy(&blueprint_test_file, &blueprint_file)
+            .await
+            .expect("Failed to copy blueprint-test.json to blueprint.json");
 
         let opts = Opts {
             pkg_name: Some("incredible-squaring-blueprint".to_string()),
@@ -540,7 +538,6 @@ mod tests_standard {
                     service_id,
                     call_id,
                     handles[0].logger(),
-                    handles.len(),
                 )
                 .await
                 .expect("Failed to wait for job completion");
@@ -624,7 +621,7 @@ mod tests_standard {
                     Job::from(call_id as u8),
                     job_args,
                 )
-                    .await
+                .await
                 {
                     logger.error(format!("Failed to submit job: {err}"));
                     panic!("Failed to submit job: {err}");
@@ -637,8 +634,8 @@ mod tests_standard {
                     call_id,
                     handles[0].logger(),
                 )
-                    .await
-                    .expect("Failed to wait for job completion");
+                .await
+                .expect("Failed to wait for job completion");
 
                 // Step 3: Get the job results, compare to expected value(s)
                 let expected_result =

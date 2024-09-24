@@ -38,17 +38,13 @@ impl GadgetRunner for TangleGadgetRunner {
         }
 
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
-        let signer = self
-            .env
-            .first_sr25519_signer()
-            .map_err(|e| eyre!(e))
-            .map_err(|e| eyre!(e))?;
+        let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
         let ecdsa_pair = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
 
         let xt = api::tx().services().register(
             self.env.blueprint_id,
             services::OperatorPreferences {
-                key: ecdsa::Public(ecdsa_pair.signer().public().0),
+                key: ecdsa::Public(ecdsa_pair.public_key().0),
                 approval: services::ApprovalPrefrence::None,
                 // TODO: Set the price targets
                 price_targets: PriceTargets {
@@ -113,12 +109,11 @@ async fn create_gadget_runner(
     let env = gadget_sdk::config::load(config).expect("Failed to load environment");
     match env.protocol {
         Protocol::Tangle => (env.clone(), Box::new(TangleGadgetRunner { env })),
-        /*
         Protocol::Eigenlayer => (
             env.clone(),
             Box::new(blueprint::eigenlayer::EigenlayerGadgetRunner::new(env).await),
-        ),*/
-        _ => panic!("Unsupported protocol Eigenlayer. Gadget/Tangle need U256 support."),
+        ),
+        // _ => panic!("Unsupported protocol Eigenlayer. Gadget/Tangle need U256 support."),
     }
 }
 
@@ -126,6 +121,8 @@ async fn create_gadget_runner(
 async fn main() -> Result<()> {
     gadget_sdk::logger::setup_log();
     // Load the environment and create the gadget runner
+    // TODO: Place protocol in the config
+    let protocol = Protocol::Eigenlayer;
     let config = ContextConfig::from_args();
 
     let (env, mut runner) = create_gadget_runner(config.clone()).await;
