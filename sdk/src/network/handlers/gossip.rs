@@ -2,6 +2,7 @@
 
 use crate::network::gossip::{GossipMessage, NetworkService};
 
+use crate::{debug, error, trace};
 use libp2p::gossipsub::TopicHash;
 use libp2p::{gossipsub, PeerId};
 use std::sync::atomic::AtomicU32;
@@ -38,11 +39,9 @@ impl NetworkService<'_> {
                     connected_peers.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 });
                 if added {
-                    self.logger
-                        .trace(format!("{peer_id} subscribed to {topic}",));
+                    trace!("{peer_id} subscribed to {topic}");
                 } else {
-                    self.logger
-                        .error(format!("{peer_id} subscribed to unknown topic: {topic}"));
+                    error!("{peer_id} subscribed to unknown topic: {topic}");
                 }
             }
             Unsubscribed { peer_id, topic } => {
@@ -50,17 +49,13 @@ impl NetworkService<'_> {
                     connected_peers.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                 });
                 if removed {
-                    self.logger
-                        .trace(format!("{peer_id} unsubscribed from {topic}",));
+                    trace!("{peer_id} unsubscribed from {topic}");
                 } else {
-                    self.logger.error(format!(
-                        "{peer_id} unsubscribed from unknown topic: {topic}"
-                    ));
+                    error!("{peer_id} unsubscribed from unknown topic: {topic}");
                 }
             }
             GossipsubNotSupported { peer_id } => {
-                self.logger
-                    .trace(format!("{peer_id} does not support gossipsub!"));
+                trace!("{peer_id} does not support gossipsub!");
             }
         }
     }
@@ -80,12 +75,10 @@ impl NetworkService<'_> {
         message: gossipsub::Message,
     ) {
         let Some(origin) = message.source else {
-            self.logger
-                .error("Got message from unknown peer".to_string());
+            error!("Got message from unknown peer");
             return;
         };
-        self.logger
-            .debug(format!("Got message from peer: {origin}",));
+        debug!("Got message from peer: {origin}");
         match bincode::deserialize::<GossipMessage>(&message.data) {
             Ok(GossipMessage { topic, raw_payload }) => {
                 if let Some((_, tx, _)) = self
@@ -94,17 +87,14 @@ impl NetworkService<'_> {
                     .find(|r| r.0.to_string() == topic)
                 {
                     if let Err(e) = tx.send(raw_payload) {
-                        self.logger
-                            .error(format!("Failed to send message to worker: {e}"));
+                        error!("Failed to send message to worker: {e}");
                     }
                 } else {
-                    self.logger
-                        .error(format!("No registered worker for topic: {topic}!"));
+                    error!("No registered worker for topic: {topic}!");
                 }
             }
             Err(e) => {
-                self.logger
-                    .error(format!("Failed to deserialize message: {e}"));
+                error!("Failed to deserialize message: {e}");
             }
         }
     }

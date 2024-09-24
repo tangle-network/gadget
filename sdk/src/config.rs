@@ -3,7 +3,6 @@ use crate::keystore::backend::GenericKeyStore;
 use crate::keystore::BackendExt;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::{sp_core_subxt, TanglePairSigner};
-use crate::logger::Logger;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
 use core::net::IpAddr;
@@ -102,8 +101,7 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     pub bind_port: u16,
     /// The Address of the Network that will be interacted with
     pub bind_addr: IpAddr,
-    /// The Logger that will be used in this Gadget Configuration
-    pub logger: Logger,
+    pub span: tracing::Span,
     /// Whether the gadget is in test mode
     pub test_mode: bool,
     _lock: core::marker::PhantomData<RwLock>,
@@ -120,7 +118,6 @@ impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
             .field("protocol", &self.protocol)
             .field("bind_port", &self.bind_port)
             .field("bind_addr", &self.bind_addr)
-            .field("logger", &self.logger)
             .field("test_mode", &self.test_mode)
             .finish()
     }
@@ -137,7 +134,7 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
             protocol: self.protocol,
             bind_port: self.bind_port,
             bind_addr: self.bind_addr,
-            logger: self.logger.clone(),
+            span: self.span.clone(),
             test_mode: self.test_mode,
             _lock: core::marker::PhantomData,
         }
@@ -216,8 +213,8 @@ pub enum GadgetCLICoreSettings {
         bind_port: u16,
         #[structopt(long, short = "t")]
         test_mode: bool,
-        #[structopt(long, short = "l", parse(from_str))]
-        logger: Option<Logger>,
+        #[structopt(long, short = "l")]
+        log_id: Option<String>,
         #[structopt(long, short = "u", long = "url", parse(try_from_str = url::Url::parse))]
         #[serde(default = "gadget_io::defaults::rpc_url")]
         url: Url,
@@ -287,7 +284,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 bind_addr,
                 bind_port,
                 test_mode,
-                logger,
+                log_id,
                 url,
                 keystore_uri,
                 blueprint_id,
@@ -298,13 +295,16 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         ..
     } = config;
 
-    let logger = logger.unwrap_or_default();
+    let span = match log_id {
+        Some(id) => tracing::info_span!("gadget", id = id),
+        None => tracing::info_span!("gadget"),
+    };
 
     Ok(GadgetConfiguration {
         bind_addr,
         bind_port,
         test_mode,
-        logger,
+        span,
         rpc_endpoint: url.to_string(),
         keystore_uri,
         blueprint_id,

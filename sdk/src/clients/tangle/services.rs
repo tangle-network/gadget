@@ -1,5 +1,4 @@
 use crate::error::Error;
-use crate::logger::Logger;
 use sp_core::Encode;
 use subxt::utils::AccountId32;
 use tangle_subxt::subxt::backend::BlockRef;
@@ -14,14 +13,12 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
 #[derive(Debug)]
 pub struct ServicesClient<C: Config> {
     rpc_client: OnlineClient<C>,
-    #[allow(dead_code)]
-    logger: Logger,
 }
 
 impl<C: Config> ServicesClient<C> {
     /// Create a new services client
-    pub fn new(logger: Logger, rpc_client: OnlineClient<C>) -> Self {
-        Self { logger, rpc_client }
+    pub fn new(rpc_client: OnlineClient<C>) -> Self {
+        Self { rpc_client }
     }
 
     /// Get the associated RPC client

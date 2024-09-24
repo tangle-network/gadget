@@ -6,20 +6,19 @@ use crate::sdk::utils::{
 use crate::sources::BinarySourceFetcher;
 use async_trait::async_trait;
 use color_eyre::eyre::OptionExt;
-use gadget_sdk::logger::Logger;
+use gadget_sdk::{error, info};
 use std::path::PathBuf;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::GithubFetcher;
 use tokio::io::AsyncWriteExt;
 
-pub struct GithubBinaryFetcher<'a> {
+pub struct GithubBinaryFetcher {
     pub fetcher: GithubFetcher,
     pub blueprint_id: u64,
-    pub logger: &'a Logger,
     pub gadget_name: String,
 }
 
 #[async_trait]
-impl BinarySourceFetcher for GithubBinaryFetcher<'_> {
+impl BinarySourceFetcher for GithubBinaryFetcher {
     async fn get_binary(&self) -> color_eyre::Result<PathBuf> {
         let relevant_binary = get_gadget_binary(&self.fetcher.binaries.0)
             .ok_or_eyre("Unable to find matching binary")?;
@@ -32,8 +31,7 @@ impl BinarySourceFetcher for GithubBinaryFetcher<'_> {
             binary_download_path += ".exe"
         }
 
-        self.logger
-            .info(format!("Downloading to {binary_download_path}"));
+        info!("Downloading to {binary_download_path}");
 
         // Check if the binary exists, if not download it
         let retrieved_hash = if !valid_file_exists(&binary_download_path, &expected_hash).await {
@@ -58,10 +56,10 @@ impl BinarySourceFetcher for GithubBinaryFetcher<'_> {
 
         if let Some(retrieved_hash) = retrieved_hash {
             if retrieved_hash.trim() != expected_hash.trim() {
-                self.logger.error(format!(
+                error!(
                     "Binary hash {} mismatched expected hash of {} for protocol: {}",
                     retrieved_hash, expected_hash, self.gadget_name
-                ));
+                );
                 return Ok(PathBuf::from(binary_download_path));
             }
         }

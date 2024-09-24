@@ -55,7 +55,7 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
                 let #ident = match String::from_utf8(#inner_ident) {
                     Ok(s) => s,
                     Err(e) => {
-                        tracing::warn!("failed to convert bytes to a valid utf8 string: {e}");
+                        ::gadget_sdk::warn!("failed to convert bytes to a valid utf8 string: {e}");
                         use gadget_sdk::events_watcher::Error;
                         return Err(Error::Handler(Box::new(e)));
                     }

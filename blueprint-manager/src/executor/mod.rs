@@ -9,10 +9,10 @@ use gadget_io::GadgetConfig;
 use gadget_sdk::clients::tangle::runtime::{TangleConfig, TangleRuntimeClient};
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
 use gadget_sdk::clients::Client;
+use gadget_sdk::info;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
 use gadget_sdk::keystore::{sp_core_subxt, BackendExt, TanglePairSigner};
-use gadget_sdk::logger::Logger;
 use sp_core::H256;
 use std::collections::HashMap;
 use std::future::Future;
@@ -44,7 +44,7 @@ pub struct BlueprintManagerHandle {
     shutdown_call: Option<tokio::sync::oneshot::Sender<()>>,
     start_tx: Option<tokio::sync::oneshot::Sender<()>>,
     running_task: JoinHandle<color_eyre::Result<()>>,
-    logger: Logger,
+    span: tracing::Span,
     sr25519_id: TanglePairSigner<sp_core_subxt::sr25519::Pair>,
     ecdsa_id: gadget_sdk::keystore::TanglePairSigner<sp_core_subxt::ecdsa::Pair>,
     keystore_uri: String,
@@ -53,10 +53,11 @@ pub struct BlueprintManagerHandle {
 impl BlueprintManagerHandle {
     /// Send a start signal to the blueprint manager
     pub fn start(&mut self) -> color_eyre::Result<()> {
+        let _span = self.span.enter();
         match self.start_tx.take() {
             Some(tx) => match tx.send(()) {
                 Ok(_) => {
-                    self.logger.info("Start signal sent to Blueprint Manager");
+                    info!("Start signal sent to Blueprint Manager");
                     Ok(())
                 }
                 Err(_) => Err(Report::msg(
@@ -86,14 +87,13 @@ impl BlueprintManagerHandle {
             .map_err(|_| Report::msg("Failed to send shutdown signal to Blueprint Manager"))
     }
 
-    /// Returns the logger for this blueprint manager
-    pub fn logger(&self) -> &Logger {
-        &self.logger
-    }
-
     /// Returns the keystore URI for this blueprint manager
     pub fn keystore_uri(&self) -> &str {
         &self.keystore_uri
+    }
+
+    pub fn span(&self) -> &tracing::Span {
+        &self.span
     }
 }
 
@@ -142,11 +142,10 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         "Local"
     };
 
-    let logger = Logger::from(format!("Blueprint-Manager-{}", logger_id));
+    let span = tracing::info_span!("Blueprint-Manager", id = logger_id);
 
-    logger.info("Starting blueprint manager ... waiting for start signal ...");
-
-    let logger_clone = logger.clone();
+    let _span = span.enter();
+    info!("Starting blueprint manager ... waiting for start signal ...");
 
     let (tangle_key, ecdsa_key) = {
         let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
@@ -161,12 +160,11 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
     let tangle_client =
         TangleRuntimeClient::from_url(gadget_config.url.as_str(), sub_account_id.clone()).await?;
-    let services_client = ServicesClient::new(logger.clone(), tangle_client.client());
+    let services_client = ServicesClient::new(tangle_client.client());
     let mut active_gadgets = HashMap::new();
 
     let keystore_uri = gadget_config.keystore_uri.clone();
 
-    let logger_manager = logger.clone();
     let manager_task = async move {
         // With the basics setup, we must now implement the main logic of the Blueprint Manager
         // Handle initialization logic
@@ -175,7 +173,6 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         let mut operator_subscribed_blueprints = handle_init(
             &tangle_client,
             &services_client,
-            &logger_manager,
             &sub_account_id,
             &mut active_gadgets,
             &gadget_config,
@@ -188,7 +185,6 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         while let Some(event) = tangle_client.next_event().await {
             let result = event_handler::check_blueprint_events(
                 &event,
-                &logger_manager,
                 &mut active_gadgets,
                 &sub_account_id.clone(),
             )
@@ -204,7 +200,6 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
             event_handler::handle_tangle_event(
                 &event,
                 &operator_subscribed_blueprints,
-                &logger_manager,
                 &gadget_config,
                 &blueprint_manager_config,
                 &mut active_gadgets,
@@ -219,15 +214,14 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
     let (tx_stop, rx_stop) = tokio::sync::oneshot::channel::<()>();
 
-    let logger = logger.clone();
     let shutdown_task = async move {
         tokio::select! {
             _res0 = shutdown_cmd => {
-                logger.info("Shutdown-1 command received, closing application");
+                info!("Shutdown-1 command received, closing application");
             },
 
             _res1 = rx_stop => {
-                logger.info("Manual shutdown signal received, closing application");
+                info!("Manual shutdown signal received, closing application");
             }
         }
     };
@@ -250,13 +244,14 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         }
     };
 
+    drop(_span);
     let handle = tokio::spawn(combined_task);
 
     let handle = BlueprintManagerHandle {
         start_tx: Some(start_tx),
         shutdown_call: Some(tx_stop),
         running_task: handle,
-        logger: logger_clone,
+        span,
         sr25519_id: tangle_key,
         ecdsa_id: ecdsa_key,
         keystore_uri,
@@ -272,13 +267,13 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 async fn handle_init(
     tangle_runtime: &TangleRuntimeClient,
     services_client: &ServicesClient<TangleConfig>,
-    logger: &Logger,
     sub_account_id: &AccountId32,
     active_gadgets: &mut ActiveGadgets,
     gadget_config: &GadgetConfig,
     blueprint_manager_config: &BlueprintManagerConfig,
 ) -> color_eyre::Result<Vec<RpcServicesWithBlueprint>> {
-    logger.info("Beginning initialization of Blueprint Manager");
+    info!("Beginning initialization of Blueprint Manager");
+
     let (operator_subscribed_blueprints, init_event) =
         if let Some(event) = tangle_runtime.next_event().await {
             (
@@ -291,20 +286,18 @@ async fn handle_init(
             return Err(Report::msg("Failed to get initial block hash"));
         };
 
-    logger.info(format!(
+    info!(
         "Received {} initial blueprints this operator is registered to",
         operator_subscribed_blueprints.len()
-    ));
+    );
 
     // Immediately poll, handling the initial state
     let poll_result =
-        event_handler::check_blueprint_events(&init_event, logger, active_gadgets, sub_account_id)
-            .await;
+        event_handler::check_blueprint_events(&init_event, active_gadgets, sub_account_id).await;
 
     event_handler::handle_tangle_event(
         &init_event,
         &operator_subscribed_blueprints,
-        logger,
         gadget_config,
         blueprint_manager_config,
         active_gadgets,
