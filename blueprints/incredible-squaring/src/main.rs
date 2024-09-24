@@ -8,6 +8,7 @@ use gadget_sdk::{
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
     },
     tx,
+    info
 };
 use std::io::Write;
 use incredible_squaring_blueprint as blueprint;
@@ -32,7 +33,7 @@ impl GadgetRunner for TangleGadgetRunner {
     async fn register(&mut self) -> Result<()> {
         // TODO: Use the function in blueprint-test-utils
         if self.env.test_mode {
-            self.env.logger.info("Skipping registration in test mode");
+            info!("Skipping registration in test mode");
             return Ok(());
         }
 
@@ -62,10 +63,8 @@ impl GadgetRunner for TangleGadgetRunner {
         );
 
         // send the tx to the tangle and exit.
-        let result = tx::tangle::send(&client, &signer, &xt, &self.env.logger).await?;
-        self.env
-            .logger
-            .info(format!("Registered operator with hash: {:?}", result));
+        let result = tx::tangle::send(&client, &signer, &xt).await?;
+        info!("Registered operator with hash: {:?}", result);
         Ok(())
     }
 
@@ -76,22 +75,17 @@ impl GadgetRunner for TangleGadgetRunner {
     async fn run(&self) -> Result<()> {
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
         let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
-        let logger = self.env.logger.clone();
 
-        self.env.logger.info(format!(
-            "Starting the event watcher for {} ...",
-            signer.account_id()
-        ));
+        info!("Starting the event watcher for {} ...", signer.account_id());
 
         let x_square = blueprint::XsquareEventHandler {
             service_id: self.env.service_id.unwrap(),
             signer,
-            logger,
         };
 
         SubstrateEventWatcher::run(
             &TangleEventsWatcher {
-                logger: self.env.logger.clone(),
+                span: self.env.span.clone(),
             },
             client,
             // Add more handler here if we have more functions.
@@ -123,14 +117,13 @@ async fn create_gadget_runner(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    gadget_sdk::logger::setup_log();
+    gadget_sdk::logging::setup_log();
     // Load the environment and create the gadget runner
     let config = ContextConfig::from_args();
 
     let (env, mut runner) = create_gadget_runner(config.clone()).await;
 
-    env.logger
-        .info("~~~ Executing the incredible squaring blueprint ~~~");
+    info!("~~~ Executing the incredible squaring blueprint ~~~");
 
     check_for_test(&env, &config)?;
 
@@ -147,7 +140,7 @@ async fn main() -> Result<()> {
 
 #[allow(irrefutable_let_patterns)]
 fn check_for_test(
-    env: &GadgetConfiguration<parking_lot::RawRwLock>,
+    _env: &GadgetConfiguration<parking_lot::RawRwLock>,
     config: &ContextConfig,
 ) -> Result<()> {
     // create a file to denote we have started
@@ -163,10 +156,7 @@ fn check_for_test(
         let path = base_path.sanitize_file_path().join("test_started.tmp");
         let mut file = std::fs::File::create(&path)?;
         file.write_all(b"test_started")?;
-        env.logger.info(format!(
-            "Successfully wrote test file to {}",
-            path.display()
-        ))
+        info!("Successfully wrote test file to {}", path.display())
     }
 
     Ok(())

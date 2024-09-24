@@ -12,7 +12,6 @@ use cggmp21::KeyShare;
 use cggmp21::PregeneratedPrimes;
 use digest::typenum::U32;
 use digest::Digest;
-use gadget_sdk::logger::Logger;
 use gadget_sdk::network::channels::create_job_manager_to_async_protocol_channel_split_io;
 use gadget_sdk::network::channels::UserID;
 use gadget_sdk::network::deserialize;
@@ -21,6 +20,7 @@ use gadget_sdk::network::IdentifierInfo;
 use gadget_sdk::network::Network;
 use gadget_sdk::network::ProtocolMessage;
 use gadget_sdk::store::KeyValueStoreBackend;
+use gadget_sdk::{debug, trace};
 use itertools::Itertools;
 use rand::rngs::{OsRng, StdRng};
 use rand::{CryptoRng, RngCore, SeedableRng};
@@ -45,7 +45,6 @@ pub async fn run_and_serialize_keygen<
     D,
     R,
 >(
-    logger: &Logger,
     tracer: &mut PerfProfiler,
     eid: cggmp21::ExecutionId<'r>,
     i: u16,
@@ -66,7 +65,7 @@ where
         .hd_wallet(hd_wallet)
         .start(&mut rng, party)
         .await?;
-    logger.debug("Finished AsyncProtocol - Keygen");
+    debug!("Finished AsyncProtocol - Keygen");
     serialize(&incomplete_key_share).map_err(Into::into)
 }
 
@@ -78,7 +77,6 @@ pub async fn run_and_serialize_keyrefresh<
     H: Digest<OutputSize = U32> + Clone + Send + 'static,
     D,
 >(
-    logger: &Logger,
     incomplete_key_share: Vec<u8>,
     pregenerated_primes: PregeneratedPrimes<S>,
     tracer: &mut PerfProfiler,
@@ -103,8 +101,8 @@ where
         .start(&mut rng, party)
         .await?;
     let perf_report = tracer.get_report()?;
-    logger.trace(format!("Aux info protocol report: {perf_report}"));
-    logger.debug("Finished AsyncProtocol - Aux Info");
+    trace!("Aux info protocol report: {perf_report}");
+    debug!("Finished AsyncProtocol - Aux Info");
 
     let key_share: KeyShare<E, S> = DirtyKeyShare {
         core: incomplete_key_share.into_inner(),
@@ -120,12 +118,11 @@ where
 
 async fn pregenerate_primes<S: SecurityLevel, KBE: KeyValueStoreBackend>(
     tracer: &PerfProfiler,
-    logger: &Logger,
     job_id_bytes: &[u8],
 ) -> Result<(PerfProfiler, PregeneratedPrimes<S>), Error> {
     let perf_report = tracer.get_report()?;
-    logger.trace(format!("Incomplete Keygen protocol report: {perf_report}"));
-    logger.debug("Finished AsyncProtocol - Incomplete Keygen");
+    trace!("Incomplete Keygen protocol report: {perf_report}");
+    debug!("Finished AsyncProtocol - Incomplete Keygen");
     let tracer = PerfProfiler::new();
 
     let pregenerated_primes_key =
@@ -138,7 +135,7 @@ async fn pregenerate_primes<S: SecurityLevel, KBE: KeyValueStoreBackend>(
     .await?;
 
     let elapsed = now.elapsed();
-    logger.debug(format!("Pregenerated primes took {elapsed:?}"));
+    debug!("Pregenerated primes took {elapsed:?}");
 
     Ok((tracer, pregenerated_primes))
 }
@@ -165,7 +162,6 @@ pub async fn run_full_keygen_protocol<
     t: u16,
     hd_wallet: bool,
     rng: StdRng,
-    logger: &Logger,
     job_id_bytes: &[u8],
 ) -> Result<(Vec<u8>, Vec<u8>), Error> {
     let (tx0, rx0, tx1, rx1) = create_job_manager_to_async_protocol_channel_split_io(
@@ -174,13 +170,11 @@ pub async fn run_full_keygen_protocol<
         mapping,
         my_role_id,
         network,
-        logger.clone(),
         i,
     );
     let delivery = (rx0, tx0);
     let party = MpcParty::<Msg<E, S, H>, _, _>::connected(delivery);
     let incomplete_key_share = run_and_serialize_keygen::<E, S, H, _, _>(
-        logger,
         &mut tracer,
         eid,
         i,
@@ -192,12 +186,11 @@ pub async fn run_full_keygen_protocol<
     )
     .await?;
     let (mut tracer, pregenerated_primes) =
-        pregenerate_primes::<S, KBE>(&tracer, logger, job_id_bytes).await?;
+        pregenerate_primes::<S, KBE>(&tracer, job_id_bytes).await?;
 
     let delivery = (rx1, tx1);
     let party = MpcParty::<aux_only::Msg<H, S>, _, _>::connected(delivery);
     let (key_share, serialized_public_key) = run_and_serialize_keyrefresh::<E, S, H, _>(
-        logger,
         incomplete_key_share,
         pregenerated_primes,
         &mut tracer,

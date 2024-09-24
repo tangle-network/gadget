@@ -1,6 +1,6 @@
-use crate::logging::Logger;
 use crate::network::matchbox::MatchboxEvent::P2p;
 use crate::network::network::NetworkHandle;
+use crate::warn;
 use gadget_io::tokio::sync::{Mutex, RwLock};
 use matchbox_socket::PeerId;
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,6 @@ use std::{
 pub type InboundMapping = (String, UnboundedSender<Vec<u8>>, Arc<AtomicU32>);
 
 pub struct MatchboxNetworkService<'a> {
-    pub logger: &'a Logger,
     pub inbound_mapping: &'a [InboundMapping],
     pub ecdsa_peer_id_to_matchbox_id:
         &'a Arc<RwLock<HashMap<ecdsa::Public, matchbox_socket::PeerId>>>,
@@ -33,8 +32,7 @@ impl<'a> MatchboxNetworkService<'a> {
         match event {
             P2p { peer_id: _ } => {}
             unknown => {
-                self.logger
-                    .warn(format!("Unknown swarm event: {unknown:?}"));
+                warn!(format!("Unknown swarm event: {unknown:?}"));
             }
         }
     }

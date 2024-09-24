@@ -20,7 +20,7 @@ use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
 use crate::error::Error;
-use crate::logger::Logger;
+use crate::{debug, error, trace, warn};
 
 use super::{Network, ParticipantInfo, ProtocolMessage};
 
@@ -44,7 +44,6 @@ pub struct MyBehaviour {
 pub type InboundMapping = (IdentTopic, UnboundedSender<Vec<u8>>, Arc<AtomicU32>);
 
 pub struct NetworkServiceWithoutSwarm<'a> {
-    pub logger: &'a Logger,
     pub inbound_mapping: &'a [InboundMapping],
     pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
     pub ecdsa_key: &'a ecdsa::Pair,
@@ -58,7 +57,6 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
     ) -> NetworkService<'a> {
         NetworkService {
             swarm,
-            logger: self.logger,
             inbound_mapping: self.inbound_mapping,
             ecdsa_peer_id_to_libp2p_id: &self.ecdsa_peer_id_to_libp2p_id,
             ecdsa_key: self.ecdsa_key,
@@ -69,7 +67,6 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
 
 pub struct NetworkService<'a> {
     pub swarm: &'a mut libp2p::Swarm<MyBehaviour>,
-    pub logger: &'a Logger,
     pub inbound_mapping: &'a [InboundMapping],
     pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
     pub ecdsa_key: &'a ecdsa::Pair,
@@ -89,7 +86,7 @@ impl<'a> NetworkService<'a> {
                     .gossipsub
                     .publish(msg.topic, gossip_message)
                 {
-                    self.logger.error(format!("Publish error: {e:?}"));
+                    error!("Publish error: {e:?}");
                 }
             }
 
@@ -100,15 +97,13 @@ impl<'a> NetworkService<'a> {
                 self.swarm.behaviour_mut().p2p.send_request(&peer_id, req);
             }
             (MessageType::Broadcast, GossipOrRequestResponse::Request(_)) => {
-                self.logger.error("Broadcasting a request is not supported");
+                error!("Broadcasting a request is not supported");
             }
             (MessageType::Broadcast, GossipOrRequestResponse::Response(_)) => {
-                self.logger
-                    .error("Broadcasting a response is not supported");
+                error!("Broadcasting a response is not supported");
             }
             (MessageType::P2P(_), GossipOrRequestResponse::Gossip(_)) => {
-                self.logger
-                    .error("P2P message should be a request or response");
+                error!("P2P message should be a request or response");
             }
             (MessageType::P2P(_), GossipOrRequestResponse::Response(_)) => {
                 // TODO: Send the response to the peer.
@@ -143,7 +138,7 @@ impl<'a> NetworkService<'a> {
                 self.handle_identify_event(event).await;
             }
             Behaviour(Kadmelia(event)) => {
-                self.logger.trace(format!("Kadmelia event: {event:?}"));
+                trace!("Kadmelia event: {event:?}");
             }
             Behaviour(Dcutr(event)) => {
                 self.handle_dcutr_event(event).await;
@@ -162,8 +157,7 @@ impl<'a> NetworkService<'a> {
                 address,
                 listener_id,
             } => {
-                self.logger
-                    .debug(format!("{listener_id} has a new address: {address}"));
+                debug!("{listener_id} has a new address: {address}");
             }
             ConnectionEstablished {
                 peer_id,
@@ -216,50 +210,38 @@ impl<'a> NetworkService<'a> {
                 listener_id,
                 address,
             } => {
-                self.logger
-                    .trace(format!("{listener_id} has an expired address: {address}"));
+                trace!("{listener_id} has an expired address: {address}");
             }
             ListenerClosed {
                 listener_id,
                 addresses,
                 reason,
             } => {
-                self.logger.trace(format!(
-                    "{listener_id} on {addresses:?} has been closed: {reason:?}"
-                ));
+                trace!("{listener_id} on {addresses:?} has been closed: {reason:?}");
             }
             ListenerError { listener_id, error } => {
-                self.logger
-                    .error(format!("{listener_id} has an error: {error}"));
+                error!("{listener_id} has an error: {error}");
             }
             Dialing {
                 peer_id,
                 connection_id,
             } => {
-                self.logger.debug(format!(
-                    "Dialing peer: {peer_id:?} with connection_id: {connection_id}"
-                ));
+                debug!("Dialing peer: {peer_id:?} with connection_id: {connection_id}");
             }
             NewExternalAddrCandidate { address } => {
-                self.logger
-                    .trace(format!("New external address candidate: {address}"));
+                trace!("New external address candidate: {address}");
             }
             ExternalAddrConfirmed { address } => {
-                self.logger
-                    .trace(format!("External address confirmed: {address}"));
+                trace!("External address confirmed: {address}");
             }
             ExternalAddrExpired { address } => {
-                self.logger
-                    .trace(format!("External address expired: {address}"));
+                trace!("External address expired: {address}");
             }
             NewExternalAddrOfPeer { peer_id, address } => {
-                self.logger.trace(format!(
-                    "New external address of peer: {peer_id} with address: {address}"
-                ));
+                trace!("New external address of peer: {peer_id} with address: {address}");
             }
             unknown => {
-                self.logger
-                    .warn(format!("Unknown swarm event: {unknown:?}"));
+                warn!("Unknown swarm event: {unknown:?}");
             }
         }
     }
@@ -270,7 +252,6 @@ pub struct GossipHandle {
     pub topic: IdentTopic,
     pub tx_to_outbound: UnboundedSender<IntraNodePayload>,
     pub rx_from_inbound: Arc<Mutex<gadget_io::tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
-    pub logger: Logger,
     pub connected_peers: Arc<AtomicU32>,
     pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
 }
@@ -356,8 +337,7 @@ impl Network for GossipHandle {
         match bincode::deserialize(&message) {
             Ok(message) => Some(message),
             Err(e) => {
-                self.logger
-                    .error(format!("Failed to deserialize message: {e}"));
+                error!("Failed to deserialize message: {e}");
                 drop(lock);
                 Network::next_message(self).await
             }

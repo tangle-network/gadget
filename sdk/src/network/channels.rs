@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::error::Error;
-use crate::logger::Logger;
+use crate::{error, trace, warn};
 
 /// Unique identifier for an involved party
 ///
@@ -59,7 +59,6 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
     my_account_id: ecdsa::Public,
     network: N,
-    logger: Logger,
 ) -> (
     futures::channel::mpsc::UnboundedSender<C1>,
     futures::channel::mpsc::UnboundedReceiver<std::io::Result<C1>>,
@@ -69,7 +68,6 @@ pub fn create_job_manager_to_async_protocol_channel_split<
     let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
     let (tx_to_async_proto_2, rx_for_async_proto_2) =
         gadget_io::tokio::sync::mpsc::unbounded_channel();
-    let logger_outgoing = logger.clone();
     // Take the messages from the gadget and send them to the async protocol
     let _ = gadget_io::tokio::task::spawn(async move {
         while let Some(msg) = rx_gadget.recv().await {
@@ -77,12 +75,12 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                 Ok(msg) => match msg {
                     MultiplexedChannelMessage::Channel1(msg) => {
                         if tx_to_async_proto_1.unbounded_send(Ok(msg)).is_err() {
-                            logger.error("Failed to send message to C1 protocol");
+                            error!("Failed to send message to C1 protocol");
                         }
                     }
                     MultiplexedChannelMessage::Channel2(msg) => {
                         if tx_to_async_proto_2.send(msg).is_err() {
-                            logger.error("Failed to send message to C2 protocol");
+                            error!("Failed to send message to C2 protocol");
                         }
                     }
 
@@ -91,7 +89,7 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     }
                 },
                 Err(err) => {
-                    logger.error(format!("Failed to deserialize message: {err:?}"));
+                    error!("Failed to deserialize message: {err:?}");
                 }
             }
         }
@@ -115,7 +113,6 @@ pub fn create_job_manager_to_async_protocol_channel_split<
 
     // Take the messages the async protocol sends to the outbound channel and send them to the gadget
     let _ = gadget_io::tokio::task::spawn(async move {
-        let logger = &logger_outgoing;
         let channel_1_task = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
                 if let Err(err) = wrap_message_and_forward_to_network::<_, C1, C2, (), _>(
@@ -125,11 +122,10 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     my_user_id,
                     identifier_info,
                     MultiplexedChannelMessage::Channel1,
-                    logger,
                 )
                 .await
                 {
-                    logger.error(format!("Failed to send message to outbound: {err:?}"));
+                    error!("Failed to send message to outbound: {err:?}");
                 }
             }
         };
@@ -143,11 +139,10 @@ pub fn create_job_manager_to_async_protocol_channel_split<
                     my_user_id,
                     identifier_info,
                     MultiplexedChannelMessage::Channel2,
-                    logger,
                 )
                 .await
                 {
-                    logger.error(format!("Failed to send message to outbound: {err:?}"));
+                    error!("Failed to send message to outbound: {err:?}");
                 }
             }
         };
@@ -426,12 +421,10 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
     user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
     my_account_id: ecdsa::Public,
     network: N,
-    logger: Logger,
     i: UserID,
 ) -> DuplexedChannel<O, I, C2> {
     let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
     let (tx_to_async_proto_2, rx_for_async_proto_2) = futures::channel::mpsc::unbounded();
-    let logger_outgoing = logger.clone();
     let mapping_clone = user_id_mapping.clone();
 
     let my_user_id = user_id_mapping
@@ -446,10 +439,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
         .expect("Failed to find my user id");
 
     if my_user_id != i {
-        logger.error(format!(
-            "My user id is not equal to i: {} != {}",
-            my_user_id, i
-        ));
+        error!("My user id is not equal to i: {} != {}", my_user_id, i);
     }
 
     // Take the messages from the gadget and send them to the async protocol
@@ -457,30 +447,30 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
         let mut id = 0;
         while let Some(msg_orig) = rx_gadget.recv().await {
             if msg_orig.payload.is_empty() {
-                logger.warn(format!(
+                warn!(
                     "Received empty message from Peer {:?}",
                     msg_orig.sender.user_id
-                ));
+                );
                 continue;
             }
 
             match deserialize::<MultiplexedChannelMessage<O::Inner, C2>>(&msg_orig.payload[..]) {
                 Ok(msg) => match msg {
                     MultiplexedChannelMessage::Channel1(msg) => {
-                        logger.trace(format!("Received message count: {id}", id = id + 1));
-                        logger.trace(format!(
+                        trace!("Received message count: {id}", id = id + 1);
+                        trace!(
                             "Received message from {:?} as {:?}",
-                            msg_orig.sender.user_id, msg_orig.recipient
-                        ));
+                            msg_orig.sender.user_id,
+                            msg_orig.recipient
+                        );
                         let msg_type = if let Some(to) = msg_orig.recipient {
                             if let Some(to_account_id) = mapping_clone.get(&to.user_id) {
                                 if *to_account_id != my_account_id {
-                                    logger.error("Invalid message received");
+                                    error!("Invalid message received");
                                     continue;
                                 }
                             } else {
-                                logger
-                                    .error("Invalid message received (`to` not found in mapping)");
+                                error!("Invalid message received (`to` not found in mapping)");
                                 continue;
                             }
 
@@ -492,14 +482,14 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
                         let incoming = I::from_inbound(id, msg_orig.sender.user_id, msg_type, msg);
 
                         if tx_to_async_proto_1.unbounded_send(Ok(incoming)).is_err() {
-                            logger.error("Failed to send Incoming message to protocol");
+                            error!("Failed to send Incoming message to protocol");
                         }
 
                         id += 1;
                     }
                     MultiplexedChannelMessage::Channel2(msg) => {
                         if tx_to_async_proto_2.unbounded_send(msg).is_err() {
-                            logger.error("Failed to send C2 message to protocol");
+                            error!("Failed to send C2 message to protocol");
                         }
                     }
                     _ => {
@@ -507,7 +497,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
                     }
                 },
                 Err(err) => {
-                    logger.error(format!("Failed to deserialize message: {err:?}"));
+                    error!("Failed to deserialize message: {err:?}");
                 }
             }
         }
@@ -520,7 +510,6 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
 
     // Take the messages from the async protocol and send them to the gadget
     let _ = gadget_io::tokio::task::spawn(async move {
-        let logger = &logger_outgoing;
         let channel_1_task = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
                 if let Err(err) = wrap_message_and_forward_to_network::<_, O::Inner, C2, (), _>(
@@ -530,15 +519,14 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
                     my_user_id,
                     identifier_info,
                     |m| MultiplexedChannelMessage::Channel1(m.inner_message()),
-                    logger,
                 )
                 .await
                 {
-                    logger.error(format!("Failed to send message to outbound: {err:?}"));
+                    error!("Failed to send message to outbound: {err:?}");
                 }
             }
 
-            logger.trace("Channel 1 outgoing task closing")
+            trace!("Channel 1 outgoing task closing")
         };
 
         let channel_2_task = async move {
@@ -550,15 +538,14 @@ pub fn create_job_manager_to_async_protocol_channel_split_io<
                     my_user_id,
                     identifier_info,
                     |m| MultiplexedChannelMessage::Channel2(m),
-                    logger,
                 )
                 .await
                 {
-                    logger.error(format!("Failed to send message to outbound: {err:?}"));
+                    error!("Failed to send message to outbound: {err:?}");
                 }
             }
 
-            logger.trace("Channel 2 outgoing task closing")
+            trace!("Channel 2 outgoing task closing")
         };
 
         gadget_io::tokio::join!(channel_1_task, channel_2_task);
@@ -596,22 +583,20 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
     user_id_mapping: Arc<HashMap<UserID, ecdsa::Public>>,
     my_account_id: ecdsa::Public,
     network: N,
-    logger: Logger,
 ) -> TriplexedChannel<O1, I1, O2, I2, C3> {
     let (tx_to_async_proto_1, rx_for_async_proto_1) = futures::channel::mpsc::unbounded();
     let (tx_to_async_proto_2, rx_for_async_proto_2) = futures::channel::mpsc::unbounded();
     let (tx_to_async_proto_3, rx_for_async_proto_3) = futures::channel::mpsc::unbounded();
 
-    let logger_outgoing = logger.clone();
     // Take the messages from the gadget and send them to the async protocol
     let _ = gadget_io::tokio::task::spawn(async move {
         let mut id = 0;
         while let Some(msg_orig) = rx_gadget.recv().await {
             if msg_orig.payload.is_empty() {
-                logger.warn(format!(
+                warn!(
                     "Received empty message from Peer {:?}",
                     msg_orig.sender.user_id
-                ));
+                );
                 continue;
             }
 
@@ -629,7 +614,7 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
                         let incoming = I1::from_inbound(id, msg_orig.sender.user_id, msg_type, msg);
 
                         if tx_to_async_proto_1.unbounded_send(Ok(incoming)).is_err() {
-                            logger.error("Failed to send Incoming message to protocol");
+                            error!("Failed to send Incoming message to protocol");
                         }
 
                         id += 1;
@@ -644,20 +629,20 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
                         let incoming = I2::from_inbound(id, msg_orig.sender.user_id, msg_type, msg);
 
                         if tx_to_async_proto_2.unbounded_send(Ok(incoming)).is_err() {
-                            logger.error("Failed to send Incoming message to protocol");
+                            error!("Failed to send Incoming message to protocol");
                         }
 
                         id += 1;
                     }
                     MultiplexedChannelMessage::Channel3(msg) => {
                         if tx_to_async_proto_3.unbounded_send(msg).is_err() {
-                            logger.error("Failed to send C2 message to protocol");
+                            error!("Failed to send C2 message to protocol");
                         }
                     }
                 },
 
                 Err(err) => {
-                    logger.error(format!("Failed to deserialize message: {err:?}"));
+                    error!("Failed to deserialize message: {err:?}");
                 }
             }
         }
@@ -681,7 +666,6 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
     let _ = gadget_io::tokio::task::spawn(async move {
         let user_id_mapping = &user_id_mapping;
         let network = &network;
-        let logger = &logger_outgoing;
         let task0 = async move {
             while let Some(msg) = rx_to_outbound_1.next().await {
                 if let Err(err) =
@@ -692,11 +676,10 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
                         my_user_id,
                         identifier_info,
                         |m| MultiplexedChannelMessage::Channel1(m.inner_message()),
-                        logger,
                     )
                     .await
                 {
-                    logger.error(format!("Failed to send message to outbound: {err:?}"));
+                    error!("Failed to send message to outbound: {err:?}");
                 }
             }
         };
@@ -711,11 +694,10 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
                         my_user_id,
                         identifier_info,
                         |m| MultiplexedChannelMessage::Channel2(m.inner_message()),
-                        logger,
                     )
                     .await
                 {
-                    logger.error(format!("Failed to send message to outbound: {err:?}"));
+                    error!("Failed to send message to outbound: {err:?}");
                 }
             }
         };
@@ -730,11 +712,10 @@ pub fn create_job_manager_to_async_protocol_channel_split_io_triplex<
                         my_user_id,
                         identifier_info,
                         |m| MultiplexedChannelMessage::Channel3(m),
-                        logger,
                     )
                     .await
                 {
-                    logger.error(format!("Failed to send message to outbound: {err:?}"));
+                    error!("Failed to send message to outbound: {err:?}");
                 }
             }
         };
@@ -767,14 +748,13 @@ async fn wrap_message_and_forward_to_network<
     my_user_id: UserID,
     identifier_info: IdentifierInfo,
     splitter: impl FnOnce(M) -> MultiplexedChannelMessage<C1, C2, C3>,
-    logger: &Logger,
 ) -> Result<(), Error>
 where
     M: MaybeSenderReceiver + Send + 'static,
 {
     let from = msg.maybe_sender();
     let to = msg.maybe_receiver();
-    logger.trace(format!("Sending message from {:?} to {:?}", from, to));
+    trace!("Sending message from {:?} to {:?}", from, to);
 
     let from_account_id = user_id_mapping
         .get(&from.as_user_id().unwrap_or(my_user_id))

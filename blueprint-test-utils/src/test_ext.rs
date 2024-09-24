@@ -20,7 +20,6 @@ use blueprint_manager::executor::BlueprintManagerHandle;
 use blueprint_manager::sdk::entry::SendFuture;
 use cargo_tangle::deploy::Opts;
 use gadget_sdk::clients::tangle::runtime::TangleClient;
-use gadget_sdk::logger::Logger;
 use gadget_sdk::tangle_subxt::subxt::OnlineClient;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{ApprovalPrefrence, PriceTargets};
@@ -37,6 +36,8 @@ use std::path::PathBuf;
 use subxt::tx::Signer;
 use gadget_sdk::keystore::KeystoreUriSanitizer;
 use gadget_sdk::keystore::sp_core_subxt::Pair;
+use tracing::Instrument;
+use gadget_sdk::{error, info, warn};
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 const LOCAL_TANGLE_NODE: &str = "ws://127.0.0.1:9944";
@@ -62,7 +63,8 @@ pub async fn new_test_ext_blueprint_manager<
     assert!(N > 0, "At least one node is required");
     assert!(N <= NAME_IDS.len(), "Only up to 5 nodes are supported");
 
-    let int_logger = Logger::from("Integration-Test");
+    let span = tracing::info_span!("Integration-Test");
+    let _span = span.enter();
 
     let bind_addrs = (0..N)
         .map(|_| find_open_tcp_bind_port())
@@ -113,10 +115,9 @@ pub async fn new_test_ext_blueprint_manager<
 
         let tg_addr = handle.sr25519_id().account_id();
         let evm_addr = handle.ecdsa_id().account_id();
-
-        int_logger.info(format!("Signer TG address: {tg_addr}"));
-        int_logger.info(format!("Signer EVM address: {evm_addr}"));
-        int_logger.info(format!("Signer EVM(alloy) address: {}", priv_key.address()));
+        info!("Signer TG address: {tg_addr}");
+        info!("Signer EVM address: {evm_addr}");
+        info!("Signer EVM(alloy) address: {}", priv_key.address());
 
         if node_index == 0 {
             // Replace the None signer and signer_evm values inside opts with Alice's keys
@@ -131,7 +132,7 @@ pub async fn new_test_ext_blueprint_manager<
     let blueprint_id = match cargo_tangle::deploy::deploy_to_tangle(opts).await {
         Ok(id) => id,
         Err(err) => {
-            int_logger.error(format!("Failed to deploy blueprint: {err}"));
+            error!("Failed to deploy blueprint: {err}");
             panic!("Failed to deploy blueprint: {err}");
         }
     };
@@ -153,7 +154,6 @@ pub async fn new_test_ext_blueprint_manager<
 
         let task = async move {
             let keypair = handle.sr25519_id().clone();
-            let logger = handle.logger();
             let key = runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().signer().public().0);
 
             let preferences = Preferences {
@@ -168,16 +168,14 @@ pub async fn new_test_ext_blueprint_manager<
                 },
             };
 
-            if let Err(err) = super::join_delegators(&client, &keypair, logger).await {
+            if let Err(err) = super::join_delegators(&client, &keypair).await {
+                let _span = handle.span().enter();
+
                 let err_str = format!("{err}");
                 if err_str.contains("MultiAssetDelegation::AlreadyOperator") {
-                    handle
-                        .logger()
-                        .warn(format!("{} is already an operator", keypair.account_id()));
+                    warn!("{} is already an operator", keypair.account_id());
                 } else {
-                    handle
-                        .logger()
-                        .error(format!("Failed to join delegators: {err}"));
+                    error!("Failed to join delegators: {err}");
                     panic!("Failed to join delegators: {err}");
                 }
             }
@@ -188,13 +186,10 @@ pub async fn new_test_ext_blueprint_manager<
                 blueprint_id,
                 preferences,
                 registration_args.clone(),
-                handle.logger(),
             )
             .await
             {
-                handle
-                    .logger()
-                    .error(format!("Failed to register as operator: {err}"));
+                error!("Failed to register as operator: {err}");
                 panic!("Failed to register as operator: {err}");
             }
 
@@ -215,13 +210,11 @@ pub async fn new_test_ext_blueprint_manager<
         .collect();
 
     // Use Alice's account to register the service
-    int_logger.info(format!(
-        "Registering service for blueprint ID {blueprint_id} using Alice's keys ..."
-    ));
+    info!("Registering service for blueprint ID {blueprint_id} using Alice's keys ...");
     if let Err(err) =
         super::register_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes).await
     {
-        int_logger.error(format!("Failed to register service: {err}"));
+        error!("Failed to register service: {err}");
         panic!("Failed to register service: {err}");
     }
 
@@ -232,19 +225,21 @@ pub async fn new_test_ext_blueprint_manager<
         handle.start().expect("Failed to start blueprint manager");
     }
 
-    int_logger.info("Waiting for all nodes to be online ...");
+    info!("Waiting for all nodes to be online ...");
     let all_paths = handles
         .iter()
         .map(|r| r.keystore_uri().to_string())
         .map(PathBuf::from)
         .collect::<Vec<_>>();
-    wait_for_test_ready(all_paths, &int_logger).await;
-    int_logger.info("All nodes are online");
+    wait_for_test_ready(all_paths).await;
+    info!("All nodes are online");
+
+    drop(_span);
 
     LocalhostTestExt {
         client,
         handles,
-        logger: int_logger,
+        span,
     }
 }
 
@@ -260,45 +255,48 @@ fn find_open_tcp_bind_port() -> u16 {
 pub struct LocalhostTestExt {
     client: TangleClient,
     handles: Vec<BlueprintManagerHandle>,
-    logger: Logger,
+    span: tracing::Span,
 }
 
 impl LocalhostTestExt {
     /// An identity function (For future reverse-compatible changes)
     pub fn execute_with<
-        T: FnOnce(&TangleClient, &Vec<BlueprintManagerHandle>, &Logger) -> R + Send + 'static,
+        T: FnOnce(&TangleClient, &Vec<BlueprintManagerHandle>) -> R + Send + 'static,
         R: Send + 'static,
     >(
         &self,
         function: T,
     ) -> R {
-        function(&self.client, &self.handles, &self.logger)
+        let _span = self.span.enter();
+        function(&self.client, &self.handles)
     }
 
     /// An identity function (For future reverse-compatible changes)
     pub async fn execute_with_async<
         'a,
         'b: 'a,
-        T: FnOnce(&'a TangleClient, &'a Vec<BlueprintManagerHandle>, &'a Logger) -> R + Send + 'a,
+        T: FnOnce(&'a TangleClient, &'a Vec<BlueprintManagerHandle>) -> R + Send + 'a,
         R: Future<Output = Out> + Send + 'a,
         Out: Send + 'b,
     >(
         &'a self,
         function: T,
     ) -> Out {
-        function(&self.client, &self.handles, &self.logger).await
+        function(&self.client, &self.handles)
+            .instrument(self.span.clone())
+            .await
     }
 }
 
 /// `base_paths`: All the paths pointing to the keystore for each node
 /// This function returns when every test_started.tmp file exists
-async fn wait_for_test_ready(base_paths: Vec<PathBuf>, logger: &Logger) {
+async fn wait_for_test_ready(base_paths: Vec<PathBuf>) {
     let paths = base_paths
         .into_iter()
         .map(|r| r.join("test_started.tmp"))
         .map(|r| r.sanitize_file_path())
         .collect::<Vec<_>>();
-    logger.info(format!("Waiting for these paths to exist: {paths:?}"));
+    info!("Waiting for these paths to exist: {paths:?}");
     loop {
         let mut ready_count = 0;
         for path in &paths {
@@ -311,10 +309,10 @@ async fn wait_for_test_ready(base_paths: Vec<PathBuf>, logger: &Logger) {
             break;
         }
 
-        logger.info(format!(
+        info!(
             "Not all operators are ready yet ({ready_count}/{}). Waiting ...",
             paths.len()
-        ));
+        );
         tokio::time::sleep(Duration::from_secs(3)).await;
     }
 }

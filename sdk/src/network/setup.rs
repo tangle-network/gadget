@@ -1,5 +1,4 @@
 #![allow(unused_results, missing_docs)]
-use crate::logger::Logger;
 #[cfg(not(target_family = "wasm"))]
 use crate::network::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
@@ -43,7 +42,6 @@ pub struct NetworkConfig {
     pub bind_ip: IpAddr,
     pub bind_port: u16,
     pub topics: Vec<String>,
-    pub logger: Logger,
 }
 
 impl std::fmt::Debug for NetworkConfig {
@@ -69,7 +67,6 @@ impl NetworkConfig {
         bind_ip: IpAddr,
         bind_port: u16,
         topics: Vec<String>,
-        logger: Logger,
     ) -> Self {
         Self {
             identity,
@@ -78,7 +75,6 @@ impl NetworkConfig {
             bind_ip,
             bind_port,
             topics,
-            logger,
         }
     }
 
@@ -91,7 +87,6 @@ impl NetworkConfig {
         bind_ip: IpAddr,
         bind_port: u16,
         service_name: T,
-        logger: Logger,
     ) -> Self {
         Self::new(
             identity,
@@ -100,7 +95,6 @@ impl NetworkConfig {
             bind_ip,
             bind_port,
             vec![service_name.into()],
-            logger,
         )
     }
 }
@@ -153,7 +147,6 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         bind_ip,
         bind_port,
         topics,
-        logger,
         ecdsa_key,
     } = config;
 
@@ -277,7 +270,6 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
                 topic,
                 tx_to_outbound: tx_to_outbound.clone(),
                 rx_from_inbound: Arc::new(Mutex::new(inbound_rx)),
-                logger: logger.clone(),
                 ecdsa_peer_id_to_libp2p_id: ecdsa_peer_id_to_libp2p_id.clone(),
             },
         );
@@ -318,7 +310,6 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
         let span = tracing::debug_span!("network_worker");
         let _enter = span.enter();
         let service = NetworkServiceWithoutSwarm {
-            logger: &logger,
             inbound_mapping: &inbound_mapping,
             ecdsa_peer_id_to_libp2p_id,
             ecdsa_key: &ecdsa_key,

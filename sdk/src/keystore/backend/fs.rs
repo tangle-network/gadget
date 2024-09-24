@@ -3,6 +3,7 @@
 use crate::keystore::{
     bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error, KeystoreUriSanitizer,
 };
+use crate::{debug, warn};
 use alloc::string::ToString;
 use ark_serialize::CanonicalSerialize;
 use std::{fs, io::Write, path::PathBuf};
@@ -76,10 +77,10 @@ impl FilesystemKeystore {
             // if so, we need to decode them
             if content.iter().all(|&b| b.is_ascii_hexdigit()) {
                 if let Ok(decoded) = hex::decode(&content) {
-                    tracing::debug!("Decoded hex-encoded key from file {:?}", path);
+                    debug!("Decoded hex-encoded key from file {:?}", path);
                     Ok(Some(decoded))
                 } else {
-                    tracing::warn!("Invalid hex encoding in file {:?}", path);
+                    warn!("Invalid hex encoding in file {:?}", path);
                     Ok(None)
                 }
             } else {
