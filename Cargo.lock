@@ -122,9 +122,9 @@ checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
 
 [[package]]
 name = "alloy-chains"
-version = "0.1.31"
+version = "0.1.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b68b94c159bcc2ca5f758b8663d7b00fc7c5e40569984595ddf2221b0f7f7f6e"
+checksum = "abf770dad29577cd3580f3dd09005799224a912b8cdfdd6dc04d030d42b3df4e"
 dependencies = [
  "num_enum",
  "strum",
@@ -1552,9 +1552,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
-version = "1.7.1"
+version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8318a53db07bb3f8dca91a600466bdb3f2eaadeedfdbcf02e1accbad9271ba50"
+checksum = "428d9aa8fbc0670b7b8d6030a7fadd0f86151cae55e4dbbece15f3780a3dfaf3"
 dependencies = [
  "serde",
 ]
@@ -1685,9 +1685,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.1.20"
+version = "1.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45bcde016d64c21da4be18b655631e5ab6d3107607e71a73a9f53eb48aae23fb"
+checksum = "07b1695e2c7e8fc85310cde85aeaab7e3097f593c91d209d3f9df76c928100f0"
 dependencies = [
  "jobserver",
  "libc",
@@ -2624,7 +2624,7 @@ dependencies = [
 [[package]]
 name = "eigen-contracts"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/maintenance#332d63711d6f76f2fd30b07dbf82b9416fa98414"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/maintenance#526a05240edd1a13ad05859bee9b57f117d00dfb"
 dependencies = [
  "alloy-contract",
  "alloy-sol-types",
@@ -2633,7 +2633,7 @@ dependencies = [
 [[package]]
 name = "eigen-utils"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/maintenance#332d63711d6f76f2fd30b07dbf82b9416fa98414"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/maintenance#526a05240edd1a13ad05859bee9b57f117d00dfb"
 dependencies = [
  "aes",
  "alloy-contract",
@@ -2677,7 +2677,7 @@ dependencies = [
 [[package]]
 name = "eigensdk-rs"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/maintenance#332d63711d6f76f2fd30b07dbf82b9416fa98414"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/maintenance#526a05240edd1a13ad05859bee9b57f117d00dfb"
 dependencies = [
  "eigen-contracts",
  "eigen-utils",
@@ -3035,7 +3035,7 @@ dependencies = [
 [[package]]
 name = "fireblocks-client"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/maintenance#332d63711d6f76f2fd30b07dbf82b9416fa98414"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/maintenance#526a05240edd1a13ad05859bee9b57f117d00dfb"
 dependencies = [
  "alloy-network",
  "alloy-primitives",
@@ -3117,7 +3117,7 @@ dependencies = [
 [[package]]
 name = "form_urlencoded"
 version = "1.2.1"
-source = "git+https://github.com/domenukk/rust-url?branch=no_std#c8d8e6dc102f45df6f342c0881a5d81559bc0396"
+source = "git+https://github.com/domenukk/rust-url?branch=no_std#a4422a918f708af46f27fafe3207d77fa1656c3c"
 dependencies = [
  "percent-encoding 2.3.1 (git+https://github.com/domenukk/rust-url?branch=no_std)",
 ]
@@ -3415,6 +3415,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-provider",
  "alloy-rpc-types",
+ "alloy-signer-local",
  "alloy-sol-types",
  "alloy-transport",
  "ark-ec",
@@ -3460,6 +3461,7 @@ dependencies = [
  "thiserror 1.0.63 (git+https://github.com/quartiq/thiserror?branch=no-std)",
  "tokio",
  "tracing",
+ "tracing-subscriber 0.3.18",
  "url 2.5.2 (git+https://github.com/domenukk/rust-url?branch=no_std)",
  "w3f-bls",
 ]
@@ -4373,7 +4375,7 @@ dependencies = [
 [[package]]
 name = "idna"
 version = "0.5.0"
-source = "git+https://github.com/domenukk/rust-url?branch=no_std#c8d8e6dc102f45df6f342c0881a5d81559bc0396"
+source = "git+https://github.com/domenukk/rust-url?branch=no_std#a4422a918f708af46f27fafe3207d77fa1656c3c"
 dependencies = [
  "unicode-bidi",
  "unicode-normalization",
@@ -4475,7 +4477,7 @@ dependencies = [
 [[package]]
 name = "incredible-squaring-avs"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/maintenance#332d63711d6f76f2fd30b07dbf82b9416fa98414"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/maintenance#526a05240edd1a13ad05859bee9b57f117d00dfb"
 dependencies = [
  "alloy-contract",
  "alloy-primitives",
@@ -6357,7 +6359,7 @@ checksum = "4e69bf016dc406eff7d53a7d3f7cf1c2e72c82b9088aac1118591e36dd2cd3e9"
 dependencies = [
  "bitcoin_hashes 0.13.0",
  "rand",
- "rand_core 0.5.1",
+ "rand_core 0.6.4",
  "serde",
  "unicode-normalization",
 ]
@@ -6501,13 +6503,13 @@ checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 [[package]]
 name = "percent-encoding"
 version = "2.3.1"
-source = "git+https://github.com/domenukk/rust-url?branch=no_std#c8d8e6dc102f45df6f342c0881a5d81559bc0396"
+source = "git+https://github.com/domenukk/rust-url?branch=no_std#a4422a918f708af46f27fafe3207d77fa1656c3c"
 
 [[package]]
 name = "pest"
-version = "2.7.12"
+version = "2.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c73c26c01b8c87956cea613c907c9d6ecffd8d18a2a5908e5de0adfaa185cea"
+checksum = "fdbef9d1d47087a895abd220ed25eb4ad973a5e26f6a4367b038c25e28dfc2d9"
 dependencies = [
  "memchr",
  "thiserror 1.0.63 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -6516,9 +6518,9 @@ dependencies = [
 
 [[package]]
 name = "pest_derive"
-version = "2.7.12"
+version = "2.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "664d22978e2815783adbdd2c588b455b1bd625299ce36b2a99881ac9627e6d8d"
+checksum = "4d3a6e3394ec80feb3b6393c725571754c6188490265c61aaf260810d6b95aa0"
 dependencies = [
  "pest",
  "pest_generator",
@@ -6526,9 +6528,9 @@ dependencies = [
 
 [[package]]
 name = "pest_generator"
-version = "2.7.12"
+version = "2.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2d5487022d5d33f4c30d91c22afa240ce2a644e87fe08caad974d4eab6badbe"
+checksum = "94429506bde1ca69d1b5601962c73f4172ab4726571a59ea95931218cb0e930e"
 dependencies = [
  "pest",
  "pest_meta",
@@ -6539,9 +6541,9 @@ dependencies = [
 
 [[package]]
 name = "pest_meta"
-version = "2.7.12"
+version = "2.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0091754bbd0ea592c4deb3a122ce8ecbb0753b738aa82bc055fcc2eccc8d8174"
+checksum = "ac8a071862e93690b6e34e9a5fb8e33ff3734473ac0245b27232222c4906a33f"
 dependencies = [
  "once_cell",
  "pest",
@@ -7637,7 +7639,7 @@ dependencies = [
  "rustls-webpki 0.102.8",
  "security-framework",
  "security-framework-sys",
- "webpki-roots 0.26.5",
+ "webpki-roots 0.26.6",
  "winapi",
 ]
 
@@ -9703,7 +9705,7 @@ dependencies = [
 [[package]]
 name = "tangle-avs"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/maintenance#332d63711d6f76f2fd30b07dbf82b9416fa98414"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/maintenance#526a05240edd1a13ad05859bee9b57f117d00dfb"
 dependencies = [
  "alloy-contract",
  "alloy-primitives",
@@ -9813,7 +9815,7 @@ dependencies = [
 [[package]]
 name = "thiserror"
 version = "1.0.63"
-source = "git+https://github.com/quartiq/thiserror?branch=no-std#7182e3f9df48036ac542bc31c6a7f9a2bb8ef747"
+source = "git+https://github.com/quartiq/thiserror?branch=no-std#44737a516b7fd0cc9dabcab07e7b1f927f8f5636"
 dependencies = [
  "thiserror-impl 1.0.63 (git+https://github.com/quartiq/thiserror?branch=no-std)",
 ]
@@ -9832,7 +9834,7 @@ dependencies = [
 [[package]]
 name = "thiserror-impl"
 version = "1.0.63"
-source = "git+https://github.com/quartiq/thiserror?branch=no-std#7182e3f9df48036ac542bc31c6a7f9a2bb8ef747"
+source = "git+https://github.com/quartiq/thiserror?branch=no-std#44737a516b7fd0cc9dabcab07e7b1f927f8f5636"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10011,7 +10013,7 @@ dependencies = [
  "tokio",
  "tokio-rustls 0.26.0",
  "tungstenite",
- "webpki-roots 0.26.5",
+ "webpki-roots 0.26.6",
 ]
 
 [[package]]
@@ -10432,15 +10434,15 @@ checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
 
 [[package]]
 name = "unicode-width"
-version = "0.1.13"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0336d538f7abc86d282a4189614dfaa90810dfc2c6f6427eaf88e16311dd225d"
+checksum = "7dd6e30e90baa6f72411720665d41d89b9a3d039dc45b8faea1ddd07f617f6af"
 
 [[package]]
 name = "unicode-xid"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "229730647fbc343e3a80e463c1db7f78f3855d3f3739bee0dda773c9a037c90a"
+checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "unicode_categories"
@@ -10496,7 +10498,7 @@ dependencies = [
 [[package]]
 name = "url"
 version = "2.5.2"
-source = "git+https://github.com/domenukk/rust-url?branch=no_std#c8d8e6dc102f45df6f342c0881a5d81559bc0396"
+source = "git+https://github.com/domenukk/rust-url?branch=no_std#a4422a918f708af46f27fafe3207d77fa1656c3c"
 dependencies = [
  "form_urlencoded 1.2.1 (git+https://github.com/domenukk/rust-url?branch=no_std)",
  "idna 0.5.0 (git+https://github.com/domenukk/rust-url?branch=no_std)",
@@ -10927,9 +10929,9 @@ checksum = "5f20c57d8d7db6d3b86154206ae5d8fba62dd39573114de97c2cb0578251f8e1"
 
 [[package]]
 name = "webpki-roots"
-version = "0.26.5"
+version = "0.26.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bd24728e5af82c6c4ec1b66ac4844bdf8156257fccda846ec58b42cd0cdbe6a"
+checksum = "841c67bff177718f1d4dfefde8d8f0e78f9b6589319ba88312f567fc5841a958"
 dependencies = [
  "rustls-pki-types",
 ]

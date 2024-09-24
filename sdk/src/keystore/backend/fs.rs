@@ -1,6 +1,8 @@
 //! Filesystem-based keystore backend.
 
-use crate::keystore::{bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error};
+use crate::keystore::{
+    bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error, KeystoreUriSanitizer,
+};
 use alloc::string::ToString;
 use ark_serialize::CanonicalSerialize;
 use std::{fs, io::Write, path::PathBuf};
@@ -31,8 +33,8 @@ impl FilesystemKeystore {
     /// # Errors
     ///
     /// An error will be returned if the root directory cannot be created.
-    pub fn open<T: Into<PathBuf>>(path: T) -> Result<Self, Error> {
-        let root = path.into();
+    pub fn open<T: KeystoreUriSanitizer>(path: T) -> Result<Self, Error> {
+        let root = path.sanitize_file_path();
         fs::create_dir_all(&root)?;
 
         Ok(Self { root })

@@ -9,11 +9,6 @@ homepage.workspace = true
 repository.workspace = true
 publish = false
 
-[[bin]]
-name = "incredible-squaring-gadget"
-path = "./src/main.rs"
-required-features = ["default"]
-
 [dependencies]
 eigensdk-rs = { workspace = true }
 tracing = { workspace = true }

@@ -39,11 +39,12 @@ use eigensdk_rs::eigen_utils::types::{operator_id_from_key_pair, OperatorPubkeys
 use eigensdk_rs::eigen_utils::*;
 use eigensdk_rs::incredible_squaring_avs::operator::*;
 use sp_core::Pair;
-use subxt_signer::ecdsa::SecretKeyBytes;
 use gadget_sdk::config::{
     GadgetConfiguration, StdGadgetConfiguration,
 };
+use gadget_sdk::keystore::sp_core_subxt::Pair as SubxtPair;
 use gadget_sdk::network::gossip::GossipHandle;
+use gadget_sdk::tangle_subxt::subxt::tx::Signer;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 
@@ -178,12 +179,12 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 
         // First we handle the Tangle portion of the Registration
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
-        let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
+        let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
         let ecdsa_pair = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
         let xt = api::tx().services().register(
             self.env.blueprint_id,
             services::OperatorPreferences {
-                key: ecdsa::Public(ecdsa_pair.public_key().0),
+                key: ecdsa::Public(ecdsa_pair.signer().public().0),
                 approval: services::ApprovalPrefrence::None,
                 // TODO: Set the price targets
                 price_targets: PriceTargets {
@@ -311,7 +312,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
     async fn run(&self) -> Result<()> {
         // Tangle Portion of Run
         let _client = self.env.client().await.map_err(|e| eyre!(e))?;
-        let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
+        let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
         let _logger = self.env.logger.clone();
         self.env.logger.info(format!(
             "Starting the event watcher for {} ...",
@@ -321,6 +322,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         // Then we handle the EigenLayer portion
         let keystore = self.env.keystore().map_err(|e| eyre!(e))?;
 
+        // TODO: greatly simplify all this logic by using the GenericKeyStore interface
         // ED25519 Key Retrieval
         let ed_key = keystore
             .iter_ed25519()
@@ -332,8 +334,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 
         // ECDSA Key Retrieval
         let ecdsa_subxt_key = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
-        let ecdsa_secret_key_bytes =
-            SecretKeyBytes::from(ecdsa_subxt_key.0.secret_key().secret_bytes());
+        let ecdsa_secret_key_bytes = ecdsa_subxt_key.signer().seed();
         let ecdsa_secret_key =
             SecretKey::from_slice(&ecdsa_secret_key_bytes).map_err(|e| eyre!(e))?;
         let ecdsa_signing_key = SigningKey::from(&ecdsa_secret_key);

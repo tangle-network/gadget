@@ -137,7 +137,7 @@ typed-builder = "0.19"
 # TODO: Stop using this fork once https://github.com/servo/rust-url/pull/831 lands
 url = { git = "https://github.com/domenukk/rust-url", branch = "no_std", default-features = false }
 w3f-bls = { version = "0.1.4", default-features = false }
-cid = { version = "0.11.1", default-features = false }
+cid = { version = "0.11.1" }
 
 alloy-primitives = "0.7.7"
 alloy-json-abi = "0.7.7"

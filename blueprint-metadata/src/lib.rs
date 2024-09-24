@@ -6,8 +6,9 @@ use std::{
 };
 
 use gadget_blueprint_proc_macro_core::{
-    FieldType, Gadget, JobDefinition, JobResultVerifier, ServiceBlueprint, ServiceMetadata,
-    ServiceRegistrationHook, ServiceRequestHook, WasmGadget, WasmRuntime,
+    FieldType, Gadget, GadgetSource, GadgetSourceFetcher, JobDefinition, JobResultVerifier,
+    NativeGadget, ServiceBlueprint, ServiceMetadata, ServiceRegistrationHook, ServiceRequestHook,
+    TestFetcher,
 };
 
 use rustdoc_types::{Crate, Id, Item, ItemEnum, Module};
@@ -307,16 +308,19 @@ impl Drop for LockFile {
 fn generate_gadget() -> Gadget<'static> {
     let root = std::env::var("CARGO_MANIFEST_DIR").expect("Failed to get manifest directory");
     let crate_name = std::env::var("CARGO_PKG_NAME").expect("Failed to get package name");
-    let root = std::path::Path::new(&root);
+    let root = Path::new(&root)
+        .canonicalize()
+        .expect("Failed to canonicalize root dir");
 
-    let lock = LockFile::new(root);
+    let lock = LockFile::new(&root);
     if lock.try_lock().is_err() {
         eprintln!("Already locked; skipping rustdoc generation",);
         // Exit early if the lock file exists
         std::process::exit(0);
     }
+    let toml_file = root.join("Cargo.toml");
     let metadata = cargo_metadata::MetadataCommand::new()
-        .manifest_path(root.join("Cargo.toml"))
+        .manifest_path(&toml_file)
         .no_deps()
         .exec()
         .expect("Failed to get metadata");
@@ -326,11 +330,15 @@ fn generate_gadget() -> Gadget<'static> {
         eprintln!("No gadget metadata found in the Cargo.toml.");
         eprintln!("For more information, see:");
         eprintln!("<TODO>");
-        eprintln!();
         // For now, we just return an empty gadget
-        return Gadget::Wasm(WasmGadget {
-            runtime: WasmRuntime::Wasmtime,
-            sources: vec![],
+        return Gadget::Native(NativeGadget {
+            sources: vec![GadgetSource {
+                fetcher: GadgetSourceFetcher::Testing(TestFetcher {
+                    cargo_package: package.name.clone().into(),
+                    cargo_bin: "main".into(),
+                    base_path: format!("{}", root.display()).into(),
+                }),
+            }],
         });
     };
     serde_json::from_value(gadget.clone()).expect("Failed to deserialize gadget.")

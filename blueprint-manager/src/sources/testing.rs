@@ -17,11 +17,11 @@ impl BinarySourceFetcher for TestSourceFetcher<'_> {
     async fn get_binary(&self) -> color_eyre::Result<PathBuf> {
         // Step 1: Build the binary. It will be stored in the root directory/bin/
         let TestFetcher {
-            cargo_bin,
+            cargo_package,
             base_path,
             ..
         } = &self.fetcher;
-        let cargo_bin = String::from_utf8(cargo_bin.0 .0.clone())
+        let cargo_bin = String::from_utf8(cargo_package.0 .0.clone())
             .map_err(|err| Report::msg(format!("Failed to parse `cargo_bin`: {:?}", err)))?;
         let base_path_str = String::from_utf8(base_path.0 .0.clone())
             .map_err(|err| Report::msg(format!("Failed to parse `base_path`: {:?}", err)))?;
@@ -46,8 +46,8 @@ impl BinarySourceFetcher for TestSourceFetcher<'_> {
             .arg("install")
             .arg("--path")
             .arg(&base_path)
-            .arg("--bin")
-            .arg(cargo_bin)
+            //            .arg("--bin")
+            //            .arg(cargo_bin)
             .arg("--root")
             .arg(&base_path)
             .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process

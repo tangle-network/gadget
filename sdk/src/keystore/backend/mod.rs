@@ -1,8 +1,10 @@
 //! Keystore backend implementations.
 
 use crate::keystore::bn254::{Public, Secret, Signature};
-use crate::keystore::Error;
+use crate::keystore::{Backend, Error, TanglePairSigner};
 use alloc::vec::Vec;
+use core::fmt::Display;
+use subxt::ext::sp_core::Pair;
 
 /// In-Memory Keystore Backend
 pub mod mem;
@@ -10,6 +12,8 @@ pub mod mem;
 /// Filesystem Keystore Backend
 #[cfg(feature = "std")]
 pub mod fs;
+
+use crate::keystore::sp_core_subxt;
 
 /// A Generic Key Store that can be backed by different keystore [`Backend`]s.
 ///
@@ -24,7 +28,56 @@ pub enum GenericKeyStore<RwLock: lock_api::RawRwLock> {
     Fs(fs::FilesystemKeystore),
 }
 
+/// The preferred entry-point for generating keys. The Backend implementation is abstracted away
+/// to safely and compatibly generate keys.
+impl<RwLock: lock_api::RawRwLock> GenericKeyStore<RwLock> {
+    /// Generates a subxt compatible sr25519 keypair from a given sp_core key pair.
+    pub fn create_sr25519_from_pair<T: Into<sp_core::sr25519::Pair>>(
+        &self,
+        pair: T,
+    ) -> Result<TanglePairSigner<sp_core_subxt::sr25519::Pair>, Error> {
+        let seed = &pair.into().as_ref().secret.to_bytes();
+        let _ = self.sr25519_generate_new(Some(seed))?;
+        Ok(TanglePairSigner {
+            pair: subxt::tx::PairSigner::new(
+                sp_core_subxt::sr25519::Pair::from_seed_slice(seed).map_err(err_to_std_io_err)?,
+            ),
+        })
+    }
+
+    /// Generates a subxt compatible ecdsa keypair from a given sp_core key pair.
+    pub fn create_ecdsa_from_pair<T: Into<sp_core::ecdsa::Pair>>(
+        &self,
+        pair: T,
+    ) -> Result<TanglePairSigner<sp_core_subxt::ecdsa::Pair>, Error> {
+        let seed = pair.into().seed();
+        let _ = self.ecdsa_generate_new(Some(&seed))?;
+
+        Ok(TanglePairSigner {
+            pair: subxt::tx::PairSigner::new(
+                sp_core_subxt::ecdsa::Pair::from_seed_slice(&seed).map_err(err_to_std_io_err)?,
+            ),
+        })
+    }
+
+    /// Generates a subxt compatible ed25519 keypair from a given sp_core key pair.
+    pub fn create_ed25519_from_pair<T: Into<sp_core::ed25519::Pair>>(
+        &self,
+        pair: T,
+    ) -> Result<TanglePairSigner<sp_core_subxt::ed25519::Pair>, Error> {
+        let seed = pair.into().seed();
+        let _ = self.ed25519_generate_new(Some(&seed))?;
+
+        Ok(TanglePairSigner {
+            pair: subxt::tx::PairSigner::new(
+                sp_core_subxt::ed25519::Pair::from_seed_slice(&seed).map_err(err_to_std_io_err)?,
+            ),
+        })
+    }
+}
+
 impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
+    #[doc(hidden)]
     fn sr25519_generate_new(
         &self,
         seed: Option<&[u8]>,
@@ -48,6 +101,7 @@ impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
         }
     }
 
+    #[doc(hidden)]
     fn ed25519_generate_new(
         &self,
         seed: Option<&[u8]>,
@@ -71,6 +125,7 @@ impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
         }
     }
 
+    #[doc(hidden)]
     fn ecdsa_generate_new(
         &self,
         seed: Option<&[u8]>,
@@ -224,4 +279,8 @@ impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
             Self::Fs(backend) => backend.iter_bls_bn254().collect::<Vec<_>>().into_iter(),
         }
     }
+}
+
+pub fn err_to_std_io_err<T: Display>(err: T) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::Other, err.to_string())
 }

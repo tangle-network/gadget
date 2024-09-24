@@ -44,6 +44,7 @@ tokio = { workspace = true, optional = true }
 
 # Logging deps
 log = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "tracing-log"] }
 tracing = { workspace = true, features = ["log"] }
 
 # Networking deps
@@ -61,7 +62,7 @@ sp-io = { workspace = true }
 
 # Event Watchers and Handlers
 backon = { workspace = true, optional = true }
-subxt = { workspace = true, optional = true }
+subxt = { workspace = true, optional = true, features = ["substrate-compat"] }
 subxt-signer = { workspace = true, features = ["sr25519"] }
 tangle-subxt = { workspace = true }
 
@@ -73,6 +74,7 @@ alloy-provider = { workspace = true, optional = true }
 alloy-rpc-types = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
+alloy-signer-local = { workspace = true }
 
 # Macros
 gadget-blueprint-proc-macro = { workspace = true, default-features = false }

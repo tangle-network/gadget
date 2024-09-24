@@ -80,9 +80,7 @@ Then, you can run:
 cargo test --package blueprint-test-utils tests_standard::test_externalities_gadget_starts -- --nocapture
 ```
 
-Since this is an alpha feature with very near-term plans for
-stabilization [in this PR](https://github.com/webb-tools/gadget/pull/285), we recommend you use rev
-`a01ba2bcbc37d444a044866b961d716f45d0e6f3` until the PR is merged. Additionally, each time the blueprint is run, you
+Since testing is in beta stage, each time the blueprint is run, you
 must cancel the testnet and restart it to ensure storage is reset.
 All these nuances and manual requirement of setting up a testnet will be resolved in the near future and will be
 testable via `cargo tangle gadget test`

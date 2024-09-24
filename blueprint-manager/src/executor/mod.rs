@@ -11,18 +11,17 @@ use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesCl
 use gadget_sdk::clients::Client;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
-use gadget_sdk::keystore::{BackendExt, TanglePairSigner};
+use gadget_sdk::keystore::{sp_core_subxt, BackendExt, TanglePairSigner};
 use gadget_sdk::logger::Logger;
 use sp_core::H256;
 use std::collections::HashMap;
 use std::future::Future;
-use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tangle_subxt::subxt::blocks::BlockRef;
+use tangle_subxt::subxt::tx::Signer;
 use tangle_subxt::subxt::utils::AccountId32;
 use tangle_subxt::subxt::Config;
-use tangle_subxt::subxt_signer;
 use tokio::task::JoinHandle;
 
 pub(crate) mod event_handler;
@@ -46,9 +45,9 @@ pub struct BlueprintManagerHandle {
     start_tx: Option<tokio::sync::oneshot::Sender<()>>,
     running_task: JoinHandle<color_eyre::Result<()>>,
     logger: Logger,
-    sr25519_id: TanglePairSigner,
-    ecdsa_id: subxt_signer::ecdsa::Keypair,
-    keystore_path: PathBuf,
+    sr25519_id: TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    ecdsa_id: gadget_sdk::keystore::TanglePairSigner<sp_core_subxt::ecdsa::Pair>,
+    keystore_uri: String,
 }
 
 impl BlueprintManagerHandle {
@@ -69,12 +68,12 @@ impl BlueprintManagerHandle {
     }
 
     /// Returns the SR25519 keypair for this blueprint manager
-    pub fn sr25519_id(&self) -> &TanglePairSigner {
+    pub fn sr25519_id(&self) -> &TanglePairSigner<sp_core_subxt::sr25519::Pair> {
         &self.sr25519_id
     }
 
     /// Returns the ECDSA keypair for this blueprint manager
-    pub fn ecdsa_id(&self) -> &subxt_signer::ecdsa::Keypair {
+    pub fn ecdsa_id(&self) -> &gadget_sdk::keystore::TanglePairSigner<sp_core_subxt::ecdsa::Pair> {
         &self.ecdsa_id
     }
 
@@ -92,9 +91,9 @@ impl BlueprintManagerHandle {
         &self.logger
     }
 
-    /// Returns the keystore path for this blueprint manager
-    pub fn keystore_path(&self) -> &PathBuf {
-        &self.keystore_path
+    /// Returns the keystore URI for this blueprint manager
+    pub fn keystore_uri(&self) -> &str {
+        &self.keystore_uri
     }
 }
 
@@ -151,7 +150,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
 
     let (tangle_key, ecdsa_key) = {
         let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
-            &gadget_config.base_path,
+            &gadget_config.keystore_uri,
         )?);
         let sr_key = keystore.sr25519_key()?;
         let ecdsa_key = keystore.ecdsa_key()?;
@@ -165,7 +164,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let services_client = ServicesClient::new(logger.clone(), tangle_client.client());
     let mut active_gadgets = HashMap::new();
 
-    let base_path = gadget_config.base_path.clone();
+    let keystore_uri = gadget_config.keystore_uri.clone();
 
     let logger_manager = logger.clone();
     let manager_task = async move {
@@ -260,7 +259,7 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
         logger: logger_clone,
         sr25519_id: tangle_key,
         ecdsa_id: ecdsa_key,
-        keystore_path: base_path,
+        keystore_uri,
     };
 
     Ok(handle)
