@@ -1,4 +1,5 @@
 use crate::sdk::utils::get_formatted_os_string;
+use gadget_sdk::config::Protocol;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{
     Gadget, GadgetBinary,
 };
@@ -9,6 +10,7 @@ pub struct FilteredBlueprint {
     pub gadget: Gadget,
     pub name: String,
     pub registration_mode: bool,
+    pub protocol: Protocol,
 }
 
 pub fn get_gadget_binary(gadget_binaries: &[GadgetBinary]) -> Option<&GadgetBinary> {

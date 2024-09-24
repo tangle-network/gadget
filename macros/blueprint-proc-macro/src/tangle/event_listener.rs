@@ -18,7 +18,7 @@ pub(crate) fn generate_tangle_event_handler(
         #[doc = "`]"]
         pub struct #struct_name {
             pub service_id: u64,
-            pub signer: gadget_sdk::keystore::TanglePairSigner,
+            pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair>,
             pub logger: gadget_sdk::logger::Logger,
             #(#additional_params)*
         }

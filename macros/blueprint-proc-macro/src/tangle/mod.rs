@@ -38,6 +38,9 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
         FieldType::Uint128 => {
             quote! { let Some(Field::Uint128(#ident)) = args_iter.next() else { continue; }; }
         }
+        FieldType::U256 => {
+            quote! { let Some(Field::U256(#ident)) = args_iter.next() else { continue; }; }
+        }
         FieldType::Int128 => {
             quote! { let Some(Field::Int128(#ident)) = args_iter.next() else { continue; }; }
         }
@@ -139,6 +142,7 @@ pub fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::
         FieldType::Uint64 => quote! { result.push(Field::Uint64(#ident)); },
         FieldType::Int64 => quote! { result.push(Field::Int64(#ident)); },
         FieldType::Uint128 => quote! { result.push(Field::Uint128(#ident)); },
+        FieldType::U256 => quote! { result.push(Field::U256(#ident)); },
         FieldType::Int128 => quote! { result.push(Field::Int128(#ident)); },
         FieldType::Float64 => quote! { result.push(Field::Float64(#ident)); },
         FieldType::String => {
@@ -171,6 +175,7 @@ pub fn field_type_to_result_token(ident: &Ident, t: &FieldType) -> proc_macro2::
                 FieldType::Int64 => quote! { Field::Int64(item) },
                 FieldType::Uint128 => quote! { Field::Uint128(item) },
                 FieldType::Int128 => quote! { Field::Int128(item) },
+                FieldType::U256 => quote! { Field::U256(item) },
                 FieldType::Float64 => quote! { Field::Float64(item) },
                 FieldType::String => {
                     quote! { Field::String(BoundedString(BoundedVec(item.into_bytes()))) }

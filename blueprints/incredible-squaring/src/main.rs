@@ -12,15 +12,11 @@ use gadget_sdk::{
 use std::io::Write;
 use incredible_squaring_blueprint as blueprint;
 use structopt::StructOpt;
+use gadget_sdk::keystore::KeystoreUriSanitizer;
+use gadget_sdk::keystore::sp_core_subxt::Pair;
 use gadget_sdk::run::GadgetRunner;
+use gadget_sdk::tangle_subxt::subxt::tx::Signer;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
-
-// #[async_trait::async_trait]
-// trait GadgetRunner {
-//     async fn register(&self) -> Result<()>;
-//     async fn run(&self) -> Result<()>;
-// }
-
 struct TangleGadgetRunner {
     env: GadgetConfiguration<parking_lot::RawRwLock>,
 }
@@ -41,13 +37,17 @@ impl GadgetRunner for TangleGadgetRunner {
         }
 
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
-        let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
+        let signer = self
+            .env
+            .first_sr25519_signer()
+            .map_err(|e| eyre!(e))
+            .map_err(|e| eyre!(e))?;
         let ecdsa_pair = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
 
         let xt = api::tx().services().register(
             self.env.blueprint_id,
             services::OperatorPreferences {
-                key: ecdsa::Public(ecdsa_pair.public_key().0),
+                key: ecdsa::Public(ecdsa_pair.signer().public().0),
                 approval: services::ApprovalPrefrence::None,
                 // TODO: Set the price targets
                 price_targets: PriceTargets {
@@ -75,7 +75,7 @@ impl GadgetRunner for TangleGadgetRunner {
 
     async fn run(&self) -> Result<()> {
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
-        let signer = self.env.first_signer().map_err(|e| eyre!(e))?;
+        let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
         let logger = self.env.logger.clone();
 
         self.env.logger.info(format!(
@@ -104,30 +104,30 @@ impl GadgetRunner for TangleGadgetRunner {
 }
 
 async fn create_gadget_runner(
-    protocol: Protocol,
     config: ContextConfig,
 ) -> (
     GadgetConfiguration<parking_lot::RawRwLock>,
     Box<dyn GadgetRunner<Error = color_eyre::Report>>,
 ) {
-    let env = gadget_sdk::config::load(Some(protocol), config).expect("Failed to load environment");
-    match protocol {
+    let env = gadget_sdk::config::load(config).expect("Failed to load environment");
+    match env.protocol {
         Protocol::Tangle => (env.clone(), Box::new(TangleGadgetRunner { env })),
+        /*
         Protocol::Eigenlayer => (
             env.clone(),
             Box::new(blueprint::eigenlayer::EigenlayerGadgetRunner::new(env).await),
-        ),
+        ),*/
+        _ => panic!("Unsupported protocol Eigenlayer. Gadget/Tangle need U256 support."),
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    gadget_sdk::logger::setup_log();
     // Load the environment and create the gadget runner
-    // TODO: Place protocol in the config
-    let protocol = Protocol::Tangle;
     let config = ContextConfig::from_args();
 
-    let (env, mut runner) = create_gadget_runner(protocol, config.clone()).await;
+    let (env, mut runner) = create_gadget_runner(config.clone()).await;
 
     env.logger
         .info("~~~ Executing the incredible squaring blueprint ~~~");
@@ -152,7 +152,7 @@ fn check_for_test(
 ) -> Result<()> {
     // create a file to denote we have started
     if let GadgetCLICoreSettings::Run {
-        base_path,
+        keystore_uri: base_path,
         test_mode,
         ..
     } = &config.gadget_core_settings
@@ -160,7 +160,7 @@ fn check_for_test(
         if !*test_mode {
             return Ok(());
         }
-        let path = base_path.join("test_started.tmp");
+        let path = base_path.sanitize_file_path().join("test_started.tmp");
         let mut file = std::fs::File::create(&path)?;
         file.write_all(b"test_started")?;
         env.logger.info(format!(

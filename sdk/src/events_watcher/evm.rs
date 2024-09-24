@@ -13,7 +13,8 @@ use alloy_sol_types::SolEvent;
 use alloy_transport::Transport;
 use backon::{ConstantBuilder, Retryable};
 use futures::TryFutureExt;
-use std::{ops::Deref, time::Duration};
+use std::ops::Deref;
+use std::time::Duration;
 
 pub trait Config: Send + Sync + 'static {
     type T: Transport + Clone + Send + Sync + 'static;

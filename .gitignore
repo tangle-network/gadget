@@ -20,3 +20,8 @@ target/
 certs
 .DS_Store
 CODEGEN_LOCK
+
+# Blueprint
+blueprint.json
+blueprint*.json
+blueprint.lock

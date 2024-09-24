@@ -1,6 +1,7 @@
 use crate::config::BlueprintManagerConfig;
 use crate::protocols::resolver::NativeGithubMetadata;
 use gadget_io::GadgetConfig;
+use gadget_sdk::config::Protocol;
 use gadget_sdk::logger::Logger;
 use sha2::Digest;
 use std::path::Path;
@@ -42,6 +43,7 @@ pub fn generate_process_arguments(
     opt: &BlueprintManagerConfig,
     blueprint_id: u64,
     service_id: u64,
+    protocol: Protocol,
 ) -> color_eyre::Result<Vec<String>> {
     let mut arguments = vec![];
     arguments.push("run".to_string());
@@ -65,12 +67,13 @@ pub fn generate_process_arguments(
                 gadget_config.bind_addr, gadget_config.bind_port
             ))
         ),
-        format!("--base-path={}", gadget_config.base_path.display()),
+        format!("--keystore-uri={}", gadget_config.keystore_uri),
         format!("--chain={}", gadget_config.chain),
         format!("--verbose={}", opt.verbose),
         format!("--pretty={}", opt.pretty),
         format!("--blueprint-id={}", blueprint_id),
         format!("--service-id={}", service_id),
+        format!("--protocol={}", protocol),
     ]);
 
     if let Some(keystore_password) = &gadget_config.keystore_password {

@@ -1,5 +1,8 @@
 use crate::keystore::backend::GenericKeyStore;
-use crate::keystore::{BackendExt, TanglePairSigner};
+#[cfg(any(feature = "std", feature = "wasm"))]
+use crate::keystore::BackendExt;
+#[cfg(any(feature = "std", feature = "wasm"))]
+use crate::keystore::{sp_core_subxt, TanglePairSigner};
 use crate::logger::Logger;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
@@ -12,7 +15,7 @@ use structopt::StructOpt;
 use url::Url;
 
 /// The protocol on which a gadget will be executed.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Protocol {
     #[default]
     Tangle,
@@ -56,7 +59,7 @@ impl core::str::FromStr for Protocol {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
+        match s.to_lowercase().as_str() {
             "tangle" => Ok(Self::Tangle),
             "eigenlayer" => Ok(Self::Eigenlayer),
             _ => Err(Error::UnsupportedProtocol(s.to_string())),
@@ -78,10 +81,6 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     /// * In Memory: `file::memory:` or `:memory:`
     /// * Filesystem: `file:/path/to/keystore` or `file:///path/to/keystore`
     pub keystore_uri: String,
-    /// Data directory path.
-    /// This is used to store the data for the gadget.
-    /// If not provided, the gadget is expected to store the data in memory.
-    pub data_dir_path: Option<String>,
     /// Blueprint ID for this gadget.
     pub blueprint_id: u64,
     /// Service ID for this gadget.
@@ -115,7 +114,6 @@ impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
         f.debug_struct("GadgetConfiguration")
             .field("rpc_endpoint", &self.rpc_endpoint)
             .field("keystore_uri", &self.keystore_uri)
-            .field("data_dir_path", &self.data_dir_path)
             .field("blueprint_id", &self.blueprint_id)
             .field("service_id", &self.service_id)
             .field("is_registration", &self.is_registration)
@@ -133,7 +131,6 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
         Self {
             rpc_endpoint: self.rpc_endpoint.clone(),
             keystore_uri: self.keystore_uri.clone(),
-            data_dir_path: self.data_dir_path.clone(),
             blueprint_id: self.blueprint_id,
             service_id: self.service_id,
             is_registration: self.is_registration,
@@ -214,7 +211,7 @@ pub enum GadgetCLICoreSettings {
     #[structopt(name = "run")]
     Run {
         #[structopt(long, short = "b", parse(try_from_str))]
-        bind_addr: std::net::IpAddr,
+        bind_addr: IpAddr,
         #[structopt(long, short = "p")]
         bind_port: u16,
         #[structopt(long, short = "t")]
@@ -227,8 +224,8 @@ pub enum GadgetCLICoreSettings {
         #[structopt(long = "bootnodes", parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
         #[serde(default)]
         bootnodes: Option<Vec<Multiaddr>>,
-        #[structopt(long, short = "d", parse(from_os_str))]
-        base_path: std::path::PathBuf,
+        #[structopt(long, short = "d")]
+        keystore_uri: String,
         #[structopt(
             long,
             default_value,
@@ -251,6 +248,8 @@ pub enum GadgetCLICoreSettings {
         blueprint_id: u64,
         #[structopt(long)]
         service_id: Option<u64>,
+        #[structopt(long, parse(try_from_str))]
+        protocol: Protocol,
     },
 }
 
@@ -259,11 +258,8 @@ pub enum GadgetCLICoreSettings {
 ///
 /// This function will return an error if any of the required environment variables are missing.
 #[cfg(feature = "std")]
-pub fn load(
-    protocol: Option<Protocol>,
-    additional_config: ContextConfig,
-) -> Result<GadgetConfiguration<parking_lot::RawRwLock>, Error> {
-    load_with_lock::<parking_lot::RawRwLock>(protocol, additional_config)
+pub fn load(config: ContextConfig) -> Result<GadgetConfiguration<parking_lot::RawRwLock>, Error> {
+    load_with_lock::<parking_lot::RawRwLock>(config)
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.
@@ -275,16 +271,14 @@ pub fn load(
 /// This function will return an error if any of the required environment variables are missing.
 #[cfg(feature = "std")] // TODO: Add no_std support
 pub fn load_with_lock<RwLock: lock_api::RawRwLock>(
-    protocol: Option<Protocol>,
-    additional_config: ContextConfig,
+    config: ContextConfig,
 ) -> Result<GadgetConfiguration<RwLock>, Error> {
-    load_inner::<RwLock>(protocol, additional_config)
+    load_inner::<RwLock>(config)
 }
 
 #[cfg(feature = "std")]
 fn load_inner<RwLock: lock_api::RawRwLock>(
-    protocol: Option<Protocol>,
-    additional_config: ContextConfig,
+    config: ContextConfig,
 ) -> Result<GadgetConfiguration<RwLock>, Error> {
     let is_registration = std::env::var("REGISTRATION_MODE_ON").is_ok();
     let ContextConfig {
@@ -295,21 +289,16 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 test_mode,
                 logger,
                 url,
-                base_path,
+                keystore_uri,
                 blueprint_id,
                 service_id,
+                protocol,
                 ..
             },
         ..
-    } = additional_config;
+    } = config;
 
     let logger = logger.unwrap_or_default();
-
-    let data_dir = base_path;
-    let mut keystore_url = format!("{}", data_dir.display());
-    if !keystore_url.starts_with("file:/") {
-        keystore_url = format!("file://{}", data_dir.display());
-    }
 
     Ok(GadgetConfiguration {
         bind_addr,
@@ -317,8 +306,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         test_mode,
         logger,
         rpc_endpoint: url.to_string(),
-        keystore_uri: keystore_url,
-        data_dir_path: Some(format!("{}", data_dir.display())),
+        keystore_uri,
         blueprint_id,
         // If the registration mode is on, we don't need the service ID
         service_id: if is_registration {
@@ -327,7 +315,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
             Some(service_id.ok_or_else(|| Error::MissingServiceId)?)
         },
         is_registration,
-        protocol: protocol.unwrap_or(Protocol::Tangle),
+        protocol,
         _lock: core::marker::PhantomData,
     })
 }
@@ -366,7 +354,9 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// * The keypair seed is invalid.
     #[doc(alias = "sr25519_signer")]
     #[cfg(any(feature = "std", feature = "wasm"))]
-    pub fn first_signer(&self) -> Result<TanglePairSigner, Error> {
+    pub fn first_sr25519_signer(
+        &self,
+    ) -> Result<TanglePairSigner<sp_core_subxt::sr25519::Pair>, Error> {
         self.keystore()?.sr25519_key().map_err(Error::Keystore)
     }
 
@@ -377,8 +367,25 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// * No ECDSA keypair is found in the keystore.
     /// * The keypair seed is invalid.
     #[doc(alias = "ecdsa_signer")]
-    pub fn first_ecdsa_signer(&self) -> Result<subxt_signer::ecdsa::Keypair, Error> {
+    #[cfg(any(feature = "std", feature = "wasm"))]
+    pub fn first_ecdsa_signer(
+        &self,
+    ) -> Result<TanglePairSigner<sp_core_subxt::ecdsa::Pair>, Error> {
         self.keystore()?.ecdsa_key().map_err(Error::Keystore)
+    }
+
+    /// Returns the first ED25519 signer keypair from the keystore.
+    ///
+    /// # Errors
+    ///
+    /// * No ED25519 keypair is found in the keystore.
+    /// * The keypair seed is invalid.
+    #[doc(alias = "ed25519_signer")]
+    #[cfg(any(feature = "std", feature = "wasm"))]
+    pub fn first_ed25519_signer(
+        &self,
+    ) -> Result<TanglePairSigner<sp_core_subxt::ed25519::Pair>, Error> {
+        self.keystore()?.ed25519_key().map_err(Error::Keystore)
     }
 
     /// Returns the first BLS BN254 signer keypair from the keystore.
@@ -387,14 +394,9 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     ///
     /// This function will return an error if no BLS BN254 keypair is found in the keystore.
     #[doc(alias = "bls_bn254_signer")]
+    #[cfg(any(feature = "std", feature = "wasm"))]
     pub fn first_bls_bn254_signer(&self) -> Result<bls_bn254::KeyPair, Error> {
         self.keystore()?.bls_bn254_key().map_err(Error::Keystore)
-    }
-
-    /// Returns whether the gadget should run in memory.
-    #[must_use]
-    pub const fn should_run_in_memory(&self) -> bool {
-        self.data_dir_path.is_none()
     }
 
     /// Returns whether the gadget should run in registration mode.

@@ -25,6 +25,7 @@ pub fn ident_to_field_type(ident: &Ident) -> syn::Result<FieldType> {
         "i32" => Ok(FieldType::Int32),
         "i64" => Ok(FieldType::Int64),
         "u128" => Ok(FieldType::Uint128),
+        "U256" => Ok(FieldType::U256),
         "i128" => Ok(FieldType::Int128),
         "f64" => Ok(FieldType::Float64),
         "bool" => Ok(FieldType::Bool),

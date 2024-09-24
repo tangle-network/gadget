@@ -45,14 +45,8 @@ pub struct GadgetConfig {
     #[serde(default)]
     pub bootnodes: Vec<Multiaddr>,
     /// The base path to store the blueprint manager data, and read data from the keystore.
-    #[structopt(
-        parse(from_os_str),
-        long,
-        short = "d",
-        required_unless = "config",
-        default_value_if("config", None, ".")
-    )]
-    pub base_path: PathBuf,
+    #[structopt(long, short = "d")]
+    pub keystore_uri: String,
     /// Keystore Password, if not provided, the password will be read from the environment variable.
     #[structopt(long = "keystore-password", env)]
     pub keystore_password: Option<String>,
