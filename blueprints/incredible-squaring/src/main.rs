@@ -118,7 +118,7 @@ async fn create_gadget_runner(
 async fn main() -> Result<()> {
     // Load the environment and create the gadget runner
     // TODO: Place protocol in the config
-    let protocol = Protocol::Tangle;
+    let protocol = Protocol::Eigenlayer;
     let config = ContextConfig::from_args();
 
     let (env, mut runner) = create_gadget_runner(protocol, config.clone()).await;

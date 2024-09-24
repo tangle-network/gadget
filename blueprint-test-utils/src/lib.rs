@@ -621,7 +621,7 @@ mod tests_standard {
                     Job::from(call_id as u8),
                     job_args,
                 )
-                    .await
+                .await
                 {
                     logger.error(format!("Failed to submit job: {err}"));
                     panic!("Failed to submit job: {err}");
@@ -634,8 +634,8 @@ mod tests_standard {
                     call_id,
                     handles[0].logger(),
                 )
-                    .await
-                    .expect("Failed to wait for job completion");
+                .await
+                .expect("Failed to wait for job completion");
 
                 // Step 3: Get the job results, compare to expected value(s)
                 let expected_result =
