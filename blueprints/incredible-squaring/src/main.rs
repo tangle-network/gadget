@@ -18,6 +18,7 @@ use gadget_sdk::keystore::sp_core_subxt::Pair;
 use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::tangle_subxt::subxt::tx::Signer;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
+
 struct TangleGadgetRunner {
     env: GadgetConfiguration<parking_lot::RawRwLock>,
 }
@@ -38,17 +39,13 @@ impl GadgetRunner for TangleGadgetRunner {
         }
 
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
-        let signer = self
-            .env
-            .first_sr25519_signer()
-            .map_err(|e| eyre!(e))
-            .map_err(|e| eyre!(e))?;
+        let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
         let ecdsa_pair = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
 
         let xt = api::tx().services().register(
             self.env.blueprint_id,
             services::OperatorPreferences {
-                key: ecdsa::Public(ecdsa_pair.signer().public().0),
+                key: ecdsa::Public(ecdsa_pair.public().0),
                 approval: services::ApprovalPrefrence::None,
                 // TODO: Set the price targets
                 price_targets: PriceTargets {
@@ -72,7 +69,7 @@ impl GadgetRunner for TangleGadgetRunner {
         todo!()
     }
 
-    async fn run(&self) -> Result<()> {
+    async fn run(&mut self) -> Result<()> {
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
         let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
 
@@ -106,12 +103,11 @@ async fn create_gadget_runner(
     let env = gadget_sdk::config::load(config).expect("Failed to load environment");
     match env.protocol {
         Protocol::Tangle => (env.clone(), Box::new(TangleGadgetRunner { env })),
-        /*
         Protocol::Eigenlayer => (
             env.clone(),
             Box::new(blueprint::eigenlayer::EigenlayerGadgetRunner::new(env).await),
-        ),*/
-        _ => panic!("Unsupported protocol Eigenlayer. Gadget/Tangle need U256 support."),
+        ),
+        // _ => panic!("Unsupported protocol Eigenlayer. Gadget/Tangle need U256 support."),
     }
 }
 
@@ -120,7 +116,6 @@ async fn main() -> Result<()> {
     gadget_sdk::logging::setup_log();
     // Load the environment and create the gadget runner
     let config = ContextConfig::from_args();
-
     let (env, mut runner) = create_gadget_runner(config.clone()).await;
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");

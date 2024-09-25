@@ -1,53 +1,53 @@
 #![allow(dead_code)]
+use std::{convert::Infallible, ops::Deref, sync::OnceLock};
+
 use alloy_contract::ContractInstance;
-use alloy_network::Ethereum;
-use alloy_network::EthereumWallet;
-use alloy_primitives::{Address, ChainId, FixedBytes};
-use alloy_primitives::{Bytes, U256};
-use alloy_provider::ProviderBuilder;
-use alloy_provider::Provider;
-use alloy_signer::k256::ecdsa::SigningKey;
+use alloy_network::{Ethereum, EthereumWallet};
+use alloy_primitives::{Address, Bytes, ChainId, FixedBytes, U256};
+use alloy_provider::{Provider, ProviderBuilder};
+use alloy_signer::k256::{ecdsa::SigningKey, elliptic_curve::SecretKey};
 use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::private::alloy_json_abi::JsonAbi;
-use alloy_sol_types::sol;
-use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
-use gadget_sdk::job;
-use gadget_sdk::{
-    events_watcher::{
-        evm::{Config, EventWatcher},
+use alloy_sol_types::{private::alloy_json_abi::JsonAbi, sol};
+
+use color_eyre::{
+    eyre::{eyre, OptionExt},
+    Result,
+};
+
+use eigensdk_rs::{
+    eigen_utils::{
+        types::{operator_id_from_key_pair, OperatorPubkeys},
+        *,
     },
-    keystore::Backend,
-    network::setup::{start_p2p_network, NetworkConfig},
-    run::GadgetRunner,
-    info
+    incredible_squaring_avs::operator::*,
 };
-use std::convert::Infallible;
-use std::ops::Deref;
-use std::sync::OnceLock;
-use alloy_signer::k256::elliptic_curve::SecretKey;
-use alloy_transport::Transport;
-use IncredibleSquaringTaskManager::{
-    respondToTaskCall, G1Point, G2Point,
-    NonSignerStakesAndSignature, Task, TaskResponse,
-};
+
 use gadget_sdk::{
-    tangle_subxt::tangle_testnet_runtime::api::{
-        runtime_types::{sp_core::ecdsa, tangle_primitives::services},
+    config::GadgetConfiguration,
+    events_watcher::evm::{Config, EventWatcher},
+    info, job,
+    keystore::{sp_core_subxt::Pair as SubxtPair, Backend},
+    network::{
+        gossip::GossipHandle,
+        setup::{start_p2p_network, NetworkConfig},
+    },
+    run::GadgetRunner,
+    tangle_subxt::{
+        subxt::tx::Signer,
+        tangle_testnet_runtime::api,
+        tangle_testnet_runtime::api::runtime_types::{
+            sp_core::ecdsa, tangle_primitives::services, tangle_primitives::services::PriceTargets,
+        },
     },
     tx,
 };
-use eigensdk_rs::eigen_utils::types::{operator_id_from_key_pair, OperatorPubkeys};
-use eigensdk_rs::eigen_utils::*;
-use eigensdk_rs::incredible_squaring_avs::operator::*;
+
 use sp_core::Pair;
-use gadget_sdk::config::{
-    GadgetConfiguration, StdGadgetConfiguration,
-};
-use gadget_sdk::keystore::sp_core_subxt::Pair as SubxtPair;
-use gadget_sdk::network::gossip::GossipHandle;
-use gadget_sdk::tangle_subxt::subxt::tx::Signer;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
+
+use IBLSSignatureChecker::NonSignerStakesAndSignature;
+use IIncredibleSquaringTaskManager::{Task, TaskResponse};
+use IncredibleSquaringTaskManager::respondToTaskCall;
+use BN254::{G1Point, G2Point};
 
 // Codegen from ABI file to interact with the contract.
 sol!(
@@ -71,16 +71,12 @@ sol!(
     ),
 )]
 pub async fn xsquare_eigen(
-    // TODO: Add Context
-    // ctx: &MyContext,
     number_to_be_squared: U256,
     task_created_block: u32,
     quorum_numbers: Bytes,
     quorum_threshold_percentage: u32,
 ) -> Result<respondToTaskCall, Infallible> {
     // TODO: Send our task response to Aggregator RPC server
-    // TODO: OR we use the gossip protocol to send the response to peers
-    // TODO: Where is by BLS key?
 
     // // 1. Calculate the squared number and save the response
     // let my_msg = MyMessage {
@@ -168,7 +164,7 @@ pub fn convert_event_to_inputs(
 impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
     type Error = color_eyre::eyre::Report;
 
-    fn config(&self) -> &StdGadgetConfiguration {
+    fn config(&self) -> &GadgetConfiguration<parking_lot::RawRwLock> {
         todo!()
     }
 
@@ -227,15 +223,16 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             node_api_ip_port_address: "127.0.0.1:9808".to_string(),
             eth_rpc_url: http_endpoint.to_string(),
             eth_ws_url: ws_endpoint.to_string(),
-            bls_private_key_store_path: "./keystore/bls".to_string(),
-            ecdsa_private_key_store_path: "./keystore/ecdsa".to_string(),
-            incredible_squaring_service_manager_addr: Default::default(),
-            avs_registry_coordinator_addr: Default::default(),
-            operator_state_retriever_addr: Default::default(),
+            bls_private_key_store_path: "./../eigensdk-rs/test-utils/keystore/bls".to_string(),
+            ecdsa_private_key_store_path: "./../eigensdk-rs/test-utils/keystore/ecdsa".to_string(),
+            incredible_squaring_service_manager_addr: "0DCd1Bf9A1b36cE34237eEaFef220932846BCD82"
+                .to_string(),
+            avs_registry_coordinator_addr: "0B306BF915C4d645ff596e518fAf3F9669b97016".to_string(),
+            operator_state_retriever_addr: "3Aa5ebB10DC797CAC828524e59A333d0A371443c".to_string(),
             eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
-            delegation_manager_addr: Default::default(),
-            avs_directory_addr: Default::default(),
-            operator_address: Default::default(),
+            delegation_manager_addr: "a85233C63b9Ee964Add6F2cffe00Fd84eb32338f".to_string(),
+            avs_directory_addr: "c5a5C42992dECbae36851359345FE25997F5C42d".to_string(),
+            operator_address: "f39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string(),
             enable_metrics: false,
             enable_node_api: false,
             server_ip_port_address: "127.0.0.1:8673".to_string(),
@@ -252,7 +249,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             .clone()
             .boxed();
 
-        let _ws_provider = ProviderBuilder::new()
+        let ws_provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(wallet)
             .on_http(self.env.rpc_endpoint.parse()?)
@@ -260,7 +257,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             .clone()
             .boxed();
 
-        let _operator_info_service = OperatorInfoService::new(
+        let operator_info_service = OperatorInfoService::new(
             types::OperatorInfo {
                 socket: "0.0.0.0:0".to_string(),
                 pubkeys: OperatorPubkeys {
@@ -278,27 +275,27 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             .await
             .map_err(|e| OperatorError::HttpEthClientError(e.to_string()))?;
 
-        let _signer = EigenGadgetSigner::new(
+        let signer = EigenGadgetSigner::new(
             PrivateKeySigner::from_signing_key(ecdsa_signing_key),
             Some(ChainId::from(chain_id)),
         );
 
         // This creates and registers an operator with the given configuration
-        // let operator = Operator::<NodeConfig, OperatorInfoService>::new_from_config(
-        //     node_config.clone(),
-        //     EigenGadgetProvider {
-        //         provider: http_provider,
-        //     },
-        //     EigenGadgetProvider {
-        //         provider: ws_provider,
-        //     },
-        //     operator_info_service,
-        //     signer,
-        // )
-        // .await
-        // .map_err(|e| eyre!(e))?;
+        let operator = Operator::<NodeConfig, OperatorInfoService>::new_from_config(
+            node_config.clone(),
+            EigenGadgetProvider {
+                provider: http_provider.clone(),
+            },
+            EigenGadgetProvider {
+                provider: ws_provider.clone(),
+            },
+            operator_info_service.clone(),
+            signer.clone(),
+        )
+        .await
+        .map_err(|e| eyre!(e))?;
 
-        // self.set_operator(operator);
+        self.set_operator(operator);
 
         info!("Registered operator for Eigenlayer");
         Ok(())
@@ -308,7 +305,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         todo!()
     }
 
-    async fn run(&self) -> Result<()> {
+    async fn run(&mut self) -> Result<()> {
         // Tangle Portion of Run
         let _client = self.env.client().await.map_err(|e| eyre!(e))?;
         let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
@@ -371,19 +368,27 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 
         let _network: GossipHandle =
             start_p2p_network(network_config).map_err(|e| eyre!(e.to_string()))?;
-        // let x_square_eigen = blueprint::XsquareEigenEventHandler {
-        //     ctx: blueprint::MyContext { network, keystore },
-        // };
-        //
-        // let contract: IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(contract_address, provider);
-        //
-        // EventWatcher::run(
-        //     &EigenlayerEventWatcher,
-        //     contract,
-        //     // Add more handler here if we have more functions.
-        //     vec![Box::new(x_square_eigen)],
-        // )
-        // .await?;
+
+        let x_square_eigen = XsquareEigenEventHandler {};
+
+        let operator: Operator<NodeConfig, OperatorInfoService> =
+            self.operator.clone().ok_or(eyre!("Operator is None"))?;
+
+        let instance =
+            IncredibleSquaringTaskManagerInstanceWrapper::new(IncredibleSquaringTaskManager::new(
+                operator
+                    .incredible_squaring_contract_manager
+                    .task_manager_addr,
+                operator
+                    .incredible_squaring_contract_manager
+                    .eth_client_http
+                    .clone(),
+            ));
+
+        let event_watcher: EigenlayerEventWatcher<NodeConfig> = EigenlayerEventWatcher::new();
+        event_watcher
+            .run(instance, vec![Box::new(x_square_eigen)])
+            .await?;
 
         Ok(())
     }

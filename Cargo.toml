@@ -139,17 +139,17 @@ url = { git = "https://github.com/domenukk/rust-url", branch = "no_std", default
 w3f-bls = { version = "0.1.4", default-features = false }
 cid = { version = "0.11.1" }
 
-alloy-primitives = "0.7.7"
-alloy-json-abi = "0.7.7"
-alloy-sol-types = "0.7.7"
-alloy-rpc-types = { version = "0.2.1" }
-alloy-provider = { version = "0.2.1", default-features = false, features = ["reqwest", "ws"] }
-alloy-pubsub = { version = "0.2.1" }
-alloy-signer = { version = "0.2.1" }
-alloy-signer-local = { version = "0.2.1" }
-alloy-network = { version = "0.2.1" }
-alloy-contract = { version = "0.2.1" }
-alloy-transport = { version = "0.2.1" }
+alloy-primitives = "0.8.3"
+alloy-json-abi = "0.8.3"
+alloy-sol-types = "0.8.3"
+alloy-rpc-types = { version = "0.3.6" }
+alloy-provider = { version = "0.3.6", default-features = false, features = ["reqwest", "ws"] }
+alloy-pubsub = { version = "0.3.6" }
+alloy-signer = { version = "0.3.6" }
+alloy-signer-local = { version = "0.3.6" }
+alloy-network = { version = "0.3.6" }
+alloy-contract = { version = "0.3.6" }
+alloy-transport = { version = "0.3.6" }
 
 ark-bn254 = "0.4.0"
 ark-ec = "0.4.0"
@@ -168,7 +168,8 @@ secp256k1 = "0.29.1"
 
 # Eigenlayer
 # TODO: Remove this branch, point to main once https://github.com/webb-tools/eigensdk-rs/pull/20 is merged
-eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = "donovan/maintenance" }
+#eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = "donovan/maintenance" }
+eigensdk-rs = { path = "../eigensdk-rs" }
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]
