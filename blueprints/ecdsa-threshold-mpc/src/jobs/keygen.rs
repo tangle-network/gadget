@@ -4,7 +4,6 @@ use cggmp21::{
 };
 use gadget_sdk::{
     self as sdk,
-    logger::Logger,
     network::{channels::UserID, IdentifierInfo, ProtocolMessage},
 };
 use generic_ec::Curve;
@@ -69,10 +68,9 @@ pub async fn keygen(
     let aux_eid_bytes = [&job_id_bytes[..], &mix[..]].concat();
     let aux_eid = cggmp21::ExecutionId::new(&aux_eid_bytes);
     let tracer = PerfProfiler::new();
-    let logger = Logger {
-        target: "cggmp21-keygen",
-        id: format!("{}", service_id),
-    };
+
+    let id = service_id.to_string();
+    let _span = tracing::info_span!("cggmp21-keygen", id = id).entered();
 
     // TODO: What is the protocol message channel? Can I get it from the network?
     let (_dummy_sender, protocol_message_channel) =
@@ -102,7 +100,6 @@ pub async fn keygen(
                         t,
                         hd_wallet,
                         rng,
-                        &logger,
                         &job_id_bytes[..],
                     )
                     .await

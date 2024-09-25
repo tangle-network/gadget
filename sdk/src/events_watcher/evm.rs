@@ -3,6 +3,7 @@
 use crate::events_watcher::error::Error;
 use crate::events_watcher::retry::UnboundedConstantBuilder;
 use crate::store::LocalDatabase;
+use crate::{error, trace, warn};
 use alloy_network::ReceiptResponse;
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::FixedBytes;
@@ -173,7 +174,7 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync + 'static {
 
                 let events = events_filter.query().await.map_err(Into::<Error>::into)?;
                 let number_of_events = events.len();
-                tracing::trace!("Found #{number_of_events} events");
+                trace!("Found #{number_of_events} events");
                 for (event, log) in events {
                     // Wraps each handler future in a retry logic, that will retry the handler
                     // if it fails, up to `MAX_RETRY_COUNT`, after this it will ignore that event for
@@ -199,7 +200,7 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync + 'static {
                     // wrong.
                     for r in &result {
                         if let Err(e) = r {
-                            tracing::error!(?e, %chain_id, "Error while handling the event");
+                            error!(?e, %chain_id, "Error while handling the event");
                         }
                     }
                     if mark_as_handled {
@@ -208,8 +209,8 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync + 'static {
                             log.block_number.unwrap_or_default(),
                         );
                     } else {
-                        tracing::error!(%chain_id, "Error while handling event, all handlers failed.");
-                        tracing::warn!(%chain_id, "Restarting event watcher ...");
+                        error!(%chain_id, "Error while handling event, all handlers failed.");
+                        warn!(%chain_id, "Restarting event watcher ...");
                         // this a transient error, so we will retry again.
                         return Err(Error::ForceRestart);
                     }
@@ -224,7 +225,7 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync + 'static {
                 let should_cooldown = dest_block == target_block_number;
                 if should_cooldown {
                     let duration = Duration::from_secs(10);
-                    tracing::trace!("Cooldown a bit for {}ms", duration.as_millis());
+                    trace!("Cooldown a bit for {}ms", duration.as_millis());
                     tokio::time::sleep(duration).await;
                     // update the latest block number
                     target_block_number = contract

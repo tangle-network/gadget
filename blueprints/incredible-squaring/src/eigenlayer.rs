@@ -19,6 +19,7 @@ use gadget_sdk::{
     keystore::Backend,
     network::setup::{start_p2p_network, NetworkConfig},
     run::GadgetRunner,
+    info
 };
 use std::convert::Infallible;
 use std::ops::Deref;
@@ -173,7 +174,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 
     async fn register(&mut self) -> Result<()> {
         if self.env.test_mode {
-            self.env.logger.info("Skipping registration in test mode");
+            info!("Skipping registration in test mode");
             return Ok(());
         }
 
@@ -198,10 +199,8 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             Default::default(),
         );
         // send the tx to the tangle and exit.
-        let result = tx::tangle::send(&client, &signer, &xt, &self.env.logger).await?;
-        self.env
-            .logger
-            .info(format!("Registered operator with hash: {:?}", result));
+        let result = tx::tangle::send(&client, &signer, &xt).await?;
+        info!("Registered operator with hash: {:?}", result);
 
         // Now we handle the EigenLayer portion of the Registration
         let keystore = self.env.keystore().map_err(|e| eyre!(e))?;
@@ -301,7 +300,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 
         // self.set_operator(operator);
 
-        tracing::info!("Registered operator for Eigenlayer");
+        info!("Registered operator for Eigenlayer");
         Ok(())
     }
 
@@ -313,11 +312,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         // Tangle Portion of Run
         let _client = self.env.client().await.map_err(|e| eyre!(e))?;
         let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
-        let _logger = self.env.logger.clone();
-        self.env.logger.info(format!(
-            "Starting the event watcher for {} ...",
-            signer.account_id()
-        ));
+        info!("Starting the event watcher for {} ...", signer.account_id());
 
         // Then we handle the EigenLayer portion
         let keystore = self.env.keystore().map_err(|e| eyre!(e))?;
@@ -372,7 +367,6 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             bind_ip: self.env.bind_addr,
             bind_port: self.env.bind_port,
             topics: vec!["__TESTING_INCREDIBLE_SQUARING".to_string()],
-            logger: self.env.logger.clone(),
         };
 
         let _network: GossipHandle =

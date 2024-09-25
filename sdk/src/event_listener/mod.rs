@@ -18,11 +18,11 @@ pub trait EventListener<T: Send + Sync + 'static>: Send + Sync + 'static {
     async fn execute(&mut self) {
         while let Some(event) = self.next_event().await {
             if let Err(err) = self.handle_event(event).await {
-                log::error!(target: "gadget", "Error handling event: {err}");
+                crate::error!("Error handling event: {err}");
             }
         }
 
-        log::warn!(target: "gadget", "Event listener has stopped")
+        crate::warn!("Event listener has stopped")
     }
 }
 
@@ -57,7 +57,7 @@ impl<Config: ConfigT<N = Ethereum>, Watcher: EventWatcher<Config>> EventListener
 {
     async fn next_event(&mut self) -> Option<Watcher::Event> {
         if let Err(err) = self.listener.run().await {
-            log::error!(target: "gadget", "Error running event watcher: {err}");
+            crate::error!("Error running event watcher: {err}");
         }
 
         None
@@ -87,7 +87,7 @@ impl<Config: subxt::Config + Send + Sync + 'static, Watcher: SubstrateEventWatch
 {
     async fn next_event(&mut self) -> Option<()> {
         if let Err(err) = self.listener.run().await {
-            log::error!(target: "gadget", "Error running event watcher: {err}");
+            crate::error!("Error running event watcher: {err}");
         }
 
         None

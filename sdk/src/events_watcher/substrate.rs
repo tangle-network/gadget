@@ -8,7 +8,7 @@
 //! action to take when the specified event is found in a block at the `handle_event` api.
 
 use crate::events_watcher::error::Error;
-use crate::logger::Logger;
+use crate::{error, info, warn};
 use backon::{ConstantBuilder, ExponentialBuilder, Retryable};
 use core::time::Duration;
 use futures::TryFutureExt;
@@ -97,8 +97,6 @@ where
     /// The name of the pallet that this event watcher is watching.
     const PALLET_NAME: &'static str;
 
-    /// Returns a reference to the Event Watcher's [`Logger`]
-    fn logger(&self) -> &Logger;
     fn client(&self) -> &OnlineClient<RuntimeConfig>;
     fn handlers(&self) -> &Vec<EventHandlerFor<RuntimeConfig>>;
 
@@ -134,8 +132,7 @@ where
                     }
                 }
                 let events = latest_block.events().map_err(Into::<Error>::into).await?;
-                self.logger()
-                    .info(format!("Found #{} events: {:?}", events.len(), events));
+                info!("Found #{} events: {:?}", events.len(), events);
                 // wraps each handler future in a retry logic, that will retry the handler
                 // if it fails, up to `MAX_RETRY_COUNT`, after this it will ignore that event for
                 // that specific handler.
@@ -159,19 +156,16 @@ where
                 // wrong.
                 for r in &result {
                     if let Err(e) = r {
-                        self.logger().error(format!("Error from result: {e:?}"));
+                        error!("Error from result: {e:?}");
                     }
                 }
 
                 if mark_as_handled {
-                    self.logger().info(format!(
-                        "event handled successfully at block #{latest_block_number}",
-                    ));
+                    info!("event handled successfully at block #{latest_block_number}",);
                     best_block = Some(latest_block_number);
                 } else {
-                    self.logger()
-                        .error("Error while handling event, all handlers failed.");
-                    self.logger().warn("Restarting event watcher ...");
+                    error!("Error while handling event, all handlers failed.");
+                    warn!("Restarting event watcher ...");
                     // this a transient error, so we will retry again.
                     return Err(Error::ForceRestart);
                 }
@@ -180,8 +174,4 @@ where
         task.retry(backoff).await?;
         Ok(())
     }
-}
-
-pub trait LoggerEnv {
-    fn logger(&self) -> &Logger;
 }

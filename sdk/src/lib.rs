@@ -31,8 +31,7 @@ pub mod events_watcher;
 pub mod executor;
 /// Keystore Module
 pub mod keystore;
-/// Debug logger
-pub mod logger;
+pub mod logging;
 /// Metrics Module
 #[cfg(feature = "std")]
 pub mod metrics;

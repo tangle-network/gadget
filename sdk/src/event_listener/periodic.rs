@@ -14,7 +14,7 @@ impl<const MSEC: usize> super::EventListener<Instant> for PeriodicEventListener<
     }
 
     async fn handle_event(&mut self, event: Instant) -> std::io::Result<()> {
-        log::info!(target: "gadget", "Event at {event:?}");
+        crate::info!("Event at {event:?}");
         Ok(())
     }
 }

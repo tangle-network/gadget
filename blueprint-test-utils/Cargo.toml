@@ -26,6 +26,7 @@ gadget-sdk = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 subxt = { workspace = true, features = ["substrate-compat"] }
 color-eyre = { workspace = true }
+tracing = { workspace = true }
 
 url = { workspace = true }
 cargo-tangle = { workspace = true, default-features = true }

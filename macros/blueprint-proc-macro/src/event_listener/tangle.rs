@@ -19,7 +19,6 @@ pub(crate) fn generate_tangle_event_handler(
         pub struct #struct_name {
             pub service_id: u64,
             pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair>,
-            pub logger: gadget_sdk::logger::Logger,
             #(#additional_params)*
         }
 
@@ -35,7 +34,7 @@ pub(crate) fn generate_tangle_event_handler(
 
                 for evt in events.iter() {
                     if let Ok(evt) = evt {
-                        self.logger.info(format!("Event found || required: sid={}, jid={}", self.service_id, #job_id));
+                        ::gadget_sdk::info!("Event found || required: sid={}, jid={}", self.service_id, #job_id);
                     }
                 }
 
@@ -66,7 +65,7 @@ pub(crate) fn generate_tangle_event_handler(
                     },
                 };
 
-                self.logger.info("Handling actionable events ...");
+                ::gadget_sdk::info!("Handling actionable events ...");
 
                 let job_events: Vec<_> = events
                     .find::<JobCalled>()
@@ -76,7 +75,7 @@ pub(crate) fn generate_tangle_event_handler(
                     })
                     .collect();
                 for call in job_events {
-                    self.logger.info(format!("Handling JobCalled Events: #{block_number}",));
+                    ::gadget_sdk::info!("Handling JobCalled Events: #{block_number}");
 
                     let mut args_iter = call.args.into_iter();
                     #(#params_tokens)*
@@ -89,7 +88,7 @@ pub(crate) fn generate_tangle_event_handler(
                         TangleApi::tx()
                             .services()
                             .submit_result(self.service_id, call.call_id, result);
-                    gadget_sdk::tx::tangle::send(&client, &self.signer, &response, &self.logger).await?;
+                    gadget_sdk::tx::tangle::send(&client, &self.signer, &response).await?;
                 }
                 Ok(())
             }

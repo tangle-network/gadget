@@ -2,7 +2,7 @@ use crate::config::BlueprintManagerConfig;
 use crate::protocols::resolver::NativeGithubMetadata;
 use gadget_io::GadgetConfig;
 use gadget_sdk::config::Protocol;
-use gadget_sdk::logger::Logger;
+use gadget_sdk::{info, warn};
 use sha2::Digest;
 use std::path::Path;
 use std::string::FromUtf8Error;
@@ -161,19 +161,17 @@ pub fn is_windows() -> bool {
 
 pub fn generate_running_process_status_handle(
     process: gadget_io::tokio::process::Child,
-    logger: &Logger,
     service_name: &str,
 ) -> (Arc<AtomicBool>, gadget_io::tokio::sync::oneshot::Sender<()>) {
     let (stop_tx, stop_rx) = gadget_io::tokio::sync::oneshot::channel::<()>();
     let status = Arc::new(AtomicBool::new(true));
     let status_clone = status.clone();
-    let logger = logger.clone();
     let service_name = service_name.to_string();
 
     let task = async move {
-        logger.info(format!("Starting process execution for {service_name}"));
+        info!("Starting process execution for {service_name}");
         let output = process.wait_with_output().await;
-        logger.warn(format!("Process for {service_name} exited: {output:?}"));
+        warn!("Process for {service_name} exited: {output:?}");
         status_clone.store(false, Ordering::Relaxed);
     };
 

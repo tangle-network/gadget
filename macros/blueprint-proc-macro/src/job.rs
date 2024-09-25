@@ -254,7 +254,7 @@ pub fn generate_event_handler_for(
             ).await {
                 Ok(r) => r,
                 Err(e) => {
-                    tracing::error!("Error in job: {e}");
+                    ::gadget_sdk::error!("Error in job: {e}");
                     let error = gadget_sdk::events_watcher::Error::Handler(Box::new(e));
                     return Err(error);
                 }
@@ -268,7 +268,7 @@ pub fn generate_event_handler_for(
             ) {
                 Ok(r) => r,
                 Err(e) => {
-                    tracing::error!("Error in job: {e}");
+                    ::gadget_sdk::error!("Error in job: {e}");
                     let error = gadget_sdk::events_watcher::Error::Handler(Box::new(e));
                     return Err(error);
                 }
