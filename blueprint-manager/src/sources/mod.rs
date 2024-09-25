@@ -6,7 +6,7 @@ use crate::sdk::utils::{
 };
 use async_trait::async_trait;
 use gadget_io::GadgetConfig;
-use gadget_sdk::logger::Logger;
+use gadget_sdk::{error, info, warn};
 use std::path::PathBuf;
 
 pub mod github;
@@ -25,7 +25,6 @@ pub async fn handle<'a>(
     gadget_config: &GadgetConfig,
     blueprint_manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
-    logger: &Logger,
 ) -> color_eyre::Result<()> {
     let blueprint_source = &blueprint.fetcher;
     let blueprint = &blueprint.blueprint;
@@ -42,7 +41,7 @@ pub async fn handle<'a>(
                 binary_download_path.set_extension("exe");
             }
         } else if let Err(err) = chmod_x_file(&binary_download_path).await {
-            logger.warn(format!("Failed to chmod +x the binary: {err}"));
+            warn!("Failed to chmod +x the binary: {err}");
         }
 
         for service_id in &blueprint.services {
@@ -74,9 +73,7 @@ pub async fn handle<'a>(
                 env_vars.push(("REGISTRATION_MODE_ON".to_string(), "true".to_string()));
             }
 
-            logger.info(format!(
-                "Starting protocol: {sub_service_str} with args: {arguments:?}"
-            ));
+            info!("Starting protocol: {sub_service_str} with args: {arguments:?}");
 
             // Now that the file is loaded, spawn the process
             let process_handle = tokio::process::Command::new(&binary_download_path)
@@ -93,22 +90,19 @@ pub async fn handle<'a>(
                 // We must wait for the process to exit successfully
                 let status = process_handle.wait_with_output().await?;
                 if !status.status.success() {
-                    logger.error(format!(
+                    error!(
                         "Protocol (registration mode) {sub_service_str} failed to execute: {status:?}"
-                    ));
+                    );
                 } else {
-                    logger.info(format!(
+                    info!(
                         "***Protocol (registration mode) {sub_service_str} executed successfully***"
-                    ));
+                    );
                 }
             } else {
                 // A normal running gadget binary. Store the process handle and let the event loop handle the rest
 
-                let (status_handle, abort) = generate_running_process_status_handle(
-                    process_handle,
-                    logger,
-                    &sub_service_str,
-                );
+                let (status_handle, abort) =
+                    generate_running_process_status_handle(process_handle, &sub_service_str);
 
                 active_gadgets
                     .entry(blueprint_id)

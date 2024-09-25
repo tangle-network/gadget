@@ -1466,7 +1466,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-metadata"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cargo_metadata",
  "fs2",
@@ -1496,6 +1496,7 @@ dependencies = [
  "sp-io 38.0.0",
  "subxt",
  "tokio",
+ "tracing",
  "url 2.5.2 (git+https://github.com/domenukk/rust-url?branch=no_std)",
  "uuid 1.10.0",
 ]
@@ -3348,7 +3349,7 @@ checksum = "42012b0f064e01aa58b545fe3727f90f7dd4020f4a3ea735b50344965f5a57e9"
 
 [[package]]
 name = "gadget-blueprint-proc-macro"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-contract",
  "gadget-blueprint-proc-macro-core",
@@ -3361,7 +3362,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cid",
  "ethereum-types",
@@ -3381,7 +3382,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-io"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "cfg-if",
  "hex",

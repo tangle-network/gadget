@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use gadget_io::tokio::task::JoinHandle;
 use gadget_sdk::clients::tangle::runtime::TangleRuntimeClient;
-use gadget_sdk::logger::Logger;
 use gadget_sdk::network::Network;
 use gadget_sdk::prometheus::PrometheusConfig;
 use gadget_sdk::store::{ECDSAKeyStore, KeyValueStoreBackend};
@@ -12,6 +11,7 @@ use sp_core::{keccak_256, sr25519, Pair};
 use crate::sdk::config::SingleGadgetConfig;
 pub use gadget_io::KeystoreContainer;
 use gadget_io::SubstrateKeystore;
+use gadget_sdk::debug;
 use gadget_sdk::network::gossip::GossipHandle;
 use gadget_sdk::network::setup::NetworkConfig;
 use itertools::Itertools;
@@ -42,7 +42,6 @@ pub async fn generate_node_input<KBE: KeyValueStoreBackend>(
     let keystore_config = KeystoreContainer::new(&config.keystore)?;
     let (ecdsa_key, acco_key) = (keystore_config.ecdsa_key()?, keystore_config.sr25519_key()?);
     //let network_key = ed25519::Pair::from_seed(&config.node_key).to_raw_vec();
-    let logger = Logger::default();
     let keystore = ECDSAKeyStore::new(config.keystore_backend.clone(), ecdsa_key.clone());
 
     // Use the first 32 bytes of the sr25519 account key as the network key. We discard the 32 remaining nonce seed bytes
@@ -69,15 +68,14 @@ pub async fn generate_node_input<KBE: KeyValueStoreBackend>(
         config.bind_ip,
         config.bind_port,
         network_ids.clone(),
-        logger.clone(),
     );
 
     let (networks, network_task) =
         gadget_sdk::network::setup::multiplexed_libp2p_network(libp2p_config)
             .map_err(|e| color_eyre::eyre::eyre!("Failed to setup network: {e}"))?;
 
-    logger.debug("Successfully initialized network, now waiting for bootnodes to connect ...");
-    wait_for_connection_to_bootnodes(&config.bootnodes, &networks, &logger).await?;
+    debug!("Successfully initialized network, now waiting for bootnodes to connect ...");
+    wait_for_connection_to_bootnodes(&config.bootnodes, &networks).await?;
 
     let client =
         TangleRuntimeClient::from_url(&config.bind_ip.to_string(), acco_key.public().0.into())
@@ -107,34 +105,31 @@ pub async fn generate_node_input<KBE: KeyValueStoreBackend>(
 pub async fn wait_for_connection_to_bootnodes(
     bootnodes: &[Multiaddr],
     handles: &HashMap<String, GossipHandle>,
-    logger: &Logger,
 ) -> color_eyre::Result<()> {
     let n_required = bootnodes.len();
     let n_networks = handles.len();
 
-    logger.debug(format!(
-        "Waiting for {n_required} peers to show up across {n_networks} networks"
-    ));
+    debug!("Waiting for {n_required} peers to show up across {n_networks} networks");
 
     let mut tasks = gadget_io::tokio::task::JoinSet::new();
 
     // For each network, we start a task that checks if we have enough peers connected
     // and then we wait for all of them to finish.
 
-    let wait_for_peers = |handle: GossipHandle, n_required, logger: Logger| async move {
+    let wait_for_peers = |handle: GossipHandle, n_required| async move {
         'inner: loop {
             let n_connected = handle.connected_peers();
             if n_connected >= n_required {
                 break 'inner;
             }
             let topic = handle.topic();
-            logger.debug(format!("`{topic}`: We currently have {n_connected}/{n_required} peers connected to network"));
+            debug!("`{topic}`: We currently have {n_connected}/{n_required} peers connected to network");
             gadget_io::tokio::time::sleep(Duration::from_millis(1000)).await;
         }
     };
 
     for handle in handles.values() {
-        tasks.spawn(wait_for_peers(handle.clone(), n_required, logger.clone()));
+        tasks.spawn(wait_for_peers(handle.clone(), n_required));
     }
     // Wait for all tasks to finish
     while tasks.join_next().await.is_some() {}

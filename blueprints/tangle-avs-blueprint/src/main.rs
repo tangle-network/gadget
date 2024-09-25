@@ -1,7 +1,9 @@
 use color_eyre::{eyre::eyre, Result};
+use gadget_sdk::env::{ContextConfig, GadgetConfiguration};
 use gadget_sdk::{
     env::Protocol,
     events_watcher::{substrate::SubstrateEventWatcher, tangle::TangleEventsWatcher},
+    info,
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
@@ -9,7 +11,6 @@ use gadget_sdk::{
     tx,
 };
 use incredible_squaring_blueprint as blueprint;
-use gadget_sdk::env::{ContextConfig, GadgetConfiguration};
 use std::sync::Arc;
 use structopt::StructOpt;
 
@@ -30,7 +31,7 @@ impl GadgetRunner for TangleGadgetRunner {
     async fn register(&self) -> Result<()> {
         // TODO: Use the function in blueprint-test-utils
         if self.env.test_mode {
-            self.env.logger.info("Skipping registration in test mode");
+            info!("Skipping registration in test mode");
             return Ok(());
         }
 
@@ -49,7 +50,7 @@ impl GadgetRunner for TangleGadgetRunner {
 
         // send the tx to the tangle and exit.
         let result = tx::tangle::send(&client, &signer, &xt).await?;
-        tracing::info!("Registered operator with hash: {:?}", result);
+        info!("Registered operator with hash: {:?}", result);
         Ok(())
     }
 
@@ -58,7 +59,6 @@ impl GadgetRunner for TangleGadgetRunner {
             bind_ip: self.env.bind_addr,
             bind_port: self.env.bind_port,
             test_mode: self.env.test_mode,
-            logger: self.env.logger.clone(),
         };
 
         let env = gadget_sdk::env::load(None, config).map_err(|e| eyre!(e))?;
@@ -70,7 +70,7 @@ impl GadgetRunner for TangleGadgetRunner {
             signer,
         };
 
-        tracing::info!("Starting the event watcher ...");
+        info!("Starting the event watcher ...");
 
         SubstrateEventWatcher::run(
             &TangleEventsWatcher,
