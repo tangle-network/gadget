@@ -3644,6 +3644,7 @@ dependencies = [
 [[package]]
 name = "eigen-contracts"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/testing-updates#74c8fd83cd5b2f183abc5d31f963daaa53b2df16"
 dependencies = [
  "alloy-contract",
  "alloy-sol-types",
@@ -3652,6 +3653,7 @@ dependencies = [
 [[package]]
 name = "eigen-utils"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/testing-updates#74c8fd83cd5b2f183abc5d31f963daaa53b2df16"
 dependencies = [
  "aes",
  "alloy-contract",
@@ -3695,6 +3697,7 @@ dependencies = [
 [[package]]
 name = "eigensdk-rs"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/testing-updates#74c8fd83cd5b2f183abc5d31f963daaa53b2df16"
 dependencies = [
  "eigen-contracts",
  "eigen-utils",
@@ -4386,6 +4389,7 @@ dependencies = [
 [[package]]
 name = "fireblocks-client"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/testing-updates#74c8fd83cd5b2f183abc5d31f963daaa53b2df16"
 dependencies = [
  "alloy-network",
  "alloy-primitives",
@@ -6462,6 +6466,7 @@ dependencies = [
 [[package]]
 name = "incredible-squaring-avs"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/testing-updates#74c8fd83cd5b2f183abc5d31f963daaa53b2df16"
 dependencies = [
  "alloy-contract",
  "alloy-primitives",
@@ -12606,6 +12611,7 @@ dependencies = [
 [[package]]
 name = "test-utils"
 version = "0.1.0"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/testing-updates#74c8fd83cd5b2f183abc5d31f963daaa53b2df16"
 dependencies = [
  "alloy-primitives",
  "alloy-provider",
