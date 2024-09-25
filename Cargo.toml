@@ -176,6 +176,8 @@ eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = 
 cargo-dist-version = "0.22.1"
 # CI backends to support
 ci = "github"
+# Do not create release, as Release-plz will do this for us.
+create-release = false
 github-build-setup = "build-setup.yml"
 # The installers to generate for each app
 installers = ["shell"]
