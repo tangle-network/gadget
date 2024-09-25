@@ -1,6 +1,6 @@
-use crate::eigenlayer::event_listener::generate_eigenlayer_event_handler;
+use crate::event_listener::eigenlayer::generate_eigenlayer_event_handler;
+use crate::event_listener::tangle::generate_tangle_event_handler;
 use crate::shared::{pascal_case, type_to_field_type};
-use crate::tangle::event_listener::generate_tangle_event_handler;
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata, JobResultVerifier};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
@@ -17,6 +17,7 @@ mod kw {
     syn::custom_keyword!(verifier);
     syn::custom_keyword!(evm);
     syn::custom_keyword!(event_handler);
+    syn::custom_keyword!(event_listener);
     syn::custom_keyword!(protocol);
     syn::custom_keyword!(instance);
     syn::custom_keyword!(event);
@@ -90,6 +91,32 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         generate_event_handler_for(input, args, &param_types, &params_type, &result_type)
     };
 
+    // TODO:
+    // Generate Event Listener, if not being skipped
+    let event_listener_gen = if args.skip_codegen {
+        proc_macro2::TokenStream::default()
+    } else {
+        match &args.event_listener.listener {
+            Some(ref listener) => {
+                // convert the listener var, which is just a struct name, to an ident
+                let listener = syn::parse_str::<Ident>(listener).map_err(|err| {
+                    syn::Error::new_spanned(input, format!("Failed to parse event listener: {err}"))
+                })?;
+
+                quote! {
+                    fn run_listener() {
+                        let instance = #listener::default();
+                        let task = async move {
+                            instance.execute().await;
+                        };
+                        gadget_sdk::tokio::task::spawn(task);
+                    }
+                }
+            }
+            None => proc_macro2::TokenStream::default(),
+        }
+    };
+
     // Creates Job Definition using input parameters
     let job_def = JobDefinition {
         metadata: JobMetadata {
@@ -129,6 +156,8 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         #[doc = "`]"]
         #[automatically_derived]
         pub const #job_id_name: u8 = #job_id;
+
+        #event_listener_gen
 
         #input
 
@@ -323,6 +352,9 @@ pub(crate) struct JobArgs {
     /// Optional: Event handler type for the job.
     /// `#[job(event_handler = "tangle")]`
     event_handler: EventHandlerArgs,
+    /// Optional: Event listener type for the job
+    /// `#[job(event_listener(MyCustomListener))]`
+    event_listener: EventListener,
     /// Optional: Skip code generation for this job.
     /// `#[job(skip_codegen)]`
     /// this is useful if the developer want to impl a custom event handler
@@ -338,6 +370,7 @@ impl Parse for JobArgs {
         let mut verifier = Verifier::None;
         let mut event_handler = EventHandlerArgs::Tangle;
         let mut skip_codegen = false;
+        let mut event_listener = EventListener { listener: None };
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
@@ -360,6 +393,8 @@ impl Parse for JobArgs {
                 skip_codegen = true;
             } else if lookahead.peek(Token![,]) {
                 let _ = input.parse::<Token![,]>()?;
+            } else if lookahead.peek(kw::event_listener) {
+                event_listener = input.parse()?;
             } else {
                 return Err(lookahead.error());
             }
@@ -386,6 +421,7 @@ impl Parse for JobArgs {
             verifier,
             event_handler,
             skip_codegen,
+            event_listener,
         })
     }
 }
@@ -495,6 +531,26 @@ enum Verifier {
     None,
     /// #[job(verifier(evm = "`MyVerifierContract`"))]
     Evm(String),
+}
+
+#[derive(Debug)]
+/// `#[job(event_listener(MyCustomListener)]`
+/// Accepts an optional argument that specifies the event listener to use that implements EventListener
+pub(crate) struct EventListener {
+    listener: Option<String>,
+}
+
+// Implement Parse for EventListener. kw::event_listener exists in the kw module.
+impl Parse for EventListener {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let _ = input.parse::<kw::event_listener>()?;
+        let content;
+        syn::parenthesized!(content in input);
+        let listener = content.parse::<LitStr>()?;
+        Ok(EventListener {
+            listener: Some(listener.value()),
+        })
+    }
 }
 
 impl Parse for Verifier {

@@ -2,14 +2,16 @@
 
 #![allow(clippy::module_name_repetitions)]
 
-use crate::clients::tangle::runtime::TangleConfig;
-use crate::events_watcher::substrate::LoggerEnv;
+use crate::clients::tangle::runtime::{TangleClient, TangleConfig};
+use crate::events_watcher::substrate::{EventHandler, EventHandlerFor, LoggerEnv};
 use crate::logger::Logger;
+use subxt::OnlineClient;
 
 /// An event watcher for the Tangle network.
-#[derive(Debug, Clone)]
 pub struct TangleEventsWatcher {
     pub logger: Logger,
+    pub client: TangleClient,
+    pub handlers: Vec<Box<dyn EventHandler<TangleConfig>>>,
 }
 
 #[async_trait::async_trait]
@@ -19,6 +21,14 @@ impl super::substrate::SubstrateEventWatcher<TangleConfig> for TangleEventsWatch
 
     fn logger(&self) -> &Logger {
         &self.logger
+    }
+
+    fn client(&self) -> &OnlineClient<TangleConfig> {
+        &self.client
+    }
+
+    fn handlers(&self) -> &Vec<EventHandlerFor<TangleConfig>> {
+        &self.handlers
     }
 }
 

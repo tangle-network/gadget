@@ -15,15 +15,14 @@ use futures::TryFutureExt;
 use subxt::OnlineClient;
 
 /// A type alias to extract the event handler type from the event watcher.
-pub type EventHandlerFor<RuntimeConfig> =
-    Box<dyn EventHandler<RuntimeConfig> + Send + Sync + 'static>;
+pub type EventHandlerFor<RuntimeConfig> = Box<dyn EventHandler<RuntimeConfig>>;
 
 /// A trait that defines a handler for a specific set of event types.
 ///
 /// The handlers are implemented separately from the watchers, so that we can have
 /// one event watcher and many event handlers that will run in parallel.
 #[async_trait::async_trait]
-pub trait EventHandler<RuntimeConfig>
+pub trait EventHandler<RuntimeConfig>: Send + Sync + 'static
 where
     RuntimeConfig: subxt::Config + Send + Sync + 'static,
 {
@@ -88,7 +87,7 @@ where
 
 /// Represents a Substrate event watcher.
 #[async_trait::async_trait]
-pub trait SubstrateEventWatcher<RuntimeConfig>
+pub trait SubstrateEventWatcher<RuntimeConfig>: Send + Sync + 'static
 where
     RuntimeConfig: subxt::Config + Send + Sync + 'static,
 {
@@ -100,6 +99,8 @@ where
 
     /// Returns a reference to the Event Watcher's [`Logger`]
     fn logger(&self) -> &Logger;
+    fn client(&self) -> &OnlineClient<RuntimeConfig>;
+    fn handlers(&self) -> &Vec<EventHandlerFor<RuntimeConfig>>;
 
     /// Returns a task that should be running in the background
     /// that will watch events
@@ -107,12 +108,10 @@ where
         skip_all,
         fields(tag = %Self::TAG, pallet = %Self::PALLET_NAME)
     )]
-    async fn run(
-        &self,
-        client: OnlineClient<RuntimeConfig>,
-        handlers: Vec<EventHandlerFor<RuntimeConfig>>,
-    ) -> Result<(), Error> {
+    async fn run(&self) -> Result<(), Error> {
         const MAX_RETRY_COUNT: usize = 5;
+        let client = self.client().clone();
+        let handlers = self.handlers();
 
         let backoff = ExponentialBuilder::default().with_max_times(usize::MAX);
         let task = || async {

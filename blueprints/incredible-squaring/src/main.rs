@@ -2,7 +2,7 @@ use color_eyre::{eyre::eyre, Result};
 use gadget_sdk::config::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration, StdGadgetConfiguration};
 use gadget_sdk::{
     config::Protocol,
-    events_watcher::{substrate::SubstrateEventWatcher, tangle::TangleEventsWatcher},
+    events_watcher::tangle::TangleEventsWatcher,
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
@@ -12,6 +12,7 @@ use gadget_sdk::{
 use std::io::Write;
 use incredible_squaring_blueprint as blueprint;
 use structopt::StructOpt;
+use gadget_sdk::event_listener::{EventListener, SubstrateWatcherWrapper};
 use gadget_sdk::keystore::KeystoreUriSanitizer;
 use gadget_sdk::keystore::sp_core_subxt::Pair;
 use gadget_sdk::run::GadgetRunner;
@@ -89,15 +90,13 @@ impl GadgetRunner for TangleGadgetRunner {
             logger,
         };
 
-        SubstrateEventWatcher::run(
-            &TangleEventsWatcher {
-                logger: self.env.logger.clone(),
-            },
+        let program = TangleEventsWatcher {
+            logger: self.env.logger.clone(),
             client,
-            // Add more handler here if we have more functions.
-            vec![Box::new(x_square)],
-        )
-        .await?;
+            handlers: vec![Box::new(x_square)],
+        };
+
+        SubstrateWatcherWrapper::from(program).execute().await;
 
         Ok(())
     }

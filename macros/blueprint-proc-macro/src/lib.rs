@@ -24,8 +24,8 @@ mod report;
 /// Shared utilities for the Blueprint Macros
 mod shared;
 
-/// Utilities for Eigenlayer Blueprint macro generation
-mod eigenlayer;
+mod event_listener;
+
 /// Utilities for Tangle Blueprint macro generation
 mod tangle;
 
