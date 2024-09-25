@@ -65,3 +65,11 @@ pub mod ctx;
 pub use error::Error;
 pub use gadget_blueprint_proc_macro::*;
 pub use tangle_subxt;
+
+// External modules usually used in proc-macro codegen.
+#[doc(hidden)]
+pub mod ext {
+    pub use lock_api;
+    #[cfg(feature = "std")]
+    pub use parking_lot;
+}

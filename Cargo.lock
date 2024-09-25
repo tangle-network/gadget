@@ -3381,6 +3381,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "gadget-context-derive"
+version = "0.1.0"
+dependencies = [
+ "gadget-sdk",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
+ "trybuild",
+]
+
+[[package]]
 name = "gadget-io"
 version = "0.0.2"
 dependencies = [
@@ -3432,6 +3443,7 @@ dependencies = [
  "failure",
  "futures",
  "gadget-blueprint-proc-macro",
+ "gadget-context-derive",
  "gadget-io",
  "getrandom",
  "hex",

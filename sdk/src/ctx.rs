@@ -11,12 +11,15 @@
 //! ```rust,no_run
 //! # use gadget_sdk::ctx::KeystoreContext;
 //! # use gadget_sdk::keystore::GenericKeystore;
+//! use gadget_sdk::config::StdGadgetConfigurtion;
 //!
 //! // This your struct that encapsulates all the things you need from outside world.
 //! #[derive(Clone, Debug, KeystoreContext)]
 //! struct MyContext {
 //!   foo: String,
 //!   bar: u64,
+//!   #[config]
+//!   sdk_config: StdGadgetConfigurtion,
 //! }
 //! // By deriving KeystoreContext, you can now access the keystore client from your struct.
 //!
@@ -32,15 +35,17 @@
 //!
 
 use crate::keystore::backend::GenericKeyStore;
+// derives
+pub use gadget_context_derive::*;
 
 /// `KeystoreContext` trait provides access to the generic keystore from the context.
 pub trait KeystoreContext<RwLock: lock_api::RawRwLock> {
     /// Get the keystore client from the context.
-    fn keystore(&self) -> &GenericKeyStore<RwLock>;
+    fn keystore(&self) -> Result<GenericKeyStore<RwLock>, crate::config::Error>;
 }
 
 /// `GossipNetworkContext` trait provides access to the network client from the context.
 pub trait GossipNetworkContext {
     /// Get the Goossip client from the context.
-    fn network(&self) -> &crate::network::gossip::GossipHandle;
+    fn gossip_network(&self) -> &crate::network::gossip::GossipHandle;
 }
