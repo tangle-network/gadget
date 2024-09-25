@@ -16,7 +16,7 @@ use gadget_io::tokio::sync::{Mutex, RwLock};
 use gadget_io::tokio::task::{spawn, JoinHandle};
 use libp2p::Multiaddr;
 use sp_core::ecdsa;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::io;
 use std::net::IpAddr;
@@ -122,7 +122,7 @@ pub fn start_p2p_network(config: NetworkConfig) -> Result<GossipHandle, Box<dyn 
     Ok(network)
 }
 
-pub type NetworkResult = Result<(HashMap<String, GossipHandle>, JoinHandle<()>), Box<dyn Error>>;
+pub type NetworkResult = Result<(BTreeMap<String, GossipHandle>, JoinHandle<()>), Box<dyn Error>>;
 
 #[allow(clippy::collapsible_else_if, clippy::too_many_lines)]
 #[cfg(not(target_family = "wasm"))]
@@ -141,6 +141,8 @@ pub type NetworkResult = Result<(HashMap<String, GossipHandle>, JoinHandle<()>),
 /// Panics if the network name is invalid.
 pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
     // Setup both QUIC (UDP) and TCP transports the increase the chances of NAT traversal
+
+    use std::collections::BTreeMap;
     let NetworkConfig {
         identity,
         bootnodes,
@@ -154,7 +156,7 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
     let topics_unique = topics
         .iter()
         .cloned()
-        .collect::<std::collections::HashSet<_>>()
+        .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
 
@@ -254,8 +256,8 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
     let mut inbound_mapping = Vec::new();
     let (tx_to_outbound, mut rx_to_outbound) =
         gadget_io::tokio::sync::mpsc::unbounded_channel::<IntraNodePayload>();
-    let ecdsa_peer_id_to_libp2p_id = Arc::new(RwLock::new(HashMap::new()));
-    let mut handles_ret = HashMap::with_capacity(networks.len());
+    let ecdsa_peer_id_to_libp2p_id = Arc::new(RwLock::new(BTreeMap::new()));
+    let mut handles_ret = BTreeMap::new();
     for network in networks {
         let topic = IdentTopic::new(network.clone());
         swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
