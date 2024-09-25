@@ -11,6 +11,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
     params_tokens: &[TokenStream],
     additional_params: &[TokenStream],
     fn_call: &TokenStream,
+    event_listener_call: &TokenStream,
 ) -> TokenStream {
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
@@ -42,6 +43,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
         {
             /// Constructor for creating a new [`#instance_wrapper_name`].
             pub fn new(instance: #instance_base::#instance_name<T, P>) -> Self {
+            #event_listener_call
             Self {
                 instance,
                 contract_instance: OnceLock::new(),

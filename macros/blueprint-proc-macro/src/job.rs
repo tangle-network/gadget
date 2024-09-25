@@ -3,11 +3,11 @@ use crate::event_listener::tangle::generate_tangle_event_handler;
 use crate::shared::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata, JobResultVerifier};
 use proc_macro::TokenStream;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use std::collections::{BTreeMap, HashSet};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
-use syn::{Ident, ItemFn, LitInt, LitStr, Token, Type};
+use syn::{Ident, ItemFn, LitInt, LitStr, Token, Type, TypePath};
 
 /// Defines custom keywords for defining Job arguments
 mod kw {
@@ -78,6 +78,35 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         }
     }
 
+    // TODO:
+    // Generate Event Listener, if not being skipped
+    let mut event_listener_call = proc_macro2::TokenStream::default();
+    let event_listener_gen = if args.skip_codegen {
+        proc_macro2::TokenStream::default()
+    } else {
+        match &args.event_listener.listener {
+            Some(ref listener) => {
+                // convert the listener var, which is just a struct name, to an ident
+                let listener = listener.to_token_stream();
+
+                event_listener_call = quote! {
+                    run_listener();
+                };
+
+                quote! {
+                    fn run_listener() {
+                        let mut instance = #listener::default();
+                        let task = async move {
+                            gadget_sdk::event_listener::EventListener::execute(&mut instance).await;
+                        };
+                        gadget_sdk::tokio::task::spawn(task);
+                    }
+                }
+            }
+            None => proc_macro2::TokenStream::default(),
+        }
+    };
+
     // Extracts Job ID and param/result types
     let job_id = &args.id;
     let params_type = args.params_to_field_types(&param_types)?;
@@ -88,33 +117,14 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         proc_macro2::TokenStream::default()
     } else {
         // Generate the Job Handler.
-        generate_event_handler_for(input, args, &param_types, &params_type, &result_type)
-    };
-
-    // TODO:
-    // Generate Event Listener, if not being skipped
-    let event_listener_gen = if args.skip_codegen {
-        proc_macro2::TokenStream::default()
-    } else {
-        match &args.event_listener.listener {
-            Some(ref listener) => {
-                // convert the listener var, which is just a struct name, to an ident
-                let listener = syn::parse_str::<Ident>(listener).map_err(|err| {
-                    syn::Error::new_spanned(input, format!("Failed to parse event listener: {err}"))
-                })?;
-
-                quote! {
-                    fn run_listener() {
-                        let instance = #listener::default();
-                        let task = async move {
-                            instance.execute().await;
-                        };
-                        gadget_sdk::tokio::task::spawn(task);
-                    }
-                }
-            }
-            None => proc_macro2::TokenStream::default(),
-        }
+        generate_event_handler_for(
+            input,
+            args,
+            &param_types,
+            &params_type,
+            &result_type,
+            event_listener_call,
+        )
     };
 
     // Creates Job Definition using input parameters
@@ -175,6 +185,7 @@ pub fn generate_event_handler_for(
     param_types: &BTreeMap<Ident, Type>,
     params: &[FieldType],
     result: &[FieldType],
+    event_listener_call: proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
     let fn_name = &f.sig.ident;
     let fn_name_string = fn_name.to_string();
@@ -320,6 +331,7 @@ pub fn generate_event_handler_for(
             &params_tokens,
             &additional_params,
             &fn_call,
+            &event_listener_call,
         )
     } else {
         generate_tangle_event_handler(
@@ -330,6 +342,7 @@ pub fn generate_event_handler_for(
             &result_tokens,
             &additional_params,
             &fn_call,
+            &event_listener_call,
         )
     }
 }
@@ -537,19 +550,28 @@ enum Verifier {
 /// `#[job(event_listener(MyCustomListener)]`
 /// Accepts an optional argument that specifies the event listener to use that implements EventListener
 pub(crate) struct EventListener {
-    listener: Option<String>,
+    listener: Option<TypePath>,
 }
 
 // Implement Parse for EventListener. kw::event_listener exists in the kw module.
+// Note: MYCustomListener is a reference to a type struct or type enum, and not surrounded in quotation
+// marks as such: #[job(event_listener(MyCustomListener)]
+// importantly, MyCustomListener may be a struct or enum that has const or type params; parse those too, e.g.,:
+// event_listener(PeriodicEventListener::<6000>)
 impl Parse for EventListener {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let _ = input.parse::<kw::event_listener>()?;
         let content;
         syn::parenthesized!(content in input);
-        let listener = content.parse::<LitStr>()?;
-        Ok(EventListener {
-            listener: Some(listener.value()),
-        })
+
+        // Parse a TypePath instead of a LitStr
+        let listener = if !content.is_empty() {
+            Some(content.parse::<TypePath>()?)
+        } else {
+            None
+        };
+
+        Ok(Self { listener })
     }
 }
 
