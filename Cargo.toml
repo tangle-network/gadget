@@ -44,14 +44,14 @@ single_match_else = "allow"
 broken_intra_doc_links = "deny"
 
 [workspace.dependencies]
-gadget-io = { version = "0.0.1", path = "./gadget-io", default-features = false }
+gadget-io = { version = "0.0.2", path = "./gadget-io", default-features = false }
 blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false }
 
-gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.1" }
-gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.1" }
-blueprint-metadata = { path = "./blueprint-metadata", default-features = false, version = "0.1.1" }
+gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.2" }
+gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.2" }
+blueprint-metadata = { path = "./blueprint-metadata", default-features = false, version = "0.1.2" }
 cargo-tangle = { path = "./cli" }
 cargo_metadata = { version = "0.18.1" }
 
@@ -176,6 +176,8 @@ eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = 
 cargo-dist-version = "0.22.1"
 # CI backends to support
 ci = "github"
+# Whether cargo-dist should create a Github Release or use an existing draft
+create-release = false
 github-build-setup = "build-setup.yml"
 # The installers to generate for each app
 installers = ["shell"]

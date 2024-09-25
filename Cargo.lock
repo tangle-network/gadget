@@ -2103,7 +2103,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-metadata"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cargo_metadata",
  "fs2",
@@ -3644,7 +3644,7 @@ dependencies = [
 [[package]]
 name = "eigen-contracts"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/testing-updates#74c8fd83cd5b2f183abc5d31f963daaa53b2df16"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/blueprints#86de6d1ef6b035b36cee59f1b8f35a9c2951576e"
 dependencies = [
  "alloy-contract",
  "alloy-sol-types",
@@ -3653,7 +3653,7 @@ dependencies = [
 [[package]]
 name = "eigen-utils"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/testing-updates#74c8fd83cd5b2f183abc5d31f963daaa53b2df16"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/blueprints#86de6d1ef6b035b36cee59f1b8f35a9c2951576e"
 dependencies = [
  "aes",
  "alloy-contract",
@@ -3697,7 +3697,7 @@ dependencies = [
 [[package]]
 name = "eigensdk-rs"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/testing-updates#74c8fd83cd5b2f183abc5d31f963daaa53b2df16"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/blueprints#86de6d1ef6b035b36cee59f1b8f35a9c2951576e"
 dependencies = [
  "eigen-contracts",
  "eigen-utils",
@@ -4389,7 +4389,7 @@ dependencies = [
 [[package]]
 name = "fireblocks-client"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/testing-updates#74c8fd83cd5b2f183abc5d31f963daaa53b2df16"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/blueprints#86de6d1ef6b035b36cee59f1b8f35a9c2951576e"
 dependencies = [
  "alloy-network",
  "alloy-primitives",
@@ -5305,7 +5305,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-contract",
  "gadget-blueprint-proc-macro-core",
@@ -5318,7 +5318,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "cid",
  "ethereum-types",
@@ -5338,7 +5338,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-io"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "cfg-if",
  "hex",
@@ -6466,7 +6466,7 @@ dependencies = [
 [[package]]
 name = "incredible-squaring-avs"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/testing-updates#74c8fd83cd5b2f183abc5d31f963daaa53b2df16"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/blueprints#86de6d1ef6b035b36cee59f1b8f35a9c2951576e"
 dependencies = [
  "alloy-contract",
  "alloy-primitives",
@@ -12611,7 +12611,7 @@ dependencies = [
 [[package]]
 name = "test-utils"
 version = "0.1.0"
-source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/testing-updates#74c8fd83cd5b2f183abc5d31f963daaa53b2df16"
+source = "git+https://github.com/webb-tools/eigensdk-rs.git?branch=donovan/blueprints#86de6d1ef6b035b36cee59f1b8f35a9c2951576e"
 dependencies = [
  "alloy-primitives",
  "alloy-provider",
