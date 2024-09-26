@@ -268,7 +268,7 @@ impl GossipHandle {
         self.topic.clone()
     }
 
-    /// Returns the public keys of the peers that are connected to the gossipsub topic.
+    /// Returns an ordered vector of public keys of the peers that are connected to the gossipsub topic.
     pub async fn peers(&self) -> Vec<ecdsa::Public> {
         self.ecdsa_peer_id_to_libp2p_id
             .read()

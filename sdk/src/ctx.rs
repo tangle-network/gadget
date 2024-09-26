@@ -1,6 +1,5 @@
-//! Context and Context Extensions are a set of traits and utilities that provide a common interface for interacting with the Gadget SDK.
+//! A set of traits and utilities that provide a common interface for interacting with the Gadget SDK.
 //!
-//! The Context is the primary interface for interacting with the Gadget SDK and provides access to the various modules and utilities that are available.
 //! Usually, when you need access to the SDK, you will need to pass the Context to your jobs/functions. In your code, you will create a struct that encapsulates all the things that you would need from outside world from your job.
 //! for example, if you need to interact with the network, you will need to have a network client in your struct. If you need to interact with the database storage, you will need to have a db client in your struct. And so on.
 //!
@@ -9,8 +8,7 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! # use gadget_sdk::ctx::KeystoreContext;
-//! # use gadget_sdk::keystore::GenericKeystore;
+//! use gadget_sdk::ctx::KeystoreContext;
 //! use gadget_sdk::config::StdGadgetConfigurtion;
 //!
 //! // This your struct that encapsulates all the things you need from outside world.
