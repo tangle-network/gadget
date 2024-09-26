@@ -15,7 +15,7 @@ use libp2p::{
 };
 use serde::{Deserialize, Serialize};
 use sp_core::ecdsa;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
@@ -45,7 +45,7 @@ pub type InboundMapping = (IdentTopic, UnboundedSender<Vec<u8>>, Arc<AtomicU32>)
 
 pub struct NetworkServiceWithoutSwarm<'a> {
     pub inbound_mapping: &'a [InboundMapping],
-    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
+    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<ecdsa::Public, PeerId>>>,
     pub ecdsa_key: &'a ecdsa::Pair,
     pub span: tracing::Span,
 }
@@ -68,7 +68,7 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
 pub struct NetworkService<'a> {
     pub swarm: &'a mut libp2p::Swarm<MyBehaviour>,
     pub inbound_mapping: &'a [InboundMapping],
-    pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
+    pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<BTreeMap<ecdsa::Public, PeerId>>>,
     pub ecdsa_key: &'a ecdsa::Pair,
     pub span: &'a tracing::Span,
 }
@@ -253,7 +253,7 @@ pub struct GossipHandle {
     pub tx_to_outbound: UnboundedSender<IntraNodePayload>,
     pub rx_from_inbound: Arc<Mutex<gadget_io::tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
     pub connected_peers: Arc<AtomicU32>,
-    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<HashMap<ecdsa::Public, PeerId>>>,
+    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<ecdsa::Public, PeerId>>>,
 }
 
 impl GossipHandle {
@@ -266,6 +266,16 @@ impl GossipHandle {
     #[must_use]
     pub fn topic(&self) -> IdentTopic {
         self.topic.clone()
+    }
+
+    /// Returns an ordered vector of public keys of the peers that are connected to the gossipsub topic.
+    pub async fn peers(&self) -> Vec<ecdsa::Public> {
+        self.ecdsa_peer_id_to_libp2p_id
+            .read()
+            .await
+            .keys()
+            .copied()
+            .collect()
     }
 }
 
