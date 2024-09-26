@@ -1,3 +1,4 @@
+use gadget_sdk::event_listener::periodic::PeriodicEventListener;
 use gadget_sdk::job;
 use std::convert::Infallible;
 
@@ -8,6 +9,7 @@ pub mod eigenlayer;
     id = 0,
     params(x),
     result(_),
+    event_listener(PeriodicEventListener::<6000>),
     verifier(evm = "IncredibleSquaringBlueprint")
 )]
 pub fn xsquare(x: u64) -> Result<u64, Infallible> {

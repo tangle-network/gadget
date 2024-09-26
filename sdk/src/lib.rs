@@ -1,5 +1,4 @@
 #![deny(
-    missing_debug_implementations,
     missing_copy_implementations,
     unsafe_code,
     unstable_features,
@@ -21,6 +20,9 @@ pub mod clients;
 /// Gadget configuration
 pub mod config;
 pub mod error;
+/// Event Listener Module
+#[cfg(any(feature = "std", feature = "wasm"))]
+pub mod event_listener;
 /// Blockchain Events Watcher Module
 #[cfg(any(feature = "std", feature = "wasm"))]
 pub mod events_watcher;
@@ -62,3 +64,4 @@ pub mod tx;
 pub use error::Error;
 pub use gadget_blueprint_proc_macro::*;
 pub use tangle_subxt;
+pub use tokio;

@@ -11,6 +11,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
     params_tokens: &[TokenStream],
     additional_params: &[TokenStream],
     fn_call: &TokenStream,
+    event_listener_call: &TokenStream,
 ) -> TokenStream {
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
@@ -41,12 +42,12 @@ pub(crate) fn generate_eigenlayer_event_handler(
         {
             /// Constructor for creating a new [`#instance_wrapper_name`].
             pub fn new(instance: #instance_base::#instance_name<T, P>) -> Self {
-                Self {
-                    instance,
-                    contract_instance: OnceLock::new(),
-                }
+            #event_listener_call
+            Self {
+                instance,
+                contract_instance: OnceLock::new(),
             }
-
+        }
             /// Lazily creates the [`ContractInstance`] if it does not exist, otherwise returning a reference to it.
             #[allow(clippy::clone_on_copy)]
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
@@ -165,6 +166,13 @@ pub(crate) fn generate_eigenlayer_event_handler(
             type Contract = #instance_wrapper_name<T::TH, T::PH>;
             type Event = #instance_base::NewTaskCreated;
             const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
+
+            // fn contract(&mut self) -> Self::Contract {
+            //     <Self::Contract as Deref>::deref(&self)
+            // }
+            // fn handlers(&self) -> &Vec<gadget_sdk::events_watcher::evm::EventHandlerFor<Self, T>> {
+            //     &vec![Box::new(#struct_name{})]
+            // }
         }
     }
 }

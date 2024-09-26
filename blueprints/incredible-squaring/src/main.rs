@@ -2,7 +2,7 @@ use color_eyre::{eyre::eyre, Result};
 use gadget_sdk::config::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration, StdGadgetConfiguration};
 use gadget_sdk::{
     config::Protocol,
-    events_watcher::{substrate::SubstrateEventWatcher, tangle::TangleEventsWatcher},
+    events_watcher::tangle::TangleEventsWatcher,
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
@@ -13,6 +13,7 @@ use gadget_sdk::{
 use std::io::Write;
 use incredible_squaring_blueprint as blueprint;
 use structopt::StructOpt;
+use gadget_sdk::event_listener::{EventListener, SubstrateWatcherWrapper};
 use gadget_sdk::keystore::KeystoreUriSanitizer;
 use gadget_sdk::keystore::sp_core_subxt::Pair;
 use gadget_sdk::run::GadgetRunner;
@@ -39,13 +40,17 @@ impl GadgetRunner for TangleGadgetRunner {
         }
 
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
-        let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
+        let signer = self
+            .env
+            .first_sr25519_signer()
+            .map_err(|e| eyre!(e))
+            .map_err(|e| eyre!(e))?;
         let ecdsa_pair = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
 
         let xt = api::tx().services().register(
             self.env.blueprint_id,
             services::OperatorPreferences {
-                key: ecdsa::Public(ecdsa_pair.public().0),
+                key: ecdsa::Public(ecdsa_pair.signer().public().0),
                 approval: services::ApprovalPrefrence::None,
                 // TODO: Set the price targets
                 price_targets: PriceTargets {
@@ -80,15 +85,13 @@ impl GadgetRunner for TangleGadgetRunner {
             signer,
         };
 
-        SubstrateEventWatcher::run(
-            &TangleEventsWatcher {
-                span: self.env.span.clone(),
-            },
+        let program = TangleEventsWatcher {
+            span: self.env.span.clone(),
             client,
-            // Add more handler here if we have more functions.
-            vec![Box::new(x_square)],
-        )
-        .await?;
+            handlers: vec![Box::new(x_square)],
+        };
+
+        SubstrateWatcherWrapper::from(program).execute().await;
 
         Ok(())
     }

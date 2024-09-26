@@ -95,7 +95,7 @@ impl<X, T: Config> EventHandlerWithRetry<T> for X where
 /// A trait for watching events from a contract.
 /// EventWatcher trait exists for deployments that are smart-contract / EVM based
 #[async_trait::async_trait]
-pub trait EventWatcher<T: Config>: Send + Sync {
+pub trait EventWatcher<T: Config>: Send + Sync + 'static {
     /// A Helper tag used to identify the event watcher during the logs.
     const TAG: &'static str;
     /// The contract that this event watcher is watching.
@@ -109,21 +109,21 @@ pub trait EventWatcher<T: Config>: Send + Sync {
     /// The genesis transaction hash for the contract.
     const GENESIS_TX_HASH: FixedBytes<32>;
 
+    // fn contract(&mut self) -> Self::Contract;
+    // fn handlers(&self) -> &Vec<EventHandlerFor<Self, T>>;
+
     /// The Storage backend that will be used to store the required state for this event watcher
     /// Returns a task that should be running in the background
     /// that will watch events
-    #[tracing::instrument(
-        skip_all,
-        fields(
-            address = %contract.clone().address(),
-            tag = %Self::TAG,
-        ),
-    )]
+    #[tracing::instrument(skip_all)]
     async fn run(
-        &self,
+        &mut self,
         contract: Self::Contract,
         handlers: Vec<EventHandlerFor<Self, T>>,
     ) -> Result<(), Error> {
+        // let contract = self.contract();
+        // let handlers = self.handlers();
+
         let local_db = LocalDatabase::open("./db");
         let backoff = UnboundedConstantBuilder::new(Duration::from_secs(1));
         let task = || async {

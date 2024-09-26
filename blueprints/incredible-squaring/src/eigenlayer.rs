@@ -385,9 +385,11 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
                     .clone(),
             ));
 
-        let event_watcher: EigenlayerEventWatcher<NodeConfig> = EigenlayerEventWatcher::new();
+        let mut event_watcher: EigenlayerEventWatcher<NodeConfig> = EigenlayerEventWatcher::new();
         event_watcher
-            .run(instance, vec![Box::new(x_square_eigen)])
+            .run(
+                instance, vec![Box::new(x_square_eigen)]
+            )
             .await?;
 
         Ok(())
