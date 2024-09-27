@@ -323,6 +323,9 @@ pub fn generate_event_handler_for(
             .collect::<Vec<_>>()
     };
 
+    // TODO: Take advantage of #struct_name and #event_listener_call and
+    // have the #event_listener_call include the struct_name as a variable that gets passed
+    // to a new EventListener::init(&mut #struct_name) call.
     if event_handler.is_eigenlayer() {
         generate_eigenlayer_event_handler(
             &fn_name_string,

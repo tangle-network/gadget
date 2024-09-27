@@ -67,6 +67,13 @@ pub fn generate_process_arguments(
         format!("--blueprint-id={}", blueprint_id),
         format!("--service-id={}", service_id),
         format!("--protocol={}", protocol),
+        format!(
+            "--log-id=Blueprint-{blueprint_id}-Service-{service_id}-{}",
+            opt.instance_id.clone().unwrap_or_else(|| format!(
+                "{}-{}",
+                gadget_config.bind_addr, gadget_config.bind_port
+            ))
+        ),
     ]);
 
     if let Some(keystore_password) = &gadget_config.keystore_password {

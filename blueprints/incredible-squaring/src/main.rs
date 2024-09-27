@@ -13,7 +13,7 @@ use gadget_sdk::{
 use std::io::Write;
 use incredible_squaring_blueprint as blueprint;
 use structopt::StructOpt;
-use gadget_sdk::event_listener::{EventListener, SubstrateWatcherWrapper};
+use gadget_sdk::event_listener::{EventListener, IntoTangleEventListener};
 use gadget_sdk::keystore::KeystoreUriSanitizer;
 use gadget_sdk::keystore::sp_core_subxt::Pair;
 use gadget_sdk::run::GadgetRunner;
@@ -90,7 +90,7 @@ impl GadgetRunner for TangleGadgetRunner {
             handlers: vec![Box::new(x_square)],
         };
 
-        SubstrateWatcherWrapper::from(program).execute().await;
+        program.into_tangle_event_listener().execute().await;
 
         Ok(())
     }
