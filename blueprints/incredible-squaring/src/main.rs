@@ -123,16 +123,25 @@ async fn main() -> Result<()> {
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
 
-    check_for_test(&env, &config)?;
+    match env.protocol {
+        Protocol::Tangle => {
+            check_for_test(&env, &config)?;
+        }
+        _ => {}
+    }
+    info!("Running with protocol: {:?}", env.protocol);
 
+    info!("Registering...");
     // Register the operator if needed
     if env.should_run_registration() {
         runner.register().await?;
     }
 
+    info!("Running...");
     // Run the gadget / AVS
     runner.run().await?;
 
+    info!("Exiting...");
     Ok(())
 }
 

@@ -456,9 +456,13 @@ mod test_macros {
 mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
+    use blueprint_manager::sdk::utils::generate_process_arguments;
     use cargo_tangle::deploy::Opts;
+    use gadget_sdk::config::{GadgetCLICoreSettings, Protocol};
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
+    use std::ffi::OsStr;
+    use std::str::FromStr;
 
     /// This test requires that `yarn install` has been executed inside the
     /// `./blueprints/incredible-squaring/` directory
@@ -542,5 +546,108 @@ mod tests_standard {
                 assert_eq!(job_results.result[0], expected_result);
             })
             .await
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_eigenlayer_incredible_squaring_blueprint() {
+        setup_log();
+        let mut base_path = std::env::current_dir().expect("Failed to get current directory");
+
+        base_path.push("../blueprints/incredible-squaring");
+        base_path
+            .canonicalize()
+            .expect("File could not be normalized");
+
+        let manifest_path = base_path.join("Cargo.toml");
+
+        const INPUT: u64 = 2;
+        const OUTPUT: u64 = INPUT.pow(2);
+
+        // Start the Anvil Testnet - this testnet submits Incredible Squaring Jobs with an input of 2 automatically
+        let contract_address = eigensdk_rs::test_utils::anvil::testnet::incredible_squaring::run_incredible_squaring_testnet().await;
+
+        // let opts = Opts {
+        //     pkg_name: Some("incredible-squaring-blueprint".to_string()),
+        //     rpc_url: "ws://127.0.0.1:9944".to_string(),
+        //     manifest_path,
+        //     signer: None,
+        //     signer_evm: None,
+        // };
+
+        let tmp_store = Uuid::new_v4().to_string();
+        let keystore_uri = PathBuf::from(format!(
+            "./target/keystores/{}/{tmp_store}/",
+            NAME_IDS[0].to_lowercase()
+        ));
+        assert!(
+            !keystore_uri.exists(),
+            "Keystore URI cannot exist: {}",
+            keystore_uri.display()
+        );
+        let keystore_uri_normalized =
+            std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
+        let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
+
+        let mut arguments = vec![];
+        arguments.push("run".to_string());
+
+        arguments.extend([
+            format!("--bind-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
+            format!("--bind-port={}", 8545u16),
+            format!("--url={}", Url::parse("ws://127.0.0.1:8545").unwrap()),
+            format!("--keystore-uri={}", keystore_uri_str.clone()),
+            format!("--chain={}", SupportedChains::LocalTestnet),
+            format!("--verbose={}", 3),
+            format!("--pretty={}", true),
+            format!("--blueprint-id={}", 0),
+            format!("--service-id={}", 0),
+            format!("--protocol={}", Protocol::Eigenlayer),
+        ]);
+
+        let current_dir = std::env::current_dir().unwrap();
+        let program_path = format!(
+            "{}/../target/release/incredible-squaring-blueprint",
+            current_dir.display()
+        );
+        let program_path = PathBuf::from(program_path).canonicalize().unwrap();
+
+        let mut env_vars = vec![
+            ("RPC_URL".to_string(), "ws://127.0.0.1:8545".to_string()),
+            ("KEYSTORE_URI".to_string(), keystore_uri_str.clone()),
+            ("DATA_DIR".to_string(), keystore_uri_str),
+            ("BLUEPRINT_ID".to_string(), format!("{}", 0)),
+            ("SERVICE_ID".to_string(), format!("{}", 0)),
+            ("REGISTRATION_MODE_ON".to_string(), "true".to_string()),
+            (
+                "OPERATOR_BLS_KEY_PASSWORD".to_string(),
+                "BLS_PASSWORD".to_string(),
+            ),
+            (
+                "OPERATOR_ECDSA_KEY_PASSWORD".to_string(),
+                "ECDSA_PASSWORD".to_string(),
+            ),
+        ];
+
+        // Ensure our child process inherits the current processes' environment vars
+        env_vars.extend(std::env::vars());
+
+        // Now that the file is loaded, spawn the process
+        let process_handle = tokio::process::Command::new(program_path.as_os_str())
+            .kill_on_drop(true)
+            .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
+            .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
+            .stdin(std::process::Stdio::null())
+            .current_dir(&std::env::current_dir().unwrap())
+            .envs(env_vars)
+            .args(arguments)
+            .spawn()
+            .unwrap();
+
+        let status = process_handle.wait_with_output().await.unwrap();
+        if !status.status.success() {
+            error!("Protocol (registration mode) failed to execute: {status:?}");
+        } else {
+            info!("***Protocol (registration mode) executed successfully***");
+        }
     }
 }

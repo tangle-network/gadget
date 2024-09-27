@@ -6513,6 +6513,8 @@ dependencies = [
  "ed25519-zebra 4.0.3",
  "eigensdk-rs",
  "gadget-sdk",
+ "hex",
+ "k256",
  "libp2p",
  "lock_api",
  "parking_lot",
