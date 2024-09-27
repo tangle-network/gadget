@@ -60,3 +60,12 @@ pub trait EVMProviderContext {
         &self,
     ) -> impl Future<Output = Result<Self::Provider, alloy_transport::TransportError>>;
 }
+
+/// `TangleClientContext` trait provides access to the Tangle client from the context.
+pub trait TangleClientContext {
+    type Config: subxt::Config;
+    /// Get the Tangle client from the context.
+    fn tangle_client(
+        &self,
+    ) -> impl Future<Output = Result<subxt::OnlineClient<Self::Config>, subxt::Error>>;
+}

@@ -72,4 +72,6 @@ pub mod ext {
     pub use lock_api;
     #[cfg(feature = "std")]
     pub use parking_lot;
+    pub use tangle_subxt::subxt;
+    pub use tangle_subxt::subxt_signer;
 }
