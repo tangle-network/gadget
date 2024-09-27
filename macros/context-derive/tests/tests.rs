@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_derive_keystore_context() {
+    fn test_derive_context() {
         let t = trybuild::TestCases::new();
         t.pass("tests/ui/01_basic.rs");
         t.pass("tests/ui/02_unnamed_fields.rs");

@@ -3384,6 +3384,9 @@ dependencies = [
 name = "gadget-context-derive"
 version = "0.1.0"
 dependencies = [
+ "alloy-network",
+ "alloy-provider",
+ "alloy-transport",
  "gadget-sdk",
  "proc-macro2",
  "quote",
