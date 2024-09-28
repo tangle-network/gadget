@@ -42,19 +42,29 @@ pub(crate) fn generate_eigenlayer_event_handler(
         {
             /// Constructor for creating a new [`#instance_wrapper_name`].
             pub fn new(instance: #instance_base::#instance_name<T, P>) -> Self {
-            #event_listener_call
-            Self {
-                instance,
-                contract_instance: OnceLock::new(),
+                #event_listener_call
+                Self {
+                    instance,
+                    contract_instance: OnceLock::new(),
+                }
             }
-        }
+
+            /// Returns the provider of the [`ContractInstance`].
+            pub fn provider(&self) -> &P {
+                self.provider()
+            }
+
             /// Lazily creates the [`ContractInstance`] if it does not exist, otherwise returning a reference to it.
+            // TODO: Remove Unwraps
             #[allow(clippy::clone_on_copy)]
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
                 self.contract_instance.get_or_init(|| {
-                    let instance_string = stringify!(instance_name);
-                    let abi_path = format!("../contracts/out/{instance_string}.sol/{instance_string}.json");
-                    let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&abi_path).unwrap());
+                    let instance_string = stringify!(#instance_base);
+                    let abi_path = format!("./../blueprints/incredible-squaring/contracts/out/{}.sol/{}.json", instance_string, instance_string);
+                    let json_str = std::fs::read_to_string(&abi_path).unwrap();
+                    let json: Value = serde_json::from_str(&json_str).unwrap();
+                    let json_abi = json["abi"].clone();
+                    let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(json_abi.to_string().as_str()).unwrap());
                     ContractInstance::new(
                         self.instance.address().clone(),
                         self.instance.provider().clone(),
@@ -134,6 +144,17 @@ pub(crate) fn generate_eigenlayer_event_handler(
             pub env: GadgetConfiguration<R>,
             /// The EigenLayer Operator that registers to the AVS and completes given tasks
             pub operator: Option<Operator<NodeConfig, OperatorInfoService>>,
+            // pub config: NodeConfig,
+            // pub node_api: NodeApi,
+            // pub avs_registry_contract_manager: AvsRegistryContractManager<T>,
+            // pub incredible_squaring_contract_manager: IncredibleSquaringContractManager<T>,
+            // pub eigenlayer_contract_manager: ElChainContractManager<T>,
+            // pub bls_keypair: KeyPair,
+            // pub operator_id: FixedBytes<32>,
+            // pub operator_addr: Address,
+            // pub aggregator_server_ip_port_addr: String,
+            // pub aggregator_server: Aggregator<T, I>,
+            // pub aggregator_rpc_client: AggregatorRpcClient,
         }
 
         impl<R: lock_api::RawRwLock> EigenlayerGadgetRunner<R> {

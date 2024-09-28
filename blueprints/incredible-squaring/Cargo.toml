@@ -36,6 +36,8 @@ ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std"
 structopt = { workspace = true }
 hex = { workspace = true }
 k256 = { workspace = true }
+serde_json = { workspace = true }
+alloy-rpc-types-eth = "0.3.6"
 
 [build-dependencies]
 blueprint-metadata = { workspace = true }

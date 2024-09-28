@@ -123,12 +123,10 @@ async fn main() -> Result<()> {
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
 
-    match env.protocol {
-        Protocol::Tangle => {
-            check_for_test(&env, &config)?;
-        }
-        _ => {}
+    if let Protocol::Tangle = env.protocol {
+        check_for_test(&env, &config)?;
     }
+
     info!("Running with protocol: {:?}", env.protocol);
 
     info!("Registering...");

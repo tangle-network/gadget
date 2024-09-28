@@ -167,8 +167,8 @@ wasmtimer = "0.2"
 secp256k1 = "0.29.1"
 
 # Eigenlayer
-eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = "donovan/blueprints" }
-#eigensdk-rs = { path = "../eigensdk-rs" }
+#eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = "donovan/blueprints" }
+eigensdk-rs = { path = "../eigensdk-rs" }
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]

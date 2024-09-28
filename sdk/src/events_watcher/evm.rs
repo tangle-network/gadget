@@ -3,7 +3,7 @@
 use crate::events_watcher::error::Error;
 use crate::events_watcher::retry::UnboundedConstantBuilder;
 use crate::store::LocalDatabase;
-use crate::{error, trace, warn};
+use crate::{error, info, trace, warn};
 use alloy_network::ReceiptResponse;
 // use alloy_network::{Ethereum, Network};
 use alloy_primitives::FixedBytes;
@@ -12,6 +12,7 @@ use alloy_rpc_types::BlockNumberOrTag;
 use alloy_rpc_types::{Filter, Log};
 use alloy_sol_types::SolEvent;
 // use alloy_transport::Transport;
+use alloy_contract::ContractInstance;
 use backon::{ConstantBuilder, Retryable};
 pub use eigensdk_rs::eigen_utils::Config;
 use futures::TryFutureExt;
@@ -128,20 +129,11 @@ pub trait EventWatcher<T: Config>: Send + Sync + 'static {
         let backoff = UnboundedConstantBuilder::new(Duration::from_secs(1));
         let task = || async {
             let step = 100;
-            let chain_id: u64 = contract
-                .provider()
-                .root()
-                .get_chain_id()
-                .map_err(Into::<Error>::into)
-                .await?;
+            let chain_id: u64 = contract.provider().get_chain_id().await?;
 
             // we only query this once, at the start of the events watcher.
             // then we will update it later once we fully synced.
-            let mut target_block_number: u64 = contract
-                .provider()
-                .get_block_number()
-                .map_err(Into::<Error>::into)
-                .await?;
+            let mut target_block_number: u64 = contract.provider().get_block_number().await?;
 
             local_db.set(
                 &format!("TARGET_BLOCK_NUMBER_{}", contract.address()),
@@ -157,20 +149,28 @@ pub trait EventWatcher<T: Config>: Send + Sync + 'static {
                 .unwrap_or_default();
 
             loop {
+                info!("Starting loop");
                 let block = local_db
                     .get(&format!("LAST_BLOCK_NUMBER_{}", contract.address()))
                     .unwrap_or(deployed_at);
                 let dest_block = core::cmp::min(block + step, target_block_number);
 
-                let events_filter = contract.event::<Self::Event>(
-                    Filter::new()
-                        .from_block(BlockNumberOrTag::Number(block + 1))
-                        .to_block(BlockNumberOrTag::Number(dest_block)),
-                );
+                info!("Starting from block {block} to {dest_block}");
 
-                let events = events_filter.query().await.map_err(Into::<Error>::into)?;
+                let filter = Filter::new()
+                    .from_block(BlockNumberOrTag::Number(block + 1))
+                    .to_block(BlockNumberOrTag::Number(dest_block));
+
+                info!("CREATED FILTER");
+
+                let events_filter = contract.event::<Self::Event>(filter);
+
+                info!("Querying events");
+                // let events = events_filter.query().await.map_err(Into::<Error>::into)?;
+                let events = events_filter.query().await.unwrap();
+
                 let number_of_events = events.len();
-                trace!("Found #{number_of_events} events");
+                info!("Found #{number_of_events} events");
                 for (event, log) in events {
                     // Wraps each handler future in a retry logic, that will retry the handler
                     // if it fails, up to `MAX_RETRY_COUNT`, after this it will ignore that event for
