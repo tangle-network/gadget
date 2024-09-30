@@ -60,7 +60,7 @@ impl PartialOrd for BlsBn254PublicWrapper {
 
 impl Ord for BlsBn254PublicWrapper {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.0.to_bytes().cmp(&other.0.to_bytes())
+        self.0.g1().to_string().cmp(&other.0.g1().to_string())
     }
 }
 

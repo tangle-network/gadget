@@ -212,7 +212,12 @@ impl Backend for FilesystemKeystore {
     fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<bn254::Public, Error> {
         let secret = bn254::generate_with_optional_seed(seed);
         let public = bn254::to_public(&secret);
-        let path = self.key_file_path(&public.to_bytes(), KeyType::BlsBn254);
+        let path = self.key_file_path(
+            serde_json::to_vec(&public)
+                .map_err(|e| Error::BlsBn254(e.to_string()))?
+                .as_slice(),
+            KeyType::BlsBn254,
+        );
         let mut secret_bytes = Vec::new();
         secret
             .serialize_uncompressed(&mut secret_bytes)
@@ -226,7 +231,12 @@ impl Backend for FilesystemKeystore {
         public: &bn254::Public,
         msg: &[u8; 32],
     ) -> Result<Option<bn254::Signature>, Error> {
-        let secret_bytes = self.secret_by_type(&public.to_bytes(), KeyType::BlsBn254)?;
+        let secret_bytes = self.secret_by_type(
+            serde_json::to_vec(&public)
+                .map_err(|e| Error::BlsBn254(e.to_string()))?
+                .as_slice(),
+            KeyType::BlsBn254,
+        )?;
         if let Some(buf) = secret_bytes {
             let mut secret = bn254::secret_from_bytes(&buf);
             Ok(Some(bn254::sign(&mut secret, msg)))
@@ -289,7 +299,12 @@ impl Backend for FilesystemKeystore {
         &self,
         public: &bn254::Public,
     ) -> Result<Option<bn254::Secret>, Error> {
-        let secret_bytes = self.secret_by_type(&public.to_bytes(), KeyType::BlsBn254)?;
+        let secret_bytes = self.secret_by_type(
+            serde_json::to_vec(&public)
+                .map_err(|e| Error::BlsBn254(e.to_string()))?
+                .as_slice(),
+            KeyType::BlsBn254,
+        )?;
         if let Some(buf) = secret_bytes {
             Ok(Some(bn254::secret_from_bytes(&buf)))
         } else {
@@ -321,6 +336,6 @@ impl Backend for FilesystemKeystore {
 
     fn iter_bls_bn254(&self) -> impl Iterator<Item = bn254::Public> {
         self.iter_keys(KeyType::BlsBn254)
-            .flat_map(|b| bn254::Public::from_bytes(&b))
+            .flat_map(|b| serde_json::from_slice(&b))
     }
 }

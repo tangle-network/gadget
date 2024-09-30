@@ -6,7 +6,7 @@ use crate::keystore::{sp_core_subxt, TanglePairSigner};
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
 use core::net::IpAddr;
-use eigensdk_rs::eigen_utils::crypto::bls as bls_bn254;
+use eigensdk::crypto_bls;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
@@ -414,7 +414,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// This function will return an error if no BLS BN254 keypair is found in the keystore.
     #[doc(alias = "bls_bn254_signer")]
     #[cfg(any(feature = "std", feature = "wasm"))]
-    pub fn first_bls_bn254_signer(&self) -> Result<bls_bn254::KeyPair, Error> {
+    pub fn first_bls_bn254_signer(&self) -> Result<crypto_bls::BlsKeyPair, Error> {
         self.keystore()?.bls_bn254_key().map_err(Error::Keystore)
     }
 
