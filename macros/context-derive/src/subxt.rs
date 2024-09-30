@@ -23,7 +23,8 @@ pub fn generate_context_impl(
         impl #impl_generics gadget_sdk::ctx::TangleClientContext for #name #ty_generics #where_clause {
             type Config = gadget_sdk::ext::subxt::PolkadotConfig;
             fn tangle_client(&self) -> impl core::future::Future<Output = Result<gadget_sdk::ext::subxt::OnlineClient<Self::Config>, gadget_sdk::ext::subxt::Error>> {
-                // TODO: think about caching the provider
+                // TODO: think about caching the client
+                // see: https://github.com/webb-tools/gadget/issues/320
                 async {
                     let rpc_url = #field_access.rpc_endpoint.as_str();
                     let client = gadget_sdk::ext::subxt::OnlineClient::from_url(rpc_url).await?;

@@ -31,6 +31,7 @@ pub fn generate_context_impl(
             >;
             fn evm_provider(&self) -> impl core::future::Future<Output = Result<Self::Provider, alloy_transport::TransportError>> {
                 // TODO: think about caching the provider
+                // see: https://github.com/webb-tools/gadget/issues/320
                 async {
                     let rpc_url = #field_access.rpc_endpoint.as_str();
                     let provider = alloy_provider::ProviderBuilder::new()
