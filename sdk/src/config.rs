@@ -141,6 +141,25 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
     }
 }
 
+// Useful for quick testing
+impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
+    fn default() -> Self {
+        Self {
+            rpc_endpoint: "http://localhost:9944".to_string(),
+            keystore_uri: "file::memory:".to_string(),
+            blueprint_id: 0,
+            service_id: Some(0),
+            is_registration: false,
+            protocol: Protocol::Tangle,
+            bind_port: 0,
+            bind_addr: core::net::IpAddr::V4(core::net::Ipv4Addr::new(127, 0, 0, 1)),
+            span: tracing::Span::current(),
+            test_mode: true,
+            _lock: core::marker::PhantomData,
+        }
+    }
+}
+
 /// Errors that can occur while loading and using the gadget configuration.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use gadget_io::tokio::task::JoinHandle;
@@ -104,7 +104,7 @@ pub async fn generate_node_input<KBE: KeyValueStoreBackend>(
 
 pub async fn wait_for_connection_to_bootnodes(
     bootnodes: &[Multiaddr],
-    handles: &HashMap<String, GossipHandle>,
+    handles: &BTreeMap<String, GossipHandle>,
 ) -> color_eyre::Result<()> {
     let n_required = bootnodes.len();
     let n_networks = handles.len();
