@@ -1,7 +1,7 @@
 use gadget_sdk::config::StdGadgetConfiguration;
-use gadget_sdk::ctx::{EVMProviderContext, KeystoreContext, TangleClientContext};
+use gadget_sdk::ctx::{EVMProviderContext, KeystoreContext, ServicesContext, TangleClientContext};
 
-#[derive(KeystoreContext, EVMProviderContext, TangleClientContext)]
+#[derive(KeystoreContext, EVMProviderContext, TangleClientContext, ServicesContext)]
 struct MyContext {
     foo: String,
     #[config]
@@ -9,11 +9,17 @@ struct MyContext {
 }
 
 fn main() {
-    let ctx = MyContext {
-        foo: "bar".to_string(),
-        sdk_config: Default::default(),
+    let body = async {
+        let ctx = MyContext {
+            foo: "bar".to_string(),
+            sdk_config: Default::default(),
+        };
+        let _keystore = ctx.keystore();
+        let _evm_provider = ctx.evm_provider().await;
+        let tangle_client = ctx.tangle_client().await.unwrap();
+        let _services = ctx.current_service_operators(&tangle_client).await.unwrap();
     };
-    let _keystore = ctx.keystore();
-    let _evm_provider = ctx.evm_provider();
-    let _tangle_client = ctx.tangle_client();
+
+    // Run the async block
+    let _ = body;
 }
