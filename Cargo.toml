@@ -54,7 +54,7 @@ gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.2" }
 gadget-context-derive = { path = "./macros/context-derive", default-features = false, version = "0.1.0" }
 blueprint-metadata = { path = "./blueprint-metadata", default-features = false, version = "0.1.2" }
-cargo-tangle = { path = "./cli", version = "0.1.1-beta.7" }
+cargo-tangle = { path = "./cli", version = "0.1.2" }
 cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
