@@ -78,6 +78,7 @@ alloy-signer-local = { workspace = true }
 
 # Macros
 gadget-blueprint-proc-macro = { workspace = true, default-features = false }
+gadget-context-derive = { workspace = true, default-features = false }
 
 # Benchmarking deps
 sysinfo = { workspace = true }
