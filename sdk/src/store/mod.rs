@@ -195,6 +195,7 @@ fn key_to_string(key: &[u8; 32]) -> String {
     hex::encode(key)
 }
 
+#[allow(clippy::needless_return)]
 #[cfg(test)]
 #[cfg(not(target_family = "wasm"))]
 mod tests {

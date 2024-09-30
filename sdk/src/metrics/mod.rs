@@ -137,7 +137,7 @@ async fn init_prometheus_with_listener(
 }
 
 #[cfg(test)]
-#[allow(clippy::let_underscore_future)]
+#[allow(clippy::let_underscore_future, clippy::needless_return)]
 mod tests {
     use super::*;
     use http_body_util::BodyExt;
