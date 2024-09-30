@@ -125,8 +125,7 @@ sqlx = "=0.7.3"
 structopt = "0.3.26"
 syn = "2.0.75"
 sysinfo = "0.31.2"
-# TODO: Stop using this fork once https://github.com/dtolnay/thiserror/pull/304 lands
-thiserror = { git = "https://github.com/quartiq/thiserror", branch = "no-std", default-features = false }
+thiserror = { version = "1.0.64", default-features = false }
 tokio = { version = "1.39.3", default-features = false }
 toml = "0.8.19"
 tracing = { version = "0.1", default-features = false }
@@ -136,8 +135,7 @@ derive_more = { version = "1.0.0", features = ["display"] }
 trybuild = "1.0"
 tsify = "0.4.5"
 typed-builder = "0.19"
-# TODO: Stop using this fork once https://github.com/servo/rust-url/pull/831 lands
-url = { git = "https://github.com/domenukk/rust-url", branch = "no_std", default-features = false }
+url = { version = "2.5.2", default-features = false }
 w3f-bls = { version = "0.1.4", default-features = false }
 cid = { version = "0.11.1" }
 
