@@ -59,6 +59,7 @@ pub async fn run_executor(instructions: &str) {
     );
 }
 
+#[allow(unused_imports, clippy::needless_return)]
 #[cfg(test)]
 mod tests {
     use super::*;

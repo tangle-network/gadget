@@ -32,6 +32,8 @@
 //! ```
 //!
 
+use core::future::Future;
+
 use crate::keystore::backend::GenericKeyStore;
 // derives
 pub use gadget_context_derive::*;
@@ -46,4 +48,24 @@ pub trait KeystoreContext<RwLock: lock_api::RawRwLock> {
 pub trait GossipNetworkContext {
     /// Get the Goossip client from the context.
     fn gossip_network(&self) -> &crate::network::gossip::GossipHandle;
+}
+
+/// `EVMProviderContext` trait provides access to the EVM provider from the context.
+pub trait EVMProviderContext {
+    type Network: alloy_network::Network;
+    type Transport: alloy_transport::Transport + Clone;
+    type Provider: alloy_provider::Provider<Self::Transport, Self::Network>;
+    /// Get the EVM provider from the context.
+    fn evm_provider(
+        &self,
+    ) -> impl Future<Output = Result<Self::Provider, alloy_transport::TransportError>>;
+}
+
+/// `TangleClientContext` trait provides access to the Tangle client from the context.
+pub trait TangleClientContext {
+    type Config: subxt::Config;
+    /// Get the Tangle client from the context.
+    fn tangle_client(
+        &self,
+    ) -> impl Future<Output = Result<subxt::OnlineClient<Self::Config>, subxt::Error>>;
 }
