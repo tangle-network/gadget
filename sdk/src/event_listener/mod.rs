@@ -102,7 +102,6 @@ impl<Config: ConfigT<N = Ethereum>, Ctx: Send + Sync + 'static, Watcher: EventWa
     }
 }
 
-// TODO: Refactor up a level of abstraction after tests pass to truly use the EventListener interface
 #[async_trait::async_trait]
 impl<Config: ConfigT<N = Ethereum>, Ctx: Send + Sync + 'static, Watcher: EventWatcher<Config>>
     EventListener<Watcher::Event, Ctx> for EthereumWatcherWrapper<Watcher, Ctx, Config>
@@ -142,10 +141,6 @@ impl<
     }
 }
 
-// TODO: Refactor up a level of abstraction after tests pass to truly use the EventListener interface
-// TODO: EventListener<Watcher> for SubstrateWatcherWrapper<Watcher, Config> should be:
-// TODO: EventListener<Watcher::Event> for SubstrateWatcherWrapper<Watcher::Event, Config>,
-// TODO: as well as handle_event and next_event types changed to Watcher::Event
 #[async_trait]
 impl<
         Config: subxt::Config + Send + Sync + 'static,
