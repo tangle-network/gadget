@@ -43,25 +43,25 @@ pub(crate) fn generate_eigenlayer_event_handler(
         {
             /// Constructor for creating a new [`#instance_wrapper_name`].
             pub fn new(instance: #instance_base::#instance_name<T, P>) -> Self {
-            Self {
-                instance,
-                contract_instance: OnceLock::new(),
+                Self {
+                    instance,
+                    contract_instance: OnceLock::new(),
+                }
             }
-        }
             /// Lazily creates the [`ContractInstance`] if it does not exist, otherwise returning a reference to it.
             #[allow(clippy::clone_on_copy)]
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
-            self.contract_instance.get_or_init(|| {
-                let instance_string = stringify!(instance_name);
-                let abi_path = format!("../contracts/out/{instance_string}.sol/{instance_string}.json");
-                let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&abi_path).unwrap());
-                ContractInstance::new(
-                    self.instance.address().clone(),
-                    self.instance.provider().clone(),
-                    abi_location,
-                )
-            })
-        }
+                self.contract_instance.get_or_init(|| {
+                    let instance_string = stringify!(instance_name);
+                    let abi_path = format!("../contracts/out/{instance_string}.sol/{instance_string}.json");
+                    let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&abi_path).unwrap());
+                    ContractInstance::new(
+                        self.instance.address().clone(),
+                        self.instance.provider().clone(),
+                        abi_location,
+                    )
+                })
+            }
         }
 
 
