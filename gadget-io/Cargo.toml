@@ -43,7 +43,6 @@ std = [
     "dep:scale-info",
     "dep:parity-scale-codec",
     "tracing/std",
-    "url/std",
 ]
 wasm-bindgen = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:serde-wasm-bindgen", "dep:js-sys", "dep:wasmtimer"]
 typescript = ["dep:tsify", "wasm-bindgen"]

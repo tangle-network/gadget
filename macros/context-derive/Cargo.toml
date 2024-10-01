@@ -1,0 +1,33 @@
+[package]
+name = "gadget-context-derive"
+version = "0.1.1"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Procedural macros for deriving Context Extension traits from `gadget-sdk`"
+
+[lints]
+workspace = true
+
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { workspace = true, features = ["full"] }
+quote = { workspace = true }
+proc-macro2 = { workspace = true }
+
+[dev-dependencies]
+trybuild = { workspace = true }
+gadget-sdk = { workspace = true, features = ["std"] }
+# EVM Stuff
+alloy-network = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-transport = { workspace = true }
+
+[features]
+default = ["std"]
+std = []

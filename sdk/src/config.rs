@@ -6,7 +6,7 @@ use crate::keystore::{sp_core_subxt, TanglePairSigner};
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
 use core::net::IpAddr;
-use eigensdk_rs::eigen_utils::crypto::bls as bls_bn254;
+use eigensdk::crypto_bls;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
@@ -136,6 +136,25 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
             bind_addr: self.bind_addr,
             span: self.span.clone(),
             test_mode: self.test_mode,
+            _lock: core::marker::PhantomData,
+        }
+    }
+}
+
+// Useful for quick testing
+impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
+    fn default() -> Self {
+        Self {
+            rpc_endpoint: "http://localhost:9944".to_string(),
+            keystore_uri: "file::memory:".to_string(),
+            blueprint_id: 0,
+            service_id: Some(0),
+            is_registration: false,
+            protocol: Protocol::Tangle,
+            bind_port: 0,
+            bind_addr: core::net::IpAddr::V4(core::net::Ipv4Addr::new(127, 0, 0, 1)),
+            span: tracing::Span::current(),
+            test_mode: true,
             _lock: core::marker::PhantomData,
         }
     }
@@ -395,7 +414,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// This function will return an error if no BLS BN254 keypair is found in the keystore.
     #[doc(alias = "bls_bn254_signer")]
     #[cfg(any(feature = "std", feature = "wasm"))]
-    pub fn first_bls_bn254_signer(&self) -> Result<bls_bn254::KeyPair, Error> {
+    pub fn first_bls_bn254_signer(&self) -> Result<crypto_bls::BlsKeyPair, Error> {
         self.keystore()?.bls_bn254_key().map_err(Error::Keystore)
     }
 

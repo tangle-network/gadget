@@ -14,6 +14,7 @@ members = [
     "macros/blueprint-proc-macro",
     "macros/blueprint-proc-macro-core",
     "macros/blueprint-proc-macro-playground",
+    "macros/context-derive",
 ]
 exclude = [
     "tangle-test-utils",
@@ -47,12 +48,13 @@ broken_intra_doc_links = "deny"
 gadget-io = { version = "0.0.2", path = "./gadget-io", default-features = false }
 blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
-gadget-sdk = { path = "./sdk", default-features = false }
+gadget-sdk = { path = "./sdk", default-features = false, version = "0.1.2" }
 
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.2" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.2" }
+gadget-context-derive = { path = "./macros/context-derive", default-features = false, version = "0.1.1" }
 blueprint-metadata = { path = "./blueprint-metadata", default-features = false, version = "0.1.2" }
-cargo-tangle = { path = "./cli" }
+cargo-tangle = { path = "./cli", version = "0.1.2" }
 cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
@@ -123,8 +125,7 @@ sqlx = "=0.7.3"
 structopt = "0.3.26"
 syn = "2.0.75"
 sysinfo = "0.31.2"
-# TODO: Stop using this fork once https://github.com/dtolnay/thiserror/pull/304 lands
-thiserror = { git = "https://github.com/quartiq/thiserror", branch = "no-std", default-features = false }
+thiserror = { version = "1.0.64", default-features = false }
 tokio = { version = "1.39.3", default-features = false }
 toml = "0.8.19"
 tracing = { version = "0.1", default-features = false }
@@ -134,8 +135,7 @@ derive_more = { version = "1.0.0", features = ["display"] }
 trybuild = "1.0"
 tsify = "0.4.5"
 typed-builder = "0.19"
-# TODO: Stop using this fork once https://github.com/servo/rust-url/pull/831 lands
-url = { git = "https://github.com/domenukk/rust-url", branch = "no_std", default-features = false }
+url = { version = "2.5.2", default-features = false }
 w3f-bls = { version = "0.1.4", default-features = false }
 cid = { version = "0.11.1" }
 indexmap = "2.5.0"
@@ -168,8 +168,7 @@ wasmtimer = "0.2"
 secp256k1 = "0.29.1"
 
 # Eigenlayer
-# TODO: Remove this branch, point to main once https://github.com/webb-tools/eigensdk-rs/pull/20 is merged
-eigensdk-rs = { git = "https://github.com/webb-tools/eigensdk-rs.git", branch = "donovan/maintenance" }
+eigensdk = { version = "0.1.0", features = ["crypto-bls", "crypto-bn254"] }
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]

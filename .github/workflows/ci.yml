@@ -83,6 +83,7 @@ jobs:
         package: [
           gadget-sdk,
           blueprint-manager,
+          gadget-context-derive,
         ]
     steps:
       - name: checkout code
