@@ -62,19 +62,20 @@ impl GadgetProcessManager {
     pub async fn focus_service_to_completion(
         &mut self,
         service: String,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<String, Box<dyn Error>> {
         let process = self
             .children
             .get_mut(&service)
             .ok_or(format!("Failed to focus on {service}, it does not exist"))?;
+        let mut output_stream = String::new();
         loop {
             match process.read_until_default_timeout().await {
                 ProcessOutput::Output(output) => {
-                    println!("{output:?}");
+                    output_stream.push_str(&format!("{output:?}\n"));
                     continue;
                 }
                 ProcessOutput::Exhausted(output) => {
-                    println!("{output:?}");
+                    output_stream.push_str(&format!("{output:?}\n"));
                     break;
                 }
                 ProcessOutput::Waiting => {
@@ -82,7 +83,7 @@ impl GadgetProcessManager {
                 }
             }
         }
-        Ok(())
+        Ok(output_stream)
     }
 
     /// Focuses on the given service until its output includes the substring provided. Returns a
