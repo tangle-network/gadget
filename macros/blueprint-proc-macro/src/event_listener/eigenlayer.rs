@@ -43,7 +43,6 @@ pub(crate) fn generate_eigenlayer_event_handler(
         {
             /// Constructor for creating a new [`#instance_wrapper_name`].
             pub fn new(instance: #instance_base::#instance_name<T, P>) -> Self {
-            #event_listener_call
             Self {
                 instance,
                 contract_instance: OnceLock::new(),
@@ -98,6 +97,12 @@ pub(crate) fn generate_eigenlayer_event_handler(
                 use alloy_provider::Provider;
                 use alloy_sol_types::SolEvent;
                 use alloy_sol_types::SolInterface;
+
+                static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
+                    ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
+                    #event_listener_call
+                }
 
                 // Convert the event to inputs
                 let decoded: alloy_primitives::Log<Self::Event> = <Self::Event as SolEvent>::decode_log(&log.inner, true)?;
