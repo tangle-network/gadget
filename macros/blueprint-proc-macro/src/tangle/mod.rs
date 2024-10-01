@@ -1,5 +1,3 @@
-pub mod event_listener;
-
 use gadget_blueprint_proc_macro_core::FieldType;
 use quote::{format_ident, quote};
 use syn::Ident;

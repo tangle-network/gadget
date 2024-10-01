@@ -2,6 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Ident, LitInt};
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn generate_tangle_event_handler(
     fn_name_string: &str,
     struct_name: &Ident,
@@ -10,6 +11,7 @@ pub(crate) fn generate_tangle_event_handler(
     result_tokens: &[TokenStream],
     additional_params: &[TokenStream],
     fn_call: &TokenStream,
+    event_listener_call: &TokenStream,
 ) -> TokenStream {
     quote! {
         /// Event handler for the function
@@ -31,6 +33,11 @@ pub(crate) fn generate_tangle_event_handler(
             ) -> Result<bool, gadget_sdk::events_watcher::Error> {
                 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 
+                static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
+                    ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
+                    #event_listener_call
+                }
 
                 for evt in events.iter() {
                     if let Ok(evt) = evt {
