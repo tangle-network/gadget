@@ -35,7 +35,7 @@ impl<
     }
 
     async fn handle_event(&mut self, event: Evt) -> std::io::Result<()> {
-        crate::info!("Event at after {MSEC} time received");
+        crate::info!("Event at after {MSEC}ms time received");
         self.listener.handle_event(event).await
     }
 }

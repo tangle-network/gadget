@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use gadget_sdk::config::GadgetConfiguration;
 use gadget_sdk::event_listener::periodic::PeriodicEventListener;
 use gadget_sdk::event_listener::EventListener;
 use gadget_sdk::{job, Error};
@@ -36,6 +37,10 @@ pub struct MyContext;
     event_listener(PeriodicEventListener::<6000, ReturnsZero, u64, MyContext>),
     verifier(evm = "IncredibleSquaringBlueprint")
 )]
-pub fn xsquare(x: u64, context: MyContext) -> Result<u64, Infallible> {
+pub fn xsquare(
+    context: MyContext,
+    x: u64,
+    env: GadgetConfiguration<parking_lot::RawRwLock>,
+) -> Result<u64, Infallible> {
     Ok(x.saturating_pow(2u32))
 }

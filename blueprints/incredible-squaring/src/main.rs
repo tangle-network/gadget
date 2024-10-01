@@ -84,6 +84,7 @@ impl GadgetRunner for TangleGadgetRunner {
         let x_square = blueprint::XsquareEventHandler {
             service_id: self.env.service_id.unwrap(),
             context: MyContext,
+            env: self.env.clone(),
             signer,
         };
 

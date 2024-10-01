@@ -243,6 +243,7 @@ pub fn generate_event_handler_for(
         .collect::<Vec<_>>();
 
     // This has all params
+    let mut job_var_idx = 0;
     let fn_call_ordered = param_types
         .iter()
         .enumerate()
@@ -251,14 +252,10 @@ pub fn generate_event_handler_for(
 
             let is_job_var = !additional_var_indexes.contains(&pos_in_all_args);
 
-            println!(
-                "[{pos_in_all_args}] var name: {:?} || is job var? {is_job_var}",
-                ident.to_string()
-            );
-
             if is_job_var {
                 // TODO: Make sure this index properly increments
-                let ident = format_ident!("param{pos_in_all_args}");
+                let ident = format_ident!("param{job_var_idx}");
+                job_var_idx += 1;
                 return quote! { #ident, };
             }
 
