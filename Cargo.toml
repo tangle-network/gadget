@@ -48,11 +48,11 @@ broken_intra_doc_links = "deny"
 gadget-io = { version = "0.0.2", path = "./gadget-io", default-features = false }
 blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
-gadget-sdk = { path = "./sdk", default-features = false, version = "0.1.1" }
+gadget-sdk = { path = "./sdk", default-features = false, version = "0.1.2" }
 
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.2" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.2" }
-gadget-context-derive = { path = "./macros/context-derive", default-features = false, version = "0.1.0" }
+gadget-context-derive = { path = "./macros/context-derive", default-features = false, version = "0.1.1" }
 blueprint-metadata = { path = "./blueprint-metadata", default-features = false, version = "0.1.2" }
 cargo-tangle = { path = "./cli", version = "0.1.2" }
 cargo_metadata = { version = "0.18.1" }
