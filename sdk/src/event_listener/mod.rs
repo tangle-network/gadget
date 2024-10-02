@@ -18,7 +18,7 @@ pub trait EventListener<T: Send + Sync + 'static, Ctx: Send + Sync + 'static>:
     async fn next_event(&mut self) -> Option<T>;
 
     /// Logic for handling received events
-    async fn handle_event(&mut self, event: T) -> std::io::Result<()>;
+    async fn handle_event(&mut self, event: T) -> Result<(), Error>;
 
     /// The event loop for the event listener
     async fn execute(&mut self) {
@@ -57,7 +57,7 @@ impl<Event: Send + Sync + 'static, Ctx: Send + Sync + 'static, Ext: Send + Sync 
         self.listener.next_event().await
     }
 
-    async fn handle_event(&mut self, event: Event) -> std::io::Result<()> {
+    async fn handle_event(&mut self, event: Event) -> Result<(), Error> {
         self.listener.handle_event(event).await
     }
 }
@@ -122,7 +122,7 @@ impl<Config: ConfigT<N = Ethereum>, Ctx: Send + Sync + 'static, Watcher: EventWa
     }
 
     // No-op for now since logic already implemented inside Watcher::run
-    async fn handle_event(&mut self, _event: Watcher::Event) -> std::io::Result<()> {
+    async fn handle_event(&mut self, _event: Watcher::Event) -> Result<(), Error> {
         unreachable!("This function should not be called")
     }
 }
@@ -164,7 +164,7 @@ impl<
     }
 
     // No-op for now since logic already implemented inside Watcher::run
-    async fn handle_event(&mut self, _event: Watcher) -> std::io::Result<()> {
+    async fn handle_event(&mut self, _event: Watcher) -> Result<(), Error> {
         unreachable!("This function should not be called")
     }
 }
