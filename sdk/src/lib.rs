@@ -47,7 +47,7 @@ pub mod prometheus;
 pub mod random;
 /// Gadget Runner Module
 #[cfg(feature = "std")] // TODO: Eventually open this up to WASM
-pub mod run;
+pub mod runner;
 /// Slashing and quality of service utilities
 pub mod slashing;
 /// Database storage
