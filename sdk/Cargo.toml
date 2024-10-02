@@ -1,6 +1,6 @@
 [package]
 name = "gadget-sdk"
-version = "0.1.1"
+version = "0.1.2"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -30,10 +30,11 @@ ed25519-zebra = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "ecdsa-core", "arithmetic"] }
 schnorrkel = { workspace = true }
 w3f-bls = { workspace = true }
-eigensdk-rs = { workspace = true }
+eigensdk = { workspace = true }
 ark-serialize = { workspace = true }
 ark-ff = { workspace = true }
 ark-ec = { workspace = true }
+ark-bn254 = { workspace = true }
 subxt-core = { workspace = true, features = ["substrate-compat"] }
 
 # Metrics deps
@@ -75,6 +76,8 @@ alloy-rpc-types = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
 alloy-signer-local = { workspace = true }
+
+eigensdk-rs = { workspace = true }
 
 # Macros
 gadget-blueprint-proc-macro = { workspace = true, default-features = false }

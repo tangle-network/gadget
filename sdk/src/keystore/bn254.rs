@@ -1,17 +1,18 @@
 //! BLS BN254 keys and signatures
 
 use alloy_primitives::keccak256;
-use ark_ec::Group;
+use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{PrimeField, UniformRand};
-use eigensdk_rs::eigen_utils::crypto::bls::{self, g1_projective_to_g1_point};
-use eigensdk_rs::eigen_utils::crypto::bn254::{map_to_curve, mul_by_generator_g1};
+use eigensdk::crypto_bls::PublicKey;
+use eigensdk::crypto_bls::{BlsG1Point, BlsSignature, PrivateKey};
+use eigensdk::crypto_bn254::utils::map_to_curve;
 
 /// BN254 public key.
-pub type Public = bls::G1Point;
+pub type Public = BlsG1Point;
 /// BN254 secret key.
-pub type Secret = bls::PrivateKey;
+pub type Secret = PrivateKey;
 /// BN254 signature.
-pub type Signature = bls::Signature;
+pub type Signature = BlsSignature;
 
 #[must_use]
 pub fn generate_with_optional_seed(seed: Option<&[u8]>) -> Secret {
@@ -30,15 +31,13 @@ pub fn generate_with_optional_seed(seed: Option<&[u8]>) -> Secret {
 pub fn sign(secret: &mut Secret, msg: &[u8; 32]) -> Signature {
     let hashed_point = map_to_curve(msg);
     let sig = hashed_point.mul_bigint(secret.0);
-    Signature {
-        g1_point: g1_projective_to_g1_point(&sig),
-    }
+    Signature::from(sig)
 }
 
 #[must_use]
 pub fn to_public(secret: &Secret) -> Public {
-    let public = mul_by_generator_g1(*secret);
-    g1_projective_to_g1_point(&public)
+    let public = PublicKey::generator().mul_bigint(secret.0);
+    Public::new(public.into_affine())
 }
 
 #[must_use]

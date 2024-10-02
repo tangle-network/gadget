@@ -12,11 +12,17 @@ use alloy_rpc_types::BlockNumberOrTag;
 use alloy_rpc_types::{Filter, Log};
 use alloy_sol_types::SolEvent;
 // use alloy_transport::Transport;
-use alloy_contract::ContractInstance;
+use alloy_contract::Event;
 use backon::{ConstantBuilder, Retryable};
 pub use eigensdk_rs::eigen_utils::Config;
 use futures::TryFutureExt;
 use std::{ops::Deref, time::Duration};
+
+// pub trait Config: Send + Sync + 'static {
+//     type TH: Transport + Clone + Send + Sync + 'static;
+//     type PH: Provider<Self::TH, Self::N> + Clone + Send + Sync + 'static;
+//     type N: Network + Send + Sync + 'static;
+// }
 
 /// A helper type to extract the [`EventHandler`] from the [`EventWatcher`] trait.
 pub type EventHandlerFor<W, T> = Box<
@@ -110,8 +116,8 @@ pub trait EventWatcher<T: Config>: Send + Sync + 'static {
     /// The genesis transaction hash for the contract.
     const GENESIS_TX_HASH: FixedBytes<32>;
 
-    // fn contract(&mut self) -> Self::Contract;
-    // fn handlers(&self) -> &Vec<EventHandlerFor<Self, T>>;
+    fn contract(&mut self) -> Self::Contract;
+    fn handlers(&self) -> &Vec<EventHandlerFor<Self, T>>;
 
     /// The Storage backend that will be used to store the required state for this event watcher
     /// Returns a task that should be running in the background
@@ -119,11 +125,11 @@ pub trait EventWatcher<T: Config>: Send + Sync + 'static {
     #[tracing::instrument(skip_all)]
     async fn run(
         &mut self,
-        contract: Self::Contract,
-        handlers: Vec<EventHandlerFor<Self, T>>,
+        // contract: Self::Contract,
+        // handlers: Vec<EventHandlerFor<Self, T>>,
     ) -> Result<(), Error> {
-        // let contract = self.contract();
-        // let handlers = self.handlers();
+        let contract = self.contract();
+        let handlers = self.handlers();
 
         let local_db = LocalDatabase::open("./db");
         let backoff = UnboundedConstantBuilder::new(Duration::from_secs(1));
@@ -163,7 +169,11 @@ pub trait EventWatcher<T: Config>: Send + Sync + 'static {
 
                 info!("CREATED FILTER");
 
-                let events_filter = contract.event::<Self::Event>(filter);
+                // let events_filter = contract.event::<Self::Event>(filter);
+                let events_filter: Event<_, _, Self::Event, _> =
+                    Event::new(contract.provider(), Filter::new())
+                        .address(*contract.address())
+                        .event_signature(Self::Event::SIGNATURE_HASH);
 
                 info!("Querying events");
                 // let events = events_filter.query().await.map_err(Into::<Error>::into)?;

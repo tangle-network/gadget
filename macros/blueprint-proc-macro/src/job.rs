@@ -2,9 +2,10 @@ use crate::event_listener::eigenlayer::generate_eigenlayer_event_handler;
 use crate::event_listener::tangle::generate_tangle_event_handler;
 use crate::shared::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata, JobResultVerifier};
+use indexmap::{IndexMap, IndexSet};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote, ToTokens};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, ItemFn, LitInt, LitStr, Token, Type, TypePath};
@@ -61,7 +62,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     }
 
     // Ensures that no duplicate parameters have been given
-    let mut param_types = BTreeMap::new();
+    let mut param_types = IndexMap::new();
     for input in &input.sig.inputs {
         if let syn::FnArg::Typed(arg) = input {
             if let syn::Pat::Ident(pat_ident) = &*arg.pat {
@@ -78,24 +79,34 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         }
     }
 
-    // TODO:
+    let (event_handler_args, event_handler_arg_types) = get_event_handler_args(&param_types, args);
     // Generate Event Listener, if not being skipped
-    let mut event_listener_call = proc_macro2::TokenStream::default();
+    let mut event_listener_call = None;
     let event_listener_gen = if args.skip_codegen {
         proc_macro2::TokenStream::default()
     } else {
         match &args.event_listener.listener {
             Some(ref listener) => {
+                // Generate the variable that we are passing as the context into EventListener::create(&mut ctx)
+                // We assume the first supplied event handler arg is the context we are injecting into the event listener
+                let context = event_handler_args
+                    .first()
+                    .map(|ctx| quote! {self.#ctx})
+                    .unwrap_or_else(|| quote! {()});
+                let context_ty = event_handler_arg_types
+                    .first()
+                    .map(|ty| quote! {#ty})
+                    .unwrap_or_else(|| quote! {()});
                 // convert the listener var, which is just a struct name, to an ident
                 let listener = listener.to_token_stream();
 
-                event_listener_call = quote! {
-                    run_listener();
-                };
+                event_listener_call = Some(quote! {
+                    run_listener(&#context).await;
+                });
 
                 quote! {
-                    fn run_listener() {
-                        let mut instance = #listener::default();
+                    async fn run_listener(ctx: &#context_ty) {
+                        let mut instance = #listener::new(ctx).await.expect("Failed to create event listener");
                         let task = async move {
                             gadget_sdk::event_listener::EventListener::execute(&mut instance).await;
                         };
@@ -169,6 +180,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
 
         #event_listener_gen
 
+        #[allow(unused_variables)]
         #input
 
         #event_handler_gen
@@ -177,15 +189,31 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     Ok(gen.into())
 }
 
+/// Get all the params names inside the param_types map
+/// and not in the params list to be added to the event handler.
+fn get_event_handler_args<'a>(
+    param_types: &'a IndexMap<Ident, Type>,
+    job_args: &'a JobArgs,
+) -> (Vec<&'a Ident>, Vec<&'a Type>) {
+    let x = param_types.keys().collect::<IndexSet<_>>();
+    let y = job_args.params.iter().collect::<IndexSet<_>>();
+    let event_handler_args = x.difference(&y).copied().collect::<Vec<_>>();
+    let event_handler_types = event_handler_args
+        .iter()
+        .map(|r| param_types.get(*r).unwrap())
+        .collect::<Vec<_>>();
+    (event_handler_args, event_handler_types)
+}
+
 /// Generates the [`EventHandler`](gadget_sdk::events_watcher::evm::EventHandler) for a Job
 #[allow(clippy::too_many_lines)]
 pub fn generate_event_handler_for(
     f: &ItemFn,
     job_args: &JobArgs,
-    param_types: &BTreeMap<Ident, Type>,
+    param_types: &IndexMap<Ident, Type>,
     params: &[FieldType],
     result: &[FieldType],
-    event_listener_call: proc_macro2::TokenStream,
+    event_listener_call: Option<proc_macro2::TokenStream>,
 ) -> proc_macro2::TokenStream {
     let fn_name = &f.sig.ident;
     let fn_name_string = fn_name.to_string();
@@ -193,39 +221,53 @@ pub fn generate_event_handler_for(
     let job_id = &job_args.id;
     let event_handler = &job_args.event_handler;
 
-    // Get all the params names inside the param_types map
-    // and not in the params list to be added to the event handler.
-    let x = param_types.keys().collect::<HashSet<_>>();
-    let y = job_args.params.iter().collect::<HashSet<_>>();
-    let diff = x.difference(&y).collect::<Vec<_>>();
-    let additional_params = diff
+    let (event_handler_args, _) = get_event_handler_args(param_types, job_args);
+
+    let mut additional_var_indexes = vec![];
+    let additional_params = event_handler_args
         .iter()
         .map(|ident| {
-            let mut ty = param_types[**ident].clone();
+            let mut ty = param_types[*ident].clone();
+            additional_var_indexes.push(param_types.get_index_of(*ident).expect("Should exist"));
             // remove the reference from the type and use the inner type
             if let Type::Reference(r) = ty {
                 ty = *r.elem;
             }
+
             quote! {
                 pub #ident: #ty,
             }
         })
         .collect::<Vec<_>>();
 
-    let additional_params_in_call = diff
+    // This has all params
+    let mut job_var_idx = 0;
+    let fn_call_ordered = param_types
         .iter()
-        .map(|ident| {
-            let ty = &param_types[**ident];
+        .enumerate()
+        .map(|(pos_in_all_args, (ident, ty))| {
+            // if the current param is not in the additional params, then it is a job param to be passed to the function
+
+            let is_job_var = !additional_var_indexes.contains(&pos_in_all_args);
+
+            if is_job_var {
+                // TODO: Make sure this index properly increments
+                let ident = format_ident!("param{job_var_idx}");
+                job_var_idx += 1;
+                return quote! { #ident, };
+            }
+
             let (is_ref, is_ref_mut) = match ty {
                 Type::Reference(r) => (true, r.mutability.is_some()),
                 _ => (false, false),
             };
+
             if is_ref && is_ref_mut {
                 quote! { &mut self.#ident, }
             } else if is_ref {
                 quote! { &self.#ident, }
             } else {
-                quote! { self.#ident, }
+                quote! { self.#ident.clone(), }
             }
         })
         .collect::<Vec<_>>();
@@ -247,44 +289,23 @@ pub fn generate_event_handler_for(
         })
         .collect::<Vec<_>>();
 
-    let fn_call_params = params
-        .iter()
-        .enumerate()
-        .map(|(i, _)| {
-            let ident = format_ident!("param{i}");
-            quote! {
-                #ident,
-            }
-        })
-        .collect::<Vec<_>>();
-    let fn_call = if f.sig.asyncness.is_some() {
-        quote! {
-            let job_result = match #fn_name(
-                #(#additional_params_in_call)*
-                #(#fn_call_params)*
-            ).await {
-                Ok(r) => r,
-                Err(e) => {
-                    ::gadget_sdk::error!("Error in job: {e}");
-                    let error = gadget_sdk::events_watcher::Error::Handler(Box::new(e));
-                    return Err(error);
-                }
-            };
-        }
+    let asyncness = if f.sig.asyncness.is_some() {
+        quote! {.await}
     } else {
-        quote! {
-            let job_result = match #fn_name(
-                #(#additional_params_in_call)*
-                #(#fn_call_params)*
-            ) {
-                Ok(r) => r,
-                Err(e) => {
-                    ::gadget_sdk::error!("Error in job: {e}");
-                    let error = gadget_sdk::events_watcher::Error::Handler(Box::new(e));
-                    return Err(error);
-                }
-            };
-        }
+        quote! {}
+    };
+
+    let fn_call = quote! {
+        let job_result = match #fn_name(
+            #(#fn_call_ordered)*
+        )#asyncness {
+            Ok(r) => r,
+            Err(e) => {
+                ::gadget_sdk::error!("Error in job: {e}");
+                let error = gadget_sdk::events_watcher::Error::Handler(Box::new(e));
+                return Err(error);
+            }
+        };
     };
 
     let result_tokens = if result.len() == 1 {
@@ -323,6 +344,7 @@ pub fn generate_event_handler_for(
             .collect::<Vec<_>>()
     };
 
+    let event_listener_call = event_listener_call.unwrap_or_default();
     if event_handler.is_eigenlayer() {
         generate_eigenlayer_event_handler(
             &fn_name_string,
@@ -470,7 +492,7 @@ impl Parse for Params {
 impl JobArgs {
     fn params_to_field_types(
         &self,
-        param_types: &BTreeMap<Ident, Type>,
+        param_types: &IndexMap<Ident, Type>,
     ) -> syn::Result<Vec<FieldType>> {
         let params = self
             .params

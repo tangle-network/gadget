@@ -1,6 +1,6 @@
 [package]
 name = "gadget-context-derive"
-version = "0.1.0"
+version = "0.1.1"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -23,6 +23,10 @@ proc-macro2 = { workspace = true }
 [dev-dependencies]
 trybuild = { workspace = true }
 gadget-sdk = { workspace = true, features = ["std"] }
+# EVM Stuff
+alloy-network = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-transport = { workspace = true }
 
 [features]
 default = ["std"]

@@ -105,6 +105,12 @@ pub(crate) fn generate_eigenlayer_event_handler(
                 use alloy_sol_types::SolEvent;
                 use alloy_sol_types::SolInterface;
 
+                static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
+                    ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
+                    #event_listener_call
+                }
+
                 // Convert the event to inputs
                 let decoded: alloy_primitives::Log<Self::Event> = <Self::Event as SolEvent>::decode_log(&log.inner, true)?;
                 // Convert the event to inputs using the event converter.
@@ -144,17 +150,6 @@ pub(crate) fn generate_eigenlayer_event_handler(
             pub env: GadgetConfiguration<R>,
             /// The EigenLayer Operator that registers to the AVS and completes given tasks
             pub operator: Option<Operator<NodeConfig, OperatorInfoService>>,
-            // pub config: NodeConfig,
-            // pub node_api: NodeApi,
-            // pub avs_registry_contract_manager: AvsRegistryContractManager<T>,
-            // pub incredible_squaring_contract_manager: IncredibleSquaringContractManager<T>,
-            // pub eigenlayer_contract_manager: ElChainContractManager<T>,
-            // pub bls_keypair: KeyPair,
-            // pub operator_id: FixedBytes<32>,
-            // pub operator_addr: Address,
-            // pub aggregator_server_ip_port_addr: String,
-            // pub aggregator_server: Aggregator<T, I>,
-            // pub aggregator_rpc_client: AggregatorRpcClient,
         }
 
         impl<R: lock_api::RawRwLock> EigenlayerGadgetRunner<R> {
@@ -170,13 +165,23 @@ pub(crate) fn generate_eigenlayer_event_handler(
             }
         }
 
-        pub struct EigenlayerEventWatcher<T> {
+        pub struct EigenlayerEventWatcher<T: Config> {
+            contract_address: Address,
+            provider: T::PH,
+            handlers: Vec<Box<dyn gadget_sdk::events_watcher::evm::EventHandler<T>>>,
             _phantom: std::marker::PhantomData<T>,
         }
 
         impl<T: Config> EigenlayerEventWatcher<T> {
-            pub fn new() -> Self {
+            pub fn new(contract_address: Address, provider: T::PH) -> Self {
                 Self {
+                    contract_address,
+                    provider: provider,
+                    handlers: vec![
+                        Box::new(
+                            #struct_name {}
+                        )
+                    ],
                     _phantom: std::marker::PhantomData,
                 }
             }
@@ -188,12 +193,18 @@ pub(crate) fn generate_eigenlayer_event_handler(
             type Event = #instance_base::NewTaskCreated;
             const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
 
-            // fn contract(&mut self) -> Self::Contract {
-            //     <Self::Contract as Deref>::deref(&self)
-            // }
-            // fn handlers(&self) -> &Vec<gadget_sdk::events_watcher::evm::EventHandlerFor<Self, T>> {
-            //     &vec![Box::new(#struct_name{})]
-            // }
+            // TODO: Fix these two functions - they have issues at the moment
+            fn contract(&mut self) -> Self::Contract {
+                let instance = #instance_base::#instance_name::new(
+                    self.contract_address,
+                    self.provider.clone()
+                );
+                #instance_wrapper_name::new(instance)
+            }
+
+            fn handlers(&self) -> &Vec<gadget_sdk::events_watcher::evm::EventHandlerFor<Self, T>> {
+                self.handlers
+            }
         }
     }
 }

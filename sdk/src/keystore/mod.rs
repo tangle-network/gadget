@@ -51,7 +51,7 @@ use crate::keystore::sp_core_subxt::DeriveJunction;
 // TODO: Once subxt uses sp-core 34.0.0, we can simply use sp_core
 pub use crate::tangle_subxt::subxt::ext::sp_core as sp_core_subxt;
 use alloy_signer_local::LocalSigner;
-use eigensdk_rs::eigen_utils::crypto::bls::{self as bls_bn254, g1_point_to_g1_projective};
+use eigensdk::crypto_bls;
 pub use error::Error;
 use k256::ecdsa::SigningKey;
 use std::path::{Path, PathBuf};
@@ -378,7 +378,7 @@ pub trait BackendExt: Backend {
     }
 
     #[cfg(any(feature = "std", feature = "wasm"))]
-    fn bls_bn254_key(&self) -> Result<bls_bn254::KeyPair, Error> {
+    fn bls_bn254_key(&self) -> Result<crypto_bls::BlsKeyPair, Error> {
         let first_key = self
             .iter_bls_bn254()
             .next()
@@ -387,10 +387,8 @@ pub trait BackendExt: Backend {
             .expose_bls_bn254_secret(&first_key)?
             .ok_or_else(|| Error::BlsBn254("No BLS BN254 secret found".to_string()))?;
 
-        Ok(bls_bn254::KeyPair {
-            priv_key: bls_secret,
-            pub_key: g1_point_to_g1_projective(&first_key),
-        })
+        crypto_bls::BlsKeyPair::new(bls_secret.0.to_string())
+            .map_err(|e| Error::BlsBn254(e.to_string()))
     }
 }
 
