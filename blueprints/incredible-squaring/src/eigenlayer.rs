@@ -341,7 +341,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             PrivateKeySigner::from_signing_key(ecdsa_signing_key);
         let wallet = EthereumWallet::from(priv_key_signer.clone());
 
-        // Set up eignelayer AVS
+        // Set up eigenlayer AVS
         let _contract_address = Address::from_slice(&[0; 20]);
         // Set up the HTTP provider with the `reqwest` crate.
         let _provider = ProviderBuilder::new()
