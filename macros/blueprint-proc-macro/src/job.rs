@@ -106,7 +106,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
 
                 quote! {
                     async fn run_listener(ctx: &#context_ty) {
-                        let mut instance = #listener::new(ctx).await.expect("Failed to create event listener");
+                        let mut instance = <#listener as gadget_sdk::event_listener::EventListener<_, _>>::new(ctx).await.expect("Failed to create event listener");
                         let task = async move {
                             gadget_sdk::event_listener::EventListener::execute(&mut instance).await;
                         };

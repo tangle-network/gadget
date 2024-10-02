@@ -19,7 +19,7 @@ use gadget_sdk::keystore::sp_core_subxt::Pair;
 use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::tangle_subxt::subxt::tx::Signer;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
-use incredible_squaring_blueprint::MyContext;
+use incredible_squaring_blueprint::LocalSubstrateTestnetContext;
 
 struct TangleGadgetRunner {
     env: GadgetConfiguration<parking_lot::RawRwLock>,
@@ -83,9 +83,7 @@ impl GadgetRunner for TangleGadgetRunner {
 
         let x_square = blueprint::XsquareEventHandler {
             service_id: self.env.service_id.unwrap(),
-            context: MyContext {
-                additional_delay: 0,
-            },
+            context: LocalSubstrateTestnetContext,
             env: self.env.clone(),
             signer,
         };

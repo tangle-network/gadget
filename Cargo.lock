@@ -12352,7 +12352,7 @@ dependencies = [
  "sp-std",
  "sp-storage 21.0.0",
  "sp-tracing 17.0.0",
- "sp-wasm-interface 21.0.0",
+ "sp-wasm-interface 21.0.1",
  "static_assertions",
 ]
 
@@ -12536,10 +12536,11 @@ dependencies = [
 
 [[package]]
 name = "sp-wasm-interface"
-version = "21.0.0"
+version = "21.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b04b919e150b4736d85089d49327eab65507deb1485eec929af69daa2278eb3"
+checksum = "b066baa6d57951600b14ffe1243f54c47f9c23dd89c262e17ca00ae8dca58be9"
 dependencies = [
+ "anyhow",
  "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",

@@ -162,3 +162,74 @@ pub fn hello_event_listener(
     Ok(x.saturating_pow(2u32))
 }
 ```
+
+### SubstrateEventListener
+The `SubstrateEventListener` is a wrapper that listens to finality notifications from a substrate chain. It takes 3 type parameters:
+
+* `T`: The substrate runtime configuration
+* `Block`: The block type
+* `Ctx`: The context type
+
+To begin, implement a struct:
+
+```rust
+use async_trait::async_trait;
+use gadget_sdk::clients::tangle::runtime::TangleConfig;
+use gadget_sdk::config::GadgetConfiguration;
+use gadget_sdk::event_listener::substrate::{SubstrateEventListener, SubstrateEventListenerContext};
+use gadget_sdk::ext::subxt::blocks::Block;
+use gadget_sdk::ext::subxt::OnlineClient;
+use gadget_sdk::{job, Error};
+use std::convert::Infallible;
+
+#[derive(Copy, Clone)]
+pub struct LocalSubstrateTestnetContext;
+```
+
+Next, implement `SubstrateEventListenerContext` for `LocalSubstrateTestnetContext`:
+
+```rust
+#[async_trait]
+impl SubstrateEventListenerContext<TangleConfig> for LocalSubstrateTestnetContext {
+    // You can override the RPC URL by overridding the rpc_url method
+    // By default, it uses ws://127.0.0.1:9944
+    // fn rpc_url(&self) -> String;
+    
+    async fn handle_event(
+        &self,
+        event: Block<TangleConfig, OnlineClient<TangleConfig>>,
+        _client: &OnlineClient<TangleConfig>,
+    ) -> Result<(), Error> {
+        gadget_sdk::info!("Received block: {:?}", event.number());
+        Ok(())
+    }
+}
+```
+
+For convenience, define a few types:
+
+```rust
+type ExtrinsicT = gadget_sdk::tangle_subxt::subxt::ext::sp_runtime::testing::ExtrinsicWrapper<()>;
+type LocalTestnetBlock =
+    gadget_sdk::tangle_subxt::subxt::ext::sp_runtime::testing::Block<ExtrinsicT>;
+```
+
+Finally, register the event listener inside the `job` macro using `event_listener`:
+
+```rust
+/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
+#[job(
+    id = 0,
+    params(x),
+    result(_),
+    event_listener(SubstrateEventListener::<TangleConfig, LocalTestnetBlock, LocalSubstrateTestnetContext>),
+    verifier(evm = "IncredibleSquaringBlueprint")
+)]
+pub fn xsquare(
+    context: LocalSubstrateTestnetContext,
+    x: u64,
+    env: GadgetConfiguration<parking_lot::RawRwLock>,
+) -> Result<u64, Infallible> {
+    Ok(x.saturating_pow(2u32))
+}
+```

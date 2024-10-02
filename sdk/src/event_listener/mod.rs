@@ -5,6 +5,7 @@ use alloy_network::Ethereum;
 use async_trait::async_trait;
 
 pub mod periodic;
+pub mod substrate;
 
 /// The [`EventListener`] trait defines the interface for event listeners.
 #[async_trait]
