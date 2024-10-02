@@ -23,12 +23,24 @@ pub fn generate_context_impl(
         impl #impl_generics gadget_sdk::ctx::TangleClientContext for #name #ty_generics #where_clause {
             type Config = gadget_sdk::ext::subxt::PolkadotConfig;
             fn tangle_client(&self) -> impl core::future::Future<Output = Result<gadget_sdk::ext::subxt::OnlineClient<Self::Config>, gadget_sdk::ext::subxt::Error>> {
-                // TODO: think about caching the client
-                // see: https://github.com/webb-tools/gadget/issues/320
+                use gadget_sdk::ext::subxt;
+
+                type Config = subxt::PolkadotConfig;
+                static CLIENT: std::sync::OnceLock<subxt::OnlineClient<Config>> = std::sync::OnceLock::new();
                 async {
-                    let rpc_url = #field_access.rpc_endpoint.as_str();
-                    let client = gadget_sdk::ext::subxt::OnlineClient::from_url(rpc_url).await?;
-                    Ok(client)
+                    match CLIENT.get() {
+                        Some(client) => Ok(client.clone()),
+                        None => {
+                            let rpc_url = #field_access.rpc_endpoint.as_str();
+                            let client = subxt::OnlineClient::from_url(rpc_url).await?;
+                            CLIENT.set(client.clone()).map(|_| client).map_err(|_| {
+                                subxt::Error::Io(std::io::Error::new(
+                                    std::io::ErrorKind::Other,
+                                    "Failed to set client",
+                                ))
+                            })
+                        }
+                    }
                 }
             }
         }
