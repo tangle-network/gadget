@@ -81,7 +81,7 @@ pub fn hello_event_listener(
 ```
 
 ## Wrapper Event Listeners
-Various wrappers exist to simplify how common operations are performed. For example, there is the `PeriodicEventListener`:
+Various wrappers exist to simplify how common operations are performed.
 
 ### PeriodicEventListener
 Some programs may only be interested in checking for events at regular intervals. In this case, the `PeriodicEventListener` can be used to simplify the process.
