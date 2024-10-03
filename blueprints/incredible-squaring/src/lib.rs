@@ -4,7 +4,6 @@ use gadget_sdk::event_listener::periodic::PeriodicEventListener;
 use gadget_sdk::event_listener::EventListener;
 use gadget_sdk::{job, Error};
 use std::convert::Infallible;
-
 pub mod eigenlayer;
 
 struct ReturnsZero;
