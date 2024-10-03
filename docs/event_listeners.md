@@ -11,7 +11,7 @@ use gadget_sdk::event_listener::EventListener;
 use async_trait::async_trait;
 
 /// Define a simple event listener that ticks every MS milliseconds.
-pub struct Ticker<const MS: usize> {
+pub struct Ticker<const MSEC: usize> {
     additional_delay: u64,
 }
 ```
@@ -37,7 +37,7 @@ Next, implement `EventListener` for `Ticker`:
 /// with the special requirement that it is the *first* listed additional parameter in the [`job`] macro (i.e., a parameter not
 /// in params(...)). In this case, we are using [`MyContext`].
 #[async_trait]
-impl<const MS: usize> EventListener<Instant, MyContext> for Ticker<MS> {
+impl<const MSEC: usize> EventListener<Instant, MyContext> for Ticker<MSEC> {
     /// Use a reference to the context, [`MyContext`], to construct the listener
     async fn new(context: &MyContext) -> Result<Self, Error>
     where
@@ -49,7 +49,7 @@ impl<const MS: usize> EventListener<Instant, MyContext> for Ticker<MS> {
     /// Implement the logic that looks for events. In this case, we have a simple stream
     /// that returns after MS milliseconds.
     async fn next_event(&mut self) -> Option<Instant> {
-        tokio::time::sleep(tokio::time::Duration::from_millis(MS as u64 + self.additional_delay)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(MSEC as u64 + self.additional_delay)).await;
         Some(Instant::now())
     }
 
