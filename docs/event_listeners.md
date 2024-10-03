@@ -93,10 +93,9 @@ A `PeriodicEventListener` is a wrapper that takes 4 type parameters:
 * `Event`: The event type
 * `Ctx`: The context type
 
-We can make a `PeriodicEventListener` that ticks every 5000ms to check the status of a web server
+We can make a `PeriodicEventListener` that ticks every 5000ms to check the status of a web server using [reqwest](crates.io/crates/reqwest).
 
 ```rust
-use reqwest;
 use gadget_sdk::event_listener::periodic::PeriodicEventListener;
 
 /// Define an event listener that polls a webserver
