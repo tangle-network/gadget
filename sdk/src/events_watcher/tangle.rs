@@ -22,7 +22,7 @@ impl super::substrate::SubstrateEventWatcher<TangleConfig> for TangleEventsWatch
         &self.client
     }
 
-    fn handlers(&self) -> &Vec<EventHandlerFor<TangleConfig>> {
+    fn handlers(&self) -> &[Box<dyn EventHandler<TangleConfig>>] {
         &self.handlers
     }
 }

@@ -79,8 +79,6 @@ impl GadgetRunner for EigenlayerGadgetRunner {
     }
 
     async fn run(&self) -> Result<(), crate::Error> {
-        let client = self.config().client().await?;
-
         info!("Starting the event watcher for Eigenlayer...");
 
         Ok(())

@@ -22,25 +22,6 @@ use crate::{
     tx,
 };
 
-trait SubstrateGadgetRunner<T>
-where
-    T: subxt::Config + Send + Sync + 'static,
-{
-    fn register_event_handler<F>(&self, handler: dyn substrate::EventHandler<T>) {
-        if let Some(handlers) = self.event_handlers() {
-            handlers.write().push(Box::new(handler));
-        }
-    }
-
-    fn get_event_handlers(&self) -> Vec<Box<dyn substrate::EventHandler<T>>> {
-        self.event_handlers()
-            .map(|handlers| handlers.read().to_vec())
-            .unwrap_or_default()
-    }
-
-    fn event_handlers(&self) -> Option<&RwLock<Vec<Box<dyn substrate::EventHandler<T>>>>>;
-}
-
 struct TangleGadgetRunner {
     env: GadgetConfiguration<parking_lot::RawRwLock>,
     price_targets: PriceTargets,
@@ -62,6 +43,15 @@ impl TangleGadgetRunner {
     pub fn set_price_targets(&mut self, price_targets: PriceTargets) {
         self.price_targets = price_targets;
     }
+}
+
+trait SubstrateGadgetRunner<T>
+where
+    T: subxt::Config + Send + Sync + 'static,
+{
+    fn register_event_handler(&self, handler: Box<dyn substrate::EventHandler<T>>);
+    fn get_event_handlers(&self) -> Vec<Box<dyn substrate::EventHandler<T>>>;
+    fn event_handlers(&self) -> Option<&RwLock<Vec<Box<dyn substrate::EventHandler<T>>>>>;
 }
 
 #[async_trait::async_trait]
@@ -121,9 +111,15 @@ impl GadgetRunner for TangleGadgetRunner {
 }
 
 impl SubstrateGadgetRunner<TangleConfig> for TangleGadgetRunner {
-    fn event_handlers(
-        &self,
-    ) -> Option<&RwLock<Vec<Box<dyn substrate::EventHandler<TangleConfig>>>>> {
+    fn register_event_handler(&self, handler: Box<dyn substrate::EventHandler<TangleConfig>>) {
+        self.event_handlers.write().push(handler);
+    }
+
+    fn get_event_handlers(&self) -> Vec<Box<dyn substrate::EventHandler<TangleConfig>>> {
+        self.event_handlers.read().iter().cloned().collect()
+    }
+
+    fn event_handlers(&self) -> Option<&RwLock<Vec<Box<dyn substrate::EventHandler<TangleConfig>>>>> {
         Some(&self.event_handlers)
     }
 }

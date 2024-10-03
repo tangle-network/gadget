@@ -22,7 +22,7 @@ pub type EventHandlerFor<RuntimeConfig> = Box<dyn EventHandler<RuntimeConfig>>;
 /// The handlers are implemented separately from the watchers, so that we can have
 /// one event watcher and many event handlers that will run in parallel.
 #[async_trait::async_trait]
-pub trait EventHandler<RuntimeConfig>: Sized + Send + Sync + 'static
+pub trait EventHandler<RuntimeConfig>: Send + Sync + 'static
 where
     RuntimeConfig: subxt::Config + Send + Sync + 'static,
 {
@@ -81,7 +81,7 @@ where
 impl<T, C> EventHandlerWithRetry<C> for T
 where
     C: subxt::Config + Send + Sync + 'static,
-    T: EventHandler<C> + ?Sized,
+    T: EventHandler<C>,
 {
 }
 
@@ -98,7 +98,7 @@ where
     const PALLET_NAME: &'static str;
 
     fn client(&self) -> &OnlineClient<RuntimeConfig>;
-    fn handlers(&self) -> &Vec<EventHandlerFor<RuntimeConfig>>;
+    fn handlers(&self) -> &[Box<dyn EventHandler<RuntimeConfig>>];
 
     /// Returns a task that should be running in the background
     /// that will watch events
