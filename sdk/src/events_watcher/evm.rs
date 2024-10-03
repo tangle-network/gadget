@@ -4,25 +4,23 @@ use crate::events_watcher::error::Error;
 use crate::events_watcher::retry::UnboundedConstantBuilder;
 use crate::store::LocalDatabase;
 use crate::{error, info, trace, warn};
+use alloy_contract::Event;
+use alloy_network::Ethereum;
 use alloy_network::ReceiptResponse;
-// use alloy_network::{Ethereum, Network};
 use alloy_primitives::FixedBytes;
 use alloy_provider::Provider;
 use alloy_rpc_types::BlockNumberOrTag;
 use alloy_rpc_types::{Filter, Log};
 use alloy_sol_types::SolEvent;
-// use alloy_transport::Transport;
-use alloy_contract::Event;
+use alloy_transport::Transport;
 use backon::{ConstantBuilder, Retryable};
-pub use eigensdk_rs::eigen_utils::Config;
 use futures::TryFutureExt;
 use std::{ops::Deref, time::Duration};
 
-// pub trait Config: Send + Sync + 'static {
-//     type TH: Transport + Clone + Send + Sync + 'static;
-//     type PH: Provider<Self::TH, Self::N> + Clone + Send + Sync + 'static;
-//     type N: Network + Send + Sync + 'static;
-// }
+pub trait Config: Send + Sync + Clone + 'static {
+    type TH: Transport + Clone + Send + Sync;
+    type PH: Provider<Self::TH, Ethereum> + Clone + Send + Sync;
+}
 
 /// A helper type to extract the [`EventHandler`] from the [`EventWatcher`] trait.
 pub type EventHandlerFor<W, T> = Box<
@@ -116,18 +114,16 @@ pub trait EventWatcher<T: Config>: Send + Sync + 'static {
     /// The genesis transaction hash for the contract.
     const GENESIS_TX_HASH: FixedBytes<32>;
 
+    /// Returns this Event Watcher's [`Contract`](Self::Contract).
     fn contract(&mut self) -> Self::Contract;
+    /// Returns a [`vector`](std::vec::Vec) of this Event Watcher's [`handlers`](EventHandlerFor).
     fn handlers(&self) -> &Vec<EventHandlerFor<Self, T>>;
 
     /// The Storage backend that will be used to store the required state for this event watcher
     /// Returns a task that should be running in the background
     /// that will watch events
     #[tracing::instrument(skip_all)]
-    async fn run(
-        &mut self,
-        // contract: Self::Contract,
-        // handlers: Vec<EventHandlerFor<Self, T>>,
-    ) -> Result<(), Error> {
+    async fn run(&mut self) -> Result<(), Error> {
         let contract = self.contract();
         let handlers = self.handlers();
 
@@ -154,6 +150,7 @@ pub trait EventWatcher<T: Config>: Send + Sync + 'static {
                 .map(|receipt| receipt.block_number().unwrap_or_default())
                 .unwrap_or_default();
 
+            let loop_provider = contract.provider().clone();
             loop {
                 info!("Starting loop");
                 let block = local_db
@@ -163,24 +160,21 @@ pub trait EventWatcher<T: Config>: Send + Sync + 'static {
 
                 info!("Starting from block {block} to {dest_block}");
 
-                let filter = Filter::new()
-                    .from_block(BlockNumberOrTag::Number(block + 1))
-                    .to_block(BlockNumberOrTag::Number(dest_block));
-
-                info!("CREATED FILTER");
-
-                // let events_filter = contract.event::<Self::Event>(filter);
                 let events_filter: Event<_, _, Self::Event, _> =
-                    Event::new(contract.provider(), Filter::new())
+                    Event::new(&loop_provider, Filter::new())
                         .address(*contract.address())
+                        .from_block(BlockNumberOrTag::Number(block + 1))
+                        .to_block(BlockNumberOrTag::Number(dest_block))
                         .event_signature(Self::Event::SIGNATURE_HASH);
 
-                info!("Querying events");
-                // let events = events_filter.query().await.map_err(Into::<Error>::into)?;
                 let events = events_filter.query().await.unwrap();
 
                 let number_of_events = events.len();
-                info!("Found #{number_of_events} events");
+                if number_of_events == 1 {
+                    info!("Found {number_of_events} event");
+                } else {
+                    info!("Found {number_of_events} events");
+                }
                 for (event, log) in events {
                     // Wraps each handler future in a retry logic, that will retry the handler
                     // if it fails, up to `MAX_RETRY_COUNT`, after this it will ignore that event for

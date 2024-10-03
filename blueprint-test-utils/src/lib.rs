@@ -456,16 +456,14 @@ mod test_macros {
 mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
-    use alloy_contract::Event;
-    use alloy_rpc_types_eth::Filter;
-    use alloy_sol_types::SolEvent;
-    
+    use alloy_provider::Provider;
+    use std::str::FromStr;
+
     use cargo_tangle::deploy::Opts;
-    
+
+    use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
-    
-    
 
     /// This test requires that `yarn install` has been executed inside the
     /// `./blueprints/incredible-squaring/` directory
@@ -568,30 +566,23 @@ mod tests_standard {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
-        let mut base_path = std::env::current_dir().expect("Failed to get current directory");
+        // let mut base_path = std::env::current_dir().expect("Failed to get current directory");
+        //
+        // base_path.push("../blueprints/incredible-squaring");
+        // base_path
+        //     .canonicalize()
+        //     .expect("File could not be normalized");
 
-        base_path.push("../blueprints/incredible-squaring");
-        base_path
-            .canonicalize()
-            .expect("File could not be normalized");
+        // let manifest_path = base_path.join("Cargo.toml");
 
-        let manifest_path = base_path.join("Cargo.toml");
-
-        const INPUT: u64 = 2;
-        const OUTPUT: u64 = INPUT.pow(2);
+        // const INPUT: u64 = 2;
+        // const OUTPUT: u64 = INPUT.pow(2);
 
         // TODO: Start the Testnet - right now it is assumed that it is running locally already
 
         // TODO: Deploy the Incredible Squaring Contracts to the testnet
 
         let http_endpoint = "http://127.0.0.1:8545";
-        // let http_provider = alloy_provider::ProviderBuilder::new()
-        //     .with_recommended_fillers()
-        //     .on_http(http_endpoint.parse().unwrap());
-
-        // let provider = alloy_provider::ProviderBuilder::new().on_anvil();
-
-        // let transport = alloy_transport_http::Http::new("http://localhost:8545".parse().unwrap());
 
         // Create a provider using the transport
         let provider = alloy_provider::ProviderBuilder::new()
@@ -604,13 +595,12 @@ mod tests_standard {
         info!("Accounts: {:?}", accounts);
 
         use alloy_primitives::address;
-        let service_manager_addr = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
+        // let service_manager_addr = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
         let registry_coordinator_addr = address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
-        let operator_state_retriever_addr = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
-        let delegation_manager_addr = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
-        let strategy_manager_addr = address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
-        let erc20_mock_addr = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
-        // let istm = address!("d5ac451b0c50b9476107823af206ed814a2e2580");
+        // let operator_state_retriever_addr = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
+        // let delegation_manager_addr = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
+        // let strategy_manager_addr = address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
+        // let erc20_mock_addr = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
 
         // Deploy the Pauser Registry to the running Testnet
         let pauser_registry = PauserRegistry::deploy(provider.clone()).await.unwrap();
@@ -651,207 +641,119 @@ mod tests_standard {
             .unwrap()
             .get_receipt()
             .await
-            .unwrap();
-        info!("Task Manager Initialization Result: {:?}", init_result);
-
-        let task_status = task_manager
-            .createNewTask(
-                alloy_primitives::U256::from(2),
-                100u32,
-                alloy_primitives::Bytes::from(vec![0]),
-            )
-            .from(task_generator_address)
-            .send()
-            .await
-            .unwrap()
-            .get_receipt()
-            .await
             .unwrap()
             .status();
-        info!("Task Deployment Status: {:?}", task_status);
+        assert!(init_result);
 
-        // Mine a block
-        let output = tokio::process::Command::new("sh")
-            .arg("-c")
-            .arg("cast rpc anvil_mine 1 --rpc-url http://localhost:8545 > /dev/null")
-            .output()
-            .await
-            .unwrap();
-        info!("Mine Output: {:?}", output);
-
-        // let spawner_task_manager_address = task_manager_addr;
-        // let spawner_provider = provider.clone();
-        // let task_account = accounts[4];
-        // let task_spawner = async move {
-        //     let manager = IncredibleSquaringTaskManager::new(
-        //         spawner_task_manager_address,
-        //         spawner_provider.clone(),
-        //     );
-        //     loop {
-        //         tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
-        //         let result = manager
-        //             .createNewTask(alloy_primitives::U256::from(2), 100u32, alloy_primitives::Bytes::from(vec![0]))
-        //             .from(task_account)
-        //             .send()
-        //             .await
-        //             .unwrap()
-        //             .watch()
-        //             .await
-        //             .unwrap();
-        //     }
-        // };
-        // tokio::spawn(task_spawner);
-
-        let abi_path = "./../blueprints/incredible-squaring/contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json".to_string();
-        let json_str = std::fs::read_to_string(&abi_path).unwrap();
-        let json: serde_json::Value = serde_json::from_str(&json_str).unwrap();
-        let json_abi = json["abi"].clone();
-        let abi_location = alloy_contract::Interface::new(
-            alloy_sol_types::private::alloy_json_abi::JsonAbi::from_json_str(
-                json_abi.to_string().as_str(),
-            )
-            .unwrap(),
-        );
-
-        // let contract = ContractInstance::new(
-        //     task_manager_addr,
-        //     provider.clone(),
-        //     abi_location,
-        // );
-        let filter = alloy_rpc_types_eth::Filter::new()
-            .from_block(alloy_rpc_types_eth::BlockNumberOrTag::Number(0))
-            .to_block(alloy_rpc_types_eth::BlockNumberOrTag::Number(1000));
-        info!("CREATED FILTER");
-        // let events_filter = contract.event::<IncredibleSquaringTaskManager::NewTaskCreated>(filter);
-
-        let events_filter: Event<_, _, IncredibleSquaringTaskManager::NewTaskCreated, _> =
-            Event::new(&provider, Filter::new())
-                .address(task_manager_addr)
-                .event_signature(IncredibleSquaringTaskManager::NewTaskCreated::SIGNATURE_HASH);
-
-        info!("EVENTS FILTER: {:?}", events_filter);
-
-        info!("Querying events");
-        // let events = events_filter.query().await.map_err(Into::<Error>::into)?;
-        loop {
-            tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-            let result = task_manager
-                .createNewTask(
-                    alloy_primitives::U256::from(2),
-                    100u32,
-                    alloy_primitives::Bytes::from(vec![0]),
-                )
-                // .from(accounts[4])
-                .send()
-                .await
-                .unwrap()
-                .get_receipt()
-                .await
-                .unwrap();
-            info!("Result: {:?}", result);
-
-            // Mine a block
-            let output = tokio::process::Command::new("sh")
-                .arg("-c")
-                .arg("cast rpc anvil_mine 1 --rpc-url http://localhost:8545 > /dev/null")
-                .output()
-                .await
-                .unwrap();
-            info!("Mine Output: {:?}", output);
-
-            let events = events_filter.query().await;
-            if let Err(e) = events {
-                info!("EVENTS ERROR: {:?}", e);
-            } else {
-                let number_of_events = events.unwrap().len();
-                if number_of_events == 0 {
-                    continue;
-                } else {
-                    info!("Found #{number_of_events} events");
-                    break;
+        let task_spawner = async move {
+            loop {
+                tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
+                let result = task_manager
+                    .createNewTask(
+                        alloy_primitives::U256::from(2),
+                        100u32,
+                        alloy_primitives::Bytes::from(vec![0]),
+                    )
+                    .from(task_generator_address)
+                    .send()
+                    .await
+                    .unwrap()
+                    .get_receipt()
+                    .await
+                    .unwrap();
+                if result.status() {
+                    info!("Deployed a new task");
                 }
-            };
-        }
 
-        panic!("TODO: Finish this test");
-        //
-        //
-        //
-        //
-        // let tmp_store = Uuid::new_v4().to_string();
-        // let keystore_uri = PathBuf::from(format!(
-        //     "./target/keystores/{}/{tmp_store}/",
-        //     NAME_IDS[0].to_lowercase()
-        // ));
-        // assert!(
-        //     !keystore_uri.exists(),
-        //     "Keystore URI cannot exist: {}",
-        //     keystore_uri.display()
-        // );
-        // let keystore_uri_normalized =
-        //     std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
-        // let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
-        //
-        // let mut arguments = vec![];
-        // arguments.push("run".to_string());
-        //
-        // arguments.extend([
-        //     format!("--bind-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
-        //     format!("--bind-port={}", 8545u16),
-        //     format!("--url={}", Url::parse("ws://127.0.0.1:8545").unwrap()),
-        //     format!("--keystore-uri={}", keystore_uri_str.clone()),
-        //     format!("--chain={}", SupportedChains::LocalTestnet),
-        //     format!("--verbose={}", 3),
-        //     format!("--pretty={}", true),
-        //     format!("--blueprint-id={}", 0),
-        //     format!("--service-id={}", 0),
-        //     format!("--protocol={}", Protocol::Eigenlayer),
-        // ]);
-        //
-        // let current_dir = std::env::current_dir().unwrap();
-        // let program_path = format!(
-        //     "{}/../target/release/incredible-squaring-blueprint",
-        //     current_dir.display()
-        // );
-        // let program_path = PathBuf::from(program_path).canonicalize().unwrap();
-        //
-        // let mut env_vars = vec![
-        //     ("RPC_URL".to_string(), "ws://127.0.0.1:8545".to_string()),
-        //     ("KEYSTORE_URI".to_string(), keystore_uri_str.clone()),
-        //     ("DATA_DIR".to_string(), keystore_uri_str),
-        //     ("BLUEPRINT_ID".to_string(), format!("{}", 0)),
-        //     ("SERVICE_ID".to_string(), format!("{}", 0)),
-        //     ("REGISTRATION_MODE_ON".to_string(), "true".to_string()),
-        //     (
-        //         "OPERATOR_BLS_KEY_PASSWORD".to_string(),
-        //         "BLS_PASSWORD".to_string(),
-        //     ),
-        //     (
-        //         "OPERATOR_ECDSA_KEY_PASSWORD".to_string(),
-        //         "ECDSA_PASSWORD".to_string(),
-        //     ),
-        // ];
-        //
-        // // Ensure our child process inherits the current processes' environment vars
-        // env_vars.extend(std::env::vars());
-        //
-        // // Now that the file is loaded, spawn the process
-        // let process_handle = tokio::process::Command::new(program_path.as_os_str())
-        //     .kill_on_drop(true)
-        //     .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
-        //     .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
-        //     .stdin(std::process::Stdio::null())
-        //     .current_dir(&std::env::current_dir().unwrap())
-        //     .envs(env_vars)
-        //     .args(arguments)
-        //     .spawn()
-        //     .unwrap();
-        //
-        // let status = process_handle.wait_with_output().await.unwrap();
-        // if !status.status.success() {
-        //     error!("Protocol (registration mode) failed to execute: {status:?}");
-        // } else {
-        //     info!("***Protocol (registration mode) executed successfully***");
-        // }
+                // Mine a block
+                let _output = tokio::process::Command::new("sh")
+                    .arg("-c")
+                    .arg("cast rpc anvil_mine 1 --rpc-url http://localhost:8545 > /dev/null")
+                    .output()
+                    .await
+                    .unwrap();
+                info!("Mined a block...");
+            }
+        };
+        tokio::spawn(task_spawner);
+
+        info!("Starting Blueprint Binary...");
+
+        let tmp_store = Uuid::new_v4().to_string();
+        let keystore_uri = PathBuf::from(format!(
+            "./target/keystores/{}/{tmp_store}/",
+            NAME_IDS[0].to_lowercase()
+        ));
+        assert!(
+            !keystore_uri.exists(),
+            "Keystore URI cannot exist: {}",
+            keystore_uri.display()
+        );
+        let keystore_uri_normalized =
+            std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
+        let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
+
+        let mut arguments = vec![];
+        arguments.push("run".to_string());
+
+        arguments.extend([
+            format!("--bind-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
+            format!("--bind-port={}", 8545u16),
+            format!("--contract-address={}", task_manager_addr),
+            format!("--url={}", Url::parse("ws://127.0.0.1:8545").unwrap()),
+            format!("--keystore-uri={}", keystore_uri_str.clone()),
+            format!("--chain={}", SupportedChains::LocalTestnet),
+            format!("--verbose={}", 3),
+            format!("--pretty={}", true),
+            format!("--blueprint-id={}", 0),
+            format!("--service-id={}", 0),
+            format!("--protocol={}", Protocol::Eigenlayer),
+        ]);
+
+        let current_dir = std::env::current_dir().unwrap();
+        let program_path = format!(
+            "{}/../target/release/incredible-squaring-blueprint",
+            current_dir.display()
+        );
+        let program_path = PathBuf::from(program_path).canonicalize().unwrap();
+
+        let mut env_vars = vec![
+            ("RPC_URL".to_string(), "ws://127.0.0.1:8545".to_string()),
+            ("KEYSTORE_URI".to_string(), keystore_uri_str.clone()),
+            ("DATA_DIR".to_string(), keystore_uri_str),
+            ("BLUEPRINT_ID".to_string(), format!("{}", 0)),
+            ("SERVICE_ID".to_string(), format!("{}", 0)),
+            ("REGISTRATION_MODE_ON".to_string(), "true".to_string()),
+            (
+                "OPERATOR_BLS_KEY_PASSWORD".to_string(),
+                "BLS_PASSWORD".to_string(),
+            ),
+            (
+                "OPERATOR_ECDSA_KEY_PASSWORD".to_string(),
+                "ECDSA_PASSWORD".to_string(),
+            ),
+        ];
+
+        // Ensure our child process inherits the current processes' environment vars
+        env_vars.extend(std::env::vars());
+
+        // Now that the file is loaded, spawn the process
+        let process_handle = tokio::process::Command::new(program_path.as_os_str())
+            .kill_on_drop(true)
+            .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
+            .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
+            .stdin(std::process::Stdio::null())
+            .current_dir(std::env::current_dir().unwrap())
+            .envs(env_vars)
+            .args(arguments)
+            .spawn()
+            .unwrap();
+
+        let status = process_handle.wait_with_output().await.unwrap();
+        if !status.status.success() {
+            error!("Protocol (registration mode) failed to execute: {status:?}");
+        } else {
+            info!("***Protocol (registration mode) executed successfully***");
+        }
     }
 }

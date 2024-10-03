@@ -140,17 +140,18 @@ w3f-bls = { version = "0.1.4", default-features = false }
 cid = { version = "0.11.1" }
 indexmap = "2.5.0"
 
-alloy-primitives = "0.8.3"
-alloy-json-abi = "0.8.3"
-alloy-sol-types = "0.8.3"
-alloy-rpc-types = { version = "0.3.6" }
-alloy-provider = { version = "0.3.6", default-features = false, features = ["reqwest", "ws"] }
-alloy-pubsub = { version = "0.3.6" }
-alloy-signer = { version = "0.3.6" }
-alloy-signer-local = { version = "0.3.6" }
-alloy-network = { version = "0.3.6" }
-alloy-contract = { version = "0.3.6" }
-alloy-transport = { version = "0.3.6" }
+alloy-primitives = "0.7.2"
+alloy-json-abi = "0.7.2"
+alloy-sol-types = "0.7.2"
+alloy-rpc-types = { version = "0.1.4" }
+alloy-provider = { version = "0.1.4", default-features = false, features = ["reqwest", "ws"] }
+alloy-pubsub = { version = "0.1.4" }
+alloy-signer = { version = "0.1.4" }
+alloy-signer-local = { version = "0.1.4" }
+alloy-network = { version = "0.1.4" }
+alloy-contract = { version = "0.1.4" }
+alloy-transport = { version = "0.1.4" }
+alloy-transport-http = { version = "0.1.4" }
 
 ark-bn254 = "0.4.0"
 ark-ec = "0.4.0"
@@ -168,9 +169,7 @@ wasmtimer = "0.2"
 secp256k1 = "0.29.1"
 
 # Eigenlayer
-eigensdk = { version = "0.1.0", features = ["testing-utils", "crypto-bls", "crypto-bn254"] }
-# TODO: Remove eigensdk-rs completely before merging - just for testing during switch
-eigensdk-rs = { path = "../eigensdk-rs" }
+eigensdk = { version = "0.1.0", features = ["full", "utils"] }
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]

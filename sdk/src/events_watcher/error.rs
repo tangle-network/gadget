@@ -26,7 +26,4 @@ pub enum Error {
     /// An error occurred in the event handler.
     #[error(transparent)]
     Handler(#[from] Box<dyn core::error::Error + Send + Sync>),
-    /// An error occurred in a pending transaction.
-    #[error(transparent)]
-    PendingTransaction(#[from] alloy_provider::PendingTransactionError),
 }

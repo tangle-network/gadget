@@ -51,7 +51,13 @@ pub(crate) fn generate_eigenlayer_event_handler(
 
             /// Returns the provider of the [`ContractInstance`].
             pub fn provider(&self) -> &P {
-                self.provider()
+                info!("Fetching Provider");
+                self.instance.provider()
+            }
+
+            /// Returns the address of the [`ContractInstance`].
+            pub fn address(&self) -> &Address {
+                self.instance.address()
             }
 
             /// Lazily creates the [`ContractInstance`] if it does not exist, otherwise returning a reference to it.
@@ -83,6 +89,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
 
             /// Dereferences the [`#instance_wrapper_name`] to its [`ContractInstance`].
             fn deref(&self) -> &Self::Target {
+                info!("Fetching/Dereferencing (to) ContractInstance");
                 self.get_contract_instance()
             }
         }
@@ -138,37 +145,21 @@ pub(crate) fn generate_eigenlayer_event_handler(
                 //     tx.watch().await?;
                 // }
                 let call = #callback(job_result);
-                // Submit the transaction
+
                 let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
-                tx.watch().await?;
+                let receipt = tx.get_receipt().await?;
+                info!("SUBMITTED JOB RESULT: {:?}", receipt);
+
+                info!("SUCCESSFULLY SUBMITTED JOB RESULT");
 
                 Ok(())
-            }
-        }
-
-        pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
-            pub env: GadgetConfiguration<R>,
-            /// The EigenLayer Operator that registers to the AVS and completes given tasks
-            pub operator: Option<Operator<NodeConfig, OperatorInfoService>>,
-        }
-
-        impl<R: lock_api::RawRwLock> EigenlayerGadgetRunner<R> {
-            pub async fn new(env: GadgetConfiguration<R>) -> Self {
-                Self {
-                    env,
-                    operator: None,
-                }
-            }
-
-            pub fn set_operator(&mut self, operator: Operator<NodeConfig, OperatorInfoService>) {
-                self.operator = operator.into();
             }
         }
 
         pub struct EigenlayerEventWatcher<T: Config> {
             contract_address: Address,
             provider: T::PH,
-            handlers: Vec<Box<dyn gadget_sdk::events_watcher::evm::EventHandler<T>>>,
+            handlers: Vec<Box<dyn gadget_sdk::events_watcher::evm::EventHandler<T, Contract = #instance_wrapper_name<T::TH, T::PH>, Event = #instance_base::NewTaskCreated> + Send + Sync>>,
             _phantom: std::marker::PhantomData<T>,
         }
 
@@ -176,7 +167,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
             pub fn new(contract_address: Address, provider: T::PH) -> Self {
                 Self {
                     contract_address,
-                    provider: provider,
+                    provider,
                     handlers: vec![
                         Box::new(
                             #struct_name {}
@@ -202,8 +193,8 @@ pub(crate) fn generate_eigenlayer_event_handler(
                 #instance_wrapper_name::new(instance)
             }
 
-            fn handlers(&self) -> &Vec<gadget_sdk::events_watcher::evm::EventHandlerFor<Self, T>> {
-                self.handlers
+            fn handlers(&self) -> &Vec<Box<dyn gadget_sdk::events_watcher::evm::EventHandler<T, Contract = #instance_wrapper_name<T::TH, T::PH>, Event = #instance_base::NewTaskCreated> + Send + Sync>> {
+                &self.handlers
             }
         }
     }

@@ -1,63 +1,47 @@
 #![allow(dead_code)]
+use std::str::FromStr;
 use std::{convert::Infallible, ops::Deref, sync::OnceLock};
 
 use alloy_contract::ContractInstance;
-use alloy_network::{Ethereum, EthereumWallet};
-use alloy_primitives::{Address, Bytes, ChainId, FixedBytes, U256};
-use alloy_provider::{Provider, ProviderBuilder};
-use alloy_signer::k256::{ecdsa::SigningKey, elliptic_curve::SecretKey};
+use alloy_network::Ethereum;
+use alloy_primitives::{address, Address, Bytes, FixedBytes, U256};
+use alloy_provider::fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller};
+use alloy_provider::RootProvider;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{private::alloy_json_abi::JsonAbi, sol};
-use k256::ecdsa::VerifyingKey;
+use alloy_transport_http::{Client, Http};
 
 use color_eyre::{
     eyre::{eyre, OptionExt},
     Result,
 };
 
-use eigensdk_rs::eigen_utils::avs_registry::reader::AvsRegistryChainReaderTrait;
-use eigensdk_rs::eigen_utils::avs_registry::writer::AvsRegistryChainWriterTrait;
-use eigensdk_rs::eigen_utils::crypto::ecdsa::ToAddress;
-use eigensdk_rs::eigen_utils::el_contracts::writer::ElWriter;
-use eigensdk_rs::incredible_squaring_avs::aggregator::Aggregator;
-use eigensdk_rs::{
-    eigen_utils,
-    eigen_utils::{
-        types::{operator_id_from_key_pair, OperatorPubkeys},
-        *,
-    },
-    incredible_squaring_avs::operator::*,
+use eigensdk::client_avsregistry::writer::AvsRegistryChainWriter;
+use eigensdk::client_elcontracts::{
+    reader::ELChainReader,
+    writer::{ELChainWriter, Operator},
 };
+use eigensdk::crypto_bls::BlsKeyPair;
+use eigensdk::logging::get_test_logger;
+
 use gadget_sdk::{
     config::GadgetConfiguration,
     events_watcher::evm::{Config, EventWatcher},
     info, job,
-    keystore::{sp_core_subxt::Pair as SubxtPair, Backend},
-    network::{
-        gossip::GossipHandle,
-        setup::{start_p2p_network, NetworkConfig},
-    },
     run::GadgetRunner,
-    tangle_subxt::{
-        subxt::tx::Signer,
-        tangle_testnet_runtime::api,
-        tangle_testnet_runtime::api::runtime_types::{
-            sp_core::ecdsa, tangle_primitives::services, tangle_primitives::services::PriceTargets,
-        },
-    },
-    tx,
 };
+
+use IncredibleSquaringTaskManager::{
+    respondToTaskCall, G1Point, G2Point, NonSignerStakesAndSignature, Task, TaskResponse,
+};
+
 use serde_json::Value;
+use structopt::lazy_static::lazy_static;
 
-use sp_core::Pair;
-
-use gadget_sdk::tangle_subxt::subxt::ext::sp_runtime::traits::EnsureAdd;
-use IBLSSignatureChecker::NonSignerStakesAndSignature;
-use IIncredibleSquaringTaskManager::{Task, TaskResponse};
-use IncredibleSquaringTaskManager::respondToTaskCall;
-use BN254::{G1Point, G2Point};
-
-// use eigensdk_rs::incredible_squaring_avs::avs::NewTaskCreated;
+lazy_static! {
+    /// 1 day
+    static ref SIGNATURE_EXPIRY: U256 = U256::from(86400);
+}
 
 // Codegen from ABI file to interact with the contract.
 sol!(
@@ -67,12 +51,21 @@ sol!(
     "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
 );
 
-// sol!(
-//     #[allow(missing_docs)]
-//     #[sol(rpc)]
-//     IncredibleSquaringTaskManager,
-//     "../../../eigensdk-rs/avs/incredible-squaring-avs/contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
-// );
+#[derive(Debug, Clone)]
+struct NodeConfig {}
+
+impl Config for NodeConfig {
+    type TH = Http<Client>;
+    type PH = FillProvider<
+        JoinFill<
+            JoinFill<JoinFill<alloy_provider::Identity, GasFiller>, NonceFiller>,
+            ChainIdFiller,
+        >,
+        RootProvider<Http<Client>>,
+        Http<Client>,
+        Ethereum,
+    >;
+}
 
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
@@ -93,8 +86,6 @@ pub async fn xsquare_eigen(
     quorum_numbers: Bytes,
     quorum_threshold_percentage: u32,
 ) -> Result<respondToTaskCall, Infallible> {
-    // TODO: Send our task response to Aggregator RPC server
-
     // // 1. Calculate the squared number and save the response
     // let my_msg = MyMessage {
     //     xsquare: number_to_be_squared.saturating_pow(U256::from(2u32)),
@@ -110,7 +101,7 @@ pub async fn xsquare_eigen(
     // handle.send_message(my_msg_json).await;
     //
     // // 3. Receive gossiped results from peers
-    // let quorum_size = 1;
+    // let quorum_size = quorum_threshold_percentage as usize;
     // let mut rx = handle.rx_from_inbound.lock().await;
     // while let Some(message) = rx.recv().await {
     //     let message: MyMessage = serde_json::from_str(&message).unwrap();
@@ -123,6 +114,44 @@ pub async fn xsquare_eigen(
     // }
     //
     // // 4. Once we have a quorum, we calculate the non signers/participants and stakes
+    // let non_signer_stakes_and_signature: NonSignerStakesAndSignature = {
+    //     let mut non_signer_quorum_bitmap_indices: Vec<u32> = Vec::new();
+    //     let mut non_signer_pubkeys: Vec<G1Point> = Vec::new();
+    //     let mut non_signer_stake_indices: Vec<u32> = Vec::new();
+    //     let mut quorum_apks: Vec<G1Point> = Vec::new();
+    //     let mut quorum_apk_indices: Vec<u32> = Vec::new();
+    //     let mut total_stake_indices: Vec<u32> = Vec::new();
+    //
+    //     for (index, (public_key, message)) in responses.iter().enumerate() {
+    //         if index >= quorum_size {
+    //             non_signer_quorum_bitmap_indices.push(index as u32);
+    //             non_signer_pubkeys.push(public_key.clone());
+    //             non_signer_stake_indices.push(index as u32);
+    //         } else {
+    //             quorum_apks.push(message.xsquare.into());
+    //             quorum_apk_indices.push(index as u32);
+    //             total_stake_indices.push(index as u32);
+    //         }
+    //     }
+    //
+    //     NonSignerStakesAndSignature {
+    //         nonSignerQuorumBitmapIndices: non_signer_quorum_bitmap_indices,
+    //         nonSignerPubkeys: non_signer_pubkeys,
+    //         nonSignerStakeIndices: non_signer_stake_indices,
+    //         quorumApks: quorum_apks,
+    //         quorumApkIndices: quorum_apk_indices,
+    //         totalStakeIndices: total_stake_indices,
+    //         apkG2: G2Point {
+    //             X: [U256::ZERO; 2],
+    //             Y: [U256::ZERO; 2],
+    //         },
+    //         sigma: G1Point {
+    //             X: U256::ZERO,
+    //             Y: U256::ZERO,
+    //         },
+    //     }
+    // };
+
     let non_signer_stakes_and_signature: NonSignerStakesAndSignature =
         NonSignerStakesAndSignature {
             nonSignerQuorumBitmapIndices: vec![], // Vec<u32>,
@@ -141,6 +170,10 @@ pub async fn xsquare_eigen(
             totalStakeIndices: vec![], // Vec<u32>,
         };
 
+    let number_squared = number_to_be_squared.saturating_pow(U256::from(2u32));
+
+    info!("NOW RESPONDING WITH RESULT: {:?}", number_squared);
+
     // 5. We submit the full task response
     Ok(respondToTaskCall {
         task: Task {
@@ -151,7 +184,7 @@ pub async fn xsquare_eigen(
         },
         taskResponse: TaskResponse {
             referenceTaskIndex: task_created_block,
-            numberSquared: number_to_be_squared.saturating_pow(U256::from(2u32)),
+            numberSquared: number_squared,
         },
         nonSignerStakesAndSignature: non_signer_stakes_and_signature,
     })
@@ -177,6 +210,20 @@ pub fn convert_event_to_inputs(
     )
 }
 
+pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
+    pub env: GadgetConfiguration<R>,
+}
+
+impl<R: lock_api::RawRwLock> EigenlayerGadgetRunner<R> {
+    pub async fn new(env: GadgetConfiguration<R>) -> Self {
+        Self { env }
+    }
+
+    pub fn address(&self) -> Option<Address> {
+        self.env.contract_address
+    }
+}
+
 #[async_trait::async_trait]
 impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
     type Error = color_eyre::eyre::Report;
@@ -191,109 +238,112 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             return Ok(());
         }
 
-        // TODO: Placeholder code for testing - should be retrieved, not hardcoded
         let http_endpoint = "http://127.0.0.1:8545";
-        let ws_endpoint = "ws://127.0.0.1:8545";
-        let node_config = NodeConfig {
-            node_api_ip_port_address: "127.0.0.1:9808".to_string(),
-            eth_rpc_url: http_endpoint.to_string(),
-            eth_ws_url: ws_endpoint.to_string(),
-            bls_private_key_store_path: "./../../eigensdk-rs/test-utils/keystore/bls".to_string(),
-            ecdsa_private_key_store_path: "./../../eigensdk-rs/test-utils/keystore/ecdsa"
-                .to_string(),
-            incredible_squaring_service_manager_addr: "0DCd1Bf9A1b36cE34237eEaFef220932846BCD82"
-                .to_string(),
-            avs_registry_coordinator_addr: "0B306BF915C4d645ff596e518fAf3F9669b97016".to_string(),
-            operator_state_retriever_addr: "3Aa5ebB10DC797CAC828524e59A333d0A371443c".to_string(),
-            eigen_metrics_ip_port_address: "127.0.0.1:9100".to_string(),
-            delegation_manager_addr: "a85233C63b9Ee964Add6F2cffe00Fd84eb32338f".to_string(),
-            avs_directory_addr: "c5a5C42992dECbae36851359345FE25997F5C42d".to_string(),
-            operator_address: "f39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string(),
-            enable_metrics: false,
-            enable_node_api: false,
-            server_ip_port_address: "127.0.0.1:8673".to_string(),
-            metadata_url:
-                "https://github.com/webb-tools/eigensdk-rs/blob/main/test-utils/metadata.json"
-                    .to_string(),
-        };
+        let pvt_key = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
-        let http_provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            // .wallet(wallet.clone())
-            .on_http(http_endpoint.parse()?)
-            .root()
-            .clone()
-            .boxed();
+        // TODO: Should be pulled from environment variables
+        // let service_manager_address = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
+        let registry_coordinator_address = address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
+        let operator_state_retriever_address = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
+        let delegation_manager_address = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
+        let strategy_manager_address = address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
+        // let erc20_mock_address = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
+        let avs_directory_address = address!("0000000000000000000000000000000000000000");
 
-        let ws_provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            // .wallet(wallet)
-            .on_ws(alloy_provider::WsConnect::new(ws_endpoint))
-            .await?
-            .root()
-            .clone()
-            .boxed();
+        let provider = eigensdk::utils::get_provider(http_endpoint);
 
-        let chain_id = http_provider
-            .get_chain_id()
-            .await
-            .map_err(|e| OperatorError::HttpEthClientError(e.to_string()))?;
-
-        let bls_key_password =
-            std::env::var("OPERATOR_BLS_KEY_PASSWORD").unwrap_or_else(|_| "".to_string());
-        let bls_keypair =
-            eigensdk_rs::eigen_utils::crypto::bls::KeyPair::read_private_key_from_file(
-                &node_config.bls_private_key_store_path.clone(),
-                &bls_key_password,
-            )?;
-        let operator_pubkeys = OperatorPubkeys {
-            g1_pubkey: bls_keypair.get_pub_key_g1().to_ark_g1(),
-            g2_pubkey: bls_keypair.get_pub_key_g2().to_ark_g2(),
-        };
-
-        let operator_id = operator_id_from_key_pair(&bls_keypair);
-
-        let hex_key =
-            hex::decode("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
-                .map_err(|e| OperatorError::EcdsaPrivateKeyError(e.to_string()))?;
-        let secret_key = SecretKey::from_slice(&hex_key)
-            .map_err(|e| OperatorError::EcdsaPrivateKeyError(e.to_string()))?;
-        let signing_key = SigningKey::from(secret_key.clone());
-        let operator_address = PrivateKeySigner::from_signing_key(signing_key.clone()).address();
-        let signer = EigenGadgetSigner::new(
-            PrivateKeySigner::from_signing_key(signing_key),
-            Some(ChainId::from(chain_id)),
+        // TODO: Move Slasher retrieval into SDK
+        let delegation_manager = eigensdk::utils::binding::DelegationManager::new(
+            delegation_manager_address,
+            provider.clone(),
         );
+        let slasher_address = delegation_manager.slasher().call().await.map(|a| a._0)?;
 
-        let operator_info_service = OperatorInfoService::new(
-            types::OperatorInfo {
-                socket: "0.0.0.0:0".to_string(),
-                pubkeys: OperatorPubkeys {
-                    g1_pubkey: bls_keypair.get_pub_key_g1().to_ark_g1(),
-                    g2_pubkey: bls_keypair.get_pub_key_g2().to_ark_g2(),
-                },
-            },
-            operator_id_from_key_pair(&bls_keypair),
-            operator_address,
-            node_config.clone(),
-        );
-
-        // This creates and registers an operator with the given configuration
-        let operator = Operator::<NodeConfig, OperatorInfoService>::new_from_config(
-            node_config.clone(),
-            EigenGadgetProvider {
-                provider: http_provider.clone(),
-            },
-            EigenGadgetProvider {
-                provider: ws_provider.clone(),
-            },
-            operator_info_service.clone(),
-            signer.clone(),
+        let test_logger = get_test_logger();
+        let avs_registry_writer = AvsRegistryChainWriter::build_avs_registry_chain_writer(
+            test_logger.clone(),
+            http_endpoint.to_string(),
+            pvt_key.to_string(),
+            registry_coordinator_address,
+            operator_state_retriever_address,
         )
         .await
+        .expect("avs writer build fail ");
+
+        // TODO: Retrieve BLS Secret Key from Keystore
+        // Create a new key pair instance using the secret key
+        let bls_key_pair = BlsKeyPair::new(
+            "12248929636257230549931416853095037629726205319386239410403476017439825112537"
+                .to_string(),
+        )
         .map_err(|e| eyre!(e))?;
 
-        self.set_operator(operator);
+        let digest_hash: FixedBytes<32> = FixedBytes::from([0x02; 32]);
+
+        // Get the current SystemTime
+        let now = std::time::SystemTime::now();
+        let mut sig_expiry: U256 = U256::from(0);
+        // Convert SystemTime to a Duration since the UNIX epoch
+        if let Ok(duration_since_epoch) = now.duration_since(std::time::UNIX_EPOCH) {
+            // Convert the duration to seconds
+            let seconds = duration_since_epoch.as_secs(); // Returns a u64
+
+            // Convert seconds to U256
+            sig_expiry = U256::from(seconds) + *SIGNATURE_EXPIRY;
+        } else {
+            info!("System time seems to be before the UNIX epoch.");
+        }
+        let quorum_nums = Bytes::from([0x01]);
+
+        // A new ElChainReader instance
+        let el_chain_reader = ELChainReader::new(
+            get_test_logger().clone(),
+            slasher_address,
+            delegation_manager_address,
+            avs_directory_address,
+            http_endpoint.to_string(),
+        );
+        // A new ElChainWriter instance
+        let el_writer = ELChainWriter::new(
+            delegation_manager_address,
+            strategy_manager_address,
+            el_chain_reader,
+            http_endpoint.to_string(),
+            pvt_key.to_string(),
+        );
+
+        let wallet = PrivateKeySigner::from_str(
+            "bead471191bea97fc3aeac36c9d74c895e8a6242602e144e43152f96219e96e8",
+        )
+        .expect("no key ");
+
+        let operator_details = Operator {
+            address: wallet.address(),
+            earnings_receiver_address: wallet.address(),
+            delegation_approver_address: wallet.address(),
+            staker_opt_out_window_blocks: 3,
+            metadata_url: Some(
+                "https://github.com/webb-tools/eigensdk-rs/blob/main/test-utils/metadata.json"
+                    .to_string(),
+            ), // TODO: Metadata should be from Environment Variable
+        };
+
+        // Register the address as operator in delegation manager
+        el_writer
+            .register_as_operator(operator_details)
+            .await
+            .map_err(|e| eyre!(e))?;
+
+        // Register the operator in registry coordinator
+        avs_registry_writer
+            .register_operator_in_quorum_with_avs_registry_coordinator(
+                bls_key_pair,
+                digest_hash,
+                sig_expiry,
+                quorum_nums,
+                http_endpoint.to_string(), // socket
+            )
+            .await?;
 
         info!("Registered operator for Eigenlayer");
         Ok(())
@@ -304,55 +354,13 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
     }
 
     async fn run(&mut self) -> Result<()> {
-        // let x_square_eigen = XsquareEigenEventHandler {};
-        let operator: Operator<NodeConfig, OperatorInfoService> =
-            self.operator.clone().ok_or(eyre!("Operator is None"))?;
-        // eigensdk_rs::eigen_contracts::incredible_squaring_task_manager::IncredibleSquaringTaskManager::NewTaskCreated;
+        let contract_address = self.address().ok_or_eyre("Contract address not set")?;
+        let http_endpoint = "http://127.0.0.1:8545";
+        let provider = eigensdk::utils::get_provider(http_endpoint);
 
-        // let instance =
-        //     IncredibleSquaringTaskManagerInstanceWrapper::new(IncredibleSquaringTaskManager::new(
-        //         operator
-        //             .incredible_squaring_contract_manager
-        //             .task_manager_addr,
-        //         operator
-        //             .incredible_squaring_contract_manager
-        //             .eth_client_http
-        //             .clone(),
-        //     ));
-
-        // let mut event_watcher: EigenlayerEventWatcher<NodeConfig> = EigenlayerEventWatcher::new();
-
-        // let contract = instance.get_contract_instance();
-        // let filter = alloy_rpc_types_eth::Filter::new()
-        //     .from_block(alloy_rpc_types_eth::BlockNumberOrTag::Number(0))
-        //     .to_block(alloy_rpc_types_eth::BlockNumberOrTag::Number(5));
-        // let events_filter = contract.event::<IncredibleSquaringTaskManager::NewTaskCreated>(filter);
-
-        // info!("Querying events");
-        // // let events = events_filter.query().await.map_err(Into::<Error>::into)?;
-        // loop {
-        //     let events = events_filter.query().await;
-        //     if let Err(e) = events {
-        //         info!("EVENTS ERROR: {:?}", e);
-        //     } else {
-        //         return Ok(());
-        //     };
-        // }
-
-        // panic!("TESTING");
-
-        // event_watcher
-        //     .run(instance, vec![Box::new(x_square_eigen)])
-        //     .await?;
-
-        // self.operator
-        //     .clone()
-        //     .ok_or(eyre!("Operator is None"))?
-        //     .start()
-        //     .await
-        //     .map_err(|e| eyre!(e.to_string()));
-
-        info!("RETURNING FROM EIGENLAYER RUN FUNCTION");
+        let mut event_watcher: EigenlayerEventWatcher<NodeConfig> =
+            EigenlayerEventWatcher::new(contract_address, provider.clone());
+        event_watcher.run().await?;
 
         Ok(())
     }

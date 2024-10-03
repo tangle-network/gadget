@@ -113,7 +113,6 @@ async fn create_gadget_runner(
             env.clone(),
             Box::new(blueprint::eigenlayer::EigenlayerGadgetRunner::new(env).await),
         ),
-        // _ => panic!("Unsupported protocol Eigenlayer. Gadget/Tangle need U256 support."),
     }
 }
 
