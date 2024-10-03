@@ -87,30 +87,61 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     } else {
         match &args.event_listener.listener {
             Some(ref listener) => {
-                // Generate the variable that we are passing as the context into EventListener::create(&mut ctx)
-                // We assume the first supplied event handler arg is the context we are injecting into the event listener
-                let context = event_handler_args
-                    .first()
-                    .map(|ctx| quote! {self.#ctx})
-                    .unwrap_or_else(|| quote! {()});
-                let context_ty = event_handler_arg_types
-                    .first()
-                    .map(|ty| quote! {#ty})
-                    .unwrap_or_else(|| quote! {()});
                 // convert the listener var, which is just a struct name, to an ident
                 let listener = listener.to_token_stream();
+                // if Listener == TangleEventListener or EvmEventListener, we need to use defaults
+                let listener_str = listener.to_string();
+                // Check for special cases
+                if listener_str.contains("TangleEventListener")
+                    || listener_str.contains("EvmEventListener")
+                {
+                    let (_, _, struct_name) = generate_fn_name_and_struct(input);
+                    let wrapper = if listener_str == "TangleEventListener" {
+                        quote! {
+                            gadget_sdk::event_listener::SubstrateWatcherWrapper::<#struct_name>
+                        }
+                    } else {
+                        unimplemented!("EvmEventListener not implemented yet");
+                    };
 
-                event_listener_call = Some(quote! {
-                    run_listener(&#context).await;
-                });
+                    event_listener_call = Some(quote! {
+                        run_listener(&self).await;
+                    });
 
-                quote! {
-                    async fn run_listener(ctx: &#context_ty) {
-                        let mut instance = <#listener as gadget_sdk::event_listener::EventListener<_, _>>::new(ctx).await.expect("Failed to create event listener");
-                        let task = async move {
-                            gadget_sdk::event_listener::EventListener::execute(&mut instance).await;
-                        };
-                        gadget_sdk::tokio::task::spawn(task);
+                    quote! {
+                        async fn run_listener(ctx: &#struct_name) {
+                            let mut instance = #wrapper::new(ctx).await.expect("Failed to create event listener");
+                            let task = async move {
+                                <#listener>::execute(&mut instance).await;
+                            };
+                            gadget_sdk::tokio::task::spawn(task);
+                        }
+                    }
+                } else {
+                    // Generate the variable that we are passing as the context into EventListener::create(&mut ctx)
+                    // We assume the first supplied event handler arg is the context we are injecting into the event listener
+                    let context = event_handler_args
+                        .first()
+                        .map(|ctx| quote! {self.#ctx})
+                        .unwrap_or_default();
+
+                    let context_ty = event_handler_arg_types
+                        .first()
+                        .map(|ty| quote! {#ty})
+                        .unwrap_or_default();
+
+                    event_listener_call = Some(quote! {
+                        run_listener(&#context).await;
+                    });
+
+                    quote! {
+                        async fn run_listener(ctx: &#context_ty) {
+                            let mut instance = <#listener as gadget_sdk::event_listener::EventListener<_, _>>::new(ctx).await.expect("Failed to create event listener");
+                            let task = async move {
+                                gadget_sdk::event_listener::EventListener::execute(&mut instance).await;
+                            };
+                            gadget_sdk::tokio::task::spawn(task);
+                        }
                     }
                 }
             }
@@ -207,6 +238,13 @@ fn get_event_handler_args<'a>(
     (event_handler_args, event_handler_types)
 }
 
+fn generate_fn_name_and_struct(f: &ItemFn) -> (&Ident, String, Ident) {
+    let fn_name = &f.sig.ident;
+    let fn_name_string = fn_name.to_string();
+    let struct_name = format_ident!("{}EventHandler", pascal_case(&fn_name_string));
+    (fn_name, fn_name_string, struct_name)
+}
+
 /// Generates the [`EventHandler`](gadget_sdk::events_watcher::evm::EventHandler) for a Job
 #[allow(clippy::too_many_lines)]
 pub fn generate_event_handler_for(
@@ -217,9 +255,7 @@ pub fn generate_event_handler_for(
     result: &[FieldType],
     event_listener_call: Option<proc_macro2::TokenStream>,
 ) -> proc_macro2::TokenStream {
-    let fn_name = &f.sig.ident;
-    let fn_name_string = fn_name.to_string();
-    let struct_name = format_ident!("{}EventHandler", pascal_case(&fn_name_string));
+    let (fn_name, fn_name_string, struct_name) = generate_fn_name_and_struct(f);
     let job_id = &job_args.id;
     let event_handler = &job_args.event_handler;
 

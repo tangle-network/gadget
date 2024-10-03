@@ -4,13 +4,14 @@
 
 use crate::clients::tangle::runtime::{TangleClient, TangleConfig};
 use crate::events_watcher::substrate::{EventHandler, EventHandlerFor};
+use std::sync::Arc;
 use subxt::OnlineClient;
 
 /// An event watcher for the Tangle network.
 pub struct TangleEventsWatcher {
     pub span: tracing::Span,
     pub client: TangleClient,
-    pub handlers: Vec<Box<dyn EventHandler<TangleConfig>>>,
+    pub handlers: Vec<Arc<dyn EventHandler<TangleConfig>>>,
 }
 
 #[async_trait::async_trait]

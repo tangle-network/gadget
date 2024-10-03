@@ -11,6 +11,7 @@ use gadget_sdk::{
     info
 };
 use std::io::Write;
+use std::sync::Arc;
 use incredible_squaring_blueprint as blueprint;
 use structopt::StructOpt;
 use gadget_sdk::event_listener::{EventListener, IntoTangleEventListener};
@@ -83,7 +84,6 @@ impl GadgetRunner for TangleGadgetRunner {
 
         let x_square = blueprint::XsquareEventHandler {
             service_id: self.env.service_id.unwrap(),
-            context: LocalSubstrateTestnetContext,
             env: self.env.clone(),
             signer,
         };
@@ -91,10 +91,11 @@ impl GadgetRunner for TangleGadgetRunner {
         let program = TangleEventsWatcher {
             span: self.env.span.clone(),
             client,
-            handlers: vec![Box::new(x_square)],
+            handlers: vec![Arc::new(x_square)],
         };
 
-        program.into_tangle_event_listener().execute().await;
+        // TODO: maybe self.run() should return this program instead of running it
+        // here
 
         Ok(())
     }
