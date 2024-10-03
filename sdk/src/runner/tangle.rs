@@ -21,6 +21,54 @@ use crate::{
     tx,
 };
 
+trait SubstrateGadgetRunner: GadgetRunner {
+    /// Registers a Substrate event handler.
+    ///
+    /// # Parameters
+    ///
+    /// * `handler` - The Substrate event handler to register.
+    ///
+    /// # Note
+    ///
+    /// This method is used to register a Substrate event handler with the gadget runner.
+    fn register_substrate_event_handler<F>(&self, handler: F)
+    where
+        F: Fn(&dyn substrate::EventHandler) + Send + Sync + 'static,
+    {
+        if let Some(handlers) = self.substrate_event_handlers() {
+            handlers.write().unwrap().push(Box::new(handler));
+        }
+    }
+
+    /// Retrieves all Substrate event handlers.
+    ///
+    /// # Returns
+    ///
+    /// A vector of Substrate event handlers.
+    ///
+    /// # Note
+    ///
+    /// This method is used to retrieve all Substrate event handlers that have been registered with the gadget runner.
+    fn get_substrate_event_handlers(&self) -> Vec<dyn substrate::EventHandler> {
+        self.substrate_event_handlers()
+            .map(|handlers| handlers.read().unwrap().clone())
+            .unwrap_or_default()
+    }
+
+    /// Returns a reference to the Substrate event handlers storage.
+    /// This method should be implemented by the struct to provide access to its Substrate event handlers.
+    ///
+    /// # Returns
+    ///
+    /// A reference to the Substrate event handlers storage.
+    ///
+    /// # Note
+    ///
+    /// This method is used to provide access to the Substrate event handlers storage for the gadget runner.
+    fn substrate_event_handlers(&self) -> Option<&RwLock<Vec<dyn substrate::EventHandler>>>;
+}
+
+
 struct TangleGadgetRunner<R>
 where
     R: subxt::Config + Send + Sync + 'static,
@@ -51,7 +99,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<R> GadgetRunner for TangleGadgetRunner<R>
+impl<R> SubstrateGadgetRunner for TangleGadgetRunner<R>
 where
     R: subxt::Config + Send + Sync + 'static,
 {
