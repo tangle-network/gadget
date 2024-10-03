@@ -20,6 +20,9 @@ pub enum Error {
     #[error("Keystore error: {0}")]
     Keystore(#[from] crate::keystore::error::Error),
 
+    #[error("Invalid configuration: {0}")]
+    ConfigError(#[from] crate::config::Error),
+
     #[error("Missing network ID")]
     MissingNetworkId,
 

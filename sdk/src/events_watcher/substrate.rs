@@ -17,6 +17,11 @@ use subxt::OnlineClient;
 /// A type alias to extract the event handler type from the event watcher.
 pub type EventHandlerFor<RuntimeConfig> = Box<dyn EventHandler<RuntimeConfig>>;
 
+/// A trait that defines the configuration for the runtime.
+/// Used in macros and consistent with the `events_watcher::<module>::Config`
+/// structure for macros leveraging it.
+pub trait Config: subxt::Config + Send + Sync + 'static {}
+
 /// A trait that defines a handler for a specific set of event types.
 ///
 /// The handlers are implemented separately from the watchers, so that we can have

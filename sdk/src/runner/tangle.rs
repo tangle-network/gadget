@@ -1,7 +1,8 @@
 //! Runner for Tangle
 use parking_lot::RwLock;
 
-use crate::events_watcher::substrate::EventHandler;
+use crate::events_watcher::substrate;
+use crate::events_watcher::substrate::Config;
 use crate::keystore::sp_core_subxt::Pair;
 use crate::tangle_subxt::subxt::tx::Signer;
 use crate::{
@@ -21,67 +22,32 @@ use crate::{
     tx,
 };
 
-trait SubstrateGadgetRunner: GadgetRunner {
-    /// Registers a Substrate event handler.
-    ///
-    /// # Parameters
-    ///
-    /// * `handler` - The Substrate event handler to register.
-    ///
-    /// # Note
-    ///
-    /// This method is used to register a Substrate event handler with the gadget runner.
-    fn register_substrate_event_handler<F>(&self, handler: F)
+trait SubstrateGadgetRunner<T: Config> {
+    fn register_event_handler<F>(&self, handler: F)
     where
-        F: Fn(&dyn substrate::EventHandler) + Send + Sync + 'static,
+        F: Fn(&dyn substrate::EventHandler<T>) + Send + Sync + 'static,
     {
-        if let Some(handlers) = self.substrate_event_handlers() {
+        if let Some(handlers) = self.event_handlers() {
             handlers.write().unwrap().push(Box::new(handler));
         }
     }
 
-    /// Retrieves all Substrate event handlers.
-    ///
-    /// # Returns
-    ///
-    /// A vector of Substrate event handlers.
-    ///
-    /// # Note
-    ///
-    /// This method is used to retrieve all Substrate event handlers that have been registered with the gadget runner.
-    fn get_substrate_event_handlers(&self) -> Vec<dyn substrate::EventHandler> {
-        self.substrate_event_handlers()
+    fn get_event_handlers(&self) -> Vec<Box<dyn substrate::EventHandler<T>>> {
+        self.event_handlers()
             .map(|handlers| handlers.read().unwrap().clone())
             .unwrap_or_default()
     }
 
-    /// Returns a reference to the Substrate event handlers storage.
-    /// This method should be implemented by the struct to provide access to its Substrate event handlers.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the Substrate event handlers storage.
-    ///
-    /// # Note
-    ///
-    /// This method is used to provide access to the Substrate event handlers storage for the gadget runner.
-    fn substrate_event_handlers(&self) -> Option<&RwLock<Vec<dyn substrate::EventHandler>>>;
+    fn event_handlers(&self) -> Option<&RwLock<Vec<Box<dyn substrate::EventHandler<T>>>>>;
 }
 
-
-struct TangleGadgetRunner<R>
-where
-    R: subxt::Config + Send + Sync + 'static,
-{
+struct TangleGadgetRunner<T: Config> {
     env: GadgetConfiguration<parking_lot::RawRwLock>,
     price_targets: PriceTargets,
-    event_handlers: RwLock<Vec<Box<dyn EventHandler<R>>>>,
+    event_handlers: RwLock<Vec<Box<dyn substrate::EventHandler<T>>>>,
 }
 
-impl<R> TangleGadgetRunner<R>
-where
-    R: subxt::Config + Send + Sync + 'static,
-{
+impl<T: Config> TangleGadgetRunner<T> {
     pub fn new(
         env: GadgetConfiguration<parking_lot::RawRwLock>,
         price_targets: PriceTargets,
@@ -99,17 +65,12 @@ where
 }
 
 #[async_trait::async_trait]
-impl<R> SubstrateGadgetRunner for TangleGadgetRunner<R>
-where
-    R: subxt::Config + Send + Sync + 'static,
-{
-    type Error = crate::Error;
-
+impl<T: Config> GadgetRunner for TangleGadgetRunner<T> {
     fn config(&self) -> &StdGadgetConfiguration {
         todo!()
     }
 
-    async fn register(&mut self) -> Result<(), Self::Error> {
+    async fn register(&mut self) -> Result<(), crate::Error> {
         // TODO: Use the function in blueprint-test-utils
         if self.env.test_mode {
             info!("Skipping registration in test mode");
@@ -136,25 +97,31 @@ where
         Ok(())
     }
 
-    async fn benchmark(&self) -> std::result::Result<(), Self::Error> {
+    async fn benchmark(&self) -> std::result::Result<(), crate::Error> {
         todo!()
     }
 
-    async fn run(&self) -> Result<(), Self::Error> {
+    async fn run(&self) -> Result<(), crate::Error> {
         let client = self.env.client().await?;
         let signer = self.env.first_sr25519_signer()?;
 
         info!("Starting the event watcher for {} ...", signer.account_id());
 
-        let event_handlers = self.substrate_event_handlers().read().unwrap().clone();
+        let event_handlers = self.event_handlers().read().unwrap().clone();
         let program = TangleEventsWatcher {
             span: self.env.span.clone(),
             client,
-            handlers: vec![event_handlers],
+            handlers: event_handlers,
         };
 
         program.into_tangle_event_listener().execute().await;
 
         Ok(())
+    }
+}
+
+impl<T: Config> SubstrateGadgetRunner<T> for TangleGadgetRunner<T> {
+    fn event_handlers(&self) -> Option<&RwLock<Vec<Box<dyn substrate::EventHandler<T>>>>> {
+        Some(&self.event_handlers)
     }
 }

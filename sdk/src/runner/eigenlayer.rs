@@ -1,48 +1,93 @@
 //! Runner for Eigenlayer
 
-trait EvmGadgetRunner: GadgetRunner {
-    /// Registers an event handler.
-    ///
-    /// # Parameters
-    ///
-    /// * `handler` - The event handler to register.
-    ///
-    /// # Note
-    ///
-    /// This method is used to register an event handler with the gadget runner.
-    fn register_event_handler<F, T: evm::Config>(&self, handler: F)
+use core::any::Any;
+
+use crate::config::GadgetConfiguration;
+use crate::events_watcher::evm::{self, Config};
+use crate::info;
+use crate::runner::GadgetRunner;
+use crate::runner::StdGadgetConfiguration;
+use parking_lot::RwLock;
+
+pub trait Contract<T: Config>:
+    Deref<Target = alloy_contract::ContractInstance<T::T, T::P, Ethereum>> + Send + Sync + 'static
+{
+}
+pub trait Event: SolEvent + Clone + Send + Sync + 'static {}
+
+// Define a trait for type-erased event handlers
+pub trait AnyEventHandler: Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+    fn handle_event(&self, event: &dyn Any);
+}
+
+// Implement AnyEventHandler for concrete event handlers
+impl<F> AnyEventHandler for F
+where
+    F: Fn(&dyn Any) + Send + Sync + 'static,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn handle_event(&self, event: &dyn Any) {
+        self(event);
+    }
+}
+
+trait EvmGadgetRunner<T: Config> {
+    fn register_event_handler<C, E>(&self, handler: Box<dyn Fn(&E) + Send + Sync>)
     where
-        F: Fn(&dyn evm::EventHandler<T>) + Send + Sync + 'static,
+        C: Contract<T>,
+        E: Event;
+
+    fn get_event_handlers(&self) -> Vec<Arc<dyn AnyEventHandler>>;
+}
+
+pub struct EigenlayerGadgetRunner {
+    env: GadgetConfiguration<parking_lot::RawRwLock>,
+    event_handlers: RwLock<Vec<Arc<dyn AnyEventHandler>>>,
+}
+
+impl<T: Config> EvmGadgetRunner<T> for EigenlayerGadgetRunner {
+    fn register_event_handler<C, E>(&self, handler: Box<dyn Fn(&E) + Send + Sync>)
+    where
+        C: Contract,
+        E: Event,
     {
-        if let Some(handlers) = self.event_handlers() {
-            handlers.write().unwrap().push(Box::new(handler));
-        }
+        let any_handler: Arc<dyn AnyEventHandler> = Arc::new(move |event: &dyn Any| {
+            if let Some(concrete_event) = event.downcast_ref::<E>() {
+                handler(concrete_event);
+            }
+        });
+        self.event_handlers.write().push(any_handler);
     }
 
-    /// Retrieves all EVM event handlers.
-    ///
-    /// # Returns
-    ///
-    /// A vector of EVM event handlers.
-    ///
-    /// # Note
-    ///
-    /// This method is used to retrieve all EVM event handlers that have been registered with the gadget runner.
-    fn get_evm_event_handlers<T: evm::Config>(&self) -> Vec<dyn evm::EventHandler<T>> {
-        self.event_handlers()
-            .map(|handlers| handlers.read().unwrap().clone())
-            .unwrap_or_default()
+    fn get_event_handlers(&self) -> Vec<Arc<dyn AnyEventHandler>> {
+        self.event_handlers.read().clone()
+    }
+}
+
+#[async_trait::async_trait]
+impl GadgetRunner for EigenlayerGadgetRunner {
+    async fn register(&mut self) -> Result<(), crate::Error> {
+        // Implement Eigenlayer-specific registration logic
+        todo!()
     }
 
-    /// Returns a reference to the EVM event handlers storage.
-    /// This method should be implemented by the struct to provide access to its event handlers.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the event handlers storage.
-    ///
-    /// # Note
-    ///
-    /// This method is used to provide access to the event handlers storage for the gadget runner.
-    fn evm_event_handlers<T: evm::Config>(&self) -> Option<&RwLock<Vec<dyn evm::EventHandle<T>>>>;
+    async fn run(&self) -> Result<(), crate::Error> {
+        let client = self.config().client().await?;
+
+        info!("Starting the event watcher for Eigenlayer...");
+
+        Ok(())
+    }
+
+    fn config(&self) -> &StdGadgetConfiguration {
+        todo!()
+    }
+
+    async fn benchmark(&self) -> std::result::Result<(), crate::Error> {
+        todo!()
+    }
 }
