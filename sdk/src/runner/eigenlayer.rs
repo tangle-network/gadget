@@ -1,14 +1,17 @@
 //! Runner for Eigenlayer
 
 use core::any::Any;
+use std::sync::Arc;
 
 use crate::config::GadgetConfiguration;
 use crate::events_watcher::evm::{self, Config};
 use crate::info;
 use crate::runner::GadgetRunner;
 use crate::runner::StdGadgetConfiguration;
+use alloy_network::Ethereum;
+use alloy_sol_types::SolEvent;
+use core::ops::Deref;
 use parking_lot::RwLock;
-
 pub trait Contract<T: Config>:
     Deref<Target = alloy_contract::ContractInstance<T::T, T::P, Ethereum>> + Send + Sync + 'static
 {
@@ -52,7 +55,7 @@ pub struct EigenlayerGadgetRunner {
 impl<T: Config> EvmGadgetRunner<T> for EigenlayerGadgetRunner {
     fn register_event_handler<C, E>(&self, handler: Box<dyn Fn(&E) + Send + Sync>)
     where
-        C: Contract,
+        C: Contract<T>,
         E: Event,
     {
         let any_handler: Arc<dyn AnyEventHandler> = Arc::new(move |event: &dyn Any| {

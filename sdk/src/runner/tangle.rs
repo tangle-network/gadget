@@ -1,8 +1,8 @@
 //! Runner for Tangle
 use parking_lot::RwLock;
 
+use crate::clients::tangle::runtime::TangleConfig;
 use crate::events_watcher::substrate;
-use crate::events_watcher::substrate::Config;
 use crate::keystore::sp_core_subxt::Pair;
 use crate::tangle_subxt::subxt::tx::Signer;
 use crate::{
@@ -22,32 +22,32 @@ use crate::{
     tx,
 };
 
-trait SubstrateGadgetRunner<T: Config> {
-    fn register_event_handler<F>(&self, handler: F)
-    where
-        F: Fn(&dyn substrate::EventHandler<T>) + Send + Sync + 'static,
-    {
+trait SubstrateGadgetRunner<T>
+where
+    T: subxt::Config + Send + Sync + 'static,
+{
+    fn register_event_handler<F>(&self, handler: dyn substrate::EventHandler<T>) {
         if let Some(handlers) = self.event_handlers() {
-            handlers.write().unwrap().push(Box::new(handler));
+            handlers.write().push(Box::new(handler));
         }
     }
 
     fn get_event_handlers(&self) -> Vec<Box<dyn substrate::EventHandler<T>>> {
         self.event_handlers()
-            .map(|handlers| handlers.read().unwrap().clone())
+            .map(|handlers| handlers.read().to_vec())
             .unwrap_or_default()
     }
 
     fn event_handlers(&self) -> Option<&RwLock<Vec<Box<dyn substrate::EventHandler<T>>>>>;
 }
 
-struct TangleGadgetRunner<T: Config> {
+struct TangleGadgetRunner {
     env: GadgetConfiguration<parking_lot::RawRwLock>,
     price_targets: PriceTargets,
-    event_handlers: RwLock<Vec<Box<dyn substrate::EventHandler<T>>>>,
+    event_handlers: RwLock<Vec<Box<dyn substrate::EventHandler<TangleConfig>>>>,
 }
 
-impl<T: Config> TangleGadgetRunner<T> {
+impl TangleGadgetRunner {
     pub fn new(
         env: GadgetConfiguration<parking_lot::RawRwLock>,
         price_targets: PriceTargets,
@@ -65,7 +65,7 @@ impl<T: Config> TangleGadgetRunner<T> {
 }
 
 #[async_trait::async_trait]
-impl<T: Config> GadgetRunner for TangleGadgetRunner<T> {
+impl GadgetRunner for TangleGadgetRunner {
     fn config(&self) -> &StdGadgetConfiguration {
         todo!()
     }
@@ -91,7 +91,7 @@ impl<T: Config> GadgetRunner for TangleGadgetRunner<T> {
         );
 
         // Send the tx to the tangle and exit.
-        let signer = self.env.first_sr25519_signer()??;
+        let signer = self.env.first_sr25519_signer()?;
         let result = tx::tangle::send(&client, &signer, &xt).await?;
         info!("Registered operator with hash: {:?}", result);
         Ok(())
@@ -107,7 +107,7 @@ impl<T: Config> GadgetRunner for TangleGadgetRunner<T> {
 
         info!("Starting the event watcher for {} ...", signer.account_id());
 
-        let event_handlers = self.event_handlers().read().unwrap().clone();
+        let event_handlers = self.get_event_handlers();
         let program = TangleEventsWatcher {
             span: self.env.span.clone(),
             client,
@@ -120,8 +120,10 @@ impl<T: Config> GadgetRunner for TangleGadgetRunner<T> {
     }
 }
 
-impl<T: Config> SubstrateGadgetRunner<T> for TangleGadgetRunner<T> {
-    fn event_handlers(&self) -> Option<&RwLock<Vec<Box<dyn substrate::EventHandler<T>>>>> {
+impl SubstrateGadgetRunner<TangleConfig> for TangleGadgetRunner {
+    fn event_handlers(
+        &self,
+    ) -> Option<&RwLock<Vec<Box<dyn substrate::EventHandler<TangleConfig>>>>> {
         Some(&self.event_handlers)
     }
 }
