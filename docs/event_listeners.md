@@ -90,7 +90,7 @@ A `PeriodicEventListener` is a wrapper that takes 4 type parameters:
 
 * `MSEC`: The number of milliseconds between each event check.
 * `T`: The inner event listener type
-* `Evt`: The event type
+* `Event`: The event type
 * `Ctx`: The context type
 
 We can make a `PeriodicEventListener` that ticks every 5000ms to check the status of a web server
