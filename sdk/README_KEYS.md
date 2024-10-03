@@ -5,7 +5,7 @@ This document provides detailed instructions on how to generate and manage keys 
 ## Why `GenericKeyStore` is Needed
 
 The `GenericKeyStore` provides a unified interface for managing cryptographic keys across different backends, such as in-memory and filesystem-based storage. This abstraction allows for flexibility in key management, making it easier to switch between different storage mechanisms without changing the core logic of your application.
-Notably, it allows seemless intercompatability between `sp_core` and the `sp_core` used in `subxt`. Finally, it ensures consistency an compatability between the different key types and algorithms supported by the `gadget-sdk` crate.
+Notably, it allows seamless intercompatibility between `sp_core` and the `sp_core` used in `subxt`. Finally, it ensures consistency and compatibility between the different key types and algorithms supported by the `gadget-sdk` crate.
 
 ## Key Insertion
 

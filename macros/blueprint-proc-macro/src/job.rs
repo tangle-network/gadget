@@ -186,6 +186,8 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         #event_handler_gen
     };
 
+    //panic!("The generated code is:\n{}", gen.to_string());
+
     Ok(gen.into())
 }
 
