@@ -11,7 +11,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
     params_tokens: &[TokenStream],
     additional_params: &[TokenStream],
     fn_call: &TokenStream,
-    event_listener_call: &TokenStream,
+    event_listener_calls: &[TokenStream],
 ) -> TokenStream {
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
@@ -101,7 +101,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                 if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
                     ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
-                    #event_listener_call
+                    #(#event_listener_calls)*
                 }
 
                 // Convert the event to inputs

@@ -3,6 +3,7 @@ use quote::quote;
 use syn::{Ident, LitInt};
 
 #[allow(clippy::too_many_arguments)]
+/// This will run all event handlers at once once init is called on the special-case event handler for substrate
 pub(crate) fn generate_tangle_event_handler(
     fn_name_string: &str,
     struct_name: &Ident,
@@ -11,7 +12,7 @@ pub(crate) fn generate_tangle_event_handler(
     result_tokens: &[TokenStream],
     additional_params: &[TokenStream],
     fn_call: &TokenStream,
-    event_listener_call: &TokenStream,
+    event_listener_calls: &[TokenStream],
 ) -> TokenStream {
     quote! {
         /// Event handler for the function
@@ -33,7 +34,7 @@ pub(crate) fn generate_tangle_event_handler(
                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                 if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
                     ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
-                    #event_listener_call
+                    #(#event_listener_calls)*
                 }
             }
 
