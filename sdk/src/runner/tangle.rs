@@ -119,7 +119,9 @@ impl SubstrateGadgetRunner<TangleConfig> for TangleGadgetRunner {
         self.event_handlers.read().iter().cloned().collect()
     }
 
-    fn event_handlers(&self) -> Option<&RwLock<Vec<Box<dyn substrate::EventHandler<TangleConfig>>>>> {
+    fn event_handlers(
+        &self,
+    ) -> Option<&RwLock<Vec<Box<dyn substrate::EventHandler<TangleConfig>>>>> {
         Some(&self.event_handlers)
     }
 }
