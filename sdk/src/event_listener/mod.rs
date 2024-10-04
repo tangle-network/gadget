@@ -4,14 +4,7 @@ use crate::events_watcher::substrate::{EventHandlerFor, SubstrateEventWatcher};
 use crate::Error;
 use alloy_network::Ethereum;
 use async_trait::async_trait;
-use backon::{ConstantBuilder, Retryable};
-use futures::stream::FuturesOrdered;
-use futures::StreamExt;
 use std::collections::HashMap;
-use std::default::Default;
-use std::future::Future;
-use std::pin::Pin;
-use std::time::Duration;
 use subxt::backend::StreamOfResults;
 use subxt::OnlineClient;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
@@ -176,7 +169,7 @@ impl<Watcher: SubstrateEventWatcher<TangleConfig>>
             listener,
             client: ctx.client().clone(),
             current_block: None,
-            handlers: ctx.handlers().iter().map(|r| r.clone()).collect(),
+            handlers: ctx.handlers().to_vec(),
             _pd: std::marker::PhantomData,
         })
     }
@@ -190,14 +183,12 @@ impl<Watcher: SubstrateEventWatcher<TangleConfig>>
             let events = next_block.events().await.ok()?;
             let mut actionable_events = HashMap::new();
             for (idx, handler) in self.handlers.iter().enumerate() {
-                for evt in events.iter() {
-                    if let Ok(_evt) = evt {
-                        crate::info!(
-                            "Event found || required: sid={}, jid={}",
-                            handler.service_id(),
-                            handler.job_id()
-                        );
-                    }
+                for _evt in events.iter().flatten() {
+                    crate::info!(
+                        "Event found || required: sid={}, jid={}",
+                        handler.service_id(),
+                        handler.job_id()
+                    );
                 }
 
                 let events = events
@@ -208,12 +199,12 @@ impl<Watcher: SubstrateEventWatcher<TangleConfig>>
                     })
                     .collect::<Vec<_>>();
 
-                if events.len() > 0 {
+                if !events.is_empty() {
                     let _ = actionable_events.insert(idx, events);
                 }
             }
 
-            if actionable_events.len() > 0 {
+            if !actionable_events.is_empty() {
                 return Some(actionable_events);
             }
         }
@@ -229,7 +220,7 @@ impl<Watcher: SubstrateEventWatcher<TangleConfig>>
         crate::info!(
             "Handling {} JobCalled Events @ block {}",
             job_events.len(),
-            self.current_block.clone().unwrap_or_default()
+            self.current_block.unwrap_or_default()
         );
 
         let mut tasks = Vec::new();
@@ -280,7 +271,7 @@ impl<Watcher: SubstrateEventWatcher<TangleConfig>>
         if mark_as_handled {
             crate::info!(
                 "event handled successfully at block {}",
-                self.current_block.clone().unwrap_or_default()
+                self.current_block.unwrap_or_default()
             );
         } else {
             crate::error!("Error while handling event, all handlers failed.");

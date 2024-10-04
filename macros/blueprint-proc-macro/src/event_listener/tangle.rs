@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Ident, LitInt};
+use syn::{Ident, ItemFn, LitInt};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn generate_tangle_event_handler(
@@ -23,8 +23,6 @@ pub(crate) fn generate_tangle_event_handler(
             pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair>,
             #(#additional_params)*
         }
-
-        const __JOB_ID_ #fn_name_string : u8 = #job_id;
 
         #[automatically_derived]
         #[async_trait::async_trait]
@@ -50,7 +48,7 @@ pub(crate) fn generate_tangle_event_handler(
 
             /// Returns the job ID
             fn job_id(&self) -> u8 {
-                __JOB_ID_ #fn_name_string
+                #job_id
             }
 
             /// Returns the service ID

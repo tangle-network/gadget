@@ -27,13 +27,18 @@ mod kw {
     syn::custom_keyword!(skip_codegen);
 }
 
-/// Job Macro implementation
-pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStream> {
-    // Extract function name and arguments
+pub fn get_job_id_field_name(input: &ItemFn) -> (String, Ident, Ident) {
     let fn_name = &input.sig.ident;
     let fn_name_string = fn_name.to_string();
     let job_def_name = format_ident!("{}_JOB_DEF", fn_name_string.to_ascii_uppercase());
     let job_id_name = format_ident!("{}_JOB_ID", fn_name_string.to_ascii_uppercase());
+    (fn_name_string, job_def_name, job_id_name)
+}
+
+/// Job Macro implementation
+pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStream> {
+    // Extract function name and arguments
+    let (fn_name_string, job_def_name, job_id_name) = get_job_id_field_name(input);
 
     let syn::ReturnType::Type(_, result) = &input.sig.output else {
         return Err(syn::Error::new_spanned(
@@ -248,14 +253,14 @@ fn generate_fn_name_and_struct(f: &ItemFn) -> (&Ident, String, Ident) {
 /// Generates the [`EventHandler`](gadget_sdk::events_watcher::evm::EventHandler) for a Job
 #[allow(clippy::too_many_lines)]
 pub fn generate_event_handler_for(
-    f: &ItemFn,
+    input: &ItemFn,
     job_args: &JobArgs,
     param_types: &IndexMap<Ident, Type>,
     params: &[FieldType],
     result: &[FieldType],
     event_listener_call: Option<proc_macro2::TokenStream>,
 ) -> proc_macro2::TokenStream {
-    let (fn_name, fn_name_string, struct_name) = generate_fn_name_and_struct(f);
+    let (fn_name, fn_name_string, struct_name) = generate_fn_name_and_struct(input);
     let job_id = &job_args.id;
     let event_handler = &job_args.event_handler;
 
@@ -327,7 +332,7 @@ pub fn generate_event_handler_for(
         })
         .collect::<Vec<_>>();
 
-    let asyncness = if f.sig.asyncness.is_some() {
+    let asyncness = if input.sig.asyncness.is_some() {
         quote! {.await}
     } else {
         quote! {}
