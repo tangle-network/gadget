@@ -7,9 +7,7 @@
 //! of an event watcher polls for blocks. Implementations of the event watcher trait define an
 //! action to take when the specified event is found in a block at the `handle_event` api.
 
-use crate::events_watcher::error::Error;
 use std::sync::Arc;
-use subxt::OnlineClient;
 use subxt_core::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
@@ -25,9 +23,12 @@ pub trait EventHandler<RuntimeConfig>: Send + Sync + 'static
 where
     RuntimeConfig: subxt::Config + Send + Sync + 'static,
 {
-    fn init(&self);
+    async fn init(&self);
 
-    async fn handle(&self, event: &JobCalled) -> Result<Vec<Field<AccountId32>>, Error>;
+    async fn handle(
+        &self,
+        event: &JobCalled,
+    ) -> Result<Vec<Field<AccountId32>>, crate::events_watcher::Error>;
 
     /// Returns the job ID
     fn job_id(&self) -> u8;
@@ -39,20 +40,4 @@ where
     fn signer(
         &self,
     ) -> &crate::keystore::TanglePairSigner<crate::keystore::sp_core_subxt::sr25519::Pair>;
-}
-
-/// Represents a Substrate event watcher.
-#[async_trait::async_trait]
-pub trait SubstrateEventWatcher<RuntimeConfig>: Send + Sync + 'static
-where
-    RuntimeConfig: subxt::Config + Send + Sync + 'static,
-{
-    /// A helper unique tag to help identify the event watcher in the tracing logs.
-    const TAG: &'static str;
-
-    /// The name of the pallet that this event watcher is watching.
-    const PALLET_NAME: &'static str;
-
-    fn client(&self) -> &OnlineClient<RuntimeConfig>;
-    fn handlers(&self) -> &Vec<EventHandlerFor<RuntimeConfig>>;
 }

@@ -7,48 +7,48 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
     match t {
         FieldType::Void => unreachable!("void type should not be in params"),
         FieldType::Bool => {
-            quote! { let Some(Field::Bool(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Bool(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::Uint8 => {
-            quote! { let Some(Field::Uint8(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Uint8(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::Int8 => {
-            quote! { let Some(Field::Int8(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Int8(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::Uint16 => {
-            quote! { let Some(Field::Uint16(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Uint16(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::Int16 => {
-            quote! { let Some(Field::Int16(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Int16(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::Uint32 => {
-            quote! { let Some(Field::Uint32(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Uint32(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::Int32 => {
-            quote! { let Some(Field::Int32(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Int32(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::Uint64 => {
-            quote! { let Some(Field::Uint64(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Uint64(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::Int64 => {
-            quote! { let Some(Field::Int64(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Int64(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::Uint128 => {
-            quote! { let Some(Field::Uint128(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Uint128(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::U256 => {
-            quote! { let Some(Field::U256(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::U256(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::Int128 => {
-            quote! { let Some(Field::Int128(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Int128(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::Float64 => {
-            quote! { let Some(Field::Float64(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Float64(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::String => {
             let inner_ident = format_ident!("{}_inner", ident);
             quote! {
-                let Some(Field::String(BoundedString(BoundedVec(#inner_ident)))) = args_iter.next() else { continue; };
+                let Some(Field::String(BoundedString(BoundedVec(#inner_ident)))) = args_iter.next() else { return Ok(vec![]); };
                 // Convert the BoundedVec to a String
                 let #ident = match String::from_utf8(#inner_ident) {
                     Ok(s) => s,
@@ -61,14 +61,14 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
             }
         }
         FieldType::Bytes => {
-            quote! { let Some(Field::Bytes(BoundedVec(#ident))) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::Bytes(BoundedVec(#ident))) = args_iter.next() else { return Ok(vec![]); }; }
         }
         FieldType::Optional(t_x) => {
             let inner_ident = format_ident!("{}_inner", ident);
             let x_ident = format_ident!("{}_option", ident);
             let x_inner = field_type_to_param_token(&x_ident, t_x);
             let inner = quote! {
-                let Some(#inner_ident) = args_iter.next() else {  continue; };
+                let Some(#inner_ident) = args_iter.next() else {  return Ok(vec![]); };
             };
             quote! {
                 #inner
@@ -85,7 +85,7 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
         FieldType::List(_) => {
             let inner_ident = format_ident!("{}_inner", ident);
             let inner = quote! {
-                let Some(Field::List(BoundedVec(#inner_ident))) = args_iter.next() else { continue; };
+                let Some(Field::List(BoundedVec(#inner_ident))) = args_iter.next() else { return Ok(vec![]); };
             };
 
             quote! {
@@ -112,7 +112,7 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
                 .collect();
 
             quote! {
-                let Some(Field::Struct(#ident)) = args_iter.next() else { continue; };
+                let Some(Field::Struct(#ident)) = args_iter.next() else { return Ok(vec![]); };
                 let mut #ident = #ident.into_iter();
                 #(#field_tokens)*
                 let #ident = #struct_ident {
@@ -122,7 +122,7 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
         }
 
         FieldType::AccountId => {
-            quote! { let Some(Field::AccountId(#ident)) = args_iter.next() else { continue; }; }
+            quote! { let Some(Field::AccountId(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
         }
     }
 }

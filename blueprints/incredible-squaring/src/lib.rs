@@ -1,10 +1,5 @@
-use async_trait::async_trait;
-use gadget_sdk::clients::tangle::runtime::TangleConfig;
 use gadget_sdk::config::GadgetConfiguration;
-use gadget_sdk::event_listener::TangleEventListener;
-use gadget_sdk::ext::subxt::blocks::Block;
-use gadget_sdk::ext::subxt::OnlineClient;
-use gadget_sdk::{job, Error};
+use gadget_sdk::job;
 use std::convert::Infallible;
 //pub mod eigenlayer;
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.

@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Ident, ItemFn, LitInt};
+use syn::{Ident, LitInt};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn generate_tangle_event_handler(
@@ -18,16 +18,18 @@ pub(crate) fn generate_tangle_event_handler(
         #[doc = "[`"]
         #[doc = #fn_name_string]
         #[doc = "`]"]
+        #[derive(Clone)]
         pub struct #struct_name {
             pub service_id: u64,
             pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair>,
+            pub client: gadget_sdk::clients::tangle::runtime::TangleClient,
             #(#additional_params)*
         }
 
         #[automatically_derived]
         #[async_trait::async_trait]
         impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig> for #struct_name {
-            fn __init(&self) {
+            async fn init(&self) {
                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                 if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
                     ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -35,7 +37,8 @@ pub(crate) fn generate_tangle_event_handler(
                 }
             }
 
-            async fn handle(&self, event: &gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled) -> Result<(), gadget_sdk::Error> {
+            async fn handle(&self, event: &gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
+                use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
                 let mut args_iter = event.args.clone().into_iter();
                 #(#params_tokens)*
                 #fn_call
@@ -43,7 +46,7 @@ pub(crate) fn generate_tangle_event_handler(
                 let mut result = Vec::new();
                 #(#result_tokens)*
 
-                result
+                Ok(result)
             }
 
             /// Returns the job ID

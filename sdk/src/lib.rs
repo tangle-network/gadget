@@ -66,6 +66,7 @@ pub mod ctx;
 // Re-exports
 pub use error::Error;
 pub use gadget_blueprint_proc_macro::*;
+pub use subxt_core;
 pub use tangle_subxt;
 pub use tokio;
 

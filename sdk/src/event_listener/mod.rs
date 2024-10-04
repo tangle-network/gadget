@@ -1,6 +1,6 @@
-use crate::clients::tangle::runtime::TangleConfig;
+use crate::clients::tangle::runtime::{TangleClient, TangleConfig};
 use crate::events_watcher::evm::{Config as ConfigT, EventWatcher};
-use crate::events_watcher::substrate::{EventHandlerFor, SubstrateEventWatcher};
+use crate::events_watcher::substrate::EventHandlerFor;
 use crate::Error;
 use alloy_network::Ethereum;
 use async_trait::async_trait;
@@ -96,13 +96,12 @@ struct EthereumWatcherWrapper<
     _phantom: std::marker::PhantomData<(Ctx, C)>,
 }
 
-struct SubstrateWatcherWrapper<Ctx: Send + Sync + 'static> {
+pub struct SubstrateWatcherWrapper {
     handlers: Vec<EventHandlerFor<TangleConfig>>,
     client: OnlineClient<TangleConfig>,
     current_block: Option<u32>,
     listener:
         Mutex<StreamOfResults<subxt::blocks::Block<TangleConfig, OnlineClient<TangleConfig>>>>,
-    _pd: std::marker::PhantomData<Ctx>,
 }
 
 impl<Config: ConfigT<N = Ethereum>, Ctx: Send + Sync + 'static, Watcher: EventWatcher<Config>>
@@ -156,21 +155,22 @@ impl<
     }
 }*/
 
+pub type SubstrateWatcherWrapperContext = (TangleClient, EventHandlerFor<TangleConfig>);
 #[async_trait]
-impl<Watcher: SubstrateEventWatcher<TangleConfig>>
-    EventListener<HashMap<usize, Vec<JobCalled>>, Watcher> for SubstrateWatcherWrapper<Watcher>
+impl EventListener<HashMap<usize, Vec<JobCalled>>, SubstrateWatcherWrapperContext>
+    for SubstrateWatcherWrapper
 {
-    async fn new(ctx: &Watcher) -> Result<Self, Error>
+    async fn new(ctx: &SubstrateWatcherWrapperContext) -> Result<Self, Error>
     where
         Self: Sized,
     {
-        let listener = Mutex::new(ctx.client().blocks().subscribe_finalized().await?);
+        let (client, handlers) = ctx;
+        let listener = Mutex::new(client.blocks().subscribe_finalized().await?);
         Ok(Self {
             listener,
-            client: ctx.client().clone(),
+            client: client.clone(),
             current_block: None,
-            handlers: ctx.handlers().to_vec(),
-            _pd: std::marker::PhantomData,
+            handlers: vec![handlers.clone()],
         })
     }
 
@@ -287,7 +287,7 @@ impl<Watcher: SubstrateEventWatcher<TangleConfig>>
         const MAX_RETRY_COUNT: usize = 5;
 
         for handler in &self.handlers {
-            handler.init();
+            handler.init().await;
         }
 
         let mut backoff = ExponentialBackoff::from_millis(1000)
@@ -310,7 +310,7 @@ impl<Watcher: SubstrateEventWatcher<TangleConfig>>
     }
 }
 
-impl<Watcher: SubstrateEventWatcher<TangleConfig>> SubstrateWatcherWrapper<Watcher> {
+impl SubstrateWatcherWrapper {
     async fn run_event_loop(&mut self) -> Result<(), Error> {
         while let Some(events) = self.next_event().await {
             self.handle_event(events).await?;

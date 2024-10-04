@@ -100,10 +100,25 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
                 if listener_str.contains("TangleEventListener")
                     || listener_str.contains("EvmEventListener")
                 {
-                    let (_, _, struct_name) = generate_fn_name_and_struct(input);
-                    let wrapper = if listener_str == "TangleEventListener" {
+                    // TODO: create gadget_sdk::events_watcher::tangle::TangleEventsWatcher {
+                    //  pub span: tracing::Span,
+                    //  pub client: TangleClient,
+                    //  pub handlers: Vec<Arc<dyn EventHandler<TangleConfig>>>,
+                    // }
+
+                    // How to inject not just this event handler, but all event handlers here?
+                    let wrapper = if listener_str.contains("TangleEventListener") {
                         quote! {
-                            gadget_sdk::event_listener::SubstrateWatcherWrapper::<#struct_name>
+                            gadget_sdk::event_listener::SubstrateWatcherWrapper
+                        }
+                    } else {
+                        unimplemented!("EvmEventListener not implemented yet");
+                    };
+
+                    let autogen_struct_name = if listener_str.contains("TangleEventListener") {
+                        let (_, _, struct_name) = generate_fn_name_and_struct(input);
+                        quote! {
+                            #struct_name
                         }
                     } else {
                         unimplemented!("EvmEventListener not implemented yet");
@@ -114,10 +129,13 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
                     });
 
                     quote! {
-                        async fn run_listener(ctx: &#struct_name) {
-                            let mut instance = #wrapper::new(ctx).await.expect("Failed to create event listener");
+                        async fn run_listener(ctx: &#autogen_struct_name) {
+                            let ctx = (ctx.client.clone(), std::sync::Arc::new(ctx.clone()) as gadget_sdk::events_watcher::substrate::EventHandlerFor<gadget_sdk::clients::tangle::runtime::TangleConfig>);
+                            let mut instance = <#wrapper as gadget_sdk::event_listener::EventListener::<_, _>>::new(&ctx).await.expect("Failed to create event listener");
                             let task = async move {
-                                <#listener>::execute(&mut instance).await;
+                                if let Err(err) = gadget_sdk::event_listener::EventListener::<_, _>::execute(&mut instance).await {
+                                    gadget_sdk::error!("Error in event listener (now closing): {err}");
+                                }
                             };
                             gadget_sdk::tokio::task::spawn(task);
                         }
@@ -294,7 +312,7 @@ pub fn generate_event_handler_for(
             let is_job_var = !additional_var_indexes.contains(&pos_in_all_args);
 
             if is_job_var {
-                // TODO: Make sure this index properly increments
+                // TODO: Double-verify this index properly increments
                 let ident = format_ident!("param{job_var_idx}");
                 job_var_idx += 1;
                 return quote! { #ident, };
