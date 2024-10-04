@@ -4,7 +4,7 @@ use crate::events_watcher::substrate::{EventHandlerFor, SubstrateEventWatcher};
 use crate::Error;
 use alloy_network::Ethereum;
 use async_trait::async_trait;
-use backon::{ConstantBuilder, ExponentialBuilder, Retryable};
+use backon::{ConstantBuilder, Retryable};
 use futures::stream::FuturesOrdered;
 use futures::StreamExt;
 use std::collections::HashMap;
@@ -16,6 +16,8 @@ use subxt::backend::StreamOfResults;
 use subxt::OnlineClient;
 use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use tokio::sync::Mutex;
+use tokio_retry::strategy::ExponentialBackoff;
+use tokio_retry::Retry;
 
 pub mod periodic;
 
@@ -48,6 +50,7 @@ pub trait EventListener<T: Send + Sync + 'static, Ctx: Send + Sync + 'static>:
 }
 
 /// A generic event listener for the Tangle network.
+#[derive(Copy, Clone)]
 pub struct TangleEventListener;
 
 pub struct GenericEventListener<
@@ -206,7 +209,7 @@ impl<Watcher: SubstrateEventWatcher<TangleConfig>>
                     .collect::<Vec<_>>();
 
                 if events.len() > 0 {
-                    actionable_events.insert(idx, events);
+                    let _ = actionable_events.insert(idx, events);
                 }
             }
 
@@ -229,37 +232,39 @@ impl<Watcher: SubstrateEventWatcher<TangleConfig>>
             self.current_block.clone().unwrap_or_default()
         );
 
-        let mut tasks = FuturesOrdered::new();
+        let mut tasks = Vec::new();
         for (handler_idx, calls) in job_events.iter() {
             let handler = &self.handlers[*handler_idx];
             let client = &self.client;
             for call in calls {
-                let task = || {
-                    Box::pin(async {
-                        let signer = handler.signer();
-                        let service_id = call.service_id;
-                        let call_id = call.call_id;
-                        let result = handler.handle(call).await?;
+                let service_id = call.service_id;
+                let call_id = call.call_id;
+                let signer = handler.signer().clone();
+                let call = call.clone();
+
+                let task = async move {
+                    let backoff = ExponentialBackoff::from_millis(1000)
+                        .factor(2)
+                        .take(MAX_RETRY_COUNT);
+
+                    Retry::spawn(backoff, || async {
+                        let result = handler.handle(&call).await?;
                         let response = TangleApi::tx()
                             .services()
                             .submit_result(service_id, call_id, result);
-                        crate::tx::tangle::send(client, signer, &response)
+                        let _ = crate::tx::tangle::send(client, &signer, &response)
                             .await
                             .map_err(|err| Error::Client(err.to_string()))?;
                         Ok::<_, Error>(())
-                    }) as Pin<Box<dyn Send + Future<Output = _>>>
+                    })
+                    .await
                 };
 
-                let backoff = ConstantBuilder::default()
-                    .with_delay(Duration::from_millis(100))
-                    .with_max_times(MAX_RETRY_COUNT);
-
-                let task = task.retry(backoff);
-                tasks.push_back(task)
+                tasks.push(task);
             }
         }
 
-        let results = tasks.collect::<Vec<_>>().await;
+        let results = futures::future::join_all(tasks).await;
         // this event will be marked as handled if at least one handler succeeded.
         // this because, for the failed events, we arleady tried to handle them
         // many times (at this point), and there is no point in trying again.
@@ -294,17 +299,34 @@ impl<Watcher: SubstrateEventWatcher<TangleConfig>>
             handler.init();
         }
 
-        let backoff = ExponentialBuilder::default().with_max_times(usize::MAX);
-        let meta_task = || async {
-            while let Some(events) = self.next_event().await {
-                self.handle_event(events).await?
+        let mut backoff = ExponentialBackoff::from_millis(1000)
+            .factor(2)
+            .take(MAX_RETRY_COUNT);
+
+        let mut retry_count = 0;
+        loop {
+            match self.run_event_loop().await {
+                Ok(_) => break Ok(()),
+                Err(e) => {
+                    if retry_count >= MAX_RETRY_COUNT {
+                        break Err(e);
+                    }
+                    retry_count += 1;
+                    tokio::time::sleep(backoff.nth(retry_count).unwrap()).await;
+                }
             }
+        }
+    }
+}
 
-            Err::<(), Error>(Error::Other("Event listener has stopped".to_string()))
-        };
+impl<Watcher: SubstrateEventWatcher<TangleConfig>> SubstrateWatcherWrapper<Watcher> {
+    async fn run_event_loop(&mut self) -> Result<(), Error> {
+        while let Some(events) = self.next_event().await {
+            self.handle_event(events).await?;
+        }
 
-        meta_task.retry(backoff).await?;
-        Ok(())
+        crate::warn!("Event listener has stopped");
+        Err(Error::Other("Event listener has stopped".to_string()))
     }
 }
 
