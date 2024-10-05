@@ -457,9 +457,8 @@ mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
     use alloy_provider::Provider;
-    use std::str::FromStr;
-
     use cargo_tangle::deploy::Opts;
+    use std::str::FromStr;
 
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
@@ -563,6 +562,13 @@ mod tests_standard {
         "./../blueprints/incredible-squaring/contracts/out/IPauserRegistry.sol/IPauserRegistry.json"
     );
 
+    alloy_sol_types::sol!(
+        #[allow(missing_docs, clippy::too_many_arguments)]
+        #[sol(rpc)]
+        RegistryCoordinator,
+        "./../blueprints/incredible-squaring/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
+    );
+
     #[tokio::test(flavor = "multi_thread")]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
@@ -583,6 +589,7 @@ mod tests_standard {
         // TODO: Deploy the Incredible Squaring Contracts to the testnet
 
         let http_endpoint = "http://127.0.0.1:8545";
+        // let ws_endpoint = "ws://127.0.0.1:8545";
 
         // Create a provider using the transport
         let provider = alloy_provider::ProviderBuilder::new()
@@ -600,11 +607,29 @@ mod tests_standard {
         // let operator_state_retriever_addr = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
         // let delegation_manager_addr = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
         // let strategy_manager_addr = address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
-        // let erc20_mock_addr = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
+        let erc20_mock_addr = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
 
         // Deploy the Pauser Registry to the running Testnet
         let pauser_registry = PauserRegistry::deploy(provider.clone()).await.unwrap();
         let &pauser_registry_addr = pauser_registry.address();
+
+        // Create Quorum
+        let registry_coordinator =
+            RegistryCoordinator::new(registry_coordinator_addr, provider.clone());
+        let operator_set_params = RegistryCoordinator::OperatorSetParam {
+            maxOperatorCount: 10,
+            kickBIPsOfOperatorStake: 100,
+            kickBIPsOfTotalStake: 1000,
+        };
+        let strategy_params = RegistryCoordinator::StrategyParams {
+            strategy: erc20_mock_addr,
+            multiplier: 1,
+        };
+        let _ = registry_coordinator
+            .createQuorum(operator_set_params, 0, vec![strategy_params])
+            .send()
+            .await
+            .unwrap();
 
         // Deploy the Incredible Squaring Task Manager to the running Testnet
         let task_manager_addr =
@@ -622,6 +647,8 @@ mod tests_standard {
             .contract_address
             .unwrap();
         info!("Task Manager: {:?}", task_manager_addr);
+
+        std::env::set_var("TASK_MANAGER_ADDR", task_manager_addr.to_string());
 
         // We spawn a new Task for the test to handle
         let task_manager = IncredibleSquaringTaskManager::new(task_manager_addr, provider.clone());
@@ -644,6 +671,29 @@ mod tests_standard {
             .unwrap()
             .status();
         assert!(init_result);
+
+        // let avs_registry_reader = AvsRegistryChainReader::new(
+        //     get_test_logger(),
+        //     registry_coordinator_addr,
+        //     operator_state_retriever_addr,
+        //     http_endpoint.to_string(),
+        // )
+        //     .await
+        //     .unwrap();
+        //
+        // let operators_info = operatorsinfo_inmemory::OperatorInfoServiceInMemory::new(
+        //     get_test_logger(),
+        //     avs_registry_reader.clone(),
+        //     ws_endpoint.to_string(),
+        // )
+        //     .await;
+        //
+        // let cancellation_token = tokio_util::sync::CancellationToken::new();
+        // let operators_info_clone = operators_info.clone();
+        // let token_clone = cancellation_token.clone();
+        // tokio::task::spawn(async move { operators_info_clone.start_service(&token_clone, 0, 0).await });
+        //
+        // tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 
         let task_spawner = async move {
             loop {
@@ -748,6 +798,9 @@ mod tests_standard {
             .args(arguments)
             .spawn()
             .unwrap();
+
+        // Send the shutdown signal to the OperatorInfoServiceInMemory
+        // cancellation_token.cancel();
 
         let status = process_handle.wait_with_output().await.unwrap();
         if !status.status.success() {

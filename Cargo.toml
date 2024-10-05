@@ -127,6 +127,7 @@ syn = "2.0.75"
 sysinfo = "0.31.2"
 thiserror = { version = "1.0.64", default-features = false }
 tokio = { version = "1.39.3", default-features = false }
+tokio-util = { version = "0.7.12", default-features = false }
 toml = "0.8.19"
 tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
@@ -143,15 +144,17 @@ indexmap = "2.5.0"
 alloy-primitives = "0.7.2"
 alloy-json-abi = "0.7.2"
 alloy-sol-types = "0.7.2"
-alloy-rpc-types = { version = "0.1.4" }
+alloy-rpc-types = { version = "0.1" }
+alloy-rpc-types-eth = { version = "0.1" }
 alloy-provider = { version = "0.1.4", default-features = false, features = ["reqwest", "ws"] }
-alloy-pubsub = { version = "0.1.4" }
-alloy-signer = { version = "0.1.4" }
-alloy-signer-local = { version = "0.1.4" }
-alloy-network = { version = "0.1.4" }
-alloy-contract = { version = "0.1.4" }
-alloy-transport = { version = "0.1.4" }
-alloy-transport-http = { version = "0.1.4" }
+alloy-pubsub = { version = "0.1" }
+alloy-signer = { version = "0.1" }
+alloy-signer-local = { version = "0.1" }
+alloy-network = { version = "0.1" }
+alloy-contract = { version = "0.1" }
+alloy-consensus = { version = "0.1" }
+alloy-transport = { version = "0.1" }
+alloy-transport-http = { version = "0.1" }
 
 ark-bn254 = "0.4.0"
 ark-ec = "0.4.0"
@@ -169,7 +172,8 @@ wasmtimer = "0.2"
 secp256k1 = "0.29.1"
 
 # Eigenlayer
-eigensdk = { version = "0.1.0", features = ["full", "utils"] }
+#eigensdk = { version = "0.1.0", features = ["full", "utils", "types"] }
+eigensdk = { path = "../eigensdk/crates/eigensdk", features = ["full", "utils", "types"] }
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]

@@ -51,7 +51,6 @@ pub(crate) fn generate_eigenlayer_event_handler(
 
             /// Returns the provider of the [`ContractInstance`].
             pub fn provider(&self) -> &P {
-                info!("Fetching Provider");
                 self.instance.provider()
             }
 
@@ -89,7 +88,6 @@ pub(crate) fn generate_eigenlayer_event_handler(
 
             /// Dereferences the [`#instance_wrapper_name`] to its [`ContractInstance`].
             fn deref(&self) -> &Self::Target {
-                info!("Fetching/Dereferencing (to) ContractInstance");
                 self.get_contract_instance()
             }
         }
@@ -146,9 +144,9 @@ pub(crate) fn generate_eigenlayer_event_handler(
                 // }
                 let call = #callback(job_result);
 
-                let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
-                let receipt = tx.get_receipt().await?;
-                info!("SUBMITTED JOB RESULT: {:?}", receipt);
+                // let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await.unwrap();
+                // let receipt = tx.get_receipt().await.unwrap();
+                // info!("SUBMITTED JOB RESULT: {:?}", receipt);
 
                 info!("SUCCESSFULLY SUBMITTED JOB RESULT");
 
@@ -184,7 +182,6 @@ pub(crate) fn generate_eigenlayer_event_handler(
             type Event = #instance_base::NewTaskCreated;
             const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
 
-            // TODO: Fix these two functions - they have issues at the moment
             fn contract(&mut self) -> Self::Contract {
                 let instance = #instance_base::#instance_name::new(
                     self.contract_address,

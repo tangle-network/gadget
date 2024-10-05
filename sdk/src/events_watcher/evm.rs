@@ -152,7 +152,6 @@ pub trait EventWatcher<T: Config>: Send + Sync + 'static {
 
             let loop_provider = contract.provider().clone();
             loop {
-                info!("Starting loop");
                 let block = local_db
                     .get(&format!("LAST_BLOCK_NUMBER_{}", contract.address()))
                     .unwrap_or(deployed_at);
