@@ -379,7 +379,7 @@ pub(crate) struct JobArgs {
     /// List of parameters for the job, in order.
     /// `#[job(params(a, b, c))]`
     params: Vec<Ident>,
-    /// List of return types for the job, could be infered from the function return type.
+    /// List of return types for the job, could be inferred from the function return type.
     /// `#[job(result(u32, u64))]`
     /// `#[job(result(_))]`
     result: ResultsKind,
