@@ -84,6 +84,7 @@ pub fn on_request(nft_id: u64);
 #[report(
     job_id = 0,
     params(n, t, msgs),
+    event_listener(TangleEventListener),
     result(_),
     report_type = "job",
     verifier(evm = "KeygenContract")
@@ -95,6 +96,7 @@ fn report_keygen(n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
 
 #[report(
     params(uptime, response_time, error_rate),
+    event_listener(TangleEventListener),
     result(Vec<u8>),
     report_type = "qos",
     interval = 3600,

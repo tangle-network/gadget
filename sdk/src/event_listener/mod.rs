@@ -7,7 +7,10 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use subxt::backend::StreamOfResults;
 use subxt::OnlineClient;
-use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
+use subxt_core::events::StaticEvent;
+use tangle_subxt::tangle_testnet_runtime::api::services::events::{
+    job_called, JobCalled, JobResultSubmitted,
+};
 use tokio::sync::Mutex;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::Retry;
@@ -96,8 +99,8 @@ struct EthereumWatcherWrapper<
     _phantom: std::marker::PhantomData<(Ctx, C)>,
 }
 
-pub struct SubstrateWatcherWrapper {
-    handlers: Vec<EventHandlerFor<TangleConfig>>,
+pub struct SubstrateWatcherWrapper<Evt: Send + Sync + 'static> {
+    handlers: Vec<EventHandlerFor<TangleConfig, Evt>>,
     client: OnlineClient<TangleConfig>,
     current_block: Option<u32>,
     listener:
@@ -155,12 +158,47 @@ impl<
     }
 }*/
 
-pub type SubstrateWatcherWrapperContext = (TangleClient, EventHandlerFor<TangleConfig>);
+pub trait HasServiceAndJobId: StaticEvent + Send + Sync + 'static {
+    fn service_id(&self) -> u64;
+    fn job_id(&self) -> u8;
+    fn id_of_call(&self) -> job_called::CallId;
+}
+
+impl HasServiceAndJobId for JobCalled {
+    fn service_id(&self) -> u64 {
+        self.service_id
+    }
+
+    fn job_id(&self) -> u8 {
+        self.job
+    }
+
+    fn id_of_call(&self) -> job_called::CallId {
+        self.call_id
+    }
+}
+
+impl HasServiceAndJobId for JobResultSubmitted {
+    fn service_id(&self) -> u64 {
+        self.service_id
+    }
+
+    fn job_id(&self) -> u8 {
+        self.job
+    }
+
+    fn id_of_call(&self) -> job_called::CallId {
+        self.call_id
+    }
+}
+
+pub type SubstrateWatcherWrapperContext<Evt> = (TangleClient, EventHandlerFor<TangleConfig, Evt>);
 #[async_trait]
-impl EventListener<HashMap<usize, Vec<JobCalled>>, SubstrateWatcherWrapperContext>
-    for SubstrateWatcherWrapper
+impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
+    EventListener<HashMap<usize, Vec<Evt>>, SubstrateWatcherWrapperContext<Evt>>
+    for SubstrateWatcherWrapper<Evt>
 {
-    async fn new(ctx: &SubstrateWatcherWrapperContext) -> Result<Self, Error>
+    async fn new(ctx: &SubstrateWatcherWrapperContext<Evt>) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -174,7 +212,7 @@ impl EventListener<HashMap<usize, Vec<JobCalled>>, SubstrateWatcherWrapperContex
         })
     }
 
-    async fn next_event(&mut self) -> Option<HashMap<usize, Vec<JobCalled>>> {
+    async fn next_event(&mut self) -> Option<HashMap<usize, Vec<Evt>>> {
         loop {
             let next_block = self.listener.get_mut().next().await?.ok()?;
             let block_id = next_block.number();
@@ -192,10 +230,11 @@ impl EventListener<HashMap<usize, Vec<JobCalled>>, SubstrateWatcherWrapperContex
                 }
 
                 let events = events
-                    .find::<JobCalled>()
+                    .find::<Evt>()
                     .flatten()
                     .filter(|event| {
-                        event.service_id == handler.service_id() && event.job == handler.job_id()
+                        event.service_id() == handler.service_id()
+                            && event.job_id() == handler.job_id()
                     })
                     .collect::<Vec<_>>();
 
@@ -210,10 +249,7 @@ impl EventListener<HashMap<usize, Vec<JobCalled>>, SubstrateWatcherWrapperContex
         }
     }
 
-    async fn handle_event(
-        &mut self,
-        job_events: HashMap<usize, Vec<JobCalled>>,
-    ) -> Result<(), Error> {
+    async fn handle_event(&mut self, job_events: HashMap<usize, Vec<Evt>>) -> Result<(), Error> {
         use crate::tangle_subxt::tangle_testnet_runtime::api as TangleApi;
         const MAX_RETRY_COUNT: usize = 5;
         crate::info!("Handling actionable events ...");
@@ -228,10 +264,9 @@ impl EventListener<HashMap<usize, Vec<JobCalled>>, SubstrateWatcherWrapperContex
             let handler = &self.handlers[*handler_idx];
             let client = &self.client;
             for call in calls {
-                let service_id = call.service_id;
-                let call_id = call.call_id;
+                let service_id = call.service_id();
+                let call_id = call.id_of_call();
                 let signer = handler.signer().clone();
-                let call = call.clone();
 
                 let task = async move {
                     let backoff = ExponentialBackoff::from_millis(1000)
@@ -310,7 +345,7 @@ impl EventListener<HashMap<usize, Vec<JobCalled>>, SubstrateWatcherWrapperContex
     }
 }
 
-impl SubstrateWatcherWrapper {
+impl<Evt: Send + Sync + HasServiceAndJobId + 'static> SubstrateWatcherWrapper<Evt> {
     async fn run_event_loop(&mut self) -> Result<(), Error> {
         while let Some(events) = self.next_event().await {
             self.handle_event(events).await?;
