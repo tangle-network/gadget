@@ -6059,14 +6059,16 @@ dependencies = [
 name = "gadget-blueprint-proc-macro"
 version = "0.1.2"
 dependencies = [
- "alloy-contract 0.2.1",
+ "async-trait",
  "gadget-blueprint-proc-macro-core",
+ "gadget-sdk",
  "indexmap 2.5.0",
  "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "serde_json",
  "syn 2.0.77",
+ "tracing",
  "trybuild",
 ]
 

@@ -13,7 +13,7 @@ members = [
 
     "macros/blueprint-proc-macro",
     "macros/blueprint-proc-macro-core",
-    "macros/blueprint-proc-macro-playground",
+    "macros/playground",
     "macros/context-derive",
 ]
 exclude = [
