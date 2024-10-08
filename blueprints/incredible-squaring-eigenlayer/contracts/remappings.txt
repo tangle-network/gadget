@@ -5,4 +5,4 @@ ds-test/=lib/ds-test/src/
 @eigenlayer-middleware/=lib/eigenlayer-middleware/
 forge-std/=lib/forge-std/src/
 tnt-core/=lib/tnt-core/src/
-incredible-squaring-eigenlayer/=src/
+incredible-squaring/=src/
