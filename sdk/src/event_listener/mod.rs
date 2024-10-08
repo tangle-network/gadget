@@ -5,6 +5,7 @@ use crate::Error;
 use alloy_network::Ethereum;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::iter::Take;
 use subxt::backend::StreamOfResults;
 use subxt::OnlineClient;
 use subxt_core::events::StaticEvent;
@@ -192,6 +193,10 @@ impl HasServiceAndJobId for JobResultSubmitted {
     }
 }
 
+fn get_exponential_backoff<const N: usize>() -> Take<ExponentialBackoff> {
+    ExponentialBackoff::from_millis(2).factor(1000).take(N)
+}
+
 pub type SubstrateWatcherWrapperContext<Evt> = (TangleClient, EventHandlerFor<TangleConfig, Evt>);
 #[async_trait]
 impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
@@ -268,9 +273,7 @@ impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
                 let signer = handler.signer().clone();
 
                 let task = async move {
-                    let backoff = ExponentialBackoff::from_millis(1000)
-                        .factor(2)
-                        .take(MAX_RETRY_COUNT);
+                    let backoff = get_exponential_backoff::<MAX_RETRY_COUNT>();
 
                     Retry::spawn(backoff, || async {
                         let result = handler.handle(call).await?;
@@ -291,7 +294,7 @@ impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
 
         let results = futures::future::join_all(tasks).await;
         // this event will be marked as handled if at least one handler succeeded.
-        // this because, for the failed events, we arleady tried to handle them
+        // this because, for the failed events, we already tried to handle them
         // many times (at this point), and there is no point in trying again.
         let mark_as_handled = results.iter().any(Result::is_ok);
         // also, for all the failed event handlers, we should print what went
@@ -318,15 +321,13 @@ impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
     }
 
     async fn execute(&mut self) -> Result<(), Error> {
-        const MAX_RETRY_COUNT: usize = 5;
+        const MAX_RETRY_COUNT: usize = 10;
 
         for handler in &self.handlers {
             handler.init().await;
         }
 
-        let mut backoff = ExponentialBackoff::from_millis(1000)
-            .factor(2)
-            .take(MAX_RETRY_COUNT);
+        let mut backoff = get_exponential_backoff::<MAX_RETRY_COUNT>();
 
         let mut retry_count = 0;
         loop {

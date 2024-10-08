@@ -1,4 +1,4 @@
-use crate::event_listener::eigenlayer::generate_eigenlayer_event_handler;
+use crate::event_listener::eigenlayer::generate_evm_event_handler;
 use crate::event_listener::tangle::generate_tangle_event_handler;
 use crate::shared::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata, JobResultVerifier};
@@ -460,7 +460,7 @@ pub fn generate_event_handler_for(
 
     // TODO: Once EVMEventListener is implemented, remove this split branching and have a single codepath
     if event_handler.is_eigenlayer() {
-        generate_eigenlayer_event_handler(
+        generate_evm_event_handler(
             &fn_name_string,
             &struct_name,
             event_handler,

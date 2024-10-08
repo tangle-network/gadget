@@ -4,7 +4,7 @@ use syn::Ident;
 
 use crate::job::EventHandlerArgs;
 
-pub(crate) fn generate_eigenlayer_event_handler(
+pub(crate) fn generate_evm_event_handler(
     fn_name_string: &str,
     struct_name: &Ident,
     event_handler: &EventHandlerArgs,
