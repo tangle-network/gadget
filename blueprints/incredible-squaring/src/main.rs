@@ -1,7 +1,6 @@
 use color_eyre::{eyre::eyre, Result};
 use gadget_sdk::config::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration, StdGadgetConfiguration};
 use gadget_sdk::{
-    config::Protocol,
     events_watcher::tangle::TangleEventsWatcher,
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
@@ -100,36 +99,17 @@ impl GadgetRunner for TangleGadgetRunner {
     }
 }
 
-async fn create_gadget_runner(
-    config: ContextConfig,
-) -> (
-    GadgetConfiguration<parking_lot::RawRwLock>,
-    Box<dyn GadgetRunner<Error = color_eyre::Report>>,
-) {
-    let env = gadget_sdk::config::load(config).expect("Failed to load environment");
-    match env.protocol {
-        Protocol::Tangle => (env.clone(), Box::new(TangleGadgetRunner { env })),
-        Protocol::Eigenlayer => (
-            env.clone(),
-            Box::new(blueprint::eigenlayer::EigenlayerGadgetRunner::new(env).await),
-        ),
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     gadget_sdk::logging::setup_log();
     // Load the environment and create the gadget runner
     let config = ContextConfig::from_args();
-    let (env, mut runner) = create_gadget_runner(config.clone()).await;
+    let env = gadget_sdk::config::load(config.clone()).expect("Failed to load environment");
+    let mut runner = Box::new(TangleGadgetRunner { env: env.clone() });
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
 
-    if let Protocol::Tangle = env.protocol {
-        check_for_test(&env, &config)?;
-    }
-
-    info!("Running with protocol: {:?}", env.protocol);
+    check_for_test(&env, &config)?;
 
     info!("Registering...");
     // Register the operator if needed

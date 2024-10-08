@@ -711,10 +711,14 @@ mod tests_standard {
                     info!("Updated operators for quorum 0");
                 }
 
+                let arg = format!(
+                    "cast rpc anvil_mine 1 --rpc-url {} > /dev/null",
+                    http_endpoint
+                );
                 // Mine a block
                 let _output = tokio::process::Command::new("sh")
                     .arg("-c")
-                    .arg("cast rpc anvil_mine 1 --rpc-url http://localhost:8545 > /dev/null")
+                    .arg(arg.as_str())
                     .output()
                     .await
                     .unwrap();
