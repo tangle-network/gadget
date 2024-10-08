@@ -762,7 +762,7 @@ mod tests_standard {
 
         let current_dir = std::env::current_dir().unwrap();
         let program_path = format!(
-            "{}/../target/release/incredible-squaring-blueprint",
+            "{}/../target/release/incredible-squaring-blueprint-eigenlayer",
             current_dir.display()
         );
         let program_path = PathBuf::from(program_path).canonicalize().unwrap();
