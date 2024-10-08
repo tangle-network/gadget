@@ -6,12 +6,16 @@ use alloy_contract::ContractInstance;
 use alloy_network::Ethereum;
 use alloy_network::TransactionBuilder;
 use alloy_primitives::{address, hex, Address, Bytes, FixedBytes, Keccak256, U256};
+use alloy_primitives::keccak256;
 use alloy_provider::fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller};
 use alloy_provider::Provider;
 use alloy_provider::RootProvider;
 use alloy_rpc_types_eth::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::SolCall;
+use alloy_sol_types::SolEnum;
+use alloy_sol_types::SolType;
+
 use alloy_sol_types::{private::alloy_json_abi::JsonAbi, sol};
 use alloy_transport_http::{Client, Http};
 use ark_bn254::{Fq, G2Affine};
@@ -221,6 +225,9 @@ pub async fn xsquare_eigen(
     keccak_hasher.update(number_squared_bytes);
     let task_response_digest =
         alloy_primitives::B256::from_slice(keccak_hasher.finalize().as_ref());
+
+    let encoded_response = IncredibleSquaringTaskManager::TaskResponse::abi_encode(&task_response);
+    let task_response_digest = keccak256(encoded_response);
 
     // Sign the Hashed Message and send it to the BLS Aggregator
     let bls_signature = bls_key_pair.sign_message(task_response_digest.as_ref());
