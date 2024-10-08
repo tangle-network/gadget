@@ -363,9 +363,10 @@ fn generate_job_report_event_handler(
         );
 
     quote! {
+        #[derive(Clone)]
         pub struct #struct_name {
             pub service_id: u64,
-            pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
+            pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair>,
             pub client: gadget_sdk::clients::tangle::runtime::TangleClient,
         }
 
@@ -375,11 +376,7 @@ fn generate_job_report_event_handler(
         #[async_trait::async_trait]
         impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
             async fn init(&self) {
-                static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-                if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
-                    ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
-                    #(#event_listener_calls)*
-                }
+                #(#event_listener_calls)*
             }
 
             async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
@@ -388,7 +385,7 @@ fn generate_job_report_event_handler(
                 // This part will depend on the specific structure of your JobResultSubmitted event
                 // and how you want to handle the report function call
 
-                Ok(())
+                Ok(vec![])
             }
 
             /// Returns the job ID
@@ -432,36 +429,49 @@ fn generate_qos_report_event_handler(
 ) -> proc_macro2::TokenStream {
     let fn_name = &input.sig.ident;
     let fn_name_string = fn_name.to_string();
-    let struct_name = format_ident!("{}QoSReportEventHandler", pascal_case(&fn_name_string));
+    const SUFFIX: &str = "QoSReportEventHandler";
+    let struct_name = format_ident!("{}{SUFFIX}", pascal_case(&fn_name_string));
+    let job_id = quote! { 0 }; // We don't care about job ID's for QOS
+    let param_types =
+        crate::job::param_types(input).expect("Failed to generate param types for job report");
+    // TODO: Allow passing all events, use a dummy value here that satisfies the trait bounds. For now QOS will
+    // trigger only once a singular JobCalled event is received.
+    let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled };
+    let (event_listener_gen, event_listener_calls) =
+        crate::job::generate_event_listener_tokenstream(
+            input,
+            &event_type,
+            SUFFIX,
+            &fn_name_string,
+            &args.event_listeners,
+            args.skip_codegen,
+            &param_types,
+            &args.params,
+        );
+
     let interval = args
         .interval
         .as_ref()
         .expect("Interval must be present for QoS reports");
 
     quote! {
+        #[derive(Clone)]
         pub struct #struct_name {
             pub service_id: u64,
-            pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
+            pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair>,
+            pub client: gadget_sdk::clients::tangle::runtime::TangleClient,
         }
+
+        #(#event_listener_gen)*
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig> for #struct_name {
-            async fn can_handle_events(
-                &self,
-                _events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::clients::tangle::runtime::TangleConfig>,
-            ) -> Result<bool, gadget_sdk::events_watcher::Error> {
-                Ok(true)
+        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
+            async fn init(&self) {
+                #(#event_listener_calls)*
             }
 
-            async fn handle_events(
-                &self,
-                _client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::clients::tangle::runtime::TangleConfig>,
-                (_events, _block_number): (
-                    gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::clients::tangle::runtime::TangleConfig>,
-                    u64
-                ),
-            ) -> Result<(), gadget_sdk::events_watcher::Error> {
+            async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
                 use std::time::Duration;
                 use gadget_sdk::slashing::reports::{QoSReporter, DefaultQoSReporter};
 
@@ -480,8 +490,22 @@ fn generate_qos_report_event_handler(
 
                         next_check = std::time::Instant::now() + interval;
                     }
-                    std::thread::sleep(Duration::from_millis(100));
+                    gadget_sdk::tokio::time::sleep(Duration::from_millis(100)).await;
                 }
+            }
+
+            /// Returns the job ID
+            fn job_id(&self) -> u8 {
+                #job_id
+            }
+
+            /// Returns the service ID
+            fn service_id(&self) -> u64 {
+                self.service_id
+            }
+
+            fn signer(&self) -> &gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair> {
+                &self.signer
             }
         }
     }

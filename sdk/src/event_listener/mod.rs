@@ -217,7 +217,6 @@ impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
             let next_block = self.listener.get_mut().next().await?.ok()?;
             let block_id = next_block.number();
             self.current_block = Some(block_id);
-
             let events = next_block.events().await.ok()?;
             let mut actionable_events = HashMap::new();
             for (idx, handler) in self.handlers.iter().enumerate() {

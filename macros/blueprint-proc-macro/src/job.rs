@@ -233,14 +233,18 @@ pub(crate) fn generate_event_listener_tokenstream(
 
                         quote! {
                             async fn #listener_function_name(ctx: &#autogen_struct_name) {
-                                let ctx = (ctx.client.clone(), std::sync::Arc::new(ctx.clone()) as gadget_sdk::events_watcher::substrate::EventHandlerFor<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type>);
-                                let mut instance = <#wrapper as gadget_sdk::event_listener::EventListener::<_, _>>::new(&ctx).await.expect("Failed to create event listener");
-                                let task = async move {
-                                    if let Err(err) = gadget_sdk::event_listener::EventListener::<_, _>::execute(&mut instance).await {
-                                        gadget_sdk::error!("Error in event listener (now closing): {err}");
-                                    }
-                                };
-                                gadget_sdk::tokio::task::spawn(task);
+                                static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                                if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
+                                    ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
+                                    let ctx = (ctx.client.clone(), std::sync::Arc::new(ctx.clone()) as gadget_sdk::events_watcher::substrate::EventHandlerFor<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type>);
+                                    let mut instance = <#wrapper as gadget_sdk::event_listener::EventListener::<_, _>>::new(&ctx).await.expect("Failed to create event listener");
+                                    let task = async move {
+                                        if let Err(err) = gadget_sdk::event_listener::EventListener::<_, _>::execute(&mut instance).await {
+                                            gadget_sdk::error!("Error in event listener (now closing): {err}");
+                                        }
+                                    };
+                                    gadget_sdk::tokio::task::spawn(task);
+                                }
                             }
                         }
                     } else {
@@ -262,13 +266,17 @@ pub(crate) fn generate_event_listener_tokenstream(
 
                         quote! {
                             async fn #listener_function_name(ctx: &#context_ty) {
-                                let mut instance = <#listener as gadget_sdk::event_listener::EventListener<_, _>>::new(ctx).await.expect("Failed to create event listener");
-                                let task = async move {
-                                    if let Err(err) = gadget_sdk::event_listener::EventListener::execute(&mut instance).await {
-                                        gadget_sdk::error!("Error in event listener (now closing): {err}");
-                                    }
-                                };
-                                gadget_sdk::tokio::task::spawn(task);
+                                static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                                if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
+                                    ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
+                                    let mut instance = <#listener as gadget_sdk::event_listener::EventListener<_, _>>::new(ctx).await.expect("Failed to create event listener");
+                                    let task = async move {
+                                        if let Err(err) = gadget_sdk::event_listener::EventListener::execute(&mut instance).await {
+                                            gadget_sdk::error!("Error in event listener (now closing): {err}");
+                                        }
+                                    };
+                                    gadget_sdk::tokio::task::spawn(task);
+                                }
                             }
                         }
                     };
