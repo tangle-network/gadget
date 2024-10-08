@@ -234,10 +234,10 @@ pub enum GadgetCLICoreSettings {
         test_mode: bool,
         #[structopt(long, short = "l", env)]
         log_id: Option<String>,
-        #[structopt(long, short = "u", long = "url", parse(try_from_str = url::Url::parse), env)]
+        #[structopt(long, short = "u", parse(try_from_str = url::Url::parse), env)]
         #[serde(default = "gadget_io::defaults::rpc_url")]
         url: Url,
-        #[structopt(long = "bootnodes", parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
+        #[structopt(long, parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
         #[serde(default)]
         bootnodes: Option<Vec<Multiaddr>>,
         #[structopt(long, short = "d", env)]
@@ -259,7 +259,7 @@ pub enum GadgetCLICoreSettings {
         /// Whether to use pretty logging
         #[structopt(long)]
         pretty: bool,
-        #[structopt(long = "keystore-password", env)]
+        #[structopt(long, env)]
         keystore_password: Option<String>,
         #[structopt(long, env)]
         blueprint_id: u64,
