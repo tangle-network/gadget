@@ -37,6 +37,7 @@ alloy-rpc-types-eth = { workspace = true }
 
 
 eigensdk = { workspace = true }
+testcontainers = { workspace = true }
 
 url = { workspace = true }
 cargo-tangle = { workspace = true, default-features = true }

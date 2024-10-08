@@ -35,6 +35,7 @@ use cargo_tangle::deploy::Opts;
 pub type InputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 pub type OutputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 
+pub mod anvil;
 pub mod sync;
 pub mod test_ext;
 
@@ -456,13 +457,13 @@ mod test_macros {
 mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
+    use alloy_primitives::Bytes;
     use alloy_provider::Provider;
     use cargo_tangle::deploy::Opts;
-    use std::str::FromStr;
-
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
+    use std::str::FromStr;
 
     /// This test requires that `yarn install` has been executed inside the
     /// `./blueprints/incredible-squaring/` directory
@@ -584,12 +585,14 @@ mod tests_standard {
         // const INPUT: u64 = 2;
         // const OUTPUT: u64 = INPUT.pow(2);
 
-        // TODO: Start the Testnet - right now it is assumed that it is running locally already
+        let (_container, http_endpoint, ws_endpoint) = anvil::start_anvil_container().await;
+        std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
+        std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint);
 
-        // TODO: Deploy the Incredible Squaring Contracts to the testnet
+        // Sleep to give the testnet time to spin up
+        tokio::time::sleep(Duration::from_secs(1)).await;
 
-        let http_endpoint = "http://127.0.0.1:8545";
-        // let ws_endpoint = "ws://127.0.0.1:8545";
+        // let http_endpoint = "http://127.0.0.1:8545";
 
         // Create a provider using the transport
         let provider = alloy_provider::ProviderBuilder::new()
@@ -647,20 +650,18 @@ mod tests_standard {
             .contract_address
             .unwrap();
         info!("Task Manager: {:?}", task_manager_addr);
-
         std::env::set_var("TASK_MANAGER_ADDR", task_manager_addr.to_string());
 
-        // We spawn a new Task for the test to handle
+        // We create a Task Manager instance for the task spawner
         let task_manager = IncredibleSquaringTaskManager::new(task_manager_addr, provider.clone());
-
         let task_generator_address = accounts[4];
 
         // Initialize the Incredible Squaring Task Manager
-        let init_result = task_manager
+        let init_receipt = task_manager
             .initialize(
                 pauser_registry_addr,
                 accounts[1],
-                accounts[2],
+                accounts[0],
                 task_generator_address,
             )
             .send()
@@ -668,33 +669,12 @@ mod tests_standard {
             .unwrap()
             .get_receipt()
             .await
-            .unwrap()
-            .status();
-        assert!(init_result);
+            .unwrap();
+        assert!(init_receipt.status());
 
-        // let avs_registry_reader = AvsRegistryChainReader::new(
-        //     get_test_logger(),
-        //     registry_coordinator_addr,
-        //     operator_state_retriever_addr,
-        //     http_endpoint.to_string(),
-        // )
-        //     .await
-        //     .unwrap();
-        //
-        // let operators_info = operatorsinfo_inmemory::OperatorInfoServiceInMemory::new(
-        //     get_test_logger(),
-        //     avs_registry_reader.clone(),
-        //     ws_endpoint.to_string(),
-        // )
-        //     .await;
-        //
-        // let cancellation_token = tokio_util::sync::CancellationToken::new();
-        // let operators_info_clone = operators_info.clone();
-        // let token_clone = cancellation_token.clone();
-        // tokio::task::spawn(async move { operators_info_clone.start_service(&token_clone, 0, 0).await });
-        //
-        // tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-
+        // Start the Task Spawner
+        let operators = vec![vec![accounts[0]]];
+        let quorums = Bytes::from(vec![0]);
         let task_spawner = async move {
             loop {
                 tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
@@ -713,6 +693,18 @@ mod tests_standard {
                     .unwrap();
                 if result.status() {
                     info!("Deployed a new task");
+                }
+
+                let result = registry_coordinator
+                    .updateOperatorsForQuorum(operators.clone(), quorums.clone())
+                    .send()
+                    .await
+                    .unwrap()
+                    .get_receipt()
+                    .await
+                    .unwrap();
+                if result.status() {
+                    info!("Updated operators for quorum 0");
                 }
 
                 // Mine a block
@@ -798,9 +790,6 @@ mod tests_standard {
             .args(arguments)
             .spawn()
             .unwrap();
-
-        // Send the shutdown signal to the OperatorInfoServiceInMemory
-        // cancellation_token.cancel();
 
         let status = process_handle.wait_with_output().await.unwrap();
         if !status.status.success() {

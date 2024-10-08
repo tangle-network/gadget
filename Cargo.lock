@@ -1807,6 +1807,7 @@ dependencies = [
  "sp-core 34.0.0",
  "sp-io 38.0.0",
  "subxt",
+ "testcontainers",
  "tokio",
  "tokio-util",
  "tracing",
