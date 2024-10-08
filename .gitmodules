@@ -22,3 +22,9 @@
 [submodule "blueprints/tangle-avs-blueprint/contracts/lib/forge-std"]
 	path = blueprints/tangle-avs-blueprint/contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "blueprints/incredible-squaring-eigenlayer/contracts/lib/eigenlayer-middleware"]
+	path = blueprints/incredible-squaring-eigenlayer/contracts/lib/eigenlayer-middleware
+	url = https://github.com/Layr-Labs/eigenlayer-middleware
+[submodule "blueprints/incredible-squaring-eigenlayer/contracts/lib/forge-std"]
+	path = blueprints/incredible-squaring-eigenlayer/contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
