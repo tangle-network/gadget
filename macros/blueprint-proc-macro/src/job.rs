@@ -205,6 +205,9 @@ pub(crate) fn generate_event_listener_tokenstream(
                     let listener = listener.to_token_stream();
                     // if Listener == TangleEventListener or EvmEventListener, we need to use defaults
                     let listener_str = listener.to_string();
+                    let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
+                    let autogen_struct_name = quote! { #struct_name };
+
                     // Check for special cases
                     let next_listener = if listener_str.contains("TangleEventListener")
                         || listener_str.contains("EvmEventListener")
@@ -215,16 +218,21 @@ pub(crate) fn generate_event_listener_tokenstream(
                                 gadget_sdk::event_listener::SubstrateWatcherWrapper<#event_type>
                             }
                         } else {
-                            unimplemented!("EvmEventListener not implemented yet");
+                            /*let (_, _, _, contract_ty) =
+                            crate::event_listener::eigenlayer::get_instance_data(event_handler);*/
+                            quote! {
+                                gadget_sdk::event_listener::EthereumWatcherWrapper<#autogen_struct_name, _>
+                            }
                         };
 
-                        let autogen_struct_name = if listener_str.contains("TangleEventListener") {
-                            let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
+                        let ctx_create = if listener_str.contains("TangleEventListener") {
                             quote! {
-                                #struct_name
+                                (ctx.client.clone(), std::sync::Arc::new(ctx.clone()) as gadget_sdk::events_watcher::substrate::EventHandlerFor<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type>)
                             }
                         } else {
-                            unimplemented!("EvmEventListener not implemented yet");
+                            quote! {
+                                (ctx.contract.clone(), std::sync::Arc::new(ctx.clone()))
+                            }
                         };
 
                         event_listener_calls.push(quote! {
@@ -236,7 +244,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                                 if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
                                     ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
-                                    let ctx = (ctx.client.clone(), std::sync::Arc::new(ctx.clone()) as gadget_sdk::events_watcher::substrate::EventHandlerFor<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type>);
+                                    let ctx = #ctx_create;
                                     let mut instance = <#wrapper as gadget_sdk::event_listener::EventListener::<_, _>>::new(&ctx).await.expect("Failed to create event listener");
                                     let task = async move {
                                         if let Err(err) = gadget_sdk::event_listener::EventListener::<_, _>::execute(&mut instance).await {
@@ -499,6 +507,7 @@ pub(crate) struct JobArgs {
     /// `#[job(verifier(evm = "MyVerifierContract"))]`
     verifier: Verifier,
     /// Optional: Event handler type for the job.
+    /// TODO: remove this in favor of event listeners
     /// `#[job(event_handler = "tangle")]`
     event_handler: EventHandlerArgs,
     /// Optional: Event listener type for the job

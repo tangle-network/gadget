@@ -1,4 +1,4 @@
-use crate::job::EventListeners;
+use crate::job::{EventHandlerArgs, EventListeners};
 use crate::shared::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{
     FieldType, ReportDefinition, ReportMetadata, ReportResultVerifier, ReportType,

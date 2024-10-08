@@ -13,9 +13,6 @@ use alloy_sol_types::sol;
 use color_eyre::{eyre::eyre, eyre::OptionExt, Result};
 use gadget_sdk::job;
 use gadget_sdk::{
-    events_watcher::{
-        evm::{Config, EventWatcher},
-    },
     keystore::Backend,
     network::setup::{start_p2p_network, NetworkConfig},
     run::GadgetRunner,
@@ -62,6 +59,7 @@ sol!(
     id = 1,
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage),
     result(_),
+    event_listener(EvmEventListener),
     event_handler(
         protocol = "eigenlayer",
         instance = IncredibleSquaringTaskManager,

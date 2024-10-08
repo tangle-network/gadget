@@ -11,6 +11,5 @@ pub use error::Error;
 
 #[cfg(feature = "std")]
 pub mod evm;
-mod retry;
 pub mod substrate;
 pub mod tangle;

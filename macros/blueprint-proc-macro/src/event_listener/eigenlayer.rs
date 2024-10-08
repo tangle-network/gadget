@@ -4,6 +4,22 @@ use syn::Ident;
 
 use crate::job::EventHandlerArgs;
 
+pub(crate) fn get_instance_data(
+    event_handler: &EventHandlerArgs,
+) -> (Ident, Ident, Ident, TokenStream) {
+    let instance_base = event_handler.instance().unwrap();
+    let instance_name = format_ident!("{}Instance", instance_base);
+    let instance_wrapper_name = format_ident!("{}InstanceWrapper", instance_base);
+    let instance = quote! { #instance_base::#instance_name<T::T, T::P, alloy_network::Ethereum> };
+
+    (
+        instance_base,
+        instance_name,
+        instance_wrapper_name,
+        instance,
+    )
+}
+
 pub(crate) fn generate_evm_event_handler(
     fn_name_string: &str,
     struct_name: &Ident,
@@ -13,10 +29,8 @@ pub(crate) fn generate_evm_event_handler(
     fn_call: &TokenStream,
     event_listener_calls: &[TokenStream],
 ) -> TokenStream {
-    let instance_base = event_handler.instance().unwrap();
-    let instance_name = format_ident!("{}Instance", instance_base);
-    let instance_wrapper_name = format_ident!("{}InstanceWrapper", instance_base);
-    let instance = quote! { #instance_base::#instance_name<T::T, T::P, alloy_network::Ethereum> };
+    let (instance_base, instance_name, instance_wrapper_name, _instance) =
+        get_instance_data(event_handler);
     let ev = event_handler.event().unwrap();
     let event_converter = event_handler.event_converter().unwrap();
     let callback = event_handler.callback().unwrap();
@@ -81,28 +95,24 @@ pub(crate) fn generate_evm_event_handler(
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl<T> gadget_sdk::events_watcher::evm::EventHandler<T> for #struct_name
+        impl<T> gadget_sdk::events_watcher::evm::EvmEventHandler<T> for #struct_name
         where
             T: gadget_sdk::events_watcher::evm::Config<N = alloy_network::Ethereum>,
-            #instance: std::ops::Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>,
+            #instance_wrapper_name <T::T, T::P>: std::ops::Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>,
         {
-            type Contract = #instance;
+            type Contract = #instance_wrapper_name <T::T, T::P>;
             type Event = #ev;
+            const TAG: &'static str = "eigenlayer";
+            const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
 
-            async fn handle_event(
-                &self,
-                contract: &Self::Contract,
-                (event, log): (Self::Event, alloy_rpc_types::Log),
-            ) -> Result<(), gadget_sdk::events_watcher::Error> {
+            async fn init(&self) {
+                #(#event_listener_calls)*
+            }
+
+            async fn handle(&self, contract: &Self::Contract, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::events_watcher::Error> {
                 use alloy_provider::Provider;
                 use alloy_sol_types::SolEvent;
                 use alloy_sol_types::SolInterface;
-
-                static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-                if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
-                    ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
-                    #(#event_listener_calls)*
-                }
 
                 // Convert the event to inputs
                 let decoded: alloy_primitives::Log<Self::Event> = <Self::Event as SolEvent>::decode_log(&log.inner, true)?;
@@ -156,17 +166,6 @@ pub(crate) fn generate_evm_event_handler(
             pub fn set_operator(&mut self, operator: Operator<NodeConfig, OperatorInfoService>) {
                 self.operator = operator.into();
             }
-        }
-
-        pub struct EigenlayerEventWatcher<T> {
-            _phantom: std::marker::PhantomData<T>,
-        }
-
-        impl<T: Config<N = Ethereum>> EventWatcher<T> for EigenlayerEventWatcher<T> {
-            const TAG: &'static str = "eigenlayer";
-            type Contract = #instance_wrapper_name<T::T, T::P>;
-            type Event = #instance_base::NewTaskCreated;
-            const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
         }
     }
 }
