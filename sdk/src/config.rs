@@ -266,7 +266,7 @@ pub enum GadgetCLICoreSettings {
         /// Whether to use pretty logging
         #[structopt(long)]
         pretty: bool,
-        #[structopt(long, short = "a", parse(try_from_str = Address::from_str)), env]
+        #[structopt(long, short = "a", parse(try_from_str = Address::from_str))]
         contract_address: Option<Address>,
         #[structopt(long, env)]
         keystore_password: Option<String>,
