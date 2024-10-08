@@ -553,21 +553,21 @@ mod tests_standard {
         #[allow(missing_docs)]
         #[sol(rpc)]
         IncredibleSquaringTaskManager,
-        "./../blueprints/incredible-squaring/contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
+        "./../blueprints/incredible-squaring-eigenlayer/contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
     );
 
     alloy_sol_types::sol!(
         #[allow(missing_docs)]
         #[sol(rpc)]
         PauserRegistry,
-        "./../blueprints/incredible-squaring/contracts/out/IPauserRegistry.sol/IPauserRegistry.json"
+        "./../blueprints/incredible-squaring-eigenlayer/contracts/out/IPauserRegistry.sol/IPauserRegistry.json"
     );
 
     alloy_sol_types::sol!(
         #[allow(missing_docs, clippy::too_many_arguments)]
         #[sol(rpc)]
         RegistryCoordinator,
-        "./../blueprints/incredible-squaring/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
+        "./../blueprints/incredible-squaring-eigenlayer/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
     );
 
     #[tokio::test(flavor = "multi_thread")]
