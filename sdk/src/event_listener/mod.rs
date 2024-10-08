@@ -273,7 +273,7 @@ impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
                         .take(MAX_RETRY_COUNT);
 
                     Retry::spawn(backoff, || async {
-                        let result = handler.handle(&call).await?;
+                        let result = handler.handle(call).await?;
                         let response = TangleApi::tx()
                             .services()
                             .submit_result(service_id, call_id, result);

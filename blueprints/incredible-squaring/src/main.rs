@@ -118,6 +118,7 @@ async fn create_gadget_runner(
 }
 
 #[tokio::main]
+#[allow(clippy::needless_return)]
 async fn main() -> Result<()> {
     gadget_sdk::logging::setup_log();
     // Load the environment and create the gadget runner

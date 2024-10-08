@@ -50,6 +50,7 @@ enum GadgetCommands {
 }
 
 #[tokio::main]
+#[allow(clippy::needless_return)]
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
     init_tracing_subscriber();

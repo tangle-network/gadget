@@ -465,6 +465,7 @@ mod tests_standard {
     /// The other requirement is that there is a locally-running tangle node
 
     #[tokio::test(flavor = "multi_thread")]
+    #[allow(clippy::needless_return)]
     async fn test_externalities_gadget_starts() {
         setup_log();
         let mut base_path = std::env::current_dir().expect("Failed to get current directory");

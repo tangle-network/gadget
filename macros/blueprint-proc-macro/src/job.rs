@@ -174,6 +174,7 @@ pub(crate) fn param_types(input: &ItemFn) -> syn::Result<IndexMap<Ident, Type>> 
     Ok(param_types)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn generate_event_listener_tokenstream(
     input: &ItemFn,
     event_type: &proc_macro2::TokenStream,
@@ -182,10 +183,9 @@ pub(crate) fn generate_event_listener_tokenstream(
     event_listeners: &EventListeners,
     skip_codegen: bool,
     param_types: &IndexMap<Ident, Type>,
-    params: &Vec<Ident>,
+    params: &[Ident],
 ) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
-    let (event_handler_args, event_handler_arg_types) =
-        get_event_handler_args(&param_types, params);
+    let (event_handler_args, event_handler_arg_types) = get_event_handler_args(param_types, params);
     // Generate Event Listener, if not being skipped
     let mut event_listener_calls = vec![];
     let event_listener_gen = if skip_codegen {
@@ -301,7 +301,7 @@ pub(crate) fn generate_event_listener_tokenstream(
 /// and not in the params list to be added to the event handler.
 pub(crate) fn get_event_handler_args<'a>(
     param_types: &'a IndexMap<Ident, Type>,
-    params: &'a Vec<Ident>,
+    params: &'a [Ident],
 ) -> (Vec<&'a Ident>, Vec<&'a Type>) {
     let x = param_types.keys().collect::<IndexSet<_>>();
     let y = params.iter().collect::<IndexSet<_>>();
