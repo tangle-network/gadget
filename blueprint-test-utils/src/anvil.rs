@@ -24,7 +24,9 @@ fn workspace_dir() -> PathBuf {
 }
 
 /// Start an Anvil container for testing with contract state loaded.
-pub async fn start_anvil_container(include_logs: bool) -> (ContainerAsync<GenericImage>, String, String) {
+pub async fn start_anvil_container(
+    include_logs: bool,
+) -> (ContainerAsync<GenericImage>, String, String) {
     let relative_path = PathBuf::from(ANVIL_STATE_PATH);
     let absolute_path = workspace_dir().join(relative_path);
     let absolute_path_str = absolute_path.to_str().unwrap();

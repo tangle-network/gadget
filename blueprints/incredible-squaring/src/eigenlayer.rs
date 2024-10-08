@@ -14,8 +14,8 @@ use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::SolCall;
 use alloy_sol_types::{private::alloy_json_abi::JsonAbi, sol};
 use alloy_transport_http::{Client, Http};
-use ark_bn254::Fq;
-use ark_ec::AffineRepr;
+use ark_bn254::{Fq, G2Affine};
+use ark_ec::{bn, AffineRepr};
 use ark_ff::{BigInt, BigInteger, PrimeField};
 use color_eyre::{
     eyre::{eyre, OptionExt},
@@ -29,6 +29,7 @@ use eigensdk::client_elcontracts::{
     writer::{ELChainWriter, Operator},
 };
 use eigensdk::crypto_bls::BlsKeyPair;
+use eigensdk::crypto_bn254::utils::map_to_curve;
 use eigensdk::logging::get_test_logger;
 use eigensdk::services_avsregistry::chaincaller;
 use eigensdk::services_blsaggregation::bls_agg;
@@ -138,7 +139,7 @@ pub async fn xsquare_eigen(
     )
     .unwrap(); // .map_err(|e| eyre!(e))?;
 
-    // let operator_id = alloy_primitives::FixedBytes(operator_id_from_g1_pub_key(bls_key_pair.public_key()).unwrap());
+    // let operator_id = alloy_primitives::FixedBytes(eigensdk::types::operator::operator_id_from_g1_pub_key(bls_key_pair.public_key()).unwrap());
     let operator_id =
         hex!("fd329fe7e54f459b9c104064efe0172db113a50b5f394949b4ef80b3c34ca7f5").into();
 
@@ -209,22 +210,40 @@ pub async fn xsquare_eigen(
         .await
         .unwrap();
 
-    // Hash the response
+    // Hash the response with Sha256
     let mut hasher = sha2::Sha256::new();
     let number_squared_bytes = number_squared.to_be_bytes::<32>();
     hasher.update(number_squared_bytes);
     let task_response_digest = alloy_primitives::B256::from_slice(hasher.finalize().as_ref());
 
-    // I want to compare it with keccak256
+    // Hash the response with Keccak256
     let mut keccak_hasher = Keccak256::new();
     keccak_hasher.update(number_squared_bytes);
-    let keccak_task_response_digest =
+    let task_response_digest =
         alloy_primitives::B256::from_slice(keccak_hasher.finalize().as_ref());
 
     // Sign the Hashed Message and send it to the BLS Aggregator
     let bls_signature = bls_key_pair.sign_message(task_response_digest.as_ref());
+
+    let g2_gen = G2Affine::generator();
+    let msg_affine = map_to_curve(task_response_digest.as_ref());
+    let msg_point = convert_to_g1_point(msg_affine).unwrap();
+    let neg_sig = bls_signature.clone().g1_point().g1().neg();
+
+    use ark_ec::pairing::Pairing;
+    use std::ops::Neg;
+    let e1 = ark_bn254::Bn254::pairing(bls_signature.g1_point().g1(), G2Affine::generator());
+    let e2 = ark_bn254::Bn254::pairing(msg_affine, bls_key_pair.public_key_g2().g2());
+    assert_eq!(e1, e2);
+    info!("Signature is valid: Pairings are equal");
+
     bls_agg_service
-        .process_new_signature(task_index, task_response_digest, bls_signature, operator_id)
+        .process_new_signature(
+            task_index,
+            task_response_digest,
+            bls_signature.clone(),
+            operator_id,
+        )
         .await
         .unwrap();
 
@@ -237,6 +256,21 @@ pub async fn xsquare_eigen(
         .await
         .unwrap()
         .unwrap();
+
+    // assert_eq!(bls_agg_response.non_signers_pub_keys_g1, vec![]);
+    // assert_eq!(bls_agg_response.non_signer_quorum_bitmap_indices, vec![]);
+    // assert_eq!(bls_agg_response.total_stake_indices, vec![]);
+    // assert_eq!(bls_agg_response.quorum_apk_indices, vec![]);
+    // assert_eq!(bls_agg_response.non_signer_stake_indices, vec![]);
+    assert_eq!(bls_agg_response.signers_agg_sig_g1, bls_signature.clone());
+    assert_eq!(
+        bls_agg_response.signers_apk_g2,
+        bls_key_pair.public_key_g2()
+    );
+    assert_eq!(
+        bls_agg_response.quorum_apks_g1,
+        vec![bls_key_pair.public_key()]
+    );
 
     // Unpack the response and build the NonSignerStakesAndSignature for the response call
     let non_signer_pubkeys = bls_agg_response
@@ -400,6 +434,16 @@ pub fn convert_to_g1_point(
     let x_u256 = U256::from_limbs(x.0);
     let y_u256 = U256::from_limbs(y.0);
 
+    // Reconstruct the point to ensure it is correct
+    let x_bytes: [u8; 32] = x_u256.to_le_bytes();
+    let y_bytes: [u8; 32] = y_u256.to_le_bytes();
+    let g1_reconstructed = ark_bn254::G1Affine::new(
+        Fq::from_le_bytes_mod_order(&x_bytes),
+        Fq::from_le_bytes_mod_order(&y_bytes),
+    );
+    assert_eq!(g1.x().unwrap().0, g1_reconstructed.x().unwrap().0);
+    assert_eq!(g1.y().unwrap().0, g1_reconstructed.y().unwrap().0);
+
     Ok(IncredibleSquaringTaskManager::G1Point {
         X: x_u256,
         Y: y_u256,
@@ -547,15 +591,17 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         );
 
         let wallet = PrivateKeySigner::from_str(
-            "bead471191bea97fc3aeac36c9d74c895e8a6242602e144e43152f96219e96e8",
+            // "bead471191bea97fc3aeac36c9d74c895e8a6242602e144e43152f96219e96e8",
+            pvt_key,
         )
         .expect("no key ");
 
+        let operator_addr = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
         let operator_details = Operator {
-            address: wallet.address(),
-            earnings_receiver_address: wallet.address(),
-            delegation_approver_address: wallet.address(),
-            staker_opt_out_window_blocks: 3,
+            address: operator_addr,
+            earnings_receiver_address: operator_addr,
+            delegation_approver_address: operator_addr,
+            staker_opt_out_window_blocks: 50400u32,
             metadata_url: Some(
                 "https://github.com/webb-tools/eigensdk-rs/blob/main/test-utils/metadata.json"
                     .to_string(),

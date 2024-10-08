@@ -3148,6 +3148,8 @@ dependencies = [
 [[package]]
 name = "eigen-chainio-txmanager"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92a9242f761ef1403ada3fc268d5373b977c32cf755560019a211d881b343135"
 dependencies = [
  "alloy-eips",
  "alloy-network",
@@ -3166,6 +3168,8 @@ dependencies = [
 [[package]]
 name = "eigen-client-avsregistry"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26b545b7b3bb97aa6f769fa329c43e121d3d3ef2c700528c51493d14b7ca4c2b"
 dependencies = [
  "alloy-contract",
  "alloy-primitives",
@@ -3188,6 +3192,8 @@ dependencies = [
 [[package]]
 name = "eigen-client-elcontracts"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46b72f6b15b8e641b4b43c1dced1df39cd1b4bcc6ce943ab1ce2280cba6e486f"
 dependencies = [
  "alloy-contract",
  "alloy-primitives",
@@ -3201,6 +3207,8 @@ dependencies = [
 [[package]]
 name = "eigen-client-eth"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afc00e0508a9137355212339d6bc0b83b3ceb7dc4f541ec920e66171295bd9c3"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -3224,6 +3232,8 @@ dependencies = [
 [[package]]
 name = "eigen-client-fireblocks"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0327abf48cd09e672456be65e640ee609d23a1989ea1d310b0585e333829f124"
 dependencies = [
  "alloy-contract",
  "alloy-primitives",
@@ -3246,10 +3256,14 @@ dependencies = [
 [[package]]
 name = "eigen-contract-bindings"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0a99d2a3c6b116d4013121fc20ff2a2f4e884475f6327c7d8300b175683fcb4"
 
 [[package]]
 name = "eigen-crypto-bls"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4016b25de0e41e5f4a8b8c495cef35cbdf5d1946021b472a0ce10b656956465f"
 dependencies = [
  "alloy-primitives",
  "ark-bn254",
@@ -3266,6 +3280,8 @@ dependencies = [
 [[package]]
 name = "eigen-crypto-bn254"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bab240b582aa622c9a94e12bc7ac6fb65380b85053e1b0db08c8478c618a84a0"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -3277,6 +3293,8 @@ dependencies = [
 [[package]]
 name = "eigen-logging"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "858b74ed2efc43af7de8db0f04e7c5d5b348aa8755c1a9000eb03d36f442c690"
 dependencies = [
  "ctor",
  "once_cell",
@@ -3287,6 +3305,8 @@ dependencies = [
 [[package]]
 name = "eigen-metrics"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52e0fbdbdb429d03ff6f0be07abe4d58a942d6069328f7827938ca57157766df"
 dependencies = [
  "eigen-logging",
  "metrics",
@@ -3297,6 +3317,8 @@ dependencies = [
 [[package]]
 name = "eigen-metrics-collectors-rpc-calls"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67563f8a7d1e242f8cab846729a4fec5d299c2e57abea66732400749c265ab92"
 dependencies = [
  "eigen-logging",
  "metrics",
@@ -3305,6 +3327,8 @@ dependencies = [
 [[package]]
 name = "eigen-nodeapi"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d53c0275e3e0c8afc1358c0a3d1c781ac9815aadb0463a7d8e8cdc832569dca"
 dependencies = [
  "ntex",
  "serde",
@@ -3316,6 +3340,8 @@ dependencies = [
 [[package]]
 name = "eigen-services-avsregistry"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b8a3bf7010289fcac159db5a5d89fb3879236ac3c84e7c389366269d512c1da"
 dependencies = [
  "alloy-primitives",
  "ark-bn254",
@@ -3331,6 +3357,8 @@ dependencies = [
 [[package]]
 name = "eigen-services-blsaggregation"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ccce420984d12deb996b6d85580f0080e5b8f6dc10c8858622c24f23953453b"
 dependencies = [
  "alloy-primitives",
  "ark-bn254",
@@ -3350,6 +3378,8 @@ dependencies = [
 [[package]]
 name = "eigen-services-operatorsinfo"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc37b203588165d466fbff505e474b7fdfd4bfdd9095171f171209aeaf57919d"
 dependencies = [
  "alloy-primitives",
  "alloy-provider",
@@ -3370,6 +3400,8 @@ dependencies = [
 [[package]]
 name = "eigen-signer"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e981bde69979d705dbac089181df625f7e54ec01898983a8a1d8d1144b67b83b"
 dependencies = [
  "alloy-consensus",
  "alloy-network",
@@ -3389,6 +3421,8 @@ dependencies = [
 [[package]]
 name = "eigen-testing-utils"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54b14a2ba9fbb5585ce0b3170243db2dfc551383ea7a46114a2c3f748da4515a"
 dependencies = [
  "alloy-network",
  "alloy-primitives",
@@ -3405,6 +3439,8 @@ dependencies = [
 [[package]]
 name = "eigen-types"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59467c722b271730a065a401002a6d3e7f6861233cf6241fda3a94bf863b4d74"
 dependencies = [
  "alloy-primitives",
  "ark-serialize 0.4.2",
@@ -3418,6 +3454,8 @@ dependencies = [
 [[package]]
 name = "eigen-utils"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "781a0d9bc2ab3d3709a1d6b23dfca5c2ef2da29b38f10a04bf7f1991bb53293e"
 dependencies = [
  "alloy-contract",
  "alloy-json-rpc",
@@ -3434,6 +3472,8 @@ dependencies = [
 [[package]]
 name = "eigensdk"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8683d526d79c3d8deaed773e0dd9a18383e0f710fa2d182615142ce26b448338"
 dependencies = [
  "eigen-chainio-txmanager",
  "eigen-client-avsregistry",
