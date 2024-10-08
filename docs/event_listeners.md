@@ -2,6 +2,26 @@
 
 When building a blueprint, your application may require to listen to events. Events can be of any type, and handling those events is entirely up to your discretion.
 
+In general, when defining your job, you must register any event listeners and provide a context as such:
+
+```rust
+#[job(
+    id = 0,
+    params(x),
+    result(_),
+    event_listener(TangleEventListener, MyEventListener1, MyEventListener2, ...), // <-- Register all event listeners here
+    verifier(evm = "MyVerifier")
+)]
+pub fn hello_event_listener(
+    x: u64,
+    context: MyContext, // <-- The context type must be the first additional parameter
+    env: GadgetConfiguration<parking_lot::RawRwLock>,
+) -> Result<u64, Infallible> {
+    Ok(x.saturating_pow(2u32))
+}
+```
+
+In order to make these registered event listeners to work, we must define structs that implement `EventListener`.
 ## Creating Event Listeners
 
 To create an event listener, begin by defining a struct or enum which will listen to events:
@@ -84,7 +104,7 @@ pub fn hello_event_listener(
 Primary event listeners are the most common type of event listener. They are easy to use, and require no context to work since this is done behind the scenes.
 
 ### TangleEventListener
-The `TangleEventListener` is a type that listens to the Tangle network for events.
+The `TangleEventListener` is a type that listens to the Tangle network for events. This is a required type if you expect your application to use the tangle network to listen to jobs.
 
 The `TangleEventListener` is already implemented and ready to use. Simply register it in the `job` macro, and your application
 will automatically work with the Tangle network.
