@@ -65,7 +65,7 @@ pub(crate) fn generate_eigenlayer_event_handler(
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
                 self.contract_instance.get_or_init(|| {
                     let instance_string = stringify!(#instance_base);
-                    let abi_path = format!("./../blueprints/incredible-squaring/contracts/out/{}.sol/{}.json", instance_string, instance_string);
+                    let abi_path = format!("./../blueprints/incredible-squaring-eigenlayer/contracts/out/{}.sol/{}.json", instance_string, instance_string);
                     let json_str = std::fs::read_to_string(&abi_path).unwrap();
                     let json: Value = serde_json::from_str(&json_str).unwrap();
                     let json_abi = json["abi"].clone();
