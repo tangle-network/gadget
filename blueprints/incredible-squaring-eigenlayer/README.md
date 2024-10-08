@@ -15,7 +15,6 @@ Before you begin, ensure you have the following installed:
    ```bash
    git clone https://github.com/webb-tools/gadget.git
    cd gadget
-   git checkout donovan/eigen-blueprint
    ```
    
 2. Install Anvil:
@@ -39,11 +38,3 @@ cargo build --release -p incredible-squaring-blueprint-eigenlayer
 ```bash
 RUST_LOG=gadget=trace cargo test --release --package blueprint-test-utils tests_standard::test_eigenlayer_incredible_squaring_blueprint -- --nocapture
 ```
-
-This test will:
-
-1. Set up a local Anvil testnet
-2. Deploy necessary contracts 
-3. Start the AVS 
-4. Send a test transaction to square a number 
-5. Verify the result
