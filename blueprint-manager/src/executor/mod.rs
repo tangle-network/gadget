@@ -147,6 +147,16 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let _span = span.enter();
     info!("Starting blueprint manager ... waiting for start signal ...");
 
+    if let Some(data_dir) = &blueprint_manager_config.data_dir {
+        if !data_dir.exists() {
+            info!(
+                "Data directory does not exist, creating it at `{}`",
+                data_dir.display()
+            );
+            std::fs::create_dir_all(data_dir)?;
+        }
+    }
+
     let (tangle_key, ecdsa_key) = {
         let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
             &gadget_config.keystore_uri,
