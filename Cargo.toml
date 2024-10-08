@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "blueprint-metadata",
     "blueprints/incredible-squaring",
+    "blueprints/incredible-squaring-eigenlayer",
     "cli",
     "gadget-io",
     "blueprint-test-utils",

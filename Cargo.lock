@@ -5713,6 +5713,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "incredible-squaring-blueprint-eigenlayer"
+version = "0.1.1"
+dependencies = [
+ "alloy-consensus",
+ "alloy-contract",
+ "alloy-json-abi",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-pubsub",
+ "alloy-rpc-types",
+ "alloy-rpc-types-eth",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-sol-types",
+ "alloy-transport",
+ "alloy-transport-http",
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff 0.4.2",
+ "async-trait",
+ "blueprint-metadata",
+ "color-eyre",
+ "ed25519-zebra 4.0.3",
+ "eigensdk",
+ "gadget-sdk",
+ "hex",
+ "k256",
+ "libp2p",
+ "lock_api",
+ "parking_lot",
+ "serde_json",
+ "sp-core 34.0.0",
+ "structopt",
+ "subxt-signer",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

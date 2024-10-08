@@ -655,3 +655,56 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         Ok(())
     }
 }
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    gadget_sdk::logging::setup_log();
+    // Load the environment and create the gadget runner
+    let config = ContextConfig::from_args();
+    let (env, mut runner) = create_gadget_runner(config.clone()).await;
+
+    info!("~~~ Executing the incredible squaring blueprint ~~~");
+
+    if let Protocol::Tangle = env.protocol {
+        check_for_test(&env, &config)?;
+    }
+
+    info!("Running with protocol: {:?}", env.protocol);
+
+    info!("Registering...");
+    // Register the operator if needed
+    if env.should_run_registration() {
+        runner.register().await?;
+    }
+
+    info!("Running...");
+    // Run the gadget / AVS
+    runner.run().await?;
+
+    info!("Exiting...");
+    Ok(())
+}
+
+#[allow(irrefutable_let_patterns)]
+fn check_for_test(
+    _env: &GadgetConfiguration<parking_lot::RawRwLock>,
+    config: &ContextConfig,
+) -> Result<()> {
+    // create a file to denote we have started
+    if let GadgetCLICoreSettings::Run {
+        keystore_uri: base_path,
+        test_mode,
+        ..
+    } = &config.gadget_core_settings
+    {
+        if !*test_mode {
+            return Ok(());
+        }
+        let path = base_path.sanitize_file_path().join("test_started.tmp");
+        let mut file = std::fs::File::create(&path)?;
+        file.write_all(b"test_started")?;
+        info!("Successfully wrote test file to {}", path.display())
+    }
+
+    Ok(())
+}
