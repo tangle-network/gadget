@@ -9,9 +9,6 @@ members = [
     "blueprint-test-utils",
     "blueprint-manager",
     "sdk",
-    # Commented out, since it uses jobs-v1 code
-    #"tangle-test-utils",
-
     "macros/blueprint-proc-macro",
     "macros/blueprint-proc-macro-core",
     "macros/blueprint-proc-macro-playground",
@@ -20,8 +17,6 @@ members = [
 exclude = [
     "tangle-test-utils",
     "example",
-    # "blueprints/ecdsa-threshold-mpc",
-    # "blueprints/tangle-avs-blueprint"
 ]
 
 [workspace.package]
@@ -60,7 +55,6 @@ cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
 tangle-subxt = { version = "0.3.0", default-features = false }
-
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
 subxt-core = { version = "0.37.0", default-features = false }
