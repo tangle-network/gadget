@@ -585,7 +585,11 @@ mod tests_standard {
         // const INPUT: u64 = 2;
         // const OUTPUT: u64 = INPUT.pow(2);
 
-        let (_container, http_endpoint, ws_endpoint) = anvil::start_anvil_container().await;
+        let (_container, http_endpoint, ws_endpoint) = anvil::start_anvil_container(true).await;
+
+        // let http_endpoint = "http://127.0.0.1:8545".to_string();
+        // let ws_endpoint = "ws://127.0.0.1:8545".to_string();
+
         std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
         std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint);
 

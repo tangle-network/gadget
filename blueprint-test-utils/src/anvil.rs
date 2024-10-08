@@ -4,6 +4,7 @@ use testcontainers::{
     runners::AsyncRunner,
     ContainerAsync, GenericImage, ImageExt,
 };
+use tokio::io::AsyncBufReadExt;
 
 const ANVIL_IMAGE: &str = "ghcr.io/foundry-rs/foundry";
 const ANVIL_TAG: &str = "nightly-5b7e4cb3c882b28f3c32ba580de27ce7381f415a";
@@ -23,7 +24,7 @@ fn workspace_dir() -> PathBuf {
 }
 
 /// Start an Anvil container for testing with contract state loaded.
-pub async fn start_anvil_container() -> (ContainerAsync<GenericImage>, String, String) {
+pub async fn start_anvil_container(include_logs: bool) -> (ContainerAsync<GenericImage>, String, String) {
     let relative_path = PathBuf::from(ANVIL_STATE_PATH);
     let absolute_path = workspace_dir().join(relative_path);
     let absolute_path_str = absolute_path.to_str().unwrap();
@@ -53,6 +54,18 @@ pub async fn start_anvil_container() -> (ContainerAsync<GenericImage>, String, S
         .start()
         .await
         .expect("Error starting anvil container");
+
+    if include_logs {
+        let reader = container.stdout(true);
+        tokio::task::spawn(async move {
+            let mut reader = reader;
+            let mut buffer = String::new();
+            while reader.read_line(&mut buffer).await.unwrap() > 0 {
+                println!("ANVIL: {:?}", buffer);
+                buffer.clear();
+            }
+        });
+    }
 
     let port = container
         .ports()
