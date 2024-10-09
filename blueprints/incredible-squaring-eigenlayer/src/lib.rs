@@ -25,12 +25,10 @@ use eigensdk::logging::get_test_logger;
 use eigensdk::services_avsregistry::chaincaller;
 use eigensdk::services_blsaggregation::bls_agg;
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
+use gadget_sdk::config::GadgetConfiguration;
 use gadget_sdk::events_watcher::evm::EvmEventHandler;
 use gadget_sdk::events_watcher::InitializableEventHandler;
-use gadget_sdk::{
-    events_watcher::evm::{Config, EventWatcher},
-    info, job,
-};
+use gadget_sdk::{events_watcher::evm::Config, info, job};
 use libp2p::futures::future;
 use std::str::FromStr;
 use std::{convert::Infallible, ops::Deref, sync::OnceLock};

@@ -149,6 +149,8 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         #event_handler_gen
     };
 
+    // println!("{}", gen.to_string());
+
     Ok(gen.into())
 }
 
@@ -216,7 +218,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                     let bounded_type_args = if listener_str.contains("TangleEventListener") {
                         proc_macro2::TokenStream::default()
                     } else {
-                        quote! { <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config<N = Ethereum> +'static> }
+                        quote! { <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config +'static> }
                     };
 
                     let autogen_struct_name = quote! { #struct_name #type_args };

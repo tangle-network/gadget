@@ -136,20 +136,20 @@ w3f-bls = { version = "0.1.4", default-features = false }
 cid = { version = "0.11.1" }
 indexmap = "2.5.0"
 
-alloy-primitives = "0.7.7"
-alloy-json-abi = "0.7.7"
-alloy-sol-types = "0.7.7"
-alloy-rpc-types = { version = "0.2.1" }
-alloy-rpc-types-eth = { version = "0.2.1" }
-alloy-provider = { version = "0.2.1", default-features = false, features = ["reqwest", "ws"] }
-alloy-pubsub = { version = "0.2.1" }
-alloy-signer = { version = "0.2.1" }
-alloy-signer-local = { version = "0.2.1" }
-alloy-network = { version = "0.2.1" }
-alloy-contract = { version = "0.2.1" }
-alloy-consensus = { version = "0.2.1" }
-alloy-transport = { version = "0.2.1" }
-alloy-transport-http = { version = "0.2.1" }
+alloy-primitives = "0.7.2"
+alloy-json-abi = "0.7.2"
+alloy-sol-types = "0.7.2"
+alloy-rpc-types = { version = "0.1" }
+alloy-rpc-types-eth = { version = "0.1" }
+alloy-provider = { version = "0.1", default-features = false, features = ["reqwest", "ws"] }
+alloy-pubsub = { version = "0.1" }
+alloy-signer = { version = "0.1" }
+alloy-signer-local = { version = "0.1" }
+alloy-network = { version = "0.1" }
+alloy-contract = { version = "0.1" }
+alloy-consensus = { version = "0.1" }
+alloy-transport = { version = "0.1" }
+alloy-transport-http = { version = "0.1" }
 
 ark-bn254 = "0.4.0"
 ark-ec = "0.4.0"

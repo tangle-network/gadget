@@ -1,4 +1,7 @@
+use alloy_network::EthereumWallet;
 use alloy_primitives::{address, Address, Bytes, FixedBytes, U256};
+use alloy_provider::ProviderBuilder;
+use alloy_signer_local::PrivateKeySigner;
 use color_eyre::{
     eyre::{eyre, OptionExt},
     Result,
@@ -9,11 +12,18 @@ use eigensdk::client_elcontracts::writer::ELChainWriter;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
-use gadget_sdk::config::{ContextConfig, GadgetConfiguration};
-use gadget_sdk::events_watcher::evm::EventWatcher;
+use gadget_sdk::events_watcher::InitializableEventHandler;
 use gadget_sdk::info;
 use gadget_sdk::run::GadgetRunner;
+use gadget_sdk::{
+    config::{ContextConfig, GadgetConfiguration},
+    network::{
+        gossip::GossipHandle,
+        setup::{start_p2p_network, NetworkConfig},
+    },
+};
 use incredible_squaring_blueprint_eigenlayer::{self, *};
+use k256::{ecdsa::SigningKey, SecretKey};
 use structopt::lazy_static::lazy_static;
 use structopt::StructOpt;
 
@@ -21,7 +31,6 @@ lazy_static! {
     /// 1 day
     static ref SIGNATURE_EXPIRY: U256 = U256::from(86400);
 }
-
 pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
     pub env: GadgetConfiguration<R>,
 }
@@ -29,10 +38,6 @@ pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
 impl<R: lock_api::RawRwLock> EigenlayerGadgetRunner<R> {
     pub async fn new(env: GadgetConfiguration<R>) -> Self {
         Self { env }
-    }
-
-    pub fn address(&self) -> Option<Address> {
-        self.env.contract_address
     }
 }
 
@@ -167,17 +172,85 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
     }
 
     async fn run(&mut self) -> Result<()> {
-        let contract_address = self.address().ok_or_eyre("Contract address not set")?;
         let http_endpoint = std::env::var("EIGENLAYER_HTTP_ENDPOINT")
             .expect("EIGENLAYER_HTTP_ENDPOINT must be set");
         let _ws_endpoint =
             std::env::var("EIGENLAYER_WS_ENDPOINT").expect("EIGENLAYER_WS_ENDPOINT must be set");
         let provider = eigensdk::utils::get_provider(&http_endpoint);
 
-        let mut event_watcher: EigenlayerEventWatcher<NodeConfig> =
-            EigenlayerEventWatcher::new(contract_address, provider.clone());
-        event_watcher.run().await?;
+        let keystore = self.env.keystore().map_err(|e| eyre!(e))?;
 
+        // TODO: greatly simplify all this logic by using the GenericKeyStore interface
+        // ED25519 Key Retrieval
+        let ed_key = keystore
+            .iter_ed25519()
+            .next()
+            .ok_or_eyre("Unable to find ED25519 key")?;
+        let ed_public_bytes = ed_key.as_ref(); // 32 byte len
+        let ed_public = ed25519_zebra::VerificationKey::try_from(ed_public_bytes)
+            .map_err(|_| eyre!("Unable to create ed25519 public key"))?;
+
+        // ECDSA Key Retrieval
+        let ecdsa_subxt_key = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
+        let ecdsa_secret_key_bytes = ecdsa_subxt_key.signer().seed();
+        let ecdsa_secret_key =
+            SecretKey::from_slice(&ecdsa_secret_key_bytes).map_err(|e| eyre!(e))?;
+        let ecdsa_signing_key = SigningKey::from(&ecdsa_secret_key);
+        let ecdsa_key =
+            sp_core::ecdsa::Pair::from_seed_slice(&ecdsa_secret_key_bytes).map_err(|e| eyre!(e))?;
+
+        // Construct Signer
+        let priv_key_signer: PrivateKeySigner =
+            PrivateKeySigner::from_signing_key(ecdsa_signing_key);
+
+        let sr_secret = keystore
+            .expose_ed25519_secret(&ed_public)
+            .map_err(|e| eyre!(e))?
+            .ok_or_eyre("Unable to find ED25519 secret")?;
+        let mut sr_secret_bytes = sr_secret.as_ref().to_vec(); // 64 byte len
+
+        let identity = libp2p::identity::Keypair::ed25519_from_bytes(&mut sr_secret_bytes)
+            .map_err(|e| eyre!("Unable to construct libp2p keypair: {e:?}"))?;
+
+        // TODO: Fill in and find the correct values for the network configuration
+        // TODO: Implementations for reading set of operators from Tangle & Eigenlayer
+        let network_config: NetworkConfig = NetworkConfig {
+            identity,
+            ecdsa_key,
+            bootnodes: vec![],
+            bind_ip: self.env.bind_addr,
+            bind_port: self.env.bind_port,
+            topics: vec!["__TESTING_INCREDIBLE_SQUARING".to_string()],
+        };
+
+        let _network: GossipHandle =
+            start_p2p_network(network_config).map_err(|e| eyre!(e.to_string()))?;
+
+        let wallet = EthereumWallet::from(priv_key_signer.clone());
+
+        // Set up eigenlayer AVS
+        let contract_address = Address::from_slice(&[0; 20]);
+        // Set up the HTTP provider with the `reqwest` crate.
+        let provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .wallet(wallet)
+            .on_http(self.env.rpc_endpoint.parse()?);
+
+        let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
+            contract_address,
+            provider,
+        );
+        // TODO: Make sure to pass T: Config to the XSquaredEigenEventHandler
+        let x_square_eigen = XsquareEigenEventHandler {
+            // ctx: blueprint::MyContext { network, keystore },
+            contract: contract.into(), // call .into() to convert to IncredibleSquaringTaskManagerInstanceWrapper
+        };
+        let finished = x_square_eigen
+            .init_event_handler()
+            .await
+            .expect("Event Listener init already called");
+        let res = finished.await;
+        info!("Event handler finished with {res:?}");
         Ok(())
     }
 }

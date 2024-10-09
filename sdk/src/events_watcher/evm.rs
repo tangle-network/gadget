@@ -15,8 +15,8 @@ pub trait Config: Send + Sync + Clone + 'static {
     type PH: Provider<Self::TH, Ethereum> + Clone + Send + Sync;
 }
 
-pub trait EvmContract<T: Config<N = Ethereum>>:
-    Deref<Target = alloy_contract::ContractInstance<T::T, T::P, Ethereum>>
+pub trait EvmContract<T: Config>:
+    Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, Ethereum>>
     + Send
     + Clone
     + Sync
@@ -24,8 +24,8 @@ pub trait EvmContract<T: Config<N = Ethereum>>:
 {
 }
 impl<
-        T: Config<N = Ethereum>,
-        X: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, Ethereum>>
+        T: Config,
+        X: Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, Ethereum>>
             + Send
             + Clone
             + Sync
@@ -40,7 +40,7 @@ impl<X: SolEvent + Clone + Send + Sync + 'static> EvmEvent for X {}
 /// A trait for watching events from a contract.
 /// EventWatcher trait exists for deployments that are smart-contract / EVM based
 #[async_trait::async_trait]
-pub trait EvmEventHandler<T: Config<N = Ethereum>>: Send + Sync + 'static {
+pub trait EvmEventHandler<T: Config>: Send + Sync + 'static {
     /// A Helper tag used to identify the event watcher during the logs.
     const TAG: &'static str;
     /// The contract that this event watcher is watching.
@@ -56,9 +56,7 @@ pub trait EvmEventHandler<T: Config<N = Ethereum>>: Send + Sync + 'static {
 }
 
 #[async_trait]
-impl<T: Config<N = Ethereum>, Handler: EvmEventHandler<T>> InitializableEventHandler<T>
-    for Handler
-{
+impl<T: Config, Handler: EvmEventHandler<T>> InitializableEventHandler<T> for Handler {
     async fn init_event_handler(&self) -> Option<tokio::sync::oneshot::Receiver<()>> {
         self.init().await
     }

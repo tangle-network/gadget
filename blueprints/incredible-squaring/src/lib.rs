@@ -3,7 +3,6 @@ use gadget_sdk::event_listener::EventListener;
 use gadget_sdk::{job, Error};
 use std::convert::Infallible;
 use std::time::Instant;
-pub mod eigenlayer;
 
 pub struct Ticker<const MSEC: usize> {
     additional_delay: u64,

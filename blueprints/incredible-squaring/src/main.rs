@@ -18,8 +18,6 @@ use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::tangle_subxt::subxt::tx::Signer;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 use incredible_squaring_blueprint::MyContext;
-use gadget_sdk::events_watcher::InitializableEventHandler;
-
 struct TangleGadgetRunner {
     env: GadgetConfiguration<parking_lot::RawRwLock>,
 }
