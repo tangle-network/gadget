@@ -11,8 +11,8 @@ use eigensdk::crypto_bls;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use std::path::PathBuf;
+use std::str::FromStr;
 use structopt::StructOpt;
 use url::Url;
 
