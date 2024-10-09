@@ -44,7 +44,7 @@ pub(crate) fn generate_evm_event_handler(
         #[doc = "`]"]
         #[derive(Clone)]
         pub struct #struct_name <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config +'static>{
-            contract: #instance_wrapper_name<T::TH, T::PH>,
+            pub contract: #instance_wrapper_name<T::TH, T::PH>,
             #(#additional_params)*
         }
 
