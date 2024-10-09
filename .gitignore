@@ -9,9 +9,9 @@ target/
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
+blueprint-test-utils/db
 
 # Added by cargo
-
 /target
 .idea
 .vscode

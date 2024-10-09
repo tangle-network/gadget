@@ -37,5 +37,5 @@ pub trait GadgetRunner {
     /// # Returns
     ///
     /// Returns an error if the gadget execution fails.
-    async fn run(&self) -> Result<(), Self::Error>;
+    async fn run(&mut self) -> Result<(), Self::Error>;
 }

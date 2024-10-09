@@ -4,12 +4,14 @@ use crate::keystore::BackendExt;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::{sp_core_subxt, TanglePairSigner};
 use alloc::string::{String, ToString};
+use alloy_primitives::Address;
 use core::fmt::Debug;
 use core::net::IpAddr;
 use eigensdk::crypto_bls;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use structopt::StructOpt;
 use url::Url;
 
@@ -101,6 +103,8 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     pub bind_port: u16,
     /// The Address of the Network that will be interacted with
     pub bind_addr: IpAddr,
+    /// The Address of the Contract that a Gadget is using
+    pub contract_address: Option<Address>,
     pub span: tracing::Span,
     /// Whether the gadget is in test mode
     pub test_mode: bool,
@@ -118,6 +122,7 @@ impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
             .field("protocol", &self.protocol)
             .field("bind_port", &self.bind_port)
             .field("bind_addr", &self.bind_addr)
+            .field("contract_address", &self.contract_address)
             .field("test_mode", &self.test_mode)
             .finish()
     }
@@ -134,6 +139,7 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
             protocol: self.protocol,
             bind_port: self.bind_port,
             bind_addr: self.bind_addr,
+            contract_address: self.contract_address,
             span: self.span.clone(),
             test_mode: self.test_mode,
             _lock: core::marker::PhantomData,
@@ -153,6 +159,7 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
             protocol: Protocol::Tangle,
             bind_port: 0,
             bind_addr: core::net::IpAddr::V4(core::net::Ipv4Addr::new(127, 0, 0, 1)),
+            contract_address: None,
             span: tracing::Span::current(),
             test_mode: true,
             _lock: core::marker::PhantomData,
@@ -259,6 +266,8 @@ pub enum GadgetCLICoreSettings {
         /// Whether to use pretty logging
         #[structopt(long)]
         pretty: bool,
+        #[structopt(long, short = "a", parse(try_from_str = Address::from_str))]
+        contract_address: Option<Address>,
         #[structopt(long, env)]
         keystore_password: Option<String>,
         #[structopt(long, env)]
@@ -310,6 +319,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 blueprint_id,
                 service_id,
                 protocol,
+                contract_address,
                 ..
             },
         ..
@@ -337,6 +347,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         is_registration,
         protocol,
         _lock: core::marker::PhantomData,
+        contract_address,
     })
 }
 
