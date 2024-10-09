@@ -11,6 +11,7 @@ use eigensdk::crypto_bls;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::str::FromStr;
 use structopt::StructOpt;
 use url::Url;
@@ -82,6 +83,10 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     /// * In Memory: `file::memory:` or `:memory:`
     /// * Filesystem: `file:/path/to/keystore` or `file:///path/to/keystore`
     pub keystore_uri: String,
+    /// Data directory exclusively for this gadget
+    ///
+    /// This will be `None` if the blueprint manager was not provided a base directory.
+    pub data_dir: Option<PathBuf>,
     /// Blueprint ID for this gadget.
     pub blueprint_id: u64,
     /// Service ID for this gadget.
@@ -133,6 +138,7 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
         Self {
             rpc_endpoint: self.rpc_endpoint.clone(),
             keystore_uri: self.keystore_uri.clone(),
+            data_dir: self.data_dir.clone(),
             blueprint_id: self.blueprint_id,
             service_id: self.service_id,
             is_registration: self.is_registration,
@@ -153,6 +159,7 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
         Self {
             rpc_endpoint: "http://localhost:9944".to_string(),
             keystore_uri: "file::memory:".to_string(),
+            data_dir: None,
             blueprint_id: 0,
             service_id: Some(0),
             is_registration: false,
@@ -337,6 +344,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         span,
         rpc_endpoint: url.to_string(),
         keystore_uri,
+        data_dir: std::env::var("DATA_DIR").ok().map(PathBuf::from),
         blueprint_id,
         // If the registration mode is on, we don't need the service ID
         service_id: if is_registration {

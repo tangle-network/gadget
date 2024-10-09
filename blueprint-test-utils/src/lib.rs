@@ -70,6 +70,8 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         keystore_uri.display()
     );
 
+    let data_dir = std::path::absolute("./target/data/").expect("Failed to get current directory");
+
     let keystore_uri_normalized =
         std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
     let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
@@ -86,6 +88,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     let blueprint_manager_config = BlueprintManagerConfig {
         gadget_config: None,
         keystore_uri: keystore_uri_str.clone(),
+        data_dir: Some(data_dir),
         verbose: input.verbose,
         pretty: input.pretty,
         instance_id: Some(NAME_IDS[input.instance_id as usize].to_string()),
