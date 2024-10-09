@@ -22,6 +22,8 @@ use gadget_sdk::{
         setup::{start_p2p_network, NetworkConfig},
     },
 };
+use gadget_sdk::keystore::Backend;
+use sp_core::Pair;
 use incredible_squaring_blueprint_eigenlayer::{self, *};
 use k256::{ecdsa::SigningKey, SecretKey};
 use structopt::lazy_static::lazy_static;
