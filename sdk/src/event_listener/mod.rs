@@ -3,7 +3,6 @@ use crate::events_watcher::evm::{Config as ConfigT, EvmEventHandler};
 use crate::events_watcher::substrate::EventHandlerFor;
 use crate::store::LocalDatabase;
 use crate::{error, trace, warn, Error};
-use alloy_network::Ethereum;
 use alloy_network::ReceiptResponse;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockNumberOrTag, Filter};

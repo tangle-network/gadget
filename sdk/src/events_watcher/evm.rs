@@ -2,7 +2,7 @@
 
 use crate::events_watcher::error::Error;
 use crate::events_watcher::InitializableEventHandler;
-use alloy_network::{Ethereum, Network};
+use alloy_network::Ethereum;
 use alloy_primitives::FixedBytes;
 use alloy_provider::Provider;
 use alloy_sol_types::SolEvent;

@@ -4,14 +4,12 @@ use crate::keystore::BackendExt;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::{sp_core_subxt, TanglePairSigner};
 use alloc::string::{String, ToString};
-use alloy_primitives::Address;
 use core::fmt::Debug;
 use core::net::IpAddr;
 use eigensdk::crypto_bls;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use structopt::StructOpt;
 use url::Url;
 
