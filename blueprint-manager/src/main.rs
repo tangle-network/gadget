@@ -7,6 +7,7 @@ use sdk::entry;
 use structopt::StructOpt;
 
 #[tokio::main]
+#[allow(clippy::needless_return)]
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
     let mut blueprint_manager_config = BlueprintManagerConfig::from_args();
