@@ -259,9 +259,6 @@ impl<Config: ConfigT<N = Ethereum>, Watcher: EvmEventHandler<Config>>
 
     async fn execute(&mut self) -> Result<(), Error> {
         const MAX_RETRY_COUNT: usize = 10;
-
-        self.handler.init().await;
-
         let mut backoff = get_exponential_backoff::<MAX_RETRY_COUNT>();
 
         let mut retry_count = 0;
@@ -464,11 +461,6 @@ impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
 
     async fn execute(&mut self) -> Result<(), Error> {
         const MAX_RETRY_COUNT: usize = 10;
-
-        for handler in &self.handlers {
-            handler.init().await;
-        }
-
         let mut backoff = get_exponential_backoff::<MAX_RETRY_COUNT>();
 
         let mut retry_count = 0;

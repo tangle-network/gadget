@@ -362,6 +362,8 @@ fn generate_job_report_event_handler(
             &args.params,
         );
 
+    let combined_event_listener =
+        crate::job::generate_combined_event_listener_selector(&struct_name);
     quote! {
         #[derive(Clone)]
         pub struct #struct_name {
@@ -375,8 +377,9 @@ fn generate_job_report_event_handler(
         #[automatically_derived]
         #[async_trait::async_trait]
         impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
-            async fn init(&self) {
+            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
                 #(#event_listener_calls)*
+                #combined_event_listener
             }
 
             async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
@@ -454,6 +457,9 @@ fn generate_qos_report_event_handler(
         .as_ref()
         .expect("Interval must be present for QoS reports");
 
+    let combined_event_listener =
+        crate::job::generate_combined_event_listener_selector(&struct_name);
+
     quote! {
         #[derive(Clone)]
         pub struct #struct_name {
@@ -467,8 +473,9 @@ fn generate_qos_report_event_handler(
         #[automatically_derived]
         #[async_trait::async_trait]
         impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
-            async fn init(&self) {
+            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
                 #(#event_listener_calls)*
+                #combined_event_listener
             }
 
             async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {

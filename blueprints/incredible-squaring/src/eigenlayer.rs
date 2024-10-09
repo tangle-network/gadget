@@ -42,6 +42,7 @@ use gadget_sdk::config::{
     GadgetConfiguration, StdGadgetConfiguration,
 };
 use gadget_sdk::events_watcher::evm::EvmEventHandler;
+use gadget_sdk::events_watcher::InitializableEventHandler;
 use gadget_sdk::keystore::sp_core_subxt::Pair as SubxtPair;
 use gadget_sdk::network::gossip::GossipHandle;
 use gadget_sdk::tangle_subxt::subxt::tx::Signer;
@@ -363,8 +364,6 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         let _network: GossipHandle =
             start_p2p_network(network_config).map_err(|e| eyre!(e.to_string()))?;
 
-        // TODO: uncomment below, and select proper T: Config
-        /*
         let wallet = EthereumWallet::from(priv_key_signer.clone());
 
         // Set up eigenlayer AVS
@@ -379,23 +378,17 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             contract_address,
             provider,
         );
+        // TODO: Make sure to pass T: Config to the XSquaredEigenEventHandler
         let x_square_eigen = XsquareEigenEventHandler {
             // ctx: blueprint::MyContext { network, keystore },
             contract: contract.into(), // call .into() to convert to IncredibleSquaringTaskManagerInstanceWrapper
         };
-        // TODO: Make sure to pass T: Config to the EvmEventHandler below, or, have it in the x_square_eigen
-        //EvmEventHandler::init(&x_square_eigen).await;*/
-        future::pending::<()>().await;
-        //
-        //
-        //EventWatcher::run(
-        //     &EigenlayerEventWatcher,
-        //     contract,
-        //     // Add more handler here if we have more functions.
-        //     vec![Box::new(x_square_eigen)],
-        // )
-        // .await?;
-
+        let finished = x_square_eigen
+            .init_event_handler()
+            .await
+            .expect("Event Listener init already called");
+        let res = finished.await;
+        info!("Event handler finished with {res:?}");
         Ok(())
     }
 }

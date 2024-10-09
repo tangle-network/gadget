@@ -248,24 +248,36 @@ pub(crate) fn generate_event_listener_tokenstream(
                             }
                         };
 
+                        if event_listener_calls.is_empty() {
+                            event_listener_calls.push(quote! {
+                                let mut listeners = vec![];
+                            });
+                        }
+
                         event_listener_calls.push(quote! {
-                            #listener_function_name(&self).await;
+                            listeners.push(#listener_function_name(&self).await.expect("Event listener already initialized"));
                         });
 
                         quote! {
-                            async fn #listener_function_name #bounded_type_args(ctx: &#autogen_struct_name) {
+                            async fn #listener_function_name #bounded_type_args(ctx: &#autogen_struct_name) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>>{
                                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                                 if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
                                     ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
+                                    let (tx, rx) = gadget_sdk::tokio::sync::oneshot::channel();
                                     let ctx = #ctx_create;
                                     let mut instance = <#wrapper as gadget_sdk::event_listener::EventListener::<_, _>>::new(&ctx).await.expect("Failed to create event listener");
                                     let task = async move {
                                         if let Err(err) = gadget_sdk::event_listener::EventListener::<_, _>::execute(&mut instance).await {
                                             gadget_sdk::error!("Error in event listener (now closing): {err}");
                                         }
+
+                                        let _ = tx.send(());
                                     };
                                     gadget_sdk::tokio::task::spawn(task);
+                                    return Some(rx)
                                 }
+
+                                None
                             }
                         }
                     } else {
@@ -281,23 +293,35 @@ pub(crate) fn generate_event_listener_tokenstream(
                             .map(|ty| quote! {#ty})
                             .unwrap_or_default();
 
+                        if event_listener_calls.is_empty() {
+                            event_listener_calls.push(quote! {
+                                let mut listeners = vec![];
+                            });
+                        }
+
                         event_listener_calls.push(quote! {
-                            #listener_function_name(&#context).await;
+                            listeners.push(#listener_function_name(&#context).await.expect("Event listener already initialized"));
                         });
 
                         quote! {
-                            async fn #listener_function_name(ctx: &#context_ty) {
+                            async fn #listener_function_name(ctx: &#context_ty) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
                                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                                 if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
                                     ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
+                                    let (tx, rx) = gadget_sdk::tokio::sync::oneshot::channel();
                                     let mut instance = <#listener as gadget_sdk::event_listener::EventListener<_, _>>::new(ctx).await.expect("Failed to create event listener");
                                     let task = async move {
                                         if let Err(err) = gadget_sdk::event_listener::EventListener::execute(&mut instance).await {
                                             gadget_sdk::error!("Error in event listener (now closing): {err}");
                                         }
+
+                                        let _ = tx.send(());
                                     };
                                     gadget_sdk::tokio::task::spawn(task);
+                                    return Some(rx)
                                 }
+
+                                None
                             }
                         }
                     };
@@ -869,5 +893,25 @@ impl Parse for EventHandlerArgs {
                 "Expected `tangle` or `eigenlayer` as event handler protocol",
             )),
         }
+    }
+}
+
+pub(crate) fn generate_combined_event_listener_selector(
+    struct_name: &Ident,
+) -> proc_macro2::TokenStream {
+    quote! {
+        let (tx, rx) = gadget_sdk::tokio::sync::oneshot::channel();
+        let task = async move {
+            let mut futures = gadget_sdk::futures::stream::FuturesUnordered::new();
+            for listener in listeners {
+                futures.push(listener);
+            }
+            if let Some(_) = gadget_sdk::futures::stream::StreamExt::next(&mut futures).await {
+                gadget_sdk::error!("An Event Handler for {} has stopped running", stringify!(#struct_name));
+                tx.send(()).unwrap();
+            }
+        };
+        let _ = gadget_sdk::tokio::spawn(task);
+        Some(rx)
     }
 }

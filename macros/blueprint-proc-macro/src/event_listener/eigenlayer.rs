@@ -34,6 +34,8 @@ pub(crate) fn generate_evm_event_handler(
     let ev = event_handler.event().unwrap();
     let event_converter = event_handler.event_converter().unwrap();
     let callback = event_handler.callback().unwrap();
+    let combined_event_listener =
+        crate::job::generate_combined_event_listener_selector(struct_name);
 
     quote! {
         /// Event handler for the function
@@ -116,8 +118,9 @@ pub(crate) fn generate_evm_event_handler(
             const TAG: &'static str = "eigenlayer";
             const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
 
-            async fn init(&self) {
+            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
                 #(#event_listener_calls)*
+                #combined_event_listener
             }
 
             async fn handle(&self, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::events_watcher::Error> {

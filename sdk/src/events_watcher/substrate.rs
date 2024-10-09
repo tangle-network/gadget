@@ -7,9 +7,12 @@
 //! of an event watcher polls for blocks. Implementations of the event watcher trait define an
 //! action to take when the specified event is found in a block at the `handle_event` api.
 
+use crate::events_watcher::InitializableEventHandler;
+use async_trait::async_trait;
 use std::sync::Arc;
 use subxt_core::utils::AccountId32;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
+
 /// A type alias to extract the event handler type from the event watcher.
 pub type EventHandlerFor<RuntimeConfig, Evt> = Arc<dyn EventHandler<RuntimeConfig, Evt>>;
 
@@ -23,7 +26,7 @@ where
     RuntimeConfig: subxt::Config + Send + Sync + 'static,
     Evt: Send + Sync + 'static,
 {
-    async fn init(&self);
+    async fn init(&self) -> Option<tokio::sync::oneshot::Receiver<()>>;
 
     async fn handle(
         &self,
@@ -40,4 +43,17 @@ where
     fn signer(
         &self,
     ) -> &crate::keystore::TanglePairSigner<crate::keystore::sp_core_subxt::sr25519::Pair>;
+}
+
+#[async_trait]
+impl<RuntimeConfig, Evt, Handler> InitializableEventHandler<(RuntimeConfig, Evt, Handler)>
+    for Handler
+where
+    RuntimeConfig: subxt::Config + Send + Sync + 'static,
+    Evt: Send + Sync + 'static,
+    Handler: EventHandler<RuntimeConfig, Evt>,
+{
+    async fn init_event_handler(&self) -> Option<tokio::sync::oneshot::Receiver<()>> {
+        self.init().await
+    }
 }
