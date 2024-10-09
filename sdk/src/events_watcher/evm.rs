@@ -49,8 +49,9 @@ pub trait EvmEventHandler<T: Config<N = Ethereum>>: Send + Sync + 'static {
     type Event: EvmEvent;
     /// The genesis transaction hash for the contract.
     const GENESIS_TX_HASH: FixedBytes<32>;
+    /// Initialize the event handler.
     async fn init(&self) -> Option<tokio::sync::oneshot::Receiver<()>>;
-    // (Self::Event, alloy_rpc_types::Log)
+    /// Handle a log event.
     async fn handle(&self, log: &alloy_rpc_types::Log, event: &Self::Event) -> Result<(), Error>;
 }
 

@@ -75,6 +75,7 @@ pub(crate) fn generate_evm_event_handler(
                     contract_instance: OnceLock::new(),
                 }
             }
+
             /// Lazily creates the [`ContractInstance`] if it does not exist, otherwise returning a reference to it.
             #[allow(clippy::clone_on_copy)]
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
