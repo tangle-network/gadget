@@ -62,14 +62,12 @@ sol!(
     id = 1,
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage),
     result(_),
-    event_listener(EvmEventListener),
-    event_handler(
-        protocol = "eigenlayer",
+    event_listener(EvmEventListener(
         instance = IncredibleSquaringTaskManager,
         event = IncredibleSquaringTaskManager::NewTaskCreated,
         event_converter = convert_event_to_inputs,
         callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
-    ),
+    )),
 )]
 pub async fn xsquare_eigen(
     // TODO: Add Context
