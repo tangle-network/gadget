@@ -339,15 +339,6 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         // Construct Signer
         let priv_key_signer: PrivateKeySigner =
             PrivateKeySigner::from_signing_key(ecdsa_signing_key);
-        let wallet = EthereumWallet::from(priv_key_signer.clone());
-
-        // Set up eigenlayer AVS
-        let contract_address = Address::from_slice(&[0; 20]);
-        // Set up the HTTP provider with the `reqwest` crate.
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .wallet(wallet)
-            .on_http(self.env.rpc_endpoint.parse()?);
 
         let sr_secret = keystore
             .expose_ed25519_secret(&ed_public)
@@ -369,18 +360,31 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             topics: vec!["__TESTING_INCREDIBLE_SQUARING".to_string()],
         };
 
+        let _network: GossipHandle =
+            start_p2p_network(network_config).map_err(|e| eyre!(e.to_string()))?;
+
+        // TODO: uncomment below, and select proper T: Config
+        /*
+        let wallet = EthereumWallet::from(priv_key_signer.clone());
+
+        // Set up eigenlayer AVS
+        let contract_address = Address::from_slice(&[0; 20]);
+        // Set up the HTTP provider with the `reqwest` crate.
+        let provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .wallet(wallet)
+            .on_http(self.env.rpc_endpoint.parse()?);
+
         let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
             contract_address,
             provider,
         );
-        let _network: GossipHandle =
-            start_p2p_network(network_config).map_err(|e| eyre!(e.to_string()))?;
         let x_square_eigen = XsquareEigenEventHandler {
             // ctx: blueprint::MyContext { network, keystore },
             contract: contract.into(), // call .into() to convert to IncredibleSquaringTaskManagerInstanceWrapper
         };
-        // TODO: Make sure to pass T: Config to the EvmEventHandler
-        EvmEventHandler::init(&x_square_eigen).await;
+        // TODO: Make sure to pass T: Config to the EvmEventHandler below, or, have it in the x_square_eigen
+        //EvmEventHandler::init(&x_square_eigen).await;*/
         future::pending::<()>().await;
         //
         //
