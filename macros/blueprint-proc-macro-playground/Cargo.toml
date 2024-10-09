@@ -9,7 +9,7 @@ repository.workspace = true
 publish = false
 
 [[package.metadata.gadget.Native.sources]]
-owner = "webb-tools"
+owner = "tangle-network"
 repo = "incredible-squaring"
 tag = "0.1.0"
 binaries = [
