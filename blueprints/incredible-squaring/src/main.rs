@@ -1,7 +1,6 @@
 use color_eyre::{eyre::eyre, Result};
 use gadget_sdk::config::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration, StdGadgetConfiguration};
 use gadget_sdk::{
-    config::Protocol,
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
         runtime_types::{sp_core::ecdsa, tangle_primitives::services},
@@ -74,7 +73,7 @@ impl GadgetRunner for TangleGadgetRunner {
         todo!()
     }
 
-    async fn run(&self) -> Result<()> {
+    async fn run(&mut self) -> Result<()> {
         let client = self.env.client().await.map_err(|e| eyre!(e))?;
         let signer = self.env.first_sr25519_signer().map_err(|e| eyre!(e))?;
 
@@ -100,45 +99,30 @@ impl GadgetRunner for TangleGadgetRunner {
     }
 }
 
-async fn create_gadget_runner(
-    config: ContextConfig,
-) -> (
-    GadgetConfiguration<parking_lot::RawRwLock>,
-    Box<dyn GadgetRunner<Error = color_eyre::Report>>,
-) {
-    let env = gadget_sdk::config::load(config).expect("Failed to load environment");
-    match env.protocol {
-        Protocol::Tangle => (env.clone(), Box::new(TangleGadgetRunner { env })),
-        /*
-        Protocol::Eigenlayer => (
-            env.clone(),
-            Box::new(blueprint::eigenlayer::EigenlayerGadgetRunner::new(env).await),
-        ),*/
-        _ => panic!("Unsupported protocol Eigenlayer. Gadget/Tangle need U256 support."),
-    }
-}
-
 #[tokio::main]
 #[allow(clippy::needless_return)]
 async fn main() -> Result<()> {
     gadget_sdk::logging::setup_log();
     // Load the environment and create the gadget runner
     let config = ContextConfig::from_args();
-
-    let (env, mut runner) = create_gadget_runner(config.clone()).await;
+    let env = gadget_sdk::config::load(config.clone()).expect("Failed to load environment");
+    let mut runner = Box::new(TangleGadgetRunner { env: env.clone() });
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
 
     check_for_test(&env, &config)?;
 
+    info!("Registering...");
     // Register the operator if needed
     if env.should_run_registration() {
         runner.register().await?;
     }
 
+    info!("Running...");
     // Run the gadget / AVS
     runner.run().await?;
 
+    info!("Exiting...");
     Ok(())
 }
 

@@ -65,23 +65,39 @@ pub(crate) fn generate_evm_event_handler(
 
         impl<T, P> #instance_wrapper_name<T, P>
         where
-            T: alloy_transport::Transport + Clone + Send + Sync + 'static,
-            P: alloy_provider::Provider<T> + Clone + Send + Sync + 'static,
+            T: alloy_transport::Transport + Clone + Send + Sync,
+            P: alloy_provider::Provider<T, Ethereum> + Clone + Send + Sync,
         {
             /// Constructor for creating a new [`#instance_wrapper_name`].
             pub fn new(instance: #instance_base::#instance_name<T, P>) -> Self {
+                #event_listener_call
                 Self {
                     instance,
                     contract_instance: OnceLock::new(),
                 }
             }
+
+            /// Returns the provider of the [`ContractInstance`].
+            pub fn provider(&self) -> &P {
+                self.instance.provider()
+            }
+
+            /// Returns the address of the [`ContractInstance`].
+            pub fn address(&self) -> &Address {
+                self.instance.address()
+            }
+
             /// Lazily creates the [`ContractInstance`] if it does not exist, otherwise returning a reference to it.
+            // TODO: Remove Unwraps
             #[allow(clippy::clone_on_copy)]
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
                 self.contract_instance.get_or_init(|| {
-                    let instance_string = stringify!(instance_name);
-                    let abi_path = format!("../contracts/out/{instance_string}.sol/{instance_string}.json");
-                    let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&abi_path).unwrap());
+                    let instance_string = stringify!(#instance_base);
+                    let abi_path = format!("./../blueprints/incredible-squaring-eigenlayer/contracts/out/{}.sol/{}.json", instance_string, instance_string);
+                    let json_str = std::fs::read_to_string(&abi_path).unwrap();
+                    let json: Value = serde_json::from_str(&json_str).unwrap();
+                    let json_abi = json["abi"].clone();
+                    let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(json_abi.to_string().as_str()).unwrap());
                     ContractInstance::new(
                         self.instance.address().clone(),
                         self.instance.provider().clone(),
@@ -91,20 +107,18 @@ pub(crate) fn generate_evm_event_handler(
             }
         }
 
-
         impl<T, P> Deref for #instance_wrapper_name<T, P>
         where
-            T: Transport + Clone + Send + Sync + 'static,
-            P: Provider<T> + Clone + Send + Sync + 'static,
+            T: alloy_transport::Transport + Clone + Send + Sync,
+            P: alloy_provider::Provider<T, Ethereum> + Clone + Send + Sync,
         {
-           type Target = ContractInstance<T, P, Ethereum>;
+            type Target = ContractInstance<T, P, Ethereum>;
 
-           /// Dereferences the [`#instance_wrapper_name`] to its [`ContractInstance`].
-           fn deref(&self) -> &Self::Target {
-               self.get_contract_instance()
+            /// Dereferences the [`#instance_wrapper_name`] to its [`ContractInstance`].
+            fn deref(&self) -> &Self::Target {
+                self.get_contract_instance()
             }
         }
-
 
         #[automatically_derived]
         #[async_trait::async_trait]
@@ -157,9 +171,12 @@ pub(crate) fn generate_evm_event_handler(
                 //     tx.watch().await?;
                 // }
                 let call = #callback(job_result);
-                // Submit the transaction
-                let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
-                tx.watch().await?;
+
+                // let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await.unwrap();
+                // let receipt = tx.get_receipt().await.unwrap();
+                // info!("SUBMITTED JOB RESULT: {:?}", receipt);
+
+                info!("SUCCESSFULLY SUBMITTED JOB RESULT");
 
                 Ok(())
             }

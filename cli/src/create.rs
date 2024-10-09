@@ -5,7 +5,7 @@ pub fn new_blueprint(name: &str) {
             subfolder: None,
             test: false,
             git: Some(String::from(
-                "https://github.com/webb-tools/blueprint-template/",
+                "https://github.com/tangle-network/blueprint-template/",
             )),
             branch: Some(String::from("main")),
             tag: None,

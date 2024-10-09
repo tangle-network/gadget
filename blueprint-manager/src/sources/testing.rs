@@ -84,7 +84,7 @@ impl BinarySourceFetcher for TestSourceFetcher {
     }
 }
 async fn get_git_repo_root_path() -> color_eyre::Result<PathBuf> {
-    // Run a process the determine thw root directory for this repo
+    // Run a process to determine the root directory for this repo
     let output = tokio::process::Command::new("git")
         .arg("rev-parse")
         .arg("--show-toplevel")

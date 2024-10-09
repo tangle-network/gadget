@@ -10,10 +10,9 @@ use alloy_transport::Transport;
 use async_trait::async_trait;
 use std::ops::Deref;
 
-pub trait Config: Send + Sync + 'static {
-    type T: Transport + Clone + Send + Sync + 'static;
-    type P: Provider<Self::T, Self::N> + Clone + Send + Sync + 'static;
-    type N: Network + Send + Sync + 'static;
+pub trait Config: Send + Sync + Clone + 'static {
+    type TH: Transport + Clone + Send + Sync;
+    type PH: Provider<Self::TH, Ethereum> + Clone + Send + Sync;
 }
 
 pub trait EvmContract<T: Config<N = Ethereum>>:

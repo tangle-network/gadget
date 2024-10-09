@@ -1,5 +1,5 @@
 [package]
-name = "incredible-squaring-blueprint"
+name = "incredible-squaring-blueprint-eigenlayer"
 version = "0.1.1"
 description = "A Simple Blueprint to demo how blueprints work on Tangle Network"
 authors.workspace = true
