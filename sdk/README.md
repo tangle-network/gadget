@@ -33,7 +33,7 @@ To add the Gadget SDK to your project, add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-gadget-sdk = { git = "https://github.com/webb-tools/gadget" }
+gadget-sdk = { git = "https://github.com/tangle-network/gadget" }
 ```
 
 ### Examples

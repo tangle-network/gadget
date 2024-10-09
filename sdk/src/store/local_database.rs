@@ -108,7 +108,10 @@ where
     pub fn set(&self, key: &str, value: T) {
         let mut data = self.data.lock().unwrap();
         let _old = data.insert(key.to_string(), value);
-        self.save();
+
+        // Save the data while the lock is held
+        let json_string = serde_json::to_string(&*data).expect("Failed to serialize data to JSON");
+        fs::write(&self.path, json_string).expect("Failed to write to the file");
     }
 
     /// Retrieves a value associated with the given key.
@@ -126,12 +129,5 @@ where
     pub fn get(&self, key: &str) -> Option<T> {
         let data = self.data.lock().unwrap();
         data.get(key).cloned()
-    }
-
-    /// Saves the current state of the database to the file.
-    fn save(&self) {
-        let data = self.data.lock().unwrap();
-        let json_string = serde_json::to_string(&*data).expect("Failed to serialize data to JSON");
-        fs::write(&self.path, json_string).expect("Failed to write to the file");
     }
 }

@@ -7,30 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.3](https://github.com/webb-tools/gadget/compare/cargo-tangle-v0.1.2...cargo-tangle-v0.1.3) - 2024-10-01
+## [0.1.2](https://github.com/tangle-network/gadget/releases/tag/cargo-tangle-v0.1.2) - 2024-09-30
 
 ### Other
 
-- release ([#314](https://github.com/webb-tools/gadget/pull/314))
-
-## [0.1.2](https://github.com/webb-tools/gadget/releases/tag/cargo-tangle-v0.1.2) - 2024-09-30
-
-### Other
-
-- add CLI description to Cargo.toml ([#326](https://github.com/webb-tools/gadget/pull/326))
-- release ([#313](https://github.com/webb-tools/gadget/pull/313))
-- release ([#308](https://github.com/webb-tools/gadget/pull/308))
-- Update READMEs with Download Links ([#302](https://github.com/webb-tools/gadget/pull/302))
-- CI Improvements ([#301](https://github.com/webb-tools/gadget/pull/301))
-- Expose executor from SDK ([#300](https://github.com/webb-tools/gadget/pull/300))
-- Update README.md ([#287](https://github.com/webb-tools/gadget/pull/287))
-- [MEGA PR] Overhaul repo, add Eigenlayer AVS example, remove many crates, add testing, remove unused code ([#246](https://github.com/webb-tools/gadget/pull/246))
-- Promote all dependencies to workspace ([#233](https://github.com/webb-tools/gadget/pull/233))
-- Remove shell sdk and put inside blueprint manager ([#229](https://github.com/webb-tools/gadget/pull/229))
-- Blueprint testing ([#206](https://github.com/webb-tools/gadget/pull/206))
-- Add CLI usage documentation to README ([#228](https://github.com/webb-tools/gadget/pull/228))
-- Rename Gadget CLI to Tangle CLI ([#227](https://github.com/webb-tools/gadget/pull/227))
-- Publish Gadget SDK to crates.io ([#215](https://github.com/webb-tools/gadget/pull/215))
+- add CLI description to Cargo.toml ([#326](https://github.com/tangle-network/gadget/pull/326))
+- release ([#313](https://github.com/tangle-network/gadget/pull/313))
+- release ([#308](https://github.com/tangle-network/gadget/pull/308))
+- Update READMEs with Download Links ([#302](https://github.com/tangle-network/gadget/pull/302))
+- CI Improvements ([#301](https://github.com/tangle-network/gadget/pull/301))
+- Expose executor from SDK ([#300](https://github.com/tangle-network/gadget/pull/300))
+- Update README.md ([#287](https://github.com/tangle-network/gadget/pull/287))
+- [MEGA PR] Overhaul repo, add Eigenlayer AVS example, remove many crates, add testing, remove unused code ([#246](https://github.com/tangle-network/gadget/pull/246))
+- Promote all dependencies to workspace ([#233](https://github.com/tangle-network/gadget/pull/233))
+- Remove shell sdk and put inside blueprint manager ([#229](https://github.com/tangle-network/gadget/pull/229))
+- Blueprint testing ([#206](https://github.com/tangle-network/gadget/pull/206))
+- Add CLI usage documentation to README ([#228](https://github.com/tangle-network/gadget/pull/228))
+- Rename Gadget CLI to Tangle CLI ([#227](https://github.com/tangle-network/gadget/pull/227))
+- Publish Gadget SDK to crates.io ([#215](https://github.com/tangle-network/gadget/pull/215))
 - add signer selection to the CLI
 - Add signers
 - Deployment works!
@@ -40,22 +34,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add cargo gadget generate cmd
 - CLI
 
-## [0.1.1-beta.7](https://github.com/webb-tools/gadget/releases/tag/cargo-tangle-v0.1.1-beta.7) - 2024-09-25
+## [0.1.1-beta.7](https://github.com/tangle-network/gadget/releases/tag/cargo-tangle-v0.1.1-beta.7) - 2024-09-25
 
 ### Other
 
-- release ([#308](https://github.com/webb-tools/gadget/pull/308))
-- Update READMEs with Download Links ([#302](https://github.com/webb-tools/gadget/pull/302))
-- CI Improvements ([#301](https://github.com/webb-tools/gadget/pull/301))
-- Expose executor from SDK ([#300](https://github.com/webb-tools/gadget/pull/300))
-- Update README.md ([#287](https://github.com/webb-tools/gadget/pull/287))
-- [MEGA PR] Overhaul repo, add Eigenlayer AVS example, remove many crates, add testing, remove unused code ([#246](https://github.com/webb-tools/gadget/pull/246))
-- Promote all dependencies to workspace ([#233](https://github.com/webb-tools/gadget/pull/233))
-- Remove shell sdk and put inside blueprint manager ([#229](https://github.com/webb-tools/gadget/pull/229))
-- Blueprint testing ([#206](https://github.com/webb-tools/gadget/pull/206))
-- Add CLI usage documentation to README ([#228](https://github.com/webb-tools/gadget/pull/228))
-- Rename Gadget CLI to Tangle CLI ([#227](https://github.com/webb-tools/gadget/pull/227))
-- Publish Gadget SDK to crates.io ([#215](https://github.com/webb-tools/gadget/pull/215))
+- release ([#308](https://github.com/tangle-network/gadget/pull/308))
+- Update READMEs with Download Links ([#302](https://github.com/tangle-network/gadget/pull/302))
+- CI Improvements ([#301](https://github.com/tangle-network/gadget/pull/301))
+- Expose executor from SDK ([#300](https://github.com/tangle-network/gadget/pull/300))
+- Update README.md ([#287](https://github.com/tangle-network/gadget/pull/287))
+- [MEGA PR] Overhaul repo, add Eigenlayer AVS example, remove many crates, add testing, remove unused code ([#246](https://github.com/tangle-network/gadget/pull/246))
+- Promote all dependencies to workspace ([#233](https://github.com/tangle-network/gadget/pull/233))
+- Remove shell sdk and put inside blueprint manager ([#229](https://github.com/tangle-network/gadget/pull/229))
+- Blueprint testing ([#206](https://github.com/tangle-network/gadget/pull/206))
+- Add CLI usage documentation to README ([#228](https://github.com/tangle-network/gadget/pull/228))
+- Rename Gadget CLI to Tangle CLI ([#227](https://github.com/tangle-network/gadget/pull/227))
+- Publish Gadget SDK to crates.io ([#215](https://github.com/tangle-network/gadget/pull/215))
 - add signer selection to the CLI
 - Add signers
 - Deployment works!
@@ -65,21 +59,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add cargo gadget generate cmd
 - CLI
 
-## [0.1.1-beta.7](https://github.com/webb-tools/gadget/releases/tag/cargo-tangle-v0.1.1-beta.7) - 2024-09-24
+## [0.1.1-beta.7](https://github.com/tangle-network/gadget/releases/tag/cargo-tangle-v0.1.1-beta.7) - 2024-09-24
 
 ### Other
 
-- Update READMEs with Download Links ([#302](https://github.com/webb-tools/gadget/pull/302))
-- CI Improvements ([#301](https://github.com/webb-tools/gadget/pull/301))
-- Expose executor from SDK ([#300](https://github.com/webb-tools/gadget/pull/300))
-- Update README.md ([#287](https://github.com/webb-tools/gadget/pull/287))
-- [MEGA PR] Overhaul repo, add Eigenlayer AVS example, remove many crates, add testing, remove unused code ([#246](https://github.com/webb-tools/gadget/pull/246))
-- Promote all dependencies to workspace ([#233](https://github.com/webb-tools/gadget/pull/233))
-- Remove shell sdk and put inside blueprint manager ([#229](https://github.com/webb-tools/gadget/pull/229))
-- Blueprint testing ([#206](https://github.com/webb-tools/gadget/pull/206))
-- Add CLI usage documentation to README ([#228](https://github.com/webb-tools/gadget/pull/228))
-- Rename Gadget CLI to Tangle CLI ([#227](https://github.com/webb-tools/gadget/pull/227))
-- Publish Gadget SDK to crates.io ([#215](https://github.com/webb-tools/gadget/pull/215))
+- Update READMEs with Download Links ([#302](https://github.com/tangle-network/gadget/pull/302))
+- CI Improvements ([#301](https://github.com/tangle-network/gadget/pull/301))
+- Expose executor from SDK ([#300](https://github.com/tangle-network/gadget/pull/300))
+- Update README.md ([#287](https://github.com/tangle-network/gadget/pull/287))
+- [MEGA PR] Overhaul repo, add Eigenlayer AVS example, remove many crates, add testing, remove unused code ([#246](https://github.com/tangle-network/gadget/pull/246))
+- Promote all dependencies to workspace ([#233](https://github.com/tangle-network/gadget/pull/233))
+- Remove shell sdk and put inside blueprint manager ([#229](https://github.com/tangle-network/gadget/pull/229))
+- Blueprint testing ([#206](https://github.com/tangle-network/gadget/pull/206))
+- Add CLI usage documentation to README ([#228](https://github.com/tangle-network/gadget/pull/228))
+- Rename Gadget CLI to Tangle CLI ([#227](https://github.com/tangle-network/gadget/pull/227))
+- Publish Gadget SDK to crates.io ([#215](https://github.com/tangle-network/gadget/pull/215))
 - add signer selection to the CLI
 - Add signers
 - Deployment works!

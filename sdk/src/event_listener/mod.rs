@@ -1,7 +1,6 @@
 use crate::events_watcher::evm::{Config as ConfigT, EventWatcher};
 use crate::events_watcher::substrate::SubstrateEventWatcher;
 use crate::Error;
-use alloy_network::Ethereum;
 use async_trait::async_trait;
 
 pub mod periodic;
@@ -73,11 +72,7 @@ impl<Event: Send + Sync + 'static, Ctx: Send + Sync + 'static, Ext: Send + Sync 
     }
 }
 
-struct EthereumWatcherWrapper<
-    T: EventWatcher<C>,
-    Ctx: Send + Sync + 'static,
-    C: ConfigT<N = Ethereum>,
-> {
+struct EthereumWatcherWrapper<T: EventWatcher<C>, Ctx: Send + Sync + 'static, C: ConfigT> {
     listener: T,
     _phantom: std::marker::PhantomData<(Ctx, C)>,
 }
@@ -91,8 +86,8 @@ struct SubstrateWatcherWrapper<
     _phantom: std::marker::PhantomData<(C, Ctx)>,
 }
 
-impl<Config: ConfigT<N = Ethereum>, Ctx: Send + Sync + 'static, Watcher: EventWatcher<Config>>
-    From<Watcher> for EthereumWatcherWrapper<Watcher, Ctx, Config>
+impl<Config: ConfigT, Ctx: Send + Sync + 'static, Watcher: EventWatcher<Config>> From<Watcher>
+    for EthereumWatcherWrapper<Watcher, Ctx, Config>
 {
     fn from(value: Watcher) -> Self {
         Self {
@@ -103,7 +98,7 @@ impl<Config: ConfigT<N = Ethereum>, Ctx: Send + Sync + 'static, Watcher: EventWa
 }
 
 #[async_trait::async_trait]
-impl<Config: ConfigT<N = Ethereum>, Ctx: Send + Sync + 'static, Watcher: EventWatcher<Config>>
+impl<Config: ConfigT, Ctx: Send + Sync + 'static, Watcher: EventWatcher<Config>>
     EventListener<Watcher::Event, Ctx> for EthereumWatcherWrapper<Watcher, Ctx, Config>
 {
     async fn new(_context: &Ctx) -> Result<Self, Error>
@@ -196,7 +191,7 @@ pub trait IntoEvmEventListener<
     fn into_evm_event_listener(self) -> GenericEventListener<Event, Ctx, Ext>;
 }
 
-impl<Config: ConfigT<N = Ethereum>, Ctx: Send + Sync + 'static, Watcher: EventWatcher<Config>>
+impl<Config: ConfigT, Ctx: Send + Sync + 'static, Watcher: EventWatcher<Config>>
     IntoEvmEventListener<Watcher::Event, Ctx, (Config, Watcher)> for Watcher
 {
     fn into_evm_event_listener(

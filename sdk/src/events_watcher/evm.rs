@@ -3,9 +3,10 @@
 use crate::events_watcher::error::Error;
 use crate::events_watcher::retry::UnboundedConstantBuilder;
 use crate::store::LocalDatabase;
-use crate::{error, trace, warn};
+use crate::{error, info, trace, warn};
+use alloy_contract::Event;
+use alloy_network::Ethereum;
 use alloy_network::ReceiptResponse;
-use alloy_network::{Ethereum, Network};
 use alloy_primitives::FixedBytes;
 use alloy_provider::Provider;
 use alloy_rpc_types::BlockNumberOrTag;
@@ -14,13 +15,11 @@ use alloy_sol_types::SolEvent;
 use alloy_transport::Transport;
 use backon::{ConstantBuilder, Retryable};
 use futures::TryFutureExt;
-use std::ops::Deref;
-use std::time::Duration;
+use std::{ops::Deref, time::Duration};
 
-pub trait Config: Send + Sync + 'static {
-    type T: Transport + Clone + Send + Sync + 'static;
-    type P: Provider<Self::T, Self::N> + Clone + Send + Sync + 'static;
-    type N: Network + Send + Sync + 'static;
+pub trait Config: Send + Sync + Clone + 'static {
+    type TH: Transport + Clone + Send + Sync;
+    type PH: Provider<Self::TH, Ethereum> + Clone + Send + Sync;
 }
 
 /// A helper type to extract the [`EventHandler`] from the [`EventWatcher`] trait.
@@ -39,10 +38,10 @@ pub type EventHandlerFor<W, T> = Box<
 /// The handlers are implemented separately from the watchers, so that we can have
 /// one event watcher and many event handlers that will run in parallel.
 #[async_trait::async_trait]
-pub trait EventHandler<T: Config<N = Ethereum>>: Send + Sync {
+pub trait EventHandler<T: Config>: Send + Sync {
     /// The Type of contract this handler is for, Must be the same as the contract type in the
     /// watcher.
-    type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, Ethereum>>
+    type Contract: Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH>>
         + Send
         + Sync
         + 'static;
@@ -67,9 +66,7 @@ pub trait EventHandler<T: Config<N = Ethereum>>: Send + Sync {
 ///
 /// this trait is automatically implemented for all the event handlers.
 #[async_trait::async_trait]
-pub trait EventHandlerWithRetry<T: Config<N = Ethereum>>:
-    EventHandler<T> + Send + Sync + 'static
-{
+pub trait EventHandlerWithRetry<T: Config>: EventHandler<T> + Send + Sync + 'static {
     /// A method to be called with the event information,
     /// it is up to the handler to decide what to do with the event.
     ///
@@ -95,7 +92,7 @@ pub trait EventHandlerWithRetry<T: Config<N = Ethereum>>:
 }
 
 #[async_trait::async_trait]
-impl<X, T: Config<N = Ethereum>> EventHandlerWithRetry<T> for X where
+impl<X, T: Config> EventHandlerWithRetry<T> for X where
     X: EventHandler<T> + Send + Sync + 'static + ?Sized
 {
 }
@@ -103,11 +100,11 @@ impl<X, T: Config<N = Ethereum>> EventHandlerWithRetry<T> for X where
 /// A trait for watching events from a contract.
 /// EventWatcher trait exists for deployments that are smart-contract / EVM based
 #[async_trait::async_trait]
-pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync + 'static {
+pub trait EventWatcher<T: Config>: Send + Sync + 'static {
     /// A Helper tag used to identify the event watcher during the logs.
     const TAG: &'static str;
     /// The contract that this event watcher is watching.
-    type Contract: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>
+    type Contract: Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH>>
         + Send
         + Sync
         + Clone
@@ -117,7 +114,9 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync + 'static {
     /// The genesis transaction hash for the contract.
     const GENESIS_TX_HASH: FixedBytes<32>;
 
+    /// Returns this Event Watcher's [`Contract`](Self::Contract).
     fn contract(&mut self) -> Self::Contract;
+    /// Returns a [`vector`](std::vec::Vec) of this Event Watcher's [`handlers`](EventHandlerFor).
     fn handlers(&self) -> &Vec<EventHandlerFor<Self, T>>;
 
     /// The Storage backend that will be used to store the required state for this event watcher
@@ -132,20 +131,11 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync + 'static {
         let backoff = UnboundedConstantBuilder::new(Duration::from_secs(1));
         let task = || async {
             let step = 100;
-            let chain_id: u64 = contract
-                .provider()
-                .root()
-                .get_chain_id()
-                .map_err(Into::<Error>::into)
-                .await?;
+            let chain_id: u64 = contract.provider().get_chain_id().await?;
 
             // we only query this once, at the start of the events watcher.
             // then we will update it later once we fully synced.
-            let mut target_block_number: u64 = contract
-                .provider()
-                .get_block_number()
-                .map_err(Into::<Error>::into)
-                .await?;
+            let mut target_block_number: u64 = contract.provider().get_block_number().await?;
 
             local_db.set(
                 &format!("TARGET_BLOCK_NUMBER_{}", contract.address()),
@@ -160,21 +150,30 @@ pub trait EventWatcher<T: Config<N = Ethereum>>: Send + Sync + 'static {
                 .map(|receipt| receipt.block_number().unwrap_or_default())
                 .unwrap_or_default();
 
+            let loop_provider = contract.provider().clone();
             loop {
                 let block = local_db
                     .get(&format!("LAST_BLOCK_NUMBER_{}", contract.address()))
                     .unwrap_or(deployed_at);
                 let dest_block = core::cmp::min(block + step, target_block_number);
 
-                let events_filter = contract.event::<Self::Event>(
-                    Filter::new()
-                        .from_block(BlockNumberOrTag::Number(block + 1))
-                        .to_block(BlockNumberOrTag::Number(dest_block)),
-                );
+                info!("Starting from block {block} to {dest_block}");
 
-                let events = events_filter.query().await.map_err(Into::<Error>::into)?;
+                let events_filter: Event<_, _, Self::Event, _> =
+                    Event::new(&loop_provider, Filter::new())
+                        .address(*contract.address())
+                        .from_block(BlockNumberOrTag::Number(block + 1))
+                        .to_block(BlockNumberOrTag::Number(dest_block))
+                        .event_signature(Self::Event::SIGNATURE_HASH);
+
+                let events = events_filter.query().await.unwrap();
+
                 let number_of_events = events.len();
-                trace!("Found #{number_of_events} events");
+                if number_of_events == 1 {
+                    info!("Found {number_of_events} event");
+                } else {
+                    info!("Found {number_of_events} events");
+                }
                 for (event, log) in events {
                     // Wraps each handler future in a retry logic, that will retry the handler
                     // if it fails, up to `MAX_RETRY_COUNT`, after this it will ignore that event for
