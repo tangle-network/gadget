@@ -93,7 +93,7 @@ impl<Event: Send + Sync + 'static, Ctx: Send + Sync + 'static, Ext: Send + Sync 
     }
 }
 
-pub struct EthereumWatcherWrapper<W: EvmEventHandler<C>, C: ConfigT<N = Ethereum>> {
+pub struct EthereumWatcherWrapper<W: EvmEventHandler<C>, C: ConfigT> {
     handler: Arc<W>,
     contract: W::Contract,
     chain_id: u64,
@@ -106,7 +106,7 @@ pub struct EthereumWatcherWrapper<W: EvmEventHandler<C>, C: ConfigT<N = Ethereum
 pub type EvmWatcherWrapperContext<W, Config> = (<W as EvmEventHandler<Config>>::Contract, Arc<W>);
 
 #[async_trait::async_trait]
-impl<Config: ConfigT<N = Ethereum>, Watcher: EvmEventHandler<Config>>
+impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
     EventListener<
         Vec<(Watcher::Event, alloy_rpc_types::Log)>,
         EvmWatcherWrapperContext<Watcher, Config>,
@@ -277,9 +277,7 @@ impl<Config: ConfigT<N = Ethereum>, Watcher: EvmEventHandler<Config>>
     }
 }
 
-impl<Config: ConfigT<N = Ethereum>, Watcher: EvmEventHandler<Config>>
-    EthereumWatcherWrapper<Watcher, Config>
-{
+impl<Config: ConfigT, Watcher: EvmEventHandler<Config>> EthereumWatcherWrapper<Watcher, Config> {
     async fn run_event_loop(&mut self) -> Result<(), Error> {
         while let Some(events) = self.next_event().await {
             self.handle_event(events).await?;

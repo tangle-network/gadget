@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/webb-tools/dkg-substrate/raw/master/assets/webb_banner_light.png" alt="Gadget Logo">
+  <img src="https://github.com/tangle-network/dkg-substrate/raw/master/assets/webb_banner_light.png" alt="Gadget Logo">
 </p>
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -38,13 +38,13 @@ To install the Tangle CLI, run the following command:
 > Supported on Linux, MacOS, and Windows (WSL2)
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/webb-tools/gadget/releases/download/cargo-tangle/v0.1.1-beta.7/cargo-tangle-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/tangle-network/gadget/releases/download/cargo-tangle/v0.1.1-beta.7/cargo-tangle-installer.sh | sh
 ```
 
 Or, if you prefer to install the CLI from source:
 
 ```bash
-cargo install cargo-tangle --git https://github.com/webb-tools/gadget --force
+cargo install cargo-tangle --git https://github.com/tangle-network/gadget --force
 ```
 
 ### Creating a Blueprint
@@ -71,7 +71,7 @@ More information on this process can be found in the [CLI documentation](./cli/R
 
 In order to test a blueprint, you must first have a local Tangle node running. When setting up a local testnet for
 integration testing, we recommend running this script for
-testing: [run-standalone-local.sh](https://github.com/webb-tools/tangle/blob/main/scripts/run-standalone-local.sh),
+testing: [run-standalone-local.sh](https://github.com/tangle-network/tangle/blob/main/scripts/run-standalone-local.sh),
 passing `--clean` as an argument to reset the chain and any keys.
 
 Then, you can run:

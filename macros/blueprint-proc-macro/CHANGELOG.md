@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.2](https://github.com/webb-tools/gadget/compare/gadget-blueprint-proc-macro-v0.1.1...gadget-blueprint-proc-macro-v0.1.2) - 2024-09-24
+## [0.1.2](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-v0.1.1...gadget-blueprint-proc-macro-v0.1.2) - 2024-09-24
 
 ### Other
 
-- Remove Logger ([#311](https://github.com/webb-tools/gadget/pull/311))
-- Streamline keystore, cleanup testing, refactor blueprint manager, add tests, remove unnecessary code ([#285](https://github.com/webb-tools/gadget/pull/285))
+- Remove Logger ([#311](https://github.com/tangle-network/gadget/pull/311))
+- Streamline keystore, cleanup testing, refactor blueprint manager, add tests, remove unnecessary code ([#285](https://github.com/tangle-network/gadget/pull/285))

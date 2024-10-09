@@ -10,7 +10,7 @@ pub(crate) fn get_instance_data(
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
     let instance_wrapper_name = format_ident!("{}InstanceWrapper", instance_base);
-    let instance = quote! { #instance_base::#instance_name<T::T, T::P, alloy_network::Ethereum> };
+    let instance = quote! { #instance_base::#instance_name<T::TH, T::PH, alloy_network::Ethereum> };
 
     (
         instance_base,
@@ -43,8 +43,8 @@ pub(crate) fn generate_evm_event_handler(
         #[doc = #fn_name_string]
         #[doc = "`]"]
         #[derive(Clone)]
-        pub struct #struct_name <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config<N = Ethereum> +'static>{
-            contract: #instance_wrapper_name<T::T, T::P>,
+        pub struct #struct_name <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config +'static>{
+            contract: #instance_wrapper_name<T::TH, T::PH>,
             #(#additional_params)*
         }
 
@@ -75,6 +75,7 @@ pub(crate) fn generate_evm_event_handler(
                     contract_instance: OnceLock::new(),
                 }
             }
+
             /// Lazily creates the [`ContractInstance`] if it does not exist, otherwise returning a reference to it.
             #[allow(clippy::clone_on_copy)]
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
@@ -94,8 +95,8 @@ pub(crate) fn generate_evm_event_handler(
 
         impl<T, P> Deref for #instance_wrapper_name<T, P>
         where
-            T: Transport + Clone + Send + Sync + 'static,
-            P: Provider<T> + Clone + Send + Sync + 'static,
+            T: alloy_transport::Transport + Clone + Send + Sync + 'static,
+            P: alloy_provider::Provider<T> + Clone + Send + Sync + 'static,
         {
            type Target = ContractInstance<T, P, Ethereum>;
 
@@ -110,10 +111,10 @@ pub(crate) fn generate_evm_event_handler(
         #[async_trait::async_trait]
         impl<T> gadget_sdk::events_watcher::evm::EvmEventHandler<T> for #struct_name <T>
         where
-            T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config<N = Ethereum> +'static,
-            #instance_wrapper_name <T::T, T::P>: std::ops::Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>,
+            T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config +'static,
+            #instance_wrapper_name <T::TH, T::PH>: std::ops::Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, Ethereum>>,
         {
-            type Contract = #instance_wrapper_name <T::T, T::P>;
+            type Contract = #instance_wrapper_name <T::TH, T::PH>;
             type Event = #ev;
             const TAG: &'static str = "eigenlayer";
             const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
@@ -162,25 +163,6 @@ pub(crate) fn generate_evm_event_handler(
                 tx.watch().await?;
 
                 Ok(())
-            }
-        }
-
-        pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
-            pub env: GadgetConfiguration<R>,
-            /// The EigenLayer Operator that registers to the AVS and completes given tasks
-            pub operator: Option<Operator<NodeConfig, OperatorInfoService>>,
-        }
-
-        impl<R: lock_api::RawRwLock> EigenlayerGadgetRunner<R> {
-            pub async fn new(env: GadgetConfiguration<R>) -> Self {
-                Self {
-                    env,
-                    operator: None,
-                }
-            }
-
-            pub fn set_operator(&mut self, operator: Operator<NodeConfig, OperatorInfoService>) {
-                self.operator = operator.into();
             }
         }
     }

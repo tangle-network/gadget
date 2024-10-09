@@ -1,2 +1,2 @@
-pub mod eigenlayer;
+pub mod evm;
 pub mod tangle;
