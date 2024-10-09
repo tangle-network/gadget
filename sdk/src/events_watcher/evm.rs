@@ -50,10 +50,5 @@ pub trait EvmEventHandler<T: Config<N = Ethereum>>: Send + Sync + 'static {
     const GENESIS_TX_HASH: FixedBytes<32>;
     async fn init(&self);
     // (Self::Event, alloy_rpc_types::Log)
-    async fn handle(
-        &self,
-        contract: &Self::Contract,
-        log: &alloy_rpc_types::Log,
-        event: &Self::Event,
-    ) -> Result<(), Error>;
+    async fn handle(&self, log: &alloy_rpc_types::Log, event: &Self::Event) -> Result<(), Error>;
 }

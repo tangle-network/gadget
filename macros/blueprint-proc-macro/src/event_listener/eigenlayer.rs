@@ -40,7 +40,9 @@ pub(crate) fn generate_evm_event_handler(
         #[doc = "[`"]
         #[doc = #fn_name_string]
         #[doc = "`]"]
-        pub struct #struct_name {
+        #[derive(Clone)]
+        pub struct #struct_name <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config<N = Ethereum> +'static>{
+            contract: #instance_wrapper_name<T::T, T::P>,
             #(#additional_params)*
         }
 
@@ -48,6 +50,15 @@ pub(crate) fn generate_evm_event_handler(
         pub struct #instance_wrapper_name<T, P> {
             instance: #instance_base::#instance_name<T, P>,
             contract_instance: OnceLock<ContractInstance<T, P, alloy_network::Ethereum>>,
+        }
+
+        impl<T, P> From<#instance_base::#instance_name<T, P>> for #instance_wrapper_name<T, P>
+        where
+            T: alloy_transport::Transport + Clone + Send + Sync + 'static,
+            P: alloy_provider::Provider<T> + Clone + Send + Sync + 'static {
+            fn from(instance: #instance_base::#instance_name<T, P>) -> Self {
+                Self::new(instance)
+            }
         }
 
         impl<T, P> #instance_wrapper_name<T, P>
@@ -95,9 +106,9 @@ pub(crate) fn generate_evm_event_handler(
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl<T> gadget_sdk::events_watcher::evm::EvmEventHandler<T> for #struct_name
+        impl<T> gadget_sdk::events_watcher::evm::EvmEventHandler<T> for #struct_name <T>
         where
-            T: gadget_sdk::events_watcher::evm::Config<N = alloy_network::Ethereum>,
+            T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config<N = Ethereum> +'static,
             #instance_wrapper_name <T::T, T::P>: std::ops::Deref<Target = alloy_contract::ContractInstance<T::T, T::P, T::N>>,
         {
             type Contract = #instance_wrapper_name <T::T, T::P>;
@@ -109,10 +120,12 @@ pub(crate) fn generate_evm_event_handler(
                 #(#event_listener_calls)*
             }
 
-            async fn handle(&self, contract: &Self::Contract, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::events_watcher::Error> {
+            async fn handle(&self, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::events_watcher::Error> {
                 use alloy_provider::Provider;
                 use alloy_sol_types::SolEvent;
                 use alloy_sol_types::SolInterface;
+
+                let contract = &self.contract;
 
                 // Convert the event to inputs
                 let decoded: alloy_primitives::Log<Self::Event> = <Self::Event as SolEvent>::decode_log(&log.inner, true)?;

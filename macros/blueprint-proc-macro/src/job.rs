@@ -206,7 +206,20 @@ pub(crate) fn generate_event_listener_tokenstream(
                     // if Listener == TangleEventListener or EvmEventListener, we need to use defaults
                     let listener_str = listener.to_string();
                     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
-                    let autogen_struct_name = quote! { #struct_name };
+
+                    let type_args = if listener_str.contains("TangleEventListener") {
+                        proc_macro2::TokenStream::default()
+                    } else {
+                        quote! { <T> }
+                    };
+
+                    let bounded_type_args = if listener_str.contains("TangleEventListener") {
+                        proc_macro2::TokenStream::default()
+                    } else {
+                        quote! { <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config<N = Ethereum> +'static> }
+                    };
+
+                    let autogen_struct_name = quote! { #struct_name #type_args };
 
                     // Check for special cases
                     let next_listener = if listener_str.contains("TangleEventListener")
@@ -231,7 +244,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                             }
                         } else {
                             quote! {
-                                (ctx.contract.clone(), std::sync::Arc::new(ctx.clone()))
+                                (ctx.contract.clone(), std::sync::Arc::new(ctx.clone()) as std::sync::Arc<#autogen_struct_name>)
                             }
                         };
 
@@ -240,7 +253,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                         });
 
                         quote! {
-                            async fn #listener_function_name(ctx: &#autogen_struct_name) {
+                            async fn #listener_function_name #bounded_type_args(ctx: &#autogen_struct_name) {
                                 static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                                 if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
                                     ONCE.store(true, std::sync::atomic::Ordering::Relaxed);

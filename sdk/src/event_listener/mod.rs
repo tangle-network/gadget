@@ -192,12 +192,8 @@ impl<Config: ConfigT<N = Ethereum>, Watcher: EvmEventHandler<Config>>
         for (event, log) in &events {
             let backoff = get_exponential_backoff::<MAX_RETRIES>();
             let handler = self.handler.clone();
-            let contract = self.contract.clone();
             let task = async move {
-                Retry::spawn(backoff, || async {
-                    handler.handle(&contract, log, event).await
-                })
-                .await
+                Retry::spawn(backoff, || async { handler.handle(log, event).await }).await
             };
 
             tasks.push(task);

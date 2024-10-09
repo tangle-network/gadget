@@ -36,10 +36,12 @@ use gadget_sdk::{
 use eigensdk_rs::eigen_utils::types::{operator_id_from_key_pair, OperatorPubkeys};
 use eigensdk_rs::eigen_utils::*;
 use eigensdk_rs::incredible_squaring_avs::operator::*;
+use libp2p::futures::future;
 use sp_core::Pair;
 use gadget_sdk::config::{
     GadgetConfiguration, StdGadgetConfiguration,
 };
+use gadget_sdk::events_watcher::evm::EvmEventHandler;
 use gadget_sdk::keystore::sp_core_subxt::Pair as SubxtPair;
 use gadget_sdk::network::gossip::GossipHandle;
 use gadget_sdk::tangle_subxt::subxt::tx::Signer;
@@ -340,9 +342,9 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         let wallet = EthereumWallet::from(priv_key_signer.clone());
 
         // Set up eigenlayer AVS
-        let _contract_address = Address::from_slice(&[0; 20]);
+        let contract_address = Address::from_slice(&[0; 20]);
         // Set up the HTTP provider with the `reqwest` crate.
-        let _provider = ProviderBuilder::new()
+        let provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(wallet)
             .on_http(self.env.rpc_endpoint.parse()?);
@@ -367,15 +369,22 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             topics: vec!["__TESTING_INCREDIBLE_SQUARING".to_string()],
         };
 
+        let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
+            contract_address,
+            provider,
+        );
         let _network: GossipHandle =
             start_p2p_network(network_config).map_err(|e| eyre!(e.to_string()))?;
-        // let x_square_eigen = blueprint::XsquareEigenEventHandler {
-        //     ctx: blueprint::MyContext { network, keystore },
-        // };
+        let x_square_eigen = XsquareEigenEventHandler {
+            // ctx: blueprint::MyContext { network, keystore },
+            contract: contract.into(), // call .into() to convert to IncredibleSquaringTaskManagerInstanceWrapper
+        };
+        // TODO: Make sure to pass T: Config to the EvmEventHandler
+        EvmEventHandler::init(&x_square_eigen).await;
+        future::pending::<()>().await;
         //
-        // let contract: IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(contract_address, provider);
         //
-        // EventWatcher::run(
+        //EventWatcher::run(
         //     &EigenlayerEventWatcher,
         //     contract,
         //     // Add more handler here if we have more functions.
