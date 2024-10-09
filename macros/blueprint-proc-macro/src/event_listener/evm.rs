@@ -2,10 +2,10 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Ident;
 
-use crate::job::EventHandlerArgs;
+use crate::job::EventListenerArgs;
 
 pub(crate) fn get_instance_data(
-    event_handler: &EventHandlerArgs,
+    event_handler: &EventListenerArgs,
 ) -> (Ident, Ident, Ident, TokenStream) {
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
@@ -23,7 +23,7 @@ pub(crate) fn get_instance_data(
 pub(crate) fn generate_evm_event_handler(
     fn_name_string: &str,
     struct_name: &Ident,
-    event_handler: &EventHandlerArgs,
+    event_handler: &EventListenerArgs,
     params_tokens: &[TokenStream],
     additional_params: &[TokenStream],
     fn_call: &TokenStream,

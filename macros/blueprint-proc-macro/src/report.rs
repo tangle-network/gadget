@@ -1,4 +1,4 @@
-use crate::job::EventListeners;
+use crate::job::EventListenerArgs;
 use crate::shared::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{
     FieldType, ReportDefinition, ReportMetadata, ReportResultVerifier, ReportType,
@@ -158,7 +158,7 @@ pub(crate) struct ReportArgs {
     /// Optional: Event handler type for the report.
     /// `#[report(event_handler_type = "tangle")]`
     #[allow(dead_code)]
-    pub(crate) event_listeners: EventListeners,
+    pub(crate) event_listeners: EventListenerArgs,
     /// Optional: Skip code generation for this report.
     /// `#[report(skip_codegen)]`
     /// This is useful if the developer wants to implement a custom event handler for this report.

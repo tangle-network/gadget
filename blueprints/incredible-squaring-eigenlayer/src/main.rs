@@ -14,6 +14,7 @@ use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
 use gadget_sdk::events_watcher::InitializableEventHandler;
 use gadget_sdk::info;
+use gadget_sdk::keystore::Backend;
 use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::{
     config::{ContextConfig, GadgetConfiguration},
@@ -22,10 +23,9 @@ use gadget_sdk::{
         setup::{start_p2p_network, NetworkConfig},
     },
 };
-use gadget_sdk::keystore::Backend;
-use sp_core::Pair;
 use incredible_squaring_blueprint_eigenlayer::{self, *};
 use k256::{ecdsa::SigningKey, SecretKey};
+use sp_core::Pair;
 use structopt::lazy_static::lazy_static;
 use structopt::StructOpt;
 

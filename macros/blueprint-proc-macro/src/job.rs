@@ -17,7 +17,6 @@ mod kw {
     syn::custom_keyword!(result);
     syn::custom_keyword!(verifier);
     syn::custom_keyword!(evm);
-    syn::custom_keyword!(event_handler);
     syn::custom_keyword!(event_listener);
     syn::custom_keyword!(protocol);
     syn::custom_keyword!(instance);
@@ -182,7 +181,7 @@ pub(crate) fn generate_event_listener_tokenstream(
     event_type: &proc_macro2::TokenStream,
     suffix: &str,
     fn_name_string: &str,
-    event_listeners: &EventListeners,
+    event_listeners: &EventListenerArgs,
     skip_codegen: bool,
     param_types: &IndexMap<Ident, Type>,
     params: &[Ident],
@@ -196,26 +195,27 @@ pub(crate) fn generate_event_listener_tokenstream(
         match &event_listeners.listeners {
             Some(ref listeners) => {
                 let mut all_listeners = vec![];
-                for (idx, listener) in listeners.iter().enumerate() {
+                for (idx, listener_meta) in listeners.iter().enumerate() {
                     let listener_function_name = format_ident!(
                         "run_listener_{}_{}{}",
                         fn_name_string,
                         idx,
                         suffix.to_lowercase()
                     );
+                    let is_tangle = listener_meta.evm_args.is_none();
                     // convert the listener var, which is just a struct name, to an ident
-                    let listener = listener.to_token_stream();
+                    let listener = listener_meta.listener.to_token_stream();
                     // if Listener == TangleEventListener or EvmEventListener, we need to use defaults
                     let listener_str = listener.to_string();
                     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
 
-                    let type_args = if listener_str.contains("TangleEventListener") {
+                    let type_args = if is_tangle {
                         proc_macro2::TokenStream::default()
                     } else {
                         quote! { <T> }
                     };
 
-                    let bounded_type_args = if listener_str.contains("TangleEventListener") {
+                    let bounded_type_args = if is_tangle {
                         proc_macro2::TokenStream::default()
                     } else {
                         quote! { <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config +'static> }
@@ -228,19 +228,17 @@ pub(crate) fn generate_event_listener_tokenstream(
                         || listener_str.contains("EvmEventListener")
                     {
                         // How to inject not just this event handler, but all event handlers here?
-                        let wrapper = if listener_str.contains("TangleEventListener") {
+                        let wrapper = if is_tangle {
                             quote! {
                                 gadget_sdk::event_listener::SubstrateWatcherWrapper<#event_type>
                             }
                         } else {
-                            /*let (_, _, _, contract_ty) =
-                            crate::event_listener::evm::get_instance_data(event_handler);*/
                             quote! {
                                 gadget_sdk::event_listener::EthereumWatcherWrapper<#autogen_struct_name, _>
                             }
                         };
 
-                        let ctx_create = if listener_str.contains("TangleEventListener") {
+                        let ctx_create = if is_tangle {
                             quote! {
                                 (ctx.client.clone(), std::sync::Arc::new(ctx.clone()) as gadget_sdk::events_watcher::substrate::EventHandlerFor<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type>)
                             }
@@ -380,7 +378,7 @@ pub fn generate_event_handler_for(
 ) -> proc_macro2::TokenStream {
     let (fn_name, fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
     let job_id = &job_args.id;
-    let event_handler = &job_args.event_handler;
+    let event_listener_args = &job_args.event_listener;
 
     let (event_handler_args, _) = get_event_handler_args(param_types, &job_args.params);
 
@@ -412,7 +410,6 @@ pub fn generate_event_handler_for(
             let is_job_var = !additional_var_indexes.contains(&pos_in_all_args);
 
             if is_job_var {
-                // TODO: Double-verify this index properly increments
                 let ident = format_ident!("param{job_var_idx}");
                 job_var_idx += 1;
                 return quote! { #ident, };
@@ -439,13 +436,13 @@ pub fn generate_event_handler_for(
         .map(|(i, t)| {
             let ident = format_ident!("param{i}");
             let index = syn::Index::from(i);
-            match event_handler {
-                EventHandlerArgs::Eigenlayer { .. } => {
-                    quote! {
-                        let #ident = inputs.#index;
-                    }
+            // TODO: support multiple evm listeners
+            if event_listener_args.has_evm() {
+                quote! {
+                    let #ident = inputs.#index;
                 }
-                EventHandlerArgs::Tangle => crate::tangle::field_type_to_param_token(&ident, t),
+            } else {
+                crate::tangle::field_type_to_param_token(&ident, t)
             }
         })
         .collect::<Vec<_>>();
@@ -471,15 +468,12 @@ pub fn generate_event_handler_for(
 
     let result_tokens = if result.len() == 1 {
         let ident = format_ident!("job_result");
-        match event_handler {
-            EventHandlerArgs::Eigenlayer { .. } => {
-                vec![quote! { let #ident = job_result; }]
-            }
-            EventHandlerArgs::Tangle => {
-                vec![crate::tangle::field_type_to_result_token(
-                    &ident, &result[0],
-                )]
-            }
+        if event_listener_args.has_evm() {
+            vec![quote! { let #ident = job_result; }]
+        } else {
+            vec![crate::tangle::field_type_to_result_token(
+                &ident, &result[0],
+            )]
         }
     } else {
         result
@@ -487,30 +481,26 @@ pub fn generate_event_handler_for(
             .enumerate()
             .map(|(i, t)| {
                 let ident = format_ident!("result_{i}");
-                match event_handler {
-                    EventHandlerArgs::Eigenlayer { .. } => {
-                        quote! {
-                            let #ident = job_result[#i];
-                        }
+                if event_listener_args.has_evm() {
+                    quote! {
+                        let #ident = job_result[#i];
                     }
-                    EventHandlerArgs::Tangle => {
-                        let s = crate::tangle::field_type_to_result_token(&ident, t);
-                        quote! {
-                            let #ident = job_result[#i];
-                            #s
-                        }
+                } else {
+                    let s = crate::tangle::field_type_to_result_token(&ident, t);
+                    quote! {
+                        let #ident = job_result[#i];
+                        #s
                     }
                 }
             })
             .collect::<Vec<_>>()
     };
 
-    // TODO: Once EVMEventListener is implemented, remove this split branching and have a single codepath
-    if event_handler.is_eigenlayer() {
+    if event_listener_args.has_evm() {
         generate_evm_event_handler(
             &fn_name_string,
             &struct_name,
-            event_handler,
+            event_listener_args,
             &params_tokens,
             &additional_params,
             &fn_call,
@@ -545,13 +535,9 @@ pub(crate) struct JobArgs {
     /// Optional: Verifier for the job result, currently only supports EVM verifier.
     /// `#[job(verifier(evm = "MyVerifierContract"))]`
     verifier: Verifier,
-    /// Optional: Event handler type for the job.
-    /// TODO: remove this in favor of event listeners
-    /// `#[job(event_handler = "tangle")]`
-    event_handler: EventHandlerArgs,
     /// Optional: Event listener type for the job
     /// `#[job(event_listener(MyCustomListener))]`
-    event_listener: EventListeners,
+    event_listener: EventListenerArgs,
     /// Optional: Skip code generation for this job.
     /// `#[job(skip_codegen)]`
     /// this is useful if the developer want to impl a custom event handler
@@ -565,9 +551,8 @@ impl Parse for JobArgs {
         let mut result = None;
         let mut id = None;
         let mut verifier = Verifier::None;
-        let mut event_handler = EventHandlerArgs::Tangle;
         let mut skip_codegen = false;
-        let mut event_listener = EventListeners { listeners: None };
+        let mut event_listener = EventListenerArgs { listeners: None };
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
@@ -583,8 +568,6 @@ impl Parse for JobArgs {
                 result = Some(r);
             } else if lookahead.peek(kw::verifier) {
                 verifier = input.parse()?;
-            } else if lookahead.peek(kw::event_handler) {
-                event_handler = input.parse()?;
             } else if lookahead.peek(kw::skip_codegen) {
                 let _ = input.parse::<kw::skip_codegen>()?;
                 skip_codegen = true;
@@ -616,7 +599,6 @@ impl Parse for JobArgs {
             params,
             result,
             verifier,
-            event_handler,
             skip_codegen,
             event_listener,
         })
@@ -733,8 +715,14 @@ enum Verifier {
 #[derive(Debug)]
 /// `#[job(event_listener(MyCustomListener, MyCustomListener2)]`
 /// Accepts an optional argument that specifies the event listener to use that implements EventListener
-pub(crate) struct EventListeners {
-    listeners: Option<Vec<TypePath>>,
+pub(crate) struct EventListenerArgs {
+    listeners: Option<Vec<SingleListener>>,
+}
+
+#[derive(Debug)]
+pub(crate) struct SingleListener {
+    pub listener: TypePath,
+    pub evm_args: Option<EvmArgs>,
 }
 
 // Implement Parse for EventListener. kw::event_listener exists in the kw module.
@@ -742,7 +730,7 @@ pub(crate) struct EventListeners {
 // marks as such: #[job(event_listener(MyCustomListener, MyCustomEventListener2, ...))]
 // importantly, MyCustomListener may be a struct or enum that has const or type params; parse those too, e.g.,:
 // event_listener(PeriodicEventListener::<6000>)
-impl Parse for EventListeners {
+impl Parse for EventListenerArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let _ = input.parse::<kw::event_listener>()?;
         let content;
@@ -752,7 +740,25 @@ impl Parse for EventListeners {
         // Parse a TypePath instead of a LitStr
         while !content.is_empty() {
             let listener = content.parse::<TypePath>()?;
-            listeners.push(listener);
+            let listener_tokens = quote! { #listener };
+            // There are two possibilities: either the user does:
+            // event_listener(MyCustomListener, MyCustomListener2)
+            // or, have some with the format: event_listener(EvmEventListener(instance = IncredibleSquaringTaskManager, event = IncredibleSquaringTaskManager::NewTaskCreated, event_converter = convert_event_to_inputs, callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask), MyCustomListener, MyCustomListener2)
+            // So, in case 1, we have the unique case where the first value is "EvmEventListener". If so, we need to parse the argument
+            // tokens like we do below. Otherwise, we just push the listener into the listeners vec
+            if listener_tokens.to_string() == "EvmEventListener" {
+                let evm_args = content.parse::<EvmArgs>()?;
+                listeners.push(SingleListener {
+                    listener,
+                    evm_args: Some(evm_args),
+                });
+            } else {
+                listeners.push(SingleListener {
+                    listener,
+                    evm_args: None,
+                });
+            }
+
             if content.peek(Token![,]) {
                 let _ = content.parse::<Token![,]>()?;
             }
@@ -786,115 +792,103 @@ impl Parse for Verifier {
     }
 }
 
-pub(crate) enum EventHandlerArgs {
-    Tangle,
-    Eigenlayer {
-        instance: Option<Ident>,
-        event: Option<Type>,
-        event_converter: Option<Type>,
-        callback: Option<Type>,
-    },
+#[derive(Debug)]
+pub(crate) struct EvmArgs {
+    instance: Option<Ident>,
+    event: Option<Type>,
+    event_converter: Option<Type>,
+    callback: Option<Type>,
 }
 
-impl EventHandlerArgs {
+impl EventListenerArgs {
     /// Returns true if on EigenLayer
-    pub fn is_eigenlayer(&self) -> bool {
-        matches!(self, Self::Eigenlayer { .. })
+    pub fn get_evm(&self) -> Option<&EvmArgs> {
+        self.listeners.as_ref().and_then(|listeners| {
+            listeners
+                .iter()
+                .find_map(|listener| listener.evm_args.as_ref())
+        })
+    }
+
+    pub fn has_evm(&self) -> bool {
+        self.get_evm().is_some()
     }
 
     /// Returns the Event Handler's Instance if on EigenLayer. Otherwise, returns None
     pub fn instance(&self) -> Option<Ident> {
-        match self {
-            Self::Eigenlayer { instance, .. } => instance.clone(),
-            Self::Tangle => None,
+        match self.get_evm() {
+            Some(EvmArgs { instance, .. }) => instance.clone(),
+            None => None,
         }
     }
 
     /// Returns the Event Handler's event if on EigenLayer. Otherwise, returns None
     pub fn event(&self) -> Option<Type> {
-        match self {
-            Self::Eigenlayer { event, .. } => event.clone(),
-            Self::Tangle => None,
+        match self.get_evm() {
+            Some(EvmArgs { event, .. }) => event.clone(),
+            None => None,
         }
     }
 
     /// Returns the Event Handler's Event Converter if on EigenLayer. Otherwise, returns None
     pub fn event_converter(&self) -> Option<Type> {
-        match self {
-            Self::Eigenlayer {
+        match self.get_evm() {
+            Some(EvmArgs {
                 event_converter, ..
-            } => event_converter.clone(),
-            Self::Tangle => None,
+            }) => event_converter.clone(),
+            None => None,
         }
     }
 
     /// Returns the Event Handler's Callback if on EigenLayer. Otherwise, returns None
     pub fn callback(&self) -> Option<Type> {
-        match self {
-            Self::Eigenlayer { callback, .. } => callback.clone(),
-            Self::Tangle => None,
+        match self.get_evm() {
+            Some(EvmArgs { callback, .. }) => callback.clone(),
+            None => None,
         }
     }
 }
 
-impl Parse for EventHandlerArgs {
+impl Parse for EvmArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let _ = input.parse::<kw::event_handler>()?;
         let content;
         syn::parenthesized!(content in input);
 
-        let protocol = if content.peek(kw::protocol) {
-            let _ = content.parse::<kw::protocol>()?;
-            let _ = content.parse::<Token![=]>()?;
-            content.parse::<LitStr>()?.value()
-        } else {
-            "tangle".to_string()
-        };
+        let mut instance = None;
+        let mut event = None;
+        let mut event_converter = None;
+        let mut callback = None;
 
-        match protocol.as_str() {
-            "tangle" => Ok(EventHandlerArgs::Tangle),
-            "eigenlayer" => {
-                let mut instance = None;
-                let mut event = None;
-                let mut event_converter = None;
-                let mut callback = None;
-
-                while !content.is_empty() {
-                    if content.peek(kw::instance) {
-                        let _ = content.parse::<kw::instance>()?;
-                        let _ = content.parse::<Token![=]>()?;
-                        instance = Some(content.parse::<Ident>()?);
-                    } else if content.peek(kw::event) {
-                        let _ = content.parse::<kw::event>()?;
-                        let _ = content.parse::<Token![=]>()?;
-                        event = Some(content.parse::<Type>()?);
-                    } else if content.peek(kw::event_converter) {
-                        let _ = content.parse::<kw::event_converter>()?;
-                        let _ = content.parse::<Token![=]>()?;
-                        event_converter = Some(content.parse::<Type>()?);
-                    } else if content.peek(kw::callback) {
-                        let _ = content.parse::<kw::callback>()?;
-                        let _ = content.parse::<Token![=]>()?;
-                        callback = Some(content.parse::<Type>()?);
-                    } else if content.peek(Token![,]) {
-                        let _ = content.parse::<Token![,]>()?;
-                    } else {
-                        return Err(content.error("Unexpected token"));
-                    }
-                }
-
-                Ok(EventHandlerArgs::Eigenlayer {
-                    instance,
-                    event,
-                    event_converter,
-                    callback,
-                })
+        while !content.is_empty() {
+            if content.peek(kw::instance) {
+                let _ = content.parse::<kw::instance>()?;
+                let _ = content.parse::<Token![=]>()?;
+                instance = Some(content.parse::<Ident>()?);
+            } else if content.peek(kw::event) {
+                let _ = content.parse::<kw::event>()?;
+                let _ = content.parse::<Token![=]>()?;
+                event = Some(content.parse::<Type>()?);
+            } else if content.peek(kw::event_converter) {
+                let _ = content.parse::<kw::event_converter>()?;
+                let _ = content.parse::<Token![=]>()?;
+                event_converter = Some(content.parse::<Type>()?);
+            } else if content.peek(kw::callback) {
+                let _ = content.parse::<kw::callback>()?;
+                let _ = content.parse::<Token![=]>()?;
+                callback = Some(content.parse::<Type>()?);
+            } else if content.peek(Token![,]) {
+                let _ = content.parse::<Token![,]>()?;
+            } else {
+                return Err(content.error("Unexpected token"));
             }
-            _ => Err(syn::Error::new_spanned(
-                protocol,
-                "Expected `tangle` or `eigenlayer` as event handler protocol",
-            )),
         }
+
+        Ok(EvmArgs {
+            instance,
+            event,
+            event_converter,
+            callback,
+        })
     }
 }
 
