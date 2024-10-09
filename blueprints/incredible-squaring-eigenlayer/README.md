@@ -13,7 +13,7 @@ Before you begin, ensure you have the following installed:
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/webb-tools/gadget.git
+   git clone https://github.com/tangle-network/gadget.git
    cd gadget
    ```
    

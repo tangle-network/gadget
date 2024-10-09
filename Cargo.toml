@@ -24,7 +24,7 @@ authors = ["Webb Technologies Inc."]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://tangle.tools"
-repository = "https://github.com/webb-tools/gadget"
+repository = "https://github.com/tangle-network/gadget"
 
 [workspace.lints.rust]
 rust_2018_idioms = { level = "deny", priority = -1 }

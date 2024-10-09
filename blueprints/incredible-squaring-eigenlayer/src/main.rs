@@ -136,7 +136,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             delegation_approver_address: operator_addr,
             staker_opt_out_window_blocks: 50400u32,
             metadata_url: Some(
-                "https://github.com/webb-tools/eigensdk-rs/blob/main/test-utils/metadata.json"
+                "https://github.com/tangle-network/eigensdk-rs/blob/main/test-utils/metadata.json"
                     .to_string(),
             ), // TODO: Metadata should be from Environment Variable
         };
