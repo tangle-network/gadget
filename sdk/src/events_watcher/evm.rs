@@ -10,14 +10,13 @@ use alloy_transport::Transport;
 use async_trait::async_trait;
 use std::ops::Deref;
 
-pub trait Config: Send + Sync + 'static {
-    type T: Transport + Clone + Send + Sync + 'static;
-    type P: Provider<Self::T, Self::N> + Clone + Send + Sync + 'static;
-    type N: Network + Send + Sync + 'static;
+pub trait Config: Send + Sync + Clone + 'static {
+    type TH: Transport + Clone + Send + Sync;
+    type PH: Provider<Self::TH, Ethereum> + Clone + Send + Sync;
 }
 
-pub trait EvmContract<T: Config<N = Ethereum>>:
-    Deref<Target = alloy_contract::ContractInstance<T::T, T::P, Ethereum>>
+pub trait EvmContract<T: Config>:
+    Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, Ethereum>>
     + Send
     + Clone
     + Sync
@@ -25,8 +24,8 @@ pub trait EvmContract<T: Config<N = Ethereum>>:
 {
 }
 impl<
-        T: Config<N = Ethereum>,
-        X: Deref<Target = alloy_contract::ContractInstance<T::T, T::P, Ethereum>>
+        T: Config,
+        X: Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, Ethereum>>
             + Send
             + Clone
             + Sync
@@ -41,7 +40,7 @@ impl<X: SolEvent + Clone + Send + Sync + 'static> EvmEvent for X {}
 /// A trait for watching events from a contract.
 /// EventWatcher trait exists for deployments that are smart-contract / EVM based
 #[async_trait::async_trait]
-pub trait EvmEventHandler<T: Config<N = Ethereum>>: Send + Sync + 'static {
+pub trait EvmEventHandler<T: Config>: Send + Sync + 'static {
     /// A Helper tag used to identify the event watcher during the logs.
     const TAG: &'static str;
     /// The contract that this event watcher is watching.
@@ -50,15 +49,14 @@ pub trait EvmEventHandler<T: Config<N = Ethereum>>: Send + Sync + 'static {
     type Event: EvmEvent;
     /// The genesis transaction hash for the contract.
     const GENESIS_TX_HASH: FixedBytes<32>;
+    /// Initialize the event handler.
     async fn init(&self) -> Option<tokio::sync::oneshot::Receiver<()>>;
-    // (Self::Event, alloy_rpc_types::Log)
+    /// Handle a log event.
     async fn handle(&self, log: &alloy_rpc_types::Log, event: &Self::Event) -> Result<(), Error>;
 }
 
 #[async_trait]
-impl<T: Config<N = Ethereum>, Handler: EvmEventHandler<T>> InitializableEventHandler<T>
-    for Handler
-{
+impl<T: Config, Handler: EvmEventHandler<T>> InitializableEventHandler<T> for Handler {
     async fn init_event_handler(&self) -> Option<tokio::sync::oneshot::Receiver<()>> {
         self.init().await
     }

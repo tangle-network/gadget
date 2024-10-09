@@ -4,12 +4,14 @@ use crate::keystore::BackendExt;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::{sp_core_subxt, TanglePairSigner};
 use alloc::string::{String, ToString};
+use alloy_primitives::Address;
 use core::fmt::Debug;
 use core::net::IpAddr;
 use eigensdk::crypto_bls;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use structopt::StructOpt;
 use url::Url;
 
@@ -226,21 +228,21 @@ pub struct ContextConfig {
 pub enum GadgetCLICoreSettings {
     #[structopt(name = "run")]
     Run {
-        #[structopt(long, short = "b", parse(try_from_str))]
+        #[structopt(long, short = "b", parse(try_from_str), env)]
         bind_addr: IpAddr,
-        #[structopt(long, short = "p")]
+        #[structopt(long, short = "p", env)]
         bind_port: u16,
-        #[structopt(long, short = "t")]
+        #[structopt(long, short = "t", env)]
         test_mode: bool,
-        #[structopt(long, short = "l")]
+        #[structopt(long, short = "l", env)]
         log_id: Option<String>,
-        #[structopt(long, short = "u", long = "url", parse(try_from_str = url::Url::parse))]
+        #[structopt(long, short = "u", parse(try_from_str = url::Url::parse), env)]
         #[serde(default = "gadget_io::defaults::rpc_url")]
         url: Url,
-        #[structopt(long = "bootnodes", parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
+        #[structopt(long, parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
         #[serde(default)]
         bootnodes: Option<Vec<Multiaddr>>,
-        #[structopt(long, short = "d")]
+        #[structopt(long, short = "d", env)]
         keystore_uri: String,
         #[structopt(
             long,
@@ -250,7 +252,8 @@ pub enum GadgetCLICoreSettings {
                 "local_mainnet",
                 "testnet",
                 "mainnet"
-            ]
+            ],
+            env
         )]
         chain: SupportedChains,
         #[structopt(long, short = "v", parse(from_occurrences))]
@@ -258,13 +261,13 @@ pub enum GadgetCLICoreSettings {
         /// Whether to use pretty logging
         #[structopt(long)]
         pretty: bool,
-        #[structopt(long = "keystore-password", env)]
+        #[structopt(long, env)]
         keystore_password: Option<String>,
-        #[structopt(long)]
+        #[structopt(long, env)]
         blueprint_id: u64,
-        #[structopt(long)]
+        #[structopt(long, env)]
         service_id: Option<u64>,
-        #[structopt(long, parse(try_from_str))]
+        #[structopt(long, parse(try_from_str), env)]
         protocol: Protocol,
     },
 }

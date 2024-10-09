@@ -1,4 +1,4 @@
-use crate::event_listener::eigenlayer::generate_evm_event_handler;
+use crate::event_listener::evm::generate_evm_event_handler;
 use crate::event_listener::tangle::generate_tangle_event_handler;
 use crate::shared::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata, JobResultVerifier};
@@ -148,6 +148,8 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         #event_handler_gen
     };
 
+    // println!("{}", gen.to_string());
+
     Ok(gen.into())
 }
 
@@ -216,7 +218,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                     let bounded_type_args = if is_tangle {
                         proc_macro2::TokenStream::default()
                     } else {
-                        quote! { <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config<N = Ethereum> +'static> }
+                        quote! { <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config +'static> }
                     };
 
                     let autogen_struct_name = quote! { #struct_name #type_args };
@@ -526,7 +528,7 @@ pub(crate) struct JobArgs {
     /// List of parameters for the job, in order.
     /// `#[job(params(a, b, c))]`
     params: Vec<Ident>,
-    /// List of return types for the job, could be infered from the function return type.
+    /// List of return types for the job, could be inferred from the function return type.
     /// `#[job(result(u32, u64))]`
     /// `#[job(result(_))]`
     result: ResultsKind,
