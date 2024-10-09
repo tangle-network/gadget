@@ -10,9 +10,6 @@ use alloy_provider::RootProvider;
 use alloy_rpc_types_eth::TransactionRequest;
 use alloy_sol_types::SolCall;
 use alloy_sol_types::SolType;
-use std::str::FromStr;
-use std::{convert::Infallible, ops::Deref, sync::OnceLock};
-
 use alloy_sol_types::{private::alloy_json_abi::JsonAbi, sol};
 use alloy_transport_http::{Client, Http};
 use ark_bn254::{Fq, G2Affine};
@@ -28,10 +25,15 @@ use eigensdk::logging::get_test_logger;
 use eigensdk::services_avsregistry::chaincaller;
 use eigensdk::services_blsaggregation::bls_agg;
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
+use gadget_sdk::events_watcher::evm::EvmEventHandler;
+use gadget_sdk::events_watcher::InitializableEventHandler;
 use gadget_sdk::{
     events_watcher::evm::{Config, EventWatcher},
     info, job,
 };
+use libp2p::futures::future;
+use std::str::FromStr;
+use std::{convert::Infallible, ops::Deref, sync::OnceLock};
 
 use k256::sha2::{self, Digest};
 use IncredibleSquaringTaskManager::{
@@ -69,6 +71,7 @@ impl Config for NodeConfig {
     id = 1,
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage),
     result(_),
+    event_listener(EvmEventListener),
     event_handler(
         protocol = "eigenlayer",
         instance = IncredibleSquaringTaskManager,

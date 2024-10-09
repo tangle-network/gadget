@@ -1,4 +1,4 @@
-use crate::event_listener::eigenlayer::generate_evm_event_handler;
+use crate::event_listener::evm::generate_evm_event_handler;
 use crate::event_listener::tangle::generate_tangle_event_handler;
 use crate::shared::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata, JobResultVerifier};
@@ -232,7 +232,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                             }
                         } else {
                             /*let (_, _, _, contract_ty) =
-                            crate::event_listener::eigenlayer::get_instance_data(event_handler);*/
+                            crate::event_listener::evm::get_instance_data(event_handler);*/
                             quote! {
                                 gadget_sdk::event_listener::EthereumWatcherWrapper<#autogen_struct_name, _>
                             }
