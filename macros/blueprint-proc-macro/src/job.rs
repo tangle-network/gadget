@@ -203,7 +203,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                     let is_tangle = listener_meta.evm_args.is_none();
                     // convert the listener var, which is just a struct name, to an ident
                     let listener = listener_meta.listener.to_token_stream();
-                    // if Listener == TangleEventListener or EvmEventListener, we need to use defaults
+                    // if Listener == TangleEventListener or EvmContractEventListener, we need to use defaults
                     let listener_str = listener.to_string();
                     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
 
@@ -223,7 +223,7 @@ pub(crate) fn generate_event_listener_tokenstream(
 
                     // Check for special cases
                     let next_listener = if listener_str.contains("TangleEventListener")
-                        || listener_str.contains("EvmEventListener")
+                        || listener_str.contains("EvmContractEventListener")
                     {
                         // How to inject not just this event handler, but all event handlers here?
                         let wrapper = if is_tangle {
@@ -741,10 +741,10 @@ impl Parse for EventListenerArgs {
             let listener_tokens = quote! { #listener };
             // There are two possibilities: either the user does:
             // event_listener(MyCustomListener, MyCustomListener2)
-            // or, have some with the format: event_listener(EvmEventListener(instance = IncredibleSquaringTaskManager, event = IncredibleSquaringTaskManager::NewTaskCreated, event_converter = convert_event_to_inputs, callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask), MyCustomListener, MyCustomListener2)
-            // So, in case 1, we have the unique case where the first value is "EvmEventListener". If so, we need to parse the argument
+            // or, have some with the format: event_listener(EvmContractEventListener(instance = IncredibleSquaringTaskManager, event = IncredibleSquaringTaskManager::NewTaskCreated, event_converter = convert_event_to_inputs, callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask), MyCustomListener, MyCustomListener2)
+            // So, in case 1, we have the unique case where the first value is "EvmContractEventListener". If so, we need to parse the argument
             // tokens like we do below. Otherwise, we just push the listener into the listeners vec
-            if listener_tokens.to_string() == "EvmEventListener" {
+            if listener_tokens.to_string() == "EvmContractEventListener" {
                 let evm_args = content.parse::<EvmArgs>()?;
                 listeners.push(SingleListener {
                     listener,

@@ -2,6 +2,26 @@
 
 When building a blueprint, your application may require to listen to events. Events can be of any type, and handling those events is entirely up to your discretion.
 
+In general, when defining your job, you must register any event listeners and provide a context as such:
+
+```rust
+#[job(
+    id = 0,
+    params(x),
+    result(_),
+    event_listener(TangleEventListener, MyEventListener1, MyEventListener2, ...), // <-- Register all event listeners here
+    verifier(evm = "MyVerifier")
+)]
+pub fn hello_event_listener(
+    x: u64,
+    context: MyContext, // <-- The context type must be the first additional parameter
+    env: GadgetConfiguration<parking_lot::RawRwLock>,
+) -> Result<u64, Infallible> {
+    Ok(x.saturating_pow(2u32))
+}
+```
+
+In order to make these registered event listeners to work, we must define structs that implement `EventListener`.
 ## Creating Event Listeners
 
 To create an event listener, begin by defining a struct or enum which will listen to events:
@@ -80,6 +100,56 @@ pub fn hello_event_listener(
 }
 ```
 
+## Primary Event Listeners
+Primary event listeners are the most common type of event listener. They are easy to use, and require no context to work since this is done behind the scenes.
+
+### TangleEventListener
+The `TangleEventListener` is a type that listens to the Tangle network for events. This is a required type if you expect your application to use the tangle network to listen to jobs.
+
+The `TangleEventListener` is already implemented and ready to use. Simply register it in the `job` macro, and your application
+will automatically work with the Tangle network.
+
+```rust
+/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
+#[job(
+    id = 0,
+    params(x),
+    result(_),
+    event_listener(TangleEventListener),
+    verifier(evm = "IncredibleSquaringBlueprint")
+)]
+pub fn xsquare(
+    x: u64,
+) -> Result<u64, Infallible> {
+    Ok(x.saturating_pow(2u32))
+}
+```
+
+### EvmEventListener
+The `EvmEventListener` is a type that listens to the Ethereum Virtual Machine (EVM) for events.
+
+Like the `TangleEventListener`, the `EvmEventListener` is already implemented and ready to use. Simply register it in the `job` macro, and your application will automatically work with the EVM.
+
+```rust
+/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
+#[job(
+    id = 0,
+    params(x),
+    result(_),
+    event_listener(EvmContractEventListener(
+        instance = IncredibleSquaringTaskManager,
+        event = IncredibleSquaringTaskManager::NewTaskCreated,
+        event_converter = convert_event_to_inputs,
+        callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
+    )),
+)]
+pub fn xsquare(
+    x: u64,
+) -> Result<u64, Infallible> {
+    Ok(x.saturating_pow(2u32))
+}
+```
+
 ## Wrapper Event Listeners
 Various wrappers exist to simplify how common operations are performed.
 
@@ -144,7 +214,6 @@ impl EventListener<serde_json::Value, MyContext> for WebPoller {
 
 Finally, register the event listener inside the `job` macro using `event_listener`:
 
-
 ```rust
 #[job(
     id = 0,
@@ -162,73 +231,26 @@ pub fn hello_event_listener(
 }
 ```
 
-### SubstrateEventListener
-The `SubstrateEventListener` is a wrapper that listens to finality notifications from a substrate chain. It takes 3 type parameters:
+## Multiple Event Listeners
+Arbitrarily many event listeners can be used in a single job. This is useful when you want to listen to multiple sources to handle job logic
 
-* `T`: The substrate runtime configuration
-* `Block`: The block type
-* `Ctx`: The context type
-
-To begin, implement a struct:
+For example, using the example of the `PeriodicEventListener` above, we can add a `TangleEventListener` to the job:
 
 ```rust
-use async_trait::async_trait;
-use gadget_sdk::clients::tangle::runtime::TangleConfig;
-use gadget_sdk::config::GadgetConfiguration;
-use gadget_sdk::event_listener::substrate::{SubstrateEventListener, SubstrateEventListenerContext};
-use gadget_sdk::ext::subxt::blocks::Block;
-use gadget_sdk::ext::subxt::OnlineClient;
-use gadget_sdk::{job, Error};
-use std::convert::Infallible;
-
-#[derive(Copy, Clone)]
-pub struct LocalSubstrateTestnetContext;
-```
-
-Next, implement `SubstrateEventListenerContext` for `LocalSubstrateTestnetContext`:
-
-```rust
-#[async_trait]
-impl SubstrateEventListenerContext<TangleConfig> for LocalSubstrateTestnetContext {
-    // You can override the RPC URL by overridding the rpc_url method
-    // By default, it uses ws://127.0.0.1:9944
-    // fn rpc_url(&self) -> String;
-    
-    async fn handle_event(
-        &self,
-        event: Block<TangleConfig, OnlineClient<TangleConfig>>,
-        _client: &OnlineClient<TangleConfig>,
-    ) -> Result<(), Error> {
-        gadget_sdk::info!("Received block: {:?}", event.number());
-        Ok(())
-    }
-}
-```
-
-For convenience, define a few types:
-
-```rust
-type ExtrinsicT = gadget_sdk::tangle_subxt::subxt::ext::sp_runtime::testing::ExtrinsicWrapper<()>;
-type LocalTestnetBlock =
-    gadget_sdk::tangle_subxt::subxt::ext::sp_runtime::testing::Block<ExtrinsicT>;
-```
-
-Finally, register the event listener inside the `job` macro using `event_listener`:
-
-```rust
-/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
     id = 0,
     params(x),
     result(_),
-    event_listener(SubstrateEventListener::<TangleConfig, LocalTestnetBlock, LocalSubstrateTestnetContext>),
+    event_listener(TangleEventListener, PeriodicEventListener::<6000, WebPoller, serde_json::Value, MyContext>), // <-- Register the event listeners here
     verifier(evm = "IncredibleSquaringBlueprint")
 )]
-pub fn xsquare(
-    context: LocalSubstrateTestnetContext,
+pub fn hello_event_listener(
     x: u64,
+    context: MyContext,
     env: GadgetConfiguration<parking_lot::RawRwLock>,
 ) -> Result<u64, Infallible> {
     Ok(x.saturating_pow(2u32))
 }
 ```
+
+In this case, both the TangleEventListener, which is listening to the Tangle network, and the PeriodicEventListener, which is polling a web server, will be used in *parallel* to listen for events.
