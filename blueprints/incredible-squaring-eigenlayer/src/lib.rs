@@ -1,12 +1,14 @@
 #![allow(dead_code)]
 use alloy_contract::ContractInstance;
 use alloy_network::Ethereum;
+use alloy_network::EthereumWallet;
 use alloy_network::TransactionBuilder;
 use alloy_primitives::keccak256;
 use alloy_primitives::{address, hex, Address, Bytes, FixedBytes, Keccak256, U256};
+use alloy_provider::fillers::WalletFiller;
 use alloy_provider::fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller};
-use alloy_provider::Provider;
 use alloy_provider::RootProvider;
+use alloy_provider::{Identity, Provider};
 use alloy_rpc_types_eth::TransactionRequest;
 use alloy_sol_types::SolCall;
 use alloy_sol_types::SolType;
@@ -48,7 +50,10 @@ pub struct NodeConfig {}
 impl Config for NodeConfig {
     type TH = Http<Client>;
     type PH = FillProvider<
-        JoinFill<JoinFill<GasFiller, NonceFiller>, ChainIdFiller>,
+        JoinFill<
+            JoinFill<JoinFill<JoinFill<Identity, GasFiller>, NonceFiller>, ChainIdFiller>,
+            WalletFiller<EthereumWallet>,
+        >,
         RootProvider<Http<Client>>,
         Http<Client>,
         Ethereum,

@@ -242,10 +242,8 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             contract_address,
             provider,
         );
-        // TODO: Make sure to pass T: Config to the XSquaredEigenEventHandler
         let x_square_eigen = XsquareEigenEventHandler::<NodeConfig> {
-            // ctx: blueprint::MyContext { network, keystore },
-            contract: IncredibleSquaringTaskManagerInstanceWrapper::from(contract), // call .into() to convert to IncredibleSquaringTaskManagerInstanceWrapper
+            contract: contract.into(),
         };
         let finished = x_square_eigen
             .init_event_handler()
