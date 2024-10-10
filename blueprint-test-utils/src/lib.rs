@@ -750,7 +750,6 @@ mod tests_standard {
         arguments.extend([
             format!("--bind-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
             format!("--bind-port={}", 8545u16),
-            format!("--contract-address={}", task_manager_addr),
             format!("--url={}", Url::parse("ws://127.0.0.1:8545").unwrap()),
             format!("--keystore-uri={}", keystore_uri_str.clone()),
             format!("--chain={}", SupportedChains::LocalTestnet),
