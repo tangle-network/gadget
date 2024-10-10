@@ -8,11 +8,14 @@ use structopt::StructOpt;
 )]
 pub struct BlueprintManagerConfig {
     /// The path to the gadget configuration file
-    #[structopt(parse(from_os_str), short = "s", long = "gadget-config")]
+    #[structopt(parse(from_os_str), short = "s", long)]
     pub gadget_config: Option<PathBuf>,
     /// The path to the keystore
-    #[structopt(short = "k", long = "keystore-uri")]
+    #[structopt(short = "k", long)]
     pub keystore_uri: String,
+    /// The directory in which all gadgets will store their data
+    #[structopt(long, short = "d", parse(from_os_str))]
+    pub data_dir: Option<PathBuf>,
     /// The verbosity level, can be used multiple times
     #[structopt(long, short = "v", parse(from_occurrences))]
     pub verbose: i32,

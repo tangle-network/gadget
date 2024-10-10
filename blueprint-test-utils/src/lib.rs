@@ -85,6 +85,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
 
     let blueprint_manager_config = BlueprintManagerConfig {
         gadget_config: None,
+        data_dir: None,
         keystore_uri: keystore_uri_str.clone(),
         verbose: input.verbose,
         pretty: input.pretty,
@@ -572,6 +573,7 @@ mod tests_standard {
     );
 
     #[tokio::test(flavor = "multi_thread")]
+    #[allow(clippy::needless_return)]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
         // let mut base_path = std::env::current_dir().expect("Failed to get current directory");

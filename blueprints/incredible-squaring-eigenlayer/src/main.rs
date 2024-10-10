@@ -2,10 +2,7 @@ use alloy_network::EthereumWallet;
 use alloy_primitives::{address, Address, Bytes, FixedBytes, U256};
 use alloy_provider::ProviderBuilder;
 use alloy_signer_local::PrivateKeySigner;
-use color_eyre::{
-    eyre::{eyre, OptionExt},
-    Result,
-};
+use color_eyre::{eyre::eyre, Result};
 use eigensdk::client_avsregistry::writer::AvsRegistryChainWriter;
 use eigensdk::client_elcontracts::reader::ELChainReader;
 use eigensdk::client_elcontracts::writer::ELChainWriter;
@@ -14,7 +11,6 @@ use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
 use gadget_sdk::events_watcher::InitializableEventHandler;
 use gadget_sdk::info;
-use gadget_sdk::keystore::Backend;
 use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::{
     config::{ContextConfig, GadgetConfiguration},
@@ -174,9 +170,9 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
     }
 
     async fn run(&mut self) -> Result<()> {
-        let provider = eigensdk::utils::get_provider(&EIGENLAYER_HTTP_ENDPOINT);
+        // let provider = eigensdk::utils::get_provider(&EIGENLAYER_HTTP_ENDPOINT);
 
-        let keystore = self.env.keystore().map_err(|e| eyre!(e))?;
+        // let keystore = self.env.keystore().map_err(|e| eyre!(e))?;
 
         let ecdsa_subxt_key = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
         let ecdsa_secret_key_bytes = ecdsa_subxt_key.signer().seed();
@@ -230,6 +226,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 }
 
 #[tokio::main]
+#[allow(clippy::needless_return)]
 async fn main() -> Result<()> {
     gadget_sdk::logging::setup_log();
     let config = ContextConfig::from_args();
