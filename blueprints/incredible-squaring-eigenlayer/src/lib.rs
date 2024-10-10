@@ -36,6 +36,8 @@ use IncredibleSquaringTaskManager::{
     respondToTaskCall, NonSignerStakesAndSignature, Task, TaskResponse,
 };
 
+pub mod constants;
+
 // Codegen from ABI file to interact with the contract.
 sol!(
     #[allow(missing_docs)]

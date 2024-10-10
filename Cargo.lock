@@ -5752,6 +5752,7 @@ dependencies = [
  "gadget-sdk",
  "hex",
  "k256",
+ "lazy_static",
  "libp2p",
  "lock_api",
  "parking_lot",
