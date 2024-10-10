@@ -237,7 +237,7 @@ pub enum GadgetCLICoreSettings {
         #[structopt(long, short = "u", parse(try_from_str = url::Url::parse), env)]
         #[serde(default = "gadget_io::defaults::rpc_url")]
         url: Url,
-        #[structopt(long, parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
+        #[structopt(long, parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str), env)]
         #[serde(default)]
         bootnodes: Option<Vec<Multiaddr>>,
         #[structopt(long, short = "d", env)]
@@ -254,10 +254,10 @@ pub enum GadgetCLICoreSettings {
             env
         )]
         chain: SupportedChains,
-        #[structopt(long, short = "v", parse(from_occurrences))]
+        #[structopt(long, short = "v", parse(from_occurrences), env)]
         verbose: i32,
         /// Whether to use pretty logging
-        #[structopt(long)]
+        #[structopt(long, env)]
         pretty: bool,
         #[structopt(long, env)]
         keystore_password: Option<String>,
