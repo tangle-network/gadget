@@ -48,10 +48,7 @@ pub struct NodeConfig {}
 impl Config for NodeConfig {
     type TH = Http<Client>;
     type PH = FillProvider<
-        JoinFill<
-            JoinFill<GasFiller, NonceFiller>,
-            ChainIdFiller,
-        >,
+        JoinFill<JoinFill<GasFiller, NonceFiller>, ChainIdFiller>,
         RootProvider<Http<Client>>,
         Http<Client>,
         Ethereum,
