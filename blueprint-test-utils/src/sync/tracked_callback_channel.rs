@@ -195,6 +195,7 @@ mod tests {
     use gadget_io::tokio;
 
     #[tokio::test]
+    #[allow(clippy::needless_return)]
     async fn test_tracked_callback() {
         let (tx0, mut rx) = TrackedCallbackChannel::<u32, u64>::new(10);
         let tx1 = tx0.clone();
@@ -226,6 +227,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::needless_return)]
     async fn test_tracked_callback_no_response() {
         let (tx0, mut rx) = TrackedCallbackChannel::<u32, u64>::new(10);
         let tx1 = tx0.clone();

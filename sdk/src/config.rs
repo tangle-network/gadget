@@ -4,15 +4,12 @@ use crate::keystore::BackendExt;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::{sp_core_subxt, TanglePairSigner};
 use alloc::string::{String, ToString};
-use alloy_primitives::Address;
 use core::fmt::Debug;
 use core::net::IpAddr;
 use eigensdk::crypto_bls;
 use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::str::FromStr;
 use structopt::StructOpt;
 use url::Url;
 
@@ -83,10 +80,6 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     /// * In Memory: `file::memory:` or `:memory:`
     /// * Filesystem: `file:/path/to/keystore` or `file:///path/to/keystore`
     pub keystore_uri: String,
-    /// Data directory exclusively for this gadget
-    ///
-    /// This will be `None` if the blueprint manager was not provided a base directory.
-    pub data_dir: Option<PathBuf>,
     /// Blueprint ID for this gadget.
     pub blueprint_id: u64,
     /// Service ID for this gadget.
@@ -108,8 +101,6 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     pub bind_port: u16,
     /// The Address of the Network that will be interacted with
     pub bind_addr: IpAddr,
-    /// The Address of the Contract that a Gadget is using
-    pub contract_address: Option<Address>,
     pub span: tracing::Span,
     /// Whether the gadget is in test mode
     pub test_mode: bool,
@@ -127,7 +118,6 @@ impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
             .field("protocol", &self.protocol)
             .field("bind_port", &self.bind_port)
             .field("bind_addr", &self.bind_addr)
-            .field("contract_address", &self.contract_address)
             .field("test_mode", &self.test_mode)
             .finish()
     }
@@ -138,14 +128,12 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
         Self {
             rpc_endpoint: self.rpc_endpoint.clone(),
             keystore_uri: self.keystore_uri.clone(),
-            data_dir: self.data_dir.clone(),
             blueprint_id: self.blueprint_id,
             service_id: self.service_id,
             is_registration: self.is_registration,
             protocol: self.protocol,
             bind_port: self.bind_port,
             bind_addr: self.bind_addr,
-            contract_address: self.contract_address,
             span: self.span.clone(),
             test_mode: self.test_mode,
             _lock: core::marker::PhantomData,
@@ -159,14 +147,12 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
         Self {
             rpc_endpoint: "http://localhost:9944".to_string(),
             keystore_uri: "file::memory:".to_string(),
-            data_dir: None,
             blueprint_id: 0,
             service_id: Some(0),
             is_registration: false,
             protocol: Protocol::Tangle,
             bind_port: 0,
             bind_addr: core::net::IpAddr::V4(core::net::Ipv4Addr::new(127, 0, 0, 1)),
-            contract_address: None,
             span: tracing::Span::current(),
             test_mode: true,
             _lock: core::marker::PhantomData,
@@ -251,7 +237,7 @@ pub enum GadgetCLICoreSettings {
         #[structopt(long, short = "u", parse(try_from_str = url::Url::parse), env)]
         #[serde(default = "gadget_io::defaults::rpc_url")]
         url: Url,
-        #[structopt(long, parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
+        #[structopt(long, parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str), env)]
         #[serde(default)]
         bootnodes: Option<Vec<Multiaddr>>,
         #[structopt(long, short = "d", env)]
@@ -268,13 +254,11 @@ pub enum GadgetCLICoreSettings {
             env
         )]
         chain: SupportedChains,
-        #[structopt(long, short = "v", parse(from_occurrences))]
+        #[structopt(long, short = "v", parse(from_occurrences), env)]
         verbose: i32,
         /// Whether to use pretty logging
-        #[structopt(long)]
+        #[structopt(long, env)]
         pretty: bool,
-        #[structopt(long, short = "a", parse(try_from_str = Address::from_str))]
-        contract_address: Option<Address>,
         #[structopt(long, env)]
         keystore_password: Option<String>,
         #[structopt(long, env)]
@@ -326,7 +310,6 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 blueprint_id,
                 service_id,
                 protocol,
-                contract_address,
                 ..
             },
         ..
@@ -344,7 +327,6 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         span,
         rpc_endpoint: url.to_string(),
         keystore_uri,
-        data_dir: std::env::var("DATA_DIR").ok().map(PathBuf::from),
         blueprint_id,
         // If the registration mode is on, we don't need the service ID
         service_id: if is_registration {
@@ -355,7 +337,6 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         is_registration,
         protocol,
         _lock: core::marker::PhantomData,
-        contract_address,
     })
 }
 

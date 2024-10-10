@@ -46,6 +46,7 @@ blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false, version = "0.1.2" }
 
+incredible-squaring-blueprint-eigenlayer = { path = "./blueprints/incredible-squaring-eigenlayer", default-features = false, version = "0.1.1" }
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.2" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.2" }
 gadget-context-derive = { path = "./macros/context-derive", default-features = false, version = "0.1.1" }
@@ -76,7 +77,7 @@ parity-scale-codec = { version = "3.6.12", default-features = false }
 
 scale-info = { version = "2.11.3", default-features = false }
 
-
+tokio-retry = "0.3.0"
 async-trait = "0.1.82"
 auto_impl = "1.2.0"
 backon = { version = "1.2.0", default-features = false }
@@ -141,7 +142,7 @@ alloy-json-abi = "0.7.2"
 alloy-sol-types = "0.7.2"
 alloy-rpc-types = { version = "0.1" }
 alloy-rpc-types-eth = { version = "0.1" }
-alloy-provider = { version = "0.1.4", default-features = false, features = ["reqwest", "ws"] }
+alloy-provider = { version = "0.1", default-features = false, features = ["reqwest", "ws"] }
 alloy-pubsub = { version = "0.1" }
 alloy-signer = { version = "0.1" }
 alloy-signer-local = { version = "0.1" }

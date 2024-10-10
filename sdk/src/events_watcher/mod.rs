@@ -7,10 +7,16 @@
 
 /// Error type for the event watcher module.
 pub mod error;
+
+use async_trait::async_trait;
 pub use error::Error;
 
 #[cfg(feature = "std")]
 pub mod evm;
-mod retry;
 pub mod substrate;
 pub mod tangle;
+
+#[async_trait]
+pub trait InitializableEventHandler<T> {
+    async fn init_event_handler(&self) -> Option<tokio::sync::oneshot::Receiver<()>>;
+}

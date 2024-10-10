@@ -132,7 +132,7 @@ pub fn generate_process_arguments(
     arguments.push("run".to_string());
 
     if opt.test_mode {
-        arguments.push("--test-mode".to_string());
+        arguments.push("--test-mode=true".to_string());
     }
 
     for bootnode in &gadget_config.bootnodes {

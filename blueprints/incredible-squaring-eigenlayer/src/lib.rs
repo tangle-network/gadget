@@ -1,18 +1,17 @@
 #![allow(dead_code)]
 use alloy_contract::ContractInstance;
 use alloy_network::Ethereum;
+use alloy_network::EthereumWallet;
 use alloy_network::TransactionBuilder;
 use alloy_primitives::keccak256;
 use alloy_primitives::{address, hex, Address, Bytes, FixedBytes, Keccak256, U256};
+use alloy_provider::fillers::WalletFiller;
 use alloy_provider::fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller};
-use alloy_provider::Provider;
 use alloy_provider::RootProvider;
+use alloy_provider::{Identity, Provider};
 use alloy_rpc_types_eth::TransactionRequest;
 use alloy_sol_types::SolCall;
 use alloy_sol_types::SolType;
-use std::str::FromStr;
-use std::{convert::Infallible, ops::Deref, sync::OnceLock};
-
 use alloy_sol_types::{private::alloy_json_abi::JsonAbi, sol};
 use alloy_transport_http::{Client, Http};
 use ark_bn254::{Fq, G2Affine};
@@ -28,17 +27,14 @@ use eigensdk::logging::get_test_logger;
 use eigensdk::services_avsregistry::chaincaller;
 use eigensdk::services_blsaggregation::bls_agg;
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
-use gadget_sdk::{
-    events_watcher::evm::{Config, EventWatcher},
-    info, job,
-};
+use gadget_sdk::{events_watcher::evm::Config, info, job};
+use std::str::FromStr;
+use std::{convert::Infallible, ops::Deref, sync::OnceLock};
 
 use k256::sha2::{self, Digest};
 use IncredibleSquaringTaskManager::{
     respondToTaskCall, NonSignerStakesAndSignature, Task, TaskResponse,
 };
-
-use serde_json::Value;
 
 // Codegen from ABI file to interact with the contract.
 sol!(
@@ -55,8 +51,8 @@ impl Config for NodeConfig {
     type TH = Http<Client>;
     type PH = FillProvider<
         JoinFill<
-            JoinFill<JoinFill<alloy_provider::Identity, GasFiller>, NonceFiller>,
-            ChainIdFiller,
+            JoinFill<JoinFill<JoinFill<Identity, GasFiller>, NonceFiller>, ChainIdFiller>,
+            WalletFiller<EthereumWallet>,
         >,
         RootProvider<Http<Client>>,
         Http<Client>,
@@ -69,13 +65,12 @@ impl Config for NodeConfig {
     id = 1,
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage),
     result(_),
-    event_handler(
-        protocol = "eigenlayer",
+    event_listener(EvmContractEventListener(
         instance = IncredibleSquaringTaskManager,
         event = IncredibleSquaringTaskManager::NewTaskCreated,
         event_converter = convert_event_to_inputs,
         callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
-    ),
+    )),
 )]
 pub async fn xsquare_eigen(
     number_to_be_squared: U256,

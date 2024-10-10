@@ -1,3 +1,4 @@
+use crate::job::EventListenerArgs;
 use crate::shared::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{
     FieldType, ReportDefinition, ReportMetadata, ReportResultVerifier, ReportType,
@@ -20,7 +21,7 @@ mod kw {
     syn::custom_keyword!(metric_thresholds);
     syn::custom_keyword!(verifier);
     syn::custom_keyword!(evm);
-    syn::custom_keyword!(event_handler_type);
+    syn::custom_keyword!(event_listener);
     syn::custom_keyword!(skip_codegen);
 }
 
@@ -134,7 +135,7 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
 pub(crate) struct ReportArgs {
     /// List of parameters for the report, in order.
     /// `#[report(params(a, b, c))]`
-    params: Vec<Ident>,
+    pub(crate) params: Vec<Ident>,
     /// List of return types for the report, could be inferred from the function return type.
     /// `#[report(result(u32, u64))]`
     /// `#[report(result(_))]`
@@ -157,11 +158,11 @@ pub(crate) struct ReportArgs {
     /// Optional: Event handler type for the report.
     /// `#[report(event_handler_type = "tangle")]`
     #[allow(dead_code)]
-    event_handler_type: EventHandlerType,
+    pub(crate) event_listeners: EventListenerArgs,
     /// Optional: Skip code generation for this report.
     /// `#[report(skip_codegen)]`
     /// This is useful if the developer wants to implement a custom event handler for this report.
-    skip_codegen: bool,
+    pub(crate) skip_codegen: bool,
 }
 
 /// Parses the arguments provided to the `report` attribute macro.
@@ -175,7 +176,7 @@ impl Parse for ReportArgs {
         let mut interval = None;
         let mut metric_thresholds = None;
         let mut verifier = Verifier::None;
-        let mut event_handler_type = EventHandlerType::Tangle;
+        let mut event_listener = None;
         let mut skip_codegen = false;
 
         while !input.is_empty() {
@@ -229,8 +230,8 @@ impl Parse for ReportArgs {
                 metric_thresholds = Some(thresholds.into_iter().collect());
             } else if lookahead.peek(kw::verifier) {
                 verifier = input.parse()?;
-            } else if lookahead.peek(kw::event_handler_type) {
-                event_handler_type = input.parse()?;
+            } else if lookahead.peek(kw::event_listener) {
+                event_listener = Some(input.parse()?)
             } else if lookahead.peek(kw::skip_codegen) {
                 let _ = input.parse::<kw::skip_codegen>()?;
                 skip_codegen = true;
@@ -268,6 +269,8 @@ impl Parse for ReportArgs {
             }
         }
 
+        let event_listener = event_listener.expect("Event listener type must be present");
+
         Ok(ReportArgs {
             params,
             result,
@@ -276,7 +279,7 @@ impl Parse for ReportArgs {
             interval,
             metric_thresholds,
             verifier,
-            event_handler_type,
+            event_listeners: event_listener,
             skip_codegen,
         })
     }
@@ -338,57 +341,68 @@ fn generate_job_report_event_handler(
 ) -> proc_macro2::TokenStream {
     let fn_name = &input.sig.ident;
     let fn_name_string = fn_name.to_string();
-    let struct_name = format_ident!("{}JobReportEventHandler", pascal_case(&fn_name_string));
+    const SUFFIX: &str = "JobReportEventHandler";
+    let struct_name = format_ident!("{}{SUFFIX}", pascal_case(&fn_name_string));
     let job_id = args
         .job_id
         .as_ref()
         .expect("Job ID must be present for job reports");
+    let param_types =
+        crate::job::param_types(input).expect("Failed to generate param types for job report");
+    let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted };
+    let (event_listener_gen, event_listener_calls) =
+        crate::job::generate_event_listener_tokenstream(
+            input,
+            &event_type,
+            SUFFIX,
+            &fn_name_string,
+            &args.event_listeners,
+            args.skip_codegen,
+            &param_types,
+            &args.params,
+        );
 
+    let combined_event_listener =
+        crate::job::generate_combined_event_listener_selector(&struct_name);
     quote! {
+        #[derive(Clone)]
         pub struct #struct_name {
             pub service_id: u64,
-            pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
+            pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair>,
+            pub client: gadget_sdk::clients::tangle::runtime::TangleClient,
         }
+
+        #(#event_listener_gen)*
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig> for #struct_name {
-            async fn can_handle_events(
-                &self,
-                events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::clients::tangle::runtime::TangleConfig>,
-            ) -> Result<bool, gadget_sdk::events_watcher::Error> {
-                use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted;
-
-                let has_event = events.find::<JobResultSubmitted>().flatten().any(|event| {
-                    event.service_id == self.service_id && event.job == #job_id
-                });
-
-                Ok(has_event)
+        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
+            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
+                #(#event_listener_calls)*
+                #combined_event_listener
             }
 
-            async fn handle_events(
-                &self,
-                _client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::clients::tangle::runtime::TangleConfig>,
-                (events, block_number): (
-                    gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::clients::tangle::runtime::TangleConfig>,
-                    u64
-                ),
-            ) -> Result<(), gadget_sdk::events_watcher::Error> {
-                use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted;
+            async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
+                use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
+                // TODO: Implement parameter extraction and report function call
+                // This part will depend on the specific structure of your JobResultSubmitted event
+                // and how you want to handle the report function call
 
-                let job_results: Vec<_> = events
-                    .find::<JobResultSubmitted>()
-                    .flatten()
-                    .filter(|event| event.service_id == self.service_id && event.job == #job_id)
-                    .collect();
+                Ok(vec![])
+            }
 
-                for job_result in job_results {
-                    // TODO: Implement parameter extraction and report function call
-                    // This part will depend on the specific structure of your JobResultSubmitted event
-                    // and how you want to handle the report function call
-                }
+            /// Returns the job ID
+            fn job_id(&self) -> u8 {
+                #job_id
+            }
 
-                Ok(())
+            /// Returns the service ID
+            fn service_id(&self) -> u64 {
+                self.service_id
+            }
+
+            fn signer(&self) -> &gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair> {
+                &self.signer
             }
         }
     }
@@ -418,36 +432,53 @@ fn generate_qos_report_event_handler(
 ) -> proc_macro2::TokenStream {
     let fn_name = &input.sig.ident;
     let fn_name_string = fn_name.to_string();
-    let struct_name = format_ident!("{}QoSReportEventHandler", pascal_case(&fn_name_string));
+    const SUFFIX: &str = "QoSReportEventHandler";
+    let struct_name = format_ident!("{}{SUFFIX}", pascal_case(&fn_name_string));
+    let job_id = quote! { 0 }; // We don't care about job ID's for QOS
+    let param_types =
+        crate::job::param_types(input).expect("Failed to generate param types for job report");
+    // TODO: Allow passing all events, use a dummy value here that satisfies the trait bounds. For now QOS will
+    // trigger only once a singular JobCalled event is received.
+    let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled };
+    let (event_listener_gen, event_listener_calls) =
+        crate::job::generate_event_listener_tokenstream(
+            input,
+            &event_type,
+            SUFFIX,
+            &fn_name_string,
+            &args.event_listeners,
+            args.skip_codegen,
+            &param_types,
+            &args.params,
+        );
+
     let interval = args
         .interval
         .as_ref()
         .expect("Interval must be present for QoS reports");
 
+    let combined_event_listener =
+        crate::job::generate_combined_event_listener_selector(&struct_name);
+
     quote! {
+        #[derive(Clone)]
         pub struct #struct_name {
             pub service_id: u64,
-            pub signer: gadget_sdk::tangle_subxt::subxt_signer::sr25519::Keypair,
+            pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair>,
+            pub client: gadget_sdk::clients::tangle::runtime::TangleClient,
         }
+
+        #(#event_listener_gen)*
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig> for #struct_name {
-            async fn can_handle_events(
-                &self,
-                _events: gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::clients::tangle::runtime::TangleConfig>,
-            ) -> Result<bool, gadget_sdk::events_watcher::Error> {
-                Ok(true)
+        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
+            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
+                #(#event_listener_calls)*
+                #combined_event_listener
             }
 
-            async fn handle_events(
-                &self,
-                _client: gadget_sdk::tangle_subxt::subxt::OnlineClient<gadget_sdk::clients::tangle::runtime::TangleConfig>,
-                (_events, _block_number): (
-                    gadget_sdk::tangle_subxt::subxt::events::Events<gadget_sdk::clients::tangle::runtime::TangleConfig>,
-                    u64
-                ),
-            ) -> Result<(), gadget_sdk::events_watcher::Error> {
+            async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
                 use std::time::Duration;
                 use gadget_sdk::slashing::reports::{QoSReporter, DefaultQoSReporter};
 
@@ -466,8 +497,22 @@ fn generate_qos_report_event_handler(
 
                         next_check = std::time::Instant::now() + interval;
                     }
-                    std::thread::sleep(Duration::from_millis(100));
+                    gadget_sdk::tokio::time::sleep(Duration::from_millis(100)).await;
                 }
+            }
+
+            /// Returns the job ID
+            fn job_id(&self) -> u8 {
+                #job_id
+            }
+
+            /// Returns the service ID
+            fn service_id(&self) -> u64 {
+                self.service_id
+            }
+
+            fn signer(&self) -> &gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair> {
+                &self.signer
             }
         }
     }
@@ -535,29 +580,6 @@ impl Parse for Verifier {
             Ok(Verifier::Evm(contract.value()))
         } else {
             Ok(Verifier::None)
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum EventHandlerType {
-    Tangle,
-    Evm,
-}
-
-impl Parse for EventHandlerType {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let _ = input.parse::<kw::event_handler_type>()?;
-        let content;
-        let _ = syn::parenthesized!(content in input);
-        let s = content.parse::<LitStr>()?;
-        match s.value().as_str() {
-            "tangle" => Ok(EventHandlerType::Tangle),
-            "evm" => Ok(EventHandlerType::Evm),
-            _ => Err(syn::Error::new_spanned(
-                s,
-                "Expected `tangle` or `evm` as event handler type",
-            )),
         }
     }
 }

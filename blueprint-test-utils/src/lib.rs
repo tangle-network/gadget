@@ -70,8 +70,6 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         keystore_uri.display()
     );
 
-    let data_dir = std::path::absolute("./target/data/").expect("Failed to get current directory");
-
     let keystore_uri_normalized =
         std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
     let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
@@ -87,8 +85,8 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
 
     let blueprint_manager_config = BlueprintManagerConfig {
         gadget_config: None,
+        data_dir: None,
         keystore_uri: keystore_uri_str.clone(),
-        data_dir: Some(data_dir),
         verbose: input.verbose,
         pretty: input.pretty,
         instance_id: Some(NAME_IDS[input.instance_id as usize].to_string()),
@@ -473,6 +471,7 @@ mod tests_standard {
     /// The other requirement is that there is a locally-running tangle node
 
     #[tokio::test(flavor = "multi_thread")]
+    #[allow(clippy::needless_return)]
     async fn test_externalities_gadget_starts() {
         setup_log();
         let mut base_path = std::env::current_dir().expect("Failed to get current directory");
@@ -574,6 +573,7 @@ mod tests_standard {
     );
 
     #[tokio::test(flavor = "multi_thread")]
+    #[allow(clippy::needless_return)]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
         // let mut base_path = std::env::current_dir().expect("Failed to get current directory");
@@ -752,7 +752,6 @@ mod tests_standard {
         arguments.extend([
             format!("--bind-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
             format!("--bind-port={}", 8545u16),
-            format!("--contract-address={}", task_manager_addr),
             format!("--url={}", Url::parse("ws://127.0.0.1:8545").unwrap()),
             format!("--keystore-uri={}", keystore_uri_str.clone()),
             format!("--chain={}", SupportedChains::LocalTestnet),

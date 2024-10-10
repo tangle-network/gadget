@@ -125,10 +125,10 @@ pub fn xsquare(
 }
 ```
 
-### EvmEventListener
-The `EvmEventListener` is a type that listens to the Ethereum Virtual Machine (EVM) for events.
+### EvmContractEventListener
+The `EvmContractEventListener` is a type that listens to the Ethereum Virtual Machine (EVM) for events.
 
-Like the `TangleEventListener`, the `EvmEventListener` is already implemented and ready to use. Simply register it in the `job` macro, and your application will automatically work with the EVM.
+Like the `TangleEventListener`, the `EvmContractEventListener` is already implemented and ready to use. Simply register it in the `job` macro, and your application will automatically work with the EVM.
 
 ```rust
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
@@ -136,8 +136,12 @@ Like the `TangleEventListener`, the `EvmEventListener` is already implemented an
     id = 0,
     params(x),
     result(_),
-    event_listener(EvmEventListener),
-    verifier(evm = "IncredibleSquaringBlueprint")
+    event_listener(EvmContractEventListener(
+        instance = IncredibleSquaringTaskManager,
+        event = IncredibleSquaringTaskManager::NewTaskCreated,
+        event_converter = convert_event_to_inputs,
+        callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
+    )),
 )]
 pub fn xsquare(
     x: u64,

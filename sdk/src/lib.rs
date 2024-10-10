@@ -64,8 +64,11 @@ pub mod tx;
 pub mod ctx;
 
 // Re-exports
+pub use alloy_rpc_types;
 pub use error::Error;
+pub use futures;
 pub use gadget_blueprint_proc_macro::*;
+pub use subxt_core;
 pub use tangle_subxt;
 pub use tokio;
 

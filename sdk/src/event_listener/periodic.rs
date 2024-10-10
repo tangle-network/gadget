@@ -4,18 +4,18 @@ use async_trait::async_trait;
 use std::time::Duration;
 
 #[derive(Default)]
-pub struct PeriodicEventListener<const MSEC: usize, T, Evt, Ctx> {
+pub struct PeriodicEventListener<const MSEC: usize, T, Event, Ctx> {
     listener: T,
-    _pd: std::marker::PhantomData<(Evt, Ctx)>,
+    _pd: std::marker::PhantomData<(Event, Ctx)>,
 }
 
 #[async_trait]
 impl<
         const MSEC: usize,
-        T: EventListener<Evt, Ctx>,
+        T: EventListener<Event, Ctx>,
         Ctx: Send + Sync + 'static,
-        Evt: Send + Sync + 'static,
-    > EventListener<Evt, Ctx> for PeriodicEventListener<MSEC, T, Evt, Ctx>
+        Event: Send + Sync + 'static,
+    > EventListener<Event, Ctx> for PeriodicEventListener<MSEC, T, Event, Ctx>
 {
     async fn new(context: &Ctx) -> Result<Self, Error>
     where
@@ -28,13 +28,13 @@ impl<
         })
     }
 
-    async fn next_event(&mut self) -> Option<Evt> {
+    async fn next_event(&mut self) -> Option<Event> {
         let interval = Duration::from_millis(MSEC as u64);
         tokio::time::sleep(interval).await;
         self.listener.next_event().await
     }
 
-    async fn handle_event(&mut self, event: Evt) -> std::io::Result<()> {
+    async fn handle_event(&mut self, event: Event) -> Result<(), Error> {
         crate::info!("Event at after {MSEC}ms time received");
         self.listener.handle_event(event).await
     }
