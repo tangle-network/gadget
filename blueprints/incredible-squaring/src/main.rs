@@ -78,6 +78,9 @@ impl GadgetRunner for TangleGadgetRunner {
         info!("Starting the event watcher for {} ...", signer.account_id());
 
         let x_square = blueprint::XsquareEventHandler {
+            context: blueprint::MyContext {
+                client: client.clone(),
+            },
             service_id: self.env.service_id.unwrap(),
             client: client.clone(),
             signer,

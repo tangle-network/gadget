@@ -14,9 +14,7 @@ use std::time::Duration;
 use subxt::backend::StreamOfResults;
 use subxt::OnlineClient;
 use subxt_core::events::StaticEvent;
-use tangle_subxt::tangle_testnet_runtime::api::services::events::{
-    job_called, JobCalled, JobResultSubmitted,
-};
+use tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use tokio::sync::Mutex;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::Retry;
@@ -288,36 +286,41 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>> EthereumWatcherWrapper<W
 }
 
 pub trait HasServiceAndJobId: StaticEvent + Send + Sync + 'static {
-    fn service_id(&self) -> u64;
-    fn job_id(&self) -> u8;
-    fn id_of_call(&self) -> job_called::CallId;
-}
-
-impl HasServiceAndJobId for JobCalled {
+    fn filter(&self, handler: &EventHandlerFor<TangleConfig, Self>) -> bool;
     fn service_id(&self) -> u64 {
-        self.service_id
+        0
     }
-
-    fn job_id(&self) -> u8 {
-        self.job
-    }
-
-    fn id_of_call(&self) -> job_called::CallId {
-        self.call_id
+    fn id_of_call(&self) -> u64 {
+        0
     }
 }
 
-impl HasServiceAndJobId for JobResultSubmitted {
-    fn service_id(&self) -> u64 {
-        self.service_id
+mod filter_impls {
+    use crate::clients::tangle::runtime::TangleConfig;
+    use crate::event_listener::HasServiceAndJobId;
+    use crate::events_watcher::substrate::EventHandlerFor;
+    use tangle_subxt::tangle_testnet_runtime::api::services::events::{
+        JobCalled, JobResultSubmitted,
+    };
+
+    impl HasServiceAndJobId for JobCalled {
+        fn filter(&self, handler: &EventHandlerFor<TangleConfig, Self>) -> bool {
+            self.service_id == handler.service_id() && self.job == handler.job_id()
+        }
     }
 
-    fn job_id(&self) -> u8 {
-        self.job
+    // use tangle_subxt::tangle_testnet_runtime::api::balances::events::Transfer;
+    //#[job(event_listener(TangleEventListener<Transfer>))
+    impl HasServiceAndJobId for JobResultSubmitted {
+        fn filter(&self, handler: &EventHandlerFor<TangleConfig, Self>) -> bool {
+            self.service_id == handler.service_id() && self.job == handler.job_id()
+        }
     }
 
-    fn id_of_call(&self) -> job_called::CallId {
-        self.call_id
+    impl HasServiceAndJobId for tangle_subxt::tangle_testnet_runtime::api::balances::events::Transfer {
+        fn filter(&self, _handler: &EventHandlerFor<TangleConfig, Self>) -> bool {
+            true
+        }
     }
 }
 
@@ -333,9 +336,12 @@ pub struct SubstrateWatcherWrapper<Evt: Send + Sync + 'static> {
         Mutex<StreamOfResults<subxt::blocks::Block<TangleConfig, OnlineClient<TangleConfig>>>>,
 }
 
+pub struct TangleEventListener<Evt: HasServiceAndJobId>(std::marker::PhantomData<Evt>);
+pub type TangleJobEventListener = TangleEventListener<JobCalled>;
+// #[job(event_listener(TangleEventListener<Transfer>, TangleEventListener<JobCalled>, ...))]
 pub type SubstrateWatcherWrapperContext<Evt> = (TangleClient, EventHandlerFor<TangleConfig, Evt>);
 #[async_trait]
-impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
+impl<Evt: HasServiceAndJobId>
     EventListener<HashMap<usize, Vec<Evt>>, SubstrateWatcherWrapperContext<Evt>>
     for SubstrateWatcherWrapper<Evt>
 {
@@ -372,10 +378,7 @@ impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
                 let events = events
                     .find::<Evt>()
                     .flatten()
-                    .filter(|event| {
-                        event.service_id() == handler.service_id()
-                            && event.job_id() == handler.job_id()
-                    })
+                    .filter(|event| event.filter(handler))
                     .collect::<Vec<_>>();
 
                 if !events.is_empty() {

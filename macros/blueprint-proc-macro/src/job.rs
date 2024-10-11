@@ -206,7 +206,6 @@ pub(crate) fn generate_event_listener_tokenstream(
                     // convert the listener var, which is just a struct name, to an ident
                     let listener = listener_meta.listener.to_token_stream();
                     // if Listener == TangleEventListener or EvmContractEventListener, we need to use defaults
-                    let listener_str = listener.to_string();
                     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
 
                     let type_args = if is_tangle {
@@ -224,9 +223,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                     let autogen_struct_name = quote! { #struct_name #type_args };
 
                     // Check for special cases
-                    let next_listener = if listener_str.contains("TangleEventListener")
-                        || listener_str.contains("EvmContractEventListener")
-                    {
+                    let next_listener = if listener_meta.is_special_case {
                         // How to inject not just this event handler, but all event handlers here?
                         let wrapper = if is_tangle {
                             quote! {
@@ -281,7 +278,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                             }
                         }
                     } else {
-                        // Generate the variable that we are passing as the context into EventListener::create(&mut ctx)
+                        // Generate the variable that we are passing as the context into EventListener::create(&ctx)
                         // We assume the first supplied event handler arg is the context we are injecting into the event listener
                         let context = event_handler_args
                             .first()
@@ -723,6 +720,7 @@ pub(crate) struct EventListenerArgs {
 pub(crate) struct SingleListener {
     pub listener: TypePath,
     pub evm_args: Option<EvmArgs>,
+    pub is_special_case: bool,
 }
 
 // Implement Parse for EventListener. kw::event_listener exists in the kw module.
@@ -746,16 +744,25 @@ impl Parse for EventListenerArgs {
             // or, have some with the format: event_listener(EvmContractEventListener(instance = IncredibleSquaringTaskManager, event = IncredibleSquaringTaskManager::NewTaskCreated, event_converter = convert_event_to_inputs, callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask), MyCustomListener, MyCustomListener2)
             // So, in case 1, we have the unique case where the first value is "EvmContractEventListener". If so, we need to parse the argument
             // tokens like we do below. Otherwise, we just push the listener into the listeners vec
-            if listener_tokens.to_string() == "EvmContractEventListener" {
+            let name = listener_tokens.to_string();
+            if name == "EvmContractEventListener" {
                 let evm_args = content.parse::<EvmArgs>()?;
                 listeners.push(SingleListener {
                     listener,
                     evm_args: Some(evm_args),
+                    is_special_case: true,
+                });
+            } else if name == "TangleEventListener" {
+                listeners.push(SingleListener {
+                    listener,
+                    evm_args: None,
+                    is_special_case: true,
                 });
             } else {
                 listeners.push(SingleListener {
                     listener,
                     evm_args: None,
+                    is_special_case: false,
                 });
             }
 
