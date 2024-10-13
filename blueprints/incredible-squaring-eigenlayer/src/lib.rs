@@ -29,7 +29,7 @@ use eigensdk::services_blsaggregation::bls_agg;
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
 use gadget_sdk::{events_watcher::evm::Config, info, job};
 use std::str::FromStr;
-use std::{env, convert::Infallible, ops::Deref, sync::OnceLock};
+use std::{convert::Infallible, env, ops::Deref, sync::OnceLock};
 use structopt::lazy_static::lazy_static;
 
 use k256::sha2::{self, Digest};
@@ -61,12 +61,12 @@ lazy_static! {
     pub static ref AVS_DIRECTORY_ADDRESS: Address =
         address!("0000000000000000000000000000000000000000");
     pub static ref OPERATOR_ADDRESS: Address = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92267");
-    pub static ref OPERATOR_METADATA_URL: String = "https://github.com/tangle-network/gadget".to_string();
+    pub static ref OPERATOR_METADATA_URL: String =
+        "https://github.com/tangle-network/gadget".to_string();
     pub static ref MNEMONIC_SEED: String = env::var("MNEMONIC_SEED").unwrap_or_else(|_| {
         "test test test test test test test test test test test junk".to_string()
     });
 }
-
 
 // Codegen from ABI file to interact with the contract.
 sol!(
