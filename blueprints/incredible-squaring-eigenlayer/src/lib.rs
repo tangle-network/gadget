@@ -29,12 +29,44 @@ use eigensdk::services_blsaggregation::bls_agg;
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
 use gadget_sdk::{events_watcher::evm::Config, info, job};
 use std::str::FromStr;
-use std::{convert::Infallible, ops::Deref, sync::OnceLock};
+use std::{env, convert::Infallible, ops::Deref, sync::OnceLock};
+use structopt::lazy_static::lazy_static;
 
 use k256::sha2::{self, Digest};
 use IncredibleSquaringTaskManager::{
     respondToTaskCall, NonSignerStakesAndSignature, Task, TaskResponse,
 };
+
+// Environment variables with default values
+lazy_static! {
+    pub static ref SIGNATURE_EXPIRY: U256 = U256::from(86400);
+    pub static ref EIGENLAYER_HTTP_ENDPOINT: String = env::var("EIGENLAYER_HTTP_ENDPOINT")
+        .unwrap_or_else(|_| "http://localhost:8545".to_string());
+    pub static ref EIGENLAYER_WS_ENDPOINT: String =
+        env::var("EIGENLAYER_WS_ENDPOINT").unwrap_or_else(|_| "ws://localhost:8546".to_string());
+    pub static ref PRIVATE_KEY: String = env::var("PRIVATE_KEY").unwrap_or_else(|_| {
+        "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".to_string()
+    });
+    pub static ref SR_SECRET_BYTES: Vec<u8> = env::var("SR_SECRET_BYTES")
+        .map(|v| v.into_bytes())
+        .unwrap_or_else(|_| vec![0; 32]);
+    pub static ref REGISTRY_COORDINATOR_ADDRESS: Address =
+        address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
+    pub static ref OPERATOR_STATE_RETRIEVER_ADDRESS: Address =
+        address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
+    pub static ref DELEGATION_MANAGER_ADDRESS: Address =
+        address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
+    pub static ref STRATEGY_MANAGER_ADDRESS: Address =
+        address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
+    pub static ref AVS_DIRECTORY_ADDRESS: Address =
+        address!("0000000000000000000000000000000000000000");
+    pub static ref OPERATOR_ADDRESS: Address = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92267");
+    pub static ref OPERATOR_METADATA_URL: String = "https://github.com/tangle-network/gadget".to_string();
+    pub static ref MNEMONIC_SEED: String = env::var("MNEMONIC_SEED").unwrap_or_else(|_| {
+        "test test test test test test test test test test test junk".to_string()
+    });
+}
+
 
 // Codegen from ABI file to interact with the contract.
 sol!(
@@ -78,6 +110,10 @@ pub async fn xsquare_eigen(
     quorum_numbers: Bytes,
     quorum_threshold_percentage: u8,
 ) -> Result<respondToTaskCall, Infallible> {
+    info!(
+        "Received job to square the number: {:?}",
+        number_to_be_squared
+    );
     // Calculate our response to job
     let number_squared = number_to_be_squared.saturating_pow(U256::from(2u32));
     let number_squared = U256::from(4u64);
@@ -86,20 +122,9 @@ pub async fn xsquare_eigen(
         numberSquared: number_squared,
     };
 
-    // TODO: We can make these constants
-    let service_manager_address = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
-    let registry_coordinator_address = address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
-    let operator_state_retriever_address = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
-    let operator_address = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
-
-    let http_endpoint =
-        std::env::var("EIGENLAYER_HTTP_ENDPOINT").expect("EIGENLAYER_HTTP_ENDPOINT must be set");
-    let ws_endpoint =
-        std::env::var("EIGENLAYER_WS_ENDPOINT").expect("EIGENLAYER_WS_ENDPOINT must be set");
-
     let provider = alloy_provider::ProviderBuilder::new()
         .with_recommended_fillers()
-        .on_http(http_endpoint.parse().unwrap())
+        .on_http(EIGENLAYER_HTTP_ENDPOINT)
         .root()
         .clone()
         .boxed();
@@ -109,9 +134,8 @@ pub async fn xsquare_eigen(
             quorum_threshold_percentage,
         )];
 
-    let private_key = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
     let signer = eigensdk::signer::signer::Config::signer_from_config(
-        eigensdk::signer::signer::Config::PrivateKey(private_key.to_string()),
+        eigensdk::signer::signer::Config::PrivateKey(PRIVATE_KEY.to_string()),
     )
     .unwrap();
     let bls_key_pair = BlsKeyPair::new(
@@ -129,9 +153,9 @@ pub async fn xsquare_eigen(
     // Create avs clients to interact with contracts deployed on anvil
     let avs_registry_reader = AvsRegistryChainReader::new(
         get_test_logger(),
-        registry_coordinator_address,
-        operator_state_retriever_address,
-        http_endpoint.clone(),
+        *REGISTRY_COORDINATOR_ADDRESS,
+        *OPERATOR_STATE_RETRIEVER_ADDRESS,
+        EIGENLAYER_HTTP_ENDPOINT.to_string(),
     )
     .await
     .unwrap();
