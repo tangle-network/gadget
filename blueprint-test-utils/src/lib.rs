@@ -124,7 +124,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
 
 /// Adds keys relevant for the test to the keystore, and performs some necessary
 /// cross-compatability tests to ensure key use consistency between different parts of the codebase
-async fn inject_test_keys<P: AsRef<Path>>(
+pub async fn inject_test_keys<P: AsRef<Path>>(
     keystore_path: P,
     node_index: usize,
 ) -> color_eyre::Result<()> {

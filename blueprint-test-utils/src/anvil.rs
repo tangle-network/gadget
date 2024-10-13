@@ -63,7 +63,7 @@ pub async fn start_anvil_container(
             let mut reader = reader;
             let mut buffer = String::new();
             while reader.read_line(&mut buffer).await.unwrap() > 0 {
-                println!("ANVIL: {:?}", buffer);
+                println!("{:?}", buffer);
                 buffer.clear();
             }
         });

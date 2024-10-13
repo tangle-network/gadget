@@ -11,6 +11,10 @@ use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
 use gadget_sdk::events_watcher::InitializableEventHandler;
 use gadget_sdk::info;
+use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
+use gadget_sdk::keystore::backend::GenericKeyStore;
+use gadget_sdk::keystore::Backend;
+use gadget_sdk::keystore::BackendExt;
 use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::{
     config::{ContextConfig, GadgetConfiguration},
@@ -23,8 +27,11 @@ use incredible_squaring_blueprint_eigenlayer::{self, *};
 use k256::{ecdsa::SigningKey, SecretKey};
 use sp_core::Pair;
 use std::env;
+use std::path::Path;
+use std::path::PathBuf;
 use structopt::lazy_static::lazy_static;
 use structopt::StructOpt;
+use uuid::Uuid;
 
 lazy_static! {
     /// 1 day
@@ -53,10 +60,13 @@ lazy_static! {
         address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
     static ref AVS_DIRECTORY_ADDRESS: Address =
         address!("0000000000000000000000000000000000000000");
-    static ref OPERATOR_ADDRESS: Address = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
+    static ref OPERATOR_ADDRESS: Address = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92267");
     static ref OPERATOR_METADATA_URL: String =
         "https://github.com/tangle-network/eigensdk-rs/blob/main/test-utils/metadata.json"
             .to_string();
+    static ref MNEMONIC_SEED: String = env::var("MNEMONIC_SEED").unwrap_or_else(|_| {
+        "test test test test test test test test test test test junk".to_string()
+    });
 }
 
 pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
@@ -170,37 +180,12 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
     }
 
     async fn run(&mut self) -> Result<()> {
-        // let provider = eigensdk::utils::get_provider(&EIGENLAYER_HTTP_ENDPOINT);
-
-        // let keystore = self.env.keystore().map_err(|e| eyre!(e))?;
-
-        let ecdsa_subxt_key = self.env.first_ecdsa_signer().map_err(|e| eyre!(e))?;
-        let ecdsa_secret_key_bytes = ecdsa_subxt_key.signer().seed();
-        let ecdsa_secret_key =
-            SecretKey::from_slice(&ecdsa_secret_key_bytes).map_err(|e| eyre!(e))?;
-        let ecdsa_signing_key = SigningKey::from(&ecdsa_secret_key);
-        let ecdsa_key =
-            sp_core::ecdsa::Pair::from_seed_slice(&ecdsa_secret_key_bytes).map_err(|e| eyre!(e))?;
-
-        let priv_key_signer: PrivateKeySigner =
-            PrivateKeySigner::from_signing_key(ecdsa_signing_key);
+        // Get the ECDSA key from the private key seed using alloy
+        let signer: PrivateKeySigner = PRIVATE_KEY.parse().expect("failed to generate wallet ");
+        let wallet = EthereumWallet::from(signer);
 
         let identity = libp2p::identity::Keypair::ed25519_from_bytes(&mut SR_SECRET_BYTES.clone())
             .map_err(|e| eyre!("Unable to construct libp2p keypair: {e:?}"))?;
-
-        let network_config: NetworkConfig = NetworkConfig {
-            identity,
-            ecdsa_key,
-            bootnodes: vec![],
-            bind_ip: self.env.bind_addr,
-            bind_port: self.env.bind_port,
-            topics: vec!["__TESTING_INCREDIBLE_SQUARING".to_string()],
-        };
-
-        let _network: GossipHandle =
-            start_p2p_network(network_config).map_err(|e| eyre!(e.to_string()))?;
-
-        let wallet = EthereumWallet::from(priv_key_signer.clone());
 
         let contract_address = Address::from_slice(&[0; 20]);
         let provider = ProviderBuilder::new()
@@ -212,6 +197,8 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             contract_address,
             provider,
         );
+
+        info!("Starting the Incredible Squaring event handler");
         let x_square_eigen = XsquareEigenEventHandler::<NodeConfig> {
             contract: contract.into(),
         };
@@ -219,6 +206,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             .init_event_handler()
             .await
             .expect("Event Listener init already called");
+
         let res = finished.await;
         info!("Event handler finished with {res:?}");
         Ok(())

@@ -5745,6 +5745,7 @@ dependencies = [
  "ark-ec",
  "ark-ff 0.4.2",
  "async-trait",
+ "bip39",
  "blueprint-metadata",
  "color-eyre",
  "ed25519-zebra 4.0.3",
@@ -5762,6 +5763,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "uuid 1.10.0",
 ]
 
 [[package]]
