@@ -4454,14 +4454,16 @@ dependencies = [
 name = "gadget-blueprint-proc-macro"
 version = "0.1.2"
 dependencies = [
- "alloy-contract",
+ "async-trait",
  "gadget-blueprint-proc-macro-core",
+ "gadget-sdk",
  "indexmap 2.6.0",
  "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "serde_json",
  "syn 2.0.79",
+ "tracing",
  "trybuild",
 ]
 
@@ -5753,6 +5755,7 @@ dependencies = [
  "gadget-sdk",
  "hex",
  "k256",
+ "lazy_static",
  "libp2p",
  "lock_api",
  "parking_lot",

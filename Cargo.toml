@@ -11,7 +11,7 @@ members = [
     "sdk",
     "macros/blueprint-proc-macro",
     "macros/blueprint-proc-macro-core",
-    "macros/blueprint-proc-macro-playground",
+    "macros/playground",
     "macros/context-derive",
 ]
 exclude = [
@@ -137,6 +137,7 @@ url = { version = "2.5.2", default-features = false }
 w3f-bls = { version = "0.1.4", default-features = false }
 cid = { version = "0.11.1" }
 indexmap = "2.5.0"
+lazy_static = "1.5.0"
 
 alloy-primitives = "0.7.2"
 alloy-json-abi = "0.7.2"

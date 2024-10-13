@@ -15,6 +15,7 @@ tracing = { workspace = true }
 async-trait = { workspace = true }
 gadget-sdk = { workspace = true, features = ["std"] }
 color-eyre = { workspace = true }
+lazy_static = { workspace = true }
 lock_api = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["full"] }
 tokio-util = { workspace = true }

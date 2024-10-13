@@ -24,7 +24,7 @@ use gadget_sdk::{
     },
 };
 use incredible_squaring_blueprint_eigenlayer::{self, *};
-use incredible_squaring_blueprint_eigenlayer::{
+use incredible_squaring_blueprint_eigenlayer::constants::{
     AVS_DIRECTORY_ADDRESS, DELEGATION_MANAGER_ADDRESS, EIGENLAYER_HTTP_ENDPOINT,
     EIGENLAYER_WS_ENDPOINT, OPERATOR_ADDRESS, OPERATOR_METADATA_URL,
     OPERATOR_STATE_RETRIEVER_ADDRESS, PRIVATE_KEY, REGISTRY_COORDINATOR_ADDRESS, SIGNATURE_EXPIRY,
