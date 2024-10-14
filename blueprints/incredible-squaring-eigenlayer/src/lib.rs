@@ -30,7 +30,6 @@ use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
 use gadget_sdk::{events_watcher::evm::Config, info, job};
 use std::str::FromStr;
 use std::{convert::Infallible, env, ops::Deref, sync::OnceLock};
-use structopt::lazy_static::lazy_static;
 
 use k256::sha2::{self, Digest};
 use IncredibleSquaringTaskManager::{
@@ -38,6 +37,10 @@ use IncredibleSquaringTaskManager::{
 };
 
 pub mod constants;
+use constants::{
+    EIGENLAYER_HTTP_ENDPOINT, EIGENLAYER_WS_ENDPOINT, OPERATOR_ADDRESS,
+    OPERATOR_STATE_RETRIEVER_ADDRESS, PRIVATE_KEY, REGISTRY_COORDINATOR_ADDRESS,
+};
 
 // Codegen from ABI file to interact with the contract.
 sol!(
@@ -95,7 +98,11 @@ pub async fn xsquare_eigen(
 
     let provider = alloy_provider::ProviderBuilder::new()
         .with_recommended_fillers()
-        .on_http(EIGENLAYER_HTTP_ENDPOINT)
+        .on_http(
+            EIGENLAYER_HTTP_ENDPOINT
+                .parse()
+                .expect("Invalid HTTP endpoint"),
+        )
         .root()
         .clone()
         .boxed();
@@ -132,10 +139,10 @@ pub async fn xsquare_eigen(
     .unwrap();
     let avs_writer = AvsRegistryChainWriter::build_avs_registry_chain_writer(
         get_test_logger(),
-        http_endpoint.clone(),
-        private_key.to_string(),
-        registry_coordinator_address,
-        operator_state_retriever_address,
+        EIGENLAYER_HTTP_ENDPOINT.to_string(),
+        PRIVATE_KEY.to_string(),
+        *REGISTRY_COORDINATOR_ADDRESS,
+        *OPERATOR_STATE_RETRIEVER_ADDRESS,
     )
     .await
     .unwrap();
@@ -143,7 +150,7 @@ pub async fn xsquare_eigen(
     let operators_info = operatorsinfo_inmemory::OperatorInfoServiceInMemory::new(
         get_test_logger(),
         avs_registry_reader.clone(),
-        ws_endpoint,
+        EIGENLAYER_WS_ENDPOINT.to_string(),
     )
     .await;
 
@@ -309,7 +316,7 @@ pub async fn xsquare_eigen(
             },
             non_signer_stakes_and_signature,
         )
-        .from(operator_address)
+        .from(*OPERATOR_ADDRESS)
         .send()
         .await
         .unwrap()
@@ -322,13 +329,18 @@ pub async fn xsquare_eigen(
     assert!(receipt.status());
 
     // Transaction Manager
-    let tx_manager =
-        SimpleTxManager::new(get_test_logger(), 1.0, private_key, http_endpoint.as_str()).unwrap();
+    let tx_manager = SimpleTxManager::new(
+        get_test_logger(),
+        1.0,
+        PRIVATE_KEY.as_str(),
+        EIGENLAYER_HTTP_ENDPOINT.as_str(),
+    )
+    .unwrap();
 
     let chain_id = provider.get_chain_id().await.unwrap();
 
     let nonce = provider
-        .get_transaction_count(operator_address)
+        .get_transaction_count(*OPERATOR_ADDRESS)
         .await
         .unwrap();
 

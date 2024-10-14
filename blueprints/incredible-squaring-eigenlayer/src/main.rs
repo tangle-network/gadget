@@ -1,5 +1,5 @@
 use alloy_network::EthereumWallet;
-use alloy_primitives::{address, Address, Bytes, FixedBytes, U256};
+use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use alloy_provider::ProviderBuilder;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::{eyre::eyre, Result};
@@ -9,35 +9,19 @@ use eigensdk::client_elcontracts::writer::ELChainWriter;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
+use gadget_sdk::config::{ContextConfig, GadgetConfiguration};
 use gadget_sdk::events_watcher::InitializableEventHandler;
 use gadget_sdk::info;
-use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
-use gadget_sdk::keystore::backend::GenericKeyStore;
-use gadget_sdk::keystore::Backend;
-use gadget_sdk::keystore::BackendExt;
 use gadget_sdk::run::GadgetRunner;
-use gadget_sdk::{
-    config::{ContextConfig, GadgetConfiguration},
-    network::{
-        gossip::GossipHandle,
-        setup::{start_p2p_network, NetworkConfig},
-    },
-};
-use incredible_squaring_blueprint_eigenlayer::{self, *};
 use incredible_squaring_blueprint_eigenlayer::constants::{
     AVS_DIRECTORY_ADDRESS, DELEGATION_MANAGER_ADDRESS, EIGENLAYER_HTTP_ENDPOINT,
     EIGENLAYER_WS_ENDPOINT, OPERATOR_ADDRESS, OPERATOR_METADATA_URL,
     OPERATOR_STATE_RETRIEVER_ADDRESS, PRIVATE_KEY, REGISTRY_COORDINATOR_ADDRESS, SIGNATURE_EXPIRY,
-    SR_SECRET_BYTES, STRATEGY_MANAGER_ADDRESS,
+    STRATEGY_MANAGER_ADDRESS,
 };
-use k256::{ecdsa::SigningKey, SecretKey};
-use sp_core::Pair;
-use std::env;
+use incredible_squaring_blueprint_eigenlayer::{self, *};
 use std::path::Path;
-use std::path::PathBuf;
-use structopt::lazy_static::lazy_static;
 use structopt::StructOpt;
-use uuid::Uuid;
 
 pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
     pub env: GadgetConfiguration<R>,
@@ -153,9 +137,6 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         // Get the ECDSA key from the private key seed using alloy
         let signer: PrivateKeySigner = PRIVATE_KEY.parse().expect("failed to generate wallet ");
         let wallet = EthereumWallet::from(signer);
-
-        let identity = libp2p::identity::Keypair::ed25519_from_bytes(&mut SR_SECRET_BYTES.clone())
-            .map_err(|e| eyre!("Unable to construct libp2p keypair: {e:?}"))?;
 
         let contract_address = Address::from_slice(&[0; 20]);
         let provider = ProviderBuilder::new()

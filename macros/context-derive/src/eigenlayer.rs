@@ -23,12 +23,15 @@ pub fn generate_context_impl(
         impl #impl_generics gadget_sdk::ctx::EigenlayerContext for #name #ty_generics #where_clause {
             type Config = NodeConfig;
 
-            fn eigenlayer_provider(&self) -> impl core::future::Future<Output = Result<alloy_provider::ProviderBuilder<Self::Config::TH>, alloy_transport::TransportError>> {
+            fn eigenlayer_provider(&self) -> impl core::future::Future<Output = Result<alloy_provider::RootProvider<Self::Config::TH>, alloy_transport::TransportError>> {
                 async {
                     let http_endpoint = #field_access.eigenlayer_http_endpoint.clone();
                     let provider = alloy_provider::ProviderBuilder::new()
                         .with_recommended_fillers()
-                        .on_http(http_endpoint.parse().unwrap());
+                        .on_http(http_endpoint.parse().unwrap())
+                        .root()
+                        .clone()
+                        .boxed();
                     Ok(provider)
                 }
             }

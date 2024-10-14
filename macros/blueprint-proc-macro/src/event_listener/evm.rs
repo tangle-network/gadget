@@ -7,6 +7,7 @@ use crate::job::EventListenerArgs;
 pub(crate) fn get_instance_data(
     event_handler: &EventListenerArgs,
 ) -> (Ident, Ident, Ident, TokenStream) {
+    println!("Generating EVM event handler");
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
     let instance_wrapper_name = format_ident!("{}InstanceWrapper", instance_base);
@@ -120,7 +121,9 @@ pub(crate) fn generate_evm_event_handler(
             const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
 
             async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
+                println!("Initializing event handler for {}", stringify!(#struct_name));
                 #(#event_listener_calls)*
+                println!("Initialized event handler for {}", stringify!(#struct_name));
                 #combined_event_listener
             }
 
@@ -130,7 +133,7 @@ pub(crate) fn generate_evm_event_handler(
                 use alloy_sol_types::SolInterface;
 
                 let contract = &self.contract;
-
+                println!("Handling event log {:?}", log.inner);
                 // Convert the event to inputs
                 let decoded: alloy_primitives::Log<Self::Event> = <Self::Event as SolEvent>::decode_log(&log.inner, true)?;
                 // Convert the event to inputs using the event converter.

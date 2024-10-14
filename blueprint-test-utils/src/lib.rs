@@ -458,8 +458,12 @@ mod test_macros {
 mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
-    use alloy_primitives::Bytes;
-    use alloy_provider::Provider;
+    use alloy_contract::{CallBuilder, CallDecoder};
+    use alloy_primitives::{address, Bytes, U256};
+    use alloy_provider::{network::Ethereum, Provider};
+    use alloy_rpc_types::eth::TransactionReceipt;
+    use alloy_transport::{Transport, TransportResult};
+
     use cargo_tangle::deploy::Opts;
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
@@ -572,34 +576,30 @@ mod tests_standard {
         "./../blueprints/incredible-squaring-eigenlayer/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
     );
 
+    pub async fn get_receipt<T, P, D>(
+        call: CallBuilder<T, P, D, Ethereum>,
+    ) -> TransportResult<TransactionReceipt>
+    where
+        T: Transport + Clone,
+        P: Provider<T, Ethereum>,
+        D: CallDecoder,
+    {
+        let pending_tx = call.send().await.unwrap();
+        let receipt = pending_tx.get_receipt().await?;
+
+        Ok(receipt)
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::needless_return)]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
-        // let mut base_path = std::env::current_dir().expect("Failed to get current directory");
-        //
-        // base_path.push("../blueprints/incredible-squaring");
-        // base_path
-        //     .canonicalize()
-        //     .expect("File could not be normalized");
-
-        // let manifest_path = base_path.join("Cargo.toml");
-
-        // const INPUT: u64 = 2;
-        // const OUTPUT: u64 = INPUT.pow(2);
-
         let (_container, http_endpoint, ws_endpoint) = anvil::start_anvil_container(true).await;
-
-        // let http_endpoint = "http://127.0.0.1:8545".to_string();
-        // let ws_endpoint = "ws://127.0.0.1:8545".to_string();
-
         std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
         std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint);
 
         // Sleep to give the testnet time to spin up
         tokio::time::sleep(Duration::from_secs(1)).await;
-
-        // let http_endpoint = "http://127.0.0.1:8545";
 
         // Create a provider using the transport
         let provider = alloy_provider::ProviderBuilder::new()
@@ -609,9 +609,7 @@ mod tests_standard {
             .clone()
             .boxed();
         let accounts = provider.get_accounts().await.unwrap();
-        info!("Accounts: {:?}", accounts);
-
-        use alloy_primitives::address;
+        println!("{:?}", accounts);
         // let service_manager_addr = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
         let registry_coordinator_addr = address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
         // let operator_state_retriever_addr = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
@@ -635,27 +633,26 @@ mod tests_standard {
             strategy: erc20_mock_addr,
             multiplier: 1,
         };
-        let _ = registry_coordinator
-            .createQuorum(operator_set_params, 0, vec![strategy_params])
-            .send()
-            .await
-            .unwrap();
+        let _receipt = get_receipt(registry_coordinator.createQuorum(
+            operator_set_params,
+            0,
+            vec![strategy_params],
+        ))
+        .await
+        .unwrap();
 
         // Deploy the Incredible Squaring Task Manager to the running Testnet
-        let task_manager_addr =
+        let task_manager_addr = get_receipt(
             super::tests_standard::IncredibleSquaringTaskManager::deploy_builder(
                 provider.clone(),
                 registry_coordinator_addr,
                 10u32,
-            )
-            .send()
-            .await
-            .unwrap()
-            .get_receipt()
-            .await
-            .unwrap()
-            .contract_address
-            .unwrap();
+            ),
+        )
+        .await
+        .unwrap()
+        .contract_address
+        .unwrap();
         info!("Task Manager: {:?}", task_manager_addr);
         std::env::set_var("TASK_MANAGER_ADDR", task_manager_addr.to_string());
 
@@ -664,19 +661,14 @@ mod tests_standard {
         let task_generator_address = accounts[4];
 
         // Initialize the Incredible Squaring Task Manager
-        let init_receipt = task_manager
-            .initialize(
-                pauser_registry_addr,
-                accounts[1],
-                accounts[0],
-                task_generator_address,
-            )
-            .send()
-            .await
-            .unwrap()
-            .get_receipt()
-            .await
-            .unwrap();
+        let init_receipt = get_receipt(task_manager.initialize(
+            pauser_registry_addr,
+            accounts[1],
+            accounts[0],
+            task_generator_address,
+        ))
+        .await
+        .unwrap();
         assert!(init_receipt.status());
 
         // Start the Task Spawner
@@ -685,31 +677,23 @@ mod tests_standard {
         let task_spawner = async move {
             loop {
                 tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
-                let result = task_manager
-                    .createNewTask(
-                        alloy_primitives::U256::from(2),
-                        100u32,
-                        alloy_primitives::Bytes::from(vec![0]),
-                    )
-                    .from(task_generator_address)
-                    .send()
-                    .await
-                    .unwrap()
-                    .get_receipt()
-                    .await
-                    .unwrap();
+                let result = get_receipt(
+                    task_manager
+                        .createNewTask(U256::from(2), 100u32, Bytes::from(vec![0]))
+                        .from(task_generator_address),
+                )
+                .await
+                .unwrap();
                 if result.status() {
                     info!("Deployed a new task");
                 }
 
-                let result = registry_coordinator
-                    .updateOperatorsForQuorum(operators.clone(), quorums.clone())
-                    .send()
-                    .await
-                    .unwrap()
-                    .get_receipt()
-                    .await
-                    .unwrap();
+                let result = get_receipt(
+                    registry_coordinator
+                        .updateOperatorsForQuorum(operators.clone(), quorums.clone()),
+                )
+                .await
+                .unwrap();
                 if result.status() {
                     info!("Updated operators for quorum 0");
                 }

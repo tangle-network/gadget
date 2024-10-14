@@ -1780,6 +1780,7 @@ dependencies = [
  "alloy-contract",
  "alloy-primitives",
  "alloy-provider",
+ "alloy-rpc-types",
  "alloy-rpc-types-eth",
  "alloy-sol-types",
  "alloy-transport",
