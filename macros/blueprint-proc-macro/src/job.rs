@@ -21,6 +21,7 @@ mod kw {
     syn::custom_keyword!(protocol);
     syn::custom_keyword!(instance);
     syn::custom_keyword!(event);
+    syn::custom_keyword!(event_type);
     syn::custom_keyword!(event_converter);
     syn::custom_keyword!(callback);
     syn::custom_keyword!(skip_codegen);
@@ -67,7 +68,11 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     }
 
     let param_types = param_types(input)?;
-    let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled };
+    let event_type = if let Some(event_type) = &args.event_type {
+        quote! { #event_type }
+    } else {
+        quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled }
+    };
     let (event_listener_gen, event_listener_calls) = generate_event_listener_tokenstream(
         input,
         &event_type,
@@ -97,6 +102,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
             &result_type,
             SUFFIX,
             event_listener_calls,
+            &event_type,
         )
     };
 
@@ -206,7 +212,6 @@ pub(crate) fn generate_event_listener_tokenstream(
                     // convert the listener var, which is just a struct name, to an ident
                     let listener = listener_meta.listener.to_token_stream();
                     // if Listener == TangleEventListener or EvmContractEventListener, we need to use defaults
-                    let listener_str = listener.to_string();
                     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
 
                     let type_args = if is_tangle {
@@ -224,9 +229,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                     let autogen_struct_name = quote! { #struct_name #type_args };
 
                     // Check for special cases
-                    let next_listener = if listener_str.contains("TangleEventListener")
-                        || listener_str.contains("EvmContractEventListener")
-                    {
+                    let next_listener = if listener_meta.is_special_case {
                         // How to inject not just this event handler, but all event handlers here?
                         let wrapper = if is_tangle {
                             quote! {
@@ -281,7 +284,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                             }
                         }
                     } else {
-                        // Generate the variable that we are passing as the context into EventListener::create(&mut ctx)
+                        // Generate the variable that we are passing as the context into EventListener::create(&ctx)
                         // We assume the first supplied event handler arg is the context we are injecting into the event listener
                         let context = event_handler_args
                             .first()
@@ -366,7 +369,7 @@ fn generate_fn_name_and_struct<'a>(f: &'a ItemFn, suffix: &'a str) -> (&'a Ident
 }
 
 /// Generates the [`EventHandler`](gadget_sdk::events_watcher::evm::EventHandler) for a Job
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines, clippy::too_many_arguments)]
 pub fn generate_event_handler_for(
     input: &ItemFn,
     job_args: &JobArgs,
@@ -375,6 +378,7 @@ pub fn generate_event_handler_for(
     result: &[FieldType],
     suffix: &str,
     event_listener_calls: Vec<proc_macro2::TokenStream>,
+    event_type: &proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
     let (fn_name, fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
     let job_id = &job_args.id;
@@ -516,6 +520,7 @@ pub fn generate_event_handler_for(
             &additional_params,
             &fn_call,
             &event_listener_calls,
+            event_type,
         )
     }
 }
@@ -523,23 +528,37 @@ pub fn generate_event_handler_for(
 /// `JobArgs` type to handle parsing of attributes
 pub(crate) struct JobArgs {
     /// Unique identifier for the job in the blueprint
+    ///
     /// `#[job(id = 1)]`
     id: LitInt,
     /// List of parameters for the job, in order.
+    ///
     /// `#[job(params(a, b, c))]`
     params: Vec<Ident>,
     /// List of return types for the job, could be inferred from the function return type.
+    ///
     /// `#[job(result(u32, u64))]`
+    ///
     /// `#[job(result(_))]`
     result: ResultsKind,
     /// Optional: Verifier for the job result, currently only supports EVM verifier.
+    ///
     /// `#[job(verifier(evm = "MyVerifierContract"))]`
     verifier: Verifier,
+    /// Optional: Event type for the job
+    ///
+    /// `#[job(event_type = "MyEvent")]`
+    ///
+    /// If omitted, this will default to Tangle's JobCalled Event
+    event_type: Option<Type>,
     /// Optional: Event listener type for the job
+    ///
     /// `#[job(event_listener(MyCustomListener))]`
     event_listener: EventListenerArgs,
     /// Optional: Skip code generation for this job.
+    ///
     /// `#[job(skip_codegen)]`
+    ///
     /// this is useful if the developer want to impl a custom event handler
     /// for this job.
     skip_codegen: bool,
@@ -553,6 +572,7 @@ impl Parse for JobArgs {
         let mut verifier = Verifier::None;
         let mut skip_codegen = false;
         let mut event_listener = EventListenerArgs { listeners: None };
+        let mut event_type = None;
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
@@ -575,6 +595,10 @@ impl Parse for JobArgs {
                 let _ = input.parse::<Token![,]>()?;
             } else if lookahead.peek(kw::event_listener) {
                 event_listener = input.parse()?;
+            } else if input.peek(kw::event_type) {
+                let _ = input.parse::<kw::event_type>()?;
+                let _ = input.parse::<Token![=]>()?;
+                event_type = Some(input.parse()?);
             } else {
                 return Err(lookahead.error());
             }
@@ -600,6 +624,7 @@ impl Parse for JobArgs {
             result,
             verifier,
             skip_codegen,
+            event_type,
             event_listener,
         })
     }
@@ -723,6 +748,7 @@ pub(crate) struct EventListenerArgs {
 pub(crate) struct SingleListener {
     pub listener: TypePath,
     pub evm_args: Option<EvmArgs>,
+    pub is_special_case: bool,
 }
 
 // Implement Parse for EventListener. kw::event_listener exists in the kw module.
@@ -746,16 +772,25 @@ impl Parse for EventListenerArgs {
             // or, have some with the format: event_listener(EvmContractEventListener(instance = IncredibleSquaringTaskManager, event = IncredibleSquaringTaskManager::NewTaskCreated, event_converter = convert_event_to_inputs, callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask), MyCustomListener, MyCustomListener2)
             // So, in case 1, we have the unique case where the first value is "EvmContractEventListener". If so, we need to parse the argument
             // tokens like we do below. Otherwise, we just push the listener into the listeners vec
-            if listener_tokens.to_string() == "EvmContractEventListener" {
+            let name = listener_tokens.to_string();
+            if name == "EvmContractEventListener" {
                 let evm_args = content.parse::<EvmArgs>()?;
                 listeners.push(SingleListener {
                     listener,
                     evm_args: Some(evm_args),
+                    is_special_case: true,
+                });
+            } else if name == "TangleEventListener" {
+                listeners.push(SingleListener {
+                    listener,
+                    evm_args: None,
+                    is_special_case: true,
                 });
             } else {
                 listeners.push(SingleListener {
                     listener,
                     evm_args: None,
+                    is_special_case: false,
                 });
             }
 
