@@ -27,6 +27,7 @@ use eigensdk::logging::get_test_logger;
 use eigensdk::services_avsregistry::chaincaller;
 use eigensdk::services_blsaggregation::bls_agg;
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
+use gadget_sdk::event_listener::evm_contracts::EthereumWatcherWrapper;
 use gadget_sdk::load_abi;
 use gadget_sdk::{events_watcher::evm::Config, info, job};
 use k256::sha2::{self, Digest};

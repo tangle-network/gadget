@@ -231,11 +231,11 @@ pub(crate) fn generate_event_listener_tokenstream(
                         // How to inject not just this event handler, but all event handlers here?
                         let wrapper = if is_tangle {
                             quote! {
-                                gadget_sdk::event_listener::SubstrateWatcherWrapper<#event_type>
+                                gadget_sdk::event_listener::tangle_events::SubstrateWatcherWrapper<#event_type>
                             }
                         } else {
                             quote! {
-                                gadget_sdk::event_listener::EthereumWatcherWrapper<#autogen_struct_name, _>
+                                gadget_sdk::event_listener::evm_contracts::EthereumWatcherWrapper<#autogen_struct_name, _>
                             }
                         };
 
