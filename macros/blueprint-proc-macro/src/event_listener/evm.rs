@@ -36,6 +36,7 @@ pub(crate) fn generate_evm_event_handler(
     let ev = event_handler.event().unwrap();
     let event_converter = event_handler.event_converter().unwrap();
     let callback = event_handler.callback().unwrap();
+    let abi_string = event_handler.abi().unwrap();
     let combined_event_listener =
         crate::job::generate_combined_event_listener_selector(struct_name);
 
@@ -83,7 +84,7 @@ pub(crate) fn generate_evm_event_handler(
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
                 self.contract_instance.get_or_init(|| {
                     let instance_string = stringify!(instance_name);
-                    let abi_path = format!("../contracts/out/{instance_string}.sol/{instance_string}.json");
+                    let abi_path = format!("{}../contracts/out/{instance_string}.sol/{instance_string}.json", #abi_string);
                     let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&abi_path).unwrap());
                     ContractInstance::new(
                         self.instance.address().clone(),

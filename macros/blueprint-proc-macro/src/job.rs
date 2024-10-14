@@ -23,6 +23,7 @@ mod kw {
     syn::custom_keyword!(event);
     syn::custom_keyword!(event_converter);
     syn::custom_keyword!(callback);
+    syn::custom_keyword!(abi);
     syn::custom_keyword!(skip_codegen);
 }
 
@@ -809,6 +810,7 @@ pub(crate) struct EvmArgs {
     event: Option<Type>,
     event_converter: Option<Type>,
     callback: Option<Type>,
+    abi: Option<Type>,
 }
 
 impl EventListenerArgs {
@@ -858,6 +860,14 @@ impl EventListenerArgs {
             None => None,
         }
     }
+
+    /// Returns the ABI for the contract instance.
+    pub fn abi(&self) -> Option<Type> {
+        match self.get_evm() {
+            Some(EvmArgs { abi, .. }) => abi.clone(),
+            None => None,
+        }
+    }
 }
 
 impl Parse for EvmArgs {
@@ -869,6 +879,7 @@ impl Parse for EvmArgs {
         let mut event = None;
         let mut event_converter = None;
         let mut callback = None;
+        let mut abi = None;
 
         while !content.is_empty() {
             if content.peek(kw::instance) {
@@ -887,6 +898,10 @@ impl Parse for EvmArgs {
                 let _ = content.parse::<kw::callback>()?;
                 let _ = content.parse::<Token![=]>()?;
                 callback = Some(content.parse::<Type>()?);
+            } else if content.peek(kw::abi) {
+                let _ = content.parse::<kw::abi>()?;
+                let _ = content.parse::<Token![=]>()?;
+                abi = Some(content.parse::<Type>()?);
             } else if content.peek(Token![,]) {
                 let _ = content.parse::<Token![,]>()?;
             } else {
@@ -899,6 +914,7 @@ impl Parse for EvmArgs {
             event,
             event_converter,
             callback,
+            abi,
         })
     }
 }

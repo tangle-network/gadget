@@ -81,7 +81,7 @@ pub async fn start_anvil_container(
     let ws_endpoint = format!("ws://localhost:{}", port);
     println!("Anvil WS endpoint: {}", ws_endpoint);
 
-    mine_anvil_blocks(&container, 200).await;
+    mine_anvil_blocks(&container, 1).await;
 
     (container, http_endpoint, ws_endpoint)
 }

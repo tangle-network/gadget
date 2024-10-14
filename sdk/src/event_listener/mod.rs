@@ -115,15 +115,21 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
     where
         Self: Sized,
     {
-        println!("event_listener/mod.rs | Initializing event handler for {}", std::any::type_name::<Watcher>());
+        println!(
+            "event_listener/mod.rs | Initializing event handler for {}",
+            std::any::type_name::<Watcher>()
+        );
         let provider = context.0.provider().root();
         println!("event_listener/mod.rs | Root provider initialized");
         // Add more detailed error handling and logging
         let chain_id: u64 = match provider.get_chain_id().await {
             Ok(id) => {
-                println!("event_listener/mod.rs | Successfully retrieved chain ID: {}", id);
+                println!(
+                    "event_listener/mod.rs | Successfully retrieved chain ID: {}",
+                    id
+                );
                 id
-            },
+            }
             Err(err) => {
                 println!("event_listener/mod.rs | Error getting chain ID: {:?}", err);
                 return Err(Error::Client(format!("Failed to get chain ID: {}", err)));

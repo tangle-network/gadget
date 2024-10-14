@@ -28,10 +28,12 @@ use eigensdk::services_avsregistry::chaincaller;
 use eigensdk::services_blsaggregation::bls_agg;
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
 use gadget_sdk::{events_watcher::evm::Config, info, job};
+use k256::sha2::{self, Digest};
+use serde_json::Value;
+use std::env;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::{convert::Infallible, ops::Deref, sync::OnceLock};
-
-use k256::sha2::{self, Digest};
 use IncredibleSquaringTaskManager::{
     respondToTaskCall, NonSignerStakesAndSignature, Task, TaskResponse,
 };
@@ -49,6 +51,8 @@ sol!(
     IncredibleSquaringTaskManager,
     "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
 );
+
+const CONTRACTS_PATH: &str = "../../blueprints/incredible-squaring-eigenlayer";
 
 #[derive(Debug, Clone)]
 pub struct NodeConfig {}
@@ -75,7 +79,8 @@ impl Config for NodeConfig {
         instance = IncredibleSquaringTaskManager,
         event = IncredibleSquaringTaskManager::NewTaskCreated,
         event_converter = convert_event_to_inputs,
-        callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
+        callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask,
+        abi = CONTRACTS_PATH,
     )),
 )]
 pub async fn xsquare_eigen(

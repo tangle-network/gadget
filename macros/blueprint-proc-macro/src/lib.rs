@@ -13,6 +13,8 @@
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
+/// Abi proc-macro
+mod abi;
 /// Benchmarking proc-macro
 mod benchmark;
 /// Blueprint Hooks proc-macro
@@ -33,7 +35,7 @@ mod tangle;
 ///
 /// # Example
 /// ```rust,no_run
-/// # use gadget_blueprint_proc_macro::job;
+/// use gadget_blueprint_proc_macro::job;
 ///
 /// /// A simple add function that adds two numbers.
 /// #[job(id = 0, params(a, b), result(u32))]
@@ -91,7 +93,7 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Example
 /// ```rust
-/// # use gadget_blueprint_proc_macro::report;
+/// use gadget_blueprint_proc_macro::report;
 /// #[report(id = 1, params(a, b, c), result(u32))]
 /// pub fn report_add(a: u32, b: u32, c: SignedResult<u32>) -> u32 {
 ///    if a + b == c {
@@ -152,7 +154,7 @@ pub fn report(args: TokenStream, input: TokenStream) -> TokenStream {
 /// for the metadata in the `blueprint.json`.
 /// # Example
 /// ```rust,no_run
-/// # use gadget_blueprint_proc_macro::registration_hook;
+/// use gadget_blueprint_proc_macro::registration_hook;
 /// #[registration_hook(evm = "MyRegistrationHook")]
 /// pub fn my_registration_hook();
 /// ```
@@ -170,7 +172,7 @@ pub fn registration_hook(args: TokenStream, input: TokenStream) -> TokenStream {
 /// for the metadata in the `blueprint.json`.
 /// # Example
 /// ```rust,no_run
-/// # use gadget_blueprint_proc_macro::request_hook;
+/// use gadget_blueprint_proc_macro::request_hook;
 /// #[request_hook(evm = "MyRequestHook")]
 /// pub fn my_request_hook();
 /// ```
@@ -189,7 +191,7 @@ pub fn request_hook(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Example
 /// ```rust,no_run
-/// # use gadget_blueprint_proc_macro::benchmark;
+/// use gadget_blueprint_proc_macro::benchmark;
 /// #[benchmark(job_id = 1, cores = 4)]
 /// pub fn my_job() {
 ///   // call your job with the necessary parameters
@@ -203,4 +205,16 @@ pub fn benchmark(args: TokenStream, input: TokenStream) -> TokenStream {
         Ok(tokens) => tokens,
         Err(err) => err.to_compile_error().into(),
     }
+}
+
+/// A procedural macro that outputs the JsonAbi for the given file path.
+///
+/// # Example
+/// ```rust,no_run
+/// use gadget_blueprint_proc_macro::load_abi;
+/// let abi = load_abi!("path/to/abi.json");
+/// ```
+#[proc_macro]
+pub fn load_abi(input: TokenStream) -> TokenStream {
+    abi::load_abi(input)
 }
