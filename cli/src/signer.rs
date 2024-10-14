@@ -44,7 +44,7 @@ generally be equivalent to no password at all.
 
 /// Loads the Substrate Signer from the environment.
 pub fn load_signer_from_env() -> Result<TanglePairSigner> {
-    let secret = std::env::var(SIGNER_ENV)
+    let s = std::env::var(SIGNER_ENV)
         .with_suggestion(|| {
             format!(
                 "Please set the signer SURI in the environment using the `{SIGNER_ENV}` variable.",
@@ -52,17 +52,8 @@ pub fn load_signer_from_env() -> Result<TanglePairSigner> {
         })
         .note(SURI_HELP_MSG)?;
 
-    let uri = SecretUri::from_str(&secret)
-        .with_context(|| "Parsing the SURI into a Secret Key")
-        .note(SURI_HELP_MSG)?;
-
-    let sp_core_keypair = sp_core::sr25519::Pair::from_phrase(
-        uri.phrase.expose_secret(),
-        uri.password.as_ref().map(|r| r.expose_secret().as_str()),
-    )?;
-    Ok(TanglePairSigner::new(
-        sp_core_keypair.0.as_ref().clone().into(),
-    ))
+    let sp_core_keypair = sp_core::sr25519::Pair::from_string(&*s, None)?;
+    Ok(TanglePairSigner::new(sp_core_keypair))
 }
 
 /// Loads the EVM Signer from the environment.
