@@ -265,9 +265,9 @@ pub(crate) fn generate_event_listener_tokenstream(
                                     ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
                                     let (tx, rx) = gadget_sdk::tokio::sync::oneshot::channel();
                                     let ctx = #ctx_create;
-                                    println!("Initializing event listener wrapper for {}", stringify!(#struct_name));
+                                    println!("job.rs | Initializing event listener wrapper for {}", stringify!(#struct_name));
                                     let mut instance = <#wrapper as gadget_sdk::event_listener::EventListener::<_, _>>::new(&ctx).await.expect("Failed to create event listener");
-                                    println!("Executing event listener task for {}", stringify!(#struct_name));
+                                    println!("job.rs | Executing event listener task for {}", stringify!(#struct_name));
                                     let task = async move {
                                         if let Err(err) = gadget_sdk::event_listener::EventListener::<_, _>::execute(&mut instance).await {
                                             gadget_sdk::error!("Error in event listener (now closing): {err}");
@@ -276,7 +276,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                                         let _ = tx.send(());
                                     };
                                     gadget_sdk::tokio::task::spawn(task);
-                                    println!("Initialized event handler for {}", stringify!(#struct_name));
+                                    println!("job.rs | Initialized event handler for {}", stringify!(#struct_name));
                                     return Some(rx)
                                 }
 

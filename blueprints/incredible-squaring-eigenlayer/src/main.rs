@@ -1,5 +1,6 @@
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
+use alloy_provider::Provider;
 use alloy_provider::ProviderBuilder;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::{eyre::eyre, Result};
@@ -136,16 +137,25 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         let signer: PrivateKeySigner = PRIVATE_KEY.parse().expect("failed to generate wallet ");
         let wallet = EthereumWallet::from(signer);
 
-        let contract_address = Address::from_slice(&[0; 20]);
+        let task_manager_address = std::env::var("TASK_MANAGER_ADDR")
+            .expect("TASK_MANAGER_ADDR not set")
+            .parse()
+            .expect("Failed to parse TASK_MANAGER_ADDR");
+
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_http(self.env.rpc_endpoint.parse()?);
+            .on_http(EIGENLAYER_HTTP_ENDPOINT.parse().unwrap());
 
         let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
-            contract_address,
+            task_manager_address,
             provider,
         );
+
+        // Get the chain ID
+        let chain_id = contract.provider().root().get_chain_id().await.unwrap();
+
+        info!("Connected to chain with ID: {}", chain_id);
 
         let x_square_eigen = XsquareEigenEventHandler::<NodeConfig> {
             contract: contract.into(),
