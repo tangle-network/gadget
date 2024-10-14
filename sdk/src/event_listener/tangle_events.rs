@@ -66,6 +66,7 @@ pub struct SubstrateWatcherWrapper<Evt: Send + Sync + 'static> {
 }
 
 pub type SubstrateWatcherWrapperContext<Evt> = (TangleClient, EventHandlerFor<TangleConfig, Evt>);
+
 #[async_trait]
 impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
     EventListener<HashMap<usize, Vec<Evt>>, SubstrateWatcherWrapperContext<Evt>>
@@ -75,13 +76,13 @@ impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
     where
         Self: Sized,
     {
-        let (client, handlers) = ctx;
+        let (client, handler) = ctx;
         let listener = Mutex::new(client.blocks().subscribe_finalized().await?);
         Ok(Self {
             listener,
             client: client.clone(),
             current_block: None,
-            handlers: vec![handlers.clone()],
+            handlers: vec![handler.clone()],
         })
     }
 
