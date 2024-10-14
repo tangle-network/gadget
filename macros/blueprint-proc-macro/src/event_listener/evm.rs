@@ -83,9 +83,7 @@ pub(crate) fn generate_evm_event_handler(
             #[allow(clippy::clone_on_copy)]
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
                 self.contract_instance.get_or_init(|| {
-                    let instance_string = stringify!(instance_name);
-                    let abi_path = format!("{}../contracts/out/{instance_string}.sol/{instance_string}.json", #abi_string);
-                    let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&abi_path).unwrap());
+                    let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&#abi_string).unwrap());
                     ContractInstance::new(
                         self.instance.address().clone(),
                         self.instance.provider().clone(),

@@ -27,6 +27,7 @@ use eigensdk::logging::get_test_logger;
 use eigensdk::services_avsregistry::chaincaller;
 use eigensdk::services_blsaggregation::bls_agg;
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
+use gadget_sdk::load_abi;
 use gadget_sdk::{events_watcher::evm::Config, info, job};
 use k256::sha2::{self, Digest};
 use serde_json::Value;
@@ -52,7 +53,10 @@ sol!(
     "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
 );
 
-const CONTRACTS_PATH: &str = "../../blueprints/incredible-squaring-eigenlayer";
+load_abi!(
+    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+    "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
+);
 
 #[derive(Debug, Clone)]
 pub struct NodeConfig {}
@@ -80,7 +84,7 @@ impl Config for NodeConfig {
         event = IncredibleSquaringTaskManager::NewTaskCreated,
         event_converter = convert_event_to_inputs,
         callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask,
-        abi = CONTRACTS_PATH,
+        abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
     )),
 )]
 pub async fn xsquare_eigen(
