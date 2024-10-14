@@ -115,6 +115,7 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
     where
         Self: Sized,
     {
+        println!("Initializing event handler for {}", std::any::type_name::<Watcher>());
         let chain_id: u64 = context
             .0
             .provider()
