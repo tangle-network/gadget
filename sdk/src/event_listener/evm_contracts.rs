@@ -1,10 +1,12 @@
 use crate::event_listener::get_exponential_backoff;
 use crate::events_watcher::evm::{Config as ConfigT, EvmEventHandler};
 use crate::store::LocalDatabase;
-use crate::{error, trace, warn, Error};
+use crate::{error, info, trace, warn, Error};
+use alloy_contract::Event;
 use alloy_network::ReceiptResponse;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockNumberOrTag, Filter};
+use alloy_sol_types::SolEvent;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio_retry::Retry;
@@ -68,24 +70,16 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
     }
 
     async fn next_event(&mut self) -> Option<Vec<(Watcher::Event, alloy_rpc_types::Log)>> {
-        println!("next_event | Starting next_event function");
         let contract = &self.contract;
         let step = 100;
 
-        println!("next_event | Attempting to get target block number");
         self.target_block_number = Some(contract.provider().get_block_number().await.ok()?);
-        println!(
-            "next_event | Retrieved target block number: {:?}",
-            self.target_block_number
-        );
 
         self.local_db.set(
             &format!("TARGET_BLOCK_NUMBER_{:?}", contract.address()),
             self.target_block_number.expect("qed"),
         );
-        println!("next_event | Set target block number in local_db");
 
-        println!("next_event | Attempting to get deployed_at block number");
         let deployed_at = contract
             .provider()
             .get_transaction_receipt(Watcher::GENESIS_TX_HASH)
@@ -93,45 +87,36 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
             .ok()?
             .map(|receipt| receipt.block_number().unwrap_or_default())
             .unwrap_or_default();
-        println!("next_event | Retrieved deployed_at block number: {}", deployed_at);
-
+        let loop_provider = contract.provider().clone();
         loop {
-            println!("next_event | Entering loop to fetch events");
             let block = self
                 .local_db
                 .get(&format!("LAST_BLOCK_NUMBER_{}", contract.address()))
                 .unwrap_or(deployed_at);
-            println!("next_event | Current block: {}", block);
 
             self.dest_block = Some(core::cmp::min(
                 block + step,
                 self.target_block_number.expect("qed"),
             ));
-            println!("next_event | Destination block: {:?}", self.dest_block);
 
-            let events_filter = contract.event::<Watcher::Event>(
-                Filter::new()
+            let events_filter: Event<_, _, Watcher::Event, _> =
+                Event::new(&loop_provider, Filter::new())
+                    .address(*contract.address())
                     .from_block(BlockNumberOrTag::Number(block + 1))
-                    .to_block(BlockNumberOrTag::Number(self.dest_block.expect("qed"))),
-            );
-            println!("next_event | Created events filter");
+                    .to_block(BlockNumberOrTag::Number(self.dest_block.unwrap()))
+                    .event_signature(Watcher::Event::SIGNATURE_HASH);
 
-            let events = match events_filter.query().await {
-                Ok(events) => events,
-                Err(err) => {
-                    println!("next_event | Error querying events: {:?}", err);
-                    return None;
-                }
-            };
-            println!("next_event | Queried events: {:?}", events.len());
+            let events = events_filter.query().await.unwrap();
 
-            let events: Vec<_> = events.into_iter().collect();
-            if events.is_empty() {
-                println!("next_event | No events found, continuing loop");
-                continue;
+            let number_of_events = events.len();
+            if number_of_events == 1 {
+                info!("Found {number_of_events} event");
+            } else {
+                info!("Found {number_of_events} events");
             }
 
-            println!("next_event | Events found, returning events");
+            let events: Vec<_> = events.into_iter().collect();
+
             return Some(events);
         }
     }
@@ -143,7 +128,10 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
         const MAX_RETRIES: usize = 5;
         let mut tasks = vec![];
         let current_block_number = events[0].1.block_number;
-        println!("evm_contracts.rs | current block number {:?}", current_block_number);
+        println!(
+            "evm_contracts.rs | current block number {:?}",
+            current_block_number
+        );
         for (event, log) in &events {
             let backoff = get_exponential_backoff::<MAX_RETRIES>();
             let handler = self.handler.clone();
@@ -236,6 +224,10 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
 impl<Config: ConfigT, Watcher: EvmEventHandler<Config>> EthereumWatcherWrapper<Watcher, Config> {
     async fn run_event_loop(&mut self) -> Result<(), Error> {
         while let Some(events) = self.next_event().await {
+            if events.is_empty() {
+                continue;
+            }
+
             self.handle_event(events).await?;
         }
 

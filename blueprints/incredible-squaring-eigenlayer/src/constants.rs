@@ -25,6 +25,9 @@ lazy_static! {
         address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
     pub static ref AVS_DIRECTORY_ADDRESS: Address =
         address!("0000000000000000000000000000000000000000");
+    pub static ref TASK_MANAGER_ADDRESS: Address = env::var("TASK_MANAGER_ADDRESS")
+        .map(|addr| addr.parse().expect("Invalid TASK_MANAGER_ADDRESS"))
+        .unwrap_or_else(|_| address!("0000000000000000000000000000000000000000"));
     pub static ref OPERATOR_ADDRESS: Address = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92267");
     pub static ref OPERATOR_METADATA_URL: String =
         "https://github.com/tangle-network/gadget".to_string();
