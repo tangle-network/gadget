@@ -84,6 +84,7 @@ pub(crate) fn generate_evm_event_handler(
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
                 self.contract_instance.get_or_init(|| {
                     let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&#abi_string).unwrap());
+                    println!("{:?}", abi_location);
                     ContractInstance::new(
                         self.instance.address().clone(),
                         self.instance.provider().clone(),
@@ -154,7 +155,6 @@ pub(crate) fn generate_evm_event_handler(
                 // TODO: Check if the callback is None
                 // if let Some(cb) = #callback {
                 //     let call = cb(job_result);
-                //
                 //     // Submit the transaction
                 //     let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
                 //     tx.watch().await?;

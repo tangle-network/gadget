@@ -35,47 +35,6 @@ pub trait EventListener<T: Send + Sync + 'static, Ctx: Send + Sync + 'static>:
     }
 }
 
-pub struct GenericEventListener<
-    Event: Send + Sync + 'static,
-    Ctx: Send + Sync + 'static,
-    Ext: Send + Sync + 'static = (),
-> {
-    listener: Box<dyn EventListener<Event, Ctx>>,
-    _pd: std::marker::PhantomData<Ext>,
-}
-
-#[async_trait]
-impl<Event: Send + Sync + 'static, Ctx: Send + Sync + 'static, Ext: Send + Sync + 'static>
-    EventListener<Event, Ctx> for GenericEventListener<Event, Ctx, Ext>
-{
-    async fn new(_ctx: &Ctx) -> Result<Self, Error>
-    where
-        Self: Sized,
-    {
-        unreachable!(
-            "This function should not be called directly. This is for internal dev use only"
-        )
-    }
-    async fn next_event(&mut self) -> Option<Event> {
-        self.listener.next_event().await
-    }
-
-    async fn handle_event(&mut self, event: Event) -> Result<(), Error> {
-        self.listener.handle_event(event).await
-    }
-}
-
-impl<Event: Send + Sync + 'static, Ctx: Send + Sync + 'static, Ext: Send + Sync + 'static>
-    GenericEventListener<Event, Ctx, Ext>
-{
-    pub fn new<T: EventListener<Event, Ctx>>(listener: T) -> Self {
-        Self {
-            listener: Box::new(listener),
-            _pd: std::marker::PhantomData,
-        }
-    }
-}
-
 pub fn get_exponential_backoff<const N: usize>() -> Take<ExponentialBackoff> {
     ExponentialBackoff::from_millis(2).factor(1000).take(N)
 }

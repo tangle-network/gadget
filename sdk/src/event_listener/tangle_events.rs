@@ -1,16 +1,8 @@
 use crate::clients::tangle::runtime::{TangleClient, TangleConfig};
-use crate::events_watcher::evm::{Config as ConfigT, EvmEventHandler};
 use crate::events_watcher::substrate::EventHandlerFor;
-use crate::store::LocalDatabase;
-use crate::{error, trace, warn, Error};
-use alloy_network::ReceiptResponse;
-use alloy_provider::Provider;
-use alloy_rpc_types::{BlockNumberOrTag, Filter};
+use crate::Error;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::iter::Take;
-use std::sync::Arc;
-use std::time::Duration;
 use subxt::backend::StreamOfResults;
 use subxt::OnlineClient;
 use subxt_core::events::StaticEvent;
@@ -18,7 +10,6 @@ use tangle_subxt::tangle_testnet_runtime::api::services::events::{
     job_called, JobCalled, JobResultSubmitted,
 };
 use tokio::sync::Mutex;
-use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::Retry;
 
 use crate::event_listener::get_exponential_backoff;
