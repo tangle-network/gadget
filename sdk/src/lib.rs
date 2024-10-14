@@ -60,8 +60,12 @@ pub mod tracer;
 #[cfg(any(feature = "std", feature = "wasm"))]
 pub mod tx;
 
+pub mod job_runner;
+
 /// Gadget Context and context extensions
 pub mod ctx;
+
+pub mod utils;
 
 // Re-exports
 pub use alloy_rpc_types;

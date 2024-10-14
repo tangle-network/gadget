@@ -137,6 +137,59 @@ mod tests {
         eprintln!("{}", super::REGISTRATION_HOOK);
     }
 
+    #[test]
+    fn sdk_main() {
+        setup_env();
+
+        #[gadget_sdk::main]
+        async fn main() {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn sdk_main_with_env() {
+        setup_env();
+
+        #[gadget_sdk::main(env)]
+        async fn main() {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn sdk_main_with_tokio_params_1() {
+        setup_env();
+
+        #[gadget_sdk::main(env, flavor = "multi_thread")]
+        async fn main() {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn sdk_main_with_tokio_params_2() {
+        setup_env();
+
+        #[gadget_sdk::main(env, flavor = "multi_thread", worker_threads = 4)]
+        async fn main() {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn sdk_main_with_tokio_params_mixed_order() {
+        setup_env();
+
+        #[gadget_sdk::main(flavor = "multi_thread", env, worker_threads = 4)]
+        async fn main() {
+            Ok(())
+        }
+    }
+
+    fn setup_env() {
+        // TODO: Add all GadgetContext vars into the env
+    }
     // #[test]
     // fn example_benchmark() {
     //     super::keygen_2_of_3_benchmark();

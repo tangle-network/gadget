@@ -47,6 +47,7 @@ pub enum Error {
     #[error("Metrics error: {0}")]
     Metrics(#[from] crate::metrics::Error),
 
+    IoError(#[from] std::io::Error),
     #[error("Other error: {0}")]
     Other(String),
 }

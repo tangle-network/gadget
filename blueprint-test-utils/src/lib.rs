@@ -576,18 +576,6 @@ mod tests_standard {
     #[allow(clippy::needless_return)]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
-        // let mut base_path = std::env::current_dir().expect("Failed to get current directory");
-        //
-        // base_path.push("../blueprints/incredible-squaring");
-        // base_path
-        //     .canonicalize()
-        //     .expect("File could not be normalized");
-
-        // let manifest_path = base_path.join("Cargo.toml");
-
-        // const INPUT: u64 = 2;
-        // const OUTPUT: u64 = INPUT.pow(2);
-
         let (_container, http_endpoint, ws_endpoint) = anvil::start_anvil_container(true).await;
 
         // let http_endpoint = "http://127.0.0.1:8545".to_string();
