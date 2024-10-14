@@ -117,7 +117,6 @@ pub(crate) fn generate_evm_event_handler(
         {
             type Contract = #instance_wrapper_name <T::TH, T::PH>;
             type Event = #ev;
-            const TAG: &'static str = "eigenlayer";
             const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
 
             async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {

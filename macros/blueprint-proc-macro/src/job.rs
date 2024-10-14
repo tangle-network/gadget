@@ -265,7 +265,9 @@ pub(crate) fn generate_event_listener_tokenstream(
                                     ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
                                     let (tx, rx) = gadget_sdk::tokio::sync::oneshot::channel();
                                     let ctx = #ctx_create;
+                                    println!("Initializing event handler for {}", stringify!(#struct_name));
                                     let mut instance = <#wrapper as gadget_sdk::event_listener::EventListener::<_, _>>::new(&ctx).await.expect("Failed to create event listener");
+                                    println!("Starting event listener task for {}", stringify!(#struct_name));
                                     let task = async move {
                                         if let Err(err) = gadget_sdk::event_listener::EventListener::<_, _>::execute(&mut instance).await {
                                             gadget_sdk::error!("Error in event listener (now closing): {err}");
@@ -274,6 +276,7 @@ pub(crate) fn generate_event_listener_tokenstream(
                                         let _ = tx.send(());
                                     };
                                     gadget_sdk::tokio::task::spawn(task);
+                                    println!("Initialized event handler for {}", stringify!(#struct_name));
                                     return Some(rx)
                                 }
 
@@ -741,11 +744,19 @@ impl Parse for EventListenerArgs {
         while !content.is_empty() {
             let listener = content.parse::<TypePath>()?;
             let listener_tokens = quote! { #listener };
-            // There are two possibilities: either the user does:
-            // event_listener(MyCustomListener, MyCustomListener2)
-            // or, have some with the format: event_listener(EvmContractEventListener(instance = IncredibleSquaringTaskManager, event = IncredibleSquaringTaskManager::NewTaskCreated, event_converter = convert_event_to_inputs, callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask), MyCustomListener, MyCustomListener2)
-            // So, in case 1, we have the unique case where the first value is "EvmContractEventListener". If so, we need to parse the argument
-            // tokens like we do below. Otherwise, we just push the listener into the listeners vec
+            // Event listeners can be specified in two formats:
+            // 1. Self-contained: event_listener(CustomListener1, CustomListener2)
+            //    These listeners are fully defined and require no additional parsing.
+            // 2. Parameterized: event_listener(EvmContractEventListener(
+            //      instance = TaskManager,
+            //      event = TaskManager::EventType,
+            //      event_converter = convert_event,
+            //      callback = TaskManager::CallbackFunction
+            //    ))
+            //    This format requires parsing of inner parameters for complete definition.
+            //
+            // For EvmContractEventListener, we parse the additional arguments.
+            // All other listeners are added directly to the vector.
             if listener_tokens.to_string() == "EvmContractEventListener" {
                 let evm_args = content.parse::<EvmArgs>()?;
                 listeners.push(SingleListener {
@@ -814,7 +825,7 @@ impl EventListenerArgs {
         self.get_evm().is_some()
     }
 
-    /// Returns the Event Handler's Instance if on EigenLayer. Otherwise, returns None
+    /// Returns the Event Handler's Contract Instance on the EVM.
     pub fn instance(&self) -> Option<Ident> {
         match self.get_evm() {
             Some(EvmArgs { instance, .. }) => instance.clone(),
@@ -822,7 +833,7 @@ impl EventListenerArgs {
         }
     }
 
-    /// Returns the Event Handler's event if on EigenLayer. Otherwise, returns None
+    /// Returns the contract instance's event to watch for on the EVM.
     pub fn event(&self) -> Option<Type> {
         match self.get_evm() {
             Some(EvmArgs { event, .. }) => event.clone(),
@@ -830,7 +841,7 @@ impl EventListenerArgs {
         }
     }
 
-    /// Returns the Event Handler's Event Converter if on EigenLayer. Otherwise, returns None
+    /// Returns the Event Handler's event converter to convert the event into function arguments
     pub fn event_converter(&self) -> Option<Type> {
         match self.get_evm() {
             Some(EvmArgs {
@@ -840,7 +851,7 @@ impl EventListenerArgs {
         }
     }
 
-    /// Returns the Event Handler's Callback if on EigenLayer. Otherwise, returns None
+    /// Returns the callback to submit the job function output to.
     pub fn callback(&self) -> Option<Type> {
         match self.get_evm() {
             Some(EvmArgs { callback, .. }) => callback.clone(),

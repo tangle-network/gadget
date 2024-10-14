@@ -17,6 +17,8 @@ pub fn generate_context_impl(
         FieldInfo::Unnamed(index) => quote! { self.#index },
     };
 
+    let mut generics = generics.clone();
+    generics.params.push(syn::parse_quote!(NodeConfig));
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {

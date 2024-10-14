@@ -4,7 +4,7 @@ use alloy_network::Ethereum;
 use alloy_network::EthereumWallet;
 use alloy_network::TransactionBuilder;
 use alloy_primitives::keccak256;
-use alloy_primitives::{address, hex, Address, Bytes, FixedBytes, Keccak256, U256};
+use alloy_primitives::{hex, Address, Bytes, FixedBytes, Keccak256, U256};
 use alloy_provider::fillers::WalletFiller;
 use alloy_provider::fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller};
 use alloy_provider::RootProvider;
@@ -29,7 +29,7 @@ use eigensdk::services_blsaggregation::bls_agg;
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
 use gadget_sdk::{events_watcher::evm::Config, info, job};
 use std::str::FromStr;
-use std::{convert::Infallible, env, ops::Deref, sync::OnceLock};
+use std::{convert::Infallible, ops::Deref, sync::OnceLock};
 
 use k256::sha2::{self, Digest};
 use IncredibleSquaringTaskManager::{

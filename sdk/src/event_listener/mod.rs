@@ -123,6 +123,7 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
             .await
             .map_err(|err| Error::Client(err.to_string()))?;
 
+        println!("Chain ID: {}", chain_id);
         Ok(Self {
             chain_id,
             target_block_number: None,

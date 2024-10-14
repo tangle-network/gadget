@@ -14,13 +14,11 @@ use gadget_sdk::events_watcher::InitializableEventHandler;
 use gadget_sdk::info;
 use gadget_sdk::run::GadgetRunner;
 use incredible_squaring_blueprint_eigenlayer::constants::{
-    AVS_DIRECTORY_ADDRESS, DELEGATION_MANAGER_ADDRESS, EIGENLAYER_HTTP_ENDPOINT,
-    EIGENLAYER_WS_ENDPOINT, OPERATOR_ADDRESS, OPERATOR_METADATA_URL,
-    OPERATOR_STATE_RETRIEVER_ADDRESS, PRIVATE_KEY, REGISTRY_COORDINATOR_ADDRESS, SIGNATURE_EXPIRY,
-    STRATEGY_MANAGER_ADDRESS,
+    AVS_DIRECTORY_ADDRESS, DELEGATION_MANAGER_ADDRESS, EIGENLAYER_HTTP_ENDPOINT, OPERATOR_ADDRESS,
+    OPERATOR_METADATA_URL, OPERATOR_STATE_RETRIEVER_ADDRESS, PRIVATE_KEY,
+    REGISTRY_COORDINATOR_ADDRESS, SIGNATURE_EXPIRY, STRATEGY_MANAGER_ADDRESS,
 };
 use incredible_squaring_blueprint_eigenlayer::{self, *};
-use std::path::Path;
 use structopt::StructOpt;
 
 pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {

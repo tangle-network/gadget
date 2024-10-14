@@ -507,7 +507,6 @@ mod tests_standard {
                 // What's left: Submit a job, wait for the job to finish, then assert the job results
                 let keypair = handles[0].sr25519_id().clone();
 
-                // TODO: Important! The tests can only run serially, not in parallel, in order to not cause a race condition in IDs
                 let service_id = get_next_service_id(client)
                     .await
                     .expect("Failed to get next service id")
