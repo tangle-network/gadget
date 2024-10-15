@@ -8,6 +8,7 @@ use std::error::Error;
 use sysinfo::{Pid, System};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+use tokio::sync::broadcast;
 
 /// Manager for gadget-executor process. The processes are recorded to be controlled by their Service name.
 /// This Manager can be reconstructed from a file to recover a gadget-executor.
@@ -55,6 +56,21 @@ impl GadgetProcessManager {
         let gadget_process = run_command!(command)?;
         self.children.insert(identifier.clone(), gadget_process);
         Ok(identifier)
+    }
+
+    /// Runs the given command and returns a [stream](broadcast::Receiver) of its output
+    #[allow(unused_results)]
+    pub async fn start_process_and_get_output(
+        &mut self,
+        identifier: String,
+        command: &str,
+    ) -> Result<broadcast::Receiver<String>, Box<dyn Error>> {
+        self.run(identifier.clone(), command).await?;
+        let process = self
+            .children
+            .get_mut(&identifier)
+            .ok_or(format!("Failed to start {identifier}, it does not exist"))?;
+        process.resubscribe()
     }
 
     /// Focuses on the given service until its stream is exhausted, meaning that the process ran to completion. Returns a

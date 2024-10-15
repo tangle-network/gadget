@@ -513,7 +513,6 @@ pub fn generate_event_handler_for(
             &additional_params,
             &fn_call,
             &event_listener_calls,
-            event_type,
         )
     }
 }

@@ -1,8 +1,8 @@
 pub use futures::{FutureExt, StreamExt};
 pub use std::process::Stdio;
-pub use tokio::io::Lines;
 pub use tokio::io::{AsyncBufReadExt, BufReader};
 pub use tokio::process::{Child, Command};
+use tokio::sync::broadcast;
 
 #[cfg(target_family = "unix")]
 pub(crate) static OS_COMMAND: (&str, &str) = ("sh", "-c");
@@ -32,25 +32,38 @@ macro_rules! craft_child_process {
 }
 
 #[allow(unused_results)]
-pub(crate) fn create_stream(mut child: Child) -> Lines<BufReader<tokio::process::ChildStdout>> {
+pub(crate) fn create_stream(mut child: Child) -> broadcast::Receiver<String> {
+    // Create a broadcast channel
+    let (tx, rx) = broadcast::channel(100);
+
     // Create stream to read output
     let stdout = child
         .stdout
         .take()
         .expect("Failed to take stdout handle from child...");
-    let reader = BufReader::new(stdout).lines();
+    let mut reader = BufReader::new(stdout).lines();
 
-    // Run in Tokio runtime to ensure it stays alive
+    // Spawn a task to read from the process's output and send to the broadcast channel
     tokio::spawn(async move {
+        while let Some(line) = reader
+            .next_line()
+            .await
+            .expect("Failed to read line from stdout")
+        {
+            if tx.send(line).is_err() {
+                // If there are no active receivers, stop the task
+                break;
+            }
+        }
         let status = child
             .wait()
             .await
             .expect("Child process encountered an error...");
-        println!("Child process ended with status: {}", status)
+        println!("Child process ended with status: {}", status);
     });
 
-    // Return stream
-    reader
+    // Return the receiver
+    rx
 }
 
 #[macro_export]

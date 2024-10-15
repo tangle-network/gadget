@@ -123,6 +123,7 @@ syn = "2.0.75"
 sysinfo = "0.31.2"
 thiserror = { version = "1.0.64", default-features = false }
 tokio = { version = "1.39.3", default-features = false }
+tokio-stream = { version = "0.1.16", default-features = false }
 tokio-util = { version = "0.7.12", default-features = false }
 toml = "0.8.19"
 tracing = { version = "0.1", default-features = false }
