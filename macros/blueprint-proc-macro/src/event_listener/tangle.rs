@@ -3,7 +3,7 @@ use quote::quote;
 use syn::{Ident, LitInt};
 
 #[allow(clippy::too_many_arguments)]
-/// This will run all event handlers at once once init is called on the special-case event handler for substrate
+/// Generates an event handler that initializes all substrate-specific event listeners when called
 pub(crate) fn generate_tangle_event_handler(
     fn_name_string: &str,
     struct_name: &Ident,
