@@ -26,7 +26,7 @@ where
     RuntimeConfig: subxt::Config + Send + Sync + 'static,
     Evt: Send + Sync + 'static,
 {
-    async fn init(&self) -> Option<tokio::sync::oneshot::Receiver<()>>;
+    async fn init(&self) -> Option<tokio::sync::oneshot::Receiver<Result<(), crate::Error>>>;
 
     async fn handle(
         &self,
@@ -53,7 +53,9 @@ where
     Evt: Send + Sync + 'static,
     Handler: EventHandler<RuntimeConfig, Evt>,
 {
-    async fn init_event_handler(&self) -> Option<tokio::sync::oneshot::Receiver<()>> {
+    async fn init_event_handler(
+        &self,
+    ) -> Option<tokio::sync::oneshot::Receiver<Result<(), crate::Error>>> {
         self.init().await
     }
 }

@@ -353,7 +353,6 @@ fn generate_job_report_event_handler(
     let (event_listener_gen, event_listener_calls) =
         crate::job::generate_event_listener_tokenstream(
             input,
-            &event_type,
             SUFFIX,
             &fn_name_string,
             &args.event_listeners,
@@ -377,7 +376,7 @@ fn generate_job_report_event_handler(
         #[automatically_derived]
         #[async_trait::async_trait]
         impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
-            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
+            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
                 #(#event_listener_calls)*
                 #combined_event_listener
             }
@@ -443,7 +442,6 @@ fn generate_qos_report_event_handler(
     let (event_listener_gen, event_listener_calls) =
         crate::job::generate_event_listener_tokenstream(
             input,
-            &event_type,
             SUFFIX,
             &fn_name_string,
             &args.event_listeners,
@@ -473,7 +471,7 @@ fn generate_qos_report_event_handler(
         #[automatically_derived]
         #[async_trait::async_trait]
         impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
-            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
+            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
                 #(#event_listener_calls)*
                 #combined_event_listener
             }

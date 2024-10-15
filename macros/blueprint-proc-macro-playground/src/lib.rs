@@ -130,6 +130,7 @@ fn keygen_2_of_3() {
 
 #[cfg(test)]
 mod tests {
+    use gadget_sdk as sdk;
     #[test]
     fn generated_blueprint() {
         eprintln!("{}", super::KEYGEN_JOB_DEF);
@@ -141,7 +142,7 @@ mod tests {
     fn sdk_main() {
         setup_env();
 
-        #[gadget_sdk::main]
+        #[sdk::main]
         async fn main() {
             Ok(())
         }
@@ -151,7 +152,7 @@ mod tests {
     fn sdk_main_with_env() {
         setup_env();
 
-        #[gadget_sdk::main(env)]
+        #[sdk::main(env)]
         async fn main() {
             Ok(())
         }
@@ -161,7 +162,7 @@ mod tests {
     fn sdk_main_with_tokio_params_1() {
         setup_env();
 
-        #[gadget_sdk::main(env, flavor = "multi_thread")]
+        #[sdk::main(env, flavor = "multi_thread")]
         async fn main() {
             Ok(())
         }
@@ -171,7 +172,7 @@ mod tests {
     fn sdk_main_with_tokio_params_2() {
         setup_env();
 
-        #[gadget_sdk::main(env, flavor = "multi_thread", worker_threads = 4)]
+        #[sdk::main(env, flavor = "multi_thread", worker_threads = 4)]
         async fn main() {
             Ok(())
         }
@@ -181,7 +182,7 @@ mod tests {
     fn sdk_main_with_tokio_params_mixed_order() {
         setup_env();
 
-        #[gadget_sdk::main(flavor = "multi_thread", env, worker_threads = 4)]
+        #[sdk::main(flavor = "multi_thread", env, worker_threads = 4)]
         async fn main() {
             Ok(())
         }

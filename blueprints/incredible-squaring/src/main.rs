@@ -1,5 +1,5 @@
 use color_eyre::{eyre::eyre, Result};
-use gadget_sdk::config::{ContextConfig, GadgetCLICoreSettings, GadgetConfiguration, StdGadgetConfiguration};
+use gadget_sdk::config::{ContextConfig, GadgetConfiguration, StdGadgetConfiguration};
 use gadget_sdk::{
     tangle_subxt::tangle_testnet_runtime::api::{
         self,
@@ -8,11 +8,9 @@ use gadget_sdk::{
     tx,
     info
 };
-use std::io::Write;
 use incredible_squaring_blueprint as blueprint;
 use structopt::StructOpt;
 use gadget_sdk::events_watcher::InitializableEventHandler;
-use gadget_sdk::keystore::KeystoreUriSanitizer;
 use gadget_sdk::keystore::sp_core_subxt::Pair;
 use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::tangle_subxt::subxt::tx::Signer;

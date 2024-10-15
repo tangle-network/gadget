@@ -50,14 +50,16 @@ pub trait EvmEventHandler<T: Config>: Send + Sync + 'static {
     /// The genesis transaction hash for the contract.
     const GENESIS_TX_HASH: FixedBytes<32>;
     /// Initialize the event handler.
-    async fn init(&self) -> Option<tokio::sync::oneshot::Receiver<()>>;
+    async fn init(&self) -> Option<tokio::sync::oneshot::Receiver<Result<(), crate::Error>>>;
     /// Handle a log event.
     async fn handle(&self, log: &alloy_rpc_types::Log, event: &Self::Event) -> Result<(), Error>;
 }
 
 #[async_trait]
 impl<T: Config, Handler: EvmEventHandler<T>> InitializableEventHandler<T> for Handler {
-    async fn init_event_handler(&self) -> Option<tokio::sync::oneshot::Receiver<()>> {
+    async fn init_event_handler(
+        &self,
+    ) -> Option<tokio::sync::oneshot::Receiver<Result<(), crate::Error>>> {
         self.init().await
     }
 }

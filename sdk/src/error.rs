@@ -46,7 +46,7 @@ pub enum Error {
     #[cfg(feature = "std")]
     #[error("Metrics error: {0}")]
     Metrics(#[from] crate::metrics::Error),
-
+    #[error("Io error: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Other error: {0}")]
     Other(String),

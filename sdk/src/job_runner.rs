@@ -1,19 +1,28 @@
+use crate::events_watcher::InitializableEventHandler;
 use std::future::Future;
 use std::pin::Pin;
-use crate::events_watcher::InitializableEventHandler;
 
+#[derive(Default)]
 pub struct MultiJobRunner {
-    pub enqueued_job_runners: Vec<Pin<Box<dyn SendFuture<Output=Option<tokio::sync::oneshot::Receiver<()>>>>>>,
+    pub enqueued_job_runners: EnqueuedJobRunners,
 }
+
+pub type EnqueuedJobRunners = Vec<
+    Pin<
+        Box<
+            dyn SendFuture<
+                Output = Option<tokio::sync::oneshot::Receiver<Result<(), crate::Error>>>,
+            >,
+        >,
+    >,
+>;
 
 pub trait SendFuture: Send + Future + 'static {}
 impl<T: Send + Future + 'static> SendFuture for T {}
 
 impl MultiJobRunner {
     pub fn new() -> Self {
-        Self {
-            enqueued_job_runners: Vec::new(),
-        }
+        Self::default()
     }
 
     /// Adds a job to the job runner
@@ -29,13 +38,13 @@ impl MultiJobRunner {
     ///      client: client.clone(),
     ///      signer,
     /// };
+    ///
     /// MultiJobRunner::new().with_job(x_square).with_job(x_square2).run().await;
-    pub fn with_job<T: InitializableEventHandler<R>, R>(&mut self, job_runner: T) -> &mut Self
-        where T: Send + 'static,
-              R: Send + 'static, {
-        let task = Box::pin(async move {
-            job_runner.init_event_handler().await
-        });
+    pub fn with_job<T: InitializableEventHandler<R> + Send + 'static, R: Send + 'static>(
+        &mut self,
+        job_runner: T,
+    ) -> &mut Self {
+        let task = Box::pin(async move { job_runner.init_event_handler().await });
 
         self.enqueued_job_runners.push(task);
         self
@@ -43,7 +52,10 @@ impl MultiJobRunner {
 
     pub async fn run(&mut self) -> Result<(), crate::Error> {
         if self.enqueued_job_runners.is_empty() {
-            return Err(crate::Error::Other("No jobs registered. Make sure to add a job with `MultiJobRunner::add_job` ".to_string()));
+            return Err(crate::Error::Other(
+                "No jobs registered. Make sure to add a job with `MultiJobRunner::add_job` "
+                    .to_string(),
+            ));
         }
 
         let mut futures = Vec::new();
@@ -58,11 +70,22 @@ impl MultiJobRunner {
         // is None, return an error stating that the job already initialized
         let mut ordered_futures = Vec::new();
         for receiver in receivers {
-            let receiver = receiver.ok_or_else(||crate::Error::Other("Job already initialized".to_string()))?;
+            let receiver = receiver
+                .ok_or_else(|| crate::Error::Other("Job already initialized".to_string()))?;
             ordered_futures.push(receiver);
         }
 
         let res = futures::future::select_all(ordered_futures).await;
-        Err(crate::Error::Other(format!("Job {} exited prematurely", res.1)))
+        let job_n = res.1;
+        let err = res
+            .0
+            .map_err(|err| crate::Error::Other(err.to_string()))
+            .map_err(|_err| {
+                crate::Error::Other(format!("Job {job_n} exited prematurely (channel dropped)"))
+            })?;
+
+        Err(crate::Error::Other(format!(
+            "Job {job_n} exited prematurely: {err:?}"
+        )))
     }
 }

@@ -60,6 +60,7 @@ serde_json = { workspace = true }
 # Substrate
 sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
+scale-info = { workspace = true }
 
 # Event Watchers and Handlers
 backon = { workspace = true, optional = true }

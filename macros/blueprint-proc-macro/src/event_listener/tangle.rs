@@ -5,34 +5,20 @@ use syn::{Ident, LitInt};
 #[allow(clippy::too_many_arguments)]
 /// This will run all event handlers at once once init is called on the special-case event handler for substrate
 pub(crate) fn generate_tangle_event_handler(
-    fn_name_string: &str,
     struct_name: &Ident,
     job_id: &LitInt,
     params_tokens: &[TokenStream],
     result_tokens: &[TokenStream],
-    additional_params: &[TokenStream],
     fn_call: &TokenStream,
     event_listener_calls: &[TokenStream],
 ) -> TokenStream {
     let combined_event_listener =
         crate::job::generate_combined_event_listener_selector(struct_name);
     quote! {
-        /// Event handler for the function
-        #[doc = "[`"]
-        #[doc = #fn_name_string]
-        #[doc = "`]"]
-        #[derive(Clone)]
-        pub struct #struct_name {
-            pub service_id: u64,
-            pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair>,
-            pub client: gadget_sdk::clients::tangle::runtime::TangleClient,
-            #(#additional_params)*
-        }
-
         #[automatically_derived]
         #[async_trait::async_trait]
         impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled> for #struct_name {
-            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
+            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
                 #(#event_listener_calls)*
                 #combined_event_listener
             }

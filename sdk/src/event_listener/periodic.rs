@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use std::time::Duration;
 
 #[derive(Default)]
-pub struct PeriodicEventListener<const MSEC: usize, T, Event, Ctx=()> {
+pub struct PeriodicEventListener<const MSEC: usize, T, Event, Ctx = ()> {
     listener: T,
     _pd: std::marker::PhantomData<(Event, Ctx)>,
 }
