@@ -684,7 +684,7 @@ mod tests_standard {
                 .await
                 .unwrap();
                 if result.status() {
-                    info!("Deployed a new task");
+                    info!("Deployed a new task {:#?}", result);
                 }
 
                 let result = get_receipt(

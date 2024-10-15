@@ -1,6 +1,5 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use std::path::PathBuf;
 use syn::Ident;
 
 use crate::job::EventListenerArgs;
@@ -33,7 +32,7 @@ pub(crate) fn generate_evm_event_handler(
 ) -> TokenStream {
     let (instance_base, instance_name, instance_wrapper_name, _instance) =
         get_instance_data(event_handler);
-    let ev = event_handler.event().unwrap();
+    let event = event_handler.event().unwrap();
     let event_converter = event_handler.event_converter().unwrap();
     let callback = event_handler.callback().unwrap();
     let abi_string = event_handler.abi().unwrap();
@@ -84,7 +83,6 @@ pub(crate) fn generate_evm_event_handler(
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
                 self.contract_instance.get_or_init(|| {
                     let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&#abi_string).unwrap());
-                    println!("{:?}", abi_location);
                     ContractInstance::new(
                         self.instance.address().clone(),
                         self.instance.provider().clone(),
@@ -117,7 +115,7 @@ pub(crate) fn generate_evm_event_handler(
             #instance_wrapper_name <T::TH, T::PH>: std::ops::Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, Ethereum>>,
         {
             type Contract = #instance_wrapper_name <T::TH, T::PH>;
-            type Event = #ev;
+            type Event = #event;
             const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
 
             async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {

@@ -1,6 +1,5 @@
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Bytes, FixedBytes, U256};
-use alloy_provider::Provider;
 use alloy_provider::ProviderBuilder;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::{eyre::eyre, Result};
@@ -151,6 +150,8 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         let x_square_eigen = XsquareEigenEventHandler::<NodeConfig> {
             contract: contract.into(),
         };
+
+        info!("Contract address: {:?}", *TASK_MANAGER_ADDRESS);
 
         info!("Starting the Incredible Squaring event handler");
         let finished = x_square_eigen

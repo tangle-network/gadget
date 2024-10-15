@@ -4590,6 +4590,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber 0.3.18",
  "url",
+ "uuid 1.10.0",
  "w3f-bls",
 ]
 

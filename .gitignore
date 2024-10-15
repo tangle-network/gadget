@@ -9,8 +9,6 @@ target/
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
-blueprint-test-utils/db
-
 # Added by cargo
 /target
 .idea
@@ -25,3 +23,5 @@ CODEGEN_LOCK
 blueprint.json
 blueprint*.json
 blueprint.lock
+
+blueprint-test-utils/db
