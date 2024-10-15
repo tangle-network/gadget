@@ -28,7 +28,7 @@ lazy_static! {
     pub static ref TASK_MANAGER_ADDRESS: Address = env::var("TASK_MANAGER_ADDRESS")
         .map(|addr| addr.parse().expect("Invalid TASK_MANAGER_ADDRESS"))
         .unwrap_or_else(|_| address!("0000000000000000000000000000000000000000"));
-    pub static ref OPERATOR_ADDRESS: Address = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92267");
+    pub static ref OPERATOR_ADDRESS: Address = address!("f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
     pub static ref OPERATOR_METADATA_URL: String =
         "https://github.com/tangle-network/gadget".to_string();
     pub static ref MNEMONIC_SEED: String = env::var("MNEMONIC_SEED").unwrap_or_else(|_| {
