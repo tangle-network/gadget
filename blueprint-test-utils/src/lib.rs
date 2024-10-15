@@ -58,17 +58,19 @@ pub struct PerTestNodeInput<T> {
 pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     input: PerTestNodeInput<T>,
 ) -> BlueprintManagerHandle {
+    let name_lower = NAME_IDS[input.instance_id as usize].to_lowercase();
+
     let tmp_store = Uuid::new_v4().to_string();
-    let keystore_uri = PathBuf::from(format!(
-        "./target/keystores/{}/{tmp_store}/",
-        NAME_IDS[input.instance_id as usize].to_lowercase()
-    ));
+    let keystore_uri = PathBuf::from(format!("./target/keystores/{name_lower}/{tmp_store}/",));
 
     assert!(
         !keystore_uri.exists(),
         "Keystore URI cannot exist: {}",
         keystore_uri.display()
     );
+
+    let data_dir = std::path::absolute(format!("./target/data/{name_lower}"))
+        .expect("Failed to get current directory");
 
     let keystore_uri_normalized =
         std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
@@ -85,7 +87,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
 
     let blueprint_manager_config = BlueprintManagerConfig {
         gadget_config: None,
-        data_dir: None,
+        data_dir,
         keystore_uri: keystore_uri_str.clone(),
         verbose: input.verbose,
         pretty: input.pretty,

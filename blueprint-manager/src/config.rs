@@ -14,8 +14,8 @@ pub struct BlueprintManagerConfig {
     #[structopt(short = "k", long)]
     pub keystore_uri: String,
     /// The directory in which all gadgets will store their data
-    #[structopt(long, short = "d", parse(from_os_str))]
-    pub data_dir: Option<PathBuf>,
+    #[structopt(long, short = "d", parse(from_os_str), default_value = "./data")]
+    pub data_dir: PathBuf,
     /// The verbosity level, can be used multiple times
     #[structopt(long, short = "v", parse(from_occurrences))]
     pub verbose: i32,
