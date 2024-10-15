@@ -13,7 +13,6 @@ pub(crate) fn generate_tangle_event_handler(
     additional_params: &[TokenStream],
     fn_call: &TokenStream,
     event_listener_calls: &[TokenStream],
-    event_type: &TokenStream,
 ) -> TokenStream {
     let combined_event_listener =
         crate::job::generate_combined_event_listener_selector(struct_name);
@@ -32,13 +31,13 @@ pub(crate) fn generate_tangle_event_handler(
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
+        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled> for #struct_name {
             async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
                 #(#event_listener_calls)*
                 #combined_event_listener
             }
 
-            async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
+            async fn handle(&self, event: &gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
                 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
                 let mut args_iter = event.args.clone().into_iter();
                 #(#params_tokens)*
