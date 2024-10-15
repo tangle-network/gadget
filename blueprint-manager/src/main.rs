@@ -12,9 +12,7 @@ async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
     let mut blueprint_manager_config = BlueprintManagerConfig::from_args();
 
-    if let Some(data_dir) = blueprint_manager_config.data_dir.as_mut() {
-        *data_dir = std::path::absolute(&data_dir)?;
-    }
+    blueprint_manager_config.data_dir = std::path::absolute(&blueprint_manager_config.data_dir)?;
 
     entry::setup_blueprint_manager_logger(
         blueprint_manager_config.verbose,
