@@ -74,7 +74,7 @@ impl Config for NodeConfig {
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
     id = 1,
-    params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage),
+    params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
     result(_),
     event_listener(EvmContractEventListener(
         instance = IncredibleSquaringTaskManager,
@@ -89,6 +89,7 @@ pub async fn xsquare_eigen(
     task_created_block: u32,
     quorum_numbers: Bytes,
     quorum_threshold_percentage: u8,
+    task_index: u32,
 ) -> Result<respondToTaskCall, Infallible> {
     info!(
         "Received job to square the number: {:?}",
@@ -184,7 +185,7 @@ pub async fn xsquare_eigen(
 
     // Create the task related parameters
     // TODO: We need to fetch the index for cases where multiple tasks are created at the same block
-    let task_index: eigensdk::types::avs::TaskIndex = 0;
+    let task_index: eigensdk::types::avs::TaskIndex = task_index;
     let time_to_expiry = std::time::Duration::from_secs(60);
 
     // Initialize the task
@@ -393,7 +394,8 @@ pub async fn xsquare_eigen(
 /// and parse the return type by the index.
 pub fn convert_event_to_inputs(
     event: IncredibleSquaringTaskManager::NewTaskCreated,
-) -> (U256, u32, Bytes, u8) {
+    index: u32,
+) -> (U256, u32, Bytes, u8, u32) {
     let number_to_be_squared = event.task.numberToBeSquared;
     let task_created_block = event.task.taskCreatedBlock;
     let quorum_numbers = event.task.quorumNumbers;
@@ -403,6 +405,7 @@ pub fn convert_event_to_inputs(
         task_created_block,
         quorum_numbers,
         quorum_threshold_percentage,
+        index,
     )
 }
 

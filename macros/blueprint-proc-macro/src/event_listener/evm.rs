@@ -134,6 +134,8 @@ pub(crate) fn generate_evm_event_handler(
                 println!("evm.rs | Handling event log {:?}", log.inner);
                 // Convert the event to inputs
                 let decoded: alloy_primitives::Log<Self::Event> = <Self::Event as SolEvent>::decode_log(&log.inner, true)?;
+
+                let (_, index) = decoded.topics();
                 // Convert the event to inputs using the event converter.
                 // TODO: If no converter is provided, the #[job] must consume the
                 // event directly, as specified in the `event = <EVENT>`.
@@ -143,7 +145,7 @@ pub(crate) fn generate_evm_event_handler(
                 // } else {
                 //     decoded.data
                 // };
-                let inputs = #event_converter(decoded.data);
+                let inputs = #event_converter(decoded.data, index);
 
                 // Apply the function
                 #(#params_tokens)*
