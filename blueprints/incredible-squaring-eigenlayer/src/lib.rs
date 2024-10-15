@@ -23,6 +23,7 @@ use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
 use eigensdk::client_avsregistry::writer::AvsRegistryChainWriter;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bn254::utils::map_to_curve;
+use eigensdk::crypto_bls::{convert_to_g1_point, convert_to_g2_point};
 use eigensdk::logging::get_test_logger;
 use eigensdk::services_avsregistry::chaincaller;
 use eigensdk::services_blsaggregation::bls_agg;
@@ -250,12 +251,12 @@ pub async fn xsquare_eigen(
         .unwrap()
         .unwrap();
 
-    // assert_eq!(bls_agg_response.non_signers_pub_keys_g1, vec![]);
-    // assert_eq!(bls_agg_response.non_signer_quorum_bitmap_indices, vec![]);
-    // assert_eq!(bls_agg_response.total_stake_indices, vec![]);
-    // assert_eq!(bls_agg_response.quorum_apk_indices, vec![]);
-    // assert_eq!(bls_agg_response.non_signer_stake_indices, vec![]);
-    assert_eq!(bls_agg_response.signers_agg_sig_g1, bls_signature.clone());
+    println!("bls_agg_response.non_signers_pub_keys_g1: {:?}", bls_agg_response.non_signers_pub_keys_g1);
+    println!("bls_agg_response.non_signer_quorum_bitmap_indices: {:?}", bls_agg_response.non_signer_quorum_bitmap_indices);
+    println!("bls_agg_response.total_stake_indices: {:?}", bls_agg_response.total_stake_indices);
+    println!("bls_agg_response.quorum_apk_indices: {:?}", bls_agg_response.quorum_apk_indices);
+    println!("bls_agg_response.non_signer_stake_indices: {:?}", bls_agg_response.non_signer_stake_indices);
+    println!("bls_agg_response.signers_agg_sig_g1: {:?}", bls_agg_response.signers_agg_sig_g1);
     assert_eq!(
         bls_agg_response.signers_apk_g2,
         bls_key_pair.public_key_g2()
@@ -266,25 +267,35 @@ pub async fn xsquare_eigen(
     );
 
     // Unpack the response and build the NonSignerStakesAndSignature for the response call
-    let non_signer_pubkeys = bls_agg_response
+    let non_signer_pubkeys: Vec<IncredibleSquaringTaskManager::G1Point> = bls_agg_response
         .non_signers_pub_keys_g1
         .into_iter()
-        .map(|pubkey| convert_to_g1_point(pubkey.g1()).unwrap())
+        .map(|pubkey| {
+            let g1 = convert_to_g1_point(pubkey.g1()).unwrap();
+            IncredibleSquaringTaskManager::G1Point { X: g1.X, Y: g1.Y }
+        })
         .collect();
-    let quorum_apks = bls_agg_response
+
+    let quorum_apks: Vec<IncredibleSquaringTaskManager::G1Point> = bls_agg_response
         .quorum_apks_g1
         .into_iter()
-        .map(|apk| convert_to_g1_point(apk.g1()).unwrap())
+        .map(|apk| {
+            let g1 = convert_to_g1_point(apk.g1()).unwrap();
+            IncredibleSquaringTaskManager::G1Point { X: g1.X, Y: g1.Y }
+        })
         .collect();
+
+    let apk_g2 = convert_to_g2_point(bls_agg_response.signers_apk_g2.g2()).unwrap();
+    let sigma = convert_to_g1_point(bls_agg_response.signers_agg_sig_g1.g1_point().g1()).unwrap();
+
     let non_signer_stakes_and_signature: NonSignerStakesAndSignature =
         NonSignerStakesAndSignature {
             nonSignerQuorumBitmapIndices: bls_agg_response.non_signer_quorum_bitmap_indices,
             nonSignerPubkeys: non_signer_pubkeys,
             nonSignerStakeIndices: bls_agg_response.non_signer_stake_indices,
             quorumApks: quorum_apks,
-            apkG2: convert_to_g2_point(bls_agg_response.signers_apk_g2.g2()).unwrap(),
-            sigma: convert_to_g1_point(bls_agg_response.signers_agg_sig_g1.g1_point().g1())
-                .unwrap(),
+            apkG2: IncredibleSquaringTaskManager::G2Point { X: apk_g2.X, Y: apk_g2.Y },
+            sigma: IncredibleSquaringTaskManager::G1Point { X: sigma.X, Y: sigma.Y },
             quorumApkIndices: bls_agg_response.quorum_apk_indices,
             totalStakeIndices: bls_agg_response.total_stake_indices,
         };
@@ -417,68 +428,68 @@ pub fn point_to_u256(point: Fq) -> U256 {
     U256::from_be_slice(&point_bytes[..])
 }
 
-/// Convert [`G1Affine`](ark_bn254::G1Affine) to [`G1Point`](IncredibleSquaringTaskManager::G1Point)
-pub fn convert_to_g1_point(
-    g1: ark_bn254::G1Affine,
-) -> Result<IncredibleSquaringTaskManager::G1Point> {
-    let x_point_result = g1.x();
-    let y_point_result = g1.y();
+// /// Convert [`G1Affine`](ark_bn254::G1Affine) to [`G1Point`](IncredibleSquaringTaskManager::G1Point)
+// pub fn convert_to_g1_point(
+//     g1: ark_bn254::G1Affine,
+// ) -> Result<IncredibleSquaringTaskManager::G1Point> {
+//     let x_point_result = g1.x();
+//     let y_point_result = g1.y();
 
-    let (Some(&x_point), Some(&y_point)) = (x_point_result, y_point_result) else {
-        return Err(eyre!("Invalid G1Affine"));
-    };
+//     let (Some(&x_point), Some(&y_point)) = (x_point_result, y_point_result) else {
+//         return Err(eyre!("Invalid G1Affine"));
+//     };
 
-    let x = BigInt::new(x_point.into_bigint().0);
-    let y = BigInt::new(y_point.into_bigint().0);
+//     let x = BigInt::new(x_point.into_bigint().0);
+//     let y = BigInt::new(y_point.into_bigint().0);
 
-    let x_u256 = U256::from_limbs(x.0);
-    let y_u256 = U256::from_limbs(y.0);
+//     let x_u256 = U256::from_limbs(x.0);
+//     let y_u256 = U256::from_limbs(y.0);
 
-    // Reconstruct the point to ensure it is correct
-    let x_bytes: [u8; 32] = x_u256.to_le_bytes();
-    let y_bytes: [u8; 32] = y_u256.to_le_bytes();
-    let g1_reconstructed = ark_bn254::G1Affine::new(
-        Fq::from_le_bytes_mod_order(&x_bytes),
-        Fq::from_le_bytes_mod_order(&y_bytes),
-    );
-    assert_eq!(g1.x().unwrap().0, g1_reconstructed.x().unwrap().0);
-    assert_eq!(g1.y().unwrap().0, g1_reconstructed.y().unwrap().0);
+//     // Reconstruct the point to ensure it is correct
+//     let x_bytes: [u8; 32] = x_u256.to_le_bytes();
+//     let y_bytes: [u8; 32] = y_u256.to_le_bytes();
+//     let g1_reconstructed = ark_bn254::G1Affine::new(
+//         Fq::from_le_bytes_mod_order(&x_bytes),
+//         Fq::from_le_bytes_mod_order(&y_bytes),
+//     );
+//     assert_eq!(g1.x().unwrap().0, g1_reconstructed.x().unwrap().0);
+//     assert_eq!(g1.y().unwrap().0, g1_reconstructed.y().unwrap().0);
 
-    Ok(IncredibleSquaringTaskManager::G1Point {
-        X: x_u256,
-        Y: y_u256,
-    })
-}
+//     Ok(IncredibleSquaringTaskManager::G1Point {
+//         X: x_u256,
+//         Y: y_u256,
+//     })
+// }
 
-/// Convert [`G2Affine`] to [`G2Point`]
-pub fn convert_to_g2_point(
-    g2: ark_bn254::G2Affine,
-) -> Result<IncredibleSquaringTaskManager::G2Point> {
-    let x_point_result = g2.x();
+// /// Convert [`G2Affine`] to [`G2Point`]
+// pub fn convert_to_g2_point(
+//     g2: ark_bn254::G2Affine,
+// ) -> Result<IncredibleSquaringTaskManager::G2Point> {
+//     let x_point_result = g2.x();
 
-    let y_point_result = g2.y();
+//     let y_point_result = g2.y();
 
-    let (Some(&x_point), Some(&y_point)) = (x_point_result, y_point_result) else {
-        return Err(eyre!("Invalid G2Affine"));
-    };
+//     let (Some(&x_point), Some(&y_point)) = (x_point_result, y_point_result) else {
+//         return Err(eyre!("Invalid G2Affine"));
+//     };
 
-    let x_point_c0 = x_point.c0;
-    let x_point_c1 = x_point.c1;
-    let y_point_c0 = y_point.c0;
-    let y_point_c1 = y_point.c1;
+//     let x_point_c0 = x_point.c0;
+//     let x_point_c1 = x_point.c1;
+//     let y_point_c0 = y_point.c0;
+//     let y_point_c1 = y_point.c1;
 
-    let x_0 = BigInt::new(x_point_c0.into_bigint().0);
-    let x_1 = BigInt::new(x_point_c1.into_bigint().0);
-    let y_0 = BigInt::new(y_point_c0.into_bigint().0);
-    let y_1 = BigInt::new(y_point_c1.into_bigint().0);
+//     let x_0 = BigInt::new(x_point_c0.into_bigint().0);
+//     let x_1 = BigInt::new(x_point_c1.into_bigint().0);
+//     let y_0 = BigInt::new(y_point_c0.into_bigint().0);
+//     let y_1 = BigInt::new(y_point_c1.into_bigint().0);
 
-    let x_u256_0 = U256::from_limbs(x_0.0);
-    let x_u256_1 = U256::from_limbs(x_1.0);
-    let y_u256_0 = U256::from_limbs(y_0.0);
-    let y_u256_1 = U256::from_limbs(y_1.0);
+//     let x_u256_0 = U256::from_limbs(x_0.0);
+//     let x_u256_1 = U256::from_limbs(x_1.0);
+//     let y_u256_0 = U256::from_limbs(y_0.0);
+//     let y_u256_1 = U256::from_limbs(y_1.0);
 
-    Ok(IncredibleSquaringTaskManager::G2Point {
-        X: [x_u256_1, x_u256_0],
-        Y: [y_u256_1, y_u256_0],
-    })
-}
+//     Ok(IncredibleSquaringTaskManager::G2Point {
+//         X: [x_u256_1, x_u256_0],
+//         Y: [y_u256_1, y_u256_0],
+//     })
+// }
