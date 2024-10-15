@@ -21,6 +21,7 @@ mod kw {
     syn::custom_keyword!(protocol);
     syn::custom_keyword!(instance);
     syn::custom_keyword!(event);
+    syn::custom_keyword!(event_type);
     syn::custom_keyword!(event_converter);
     syn::custom_keyword!(callback);
     syn::custom_keyword!(skip_codegen);
@@ -67,7 +68,11 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     }
 
     let param_types = param_types(input)?;
-    let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled };
+    let event_type = if let Some(event_type) = &args.event_type {
+        quote! { #event_type }
+    } else {
+        quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled }
+    };
     let (event_listener_gen, event_listener_calls) = generate_event_listener_tokenstream(
         input,
         &event_type,
@@ -97,6 +102,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
             &result_type,
             SUFFIX,
             event_listener_calls,
+            &event_type,
         )
     };
 
@@ -363,7 +369,7 @@ fn generate_fn_name_and_struct<'a>(f: &'a ItemFn, suffix: &'a str) -> (&'a Ident
 }
 
 /// Generates the [`EventHandler`](gadget_sdk::events_watcher::evm::EventHandler) for a Job
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines, clippy::too_many_arguments)]
 pub fn generate_event_handler_for(
     input: &ItemFn,
     job_args: &JobArgs,
@@ -372,6 +378,7 @@ pub fn generate_event_handler_for(
     result: &[FieldType],
     suffix: &str,
     event_listener_calls: Vec<proc_macro2::TokenStream>,
+    event_type: &proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
     let (fn_name, fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
     let job_id = &job_args.id;
@@ -538,6 +545,12 @@ pub(crate) struct JobArgs {
     ///
     /// `#[job(verifier(evm = "MyVerifierContract"))]`
     verifier: Verifier,
+    /// Optional: Event type for the job
+    ///
+    /// `#[job(event_type = "MyEvent")]`
+    ///
+    /// If omitted, this will default to Tangle's JobCalled Event
+    event_type: Option<Type>,
     /// Optional: Event listener type for the job
     ///
     /// `#[job(event_listener(MyCustomListener))]`
@@ -559,6 +572,7 @@ impl Parse for JobArgs {
         let mut verifier = Verifier::None;
         let mut skip_codegen = false;
         let mut event_listener = EventListenerArgs { listeners: None };
+        let mut event_type = None;
 
         while !input.is_empty() {
             let lookahead = input.lookahead1();
@@ -581,6 +595,10 @@ impl Parse for JobArgs {
                 let _ = input.parse::<Token![,]>()?;
             } else if lookahead.peek(kw::event_listener) {
                 event_listener = input.parse()?;
+            } else if input.peek(kw::event_type) {
+                let _ = input.parse::<kw::event_type>()?;
+                let _ = input.parse::<Token![=]>()?;
+                event_type = Some(input.parse()?);
             } else {
                 return Err(lookahead.error());
             }
@@ -606,6 +624,7 @@ impl Parse for JobArgs {
             result,
             verifier,
             skip_codegen,
+            event_type,
             event_listener,
         })
     }
