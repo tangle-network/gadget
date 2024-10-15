@@ -55,9 +55,10 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
         };
 
         println!("event_listener/mod.rs | Chain ID: {}", chain_id);
+        let local_db = LocalDatabase::open(&format!("./db/{}", Uuid::new_v4()));
         Ok(Self {
             chain_id,
-            local_db: LocalDatabase::open(&format!("./db/{}", Uuid::new_v4())),
+            local_db,
             handler: context.1.clone(),
             contract: context.0.clone(),
             _phantom: std::marker::PhantomData,

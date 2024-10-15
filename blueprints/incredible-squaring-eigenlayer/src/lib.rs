@@ -305,7 +305,7 @@ pub async fn xsquare_eigen(
     let call_data = call.abi_encode();
 
     let task_manager_address =
-        std::env::var("TASK_MANAGER_ADDR").expect("TASK_MANAGER_ADDR env var is not set");
+        std::env::var("TASK_MANAGER_ADDRESS").expect("TASK_MANAGER_ADDR env var is not set");
     let task_manager_address = Address::from_str(&task_manager_address).unwrap();
     let task_manager = IncredibleSquaringTaskManager::new(task_manager_address, provider.clone());
     let receipt = task_manager

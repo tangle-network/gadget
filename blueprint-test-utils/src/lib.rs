@@ -653,7 +653,7 @@ mod tests_standard {
         .contract_address
         .unwrap();
         info!("Task Manager: {:?}", task_manager_addr);
-        std::env::set_var("TASK_MANAGER_ADDR", task_manager_addr.to_string());
+        std::env::set_var("TASK_MANAGER_ADDRESS", task_manager_addr.to_string());
 
         // We create a Task Manager instance for the task spawner
         let task_manager = IncredibleSquaringTaskManager::new(task_manager_addr, provider.clone());

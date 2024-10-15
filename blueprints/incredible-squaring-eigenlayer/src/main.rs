@@ -140,7 +140,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(wallet)
-            .on_http(EIGENLAYER_HTTP_ENDPOINT.parse().unwrap());
+            .on_http(EIGENLAYER_HTTP_ENDPOINT.parse()?);
 
         let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
             *TASK_MANAGER_ADDRESS,
