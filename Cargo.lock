@@ -4569,6 +4569,7 @@ dependencies = [
  "prometheus",
  "rand",
  "round-based",
+ "scale-info",
  "schnorrkel",
  "serde",
  "serde_json",

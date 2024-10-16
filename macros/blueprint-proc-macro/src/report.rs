@@ -353,7 +353,6 @@ fn generate_job_report_event_handler(
     let (event_listener_gen, event_listener_calls) =
         crate::job::generate_event_listener_tokenstream(
             input,
-            &event_type,
             SUFFIX,
             &fn_name_string,
             &args.event_listeners,
@@ -377,11 +376,6 @@ fn generate_job_report_event_handler(
         #[automatically_derived]
         #[async_trait::async_trait]
         impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
-            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
-                #(#event_listener_calls)*
-                #combined_event_listener
-            }
-
             async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
                 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
                 // TODO: Implement parameter extraction and report function call
@@ -405,6 +399,16 @@ fn generate_job_report_event_handler(
                 &self.signer
             }
         }
+
+        #[async_trait::async_trait]
+        impl gadget_sdk::events_watcher::InitializableEventHandler for #struct_name {
+            async fn init_event_handler(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
+                #(#event_listener_calls)*
+                #combined_event_listener
+            }
+        }
+
+        impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
     }
 }
 
@@ -443,7 +447,6 @@ fn generate_qos_report_event_handler(
     let (event_listener_gen, event_listener_calls) =
         crate::job::generate_event_listener_tokenstream(
             input,
-            &event_type,
             SUFFIX,
             &fn_name_string,
             &args.event_listeners,
@@ -473,11 +476,6 @@ fn generate_qos_report_event_handler(
         #[automatically_derived]
         #[async_trait::async_trait]
         impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
-            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
-                #(#event_listener_calls)*
-                #combined_event_listener
-            }
-
             async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
                 use std::time::Duration;
                 use gadget_sdk::slashing::reports::{QoSReporter, DefaultQoSReporter};
@@ -515,6 +513,16 @@ fn generate_qos_report_event_handler(
                 &self.signer
             }
         }
+
+        #[async_trait::async_trait]
+        impl gadget_sdk::events_watcher::InitializableEventHandler for #struct_name {
+            async fn init_event_handler(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
+                #(#event_listener_calls)*
+                #combined_event_listener
+            }
+        }
+
+        impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
     }
 }
 

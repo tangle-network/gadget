@@ -14,9 +14,10 @@ pub use error::Error;
 #[cfg(feature = "std")]
 pub mod evm;
 pub mod substrate;
-pub mod tangle;
 
 #[async_trait]
-pub trait InitializableEventHandler<T> {
-    async fn init_event_handler(&self) -> Option<tokio::sync::oneshot::Receiver<()>>;
+pub trait InitializableEventHandler {
+    async fn init_event_handler(
+        &self,
+    ) -> Option<tokio::sync::oneshot::Receiver<Result<(), crate::Error>>>;
 }

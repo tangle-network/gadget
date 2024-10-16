@@ -29,6 +29,8 @@ mod event_listener;
 /// Utilities for Tangle Blueprint macro generation
 mod tangle;
 
+mod sdk_main;
+
 /// A procedural macro that annotates a function as a job.
 ///
 /// # Example
@@ -200,6 +202,26 @@ pub fn benchmark(args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ItemFn);
     let args = parse_macro_input!(args as benchmark::BenchmarkArgs);
     match benchmark::benchmark_impl(&args, &input) {
+        Ok(tokens) => tokens,
+        Err(err) => err.to_compile_error().into(),
+    }
+}
+
+/// A procedural macro that annotates a function as a main function for the blueprint.
+///
+/// # Example
+/// ```rust,no_run
+/// # use gadget_blueprint_proc_macro::main;
+///
+/// #[main(env)]
+/// pub async fn main() {
+///    // Your main function code here
+/// }
+#[proc_macro_attribute]
+pub fn main(args: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::ItemFn);
+    let args = parse_macro_input!(args as sdk_main::SdkMainArgs);
+    match sdk_main::sdk_main_impl(&args, &input) {
         Ok(tokens) => tokens,
         Err(err) => err.to_compile_error().into(),
     }

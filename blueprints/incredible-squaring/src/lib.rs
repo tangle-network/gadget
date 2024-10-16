@@ -6,7 +6,7 @@ use std::convert::Infallible;
     id = 0,
     params(x),
     result(_),
-    event_listener(TangleEventListener),
+    event_listener(TangleEventListener::<JobCalled>),
     verifier(evm = "IncredibleSquaringBlueprint")
 )]
 pub fn xsquare(x: u64) -> Result<u64, Infallible> {
