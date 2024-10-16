@@ -132,7 +132,7 @@ impl<'a> MultiJobRunner<'a> {
     ///         .await?;
     /// }
     /// ```
-    pub fn with_job<'b: 'a, K: 'b>(self) -> JobBuilder<'a, K> {
+    pub fn with_job<K>(self) -> JobBuilder<'a, K> {
         JobBuilder {
             register_call: None,
             runner: self,
