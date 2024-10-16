@@ -785,7 +785,9 @@ pub(crate) struct SingleListener {
     pub listener_type: ListenerType,
 }
 
+// TODO: Add support for below in order to allow postprocessing hooks
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct SpecialHandlerArgs {
     pub event_type: proc_macro2::TokenStream,
     pub event_handler: Option<proc_macro2::TokenStream>,

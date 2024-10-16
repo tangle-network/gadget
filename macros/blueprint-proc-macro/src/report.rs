@@ -407,6 +407,8 @@ fn generate_job_report_event_handler(
                 #combined_event_listener
             }
         }
+
+        impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
     }
 }
 
@@ -519,6 +521,8 @@ fn generate_qos_report_event_handler(
                 #combined_event_listener
             }
         }
+
+        impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
     }
 }
 

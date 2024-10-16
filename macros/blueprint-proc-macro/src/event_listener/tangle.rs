@@ -41,5 +41,7 @@ pub(crate) fn generate_tangle_event_handler(
                 &self.signer
             }
         }
+
+        impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
     }
 }

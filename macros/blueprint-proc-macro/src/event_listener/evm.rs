@@ -144,5 +144,7 @@ pub(crate) fn generate_evm_event_handler(
                 Ok(())
             }
         }
+
+        impl<T: gadget_sdk::events_watcher::evm::Config> gadget_sdk::event_listener::markers::IsEvm for #struct_name <T> {}
     }
 }

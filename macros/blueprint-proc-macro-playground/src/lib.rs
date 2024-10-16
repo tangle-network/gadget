@@ -1,7 +1,4 @@
 #![allow(dead_code)]
-
-use gadget_sdk::event_listener::TangleEventListener;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use gadget_sdk::{benchmark, job, registration_hook, report, request_hook};
 
 #[derive(Debug, Clone, Copy)]
