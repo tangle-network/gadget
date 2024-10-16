@@ -14,7 +14,6 @@ pub use error::Error;
 #[cfg(feature = "std")]
 pub mod evm;
 pub mod substrate;
-pub mod tangle;
 
 #[async_trait]
 pub trait InitializableEventHandler<T> {
