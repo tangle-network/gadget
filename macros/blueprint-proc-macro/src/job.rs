@@ -393,6 +393,7 @@ pub fn generate_autogen_struct(
         .collect::<Vec<_>>();
 
     let mut required_fields = vec![];
+    let mut type_params_bounds = proc_macro2::TokenStream::default();
     let mut type_params = proc_macro2::TokenStream::default();
 
     if job_args.event_listener.has_tangle() {
@@ -410,7 +411,8 @@ pub fn generate_autogen_struct(
             pub contract: #instance_wrapper_name<T::TH, T::PH>,
         });
 
-        type_params =
+        type_params = quote! { <T> };
+        type_params_bounds =
             quote! { <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config + 'static> };
     }
 
@@ -421,13 +423,13 @@ pub fn generate_autogen_struct(
         #[doc = #fn_name_string]
         #[doc = "`]"]
         #[derive(Clone)]
-        pub struct #struct_name #type_params {
+        pub struct #struct_name #type_params_bounds {
             #(#required_fields)*
             #(#additional_params)*
         }
 
         #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::InitializableEventHandler for #struct_name #type_params {
+        impl #type_params_bounds gadget_sdk::events_watcher::InitializableEventHandler for #struct_name #type_params {
             async fn init_event_handler(
                 &self,
             ) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
@@ -804,7 +806,7 @@ impl Parse for EventListenerArgs {
         // Parse a TypePath instead of a LitStr
         while !content.is_empty() {
             let listener = content.parse::<TypePath>()?;
-            //let listener_tokens = quote! { #listener };
+            // let listener_tokens = quote! { #listener };
             // There are two possibilities: either the user does:
             // event_listener(MyCustomListener, MyCustomListener2)
             // or, have some with the format: event_listener(EvmContractEventListener(instance = IncredibleSquaringTaskManager, event = IncredibleSquaringTaskManager::NewTaskCreated, event_converter = convert_event_to_inputs, callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask), MyCustomListener, MyCustomListener2)
