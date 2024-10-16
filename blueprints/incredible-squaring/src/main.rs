@@ -11,6 +11,7 @@ use gadget_sdk::{
 use incredible_squaring_blueprint as blueprint;
 use structopt::StructOpt;
 use gadget_sdk::events_watcher::InitializableEventHandler;
+use gadget_sdk::job_runner::MultiJobRunner;
 use gadget_sdk::keystore::sp_core_subxt::Pair;
 use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::tangle_subxt::subxt::tx::Signer;
@@ -92,28 +93,21 @@ impl GadgetRunner for TangleGadgetRunner {
     }
 }
 
-#[tokio::main]
-#[allow(clippy::needless_return)]
-async fn main() -> Result<()> {
-    gadget_sdk::logging::setup_log();
-    // Load the environment and create the gadget runner
-    let config = ContextConfig::from_args();
-    let env = gadget_sdk::config::load(config.clone()).expect("Failed to load environment");
-    let mut runner = Box::new(TangleGadgetRunner { env: env.clone() });
+#[gadget_sdk::main(env)]
+async fn main() {
+    let client = env.client().await.map_err(|e| eyre!(e))?;
+    let signer = env.first_sr25519_signer().map_err(|e| eyre!(e))?;
+
+    info!("Starting the event watcher for {} ...", signer.account_id());
+
+    let x_square = blueprint::XsquareEventHandler {
+        service_id: env.service_id.unwrap(),
+        client: client.clone(),
+        signer,
+    };
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
-
-    gadget_sdk::utils::check_for_test(&config)?;
-
-    info!("Registering...");
-    // Register the operator if needed
-    if env.should_run_registration() {
-        runner.register().await?;
-    }
-
-    info!("Running...");
-    // Run the gadget / AVS
-    runner.run().await?;
+    MultiJobRunner::default().with_job(x_square).run().await?;
 
     info!("Exiting...");
     Ok(())

@@ -4,7 +4,7 @@ use std::pin::Pin;
 
 #[derive(Default)]
 pub struct MultiJobRunner {
-    pub enqueued_job_runners: EnqueuedJobRunners,
+    pub(crate) enqueued_job_runners: EnqueuedJobRunners,
 }
 
 pub type EnqueuedJobRunners = Vec<
@@ -40,7 +40,7 @@ impl MultiJobRunner {
     /// };
     ///
     /// MultiJobRunner::new().with_job(x_square).with_job(x_square2).run().await;
-    pub fn with_job<T: InitializableEventHandler<R> + Send + 'static, R: Send + 'static>(
+    pub fn with_job<T: InitializableEventHandler + Send + 'static>(
         &mut self,
         job_runner: T,
     ) -> &mut Self {

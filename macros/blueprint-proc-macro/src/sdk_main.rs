@@ -47,18 +47,15 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
     let tokens = quote! {
         use gadget_sdk::tokio;
         #[tokio::main #tokio_args]
-        async fn main() {
+        async fn main() -> Result<(), Box<dyn std::error::Error>> {
             gadget_sdk::logging::setup_log();
             // Load the environment and create the gadget runner
             let config: gadget_sdk::config::ContextConfig = gadget_sdk::structopt::StructOpt::from_args();
             let env = gadget_sdk::config::load(config.clone()).expect("Failed to load environment");
             gadget_sdk::utils::check_for_test(&config).expect("Failed to check for test");
 
-            if let Err(err) = inner_main(#env_passed_var).await {
-                gadget_sdk::error!("Error while running gadget: {err:?}");
-                // exit 1
-                std::process::exit(1);
-            }
+            inner_main(#env_passed_var).await?;
+            Ok(())
         }
 
         async fn inner_main(#env_function_signature) -> Result<(), Box<dyn std::error::Error>> {

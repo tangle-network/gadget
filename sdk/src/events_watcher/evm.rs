@@ -1,13 +1,11 @@
 //! EVM Event Watcher Module
 
 use crate::events_watcher::error::Error;
-use crate::events_watcher::InitializableEventHandler;
 use alloy_network::Ethereum;
 use alloy_primitives::FixedBytes;
 use alloy_provider::Provider;
 use alloy_sol_types::SolEvent;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use std::ops::Deref;
 
 pub trait Config: Send + Sync + Clone + 'static {
@@ -49,17 +47,6 @@ pub trait EvmEventHandler<T: Config>: Send + Sync + 'static {
     type Event: EvmEvent;
     /// The genesis transaction hash for the contract.
     const GENESIS_TX_HASH: FixedBytes<32>;
-    /// Initialize the event handler.
-    async fn init(&self) -> Option<tokio::sync::oneshot::Receiver<Result<(), crate::Error>>>;
     /// Handle a log event.
     async fn handle(&self, log: &alloy_rpc_types::Log, event: &Self::Event) -> Result<(), Error>;
-}
-
-#[async_trait]
-impl<T: Config, Handler: EvmEventHandler<T>> InitializableEventHandler<T> for Handler {
-    async fn init_event_handler(
-        &self,
-    ) -> Option<tokio::sync::oneshot::Receiver<Result<(), crate::Error>>> {
-        self.init().await
-    }
 }

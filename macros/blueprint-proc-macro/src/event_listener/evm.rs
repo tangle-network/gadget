@@ -25,15 +25,12 @@ pub(crate) fn generate_evm_event_handler(
     event_handler: &EventListenerArgs,
     params_tokens: &[TokenStream],
     fn_call: &TokenStream,
-    event_listener_calls: &[TokenStream],
 ) -> TokenStream {
     let (instance_base, instance_name, instance_wrapper_name, _instance) =
         get_evm_instance_data(event_handler);
     let ev = event_handler.event().unwrap();
     let event_converter = event_handler.event_converter().unwrap();
     let callback = event_handler.callback().unwrap();
-    let combined_event_listener =
-        crate::job::generate_combined_event_listener_selector(struct_name);
 
     quote! {
         #[derive(Debug, Clone)]
@@ -106,12 +103,6 @@ pub(crate) fn generate_evm_event_handler(
             type Event = #ev;
             const TAG: &'static str = "eigenlayer";
             const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
-
-            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
-                #(#event_listener_calls)*
-                #combined_event_listener
-            }
-
             async fn handle(&self, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::events_watcher::Error> {
                 use alloy_provider::Provider;
                 use alloy_sol_types::SolEvent;

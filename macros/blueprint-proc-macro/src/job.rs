@@ -82,12 +82,6 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
     let params_type = args.params_to_field_types(&param_types)?;
     let result_type = args.result_to_field_types(result)?;
 
-    let autogen_struct = if args.skip_codegen {
-        proc_macro2::TokenStream::default()
-    } else {
-        generate_autogen_struct(input, args, &param_types, SUFFIX)
-    };
-
     // Generate Event Handler, if not being skipped
     let event_handler_gen = if args.skip_codegen {
         proc_macro2::TokenStream::default()
@@ -100,8 +94,13 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
             &params_type,
             &result_type,
             SUFFIX,
-            event_listener_calls,
         )
+    };
+
+    let autogen_struct = if args.skip_codegen {
+        proc_macro2::TokenStream::default()
+    } else {
+        generate_autogen_struct(input, args, &param_types, SUFFIX, &event_listener_calls)
     };
 
     // Creates Job Definition using input parameters
@@ -370,6 +369,7 @@ pub fn generate_autogen_struct(
     job_args: &JobArgs,
     param_types: &IndexMap<Ident, Type>,
     suffix: &str,
+    event_listener_calls: &[proc_macro2::TokenStream],
 ) -> proc_macro2::TokenStream {
     let (_fn_name, fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
 
@@ -410,9 +410,11 @@ pub fn generate_autogen_struct(
             pub contract: #instance_wrapper_name<T::TH, T::PH>,
         });
 
-        type_params = quote! { <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config + 'static> };
+        type_params =
+            quote! { <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config + 'static> };
     }
 
+    let combined_event_listener = generate_combined_event_listener_selector(&struct_name);
     quote! {
         /// Event handler for the function
         #[doc = "[`"]
@@ -422,6 +424,16 @@ pub fn generate_autogen_struct(
         pub struct #struct_name #type_params {
             #(#required_fields)*
             #(#additional_params)*
+        }
+
+        #[async_trait::async_trait]
+        impl gadget_sdk::events_watcher::InitializableEventHandler for #struct_name #type_params {
+            async fn init_event_handler(
+                &self,
+            ) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
+                #(#event_listener_calls)*
+                #combined_event_listener
+            }
         }
     }
 }
@@ -435,7 +447,6 @@ pub fn generate_event_handler_for(
     params: &[FieldType],
     result: &[FieldType],
     suffix: &str,
-    event_listener_calls: Vec<proc_macro2::TokenStream>,
 ) -> proc_macro2::TokenStream {
     let (fn_name, _fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
     let job_id = &job_args.id;
@@ -445,9 +456,7 @@ pub fn generate_event_handler_for(
 
     let additional_var_indexes = event_handler_args
         .iter()
-        .map(|ident| {
-            param_types.get_index_of(*ident).expect("Should exist")
-        })
+        .map(|ident| param_types.get_index_of(*ident).expect("Should exist"))
         .collect::<Vec<_>>();
 
     // This has all params
@@ -460,7 +469,6 @@ pub fn generate_event_handler_for(
 
             let is_job_var = !additional_var_indexes.contains(&pos_in_all_args);
 
-            println!("Is job var: {ident} ||| {is_job_var}");
             if is_job_var {
                 let ident = format_ident!("param{job_var_idx}");
                 job_var_idx += 1;
@@ -549,13 +557,7 @@ pub fn generate_event_handler_for(
     };
 
     if event_listener_args.has_evm() {
-        generate_evm_event_handler(
-            &struct_name,
-            event_listener_args,
-            &params_tokens,
-            &fn_call,
-            &event_listener_calls,
-        )
+        generate_evm_event_handler(&struct_name, event_listener_args, &params_tokens, &fn_call)
     } else {
         generate_tangle_event_handler(
             &struct_name,
@@ -563,7 +565,6 @@ pub fn generate_event_handler_for(
             &params_tokens,
             &result_tokens,
             &fn_call,
-            &event_listener_calls,
         )
     }
 }
@@ -822,7 +823,7 @@ impl Parse for EventListenerArgs {
                     listener,
                     evm_args: Some(evm_args),
                     handler: None,
-                    listener_type: ListenerType::Evm
+                    listener_type: ListenerType::Evm,
                 }
             } else {
                 let listener_type = if ty_str.contains("TangleEventListener") {
@@ -838,12 +839,12 @@ impl Parse for EventListenerArgs {
                 }
             };
 
-            let is_special_case = this_listener.listener_type != ListenerType::Custom;
-            // Now, determine if this is a special listener that has special handling code
-            if is_special_case {
+            // Now, determine if this is a tangle listener that has unique code generation requirements
+            // We do not care about EVM here since it already has its own special handler via evm_args
+            if this_listener.listener_type == ListenerType::Tangle {
                 if let PathArguments::AngleBracketed(args) = params {
                     let args = &args.args;
-                    if args.len() == 0 || args.len() > 2 {
+                    if args.is_empty() || args.len() > 2 {
                         return Err(content.error("Expected 1 or 2 type parameter arguments"));
                     }
 
@@ -914,11 +915,17 @@ impl EventListenerArgs {
     }
 
     pub fn has_tangle(&self) -> bool {
-        self.listeners.as_ref().map(|r| r.iter().any(|r| r.listener_type == ListenerType::Tangle)).unwrap_or(false)
+        self.listeners
+            .as_ref()
+            .map(|r| r.iter().any(|r| r.listener_type == ListenerType::Tangle))
+            .unwrap_or(false)
     }
 
     pub fn has_evm(&self) -> bool {
-        self.listeners.as_ref().map(|r| r.iter().any(|r| r.listener_type == ListenerType::Evm)).unwrap_or(false)
+        self.listeners
+            .as_ref()
+            .map(|r| r.iter().any(|r| r.listener_type == ListenerType::Evm))
+            .unwrap_or(false)
     }
 
     /// Returns the Event Handler's Instance if on EigenLayer. Otherwise, returns None

@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use gadget_sdk::event_listener::TangleEventListener;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
 use gadget_sdk::{benchmark, job, registration_hook, report, request_hook};
 
 #[derive(Debug, Clone, Copy)]
@@ -29,7 +31,7 @@ pub struct MyContext;
 // ==================
 
 /// Simple Threshold (t) Keygen Job for n parties.
-#[job(id = 0, params(n, t), event_listener(TangleEventListener), result(_))]
+#[job(id = 0, params(n, t), event_listener(TangleEventListener<JobCalled>), result(_))]
 pub fn keygen(ctx: &MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
     let _ = (n, t, ctx);
     Ok(vec![0; 33])
@@ -39,7 +41,7 @@ pub fn keygen(ctx: &MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
 #[job(
     id = 1,
     params(keygen_id, data),
-    event_listener(TangleEventListener),
+    event_listener(TangleEventListener<JobCalled>),
     result(_)
 )]
 pub async fn sign(keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
@@ -50,7 +52,7 @@ pub async fn sign(keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
 #[job(
     id = 2,
     params(keygen_id, new_t),
-    event_listener(TangleEventListener),
+    event_listener(TangleEventListener<JobCalled>),
     result(_)
 )]
 pub fn refresh(keygen_id: u64, new_t: Option<u8>) -> Result<Vec<u64>, Error> {
@@ -59,7 +61,7 @@ pub fn refresh(keygen_id: u64, new_t: Option<u8>) -> Result<Vec<u64>, Error> {
 }
 
 /// Say hello to someone or the world.
-#[job(id = 3, params(who), event_listener(TangleEventListener), result(_))]
+#[job(id = 3, params(who), event_listener(TangleEventListener<JobCalled>), result(_))]
 pub fn say_hello(who: Option<String>) -> Result<String, Error> {
     match who {
         Some(who) => Ok(format!("Hello, {}!", who)),
@@ -85,7 +87,7 @@ pub fn on_request(nft_id: u64);
 #[report(
     job_id = 0,
     params(n, t, msgs),
-    event_listener(TangleEventListener),
+    event_listener(TangleEventListener<JobCalled>),
     result(_),
     report_type = "job",
     verifier(evm = "KeygenContract")
@@ -97,7 +99,7 @@ fn report_keygen(n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
 
 #[report(
     params(uptime, response_time, error_rate),
-    event_listener(TangleEventListener),
+    event_listener(TangleEventListener<JobCalled>),
     result(Vec<u8>),
     report_type = "qos",
     interval = 3600,
