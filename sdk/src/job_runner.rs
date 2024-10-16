@@ -10,54 +10,57 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_core::ecdsa;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 
-pub struct MultiJobRunner {
-    pub(crate) enqueued_job_runners: EnqueuedJobRunners,
+pub struct MultiJobRunner<'a> {
+    pub(crate) enqueued_job_runners: EnqueuedJobRunners<'a>,
     pub(crate) env: GadgetConfiguration<parking_lot::RawRwLock>,
 }
 
-pub type EnqueuedJobRunners = Vec<
+pub type EnqueuedJobRunners<'a> = Vec<
     Pin<
         Box<
-            dyn SendFuture<
+            dyn ScopedFuture<
+                'a,
                 Output = Option<tokio::sync::oneshot::Receiver<Result<(), crate::Error>>>,
             >,
         >,
     >,
 >;
 
-pub trait SendFuture: Send + Future + 'static {}
-impl<T: Send + Future + 'static> SendFuture for T {}
+pub trait ScopedFuture<'a>: Future + 'a {}
+impl<'a, T: Future + 'a> ScopedFuture<'a> for T {}
 
-pub struct JobBuilder<'a, K> {
-    pub(crate) register_call: Option<RegisterCall>,
-    runner: &'a mut MultiJobRunner,
-    _pd: std::marker::PhantomData<K>,
+pub struct JobBuilder<'b, K: 'b> {
+    pub(crate) register_call: Option<RegisterCall<'b>>,
+    runner: MultiJobRunner<'b>,
+    _pd: std::marker::PhantomData<&'b K>,
 }
 
-pub(crate) type RegisterCall = Pin<Box<dyn SendFuture<Output = Result<(), crate::Error>>>>;
+pub(crate) type RegisterCall<'a> =
+    Pin<Box<dyn ScopedFuture<'a, Output = Result<(), crate::Error>>>>;
 
-impl<K: InitializableEventHandler + Send + 'static> JobBuilder<'_, K> {
-    pub fn with_registration<'a, Fut: SendFuture<Output = Result<(), crate::Error>>, Input: 'a>(
-        &'a mut self,
+impl<'a, K: InitializableEventHandler + Send + 'a> JobBuilder<'a, K> {
+    pub fn with_registration<
+        Fut: ScopedFuture<'a, Output = Result<(), crate::Error>> + 'a,
+        Input: 'a,
+    >(
+        mut self,
         context: Input,
         register_call: fn(Input) -> Fut,
-    ) -> &'a mut Self {
+    ) -> Self {
         let future = register_call(context);
         self.register_call = Some(Box::pin(future));
         self
     }
 
-    pub fn with_price_targets(&mut self, price_targets: PriceTargets) -> &mut Self
+    pub fn with_price_targets(self, price_targets: PriceTargets) -> Self
     where
         K: markers::IsTangle,
     {
-        self.with_registration(
-            (self.runner.env.clone(), price_targets),
-            tangle_registration,
-        )
+        let env = self.runner.env.clone();
+        self.with_registration((env, price_targets), tangle_registration)
     }
 
-    pub fn with_default_price_targets(&mut self) -> &mut Self
+    pub fn with_default_price_targets(self) -> Self
     where
         K: markers::IsTangle,
     {
@@ -70,7 +73,7 @@ impl<K: InitializableEventHandler + Send + 'static> JobBuilder<'_, K> {
         })
     }
 
-    pub fn finish(&mut self, job_runner: K) -> &mut MultiJobRunner {
+    pub fn finish(mut self, job_runner: K) -> MultiJobRunner<'a> {
         let registration = self.register_call.take();
         let test_mode = self.runner.env.test_mode;
 
@@ -87,13 +90,14 @@ impl<K: InitializableEventHandler + Send + 'static> JobBuilder<'_, K> {
 
             job_runner.init_event_handler().await
         });
+
         self.runner.enqueued_job_runners.push(task);
 
         self.runner
     }
 }
 
-impl MultiJobRunner {
+impl<'a> MultiJobRunner<'a> {
     pub fn new(env: &GadgetConfiguration<parking_lot::RawRwLock>) -> Self {
         Self {
             enqueued_job_runners: Vec::new(),
@@ -102,6 +106,7 @@ impl MultiJobRunner {
     }
 
     /// Add a job to the job runner
+    /// ```no_run
     /// #[gadget_sdk::main(env)]
     /// async fn main() {
     ///     let x_square = blueprint::XsquareEventHandler {
@@ -126,7 +131,8 @@ impl MultiJobRunner {
     ///         .run()
     ///         .await?;
     /// }
-    pub fn with_job<K>(&mut self) -> JobBuilder<K> {
+    /// ```
+    pub fn with_job<'b: 'a, K: 'b>(self) -> JobBuilder<'a, K> {
         JobBuilder {
             register_call: None,
             runner: self,
