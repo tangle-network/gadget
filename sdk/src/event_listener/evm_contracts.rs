@@ -55,7 +55,7 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
         };
 
         println!("event_listener/mod.rs | Chain ID: {}", chain_id);
-        let local_db = LocalDatabase::open(&format!("./db/{}", Uuid::new_v4()));
+        let local_db = LocalDatabase::open(format!("./db/{}", Uuid::new_v4()));
         Ok(Self {
             chain_id,
             local_db,
@@ -73,55 +73,51 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
             .get_block_number()
             .await
             .unwrap_or_default();
-        loop {
-            // Get the latest block number
-            let block = self
-                .local_db
-                .get(&format!("LAST_BLOCK_NUMBER_{}", contract.address()))
-                .unwrap_or(0);
+        // loop {
+        // Get the latest block number
+        let block = self
+            .local_db
+            .get(&format!("LAST_BLOCK_NUMBER_{}", contract.address()))
+            .unwrap_or(0);
 
-            let should_cooldown = block >= target_block_number;
-            if should_cooldown {
-                let duration = Duration::from_secs(10);
-                trace!("Cooldown a bit for {}ms", duration.as_millis());
-                tokio::time::sleep(duration).await;
-                // update the latest block number
-                target_block_number = contract.provider().get_block_number().await.unwrap();
+        let should_cooldown = block >= target_block_number;
+        if should_cooldown {
+            return Some(vec![]);
+        }
+
+        let dest_block = core::cmp::min(block + step, target_block_number);
+        println!("evm_contract.rs | Querying from block {block} to {dest_block}");
+
+        // Query events
+        let events_filter = Event::new(contract.provider(), Filter::new())
+            .address(*contract.address())
+            .from_block(BlockNumberOrTag::Number(block + 1))
+            .to_block(BlockNumberOrTag::Number(dest_block))
+            .event_signature(Watcher::Event::SIGNATURE_HASH);
+
+        println!("evm_contracts.rs | Querying events for filter, address: {}, from_block: {}, to_block: {}, event_signature: {}", contract.address(), block + 1, dest_block, Watcher::Event::SIGNATURE_HASH);
+        match events_filter.query().await {
+            Ok(events) => {
+                println!("evm_contracts.rs | Found {} events", events.len());
+
+                self.local_db.set(
+                    &format!("LAST_BLOCK_NUMBER_{}", contract.address()),
+                    dest_block,
+                );
+
+                self.local_db.set(
+                    &format!("TARGET_BLOCK_{}", contract.address()),
+                    target_block_number,
+                );
+
+                return Some(events);
             }
-
-            let dest_block = core::cmp::min(block + step, target_block_number);
-            println!("evm_contract.rs | Querying from block {block} to {dest_block}");
-
-            // Query events
-            let events_filter = Event::new(contract.provider(), Filter::new())
-                .address(*contract.address())
-                .from_block(BlockNumberOrTag::Number(block + 1))
-                .to_block(BlockNumberOrTag::Number(dest_block))
-                .event_signature(Watcher::Event::SIGNATURE_HASH);
-
-            println!("evm_contracts.rs | Querying events for filter, address: {}, from_block: {}, to_block: {}, event_signature: {}", contract.address(), block + 1, dest_block, Watcher::Event::SIGNATURE_HASH);
-            match events_filter.query().await {
-                Ok(events) => {
-                    println!("evm_contracts.rs | Found {} events", events.len());
-
-                    self.local_db.set(
-                        &format!("LAST_BLOCK_NUMBER_{}", contract.address()),
-                        dest_block,
-                    );
-
-                    self.local_db.set(
-                        &format!("TARGET_BLOCK_{}", contract.address()),
-                        target_block_number,
-                    );
-
-                    return Some(events);
-                }
-                Err(e) => {
-                    error!(?e, %self.chain_id, "Error while querying events");
-                    return None;
-                }
+            Err(e) => {
+                error!(?e, %self.chain_id, "Error while querying events");
+                return None;
             }
         }
+        // }
     }
 
     async fn handle_event(
@@ -185,6 +181,7 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>> EthereumWatcherWrapper<W
         );
         while let Some(events) = self.next_event().await {
             if events.is_empty() {
+                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
                 continue;
             }
 

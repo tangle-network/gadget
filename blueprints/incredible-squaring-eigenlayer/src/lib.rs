@@ -4,40 +4,45 @@ use alloy_network::Ethereum;
 use alloy_network::EthereumWallet;
 use alloy_network::TransactionBuilder;
 use alloy_primitives::keccak256;
-use alloy_primitives::{hex, Address, Bytes, FixedBytes, Keccak256, U256};
+use alloy_primitives::{hex, Address, Bytes, FixedBytes, U256};
 use alloy_provider::fillers::WalletFiller;
 use alloy_provider::fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller};
 use alloy_provider::RootProvider;
 use alloy_provider::{Identity, Provider};
 use alloy_rpc_types_eth::TransactionRequest;
 use alloy_sol_types::SolCall;
-use alloy_sol_types::SolType;
+use alloy_sol_types::SolValue;
 use alloy_sol_types::{private::alloy_json_abi::JsonAbi, sol};
 use alloy_transport_http::{Client, Http};
 use ark_bn254::{Fq, G2Affine};
 use ark_ec::AffineRepr;
-use ark_ff::{BigInt, BigInteger, PrimeField};
-use color_eyre::{eyre::eyre, Result};
+use ark_ff::{BigInteger, PrimeField};
+use client::AggregatorClient;
+use client::SignedTaskResponse;
+use color_eyre::Result;
 use eigensdk::chainio_txmanager::simple_tx_manager::SimpleTxManager;
 use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
-use eigensdk::client_avsregistry::writer::AvsRegistryChainWriter;
 use eigensdk::crypto_bls::BlsKeyPair;
-use eigensdk::crypto_bn254::utils::map_to_curve;
+use eigensdk::crypto_bls::OperatorId;
 use eigensdk::crypto_bls::{convert_to_g1_point, convert_to_g2_point};
+use eigensdk::crypto_bn254::utils::map_to_curve;
 use eigensdk::logging::get_test_logger;
 use eigensdk::services_avsregistry::chaincaller;
 use eigensdk::services_blsaggregation::bls_agg;
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
 use gadget_sdk::load_abi;
 use gadget_sdk::{events_watcher::evm::Config, info, job};
-use k256::sha2::{self, Digest};
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::{convert::Infallible, ops::Deref, sync::OnceLock};
 use IncredibleSquaringTaskManager::{
     respondToTaskCall, NonSignerStakesAndSignature, Task, TaskResponse,
 };
 
+pub mod client;
 pub mod constants;
+pub mod runner;
+
 use constants::{
     EIGENLAYER_HTTP_ENDPOINT, EIGENLAYER_WS_ENDPOINT, OPERATOR_ADDRESS,
     OPERATOR_STATE_RETRIEVER_ADDRESS, PRIVATE_KEY, REGISTRY_COORDINATOR_ADDRESS,
@@ -47,6 +52,7 @@ use constants::{
 sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
+    #[derive(Debug, Serialize, Deserialize)]
     IncredibleSquaringTaskManager,
     "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
 );
@@ -72,6 +78,360 @@ impl Config for NodeConfig {
     >;
 }
 
+// /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
+// #[job(
+//     id = 1,
+//     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
+//     result(_),
+//     event_listener(EvmContractEventListener(
+//         instance = IncredibleSquaringTaskManager,
+//         event = IncredibleSquaringTaskManager::NewTaskCreated,
+//         event_converter = convert_event_to_inputs,
+//         callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask,
+//         abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+//     )),
+// )]
+// pub async fn xsquare_eigen(
+//     number_to_be_squared: U256,
+//     task_created_block: u32,
+//     quorum_numbers: Bytes,
+//     quorum_threshold_percentage: u8,
+//     task_index: u32,
+// ) -> Result<respondToTaskCall, Infallible> {
+//     info!(
+//         "Received job to square the number: {:?}",
+//         number_to_be_squared
+//     );
+//     // Calculate our response to job
+//     let number_squared = number_to_be_squared.saturating_pow(U256::from(2u32));
+//     let number_squared = U256::from(4u64);
+//     let task_response = TaskResponse {
+//         referenceTaskIndex: task_created_block,
+//         numberSquared: number_squared,
+//     };
+
+//     let provider = alloy_provider::ProviderBuilder::new()
+//         .with_recommended_fillers()
+//         .on_http(
+//             EIGENLAYER_HTTP_ENDPOINT
+//                 .parse()
+//                 .expect("Invalid HTTP endpoint"),
+//         )
+//         .root()
+//         .clone()
+//         .boxed();
+//     let salt: FixedBytes<32> = FixedBytes::from([0x02; 32]);
+//     let quorum_threshold_percentages: eigensdk::types::operator::QuorumThresholdPercentages =
+//         vec![eigensdk::types::operator::QuorumThresholdPercentage::from(
+//             quorum_threshold_percentage,
+//         )];
+
+//     let signer = eigensdk::signer::signer::Config::signer_from_config(
+//         eigensdk::signer::signer::Config::PrivateKey(PRIVATE_KEY.to_string()),
+//     )
+//     .unwrap();
+//     let bls_key_pair = BlsKeyPair::new(
+//         "1371012690269088913462269866874713266643928125698382731338806296762673180359922"
+//             .to_string(),
+//     )
+//     .unwrap(); // .map_err(|e| eyre!(e))?;
+
+//     // let operator_id = alloy_primitives::FixedBytes(eigensdk::types::operator::operator_id_from_g1_pub_key(bls_key_pair.public_key()).unwrap());
+//     let operator_id =
+//         hex!("fd329fe7e54f459b9c104064efe0172db113a50b5f394949b4ef80b3c34ca7f5").into();
+
+//     info!("Operator ID: {:?}", operator_id);
+
+//     // Create avs clients to interact with contracts deployed on anvil
+//     let avs_registry_reader = AvsRegistryChainReader::new(
+//         get_test_logger(),
+//         *REGISTRY_COORDINATOR_ADDRESS,
+//         *OPERATOR_STATE_RETRIEVER_ADDRESS,
+//         EIGENLAYER_HTTP_ENDPOINT.to_string(),
+//     )
+//     .await
+//     .unwrap();
+
+//     let operators_info = operatorsinfo_inmemory::OperatorInfoServiceInMemory::new(
+//         get_test_logger(),
+//         avs_registry_reader.clone(),
+//         EIGENLAYER_WS_ENDPOINT.to_string(),
+//     )
+//     .await;
+
+//     let current_block = provider.get_block_number().await.unwrap();
+
+//     let cancellation_token = tokio_util::sync::CancellationToken::new();
+//     let operators_info_clone = operators_info.clone();
+//     let token_clone = cancellation_token.clone();
+//     tokio::task::spawn(async move {
+//         operators_info_clone
+//             .start_service(&token_clone, 0, current_block)
+//             .await
+//     });
+//     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+//     // Create aggregation service
+//     let avs_registry_service = chaincaller::AvsRegistryServiceChainCaller::new(
+//         avs_registry_reader.clone(),
+//         operators_info,
+//     );
+
+//     // Create an instance of the BLS Aggregator Service
+//     let bls_agg_service = bls_agg::BlsAggregatorService::new(avs_registry_service);
+//     let current_block_num = provider.get_block_number().await.unwrap();
+
+//     // Create the task related parameters
+//     // TODO: We need to fetch the index for cases where multiple tasks are created at the same block
+//     let task_index: eigensdk::types::avs::TaskIndex = task_index;
+//     let time_to_expiry = std::time::Duration::from_secs(60);
+
+//     // Initialize the task
+//     bls_agg_service
+//         .initialize_new_task(
+//             task_index,
+//             task_created_block,
+//             quorum_numbers.to_vec(),
+//             quorum_threshold_percentages,
+//             time_to_expiry,
+//         )
+//         .await
+//         .unwrap();
+
+//     let encoded_response =
+//         <IncredibleSquaringTaskManager::TaskResponse as alloy_sol_types::SolType>::abi_encode(
+//             &task_response,
+//         );
+//     let task_response_digest = keccak256(encoded_response);
+
+//     // Sign the Hashed Message and send it to the BLS Aggregator
+//     let bls_signature = bls_key_pair.sign_message(task_response_digest.as_ref());
+
+//     let g2_gen = G2Affine::generator();
+//     let msg_affine = map_to_curve(task_response_digest.as_ref());
+//     let msg_point = convert_to_g1_point(msg_affine).unwrap();
+//     let neg_sig = bls_signature.clone().g1_point().g1().neg();
+
+//     use ark_ec::pairing::Pairing;
+//     use std::ops::Neg;
+//     let e1 = ark_bn254::Bn254::pairing(bls_signature.g1_point().g1(), G2Affine::generator());
+//     let e2 = ark_bn254::Bn254::pairing(msg_affine, bls_key_pair.public_key_g2().g2());
+//     assert_eq!(e1, e2);
+//     info!("Signature is valid: Pairings are equal");
+
+//     bls_agg_service
+//         .process_new_signature(
+//             task_index,
+//             task_response_digest,
+//             bls_signature.clone(),
+//             operator_id,
+//         )
+//         .await
+//         .unwrap();
+
+//     // Wait for the response from the aggregation service
+//     let bls_agg_response = bls_agg_service
+//         .aggregated_response_receiver
+//         .lock()
+//         .await
+//         .recv()
+//         .await
+//         .unwrap()
+//         .unwrap();
+
+//     println!("Task Index: {:?}", task_index);
+//     println!(
+//         "bls_agg_response.non_signers_pub_keys_g1: {:?}",
+//         bls_agg_response.non_signers_pub_keys_g1
+//     );
+//     println!(
+//         "bls_agg_response.non_signer_quorum_bitmap_indices: {:?}",
+//         bls_agg_response.non_signer_quorum_bitmap_indices
+//     );
+//     println!(
+//         "bls_agg_response.total_stake_indices: {:?}",
+//         bls_agg_response.total_stake_indices
+//     );
+//     println!(
+//         "bls_agg_response.quorum_apk_indices: {:?}",
+//         bls_agg_response.quorum_apk_indices
+//     );
+//     println!(
+//         "bls_agg_response.non_signer_stake_indices: {:?}",
+//         bls_agg_response.non_signer_stake_indices
+//     );
+//     println!(
+//         "bls_agg_response.signers_agg_sig_g1: {:?}",
+//         bls_agg_response.signers_agg_sig_g1
+//     );
+//     assert_eq!(
+//         bls_agg_response.signers_apk_g2,
+//         bls_key_pair.public_key_g2()
+//     );
+//     assert_eq!(
+//         bls_agg_response.quorum_apks_g1,
+//         vec![bls_key_pair.public_key()]
+//     );
+
+//     // Unpack the response and build the NonSignerStakesAndSignature for the response call
+//     let non_signer_pubkeys: Vec<IncredibleSquaringTaskManager::G1Point> = bls_agg_response
+//         .non_signers_pub_keys_g1
+//         .into_iter()
+//         .map(|pubkey| {
+//             let g1 = convert_to_g1_point(pubkey.g1()).unwrap();
+//             IncredibleSquaringTaskManager::G1Point { X: g1.X, Y: g1.Y }
+//         })
+//         .collect();
+
+//     let quorum_apks: Vec<IncredibleSquaringTaskManager::G1Point> = bls_agg_response
+//         .quorum_apks_g1
+//         .into_iter()
+//         .map(|apk| {
+//             let g1 = convert_to_g1_point(apk.g1()).unwrap();
+//             IncredibleSquaringTaskManager::G1Point { X: g1.X, Y: g1.Y }
+//         })
+//         .collect();
+
+//     let apk_g2 = convert_to_g2_point(bls_agg_response.signers_apk_g2.g2()).unwrap();
+//     let sigma = convert_to_g1_point(bls_agg_response.signers_agg_sig_g1.g1_point().g1()).unwrap();
+//     let non_signer_stakes_and_signature: NonSignerStakesAndSignature =
+//         NonSignerStakesAndSignature {
+//             nonSignerQuorumBitmapIndices: bls_agg_response.non_signer_quorum_bitmap_indices,
+//             nonSignerPubkeys: non_signer_pubkeys,
+//             nonSignerStakeIndices: bls_agg_response.non_signer_stake_indices,
+//             quorumApks: quorum_apks,
+//             apkG2: IncredibleSquaringTaskManager::G2Point {
+//                 X: apk_g2.X,
+//                 Y: apk_g2.Y,
+//             },
+//             sigma: IncredibleSquaringTaskManager::G1Point {
+//                 X: sigma.X,
+//                 Y: sigma.Y,
+//             },
+//             quorumApkIndices: bls_agg_response.quorum_apk_indices,
+//             totalStakeIndices: bls_agg_response.total_stake_indices,
+//         };
+
+//     // Create respondToTaskCall and encode it
+//     let call = respondToTaskCall {
+//         task: Task {
+//             numberToBeSquared: number_to_be_squared,
+//             taskCreatedBlock: task_created_block,
+//             quorumNumbers: quorum_numbers.clone(),
+//             quorumThresholdPercentage: quorum_threshold_percentage as u32,
+//         },
+//         taskResponse: TaskResponse {
+//             referenceTaskIndex: task_index,
+//             numberSquared: number_squared,
+//         },
+//         nonSignerStakesAndSignature: non_signer_stakes_and_signature.clone(),
+//     };
+//     let call_data = call.abi_encode();
+
+//     let task_manager_address =
+//         std::env::var("TASK_MANAGER_ADDRESS").expect("TASK_MANAGER_ADDR env var is not set");
+//     let task_manager_address = Address::from_str(&task_manager_address).unwrap();
+//     let task_manager = IncredibleSquaringTaskManager::new(task_manager_address, provider.clone());
+
+//     let msg_hash = keccak256(task_response.abi_encode());
+//     let apk = convert_to_g1_point(bls_key_pair.public_key().g1()).unwrap();
+//     let nssas = non_signer_stakes_and_signature.clone();
+//     let result = task_manager
+//         .trySignatureAndApkVerification(
+//             msg_hash,
+//             IncredibleSquaringTaskManager::G1Point { X: apk.X, Y: apk.Y },
+//             nssas.apkG2,
+//             nssas.sigma,
+//         )
+//         .call()
+//         .await
+//         .map(|v| (v.pairingSuccessful, v.siganatureIsValid))
+//         .unwrap();
+
+//     println!("Verification Result: {:?}", result);
+
+//     let receipt = task_manager
+//         .respondToTask(
+//             Task {
+//                 numberToBeSquared: number_to_be_squared,
+//                 taskCreatedBlock: task_created_block,
+//                 quorumNumbers: quorum_numbers,
+//                 quorumThresholdPercentage: quorum_threshold_percentage as u32,
+//             },
+//             TaskResponse {
+//                 referenceTaskIndex: task_index,
+//                 numberSquared: number_squared,
+//             },
+//             non_signer_stakes_and_signature,
+//         )
+//         .from(*OPERATOR_ADDRESS)
+//         .send()
+//         .await
+//         .unwrap()
+//         .get_receipt()
+//         .await
+//         .unwrap();
+
+//     info!("SUBMITTED DIRECT JOB RESULT: {:?}", receipt);
+
+//     assert!(receipt.status());
+
+//     // Transaction Manager
+//     let tx_manager = SimpleTxManager::new(
+//         get_test_logger(),
+//         1.0,
+//         PRIVATE_KEY.as_str(),
+//         EIGENLAYER_HTTP_ENDPOINT.as_str(),
+//     )
+//     .unwrap();
+
+//     let chain_id = provider.get_chain_id().await.unwrap();
+
+//     let nonce = provider
+//         .get_transaction_count(*OPERATOR_ADDRESS)
+//         .await
+//         .unwrap();
+
+//     let operator_address = provider.get_accounts().await.unwrap()[0];
+
+//     let nonce = provider
+//         .get_transaction_count(operator_address)
+//         .await
+//         .unwrap();
+
+//     let tx = TransactionRequest::default()
+//         .transaction_type(2) // For EIP-1559 use 2 - For Legacy use 0
+//         .with_to(task_manager_address)
+//         .with_from(operator_address)
+//         .with_value(U256::from(1_000_000_000))
+//         .with_input(call_data.to_vec())
+//         .with_nonce(nonce)
+//         .with_gas_limit(2_000_000)
+//         .with_chain_id(chain_id)
+//         .with_gas_price(21_000_000_000);
+
+//     let mut tx_request: TransactionRequest = tx.clone();
+//     let receipt = tx_manager.send_tx(&mut tx_request).await.unwrap();
+
+//     info!("JOB SUBMISSION RECEIPT: {:?}", receipt);
+
+//     // let signed_tx = signer.sign_transaction_sync(&tx).unwrap();
+//     // let tx = provider.send_transaction(signed_tx).await.unwrap();
+//     // // let tx = provider.send_raw_transaction(&call_data).await.unwrap();
+//     // let receipt = tx.get_receipt().await.unwrap();
+//     // info!("SUBMITTED JOB RESULT: {:?}", receipt);
+
+//     // Send the shutdown signal to the OperatorInfoServiceInMemory
+//     cancellation_token.cancel();
+
+//     // We submit the full task response
+//     Ok(call)
+// }
+
+pub fn noop(_: u32) {
+    // This function intentionally does nothing
+}
+
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
     id = 1,
@@ -81,7 +441,7 @@ impl Config for NodeConfig {
         instance = IncredibleSquaringTaskManager,
         event = IncredibleSquaringTaskManager::NewTaskCreated,
         event_converter = convert_event_to_inputs,
-        callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask,
+        callback = noop,
         abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
     )),
 )]
@@ -91,7 +451,7 @@ pub async fn xsquare_eigen(
     quorum_numbers: Bytes,
     quorum_threshold_percentage: u8,
     task_index: u32,
-) -> Result<respondToTaskCall, Infallible> {
+) -> Result<u32, Infallible> {
     info!(
         "Received job to square the number: {:?}",
         number_to_be_squared
@@ -104,26 +464,6 @@ pub async fn xsquare_eigen(
         numberSquared: number_squared,
     };
 
-    let provider = alloy_provider::ProviderBuilder::new()
-        .with_recommended_fillers()
-        .on_http(
-            EIGENLAYER_HTTP_ENDPOINT
-                .parse()
-                .expect("Invalid HTTP endpoint"),
-        )
-        .root()
-        .clone()
-        .boxed();
-    let salt: FixedBytes<32> = FixedBytes::from([0x02; 32]);
-    let quorum_threshold_percentages: eigensdk::types::operator::QuorumThresholdPercentages =
-        vec![eigensdk::types::operator::QuorumThresholdPercentage::from(
-            quorum_threshold_percentage,
-        )];
-
-    let signer = eigensdk::signer::signer::Config::signer_from_config(
-        eigensdk::signer::signer::Config::PrivateKey(PRIVATE_KEY.to_string()),
-    )
-    .unwrap();
     let bls_key_pair = BlsKeyPair::new(
         "1371012690269088913462269866874713266643928125698382731338806296762673180359922"
             .to_string(),
@@ -131,271 +471,34 @@ pub async fn xsquare_eigen(
     .unwrap(); // .map_err(|e| eyre!(e))?;
 
     // let operator_id = alloy_primitives::FixedBytes(eigensdk::types::operator::operator_id_from_g1_pub_key(bls_key_pair.public_key()).unwrap());
-    let operator_id =
+    let operator_id: OperatorId =
         hex!("fd329fe7e54f459b9c104064efe0172db113a50b5f394949b4ef80b3c34ca7f5").into();
 
     info!("Operator ID: {:?}", operator_id);
 
-    // Create avs clients to interact with contracts deployed on anvil
-    let avs_registry_reader = AvsRegistryChainReader::new(
-        get_test_logger(),
-        *REGISTRY_COORDINATOR_ADDRESS,
-        *OPERATOR_STATE_RETRIEVER_ADDRESS,
-        EIGENLAYER_HTTP_ENDPOINT.to_string(),
-    )
-    .await
-    .unwrap();
-    let avs_writer = AvsRegistryChainWriter::build_avs_registry_chain_writer(
-        get_test_logger(),
-        EIGENLAYER_HTTP_ENDPOINT.to_string(),
-        PRIVATE_KEY.to_string(),
-        *REGISTRY_COORDINATOR_ADDRESS,
-        *OPERATOR_STATE_RETRIEVER_ADDRESS,
-    )
-    .await
-    .unwrap();
-
-    let operators_info = operatorsinfo_inmemory::OperatorInfoServiceInMemory::new(
-        get_test_logger(),
-        avs_registry_reader.clone(),
-        EIGENLAYER_WS_ENDPOINT.to_string(),
-    )
-    .await;
-
-    let current_block = provider.get_block_number().await.unwrap();
-
-    let cancellation_token = tokio_util::sync::CancellationToken::new();
-    let operators_info_clone = operators_info.clone();
-    let token_clone = cancellation_token.clone();
-    tokio::task::spawn(async move {
-        operators_info_clone
-            .start_service(&token_clone, 0, current_block)
-            .await
-    });
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-
-    // Create aggregation service
-    let avs_registry_service = chaincaller::AvsRegistryServiceChainCaller::new(
-        avs_registry_reader.clone(),
-        operators_info,
-    );
-
-    // Create an instance of the BLS Aggregator Service
-    let bls_agg_service = bls_agg::BlsAggregatorService::new(avs_registry_service);
-    let current_block_num = provider.get_block_number().await.unwrap();
-
-    // Create the task related parameters
-    // TODO: We need to fetch the index for cases where multiple tasks are created at the same block
-    let task_index: eigensdk::types::avs::TaskIndex = task_index;
-    let time_to_expiry = std::time::Duration::from_secs(60);
-
-    // Initialize the task
-    bls_agg_service
-        .initialize_new_task(
-            task_index,
-            task_created_block,
-            quorum_numbers.to_vec(),
-            quorum_threshold_percentages,
-            time_to_expiry,
-        )
-        .await
-        .unwrap();
-
-    // Hash the response with Sha256
-    let mut hasher = sha2::Sha256::new();
-    let number_squared_bytes = number_squared.to_be_bytes::<32>();
-    hasher.update(number_squared_bytes);
-    let task_response_digest = alloy_primitives::B256::from_slice(hasher.finalize().as_ref());
-
-    // Hash the response with Keccak256
-    let mut keccak_hasher = Keccak256::new();
-    keccak_hasher.update(number_squared_bytes);
-    let task_response_digest =
-        alloy_primitives::B256::from_slice(keccak_hasher.finalize().as_ref());
-
-    let encoded_response = IncredibleSquaringTaskManager::TaskResponse::abi_encode(&task_response);
+    let encoded_response = <TaskResponse as alloy_sol_types::SolType>::abi_encode(&task_response);
     let task_response_digest = keccak256(encoded_response);
 
     // Sign the Hashed Message and send it to the BLS Aggregator
     let bls_signature = bls_key_pair.sign_message(task_response_digest.as_ref());
-
-    let g2_gen = G2Affine::generator();
-    let msg_affine = map_to_curve(task_response_digest.as_ref());
-    let msg_point = convert_to_g1_point(msg_affine).unwrap();
-    let neg_sig = bls_signature.clone().g1_point().g1().neg();
-
-    use ark_ec::pairing::Pairing;
-    use std::ops::Neg;
-    let e1 = ark_bn254::Bn254::pairing(bls_signature.g1_point().g1(), G2Affine::generator());
-    let e2 = ark_bn254::Bn254::pairing(msg_affine, bls_key_pair.public_key_g2().g2());
-    assert_eq!(e1, e2);
-    info!("Signature is valid: Pairings are equal");
-
-    bls_agg_service
-        .process_new_signature(
-            task_index,
-            task_response_digest,
-            bls_signature.clone(),
-            operator_id,
-        )
-        .await
-        .unwrap();
-
-    // Wait for the response from the aggregation service
-    let bls_agg_response = bls_agg_service
-        .aggregated_response_receiver
-        .lock()
-        .await
-        .recv()
-        .await
-        .unwrap()
-        .unwrap();
-
-    println!("bls_agg_response.non_signers_pub_keys_g1: {:?}", bls_agg_response.non_signers_pub_keys_g1);
-    println!("bls_agg_response.non_signer_quorum_bitmap_indices: {:?}", bls_agg_response.non_signer_quorum_bitmap_indices);
-    println!("bls_agg_response.total_stake_indices: {:?}", bls_agg_response.total_stake_indices);
-    println!("bls_agg_response.quorum_apk_indices: {:?}", bls_agg_response.quorum_apk_indices);
-    println!("bls_agg_response.non_signer_stake_indices: {:?}", bls_agg_response.non_signer_stake_indices);
-    println!("bls_agg_response.signers_agg_sig_g1: {:?}", bls_agg_response.signers_agg_sig_g1);
-    assert_eq!(
-        bls_agg_response.signers_apk_g2,
-        bls_key_pair.public_key_g2()
-    );
-    assert_eq!(
-        bls_agg_response.quorum_apks_g1,
-        vec![bls_key_pair.public_key()]
-    );
-
-    // Unpack the response and build the NonSignerStakesAndSignature for the response call
-    let non_signer_pubkeys: Vec<IncredibleSquaringTaskManager::G1Point> = bls_agg_response
-        .non_signers_pub_keys_g1
-        .into_iter()
-        .map(|pubkey| {
-            let g1 = convert_to_g1_point(pubkey.g1()).unwrap();
-            IncredibleSquaringTaskManager::G1Point { X: g1.X, Y: g1.Y }
-        })
-        .collect();
-
-    let quorum_apks: Vec<IncredibleSquaringTaskManager::G1Point> = bls_agg_response
-        .quorum_apks_g1
-        .into_iter()
-        .map(|apk| {
-            let g1 = convert_to_g1_point(apk.g1()).unwrap();
-            IncredibleSquaringTaskManager::G1Point { X: g1.X, Y: g1.Y }
-        })
-        .collect();
-
-    let apk_g2 = convert_to_g2_point(bls_agg_response.signers_apk_g2.g2()).unwrap();
-    let sigma = convert_to_g1_point(bls_agg_response.signers_agg_sig_g1.g1_point().g1()).unwrap();
-
-    let non_signer_stakes_and_signature: NonSignerStakesAndSignature =
-        NonSignerStakesAndSignature {
-            nonSignerQuorumBitmapIndices: bls_agg_response.non_signer_quorum_bitmap_indices,
-            nonSignerPubkeys: non_signer_pubkeys,
-            nonSignerStakeIndices: bls_agg_response.non_signer_stake_indices,
-            quorumApks: quorum_apks,
-            apkG2: IncredibleSquaringTaskManager::G2Point { X: apk_g2.X, Y: apk_g2.Y },
-            sigma: IncredibleSquaringTaskManager::G1Point { X: sigma.X, Y: sigma.Y },
-            quorumApkIndices: bls_agg_response.quorum_apk_indices,
-            totalStakeIndices: bls_agg_response.total_stake_indices,
-        };
-
-    // Create respondToTaskCall and encode it
-    let call = respondToTaskCall {
-        task: Task {
-            numberToBeSquared: number_to_be_squared,
-            taskCreatedBlock: task_created_block,
-            quorumNumbers: quorum_numbers.clone(),
-            quorumThresholdPercentage: quorum_threshold_percentage as u32,
-        },
-        taskResponse: TaskResponse {
-            referenceTaskIndex: task_index,
-            numberSquared: number_squared,
-        },
-        nonSignerStakesAndSignature: non_signer_stakes_and_signature.clone(),
+    let signed_response = SignedTaskResponse {
+        task_response,
+        signature: bls_signature,
+        operator_id,
     };
-    let call_data = call.abi_encode();
 
-    let task_manager_address =
-        std::env::var("TASK_MANAGER_ADDRESS").expect("TASK_MANAGER_ADDR env var is not set");
-    let task_manager_address = Address::from_str(&task_manager_address).unwrap();
-    let task_manager = IncredibleSquaringTaskManager::new(task_manager_address, provider.clone());
-    let receipt = task_manager
-        .respondToTask(
-            Task {
-                numberToBeSquared: number_to_be_squared,
-                taskCreatedBlock: task_created_block,
-                quorumNumbers: quorum_numbers,
-                quorumThresholdPercentage: quorum_threshold_percentage as u32,
-            },
-            TaskResponse {
-                referenceTaskIndex: task_index,
-                numberSquared: number_squared,
-            },
-            non_signer_stakes_and_signature,
-        )
-        .from(*OPERATOR_ADDRESS)
-        .send()
-        .await
-        .unwrap()
-        .get_receipt()
+    info!(
+        "Sending signed task response to the aggregator: {:?}",
+        signed_response
+    );
+    let client = AggregatorClient::new("127.0.0.1:8081").unwrap();
+    info!("Client created...");
+    client
+        .send_signed_task_response(signed_response)
         .await
         .unwrap();
 
-    info!("SUBMITTED DIRECT JOB RESULT: {:?}", receipt);
-
-    assert!(receipt.status());
-
-    // Transaction Manager
-    let tx_manager = SimpleTxManager::new(
-        get_test_logger(),
-        1.0,
-        PRIVATE_KEY.as_str(),
-        EIGENLAYER_HTTP_ENDPOINT.as_str(),
-    )
-    .unwrap();
-
-    let chain_id = provider.get_chain_id().await.unwrap();
-
-    let nonce = provider
-        .get_transaction_count(*OPERATOR_ADDRESS)
-        .await
-        .unwrap();
-
-    let operator_address = provider.get_accounts().await.unwrap()[0];
-
-    let nonce = provider
-        .get_transaction_count(operator_address)
-        .await
-        .unwrap();
-
-    let tx = TransactionRequest::default()
-        .transaction_type(2) // For EIP-1559 use 2 - For Legacy use 0
-        .with_to(task_manager_address)
-        .with_from(operator_address)
-        .with_value(U256::from(1_000_000_000))
-        .with_input(call_data.to_vec())
-        .with_nonce(nonce)
-        .with_gas_limit(2_000_000)
-        .with_chain_id(chain_id)
-        .with_gas_price(21_000_000_000);
-
-    let mut tx_request: TransactionRequest = tx.clone();
-    let receipt = tx_manager.send_tx(&mut tx_request).await.unwrap();
-
-    info!("JOB SUBMISSION RECEIPT: {:?}", receipt);
-
-    // let signed_tx = signer.sign_transaction_sync(&tx).unwrap();
-    // let tx = provider.send_transaction(signed_tx).await.unwrap();
-    // // let tx = provider.send_raw_transaction(&call_data).await.unwrap();
-    // let receipt = tx.get_receipt().await.unwrap();
-    // info!("SUBMITTED JOB RESULT: {:?}", receipt);
-
-    // Send the shutdown signal to the OperatorInfoServiceInMemory
-    cancellation_token.cancel();
-
-    // We submit the full task response
-    Ok(call)
+    Ok(1)
 }
 
 /// Converts the event to inputs.

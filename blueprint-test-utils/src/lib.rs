@@ -460,15 +460,17 @@ mod tests_standard {
     use crate::test_ext::new_test_ext_blueprint_manager;
     use alloy_contract::{CallBuilder, CallDecoder};
     use alloy_primitives::{address, Bytes, U256};
+    use alloy_provider::network::EthereumWallet;
     use alloy_provider::{network::Ethereum, Provider};
     use alloy_rpc_types::eth::TransactionReceipt;
     use alloy_transport::{Transport, TransportResult};
-
-    use cargo_tangle::deploy::Opts;
+    use cargo_tangle::deploy::{Opts, PrivateKeySigner};
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
+    use incredible_squaring_aggregator::aggregator::Aggregator;
     use std::str::FromStr;
+    use std::sync::Arc;
 
     /// This test requires that `yarn install` has been executed inside the
     /// `./blueprints/incredible-squaring/` directory
@@ -595,7 +597,7 @@ mod tests_standard {
         setup_log();
         let (_container, http_endpoint, ws_endpoint) = anvil::start_anvil_container(true).await;
         std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
-        std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint);
+        std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint.clone());
 
         // Sleep to give the testnet time to spin up
         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -611,7 +613,7 @@ mod tests_standard {
         println!("{:?}", accounts);
         // let service_manager_addr = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
         let registry_coordinator_addr = address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
-        // let operator_state_retriever_addr = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
+        let operator_state_retriever_addr = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
         // let delegation_manager_addr = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
         // let strategy_manager_addr = address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
         let erc20_mock_addr = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
@@ -670,41 +672,62 @@ mod tests_standard {
         .unwrap();
         assert!(init_receipt.status());
 
+        let signer: PrivateKeySigner =
+            "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
+                .parse()
+                .unwrap();
+        let wallet = EthereumWallet::from(signer);
+        let aggregator = Aggregator::new(
+            task_manager_addr,
+            registry_coordinator_addr,
+            operator_state_retriever_addr,
+            http_endpoint.clone(),
+            ws_endpoint.clone(),
+            "127.0.0.1:8081".to_string(),
+            wallet,
+        )
+        .await
+        .unwrap();
+
+        // Run the server in a separate thread
+        let handle = aggregator.start(ws_endpoint.to_string());
+
         // Start the Task Spawner
         let operators = vec![vec![accounts[0]]];
         let quorums = Bytes::from(vec![0]);
         let task_spawner = async move {
             loop {
-                tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
-                let result = get_receipt(
+                tokio::time::sleep(std::time::Duration::from_millis(10000)).await;
+
+                if get_receipt(
                     task_manager
                         .createNewTask(U256::from(2), 100u32, Bytes::from(vec![0]))
                         .from(task_generator_address),
                 )
                 .await
-                .unwrap();
-                if result.status() {
-                    info!("Deployed a new task {:#?}", result);
+                .unwrap()
+                .status()
+                {
+                    info!("Deployed a new task");
                 }
 
-                let result = get_receipt(
+                if get_receipt(
                     registry_coordinator
                         .updateOperatorsForQuorum(operators.clone(), quorums.clone()),
                 )
                 .await
-                .unwrap();
-                if result.status() {
+                .unwrap()
+                .status()
+                {
                     info!("Updated operators for quorum 0");
                 }
 
-                let arg = format!(
-                    "cast rpc anvil_mine 1 --rpc-url {} > /dev/null",
-                    http_endpoint
-                );
-                // Mine a block
-                let _output = tokio::process::Command::new("sh")
+                tokio::process::Command::new("sh")
                     .arg("-c")
-                    .arg(arg.as_str())
+                    .arg(&format!(
+                        "cast rpc anvil_mine 1 --rpc-url {} > /dev/null",
+                        http_endpoint
+                    ))
                     .output()
                     .await
                     .unwrap();

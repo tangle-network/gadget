@@ -7,7 +7,6 @@ use crate::job::EventListenerArgs;
 pub(crate) fn get_instance_data(
     event_handler: &EventListenerArgs,
 ) -> (Ident, Ident, Ident, TokenStream) {
-    println!("Generating EVM event handler");
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
     let instance_wrapper_name = format_ident!("{}InstanceWrapper", instance_base);
@@ -161,8 +160,8 @@ pub(crate) fn generate_evm_event_handler(
                 // }
                 let call = #callback(job_result);
                 // Submit the transaction
-                let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
-                tx.watch().await?;
+                // let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
+                // tx.watch().await?;
 
                 Ok(())
             }

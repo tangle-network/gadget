@@ -4,6 +4,7 @@ members = [
     "blueprint-metadata",
     "blueprints/incredible-squaring",
     "blueprints/incredible-squaring-eigenlayer",
+    "blueprints/incredible-squaring-eigenlayer/aggregator",
     "cli",
     "gadget-io",
     "blueprint-test-utils",
@@ -47,6 +48,7 @@ blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false, version = "0.1.2" }
 
 incredible-squaring-blueprint-eigenlayer = { path = "./blueprints/incredible-squaring-eigenlayer", default-features = false, version = "0.1.1" }
+incredible-squaring-aggregator = { path = "./blueprints/incredible-squaring-eigenlayer/aggregator", default-features = false, version = "0.1.1" }
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.2" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.2" }
 gadget-context-derive = { path = "./macros/context-derive", default-features = false, version = "0.1.1" }
@@ -95,6 +97,7 @@ ethereum-types = { version = "0.14.1", default-features = false }
 failure = "0.1.8"
 fs2 = "0.4"
 futures = "0.3.30"
+futures-util = "0.3.31"
 getrandom = { version = "0.2.15", default-features = false }
 hex = { version = "0.4.3", default-features = false }
 http-body-util = "0.1.2"
@@ -138,10 +141,13 @@ w3f-bls = { version = "0.1.4", default-features = false }
 cid = { version = "0.11.1" }
 indexmap = "2.5.0"
 lazy_static = "1.5.0"
+jsonrpc-core = "18.0.0"
+jsonrpc-http-server = "18.0.0"
 
 alloy-primitives = "0.7.2"
 alloy-json-abi = "0.7.2"
 alloy-sol-types = "0.7.2"
+alloy-rpc-client = "0.4.2"
 alloy-rpc-types = { version = "0.1" }
 alloy-rpc-types-eth = { version = "0.1" }
 alloy-provider = { version = "0.1", default-features = false, features = ["reqwest", "ws"] }
@@ -149,6 +155,7 @@ alloy-pubsub = { version = "0.1" }
 alloy-signer = { version = "0.1" }
 alloy-signer-local = { version = "0.1" }
 alloy-network = { version = "0.1" }
+alloy-node-bindings = "0.4.2"
 alloy-contract = { version = "0.1" }
 alloy-consensus = { version = "0.1" }
 alloy-transport = { version = "0.1" }
