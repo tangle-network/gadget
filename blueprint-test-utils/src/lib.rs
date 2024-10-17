@@ -465,16 +465,11 @@ mod tests_standard {
     use alloy_rpc_types::eth::TransactionReceipt;
     use alloy_transport::{Transport, TransportResult};
     use cargo_tangle::deploy::{Opts, PrivateKeySigner};
-    use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
-    use eigensdk::logging::get_test_logger;
-    use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
     use incredible_squaring_aggregator::aggregator::Aggregator;
     use std::str::FromStr;
-    use std::sync::Arc;
-    use subxt::ext::sp_runtime::offchain::http;
 
     /// This test requires that `yarn install` has been executed inside the
     /// `./blueprints/incredible-squaring/` directory
@@ -676,15 +671,6 @@ mod tests_standard {
         .unwrap();
         assert!(init_receipt.status());
 
-        let avs_registry_reader = AvsRegistryChainReader::new(
-            get_test_logger(),
-            registry_coordinator_addr,
-            operator_state_retriever_addr,
-            http_endpoint.to_string(),
-        )
-        .await
-        .unwrap();
-
         let signer: PrivateKeySigner =
             "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
                 .parse()
@@ -703,7 +689,7 @@ mod tests_standard {
         .unwrap();
 
         // Run the server in a separate thread
-        let handle = aggregator.start(ws_endpoint.to_string());
+        let _handle = aggregator.start(ws_endpoint.to_string());
 
         // Start the Task Spawner
         let operators = vec![vec![accounts[0]]];
@@ -737,7 +723,7 @@ mod tests_standard {
 
                 tokio::process::Command::new("sh")
                     .arg("-c")
-                    .arg(&format!(
+                    .arg(format!(
                         "cast rpc anvil_mine 1 --rpc-url {} > /dev/null",
                         http_endpoint
                     ))

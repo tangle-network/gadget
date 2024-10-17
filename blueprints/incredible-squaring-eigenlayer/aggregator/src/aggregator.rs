@@ -13,10 +13,7 @@ use eigensdk::{
     services_avsregistry::chaincaller::AvsRegistryServiceChainCaller,
     services_blsaggregation::bls_agg::{BlsAggregationServiceResponse, BlsAggregatorService},
     services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory,
-    types::{
-        avs::{TaskIndex, TaskResponseDigest},
-        operator::{QuorumThresholdPercentage, QuorumThresholdPercentages},
-    },
+    types::avs::{TaskIndex, TaskResponseDigest},
     utils::get_provider,
 };
 use futures_util::StreamExt;
@@ -254,7 +251,7 @@ impl Aggregator {
         if self
             .tasks_responses
             .entry(task_index)
-            .or_insert_with(HashMap::new)
+            .or_default()
             .contains_key(&task_response_digest)
         {
             info!(
@@ -383,20 +380,4 @@ impl Aggregator {
 
         Ok(())
     }
-}
-
-fn check_double_mapping(
-    outer_map: &HashMap<
-        u32,
-        HashMap<TaskResponseDigest, IncredibleSquaringTaskManager::TaskResponse>,
-    >,
-    outer_key: u32,
-    inner_key: TaskResponseDigest,
-) -> Option<&IncredibleSquaringTaskManager::TaskResponse> {
-    if let Some(inner_map) = outer_map.get(&outer_key) {
-        if let Some(value) = inner_map.get(&inner_key) {
-            return Some(value);
-        }
-    }
-    None
 }

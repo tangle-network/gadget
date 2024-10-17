@@ -2,13 +2,12 @@ use super::EventListener;
 use crate::event_listener::get_exponential_backoff;
 use crate::events_watcher::evm::{Config as ConfigT, EvmEventHandler};
 use crate::store::LocalDatabase;
-use crate::{error, trace, Error};
+use crate::{error, Error};
 use alloy_contract::Event;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockNumberOrTag, Filter};
 use alloy_sol_types::SolEvent;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio_retry::Retry;
 use uuid::Uuid;
 
@@ -68,7 +67,7 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
     async fn next_event(&mut self) -> Option<Vec<(Watcher::Event, alloy_rpc_types::Log)>> {
         let contract = &self.contract;
         let step = 100;
-        let mut target_block_number: u64 = contract
+        let target_block_number: u64 = contract
             .provider()
             .get_block_number()
             .await

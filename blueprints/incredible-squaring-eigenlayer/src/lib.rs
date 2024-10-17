@@ -2,51 +2,30 @@
 use alloy_contract::ContractInstance;
 use alloy_network::Ethereum;
 use alloy_network::EthereumWallet;
-use alloy_network::TransactionBuilder;
 use alloy_primitives::keccak256;
-use alloy_primitives::{hex, Address, Bytes, FixedBytes, U256};
+use alloy_primitives::{hex, Bytes, FixedBytes, U256};
 use alloy_provider::fillers::WalletFiller;
 use alloy_provider::fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller};
+use alloy_provider::Identity;
 use alloy_provider::RootProvider;
-use alloy_provider::{Identity, Provider};
-use alloy_rpc_types_eth::TransactionRequest;
-use alloy_sol_types::SolCall;
-use alloy_sol_types::SolValue;
 use alloy_sol_types::{private::alloy_json_abi::JsonAbi, sol};
 use alloy_transport_http::{Client, Http};
-use ark_bn254::{Fq, G2Affine};
-use ark_ec::AffineRepr;
+use ark_bn254::Fq;
 use ark_ff::{BigInteger, PrimeField};
 use client::AggregatorClient;
 use client::SignedTaskResponse;
 use color_eyre::Result;
-use eigensdk::chainio_txmanager::simple_tx_manager::SimpleTxManager;
-use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
-use eigensdk::crypto_bls::{convert_to_g1_point, convert_to_g2_point};
-use eigensdk::crypto_bn254::utils::map_to_curve;
-use eigensdk::logging::get_test_logger;
-use eigensdk::services_avsregistry::chaincaller;
-use eigensdk::services_blsaggregation::bls_agg;
-use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
 use gadget_sdk::load_abi;
 use gadget_sdk::{events_watcher::evm::Config, info, job};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use std::{convert::Infallible, ops::Deref, sync::OnceLock};
-use IncredibleSquaringTaskManager::{
-    respondToTaskCall, NonSignerStakesAndSignature, Task, TaskResponse,
-};
+use IncredibleSquaringTaskManager::TaskResponse;
 
 pub mod client;
 pub mod constants;
 pub mod runner;
-
-use constants::{
-    EIGENLAYER_HTTP_ENDPOINT, EIGENLAYER_WS_ENDPOINT, OPERATOR_ADDRESS,
-    OPERATOR_STATE_RETRIEVER_ADDRESS, PRIVATE_KEY, REGISTRY_COORDINATOR_ADDRESS,
-};
 
 // Codegen from ABI file to interact with the contract.
 sol!(

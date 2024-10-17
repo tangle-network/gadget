@@ -1,4 +1,4 @@
-use alloy_rpc_client::{ReqwestClient, RpcClient};
+use alloy_rpc_client::ReqwestClient;
 use color_eyre::Result;
 use eigensdk::crypto_bls::{OperatorId, Signature};
 use reqwest::Url;
