@@ -35,7 +35,6 @@ impl AggregatorClient {
 
     /// Sends a signed task response to the aggregator
     pub async fn send_signed_task_response(&self, response: SignedTaskResponse) -> Result<()> {
-        info!("Sending signed task response");
         let params = json!({
             "params": response,
             "id": 1,

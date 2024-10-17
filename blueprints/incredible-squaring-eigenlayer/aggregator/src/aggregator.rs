@@ -251,13 +251,23 @@ impl Aggregator {
             task_index, task_response_digest
         );
 
-        self.tasks_responses
+        if self
+            .tasks_responses
             .entry(task_index)
             .or_insert_with(HashMap::new)
-            .insert(
-                task_response_digest,
-                signed_task_response.task_response.clone(),
+            .contains_key(&task_response_digest)
+        {
+            info!(
+                "Task response digest already processed for task index: {}",
+                task_index
             );
+            return Ok(());
+        }
+
+        self.tasks_responses.get_mut(&task_index).unwrap().insert(
+            task_response_digest,
+            signed_task_response.task_response.clone(),
+        );
 
         debug!(
             "Inserted task response for task index: {}, {:?}",
@@ -308,6 +318,8 @@ impl Aggregator {
         &self,
         response: BlsAggregationServiceResponse,
     ) -> Result<()> {
+        info!("Creating NonSignerStakesAndSignature for aggregated response");
+
         let non_signer_stakes_and_signature = NonSignerStakesAndSignature {
             nonSignerPubkeys: response
                 .non_signers_pub_keys_g1
@@ -344,7 +356,13 @@ impl Aggregator {
         let provider = get_provider(&self.http_rpc_url);
         let task_manager =
             IncredibleSquaringTaskManager::new(self.task_manager_addr, provider.clone());
-        let receipt = task_manager
+
+        info!(
+            "Sending aggregated response to contract for task index: {}",
+            response.task_index
+        );
+
+        let receipt_result = task_manager
             .respondToTask(
                 task.clone(),
                 task_response.clone(),
@@ -354,14 +372,24 @@ impl Aggregator {
                 &self.wallet,
             ))
             .send()
-            .await?
-            .get_receipt()
-            .await?;
+            .await;
 
-        info!(
-            "Sent aggregated response to contract for task index: {}, receipt: {:?}",
-            response.task_index, receipt
-        );
+        match receipt_result {
+            Ok(receipt_future) => match receipt_future.get_receipt().await {
+                Ok(receipt) => {
+                    info!("Receipt obtained successfully: {:?}", receipt);
+                }
+                Err(e) => {
+                    error!("Failed to get receipt: {:?}", e);
+                    return Err(e.into());
+                }
+            },
+            Err(e) => {
+                error!("Failed to send task response: {:?}", e);
+                return Err(e.into());
+            }
+        }
+
         Ok(())
     }
 }
