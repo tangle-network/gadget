@@ -177,6 +177,7 @@ pub struct WebPoller {
 Then, implement `EventListener` for `WebPoller`:
 
 ```rust
+#[async_trait::async_trait]
 impl EventListener<serde_json::Value, MyContext> for WebPoller {
     /// Build the event listener. Note that this time, we don't necessarily need the context
     async fn new(_context: &MyContext) -> Result<Self, Error>

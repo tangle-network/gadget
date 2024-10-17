@@ -25,3 +25,4 @@ CODEGEN_LOCK
 blueprint.json
 blueprint*.json
 blueprint.lock
+/blueprints/periodic-web-poller/node_modules/
