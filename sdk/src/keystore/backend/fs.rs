@@ -43,7 +43,8 @@ impl FilesystemKeystore {
 
     /// Write the given `data` to `file`.
     fn write_to_file(file: PathBuf, data: &[u8]) -> Result<(), Error> {
-        let mut file = fs::File::create(file)?;
+        println!("Writing to {:?}", file);
+        let mut file = fs::File::create(file).unwrap();
 
         #[cfg(target_family = "unix")]
         {
@@ -94,17 +95,29 @@ impl FilesystemKeystore {
     /// Iterate over all public keys of a given key type.
     /// skipping any invalid files.
     fn iter_keys(&self, key_type: KeyType) -> Box<dyn Iterator<Item = Vec<u8>>> {
-        let key_type = key_type as u16;
-        let key_type = key_type.to_be_bytes();
-        let prefix = hex::encode(key_type);
+        let key_type_u16 = key_type as u16;
+        let key_type_bytes = key_type_u16.to_be_bytes();
+        let prefix = hex::encode(key_type_bytes);
         let res = fs::read_dir(&self.root);
         match res {
             Ok(r) => Box::new(r.filter_map(move |entry| {
                 let entry = entry.ok()?;
                 let file_name = entry.file_name().into_string().ok()?;
+
+                // If the key type is BlsBn254, search for .pub files. Otherwise, search normally
                 if file_name.starts_with(&prefix) {
-                    let public = file_name.strip_prefix(&prefix)?;
-                    hex::decode(public).ok()
+                    if key_type == KeyType::BlsBn254 {
+                        if file_name.ends_with(".pub") {
+                            let public_key_path = entry.path();
+                            let public_key_bytes = fs::read(public_key_path).ok()?;
+                            Some(public_key_bytes)
+                        } else {
+                            None
+                        }
+                    } else {
+                        let public_key_file = file_name.strip_prefix(&prefix)?;
+                        hex::decode(public_key_file).ok()
+                    }
                 } else {
                     None
                 }
@@ -213,16 +226,26 @@ impl Backend for FilesystemKeystore {
         let secret = bn254::generate_with_optional_seed(seed);
         let public = bn254::to_public(&secret);
         let path = self.key_file_path(
-            serde_json::to_vec(&public)
-                .map_err(|e| Error::BlsBn254(e.to_string()))?
-                .as_slice(),
+            bn254::hash_public(public.clone())?.as_bytes(),
             KeyType::BlsBn254,
         );
+
+        // Serialize and store the secret key
         let mut secret_bytes = Vec::new();
         secret
             .serialize_uncompressed(&mut secret_bytes)
             .map_err(|e| Error::BlsBn254(e.to_string()))?;
-        Self::write_to_file(path, &secret_bytes)?;
+        Self::write_to_file(path.clone(), &secret_bytes)?;
+
+        // Store the public key in metadata file
+        let public_key_path = path.with_extension("pub");
+        Self::write_to_file(
+            public_key_path,
+            serde_json::to_vec(&public)
+                .map_err(|e| Error::BlsBn254(e.to_string()))?
+                .as_slice(),
+        )?;
+
         Ok(public)
     }
 
@@ -231,12 +254,8 @@ impl Backend for FilesystemKeystore {
         public: &bn254::Public,
         msg: &[u8; 32],
     ) -> Result<Option<bn254::Signature>, Error> {
-        let secret_bytes = self.secret_by_type(
-            serde_json::to_vec(&public)
-                .map_err(|e| Error::BlsBn254(e.to_string()))?
-                .as_slice(),
-            KeyType::BlsBn254,
-        )?;
+        let hashed_public = bn254::hash_public(public.clone())?;
+        let secret_bytes = self.secret_by_type(hashed_public.as_bytes(), KeyType::BlsBn254)?;
         if let Some(buf) = secret_bytes {
             let mut secret = bn254::secret_from_bytes(&buf);
             Ok(Some(bn254::sign(&mut secret, msg)))
@@ -299,12 +318,8 @@ impl Backend for FilesystemKeystore {
         &self,
         public: &bn254::Public,
     ) -> Result<Option<bn254::Secret>, Error> {
-        let secret_bytes = self.secret_by_type(
-            serde_json::to_vec(&public)
-                .map_err(|e| Error::BlsBn254(e.to_string()))?
-                .as_slice(),
-            KeyType::BlsBn254,
-        )?;
+        let hashed_public = bn254::hash_public(public.clone())?;
+        let secret_bytes = self.secret_by_type(hashed_public.as_bytes(), KeyType::BlsBn254)?;
         if let Some(buf) = secret_bytes {
             Ok(Some(bn254::secret_from_bytes(&buf)))
         } else {
@@ -335,7 +350,11 @@ impl Backend for FilesystemKeystore {
     }
 
     fn iter_bls_bn254(&self) -> impl Iterator<Item = bn254::Public> {
-        self.iter_keys(KeyType::BlsBn254)
-            .flat_map(|b| serde_json::from_slice(&b))
+        self.iter_keys(KeyType::BlsBn254).flat_map(|b| {
+            let path = self.key_file_path(b.as_slice(), KeyType::BlsBn254);
+            let public_key_path = format!("{:?}.pub", path);
+            let public_key_bytes = std::fs::read(public_key_path).ok()?;
+            serde_json::from_slice(&public_key_bytes).ok()
+        })
     }
 }

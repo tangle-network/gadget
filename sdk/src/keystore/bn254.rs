@@ -1,11 +1,13 @@
 //! BLS BN254 keys and signatures
 
+use crate::keystore::Error;
 use alloy_primitives::keccak256;
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{PrimeField, UniformRand};
 use eigensdk::crypto_bls::PublicKey;
 use eigensdk::crypto_bls::{BlsG1Point, BlsSignature, PrivateKey};
 use eigensdk::crypto_bn254::utils::map_to_curve;
+use k256::sha2::{Digest, Sha256};
 
 /// BN254 public key.
 pub type Public = BlsG1Point;
@@ -13,6 +15,18 @@ pub type Public = BlsG1Point;
 pub type Secret = PrivateKey;
 /// BN254 signature.
 pub type Signature = BlsSignature;
+
+/// Creates a hash of the public key
+///
+/// Used for BLS BN254 keys in the keystore, as the public keys are too long to be used as file names.
+/// Instead of storing public keys in the filename, the public key is stored in `path/to/key/<hash>.pub` while the private
+/// key is stored in `path/to/key/<hash>`
+pub fn hash_public(public: Public) -> Result<String, Error> {
+    let mut hasher = Sha256::new();
+    hasher.update(serde_json::to_vec(&public).map_err(|e| Error::BlsBn254(e.to_string()))?);
+    let hashed_public = hasher.finalize();
+    Ok(hex::encode(hashed_public))
+}
 
 #[must_use]
 pub fn generate_with_optional_seed(seed: Option<&[u8]>) -> Secret {

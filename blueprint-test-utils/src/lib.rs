@@ -124,7 +124,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
 
 /// Adds keys relevant for the test to the keystore, and performs some necessary
 /// cross-compatability tests to ensure key use consistency between different parts of the codebase
-async fn inject_test_keys<P: AsRef<Path>>(
+pub async fn inject_test_keys<P: AsRef<Path>>(
     keystore_path: P,
     node_index: usize,
 ) -> color_eyre::Result<()> {
@@ -147,12 +147,17 @@ async fn inject_test_keys<P: AsRef<Path>>(
     // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
     let ecdsa_seed = ecdsa.seed();
 
+    let bls_seed = suri.as_bytes();
+
     keystore
         .sr25519_generate_new(Some(sr_seed))
         .expect("Should be valid SR25519 seed");
     keystore
         .ecdsa_generate_new(Some(&ecdsa_seed))
         .expect("Should be valid ECDSA seed");
+    keystore
+        .bls_bn254_generate_new(Some(bls_seed))
+        .expect("Should be valid BLS seed");
 
     // Perform sanity checks on conversions between secrets to ensure
     // consistency as the program executes
