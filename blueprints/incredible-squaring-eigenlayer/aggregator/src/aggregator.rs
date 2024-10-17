@@ -78,6 +78,16 @@ impl Aggregator {
         )
         .await;
 
+        let cancellation_token = tokio_util::sync::CancellationToken::new();
+        let operators_info_clone = operators_info_service.clone();
+        let token_clone = cancellation_token.clone();
+
+        tokio::task::spawn(async move {
+            operators_info_clone
+                .start_service(&token_clone, 0, 200)
+                .await
+        });
+
         let avs_registry_service = AvsRegistryServiceChainCaller::new(
             avs_registry_chain_reader,
             operators_info_service.clone(),

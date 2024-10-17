@@ -685,23 +685,6 @@ mod tests_standard {
         .await
         .unwrap();
 
-        let operators_info = operatorsinfo_inmemory::OperatorInfoServiceInMemory::new(
-            get_test_logger(),
-            avs_registry_reader.clone(),
-            ws_endpoint.to_string(),
-        )
-        .await;
-
-        let cancellation_token = tokio_util::sync::CancellationToken::new();
-        let operators_info_clone = operators_info.clone();
-        let token_clone = cancellation_token.clone();
-
-        tokio::task::spawn(async move {
-            operators_info_clone
-                .start_service(&token_clone, 0, 200)
-                .await
-        });
-
         let signer: PrivateKeySigner =
             "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
                 .parse()
