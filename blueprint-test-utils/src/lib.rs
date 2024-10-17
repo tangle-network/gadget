@@ -669,7 +669,7 @@ mod tests_standard {
         let init_receipt = get_receipt(task_manager.initialize(
             pauser_registry_addr,
             accounts[1],
-            accounts[0],
+            accounts[9],
             task_generator_address,
         ))
         .await
@@ -724,16 +724,16 @@ mod tests_standard {
                     info!("Deployed a new task");
                 }
 
-                // if get_receipt(
-                //     registry_coordinator
-                //         .updateOperatorsForQuorum(operators.clone(), quorums.clone()),
-                // )
-                // .await
-                // .unwrap()
-                // .status()
-                // {
-                //     info!("Updated operators for quorum 0");
-                // }
+                if get_receipt(
+                    registry_coordinator
+                        .updateOperatorsForQuorum(operators.clone(), quorums.clone()),
+                )
+                .await
+                .unwrap()
+                .status()
+                {
+                    info!("Updated operators for quorum 0");
+                }
 
                 tokio::process::Command::new("sh")
                     .arg("-c")

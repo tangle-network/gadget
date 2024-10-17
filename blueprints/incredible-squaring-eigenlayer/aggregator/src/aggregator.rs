@@ -362,7 +362,7 @@ impl Aggregator {
             response.task_index
         );
 
-        let receipt_result = task_manager
+        let receipt = task_manager
             .respondToTask(
                 task.clone(),
                 task_response.clone(),
@@ -372,23 +372,14 @@ impl Aggregator {
                 &self.wallet,
             ))
             .send()
-            .await;
+            .await?
+            .get_receipt()
+            .await?;
 
-        match receipt_result {
-            Ok(receipt_future) => match receipt_future.get_receipt().await {
-                Ok(receipt) => {
-                    info!("Receipt obtained successfully: {:?}", receipt);
-                }
-                Err(e) => {
-                    error!("Failed to get receipt: {:?}", e);
-                    return Err(e.into());
-                }
-            },
-            Err(e) => {
-                error!("Failed to send task response: {:?}", e);
-                return Err(e.into());
-            }
-        }
+        info!(
+            "Sent aggregated response to contract for task index: {}, receipt: {:?}",
+            response.task_index, receipt
+        );
 
         Ok(())
     }
