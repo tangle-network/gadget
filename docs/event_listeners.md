@@ -217,17 +217,16 @@ Finally, register the event listener inside the `job` macro using `event_listene
 ```rust
 #[job(
     id = 0,
-    params(x),
+    params(value),
     result(_),
     event_listener(PeriodicEventListener::<6000, WebPoller, serde_json::Value, MyContext>), // <-- Register the event listener here
-    verifier(evm = "IncredibleSquaringBlueprint")
 )]
 pub fn hello_event_listener(
-    x: u64,
+    value: serde_json::Value,
     context: MyContext,
-    env: GadgetConfiguration<parking_lot::RawRwLock>,
-) -> Result<u64, Infallible> {
-    Ok(x.saturating_pow(2u32))
+) -> Result<bool, Infallible> {
+    let completed = value["completed"].as_bool().unwrap_or(false);
+    Ok(completed)
 }
 ```
 
