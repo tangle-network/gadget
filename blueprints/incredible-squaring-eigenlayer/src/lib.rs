@@ -106,7 +106,7 @@ impl Config for NodeConfig {
 //     let number_squared = number_to_be_squared.saturating_pow(U256::from(2u32));
 //     let number_squared = U256::from(4u64);
 //     let task_response = TaskResponse {
-//         referenceTaskIndex: task_created_block,
+//         referenceTaskIndex: task_index,
 //         numberSquared: number_squared,
 //     };
 
@@ -121,10 +121,10 @@ impl Config for NodeConfig {
 //         .clone()
 //         .boxed();
 //     let salt: FixedBytes<32> = FixedBytes::from([0x02; 32]);
-//     let quorum_threshold_percentages: eigensdk::types::operator::QuorumThresholdPercentages =
-//         vec![eigensdk::types::operator::QuorumThresholdPercentage::from(
-//             quorum_threshold_percentage,
-//         )];
+// let quorum_threshold_percentages: eigensdk::types::operator::QuorumThresholdPercentages =
+//     vec![eigensdk::types::operator::QuorumThresholdPercentage::from(
+//         quorum_threshold_percentage,
+//     )];
 
 //     let signer = eigensdk::signer::signer::Config::signer_from_config(
 //         eigensdk::signer::signer::Config::PrivateKey(PRIVATE_KEY.to_string()),
@@ -143,27 +143,27 @@ impl Config for NodeConfig {
 //     info!("Operator ID: {:?}", operator_id);
 
 //     // Create avs clients to interact with contracts deployed on anvil
-//     let avs_registry_reader = AvsRegistryChainReader::new(
-//         get_test_logger(),
-//         *REGISTRY_COORDINATOR_ADDRESS,
-//         *OPERATOR_STATE_RETRIEVER_ADDRESS,
-//         EIGENLAYER_HTTP_ENDPOINT.to_string(),
-//     )
-//     .await
-//     .unwrap();
+// let avs_registry_reader = AvsRegistryChainReader::new(
+//     get_test_logger(),
+//     *REGISTRY_COORDINATOR_ADDRESS,
+//     *OPERATOR_STATE_RETRIEVER_ADDRESS,
+//     EIGENLAYER_HTTP_ENDPOINT.to_string(),
+// )
+// .await
+// .unwrap();
 
-//     let operators_info = operatorsinfo_inmemory::OperatorInfoServiceInMemory::new(
-//         get_test_logger(),
-//         avs_registry_reader.clone(),
-//         EIGENLAYER_WS_ENDPOINT.to_string(),
-//     )
-//     .await;
+// let operators_info = operatorsinfo_inmemory::OperatorInfoServiceInMemory::new(
+//     get_test_logger(),
+//     avs_registry_reader.clone(),
+//     EIGENLAYER_WS_ENDPOINT.to_string(),
+// )
+// .await;
 
 //     let current_block = provider.get_block_number().await.unwrap();
 
-//     let cancellation_token = tokio_util::sync::CancellationToken::new();
-//     let operators_info_clone = operators_info.clone();
-//     let token_clone = cancellation_token.clone();
+// let cancellation_token = tokio_util::sync::CancellationToken::new();
+// let operators_info_clone = operators_info.clone();
+// let token_clone = cancellation_token.clone();
 //     tokio::task::spawn(async move {
 //         operators_info_clone
 //             .start_service(&token_clone, 0, current_block)
@@ -460,7 +460,7 @@ pub async fn xsquare_eigen(
     let number_squared = number_to_be_squared.saturating_pow(U256::from(2u32));
     let number_squared = U256::from(4u64);
     let task_response = TaskResponse {
-        referenceTaskIndex: task_created_block,
+        referenceTaskIndex: task_index,
         numberSquared: number_squared,
     };
 
@@ -468,7 +468,7 @@ pub async fn xsquare_eigen(
         "1371012690269088913462269866874713266643928125698382731338806296762673180359922"
             .to_string(),
     )
-    .unwrap(); // .map_err(|e| eyre!(e))?;
+    .unwrap();
 
     // let operator_id = alloy_primitives::FixedBytes(eigensdk::types::operator::operator_id_from_g1_pub_key(bls_key_pair.public_key()).unwrap());
     let operator_id: OperatorId =
@@ -493,10 +493,11 @@ pub async fn xsquare_eigen(
     );
     let client = AggregatorClient::new("127.0.0.1:8081").unwrap();
     info!("Client created...");
-    client
-        .send_signed_task_response(signed_response)
-        .await
-        .unwrap();
+    if let Err(e) = client.send_signed_task_response(signed_response).await {
+        tracing::error!("Failed to send signed task response: {:?}", e);
+        return Ok(0);
+    }
+    info!("Signed task response successfully sent to the aggregator.");
 
     Ok(1)
 }

@@ -13,7 +13,10 @@ use eigensdk::{
     services_avsregistry::chaincaller::AvsRegistryServiceChainCaller,
     services_blsaggregation::bls_agg::{BlsAggregationServiceResponse, BlsAggregatorService},
     services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory,
-    types::avs::{TaskIndex, TaskResponseDigest},
+    types::{
+        avs::{TaskIndex, TaskResponseDigest},
+        operator::{QuorumThresholdPercentage, QuorumThresholdPercentages},
+    },
     utils::get_provider,
 };
 use futures_util::StreamExt;
@@ -137,7 +140,6 @@ impl Aggregator {
             move |params: Params| {
                 let aggregator = Arc::clone(&aggregator);
                 async move {
-                    info!("Received signed task response before parsing: {:?}", params);
                     // Parse the outer structure first
                     let outer_params: Value = params.parse()?;
 
@@ -190,14 +192,17 @@ impl Aggregator {
 
         while let Some(log) = stream.next().await {
             let NewTaskCreated { taskIndex, task } = log.log_decode()?.inner.data;
-
+            println!("Received new task: {:?}", task);
             let mut aggregator = aggregator.lock().await;
             aggregator.tasks.insert(taskIndex, task.clone());
 
             let time_to_expiry = std::time::Duration::from_secs(
                 (TASK_CHALLENGE_WINDOW_BLOCK * BLOCK_TIME_SECONDS).into(),
             );
-            aggregator
+
+            println!("Quorum numbers: {:?}", task.quorumNumbers.to_vec());
+
+            match aggregator
                 .bls_aggregation_service
                 .initialize_new_task(
                     taskIndex,
@@ -206,7 +211,14 @@ impl Aggregator {
                     vec![task.quorumThresholdPercentage.try_into()?; task.quorumNumbers.len()],
                     time_to_expiry,
                 )
-                .await?;
+                .await
+            {
+                Ok(_) => debug!("Successfully initialized new task: {}", taskIndex),
+                Err(e) => error!(
+                    "Failed to initialize new task: {}. Error: {:?}",
+                    taskIndex, e
+                ),
+            }
             info!("Initialized new task: {}", taskIndex);
         }
 
@@ -229,17 +241,13 @@ impl Aggregator {
             task_index, task_response_digest
         );
 
-        let response =
-            check_double_mapping(&self.tasks_responses, task_index, task_response_digest);
-
-        if response.is_none() {
-            let mut inner_map = HashMap::new();
-            inner_map.insert(
+        self.tasks_responses
+            .entry(task_index)
+            .or_insert_with(HashMap::new)
+            .insert(
                 task_response_digest,
-                signed_task_response.clone().task_response,
+                signed_task_response.task_response.clone(),
             );
-            self.tasks_responses.insert(task_index, inner_map);
-        }
 
         debug!(
             "Inserted task response for task index: {}, {:?}",

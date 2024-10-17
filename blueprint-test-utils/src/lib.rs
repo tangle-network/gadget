@@ -465,12 +465,16 @@ mod tests_standard {
     use alloy_rpc_types::eth::TransactionReceipt;
     use alloy_transport::{Transport, TransportResult};
     use cargo_tangle::deploy::{Opts, PrivateKeySigner};
+    use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
+    use eigensdk::logging::get_test_logger;
+    use eigensdk::services_operatorsinfo::operatorsinfo_inmemory;
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
     use incredible_squaring_aggregator::aggregator::Aggregator;
     use std::str::FromStr;
     use std::sync::Arc;
+    use subxt::ext::sp_runtime::offchain::http;
 
     /// This test requires that `yarn install` has been executed inside the
     /// `./blueprints/incredible-squaring/` directory
@@ -610,7 +614,7 @@ mod tests_standard {
             .clone()
             .boxed();
         let accounts = provider.get_accounts().await.unwrap();
-        println!("{:?}", accounts);
+
         // let service_manager_addr = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
         let registry_coordinator_addr = address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
         let operator_state_retriever_addr = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
@@ -672,6 +676,32 @@ mod tests_standard {
         .unwrap();
         assert!(init_receipt.status());
 
+        let avs_registry_reader = AvsRegistryChainReader::new(
+            get_test_logger(),
+            registry_coordinator_addr,
+            operator_state_retriever_addr,
+            http_endpoint.to_string(),
+        )
+        .await
+        .unwrap();
+
+        let operators_info = operatorsinfo_inmemory::OperatorInfoServiceInMemory::new(
+            get_test_logger(),
+            avs_registry_reader.clone(),
+            ws_endpoint.to_string(),
+        )
+        .await;
+
+        let cancellation_token = tokio_util::sync::CancellationToken::new();
+        let operators_info_clone = operators_info.clone();
+        let token_clone = cancellation_token.clone();
+
+        tokio::task::spawn(async move {
+            operators_info_clone
+                .start_service(&token_clone, 0, 200)
+                .await
+        });
+
         let signer: PrivateKeySigner =
             "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
                 .parse()
@@ -711,16 +741,16 @@ mod tests_standard {
                     info!("Deployed a new task");
                 }
 
-                if get_receipt(
-                    registry_coordinator
-                        .updateOperatorsForQuorum(operators.clone(), quorums.clone()),
-                )
-                .await
-                .unwrap()
-                .status()
-                {
-                    info!("Updated operators for quorum 0");
-                }
+                // if get_receipt(
+                //     registry_coordinator
+                //         .updateOperatorsForQuorum(operators.clone(), quorums.clone()),
+                // )
+                // .await
+                // .unwrap()
+                // .status()
+                // {
+                //     info!("Updated operators for quorum 0");
+                // }
 
                 tokio::process::Command::new("sh")
                     .arg("-c")
