@@ -12,7 +12,7 @@ use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives:
 
 pub struct MultiJobRunner<'a> {
     pub(crate) enqueued_job_runners: EnqueuedJobRunners<'a>,
-    pub(crate) env: GadgetConfiguration<parking_lot::RawRwLock>,
+    pub(crate) env: Option<GadgetConfiguration<parking_lot::RawRwLock>>,
 }
 
 pub type EnqueuedJobRunners<'a> = Vec<
@@ -56,7 +56,11 @@ impl<'a, K: InitializableEventHandler + Send + 'a> JobBuilder<'a, K> {
     where
         K: markers::IsTangle,
     {
-        let env = self.runner.env.clone();
+        let env = self
+            .runner
+            .env
+            .clone()
+            .expect("Must have an env when using tangle");
         self.with_registration((env, price_targets), tangle_registration)
     }
 
@@ -75,12 +79,17 @@ impl<'a, K: InitializableEventHandler + Send + 'a> JobBuilder<'a, K> {
 
     pub fn finish(mut self, job_runner: K) -> MultiJobRunner<'a> {
         let registration = self.register_call.take();
-        let test_mode = self.runner.env.test_mode;
+        let skip_registration = self
+            .runner
+            .env
+            .as_ref()
+            .map(|r| r.test_mode)
+            .unwrap_or(true);
 
         let task = Box::pin(async move {
             if let Some(registration) = registration {
                 // Skip registration if in test mode
-                if !test_mode {
+                if !skip_registration {
                     if let Err(err) = registration.await {
                         crate::error!("Failed to register job: {err:?}");
                         return None;
@@ -98,10 +107,10 @@ impl<'a, K: InitializableEventHandler + Send + 'a> JobBuilder<'a, K> {
 }
 
 impl<'a> MultiJobRunner<'a> {
-    pub fn new(env: &GadgetConfiguration<parking_lot::RawRwLock>) -> Self {
+    pub fn new<T: Into<Option<&'a GadgetConfiguration<parking_lot::RawRwLock>>>>(env: T) -> Self {
         Self {
             enqueued_job_runners: Vec::new(),
-            env: env.clone(),
+            env: env.into().cloned(),
         }
     }
 

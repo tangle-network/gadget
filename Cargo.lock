@@ -8229,6 +8229,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 
 [[package]]
+name = "periodic-web-poller-blueprint"
+version = "0.1.1"
+dependencies = [
+ "async-trait",
+ "blueprint-metadata",
+ "color-eyre",
+ "ed25519-zebra 4.0.3",
+ "gadget-sdk",
+ "hex",
+ "k256",
+ "lock_api",
+ "parking_lot",
+ "reqwest 0.12.8",
+ "serde_json",
+ "sp-core 34.0.0",
+ "structopt",
+ "subxt-signer",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "pest"
 version = "2.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"

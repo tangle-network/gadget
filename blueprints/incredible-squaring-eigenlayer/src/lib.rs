@@ -65,12 +65,15 @@ impl Config for NodeConfig {
     id = 1,
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage),
     result(_),
-    event_listener(EvmContractEventListener(
-        instance = IncredibleSquaringTaskManager,
+    event_listener(
+        listener = EvmContractEventListener(
+            instance = IncredibleSquaringTaskManager,
+            event = IncredibleSquaringTaskManager::NewTaskCreated,
+            event_converter = convert_event_to_inputs,
+            callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
+        ),
         event = IncredibleSquaringTaskManager::NewTaskCreated,
-        event_converter = convert_event_to_inputs,
-        callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
-    )),
+    ),
 )]
 pub async fn xsquare_eigen(
     number_to_be_squared: U256,
