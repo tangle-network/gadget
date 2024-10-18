@@ -13,8 +13,6 @@ pub mod mem;
 #[cfg(feature = "std")]
 pub mod fs;
 
-use crate::keystore::sp_core_subxt;
-
 /// A Generic Key Store that can be backed by different keystore [`Backend`]s.
 ///
 /// [Backend]: super::Backend
@@ -35,12 +33,12 @@ impl<RwLock: lock_api::RawRwLock> GenericKeyStore<RwLock> {
     pub fn create_sr25519_from_pair<T: Into<sp_core::sr25519::Pair>>(
         &self,
         pair: T,
-    ) -> Result<TanglePairSigner<sp_core_subxt::sr25519::Pair>, Error> {
+    ) -> Result<TanglePairSigner<sp_core::sr25519::Pair>, Error> {
         let seed = &pair.into().as_ref().secret.to_bytes();
         let _ = self.sr25519_generate_new(Some(seed))?;
         Ok(TanglePairSigner {
             pair: subxt::tx::PairSigner::new(
-                sp_core_subxt::sr25519::Pair::from_seed_slice(seed).map_err(err_to_std_io_err)?,
+                sp_core::sr25519::Pair::from_seed_slice(seed).map_err(err_to_std_io_err)?,
             ),
         })
     }
@@ -49,13 +47,13 @@ impl<RwLock: lock_api::RawRwLock> GenericKeyStore<RwLock> {
     pub fn create_ecdsa_from_pair<T: Into<sp_core::ecdsa::Pair>>(
         &self,
         pair: T,
-    ) -> Result<TanglePairSigner<sp_core_subxt::ecdsa::Pair>, Error> {
+    ) -> Result<TanglePairSigner<sp_core::ecdsa::Pair>, Error> {
         let seed = pair.into().seed();
         let _ = self.ecdsa_generate_new(Some(&seed))?;
 
         Ok(TanglePairSigner {
             pair: subxt::tx::PairSigner::new(
-                sp_core_subxt::ecdsa::Pair::from_seed_slice(&seed).map_err(err_to_std_io_err)?,
+                sp_core::ecdsa::Pair::from_seed_slice(&seed).map_err(err_to_std_io_err)?,
             ),
         })
     }
@@ -64,13 +62,13 @@ impl<RwLock: lock_api::RawRwLock> GenericKeyStore<RwLock> {
     pub fn create_ed25519_from_pair<T: Into<sp_core::ed25519::Pair>>(
         &self,
         pair: T,
-    ) -> Result<TanglePairSigner<sp_core_subxt::ed25519::Pair>, Error> {
+    ) -> Result<TanglePairSigner<sp_core::ed25519::Pair>, Error> {
         let seed = pair.into().seed();
         let _ = self.ed25519_generate_new(Some(&seed))?;
 
         Ok(TanglePairSigner {
             pair: subxt::tx::PairSigner::new(
-                sp_core_subxt::ed25519::Pair::from_seed_slice(&seed).map_err(err_to_std_io_err)?,
+                sp_core::ed25519::Pair::from_seed_slice(&seed).map_err(err_to_std_io_err)?,
             ),
         })
     }

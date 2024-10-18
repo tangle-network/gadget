@@ -8,6 +8,7 @@ use alloy_provider::fillers::WalletFiller;
 use alloy_provider::fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller};
 use alloy_provider::Identity;
 use alloy_provider::RootProvider;
+use alloy_sol_types::SolType;
 use alloy_sol_types::{private::alloy_json_abi::JsonAbi, sol};
 use alloy_transport_http::{Client, Http};
 use ark_bn254::Fq;
@@ -18,7 +19,7 @@ use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
 use gadget_sdk::load_abi;
-use gadget_sdk::{events_watcher::evm::Config, info, job};
+use gadget_sdk::{events_watcher::evm::Config, job};
 use serde::{Deserialize, Serialize};
 use std::{convert::Infallible, ops::Deref, sync::OnceLock};
 use IncredibleSquaringTaskManager::TaskResponse;
@@ -68,13 +69,16 @@ pub fn noop(_: u32) {
     id = 1,
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
     result(_),
-    event_listener(EvmContractEventListener(
-        instance = IncredibleSquaringTaskManager,
+    event_listener(
+        listener = EvmContractEventListener(
+            instance = IncredibleSquaringTaskManager,
+            event = IncredibleSquaringTaskManager::NewTaskCreated,
+            event_converter = convert_event_to_inputs,
+            callback = noop,
+            abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+        ),
         event = IncredibleSquaringTaskManager::NewTaskCreated,
-        event_converter = convert_event_to_inputs,
-        callback = noop,
-        abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
-    )),
+    ),
 )]
 pub async fn xsquare_eigen(
     number_to_be_squared: U256,
@@ -83,16 +87,10 @@ pub async fn xsquare_eigen(
     quorum_threshold_percentage: u8,
     task_index: u32,
 ) -> Result<u32, Infallible> {
-    info!(
-        "Received job to square the number: {:?}",
-        number_to_be_squared
-    );
     // Calculate our response to job
-    let number_squared = number_to_be_squared.saturating_pow(U256::from(2u32));
-    let number_squared = U256::from(4u64);
     let task_response = TaskResponse {
         referenceTaskIndex: task_index,
-        numberSquared: number_squared,
+        numberSquared: number_to_be_squared.saturating_pow(U256::from(2u32)),
     };
 
     let bls_key_pair = BlsKeyPair::new(
@@ -101,34 +99,25 @@ pub async fn xsquare_eigen(
     )
     .unwrap();
 
-    // let operator_id = alloy_primitives::FixedBytes(eigensdk::types::operator::operator_id_from_g1_pub_key(bls_key_pair.public_key()).unwrap());
+    let operator_id = alloy_primitives::FixedBytes(
+        eigensdk::types::operator::operator_id_from_g1_pub_key(bls_key_pair.public_key()).unwrap(),
+    );
     let operator_id: OperatorId =
         hex!("fd329fe7e54f459b9c104064efe0172db113a50b5f394949b4ef80b3c34ca7f5").into();
 
-    info!("Operator ID: {:?}", operator_id);
-
-    let encoded_response = <TaskResponse as alloy_sol_types::SolType>::abi_encode(&task_response);
-    let task_response_digest = keccak256(encoded_response);
-
     // Sign the Hashed Message and send it to the BLS Aggregator
-    let bls_signature = bls_key_pair.sign_message(task_response_digest.as_ref());
+    let msg_hash = keccak256(<TaskResponse as SolType>::abi_encode(&task_response));
     let signed_response = SignedTaskResponse {
         task_response,
-        signature: bls_signature,
+        signature: bls_key_pair.sign_message(msg_hash.as_ref()),
         operator_id,
     };
 
-    info!(
-        "Sending signed task response to the aggregator: {:?}",
-        signed_response
-    );
     let client = AggregatorClient::new("127.0.0.1:8081").unwrap();
-    info!("Client created...");
     if let Err(e) = client.send_signed_task_response(signed_response).await {
         tracing::error!("Failed to send signed task response: {:?}", e);
         return Ok(0);
     }
-    info!("Signed task response successfully sent to the aggregator.");
 
     Ok(1)
 }

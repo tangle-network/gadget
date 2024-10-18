@@ -210,7 +210,6 @@ impl Aggregator {
 
         while let Some(log) = stream.next().await {
             let NewTaskCreated { taskIndex, task } = log.log_decode()?.inner.data;
-            println!("Received new task: {:?}", task);
             let mut aggregator = aggregator.lock().await;
             aggregator.tasks.insert(taskIndex, task.clone());
 
@@ -218,9 +217,7 @@ impl Aggregator {
                 (TASK_CHALLENGE_WINDOW_BLOCK * BLOCK_TIME_SECONDS).into(),
             );
 
-            println!("Quorum numbers: {:?}", task.quorumNumbers.to_vec());
-
-            match aggregator
+            if let Err(e) = aggregator
                 .bls_aggregation_service
                 .initialize_new_task(
                     taskIndex,
@@ -231,28 +228,26 @@ impl Aggregator {
                 )
                 .await
             {
-                Ok(_) => debug!("Successfully initialized new task: {}", taskIndex),
-                Err(e) => error!(
+                error!(
                     "Failed to initialize new task: {}. Error: {:?}",
                     taskIndex, e
-                ),
+                );
+            } else {
+                debug!("Successfully initialized new task: {}", taskIndex);
             }
-            info!("Initialized new task: {}", taskIndex);
         }
 
         Ok(())
     }
 
-    async fn process_signed_task_response(
-        &mut self,
-        signed_task_response: SignedTaskResponse,
-    ) -> Result<()> {
-        info!("Processing signed task response");
-
-        let task_index = signed_task_response.task_response.referenceTaskIndex;
-        let task_response_digest = keccak256(TaskResponse::abi_encode(
-            &signed_task_response.task_response,
-        ));
+    async fn process_signed_task_response(&mut self, resp: SignedTaskResponse) -> Result<()> {
+        let SignedTaskResponse {
+            task_response,
+            signature,
+            operator_id,
+        } = resp.clone();
+        let task_index = task_response.referenceTaskIndex;
+        let task_response_digest = keccak256(TaskResponse::abi_encode(&task_response));
 
         info!(
             "Processing signed task response for task index: {}, task response digest: {}",
@@ -272,40 +267,31 @@ impl Aggregator {
             return Ok(());
         }
 
-        self.tasks_responses.get_mut(&task_index).unwrap().insert(
-            task_response_digest,
-            signed_task_response.task_response.clone(),
-        );
+        self.tasks_responses
+            .get_mut(&task_index)
+            .unwrap()
+            .insert(task_response_digest, task_response.clone());
 
         debug!(
             "Inserted task response for task index: {}, {:?}",
-            task_index, signed_task_response
+            task_index, resp
         );
 
-        match self
+        if let Err(e) = self
             .bls_aggregation_service
-            .process_new_signature(
-                task_index,
-                task_response_digest,
-                signed_task_response.signature,
-                signed_task_response.operator_id,
-            )
+            .process_new_signature(task_index, task_response_digest, signature, operator_id)
             .await
         {
-            Ok(_) => debug!(
-                "Successfully processed new signature for task index: {}",
-                task_index
-            ),
-            Err(e) => error!(
+            error!(
                 "Failed to process new signature for task index: {}. Error: {:?}",
                 task_index, e
-            ),
+            );
+        } else {
+            debug!(
+                "Successfully processed new signature for task index: {}",
+                task_index
+            );
         }
-
-        info!(
-            "Processed signed task response for task index: {}",
-            task_index
-        );
 
         if let Some(aggregated_response) = self
             .bls_aggregation_service
@@ -315,7 +301,6 @@ impl Aggregator {
             .recv()
             .await
         {
-            info!("sending aggregated response to contract");
             self.send_aggregated_response_to_contract(aggregated_response?)
                 .await?;
         }
@@ -326,8 +311,6 @@ impl Aggregator {
         &self,
         response: BlsAggregationServiceResponse,
     ) -> Result<()> {
-        info!("Creating NonSignerStakesAndSignature for aggregated response");
-
         let non_signer_stakes_and_signature = NonSignerStakesAndSignature {
             nonSignerPubkeys: response
                 .non_signers_pub_keys_g1
@@ -365,11 +348,6 @@ impl Aggregator {
         let task_manager =
             IncredibleSquaringTaskManager::new(self.task_manager_addr, provider.clone());
 
-        info!(
-            "Sending aggregated response to contract for task index: {}",
-            response.task_index
-        );
-
         let receipt = task_manager
             .respondToTask(
                 task.clone(),
@@ -385,7 +363,7 @@ impl Aggregator {
             .await?;
 
         info!(
-            "Sent aggregated response to contract for task index: {}, receipt: {:?}",
+            "Sent aggregated response to contract for task index: {}, receipt: {:#?}",
             response.task_index, receipt
         );
 

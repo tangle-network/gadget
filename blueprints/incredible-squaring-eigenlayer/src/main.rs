@@ -1,10 +1,10 @@
 use color_eyre::Result;
 use gadget_sdk::config::ContextConfig;
-use gadget_sdk::info;
 use gadget_sdk::run::GadgetRunner;
 use incredible_squaring_blueprint_eigenlayer::{self, *};
 use runner::EigenlayerGadgetRunner;
 use structopt::StructOpt;
+use tracing::info;
 
 #[tokio::main]
 #[allow(clippy::needless_return)]

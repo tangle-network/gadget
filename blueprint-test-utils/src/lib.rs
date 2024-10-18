@@ -12,7 +12,7 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::type
 use gadget_sdk::keystore;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
-use gadget_sdk::keystore::{sp_core_subxt, Backend, BackendExt, TanglePairSigner};
+use gadget_sdk::keystore::{Backend, BackendExt, TanglePairSigner};
 use libp2p::Multiaddr;
 pub use log;
 use sp_core::Pair as PairT;
@@ -25,7 +25,6 @@ use alloy_provider::network::Ethereum;
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::TransactionReceipt;
 use alloy_transport::{Transport, TransportResult};
-use subxt::ext::sp_core::Pair;
 use subxt::tx::Signer;
 use subxt::utils::AccountId32;
 use url::Url;
@@ -63,17 +62,19 @@ pub struct PerTestNodeInput<T> {
 pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     input: PerTestNodeInput<T>,
 ) -> BlueprintManagerHandle {
+    let name_lower = NAME_IDS[input.instance_id as usize].to_lowercase();
+
     let tmp_store = Uuid::new_v4().to_string();
-    let keystore_uri = PathBuf::from(format!(
-        "./target/keystores/{}/{tmp_store}/",
-        NAME_IDS[input.instance_id as usize].to_lowercase()
-    ));
+    let keystore_uri = PathBuf::from(format!("./target/keystores/{name_lower}/{tmp_store}/",));
 
     assert!(
         !keystore_uri.exists(),
         "Keystore URI cannot exist: {}",
         keystore_uri.display()
     );
+
+    let data_dir = std::path::absolute(format!("./target/data/{name_lower}"))
+        .expect("Failed to get current directory");
 
     let keystore_uri_normalized =
         std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
@@ -90,7 +91,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
 
     let blueprint_manager_config = BlueprintManagerConfig {
         gadget_config: None,
-        data_dir: None,
+        data_dir,
         keystore_uri: keystore_uri_str.clone(),
         verbose: input.verbose,
         pretty: input.pretty,
@@ -165,10 +166,8 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
     let secret_key_again = keystore::sr25519::secret_from_bytes(&bytes).expect("Should be valid");
     assert_eq!(&bytes[..], &secret_key_again.to_bytes()[..]);
 
-    use gadget_sdk::keystore::sp_core_subxt;
     let sr2 = TanglePairSigner::new(
-        sp_core_subxt::sr25519::Pair::from_seed_slice(&bytes)
-            .expect("Should be valid SR25519 keypair"),
+        sp_core::sr25519::Pair::from_seed_slice(&bytes).expect("Should be valid SR25519 keypair"),
     );
 
     let sr1_account_id: AccountId32 = AccountId32(sr.as_ref().public.to_bytes());
@@ -200,7 +199,7 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
 
 pub async fn create_blueprint(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
     blueprint: Blueprint,
 ) -> Result<(), Box<dyn Error>> {
     let call = api::tx().services().create_blueprint(blueprint);
@@ -214,7 +213,7 @@ pub async fn create_blueprint(
 
 pub async fn join_delegators(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
 ) -> Result<(), Box<dyn Error>> {
     info!("Joining delegators ...");
     let call_pre = api::tx()
@@ -231,7 +230,7 @@ pub async fn join_delegators(
 
 pub async fn register_blueprint(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
     blueprint_id: u64,
     preferences: Preferences,
     registration_args: RegistrationArgs,
@@ -250,7 +249,7 @@ pub async fn register_blueprint(
 
 pub async fn submit_job(
     client: &TestClient,
-    user: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    user: &TanglePairSigner<sp_core::sr25519::Pair>,
     service_id: u64,
     job_type: Job,
     job_params: Args,
@@ -268,7 +267,7 @@ pub async fn submit_job(
 /// to make a call to run a service, and will have all nodes running the service.
 pub async fn register_service(
     client: &TestClient,
-    user: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    user: &TanglePairSigner<sp_core::sr25519::Pair>,
     blueprint_id: u64,
     test_nodes: Vec<AccountId32>,
 ) -> Result<(), Box<dyn Error>> {

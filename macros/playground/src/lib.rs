@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-
 use gadget_sdk::{benchmark, job, registration_hook, report, request_hook};
 
 #[derive(Debug, Clone, Copy)]
@@ -29,7 +28,7 @@ pub struct MyContext;
 // ==================
 
 /// Simple Threshold (t) Keygen Job for n parties.
-#[job(id = 0, params(n, t), event_listener(TangleEventListener), result(_))]
+#[job(id = 0, params(n, t), event_listener(listener = TangleEventListener, event = JobCalled), result(_))]
 pub fn keygen(ctx: &MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
     let _ = (n, t, ctx);
     Ok(vec![0; 33])
@@ -39,7 +38,7 @@ pub fn keygen(ctx: &MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
 #[job(
     id = 1,
     params(keygen_id, data),
-    event_listener(TangleEventListener),
+    event_listener(listener = TangleEventListener, event = JobCalled),
     result(_)
 )]
 pub async fn sign(keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
@@ -50,7 +49,7 @@ pub async fn sign(keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
 #[job(
     id = 2,
     params(keygen_id, new_t),
-    event_listener(TangleEventListener),
+    event_listener(listener = TangleEventListener, event = JobCalled),
     result(_)
 )]
 pub fn refresh(keygen_id: u64, new_t: Option<u8>) -> Result<Vec<u64>, Error> {
@@ -59,7 +58,7 @@ pub fn refresh(keygen_id: u64, new_t: Option<u8>) -> Result<Vec<u64>, Error> {
 }
 
 /// Say hello to someone or the world.
-#[job(id = 3, params(who), event_listener(TangleEventListener), result(_))]
+#[job(id = 3, params(who), event_listener(listener = TangleEventListener, event = JobCalled), result(_))]
 pub fn say_hello(who: Option<String>) -> Result<String, Error> {
     match who {
         Some(who) => Ok(format!("Hello, {}!", who)),
@@ -85,7 +84,7 @@ pub fn on_request(nft_id: u64);
 #[report(
     job_id = 0,
     params(n, t, msgs),
-    event_listener(TangleEventListener),
+    event_listener(listener = TangleEventListener, event = JobCalled),
     result(_),
     report_type = "job",
     verifier(evm = "KeygenContract")
@@ -97,7 +96,7 @@ fn report_keygen(n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
 
 #[report(
     params(uptime, response_time, error_rate),
-    event_listener(TangleEventListener),
+    event_listener(listener = TangleEventListener, event = JobCalled),
     result(Vec<u8>),
     report_type = "qos",
     interval = 3600,
@@ -130,6 +129,7 @@ fn keygen_2_of_3() {
 
 #[cfg(test)]
 mod tests {
+    use gadget_sdk as sdk;
     #[test]
     fn generated_blueprint() {
         eprintln!("{}", super::KEYGEN_JOB_DEF);
@@ -137,6 +137,59 @@ mod tests {
         eprintln!("{}", super::REGISTRATION_HOOK);
     }
 
+    #[test]
+    fn sdk_main() {
+        setup_env();
+
+        #[sdk::main]
+        async fn main() {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn sdk_main_with_env() {
+        setup_env();
+
+        #[sdk::main(env)]
+        async fn main() {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn sdk_main_with_tokio_params_1() {
+        setup_env();
+
+        #[sdk::main(env, flavor = "multi_thread")]
+        async fn main() {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn sdk_main_with_tokio_params_2() {
+        setup_env();
+
+        #[sdk::main(env, flavor = "multi_thread", worker_threads = 4)]
+        async fn main() {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn sdk_main_with_tokio_params_mixed_order() {
+        setup_env();
+
+        #[sdk::main(flavor = "multi_thread", env, worker_threads = 4)]
+        async fn main() {
+            Ok(())
+        }
+    }
+
+    fn setup_env() {
+        // TODO: Add all GadgetContext vars into the env
+    }
     // #[test]
     // fn example_benchmark() {
     //     super::keygen_2_of_3_benchmark();

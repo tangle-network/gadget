@@ -4,7 +4,7 @@ use syn::Ident;
 
 use crate::job::EventListenerArgs;
 
-pub(crate) fn get_instance_data(
+pub(crate) fn get_evm_instance_data(
     event_handler: &EventListenerArgs,
 ) -> (Ident, Ident, Ident, TokenStream) {
     let instance_base = event_handler.instance().unwrap();
@@ -21,34 +21,19 @@ pub(crate) fn get_instance_data(
 }
 
 pub(crate) fn generate_evm_event_handler(
-    fn_name_string: &str,
     struct_name: &Ident,
     event_handler: &EventListenerArgs,
     params_tokens: &[TokenStream],
-    additional_params: &[TokenStream],
     fn_call: &TokenStream,
-    event_listener_calls: &[TokenStream],
 ) -> TokenStream {
     let (instance_base, instance_name, instance_wrapper_name, _instance) =
-        get_instance_data(event_handler);
+        get_evm_instance_data(event_handler);
     let event = event_handler.event().unwrap();
     let event_converter = event_handler.event_converter().unwrap();
     let callback = event_handler.callback().unwrap();
     let abi_string = event_handler.abi().unwrap();
-    let combined_event_listener =
-        crate::job::generate_combined_event_listener_selector(struct_name);
 
     quote! {
-        /// Event handler for the function
-        #[doc = "[`"]
-        #[doc = #fn_name_string]
-        #[doc = "`]"]
-        #[derive(Clone)]
-        pub struct #struct_name <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config +'static>{
-            pub contract: #instance_wrapper_name<T::TH, T::PH>,
-            #(#additional_params)*
-        }
-
         #[derive(Debug, Clone)]
         pub struct #instance_wrapper_name<T, P> {
             instance: #instance_base::#instance_name<T, P>,
@@ -117,20 +102,13 @@ pub(crate) fn generate_evm_event_handler(
             type Event = #event;
             const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
 
-            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
-                println!("evm.rs | Initializing event handler for {}", stringify!(#struct_name));
-                #(#event_listener_calls)*
-                println!("evm.rs | Initialized event handler for {}", stringify!(#struct_name));
-                #combined_event_listener
-            }
-
             async fn handle(&self, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::events_watcher::Error> {
                 use alloy_provider::Provider;
                 use alloy_sol_types::SolEvent;
                 use alloy_sol_types::SolInterface;
 
                 let contract = &self.contract;
-                println!("evm.rs | Handling event log {:?}", log.inner);
+
                 // Convert the event to inputs
                 let decoded: alloy_primitives::Log<Self::Event> = <Self::Event as SolEvent>::decode_log(&log.inner, true)?;
 
@@ -166,5 +144,7 @@ pub(crate) fn generate_evm_event_handler(
                 Ok(())
             }
         }
+
+        impl<T: gadget_sdk::events_watcher::evm::Config> gadget_sdk::event_listener::markers::IsEvm for #struct_name <T> {}
     }
 }
