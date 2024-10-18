@@ -20,6 +20,11 @@ use std::error::Error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use alloy_contract::{CallBuilder, CallDecoder};
+use alloy_provider::network::Ethereum;
+use alloy_provider::Provider;
+use alloy_rpc_types_eth::TransactionReceipt;
+use alloy_transport::{Transport, TransportResult};
 use subxt::ext::sp_core::Pair;
 use subxt::tx::Signer;
 use subxt::utils::AccountId32;
@@ -349,6 +354,20 @@ pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>
     Ok(res)
 }
 
+pub async fn get_receipt<T, P, D>(
+    call: CallBuilder<T, P, D, Ethereum>,
+) -> TransportResult<TransactionReceipt>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum>,
+    D: CallDecoder,
+{
+    let pending_tx = call.send().await.unwrap();
+    let receipt = pending_tx.get_receipt().await?;
+
+    Ok(receipt)
+}
+
 #[macro_export]
 macro_rules! test_blueprint {
     (
@@ -458,12 +477,9 @@ mod test_macros {
 mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
-    use alloy_contract::{CallBuilder, CallDecoder};
     use alloy_primitives::{address, Bytes, U256};
     use alloy_provider::network::EthereumWallet;
-    use alloy_provider::{network::Ethereum, Provider};
-    use alloy_rpc_types::eth::TransactionReceipt;
-    use alloy_transport::{Transport, TransportResult};
+    use alloy_provider::Provider;
     use cargo_tangle::deploy::{Opts, PrivateKeySigner};
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
@@ -576,20 +592,6 @@ mod tests_standard {
         "./../blueprints/incredible-squaring-eigenlayer/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
     );
 
-    pub async fn get_receipt<T, P, D>(
-        call: CallBuilder<T, P, D, Ethereum>,
-    ) -> TransportResult<TransactionReceipt>
-    where
-        T: Transport + Clone,
-        P: Provider<T, Ethereum>,
-        D: CallDecoder,
-    {
-        let pending_tx = call.send().await.unwrap();
-        let receipt = pending_tx.get_receipt().await?;
-
-        Ok(receipt)
-    }
-
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::needless_return)]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
@@ -676,7 +678,7 @@ mod tests_standard {
                 .parse()
                 .unwrap();
         let wallet = EthereumWallet::from(signer);
-        let aggregator = Aggregator::new(
+        let (aggregator, _cancellation_token) = Aggregator::new(
             task_manager_addr,
             registry_coordinator_addr,
             operator_state_retriever_addr,

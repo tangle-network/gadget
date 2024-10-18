@@ -1,3 +1,6 @@
+use crate::IncredibleSquaringTaskManager::{
+    self, G1Point, G2Point, NewTaskCreated, NonSignerStakesAndSignature, Task, TaskResponse,
+};
 use alloy_network::{Ethereum, EthereumWallet, NetworkWallet};
 use alloy_primitives::{keccak256, Address};
 use alloy_provider::{Provider, ProviderBuilder, WsConnect};
@@ -21,12 +24,10 @@ use gadget_sdk::{debug, error, info};
 use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use tokio::sync::oneshot;
 use tokio::{sync::Mutex, task::JoinHandle};
-
-use crate::IncredibleSquaringTaskManager::{
-    self, G1Point, G2Point, NewTaskCreated, NonSignerStakesAndSignature, Task, TaskResponse,
-};
+use tokio_util::sync::CancellationToken;
 
 const TASK_CHALLENGE_WINDOW_BLOCK: u32 = 100;
 const BLOCK_TIME_SECONDS: u32 = 12;
@@ -59,7 +60,7 @@ impl Aggregator {
         ws_rpc_url: String,
         aggregator_ip_addr: String,
         wallet: EthereumWallet,
-    ) -> Result<Self> {
+    ) -> Result<(Self, CancellationToken)> {
         let avs_registry_chain_reader = AvsRegistryChainReader::new(
             get_test_logger(),
             registry_coordinator_addr,
@@ -92,55 +93,52 @@ impl Aggregator {
 
         let bls_aggregation_service = BlsAggregatorService::new(avs_registry_service);
 
-        Ok(Self {
-            port_address: aggregator_ip_addr,
-            task_manager_addr,
-            tasks: HashMap::new(),
-            tasks_responses: HashMap::new(),
-            bls_aggregation_service,
-            http_rpc_url,
-            wallet,
-        })
+        Ok((
+            Self {
+                port_address: aggregator_ip_addr,
+                task_manager_addr,
+                tasks: HashMap::new(),
+                tasks_responses: HashMap::new(),
+                bls_aggregation_service,
+                http_rpc_url,
+                wallet,
+            },
+            cancellation_token,
+        ))
     }
 
-    pub fn start(self, ws_rpc_url: String) -> JoinHandle<()> {
-        tokio::spawn(async move {
-            info!("Starting aggregator");
-            let aggregator = Arc::new(Mutex::new(self));
+    pub fn start(self, ws_rpc_url: String) -> (JoinHandle<()>, oneshot::Sender<()>) {
+        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        let aggregator = Arc::new(Mutex::new(self));
 
-            let server_handle = tokio::spawn(Self::start_server(Arc::clone(&aggregator)));
+        let handle = tokio::spawn(async move {
+            info!("Starting aggregator");
+
+            let server_handle =
+                tokio::spawn(Self::start_server(Arc::clone(&aggregator), shutdown_rx));
             let tasks_handle =
                 tokio::spawn(Self::process_tasks(ws_rpc_url, Arc::clone(&aggregator)));
 
             debug!("Server and task processing tasks have been spawned");
 
             tokio::select! {
-                server_result = server_handle => {
-                    match server_result {
-                        Ok(Ok(())) => info!("Server task completed successfully"),
-                        Ok(Err(e)) => error!("Server task error: {:?}", e),
-                        Err(e) => error!("Server task panicked: {:?}", e),
-                    }
+                _ = server_handle => {
+                    info!("Server task has completed");
                 }
-                tasks_result = tasks_handle => {
-                    match tasks_result {
-                        Ok(Ok(())) => info!("Task processing completed successfully"),
-                        Ok(Err(e)) => error!("Task processing error: {:?}", e),
-                        Err(e) => error!("Task processing panicked: {:?}", e),
-                    }
+                _ = tasks_handle => {
+                    info!("Task processing has completed");
                 }
             }
+            info!("Aggregator is shutting down");
+        });
 
-            info!("One of the aggregator tasks has completed or errored. Aggregator will continue running.");
-
-            loop {
-                tokio::time::sleep(Duration::from_secs(60)).await;
-                debug!("Aggregator still running...");
-            }
-        })
+        (handle, shutdown_tx)
     }
 
-    async fn start_server(aggregator: Arc<Mutex<Self>>) -> Result<()> {
+    async fn start_server(
+        aggregator: Arc<Mutex<Self>>,
+        shutdown: oneshot::Receiver<()>,
+    ) -> Result<()> {
         let mut io = IoHandler::new();
         io.add_method("process_signed_task_response", {
             let aggregator = Arc::clone(&aggregator);
@@ -185,7 +183,20 @@ impl Aggregator {
             .start_http(&socket)?;
 
         info!("Server running at {}", socket);
-        server.wait();
+
+        // Create a close handle before we move the server
+        let close_handle = server.close_handle();
+
+        // Use tokio::select! to wait for either the server to finish or the shutdown signal
+        tokio::select! {
+            _ = async { server.wait() } => {
+                info!("Server has stopped");
+            }
+            _ = shutdown => {
+                info!("Initiating server shutdown");
+                close_handle.close();
+            }
+        }
         Ok(())
     }
 
