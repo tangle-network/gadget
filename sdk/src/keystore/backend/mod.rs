@@ -180,6 +180,14 @@ impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
         }
     }
 
+    fn bls_bn254_generate_from_secret(&self, secret: String) -> Result<Public, Error> {
+        match self {
+            Self::Mem(backend) => backend.bls_bn254_generate_from_secret(secret),
+            #[cfg(feature = "std")]
+            Self::Fs(backend) => backend.bls_bn254_generate_from_secret(secret),
+        }
+    }
+
     fn bls_bn254_sign(&self, public: &Public, msg: &[u8; 32]) -> Result<Option<Signature>, Error> {
         match self {
             Self::Mem(backend) => backend.bls_bn254_sign(public, msg),

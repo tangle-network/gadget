@@ -87,32 +87,36 @@ impl GadgetProcess {
                     tokio::time::timeout(Duration::from_secs(timeout), stream.recv()).await;
                 match read_result {
                     Ok(output) => {
-                        if output.is_err() {
-                            // TODO: Error logging
-                            println!(
-                                "{} encountered read error",
-                                self.process_name.to_string_lossy()
-                            );
-                        } else {
-                            let inbound_message = output.unwrap();
-                            if inbound_message.is_empty() {
-                                // Stream is completed - process is finished
+                        match output {
+                            Err(e) => {
+                                // TODO: Error logging
                                 println!(
-                                    "{} : STREAM COMPLETED - ENDING",
-                                    self.process_name.to_string_lossy()
-                                );
-                                // TODO: Log
-                                return ProcessOutput::Exhausted(messages);
-                            } else {
-                                // We received output from child process
-                                // TODO: Log
-                                println!(
-                                    "{} : MESSAGE LOG : {}",
+                                    "{} encountered read error {}",
                                     self.process_name.to_string_lossy(),
-                                    inbound_message.clone()
+                                    e
                                 );
-                                messages.push(inbound_message.clone());
-                                self.output.push(inbound_message);
+                                return ProcessOutput::Exhausted(messages);
+                            }
+                            Ok(inbound_message) => {
+                                if inbound_message.is_empty() {
+                                    // Stream is completed - process is finished
+                                    println!(
+                                        "{} : STREAM COMPLETED - ENDING",
+                                        self.process_name.to_string_lossy()
+                                    );
+                                    // TODO: Log
+                                    return ProcessOutput::Exhausted(messages);
+                                } else {
+                                    // We received output from child process
+                                    // TODO: Log
+                                    println!(
+                                        "{} : MESSAGE LOG : {}",
+                                        self.process_name.to_string_lossy(),
+                                        inbound_message
+                                    );
+                                    messages.push(inbound_message.clone());
+                                    self.output.push(inbound_message);
+                                }
                             }
                         }
                     }

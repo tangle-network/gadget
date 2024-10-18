@@ -1,11 +1,18 @@
 //! Filesystem-based keystore backend.
 
+use crate::keystore::bn254::Public;
 use crate::keystore::{
     bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error, KeystoreUriSanitizer,
 };
 use crate::{debug, warn};
 use alloc::string::ToString;
+use ark_bn254::g1::G1Affine;
+use ark_bn254::{Fr, G1Projective};
+use ark_ec::AffineRepr;
 use ark_serialize::CanonicalSerialize;
+use core::str::FromStr;
+use eigensdk::crypto_bls::error::BlsError;
+use eigensdk::crypto_bls::BlsG1Point;
 use std::{fs, io::Write, path::PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -107,9 +114,12 @@ impl FilesystemKeystore {
                 // If the key type is BlsBn254, search for .pub files. Otherwise, search normally
                 if file_name.starts_with(&prefix) {
                     if key_type == KeyType::BlsBn254 {
+                        println!("SEARCHING FOR BLS BN254 KEYS");
                         if file_name.ends_with(".pub") {
+                            println!("FOUND BLS BN254 PUBLIC KEY");
                             let public_key_path = entry.path();
                             let public_key_bytes = fs::read(public_key_path).ok()?;
+                            println!("READ BLS BN254 PUBLIC KEY: {:?}", public_key_bytes);
                             Some(public_key_bytes)
                         } else {
                             None
@@ -249,6 +259,38 @@ impl Backend for FilesystemKeystore {
         Ok(public)
     }
 
+    fn bls_bn254_generate_from_secret(&self, secret: String) -> Result<Public, Error> {
+        let pair = eigensdk::crypto_bls::BlsKeyPair::new(secret.clone())
+            .map_err(|e| Error::BlsBn254(e.to_string()))?;
+
+        let public = pair.public_key();
+
+        let path = self.key_file_path(
+            bn254::hash_public(public.clone())?.as_bytes(),
+            KeyType::BlsBn254,
+        );
+        let secret = bn254::Secret::from_str(&secret)
+            .map_err(|_| Error::BlsBn254("Invalid BLS BN254 secret".to_string()))?;
+
+        // Serialize and store the secret key
+        let mut secret_bytes = Vec::new();
+        secret
+            .serialize_uncompressed(&mut secret_bytes)
+            .map_err(|e| Error::BlsBn254(e.to_string()))?;
+        Self::write_to_file(path.clone(), &secret_bytes)?;
+
+        // Store the public key in metadata file
+        let public_key_path = path.with_extension("pub");
+        Self::write_to_file(
+            public_key_path,
+            serde_json::to_vec(&public)
+                .map_err(|e| Error::BlsBn254(e.to_string()))?
+                .as_slice(),
+        )?;
+
+        Ok(public)
+    }
+
     fn bls_bn254_sign(
         &self,
         public: &bn254::Public,
@@ -350,11 +392,7 @@ impl Backend for FilesystemKeystore {
     }
 
     fn iter_bls_bn254(&self) -> impl Iterator<Item = bn254::Public> {
-        self.iter_keys(KeyType::BlsBn254).flat_map(|b| {
-            let path = self.key_file_path(b.as_slice(), KeyType::BlsBn254);
-            let public_key_path = format!("{:?}.pub", path);
-            let public_key_bytes = std::fs::read(public_key_path).ok()?;
-            serde_json::from_slice(&public_key_bytes).ok()
-        })
+        self.iter_keys(KeyType::BlsBn254)
+            .flat_map(|b| serde_json::from_slice(&b).ok())
     }
 }
