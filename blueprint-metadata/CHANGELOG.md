@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/tangle-network/gadget/compare/blueprint-metadata-v0.1.2...blueprint-metadata-v0.1.3) - 2024-10-18
+
+### Added
+
+- eigenlayer incredible squaring blueprint and test ([#312](https://github.com/tangle-network/gadget/pull/312))
+
+### Fixed
+
+- uncomment generate_json ([#358](https://github.com/tangle-network/gadget/pull/358))
+
+### Other
+
+- update naming ([#343](https://github.com/tangle-network/gadget/pull/343))
+
 ## [0.1.2](https://github.com/tangle-network/gadget/compare/blueprint-metadata-v0.1.1...blueprint-metadata-v0.1.2) - 2024-09-24
 
 ### Other
