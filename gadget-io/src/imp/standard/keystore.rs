@@ -1,10 +1,11 @@
 use crate::error::{GadgetIoError, Result};
 pub use crate::shared::keystore::SubstrateKeystore;
-use sp_core::{ecdsa, sr25519, ByteArray};
+use sp_core::{ecdsa, sr25519};
 use std::path::{Path, PathBuf};
 use tracing;
 
 use sc_keystore::{Keystore, LocalKeystore};
+use sp_application_crypto::ByteArray;
 use sp_keystore::KeystorePtr;
 use std::sync::Arc;
 

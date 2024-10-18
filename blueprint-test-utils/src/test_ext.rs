@@ -35,7 +35,7 @@ use url::Url;
 use std::path::PathBuf;
 use subxt::tx::Signer;
 use gadget_sdk::keystore::KeystoreUriSanitizer;
-use gadget_sdk::keystore::sp_core_subxt::Pair;
+use sp_core::Pair;
 use tracing::Instrument;
 use gadget_sdk::{error, info, warn};
 

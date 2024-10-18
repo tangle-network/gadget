@@ -37,7 +37,7 @@ pub(crate) fn generate_tangle_event_handler(
                 self.service_id
             }
 
-            fn signer(&self) -> &gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair> {
+            fn signer(&self) -> &gadget_sdk::keystore::TanglePairSigner<gadget_sdk::ext::sp_core::sr25519::Pair> {
                 &self.signer
             }
         }

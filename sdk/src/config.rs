@@ -2,7 +2,7 @@ use crate::keystore::backend::GenericKeyStore;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::BackendExt;
 #[cfg(any(feature = "std", feature = "wasm"))]
-use crate::keystore::{sp_core_subxt, TanglePairSigner};
+use crate::keystore::TanglePairSigner;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
 use core::net::IpAddr;
@@ -382,9 +382,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// * The keypair seed is invalid.
     #[doc(alias = "sr25519_signer")]
     #[cfg(any(feature = "std", feature = "wasm"))]
-    pub fn first_sr25519_signer(
-        &self,
-    ) -> Result<TanglePairSigner<sp_core_subxt::sr25519::Pair>, Error> {
+    pub fn first_sr25519_signer(&self) -> Result<TanglePairSigner<sp_core::sr25519::Pair>, Error> {
         self.keystore()?.sr25519_key().map_err(Error::Keystore)
     }
 
@@ -396,9 +394,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// * The keypair seed is invalid.
     #[doc(alias = "ecdsa_signer")]
     #[cfg(any(feature = "std", feature = "wasm"))]
-    pub fn first_ecdsa_signer(
-        &self,
-    ) -> Result<TanglePairSigner<sp_core_subxt::ecdsa::Pair>, Error> {
+    pub fn first_ecdsa_signer(&self) -> Result<TanglePairSigner<sp_core::ecdsa::Pair>, Error> {
         self.keystore()?.ecdsa_key().map_err(Error::Keystore)
     }
 
@@ -410,9 +406,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// * The keypair seed is invalid.
     #[doc(alias = "ed25519_signer")]
     #[cfg(any(feature = "std", feature = "wasm"))]
-    pub fn first_ed25519_signer(
-        &self,
-    ) -> Result<TanglePairSigner<sp_core_subxt::ed25519::Pair>, Error> {
+    pub fn first_ed25519_signer(&self) -> Result<TanglePairSigner<sp_core::ed25519::Pair>, Error> {
         self.keystore()?.ed25519_key().map_err(Error::Keystore)
     }
 

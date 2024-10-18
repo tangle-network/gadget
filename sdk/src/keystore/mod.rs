@@ -45,15 +45,13 @@ pub mod error;
 pub mod sr25519;
 
 use crate::clients::tangle::runtime::TangleConfig;
-use crate::keystore::sp_core_subxt::crypto::{DeriveError, SecretStringError};
-use crate::keystore::sp_core_subxt::DeriveJunction;
 #[cfg(any(feature = "std", feature = "wasm"))]
-// TODO: Once subxt uses sp-core 34.0.0, we can simply use sp_core
-pub use crate::tangle_subxt::subxt::ext::sp_core as sp_core_subxt;
 use alloy_signer_local::LocalSigner;
 use eigensdk::crypto_bls;
 pub use error::Error;
 use k256::ecdsa::SigningKey;
+use sp_core::crypto::{DeriveError, SecretStringError};
+use sp_core::DeriveJunction;
 use std::path::{Path, PathBuf};
 use subxt::ext::sp_core::Pair as PairSubxt;
 use subxt_core::tx::signer::{PairSigner, Signer};
@@ -68,15 +66,15 @@ pub struct TanglePairSigner<Pair> {
 }
 
 #[cfg(any(feature = "std", feature = "wasm"))]
-impl<Pair: sp_core_subxt::Pair> sp_core_subxt::crypto::CryptoType for TanglePairSigner<Pair> {
+impl<Pair: sp_core::Pair> sp_core::crypto::CryptoType for TanglePairSigner<Pair> {
     type Pair = Pair;
 }
 
 #[cfg(any(feature = "std", feature = "wasm"))]
-impl<Pair: sp_core_subxt::Pair> TanglePairSigner<Pair>
+impl<Pair: sp_core::Pair> TanglePairSigner<Pair>
 where
-    <Pair as sp_core_subxt::Pair>::Signature: Into<MultiSignature>,
-    subxt::ext::sp_runtime::MultiSigner: From<<Pair as sp_core_subxt::Pair>::Public>,
+    <Pair as sp_core::Pair>::Signature: Into<MultiSignature>,
+    subxt::ext::sp_runtime::MultiSigner: From<<Pair as sp_core::Pair>::Public>,
 {
     pub fn new(pair: Pair) -> Self {
         TanglePairSigner {
@@ -96,7 +94,7 @@ where
 #[cfg(any(feature = "std", feature = "wasm"))]
 impl<Pair> Signer<TangleConfig> for TanglePairSigner<Pair>
 where
-    Pair: sp_core_subxt::Pair,
+    Pair: sp_core::Pair,
     Pair::Signature: Into<MultiSignature>,
 {
     fn account_id(&self) -> AccountId32 {
@@ -113,10 +111,10 @@ where
 }
 
 #[cfg(any(feature = "std", feature = "wasm"))]
-impl<Pair: sp_core_subxt::Pair> sp_core_subxt::Pair for TanglePairSigner<Pair>
+impl<Pair: sp_core::Pair> sp_core::Pair for TanglePairSigner<Pair>
 where
-    <Pair as sp_core_subxt::Pair>::Signature: Into<subxt::utils::MultiSignature>,
-    subxt::ext::sp_runtime::MultiSigner: From<<Pair as sp_core_subxt::Pair>::Public>,
+    <Pair as sp_core::Pair>::Signature: Into<subxt::utils::MultiSignature>,
+    subxt::ext::sp_runtime::MultiSigner: From<<Pair as sp_core::Pair>::Public>,
 {
     type Public = Pair::Public;
     type Seed = Pair::Seed;
@@ -160,7 +158,7 @@ where
     }
 }
 
-impl TanglePairSigner<sp_core_subxt::ecdsa::Pair> {
+impl TanglePairSigner<sp_core::ecdsa::Pair> {
     /// Returns the alloy-compatible key for the ECDSA key pair.
     pub fn alloy_key(&self) -> Result<LocalSigner<SigningKey>, Error> {
         let k256_ecdsa_secret_key = self.pair.signer().seed();
@@ -331,7 +329,7 @@ pub trait Backend {
 /// that provide convenient access to keys
 pub trait BackendExt: Backend {
     #[cfg(any(feature = "std", feature = "wasm"))]
-    fn ecdsa_key(&self) -> Result<TanglePairSigner<sp_core_subxt::ecdsa::Pair>, Error> {
+    fn ecdsa_key(&self) -> Result<TanglePairSigner<sp_core::ecdsa::Pair>, Error> {
         let first_key = self
             .iter_ecdsa()
             .next()
@@ -343,12 +341,12 @@ pub trait BackendExt: Backend {
         let mut seed = [0u8; 32];
         seed.copy_from_slice(&ecdsa_secret.to_bytes()[0..32]);
         Ok(TanglePairSigner {
-            pair: subxt::tx::PairSigner::new(sp_core_subxt::ecdsa::Pair::from_seed(&seed)),
+            pair: subxt::tx::PairSigner::new(sp_core::ecdsa::Pair::from_seed(&seed)),
         })
     }
 
     #[cfg(any(feature = "std", feature = "wasm"))]
-    fn sr25519_key(&self) -> Result<TanglePairSigner<sp_core_subxt::sr25519::Pair>, Error> {
+    fn sr25519_key(&self) -> Result<TanglePairSigner<sp_core::sr25519::Pair>, Error> {
         let first_key = self
             .iter_sr25519()
             .next()
@@ -361,7 +359,7 @@ pub trait BackendExt: Backend {
         Ok(TanglePairSigner { pair })
     }
 
-    fn ed25519_key(&self) -> Result<TanglePairSigner<sp_core_subxt::ed25519::Pair>, Error> {
+    fn ed25519_key(&self) -> Result<TanglePairSigner<sp_core::ed25519::Pair>, Error> {
         let first_key = self
             .iter_ed25519()
             .next()
@@ -373,7 +371,7 @@ pub trait BackendExt: Backend {
         let mut seed = [0u8; 32];
         seed.copy_from_slice(&ed25519_secret.as_ref()[0..32]);
         Ok(TanglePairSigner {
-            pair: subxt::tx::PairSigner::new(sp_core_subxt::ed25519::Pair::from_seed(&seed)),
+            pair: subxt::tx::PairSigner::new(sp_core::ed25519::Pair::from_seed(&seed)),
         })
     }
 

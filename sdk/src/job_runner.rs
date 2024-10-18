@@ -1,8 +1,8 @@
 use crate::config::GadgetConfiguration;
 use crate::event_listener::markers;
 use crate::events_watcher::InitializableEventHandler;
-use crate::keystore::sp_core_subxt::Pair;
 use crate::{info, tx};
+use sp_core::Pair;
 use std::future::Future;
 use std::pin::Pin;
 use tangle_subxt::tangle_testnet_runtime::api;

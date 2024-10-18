@@ -12,7 +12,7 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::type
 use gadget_sdk::keystore;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
-use gadget_sdk::keystore::{sp_core_subxt, Backend, BackendExt, TanglePairSigner};
+use gadget_sdk::keystore::{Backend, BackendExt, TanglePairSigner};
 use libp2p::Multiaddr;
 pub use log;
 use sp_core::Pair as PairT;
@@ -162,10 +162,8 @@ async fn inject_test_keys<P: AsRef<Path>>(
     let secret_key_again = keystore::sr25519::secret_from_bytes(&bytes).expect("Should be valid");
     assert_eq!(&bytes[..], &secret_key_again.to_bytes()[..]);
 
-    use gadget_sdk::keystore::sp_core_subxt;
     let sr2 = TanglePairSigner::new(
-        sp_core_subxt::sr25519::Pair::from_seed_slice(&bytes)
-            .expect("Should be valid SR25519 keypair"),
+        sp_core::sr25519::Pair::from_seed_slice(&bytes).expect("Should be valid SR25519 keypair"),
     );
 
     let sr1_account_id: AccountId32 = AccountId32(sr.as_ref().public.to_bytes());
@@ -197,7 +195,7 @@ async fn inject_test_keys<P: AsRef<Path>>(
 
 pub async fn create_blueprint(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
     blueprint: Blueprint,
 ) -> Result<(), Box<dyn Error>> {
     let call = api::tx().services().create_blueprint(blueprint);
@@ -211,7 +209,7 @@ pub async fn create_blueprint(
 
 pub async fn join_delegators(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
 ) -> Result<(), Box<dyn Error>> {
     info!("Joining delegators ...");
     let call_pre = api::tx()
@@ -228,7 +226,7 @@ pub async fn join_delegators(
 
 pub async fn register_blueprint(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
     blueprint_id: u64,
     preferences: Preferences,
     registration_args: RegistrationArgs,
@@ -247,7 +245,7 @@ pub async fn register_blueprint(
 
 pub async fn submit_job(
     client: &TestClient,
-    user: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    user: &TanglePairSigner<sp_core::sr25519::Pair>,
     service_id: u64,
     job_type: Job,
     job_params: Args,
@@ -265,7 +263,7 @@ pub async fn submit_job(
 /// to make a call to run a service, and will have all nodes running the service.
 pub async fn register_service(
     client: &TestClient,
-    user: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    user: &TanglePairSigner<sp_core::sr25519::Pair>,
     blueprint_id: u64,
     test_nodes: Vec<AccountId32>,
 ) -> Result<(), Box<dyn Error>> {

@@ -35,7 +35,5 @@ where
     fn service_id(&self) -> u64;
 
     /// Returns the signer
-    fn signer(
-        &self,
-    ) -> &crate::keystore::TanglePairSigner<crate::keystore::sp_core_subxt::sr25519::Pair>;
+    fn signer(&self) -> &crate::keystore::TanglePairSigner<sp_core::sr25519::Pair>;
 }

@@ -399,7 +399,7 @@ pub fn generate_autogen_struct(
     if job_args.event_listener.has_tangle() {
         required_fields.push(quote! {
             pub service_id: u64,
-            pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::keystore::sp_core_subxt::sr25519::Pair>,
+            pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::ext::sp_core::sr25519::Pair>,
             pub client: gadget_sdk::clients::tangle::runtime::TangleClient,
         })
     }
