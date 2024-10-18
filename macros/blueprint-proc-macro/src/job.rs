@@ -845,6 +845,13 @@ impl Parse for EventListenerArgs {
         while !content.is_empty() {
             let listener = extract_x_equals_y::<kw::listener, Type>(&content, true, "listener")?
                 .expect("No listener defined in listener block");
+
+            let ty_str = quote! { #listener }.to_string();
+            let mut evm_args = None;
+            if ty_str.contains("EvmContractEventListener") {
+                evm_args = Some(content.parse::<EvmArgs>()?);
+            }
+
             let event = extract_x_equals_y::<kw::event, Type>(&content, true, "event")?
                 .expect("No event defined in listener block");
             let pre_processor =
@@ -856,10 +863,10 @@ impl Parse for EventListenerArgs {
             // In the case of tangle and everything other listener type, we don't pass evm_args
             let ty_str = quote! { #listener }.to_string();
             let this_listener = if ty_str.contains("EvmContractEventListener") {
-                let evm_args = content.parse::<EvmArgs>()?;
+                assert!(evm_args.is_some(), "EvmArgs must be passed");
                 SingleListener {
                     listener,
-                    evm_args: Some(evm_args),
+                    evm_args,
                     listener_type: ListenerType::Evm,
                     event,
                     post_processor,
