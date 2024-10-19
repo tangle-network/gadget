@@ -35,6 +35,14 @@
 use core::future::Future;
 
 use crate::keystore::backend::GenericKeyStore;
+use eigensdk::{
+    client_avsregistry::{reader::AvsRegistryChainReader, writer::AvsRegistryChainWriter},
+    services_avsregistry::{chaincaller::AvsRegistryServiceChainCaller, AvsRegistryService},
+    services_blsaggregation::bls_agg::BlsAggregatorService,
+    services_operatorsinfo::{
+        operator_info::OperatorInfoService, operatorsinfo_inmemory::OperatorInfoServiceInMemory,
+    },
+};
 // derives
 pub use gadget_context_derive::*;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
@@ -93,4 +101,45 @@ pub trait ServicesContext {
         &self,
         client: &subxt::OnlineClient<Self::Config>,
     ) -> impl Future<Output = Result<Vec<subxt::utils::AccountId32>, subxt::Error>>;
+}
+
+/// `EigenlayerContext` trait provides access to Eigenlayer utilities
+pub trait EigenlayerContext {
+    /// Provides a reader for the AVS registry.
+    fn avs_registry_reader(
+        &self,
+    ) -> impl core::future::Future<Output = Result<AvsRegistryChainReader, std::io::Error>>;
+
+    /// Provides a writer for the AVS registry.
+    fn avs_registry_writer(
+        &self,
+        private_key: String,
+    ) -> impl core::future::Future<Output = Result<AvsRegistryChainWriter, std::io::Error>>;
+
+    /// Provides an operator info service.
+    fn operator_info_service_in_memory(
+        &self,
+    ) -> impl core::future::Future<Output = Result<OperatorInfoServiceInMemory, std::io::Error>>;
+
+    /// Provides an AVS registry service chain caller.
+    fn avs_registry_service_chain_caller_in_memory(
+        &self,
+    ) -> impl core::future::Future<
+        Output = Result<
+            AvsRegistryServiceChainCaller<AvsRegistryChainReader, OperatorInfoServiceInMemory>,
+            std::io::Error,
+        >,
+    >;
+
+    /// Provides a BLS aggregation service.
+    fn bls_aggregation_service_in_memory(
+        &self,
+    ) -> impl core::future::Future<
+        Output = Result<
+            BlsAggregatorService<
+                AvsRegistryServiceChainCaller<AvsRegistryChainReader, OperatorInfoServiceInMemory>,
+            >,
+            std::io::Error,
+        >,
+    >;
 }

@@ -21,8 +21,10 @@ pub type TanglePairSigner = PairSigner<TangleConfig, sp_core::sr25519::Pair>;
 pub struct Opts {
     /// The name of the package to deploy (if the workspace has multiple packages)
     pub pkg_name: Option<String>,
-    /// The RPC URL of the Tangle Network
-    pub rpc_url: String,
+    /// The HTTP RPC URL of the Tangle Network
+    pub http_rpc_url: String,
+    /// The WS RPC URL of the Tangle Network
+    pub ws_rpc_url: String,
     /// The path to the manifest file
     pub manifest_path: std::path::PathBuf,
     /// The signer for deploying the blueprint
@@ -35,7 +37,8 @@ impl Debug for Opts {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Opts")
             .field("pkg_name", &self.pkg_name)
-            .field("rpc_url", &self.rpc_url)
+            .field("http_rpc_url", &self.http_rpc_url)
+            .field("ws_rpc_url", &self.ws_rpc_url)
             .field("manifest_path", &self.manifest_path)
             .finish()
     }
@@ -44,7 +47,7 @@ impl Debug for Opts {
 pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     manifest_metadata_path: P,
     pkg_name: Option<&String>,
-    rpc_url: T,
+    http_rpc_url: T,
     signer_evm: Option<PrivateKeySigner>,
 ) -> Result<types::create_blueprint::Blueprint> {
     let manifest_path = manifest_metadata_path.into();
@@ -57,7 +60,7 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     let package = find_package(&metadata, pkg_name)?;
     let mut blueprint = load_blueprint_metadata(package)?;
     build_contracts_if_needed(package, &blueprint).context("Building contracts")?;
-    deploy_contracts_to_tangle(rpc_url.as_ref(), package, &mut blueprint, signer_evm).await?;
+    deploy_contracts_to_tangle(http_rpc_url.as_ref(), package, &mut blueprint, signer_evm).await?;
 
     bake_blueprint(blueprint)
 }
@@ -65,7 +68,8 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
 pub async fn deploy_to_tangle(
     Opts {
         pkg_name,
-        rpc_url,
+        http_rpc_url,
+        ws_rpc_url,
         manifest_path,
         signer,
         signer_evm,
@@ -73,7 +77,8 @@ pub async fn deploy_to_tangle(
 ) -> Result<u64> {
     // Load the manifest file into cargo metadata
     let blueprint =
-        generate_service_blueprint(&manifest_path, pkg_name.as_ref(), &rpc_url, signer_evm).await?;
+        generate_service_blueprint(&manifest_path, pkg_name.as_ref(), &http_rpc_url, signer_evm)
+            .await?;
 
     let signer = if let Some(signer) = signer {
         signer
@@ -82,7 +87,7 @@ pub async fn deploy_to_tangle(
     };
 
     let my_account_id = signer.account_id();
-    let client = subxt::OnlineClient::from_url(rpc_url).await?;
+    let client = subxt::OnlineClient::from_url(ws_rpc_url).await?;
 
     let create_blueprint_tx = TangleApi::tx().services().create_blueprint(blueprint);
 
@@ -136,7 +141,7 @@ pub fn load_blueprint_metadata(package: &cargo_metadata::Package) -> Result<Serv
 }
 
 async fn deploy_contracts_to_tangle(
-    rpc_url: &str,
+    http_rpc_url: &str,
     package: &cargo_metadata::Package,
     blueprint: &mut ServiceBlueprint<'_>,
     signer_evm: Option<PrivateKeySigner>,
@@ -146,7 +151,6 @@ async fn deploy_contracts_to_tangle(
         RequestHook,
         JobVerifier(usize),
     }
-    let rpc_url = rpc_url.replace("ws", "http").replace("wss", "https");
     let mut contract_paths = Vec::new();
     match blueprint.registration_hook {
         ServiceRegistrationHook::None => {}
@@ -205,7 +209,7 @@ async fn deploy_contracts_to_tangle(
     let provider = alloy_provider::ProviderBuilder::new()
         .with_recommended_fillers()
         .wallet(wallet)
-        .on_http(rpc_url.parse()?);
+        .on_http(http_rpc_url.parse()?);
 
     let chain_id = provider.get_chain_id().await?;
     eprintln!("Chain ID: {chain_id}");

@@ -4,6 +4,7 @@ use crate::keystore::BackendExt;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::TanglePairSigner;
 use alloc::string::{String, ToString};
+use alloy_primitives::Address;
 use core::fmt::Debug;
 use core::net::IpAddr;
 use eigensdk::crypto_bls;
@@ -74,8 +75,10 @@ pub type StdGadgetConfiguration = GadgetConfiguration<parking_lot::RawRwLock>;
 /// Gadget environment.
 #[non_exhaustive]
 pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
-    /// Tangle RPC endpoint.
-    pub rpc_endpoint: String,
+    /// Tangle HTTP RPC endpoint.
+    pub http_rpc_endpoint: String,
+    /// Tangle WS RPC endpoint.
+    pub ws_rpc_endpoint: String,
     /// Keystore URI
     ///
     /// * In Memory: `file::memory:` or `:memory:`
@@ -92,7 +95,6 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     /// This is only set to `None` when the gadget is in the registration mode.
     /// Always check for is `is_registration` flag before using this.
     pub service_id: Option<u64>,
-
     /// The Current Environment is for the `PreRegisteration` of the Gadget
     ///
     /// The gadget will now start in the Registration mode and will try to register the current operator on that blueprint
@@ -109,13 +111,23 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     pub span: tracing::Span,
     /// Whether the gadget is in test mode
     pub test_mode: bool,
+    /// Basic Eigenlayer contract system
+    pub eigenlayer_contract_addrs: Option<EigenlayerContractAddresses>,
     _lock: core::marker::PhantomData<RwLock>,
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct EigenlayerContractAddresses {
+    pub registry_coordinator_addr: Address,
+    pub operator_state_retriever_addr: Address,
+    pub delegation_manager_addr: Address,
+    pub strategy_manager_addr: Address,
 }
 
 impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("GadgetConfiguration")
-            .field("rpc_endpoint", &self.rpc_endpoint)
+            .field("rpc_endpoint", &self.http_rpc_endpoint)
             .field("keystore_uri", &self.keystore_uri)
             .field("blueprint_id", &self.blueprint_id)
             .field("service_id", &self.service_id)
@@ -124,6 +136,7 @@ impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
             .field("bind_port", &self.bind_port)
             .field("bind_addr", &self.bind_addr)
             .field("test_mode", &self.test_mode)
+            .field("eigenlayer_contract_addrs", &self.eigenlayer_contract_addrs)
             .finish()
     }
 }
@@ -131,11 +144,13 @@ impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
 impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
     fn clone(&self) -> Self {
         Self {
-            rpc_endpoint: self.rpc_endpoint.clone(),
+            http_rpc_endpoint: self.http_rpc_endpoint.clone(),
+            ws_rpc_endpoint: self.ws_rpc_endpoint.clone(),
             keystore_uri: self.keystore_uri.clone(),
             data_dir: self.data_dir.clone(),
             blueprint_id: self.blueprint_id,
             service_id: self.service_id,
+            eigenlayer_contract_addrs: self.eigenlayer_contract_addrs.clone(),
             is_registration: self.is_registration,
             protocol: self.protocol,
             bind_port: self.bind_port,
@@ -151,11 +166,13 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
 impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
     fn default() -> Self {
         Self {
-            rpc_endpoint: "http://localhost:9944".to_string(),
+            http_rpc_endpoint: "http://localhost:9944".to_string(),
+            ws_rpc_endpoint: "ws://localhost:9944".to_string(),
             keystore_uri: "file::memory:".to_string(),
             data_dir: None,
             blueprint_id: 0,
             service_id: Some(0),
+            eigenlayer_contract_addrs: None,
             is_registration: false,
             protocol: Protocol::Tangle,
             bind_port: 0,
@@ -217,6 +234,9 @@ pub enum Error {
     /// Missing `KEYSTORE_URI` environment
     #[error("Missing keystore URI")]
     TestSetup(String),
+    /// Missing `EigenlayerContractAddresses`
+    #[error("Missing EigenlayerContractAddresses")]
+    MissingEigenlayerContractAddresses,
 }
 
 #[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
@@ -242,8 +262,11 @@ pub enum GadgetCLICoreSettings {
         #[structopt(long, short = "l", env)]
         log_id: Option<String>,
         #[structopt(long, short = "u", parse(try_from_str = url::Url::parse), env)]
-        #[serde(default = "gadget_io::defaults::rpc_url")]
-        url: Url,
+        #[serde(default = "gadget_io::defaults::http_rpc_url")]
+        http_rpc_url: Url,
+        #[structopt(long, short = "ws", parse(try_from_str = url::Url::parse), env)]
+        #[serde(default = "gadget_io::defaults::ws_rpc_url")]
+        ws_rpc_url: Url,
         #[structopt(long, parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str), env)]
         #[serde(default)]
         bootnodes: Option<Vec<Multiaddr>>,
@@ -312,7 +335,8 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 bind_port,
                 test_mode,
                 log_id,
-                url,
+                http_rpc_url,
+                ws_rpc_url,
                 keystore_uri,
                 blueprint_id,
                 service_id,
@@ -321,6 +345,25 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
             },
         ..
     } = config;
+
+    let eigenlayer_contract_addrs = EigenlayerContractAddresses {
+        registry_coordinator_addr: std::env::var("REGISTRY_COORDINATOR_ADDR")
+            .unwrap_or_default()
+            .parse()
+            .unwrap(),
+        operator_state_retriever_addr: std::env::var("OPERATOR_STATE_RETRIEVER_ADDR")
+            .unwrap_or_default()
+            .parse()
+            .unwrap(),
+        delegation_manager_addr: std::env::var("DELEGATION_MANAGER_ADDR")
+            .unwrap_or_default()
+            .parse()
+            .unwrap(),
+        strategy_manager_addr: std::env::var("STRATEGY_MANAGER_ADDRESS")
+            .unwrap_or_default()
+            .parse()
+            .unwrap(),
+    };
 
     let span = match log_id {
         Some(id) => tracing::info_span!("gadget", id = id),
@@ -332,7 +375,8 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         bind_port,
         test_mode,
         span,
-        rpc_endpoint: url.to_string(),
+        http_rpc_endpoint: http_rpc_url.to_string(),
+        ws_rpc_endpoint: ws_rpc_url.to_string(),
         keystore_uri,
         data_dir: std::env::var("DATA_DIR").ok().map(PathBuf::from),
         blueprint_id,
@@ -344,6 +388,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         },
         is_registration,
         protocol,
+        eigenlayer_contract_addrs: Some(eigenlayer_contract_addrs),
         _lock: core::marker::PhantomData,
     })
 }
@@ -435,7 +480,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     pub async fn client(&self) -> Result<crate::clients::tangle::runtime::TangleClient, Error> {
         let client =
             subxt::OnlineClient::<crate::clients::tangle::runtime::TangleConfig>::from_url(
-                self.rpc_endpoint.clone(),
+                self.http_rpc_endpoint.clone(),
             )
             .await?;
         Ok(client)

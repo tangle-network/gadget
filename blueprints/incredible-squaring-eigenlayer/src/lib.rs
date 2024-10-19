@@ -131,6 +131,7 @@ pub fn convert_event_to_inputs(
     event: IncredibleSquaringTaskManager::NewTaskCreated,
     index: u32,
 ) -> (U256, u32, Bytes, u8, u32) {
+    let task_index = event.taskIndex;
     let number_to_be_squared = event.task.numberToBeSquared;
     let task_created_block = event.task.taskCreatedBlock;
     let quorum_numbers = event.task.quorumNumbers;
@@ -140,7 +141,7 @@ pub fn convert_event_to_inputs(
         task_created_block,
         quorum_numbers,
         quorum_threshold_percentage,
-        index,
+        task_index,
     )
 }
 

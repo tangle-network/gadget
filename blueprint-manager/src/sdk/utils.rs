@@ -38,51 +38,6 @@ pub fn bounded_string_to_string(string: BoundedString) -> Result<String, FromUtf
     String::from_utf8(bytes.clone())
 }
 
-pub fn generate_process_arguments(
-    gadget_config: &GadgetConfig,
-    opt: &BlueprintManagerConfig,
-    blueprint_id: u64,
-    service_id: u64,
-    protocol: Protocol,
-) -> color_eyre::Result<Vec<String>> {
-    let mut arguments = vec![];
-    arguments.push("run".to_string());
-
-    if opt.test_mode {
-        arguments.push("--test-mode=true".to_string());
-    }
-
-    for bootnode in &gadget_config.bootnodes {
-        arguments.push(format!("--bootnodes={}", bootnode));
-    }
-
-    arguments.extend([
-        format!("--bind-addr={}", gadget_config.bind_addr),
-        format!("--bind-port={}", gadget_config.bind_port),
-        format!("--url={}", gadget_config.url),
-        format!("--keystore-uri={}", gadget_config.keystore_uri),
-        format!("--chain={}", gadget_config.chain),
-        format!("--verbose={}", opt.verbose),
-        format!("--pretty={}", opt.pretty),
-        format!("--blueprint-id={}", blueprint_id),
-        format!("--service-id={}", service_id),
-        format!("--protocol={}", protocol),
-        format!(
-            "--log-id=Blueprint-{blueprint_id}-Service-{service_id}-{}",
-            opt.instance_id.clone().unwrap_or_else(|| format!(
-                "{}-{}",
-                gadget_config.bind_addr, gadget_config.bind_port
-            ))
-        ),
-    ]);
-
-    if let Some(keystore_password) = &gadget_config.keystore_password {
-        arguments.push(format!("--keystore-password={}", keystore_password));
-    }
-
-    Ok(arguments)
-}
-
 pub fn hash_bytes_to_hex<T: AsRef<[u8]>>(input: T) -> String {
     let mut hasher = sha2::Sha256::default();
     hasher.update(input);

@@ -54,7 +54,8 @@ pub struct PerTestNodeInput<T> {
     pretty: bool,
     #[allow(dead_code)]
     extra_input: T,
-    local_tangle_node: Url,
+    http_rpc_url: Url,
+    ws_rpc_url: Url,
 }
 
 /// Runs a test node using a top-down approach and invoking the blueprint manager to auto manage
@@ -102,7 +103,8 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     let gadget_config = GadgetConfig {
         bind_addr: input.bind_ip,
         bind_port: input.bind_port,
-        url: input.local_tangle_node,
+        http_rpc_url: input.http_rpc_url,
+        ws_rpc_url: input.ws_rpc_url,
         bootnodes: input.bootnodes,
         keystore_uri: keystore_uri_str,
         keystore_password: None,
@@ -396,11 +398,13 @@ macro_rules! test_blueprint {
             let manifest_path = base_path.join("Cargo.toml");
 
 
+            let ws_addr = "http://127.0.0.1:9944";
             let ws_addr = "ws://127.0.0.1:9944";
 
             let opts = Opts {
                 pkg_name: Some($blueprint_name.to_string()),
-                rpc_url: ws_addr.to_string(),
+                http_rpc_url: http_addr.to_string(),
+                ws_rpc_url: ws_addr.to_string(),
                 manifest_path,
                 signer: None,
                 signer_evm: None,
@@ -505,7 +509,8 @@ mod tests_standard {
 
         let opts = Opts {
             pkg_name: Some("incredible-squaring-blueprint".to_string()),
-            rpc_url: "ws://127.0.0.1:9944".to_string(),
+            http_rpc_url: "http://127.0.0.1:9944".to_string(),
+            ws_rpc_url: "ws://127.0.0.1:9944".to_string(),
             manifest_path,
             signer: None,
             signer_evm: None,

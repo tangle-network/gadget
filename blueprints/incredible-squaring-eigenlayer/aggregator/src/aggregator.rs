@@ -1,5 +1,8 @@
-use crate::IncredibleSquaringTaskManager::{
-    self, G1Point, G2Point, NewTaskCreated, NonSignerStakesAndSignature, Task, TaskResponse,
+use crate::{
+    context::AggregatorContext,
+    IncredibleSquaringTaskManager::{
+        self, G1Point, G2Point, NewTaskCreated, NonSignerStakesAndSignature, Task, TaskResponse,
+    },
 };
 use alloy_network::{Ethereum, EthereumWallet, NetworkWallet};
 use alloy_primitives::{keccak256, Address};
@@ -20,7 +23,7 @@ use eigensdk::{
     utils::get_provider,
 };
 use futures_util::StreamExt;
-use gadget_sdk::{debug, error, info};
+use gadget_sdk::{ctx::EigenlayerContext, debug, error, info};
 use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
 use serde::{Deserialize, Serialize};
@@ -39,73 +42,62 @@ pub struct SignedTaskResponse {
     pub operator_id: OperatorId,
 }
 
-pub struct Aggregator {
-    port_address: String,
-    task_manager_addr: Address,
-    bls_aggregation_service: BlsAggregatorService<
-        AvsRegistryServiceChainCaller<AvsRegistryChainReader, OperatorInfoServiceInMemory>,
-    >,
-    tasks: HashMap<TaskIndex, Task>,
-    tasks_responses: HashMap<TaskIndex, HashMap<TaskResponseDigest, TaskResponse>>,
-    http_rpc_url: String,
-    wallet: EthereumWallet,
-}
+impl AggregatorContext {
+    // pub async fn new(
+    //     task_manager_addr: Address,
+    //     registry_coordinator_addr: Address,
+    //     operator_state_retriever_addr: Address,
+    //     http_rpc_url: String,
+    //     ws_rpc_url: String,
+    //     aggregator_ip_addr: String,
+    //     wallet: EthereumWallet,
+    // ) -> Result<(Self, CancellationToken)> {
+    //     let avs_registry_chain_reader = AvsRegistryChainReader::new(
+    //         get_test_logger(),
+    //         registry_coordinator_addr,
+    //         operator_state_retriever_addr,
+    //         http_rpc_url.clone(),
+    //     )
+    //     .await?;
 
-impl Aggregator {
-    pub async fn new(
-        task_manager_addr: Address,
-        registry_coordinator_addr: Address,
-        operator_state_retriever_addr: Address,
-        http_rpc_url: String,
-        ws_rpc_url: String,
-        aggregator_ip_addr: String,
-        wallet: EthereumWallet,
-    ) -> Result<(Self, CancellationToken)> {
-        let avs_registry_chain_reader = AvsRegistryChainReader::new(
-            get_test_logger(),
-            registry_coordinator_addr,
-            operator_state_retriever_addr,
-            http_rpc_url.clone(),
-        )
-        .await?;
+    //     let operators_info_service = OperatorInfoServiceInMemory::new(
+    //         get_test_logger(),
+    //         avs_registry_chain_reader.clone(),
+    //         ws_rpc_url,
+    //     )
+    //     .await;
 
-        let operators_info_service = OperatorInfoServiceInMemory::new(
-            get_test_logger(),
-            avs_registry_chain_reader.clone(),
-            ws_rpc_url,
-        )
-        .await;
+    //     let cancellation_token = tokio_util::sync::CancellationToken::new();
+    //     let operators_info_clone = operators_info_service.clone();
+    //     let token_clone = cancellation_token.clone();
+    //     let provider = get_provider(&http_rpc_url);
+    //     let current_block = provider.get_block_number().await?;
 
-        let cancellation_token = tokio_util::sync::CancellationToken::new();
-        let operators_info_clone = operators_info_service.clone();
-        let token_clone = cancellation_token.clone();
+    //     tokio::task::spawn(async move {
+    //         operators_info_clone
+    //             .start_service(&token_clone, 0, current_block)
+    //             .await
+    //     });
 
-        tokio::task::spawn(async move {
-            operators_info_clone
-                .start_service(&token_clone, 0, 200)
-                .await
-        });
+    //     let avs_registry_service = AvsRegistryServiceChainCaller::new(
+    //         avs_registry_chain_reader,
+    //         operators_info_service.clone(),
+    //     );
 
-        let avs_registry_service = AvsRegistryServiceChainCaller::new(
-            avs_registry_chain_reader,
-            operators_info_service.clone(),
-        );
+    //     let bls_aggregation_service = BlsAggregatorService::new(avs_registry_service);
 
-        let bls_aggregation_service = BlsAggregatorService::new(avs_registry_service);
-
-        Ok((
-            Self {
-                port_address: aggregator_ip_addr,
-                task_manager_addr,
-                tasks: HashMap::new(),
-                tasks_responses: HashMap::new(),
-                bls_aggregation_service,
-                http_rpc_url,
-                wallet,
-            },
-            cancellation_token,
-        ))
-    }
+    //     Ok((
+    //         Self {
+    //             port_address: aggregator_ip_addr,
+    //             task_manager_addr,
+    //             tasks: HashMap::new(),
+    //             tasks_responses: HashMap::new(),
+    //             http_rpc_url,
+    //             wallet,
+    //         },
+    //         cancellation_token,
+    //     ))
+    // }
 
     pub fn start(self, ws_rpc_url: String) -> (JoinHandle<()>, oneshot::Sender<()>) {
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
@@ -116,8 +108,8 @@ impl Aggregator {
 
             let server_handle =
                 tokio::spawn(Self::start_server(Arc::clone(&aggregator), shutdown_rx));
-            let tasks_handle =
-                tokio::spawn(Self::process_tasks(ws_rpc_url, Arc::clone(&aggregator)));
+            // let tasks_handle =
+            //     tokio::spawn(Self::process_tasks(ws_rpc_url, Arc::clone(&aggregator)));
 
             debug!("Server and task processing tasks have been spawned");
 
@@ -125,9 +117,9 @@ impl Aggregator {
                 _ = server_handle => {
                     info!("Server task has completed");
                 }
-                _ = tasks_handle => {
-                    info!("Task processing has completed");
-                }
+                // _ = tasks_handle => {
+                //     info!("Task processing has completed");
+                // }
             }
             info!("Aggregator is shutting down");
         });
@@ -200,45 +192,46 @@ impl Aggregator {
         Ok(())
     }
 
-    async fn process_tasks(ws_rpc_url: String, aggregator: Arc<Mutex<Self>>) -> Result<()> {
-        info!("Connecting to WebSocket RPC at: {}", ws_rpc_url);
-        let provider = ProviderBuilder::new()
-            .on_ws(WsConnect::new(ws_rpc_url))
-            .await?;
-        let filter = Filter::new().event_signature(NewTaskCreated::SIGNATURE_HASH);
-        let mut stream = provider.subscribe_logs(&filter).await?.into_stream();
+    // async fn process_tasks(ws_rpc_url: String, aggregator: Arc<Mutex<Self>>) -> Result<()> {
+    //     info!("Connecting to WebSocket RPC at: {}", ws_rpc_url);
+    //     let provider = ProviderBuilder::new()
+    //         .on_ws(WsConnect::new(ws_rpc_url))
+    //         .await?;
+    //     let filter = Filter::new().event_signature(NewTaskCreated::SIGNATURE_HASH);
+    //     let mut stream = provider.subscribe_logs(&filter).await?.into_stream();
 
-        while let Some(log) = stream.next().await {
-            let NewTaskCreated { taskIndex, task } = log.log_decode()?.inner.data;
-            let mut aggregator = aggregator.lock().await;
-            aggregator.tasks.insert(taskIndex, task.clone());
+    //     while let Some(log) = stream.next().await {
+    //         let NewTaskCreated { taskIndex, task } = log.log_decode()?.inner.data;
+    //         let mut aggregator = aggregator.lock().await;
+    //         aggregator.tasks.insert(taskIndex, task.clone());
 
-            let time_to_expiry = std::time::Duration::from_secs(
-                (TASK_CHALLENGE_WINDOW_BLOCK * BLOCK_TIME_SECONDS).into(),
-            );
+    //         let time_to_expiry = std::time::Duration::from_secs(
+    //             (TASK_CHALLENGE_WINDOW_BLOCK * BLOCK_TIME_SECONDS).into(),
+    //         );
 
-            if let Err(e) = aggregator
-                .bls_aggregation_service
-                .initialize_new_task(
-                    taskIndex,
-                    task.taskCreatedBlock,
-                    task.quorumNumbers.to_vec(),
-                    vec![task.quorumThresholdPercentage.try_into()?; task.quorumNumbers.len()],
-                    time_to_expiry,
-                )
-                .await
-            {
-                error!(
-                    "Failed to initialize new task: {}. Error: {:?}",
-                    taskIndex, e
-                );
-            } else {
-                debug!("Successfully initialized new task: {}", taskIndex);
-            }
-        }
+    //         if let Err(e) = aggregator
+    //             .bls_aggregation_service_in_memory()
+    //             .await?
+    //             .initialize_new_task(
+    //                 taskIndex,
+    //                 task.taskCreatedBlock,
+    //                 task.quorumNumbers.to_vec(),
+    //                 vec![task.quorumThresholdPercentage.try_into()?; task.quorumNumbers.len()],
+    //                 time_to_expiry,
+    //             )
+    //             .await
+    //         {
+    //             error!(
+    //                 "Failed to initialize new task: {}. Error: {:?}",
+    //                 taskIndex, e
+    //             );
+    //         } else {
+    //             debug!("Successfully initialized new task: {}", taskIndex);
+    //         }
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     async fn process_signed_task_response(&mut self, resp: SignedTaskResponse) -> Result<()> {
         let SignedTaskResponse {
@@ -256,6 +249,8 @@ impl Aggregator {
 
         if self
             .tasks_responses
+            .lock()
+            .await
             .entry(task_index)
             .or_default()
             .contains_key(&task_response_digest)
@@ -267,10 +262,9 @@ impl Aggregator {
             return Ok(());
         }
 
-        self.tasks_responses
-            .get_mut(&task_index)
-            .unwrap()
-            .insert(task_response_digest, task_response.clone());
+        if let Some(mut tasks_responses) = self.tasks_responses.lock().await.get_mut(&task_index) {
+            tasks_responses.insert(task_response_digest, task_response.clone());
+        }
 
         debug!(
             "Inserted task response for task index: {}, {:?}",
@@ -278,7 +272,8 @@ impl Aggregator {
         );
 
         if let Err(e) = self
-            .bls_aggregation_service
+            .bls_aggregation_service_in_memory()
+            .await?
             .process_new_signature(task_index, task_response_digest, signature, operator_id)
             .await
         {
@@ -294,7 +289,8 @@ impl Aggregator {
         }
 
         if let Some(aggregated_response) = self
-            .bls_aggregation_service
+            .bls_aggregation_service_in_memory()
+            .await?
             .aggregated_response_receiver
             .lock()
             .await
@@ -340,9 +336,13 @@ impl Aggregator {
             G2Point { X: pt.X, Y: pt.Y }
         }
 
-        let task = &self.tasks[&response.task_index];
-        let task_response =
-            &self.tasks_responses[&response.task_index][&response.task_response_digest];
+        let tasks = self.tasks.lock().await;
+        let task_responses = self.tasks_responses.lock().await;
+        let task = tasks.get(&response.task_index).expect("Task not found");
+        let task_response = task_responses
+            .get(&response.task_index)
+            .and_then(|responses| responses.get(&response.task_response_digest))
+            .expect("Task response not found");
 
         let provider = get_provider(&self.http_rpc_url);
         let task_manager =
