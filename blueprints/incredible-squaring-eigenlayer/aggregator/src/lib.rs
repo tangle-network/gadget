@@ -81,36 +81,21 @@ pub async fn initialize_bls_task(
 ) -> Result<u32, Infallible> {
     let mut tasks = ctx.tasks.lock().await;
     tasks.insert(task_index, task.clone());
-    let Task {
-        taskCreatedBlock: task_created_block,
-        quorumNumbers: quorum_numbers,
-        quorumThresholdPercentage: quorum_threshold_percentage,
-        ..
-    } = task;
-
     let time_to_expiry =
         std::time::Duration::from_secs((TASK_CHALLENGE_WINDOW_BLOCK * BLOCK_TIME_SECONDS).into());
 
-    if let Err(e) = ctx
-        .bls_aggregation_service_in_memory()
+    ctx.bls_aggregation_service_in_memory()
         .await
         .unwrap()
         .initialize_new_task(
             task_index,
-            task_created_block,
-            quorum_numbers.to_vec(),
-            vec![quorum_threshold_percentage.try_into().unwrap(); quorum_numbers.len()],
+            task.createdBlock,
+            task.quorumNumbers.to_vec(),
+            vec![task.quorumThresholdPercentage.try_into().unwrap(); task.quorumNumbers.len()],
             time_to_expiry,
         )
         .await
-    {
-        error!(
-            "Failed to initialize new task: {}. Error: {:?}",
-            task_index, e
-        );
-    } else {
-        debug!("Successfully initialized new task: {}", task_index);
-    }
+        .unwrap();
 
     Ok(1)
 }
