@@ -25,3 +25,4 @@ blueprint*.json
 blueprint.lock
 
 blueprint-test-utils/db
+node_modules

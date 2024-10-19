@@ -36,6 +36,9 @@ enum GadgetCommands {
         /// The name of the blueprint
         #[arg(short, long)]
         name: String,
+
+        #[command(flatten)]
+        source: Option<create::Source>,
     },
 
     /// Deploy a blueprint to the Tangle Network.
@@ -71,9 +74,8 @@ async fn main() -> color_eyre::Result<()> {
 
     match cli.command {
         Commands::Gadget { subcommand } => match subcommand {
-            GadgetCommands::Create { name } => {
-                println!("Generating blueprint with name: {}", name);
-                create::new_blueprint(&name);
+            GadgetCommands::Create { name, source } => {
+                create::new_blueprint(name, source);
             }
             GadgetCommands::Deploy { rpc_url, package } => {
                 let manifest_path = cli

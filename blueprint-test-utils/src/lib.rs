@@ -12,7 +12,7 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::type
 use gadget_sdk::keystore;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
-use gadget_sdk::keystore::{sp_core_subxt, Backend, BackendExt, TanglePairSigner};
+use gadget_sdk::keystore::{Backend, BackendExt, TanglePairSigner};
 use libp2p::Multiaddr;
 pub use log;
 use sp_core::Pair as PairT;
@@ -20,7 +20,11 @@ use std::error::Error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use subxt::ext::sp_core::Pair;
+use alloy_contract::{CallBuilder, CallDecoder};
+use alloy_provider::network::Ethereum;
+use alloy_provider::Provider;
+use alloy_rpc_types_eth::TransactionReceipt;
+use alloy_transport::{Transport, TransportResult};
 use subxt::tx::Signer;
 use subxt::utils::AccountId32;
 use url::Url;
@@ -58,17 +62,19 @@ pub struct PerTestNodeInput<T> {
 pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     input: PerTestNodeInput<T>,
 ) -> BlueprintManagerHandle {
+    let name_lower = NAME_IDS[input.instance_id as usize].to_lowercase();
+
     let tmp_store = Uuid::new_v4().to_string();
-    let keystore_uri = PathBuf::from(format!(
-        "./target/keystores/{}/{tmp_store}/",
-        NAME_IDS[input.instance_id as usize].to_lowercase()
-    ));
+    let keystore_uri = PathBuf::from(format!("./target/keystores/{name_lower}/{tmp_store}/",));
 
     assert!(
         !keystore_uri.exists(),
         "Keystore URI cannot exist: {}",
         keystore_uri.display()
     );
+
+    let data_dir = std::path::absolute(format!("./target/data/{name_lower}"))
+        .expect("Failed to get current directory");
 
     let keystore_uri_normalized =
         std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
@@ -85,7 +91,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
 
     let blueprint_manager_config = BlueprintManagerConfig {
         gadget_config: None,
-        data_dir: None,
+        data_dir,
         keystore_uri: keystore_uri_str.clone(),
         verbose: input.verbose,
         pretty: input.pretty,
@@ -160,10 +166,8 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
     let secret_key_again = keystore::sr25519::secret_from_bytes(&bytes).expect("Should be valid");
     assert_eq!(&bytes[..], &secret_key_again.to_bytes()[..]);
 
-    use gadget_sdk::keystore::sp_core_subxt;
     let sr2 = TanglePairSigner::new(
-        sp_core_subxt::sr25519::Pair::from_seed_slice(&bytes)
-            .expect("Should be valid SR25519 keypair"),
+        sp_core::sr25519::Pair::from_seed_slice(&bytes).expect("Should be valid SR25519 keypair"),
     );
 
     let sr1_account_id: AccountId32 = AccountId32(sr.as_ref().public.to_bytes());
@@ -195,7 +199,7 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
 
 pub async fn create_blueprint(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
     blueprint: Blueprint,
 ) -> Result<(), Box<dyn Error>> {
     let call = api::tx().services().create_blueprint(blueprint);
@@ -209,7 +213,7 @@ pub async fn create_blueprint(
 
 pub async fn join_delegators(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
 ) -> Result<(), Box<dyn Error>> {
     info!("Joining delegators ...");
     let call_pre = api::tx()
@@ -226,7 +230,7 @@ pub async fn join_delegators(
 
 pub async fn register_blueprint(
     client: &TestClient,
-    account_id: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    account_id: &TanglePairSigner<sp_core::sr25519::Pair>,
     blueprint_id: u64,
     preferences: Preferences,
     registration_args: RegistrationArgs,
@@ -245,7 +249,7 @@ pub async fn register_blueprint(
 
 pub async fn submit_job(
     client: &TestClient,
-    user: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    user: &TanglePairSigner<sp_core::sr25519::Pair>,
     service_id: u64,
     job_type: Job,
     job_params: Args,
@@ -263,7 +267,7 @@ pub async fn submit_job(
 /// to make a call to run a service, and will have all nodes running the service.
 pub async fn register_service(
     client: &TestClient,
-    user: &TanglePairSigner<sp_core_subxt::sr25519::Pair>,
+    user: &TanglePairSigner<sp_core::sr25519::Pair>,
     blueprint_id: u64,
     test_nodes: Vec<AccountId32>,
 ) -> Result<(), Box<dyn Error>> {
@@ -347,6 +351,20 @@ pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>
         .fetch_or_default(&call)
         .await?;
     Ok(res)
+}
+
+pub async fn get_receipt<T, P, D>(
+    call: CallBuilder<T, P, D, Ethereum>,
+) -> TransportResult<TransactionReceipt>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum>,
+    D: CallDecoder,
+{
+    let pending_tx = call.send().await.unwrap();
+    let receipt = pending_tx.get_receipt().await?;
+
+    Ok(receipt)
 }
 
 #[macro_export]
@@ -458,16 +476,14 @@ mod test_macros {
 mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
-    use alloy_contract::{CallBuilder, CallDecoder};
     use alloy_primitives::{address, Bytes, U256};
-    use alloy_provider::{network::Ethereum, Provider};
-    use alloy_rpc_types::eth::TransactionReceipt;
-    use alloy_transport::{Transport, TransportResult};
-
-    use cargo_tangle::deploy::Opts;
+    use alloy_provider::network::EthereumWallet;
+    use alloy_provider::Provider;
+    use cargo_tangle::deploy::{Opts, PrivateKeySigner};
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
+    use incredible_squaring_aggregator::aggregator::Aggregator;
     use std::str::FromStr;
 
     /// This test requires that `yarn install` has been executed inside the
@@ -575,27 +591,13 @@ mod tests_standard {
         "./../blueprints/incredible-squaring-eigenlayer/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
     );
 
-    pub async fn get_receipt<T, P, D>(
-        call: CallBuilder<T, P, D, Ethereum>,
-    ) -> TransportResult<TransactionReceipt>
-    where
-        T: Transport + Clone,
-        P: Provider<T, Ethereum>,
-        D: CallDecoder,
-    {
-        let pending_tx = call.send().await.unwrap();
-        let receipt = pending_tx.get_receipt().await?;
-
-        Ok(receipt)
-    }
-
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::needless_return)]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
         let (_container, http_endpoint, ws_endpoint) = anvil::start_anvil_container(true).await;
         std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
-        std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint);
+        std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint.clone());
 
         // Sleep to give the testnet time to spin up
         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -608,10 +610,10 @@ mod tests_standard {
             .clone()
             .boxed();
         let accounts = provider.get_accounts().await.unwrap();
-        println!("{:?}", accounts);
+
         // let service_manager_addr = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
         let registry_coordinator_addr = address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
-        // let operator_state_retriever_addr = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
+        let operator_state_retriever_addr = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
         // let delegation_manager_addr = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
         // let strategy_manager_addr = address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
         let erc20_mock_addr = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
@@ -663,48 +665,69 @@ mod tests_standard {
         let init_receipt = get_receipt(task_manager.initialize(
             pauser_registry_addr,
             accounts[1],
-            accounts[0],
+            accounts[9],
             task_generator_address,
         ))
         .await
         .unwrap();
         assert!(init_receipt.status());
 
+        let signer: PrivateKeySigner =
+            "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
+                .parse()
+                .unwrap();
+        let wallet = EthereumWallet::from(signer);
+        let (aggregator, _cancellation_token) = Aggregator::new(
+            task_manager_addr,
+            registry_coordinator_addr,
+            operator_state_retriever_addr,
+            http_endpoint.clone(),
+            ws_endpoint.clone(),
+            "127.0.0.1:8081".to_string(),
+            wallet,
+        )
+        .await
+        .unwrap();
+
+        // Run the server in a separate thread
+        let _handle = aggregator.start(ws_endpoint.to_string());
+
         // Start the Task Spawner
         let operators = vec![vec![accounts[0]]];
         let quorums = Bytes::from(vec![0]);
         let task_spawner = async move {
             loop {
-                tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
-                let result = get_receipt(
+                tokio::time::sleep(std::time::Duration::from_millis(10000)).await;
+
+                if get_receipt(
                     task_manager
                         .createNewTask(U256::from(2), 100u32, Bytes::from(vec![0]))
                         .from(task_generator_address),
                 )
                 .await
-                .unwrap();
-                if result.status() {
-                    info!("Deployed a new task {:#?}", result);
+                .unwrap()
+                .status()
+                {
+                    info!("Deployed a new task");
                 }
 
-                let result = get_receipt(
+                if get_receipt(
                     registry_coordinator
                         .updateOperatorsForQuorum(operators.clone(), quorums.clone()),
                 )
                 .await
-                .unwrap();
-                if result.status() {
+                .unwrap()
+                .status()
+                {
                     info!("Updated operators for quorum 0");
                 }
 
-                let arg = format!(
-                    "cast rpc anvil_mine 1 --rpc-url {} > /dev/null",
-                    http_endpoint
-                );
-                // Mine a block
-                let _output = tokio::process::Command::new("sh")
+                tokio::process::Command::new("sh")
                     .arg("-c")
-                    .arg(arg.as_str())
+                    .arg(format!(
+                        "cast rpc anvil_mine 1 --rpc-url {} > /dev/null",
+                        http_endpoint
+                    ))
                     .output()
                     .await
                     .unwrap();

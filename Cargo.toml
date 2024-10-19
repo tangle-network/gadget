@@ -4,6 +4,8 @@ members = [
     "blueprint-metadata",
     "blueprints/incredible-squaring",
     "blueprints/incredible-squaring-eigenlayer",
+    "blueprints/incredible-squaring-eigenlayer/aggregator",
+    "blueprints/periodic-web-poller",
     "cli",
     "gadget-io",
     "blueprint-test-utils",
@@ -47,6 +49,8 @@ blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false, version = "0.1.2" }
 
 incredible-squaring-blueprint-eigenlayer = { path = "./blueprints/incredible-squaring-eigenlayer", default-features = false, version = "0.1.1" }
+incredible-squaring-aggregator = { path = "./blueprints/incredible-squaring-eigenlayer/aggregator", default-features = false, version = "0.1.1" }
+periodic-web-poller-blueprint = { path = "./blueprints/periodic-web-poller", default-features = false, version = "0.1.1" }
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.2" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.2" }
 gadget-context-derive = { path = "./macros/context-derive", default-features = false, version = "0.1.1" }
@@ -61,18 +65,18 @@ subxt = { version = "0.37.0", default-features = false }
 subxt-core = { version = "0.37.0", default-features = false }
 round-based = "0.3.0"
 
-sp-core = { version = "34.0.0", default-features = false }
-sp-io = { version = "38.0.0", default-features = false }
+sp-core = { version = "31.0.0", default-features = false }
+sp-io = { version = "33.0.0", default-features = false }
 sp-std = { version = "14.0.0", default-features = false }
 sp-runtime = { version = "39.0.0", default-features = false }
 sc-utils = { version = "17.0.0", default-features = false }
 sp-api = { version = "34.0.0", default-features = false }
-sp-application-crypto = { version = "38.0.0", default-features = false }
-sp-keystore = { version = "0.40.0", default-features = false }
-sp-externalities = { version = "0.29.0", default-features = false }
+sp-application-crypto = { version = "33.0.0", default-features = false }
+sp-keystore = { version = "0.37.0", default-features = false }
+sp-externalities = { version = "0.27.0", default-features = false }
 
 sc-client-api = { version = "37.0.0", default-features = false }
-sc-keystore = { version = "33.0.0", default-features = false }
+sc-keystore = { version = "28.0.0", default-features = false }
 parity-scale-codec = { version = "3.6.12", default-features = false }
 
 scale-info = { version = "2.11.3", default-features = false }
@@ -95,6 +99,7 @@ ethereum-types = { version = "0.14.1", default-features = false }
 failure = "0.1.8"
 fs2 = "0.4"
 futures = "0.3.30"
+futures-util = "0.3.31"
 getrandom = { version = "0.2.15", default-features = false }
 hex = { version = "0.4.3", default-features = false }
 http-body-util = "0.1.2"
@@ -113,7 +118,7 @@ prometheus = { version = "0.13.4", default-features = false }
 quote = "1.0"
 rand = { version = "0.8.5", default-features = false }
 reqwest = "0.12.7"
-rustdoc-types = "0.30.0"
+rustdoc-types = "0.31.0"
 schnorrkel = { version = "0.11.4", default-features = false, features = ["preaudit_deprecated", "getrandom"] }
 serde = { version = "1.0.208", default-features = false }
 serde_json = "1.0"
@@ -123,7 +128,7 @@ structopt = "0.3.26"
 syn = "2.0.75"
 sysinfo = "0.31.2"
 thiserror = { version = "1.0.64", default-features = false }
-tokio = { version = "1.39.3", default-features = false }
+tokio = { version = "1.40", default-features = false }
 tokio-util = { version = "0.7.12", default-features = false }
 toml = "0.8.19"
 tracing = { version = "0.1", default-features = false }
@@ -138,10 +143,13 @@ w3f-bls = { version = "0.1.4", default-features = false }
 cid = { version = "0.11.1" }
 indexmap = "2.5.0"
 lazy_static = "1.5.0"
+jsonrpc-core = "18.0.0"
+jsonrpc-http-server = "18.0.0"
 
 alloy-primitives = "0.7.2"
 alloy-json-abi = "0.7.2"
 alloy-sol-types = "0.7.2"
+alloy-rpc-client = "0.4.2"
 alloy-rpc-types = { version = "0.1" }
 alloy-rpc-types-eth = { version = "0.1" }
 alloy-provider = { version = "0.1", default-features = false, features = ["reqwest", "ws"] }
@@ -149,6 +157,7 @@ alloy-pubsub = { version = "0.1" }
 alloy-signer = { version = "0.1" }
 alloy-signer-local = { version = "0.1" }
 alloy-network = { version = "0.1" }
+alloy-node-bindings = "0.4.2"
 alloy-contract = { version = "0.1" }
 alloy-consensus = { version = "0.1" }
 alloy-transport = { version = "0.1" }

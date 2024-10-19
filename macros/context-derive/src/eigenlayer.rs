@@ -38,47 +38,11 @@ pub fn generate_context_impl(
                 }
             }
 
-            fn eigenlayer_ws_provider(&self) -> impl core::future::Future<Output = Result<String, std::io::Error>> {
-                async {
-                    Ok(#field_access.eigenlayer_ws_endpoint.clone())
-                }
-            }
-
-            fn eigenlayer_private_key(&self) -> impl core::future::Future<Output = Result<String, std::io::Error>> {
-                async {
-                    Ok(#field_access.eigenlayer_private_key.clone())
-                }
-            }
-
-            fn eigenlayer_registry_coordinator_addr(&self) -> impl core::future::Future<Output = Result<alloy_primitives::Address, std::io::Error>> {
-                async {
-                    Ok(#field_access.eigenlayer_registry_coordinator_addr)
-                }
-            }
-
-            fn eigenlayer_operator_state_retriever_addr(&self) -> impl core::future::Future<Output = Result<alloy_primitives::Address, std::io::Error>> {
-                async {
-                    Ok(#field_access.eigenlayer_operator_state_retriever_addr)
-                }
-            }
-
-            fn eigenlayer_bls_public_key(&self) -> impl core::future::Future<Output = Result<String, std::io::Error>> {
-                async {
-                    Ok(#field_access.eigenlayer_bls_public_key.clone())
-                }
-            }
-
-            fn eigenlayer_bls_private_key(&self) -> impl core::future::Future<Output = Result<String, std::io::Error>> {
-                async {
-                    Ok(#field_access.eigenlayer_bls_private_key.clone())
-                }
-            }
-
             fn eigenlayer_avs_registry_reader(&self) -> impl core::future::Future<Output = Result<eigensdk::client_avsregistry::reader::AvsRegistryChainReader, std::io::Error>> {
                 async {
-                    let registry_coordinator_addr = self.eigenlayer_registry_coordinator_addr().await?;
-                    let operator_state_retriever_addr = self.eigenlayer_operator_state_retriever_addr().await?;
-                    let http_endpoint = self.eigenlayer_provider().await?.http_endpoint().to_string();
+                    let http_endpoint = #field_access.eigenlayer_http_endpoint.clone();
+                    let registry_coordinator_addr = #field_access.eigenlayer_registry_coordinator_addr;
+                    let operator_state_retriever_addr = #field_access.eigenlayer_operator_state_retriever_addr;
 
                     Ok(eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
                         eigensdk::logging::get_test_logger(),
@@ -91,10 +55,10 @@ pub fn generate_context_impl(
 
             fn eigenlayer_avs_registry_writer(&self) -> impl core::future::Future<Output = Result<eigensdk::client_avsregistry::writer::AvsRegistryChainWriter, std::io::Error>> {
                 async {
-                    let registry_coordinator_addr = self.eigenlayer_registry_coordinator_addr().await?;
-                    let operator_state_retriever_addr = self.eigenlayer_operator_state_retriever_addr().await?;
-                    let http_endpoint = self.eigenlayer_provider().await?.http_endpoint().to_string();
-                    let private_key = self.eigenlayer_private_key().await?;
+                    let http_endpoint = #field_access.eigenlayer_http_endpoint.clone();
+                    let private_key = #field_access.eigenlayer_private_key.clone();
+                    let registry_coordinator_addr = #field_access.eigenlayer_registry_coordinator_addr;
+                    let operator_state_retriever_addr = #field_access.eigenlayer_operator_state_retriever_addr;
 
                     Ok(eigensdk::client_avsregistry::writer::AvsRegistryChainWriter::build_avs_registry_chain_writer(
                         eigensdk::logging::get_test_logger(),
@@ -109,7 +73,7 @@ pub fn generate_context_impl(
             fn eigenlayer_operator_info_service(&self) -> impl core::future::Future<Output = Result<eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory, std::io::Error>> {
                 async {
                     let avs_registry_reader = self.eigenlayer_avs_registry_reader().await?;
-                    let ws_endpoint = self.eigenlayer_ws_provider().await?;
+                    let ws_endpoint = #field_access.eigenlayer_ws_endpoint.clone();
 
                     Ok(eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory::new(
                         eigensdk::logging::get_test_logger(),

@@ -60,14 +60,21 @@ pub mod tracer;
 #[cfg(any(feature = "std", feature = "wasm"))]
 pub mod tx;
 
+pub mod job_runner;
+
 /// Gadget Context and context extensions
 pub mod ctx;
+
+pub mod utils;
 
 // Re-exports
 pub use alloy_rpc_types;
 pub use error::Error;
 pub use futures;
 pub use gadget_blueprint_proc_macro::*;
+pub use libp2p;
+pub use parking_lot;
+pub use structopt;
 pub use subxt_core;
 pub use tangle_subxt;
 pub use tokio;
@@ -78,6 +85,7 @@ pub mod ext {
     pub use lock_api;
     #[cfg(feature = "std")]
     pub use parking_lot;
+    pub use sp_core;
     pub use tangle_subxt;
     pub use tangle_subxt::subxt;
     pub use tangle_subxt::subxt_signer;

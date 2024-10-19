@@ -250,64 +250,6 @@ contract IncredibleSquaringTaskManager is
             ).pubkeyHashToOperator(hashesOfPubkeysOfNonSigningOperators[i]);
         }
 
-        // @dev the below code is commented out for the upcoming M2 release
-        //      in which there will be no slashing. The slasher is also being redesigned
-        //      so its interface may very well change.
-        // ==========================================
-        // // get the list of all operators who were active when the task was initialized
-        // Operator[][] memory allOperatorInfo = getOperatorState(
-        //     IRegistryCoordinator(address(registryCoordinator)),
-        //     task.quorumNumbers,
-        //     task.taskCreatedBlock
-        // );
-        // // freeze the operators who signed adversarially
-        // for (uint i = 0; i < allOperatorInfo.length; i++) {
-        //     // first for loop iterate over quorums
-
-        //     for (uint j = 0; j < allOperatorInfo[i].length; j++) {
-        //         // second for loop iterate over operators active in the quorum when the task was initialized
-
-        //         // get the operator address
-        //         bytes32 operatorID = allOperatorInfo[i][j].operatorId;
-        //         address operatorAddress = BLSPubkeyRegistry(
-        //             address(blsPubkeyRegistry)
-        //         ).pubkeyCompendium().pubkeyHashToOperator(operatorID);
-
-        //         // check if the operator has already NOT been frozen
-        //         if (
-        //             IServiceManager(
-        //                 address(
-        //                     BLSRegistryCoordinatorWithIndices(
-        //                         address(registryCoordinator)
-        //                     ).serviceManager()
-        //                 )
-        //             ).slasher().isFrozen(operatorAddress) == false
-        //         ) {
-        //             // check whether the operator was a signer for the task
-        //             bool wasSigningOperator = true;
-        //             for (
-        //                 uint k = 0;
-        //                 k < addresssOfNonSigningOperators.length;
-        //                 k++
-        //             ) {
-        //                 if (
-        //                     operatorAddress == addresssOfNonSigningOperators[k]
-        //                 ) {
-        //                     // if the operator was a non-signer, then we set the flag to false
-        //                     wasSigningOperator == false;
-        //                     break;
-        //                 }
-        //             }
-
-        //             if (wasSigningOperator == true) {
-        //                 BLSRegistryCoordinatorWithIndices(
-        //                     address(registryCoordinator)
-        //                 ).serviceManager().freezeOperator(operatorAddress);
-        //             }
-        //         }
-        //     }
-        // }
-
         // the task response has been challenged successfully
         taskSuccesfullyChallenged[referenceTaskIndex] = true;
 
@@ -316,5 +258,32 @@ contract IncredibleSquaringTaskManager is
 
     function getTaskResponseWindowBlock() external view returns (uint32) {
         return TASK_RESPONSE_WINDOW_BLOCK;
+    }
+
+    /**
+     * trySignatureAndApkVerification verifies a BLS aggregate signature and the veracity of a calculated G1 Public key
+     * @param msgHash is the hash being signed
+     * @param apk is the claimed G1 public key
+     * @param apkG2 is provided G2 public key
+     * @param sigma is the G1 point signature
+     * @return pairingSuccessful is true if the pairing precompile call was successful
+     * @return siganatureIsValid is true if the signature is valid
+     */
+    function trySignatureAndApkVerification2(
+        bytes32 msgHash,
+        BN254.G1Point memory apk,
+        BN254.G2Point memory apkG2,
+        BN254.G1Point memory sigma
+    ) public view returns(bool pairingSuccessful, bool siganatureIsValid) {
+        // gamma = keccak256(abi.encodePacked(msgHash, apk, apkG2, sigma))
+        uint256 gamma = uint256(keccak256(abi.encodePacked(msgHash, apk.X, apk.Y, apkG2.X[0], apkG2.X[1], apkG2.Y[0], apkG2.Y[1], sigma.X, sigma.Y))) % BN254.FR_MODULUS;
+        // verify the signature
+        (pairingSuccessful, siganatureIsValid) = BN254.safePairing(
+                sigma.plus(apk.scalar_mul(gamma)),
+                BN254.negGeneratorG2(),
+                BN254.hashToG1(msgHash).plus(BN254.generatorG1().scalar_mul(gamma)),
+                apkG2,
+                PAIRING_EQUALITY_CHECK_GAS
+            );
     }
 }

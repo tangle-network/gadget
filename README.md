@@ -67,7 +67,7 @@ cargo tangle gadget deploy --rpc-url <rpc_url> --package <package_name>
 
 More information on this process can be found in the [CLI documentation](./cli/README.md)
 
-### Testing a blueprint (alpha)
+### Testing a blueprint (beta)
 
 In order to test a blueprint, you must first have a local Tangle node running. When setting up a local testnet for
 integration testing, we recommend running this script for

@@ -2,7 +2,6 @@ use crate::clients::tangle::runtime::{TangleClient, TangleConfig};
 use crate::events_watcher::substrate::EventHandlerFor;
 use crate::Error;
 use async_trait::async_trait;
-use std::collections::HashMap;
 use subxt::backend::StreamOfResults;
 use subxt::OnlineClient;
 use subxt_core::events::StaticEvent;
@@ -14,6 +13,7 @@ use tokio_retry::Retry;
 
 use crate::event_listener::get_exponential_backoff;
 use crate::event_listener::EventListener;
+
 pub trait HasServiceAndJobId: StaticEvent + Send + Sync + 'static {
     fn service_id(&self) -> u64;
     fn job_id(&self) -> u8;
@@ -48,22 +48,23 @@ impl HasServiceAndJobId for JobResultSubmitted {
     }
 }
 
-pub struct SubstrateWatcherWrapper<Evt: Send + Sync + 'static> {
-    handlers: Vec<EventHandlerFor<TangleConfig, Evt>>,
+pub struct TangleEventWrapper<Evt: Send + Sync + 'static> {
+    handler: EventHandlerFor<TangleConfig, Evt>,
     client: OnlineClient<TangleConfig>,
     current_block: Option<u32>,
     listener:
         Mutex<StreamOfResults<subxt::blocks::Block<TangleConfig, OnlineClient<TangleConfig>>>>,
 }
 
-pub type SubstrateWatcherWrapperContext<Evt> = (TangleClient, EventHandlerFor<TangleConfig, Evt>);
+pub type TangleEventListener<T> = TangleEventWrapper<T>;
+pub type TangleJobEventListener = TangleEventWrapper<JobCalled>;
 
+pub type TangleEventWrapperContext<Evt> = (TangleClient, EventHandlerFor<TangleConfig, Evt>);
 #[async_trait]
 impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
-    EventListener<HashMap<usize, Vec<Evt>>, SubstrateWatcherWrapperContext<Evt>>
-    for SubstrateWatcherWrapper<Evt>
+    EventListener<Vec<Evt>, TangleEventWrapperContext<Evt>> for TangleEventWrapper<Evt>
 {
-    async fn new(ctx: &SubstrateWatcherWrapperContext<Evt>) -> Result<Self, Error>
+    async fn new(ctx: &TangleEventWrapperContext<Evt>) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -73,47 +74,40 @@ impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
             listener,
             client: client.clone(),
             current_block: None,
-            handlers: vec![handler.clone()],
+            handler: handler.clone(),
         })
     }
 
-    async fn next_event(&mut self) -> Option<HashMap<usize, Vec<Evt>>> {
+    async fn next_event(&mut self) -> Option<Vec<Evt>> {
         loop {
             let next_block = self.listener.get_mut().next().await?.ok()?;
             let block_id = next_block.number();
             self.current_block = Some(block_id);
             let events = next_block.events().await.ok()?;
-            let mut actionable_events = HashMap::new();
-            for (idx, handler) in self.handlers.iter().enumerate() {
-                for _evt in events.iter().flatten() {
-                    crate::info!(
-                        "Event found || required: sid={}, jid={}",
-                        handler.service_id(),
-                        handler.job_id()
-                    );
-                }
-
-                let events = events
-                    .find::<Evt>()
-                    .flatten()
-                    .filter(|event| {
-                        event.service_id() == handler.service_id()
-                            && event.job_id() == handler.job_id()
-                    })
-                    .collect::<Vec<_>>();
-
-                if !events.is_empty() {
-                    let _ = actionable_events.insert(idx, events);
-                }
+            for _evt in events.iter().flatten() {
+                crate::info!(
+                    "Event found || required: sid={}, jid={}",
+                    self.handler.service_id(),
+                    self.handler.job_id()
+                );
             }
 
-            if !actionable_events.is_empty() {
-                return Some(actionable_events);
+            let events = events
+                .find::<Evt>()
+                .flatten()
+                .filter(|event| {
+                    event.service_id() == self.handler.service_id()
+                        && event.job_id() == self.handler.job_id()
+                })
+                .collect::<Vec<_>>();
+
+            if !events.is_empty() {
+                return Some(events);
             }
         }
     }
 
-    async fn handle_event(&mut self, job_events: HashMap<usize, Vec<Evt>>) -> Result<(), Error> {
+    async fn handle_event(&mut self, job_events: Vec<Evt>) -> Result<(), Error> {
         use crate::tangle_subxt::tangle_testnet_runtime::api as TangleApi;
         const MAX_RETRY_COUNT: usize = 5;
         crate::info!("Handling actionable events ...");
@@ -124,32 +118,30 @@ impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
         );
 
         let mut tasks = Vec::new();
-        for (handler_idx, calls) in job_events.iter() {
-            let handler = &self.handlers[*handler_idx];
+        for call in job_events.iter() {
+            let handler = &self.handler;
             let client = &self.client;
-            for call in calls {
-                let service_id = call.service_id();
-                let call_id = call.id_of_call();
-                let signer = handler.signer().clone();
+            let service_id = call.service_id();
+            let call_id = call.id_of_call();
+            let signer = handler.signer().clone();
 
-                let task = async move {
-                    let backoff = get_exponential_backoff::<MAX_RETRY_COUNT>();
+            let task = async move {
+                let backoff = get_exponential_backoff::<MAX_RETRY_COUNT>();
 
-                    Retry::spawn(backoff, || async {
-                        let result = handler.handle(call).await?;
-                        let response = TangleApi::tx()
-                            .services()
-                            .submit_result(service_id, call_id, result);
-                        let _ = crate::tx::tangle::send(client, &signer, &response)
-                            .await
-                            .map_err(|err| Error::Client(err.to_string()))?;
-                        Ok::<_, Error>(())
-                    })
-                    .await
-                };
+                Retry::spawn(backoff, || async {
+                    let result = handler.handle(call).await?;
+                    let response = TangleApi::tx()
+                        .services()
+                        .submit_result(service_id, call_id, result);
+                    let _ = crate::tx::tangle::send(client, &signer, &response)
+                        .await
+                        .map_err(|err| Error::Client(err.to_string()))?;
+                    Ok::<_, Error>(())
+                })
+                .await
+            };
 
-                tasks.push(task);
-            }
+            tasks.push(task);
         }
 
         let results = futures::future::join_all(tasks).await;
@@ -200,7 +192,7 @@ impl<Evt: Send + Sync + HasServiceAndJobId + 'static>
     }
 }
 
-impl<Evt: Send + Sync + HasServiceAndJobId + 'static> SubstrateWatcherWrapper<Evt> {
+impl<Evt: Send + Sync + HasServiceAndJobId + 'static> TangleEventWrapper<Evt> {
     async fn run_event_loop(&mut self) -> Result<(), Error> {
         while let Some(events) = self.next_event().await {
             self.handle_event(events).await?;

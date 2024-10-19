@@ -4,14 +4,14 @@ use std::iter::Take;
 use tokio_retry::strategy::ExponentialBackoff;
 
 pub mod evm_contracts;
+pub mod executor;
+pub mod markers;
 pub mod periodic;
 pub mod tangle_events;
 
 /// The [`EventListener`] trait defines the interface for event listeners.
 #[async_trait]
-pub trait EventListener<T: Send + Sync + 'static, Ctx: Send + Sync + 'static>:
-    Send + Sync + 'static
-{
+pub trait EventListener<T: Send + 'static, Ctx: Send + 'static>: Send + 'static {
     async fn new(context: &Ctx) -> Result<Self, Error>
     where
         Self: Sized;

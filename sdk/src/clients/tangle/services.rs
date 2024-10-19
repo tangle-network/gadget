@@ -1,9 +1,9 @@
 use crate::error::Error;
 use sp_core::Encode;
+use subxt::backend::BlockRef;
 use subxt::utils::AccountId32;
-use tangle_subxt::subxt::backend::BlockRef;
-use tangle_subxt::subxt::utils::H256;
-use tangle_subxt::subxt::{Config, OnlineClient};
+use subxt::utils::H256;
+use subxt::{Config, OnlineClient};
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_runtime::DispatchError;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
