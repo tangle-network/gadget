@@ -8243,7 +8243,7 @@ dependencies = [
  "parking_lot",
  "reqwest 0.12.8",
  "serde_json",
- "sp-core 34.0.0",
+ "sp-core",
  "structopt",
  "subxt-signer",
  "tokio",

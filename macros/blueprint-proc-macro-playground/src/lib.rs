@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 use gadget_sdk::{benchmark, job, registration_hook, report, request_hook};
+use gadget_sdk::event_listener::tangle::TangleEventListener;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::Event;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Error {
@@ -28,9 +30,9 @@ pub struct MyContext;
 // ==================
 
 /// Simple Threshold (t) Keygen Job for n parties.
-#[job(id = 0, params(n, t), event_listener(listener = TangleEventListener, event = JobCalled), result(_))]
-pub fn keygen(ctx: &MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
-    let _ = (n, t, ctx);
+#[job(id = 0, params(n, t), event_listener(listener = TangleEventListener<Event, MyContext>, event = Event), result(_))]
+pub fn keygen(context: MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
+    let _ = (n, t, context);
     Ok(vec![0; 33])
 }
 
@@ -38,10 +40,10 @@ pub fn keygen(ctx: &MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
 #[job(
     id = 1,
     params(keygen_id, data),
-    event_listener(listener = TangleEventListener, event = JobCalled),
+    event_listener(listener = TangleEventListener<Event, MyContext>, event = Event),
     result(_)
 )]
-pub async fn sign(keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
+pub async fn sign(context: MyContext, keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
     let _ = (keygen_id, data);
     Ok(vec![0; 65])
 }
@@ -49,17 +51,17 @@ pub async fn sign(keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
 #[job(
     id = 2,
     params(keygen_id, new_t),
-    event_listener(listener = TangleEventListener, event = JobCalled),
+    event_listener(listener = TangleEventListener<Event, MyContext>, event = Event),
     result(_)
 )]
-pub fn refresh(keygen_id: u64, new_t: Option<u8>) -> Result<Vec<u64>, Error> {
+pub fn refresh(context: MyContext, keygen_id: u64, new_t: Option<u8>) -> Result<Vec<u64>, Error> {
     let _ = (keygen_id, new_t);
     Ok(vec![0; 33])
 }
 
 /// Say hello to someone or the world.
-#[job(id = 3, params(who), event_listener(listener = TangleEventListener, event = JobCalled), result(_))]
-pub fn say_hello(who: Option<String>) -> Result<String, Error> {
+#[job(id = 3, params(who), event_listener(listener = TangleEventListener<Event, MyContext>, event = Event), result(_))]
+pub fn say_hello(context: MyContext, who: Option<String>) -> Result<String, Error> {
     match who {
         Some(who) => Ok(format!("Hello, {}!", who)),
         None => Ok("Hello, World!".to_string()),
@@ -84,25 +86,25 @@ pub fn on_request(nft_id: u64);
 #[report(
     job_id = 0,
     params(n, t, msgs),
-    event_listener(listener = TangleEventListener, event = JobCalled),
+    event_listener(listener = TangleEventListener<Event, MyContext>, event = Event),
     result(_),
     report_type = "job",
     verifier(evm = "KeygenContract")
 )]
-fn report_keygen(n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
+fn report_keygen(context: MyContext, n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
     let _ = (n, t, msgs);
     0
 }
 
 #[report(
     params(uptime, response_time, error_rate),
-    event_listener(listener = TangleEventListener, event = JobCalled),
+    event_listener(listener = TangleEventListener<Event, MyContext>, event = Event),
     result(Vec<u8>),
     report_type = "qos",
     interval = 3600,
     metric_thresholds(uptime = 99, response_time = 1000, error_rate = 5)
 )]
-fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Vec<u8> {
+fn report_service_health(context: MyContext, uptime: f64, response_time: u64, error_rate: f64) -> Vec<u8> {
     let mut issues = Vec::new();
     if uptime < 99.0 {
         issues.push(b"Low uptime".to_vec());

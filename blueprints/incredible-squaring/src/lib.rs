@@ -1,5 +1,7 @@
+use gadget_sdk::clients::tangle::runtime::TangleClient;
+use gadget_sdk::event_listener::tangle::{TangleJobEvent, TangleEventListener};
 use gadget_sdk::job;
-use std::convert::Infallible;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::pallet_services::module::Event;
 
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
@@ -7,11 +9,14 @@ use std::convert::Infallible;
     params(x),
     result(_),
     event_listener(
-        listener = TangleEventListener,
-        event = JobCalled,
+        listener = TangleEventListener<Event, TangleClient>,
+        event = Event, // Without specifying a pre-processor, it will default to TangleJobEvent
     ),
     verifier(evm = "IncredibleSquaringBlueprint")
 )]
-pub fn xsquare(x: u64) -> Result<u64, Infallible> {
-    Ok(x.saturating_pow(2u32))
+pub fn xsquare(
+    x: TangleJobEvent<TangleClient>,
+    context: TangleClient,
+) -> Result<u64, gadget_sdk::Error> {
+    Ok(1)
 }

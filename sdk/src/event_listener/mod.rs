@@ -24,6 +24,8 @@ pub mod executor;
 pub mod markers;
 pub mod periodic;
 
+pub mod tangle;
+
 /// The [`EventListener`] trait defines the interface for event listeners.
 #[async_trait]
 pub trait EventListener<T: Send + 'static, Ctx: Send + 'static>: Send + 'static {
@@ -245,6 +247,7 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>> EthereumHandlerWrapper<W
     }
 }
 
+// TODO: Remove this
 pub trait HasServiceAndJobId: StaticEvent + Send + Sync + 'static {
     fn service_id(&self) -> u64;
     fn job_id(&self) -> u8;
@@ -283,6 +286,7 @@ fn get_exponential_backoff<const N: usize>() -> Take<ExponentialBackoff> {
     ExponentialBackoff::from_millis(2).factor(1000).take(N)
 }
 
+// TODO: Remove this
 pub struct TangleEventWrapper<Evt: Send + Sync + 'static> {
     handler: EventHandlerFor<TangleConfig, Evt>,
     client: OnlineClient<TangleConfig>,

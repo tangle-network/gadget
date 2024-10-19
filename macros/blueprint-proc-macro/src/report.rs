@@ -351,7 +351,7 @@ fn generate_job_report_event_handler(
         crate::job::param_types(input).expect("Failed to generate param types for job report");
     let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted };
     let (event_listener_gen, event_listener_calls) =
-        crate::job::generate_event_listener_tokenstream(
+        crate::job::generate_event_workflow_tokenstream(
             input,
             SUFFIX,
             &fn_name_string,
@@ -445,7 +445,7 @@ fn generate_qos_report_event_handler(
     // trigger only once a singular JobCalled event is received.
     let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled };
     let (event_listener_gen, event_listener_calls) =
-        crate::job::generate_event_listener_tokenstream(
+        crate::job::generate_event_workflow_tokenstream(
             input,
             SUFFIX,
             &fn_name_string,

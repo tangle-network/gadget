@@ -58,9 +58,16 @@ where
     async fn event_loop(&mut self) -> Result<(), crate::Error> {
         // TODO: add exponential backoff logic here
         while let Some(event) = self.next_event().await {
-            let preprocessed_event = self.pre_process(event).await?;
-            let job_output = self.process(preprocessed_event).await?;
-            self.post_process(job_output).await?;
+            match self.pre_process(event).await {
+                Ok(preprocessed_event) => {
+                    let job_output = self.process(preprocessed_event).await?;
+                    self.post_process(job_output).await?;
+                }
+                Err(crate::Error::SkipPreProcessedType) => {},
+                Err(e) => {
+                    return Err(e);
+                }
+            }
         }
 
         Err(crate::Error::Other(

@@ -20,7 +20,6 @@ use std::error::Error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use subxt::ext::sp_core::Pair;
 use subxt::tx::Signer;
 use subxt::utils::AccountId32;
 use url::Url;

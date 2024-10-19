@@ -68,7 +68,6 @@ impl Config for NodeConfig {
     event_listener(
         listener = EvmContractEventListener(
             instance = IncredibleSquaringTaskManager,
-            event = IncredibleSquaringTaskManager::NewTaskCreated,
             event_converter = convert_event_to_inputs,
             callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
         ),

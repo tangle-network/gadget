@@ -16,7 +16,7 @@ use std::convert::Infallible;
     ),
 )]
 // Maps a boolean value obtained from pre-processing to a u8 value
-pub async fn web_poller(value: bool, client: reqwest::Client) -> Result<u8, Infallible> {
+pub async fn web_poller(value: bool, context: reqwest::Client) -> Result<u8, Infallible> {
     gadget_sdk::info!("Running web_poller on value: {value}");
     Ok(value as u8)
 }
