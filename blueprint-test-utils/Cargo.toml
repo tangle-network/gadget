@@ -7,42 +7,45 @@ edition = "2021"
 
 [features]
 default = ["std"]
-std = ["sp-core/std", "sp-application-crypto/std", "gadget-io/std", "gadget-sdk/std"]
+std = ["sp-core/std", "gadget-io/std", "gadget-sdk/std"]
 wasm = ["gadget-io/wasm-bindgen", "gadget-sdk/wasm"]
 
 [dependencies]
+# Core dependencies
+async-trait = { workspace = true }
 blueprint-manager = { workspace = true }
+futures = { workspace = true }
 parking_lot = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-futures = { workspace = true }
-sp-io = { workspace = true, default-features = false }
-sp-application-crypto = { workspace = true, default-features = false }
-sp-core = { workspace = true, default-features = false }
-libp2p = { workspace = true, default-features = false }
+
+# Logging and error handling
+color-eyre = { workspace = true }
 log = { workspace = true }
-async-trait = { workspace = true }
+tracing = { workspace = true }
+
+# Substrate
+sp-core = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false }
+subxt = { workspace = true, features = ["substrate-compat"] }
+
+# Networking
+libp2p = { workspace = true, default-features = false }
+url = { workspace = true }
+
+# Gadget and SDKs
+cargo-tangle = { workspace = true, default-features = true }
 gadget-io = { workspace = true, default-features = false }
 gadget-sdk = { workspace = true }
-uuid = { workspace = true, features = ["v4"] }
-subxt = { workspace = true, features = ["substrate-compat"] }
-color-eyre = { workspace = true }
-tracing = { workspace = true }
-alloy-provider = { workspace = true, features = ["hyper"] }
-alloy-transport-http = { workspace = true }
-alloy-transport = { workspace = true }
-alloy-primitives = { workspace = true }
-alloy-sol-types = { workspace = true }
+
+# Alloy-related
 alloy-contract = { workspace = true }
-alloy-rpc-types-eth = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true, features = ["hyper"] }
+alloy-sol-types = { workspace = true }
 
-
-eigensdk = { workspace = true }
+# Utility
 testcontainers = { workspace = true }
-
-url = { workspace = true }
-cargo-tangle = { workspace = true, default-features = true }
-serde_json = "1.0.128"
-tokio-util = "0.7.12"
+uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]
 cargo_metadata = { workspace = true }
