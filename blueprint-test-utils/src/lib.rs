@@ -3,7 +3,7 @@ use api::services::events::JobResultSubmitted;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use gadget_io::{GadgetConfig, SupportedChains};
-use gadget_sdk::clients::tangle::runtime::{TangleClient};
+use gadget_sdk::clients::tangle::runtime::TangleClient;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
@@ -20,7 +20,6 @@ use std::error::Error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use subxt::ext::sp_core::Pair;
 use subxt::tx::Signer;
 use subxt::utils::AccountId32;
 use url::Url;
@@ -271,8 +270,9 @@ pub async fn register_service(
         blueprint_id,
         test_nodes.clone(),
         test_nodes,
-        1000,
         Default::default(),
+        Default::default(),
+        1000,
     );
     let res = client
         .tx()

@@ -8243,7 +8243,7 @@ dependencies = [
  "parking_lot",
  "reqwest 0.12.8",
  "serde_json",
- "sp-core 34.0.0",
+ "sp-core",
  "structopt",
  "subxt-signer",
  "tokio",
@@ -11589,9 +11589,9 @@ dependencies = [
 
 [[package]]
 name = "tangle-subxt"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6021db4ae4f20114d6ab52365a3dce19c884dbfe1f4aba546639e53ed6ad052"
+checksum = "20bf7f8d29cfdb72ea840a6d58d9191b3573dc0309f1b94eee25848498f89c1a"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
