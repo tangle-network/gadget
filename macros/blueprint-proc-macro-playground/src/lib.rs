@@ -1,7 +1,7 @@
 #![allow(dead_code)]
-use gadget_sdk::{benchmark, job, registration_hook, report, request_hook};
 use gadget_sdk::event_listener::tangle::TangleEventListener;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::Event;
+use gadget_sdk::{benchmark, job, registration_hook, report, request_hook};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Error {
@@ -104,7 +104,12 @@ fn report_keygen(context: MyContext, n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 
     interval = 3600,
     metric_thresholds(uptime = 99, response_time = 1000, error_rate = 5)
 )]
-fn report_service_health(context: MyContext, uptime: f64, response_time: u64, error_rate: f64) -> Vec<u8> {
+fn report_service_health(
+    context: MyContext,
+    uptime: f64,
+    response_time: u64,
+    error_rate: f64,
+) -> Vec<u8> {
     let mut issues = Vec::new();
     if uptime < 99.0 {
         issues.push(b"Low uptime".to_vec());

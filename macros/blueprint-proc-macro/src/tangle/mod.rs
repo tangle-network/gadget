@@ -3,70 +3,82 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 #[allow(clippy::too_many_lines)]
-pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::TokenStream {
+pub fn field_type_to_param_token(
+    ident: &Ident,
+    t: &FieldType,
+    panic_on_decode_fail: bool,
+) -> proc_macro2::TokenStream {
+    let else_block = if panic_on_decode_fail {
+        quote! {
+            panic!("Failed to decode the field");
+        }
+    } else {
+        quote! {
+            return Ok(vec![]);
+        }
+    };
     match t {
         FieldType::Void => unreachable!("void type should not be in params"),
         FieldType::Bool => {
-            quote! { let Some(Field::Bool(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Bool(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::Uint8 => {
-            quote! { let Some(Field::Uint8(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Uint8(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::Int8 => {
-            quote! { let Some(Field::Int8(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Int8(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::Uint16 => {
-            quote! { let Some(Field::Uint16(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Uint16(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::Int16 => {
-            quote! { let Some(Field::Int16(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Int16(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::Uint32 => {
-            quote! { let Some(Field::Uint32(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Uint32(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::Int32 => {
-            quote! { let Some(Field::Int32(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Int32(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::Uint64 => {
-            quote! { let Some(Field::Uint64(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Uint64(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::Int64 => {
-            quote! { let Some(Field::Int64(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Int64(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::Uint128 => {
-            quote! { let Some(Field::Uint128(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Uint128(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::U256 => {
-            quote! { let Some(Field::U256(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::U256(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::Int128 => {
-            quote! { let Some(Field::Int128(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Int128(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::Float64 => {
-            quote! { let Some(Field::Float64(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Float64(#ident)) = args_iter.next() else { #else_block }; }
         }
         FieldType::String => {
             let inner_ident = format_ident!("{}_inner", ident);
             quote! {
-                let Some(Field::String(gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString(gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec(#inner_ident)))) = args_iter.next() else { return Ok(vec![]); };
+                let Some(Field::String(gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString(gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec(#inner_ident)))) = args_iter.next() else { #else_block };
                 // Convert the BoundedVec to a String
                 let #ident = match String::from_utf8(#inner_ident) {
                     Ok(s) => s,
                     Err(e) => {
                         ::gadget_sdk::warn!("failed to convert bytes to a valid utf8 string: {e}");
-                        use gadget_sdk::events_watcher::Error;
-                        return Err(Error::Handler(Box::new(e)));
+                        return Err(gadget_sdk::Error::Other(e.to_string()));
                     }
                 };
             }
         }
         FieldType::Bytes => {
-            quote! { let Some(Field::Bytes(gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec(#ident))) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::Bytes(gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec(#ident))) = args_iter.next() else { #else_block }; }
         }
         FieldType::Optional(t_x) => {
             let inner_ident = format_ident!("{}_inner", ident);
             let x_ident = format_ident!("{}_option", ident);
-            let x_inner = field_type_to_param_token(&x_ident, t_x);
+            let x_inner = field_type_to_param_token(&x_ident, t_x, panic_on_decode_fail);
             let inner = quote! {
                 let Some(#inner_ident) = args_iter.next() else {  return Ok(vec![]); };
             };
@@ -103,7 +115,8 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
                 .map(|(field_name, field_type)| {
                     let field_ident = format_ident!("{}", field_name);
                     let inner_ident = format_ident!("{}_{}", ident, field_name);
-                    let inner_token = field_type_to_param_token(&inner_ident, field_type);
+                    let inner_token =
+                        field_type_to_param_token(&inner_ident, field_type, panic_on_decode_fail);
                     quote! {
                         #inner_token
                         #field_ident: #inner_ident,
@@ -112,7 +125,7 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
                 .collect();
 
             quote! {
-                let Some(Field::Struct(#ident)) = args_iter.next() else { return Ok(vec![]); };
+                let Some(Field::Struct(#ident)) = args_iter.next() else { #else_block };
                 let mut #ident = #ident.into_iter();
                 #(#field_tokens)*
                 let #ident = #struct_ident {
@@ -122,7 +135,7 @@ pub fn field_type_to_param_token(ident: &Ident, t: &FieldType) -> proc_macro2::T
         }
 
         FieldType::AccountId => {
-            quote! { let Some(Field::AccountId(#ident)) = args_iter.next() else { return Ok(vec![]); }; }
+            quote! { let Some(Field::AccountId(#ident)) = args_iter.next() else { #else_block }; }
         }
     }
 }

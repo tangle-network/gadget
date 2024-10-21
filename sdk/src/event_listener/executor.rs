@@ -63,7 +63,7 @@ where
                     let job_output = self.process(preprocessed_event).await?;
                     self.post_process(job_output).await?;
                 }
-                Err(crate::Error::SkipPreProcessedType) => {},
+                Err(crate::Error::SkipPreProcessedType) => {}
                 Err(e) => {
                     return Err(e);
                 }

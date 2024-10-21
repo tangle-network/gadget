@@ -10,6 +10,10 @@ pub(crate) fn generate_tangle_event_handler(
     _result_tokens: &[TokenStream],
     _fn_call: &TokenStream,
 ) -> TokenStream {
+    quote! {
+        #[automatically_derived]
+        impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
+    }
     /*
            #[automatically_derived]
        #[async_trait::async_trait]
@@ -41,7 +45,4 @@ pub(crate) fn generate_tangle_event_handler(
            }
        }
     */
-    quote! {
-        impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
-    }
 }

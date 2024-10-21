@@ -19,9 +19,10 @@ pub struct TangleEventListener<Evt, Ctx> {
     current_block: Option<u32>,
     job_id: Job,
     service_id: ServiceId,
-    listener:
-        Mutex<StreamOfResults<subxt::blocks::Block<TangleConfig, TangleClient>>>,
+    listener: Mutex<StreamOfResults<subxt::blocks::Block<TangleConfig, TangleClient>>>,
     context: Ctx,
+    signer: crate::keystore::TanglePairSigner<sp_core::sr25519::Pair>,
+    client: TangleClient,
     enqueued_events: VecDeque<Evt>,
     _pd: PhantomData<Evt>,
 }
@@ -29,10 +30,11 @@ pub struct TangleEventListener<Evt, Ctx> {
 pub type BlockNumber = u32;
 
 #[derive(Clone)]
-pub struct TangleSpecificContext<Ctx> {
+pub struct TangleListenerInput<Ctx> {
     pub client: TangleClient,
     pub job_id: Job,
     pub service_id: ServiceId,
+    pub signer: crate::keystore::TanglePairSigner<sp_core::sr25519::Pair>,
     pub context: Ctx,
 }
 
@@ -45,24 +47,27 @@ pub struct TangleEvent<Evt, Ctx> {
     pub root_event: Evt,
     pub context: Ctx,
     pub block_number: BlockNumber,
+    pub signer: crate::keystore::TanglePairSigner<sp_core::sr25519::Pair>,
+    pub client: TangleClient,
     pub job_id: Job,
     pub service_id: ServiceId,
 }
 
 #[async_trait]
 impl<Evt: DecodeAsType + Send + 'static, Ctx: Clone + Send + Sync + 'static>
-    EventListener<TangleEvent<Evt, Ctx>, TangleSpecificContext<Ctx>>
+    EventListener<TangleEvent<Evt, Ctx>, TangleListenerInput<Ctx>>
     for TangleEventListener<Evt, Ctx>
 {
-    async fn new(context: &TangleSpecificContext<Ctx>) -> Result<Self, Error>
+    async fn new(context: &TangleListenerInput<Ctx>) -> Result<Self, Error>
     where
         Self: Sized,
     {
-        let TangleSpecificContext {
+        let TangleListenerInput {
             client,
             job_id,
             service_id,
             context,
+            signer,
         } = context;
 
         let listener = Mutex::new(client.blocks().subscribe_finalized().await?);
@@ -72,6 +77,8 @@ impl<Evt: DecodeAsType + Send + 'static, Ctx: Clone + Send + Sync + 'static>
             job_id: *job_id,
             service_id: *service_id,
             context: context.clone(),
+            client: client.clone(),
+            signer: signer.clone(),
             enqueued_events: VecDeque::new(),
             _pd: PhantomData,
         })
@@ -83,7 +90,9 @@ impl<Evt: DecodeAsType + Send + 'static, Ctx: Clone + Send + Sync + 'static>
                 return Some(TangleEvent {
                     root_event: enqueued_event,
                     context: self.context.clone(),
+                    signer: self.signer.clone(),
                     block_number: self.current_block?,
+                    client: self.client.clone(),
                     job_id: self.job_id,
                     service_id: self.service_id,
                 });
@@ -109,7 +118,9 @@ impl<Evt: DecodeAsType + Send + 'static, Ctx: Clone + Send + Sync + 'static>
                 return Some(TangleEvent {
                     root_event,
                     context: self.context.clone(),
+                    signer: self.signer.clone(),
                     block_number,
+                    client: self.client.clone(),
                     job_id: self.job_id,
                     service_id: self.service_id,
                 });
@@ -123,15 +134,44 @@ impl<Evt: DecodeAsType + Send + 'static, Ctx: Clone + Send + Sync + 'static>
 }
 
 pub struct TangleJobEvent<Ctx> {
-    pub result: Vec<Field<AccountId32>>,
+    pub args: Vec<Field<AccountId32>>,
     pub context: Ctx,
+    pub client: TangleClient,
+    pub signer: crate::keystore::TanglePairSigner<sp_core::sr25519::Pair>,
     pub block_number: BlockNumber,
     pub call_id: job_called::CallId,
     pub job_id: Job,
     pub service_id: ServiceId,
 }
 
-pub async fn tangle_default_pre_processor<Ctx>(
+impl<Ctx> TangleJobEvent<Ctx> {
+    pub fn result(self, result: Field<AccountId32>) -> Result<TangleJobResult, Error> {
+        self.results(vec![result])
+    }
+
+    pub fn results<T: Into<types::submit_result::Result>>(
+        self,
+        results: T,
+    ) -> Result<TangleJobResult, Error> {
+        Ok(TangleJobResult {
+            results: results.into(),
+            service_id: self.service_id,
+            call_id: self.call_id,
+            client: self.client,
+            signer: self.signer,
+        })
+    }
+}
+
+pub struct TangleJobResult {
+    pub results: types::submit_result::Result,
+    pub service_id: ServiceId,
+    pub call_id: job_called::CallId,
+    pub client: TangleClient,
+    pub signer: crate::keystore::TanglePairSigner<sp_core::sr25519::Pair>,
+}
+
+pub async fn services_pre_processor<Ctx>(
     event: TangleEvent<Event, Ctx>,
 ) -> Result<TangleJobEvent<Ctx>, Error> {
     let this_service_id = event.service_id;
@@ -147,9 +187,11 @@ pub async fn tangle_default_pre_processor<Ctx>(
     {
         if job == this_job_id && service_id == this_service_id {
             return Ok(TangleJobEvent {
-                result: args,
+                args,
                 context: event.context,
                 block_number: event.block_number,
+                signer: event.signer,
+                client: event.client,
                 call_id,
                 job_id: this_job_id,
                 service_id: this_service_id,
@@ -161,18 +203,69 @@ pub async fn tangle_default_pre_processor<Ctx>(
 }
 
 /// By default, the tangle post-processor takes in a job result and submits the result on-chain
-async fn tangle_default_post_processor(
-    result: types::submit_result::Result,
-    service_id: ServiceId,
-    call_id: job_called::CallId,
-    client: TangleClient,
-    signer: crate::keystore::TanglePairSigner<sp_core::sr25519::Pair>,
+pub async fn services_post_processor(
+    TangleJobResult {
+        results,
+        service_id,
+        call_id,
+        client,
+        signer,
+    }: TangleJobResult,
 ) -> Result<(), Error> {
     let response = TangleApi::tx()
         .services()
-        .submit_result(service_id, call_id, result);
+        .submit_result(service_id, call_id, results);
     let _ = crate::tx::tangle::send(&client, &signer, &response)
         .await
         .map_err(|err| Error::Client(err.to_string()))?;
+    crate::info!("Submitted result on-chain");
     Ok(())
+}
+
+pub trait FieldTypeIntoConcrete<Concrete> {
+    fn into_concrete(self) -> Concrete;
+}
+
+macro_rules! impl_field_type_into_concrete {
+    ($concrete:ty, $variant:ident) => {
+        impl FieldTypeIntoConcrete<$concrete> for Field<AccountId32> {
+            fn into_concrete(self) -> $concrete {
+                if let Field::$variant(val) = self {
+                    val
+                } else {
+                    panic!("Expected $variant, got {:?}", self);
+                }
+            }
+        }
+    };
+}
+
+impl_field_type_into_concrete!(u8, Uint8);
+impl_field_type_into_concrete!(u16, Uint16);
+impl_field_type_into_concrete!(u32, Uint32);
+impl_field_type_into_concrete!(u64, Uint64);
+impl_field_type_into_concrete!(i8, Int8);
+impl_field_type_into_concrete!(i16, Int16);
+impl_field_type_into_concrete!(i32, Int32);
+impl_field_type_into_concrete!(i64, Int64);
+impl_field_type_into_concrete!(AccountId32, AccountId);
+
+impl FieldTypeIntoConcrete<String> for Field<AccountId32> {
+    fn into_concrete(self) -> String {
+        if let Field::String(val) = self {
+            String::from_utf8(val.0 .0).unwrap()
+        } else {
+            panic!("Expected $variant, got {:?}", self);
+        }
+    }
+}
+
+impl FieldTypeIntoConcrete<Vec<u8>> for Field<AccountId32> {
+    fn into_concrete(self) -> Vec<u8> {
+        if let Field::Bytes(val) = self {
+            val.0
+        } else {
+            panic!("Expected $variant, got {:?}", self);
+        }
+    }
 }
