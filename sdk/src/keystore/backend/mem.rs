@@ -4,8 +4,10 @@ use alloc::collections::BTreeMap;
 use alloc::string::ToString;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use core::str::FromStr;
 use w3f_bls::SerializableToBytes;
 
+use crate::keystore::bn254::Public;
 use crate::keystore::{bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error};
 
 /// The type alias for the In Memory `KeyMap`.
@@ -211,6 +213,20 @@ impl<RwLock: lock_api::RawRwLock> Backend for InMemoryKeystore<RwLock> {
     fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<bn254::Public, Error> {
         let secret = bn254::generate_with_optional_seed(seed);
         let public = bn254::to_public(&secret);
+        let old = self
+            .bn254
+            .write()
+            .insert(BlsBn254PublicWrapper(public.clone()), secret);
+        assert!(old.is_none(), "generated key already exists");
+        Ok(public)
+    }
+
+    fn bls_bn254_generate_from_secret(&self, secret: String) -> Result<Public, Error> {
+        let pair = eigensdk::crypto_bls::BlsKeyPair::new(secret.clone())
+            .map_err(|e| Error::BlsBn254(e.to_string()))?;
+        let public = pair.public_key();
+        let secret = bn254::Secret::from_str(&secret)
+            .map_err(|_| Error::BlsBn254("Invalid BLS BN254 secret".to_string()))?;
         let old = self
             .bn254
             .write()

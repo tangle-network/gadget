@@ -20,7 +20,6 @@ use std::error::Error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use subxt::ext::sp_core::Pair;
 use subxt::tx::Signer;
 use subxt::utils::AccountId32;
 use url::Url;
@@ -126,7 +125,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
 
 /// Adds keys relevant for the test to the keystore, and performs some necessary
 /// cross-compatability tests to ensure key use consistency between different parts of the codebase
-async fn inject_test_keys<P: AsRef<Path>>(
+pub async fn inject_test_keys<P: AsRef<Path>>(
     keystore_path: P,
     node_index: usize,
 ) -> color_eyre::Result<()> {
@@ -155,6 +154,12 @@ async fn inject_test_keys<P: AsRef<Path>>(
     keystore
         .ecdsa_generate_new(Some(&ecdsa_seed))
         .expect("Should be valid ECDSA seed");
+    keystore
+        .bls_bn254_generate_from_secret(
+            "1371012690269088913462269866874713266643928125698382731338806296762673180359922"
+                .to_string(),
+        )
+        .expect("Should be valid BLS seed");
 
     // Perform sanity checks on conversions between secrets to ensure
     // consistency as the program executes
@@ -466,6 +471,9 @@ mod tests_standard {
     use gadget_sdk::{error, info};
     use std::str::FromStr;
 
+    const ANVIL_STATE_PATH: &str =
+        "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
+
     /// This test requires that `yarn install` has been executed inside the
     /// `./blueprints/incredible-squaring/` directory
     /// The other requirement is that there is a locally-running tangle node
@@ -576,7 +584,8 @@ mod tests_standard {
     #[allow(clippy::needless_return)]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
-        let (_container, http_endpoint, ws_endpoint) = anvil::start_anvil_container(true).await;
+        let (_container, http_endpoint, ws_endpoint) =
+            anvil::start_anvil_container(ANVIL_STATE_PATH, true).await;
 
         // let http_endpoint = "http://127.0.0.1:8545".to_string();
         // let ws_endpoint = "ws://127.0.0.1:8545".to_string();

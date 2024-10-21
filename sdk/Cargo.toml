@@ -21,6 +21,7 @@ sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"], option
 parking_lot = { workspace = true, optional = true }
 rand = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
+tokio-stream = { workspace = true, features = ["io-util", "sync"] }
 structopt = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 failure = { workspace = true }

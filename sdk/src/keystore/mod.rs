@@ -267,6 +267,13 @@ pub trait Backend {
     /// # Errors
     /// An `Err` will be returned if generating the key pair operation itself failed.
     fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<bn254::Public, Error>;
+    /// Generate a new bls bn254 key pair from a [`bn254::Secret`] hex String
+    ///
+    /// Returns an [`bn254::Public`] key of the generated key pair or an `Err` if
+    /// something failed during key generation.
+    /// # Errors
+    /// An `Err` will be returned if generating the key pair operation itself failed.
+    fn bls_bn254_generate_from_secret(&self, secret: String) -> Result<bn254::Public, Error>;
     /// Generate a bls bn254 signature for a given message.
     ///
     /// Receives an [`bn254::Public`] key to be able to map
@@ -384,8 +391,7 @@ pub trait BackendExt: Backend {
         let bls_secret = self
             .expose_bls_bn254_secret(&first_key)?
             .ok_or_else(|| Error::BlsBn254("No BLS BN254 secret found".to_string()))?;
-
-        crypto_bls::BlsKeyPair::new(bls_secret.0.to_string())
+        crypto_bls::BlsKeyPair::new(bls_secret.to_string())
             .map_err(|e| Error::BlsBn254(e.to_string()))
     }
 }
