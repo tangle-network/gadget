@@ -155,14 +155,13 @@ pub fn report(args: TokenStream, input: TokenStream) -> TokenStream {
 /// # Example
 /// ```rust,no_run
 /// # use gadget_blueprint_proc_macro::registration_hook;
-/// #[registration_hook(evm = "MyRegistrationHook")]
+/// #[registration_hook]
 /// pub fn my_registration_hook();
 /// ```
 #[proc_macro_attribute]
-pub fn registration_hook(args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn registration_hook(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ForeignItemFn);
-    let args = parse_macro_input!(args as hooks::HookArgs);
-    match hooks::registration_hook_impl(&args, &input) {
+    match hooks::registration_hook_impl(&input) {
         Ok(tokens) => tokens,
         Err(err) => err.to_compile_error().into(),
     }
@@ -173,14 +172,13 @@ pub fn registration_hook(args: TokenStream, input: TokenStream) -> TokenStream {
 /// # Example
 /// ```rust,no_run
 /// # use gadget_blueprint_proc_macro::request_hook;
-/// #[request_hook(evm = "MyRequestHook")]
+/// #[request_hook]
 /// pub fn my_request_hook();
 /// ```
 #[proc_macro_attribute]
-pub fn request_hook(args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn request_hook(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ForeignItemFn);
-    let args = parse_macro_input!(args as hooks::HookArgs);
-    match hooks::request_hook_impl(&args, &input) {
+    match hooks::request_hook_impl(&input) {
         Ok(tokens) => tokens,
         Err(err) => err.to_compile_error().into(),
     }

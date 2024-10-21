@@ -70,10 +70,10 @@ pub fn say_hello(who: Option<String>) -> Result<String, Error> {
 //       Hooks
 // ==================
 
-#[registration_hook(evm = "RegistrationContract")]
+#[registration_hook]
 pub fn on_register(pubkey: Vec<u8>);
 
-#[request_hook(evm = "RequestContract")]
+#[request_hook]
 pub fn on_request(nft_id: u64);
 
 // ==================
@@ -134,7 +134,7 @@ mod tests {
     fn generated_blueprint() {
         eprintln!("{}", super::KEYGEN_JOB_DEF);
         assert_eq!(super::KEYGEN_JOB_ID, 0);
-        eprintln!("{}", super::REGISTRATION_HOOK);
+        eprintln!("{}", super::REGISTRATION_HOOK_PARAMS);
     }
 
     #[test]

@@ -1769,6 +1769,7 @@ dependencies = [
  "fs2",
  "gadget-blueprint-proc-macro-core",
  "rustdoc-types",
+ "serde",
  "serde_json",
  "typed-builder",
 ]

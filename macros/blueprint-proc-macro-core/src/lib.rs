@@ -58,14 +58,12 @@ pub enum FieldType {
 pub struct ServiceBlueprint<'a> {
     /// The metadata of the service.
     pub metadata: ServiceMetadata<'a>,
+    /// The blueprint manager that will be used to manage the blueprints lifecycle.
+    pub manager: BlueprintManager,
     /// The job definitions that are available in this service.
     pub jobs: Vec<JobDefinition<'a>>,
-    /// The registration hook that will be called before restaker registration.
-    pub registration_hook: ServiceRegistrationHook,
     /// The parameters that are required for the service registration.
     pub registration_params: Vec<FieldType>,
-    /// The request hook that will be called before creating a service from the service blueprint.
-    pub request_hook: ServiceRequestHook,
     /// The parameters that are required for the service request.
     pub request_params: Vec<FieldType>,
     /// The gadget that will be executed for the service.
@@ -106,8 +104,6 @@ pub struct JobDefinition<'a> {
     /// These are the result, the return values of this job.
     /// i.e. the output.
     pub result: Vec<FieldType>,
-    /// The verifier of the job result.
-    pub verifier: JobResultVerifier,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -116,17 +112,6 @@ pub struct JobMetadata<'a> {
     pub name: BlueprintString<'a>,
     /// The Job description.
     pub description: Option<BlueprintString<'a>>,
-}
-
-/// A Job Result verifier is a verifier that will verify the result of a job call
-/// using different verification methods.
-#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum JobResultVerifier {
-    /// No verification is needed.
-    #[default]
-    None,
-    /// An EVM Contract Address or path to the contract ABI that will verify the result.
-    Evm(String),
 }
 
 /// Represents the definition of a report, including its metadata, parameters, and result type.
@@ -190,24 +175,12 @@ pub struct ReportMetadata<'a> {
     pub description: Option<BlueprintString<'a>>,
 }
 
-/// Service Registration hook is a hook that will be called before registering the restaker as
-/// an operator for the service.
-#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum ServiceRegistrationHook {
-    /// No hook is needed, the restaker will be registered immediately.
-    #[default]
-    None,
-    /// A Smart contract that will be called to determine if the restaker will be registered.
-    Evm(String),
-}
-
-/// Service Request hook is a hook that will be called before creating a service from the service blueprint.
-#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum ServiceRequestHook {
-    /// No hook is needed, the caller will get the service created immediately.
-    #[default]
-    None,
-    /// A Smart contract that will be called to determine if the caller meets the requirements to create a service.
+/// Service Blueprint Manager is a smart contract that will manage the service lifecycle.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum BlueprintManager {
+    /// A Smart contract that will manage the service lifecycle.
     Evm(String),
 }
 

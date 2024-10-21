@@ -51,3 +51,6 @@ blueprint-metadata = { workspace = true }
 [features]
 default = ["std"]
 std = []
+
+[package.metadata.blueprint]
+manager = { evm = "IncredibleSquaringBlueprint" }
