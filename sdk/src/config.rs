@@ -119,6 +119,8 @@ impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
         f.debug_struct("GadgetConfiguration")
             .field("rpc_endpoint", &self.rpc_endpoint)
             .field("keystore_uri", &self.keystore_uri)
+            .field("data_dir", &self.data_dir)
+            .field("bootnodes", &self.bootnodes)
             .field("blueprint_id", &self.blueprint_id)
             .field("service_id", &self.service_id)
             .field("is_registration", &self.is_registration)
