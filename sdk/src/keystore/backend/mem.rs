@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 use core::str::FromStr;
 use w3f_bls::SerializableToBytes;
 
-use crate::keystore::bn254::{Public, Secret};
+use crate::keystore::bn254::Public;
 use crate::keystore::{bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error};
 
 /// The type alias for the In Memory `KeyMap`.

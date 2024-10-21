@@ -147,8 +147,6 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
     // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
     let ecdsa_seed = ecdsa.seed();
 
-    let bls_seed = suri.as_bytes();
-
     keystore
         .sr25519_generate_new(Some(sr_seed))
         .expect("Should be valid SR25519 seed");

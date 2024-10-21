@@ -6,13 +6,8 @@ use crate::keystore::{
 };
 use crate::{debug, warn};
 use alloc::string::ToString;
-use ark_bn254::g1::G1Affine;
-use ark_bn254::{Fr, G1Projective};
-use ark_ec::AffineRepr;
 use ark_serialize::CanonicalSerialize;
 use core::str::FromStr;
-use eigensdk::crypto_bls::error::BlsError;
-use eigensdk::crypto_bls::BlsG1Point;
 use std::{fs, io::Write, path::PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,12 +109,9 @@ impl FilesystemKeystore {
                 // If the key type is BlsBn254, search for .pub files. Otherwise, search normally
                 if file_name.starts_with(&prefix) {
                     if key_type == KeyType::BlsBn254 {
-                        println!("SEARCHING FOR BLS BN254 KEYS");
                         if file_name.ends_with(".pub") {
-                            println!("FOUND BLS BN254 PUBLIC KEY");
                             let public_key_path = entry.path();
                             let public_key_bytes = fs::read(public_key_path).ok()?;
-                            println!("READ BLS BN254 PUBLIC KEY: {:?}", public_key_bytes);
                             Some(public_key_bytes)
                         } else {
                             None
@@ -299,7 +291,7 @@ impl Backend for FilesystemKeystore {
         let hashed_public = bn254::hash_public(public.clone())?;
         let secret_bytes = self.secret_by_type(hashed_public.as_bytes(), KeyType::BlsBn254)?;
         if let Some(buf) = secret_bytes {
-            let mut secret = bn254::secret_from_bytes(&buf);
+            let mut secret = bn254::secret_from_bytes(&buf)?;
             Ok(Some(bn254::sign(&mut secret, msg)))
         } else {
             Ok(None)
@@ -363,7 +355,7 @@ impl Backend for FilesystemKeystore {
         let hashed_public = bn254::hash_public(public.clone())?;
         let secret_bytes = self.secret_by_type(hashed_public.as_bytes(), KeyType::BlsBn254)?;
         if let Some(buf) = secret_bytes {
-            Ok(Some(bn254::secret_from_bytes(&buf)))
+            Ok(Some(bn254::secret_from_bytes(&buf)?))
         } else {
             Ok(None)
         }

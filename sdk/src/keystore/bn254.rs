@@ -4,6 +4,7 @@ use crate::keystore::Error;
 use alloy_primitives::keccak256;
 use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{PrimeField, UniformRand};
+use ark_serialize::CanonicalDeserialize;
 use eigensdk::crypto_bls::PublicKey;
 use eigensdk::crypto_bls::{BlsG1Point, BlsSignature, PrivateKey};
 use eigensdk::crypto_bn254::utils::map_to_curve;
@@ -54,7 +55,6 @@ pub fn to_public(secret: &Secret) -> Public {
     Public::new(public.into_affine())
 }
 
-#[must_use]
-pub fn secret_from_bytes(bytes: &[u8]) -> Secret {
-    Secret::from_le_bytes_mod_order(bytes)
+pub fn secret_from_bytes(bytes: &[u8]) -> Result<Secret, Error> {
+    Secret::deserialize_uncompressed(bytes).map_err(|e| Error::BlsBn254(e.to_string()))
 }

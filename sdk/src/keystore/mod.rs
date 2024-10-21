@@ -395,9 +395,7 @@ pub trait BackendExt: Backend {
         let bls_secret = self
             .expose_bls_bn254_secret(&first_key)?
             .ok_or_else(|| Error::BlsBn254("No BLS BN254 secret found".to_string()))?;
-        println!("EXPOSED SECRET: {:?}", bls_secret.0);
-
-        crypto_bls::BlsKeyPair::new(bls_secret.0.to_string())
+        crypto_bls::BlsKeyPair::new(bls_secret.to_string())
             .map_err(|e| Error::BlsBn254(e.to_string()))
     }
 }
