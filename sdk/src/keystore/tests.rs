@@ -89,7 +89,7 @@ mod sr25519 {
     }
 
     #[test]
-    #[cfg(all(feature = "getrandom"))]
+    #[cfg(feature = "getrandom")]
     fn signature() {
         let keystore = setup_mem_test_keystore();
         let public = keystore
@@ -152,7 +152,7 @@ mod ed25519 {
     }
 
     #[test]
-    #[cfg(all(feature = "getrandom"))]
+    #[cfg(feature = "getrandom")]
     fn signature() {
         let keystore = setup_mem_test_keystore();
         let public = keystore
@@ -215,7 +215,7 @@ mod ecdsa {
     }
 
     #[test]
-    #[cfg(all(feature = "getrandom"))]
+    #[cfg(feature = "getrandom")]
     fn signature() {
         let keystore = setup_mem_test_keystore();
         let public = keystore
@@ -294,7 +294,7 @@ mod bls381 {
     }
 
     #[test]
-    #[cfg(all(feature = "getrandom"))]
+    #[cfg(feature = "getrandom")]
     fn signature() {
         let keystore = setup_mem_test_keystore();
         let public = keystore
@@ -369,7 +369,7 @@ mod bn254 {
     }
 
     #[test]
-    #[cfg(all(feature = "getrandom"))]
+    #[cfg(feature = "getrandom")]
     fn signature() {
         let keystore = setup_mem_test_keystore();
         let public = keystore

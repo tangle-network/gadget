@@ -54,10 +54,9 @@ pub fn sign(secret: &mut Secret, msg: &[u8; 32]) -> Signature {
     pair.sign_message(msg.as_slice()).g1_point().g1()
 }
 
-#[must_use]
-pub fn to_public(secret: &Secret) -> Public {
-    let public = PublicKey::generator().mul_bigint(secret.0);
-    Public::new(public.into_affine())
+pub fn to_public(secret: &Secret) -> Result<Public, Error> {
+    let pair = BlsKeyPair::new(secret.to_string()).map_err(|e| Error::BlsBn254(e.to_string()))?;
+    Ok(pair.public_key())
 }
 
 pub fn secret_from_bytes(bytes: &[u8]) -> Result<Secret, Error> {
