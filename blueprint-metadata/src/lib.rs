@@ -287,8 +287,7 @@ fn extract_blueprint_manager(package: &Package) -> BlueprintManager {
         eprintln!("No blueprint metadata found in the Cargo.toml.");
         eprintln!("For more information, see:");
         eprintln!("<TODO>");
-        // For now, we just return an empty blueprint manager, this
-        // will be a hard error in the future.
+        // TODO(@shekohex): make this hard error
         return BlueprintManager::Evm(Default::default());
     };
     let metadata: BlueprintMetadata =
