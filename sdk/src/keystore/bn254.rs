@@ -2,11 +2,10 @@
 
 use crate::keystore::Error;
 use alloy_primitives::keccak256;
-use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{PrimeField, UniformRand};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::{BlsG1Point, BlsSignature, PrivateKey};
-use eigensdk::crypto_bls::{BlsKeyPair, PublicKey};
 use elliptic_curve::rand_core::OsRng;
 use k256::sha2::{Digest, Sha256};
 
