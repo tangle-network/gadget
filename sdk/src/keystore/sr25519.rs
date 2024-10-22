@@ -5,7 +5,7 @@ pub use schnorrkel::SecretKey as Secret;
 pub use schnorrkel::Signature;
 
 /// The context used for signing.
-const SIGNING_CTX: &[u8] = b"substrate";
+pub(crate) const SIGNING_CTX: &[u8] = b"substrate";
 
 /// Sign a message with the given secret key.
 ///

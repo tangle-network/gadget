@@ -43,6 +43,8 @@ pub mod error;
 
 /// Schnorrkel Support
 pub mod sr25519;
+#[cfg(test)]
+mod tests;
 
 use crate::clients::tangle::runtime::TangleConfig;
 #[cfg(any(feature = "std", feature = "wasm"))]
@@ -414,37 +416,3 @@ pub trait KeystoreUriSanitizer: AsRef<Path> {
 }
 
 impl<T: AsRef<Path>> KeystoreUriSanitizer for T {}
-
-#[cfg(test)]
-mod tests {
-    use crate::keystore::KeystoreUriSanitizer;
-    use std::path::PathBuf;
-
-    #[test]
-    fn test_sanitize_file_paths() {
-        let path = "file:///tmp/keystore";
-        let sanitized_path = path.sanitize_file_path();
-        assert_eq!(sanitized_path, PathBuf::from("/tmp/keystore"));
-    }
-
-    #[test]
-    fn test_sanitize_file_paths_with_single_slash() {
-        let path = "file:/tmp/keystore";
-        let sanitized_path = path.sanitize_file_path();
-        assert_eq!(sanitized_path, PathBuf::from("/tmp/keystore"));
-    }
-
-    #[test]
-    fn test_sanitize_file_paths_with_double_slash() {
-        let path = "file://tmp/keystore";
-        let sanitized_path = path.sanitize_file_path();
-        assert_eq!(sanitized_path, PathBuf::from("/tmp/keystore"));
-    }
-
-    #[test]
-    fn test_sanitize_file_paths_with_no_scheme() {
-        let path = "/tmp/keystore";
-        let sanitized_path = path.sanitize_file_path();
-        assert_eq!(sanitized_path, PathBuf::from("/tmp/keystore"));
-    }
-}

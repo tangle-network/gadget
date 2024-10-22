@@ -211,8 +211,10 @@ impl<RwLock: lock_api::RawRwLock> Backend for InMemoryKeystore<RwLock> {
     }
 
     fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<bn254::Public, Error> {
-        let secret = bn254::generate_with_optional_seed(seed);
-        let public = bn254::to_public(&secret);
+        let secret = bn254::generate_with_optional_seed(seed)?;
+        let pair = eigensdk::crypto_bls::BlsKeyPair::new(secret.to_string())
+            .map_err(|e| Error::BlsBn254(e.to_string()))?;
+        let public = pair.public_key();
         let old = self
             .bn254
             .write()

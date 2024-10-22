@@ -45,7 +45,7 @@ impl FilesystemKeystore {
 
     /// Write the given `data` to `file`.
     fn write_to_file(file: PathBuf, data: &[u8]) -> Result<(), Error> {
-        let mut file = fs::File::create(file).unwrap();
+        let mut file = fs::File::create(file)?;
 
         #[cfg(target_family = "unix")]
         {
@@ -108,7 +108,7 @@ impl FilesystemKeystore {
                 // If the key type is BlsBn254, search for .pub files. Otherwise, search normally
                 if file_name.starts_with(&prefix) {
                     if key_type == KeyType::BlsBn254 {
-                        if file_name.ends_with(".pub") {
+                        if entry.path().extension().is_some() {
                             let public_key_path = entry.path();
                             let public_key_bytes = fs::read(public_key_path).ok()?;
                             Some(public_key_bytes)
@@ -224,8 +224,10 @@ impl Backend for FilesystemKeystore {
     }
 
     fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<bn254::Public, Error> {
-        let secret = bn254::generate_with_optional_seed(seed);
-        let public = bn254::to_public(&secret);
+        let secret = bn254::generate_with_optional_seed(seed)?;
+        let pair = eigensdk::crypto_bls::BlsKeyPair::new(secret.to_string())
+            .map_err(|e| Error::BlsBn254(e.to_string()))?;
+        let public = pair.public_key();
         let path = self.key_file_path(
             bn254::hash_public(public.clone())?.as_bytes(),
             KeyType::BlsBn254,
@@ -246,7 +248,6 @@ impl Backend for FilesystemKeystore {
                 .map_err(|e| Error::BlsBn254(e.to_string()))?
                 .as_slice(),
         )?;
-
         Ok(public)
     }
 
@@ -379,7 +380,7 @@ impl Backend for FilesystemKeystore {
         use w3f_bls::SerializableToBytes;
 
         self.iter_keys(KeyType::Bls381)
-            .flat_map(|b| bls381::Public::from_bytes(&b))
+            .flat_map(|b| bls381::Public::from_bytes(b.as_slice()))
     }
 
     fn iter_bls_bn254(&self) -> impl Iterator<Item = bn254::Public> {
