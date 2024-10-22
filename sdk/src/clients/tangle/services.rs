@@ -28,7 +28,7 @@ impl<C: Config> ServicesClient<C> {
 }
 
 /// A list of services provided by an operator, along with their blueprint
-pub type RpcServicesWithBlueprint = services::RpcServicesWithBlueprint<AccountId32, u64>;
+pub type RpcServicesWithBlueprint = services::RpcServicesWithBlueprint<AccountId32, u64, u128>;
 
 impl<C: Config> ServicesClient<C>
 where

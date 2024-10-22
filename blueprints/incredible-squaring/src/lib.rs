@@ -10,7 +10,6 @@ use std::convert::Infallible;
         listener = TangleEventListener,
         event = JobCalled,
     ),
-    verifier(evm = "IncredibleSquaringBlueprint")
 )]
 pub fn xsquare(x: u64) -> Result<u64, Infallible> {
     Ok(x.saturating_pow(2u32))
