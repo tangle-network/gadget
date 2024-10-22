@@ -1,35 +1,29 @@
-use std::{collections::HashMap, sync::Arc};
-
 use crate::{
+    aggregator::AggregatorContext,
     constants::{
         AVS_DIRECTORY_ADDRESS, DELEGATION_MANAGER_ADDRESS, EIGENLAYER_HTTP_ENDPOINT,
         OPERATOR_ADDRESS, OPERATOR_METADATA_URL, OPERATOR_STATE_RETRIEVER_ADDRESS, PRIVATE_KEY,
         REGISTRY_COORDINATOR_ADDRESS, SIGNATURE_EXPIRY, STRATEGY_MANAGER_ADDRESS,
         TASK_MANAGER_ADDRESS,
     },
-    context::AggregatorContext,
-    IncredibleSquaringTaskManager, InitializeBlsTaskEventHandler, NodeConfig,
+    IncredibleSquaringTaskManager, InitializeBlsTaskEventHandler,
 };
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Bytes, FixedBytes, U256};
-use alloy_provider::{Provider, ProviderBuilder};
+use alloy_provider::ProviderBuilder;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::{eyre::eyre, Result};
+use eigensdk::client_avsregistry::writer::AvsRegistryChainWriter;
 use eigensdk::client_elcontracts::reader::ELChainReader;
 use eigensdk::client_elcontracts::writer::ELChainWriter;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
-use eigensdk::{client_avsregistry::writer::AvsRegistryChainWriter, utils::get_provider};
-use futures_util::lock::Mutex;
-use gadget_sdk::events_watcher::InitializableEventHandler;
+use gadget_sdk::config::{ContextConfig, GadgetConfiguration};
+use gadget_sdk::events_watcher::{evm::DefaultNodeConfig, InitializableEventHandler};
 use gadget_sdk::info;
 use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::structopt::StructOpt;
-use gadget_sdk::{
-    config::{ContextConfig, GadgetConfiguration},
-    ctx::EigenlayerContext,
-};
 pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
     pub env: GadgetConfiguration<R>,
 }
@@ -155,30 +149,16 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             provider.clone(),
         );
 
-        let aggregator_context = AggregatorContext {
-            port_address: "127.0.0.1:8081".to_string(),
-            task_manager_addr: *TASK_MANAGER_ADDRESS,
-            tasks: Arc::new(Mutex::new(HashMap::new())),
-            tasks_responses: Arc::new(Mutex::new(HashMap::new())),
-            http_rpc_url: self.env.http_rpc_endpoint.clone(),
+        let aggregator_context = AggregatorContext::new(
+            "127.0.0.1:8081".to_string(),
+            *TASK_MANAGER_ADDRESS,
+            self.env.http_rpc_endpoint.clone(),
             wallet,
-            sdk_config: self.env.clone(),
-        };
+            self.env.clone(),
+        )
+        .await?;
 
-        let cancellation_token = tokio_util::sync::CancellationToken::new();
-        let token_clone = cancellation_token.clone();
-        let current_block = provider.clone().get_block_number().await?;
-        let agg_ctx_clone = aggregator_context.clone();
-        tokio::task::spawn(async move {
-            agg_ctx_clone
-                .operator_info_service_in_memory()
-                .await
-                .unwrap()
-                .start_service(&token_clone, 0, current_block)
-                .await
-        });
-
-        let x_square_eigen = InitializeBlsTaskEventHandler::<NodeConfig> {
+        let x_square_eigen = InitializeBlsTaskEventHandler::<DefaultNodeConfig> {
             ctx: aggregator_context,
             contract: contract.into(),
         };

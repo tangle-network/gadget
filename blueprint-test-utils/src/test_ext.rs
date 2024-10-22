@@ -41,7 +41,6 @@ use gadget_sdk::{error, info, warn};
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 const LOCAL_TANGLE_NODE_HTTP: &str = "http://127.0.0.1:9944";
-const LOCAL_TANGLE_NODE_WS: &str = "ws://127.0.0.1:9944";
 pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
 
 /// - `N`: number of nodes

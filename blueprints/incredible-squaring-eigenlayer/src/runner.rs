@@ -5,7 +5,7 @@ use crate::{
         REGISTRY_COORDINATOR_ADDRESS, SIGNATURE_EXPIRY, STRATEGY_MANAGER_ADDRESS,
         TASK_MANAGER_ADDRESS,
     },
-    IncredibleSquaringTaskManager, NodeConfig, XsquareEigenEventHandler,
+    IncredibleSquaringTaskManager, XsquareEigenEventHandler,
 };
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Bytes, FixedBytes, U256};
@@ -18,11 +18,14 @@ use eigensdk::client_elcontracts::writer::ELChainWriter;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
-use gadget_sdk::config::{ContextConfig, GadgetConfiguration};
 use gadget_sdk::events_watcher::InitializableEventHandler;
 use gadget_sdk::info;
 use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::structopt::StructOpt;
+use gadget_sdk::{
+    config::{ContextConfig, GadgetConfiguration},
+    events_watcher::evm::DefaultNodeConfig,
+};
 pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
     pub env: GadgetConfiguration<R>,
 }
@@ -148,7 +151,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             provider,
         );
 
-        let x_square_eigen = XsquareEigenEventHandler::<NodeConfig> {
+        let x_square_eigen = XsquareEigenEventHandler::<DefaultNodeConfig> {
             contract: contract.into(),
         };
 

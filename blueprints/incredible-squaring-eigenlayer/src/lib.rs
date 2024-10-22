@@ -1,16 +1,10 @@
 #![allow(dead_code)]
 use alloy_contract::ContractInstance;
 use alloy_network::Ethereum;
-use alloy_network::EthereumWallet;
 use alloy_primitives::keccak256;
 use alloy_primitives::{hex, Bytes, FixedBytes, U256};
-use alloy_provider::fillers::WalletFiller;
-use alloy_provider::fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller};
-use alloy_provider::Identity;
-use alloy_provider::RootProvider;
 use alloy_sol_types::SolType;
 use alloy_sol_types::{private::alloy_json_abi::JsonAbi, sol};
-use alloy_transport_http::{Client, Http};
 use ark_bn254::Fq;
 use ark_ff::{BigInteger, PrimeField};
 use client::AggregatorClient;
@@ -18,8 +12,8 @@ use client::SignedTaskResponse;
 use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
+use gadget_sdk::job;
 use gadget_sdk::load_abi;
-use gadget_sdk::{events_watcher::evm::Config, job};
 use serde::{Deserialize, Serialize};
 use std::{convert::Infallible, ops::Deref, sync::OnceLock};
 use IncredibleSquaringTaskManager::TaskResponse;
@@ -43,22 +37,6 @@ load_abi!(
     INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
     "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
 );
-
-#[derive(Debug, Clone)]
-pub struct NodeConfig {}
-
-impl Config for NodeConfig {
-    type TH = Http<Client>;
-    type PH = FillProvider<
-        JoinFill<
-            JoinFill<JoinFill<JoinFill<Identity, GasFiller>, NonceFiller>, ChainIdFiller>,
-            WalletFiller<EthereumWallet>,
-        >,
-        RootProvider<Http<Client>>,
-        Http<Client>,
-        Ethereum,
-    >;
-}
 
 pub fn noop(_: u32) {
     // This function intentionally does nothing
@@ -129,7 +107,7 @@ pub async fn xsquare_eigen(
 /// and parse the return type by the index.
 pub fn convert_event_to_inputs(
     event: IncredibleSquaringTaskManager::NewTaskCreated,
-    index: u32,
+    _index: u32,
 ) -> (U256, u32, Bytes, u8, u32) {
     let task_index = event.taskIndex;
     let number_to_be_squared = event.task.numberToBeSquared;

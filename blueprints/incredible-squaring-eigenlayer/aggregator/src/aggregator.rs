@@ -1,39 +1,38 @@
-use crate::{
-    context::AggregatorContext,
-    IncredibleSquaringTaskManager::{
-        self, G1Point, G2Point, NewTaskCreated, NonSignerStakesAndSignature, Task, TaskResponse,
-    },
+use crate::IncredibleSquaringTaskManager::{
+    self, G1Point, G2Point, NonSignerStakesAndSignature, TaskResponse,
 };
-use alloy_network::{Ethereum, EthereumWallet, NetworkWallet};
-use alloy_primitives::{keccak256, Address};
-use alloy_provider::{Provider, ProviderBuilder, WsConnect};
-use alloy_rpc_types::Filter;
-use alloy_sol_types::{SolEvent, SolType};
+use alloy_network::{Ethereum, NetworkWallet};
+use alloy_primitives::keccak256;
+use alloy_sol_types::SolType;
 use color_eyre::Result;
 use eigensdk::{
-    client_avsregistry::reader::AvsRegistryChainReader,
     crypto_bls::{
         convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point, OperatorId, Signature,
     },
-    logging::get_test_logger,
-    services_avsregistry::chaincaller::AvsRegistryServiceChainCaller,
-    services_blsaggregation::bls_agg::{BlsAggregationServiceResponse, BlsAggregatorService},
-    services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory,
-    types::avs::{TaskIndex, TaskResponseDigest},
+    services_blsaggregation::bls_agg::BlsAggregationServiceResponse,
     utils::get_provider,
 };
-use futures_util::StreamExt;
-use gadget_sdk::{ctx::EigenlayerContext, debug, error, info};
+use gadget_sdk::{
+    config::StdGadgetConfiguration,
+    ctx::{EigenlayerContext, KeystoreContext},
+    debug, error, info,
+};
 use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::oneshot;
 use tokio::{sync::Mutex, task::JoinHandle};
-use tokio_util::sync::CancellationToken;
 
-const TASK_CHALLENGE_WINDOW_BLOCK: u32 = 100;
-const BLOCK_TIME_SECONDS: u32 = 12;
+use crate::IncredibleSquaringTaskManager::Task;
+use alloy_network::EthereumWallet;
+use alloy_primitives::Address;
+use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
+use eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller;
+use eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService;
+use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory;
+use eigensdk::types::avs::{TaskIndex, TaskResponseDigest};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedTaskResponse {
@@ -42,64 +41,59 @@ pub struct SignedTaskResponse {
     pub operator_id: OperatorId,
 }
 
+#[derive(Clone, EigenlayerContext, KeystoreContext)]
+pub struct AggregatorContext {
+    pub port_address: String,
+    pub task_manager_addr: Address,
+    pub tasks: Arc<Mutex<HashMap<TaskIndex, Task>>>,
+    pub tasks_responses: Arc<Mutex<HashMap<TaskIndex, HashMap<TaskResponseDigest, TaskResponse>>>>,
+    pub bls_aggregation_service: Option<
+        Arc<
+            Mutex<
+                BlsAggregatorService<
+                    AvsRegistryServiceChainCaller<
+                        AvsRegistryChainReader,
+                        OperatorInfoServiceInMemory,
+                    >,
+                >,
+            >,
+        >,
+    >,
+    pub http_rpc_url: String,
+    pub wallet: EthereumWallet,
+    #[config]
+    pub sdk_config: StdGadgetConfiguration,
+}
+
 impl AggregatorContext {
-    // pub async fn new(
-    //     task_manager_addr: Address,
-    //     registry_coordinator_addr: Address,
-    //     operator_state_retriever_addr: Address,
-    //     http_rpc_url: String,
-    //     ws_rpc_url: String,
-    //     aggregator_ip_addr: String,
-    //     wallet: EthereumWallet,
-    // ) -> Result<(Self, CancellationToken)> {
-    //     let avs_registry_chain_reader = AvsRegistryChainReader::new(
-    //         get_test_logger(),
-    //         registry_coordinator_addr,
-    //         operator_state_retriever_addr,
-    //         http_rpc_url.clone(),
-    //     )
-    //     .await?;
+    pub async fn new(
+        port_address: String,
+        task_manager_addr: Address,
+        http_rpc_url: String,
+        wallet: EthereumWallet,
+        sdk_config: StdGadgetConfiguration,
+    ) -> Result<Self, std::io::Error> {
+        let mut aggregator_context = AggregatorContext {
+            port_address,
+            task_manager_addr,
+            tasks: Arc::new(Mutex::new(HashMap::new())),
+            tasks_responses: Arc::new(Mutex::new(HashMap::new())),
+            bls_aggregation_service: None,
+            http_rpc_url,
+            wallet,
+            sdk_config,
+        };
 
-    //     let operators_info_service = OperatorInfoServiceInMemory::new(
-    //         get_test_logger(),
-    //         avs_registry_chain_reader.clone(),
-    //         ws_rpc_url,
-    //     )
-    //     .await;
+        // Initialize the bls registry service
+        let bls_service = aggregator_context
+            .bls_aggregation_service_in_memory()
+            .await?;
+        aggregator_context.bls_aggregation_service = Some(Arc::new(Mutex::new(bls_service)));
 
-    //     let cancellation_token = tokio_util::sync::CancellationToken::new();
-    //     let operators_info_clone = operators_info_service.clone();
-    //     let token_clone = cancellation_token.clone();
-    //     let provider = get_provider(&http_rpc_url);
-    //     let current_block = provider.get_block_number().await?;
+        Ok(aggregator_context)
+    }
 
-    //     tokio::task::spawn(async move {
-    //         operators_info_clone
-    //             .start_service(&token_clone, 0, current_block)
-    //             .await
-    //     });
-
-    //     let avs_registry_service = AvsRegistryServiceChainCaller::new(
-    //         avs_registry_chain_reader,
-    //         operators_info_service.clone(),
-    //     );
-
-    //     let bls_aggregation_service = BlsAggregatorService::new(avs_registry_service);
-
-    //     Ok((
-    //         Self {
-    //             port_address: aggregator_ip_addr,
-    //             task_manager_addr,
-    //             tasks: HashMap::new(),
-    //             tasks_responses: HashMap::new(),
-    //             http_rpc_url,
-    //             wallet,
-    //         },
-    //         cancellation_token,
-    //     ))
-    // }
-
-    pub fn start(self, ws_rpc_url: String) -> (JoinHandle<()>, oneshot::Sender<()>) {
+    pub fn start(self, _ws_rpc_url: String) -> (JoinHandle<()>, oneshot::Sender<()>) {
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         let aggregator = Arc::new(Mutex::new(self));
 
@@ -262,7 +256,7 @@ impl AggregatorContext {
             return Ok(());
         }
 
-        if let Some(mut tasks_responses) = self.tasks_responses.lock().await.get_mut(&task_index) {
+        if let Some(tasks_responses) = self.tasks_responses.lock().await.get_mut(&task_index) {
             tasks_responses.insert(task_response_digest, task_response.clone());
         }
 

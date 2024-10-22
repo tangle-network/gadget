@@ -157,7 +157,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         #event_workflow_gen
     };
 
-    // println!("{}", gen.to_string());
+    // println!("{}", gen);
 
     Ok(gen.into())
 }

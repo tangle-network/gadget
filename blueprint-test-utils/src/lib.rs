@@ -398,7 +398,7 @@ macro_rules! test_blueprint {
             let manifest_path = base_path.join("Cargo.toml");
 
 
-            let ws_addr = "http://127.0.0.1:9944";
+            let http_addr = "http://127.0.0.1:9944";
             let ws_addr = "ws://127.0.0.1:9944";
 
             let opts = Opts {
@@ -487,7 +487,7 @@ mod tests_standard {
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
-    use incredible_squaring_aggregator::aggregator::Aggregator;
+    use incredible_squaring_aggregator::aggregator::AggregatorContext;
     use std::str::FromStr;
 
     /// This test requires that `yarn install` has been executed inside the
@@ -682,7 +682,7 @@ mod tests_standard {
                 .parse()
                 .unwrap();
         let wallet = EthereumWallet::from(signer);
-        let (aggregator, _cancellation_token) = Aggregator::new(
+        let (aggregator, _cancellation_token) = AggregatorContext::new(
             task_manager_addr,
             registry_coordinator_addr,
             operator_state_retriever_addr,

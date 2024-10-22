@@ -3,6 +3,7 @@ use std::error::Error;
 // mod tests {
 use super::*;
 use crate::runner::EigenlayerGadgetRunner;
+use alloy_network::EthereumWallet;
 use alloy_primitives::address;
 use alloy_provider::Provider;
 use alloy_signer_local::PrivateKeySigner;
@@ -10,9 +11,10 @@ use blueprint_test_utils::test_ext::NAME_IDS;
 use blueprint_test_utils::{anvil, get_receipt, inject_test_keys};
 use gadget_io::SupportedChains;
 use gadget_sdk::config::{ContextConfig, GadgetCLICoreSettings, Protocol};
+use gadget_sdk::info;
 use gadget_sdk::logging::setup_log;
 use gadget_sdk::run::GadgetRunner;
-use incredible_squaring_aggregator::aggregator::Aggregator;
+use incredible_squaring_aggregator::aggregator::AggregatorContext;
 use reqwest::Url;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -58,8 +60,9 @@ async fn test_eigenlayer_incredible_squaring_blueprint() -> Result<(), Box<dyn E
     std::env::set_var("OPERATOR_ECDSA_KEY_PASSWORD", "ECDSA_PASSWORD");
     std::env::set_var("OPERATOR_BLS_KEY_PASSWORD", "BLS_PASSWORD");
 
-    let url = Url::parse(&ws_endpoint.clone()).unwrap();
-    let bind_port = url.port().unwrap();
+    let http_url = Url::parse(&http_endpoint.clone()).unwrap();
+    let ws_url = Url::parse(&ws_endpoint.clone()).unwrap();
+    let bind_port = ws_url.port().unwrap();
 
     // Sleep to give the testnet time to spin up
     tokio::time::sleep(Duration::from_secs(1)).await;
@@ -135,17 +138,14 @@ async fn test_eigenlayer_incredible_squaring_blueprint() -> Result<(), Box<dyn E
             .parse()
             .unwrap();
     let wallet = EthereumWallet::from(signer);
-    let (aggregator, _cancellation_token) = Aggregator::new(
-        task_manager_addr,
-        registry_coordinator_addr,
-        operator_state_retriever_addr,
-        http_endpoint.clone(),
-        ws_endpoint.clone(),
+    let aggregator = AggregatorContext::new(
         "127.0.0.1:8081".to_string(),
+        task_manager_addr,
+        http_endpoint.clone(),
         wallet,
+        sdk_config,
     )
-    .await
-    .unwrap();
+    .await?;
 
     // Run the server in a separate thread
     let (_aggregator_task, aggregator_shutdown) = aggregator.start(ws_endpoint.to_string());
@@ -158,7 +158,8 @@ async fn test_eigenlayer_incredible_squaring_blueprint() -> Result<(), Box<dyn E
             bind_port,
             test_mode: false,
             log_id: None,
-            url,
+            http_rpc_url: http_url,
+            ws_rpc_url: ws_url,
             bootnodes: None,
             keystore_uri: alice_keystore,
             chain: SupportedChains::LocalTestnet,

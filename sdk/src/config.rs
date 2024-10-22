@@ -150,7 +150,7 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
             data_dir: self.data_dir.clone(),
             blueprint_id: self.blueprint_id,
             service_id: self.service_id,
-            eigenlayer_contract_addrs: self.eigenlayer_contract_addrs.clone(),
+            eigenlayer_contract_addrs: self.eigenlayer_contract_addrs,
             is_registration: self.is_registration,
             protocol: self.protocol,
             bind_port: self.bind_port,

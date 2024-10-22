@@ -1,7 +1,4 @@
-use crate::config::BlueprintManagerConfig;
 use crate::protocols::resolver::NativeGithubMetadata;
-use gadget_io::GadgetConfig;
-use gadget_sdk::config::Protocol;
 use gadget_sdk::{info, warn};
 use sha2::Digest;
 use std::path::Path;
