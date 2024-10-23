@@ -22,8 +22,9 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Gadget subcommand
-    Gadget {
+    /// Blueprint subcommand
+    #[command(visible_alias = "bp")]
+    Blueprint {
         #[command(subcommand)]
         subcommand: GadgetCommands,
     },
@@ -32,6 +33,7 @@ enum Commands {
 #[derive(Subcommand, Debug)]
 enum GadgetCommands {
     /// Create a new blueprint
+    #[command(visible_alias = "c")]
     Create {
         /// The name of the blueprint
         #[arg(short, long)]
@@ -42,6 +44,7 @@ enum GadgetCommands {
     },
 
     /// Deploy a blueprint to the Tangle Network.
+    #[command(visible_alias = "d")]
     Deploy {
         /// Tangle RPC URL to use
         #[arg(long, value_name = "URL", default_value = "wss://rpc.tangle.tools")]
@@ -73,7 +76,7 @@ async fn main() -> color_eyre::Result<()> {
     let cli = Cli::parse_from(args);
 
     match cli.command {
-        Commands::Gadget { subcommand } => match subcommand {
+        Commands::Blueprint { subcommand } => match subcommand {
             GadgetCommands::Create { name, source } => {
                 create::new_blueprint(name, source);
             }
