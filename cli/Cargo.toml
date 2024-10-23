@@ -29,3 +29,5 @@ alloy-provider = { workspace = true }
 alloy-network = { workspace = true }
 alloy-rpc-types = { workspace = true }
 alloy-signer-local = { workspace = true }
+hex = { workspace = true }
+w3f-bls = { workspace = true }

@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
-use cargo_tangle::{create, deploy};
+use cargo_tangle::{create, deploy, keys};
 use clap::{Parser, Subcommand};
+use keys::KeyType;
 
 /// Tangle CLI tool
 #[derive(Parser, Debug)]
@@ -50,6 +51,24 @@ enum GadgetCommands {
         #[arg(short, long, value_name = "PACKAGE")]
         package: Option<String>,
     },
+    /// Generate a key
+    GenerateKey {
+        /// The type of key to generate
+        #[arg(short, long, value_enum)]
+        key_type: KeyType,
+
+        /// The path to save the key (optional)
+        #[arg(short, long)]
+        path: Option<PathBuf>,
+
+        /// The seed to use for the generation of the key (optional)
+        #[arg(short, long)]
+        seed: Option<String>,
+
+        /// If true, the secret key will be printed along with the public key
+        #[arg(short, long)]
+        show_secret: bool,
+    },
 }
 
 #[tokio::main]
@@ -90,6 +109,19 @@ async fn main() -> color_eyre::Result<()> {
                     signer_evm: None,
                 })
                 .await?;
+            }
+            GadgetCommands::GenerateKey {
+                key_type,
+                path,
+                seed,
+                show_secret,
+            } => {
+                keys::generate_key(
+                    key_type,
+                    path,
+                    seed.as_deref().map(str::as_bytes),
+                    show_secret,
+                )?;
             }
         },
     }
