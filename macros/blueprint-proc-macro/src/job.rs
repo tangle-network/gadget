@@ -764,7 +764,6 @@ impl Parse for Results {
     }
 }
 
-#[derive(Debug)]
 /// `#[job(event_listener(MyCustomListener, MyCustomListener2)]`
 /// Accepts an optional argument that specifies the event listener to use that implements EventListener
 pub(crate) struct EventListenerArgs {
@@ -778,7 +777,6 @@ pub enum ListenerType {
     Custom,
 }
 
-#[derive(Debug)]
 pub(crate) struct SingleListener {
     pub listener: Type,
     pub evm_args: Option<EvmArgs>,
@@ -890,7 +888,6 @@ impl Parse for EventListenerArgs {
     }
 }
 
-#[derive(Debug)]
 pub(crate) struct EvmArgs {
     instance: Option<Ident>,
     event: Option<Type>,
