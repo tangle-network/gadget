@@ -26,10 +26,7 @@ pub fn generate_context_impl(
         impl #impl_generics gadget_sdk::ctx::EigenlayerContext for #name #ty_generics #where_clause {
             async fn avs_registry_reader(&self) -> Result<eigensdk::client_avsregistry::reader::AvsRegistryChainReader, std::io::Error> {
                 let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
-                let contract_addrs = match &#field_access.eigenlayer_contract_addrs {
-                    Some(addrs) => addrs,
-                    None => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Contract addresses not found")),
-                };
+                let contract_addrs = #field_access.eigenlayer_contract_addrs;
                 let registry_coordinator_addr = contract_addrs.registry_coordinator_addr;
                 let operator_state_retriever_addr = contract_addrs.operator_state_retriever_addr;
 
@@ -43,10 +40,7 @@ pub fn generate_context_impl(
 
             async fn avs_registry_writer(&self, private_key: String) -> Result<eigensdk::client_avsregistry::writer::AvsRegistryChainWriter, std::io::Error> {
                 let http_rpc_endpoint = #field_access.http_rpc_endpoint.clone();
-                let contract_addrs = match &#field_access.eigenlayer_contract_addrs {
-                    Some(addrs) => addrs,
-                    None => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Contract addresses not found")),
-                };
+                let contract_addrs = #field_access.eigenlayer_contract_addrs;
                 let registry_coordinator_addr = contract_addrs.registry_coordinator_addr;
                 let operator_state_retriever_addr = contract_addrs.operator_state_retriever_addr;
 

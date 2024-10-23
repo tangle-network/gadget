@@ -114,7 +114,7 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     /// Whether the gadget is in test mode
     pub test_mode: bool,
     /// Basic Eigenlayer contract system
-    pub eigenlayer_contract_addrs: Option<EigenlayerContractAddresses>,
+    pub eigenlayer_contract_addrs: EigenlayerContractAddresses,
     _lock: core::marker::PhantomData<RwLock>,
 }
 
@@ -124,6 +124,29 @@ pub struct EigenlayerContractAddresses {
     pub operator_state_retriever_addr: Address,
     pub delegation_manager_addr: Address,
     pub strategy_manager_addr: Address,
+}
+
+impl Default for EigenlayerContractAddresses {
+    fn default() -> Self {
+        EigenlayerContractAddresses {
+            registry_coordinator_addr: std::env::var("REGISTRY_COORDINATOR_ADDR")
+                .unwrap_or_default()
+                .parse()
+                .unwrap(),
+            operator_state_retriever_addr: std::env::var("OPERATOR_STATE_RETRIEVER_ADDR")
+                .unwrap_or_default()
+                .parse()
+                .unwrap(),
+            delegation_manager_addr: std::env::var("DELEGATION_MANAGER_ADDR")
+                .unwrap_or_default()
+                .parse()
+                .unwrap(),
+            strategy_manager_addr: std::env::var("STRATEGY_MANAGER_ADDR")
+                .unwrap_or_default()
+                .parse()
+                .unwrap(),
+        }
+    }
 }
 
 impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
@@ -179,7 +202,7 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
             bootnodes: Vec::new(),
             blueprint_id: 0,
             service_id: Some(0),
-            eigenlayer_contract_addrs: None,
+            eigenlayer_contract_addrs: Default::default(),
             is_registration: false,
             protocol: Protocol::Tangle,
             bind_port: 0,
@@ -323,7 +346,8 @@ pub fn load(config: ContextConfig) -> Result<GadgetConfiguration<parking_lot::Ra
 /// # Errors
 ///
 /// This function will return an error if any of the required environment variables are missing.
-#[cfg(feature = "std")] // TODO: Add no_std support
+// TODO: Add no_std support
+#[cfg(feature = "std")]
 pub fn load_with_lock<RwLock: lock_api::RawRwLock>(
     config: ContextConfig,
 ) -> Result<GadgetConfiguration<RwLock>, Error> {
@@ -354,25 +378,6 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         ..
     } = config;
 
-    let eigenlayer_contract_addrs = EigenlayerContractAddresses {
-        registry_coordinator_addr: std::env::var("REGISTRY_COORDINATOR_ADDR")
-            .unwrap_or_default()
-            .parse()
-            .unwrap(),
-        operator_state_retriever_addr: std::env::var("OPERATOR_STATE_RETRIEVER_ADDR")
-            .unwrap_or_default()
-            .parse()
-            .unwrap(),
-        delegation_manager_addr: std::env::var("DELEGATION_MANAGER_ADDR")
-            .unwrap_or_default()
-            .parse()
-            .unwrap(),
-        strategy_manager_addr: std::env::var("STRATEGY_MANAGER_ADDRESS")
-            .unwrap_or_default()
-            .parse()
-            .unwrap(),
-    };
-
     let span = match log_id {
         Some(id) => tracing::info_span!("gadget", id = id),
         None => tracing::info_span!("gadget"),
@@ -397,7 +402,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         },
         is_registration,
         protocol,
-        eigenlayer_contract_addrs: Some(eigenlayer_contract_addrs),
+        eigenlayer_contract_addrs: Default::default(),
         _lock: core::marker::PhantomData,
     })
 }

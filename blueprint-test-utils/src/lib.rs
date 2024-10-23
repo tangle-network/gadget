@@ -469,25 +469,18 @@ mod test_macros {
 mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
-    use alloy_primitives::{address, Bytes, U256};
     use alloy_provider::network::EthereumWallet;
-    use alloy_provider::{Provider, ProviderBuilder, WsConnect};
     use cargo_tangle::deploy::{Opts, PrivateKeySigner};
-    use futures::StreamExt;
-    use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{debug, error, info};
     use helpers::{
-        deploy_task_manager, get_receipt, setup_eigenlayer_test_environment,
-        setup_task_response_listener, setup_task_spawner, BlueprintProcessManager,
-        EigenlayerTestEnvironment, IncredibleSquaringTaskManager,
+        deploy_task_manager, setup_eigenlayer_test_environment, setup_task_response_listener,
+        setup_task_spawner, BlueprintProcessManager, EigenlayerTestEnvironment,
     };
     use incredible_squaring_aggregator::aggregator::AggregatorContext;
-    use std::str::FromStr;
     use std::sync::Arc;
     use tokio::sync::Mutex;
     use tokio::time::timeout;
-    use IncredibleSquaringTaskManager::TaskResponded;
 
     const ANVIL_STATE_PATH: &str =
         "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
@@ -582,6 +575,11 @@ mod tests_standard {
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
 
+        let (_container, http_endpoint, ws_endpoint) =
+            anvil::start_anvil_container(ANVIL_STATE_PATH, true).await;
+
+        std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
+        std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint.clone());
         // Sleep to give the testnet time to spin up
         tokio::time::sleep(Duration::from_secs(1)).await;
 
@@ -590,11 +588,10 @@ mod tests_standard {
             http_endpoint,
             ws_endpoint,
             registry_coordinator_address,
-            operator_state_retriever_address,
             pauser_registry_address,
-        } = setup_eigenlayer_test_environment(ANVIL_STATE_PATH).await;
-        let provider = helpers::get_provider_http(&http_endpoint);
-        let task_generator_address = accounts[4];
+            ..
+        } = setup_eigenlayer_test_environment(&http_endpoint, &ws_endpoint).await;
+        let task_generator_address = accounts.clone()[4];
         let task_manager_address = deploy_task_manager(
             &http_endpoint,
             registry_coordinator_address,
@@ -603,10 +600,6 @@ mod tests_standard {
             accounts.as_ref(),
         )
         .await;
-
-        // We create a Task Manager instance for the task spawner
-        let task_manager =
-            IncredibleSquaringTaskManager::new(task_manager_address, provider.clone());
 
         let signer: PrivateKeySigner =
             "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
@@ -624,7 +617,7 @@ mod tests_standard {
         .unwrap();
 
         // Run the server in a separate thread
-        let (handle, aggregator_shutdown_tx) = aggregator_context.start(ws_endpoint.to_string());
+        let (handle, aggregator_shutdown_tx) = aggregator_context.start(ws_endpoint.clone());
 
         let successful_responses = Arc::new(Mutex::new(0));
         let successful_responses_clone = successful_responses.clone();
@@ -632,7 +625,7 @@ mod tests_standard {
         // Start the Task Response Listener
         let response_listener_handle = tokio::spawn(setup_task_response_listener(
             task_manager_address,
-            &ws_endpoint,
+            ws_endpoint.clone(),
             successful_responses,
         ));
 
@@ -641,8 +634,8 @@ mod tests_standard {
             task_manager_address,
             registry_coordinator_address,
             task_generator_address,
-            accounts.as_ref(),
-            http_endpoint,
+            accounts.to_vec(),
+            http_endpoint.clone(),
         ));
 
         info!("Starting Blueprint Binary...");
@@ -655,9 +648,11 @@ mod tests_standard {
         ))
         .canonicalize()
         .unwrap();
+
         blueprint_process_manager
-            .start_blueprint(program_path, 0, &http_endpoint, &ws_endpoint)
-            .await;
+            .start_blueprint(program_path, 0, &http_endpoint, ws_endpoint.as_ref())
+            .await
+            .unwrap();
 
         // Wait for the process to complete or timeout
         let timeout_duration = Duration::from_secs(300); // 5 minutes timeout

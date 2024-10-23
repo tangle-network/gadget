@@ -2002,6 +2002,7 @@ dependencies = [
  "sp-io",
  "subxt",
  "testcontainers",
+ "thiserror",
  "tokio",
  "tokio-util 0.7.12",
  "tracing",
