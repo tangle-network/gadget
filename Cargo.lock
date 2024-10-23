@@ -1781,7 +1781,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-metadata"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "cargo_metadata",
  "fs2",
@@ -2047,7 +2047,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-tangle"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "alloy-json-abi",
  "alloy-network",
@@ -2062,14 +2062,12 @@ dependencies = [
  "escargot",
  "gadget-blueprint-proc-macro-core",
  "gadget-sdk",
- "hex",
  "k256",
  "serde_json",
  "subxt",
  "tangle-subxt",
  "tokio",
  "tracing-subscriber 0.3.18",
- "w3f-bls",
 ]
 
 [[package]]
