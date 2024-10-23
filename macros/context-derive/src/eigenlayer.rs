@@ -29,7 +29,6 @@ pub fn generate_context_impl(
                 let contract_addrs = #field_access.eigenlayer_contract_addrs;
                 let registry_coordinator_addr = contract_addrs.registry_coordinator_addr;
                 let operator_state_retriever_addr = contract_addrs.operator_state_retriever_addr;
-
                 eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
                     eigensdk::logging::get_test_logger(),
                     registry_coordinator_addr,
@@ -103,7 +102,6 @@ pub fn generate_context_impl(
                 >
             >, std::io::Error> {
                 let avs_registry_service = self.avs_registry_service_chain_caller_in_memory().await?;
-
                 Ok(eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService::new(avs_registry_service))
             }
         }

@@ -20,9 +20,12 @@ use gadget_sdk::{
 use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
 use serde::{Deserialize, Serialize};
-use std::{net::SocketAddr, sync::Arc};
-use tokio::sync::{oneshot, Mutex};
+use std::{collections::VecDeque, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::task::JoinHandle;
+use tokio::{
+    sync::{oneshot, Mutex},
+    time::interval,
+};
 
 use crate::IncredibleSquaringTaskManager::Task;
 use alloy_network::EthereumWallet;
@@ -61,6 +64,7 @@ pub struct AggregatorContext {
     >,
     pub http_rpc_url: String,
     pub wallet: EthereumWallet,
+    pub response_cache: Arc<Mutex<VecDeque<SignedTaskResponse>>>,
     #[config]
     pub sdk_config: StdGadgetConfiguration,
 }
@@ -81,6 +85,7 @@ impl AggregatorContext {
             bls_aggregation_service: None,
             http_rpc_url,
             wallet,
+            response_cache: Arc::new(Mutex::new(VecDeque::new())),
             sdk_config,
         };
 
@@ -98,13 +103,21 @@ impl AggregatorContext {
         let aggregator = Arc::new(Mutex::new(self));
 
         let handle = tokio::spawn(async move {
-            info!("Starting aggregator");
+            info!("Starting aggregator RPC server");
 
-            tokio::spawn(Self::start_server(Arc::clone(&aggregator), shutdown_rx))
-                .await
-                .ok();
+            let server_handle =
+                tokio::spawn(Self::start_server(Arc::clone(&aggregator), shutdown_rx));
+            let process_handle =
+                tokio::spawn(Self::process_cached_responses(Arc::clone(&aggregator)));
 
-            info!("Aggregator is shutting down");
+            tokio::select! {
+                _ = server_handle => {
+                    error!("Server task unexpectedly finished");
+                }
+                _ = process_handle => {
+                    error!("Process cached responses task unexpectedly finished");
+                }
+            }
         });
 
         (handle, shutdown_tx)
@@ -176,6 +189,40 @@ impl AggregatorContext {
     }
 
     async fn process_signed_task_response(&mut self, resp: SignedTaskResponse) -> Result<()> {
+        let task_index = resp.task_response.referenceTaskIndex;
+        let task_response_digest = keccak256(TaskResponse::abi_encode(&resp.task_response));
+
+        info!(
+            "Caching signed task response for task index: {}, task response digest: {}",
+            task_index, task_response_digest
+        );
+
+        self.response_cache.lock().await.push_back(resp);
+
+        Ok(())
+    }
+
+    async fn process_cached_responses(aggregator: Arc<Mutex<Self>>) {
+        let mut interval = interval(Duration::from_secs(6));
+
+        loop {
+            interval.tick().await;
+
+            let mut aggregator = aggregator.lock().await;
+            let responses_to_process = aggregator.response_cache.lock().await.clone();
+
+            for resp in responses_to_process {
+                if let Err(e) = aggregator.process_response(resp).await {
+                    error!("Failed to process cached response: {:?}", e);
+                    // Continue processing other responses without failing
+                } else {
+                    aggregator.response_cache.lock().await.pop_front();
+                }
+            }
+        }
+    }
+
+    async fn process_response(&mut self, resp: SignedTaskResponse) -> Result<()> {
         let SignedTaskResponse {
             task_response,
             signature,
@@ -183,11 +230,6 @@ impl AggregatorContext {
         } = resp.clone();
         let task_index = task_response.referenceTaskIndex;
         let task_response_digest = keccak256(TaskResponse::abi_encode(&task_response));
-
-        info!(
-            "Processing signed task response for task index: {}, task response digest: {}",
-            task_index, task_response_digest
-        );
 
         if self
             .tasks_responses
@@ -204,35 +246,44 @@ impl AggregatorContext {
             return Ok(());
         }
 
+        info!(
+            "Processing signed task response for task index: {}, task response digest: {}",
+            task_index, task_response_digest
+        );
+
+        self.bls_aggregation_service
+            .as_ref()
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "BLS Aggregation Service not initialized",
+                )
+            })?
+            .lock()
+            .await
+            .process_new_signature(task_index, task_response_digest, signature, operator_id)
+            .await?;
+
         if let Some(tasks_responses) = self.tasks_responses.lock().await.get_mut(&task_index) {
             tasks_responses.insert(task_response_digest, task_response.clone());
         }
 
         debug!(
-            "Inserted task response for task index: {}, {:?}",
-            task_index, resp
+            "Successfully processed new signature for task index: {}",
+            task_index
         );
 
-        if let Err(e) = self
-            .bls_aggregation_service_in_memory()
-            .await?
-            .process_new_signature(task_index, task_response_digest, signature, operator_id)
-            .await
-        {
-            error!(
-                "Failed to process new signature for task index: {}. Error: {:?}",
-                task_index, e
-            );
-        } else {
-            debug!(
-                "Successfully processed new signature for task index: {}",
-                task_index
-            );
-        }
-
         if let Some(aggregated_response) = self
-            .bls_aggregation_service_in_memory()
-            .await?
+            .bls_aggregation_service
+            .as_ref()
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "BLS Aggregation Service not initialized",
+                )
+            })?
+            .lock()
+            .await
             .aggregated_response_receiver
             .lock()
             .await
@@ -244,6 +295,76 @@ impl AggregatorContext {
         }
         Ok(())
     }
+
+    // async fn process_signed_task_response(&mut self, resp: SignedTaskResponse) -> Result<()> {
+    //     let SignedTaskResponse {
+    //         task_response,
+    //         signature,
+    //         operator_id,
+    //     } = resp.clone();
+    //     let task_index = task_response.referenceTaskIndex;
+    //     let task_response_digest = keccak256(TaskResponse::abi_encode(&task_response));
+
+    //     info!(
+    //         "Processing signed task response for task index: {}, task response digest: {}",
+    //         task_index, task_response_digest
+    //     );
+
+    //     if self
+    //         .tasks_responses
+    //         .lock()
+    //         .await
+    //         .entry(task_index)
+    //         .or_default()
+    //         .contains_key(&task_response_digest)
+    //     {
+    //         info!(
+    //             "Task response digest already processed for task index: {}",
+    //             task_index
+    //         );
+    //         return Ok(());
+    //     }
+
+    //     if let Some(tasks_responses) = self.tasks_responses.lock().await.get_mut(&task_index) {
+    //         tasks_responses.insert(task_response_digest, task_response.clone());
+    //     }
+
+    //     debug!(
+    //         "Inserted task response for task index: {}, {:?}",
+    //         task_index, resp
+    //     );
+
+    //     if let Err(e) = self
+    //         .bls_aggregation_service_in_memory()
+    //         .await?
+    //         .process_new_signature(task_index, task_response_digest, signature, operator_id)
+    //         .await
+    //     {
+    //         error!(
+    //             "Failed to process new signature for task index: {}. Error: {:?}",
+    //             task_index, e
+    //         );
+    //     } else {
+    //         debug!(
+    //             "Successfully processed new signature for task index: {}",
+    //             task_index
+    //         );
+    //     }
+
+    //     if let Some(aggregated_response) = self
+    //         .bls_aggregation_service_in_memory()
+    //         .await?
+    //         .aggregated_response_receiver
+    //         .lock()
+    //         .await
+    //         .recv()
+    //         .await
+    //     {
+    //         self.send_aggregated_response_to_contract(aggregated_response?)
+    //             .await?;
+    //     }
+    //     Ok(())
+    // }
 
     async fn send_aggregated_response_to_contract(
         &self,

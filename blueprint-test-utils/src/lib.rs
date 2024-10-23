@@ -471,6 +471,7 @@ mod tests_standard {
     use crate::test_ext::new_test_ext_blueprint_manager;
     use alloy_provider::network::EthereumWallet;
     use cargo_tangle::deploy::{Opts, PrivateKeySigner};
+    use gadget_sdk::config::StdGadgetConfiguration;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{debug, error, info};
     use helpers::{
@@ -606,12 +607,16 @@ mod tests_standard {
                 .parse()
                 .unwrap();
         let wallet = EthereumWallet::from(signer);
+        let mut sdk_config = StdGadgetConfiguration::default();
+        // Override the http and ws endpoints, since default is wrong port
+        sdk_config.http_rpc_endpoint = http_endpoint.clone();
+        sdk_config.ws_rpc_endpoint = ws_endpoint.clone();
         let aggregator_context = AggregatorContext::new(
             "127.0.0.1:8081".to_string(),
             task_manager_address,
             http_endpoint.clone(),
             wallet,
-            Default::default(),
+            sdk_config,
         )
         .await
         .unwrap();
@@ -623,34 +628,53 @@ mod tests_standard {
         let successful_responses_clone = successful_responses.clone();
 
         // Start the Task Response Listener
-        let response_listener_handle = tokio::spawn(setup_task_response_listener(
+        let response_listener = setup_task_response_listener(
             task_manager_address,
             ws_endpoint.clone(),
             successful_responses,
-        ));
+        )
+        .await;
 
         // Start the Task Spawner
-        let task_spawner_handle = tokio::spawn(setup_task_spawner(
+        let task_spawner = setup_task_spawner(
             task_manager_address,
             registry_coordinator_address,
             task_generator_address,
             accounts.to_vec(),
             http_endpoint.clone(),
-        ));
+        )
+        .await;
+
+        tokio::spawn(async move {
+            task_spawner.await;
+        });
+
+        tokio::spawn(async move {
+            response_listener.await;
+        });
 
         info!("Starting Blueprint Binary...");
 
         let blueprint_process_manager = BlueprintProcessManager::new();
         let current_dir = std::env::current_dir().unwrap();
-        let program_path = PathBuf::from(format!(
+        let xsquare_task_program_path = PathBuf::from(format!(
             "{}/../target/release/incredible-squaring-blueprint-eigenlayer",
             current_dir.display()
         ))
         .canonicalize()
         .unwrap();
 
+        let aggregator_task_program_path = PathBuf::from(format!(
+            "{}/../target/release/incredible-squaring-aggregator",
+            current_dir.display()
+        ));
+
         blueprint_process_manager
-            .start_blueprint(program_path, 0, &http_endpoint, ws_endpoint.as_ref())
+            .start_blueprints(
+                vec![xsquare_task_program_path, aggregator_task_program_path],
+                &http_endpoint,
+                ws_endpoint.as_ref(),
+            )
             .await
             .unwrap();
 
@@ -678,10 +702,6 @@ mod tests_standard {
         if let Err(e) = handle.await {
             error!("Error waiting for aggregator to shut down: {:?}", e);
         }
-
-        // Cancel the task spawner and response listener
-        task_spawner_handle.abort();
-        response_listener_handle.abort();
 
         // Check the result
         match result {

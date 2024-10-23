@@ -12,7 +12,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 use url::Url;
 
-use crate::test_ext::NAME_IDS;
+use crate::test_ext::{find_open_tcp_bind_port, NAME_IDS};
 use alloy_primitives::{address, Address, Bytes, U256};
 use alloy_provider::{network::Ethereum, Provider, ProviderBuilder};
 use alloy_transport::{BoxTransport, Transport, TransportError};
@@ -29,8 +29,6 @@ pub enum BlueprintError {
     #[error("Contract error occurred: {0}")]
     ContractError(#[from] alloy_contract::Error),
 }
-
-// Assuming TransportError and CallError are defined elsewhere in your codebase
 
 alloy_sol_types::sol!(
     #[allow(missing_docs)]
@@ -127,6 +125,7 @@ pub async fn setup_eigenlayer_test_environment(
 
     let registry_coordinator =
         RegistryCoordinator::new(registry_coordinator_address, provider.clone());
+
     let operator_set_params = RegistryCoordinator::OperatorSetParam {
         maxOperatorCount: 10,
         kickBIPsOfOperatorStake: 100,
@@ -206,34 +205,34 @@ impl BlueprintProcessManager {
         }
     }
 
-    pub async fn start_blueprint(
-        &self,
+    /// Helper function to start a blueprint process with given parameters.
+    async fn start_blueprint_process(
         program_path: PathBuf,
         instance_id: usize,
-        http_rpc_url: &str,
-        ws_rpc_url: &str,
-    ) -> Result<(), std::io::Error> {
+        http_endpoint: &str,
+        ws_endpoint: &str,
+    ) -> Result<BlueprintProcess, std::io::Error> {
         let tmp_store = uuid::Uuid::new_v4().to_string();
-        let keystore_uri = PathBuf::from(format!(
+        let keystore_uri = format!(
             "./target/keystores/{}/{tmp_store}/",
             NAME_IDS[instance_id].to_lowercase()
-        ));
+        );
         assert!(
-            !keystore_uri.exists(),
+            !std::path::Path::new(&keystore_uri).exists(),
             "Keystore URI cannot exist: {}",
-            keystore_uri.display()
+            keystore_uri
         );
 
         let keystore_uri_normalized =
-            std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
+            std::path::absolute(&keystore_uri).expect("Failed to resolve keystore URI");
         let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
 
         let arguments = vec![
             "run".to_string(),
             format!("--bind-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
-            format!("--bind-port={}", 8545u16 + instance_id as u16),
-            format!("--http-url={}", Url::parse(http_rpc_url).unwrap()),
-            format!("--ws-url={}", Url::parse(ws_rpc_url).unwrap()),
+            format!("--bind-port={}", find_open_tcp_bind_port()),
+            format!("--http-rpc-url={}", Url::parse(http_endpoint).unwrap()),
+            format!("--ws-rpc-url={}", Url::parse(ws_endpoint).unwrap()),
             format!("--keystore-uri={}", keystore_uri_str.clone()),
             format!("--chain={}", SupportedChains::LocalTestnet),
             format!("--verbose={}", 3),
@@ -244,24 +243,30 @@ impl BlueprintProcessManager {
         ];
 
         let mut env_vars = HashMap::new();
-        env_vars.insert("HTTP_RPC_URL".to_string(), http_rpc_url.to_string());
-        env_vars.insert("WS_RPC_URL".to_string(), ws_rpc_url.to_string());
+        env_vars.insert("HTTP_RPC_URL".to_string(), http_endpoint.to_string());
+        env_vars.insert("WS_RPC_URL".to_string(), ws_endpoint.to_string());
         env_vars.insert("KEYSTORE_URI".to_string(), keystore_uri_str.clone());
         env_vars.insert("DATA_DIR".to_string(), keystore_uri_str);
         env_vars.insert("BLUEPRINT_ID".to_string(), instance_id.to_string());
         env_vars.insert("SERVICE_ID".to_string(), instance_id.to_string());
         env_vars.insert("REGISTRATION_MODE_ON".to_string(), "true".to_string());
-        env_vars.insert(
-            "OPERATOR_BLS_KEY_PASSWORD".to_string(),
-            "BLS_PASSWORD".to_string(),
-        );
-        env_vars.insert(
-            "OPERATOR_ECDSA_KEY_PASSWORD".to_string(),
-            "ECDSA_PASSWORD".to_string(),
-        );
 
-        let process = BlueprintProcess::new(program_path, arguments, env_vars).await?;
-        self.processes.lock().await.push(process);
+        BlueprintProcess::new(program_path, arguments, env_vars).await
+    }
+
+    /// Starts multiple blueprint processes and adds them to the process manager.
+    pub async fn start_blueprints(
+        &self,
+        blueprint_paths: Vec<PathBuf>,
+        http_endpoint: &str,
+        ws_endpoint: &str,
+    ) -> Result<(), std::io::Error> {
+        for (index, program_path) in blueprint_paths.into_iter().enumerate() {
+            let process =
+                Self::start_blueprint_process(program_path, index, http_endpoint, ws_endpoint)
+                    .await?;
+            self.processes.lock().await.push(process);
+        }
         Ok(())
     }
 
@@ -331,7 +336,7 @@ pub async fn setup_task_spawner(
     accounts: Vec<Address>,
     http_endpoint: String,
 ) -> impl std::future::Future<Output = ()> {
-    assert!(accounts.len() >= 10);
+    info!("Setting up task spawner");
     let provider = get_provider_http(http_endpoint.as_str());
     let task_manager = IncredibleSquaringTaskManager::new(task_manager_address, provider.clone());
     let registry_coordinator =
@@ -339,9 +344,10 @@ pub async fn setup_task_spawner(
 
     let operators = vec![vec![accounts[0]]];
     let quorums = Bytes::from(vec![0]);
-
+    info!("Starting task spawner");
     async move {
         let mut task_count = 0;
+        info!("Starting task spawner loop");
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(10000)).await;
 
@@ -378,10 +384,6 @@ pub async fn setup_task_spawner(
                 .await
                 .unwrap();
             log::info!("Mined a block...");
-
-            if task_count >= 5 {
-                break;
-            }
         }
     }
 }
@@ -391,12 +393,15 @@ pub async fn setup_task_response_listener(
     ws_endpoint: String,
     successful_responses: Arc<Mutex<usize>>,
 ) -> impl std::future::Future<Output = ()> {
+    info!("Setting up task response listener");
     let task_manager = IncredibleSquaringTaskManager::new(
         task_manager_address,
         get_provider_ws(ws_endpoint.as_str()).await,
     );
 
+    info!("Starting task response listener");
     async move {
+        info!("Starting response loop");
         let filter = task_manager.TaskResponded_filter().filter;
         let mut event_stream = match task_manager.provider().subscribe_logs(&filter).await {
             Ok(stream) => stream.into_stream(),
@@ -415,7 +420,7 @@ pub async fn setup_task_response_listener(
                 .data;
             let mut counter = successful_responses.lock().await;
             *counter += 1;
-            if *counter >= 1 {
+            if *counter >= 2 {
                 break;
             }
         }

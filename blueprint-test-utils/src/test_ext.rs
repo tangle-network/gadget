@@ -242,7 +242,7 @@ pub async fn new_test_ext_blueprint_manager<
     }
 }
 
-fn find_open_tcp_bind_port() -> u16 {
+pub fn find_open_tcp_bind_port() -> u16 {
     let listener = std::net::TcpListener::bind(format!("{LOCAL_BIND_ADDR}:0"))
         .expect("Should bind to localhost");
     listener

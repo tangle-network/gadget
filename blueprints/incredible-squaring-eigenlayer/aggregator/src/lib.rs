@@ -4,7 +4,7 @@ use alloy_json_abi::JsonAbi;
 use alloy_network::Ethereum;
 use alloy_primitives::FixedBytes;
 use alloy_sol_types::sol;
-use gadget_sdk::{job, load_abi};
+use gadget_sdk::{info, job, load_abi};
 use serde::{Deserialize, Serialize};
 use std::{convert::Infallible, ops::Deref, sync::OnceLock};
 use IncredibleSquaringTaskManager::Task;
@@ -54,6 +54,8 @@ pub async fn initialize_bls_task(
     task: Task,
     task_index: u32,
 ) -> Result<u32, Infallible> {
+    info!("Initializing task for BLS aggregation");
+
     let mut tasks = ctx.tasks.lock().await;
     tasks.insert(task_index, task.clone());
     let time_to_expiry =
