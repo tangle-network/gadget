@@ -21,8 +21,8 @@ use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
-use tokio::sync::oneshot;
-use tokio::{sync::Mutex, task::JoinHandle};
+use tokio::sync::{oneshot, Mutex};
+use tokio::task::JoinHandle;
 
 use crate::IncredibleSquaringTaskManager::Task;
 use alloy_network::EthereumWallet;
@@ -44,7 +44,7 @@ pub struct SignedTaskResponse {
 #[derive(Clone, EigenlayerContext, KeystoreContext)]
 pub struct AggregatorContext {
     pub port_address: String,
-    pub task_manager_addr: Address,
+    pub task_manager_address: Address,
     pub tasks: Arc<Mutex<HashMap<TaskIndex, Task>>>,
     pub tasks_responses: Arc<Mutex<HashMap<TaskIndex, HashMap<TaskResponseDigest, TaskResponse>>>>,
     pub bls_aggregation_service: Option<
@@ -68,14 +68,14 @@ pub struct AggregatorContext {
 impl AggregatorContext {
     pub async fn new(
         port_address: String,
-        task_manager_addr: Address,
+        task_manager_address: Address,
         http_rpc_url: String,
         wallet: EthereumWallet,
         sdk_config: StdGadgetConfiguration,
     ) -> Result<Self, std::io::Error> {
         let mut aggregator_context = AggregatorContext {
             port_address,
-            task_manager_addr,
+            task_manager_address,
             tasks: Arc::new(Mutex::new(HashMap::new())),
             tasks_responses: Arc::new(Mutex::new(HashMap::new())),
             bls_aggregation_service: None,
@@ -100,21 +100,10 @@ impl AggregatorContext {
         let handle = tokio::spawn(async move {
             info!("Starting aggregator");
 
-            let server_handle =
-                tokio::spawn(Self::start_server(Arc::clone(&aggregator), shutdown_rx));
-            // let tasks_handle =
-            //     tokio::spawn(Self::process_tasks(ws_rpc_url, Arc::clone(&aggregator)));
+            tokio::spawn(Self::start_server(Arc::clone(&aggregator), shutdown_rx))
+                .await
+                .ok();
 
-            debug!("Server and task processing tasks have been spawned");
-
-            tokio::select! {
-                _ = server_handle => {
-                    info!("Server task has completed");
-                }
-                // _ = tasks_handle => {
-                //     info!("Task processing has completed");
-                // }
-            }
             info!("Aggregator is shutting down");
         });
 
@@ -185,47 +174,6 @@ impl AggregatorContext {
         }
         Ok(())
     }
-
-    // async fn process_tasks(ws_rpc_url: String, aggregator: Arc<Mutex<Self>>) -> Result<()> {
-    //     info!("Connecting to WebSocket RPC at: {}", ws_rpc_url);
-    //     let provider = ProviderBuilder::new()
-    //         .on_ws(WsConnect::new(ws_rpc_url))
-    //         .await?;
-    //     let filter = Filter::new().event_signature(NewTaskCreated::SIGNATURE_HASH);
-    //     let mut stream = provider.subscribe_logs(&filter).await?.into_stream();
-
-    //     while let Some(log) = stream.next().await {
-    //         let NewTaskCreated { taskIndex, task } = log.log_decode()?.inner.data;
-    //         let mut aggregator = aggregator.lock().await;
-    //         aggregator.tasks.insert(taskIndex, task.clone());
-
-    //         let time_to_expiry = std::time::Duration::from_secs(
-    //             (TASK_CHALLENGE_WINDOW_BLOCK * BLOCK_TIME_SECONDS).into(),
-    //         );
-
-    //         if let Err(e) = aggregator
-    //             .bls_aggregation_service_in_memory()
-    //             .await?
-    //             .initialize_new_task(
-    //                 taskIndex,
-    //                 task.taskCreatedBlock,
-    //                 task.quorumNumbers.to_vec(),
-    //                 vec![task.quorumThresholdPercentage.try_into()?; task.quorumNumbers.len()],
-    //                 time_to_expiry,
-    //             )
-    //             .await
-    //         {
-    //             error!(
-    //                 "Failed to initialize new task: {}. Error: {:?}",
-    //                 taskIndex, e
-    //             );
-    //         } else {
-    //             debug!("Successfully initialized new task: {}", taskIndex);
-    //         }
-    //     }
-
-    //     Ok(())
-    // }
 
     async fn process_signed_task_response(&mut self, resp: SignedTaskResponse) -> Result<()> {
         let SignedTaskResponse {
@@ -340,7 +288,7 @@ impl AggregatorContext {
 
         let provider = get_provider(&self.http_rpc_url);
         let task_manager =
-            IncredibleSquaringTaskManager::new(self.task_manager_addr, provider.clone());
+            IncredibleSquaringTaskManager::new(self.task_manager_address, provider.clone());
 
         let _ = task_manager
             .respondToTask(

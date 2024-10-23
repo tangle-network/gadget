@@ -20,11 +20,6 @@ use std::error::Error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use alloy_contract::{CallBuilder, CallDecoder};
-use alloy_provider::network::Ethereum;
-use alloy_provider::Provider;
-use alloy_rpc_types_eth::TransactionReceipt;
-use alloy_transport::{Transport, TransportResult};
 use subxt::tx::Signer;
 use subxt::utils::AccountId32;
 use url::Url;
@@ -40,6 +35,7 @@ pub type InputValue = runtime_types::tangle_primitives::services::field::Field<A
 pub type OutputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 
 pub mod anvil;
+pub mod helpers;
 pub mod sync;
 pub mod test_ext;
 
@@ -362,20 +358,6 @@ pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>
     Ok(res)
 }
 
-pub async fn get_receipt<T, P, D>(
-    call: CallBuilder<T, P, D, Ethereum>,
-) -> TransportResult<TransactionReceipt>
-where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum>,
-    D: CallDecoder,
-{
-    let pending_tx = call.send().await.unwrap();
-    let receipt = pending_tx.get_receipt().await?;
-
-    Ok(receipt)
-}
-
 #[macro_export]
 macro_rules! test_blueprint {
     (
@@ -494,7 +476,12 @@ mod tests_standard {
     use futures::StreamExt;
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
-    use gadget_sdk::{error, info};
+    use gadget_sdk::{debug, error, info};
+    use helpers::{
+        deploy_task_manager, get_receipt, setup_eigenlayer_test_environment,
+        setup_task_response_listener, setup_task_spawner, BlueprintProcessManager,
+        EigenlayerTestEnvironment, IncredibleSquaringTaskManager,
+    };
     use incredible_squaring_aggregator::aggregator::AggregatorContext;
     use std::str::FromStr;
     use std::sync::Arc;
@@ -590,292 +577,87 @@ mod tests_standard {
             .await
     }
 
-    alloy_sol_types::sol!(
-        #[allow(missing_docs)]
-        #[sol(rpc)]
-        #[derive(Debug)]
-        IncredibleSquaringTaskManager,
-        "./../blueprints/incredible-squaring-eigenlayer/contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
-    );
-
-    alloy_sol_types::sol!(
-        #[allow(missing_docs)]
-        #[sol(rpc)]
-        #[derive(Debug)]
-        PauserRegistry,
-        "./../blueprints/incredible-squaring-eigenlayer/contracts/out/IPauserRegistry.sol/IPauserRegistry.json"
-    );
-
-    alloy_sol_types::sol!(
-        #[allow(missing_docs, clippy::too_many_arguments)]
-        #[sol(rpc)]
-        #[derive(Debug)]
-        RegistryCoordinator,
-        "./../blueprints/incredible-squaring-eigenlayer/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
-    );
-
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::needless_return)]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
-        let (_container, http_endpoint, ws_endpoint) =
-            anvil::start_anvil_container(ANVIL_STATE_PATH, true).await;
-
-        std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
-        std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint.clone());
 
         // Sleep to give the testnet time to spin up
         tokio::time::sleep(Duration::from_secs(1)).await;
 
-        // Create a provider using the transport
-        let provider = alloy_provider::ProviderBuilder::new()
-            .with_recommended_fillers()
-            .on_http(http_endpoint.parse().unwrap())
-            .root()
-            .clone()
-            .boxed();
-        let accounts = provider.get_accounts().await.unwrap();
-
-        // let service_manager_addr = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
-        let registry_coordinator_addr = address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
-        let operator_state_retriever_addr = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
-        // let delegation_manager_addr = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
-        // let strategy_manager_addr = address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
-        let erc20_mock_addr = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
-
-        // Deploy the Pauser Registry to the running Testnet
-        let pauser_registry = PauserRegistry::deploy(provider.clone()).await.unwrap();
-        let &pauser_registry_addr = pauser_registry.address();
-
-        // Create Quorum
-        let registry_coordinator =
-            RegistryCoordinator::new(registry_coordinator_addr, provider.clone());
-        let operator_set_params = RegistryCoordinator::OperatorSetParam {
-            maxOperatorCount: 10,
-            kickBIPsOfOperatorStake: 100,
-            kickBIPsOfTotalStake: 1000,
-        };
-        let strategy_params = RegistryCoordinator::StrategyParams {
-            strategy: erc20_mock_addr,
-            multiplier: 1,
-        };
-        let _receipt = get_receipt(registry_coordinator.createQuorum(
-            operator_set_params,
-            0,
-            vec![strategy_params],
-        ))
-        .await
-        .unwrap();
-
-        // Deploy the Incredible Squaring Task Manager to the running Testnet
-        let task_manager_addr = get_receipt(
-            super::tests_standard::IncredibleSquaringTaskManager::deploy_builder(
-                provider.clone(),
-                registry_coordinator_addr,
-                10u32,
-            ),
+        let EigenlayerTestEnvironment {
+            accounts,
+            http_endpoint,
+            ws_endpoint,
+            registry_coordinator_address,
+            operator_state_retriever_address,
+            pauser_registry_address,
+        } = setup_eigenlayer_test_environment(ANVIL_STATE_PATH).await;
+        let provider = helpers::get_provider_http(&http_endpoint);
+        let task_generator_address = accounts[4];
+        let task_manager_address = deploy_task_manager(
+            &http_endpoint,
+            registry_coordinator_address,
+            pauser_registry_address,
+            task_generator_address,
+            accounts.as_ref(),
         )
-        .await
-        .unwrap()
-        .contract_address
-        .unwrap();
-        info!("Task Manager: {:?}", task_manager_addr);
-        std::env::set_var("TASK_MANAGER_ADDRESS", task_manager_addr.to_string());
+        .await;
 
         // We create a Task Manager instance for the task spawner
-        let task_manager = IncredibleSquaringTaskManager::new(task_manager_addr, provider.clone());
-        let task_generator_address = accounts[4];
-
-        // Initialize the Incredible Squaring Task Manager
-        let init_receipt = get_receipt(task_manager.initialize(
-            pauser_registry_addr,
-            accounts[1],
-            accounts[9],
-            task_generator_address,
-        ))
-        .await
-        .unwrap();
-        assert!(init_receipt.status());
+        let task_manager =
+            IncredibleSquaringTaskManager::new(task_manager_address, provider.clone());
 
         let signer: PrivateKeySigner =
             "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
                 .parse()
                 .unwrap();
         let wallet = EthereumWallet::from(signer);
-        let (aggregator, _cancellation_token) = AggregatorContext::new(
-            task_manager_addr,
-            registry_coordinator_addr,
-            operator_state_retriever_addr,
-            http_endpoint.clone(),
-            ws_endpoint.clone(),
+        let aggregator_context = AggregatorContext::new(
             "127.0.0.1:8081".to_string(),
+            task_manager_address,
+            http_endpoint.clone(),
             wallet,
+            Default::default(),
         )
         .await
         .unwrap();
 
         // Run the server in a separate thread
-        let (handle, aggregator_shutdown_tx) = aggregator.start(ws_endpoint.to_string());
+        let (handle, aggregator_shutdown_tx) = aggregator_context.start(ws_endpoint.to_string());
 
         let successful_responses = Arc::new(Mutex::new(0));
         let successful_responses_clone = successful_responses.clone();
 
-        // Create an event listener for TaskResponded events
-        let task_mgr_clone = task_manager.clone();
-        let ws_provider = ProviderBuilder::new()
-            .on_ws(WsConnect::new(ws_endpoint.clone()))
-            .await
-            .unwrap()
-            .root()
-            .clone()
-            .boxed();
-        let task_response_listener = async move {
-            let filter = task_mgr_clone.TaskResponded_filter().filter;
-            info!("Filter: {:?}", filter);
-            let mut event_stream = match ws_provider.subscribe_logs(&filter).await {
-                Ok(stream) => stream.into_stream(),
-                Err(e) => {
-                    error!("Failed to subscribe to logs: {:?}", e);
-                    return;
-                }
-            };
-            info!("Listening for TaskResponded events...");
-            while let Some(event) = event_stream.next().await {
-                let TaskResponded {
-                    taskResponse: response,
-                    ..
-                } = event.log_decode::<TaskResponded>().unwrap().inner.data;
-                let mut counter = successful_responses.lock().await;
-                *counter += 1;
-                if *counter >= 1 {
-                    break;
-                }
-            }
-        };
-        let response_listener_handle = tokio::spawn(task_response_listener);
+        // Start the Task Response Listener
+        let response_listener_handle = tokio::spawn(setup_task_response_listener(
+            task_manager_address,
+            &ws_endpoint,
+            successful_responses,
+        ));
 
         // Start the Task Spawner
-        let operators = vec![vec![accounts[0]]];
-        let quorums = Bytes::from(vec![0]);
-        let task_spawner = async move {
-            let mut task_count = 0;
-            loop {
-                tokio::time::sleep(std::time::Duration::from_millis(10000)).await;
-
-                if get_receipt(
-                    task_manager
-                        .createNewTask(U256::from(2), 100u32, Bytes::from(vec![0]))
-                        .from(task_generator_address),
-                )
-                .await
-                .unwrap()
-                .status()
-                {
-                    info!("Deployed a new task");
-                    task_count += 1;
-                }
-
-                if get_receipt(
-                    registry_coordinator
-                        .updateOperatorsForQuorum(operators.clone(), quorums.clone()),
-                )
-                .await
-                .unwrap()
-                .status()
-                {
-                    info!("Updated operators for quorum 0");
-                }
-
-                tokio::process::Command::new("sh")
-                    .arg("-c")
-                    .arg(format!(
-                        "cast rpc anvil_mine 1 --rpc-url {} > /dev/null",
-                        http_endpoint
-                    ))
-                    .output()
-                    .await
-                    .unwrap();
-                info!("Mined a block...");
-
-                // Break the loop if we've created enough tasks
-                if task_count >= 5 {
-                    // Create more tasks than we expect responses for
-                    break;
-                }
-            }
-        };
-        let task_spawner_handle = tokio::spawn(task_spawner);
+        let task_spawner_handle = tokio::spawn(setup_task_spawner(
+            task_manager_address,
+            registry_coordinator_address,
+            task_generator_address,
+            accounts.as_ref(),
+            http_endpoint,
+        ));
 
         info!("Starting Blueprint Binary...");
 
-        let tmp_store = Uuid::new_v4().to_string();
-        let keystore_uri = PathBuf::from(format!(
-            "./target/keystores/{}/{tmp_store}/",
-            NAME_IDS[0].to_lowercase()
-        ));
-        assert!(
-            !keystore_uri.exists(),
-            "Keystore URI cannot exist: {}",
-            keystore_uri.display()
-        );
-        let keystore_uri_normalized =
-            std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
-        let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
-
-        let mut arguments = vec![];
-        arguments.push("run".to_string());
-
-        arguments.extend([
-            format!("--bind-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
-            format!("--bind-port={}", 8545u16),
-            format!("--url={}", Url::parse("ws://127.0.0.1:8545").unwrap()),
-            format!("--keystore-uri={}", keystore_uri_str.clone()),
-            format!("--chain={}", SupportedChains::LocalTestnet),
-            format!("--verbose={}", 3),
-            format!("--pretty={}", true),
-            format!("--blueprint-id={}", 0),
-            format!("--service-id={}", 0),
-            format!("--protocol={}", Protocol::Eigenlayer),
-        ]);
-
+        let blueprint_process_manager = BlueprintProcessManager::new();
         let current_dir = std::env::current_dir().unwrap();
-        let program_path = format!(
+        let program_path = PathBuf::from(format!(
             "{}/../target/release/incredible-squaring-blueprint-eigenlayer",
             current_dir.display()
-        );
-        let program_path = PathBuf::from(program_path).canonicalize().unwrap();
-
-        let mut env_vars = vec![
-            ("RPC_URL".to_string(), "ws://127.0.0.1:8545".to_string()),
-            ("KEYSTORE_URI".to_string(), keystore_uri_str.clone()),
-            ("DATA_DIR".to_string(), keystore_uri_str),
-            ("BLUEPRINT_ID".to_string(), format!("{}", 0)),
-            ("SERVICE_ID".to_string(), format!("{}", 0)),
-            ("REGISTRATION_MODE_ON".to_string(), "true".to_string()),
-            (
-                "OPERATOR_BLS_KEY_PASSWORD".to_string(),
-                "BLS_PASSWORD".to_string(),
-            ),
-            (
-                "OPERATOR_ECDSA_KEY_PASSWORD".to_string(),
-                "ECDSA_PASSWORD".to_string(),
-            ),
-        ];
-
-        // Ensure our child process inherits the current processes' environment vars
-        env_vars.extend(std::env::vars());
-
-        // Now that the file is loaded, spawn the process
-        let mut process_handle = tokio::process::Command::new(program_path.as_os_str())
-            .kill_on_drop(true)
-            .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
-            .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
-            .stdin(std::process::Stdio::null())
-            .current_dir(std::env::current_dir().unwrap())
-            .envs(env_vars)
-            .args(arguments)
-            .spawn()
-            .unwrap();
+        ))
+        .canonicalize()
+        .unwrap();
+        blueprint_process_manager
+            .start_blueprint(program_path, 0, &http_endpoint, &ws_endpoint)
+            .await;
 
         // Wait for the process to complete or timeout
         let timeout_duration = Duration::from_secs(300); // 5 minutes timeout
@@ -891,7 +673,7 @@ mod tests_standard {
         .await;
 
         // When you want to shut down the aggregator:
-        if let Err(e) = aggregator_shutdown_tx.send(()).await {
+        if let Err(e) = aggregator_shutdown_tx.send(()) {
             error!("Failed to send shutdown signal to aggregator: {:?}", e);
         } else {
             info!("Sent shutdown signal to aggregator.");
@@ -910,10 +692,10 @@ mod tests_standard {
         match result {
             Ok(Ok(())) => {
                 info!("Test completed successfully with 3 or more tasks responded to.");
-                if let Err(e) = process_handle.kill().await {
-                    error!("Failed to kill the process: {:?}", e);
+                if let Err(e) = blueprint_process_manager.kill_all().await {
+                    error!("Failed to kill all blueprint processes: {:?}", e);
                 } else {
-                    info!("Process killed successfully.");
+                    debug!("Successfully killed all blueprint processes.");
                 }
             }
             Ok(Err(e)) => {
