@@ -43,6 +43,10 @@ where
     #[must_use]
     pub fn open<P: AsRef<Path>>(path: P) -> Self {
         let path = path.as_ref();
+        let parent_dir = path.parent().expect("Failed to get parent directory");
+
+        // Create the parent directory if it doesn't exist
+        fs::create_dir_all(parent_dir).expect("Failed to create parent directory");
 
         let data = if path.exists() {
             let content = fs::read_to_string(path).expect("Failed to read the file");

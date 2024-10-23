@@ -20,6 +20,11 @@ use std::error::Error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use alloy_contract::{CallBuilder, CallDecoder};
+use alloy_provider::network::Ethereum;
+use alloy_provider::Provider;
+use alloy_rpc_types_eth::TransactionReceipt;
+use alloy_transport::{Transport, TransportResult};
 use subxt::tx::Signer;
 use subxt::utils::AccountId32;
 use url::Url;
@@ -355,6 +360,20 @@ pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>
     Ok(res)
 }
 
+pub async fn get_receipt<T, P, D>(
+    call: CallBuilder<T, P, D, Ethereum>,
+) -> TransportResult<TransactionReceipt>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum>,
+    D: CallDecoder,
+{
+    let pending_tx = call.send().await.unwrap();
+    let receipt = pending_tx.get_receipt().await?;
+
+    Ok(receipt)
+}
+
 #[macro_export]
 macro_rules! test_blueprint {
     (
@@ -464,13 +483,20 @@ mod test_macros {
 mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
-    use alloy_primitives::Bytes;
-    use alloy_provider::Provider;
-    use cargo_tangle::deploy::Opts;
+    use alloy_primitives::{address, Bytes, U256};
+    use alloy_provider::network::EthereumWallet;
+    use alloy_provider::{Provider, ProviderBuilder, WsConnect};
+    use cargo_tangle::deploy::{Opts, PrivateKeySigner};
+    use futures::StreamExt;
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
+    use incredible_squaring_aggregator::aggregator::Aggregator;
     use std::str::FromStr;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+    use tokio::time::timeout;
+    use IncredibleSquaringTaskManager::TaskResponded;
 
     const ANVIL_STATE_PATH: &str =
         "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
@@ -512,7 +538,6 @@ mod tests_standard {
                 // What's left: Submit a job, wait for the job to finish, then assert the job results
                 let keypair = handles[0].sr25519_id().clone();
 
-                // TODO: Important! The tests can only run serially, not in parallel, in order to not cause a race condition in IDs
                 let service_id = get_next_service_id(client)
                     .await
                     .expect("Failed to get next service id")
@@ -563,6 +588,7 @@ mod tests_standard {
     alloy_sol_types::sol!(
         #[allow(missing_docs)]
         #[sol(rpc)]
+        #[derive(Debug)]
         IncredibleSquaringTaskManager,
         "./../blueprints/incredible-squaring-eigenlayer/contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
     );
@@ -570,6 +596,7 @@ mod tests_standard {
     alloy_sol_types::sol!(
         #[allow(missing_docs)]
         #[sol(rpc)]
+        #[derive(Debug)]
         PauserRegistry,
         "./../blueprints/incredible-squaring-eigenlayer/contracts/out/IPauserRegistry.sol/IPauserRegistry.json"
     );
@@ -577,6 +604,7 @@ mod tests_standard {
     alloy_sol_types::sol!(
         #[allow(missing_docs, clippy::too_many_arguments)]
         #[sol(rpc)]
+        #[derive(Debug)]
         RegistryCoordinator,
         "./../blueprints/incredible-squaring-eigenlayer/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
     );
@@ -588,16 +616,11 @@ mod tests_standard {
         let (_container, http_endpoint, ws_endpoint) =
             anvil::start_anvil_container(ANVIL_STATE_PATH, true).await;
 
-        // let http_endpoint = "http://127.0.0.1:8545".to_string();
-        // let ws_endpoint = "ws://127.0.0.1:8545".to_string();
-
         std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
-        std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint);
+        std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint.clone());
 
         // Sleep to give the testnet time to spin up
         tokio::time::sleep(Duration::from_secs(1)).await;
-
-        // let http_endpoint = "http://127.0.0.1:8545";
 
         // Create a provider using the transport
         let provider = alloy_provider::ProviderBuilder::new()
@@ -607,12 +630,10 @@ mod tests_standard {
             .clone()
             .boxed();
         let accounts = provider.get_accounts().await.unwrap();
-        info!("Accounts: {:?}", accounts);
 
-        use alloy_primitives::address;
         // let service_manager_addr = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
         let registry_coordinator_addr = address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
-        // let operator_state_retriever_addr = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
+        let operator_state_retriever_addr = address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
         // let delegation_manager_addr = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
         // let strategy_manager_addr = address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
         let erc20_mock_addr = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
@@ -633,100 +654,152 @@ mod tests_standard {
             strategy: erc20_mock_addr,
             multiplier: 1,
         };
-        let _ = registry_coordinator
-            .createQuorum(operator_set_params, 0, vec![strategy_params])
-            .send()
-            .await
-            .unwrap();
+        let _receipt = get_receipt(registry_coordinator.createQuorum(
+            operator_set_params,
+            0,
+            vec![strategy_params],
+        ))
+        .await
+        .unwrap();
 
         // Deploy the Incredible Squaring Task Manager to the running Testnet
-        let task_manager_addr =
+        let task_manager_addr = get_receipt(
             super::tests_standard::IncredibleSquaringTaskManager::deploy_builder(
                 provider.clone(),
                 registry_coordinator_addr,
                 10u32,
-            )
-            .send()
-            .await
-            .unwrap()
-            .get_receipt()
-            .await
-            .unwrap()
-            .contract_address
-            .unwrap();
+            ),
+        )
+        .await
+        .unwrap()
+        .contract_address
+        .unwrap();
         info!("Task Manager: {:?}", task_manager_addr);
-        std::env::set_var("TASK_MANAGER_ADDR", task_manager_addr.to_string());
+        std::env::set_var("TASK_MANAGER_ADDRESS", task_manager_addr.to_string());
 
         // We create a Task Manager instance for the task spawner
         let task_manager = IncredibleSquaringTaskManager::new(task_manager_addr, provider.clone());
         let task_generator_address = accounts[4];
 
         // Initialize the Incredible Squaring Task Manager
-        let init_receipt = task_manager
-            .initialize(
-                pauser_registry_addr,
-                accounts[1],
-                accounts[0],
-                task_generator_address,
-            )
-            .send()
+        let init_receipt = get_receipt(task_manager.initialize(
+            pauser_registry_addr,
+            accounts[1],
+            accounts[9],
+            task_generator_address,
+        ))
+        .await
+        .unwrap();
+        assert!(init_receipt.status());
+
+        let signer: PrivateKeySigner =
+            "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
+                .parse()
+                .unwrap();
+        let wallet = EthereumWallet::from(signer);
+        let (aggregator, _cancellation_token) = Aggregator::new(
+            task_manager_addr,
+            registry_coordinator_addr,
+            operator_state_retriever_addr,
+            http_endpoint.clone(),
+            ws_endpoint.clone(),
+            "127.0.0.1:8081".to_string(),
+            wallet,
+        )
+        .await
+        .unwrap();
+
+        // Run the server in a separate thread
+        let (handle, aggregator_shutdown_tx) = aggregator.start(ws_endpoint.to_string());
+
+        let successful_responses = Arc::new(Mutex::new(0));
+        let successful_responses_clone = successful_responses.clone();
+
+        // Create an event listener for TaskResponded events
+        let task_mgr_clone = task_manager.clone();
+        let ws_provider = ProviderBuilder::new()
+            .on_ws(WsConnect::new(ws_endpoint.clone()))
             .await
             .unwrap()
-            .get_receipt()
-            .await
-            .unwrap();
-        assert!(init_receipt.status());
+            .root()
+            .clone()
+            .boxed();
+        let task_response_listener = async move {
+            let filter = task_mgr_clone.TaskResponded_filter().filter;
+            info!("Filter: {:?}", filter);
+            let mut event_stream = match ws_provider.subscribe_logs(&filter).await {
+                Ok(stream) => stream.into_stream(),
+                Err(e) => {
+                    error!("Failed to subscribe to logs: {:?}", e);
+                    return;
+                }
+            };
+            info!("Listening for TaskResponded events...");
+            while let Some(event) = event_stream.next().await {
+                let TaskResponded {
+                    taskResponse: response,
+                    ..
+                } = event.log_decode::<TaskResponded>().unwrap().inner.data;
+                let mut counter = successful_responses.lock().await;
+                *counter += 1;
+                if *counter >= 1 {
+                    break;
+                }
+            }
+        };
+        let response_listener_handle = tokio::spawn(task_response_listener);
 
         // Start the Task Spawner
         let operators = vec![vec![accounts[0]]];
         let quorums = Bytes::from(vec![0]);
         let task_spawner = async move {
+            let mut task_count = 0;
             loop {
-                tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
-                let result = task_manager
-                    .createNewTask(
-                        alloy_primitives::U256::from(2),
-                        100u32,
-                        alloy_primitives::Bytes::from(vec![0]),
-                    )
-                    .from(task_generator_address)
-                    .send()
-                    .await
-                    .unwrap()
-                    .get_receipt()
-                    .await
-                    .unwrap();
-                if result.status() {
+                tokio::time::sleep(std::time::Duration::from_millis(10000)).await;
+
+                if get_receipt(
+                    task_manager
+                        .createNewTask(U256::from(2), 100u32, Bytes::from(vec![0]))
+                        .from(task_generator_address),
+                )
+                .await
+                .unwrap()
+                .status()
+                {
                     info!("Deployed a new task");
+                    task_count += 1;
                 }
 
-                let result = registry_coordinator
-                    .updateOperatorsForQuorum(operators.clone(), quorums.clone())
-                    .send()
-                    .await
-                    .unwrap()
-                    .get_receipt()
-                    .await
-                    .unwrap();
-                if result.status() {
+                if get_receipt(
+                    registry_coordinator
+                        .updateOperatorsForQuorum(operators.clone(), quorums.clone()),
+                )
+                .await
+                .unwrap()
+                .status()
+                {
                     info!("Updated operators for quorum 0");
                 }
 
-                let arg = format!(
-                    "cast rpc anvil_mine 1 --rpc-url {} > /dev/null",
-                    http_endpoint
-                );
-                // Mine a block
-                let _output = tokio::process::Command::new("sh")
+                tokio::process::Command::new("sh")
                     .arg("-c")
-                    .arg(arg.as_str())
+                    .arg(format!(
+                        "cast rpc anvil_mine 1 --rpc-url {} > /dev/null",
+                        http_endpoint
+                    ))
                     .output()
                     .await
                     .unwrap();
                 info!("Mined a block...");
+
+                // Break the loop if we've created enough tasks
+                if task_count >= 5 {
+                    // Create more tasks than we expect responses for
+                    break;
+                }
             }
         };
-        tokio::spawn(task_spawner);
+        let task_spawner_handle = tokio::spawn(task_spawner);
 
         info!("Starting Blueprint Binary...");
 
@@ -788,7 +861,7 @@ mod tests_standard {
         env_vars.extend(std::env::vars());
 
         // Now that the file is loaded, spawn the process
-        let process_handle = tokio::process::Command::new(program_path.as_os_str())
+        let mut process_handle = tokio::process::Command::new(program_path.as_os_str())
             .kill_on_drop(true)
             .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
             .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
@@ -799,11 +872,56 @@ mod tests_standard {
             .spawn()
             .unwrap();
 
-        let status = process_handle.wait_with_output().await.unwrap();
-        if !status.status.success() {
-            error!("Protocol (registration mode) failed to execute: {status:?}");
+        // Wait for the process to complete or timeout
+        let timeout_duration = Duration::from_secs(300); // 5 minutes timeout
+        let result = timeout(timeout_duration, async {
+            loop {
+                let count = *successful_responses_clone.lock().await;
+                if count >= 1 {
+                    return Ok::<(), std::io::Error>(());
+                }
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        })
+        .await;
+
+        // When you want to shut down the aggregator:
+        if let Err(e) = aggregator_shutdown_tx.send(()).await {
+            error!("Failed to send shutdown signal to aggregator: {:?}", e);
         } else {
-            info!("***Protocol (registration mode) executed successfully***");
+            info!("Sent shutdown signal to aggregator.");
+        }
+
+        // Wait for the aggregator to shut down
+        if let Err(e) = handle.await {
+            error!("Error waiting for aggregator to shut down: {:?}", e);
+        }
+
+        // Cancel the task spawner and response listener
+        task_spawner_handle.abort();
+        response_listener_handle.abort();
+
+        // Check the result
+        match result {
+            Ok(Ok(())) => {
+                info!("Test completed successfully with 3 or more tasks responded to.");
+                if let Err(e) = process_handle.kill().await {
+                    error!("Failed to kill the process: {:?}", e);
+                } else {
+                    info!("Process killed successfully.");
+                }
+            }
+            Ok(Err(e)) => {
+                error!("Test failed with error: {:?}", e);
+                panic!("Test failed");
+            }
+            Err(_) => {
+                error!(
+                    "Test timed out after {} seconds",
+                    timeout_duration.as_secs()
+                );
+                panic!("Test timed out");
+            }
         }
     }
 }

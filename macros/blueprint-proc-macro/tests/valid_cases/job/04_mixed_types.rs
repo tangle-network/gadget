@@ -1,9 +1,10 @@
 use gadget_blueprint_proc_macro::job;
+use std::convert::Infallible;
 
 #[job(id = 0, params(n, s), result(_))]
-fn keygen(n: u16, s: String) -> Vec<u8> {
+fn keygen(n: u16, s: String) -> Result<Vec<u8>, Infallible> {
     let _ = (n, s);
-    Vec::new()
+    Ok(Vec::new())
 }
 
 fn main() {

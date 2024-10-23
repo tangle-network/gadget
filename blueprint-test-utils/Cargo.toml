@@ -28,12 +28,16 @@ subxt = { workspace = true, features = ["substrate-compat"] }
 color-eyre = { workspace = true }
 tracing = { workspace = true }
 alloy-provider = { workspace = true, features = ["hyper"] }
+alloy-rpc-types = { workspace = true }
 alloy-transport-http = { workspace = true }
 alloy-transport = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-contract = { workspace = true }
 alloy-rpc-types-eth = { workspace = true }
+alloy-node-bindings = { workspace = true }
+
+incredible-squaring-aggregator = { workspace = true }
 
 
 eigensdk = { workspace = true }
