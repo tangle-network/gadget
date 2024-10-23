@@ -123,4 +123,4 @@ jobs:
         run: cargo install cargo-nextest --locked
 
       - name: tests
-        run: cargo nextest run --nocapture --package ${{ matrix.package }}
+        run: cargo nextest run --nocapture --package ${{ matrix.package }} ${{ matrix.package == 'gadget-sdk' && '--features getrandom,std' || '' }}

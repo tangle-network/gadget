@@ -2,9 +2,7 @@ use alloy_provider::network::TransactionBuilder;
 use alloy_provider::Provider;
 pub use alloy_signer_local::PrivateKeySigner;
 use color_eyre::eyre::{self, Context, ContextCompat, OptionExt, Result};
-use gadget_blueprint_proc_macro_core::{
-    JobResultVerifier, ServiceBlueprint, ServiceRegistrationHook, ServiceRequestHook,
-};
+use gadget_blueprint_proc_macro_core::{BlueprintManager, ServiceBlueprint};
 use gadget_sdk::clients::tangle::runtime::TangleConfig;
 pub use k256;
 use std::fmt::Debug;
@@ -142,32 +140,16 @@ async fn deploy_contracts_to_tangle(
     signer_evm: Option<PrivateKeySigner>,
 ) -> Result<()> {
     enum ContractKind {
-        RegistrationHook,
-        RequestHook,
-        JobVerifier(usize),
+        Manager,
     }
     let rpc_url = rpc_url.replace("ws", "http").replace("wss", "https");
-    let mut contract_paths = Vec::new();
-    match blueprint.registration_hook {
-        ServiceRegistrationHook::None => {}
-        ServiceRegistrationHook::Evm(ref path) => {
-            contract_paths.push((ContractKind::RegistrationHook, path))
+    let contract_paths = match blueprint.manager {
+        BlueprintManager::Evm(ref path) => vec![(ContractKind::Manager, path)],
+        _ => {
+            eprintln!("Unsupported blueprint manager kind");
+            vec![]
         }
     };
-
-    match blueprint.request_hook {
-        ServiceRequestHook::None => {}
-        ServiceRequestHook::Evm(ref path) => contract_paths.push((ContractKind::RequestHook, path)),
-    };
-
-    for (id, job) in blueprint.jobs.iter().enumerate() {
-        match job.verifier {
-            JobResultVerifier::None => {}
-            JobResultVerifier::Evm(ref path) => {
-                contract_paths.push((ContractKind::JobVerifier(id), path))
-            }
-        };
-    }
 
     let abs_contract_paths: Vec<_> = contract_paths
         .into_iter()
@@ -225,16 +207,8 @@ async fn deploy_contracts_to_tangle(
                 alloy_network::ReceiptResponse::contract_address(&receipt).unwrap();
             eprintln!("Contract {name} deployed at: {contract_address}");
             match kind {
-                ContractKind::RegistrationHook => {
-                    blueprint.registration_hook =
-                        ServiceRegistrationHook::Evm(contract_address.to_string());
-                }
-                ContractKind::RequestHook => {
-                    blueprint.request_hook = ServiceRequestHook::Evm(contract_address.to_string());
-                }
-                ContractKind::JobVerifier(id) => {
-                    blueprint.jobs[*id].verifier =
-                        JobResultVerifier::Evm(contract_address.to_string());
+                ContractKind::Manager => {
+                    blueprint.manager = BlueprintManager::Evm(contract_address.to_string());
                 }
             }
         } else {
@@ -250,24 +224,13 @@ fn build_contracts_if_needed(
     package: &cargo_metadata::Package,
     blueprint: &ServiceBlueprint,
 ) -> Result<()> {
-    let mut pathes_to_check = Vec::new();
-
-    match blueprint.registration_hook {
-        ServiceRegistrationHook::None => {}
-        ServiceRegistrationHook::Evm(ref path) => pathes_to_check.push(path),
+    let pathes_to_check = match blueprint.manager {
+        BlueprintManager::Evm(ref path) => vec![path],
+        _ => {
+            eprintln!("Unsupported blueprint manager kind");
+            vec![]
+        }
     };
-
-    match blueprint.request_hook {
-        ServiceRequestHook::None => {}
-        ServiceRequestHook::Evm(ref path) => pathes_to_check.push(path),
-    };
-
-    for job in blueprint.jobs.iter() {
-        match job.verifier {
-            JobResultVerifier::None => {}
-            JobResultVerifier::Evm(ref path) => pathes_to_check.push(path),
-        };
-    }
 
     let abs_pathes_to_check: Vec<_> = pathes_to_check
         .into_iter()

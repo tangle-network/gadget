@@ -59,7 +59,7 @@ cargo-tangle = { path = "./cli", version = "0.1.2" }
 cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
-tangle-subxt = { version = "0.3.0", default-features = false }
+tangle-subxt = { version = "0.4.0", default-features = false }
 subxt-signer = { version = "0.37.0", default-features = false }
 subxt = { version = "0.37.0", default-features = false }
 subxt-core = { version = "0.37.0", default-features = false }
@@ -129,6 +129,7 @@ syn = "2.0.75"
 sysinfo = "0.31.2"
 thiserror = { version = "1.0.64", default-features = false }
 tokio = { version = "1.40", default-features = false }
+tokio-stream = { version = "0.1.16", default-features = false }
 tokio-util = { version = "0.7.12", default-features = false }
 toml = "0.8.19"
 tracing = { version = "0.1", default-features = false }

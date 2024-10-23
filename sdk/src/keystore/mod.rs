@@ -43,6 +43,8 @@ pub mod error;
 
 /// Schnorrkel Support
 pub mod sr25519;
+#[cfg(test)]
+mod tests;
 
 use crate::clients::tangle::runtime::TangleConfig;
 #[cfg(any(feature = "std", feature = "wasm"))]
@@ -225,6 +227,13 @@ pub trait Backend {
     /// # Errors
     /// An `Err` will be returned if generating the key pair operation itself failed.
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error>;
+    /// Generate a new ecdsa key pair from a [`ecdsa::Secret`] hex String
+    ///
+    /// Returns an `ecdsa::Public` key of the generated key pair or an `Err` if
+    /// something failed during key generation.
+    /// # Errors
+    /// An `Err` will be returned if generating the key pair operation itself failed.
+    fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public, Error>;
     /// Generate an ecdsa signature for a given message.
     ///
     /// Receives an [`ecdsa::Public`] key to be able to map
@@ -267,6 +276,13 @@ pub trait Backend {
     /// # Errors
     /// An `Err` will be returned if generating the key pair operation itself failed.
     fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<bn254::Public, Error>;
+    /// Generate a new bls bn254 key pair from a [`bn254::Secret`] hex String
+    ///
+    /// Returns an [`bn254::Public`] key of the generated key pair or an `Err` if
+    /// something failed during key generation.
+    /// # Errors
+    /// An `Err` will be returned if generating the key pair operation itself failed.
+    fn bls_bn254_generate_from_string(&self, secret: String) -> Result<bn254::Public, Error>;
     /// Generate a bls bn254 signature for a given message.
     ///
     /// Receives an [`bn254::Public`] key to be able to map
@@ -292,6 +308,7 @@ pub trait Backend {
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error>;
+    fn get_ecdsa_signer_string(&self, public: &k256::PublicKey) -> Result<String, Error>;
     /// Returns the [`ed25519::Secret`] for the given [`ed25519::Public`] if it does exist, otherwise returns `None`.
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.
@@ -384,8 +401,7 @@ pub trait BackendExt: Backend {
         let bls_secret = self
             .expose_bls_bn254_secret(&first_key)?
             .ok_or_else(|| Error::BlsBn254("No BLS BN254 secret found".to_string()))?;
-
-        crypto_bls::BlsKeyPair::new(bls_secret.0.to_string())
+        crypto_bls::BlsKeyPair::new(bls_secret.to_string())
             .map_err(|e| Error::BlsBn254(e.to_string()))
     }
 }
@@ -408,37 +424,3 @@ pub trait KeystoreUriSanitizer: AsRef<Path> {
 }
 
 impl<T: AsRef<Path>> KeystoreUriSanitizer for T {}
-
-#[cfg(test)]
-mod tests {
-    use crate::keystore::KeystoreUriSanitizer;
-    use std::path::PathBuf;
-
-    #[test]
-    fn test_sanitize_file_paths() {
-        let path = "file:///tmp/keystore";
-        let sanitized_path = path.sanitize_file_path();
-        assert_eq!(sanitized_path, PathBuf::from("/tmp/keystore"));
-    }
-
-    #[test]
-    fn test_sanitize_file_paths_with_single_slash() {
-        let path = "file:/tmp/keystore";
-        let sanitized_path = path.sanitize_file_path();
-        assert_eq!(sanitized_path, PathBuf::from("/tmp/keystore"));
-    }
-
-    #[test]
-    fn test_sanitize_file_paths_with_double_slash() {
-        let path = "file://tmp/keystore";
-        let sanitized_path = path.sanitize_file_path();
-        assert_eq!(sanitized_path, PathBuf::from("/tmp/keystore"));
-    }
-
-    #[test]
-    fn test_sanitize_file_paths_with_no_scheme() {
-        let path = "/tmp/keystore";
-        let sanitized_path = path.sanitize_file_path();
-        assert_eq!(sanitized_path, PathBuf::from("/tmp/keystore"));
-    }
-}

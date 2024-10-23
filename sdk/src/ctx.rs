@@ -37,7 +37,9 @@ use core::future::Future;
 use crate::keystore::backend::GenericKeyStore;
 // derives
 pub use gadget_context_derive::*;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::ServiceBlueprint;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::{
+    sp_arithmetic::per_things::Percent, tangle_primitives::services::ServiceBlueprint,
+};
 
 /// `KeystoreContext` trait provides access to the generic keystore from the context.
 pub trait KeystoreContext<RwLock: lock_api::RawRwLock> {
@@ -86,11 +88,11 @@ pub trait ServicesContext {
         client: &subxt::OnlineClient<Self::Config>,
     ) -> impl Future<Output = Result<subxt::utils::AccountId32, subxt::Error>>;
 
-    /// Get the current service operators from the context.
+    /// Get the current service operators with their restake exposure  from the context.
     /// This function will return a list of service operators that are selected to run this service
     /// instance.
     fn current_service_operators(
         &self,
         client: &subxt::OnlineClient<Self::Config>,
-    ) -> impl Future<Output = Result<Vec<subxt::utils::AccountId32>, subxt::Error>>;
+    ) -> impl Future<Output = Result<Vec<(subxt::utils::AccountId32, Percent)>, subxt::Error>>;
 }

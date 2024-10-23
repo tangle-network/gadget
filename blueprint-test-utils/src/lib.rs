@@ -3,7 +3,7 @@ use api::services::events::JobResultSubmitted;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use gadget_io::{GadgetConfig, SupportedChains};
-use gadget_sdk::clients::tangle::runtime::{TangleClient};
+use gadget_sdk::clients::tangle::runtime::TangleClient;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
@@ -159,6 +159,12 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
     keystore
         .ecdsa_generate_new(Some(&ecdsa_seed))
         .expect("Should be valid ECDSA seed");
+    keystore
+        .bls_bn254_generate_from_string(
+            "1371012690269088913462269866874713266643928125698382731338806296762673180359922"
+                .to_string(),
+        )
+        .expect("Should be valid BLS seed");
 
     // Perform sanity checks on conversions between secrets to ensure
     // consistency as the program executes
@@ -275,8 +281,9 @@ pub async fn register_service(
         blueprint_id,
         test_nodes.clone(),
         test_nodes,
-        1000,
         Default::default(),
+        Default::default(),
+        1000,
     );
     let res = client
         .tx()
@@ -486,6 +493,9 @@ mod tests_standard {
     use incredible_squaring_aggregator::aggregator::Aggregator;
     use std::str::FromStr;
 
+    const ANVIL_STATE_PATH: &str =
+        "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
+
     /// This test requires that `yarn install` has been executed inside the
     /// `./blueprints/incredible-squaring/` directory
     /// The other requirement is that there is a locally-running tangle node
@@ -595,7 +605,9 @@ mod tests_standard {
     #[allow(clippy::needless_return)]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
-        let (_container, http_endpoint, ws_endpoint) = anvil::start_anvil_container(true).await;
+        let (_container, http_endpoint, ws_endpoint) =
+            anvil::start_anvil_container(ANVIL_STATE_PATH, true).await;
+
         std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
         std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint.clone());
 
