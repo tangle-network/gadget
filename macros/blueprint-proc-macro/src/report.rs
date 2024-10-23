@@ -1,11 +1,14 @@
-use crate::job::EventListenerArgs;
+use crate::job::{
+    declared_params_to_field_types, generate_autogen_struct, get_current_call_id_field_name,
+    get_job_id_field_name, get_result_type, EventListenerArgs, ResultsKind,
+};
 use crate::shared::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{
     FieldType, ReportDefinition, ReportMetadata, ReportResultVerifier, ReportType,
 };
+use indexmap::IndexMap;
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use std::collections::BTreeMap;
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -39,11 +42,10 @@ mod kw {
 ///
 /// Returns a `Result` containing the generated `TokenStream` or a `syn::Error`.
 pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<TokenStream> {
-    let fn_name = &input.sig.ident;
-    let fn_name_string = fn_name.to_string();
+    let (fn_name_string, _job_def_name, job_id_name) = get_job_id_field_name(input);
     let report_def_name = format_ident!("{}_REPORT_DEF", fn_name_string.to_ascii_uppercase());
-
-    let mut param_types = BTreeMap::new();
+    let _ = get_result_type(input);
+    let mut param_types = IndexMap::new();
     for input in &input.sig.inputs {
         if let syn::FnArg::Typed(arg) = input {
             if let syn::Pat::Ident(pat_ident) = &*arg.pat {
@@ -57,7 +59,7 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
         }
     }
 
-    let params_type = args.params_to_field_types(&param_types)?;
+    let params_type = declared_params_to_field_types(&args.params, &param_types)?;
 
     let syn::ReturnType::Type(_, result) = &input.sig.output else {
         return Err(syn::Error::new_spanned(
@@ -67,7 +69,7 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
     };
 
     let result_type = args.result_to_field_types(result)?;
-
+    let job_id = args.job_id.as_ref().and_then(|lit| lit.base10_parse().ok());
     let report_def = ReportDefinition {
         metadata: ReportMetadata {
             name: fn_name_string.clone().into(),
@@ -76,7 +78,7 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
         params: params_type.clone(),
         result: result_type.clone(),
         report_type: args.report_type.clone(),
-        job_id: args.job_id.as_ref().and_then(|lit| lit.base10_parse().ok()),
+        job_id,
         interval: args
             .interval
             .as_ref()
@@ -105,27 +107,72 @@ pub(crate) fn report_impl(args: &ReportArgs, input: &ItemFn) -> syn::Result<Toke
         )
     })?;
 
-    let event_handler_gen = if args.skip_codegen {
-        proc_macro2::TokenStream::new()
-    } else {
-        match args.report_type {
-            ReportType::Job => {
-                generate_job_report_event_handler(args, input, &params_type, &result_type)
-            }
-            ReportType::QoS => {
-                generate_qos_report_event_handler(args, input, &params_type, &result_type)
-            }
-        }
+    let suffix = match args.report_type {
+        ReportType::Job => "JobReportEventHandler",
+        ReportType::QoS => "QoSReportEventHandler",
     };
 
-    let gen = quote! {
+    let (event_listener_gen, event_listener_calls) =
+        crate::job::generate_event_workflow_tokenstream(
+            input,
+            suffix,
+            &fn_name_string,
+            &args.event_listeners,
+            args.skip_codegen,
+            &param_types,
+            &args.params,
+            &result_type,
+        );
+
+    let autogen_struct = generate_autogen_struct(
+        input,
+        &args.event_listeners,
+        &args.params,
+        &param_types,
+        suffix,
+        &event_listener_calls,
+    );
+    /*let event_handler_gen = if args.skip_codegen {
+        proc_macro2::TokenStream::new()
+    } else {
+        if let ReportType::QoS = args.report_type {
+            generate_qos_report_event_handler(args, input, &params_type, &result_type)
+        } else {
+            proc_macro2::TokenStream::new()
+        }
+    };*/
+
+    let call_id_static_name = get_current_call_id_field_name(input);
+    let job_id = if let Some(job_id) = job_id {
+        quote! { #job_id }
+    } else {
+        quote! { 0 }
+    };
+
+    let job_const_block = quote! {
         #[doc = "Report definition for the function "]
         #[doc = #fn_name_string]
         pub const #report_def_name: &str = #report_def_str;
 
+        #[doc = "Job ID for the function "]
+            #[doc = "[`"]
+            #[doc = #fn_name_string]
+            #[doc = "`]"]
+            #[automatically_derived]
+            pub const #job_id_name: u8 = #job_id;
+
+        static #call_id_static_name: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    };
+
+    let gen = quote! {
+        #job_const_block
+
+        #autogen_struct
+
+        #[allow(unused_variables)]
         #input
 
-        #event_handler_gen
+        #(#event_listener_gen)*
     };
 
     Ok(gen.into())
@@ -286,23 +333,6 @@ impl Parse for ReportArgs {
 }
 
 impl ReportArgs {
-    fn params_to_field_types(
-        &self,
-        param_types: &BTreeMap<Ident, Type>,
-    ) -> syn::Result<Vec<FieldType>> {
-        let params = self
-            .params
-            .iter()
-            .map(|ident| {
-                param_types.get(ident).ok_or_else(|| {
-                    syn::Error::new_spanned(ident, "parameter not declared in the function")
-                })
-            })
-            .map(|ty| type_to_field_type(ty?))
-            .collect::<syn::Result<Vec<_>>>()?;
-        Ok(params)
-    }
-
     fn result_to_field_types(&self, result: &Type) -> syn::Result<Vec<FieldType>> {
         match &self.result {
             ResultsKind::Infered => type_to_field_type(result).map(|x| vec![x]),
@@ -314,101 +344,6 @@ impl ReportArgs {
                 Ok(xs)
             }
         }
-    }
-}
-
-/// Generates an event handler for job reports.
-///
-/// This function creates a struct that listens for job result submissions
-/// and triggers the report function when necessary.
-///
-/// # Arguments
-///
-/// * `args` - The parsed arguments from the `report` attribute macro.
-/// * `input` - The function item that the `report` attribute is attached to.
-/// * `param_types` - A map of parameter names to their types.
-/// * `params` - The list of parameter field types.
-/// * `result` - The list of result field types.
-///
-/// # Returns
-///
-/// Returns a `TokenStream` containing the generated event handler code.
-fn generate_job_report_event_handler(
-    args: &ReportArgs,
-    input: &ItemFn,
-    _params: &[FieldType],
-    _result: &[FieldType],
-) -> proc_macro2::TokenStream {
-    let fn_name = &input.sig.ident;
-    let fn_name_string = fn_name.to_string();
-    const SUFFIX: &str = "JobReportEventHandler";
-    let struct_name = format_ident!("{}{SUFFIX}", pascal_case(&fn_name_string));
-    let job_id = args
-        .job_id
-        .as_ref()
-        .expect("Job ID must be present for job reports");
-    let param_types =
-        crate::job::param_types(input).expect("Failed to generate param types for job report");
-    let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted };
-    let (event_listener_gen, event_listener_calls) =
-        crate::job::generate_event_workflow_tokenstream(
-            input,
-            SUFFIX,
-            &fn_name_string,
-            &args.event_listeners,
-            args.skip_codegen,
-            &param_types,
-            &args.params,
-        );
-
-    let combined_event_listener =
-        crate::job::generate_combined_event_listener_selector(&struct_name);
-    quote! {
-        #[derive(Clone)]
-        pub struct #struct_name {
-            pub service_id: u64,
-            pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::ext::sp_core::sr25519::Pair>,
-            pub client: gadget_sdk::clients::tangle::runtime::TangleClient,
-        }
-
-        #(#event_listener_gen)*
-
-        #[automatically_derived]
-        #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
-            async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
-                use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
-                // TODO: Implement parameter extraction and report function call
-                // This part will depend on the specific structure of your JobResultSubmitted event
-                // and how you want to handle the report function call
-
-                Ok(vec![])
-            }
-
-            /// Returns the job ID
-            fn job_id(&self) -> u8 {
-                #job_id
-            }
-
-            /// Returns the service ID
-            fn service_id(&self) -> u64 {
-                self.service_id
-            }
-
-            fn signer(&self) -> &gadget_sdk::keystore::TanglePairSigner<gadget_sdk::ext::sp_core::sr25519::Pair> {
-                &self.signer
-            }
-        }
-
-        #[async_trait::async_trait]
-        impl gadget_sdk::events_watcher::InitializableEventHandler for #struct_name {
-            async fn init_event_handler(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
-                #(#event_listener_calls)*
-                #combined_event_listener
-            }
-        }
-
-        impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
     }
 }
 
@@ -428,6 +363,7 @@ fn generate_job_report_event_handler(
 /// # Returns
 ///
 /// Returns a `TokenStream` containing the generated event handler code.
+#[allow(dead_code)]
 fn generate_qos_report_event_handler(
     args: &ReportArgs,
     input: &ItemFn,
@@ -437,13 +373,21 @@ fn generate_qos_report_event_handler(
     let fn_name = &input.sig.ident;
     let fn_name_string = fn_name.to_string();
     const SUFFIX: &str = "QoSReportEventHandler";
+
+    let syn::ReturnType::Type(_, result) = &input.sig.output else {
+        panic!("Report function must have a return type of Result<T, E> where T is a tuple of the result fields");
+    };
+
     let struct_name = format_ident!("{}{SUFFIX}", pascal_case(&fn_name_string));
     let job_id = quote! { 0 }; // We don't care about job ID's for QOS
     let param_types =
         crate::job::param_types(input).expect("Failed to generate param types for job report");
     // TODO: Allow passing all events, use a dummy value here that satisfies the trait bounds. For now QOS will
     // trigger only once a singular JobCalled event is received.
-    let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled };
+    let event_type = quote! { gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobResultSubmitted };
+    let result_type = crate::job::declared_result_type_to_field_types(&args.result, result)
+        .expect("Failed to generate result types for job report");
+
     let (event_listener_gen, event_listener_calls) =
         crate::job::generate_event_workflow_tokenstream(
             input,
@@ -453,6 +397,7 @@ fn generate_qos_report_event_handler(
             args.skip_codegen,
             &param_types,
             &args.params,
+            &result_type,
         );
 
     let interval = args
@@ -464,13 +409,6 @@ fn generate_qos_report_event_handler(
         crate::job::generate_combined_event_listener_selector(&struct_name);
 
     quote! {
-        #[derive(Clone)]
-        pub struct #struct_name {
-            pub service_id: u64,
-            pub signer: gadget_sdk::keystore::TanglePairSigner<gadget_sdk::ext::sp_core::sr25519::Pair>,
-            pub client: gadget_sdk::clients::tangle::runtime::TangleClient,
-        }
-
         #(#event_listener_gen)*
 
         #[automatically_derived]
@@ -523,20 +461,6 @@ fn generate_qos_report_event_handler(
         }
 
         impl gadget_sdk::event_listener::markers::IsTangle for #struct_name {}
-    }
-}
-
-pub enum ResultsKind {
-    Infered,
-    Types(Vec<Type>),
-}
-
-impl std::fmt::Debug for ResultsKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Infered => write!(f, "Infered"),
-            Self::Types(_) => write!(f, "Types"),
-        }
     }
 }
 

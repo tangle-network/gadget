@@ -4482,6 +4482,9 @@ dependencies = [
  "async-trait",
  "blueprint-metadata",
  "gadget-sdk",
+ "reqwest 0.12.8",
+ "serde_json",
+ "tokio",
  "tracing",
 ]
 
@@ -4589,6 +4592,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber 0.3.18",
  "url",
+ "uuid 1.10.0",
  "w3f-bls",
 ]
 

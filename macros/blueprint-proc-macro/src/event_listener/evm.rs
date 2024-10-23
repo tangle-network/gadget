@@ -28,9 +28,21 @@ pub(crate) fn generate_evm_event_handler(
 ) -> TokenStream {
     let (instance_base, instance_name, instance_wrapper_name, _instance) =
         get_evm_instance_data(event_handler);
-    let ev = event_handler.event().unwrap();
-    let event_converter = event_handler.event_converter().unwrap();
-    let callback = event_handler.callback().unwrap();
+    let ev = event_handler
+        .get_event_listener()
+        .event
+        .as_ref()
+        .expect("Event type must be specified");
+    let event_converter = event_handler
+        .get_event_listener()
+        .pre_processor
+        .as_ref()
+        .unwrap();
+    let callback = event_handler
+        .get_event_listener()
+        .post_processor
+        .as_ref()
+        .unwrap();
 
     quote! {
         #[derive(Debug, Clone)]

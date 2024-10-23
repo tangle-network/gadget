@@ -68,10 +68,10 @@ impl Config for NodeConfig {
     event_listener(
         listener = EvmContractEventListener(
             instance = IncredibleSquaringTaskManager,
-            event_converter = convert_event_to_inputs,
-            callback = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
         ),
         event = IncredibleSquaringTaskManager::NewTaskCreated,
+        pre_processor = convert_event_to_inputs,
+        post_processor = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerCalls::respondToTask
     ),
 )]
 pub async fn xsquare_eigen(
