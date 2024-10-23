@@ -342,7 +342,7 @@ impl AggregatorContext {
         let task_manager =
             IncredibleSquaringTaskManager::new(self.task_manager_addr, provider.clone());
 
-        let receipt = task_manager
+        let _ = task_manager
             .respondToTask(
                 task.clone(),
                 task_response.clone(),
@@ -357,8 +357,8 @@ impl AggregatorContext {
             .await?;
 
         info!(
-            "Sent aggregated response to contract for task index: {}, receipt: {:#?}",
-            response.task_index, receipt
+            "Sent aggregated response to contract for task index: {}",
+            response.task_index,
         );
 
         Ok(())
