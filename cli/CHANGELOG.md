@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/tangle-network/gadget/compare/cargo-tangle-v0.1.2...cargo-tangle-v0.2.0) - 2024-10-23
+
+### Fixed
+
+- *(sdk)* updated keystore support and fixes ([#368](https://github.com/tangle-network/gadget/pull/368))
+
 ## [0.1.2](https://github.com/tangle-network/gadget/releases/tag/cargo-tangle-v0.1.2) - 2024-09-30
 
 ### Other
