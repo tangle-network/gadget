@@ -83,12 +83,6 @@ pub fn report(args: TokenStream, input: TokenStream) -> TokenStream {
 
 /// A procedural macro that annotates a function as a registration hook, mainly used
 /// for the metadata in the `blueprint.json`.
-/// # Example
-/// ```rust,no_run
-/// # use gadget_blueprint_proc_macro::registration_hook;
-/// #[registration_hook]
-/// pub fn my_registration_hook();
-/// ```
 #[proc_macro_attribute]
 pub fn registration_hook(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ForeignItemFn);
@@ -100,12 +94,6 @@ pub fn registration_hook(_args: TokenStream, input: TokenStream) -> TokenStream 
 
 /// A procedural macro that annotates a function as a request hook, mainly used
 /// for the metadata in the `blueprint.json`.
-/// # Example
-/// ```rust,no_run
-/// # use gadget_blueprint_proc_macro::request_hook;
-/// #[request_hook]
-/// pub fn my_request_hook();
-/// ```
 #[proc_macro_attribute]
 pub fn request_hook(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ForeignItemFn);
