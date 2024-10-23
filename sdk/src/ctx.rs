@@ -8,29 +8,37 @@
 //! # Example
 //!
 //! ```rust,no_run
+//! use gadget_sdk::config::StdGadgetConfiguration;
 //! use gadget_sdk::ctx::KeystoreContext;
-//! use gadget_sdk::config::StdGadgetConfigurtion;
+//! use gadget_sdk::job;
 //!
 //! // This your struct that encapsulates all the things you need from outside world.
+//! // By deriving KeystoreContext, you can now access the keystore client from your struct.
 //! #[derive(Clone, Debug, KeystoreContext)]
 //! struct MyContext {
-//!   foo: String,
-//!   bar: u64,
-//!   #[config]
-//!   sdk_config: StdGadgetConfigurtion,
+//!     foo: String,
+//!     bar: u64,
+//!     #[config]
+//!     sdk_config: StdGadgetConfiguration,
 //! }
-//! // By deriving KeystoreContext, you can now access the keystore client from your struct.
 //!
-//! #[job(id = 0, params(who))]
-//! async fn my_job(ctx: &MyContext, who: String) -> Result<String, MyError> {
-//!   // Access the keystore client from the context.
-//!   let keystore = ctx.keystore();
-//!  // Do something with the keystore client.
-//!  // ...
-//!  Ok(format!("Hello, {}!", who))
+//! #[job(
+//!     id = 0,
+//!     params(who),
+//!     result(_),
+//!     event_listener(
+//!         listener = TangleEventListener,
+//!         event = JobCalled,
+//!     )
+//! )]
+//! async fn my_job(ctx: &MyContext, who: String) -> Result<String, std::convert::Infallible> {
+//!     // Access the keystore client from the context.
+//!     let keystore = ctx.keystore();
+//!     // Do something with the keystore client.
+//!     // ...
+//!     Ok(format!("Hello, {}!", who))
 //! }
 //! ```
-//!
 
 use core::future::Future;
 
