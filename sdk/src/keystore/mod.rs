@@ -227,6 +227,13 @@ pub trait Backend {
     /// # Errors
     /// An `Err` will be returned if generating the key pair operation itself failed.
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error>;
+    /// Generate a new ecdsa key pair from a [`ecdsa::Secret`] hex String
+    ///
+    /// Returns an `ecdsa::Public` key of the generated key pair or an `Err` if
+    /// something failed during key generation.
+    /// # Errors
+    /// An `Err` will be returned if generating the key pair operation itself failed.
+    fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public, Error>;
     /// Generate an ecdsa signature for a given message.
     ///
     /// Receives an [`ecdsa::Public`] key to be able to map
@@ -275,7 +282,7 @@ pub trait Backend {
     /// something failed during key generation.
     /// # Errors
     /// An `Err` will be returned if generating the key pair operation itself failed.
-    fn bls_bn254_generate_from_secret(&self, secret: String) -> Result<bn254::Public, Error>;
+    fn bls_bn254_generate_from_string(&self, secret: String) -> Result<bn254::Public, Error>;
     /// Generate a bls bn254 signature for a given message.
     ///
     /// Receives an [`bn254::Public`] key to be able to map
@@ -301,6 +308,7 @@ pub trait Backend {
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error>;
+    fn get_ecdsa_signer_string(&self, public: &k256::PublicKey) -> Result<String, Error>;
     /// Returns the [`ed25519::Secret`] for the given [`ed25519::Public`] if it does exist, otherwise returns `None`.
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.

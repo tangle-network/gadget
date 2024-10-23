@@ -135,6 +135,14 @@ impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
         }
     }
 
+    fn ecdsa_generate_from_string(&self, string: &str) -> Result<k256::PublicKey, Error> {
+        match self {
+            Self::Mem(backend) => backend.ecdsa_generate_from_string(string),
+            #[cfg(feature = "std")]
+            Self::Fs(backend) => backend.ecdsa_generate_from_string(string),
+        }
+    }
+
     fn ecdsa_sign(
         &self,
         public: &super::ecdsa::Public,
@@ -178,11 +186,11 @@ impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
         }
     }
 
-    fn bls_bn254_generate_from_secret(&self, secret: String) -> Result<Public, Error> {
+    fn bls_bn254_generate_from_string(&self, secret: String) -> Result<Public, Error> {
         match self {
-            Self::Mem(backend) => backend.bls_bn254_generate_from_secret(secret),
+            Self::Mem(backend) => backend.bls_bn254_generate_from_string(secret),
             #[cfg(feature = "std")]
-            Self::Fs(backend) => backend.bls_bn254_generate_from_secret(secret),
+            Self::Fs(backend) => backend.bls_bn254_generate_from_string(secret),
         }
     }
 
@@ -214,6 +222,14 @@ impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
             #[cfg(feature = "std")]
             Self::Fs(backend) => backend.expose_ecdsa_secret(public),
         }
+    }
+
+    fn get_ecdsa_signer_string(&self, public: &k256::PublicKey) -> Result<String, Error> {
+        let read_secret = self
+            .expose_ecdsa_secret(public)?
+            .ok_or(Error::Ecdsa("Failed to expose secret".to_string()))?;
+        let hex_secret = hex::encode(read_secret.to_bytes().as_slice());
+        Ok(hex_secret)
     }
 
     fn expose_ed25519_secret(

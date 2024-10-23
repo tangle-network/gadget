@@ -183,6 +183,52 @@ mod ecdsa {
 
     #[test]
     #[cfg(all(feature = "getrandom", feature = "std"))]
+    fn alloy_key() {
+        let private_key = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+        // In-Memory
+        let mem_keystore = setup_mem_test_keystore();
+        let mem_public = mem_keystore
+            .ecdsa_generate_from_string(private_key)
+            .expect("Should generate key");
+        let read_secret = mem_keystore.get_ecdsa_signer_string(&mem_public).unwrap();
+        assert_eq!(
+            private_key, read_secret,
+            "Private Key string should not be mutated in storage"
+        );
+
+        // Read back the key from in-memory storage
+        let mem_read = mem_keystore.ecdsa_key().expect("Should read keys");
+        assert_eq!(
+            mem_public.to_sec1_bytes().as_ref(),
+            mem_read.public().0,
+            "In-memory key should not be mutated in storage"
+        );
+
+        // Filesystem
+        let (fs_keystore, path) = setup_fs_test_keystore("ecdsa");
+        let fs_public = fs_keystore
+            .ecdsa_generate_from_string(private_key)
+            .expect("Should generate key");
+        let read_secret = fs_keystore.get_ecdsa_signer_string(&fs_public).unwrap();
+        assert_eq!(
+            private_key, read_secret,
+            "Private Key string should not be mutated in storage"
+        );
+
+        // Read back the key from filesystem storage
+        let fs_read = fs_keystore.ecdsa_key().expect("Should read keys");
+        assert_eq!(
+            fs_public.to_sec1_bytes().as_ref(),
+            fs_read.public().0,
+            "Filesystem key should not be mutated in storage"
+        );
+
+        // Clean up filesystem keystore
+        std::fs::remove_dir_all(path).expect("Failed to clean up test directory");
+    }
+
+    #[test]
+    #[cfg(all(feature = "getrandom", feature = "std"))]
     fn keys() {
         // In-Memory
         let mem_keystore = setup_mem_test_keystore();

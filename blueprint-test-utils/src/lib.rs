@@ -155,7 +155,7 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
         .ecdsa_generate_new(Some(&ecdsa_seed))
         .expect("Should be valid ECDSA seed");
     keystore
-        .bls_bn254_generate_from_secret(
+        .bls_bn254_generate_from_string(
             "1371012690269088913462269866874713266643928125698382731338806296762673180359922"
                 .to_string(),
         )

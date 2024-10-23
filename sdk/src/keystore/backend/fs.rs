@@ -1,6 +1,7 @@
 //! Filesystem-based keystore backend.
 
 use crate::keystore::bn254::Public;
+use crate::keystore::ecdsa::Secret;
 use crate::keystore::{
     bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error, KeystoreUriSanitizer,
 };
@@ -182,6 +183,14 @@ impl Backend for FilesystemKeystore {
         Ok(public)
     }
 
+    fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public, Error> {
+        let secret = Secret::from_slice(hex::decode(string).unwrap().as_slice()).unwrap();
+        let public = secret.public_key();
+        let path = self.key_file_path(&public.to_sec1_bytes(), KeyType::Ecdsa);
+        Self::write_to_file(path, &secret.to_bytes()[..])?;
+        Ok(public)
+    }
+
     fn ecdsa_sign(
         &self,
         public: &ecdsa::Public,
@@ -251,7 +260,7 @@ impl Backend for FilesystemKeystore {
         Ok(public)
     }
 
-    fn bls_bn254_generate_from_secret(&self, secret: String) -> Result<Public, Error> {
+    fn bls_bn254_generate_from_string(&self, secret: String) -> Result<Public, Error> {
         let pair = eigensdk::crypto_bls::BlsKeyPair::new(secret.clone())
             .map_err(|e| Error::BlsBn254(e.to_string()))?;
 
@@ -320,6 +329,14 @@ impl Backend for FilesystemKeystore {
         } else {
             Ok(None)
         }
+    }
+
+    fn get_ecdsa_signer_string(&self, public: &ecdsa::Public) -> Result<String, Error> {
+        let read_secret = self
+            .expose_ecdsa_secret(public)?
+            .ok_or(Error::Ecdsa("Failed to expose secret".to_string()))?;
+        let hex_secret = hex::encode(read_secret.to_bytes().as_slice());
+        Ok(hex_secret)
     }
 
     fn expose_ed25519_secret(
