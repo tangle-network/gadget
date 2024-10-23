@@ -437,7 +437,7 @@ pub fn convert_to_g1_point(
     })
 }
 
-/// Convert [`G2Affine`] to [`G2Point`]
+/// Convert [`G2Affine`] to [`G2Point`](IncredibleSquaringTaskManager::G2Point)
 pub fn convert_to_g2_point(
     g2: ark_bn254::G2Affine,
 ) -> Result<IncredibleSquaringTaskManager::G2Point> {
