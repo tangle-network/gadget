@@ -35,38 +35,6 @@ mod sdk_main;
 
 /// A procedural macro that annotates a function as a job.
 ///
-/// # Example
-/// ```rust,no_run
-/// use gadget_blueprint_proc_macro::job;
-///
-/// /// A simple add function that adds two numbers.
-/// #[job(id = 0, params(a, b), result(u32))]
-/// pub fn add(a: u32, b: u32) -> u32 {
-///    a + b
-/// }
-/// ```
-///
-/// The `job` macro generates the following code:
-/// ```rust
-/// /// A Job Definition ID for the [`add`] function.
-/// #[automatically_derived]
-/// pub const ADD_JOB_ID: u8 = 0;
-///
-/// /// A Job Definition for the [`add`] function.
-/// #[automatically_derived]
-/// pub const ADD_JOB_DEF: &str = r#"{"metadata":{"name":"add","description":"A simple add function that adds two numbers"},"params":["Uint32", "Uint32"],"result":["Uint32"],"verifier":"None"}"#;
-///
-/// /// A simple add function that adds two numbers.
-/// pub fn add(a: u32, b: u32) -> u32 {
-///   a + b
-/// }
-///
-/// pub struct AddEventHandler {
-///    pub service_id: u64,
-///    pub signer: subxt_signer::sr25519::Keypair,
-///    // ... other fields
-/// }
-/// ```
 /// Addon to the generated code, the `job` macro also generates an Event Handler struct that
 /// implements the `EventHandler` trait for you.
 ///
@@ -93,45 +61,6 @@ pub fn job(args: TokenStream, input: TokenStream) -> TokenStream {
 /// service blueprint. Reports are specifically for submitting incorrect job results, attributable
 /// malicious behavior, or otherwise machine failures and reliability degradation.
 ///
-/// # Example
-/// ```rust
-/// use gadget_blueprint_proc_macro::report;
-/// #[report(id = 1, params(a, b, c), result(u32))]
-/// pub fn report_add(a: u32, b: u32, c: SignedResult<u32>) -> u32 {
-///    if a + b == c {
-///       0
-///    } else {
-///      1
-///    }
-/// }
-/// ```
-///
-/// The `report` macro generates the following code:
-/// ```rust
-/// /// A Report Definition ID for the [`report_add`] function.
-/// #[automatically_derived]
-/// pub const REPORT_ADD_REPORT_ID: u8 = 1;
-///
-/// /// A Report Definition for the [`report_add`] function.
-/// #[automatically_derived]
-/// pub const REPORT_ADD_REPORT_DEF: &str = r#"{"metadata":{"name":"report_add","description":"A function to report the incorrect addition of two numbers"},"params":["Uint32", "Uint32", "Uint32"],"result":["Uint32"],"verifier":"None"}"#;
-///
-/// /// A function to report the addition of two numbers.
-/// pub fn report_add(a: u32, b: u32, c: SignedResult<u32>) -> u32 {
-///    if a + b == c {
-///       0
-///    } else {
-///      1
-///    }
-/// }
-///
-/// pub struct ReportAddEventHandler {
-///    pub service_id: u64,
-///    pub signer: subxt_signer::sr25519::Keypair,
-///    // ... other fields
-/// }
-/// ```
-///
 /// In addition to the generated code, the `report` macro also generates an Event Handler struct that
 /// implements the `EventHandler` trait for you.
 ///
@@ -154,12 +83,6 @@ pub fn report(args: TokenStream, input: TokenStream) -> TokenStream {
 
 /// A procedural macro that annotates a function as a registration hook, mainly used
 /// for the metadata in the `blueprint.json`.
-/// # Example
-/// ```rust,no_run
-/// # use gadget_blueprint_proc_macro::registration_hook;
-/// #[registration_hook]
-/// pub fn my_registration_hook();
-/// ```
 #[proc_macro_attribute]
 pub fn registration_hook(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ForeignItemFn);
@@ -171,12 +94,6 @@ pub fn registration_hook(_args: TokenStream, input: TokenStream) -> TokenStream 
 
 /// A procedural macro that annotates a function as a request hook, mainly used
 /// for the metadata in the `blueprint.json`.
-/// # Example
-/// ```rust,no_run
-/// # use gadget_blueprint_proc_macro::request_hook;
-/// #[request_hook]
-/// pub fn my_request_hook();
-/// ```
 #[proc_macro_attribute]
 pub fn request_hook(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ForeignItemFn);
@@ -188,15 +105,6 @@ pub fn request_hook(_args: TokenStream, input: TokenStream) -> TokenStream {
 
 /// A procedural macro that annotates a function as a benchmark hook, mainly used
 /// during the benchmarking phase.
-///
-/// # Example
-/// ```rust,no_run
-/// use gadget_blueprint_proc_macro::benchmark;
-/// #[benchmark(job_id = 1, cores = 4)]
-/// pub fn my_job() {
-///   // call your job with the necessary parameters
-/// }
-/// ```
 #[proc_macro_attribute]
 pub fn benchmark(args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ItemFn);
@@ -208,27 +116,12 @@ pub fn benchmark(args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 /// A procedural macro that outputs the JsonAbi for the given file path.
-///
-/// # Example
-/// ```rust,no_run
-/// use gadget_blueprint_proc_macro::load_abi;
-/// let abi = load_abi!("path/to/abi.json");
-/// ```
 #[proc_macro]
 pub fn load_abi(input: TokenStream) -> TokenStream {
     abi::load_abi(input)
 }
 
 /// A procedural macro that annotates a function as a main function for the blueprint.
-///
-/// # Example
-/// ```rust,no_run
-/// # use gadget_blueprint_proc_macro::main;
-///
-/// #[main(env)]
-/// pub async fn main() {
-///    // Your main function code here
-/// }
 #[proc_macro_attribute]
 pub fn main(args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ItemFn);
