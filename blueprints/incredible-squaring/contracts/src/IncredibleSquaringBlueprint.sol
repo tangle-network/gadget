@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import "tnt-core/BlueprintServiceManager.sol";
+import "tnt-core/BlueprintServiceManagerBase.sol";
 
 /**
  * @title IncredibleSquaringBlueprint
@@ -10,7 +10,7 @@ import "tnt-core/BlueprintServiceManager.sol";
  * implemented in a service blueprint.
  */
 
-contract IncredibleSquaringBlueprint is BlueprintServiceManager {
+contract IncredibleSquaringBlueprint is BlueprintServiceManagerBase {
     /**
      * @dev A mapping of all service operators registered with the blueprint.
      * The key is the operator's address and the value is the operator's details.
@@ -33,14 +33,14 @@ contract IncredibleSquaringBlueprint is BlueprintServiceManager {
      * @param _inputs Inputs used for the job execution.
      * @param _outputs Outputs resulting from the job execution.
      */
-    function onJobCallResult(
+    function onJobResult(
         uint64 serviceId,
         uint8 job,
         uint64 _jobCallId,
         bytes calldata participant,
         bytes calldata _inputs,
         bytes calldata _outputs
-    ) public virtual override onlyFromRootChain {
+    ) public virtual payable override onlyFromRootChain {
 /*        // check that we have this service instance
         require(
             serviceInstances[serviceId].length > 0,
@@ -80,7 +80,7 @@ contract IncredibleSquaringBlueprint is BlueprintServiceManager {
         bytes calldata participant,
         bytes calldata inputs,
         bytes calldata outputs
-    ) public view virtual override onlyFromRootChain returns (bool) {
+    ) public pure returns (bool) {
         // Someone requested to verify the result of a job call.
         // We need to check if the output is the square of the input.
 

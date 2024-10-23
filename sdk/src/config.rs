@@ -88,6 +88,8 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     ///
     /// This will be `None` if the blueprint manager was not provided a base directory.
     pub data_dir: Option<PathBuf>,
+    /// The list of bootnodes to connect to
+    pub bootnodes: Vec<Multiaddr>,
     /// Blueprint ID for this gadget.
     pub blueprint_id: u64,
     /// Service ID for this gadget.
@@ -127,8 +129,11 @@ pub struct EigenlayerContractAddresses {
 impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("GadgetConfiguration")
-            .field("rpc_endpoint", &self.http_rpc_endpoint)
+            .field("http_rpc_endpoint", &self.http_rpc_endpoint)
+            .field("ws_rpc_endpoint", &self.ws_rpc_endpoint)
             .field("keystore_uri", &self.keystore_uri)
+            .field("data_dir", &self.data_dir)
+            .field("bootnodes", &self.bootnodes)
             .field("blueprint_id", &self.blueprint_id)
             .field("service_id", &self.service_id)
             .field("is_registration", &self.is_registration)
@@ -148,6 +153,7 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
             ws_rpc_endpoint: self.ws_rpc_endpoint.clone(),
             keystore_uri: self.keystore_uri.clone(),
             data_dir: self.data_dir.clone(),
+            bootnodes: self.bootnodes.clone(),
             blueprint_id: self.blueprint_id,
             service_id: self.service_id,
             eigenlayer_contract_addrs: self.eigenlayer_contract_addrs,
@@ -170,6 +176,7 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
             ws_rpc_endpoint: "ws://localhost:9944".to_string(),
             keystore_uri: "file::memory:".to_string(),
             data_dir: None,
+            bootnodes: Vec::new(),
             blueprint_id: 0,
             service_id: Some(0),
             eigenlayer_contract_addrs: None,
@@ -337,6 +344,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 log_id,
                 http_rpc_url,
                 ws_rpc_url,
+                bootnodes,
                 keystore_uri,
                 blueprint_id,
                 service_id,
@@ -379,6 +387,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         ws_rpc_endpoint: ws_rpc_url.to_string(),
         keystore_uri,
         data_dir: std::env::var("DATA_DIR").ok().map(PathBuf::from),
+        bootnodes: bootnodes.unwrap_or_default(),
         blueprint_id,
         // If the registration mode is on, we don't need the service ID
         service_id: if is_registration {

@@ -6,7 +6,6 @@ use sp_core::Pair;
 use std::future::Future;
 use std::pin::Pin;
 use tangle_subxt::tangle_testnet_runtime::api;
-use tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_core::ecdsa;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 
@@ -207,8 +206,7 @@ async fn tangle_registration(
     let xt = api::tx().services().register(
         this.blueprint_id,
         services::OperatorPreferences {
-            key: ecdsa::Public(ecdsa_pair.signer().public().0),
-            approval: services::ApprovalPrefrence::None,
+            key: ecdsa_pair.signer().public().0,
             price_targets,
         },
         Default::default(),

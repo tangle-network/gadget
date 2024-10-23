@@ -56,19 +56,16 @@ pub fn new_blueprint(name: String, source: Option<Source>) {
     let source = source.unwrap_or_default();
     let template_path_opt: Option<cargo_generate::TemplatePath> = source.into();
 
-    let template_path = match template_path_opt {
-        Some(tp) => tp,
-        None => {
-            // TODO: Interactive selection (#352)
-            cargo_generate::TemplatePath {
-                git: Some(String::from(
-                    "https://github.com/tangle-network/blueprint-template/",
-                )),
-                branch: Some(String::from("main")),
-                ..Default::default()
-            }
+    let template_path = template_path_opt.unwrap_or_else(|| {
+        // TODO: Interactive selection (#352)
+        cargo_generate::TemplatePath {
+            git: Some(String::from(
+                "https://github.com/tangle-network/blueprint-template/",
+            )),
+            branch: Some(String::from("main")),
+            ..Default::default()
         }
-    };
+    });
 
     let path = cargo_generate::generate(cargo_generate::GenerateArgs {
         template_path,
