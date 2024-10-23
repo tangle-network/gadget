@@ -592,13 +592,16 @@ mod tests_standard {
             pauser_registry_address,
             ..
         } = setup_eigenlayer_test_environment(&http_endpoint, &ws_endpoint).await;
-        let task_generator_address = accounts.clone()[4];
+        let owner_address = &accounts[1];
+        let aggregator_address = &accounts[9];
+        let task_generator_address = &accounts[4];
         let task_manager_address = deploy_task_manager(
             &http_endpoint,
             registry_coordinator_address,
             pauser_registry_address,
-            task_generator_address,
-            accounts.as_ref(),
+            owner_address.clone(),
+            aggregator_address.clone(),
+            task_generator_address.clone(),
         )
         .await;
 

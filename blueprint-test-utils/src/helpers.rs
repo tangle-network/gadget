@@ -284,8 +284,9 @@ pub async fn deploy_task_manager(
     http_endpoint: &str,
     registry_coordinator_address: Address,
     pauser_registry_address: Address,
+    owner_address: Address,
+    aggregator_address: Address,
     task_generator_address: Address,
-    accounts: &[Address],
 ) -> Address {
     let provider = get_provider_http(http_endpoint);
     let deploy_call = IncredibleSquaringTaskManager::deploy_builder(
@@ -318,8 +319,8 @@ pub async fn deploy_task_manager(
     info!("Initializing Incredible Squaring Task Manager");
     let init_call = task_manager.initialize(
         pauser_registry_address,
-        accounts[1],
-        accounts[9],
+        owner_address,
+        aggregator_address,
         task_generator_address,
     );
     let init_receipt = get_receipt(init_call).await.unwrap();
