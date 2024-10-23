@@ -25,6 +25,7 @@ mod kw {
     syn::custom_keyword!(event);
     syn::custom_keyword!(event_converter);
     syn::custom_keyword!(callback);
+    syn::custom_keyword!(abi);
     syn::custom_keyword!(skip_codegen);
 }
 
@@ -230,11 +231,11 @@ pub(crate) fn generate_event_listener_tokenstream(
                 // How to inject not just this event handler, but all event handlers here?
                 let wrapper = if is_tangle {
                     quote! {
-                        gadget_sdk::event_listener::TangleEventWrapper<_>
+                        gadget_sdk::event_listener::tangle_events::TangleEventWrapper<_>
                     }
                 } else {
                     quote! {
-                        gadget_sdk::event_listener::EthereumHandlerWrapper<#autogen_struct_name, _>
+                        gadget_sdk::event_listener::evm_contracts::EthereumHandlerWrapper<#autogen_struct_name, _>
                     }
                 };
 
@@ -895,6 +896,7 @@ pub(crate) struct EvmArgs {
     event: Option<Type>,
     event_converter: Option<Type>,
     callback: Option<Type>,
+    abi: Option<Type>,
 }
 
 impl EventListenerArgs {
@@ -1001,7 +1003,7 @@ impl EventListenerArgs {
             .any(|r| r.listener_type == ListenerType::Evm)
     }
 
-    /// Returns the Event Handler's Instance if on EigenLayer. Otherwise, returns None
+    /// Returns the Event Handler's Contract Instance on the EVM.
     pub fn instance(&self) -> Option<Ident> {
         match self.get_evm() {
             Some(EvmArgs { instance, .. }) => instance.clone(),
@@ -1009,7 +1011,7 @@ impl EventListenerArgs {
         }
     }
 
-    /// Returns the Event Handler's event if on EigenLayer. Otherwise, returns None
+    /// Returns the contract instance's event to watch for on the EVM.
     pub fn event(&self) -> Option<Type> {
         match self.get_evm() {
             Some(EvmArgs { event, .. }) => event.clone(),
@@ -1017,7 +1019,7 @@ impl EventListenerArgs {
         }
     }
 
-    /// Returns the Event Handler's Event Converter if on EigenLayer. Otherwise, returns None
+    /// Returns the Event Handler's event converter to convert the event into function arguments
     pub fn event_converter(&self) -> Option<Type> {
         match self.get_evm() {
             Some(EvmArgs {
@@ -1027,10 +1029,18 @@ impl EventListenerArgs {
         }
     }
 
-    /// Returns the Event Handler's Callback if on EigenLayer. Otherwise, returns None
+    /// Returns the callback to submit the job function output to.
     pub fn callback(&self) -> Option<Type> {
         match self.get_evm() {
             Some(EvmArgs { callback, .. }) => callback.clone(),
+            None => None,
+        }
+    }
+
+    /// Returns the ABI for the contract instance.
+    pub fn abi(&self) -> Option<Type> {
+        match self.get_evm() {
+            Some(EvmArgs { abi, .. }) => abi.clone(),
             None => None,
         }
     }
@@ -1045,6 +1055,7 @@ impl Parse for EvmArgs {
         let mut event = None;
         let mut event_converter = None;
         let mut callback = None;
+        let mut abi = None;
 
         while !content.is_empty() {
             if content.peek(kw::instance) {
@@ -1063,6 +1074,10 @@ impl Parse for EvmArgs {
                 let _ = content.parse::<kw::callback>()?;
                 let _ = content.parse::<Token![=]>()?;
                 callback = Some(content.parse::<Type>()?);
+            } else if content.peek(kw::abi) {
+                let _ = content.parse::<kw::abi>()?;
+                let _ = content.parse::<Token![=]>()?;
+                abi = Some(content.parse::<Type>()?);
             } else if content.peek(Token![,]) {
                 let _ = content.parse::<Token![,]>()?;
             } else {
@@ -1075,6 +1090,7 @@ impl Parse for EvmArgs {
             event,
             event_converter,
             callback,
+            abi,
         })
     }
 }

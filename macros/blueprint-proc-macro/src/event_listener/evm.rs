@@ -28,9 +28,10 @@ pub(crate) fn generate_evm_event_handler(
 ) -> TokenStream {
     let (instance_base, instance_name, instance_wrapper_name, _instance) =
         get_evm_instance_data(event_handler);
-    let ev = event_handler.event().unwrap();
+    let event = event_handler.event().unwrap();
     let event_converter = event_handler.event_converter().unwrap();
     let callback = event_handler.callback().unwrap();
+    let abi_string = event_handler.abi().unwrap();
 
     quote! {
         #[derive(Debug, Clone)]
@@ -65,9 +66,7 @@ pub(crate) fn generate_evm_event_handler(
             #[allow(clippy::clone_on_copy)]
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
                 self.contract_instance.get_or_init(|| {
-                    let instance_string = stringify!(instance_name);
-                    let abi_path = format!("../contracts/out/{instance_string}.sol/{instance_string}.json");
-                    let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&abi_path).unwrap());
+                    let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&#abi_string).unwrap());
                     ContractInstance::new(
                         self.instance.address().clone(),
                         self.instance.provider().clone(),
@@ -100,9 +99,9 @@ pub(crate) fn generate_evm_event_handler(
             #instance_wrapper_name <T::TH, T::PH>: std::ops::Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, Ethereum>>,
         {
             type Contract = #instance_wrapper_name <T::TH, T::PH>;
-            type Event = #ev;
-            const TAG: &'static str = "eigenlayer";
+            type Event = #event;
             const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
+
             async fn handle(&self, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::events_watcher::Error> {
                 use alloy_provider::Provider;
                 use alloy_sol_types::SolEvent;
@@ -112,6 +111,8 @@ pub(crate) fn generate_evm_event_handler(
 
                 // Convert the event to inputs
                 let decoded: alloy_primitives::Log<Self::Event> = <Self::Event as SolEvent>::decode_log(&log.inner, true)?;
+
+                let (_, index) = decoded.topics();
                 // Convert the event to inputs using the event converter.
                 // TODO: If no converter is provided, the #[job] must consume the
                 // event directly, as specified in the `event = <EVENT>`.
@@ -121,7 +122,7 @@ pub(crate) fn generate_evm_event_handler(
                 // } else {
                 //     decoded.data
                 // };
-                let inputs = #event_converter(decoded.data);
+                let inputs = #event_converter(decoded.data, index);
 
                 // Apply the function
                 #(#params_tokens)*
@@ -131,15 +132,14 @@ pub(crate) fn generate_evm_event_handler(
                 // TODO: Check if the callback is None
                 // if let Some(cb) = #callback {
                 //     let call = cb(job_result);
-                //
                 //     // Submit the transaction
                 //     let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
                 //     tx.watch().await?;
                 // }
                 let call = #callback(job_result);
                 // Submit the transaction
-                let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
-                tx.watch().await?;
+                // let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
+                // tx.watch().await?;
 
                 Ok(())
             }
