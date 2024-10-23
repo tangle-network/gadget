@@ -42,10 +42,6 @@ pub fn noop(_: u32) {
     // This function intentionally does nothing
 }
 
-pub fn noop(_: u32) {
-    // This function intentionally does nothing
-}
-
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
     id = 1,
