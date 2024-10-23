@@ -485,13 +485,18 @@ mod tests_standard {
     use crate::test_ext::new_test_ext_blueprint_manager;
     use alloy_primitives::{address, Bytes, U256};
     use alloy_provider::network::EthereumWallet;
-    use alloy_provider::Provider;
+    use alloy_provider::{Provider, ProviderBuilder, WsConnect};
     use cargo_tangle::deploy::{Opts, PrivateKeySigner};
+    use futures::StreamExt;
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
     use incredible_squaring_aggregator::aggregator::Aggregator;
     use std::str::FromStr;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+    use tokio::time::timeout;
+    use IncredibleSquaringTaskManager::TaskResponded;
 
     const ANVIL_STATE_PATH: &str =
         "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
@@ -583,6 +588,7 @@ mod tests_standard {
     alloy_sol_types::sol!(
         #[allow(missing_docs)]
         #[sol(rpc)]
+        #[derive(Debug)]
         IncredibleSquaringTaskManager,
         "./../blueprints/incredible-squaring-eigenlayer/contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
     );
@@ -590,6 +596,7 @@ mod tests_standard {
     alloy_sol_types::sol!(
         #[allow(missing_docs)]
         #[sol(rpc)]
+        #[derive(Debug)]
         PauserRegistry,
         "./../blueprints/incredible-squaring-eigenlayer/contracts/out/IPauserRegistry.sol/IPauserRegistry.json"
     );
@@ -597,6 +604,7 @@ mod tests_standard {
     alloy_sol_types::sol!(
         #[allow(missing_docs, clippy::too_many_arguments)]
         #[sol(rpc)]
+        #[derive(Debug)]
         RegistryCoordinator,
         "./../blueprints/incredible-squaring-eigenlayer/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
     );
@@ -702,12 +710,50 @@ mod tests_standard {
         .unwrap();
 
         // Run the server in a separate thread
-        let _handle = aggregator.start(ws_endpoint.to_string());
+        let (handle, aggregator_shutdown_tx) = aggregator.start(ws_endpoint.to_string());
+
+        let successful_responses = Arc::new(Mutex::new(0));
+        let successful_responses_clone = successful_responses.clone();
+
+        // Create an event listener for TaskResponded events
+        let task_mgr_clone = task_manager.clone();
+        let ws_provider = ProviderBuilder::new()
+            .on_ws(WsConnect::new(ws_endpoint.clone()))
+            .await
+            .unwrap()
+            .root()
+            .clone()
+            .boxed();
+        let task_response_listener = async move {
+            let filter = task_mgr_clone.TaskResponded_filter().filter;
+            info!("Filter: {:?}", filter);
+            let mut event_stream = match ws_provider.subscribe_logs(&filter).await {
+                Ok(stream) => stream.into_stream(),
+                Err(e) => {
+                    error!("Failed to subscribe to logs: {:?}", e);
+                    return;
+                }
+            };
+            info!("Listening for TaskResponded events...");
+            while let Some(event) = event_stream.next().await {
+                let TaskResponded {
+                    taskResponse: response,
+                    ..
+                } = event.log_decode::<TaskResponded>().unwrap().inner.data;
+                let mut counter = successful_responses.lock().await;
+                *counter += 1;
+                if *counter >= 1 {
+                    break;
+                }
+            }
+        };
+        let response_listener_handle = tokio::spawn(task_response_listener);
 
         // Start the Task Spawner
         let operators = vec![vec![accounts[0]]];
         let quorums = Bytes::from(vec![0]);
         let task_spawner = async move {
+            let mut task_count = 0;
             loop {
                 tokio::time::sleep(std::time::Duration::from_millis(10000)).await;
 
@@ -721,6 +767,7 @@ mod tests_standard {
                 .status()
                 {
                     info!("Deployed a new task");
+                    task_count += 1;
                 }
 
                 if get_receipt(
@@ -744,9 +791,15 @@ mod tests_standard {
                     .await
                     .unwrap();
                 info!("Mined a block...");
+
+                // Break the loop if we've created enough tasks
+                if task_count >= 5 {
+                    // Create more tasks than we expect responses for
+                    break;
+                }
             }
         };
-        tokio::spawn(task_spawner);
+        let task_spawner_handle = tokio::spawn(task_spawner);
 
         info!("Starting Blueprint Binary...");
 
@@ -808,7 +861,7 @@ mod tests_standard {
         env_vars.extend(std::env::vars());
 
         // Now that the file is loaded, spawn the process
-        let process_handle = tokio::process::Command::new(program_path.as_os_str())
+        let mut process_handle = tokio::process::Command::new(program_path.as_os_str())
             .kill_on_drop(true)
             .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
             .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
@@ -819,11 +872,56 @@ mod tests_standard {
             .spawn()
             .unwrap();
 
-        let status = process_handle.wait_with_output().await.unwrap();
-        if !status.status.success() {
-            error!("Protocol (registration mode) failed to execute: {status:?}");
+        // Wait for the process to complete or timeout
+        let timeout_duration = Duration::from_secs(300); // 5 minutes timeout
+        let result = timeout(timeout_duration, async {
+            loop {
+                let count = *successful_responses_clone.lock().await;
+                if count >= 1 {
+                    return Ok::<(), std::io::Error>(());
+                }
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        })
+        .await;
+
+        // When you want to shut down the aggregator:
+        if let Err(e) = aggregator_shutdown_tx.send(()).await {
+            error!("Failed to send shutdown signal to aggregator: {:?}", e);
         } else {
-            info!("***Protocol (registration mode) executed successfully***");
+            info!("Sent shutdown signal to aggregator.");
+        }
+
+        // Wait for the aggregator to shut down
+        if let Err(e) = handle.await {
+            error!("Error waiting for aggregator to shut down: {:?}", e);
+        }
+
+        // Cancel the task spawner and response listener
+        task_spawner_handle.abort();
+        response_listener_handle.abort();
+
+        // Check the result
+        match result {
+            Ok(Ok(())) => {
+                info!("Test completed successfully with 3 or more tasks responded to.");
+                if let Err(e) = process_handle.kill().await {
+                    error!("Failed to kill the process: {:?}", e);
+                } else {
+                    info!("Process killed successfully.");
+                }
+            }
+            Ok(Err(e)) => {
+                error!("Test failed with error: {:?}", e);
+                panic!("Test failed");
+            }
+            Err(_) => {
+                error!(
+                    "Test timed out after {} seconds",
+                    timeout_duration.as_secs()
+                );
+                panic!("Test timed out");
+            }
         }
     }
 }

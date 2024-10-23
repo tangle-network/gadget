@@ -25,7 +25,7 @@ use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use tokio::{sync::Mutex, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 
@@ -107,15 +107,18 @@ impl Aggregator {
         ))
     }
 
-    pub fn start(self, ws_rpc_url: String) -> (JoinHandle<()>, oneshot::Sender<()>) {
-        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    pub fn start(self, ws_rpc_url: String) -> (JoinHandle<()>, mpsc::Sender<()>) {
+        let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1);
         let aggregator = Arc::new(Mutex::new(self));
 
         let handle = tokio::spawn(async move {
             info!("Starting aggregator");
 
-            let server_handle =
-                tokio::spawn(Self::start_server(Arc::clone(&aggregator), shutdown_rx));
+            let (server_shutdown_tx, server_shutdown_rx) = oneshot::channel();
+            let server_handle = tokio::spawn(Self::start_server(
+                Arc::clone(&aggregator),
+                server_shutdown_rx,
+            ));
             let tasks_handle =
                 tokio::spawn(Self::process_tasks(ws_rpc_url, Arc::clone(&aggregator)));
 
@@ -127,6 +130,10 @@ impl Aggregator {
                 }
                 _ = tasks_handle => {
                     info!("Task processing has completed");
+                }
+                _ = shutdown_rx.recv() => {
+                    info!("Received shutdown signal");
+                    let _ = server_shutdown_tx.send(());
                 }
             }
             info!("Aggregator is shutting down");
@@ -348,7 +355,7 @@ impl Aggregator {
         let task_manager =
             IncredibleSquaringTaskManager::new(self.task_manager_addr, provider.clone());
 
-        let receipt = task_manager
+        let _ = task_manager
             .respondToTask(
                 task.clone(),
                 task_response.clone(),
@@ -363,8 +370,8 @@ impl Aggregator {
             .await?;
 
         info!(
-            "Sent aggregated response to contract for task index: {}, receipt: {:#?}",
-            response.task_index, receipt
+            "Sent aggregated response to contract for task index: {}",
+            response.task_index,
         );
 
         Ok(())
