@@ -37,12 +37,6 @@ jobs:
     timeout-minutes: 120
     name: cargo clippy
     runs-on: macos-latest
-    strategy:
-      matrix:
-        package: [
-          gadget-sdk,
-          blueprint-manager
-        ]
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -72,7 +66,7 @@ jobs:
         run: brew install protobuf
 
       - name: Run Clippy
-        run: cargo clippy --package ${{ matrix.package }} --tests -- -D warnings
+        run: cargo clippy --tests -- -D warnings
 
   testing:
     timeout-minutes: 90
@@ -84,6 +78,7 @@ jobs:
           gadget-sdk,
           blueprint-manager,
           gadget-context-derive,
+          gadget-blueprint-proc-macro,
           gadget-blueprint-proc-macro-playground,
         ]
     steps:
@@ -123,4 +118,4 @@ jobs:
         run: cargo install cargo-nextest --locked
 
       - name: tests
-        run: cargo nextest run --nocapture --package ${{ matrix.package }}
+        run: cargo nextest run --nocapture --package ${{ matrix.package }} ${{ matrix.package == 'gadget-sdk' && '--features getrandom,std' || '' }}

@@ -14,7 +14,6 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::Job
         pre_processor = services_pre_processor,
         post_processor = services_post_processor,
     ),
-    verifier(evm = "IncredibleSquaringBlueprint")
 )]
 pub fn xsquare(x: u64, context: TangleClient) -> Result<u64, gadget_sdk::Error> {
     Ok(x.saturating_pow(2))

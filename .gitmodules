@@ -5,9 +5,6 @@
 [submodule "blueprints/incredible-squaring/contracts/lib/tnt-core"]
 	path = blueprints/incredible-squaring/contracts/lib/tnt-core
 	url = https://github.com/tangle-network/tnt-core
-[submodule "blueprints/incredible-squaring/contracts/lib/eigenlayer-middleware"]
-    path = blueprints/incredible-squaring/contracts/lib/eigenlayer-middleware
-    url = https://github.com/Layr-Labs/eigenlayer-middleware
 
 # For the incredible-squaring-eigenlayer blueprint
 [submodule "blueprints/incredible-squaring-eigenlayer/contracts/lib/eigenlayer-middleware"]

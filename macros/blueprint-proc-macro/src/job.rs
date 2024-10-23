@@ -1,21 +1,20 @@
 use crate::event_listener::evm::{generate_evm_event_handler, get_evm_instance_data};
 use crate::event_listener::tangle::generate_tangle_event_handler;
 use crate::shared::{pascal_case, type_to_field_type};
-use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata, JobResultVerifier};
+use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata};
 use indexmap::{IndexMap, IndexSet};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use std::collections::HashSet;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseBuffer, ParseStream};
-use syn::{Ident, Index, ItemFn, LitInt, LitStr, Token, Type};
+use syn::{Ident, Index, ItemFn, LitInt, Token, Type};
 
 /// Defines custom keywords for defining Job arguments
 mod kw {
     syn::custom_keyword!(id);
     syn::custom_keyword!(params);
     syn::custom_keyword!(result);
-    syn::custom_keyword!(verifier);
     syn::custom_keyword!(evm);
     syn::custom_keyword!(event_listener);
     syn::custom_keyword!(listener);
@@ -26,6 +25,7 @@ mod kw {
     syn::custom_keyword!(event);
     syn::custom_keyword!(event_converter);
     syn::custom_keyword!(callback);
+    syn::custom_keyword!(abi);
     syn::custom_keyword!(skip_codegen);
 }
 
@@ -90,13 +90,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         )
     };
 
-    let job_const_block = generate_job_const_block(
-        input,
-        params_type,
-        result_type,
-        Some(args.verifier.clone()),
-        job_id,
-    )?;
+    let job_const_block = generate_job_const_block(input, params_type, result_type, job_id)?;
 
     // Generates final TokenStream that will be returned
     let gen = quote! {
@@ -152,7 +146,6 @@ pub fn generate_job_const_block(
     input: &ItemFn,
     params: Vec<FieldType>,
     result: Vec<FieldType>,
-    verifier: Option<Verifier>,
     job_id: &LitInt,
 ) -> syn::Result<proc_macro2::TokenStream> {
     let (fn_name_string, job_def_name, job_id_name) = get_job_id_field_name(input);
@@ -165,10 +158,6 @@ pub fn generate_job_const_block(
         },
         params,
         result,
-        verifier: match &verifier.unwrap_or(Verifier::None) {
-            Verifier::Evm(contract) => JobResultVerifier::Evm(contract.clone()),
-            Verifier::None => JobResultVerifier::None,
-        },
     };
 
     // Serialize Job Definition to JSON string
@@ -271,7 +260,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             let next_listener = if matches!(listener_meta.listener_type, ListenerType::Evm) {
                 // How to inject not just this event handler, but all event handlers here?
                 let wrapper = quote! {
-                    gadget_sdk::event_listener::EthereumHandlerWrapper<#autogen_struct_name, _>
+                    gadget_sdk::event_listener::evm_contracts::EthereumHandlerWrapper<#autogen_struct_name, _>
                 };
 
                 let ctx_create = quote! {
@@ -721,9 +710,6 @@ pub(crate) struct JobArgs {
     /// `#[job(result(u32, u64))]`
     /// `#[job(result(_))]`
     result: ResultsKind,
-    /// Optional: Verifier for the job result, currently only supports EVM verifier.
-    /// `#[job(verifier(evm = "MyVerifierContract"))]`
-    verifier: Verifier,
     /// Optional: Event listener type for the job
     /// `#[job(event_listener(MyCustomListener))]`
     event_listener: EventListenerArgs,
@@ -739,7 +725,6 @@ impl Parse for JobArgs {
         let mut params = Vec::new();
         let mut result = None;
         let mut id = None;
-        let mut verifier = Verifier::None;
         let mut skip_codegen = false;
         let mut event_listener = EventListenerArgs { listeners: vec![] };
 
@@ -755,8 +740,6 @@ impl Parse for JobArgs {
             } else if lookahead.peek(kw::result) {
                 let Results(r) = input.parse()?;
                 result = Some(r);
-            } else if lookahead.peek(kw::verifier) {
-                verifier = input.parse()?;
             } else if lookahead.peek(kw::skip_codegen) {
                 let _ = input.parse::<kw::skip_codegen>()?;
                 skip_codegen = true;
@@ -787,7 +770,6 @@ impl Parse for JobArgs {
             id,
             params,
             result,
-            verifier,
             skip_codegen,
             event_listener,
         })
@@ -895,14 +877,6 @@ impl Parse for Results {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Verifier {
-    None,
-    /// #[job(verifier(evm = "`MyVerifierContract`"))]
-    Evm(String),
-}
-
-#[derive(Debug)]
 /// `#[job(event_listener(MyCustomListener, MyCustomListener2)]`
 /// Accepts an optional argument that specifies the event listener to use that implements EventListener
 pub(crate) struct EventListenerArgs {
@@ -916,7 +890,6 @@ pub enum ListenerType {
     Custom,
 }
 
-#[derive(Debug)]
 pub(crate) struct SingleListener {
     pub listener: Type,
     pub evm_args: Option<EvmArgs>,
@@ -1057,27 +1030,9 @@ impl Parse for EventListenerArgs {
     }
 }
 
-impl Parse for Verifier {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let _ = input.parse::<kw::verifier>()?;
-        let content;
-        let _ = syn::parenthesized!(content in input);
-        let lookahead = content.lookahead1();
-        // parse `(evm = "MyVerifierContract")`
-        if lookahead.peek(kw::evm) {
-            let _ = content.parse::<kw::evm>()?;
-            let _ = content.parse::<Token![=]>()?;
-            let contract = content.parse::<LitStr>()?;
-            Ok(Verifier::Evm(contract.value()))
-        } else {
-            Ok(Verifier::None)
-        }
-    }
-}
-
-#[derive(Debug)]
 pub(crate) struct EvmArgs {
-    instance: Option<Ident>,
+    pub instance: Option<Ident>,
+    pub abi: Option<Type>,
 }
 
 impl EventListenerArgs {
@@ -1182,7 +1137,7 @@ impl EventListenerArgs {
             .any(|r| r.listener_type == ListenerType::Evm)
     }
 
-    /// Returns the Event Handler's Instance if on EigenLayer. Otherwise, returns None
+    /// Returns the Event Handler's Contract Instance on the EVM.
     pub fn instance(&self) -> Option<Ident> {
         match self.get_event_listener().evm_args.as_ref() {
             Some(EvmArgs { instance, .. }) => instance.clone(),
@@ -1197,6 +1152,7 @@ impl Parse for EvmArgs {
         syn::parenthesized!(content in input);
 
         let mut instance = None;
+        let mut abi = None;
 
         while !content.is_empty() {
             if content.peek(kw::instance) {
@@ -1205,12 +1161,16 @@ impl Parse for EvmArgs {
                 instance = Some(content.parse::<Ident>()?);
             } else if content.peek(Token![,]) {
                 let _ = content.parse::<Token![,]>()?;
+            } else if content.peek(kw::abi) {
+                let _ = content.parse::<kw::abi>()?;
+                let _ = content.parse::<Token![=]>()?;
+                abi = Some(content.parse::<Type>()?);
             } else {
                 return Err(content.error("Unexpected token"));
             }
         }
 
-        Ok(EvmArgs { instance })
+        Ok(EvmArgs { instance, abi })
     }
 }
 

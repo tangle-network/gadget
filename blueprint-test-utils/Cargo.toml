@@ -2,6 +2,7 @@
 name = "blueprint-test-utils"
 version = "0.1.1"
 edition = "2021"
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -28,12 +29,16 @@ subxt = { workspace = true, features = ["substrate-compat"] }
 color-eyre = { workspace = true }
 tracing = { workspace = true }
 alloy-provider = { workspace = true, features = ["hyper"] }
+alloy-rpc-types = { workspace = true }
 alloy-transport-http = { workspace = true }
 alloy-transport = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-contract = { workspace = true }
 alloy-rpc-types-eth = { workspace = true }
+alloy-node-bindings = { workspace = true }
+
+incredible-squaring-aggregator = { workspace = true }
 
 
 eigensdk = { workspace = true }

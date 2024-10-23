@@ -8,8 +8,6 @@ use tokio::io::AsyncBufReadExt;
 
 const ANVIL_IMAGE: &str = "ghcr.io/foundry-rs/foundry";
 const ANVIL_TAG: &str = "nightly-5b7e4cb3c882b28f3c32ba580de27ce7381f415a";
-const ANVIL_STATE_PATH: &str =
-    "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
 
 fn workspace_dir() -> PathBuf {
     let output = std::process::Command::new(env!("CARGO"))
@@ -25,9 +23,10 @@ fn workspace_dir() -> PathBuf {
 
 /// Start an Anvil container for testing with contract state loaded.
 pub async fn start_anvil_container(
+    state_path: &str,
     include_logs: bool,
 ) -> (ContainerAsync<GenericImage>, String, String) {
-    let relative_path = PathBuf::from(ANVIL_STATE_PATH);
+    let relative_path = PathBuf::from(state_path);
     let absolute_path = workspace_dir().join(relative_path);
     let absolute_path_str = absolute_path.to_str().unwrap();
 
@@ -63,7 +62,7 @@ pub async fn start_anvil_container(
             let mut reader = reader;
             let mut buffer = String::new();
             while reader.read_line(&mut buffer).await.unwrap() > 0 {
-                println!("ANVIL: {:?}", buffer);
+                println!("{:?}", buffer);
                 buffer.clear();
             }
         });

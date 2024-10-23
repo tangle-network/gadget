@@ -8,6 +8,9 @@ homepage.workspace = true
 repository.workspace = true
 publish = false
 
+[package.metadata.blueprint]
+manager = { evm = "" }
+
 [[package.metadata.gadget.Native.sources]]
 owner = "tangle-network"
 repo = "incredible-squaring"
