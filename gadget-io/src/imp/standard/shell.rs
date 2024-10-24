@@ -36,10 +36,14 @@ pub struct GadgetConfig {
     #[structopt(long = "port", short = "p", default_value = defaults::BIND_PORT)]
     #[serde(default = "defaults::bind_port")]
     pub bind_port: u16,
-    /// The RPC URL of the Tangle Node.
-    #[structopt(long = "url", parse(try_from_str = url::Url::parse), default_value = defaults::RPC_URL)]
-    #[serde(default = "defaults::rpc_url")]
-    pub url: url::Url,
+    /// The HTTP RPC URL of the Tangle Node.
+    #[structopt(long = "url", parse(try_from_str = url::Url::parse), default_value = defaults::HTTP_RPC_URL)]
+    #[serde(default = "defaults::http_rpc_url")]
+    pub http_rpc_url: url::Url,
+    /// The WS RPC URL of the Tangle Node.
+    #[structopt(long = "url", parse(try_from_str = url::Url::parse), default_value = defaults::WS_RPC_URL)]
+    #[serde(default = "defaults::ws_rpc_url")]
+    pub ws_rpc_url: url::Url,
     /// The List of bootnodes to connect to
     #[structopt(long = "bootnodes", parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str))]
     #[serde(default)]
@@ -74,10 +78,15 @@ pub struct GadgetConfig {
 pub mod defaults {
     pub const BIND_PORT: &str = "30555";
     pub const BIND_IP: &str = "0.0.0.0";
-    pub const RPC_URL: &str = "ws://127.0.0.1:9944";
+    pub const HTTP_RPC_URL: &str = "http://127.0.0.1:9944";
+    pub const WS_RPC_URL: &str = "ws://127.0.0.1:9944";
 
-    pub fn rpc_url() -> url::Url {
-        url::Url::parse(RPC_URL).expect("Default RPC URL is valid")
+    pub fn http_rpc_url() -> url::Url {
+        url::Url::parse(HTTP_RPC_URL).expect("Default RPC URL is valid")
+    }
+
+    pub fn ws_rpc_url() -> url::Url {
+        url::Url::parse(WS_RPC_URL).expect("Default RPC URL is valid")
     }
 
     pub fn bind_ip() -> std::net::IpAddr {
