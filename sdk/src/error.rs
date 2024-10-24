@@ -26,6 +26,9 @@ pub enum Error {
     #[error("Job runner error: {0}")]
     Runner(#[from] crate::job_runner::Error),
 
+    #[error("Docker error: {0}")]
+    Docker(#[from] bollard::errors::Error),
+
     #[error("Missing network ID")]
     MissingNetworkId,
 
