@@ -52,10 +52,12 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
         .exec()
         .context("Getting Metadata about the workspace")?;
 
-    let package = find_package(&metadata, pkg_name)?;
-    let mut blueprint = load_blueprint_metadata(package)?;
-    build_contracts_if_needed(package, &blueprint).context("Building contracts")?;
-    deploy_contracts_to_tangle(rpc_url.as_ref(), package, &mut blueprint, signer_evm).await?;
+    let package = find_package(&metadata, pkg_name)?.clone();
+    let package_clone = &package.clone();
+    let mut blueprint =
+        tokio::task::spawn_blocking(move || load_blueprint_metadata(&package)).await??;
+    build_contracts_if_needed(package_clone, &blueprint).context("Building contracts")?;
+    deploy_contracts_to_tangle(rpc_url.as_ref(), package_clone, &mut blueprint, signer_evm).await?;
 
     bake_blueprint(blueprint)
 }
@@ -110,7 +112,9 @@ pub async fn deploy_to_tangle(
     Ok(event.blueprint_id)
 }
 
-pub fn load_blueprint_metadata(package: &cargo_metadata::Package) -> Result<ServiceBlueprint> {
+pub fn load_blueprint_metadata(
+    package: &cargo_metadata::Package,
+) -> Result<ServiceBlueprint<'static>> {
     let blueprint_json_path = package
         .manifest_path
         .parent()
