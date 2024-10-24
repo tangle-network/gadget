@@ -9,7 +9,7 @@ repository.workspace = true
 publish = false
 
 [package.metadata.blueprint]
-manager = { evm = "" }
+manager = { Evm = "" }
 
 [[package.metadata.gadget.Native.sources]]
 owner = "tangle-network"
