@@ -264,9 +264,16 @@ fn bake_blueprint(
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["website"]);
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["code_repository"]);
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["category"]);
+
+    // Set the Hooks to be empty to be compatible with the old blueprint format.
+    // This is because the new blueprint format has manager field instead of different hooks.
+    blueprint_json["registration_hook"] = serde_json::json!("None");
+    blueprint_json["request_hook"] = serde_json::json!("None");
     for job in blueprint_json["jobs"].as_array_mut().unwrap() {
         convert_to_bytes_or_null(&mut job["metadata"]["name"]);
         convert_to_bytes_or_null(&mut job["metadata"]["description"]);
+        // Set an empty verifier to be compatible with the old blueprint format.
+        job["verifier"] = serde_json::json!("None");
     }
 
     // Retrieves the Gadget information from the blueprint.json file.
@@ -308,7 +315,6 @@ fn bake_blueprint(
         }
     }
 
-    println!("Job: {blueprint_json}");
     let blueprint = serde_json::from_value(blueprint_json)?;
     Ok(blueprint)
 }
