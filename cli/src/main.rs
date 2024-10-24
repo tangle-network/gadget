@@ -31,7 +31,7 @@ enum Commands {
 }
 
 #[derive(Subcommand, Debug)]
-enum GadgetCommands {
+pub enum GadgetCommands {
     /// Create a new blueprint
     Create {
         /// The name of the blueprint
@@ -66,7 +66,7 @@ enum GadgetCommands {
         seed: Option<String>,
 
         /// If true, the secret key will be printed along with the public key
-        #[arg(short, long)]
+        #[arg(long)]
         show_secret: bool,
     },
 }

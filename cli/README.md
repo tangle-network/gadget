@@ -94,6 +94,20 @@ The following environment variables are required for deploying the blueprint:
 - `SIGNER`: The SURI of the signer account.
 - `EVM_SIGNER`: The SURI of the EVM signer account.
 
+## Generating Keys from the Command Line
+
+The following command will generate a keypair for a given key type:
+
+```shell
+cargo tangle gadget generate-keys -k <KEY_TYPE> -p <PATH> -s <SEED> --show-secret
+```
+
+where it is optional to include the path, seed, or the show-secret flags. 
+
+Excluding the path flag will result in the generated keypair being solely written to stdout, excluding the seed will result 
+in a random key, and excluding the `show-secret` flag will only print the public key of the generated pair.
+
+
 ### Example of ENV Variables
 
 ```bash

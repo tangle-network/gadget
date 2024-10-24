@@ -100,7 +100,7 @@ pub fn generate_key(
     println!("Generated {:?} key:", key_type);
     println!("Public key: {}", public);
     if show_secret {
-        println!("Private Key: {}", secret);
+        println!("Private key: {}", secret);
     }
 
     Ok(())

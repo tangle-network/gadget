@@ -737,7 +737,7 @@ mod tests_standard {
             info!("Listening for TaskResponded events...");
             while let Some(event) = event_stream.next().await {
                 let TaskResponded {
-                    taskResponse: response,
+                    taskResponse: _response,
                     ..
                 } = event.log_decode::<TaskResponded>().unwrap().inner.data;
                 let mut counter = successful_responses.lock().await;

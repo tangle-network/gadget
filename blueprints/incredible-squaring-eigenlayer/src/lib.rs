@@ -27,8 +27,6 @@ use IncredibleSquaringTaskManager::TaskResponse;
 pub mod client;
 pub mod constants;
 pub mod runner;
-#[cfg(test)]
-mod tests;
 
 // Codegen from ABI file to interact with the contract.
 sol!(
