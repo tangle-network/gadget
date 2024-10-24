@@ -7,6 +7,8 @@ use gadget_blueprint_proc_macro_core::FieldType;
 pub use sp_core::crypto::AccountId32;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use subxt::backend::StreamOfResults;
 use subxt_core::events::EventDetails;
 pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
@@ -25,6 +27,8 @@ pub struct TangleEventListener<Ctx, Evt = ()> {
     context: Ctx,
     signer: crate::keystore::TanglePairSigner<sp_core::sr25519::Pair>,
     client: TangleClient,
+    has_stopped: Arc<AtomicBool>,
+    stopper_tx: Arc<parking_lot::Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
     enqueued_events: VecDeque<EventDetails<TangleConfig>>,
     _phantom: PhantomData<Evt>,
 }
@@ -56,7 +60,20 @@ pub struct TangleEvent<Ctx, Evt = ()> {
     pub client: TangleClient,
     pub job_id: Job,
     pub service_id: ServiceId,
+    pub stopper: Arc<parking_lot::Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
     pub _phantom: PhantomData<Evt>,
+}
+
+impl<Ctx, Evt> TangleEvent<Ctx, Evt> {
+    /// Stops the event listener
+    pub fn stop(&self) -> bool {
+        let mut lock = self.stopper.lock();
+        if let Some(tx) = lock.take() {
+            tx.send(()).is_ok()
+        } else {
+            false
+        }
+    }
 }
 
 impl<Ctx> IsTangle for TangleEventListener<Ctx> {}
@@ -79,6 +96,19 @@ impl<Ctx: Clone + Send + Sync + 'static, Evt: Send + Sync + 'static>
         } = context;
 
         let listener = Mutex::new(client.blocks().subscribe_finalized().await?);
+
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let has_stopped = Arc::new(AtomicBool::new(false));
+
+        let has_stopped_clone = has_stopped.clone();
+
+        let background_task = async move {
+            let _ = rx.await;
+            has_stopped_clone.store(false, Ordering::SeqCst);
+        };
+
+        drop(tokio::task::spawn(background_task));
+
         Ok(Self {
             listener,
             current_block: None,
@@ -87,6 +117,8 @@ impl<Ctx: Clone + Send + Sync + 'static, Evt: Send + Sync + 'static>
             context: context.clone(),
             client: client.clone(),
             signer: signer.clone(),
+            stopper_tx: Arc::new(parking_lot::Mutex::new(Some(tx))),
+            has_stopped,
             enqueued_events: VecDeque::new(),
             _phantom: PhantomData,
         })
@@ -94,12 +126,17 @@ impl<Ctx: Clone + Send + Sync + 'static, Evt: Send + Sync + 'static>
 
     async fn next_event(&mut self) -> Option<TangleEvent<Ctx, Evt>> {
         loop {
+            if self.has_stopped.load(Ordering::SeqCst) {
+                return None;
+            }
+
             if let Some(evt) = self.enqueued_events.pop_front() {
                 return Some(TangleEvent {
                     evt,
                     context: self.context.clone(),
                     signer: self.signer.clone(),
                     call_id: None,
+                    stopper: self.stopper_tx.clone(),
                     args: vec![],
                     block_number: self.current_block?,
                     client: self.client.clone(),
@@ -131,6 +168,7 @@ impl<Ctx: Clone + Send + Sync + 'static, Evt: Send + Sync + 'static>
                     context: self.context.clone(),
                     signer: self.signer.clone(),
                     call_id: None,
+                    stopper: self.stopper_tx.clone(),
                     args: vec![],
                     block_number,
                     client: self.client.clone(),
