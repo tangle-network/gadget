@@ -660,7 +660,8 @@ mod tests_standard {
             successful_responses_clone,
             num_successful_responses_required,
             timeout_duration,
-        ).await;
+        )
+        .await;
 
         // Check the result
         if let Ok(Ok(())) = result {
