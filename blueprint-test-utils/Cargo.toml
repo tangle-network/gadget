@@ -37,12 +37,15 @@ url = { workspace = true }
 cargo-tangle = { workspace = true, default-features = true }
 gadget-io = { workspace = true, default-features = false }
 gadget-sdk = { workspace = true }
+incredible-squaring-aggregator = { workspace = true }
 
 # Alloy-related
 alloy-contract = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true, features = ["hyper"] }
+alloy-rpc-types-eth = { workspace = true }
 alloy-sol-types = { workspace = true }
+alloy-transport = { workspace = true }
 
 # Utility
 testcontainers = { workspace = true }

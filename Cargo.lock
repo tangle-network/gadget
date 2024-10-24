@@ -145,7 +145,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives 0.7.7",
  "alloy-rlp",
- "alloy-serde 0.1.4",
+ "alloy-serde",
  "c-kzg",
  "serde",
 ]
@@ -194,22 +194,11 @@ checksum = "f76ecab54890cdea1e4808fc0891c7e6cfcf71fe1a9fe26810c7280ef768f4ed"
 dependencies = [
  "alloy-primitives 0.7.7",
  "alloy-rlp",
- "alloy-serde 0.1.4",
+ "alloy-serde",
  "c-kzg",
  "once_cell",
  "serde",
  "sha2 0.10.8",
-]
-
-[[package]]
-name = "alloy-genesis"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8429cf4554eed9b40feec7f4451113e76596086447550275e3def933faf47ce3"
-dependencies = [
- "alloy-primitives 0.8.9",
- "alloy-serde 0.4.2",
- "serde",
 ]
 
 [[package]]
@@ -262,30 +251,13 @@ dependencies = [
  "alloy-json-rpc 0.1.4",
  "alloy-primitives 0.7.7",
  "alloy-rpc-types-eth",
- "alloy-serde 0.1.4",
+ "alloy-serde",
  "alloy-signer",
  "alloy-sol-types 0.7.7",
  "async-trait",
  "auto_impl",
  "futures-utils-wasm",
  "thiserror",
-]
-
-[[package]]
-name = "alloy-node-bindings"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f1334a738aa1710cb8227441b3fcc319202ce78e967ef37406940242df4a454"
-dependencies = [
- "alloy-genesis",
- "alloy-primitives 0.8.9",
- "k256",
- "rand",
- "serde_json",
- "tempfile",
- "thiserror",
- "tracing",
- "url",
 ]
 
 [[package]]
@@ -467,7 +439,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "184a7a42c7ba9141cc9e76368356168c282c3bc3d9e5d78f3556bdfe39343447"
 dependencies = [
  "alloy-rpc-types-eth",
- "alloy-serde 0.1.4",
+ "alloy-serde",
 ]
 
 [[package]]
@@ -480,7 +452,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives 0.7.7",
  "alloy-rlp",
- "alloy-serde 0.1.4",
+ "alloy-serde",
  "alloy-sol-types 0.7.7",
  "itertools 0.13.0",
  "serde",
@@ -495,17 +467,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9416c52959e66ead795a11f4a86c248410e9e368a0765710e57055b8a1774dd6"
 dependencies = [
  "alloy-primitives 0.7.7",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "alloy-serde"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9dff0ab1cdd43ca001e324dc27ee0e8606bd2161d6623c63e0e0b8c4dfc13600"
-dependencies = [
- "alloy-primitives 0.8.9",
  "serde",
  "serde_json",
 ]
@@ -1974,20 +1935,16 @@ name = "blueprint-test-utils"
 version = "0.1.1"
 dependencies = [
  "alloy-contract",
- "alloy-node-bindings",
  "alloy-primitives 0.7.7",
  "alloy-provider",
- "alloy-rpc-types",
  "alloy-rpc-types-eth",
  "alloy-sol-types 0.7.7",
  "alloy-transport 0.1.4",
- "alloy-transport-http 0.1.4",
  "async-trait",
  "blueprint-manager",
  "cargo-tangle",
  "cargo_metadata",
  "color-eyre",
- "eigensdk",
  "futures",
  "gadget-io",
  "gadget-sdk",
@@ -1995,14 +1952,11 @@ dependencies = [
  "libp2p",
  "log",
  "parking_lot 0.12.3",
- "serde_json",
- "sp-application-crypto",
  "sp-core",
  "sp-io",
  "subxt",
  "testcontainers",
  "tokio",
- "tokio-util 0.7.12",
  "tracing",
  "url",
  "uuid 1.10.0",
