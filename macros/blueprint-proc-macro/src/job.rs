@@ -1,5 +1,5 @@
 use crate::event_listener::evm::{generate_evm_event_handler, get_evm_instance_data};
-use crate::event_listener::tangle::generate_tangle_event_handler;
+use crate::event_listener::tangle::generate_additional_tangle_logic;
 use crate::shared::{pascal_case, type_to_field_type};
 use gadget_blueprint_proc_macro_core::{FieldType, JobDefinition, JobMetadata};
 use indexmap::{IndexMap, IndexSet};
@@ -74,7 +74,7 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         proc_macro2::TokenStream::default()
     } else {
         // Specialized code for the event workflow or otherwise
-        generate_additional_logic(input, args, &param_map, &params_type, &result_type, SUFFIX)
+        generate_additional_logic(input, args, &param_map, &params_type, SUFFIX)
     };
 
     let autogen_struct = if args.skip_codegen {
@@ -651,11 +651,9 @@ pub fn generate_additional_logic(
     job_args: &JobArgs,
     param_types: &IndexMap<Ident, Type>,
     params: &[FieldType],
-    results: &[FieldType],
     suffix: &str,
 ) -> proc_macro2::TokenStream {
     let (fn_name, _fn_name_string, struct_name) = generate_fn_name_and_struct(input, suffix);
-    let job_id = &job_args.id;
     let event_listener_args = &job_args.event_listener;
     let params_tokens = job_args
         .event_listener
@@ -677,22 +675,12 @@ pub fn generate_additional_logic(
         };
     };
 
-    let result_tokens = job_args
-        .event_listener
-        .get_param_result_tokenstream(results);
-
     match job_args.event_listener.get_event_listener().listener_type {
         ListenerType::Evm => {
             generate_evm_event_handler(&struct_name, event_listener_args, &params_tokens, &fn_call)
         }
 
-        ListenerType::Tangle => generate_tangle_event_handler(
-            &struct_name,
-            job_id,
-            &params_tokens,
-            &result_tokens,
-            &fn_call,
-        ),
+        ListenerType::Tangle => generate_additional_tangle_logic(&struct_name),
 
         ListenerType::Custom => proc_macro2::TokenStream::default(),
     }
