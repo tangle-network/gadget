@@ -55,7 +55,7 @@ pub enum GadgetCommands {
         package: Option<String>,
     },
     /// Generate a key
-    GenerateKey {
+    Keygen {
         /// The type of key to generate
         #[arg(short, long, value_enum)]
         key_type: KeyType,
@@ -64,7 +64,7 @@ pub enum GadgetCommands {
         #[arg(short, long)]
         path: Option<PathBuf>,
 
-        /// The seed to use for the generation of the key (optional)
+        /// The SURI or seed to use for the generation of the key (optional)
         #[arg(short, long)]
         seed: Option<String>,
 
@@ -113,7 +113,7 @@ async fn main() -> color_eyre::Result<()> {
                 })
                 .await?;
             }
-            GadgetCommands::GenerateKey {
+            GadgetCommands::Keygen {
                 key_type,
                 path,
                 seed,
