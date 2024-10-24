@@ -65,6 +65,9 @@ jobs:
       - name: install protobuf
         run: brew install protobuf
 
+      - name: Forge build
+        run: cd incredible-squaring-eigenlayer && forge build forge build --root ./contracts
+
       - name: Run Clippy
         run: cargo clippy --tests -- -D warnings
 
