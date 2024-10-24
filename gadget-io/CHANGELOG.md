@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.3](https://github.com/tangle-network/gadget/compare/gadget-io-v0.0.2...gadget-io-v0.0.3) - 2024-10-23
+
+### Fixed
+
+- *(sdk)* [**breaking**] downgrade substrate dependencies for now
+
+### Other
+
+- update naming ([#343](https://github.com/tangle-network/gadget/pull/343))
+
 ## [0.0.2](https://github.com/tangle-network/gadget/compare/gadget-io-v0.0.1...gadget-io-v0.0.2) - 2024-09-24
 
 ### Other

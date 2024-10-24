@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/tangle-network/gadget/compare/gadget-context-derive-v0.1.1...gadget-context-derive-v0.1.2) - 2024-10-24
+
+### Other
+
+- updated the following local packages: gadget-sdk
+
 ## [0.1.1](https://github.com/tangle-network/gadget/compare/gadget-context-derive-v0.1.0...gadget-context-derive-v0.1.1) - 2024-09-30
 
 ### Added

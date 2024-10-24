@@ -14,16 +14,12 @@ async fn main() {
     let x_square = blueprint::XsquareEventHandler {
         service_id: env.service_id.unwrap(),
         client: client.clone(),
+        context: client.clone(),
         signer,
     };
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
-    MultiJobRunner::new(&env)
-        .with_job()
-        .with_default_price_targets()
-        .finish(x_square)
-        .run()
-        .await?;
+    MultiJobRunner::new(env).job(x_square).run().await?;
 
     info!("Exiting...");
     Ok(())

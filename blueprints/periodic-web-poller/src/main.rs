@@ -10,11 +10,7 @@ async fn main() {
     };
 
     info!("~~~ Executing the periodic web poller ~~~");
-    MultiJobRunner::new(None)
-        .with_job()
-        .finish(web_poller)
-        .run()
-        .await?;
+    MultiJobRunner::new(None).job(web_poller).run().await?;
 
     info!("Exiting...");
     Ok(())

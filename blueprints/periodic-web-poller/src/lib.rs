@@ -10,7 +10,6 @@ use std::convert::Infallible;
     result(_),
     event_listener(
         listener = PeriodicEventListener<2000, WebPoller, serde_json::Value, reqwest::Client>,
-        event = serde_json::Value,
         pre_processor = pre_process,
         post_processor = post_process,
     ),

@@ -78,6 +78,7 @@ pub use structopt;
 pub use subxt_core;
 pub use tangle_subxt;
 pub use tokio;
+pub use uuid;
 
 // External modules usually used in proc-macro codegen.
 #[doc(hidden)]

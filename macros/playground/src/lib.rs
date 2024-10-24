@@ -1,4 +1,10 @@
 #![allow(dead_code)]
+use gadget_sdk::clients::tangle::runtime::TangleClient;
+use gadget_sdk::event_listener::tangle::jobs::{services_post_processor, services_pre_processor};
+use gadget_sdk::event_listener::tangle::TangleEventListener;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::{
+    JobCalled, JobResultSubmitted,
+};
 use gadget_sdk::{benchmark, job, registration_hook, report, request_hook};
 
 #[derive(Debug, Clone, Copy)]
@@ -28,9 +34,9 @@ pub struct MyContext;
 // ==================
 
 /// Simple Threshold (t) Keygen Job for n parties.
-#[job(id = 0, params(n, t), event_listener(listener = TangleEventListener, event = JobCalled), result(_))]
-pub fn keygen(ctx: &MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
-    let _ = (n, t, ctx);
+#[job(id = 0, params(n, t), event_listener(listener = TangleEventListener<JobCalled, TangleClient>, pre_processor = services_pre_processor), result(_))]
+pub fn keygen(context: TangleClient, n: u16, t: u16) -> Result<Vec<u8>, Error> {
+    let _ = (n, t, context);
     Ok(vec![0; 33])
 }
 
@@ -38,10 +44,10 @@ pub fn keygen(ctx: &MyContext, n: u16, t: u16) -> Result<Vec<u8>, Error> {
 #[job(
     id = 1,
     params(keygen_id, data),
-    event_listener(listener = TangleEventListener, event = JobCalled),
+    event_listener(listener = TangleEventListener<JobCalled, TangleClient>, pre_processor = services_pre_processor),
     result(_)
 )]
-pub async fn sign(keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
+pub async fn sign(context: TangleClient, keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
     let _ = (keygen_id, data);
     Ok(vec![0; 65])
 }
@@ -49,17 +55,31 @@ pub async fn sign(keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
 #[job(
     id = 2,
     params(keygen_id, new_t),
-    event_listener(listener = TangleEventListener, event = JobCalled),
+    event_listener(
+        listener = TangleEventListener<JobCalled, TangleClient>,
+        pre_processor = services_pre_processor,
+        post_processor = services_post_processor,
+    ),
     result(_)
 )]
-pub fn refresh(keygen_id: u64, new_t: Option<u8>) -> Result<Vec<u64>, Error> {
+pub fn refresh(
+    context: TangleClient,
+    keygen_id: u64,
+    new_t: Option<u8>,
+) -> Result<Vec<u64>, Error> {
     let _ = (keygen_id, new_t);
     Ok(vec![0; 33])
 }
 
 /// Say hello to someone or the world.
-#[job(id = 3, params(who), event_listener(listener = TangleEventListener, event = JobCalled), result(_))]
-pub fn say_hello(who: Option<String>) -> Result<String, Error> {
+#[job(id = 3, params(who),
+    event_listener(
+        listener = TangleEventListener<JobCalled, TangleClient>,
+        pre_processor = services_pre_processor,
+        post_processor = services_post_processor,
+    ),
+    result(_))]
+pub fn say_hello(context: TangleClient, who: Option<String>) -> Result<String, Error> {
     match who {
         Some(who) => Ok(format!("Hello, {}!", who)),
         None => Ok("Hello, World!".to_string()),
@@ -84,36 +104,50 @@ pub fn on_request(nft_id: u64);
 #[report(
     job_id = 0,
     params(n, t, msgs),
-    event_listener(listener = TangleEventListener, event = JobCalled),
+    event_listener(
+        listener = TangleEventListener<JobCalled, TangleClient>,
+        pre_processor = services_pre_processor,
+        post_processor = services_post_processor,
+    ),
     result(_),
     report_type = "job",
     verifier(evm = "KeygenContract")
 )]
-fn report_keygen(n: u16, t: u16, msgs: Vec<Vec<u8>>) -> u32 {
+fn report_keygen(
+    context: TangleClient,
+    n: u16,
+    t: u16,
+    msgs: Vec<Vec<u8>>,
+) -> Result<u32, gadget_sdk::Error> {
     let _ = (n, t, msgs);
-    0
+    Ok(0)
 }
 
 #[report(
     params(uptime, response_time, error_rate),
-    event_listener(listener = TangleEventListener, event = JobCalled),
-    result(Vec<u8>),
+    event_listener(listener = TangleEventListener<JobResultSubmitted, TangleClient>, pre_processor = services_pre_processor,),
+    result(_),
     report_type = "qos",
     interval = 3600,
     metric_thresholds(uptime = 99, response_time = 1000, error_rate = 5)
 )]
-fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Vec<u8> {
+fn report_service_health(
+    context: TangleClient,
+    uptime: u64,
+    response_time: u64,
+    error_rate: u64,
+) -> Result<Vec<u8>, gadget_sdk::Error> {
     let mut issues = Vec::new();
-    if uptime < 99.0 {
+    if uptime < 99 {
         issues.push(b"Low uptime".to_vec());
     }
     if response_time > 1000 {
         issues.push(b"High response time".to_vec());
     }
-    if error_rate > 5.0 {
+    if error_rate > 5 {
         issues.push(b"High error rate".to_vec());
     }
-    issues.concat()
+    Ok(issues.concat())
 }
 
 // ==================
@@ -123,13 +157,23 @@ fn report_service_health(uptime: f64, response_time: u64, error_rate: f64) -> Ve
 fn keygen_2_of_3() {
     let n = 3;
     let t = 2;
-    let result = keygen(&MyContext, n, t);
+    let result = keygen(&TangleClient, n, t);
     assert!(result.is_ok());
 }
 
 #[cfg(test)]
 mod tests {
+    use async_trait::async_trait;
     use gadget_sdk as sdk;
+    use gadget_sdk::job_runner::MultiJobRunner;
+    use sdk::event_listener::periodic::PeriodicEventListener;
+    use sdk::event_listener::EventListener;
+    use sdk::job;
+    use std::convert::Infallible;
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::Arc;
+    use std::time::Duration;
+
     #[test]
     fn generated_blueprint() {
         eprintln!("{}", super::KEYGEN_JOB_DEF);
@@ -187,11 +231,136 @@ mod tests {
         }
     }
 
-    fn setup_env() {
-        // TODO: Add all GadgetContext vars into the env
+    #[job(
+        id = 0,
+        params(value),
+        result(_),
+        event_listener(
+            listener = PeriodicEventListener<1500, WebPoller, serde_json::Value, Arc<AtomicUsize>>,
+            pre_processor = pre_process,
+            post_processor = post_process,
+        ),
+    )]
+    // Maps a boolean value obtained from pre-processing to a u8 value
+    pub async fn web_poller(value: bool, count: Arc<AtomicUsize>) -> Result<u8, Infallible> {
+        gadget_sdk::info!("Running web_poller on value: {value}");
+        Ok(value as u8)
     }
-    // #[test]
-    // fn example_benchmark() {
-    //     super::keygen_2_of_3_benchmark();
-    // }
+
+    async fn pre_process(event: serde_json::Value) -> Result<bool, gadget_sdk::Error> {
+        gadget_sdk::info!("Running web_poller pre-processor on value: {event}");
+        let completed = event["completed"].as_bool().unwrap_or(false);
+        Ok(completed)
+    }
+
+    async fn post_process(job_output: u8) -> Result<(), gadget_sdk::Error> {
+        gadget_sdk::info!("Running web_poller post-processor on value: {job_output}");
+        if job_output == 1 {
+            Ok(())
+        } else {
+            Err(gadget_sdk::Error::Other(
+                "Job failed since query returned with a false status".to_string(),
+            ))
+        }
+    }
+
+    /// Define an event listener that polls a webserver
+    pub struct WebPoller {
+        pub client: reqwest::Client,
+        pub count: Arc<AtomicUsize>,
+    }
+
+    #[async_trait]
+    impl EventListener<serde_json::Value, Arc<AtomicUsize>> for WebPoller {
+        async fn new(context: &Arc<AtomicUsize>) -> Result<Self, gadget_sdk::Error>
+        where
+            Self: Sized,
+        {
+            let client = reqwest::Client::new();
+            Ok(Self {
+                client,
+                count: context.clone(),
+            })
+        }
+
+        /// Implement the logic that polls the web server
+        async fn next_event(&mut self) -> Option<serde_json::Value> {
+            // Send a GET request to the JSONPlaceholder API
+            let response = self
+                .client
+                .get("https://jsonplaceholder.typicode.com/todos/10")
+                .send()
+                .await
+                .ok()?;
+
+            // Check if the request was successful
+            if response.status().is_success() {
+                // Parse the JSON response
+                let resp: serde_json::Value = response.json().await.ok()?;
+                self.count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Some(resp)
+            } else {
+                None
+            }
+        }
+
+        /// Implement any handler logic when an event is received
+        async fn handle_event(
+            &mut self,
+            _event: serde_json::Value,
+        ) -> Result<(), gadget_sdk::Error> {
+            unreachable!("Not called here")
+        }
+    }
+
+    #[tokio::test]
+    async fn test_web_poller_event_workflow_works() {
+        gadget_sdk::logging::setup_log();
+        let count = &Arc::new(AtomicUsize::new(0));
+        let job = WebPollerEventHandler {
+            count: count.clone(),
+        };
+
+        let task0 = async move {
+            MultiJobRunner::new(None)
+                .job(job)
+                .run()
+                .await
+                .expect("Job failed");
+        };
+
+        let periodic_poller = async move {
+            loop {
+                if count.load(std::sync::atomic::Ordering::SeqCst) > 3 {
+                    break;
+                }
+
+                tokio::time::sleep(Duration::from_millis(500)).await
+            }
+        };
+
+        tokio::select! {
+            _ = task0 => {
+                panic!("Should not occur")
+            },
+            _ = periodic_poller => {
+                assert!(count.load(std::sync::atomic::Ordering::SeqCst) > 3);
+            },
+        }
+    }
+
+    fn setup_env() {
+        // Add required env vars for all child processes/gadgets
+        let env_vars = [
+            ("RPC_URL".to_string(), "ws://127.0.0.1".to_string()),
+            ("KEYSTORE_URI".to_string(), "/".to_string()),
+            ("BLUEPRINT_ID".to_string(), 0.to_string()),
+            ("SERVICE_ID".to_string(), 0.to_string()),
+            ("DATA_DIR".to_string(), "/".to_string()),
+        ];
+
+        for (key, value) in env_vars {
+            std::env::set_var(key, value);
+        }
+    }
 }

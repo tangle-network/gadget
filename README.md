@@ -52,7 +52,7 @@ cargo install cargo-tangle --git https://github.com/tangle-network/gadget --forc
 To create a new blueprint/gadget using the Tangle CLI:
 
 ```bash
-cargo tangle gadget create --name <blueprint_name>
+cargo tangle blueprint create --name <blueprint_name>
 ```
 
 ### Deploying a Blueprint
@@ -62,7 +62,7 @@ Finally, the blueprint can be deployed to a local Tangle node using the followin
 ```bash
 export SIGNER="//Alice" # Substrate Signer account
 export EVM_SIGNER="0xcb6df9de1efca7a3998a8ead4e02159d5fa99c3e0d4fd6432667390bb4726854" # EVM signer account
-cargo tangle gadget deploy --rpc-url <rpc_url> --package <package_name>
+cargo tangle blueprint deploy --rpc-url <rpc_url> --package <package_name>
 ```
 
 More information on this process can be found in the [CLI documentation](./cli/README.md)
@@ -83,7 +83,7 @@ cargo test --package blueprint-test-utils tests_standard::test_externalities_gad
 Since testing is in beta stage, each time the blueprint is run, you
 must cancel the testnet and restart it to ensure storage is reset.
 All these nuances and manual requirement of setting up a testnet will be resolved in the near future and will be
-testable via `cargo tangle gadget test`
+testable via `cargo tangle blueprint test`
 
 ## License
 

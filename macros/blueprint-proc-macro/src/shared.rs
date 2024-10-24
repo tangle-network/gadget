@@ -1,4 +1,5 @@
 use gadget_blueprint_proc_macro_core::FieldType;
+use quote::ToTokens;
 use syn::{Ident, Type};
 
 /// Convert a `snake_case` string to `PascalCase`
@@ -111,6 +112,20 @@ pub fn path_to_field_type(path: &syn::Path) -> syn::Result<FieldType> {
             args,
             "unsupported parenthesized arguments",
         )),
+        // Support for SomeConcreteType<T,V, K, ...> where T, V, K is a simple type
+        syn::PathArguments::AngleBracketed(inner) if !inner.args.is_empty() => {
+            let mut ret = vec![];
+            for inner_arg in &inner.args {
+                if let syn::GenericArgument::Type(inner_ty) = inner_arg {
+                    let inner_type = type_to_field_type(inner_ty)?;
+                    ret.push((inner_ty.to_token_stream().to_string(), Box::new(inner_type)))
+                } else {
+                    return Err(syn::Error::new_spanned(inner_arg, "unsupported type param"));
+                }
+            }
+            Ok(FieldType::Struct(ident.to_string(), ret))
+        }
+
         syn::PathArguments::AngleBracketed(_) => {
             Err(syn::Error::new_spanned(args, "unsupported complex type"))
         }

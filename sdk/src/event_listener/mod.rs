@@ -7,7 +7,7 @@ pub mod evm_contracts;
 pub mod executor;
 pub mod markers;
 pub mod periodic;
-pub mod tangle_events;
+pub mod tangle;
 
 /// The [`EventListener`] trait defines the interface for event listeners.
 #[async_trait]
