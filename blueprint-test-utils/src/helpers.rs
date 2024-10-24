@@ -3,7 +3,7 @@ use alloy_provider::{RootProvider, WsConnect};
 use alloy_rpc_types::TransactionReceipt;
 use futures::StreamExt;
 use gadget_sdk::{error, info};
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -444,4 +444,21 @@ where
     };
 
     Ok(receipt)
+}
+
+pub async fn wait_for_responses(
+    successful_responses: Arc<Mutex<usize>>,
+    task_response_count: usize,
+    timeout_duration: Duration,
+) -> Result<Result<(), std::io::Error>, tokio::time::error::Elapsed> {
+    tokio::time::timeout(timeout_duration, async move {
+        loop {
+            let count = *successful_responses.lock().await;
+            if count >= task_response_count {
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    })
+    .await
 }

@@ -655,17 +655,12 @@ mod tests_standard {
             .unwrap();
 
         // Wait for the process to complete or timeout
-        let timeout_duration = Duration::from_secs(300); // 5 minutes timeout
-        let result = timeout(timeout_duration, async {
-            loop {
-                let count = *successful_responses_clone.lock().await;
-                if count >= num_successful_responses_required {
-                    return Ok::<(), std::io::Error>(());
-                }
-                tokio::time::sleep(Duration::from_secs(1)).await;
-            }
-        })
-        .await;
+        let timeout_duration = Duration::from_secs(300);
+        let result = helpers::wait_for_responses(
+            successful_responses_clone,
+            num_successful_responses_required,
+            timeout_duration,
+        ).await;
 
         // Check the result
         if let Ok(Ok(())) = result {
