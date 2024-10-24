@@ -323,8 +323,7 @@ mod tests {
 
         let task0 = async move {
             MultiJobRunner::new(None)
-                .with_job()
-                .finish(job)
+                .job(job)
                 .run()
                 .await
                 .expect("Job failed");
