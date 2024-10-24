@@ -34,7 +34,7 @@ pub struct MyContext;
 // ==================
 
 /// Simple Threshold (t) Keygen Job for n parties.
-#[job(id = 0, params(n, t), event_listener(listener = TangleEventListener<JobCalled, TangleClient>, pre_processor = services_pre_processor), result(_))]
+#[job(id = 0, params(n, t), event_listener(listener = TangleEventListener<TangleClient, JobCalled>, pre_processor = services_pre_processor), result(_))]
 pub fn keygen(context: TangleClient, n: u16, t: u16) -> Result<Vec<u8>, Error> {
     let _ = (n, t, context);
     Ok(vec![0; 33])
@@ -44,7 +44,7 @@ pub fn keygen(context: TangleClient, n: u16, t: u16) -> Result<Vec<u8>, Error> {
 #[job(
     id = 1,
     params(keygen_id, data),
-    event_listener(listener = TangleEventListener<JobCalled, TangleClient>, pre_processor = services_pre_processor),
+    event_listener(listener = TangleEventListener<TangleClient, JobCalled>, pre_processor = services_pre_processor),
     result(_)
 )]
 pub async fn sign(context: TangleClient, keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
@@ -56,7 +56,7 @@ pub async fn sign(context: TangleClient, keygen_id: u64, data: Vec<u8>) -> Resul
     id = 2,
     params(keygen_id, new_t),
     event_listener(
-        listener = TangleEventListener<JobCalled, TangleClient>,
+        listener = TangleEventListener<TangleClient, JobCalled>,
         pre_processor = services_pre_processor,
         post_processor = services_post_processor,
     ),
@@ -74,7 +74,7 @@ pub fn refresh(
 /// Say hello to someone or the world.
 #[job(id = 3, params(who),
     event_listener(
-        listener = TangleEventListener<JobCalled, TangleClient>,
+        listener = TangleEventListener<TangleClient, JobCalled>,
         pre_processor = services_pre_processor,
         post_processor = services_post_processor,
     ),
@@ -105,7 +105,7 @@ pub fn on_request(nft_id: u64);
     job_id = 0,
     params(n, t, msgs),
     event_listener(
-        listener = TangleEventListener<JobCalled, TangleClient>,
+        listener = TangleEventListener<TangleClient, JobCalled>,
         pre_processor = services_pre_processor,
         post_processor = services_post_processor,
     ),
@@ -125,7 +125,7 @@ fn report_keygen(
 
 #[report(
     params(uptime, response_time, error_rate),
-    event_listener(listener = TangleEventListener<JobResultSubmitted, TangleClient>, pre_processor = services_pre_processor,),
+    event_listener(listener = TangleEventListener<TangleClient, JobResultSubmitted>, pre_processor = services_pre_processor,),
     result(_),
     report_type = "qos",
     interval = 3600,

@@ -2,7 +2,7 @@ use color_eyre::{eyre::eyre, Result};
 use gadget_sdk::info;
 use gadget_sdk::job_runner::MultiJobRunner;
 use gadget_sdk::tangle_subxt::subxt::tx::Signer;
-use incredible_squaring_blueprint as blueprint;
+use tangle_raw_blueprint as blueprint;
 
 #[gadget_sdk::main(env)]
 async fn main() {
@@ -11,7 +11,7 @@ async fn main() {
 
     info!("Starting the event watcher for {} ...", signer.account_id());
 
-    let x_square = blueprint::XsquareEventHandler {
+    let x_square = blueprint::RawEventHandler {
         service_id: env.service_id.unwrap(),
         context: blueprint::MyContext,
         client,

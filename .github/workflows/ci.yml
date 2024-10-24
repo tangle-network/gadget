@@ -69,7 +69,7 @@ jobs:
         run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts
 
       - name: Run Clippy
-        run: cargo clippy --tests -- -D warnings
+        run: cargo clippy --tests --examples -- -D warnings
 
   testing:
     timeout-minutes: 90
