@@ -6018,7 +6018,6 @@ dependencies = [
  "ark-ff 0.4.2",
  "async-trait",
  "bip39",
- "blueprint-metadata",
  "blueprint-test-utils",
  "color-eyre",
  "ed25519-zebra 4.0.3",

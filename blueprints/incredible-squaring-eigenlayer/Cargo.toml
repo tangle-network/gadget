@@ -56,9 +56,6 @@ blueprint-test-utils = { workspace = true }
 incredible-squaring-aggregator = { workspace = true }
 gadget-io = { workspace = true }
 
-[build-dependencies]
-blueprint-metadata = { workspace = true }
-
 [features]
 default = ["std"]
 std = []
