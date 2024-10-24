@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
-use cargo_tangle::{create, deploy};
+use cargo_tangle::{create, deploy, keys};
 use clap::{Parser, Subcommand};
+use keys::KeyType;
 
 /// Tangle CLI tool
 #[derive(Parser, Debug)]
@@ -31,7 +32,7 @@ enum Commands {
 }
 
 #[derive(Subcommand, Debug)]
-enum GadgetCommands {
+pub enum GadgetCommands {
     /// Create a new blueprint
     #[command(visible_alias = "c")]
     Create {
@@ -52,6 +53,24 @@ enum GadgetCommands {
         /// The package to deploy (if the workspace has multiple packages).
         #[arg(short, long, value_name = "PACKAGE")]
         package: Option<String>,
+    },
+    /// Generate a key
+    Keygen {
+        /// The type of key to generate
+        #[arg(short, long, value_enum)]
+        key_type: KeyType,
+
+        /// The path to save the key (optional)
+        #[arg(short, long)]
+        path: Option<PathBuf>,
+
+        /// The SURI or seed to use for the generation of the key (optional)
+        #[arg(short, long)]
+        seed: Option<String>,
+
+        /// If true, the secret key will be printed along with the public key
+        #[arg(long)]
+        show_secret: bool,
     },
 }
 
@@ -93,6 +112,19 @@ async fn main() -> color_eyre::Result<()> {
                     signer_evm: None,
                 })
                 .await?;
+            }
+            GadgetCommands::Keygen {
+                key_type,
+                path,
+                seed,
+                show_secret,
+            } => {
+                keys::generate_key(
+                    key_type,
+                    path,
+                    seed.as_deref().map(str::as_bytes),
+                    show_secret,
+                )?;
             }
         },
     }
