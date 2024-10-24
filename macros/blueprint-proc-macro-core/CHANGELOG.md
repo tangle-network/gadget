@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-core-v0.1.3...gadget-blueprint-proc-macro-core-v0.1.4) - 2024-10-24
+
+### Other
+
+- Event Flows for Tangle ([#363](https://github.com/tangle-network/gadget/pull/363))
+
+## [0.1.3](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-core-v0.1.2...gadget-blueprint-proc-macro-core-v0.1.3) - 2024-10-23
+
+### Other
+
+- update to latest changes in tangle ([#367](https://github.com/tangle-network/gadget/pull/367))
+- update naming ([#343](https://github.com/tangle-network/gadget/pull/343))
+
 ## [0.1.2](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-core-v0.1.1...gadget-blueprint-proc-macro-core-v0.1.2) - 2024-09-24
 
 ### Other

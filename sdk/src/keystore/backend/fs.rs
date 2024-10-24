@@ -1,6 +1,7 @@
 //! Filesystem-based keystore backend.
 
 use crate::keystore::bn254::Public;
+use crate::keystore::ecdsa::Secret;
 use crate::keystore::{
     bls381, bn254, ecdsa, ed25519, sr25519, Backend, Error, KeystoreUriSanitizer,
 };
@@ -45,8 +46,7 @@ impl FilesystemKeystore {
 
     /// Write the given `data` to `file`.
     fn write_to_file(file: PathBuf, data: &[u8]) -> Result<(), Error> {
-        println!("Writing to {:?}", file);
-        let mut file = fs::File::create(file).unwrap();
+        let mut file = fs::File::create(file)?;
 
         #[cfg(target_family = "unix")]
         {
@@ -109,7 +109,7 @@ impl FilesystemKeystore {
                 // If the key type is BlsBn254, search for .pub files. Otherwise, search normally
                 if file_name.starts_with(&prefix) {
                     if key_type == KeyType::BlsBn254 {
-                        if file_name.ends_with(".pub") {
+                        if entry.path().extension().is_some() {
                             let public_key_path = entry.path();
                             let public_key_bytes = fs::read(public_key_path).ok()?;
                             Some(public_key_bytes)
@@ -183,6 +183,14 @@ impl Backend for FilesystemKeystore {
         Ok(public)
     }
 
+    fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public, Error> {
+        let secret = Secret::from_slice(hex::decode(string).unwrap().as_slice()).unwrap();
+        let public = secret.public_key();
+        let path = self.key_file_path(&public.to_sec1_bytes(), KeyType::Ecdsa);
+        Self::write_to_file(path, &secret.to_bytes()[..])?;
+        Ok(public)
+    }
+
     fn ecdsa_sign(
         &self,
         public: &ecdsa::Public,
@@ -225,8 +233,10 @@ impl Backend for FilesystemKeystore {
     }
 
     fn bls_bn254_generate_new(&self, seed: Option<&[u8]>) -> Result<bn254::Public, Error> {
-        let secret = bn254::generate_with_optional_seed(seed);
-        let public = bn254::to_public(&secret);
+        let secret = bn254::generate_with_optional_seed(seed)?;
+        let pair = eigensdk::crypto_bls::BlsKeyPair::new(secret.to_string())
+            .map_err(|e| Error::BlsBn254(e.to_string()))?;
+        let public = pair.public_key();
         let path = self.key_file_path(
             bn254::hash_public(public.clone())?.as_bytes(),
             KeyType::BlsBn254,
@@ -247,11 +257,10 @@ impl Backend for FilesystemKeystore {
                 .map_err(|e| Error::BlsBn254(e.to_string()))?
                 .as_slice(),
         )?;
-
         Ok(public)
     }
 
-    fn bls_bn254_generate_from_secret(&self, secret: String) -> Result<Public, Error> {
+    fn bls_bn254_generate_from_string(&self, secret: String) -> Result<Public, Error> {
         let pair = eigensdk::crypto_bls::BlsKeyPair::new(secret.clone())
             .map_err(|e| Error::BlsBn254(e.to_string()))?;
 
@@ -322,6 +331,14 @@ impl Backend for FilesystemKeystore {
         }
     }
 
+    fn get_ecdsa_signer_string(&self, public: &ecdsa::Public) -> Result<String, Error> {
+        let read_secret = self
+            .expose_ecdsa_secret(public)?
+            .ok_or(Error::Ecdsa("Failed to expose secret".to_string()))?;
+        let hex_secret = hex::encode(read_secret.to_bytes().as_slice());
+        Ok(hex_secret)
+    }
+
     fn expose_ed25519_secret(
         &self,
         public: &ed25519::Public,
@@ -380,7 +397,7 @@ impl Backend for FilesystemKeystore {
         use w3f_bls::SerializableToBytes;
 
         self.iter_keys(KeyType::Bls381)
-            .flat_map(|b| bls381::Public::from_bytes(&b))
+            .flat_map(|b| bls381::Public::from_bytes(b.as_slice()))
     }
 
     fn iter_bls_bn254(&self) -> impl Iterator<Item = bn254::Public> {

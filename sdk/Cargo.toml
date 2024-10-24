@@ -1,6 +1,6 @@
 [package]
 name = "gadget-sdk"
-version = "0.1.2"
+version = "0.2.2"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -24,6 +24,7 @@ thiserror = { workspace = true }
 tokio-stream = { workspace = true, features = ["io-util", "sync"] }
 structopt = { workspace = true }
 url = { workspace = true, features = ["serde"] }
+uuid = { workspace = true }
 failure = { workspace = true }
 
 # Keystore deps
@@ -61,6 +62,7 @@ serde_json = { workspace = true }
 # Substrate
 sp-core = { workspace = true, features = ["full_crypto"] }
 sp-io = { workspace = true }
+scale-info = { workspace = true }
 
 # Event Watchers and Handlers
 backon = { workspace = true, optional = true }
@@ -78,15 +80,17 @@ alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
+tokio-retry = { workspace = true }
 
 # Macros
 gadget-blueprint-proc-macro = { workspace = true, default-features = false }
 gadget-context-derive = { workspace = true, default-features = false }
+gadget-blueprint-proc-macro-core = { workspace = true, default-features = false }
 
 # Benchmarking deps
 sysinfo = { workspace = true }
 
-tokio-retry = { workspace = true }
+
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true

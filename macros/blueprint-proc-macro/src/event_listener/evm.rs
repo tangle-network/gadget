@@ -4,7 +4,7 @@ use syn::Ident;
 
 use crate::job::EventListenerArgs;
 
-pub(crate) fn get_instance_data(
+pub(crate) fn get_evm_instance_data(
     event_handler: &EventListenerArgs,
 ) -> (Ident, Ident, Ident, TokenStream) {
     let instance_base = event_handler.instance().unwrap();
@@ -21,33 +21,36 @@ pub(crate) fn get_instance_data(
 }
 
 pub(crate) fn generate_evm_event_handler(
-    fn_name_string: &str,
     struct_name: &Ident,
     event_handler: &EventListenerArgs,
     params_tokens: &[TokenStream],
-    additional_params: &[TokenStream],
     fn_call: &TokenStream,
-    event_listener_calls: &[TokenStream],
 ) -> TokenStream {
     let (instance_base, instance_name, instance_wrapper_name, _instance) =
-        get_instance_data(event_handler);
-    let ev = event_handler.event().unwrap();
-    let event_converter = event_handler.event_converter().unwrap();
-    let callback = event_handler.callback().unwrap();
-    let combined_event_listener =
-        crate::job::generate_combined_event_listener_selector(struct_name);
+        get_evm_instance_data(event_handler);
+    let event = event_handler
+        .get_event_listener()
+        .event
+        .as_ref()
+        .expect("Event type must be specified");
+    let event_converter = event_handler
+        .get_event_listener()
+        .pre_processor
+        .as_ref()
+        .unwrap();
+    let callback = event_handler
+        .get_event_listener()
+        .post_processor
+        .as_ref()
+        .unwrap();
+    let abi_string = event_handler
+        .get_event_listener()
+        .evm_args
+        .as_ref()
+        .and_then(|r| r.abi.clone())
+        .expect("ABI String must exist");
 
     quote! {
-        /// Event handler for the function
-        #[doc = "[`"]
-        #[doc = #fn_name_string]
-        #[doc = "`]"]
-        #[derive(Clone)]
-        pub struct #struct_name <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config +'static>{
-            pub contract: #instance_wrapper_name<T::TH, T::PH>,
-            #(#additional_params)*
-        }
-
         #[derive(Debug, Clone)]
         pub struct #instance_wrapper_name<T, P> {
             instance: #instance_base::#instance_name<T, P>,
@@ -80,9 +83,7 @@ pub(crate) fn generate_evm_event_handler(
             #[allow(clippy::clone_on_copy)]
             fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
                 self.contract_instance.get_or_init(|| {
-                    let instance_string = stringify!(instance_name);
-                    let abi_path = format!("../contracts/out/{instance_string}.sol/{instance_string}.json");
-                    let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&abi_path).unwrap());
+                    let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&#abi_string).unwrap());
                     ContractInstance::new(
                         self.instance.address().clone(),
                         self.instance.provider().clone(),
@@ -115,14 +116,8 @@ pub(crate) fn generate_evm_event_handler(
             #instance_wrapper_name <T::TH, T::PH>: std::ops::Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, Ethereum>>,
         {
             type Contract = #instance_wrapper_name <T::TH, T::PH>;
-            type Event = #ev;
-            const TAG: &'static str = "eigenlayer";
+            type Event = #event;
             const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
-
-            async fn init(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<()>> {
-                #(#event_listener_calls)*
-                #combined_event_listener
-            }
 
             async fn handle(&self, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::events_watcher::Error> {
                 use alloy_provider::Provider;
@@ -133,6 +128,8 @@ pub(crate) fn generate_evm_event_handler(
 
                 // Convert the event to inputs
                 let decoded: alloy_primitives::Log<Self::Event> = <Self::Event as SolEvent>::decode_log(&log.inner, true)?;
+
+                let (_, index) = decoded.topics();
                 // Convert the event to inputs using the event converter.
                 // TODO: If no converter is provided, the #[job] must consume the
                 // event directly, as specified in the `event = <EVENT>`.
@@ -142,7 +139,7 @@ pub(crate) fn generate_evm_event_handler(
                 // } else {
                 //     decoded.data
                 // };
-                let inputs = #event_converter(decoded.data);
+                let inputs = #event_converter(decoded.data, index);
 
                 // Apply the function
                 #(#params_tokens)*
@@ -152,18 +149,19 @@ pub(crate) fn generate_evm_event_handler(
                 // TODO: Check if the callback is None
                 // if let Some(cb) = #callback {
                 //     let call = cb(job_result);
-                //
                 //     // Submit the transaction
                 //     let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
                 //     tx.watch().await?;
                 // }
                 let call = #callback(job_result);
                 // Submit the transaction
-                let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
-                tx.watch().await?;
+                // let tx = contract.provider().send_raw_transaction(call.abi_encode().as_ref()).await?;
+                // tx.watch().await?;
 
                 Ok(())
             }
         }
+
+        impl<T: gadget_sdk::events_watcher::evm::Config> gadget_sdk::event_listener::markers::IsEvm for #struct_name <T> {}
     }
 }

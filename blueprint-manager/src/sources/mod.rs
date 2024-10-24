@@ -67,13 +67,12 @@ pub async fn handle<'a>(
             ("SERVICE_ID".to_string(), format!("{}", service_id)),
         ];
 
-        if let Some(base) = &blueprint_manager_opts.data_dir {
-            let data_dir = base.join(format!("blueprint-{blueprint_id}-{sub_service_str}"));
-            env_vars.push((
-                "DATA_DIR".to_string(),
-                data_dir.to_string_lossy().into_owned(),
-            ))
-        }
+        let base_data_dir = &blueprint_manager_opts.data_dir;
+        let data_dir = base_data_dir.join(format!("blueprint-{blueprint_id}-{sub_service_str}"));
+        env_vars.push((
+            "DATA_DIR".to_string(),
+            data_dir.to_string_lossy().into_owned(),
+        ));
 
         // Ensure our child process inherits the current processes' environment vars
         env_vars.extend(std::env::vars());

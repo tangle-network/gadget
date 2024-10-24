@@ -20,6 +20,12 @@ pub enum Error {
     #[error("Keystore error: {0}")]
     Keystore(#[from] crate::keystore::error::Error),
 
+    #[error("Config error: {0}")]
+    Config(#[from] crate::config::Error),
+
+    #[error("Job runner error: {0}")]
+    Runner(#[from] crate::job_runner::Error),
+
     #[error("Missing network ID")]
     MissingNetworkId,
 
@@ -46,7 +52,10 @@ pub enum Error {
     #[cfg(feature = "std")]
     #[error("Metrics error: {0}")]
     Metrics(#[from] crate::metrics::Error),
-
+    #[error("Io error: {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("The type has been skipped in the preprocessor")]
+    SkipPreProcessedType,
     #[error("Other error: {0}")]
     Other(String),
 }

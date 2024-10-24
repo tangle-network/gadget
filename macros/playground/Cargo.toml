@@ -8,6 +8,9 @@ homepage.workspace = true
 repository.workspace = true
 publish = false
 
+[package.metadata.blueprint]
+manager = { Evm = "" }
+
 [[package.metadata.gadget.Native.sources]]
 owner = "tangle-network"
 repo = "incredible-squaring"
@@ -21,6 +24,11 @@ binaries = [
 async-trait = { workspace = true }
 tracing = { workspace = true }
 gadget-sdk = { workspace = true, features = ["default"] }
+
+[dev-dependencies]
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
 
 [build-dependencies]
 blueprint-metadata = { workspace = true }

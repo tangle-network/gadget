@@ -12,7 +12,7 @@ use gadget_sdk::clients::Client;
 use gadget_sdk::info;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::backend::GenericKeyStore;
-use gadget_sdk::keystore::{sp_core_subxt, BackendExt, TanglePairSigner};
+use gadget_sdk::keystore::{BackendExt, TanglePairSigner};
 use sp_core::H256;
 use std::collections::HashMap;
 use std::future::Future;
@@ -45,8 +45,8 @@ pub struct BlueprintManagerHandle {
     start_tx: Option<tokio::sync::oneshot::Sender<()>>,
     running_task: JoinHandle<color_eyre::Result<()>>,
     span: tracing::Span,
-    sr25519_id: TanglePairSigner<sp_core_subxt::sr25519::Pair>,
-    ecdsa_id: gadget_sdk::keystore::TanglePairSigner<sp_core_subxt::ecdsa::Pair>,
+    sr25519_id: TanglePairSigner<sp_core::sr25519::Pair>,
+    ecdsa_id: gadget_sdk::keystore::TanglePairSigner<sp_core::ecdsa::Pair>,
     keystore_uri: String,
 }
 
@@ -69,12 +69,12 @@ impl BlueprintManagerHandle {
     }
 
     /// Returns the SR25519 keypair for this blueprint manager
-    pub fn sr25519_id(&self) -> &TanglePairSigner<sp_core_subxt::sr25519::Pair> {
+    pub fn sr25519_id(&self) -> &TanglePairSigner<sp_core::sr25519::Pair> {
         &self.sr25519_id
     }
 
     /// Returns the ECDSA keypair for this blueprint manager
-    pub fn ecdsa_id(&self) -> &gadget_sdk::keystore::TanglePairSigner<sp_core_subxt::ecdsa::Pair> {
+    pub fn ecdsa_id(&self) -> &gadget_sdk::keystore::TanglePairSigner<sp_core::ecdsa::Pair> {
         &self.ecdsa_id
     }
 
@@ -147,14 +147,13 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let _span = span.enter();
     info!("Starting blueprint manager ... waiting for start signal ...");
 
-    if let Some(data_dir) = &blueprint_manager_config.data_dir {
-        if !data_dir.exists() {
-            info!(
-                "Data directory does not exist, creating it at `{}`",
-                data_dir.display()
-            );
-            std::fs::create_dir_all(data_dir)?;
-        }
+    let data_dir = &blueprint_manager_config.data_dir;
+    if !data_dir.exists() {
+        info!(
+            "Data directory does not exist, creating it at `{}`",
+            data_dir.display()
+        );
+        std::fs::create_dir_all(data_dir)?;
     }
 
     let (tangle_key, ecdsa_key) = {

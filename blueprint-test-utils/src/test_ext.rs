@@ -21,8 +21,7 @@ use blueprint_manager::sdk::entry::SendFuture;
 use cargo_tangle::deploy::Opts;
 use gadget_sdk::clients::tangle::runtime::TangleClient;
 use gadget_sdk::tangle_subxt::subxt::OnlineClient;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{ApprovalPrefrence, PriceTargets};
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
 use libp2p::Multiaddr;
 use std::collections::HashSet;
@@ -35,7 +34,7 @@ use url::Url;
 use std::path::PathBuf;
 use subxt::tx::Signer;
 use gadget_sdk::keystore::KeystoreUriSanitizer;
-use gadget_sdk::keystore::sp_core_subxt::Pair;
+use sp_core::Pair;
 use tracing::Instrument;
 use gadget_sdk::{error, info, warn};
 
@@ -154,11 +153,10 @@ pub async fn new_test_ext_blueprint_manager<
 
         let task = async move {
             let keypair = handle.sr25519_id().clone();
-            let key = runtime_types::sp_core::ecdsa::Public(handle.ecdsa_id().signer().public().0);
+            let key = handle.ecdsa_id().signer().public().0;
 
             let preferences = Preferences {
                 key,
-                approval: ApprovalPrefrence::None,
                 price_targets: PriceTargets {
                     cpu: 0,
                     mem: 0,

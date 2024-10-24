@@ -76,7 +76,15 @@ pub fn generate_context_impl(
             fn current_service_operators(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
-            ) -> impl core::future::Future<Output = Result<Vec<gadget_sdk::ext::subxt::utils::AccountId32>, gadget_sdk::ext::subxt::Error>> {
+            ) -> impl core::future::Future<
+                Output = Result<
+                    Vec<(
+                        gadget_sdk::ext::subxt::utils::AccountId32,
+                        gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent,
+                    )>,
+                    gadget_sdk::ext::subxt::Error
+                >
+            > {
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
                 use gadget_sdk::ext::subxt;
 

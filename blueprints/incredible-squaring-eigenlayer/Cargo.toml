@@ -15,6 +15,7 @@ tracing = { workspace = true }
 async-trait = { workspace = true }
 gadget-sdk = { workspace = true, features = ["std"] }
 color-eyre = { workspace = true }
+lazy_static = { workspace = true }
 lock_api = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["full"] }
 tokio-util = { workspace = true }
@@ -29,6 +30,7 @@ alloy-provider = { workspace = true }
 alloy-pubsub = { workspace = true }
 alloy-rpc-types = { workspace = true }
 alloy-rpc-types-eth = { workspace = true }
+alloy-rpc-client = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 alloy-sol-types = { workspace = true, features = ["json"] }
@@ -43,10 +45,16 @@ ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std"
 structopt = { workspace = true }
 hex = { workspace = true }
 k256 = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+bip39 = { workspace = true }
 
-[build-dependencies]
-blueprint-metadata = { workspace = true }
+[dev-dependencies]
+blueprint-test-utils = { workspace = true }
+incredible-squaring-aggregator = { workspace = true }
+gadget-io = { workspace = true }
 
 [features]
 default = ["std"]

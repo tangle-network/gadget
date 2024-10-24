@@ -43,17 +43,17 @@ pub mod error;
 
 /// Schnorrkel Support
 pub mod sr25519;
+#[cfg(test)]
+mod tests;
 
 use crate::clients::tangle::runtime::TangleConfig;
-use crate::keystore::sp_core_subxt::crypto::{DeriveError, SecretStringError};
-use crate::keystore::sp_core_subxt::DeriveJunction;
 #[cfg(any(feature = "std", feature = "wasm"))]
-// TODO: Once subxt uses sp-core 34.0.0, we can simply use sp_core
-pub use crate::tangle_subxt::subxt::ext::sp_core as sp_core_subxt;
 use alloy_signer_local::LocalSigner;
 use eigensdk::crypto_bls;
 pub use error::Error;
 use k256::ecdsa::SigningKey;
+use sp_core::crypto::{DeriveError, SecretStringError};
+use sp_core::DeriveJunction;
 use std::path::{Path, PathBuf};
 use subxt::ext::sp_core::Pair as PairSubxt;
 use subxt_core::tx::signer::{PairSigner, Signer};
@@ -68,15 +68,15 @@ pub struct TanglePairSigner<Pair> {
 }
 
 #[cfg(any(feature = "std", feature = "wasm"))]
-impl<Pair: sp_core_subxt::Pair> sp_core_subxt::crypto::CryptoType for TanglePairSigner<Pair> {
+impl<Pair: sp_core::Pair> sp_core::crypto::CryptoType for TanglePairSigner<Pair> {
     type Pair = Pair;
 }
 
 #[cfg(any(feature = "std", feature = "wasm"))]
-impl<Pair: sp_core_subxt::Pair> TanglePairSigner<Pair>
+impl<Pair: sp_core::Pair> TanglePairSigner<Pair>
 where
-    <Pair as sp_core_subxt::Pair>::Signature: Into<MultiSignature>,
-    subxt::ext::sp_runtime::MultiSigner: From<<Pair as sp_core_subxt::Pair>::Public>,
+    <Pair as sp_core::Pair>::Signature: Into<MultiSignature>,
+    subxt::ext::sp_runtime::MultiSigner: From<<Pair as sp_core::Pair>::Public>,
 {
     pub fn new(pair: Pair) -> Self {
         TanglePairSigner {
@@ -96,7 +96,7 @@ where
 #[cfg(any(feature = "std", feature = "wasm"))]
 impl<Pair> Signer<TangleConfig> for TanglePairSigner<Pair>
 where
-    Pair: sp_core_subxt::Pair,
+    Pair: sp_core::Pair,
     Pair::Signature: Into<MultiSignature>,
 {
     fn account_id(&self) -> AccountId32 {
@@ -113,10 +113,10 @@ where
 }
 
 #[cfg(any(feature = "std", feature = "wasm"))]
-impl<Pair: sp_core_subxt::Pair> sp_core_subxt::Pair for TanglePairSigner<Pair>
+impl<Pair: sp_core::Pair> sp_core::Pair for TanglePairSigner<Pair>
 where
-    <Pair as sp_core_subxt::Pair>::Signature: Into<subxt::utils::MultiSignature>,
-    subxt::ext::sp_runtime::MultiSigner: From<<Pair as sp_core_subxt::Pair>::Public>,
+    <Pair as sp_core::Pair>::Signature: Into<subxt::utils::MultiSignature>,
+    subxt::ext::sp_runtime::MultiSigner: From<<Pair as sp_core::Pair>::Public>,
 {
     type Public = Pair::Public;
     type Seed = Pair::Seed;
@@ -160,7 +160,7 @@ where
     }
 }
 
-impl TanglePairSigner<sp_core_subxt::ecdsa::Pair> {
+impl TanglePairSigner<sp_core::ecdsa::Pair> {
     /// Returns the alloy-compatible key for the ECDSA key pair.
     pub fn alloy_key(&self) -> Result<LocalSigner<SigningKey>, Error> {
         let k256_ecdsa_secret_key = self.pair.signer().seed();
@@ -227,6 +227,13 @@ pub trait Backend {
     /// # Errors
     /// An `Err` will be returned if generating the key pair operation itself failed.
     fn ecdsa_generate_new(&self, seed: Option<&[u8]>) -> Result<ecdsa::Public, Error>;
+    /// Generate a new ecdsa key pair from a [`ecdsa::Secret`] hex String
+    ///
+    /// Returns an `ecdsa::Public` key of the generated key pair or an `Err` if
+    /// something failed during key generation.
+    /// # Errors
+    /// An `Err` will be returned if generating the key pair operation itself failed.
+    fn ecdsa_generate_from_string(&self, string: &str) -> Result<ecdsa::Public, Error>;
     /// Generate an ecdsa signature for a given message.
     ///
     /// Receives an [`ecdsa::Public`] key to be able to map
@@ -275,7 +282,7 @@ pub trait Backend {
     /// something failed during key generation.
     /// # Errors
     /// An `Err` will be returned if generating the key pair operation itself failed.
-    fn bls_bn254_generate_from_secret(&self, secret: String) -> Result<bn254::Public, Error>;
+    fn bls_bn254_generate_from_string(&self, secret: String) -> Result<bn254::Public, Error>;
     /// Generate a bls bn254 signature for a given message.
     ///
     /// Receives an [`bn254::Public`] key to be able to map
@@ -301,6 +308,7 @@ pub trait Backend {
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.
     fn expose_ecdsa_secret(&self, public: &ecdsa::Public) -> Result<Option<ecdsa::Secret>, Error>;
+    fn get_ecdsa_signer_string(&self, public: &k256::PublicKey) -> Result<String, Error>;
     /// Returns the [`ed25519::Secret`] for the given [`ed25519::Public`] if it does exist, otherwise returns `None`.
     /// # Errors
     /// An `Err` will be returned if finding the key operation itself failed.
@@ -338,7 +346,7 @@ pub trait Backend {
 /// that provide convenient access to keys
 pub trait BackendExt: Backend {
     #[cfg(any(feature = "std", feature = "wasm"))]
-    fn ecdsa_key(&self) -> Result<TanglePairSigner<sp_core_subxt::ecdsa::Pair>, Error> {
+    fn ecdsa_key(&self) -> Result<TanglePairSigner<sp_core::ecdsa::Pair>, Error> {
         let first_key = self
             .iter_ecdsa()
             .next()
@@ -350,12 +358,12 @@ pub trait BackendExt: Backend {
         let mut seed = [0u8; 32];
         seed.copy_from_slice(&ecdsa_secret.to_bytes()[0..32]);
         Ok(TanglePairSigner {
-            pair: subxt::tx::PairSigner::new(sp_core_subxt::ecdsa::Pair::from_seed(&seed)),
+            pair: subxt::tx::PairSigner::new(sp_core::ecdsa::Pair::from_seed(&seed)),
         })
     }
 
     #[cfg(any(feature = "std", feature = "wasm"))]
-    fn sr25519_key(&self) -> Result<TanglePairSigner<sp_core_subxt::sr25519::Pair>, Error> {
+    fn sr25519_key(&self) -> Result<TanglePairSigner<sp_core::sr25519::Pair>, Error> {
         let first_key = self
             .iter_sr25519()
             .next()
@@ -368,7 +376,7 @@ pub trait BackendExt: Backend {
         Ok(TanglePairSigner { pair })
     }
 
-    fn ed25519_key(&self) -> Result<TanglePairSigner<sp_core_subxt::ed25519::Pair>, Error> {
+    fn ed25519_key(&self) -> Result<TanglePairSigner<sp_core::ed25519::Pair>, Error> {
         let first_key = self
             .iter_ed25519()
             .next()
@@ -380,18 +388,16 @@ pub trait BackendExt: Backend {
         let mut seed = [0u8; 32];
         seed.copy_from_slice(&ed25519_secret.as_ref()[0..32]);
         Ok(TanglePairSigner {
-            pair: subxt::tx::PairSigner::new(sp_core_subxt::ed25519::Pair::from_seed(&seed)),
+            pair: subxt::tx::PairSigner::new(sp_core::ed25519::Pair::from_seed(&seed)),
         })
     }
 
     #[cfg(any(feature = "std", feature = "wasm"))]
     fn bls_bn254_key(&self) -> Result<crypto_bls::BlsKeyPair, Error> {
-        println!("LOOKING FOR FIRST BLS BN254 KEY");
         let first_key = self
             .iter_bls_bn254()
             .next()
             .ok_or_else(|| Error::BlsBn254("No BLS BN254 keys found".to_string()))?;
-        println!("FOUND FIRST KEY: {:?}", first_key.g1());
         let bls_secret = self
             .expose_bls_bn254_secret(&first_key)?
             .ok_or_else(|| Error::BlsBn254("No BLS BN254 secret found".to_string()))?;
@@ -418,37 +424,3 @@ pub trait KeystoreUriSanitizer: AsRef<Path> {
 }
 
 impl<T: AsRef<Path>> KeystoreUriSanitizer for T {}
-
-#[cfg(test)]
-mod tests {
-    use crate::keystore::KeystoreUriSanitizer;
-    use std::path::PathBuf;
-
-    #[test]
-    fn test_sanitize_file_paths() {
-        let path = "file:///tmp/keystore";
-        let sanitized_path = path.sanitize_file_path();
-        assert_eq!(sanitized_path, PathBuf::from("/tmp/keystore"));
-    }
-
-    #[test]
-    fn test_sanitize_file_paths_with_single_slash() {
-        let path = "file:/tmp/keystore";
-        let sanitized_path = path.sanitize_file_path();
-        assert_eq!(sanitized_path, PathBuf::from("/tmp/keystore"));
-    }
-
-    #[test]
-    fn test_sanitize_file_paths_with_double_slash() {
-        let path = "file://tmp/keystore";
-        let sanitized_path = path.sanitize_file_path();
-        assert_eq!(sanitized_path, PathBuf::from("/tmp/keystore"));
-    }
-
-    #[test]
-    fn test_sanitize_file_paths_with_no_scheme() {
-        let path = "/tmp/keystore";
-        let sanitized_path = path.sanitize_file_path();
-        assert_eq!(sanitized_path, PathBuf::from("/tmp/keystore"));
-    }
-}

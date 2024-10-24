@@ -2,12 +2,11 @@
 
 use crate::keystore::Error;
 use alloy_primitives::keccak256;
-use ark_ec::{AffineRepr, CurveGroup};
 use ark_ff::{PrimeField, UniformRand};
-use ark_serialize::CanonicalDeserialize;
-use eigensdk::crypto_bls::PublicKey;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::{BlsG1Point, BlsSignature, PrivateKey};
-use eigensdk::crypto_bn254::utils::map_to_curve;
+use elliptic_curve::rand_core::OsRng;
 use k256::sha2::{Digest, Sha256};
 
 /// BN254 public key.
@@ -29,30 +28,34 @@ pub fn hash_public(public: Public) -> Result<String, Error> {
     Ok(hex::encode(hashed_public))
 }
 
-#[must_use]
-pub fn generate_with_optional_seed(seed: Option<&[u8]>) -> Secret {
+pub fn generate_with_optional_seed(seed: Option<&[u8]>) -> Result<Secret, Error> {
     match seed {
         Some(s) => {
             let hashed_seed = keccak256(s);
-            Secret::from_le_bytes_mod_order(hashed_seed.as_slice())
+            Ok(Secret::from_le_bytes_mod_order(hashed_seed.as_slice()))
         }
         None => {
-            let mut rng = rand::thread_rng();
-            Secret::rand(&mut rng)
+            let mut buffer = Vec::new();
+            let private_key = Secret::rand(&mut OsRng);
+            private_key
+                .serialize_uncompressed(&mut buffer)
+                .map_err(|_| {
+                    Error::BlsBn254("Secret serialization failed during generation".to_string())
+                })?;
+            let secret = hex::encode(buffer);
+            Ok(Secret::from_le_bytes_mod_order(secret.as_bytes()))
         }
     }
 }
 
 pub fn sign(secret: &mut Secret, msg: &[u8; 32]) -> Signature {
-    let hashed_point = map_to_curve(msg);
-    let sig = hashed_point.mul_bigint(secret.0);
-    Signature::from(sig)
+    let pair = BlsKeyPair::new(secret.to_string()).unwrap();
+    pair.sign_message(msg.as_slice()).g1_point().g1()
 }
 
-#[must_use]
-pub fn to_public(secret: &Secret) -> Public {
-    let public = PublicKey::generator().mul_bigint(secret.0);
-    Public::new(public.into_affine())
+pub fn to_public(secret: &Secret) -> Result<Public, Error> {
+    let pair = BlsKeyPair::new(secret.to_string()).map_err(|e| Error::BlsBn254(e.to_string()))?;
+    Ok(pair.public_key())
 }
 
 pub fn secret_from_bytes(bytes: &[u8]) -> Result<Secret, Error> {

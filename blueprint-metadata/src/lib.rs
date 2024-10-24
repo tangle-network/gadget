@@ -5,17 +5,17 @@ use std::{
     process::{Command, Stdio},
 };
 
+use cargo_metadata::{Metadata, Package};
 use gadget_blueprint_proc_macro_core::{
-    FieldType, Gadget, GadgetSource, GadgetSourceFetcher, JobDefinition, JobResultVerifier,
-    NativeGadget, ServiceBlueprint, ServiceMetadata, ServiceRegistrationHook, ServiceRequestHook,
-    TestFetcher,
+    BlueprintManager, FieldType, Gadget, GadgetSource, GadgetSourceFetcher, JobDefinition,
+    NativeGadget, ServiceBlueprint, ServiceMetadata, TestFetcher,
 };
 
 use rustdoc_types::{Crate, Id, Item, ItemEnum, Module};
 
 /// Generate `blueprint.json` to the current crate working directory next to `build.rs` file.
 pub fn generate_json() {
-    // Config::builder().build().generate_json();
+    Config::builder().build().generate_json();
 }
 
 #[derive(Debug, Clone, Default, typed_builder::TypedBuilder)]
@@ -37,7 +37,11 @@ impl Config {
         let jobs = extract_jobs(&krate);
         eprintln!("Extracted {} job definitions", jobs.len());
         let hooks = extract_hooks(&krate);
-        let gadget = generate_gadget();
+        let metadata = extract_metadata();
+        let crate_name = std::env::var("CARGO_PKG_NAME").expect("Failed to get package name");
+        let package = find_package(&metadata, &crate_name);
+        let gadget = generate_gadget(package);
+        let manager = extract_blueprint_manager(package);
         eprintln!("Generating blueprint.json to {:?}", output_file);
         let blueprint = ServiceBlueprint {
             metadata: ServiceMetadata {
@@ -53,24 +57,11 @@ impl Config {
                 license: std::env::var("CARGO_PKG_LICENSE").map(Into::into).ok(),
             },
             jobs,
-            registration_hook: hooks
-                .iter()
-                .find_map(|hook| match hook {
-                    Hook::Registration(hook) => Some(hook.clone()),
-                    _ => None,
-                })
-                .unwrap_or_default(),
+            manager,
             registration_params: hooks
                 .iter()
                 .find_map(|hook| match hook {
                     Hook::RegistrationParams(params) => Some(params.clone()),
-                    _ => None,
-                })
-                .unwrap_or_default(),
-            request_hook: hooks
-                .iter()
-                .find_map(|hook| match hook {
-                    Hook::Request(hook) => Some(hook.clone()),
                     _ => None,
                 })
                 .unwrap_or_default(),
@@ -90,9 +81,7 @@ impl Config {
 }
 
 enum Hook {
-    Registration(ServiceRegistrationHook),
     RegistrationParams(Vec<FieldType>),
-    Request(ServiceRequestHook),
     RequestParams(Vec<FieldType>),
 }
 
@@ -156,9 +145,6 @@ fn extract_jobs_from_module<'a>(
                     serde_json::from_str(&unescape_json_string(&c.expr))
                         .expect("Failed to deserialize job definition");
                 job_def.metadata.description = linked_function.docs.as_ref().map(Into::into);
-                if let JobResultVerifier::Evm(c) = &mut job_def.verifier {
-                    *c = resolve_evm_contract_path_by_name(c).display().to_string();
-                }
                 jobs.push(job_def);
             }
             _ => continue,
@@ -171,8 +157,6 @@ fn extract_jobs_from_module<'a>(
 fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Module) -> Vec<Hook> {
     let mut hooks = vec![];
     let automatically_derived: String = String::from("#[automatically_derived]");
-    const REGISTRATION_HOOK: &str = "REGISTRATION_HOOK";
-    const REQUEST_HOOK: &str = "REQUEST_HOOK";
     const REGISTRATION_HOOK_PARAMS: &str = "REGISTRATION_HOOK_PARAMS";
     const REQUEST_HOOK_PARAMS: &str = "REQUEST_HOOK_PARAMS";
 
@@ -182,38 +166,6 @@ fn extract_hooks_from_module(_root: &Id, index: &HashMap<Id, Item>, module: &Mod
             ItemEnum::Module(m) => {
                 hooks.extend(extract_hooks_from_module(_root, index, m));
             }
-            ItemEnum::Constant { const_: c, .. }
-                if item.attrs.contains(&automatically_derived)
-                    && item
-                        .name
-                        .as_ref()
-                        .map(|v| v.eq(REGISTRATION_HOOK))
-                        .unwrap_or(false) =>
-            {
-                let mut value = serde_json::from_str(&unescape_json_string(&c.expr))
-                    .expect("Failed to deserialize hook");
-                if let ServiceRegistrationHook::Evm(c) = &mut value {
-                    *c = resolve_evm_contract_path_by_name(c).display().to_string();
-                }
-                hooks.push(Hook::Registration(value));
-            }
-
-            ItemEnum::Constant { const_: c, .. }
-                if item.attrs.contains(&automatically_derived)
-                    && item
-                        .name
-                        .as_ref()
-                        .map(|v| v.eq(REQUEST_HOOK))
-                        .unwrap_or(false) =>
-            {
-                let mut value = serde_json::from_str(&unescape_json_string(&c.expr))
-                    .expect("Failed to deserialize hook");
-                if let ServiceRequestHook::Evm(c) = &mut value {
-                    *c = resolve_evm_contract_path_by_name(c).display().to_string();
-                }
-                hooks.push(Hook::Request(value));
-            }
-
             ItemEnum::Constant { const_: c, .. }
                 if item.attrs.contains(&automatically_derived)
                     && item
@@ -304,10 +256,8 @@ impl Drop for LockFile {
     }
 }
 
-/// Generates the metadata for the gadget.
-fn generate_gadget() -> Gadget<'static> {
+fn extract_metadata() -> Metadata {
     let root = std::env::var("CARGO_MANIFEST_DIR").expect("Failed to get manifest directory");
-    let crate_name = std::env::var("CARGO_PKG_NAME").expect("Failed to get package name");
     let root = Path::new(&root)
         .canonicalize()
         .expect("Failed to canonicalize root dir");
@@ -324,8 +274,39 @@ fn generate_gadget() -> Gadget<'static> {
         .no_deps()
         .exec()
         .expect("Failed to get metadata");
+    metadata
+}
 
-    let package = find_package(&metadata, &crate_name);
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct BlueprintMetadata {
+    manager: BlueprintManager,
+}
+
+fn extract_blueprint_manager(package: &Package) -> BlueprintManager {
+    let Some(blueprint) = package.metadata.get("blueprint") else {
+        eprintln!("No blueprint metadata found in the Cargo.toml.");
+        eprintln!("For more information, see:");
+        eprintln!("<TODO>");
+        // TODO(@shekohex): make this hard error
+        return BlueprintManager::Evm(Default::default());
+    };
+    let metadata: BlueprintMetadata =
+        serde_json::from_value(blueprint.clone()).expect("Failed to deserialize gadget.");
+    match metadata.manager {
+        BlueprintManager::Evm(manager) => {
+            let path = resolve_evm_contract_path_by_name(&manager);
+            BlueprintManager::Evm(path.display().to_string())
+        }
+        _ => unreachable!("Unsupported blueprint manager"),
+    }
+}
+
+/// Generates the metadata for the gadget.
+fn generate_gadget(package: &Package) -> Gadget<'static> {
+    let root = std::env::var("CARGO_MANIFEST_DIR").expect("Failed to get manifest directory");
+    let root = Path::new(&root)
+        .canonicalize()
+        .expect("Failed to canonicalize root dir");
     let Some(gadget) = package.metadata.get("gadget") else {
         eprintln!("No gadget metadata found in the Cargo.toml.");
         eprintln!("For more information, see:");
