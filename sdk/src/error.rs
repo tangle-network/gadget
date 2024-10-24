@@ -54,6 +54,8 @@ pub enum Error {
     Metrics(#[from] crate::metrics::Error),
     #[error("Io error: {0}")]
     IoError(#[from] std::io::Error),
+    #[error("The type has been skipped in the preprocessor")]
+    SkipPreProcessedType,
     #[error("Other error: {0}")]
     Other(String),
 }

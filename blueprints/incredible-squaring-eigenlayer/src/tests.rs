@@ -10,6 +10,7 @@ use blueprint_test_utils::test_ext::NAME_IDS;
 use blueprint_test_utils::{anvil, get_receipt, inject_test_keys};
 use gadget_io::SupportedChains;
 use gadget_sdk::config::{ContextConfig, GadgetCLICoreSettings, Protocol};
+use gadget_sdk::info;
 use gadget_sdk::logging::setup_log;
 use gadget_sdk::run::GadgetRunner;
 use incredible_squaring_aggregator::aggregator::Aggregator;
@@ -45,9 +46,10 @@ alloy_sol_types::sol!(
 #[allow(clippy::needless_return)]
 async fn test_eigenlayer_incredible_squaring_blueprint() -> Result<(), Box<dyn Error>> {
     setup_log();
-    let (_container, http_endpoint, ws_endpoint) = anvil::start_anvil_container(true).await;
-
     let alice_keystore = setup_eigen_environment(0).await; // We use an ID of 0 for Alice
+
+    let (_container, http_endpoint, ws_endpoint) =
+        anvil::start_anvil_container(&alice_keystore, true).await;
 
     std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
     std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint.clone());
@@ -244,7 +246,7 @@ async fn test_eigenlayer_incredible_squaring_blueprint() -> Result<(), Box<dyn E
     assert_ne!(FixedBytes::<32>::default(), response_hash);
 
     info!("Shutting down aggregator...");
-    aggregator_shutdown.send(()).unwrap();
+    aggregator_shutdown.send(()).await.unwrap();
     // chain_task.abort();
     // runner_task.abort();
     // aggregator_task.abort();
@@ -291,7 +293,7 @@ async fn mine_blocks(endpoint: &str, blocks: u8) {
         .output()
         .await
         .unwrap();
-    info!(
+    gadget_sdk::info!(
         "Mined {} block{}",
         blocks,
         if blocks == 1 { "" } else { "s" }
