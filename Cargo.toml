@@ -4,7 +4,6 @@ members = [
     "blueprint-metadata",
     "blueprints/incredible-squaring",
     "blueprints/incredible-squaring-eigenlayer",
-    "blueprints/incredible-squaring-eigenlayer/aggregator",
     "blueprints/periodic-web-poller",
     "cli",
     "gadget-io",
@@ -49,7 +48,6 @@ blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false, version = "0.1.2" }
 
 incredible-squaring-blueprint-eigenlayer = { path = "./blueprints/incredible-squaring-eigenlayer", default-features = false, version = "0.1.1" }
-incredible-squaring-aggregator = { path = "./blueprints/incredible-squaring-eigenlayer/aggregator", default-features = false, version = "0.1.1" }
 periodic-web-poller-blueprint = { path = "./blueprints/periodic-web-poller", default-features = false, version = "0.1.1" }
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.1.2" }
 gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.2" }

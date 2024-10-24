@@ -1,34 +1,14 @@
-use aggregator::AggregatorContext;
+use crate::{
+    contexts::aggregator::AggregatorContext, noop, IncredibleSquaringTaskManager,
+    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+};
 use alloy_contract::ContractInstance;
 use alloy_json_abi::JsonAbi;
 use alloy_network::Ethereum;
 use alloy_primitives::FixedBytes;
-use alloy_sol_types::sol;
-use gadget_sdk::{info, job, load_abi};
-use serde::{Deserialize, Serialize};
+use gadget_sdk::{info, job};
 use std::{convert::Infallible, ops::Deref, sync::OnceLock};
 use IncredibleSquaringTaskManager::Task;
-
-pub mod aggregator;
-pub mod constants;
-pub mod runner;
-
-sol!(
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    #[derive(Debug, Serialize, Deserialize)]
-    IncredibleSquaringTaskManager,
-    "../contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
-);
-
-load_abi!(
-    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
-    "../contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
-);
-
-pub fn noop(_: u32) {
-    // This function intentionally does nothing
-}
 
 const TASK_CHALLENGE_WINDOW_BLOCK: u32 = 100;
 const BLOCK_TIME_SECONDS: u32 = 12;

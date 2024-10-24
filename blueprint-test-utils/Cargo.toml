@@ -37,8 +37,6 @@ alloy-contract = { workspace = true }
 alloy-rpc-types-eth = { workspace = true }
 alloy-node-bindings = { workspace = true }
 thiserror = { workspace = true }
-incredible-squaring-aggregator = { workspace = true, features = ["std"] }
-
 
 eigensdk = { workspace = true }
 testcontainers = { workspace = true }

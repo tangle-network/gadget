@@ -478,7 +478,6 @@ mod tests_standard {
         deploy_task_manager, setup_eigenlayer_test_environment, setup_task_response_listener,
         setup_task_spawner, BlueprintProcessManager, EigenlayerTestEnvironment,
     };
-    use incredible_squaring_aggregator::aggregator::AggregatorContext;
     use std::sync::Arc;
     use tokio::sync::Mutex;
     use tokio::time::timeout;
@@ -605,28 +604,7 @@ mod tests_standard {
         )
         .await;
 
-        let signer: PrivateKeySigner =
-            "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
-                .parse()
-                .unwrap();
-        let wallet = EthereumWallet::from(signer);
-        let mut sdk_config = StdGadgetConfiguration::default();
-        // Override the http and ws endpoints, since default is wrong port
-        sdk_config.http_rpc_endpoint = http_endpoint.clone();
-        sdk_config.ws_rpc_endpoint = ws_endpoint.clone();
-        let aggregator_context = AggregatorContext::new(
-            "127.0.0.1:8081".to_string(),
-            task_manager_address,
-            http_endpoint.clone(),
-            wallet,
-            sdk_config,
-        )
-        .await
-        .unwrap();
-
-        // Run the server in a separate thread
-        let (handle, aggregator_shutdown_tx) = aggregator_context.start(ws_endpoint.clone());
-
+        let num_successful_responses_required = 3;
         let successful_responses = Arc::new(Mutex::new(0));
         let successful_responses_clone = successful_responses.clone();
 
@@ -642,7 +620,7 @@ mod tests_standard {
         let task_spawner = setup_task_spawner(
             task_manager_address,
             registry_coordinator_address,
-            task_generator_address,
+            task_generator_address.clone(),
             accounts.to_vec(),
             http_endpoint.clone(),
         )
@@ -667,14 +645,9 @@ mod tests_standard {
         .canonicalize()
         .unwrap();
 
-        let aggregator_task_program_path = PathBuf::from(format!(
-            "{}/../target/release/incredible-squaring-aggregator",
-            current_dir.display()
-        ));
-
         blueprint_process_manager
             .start_blueprints(
-                vec![xsquare_task_program_path, aggregator_task_program_path],
+                vec![xsquare_task_program_path],
                 &http_endpoint,
                 ws_endpoint.as_ref(),
             )
@@ -686,7 +659,7 @@ mod tests_standard {
         let result = timeout(timeout_duration, async {
             loop {
                 let count = *successful_responses_clone.lock().await;
-                if count >= 1 {
+                if count >= num_successful_responses_required {
                     return Ok::<(), std::io::Error>(());
                 }
                 tokio::time::sleep(Duration::from_secs(1)).await;
@@ -694,39 +667,20 @@ mod tests_standard {
         })
         .await;
 
-        // When you want to shut down the aggregator:
-        if let Err(e) = aggregator_shutdown_tx.send(()) {
-            error!("Failed to send shutdown signal to aggregator: {:?}", e);
-        } else {
-            info!("Sent shutdown signal to aggregator.");
-        }
-
-        // Wait for the aggregator to shut down
-        if let Err(e) = handle.await {
-            error!("Error waiting for aggregator to shut down: {:?}", e);
-        }
-
         // Check the result
-        match result {
-            Ok(Ok(())) => {
-                info!("Test completed successfully with 3 or more tasks responded to.");
-                if let Err(e) = blueprint_process_manager.kill_all().await {
+        if let Ok(Ok(())) = result {
+            info!("Test completed successfully with {num_successful_responses_required} tasks responded to.");
+            blueprint_process_manager
+                .kill_all()
+                .await
+                .unwrap_or_else(|e| {
                     error!("Failed to kill all blueprint processes: {:?}", e);
-                } else {
-                    debug!("Successfully killed all blueprint processes.");
-                }
-            }
-            Ok(Err(e)) => {
-                error!("Test failed with error: {:?}", e);
-                panic!("Test failed");
-            }
-            Err(_) => {
-                error!(
-                    "Test timed out after {} seconds",
-                    timeout_duration.as_secs()
-                );
-                panic!("Test timed out");
-            }
+                });
+        } else {
+            panic!(
+                "Test timed out after {} seconds",
+                timeout_duration.as_secs()
+            );
         }
     }
 }

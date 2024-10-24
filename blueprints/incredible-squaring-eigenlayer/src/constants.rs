@@ -12,6 +12,9 @@ lazy_static! {
     pub static ref PRIVATE_KEY: String = env::var("PRIVATE_KEY").unwrap_or_else(|_| {
         "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".to_string()
     });
+    pub static ref AGGREGATOR_PRIVATE_KEY: String = env::var("PRIVATE_KEY").unwrap_or_else(|_| {
+        "2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6".to_string()
+    });
     pub static ref SR_SECRET_BYTES: Vec<u8> = env::var("SR_SECRET_BYTES")
         .map(|v| v.into_bytes())
         .unwrap_or_else(|_| vec![0; 32]);

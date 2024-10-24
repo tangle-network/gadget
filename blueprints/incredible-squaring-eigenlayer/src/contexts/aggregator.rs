@@ -1,14 +1,15 @@
-use crate::IncredibleSquaringTaskManager::{
-    self, G1Point, G2Point, NonSignerStakesAndSignature, TaskResponse,
+use crate::{
+    contexts::client::SignedTaskResponse,
+    IncredibleSquaringTaskManager::{
+        self, G1Point, G2Point, NonSignerStakesAndSignature, TaskResponse,
+    },
 };
 use alloy_network::{Ethereum, NetworkWallet};
 use alloy_primitives::keccak256;
 use alloy_sol_types::SolType;
 use color_eyre::Result;
 use eigensdk::{
-    crypto_bls::{
-        convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point, OperatorId, Signature,
-    },
+    crypto_bls::{convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point},
     services_blsaggregation::bls_agg::BlsAggregationServiceResponse,
     utils::get_provider,
 };
@@ -19,7 +20,6 @@ use gadget_sdk::{
 };
 use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
-use serde::{Deserialize, Serialize};
 use std::{collections::VecDeque, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::task::JoinHandle;
 use tokio::{
@@ -36,13 +36,6 @@ use eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService;
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory;
 use eigensdk::types::avs::{TaskIndex, TaskResponseDigest};
 use std::collections::HashMap;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SignedTaskResponse {
-    pub task_response: TaskResponse,
-    pub signature: Signature,
-    pub operator_id: OperatorId,
-}
 
 #[derive(Clone, EigenlayerContext, KeystoreContext)]
 pub struct AggregatorContext {
@@ -149,8 +142,6 @@ impl AggregatorContext {
                                 e
                             ))
                         })?;
-
-                    info!("Parsed signed task response: {:?}", signed_task_response);
 
                     aggregator
                         .lock()

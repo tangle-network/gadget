@@ -1992,7 +1992,6 @@ dependencies = [
  "futures",
  "gadget-io",
  "gadget-sdk",
- "incredible-squaring-aggregator",
  "libp2p",
  "log",
  "parking_lot 0.12.3",
@@ -5918,55 +5917,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "incredible-squaring-aggregator"
-version = "0.1.1"
-dependencies = [
- "alloy-consensus",
- "alloy-contract",
- "alloy-json-abi",
- "alloy-network",
- "alloy-primitives 0.7.7",
- "alloy-provider",
- "alloy-pubsub",
- "alloy-rpc-types",
- "alloy-rpc-types-eth",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-sol-types 0.7.7",
- "alloy-transport 0.1.4",
- "alloy-transport-http 0.1.4",
- "ark-bn254",
- "ark-ec",
- "ark-ff 0.4.2",
- "async-trait",
- "bip39",
- "blueprint-metadata",
- "color-eyre",
- "ed25519-zebra 4.0.3",
- "eigensdk",
- "futures-util",
- "gadget-sdk",
- "hex",
- "jsonrpc-core",
- "jsonrpc-http-server",
- "k256",
- "lazy_static",
- "libp2p",
- "lock_api",
- "parking_lot 0.12.3",
- "serde",
- "serde_json",
- "sp-core",
- "structopt",
- "subxt-signer",
- "thiserror",
- "tokio",
- "tokio-util 0.7.12",
- "tracing",
- "uuid 1.11.0",
-]
-
-[[package]]
 name = "incredible-squaring-blueprint"
 version = "0.1.1"
 dependencies = [
@@ -6025,7 +5975,8 @@ dependencies = [
  "gadget-io",
  "gadget-sdk",
  "hex",
- "incredible-squaring-aggregator",
+ "jsonrpc-core",
+ "jsonrpc-http-server",
  "k256",
  "lazy_static",
  "libp2p",
@@ -6037,6 +5988,7 @@ dependencies = [
  "sp-core",
  "structopt",
  "subxt-signer",
+ "thiserror",
  "tokio",
  "tokio-util 0.7.12",
  "tracing",

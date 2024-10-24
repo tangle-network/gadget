@@ -337,7 +337,6 @@ pub async fn setup_task_spawner(
     accounts: Vec<Address>,
     http_endpoint: String,
 ) -> impl std::future::Future<Output = ()> {
-    info!("Setting up task spawner");
     let provider = get_provider_http(http_endpoint.as_str());
     let task_manager = IncredibleSquaringTaskManager::new(task_manager_address, provider.clone());
     let registry_coordinator =
@@ -345,10 +344,8 @@ pub async fn setup_task_spawner(
 
     let operators = vec![vec![accounts[0]]];
     let quorums = Bytes::from(vec![0]);
-    info!("Starting task spawner");
     async move {
         let mut task_count = 0;
-        info!("Starting task spawner loop");
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(10000)).await;
 
@@ -361,7 +358,7 @@ pub async fn setup_task_spawner(
             .unwrap()
             .status()
             {
-                log::info!("Deployed a new task");
+                info!("Deployed a new task");
                 task_count += 1;
             }
 
@@ -372,7 +369,7 @@ pub async fn setup_task_spawner(
             .unwrap()
             .status()
             {
-                log::info!("Updated operators for quorum 0");
+                info!("Updated operators for quorum 0");
             }
 
             tokio::process::Command::new("sh")
@@ -384,7 +381,7 @@ pub async fn setup_task_spawner(
                 .output()
                 .await
                 .unwrap();
-            log::info!("Mined a block...");
+            info!("Mined a block...");
         }
     }
 }
@@ -394,20 +391,17 @@ pub async fn setup_task_response_listener(
     ws_endpoint: String,
     successful_responses: Arc<Mutex<usize>>,
 ) -> impl std::future::Future<Output = ()> {
-    info!("Setting up task response listener");
     let task_manager = IncredibleSquaringTaskManager::new(
         task_manager_address,
         get_provider_ws(ws_endpoint.as_str()).await,
     );
 
-    info!("Starting task response listener");
     async move {
-        info!("Starting response loop");
         let filter = task_manager.TaskResponded_filter().filter;
         let mut event_stream = match task_manager.provider().subscribe_logs(&filter).await {
             Ok(stream) => stream.into_stream(),
             Err(e) => {
-                log::error!("Failed to subscribe to logs: {:?}", e);
+                error!("Failed to subscribe to logs: {:?}", e);
                 return;
             }
         };
@@ -421,9 +415,6 @@ pub async fn setup_task_response_listener(
                 .data;
             let mut counter = successful_responses.lock().await;
             *counter += 1;
-            if *counter >= 2 {
-                break;
-            }
         }
     }
 }
