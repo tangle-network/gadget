@@ -1958,7 +1958,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-metadata"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "cargo_metadata",
  "fs2",
@@ -2227,7 +2227,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-tangle"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "alloy-json-abi",
  "alloy-network",
@@ -4678,7 +4678,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "async-trait",
  "gadget-blueprint-proc-macro-core",
@@ -4695,7 +4695,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro-core"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "cid",
  "ethereum-types",
@@ -4759,7 +4759,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-sdk"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "alloy-contract",
  "alloy-network",
