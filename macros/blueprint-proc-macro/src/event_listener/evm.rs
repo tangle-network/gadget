@@ -109,7 +109,7 @@ pub(crate) fn generate_evm_event_handler(
 
 
         #[automatically_derived]
-        #[async_trait::async_trait]
+        #[gadget_sdk::async_trait::async_trait]
         impl<T> gadget_sdk::events_watcher::evm::EvmEventHandler<T> for #struct_name <T>
         where
             T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config +'static,
