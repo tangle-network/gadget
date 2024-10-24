@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.2.0...gadget-sdk-v0.2.1) - 2024-10-24
+
+### Added
+
+- *(gadget-sdk)* improve `MultiJobRunner` builder ([#382](https://github.com/tangle-network/gadget/pull/382))
+
+### Other
+
+- Event Flows for Tangle ([#363](https://github.com/tangle-network/gadget/pull/363))
+
 ## [0.2.0](https://github.com/tangle-network/gadget/compare/gadget-sdk-v0.1.1...gadget-sdk-v0.2.0) - 2024-10-23
 
 ### Added
