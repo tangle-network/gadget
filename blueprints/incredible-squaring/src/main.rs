@@ -13,8 +13,8 @@ async fn main() {
 
     let x_square = blueprint::XsquareEventHandler {
         service_id: env.service_id.unwrap(),
-        client: client.clone(),
-        context: client.clone(),
+        context: blueprint::MyContext,
+        client,
         signer,
     };
 

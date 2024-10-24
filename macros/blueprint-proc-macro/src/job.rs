@@ -346,7 +346,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                         .expect("Failed to generate params");
                     let params_tokens = event_listeners.get_param_name_tokenstream(&params, true);
                     quote! {
-                        move |event: gadget_sdk::event_listener::tangle::jobs::TangleJobEvent<gadget_sdk::clients::tangle::runtime::TangleClient>| async move {
+                        move |event: gadget_sdk::event_listener::tangle::jobs::TangleJobEvent<#context_ty>| async move {
                             if let Some(call_id) = event.call_id {
                                 #call_id_static_name.store(call_id, std::sync::atomic::Ordering::Relaxed);
                             }
