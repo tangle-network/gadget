@@ -42,7 +42,7 @@ ark-ec = { workspace = true }
 parking_lot = { workspace = true }
 libp2p = { workspace = true }
 ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde", "pem"] }
-structopt = { workspace = true }
+clap = { workspace = true, features = ["derive", "wrap_help"] }
 hex = { workspace = true }
 k256 = { workspace = true }
 reqwest = { workspace = true }

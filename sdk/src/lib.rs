@@ -70,12 +70,12 @@ pub mod utils;
 
 // Re-exports
 pub use alloy_rpc_types;
+pub use clap;
 pub use error::Error;
 pub use futures;
 pub use gadget_blueprint_proc_macro::*;
 pub use libp2p;
 pub use parking_lot;
-pub use structopt;
 pub use subxt_core;
 pub use tangle_subxt;
 pub use tokio;

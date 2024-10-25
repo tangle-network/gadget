@@ -21,7 +21,7 @@ impl<'a, F: Send + Future<Output = T> + 'a, T> SendFuture<'a, T> for F {}
 
 /// Sets up the logger for the blueprint manager, based on the verbosity level passed in.
 pub fn setup_blueprint_manager_logger(
-    verbose: i32,
+    verbose: u8,
     pretty: bool,
     filter: &str,
 ) -> color_eyre::Result<()> {
