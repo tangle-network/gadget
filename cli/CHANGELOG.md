@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/tangle-network/gadget/compare/cargo-tangle-v0.2.0...cargo-tangle-v0.2.1) - 2024-10-25
+
+### Added
+
+- *(cargo-tangle)* key generation ([#385](https://github.com/tangle-network/gadget/pull/385))
+
+### Fixed
+
+- *(cargo-tangle)* bake blueprint json ([#397](https://github.com/tangle-network/gadget/pull/397))
+
+### Other
+
+- Leverage blueprint in incredible squaring aggregator ([#365](https://github.com/tangle-network/gadget/pull/365))
+
 ## [0.2.0](https://github.com/tangle-network/gadget/compare/cargo-tangle-v0.1.3...cargo-tangle-v0.2.0) - 2024-10-24
 
 ### Added
