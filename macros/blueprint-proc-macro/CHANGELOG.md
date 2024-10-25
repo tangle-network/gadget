@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-v0.2.2...gadget-blueprint-proc-macro-v0.2.3) - 2024-10-25
+
+### Other
+
+- updated the following local packages: gadget-blueprint-proc-macro-core, gadget-sdk
+
 ## [0.2.2](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-v0.2.1...gadget-blueprint-proc-macro-v0.2.2) - 2024-10-24
 
 ### Other

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/tangle-network/gadget/compare/gadget-context-derive-v0.1.2...gadget-context-derive-v0.1.3) - 2024-10-25
+
+### Other
+
+- Leverage blueprint in incredible squaring aggregator ([#365](https://github.com/tangle-network/gadget/pull/365))
+
 ## [0.1.2](https://github.com/tangle-network/gadget/compare/gadget-context-derive-v0.1.1...gadget-context-derive-v0.1.2) - 2024-10-24
 
 ### Other
