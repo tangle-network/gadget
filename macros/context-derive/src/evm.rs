@@ -41,7 +41,7 @@ pub fn generate_context_impl(
                         match PROVIDER.get() {
                             Some(provider) => Ok(provider.clone()),
                             None => {
-                                let rpc_url = #field_access.rpc_endpoint.as_str();
+                                let rpc_url = #field_access.http_rpc_endpoint.as_str();
                                 let provider = alloy_provider::ProviderBuilder::new()
                                     .with_recommended_fillers()
                                     .on_builtin(rpc_url)

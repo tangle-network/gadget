@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
     let keystore = env.keystore()?;
     let signer = env.first_signer()?;
     let client: TangleClient =
-        subxt::OnlineClient::from_url(&env.rpc_endpoint).await?;
+        subxt::OnlineClient::from_url(&env.http_rpc_endpoint).await?;
 
     // // Create the event handler from the job
     // let keygen_job = KeygenEventHandler {

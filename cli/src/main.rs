@@ -47,9 +47,12 @@ pub enum GadgetCommands {
     /// Deploy a blueprint to the Tangle Network.
     #[command(visible_alias = "d")]
     Deploy {
+        /// HTTP RPC URL to use
+        #[arg(long, value_name = "URL", default_value = "https://rpc.tangle.tools")]
+        http_rpc_url: String,
         /// Tangle RPC URL to use
         #[arg(long, value_name = "URL", default_value = "wss://rpc.tangle.tools")]
-        rpc_url: String,
+        ws_rpc_url: String,
         /// The package to deploy (if the workspace has multiple packages).
         #[arg(short, long, value_name = "PACKAGE")]
         package: Option<String>,
@@ -99,13 +102,18 @@ async fn main() -> color_eyre::Result<()> {
             GadgetCommands::Create { name, source } => {
                 create::new_blueprint(name, source);
             }
-            GadgetCommands::Deploy { rpc_url, package } => {
+            GadgetCommands::Deploy {
+                http_rpc_url,
+                ws_rpc_url,
+                package,
+            } => {
                 let manifest_path = cli
                     .manifest
                     .manifest_path
                     .unwrap_or_else(|| PathBuf::from("Cargo.toml"));
                 let _ = deploy::deploy_to_tangle(deploy::Opts {
-                    rpc_url,
+                    http_rpc_url,
+                    ws_rpc_url,
                     manifest_path,
                     pkg_name: package,
                     signer: None,
