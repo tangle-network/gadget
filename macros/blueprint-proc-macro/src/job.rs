@@ -66,7 +66,6 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         args.skip_codegen,
         &param_map,
         &args.params,
-        &result_type,
     );
 
     // Generate Event Workflow, if not being skipped
@@ -220,7 +219,6 @@ pub(crate) fn generate_event_workflow_tokenstream(
     skip_codegen: bool,
     param_types: &IndexMap<Ident, Type>,
     params: &[Ident],
-    result_types: &[FieldType],
 ) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
     let (mut event_handler_args, _event_handler_arg_types) =
         get_event_handler_args(param_types, params);
@@ -322,7 +320,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 let field_in_self_getter = event_handler_args
                     .first()
                     .map(|field_in_self| {
-                        // If is_raw, assume the actual context is the first param
+                        // If is_raw, assume the actual context is the second param
                         quote! { ctx. #field_in_self .clone() }
                     })
                     .expect("No context found");
@@ -397,16 +395,11 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     &listener_meta.post_processor
                 {
                     if matches!(listener_meta.listener_type, ListenerType::Tangle) {
-                        let result_tokens =
-                            event_listeners.get_param_result_tokenstream(result_types);
                         quote! {
                             |job_result| async move {
                                 let ctx = CTX.get().unwrap();
-                                let mut result = Vec::new();
-                                // TODO: Will need to decouple this from jobs
-                                #(#result_tokens)*
-                                let tangle_job_result = gadget_sdk::event_listener::tangle::jobs::TangleJobResult {
-                                    results: result,
+                                let tangle_job_result = gadget_sdk::event_listener::tangle::TangleResult::<_> {
+                                    results: job_result,
                                     service_id: ctx.service_id,
                                     call_id: #call_id_static_name.load(std::sync::atomic::Ordering::Relaxed),
                                     client: ctx.client.clone(),
@@ -1063,60 +1056,6 @@ pub(crate) struct EvmArgs {
 impl EventListenerArgs {
     pub fn get_event_listener(&self) -> &SingleListener {
         &self.listeners[0]
-    }
-
-    pub fn get_param_result_tokenstream(
-        &self,
-        fields: &[FieldType],
-    ) -> Vec<proc_macro2::TokenStream> {
-        let event_listener = self.get_event_listener();
-        if fields.len() == 1 {
-            let ident = format_ident!("job_result");
-            match event_listener.listener_type {
-                ListenerType::Evm => {
-                    vec![quote! { let #ident = job_result; }]
-                }
-
-                ListenerType::Tangle => {
-                    vec![crate::tangle::field_type_to_result_token(
-                        &ident, &fields[0],
-                    )]
-                }
-
-                ListenerType::Custom => {
-                    vec![quote! { let #ident = job_result; }]
-                }
-            }
-        } else {
-            fields
-                .iter()
-                .enumerate()
-                .map(|(i, t)| {
-                    let ident = format_ident!("result_{i}");
-                    match event_listener.listener_type {
-                        ListenerType::Evm => {
-                            quote! {
-                                let #ident = job_result[#i];
-                            }
-                        }
-
-                        ListenerType::Tangle => {
-                            let s = crate::tangle::field_type_to_result_token(&ident, t);
-                            quote! {
-                                let #ident = job_result[#i];
-                                #s
-                            }
-                        }
-
-                        ListenerType::Custom => {
-                            quote! {
-                                let #ident = job_result[#i];
-                            }
-                        }
-                    }
-                })
-                .collect::<Vec<_>>()
-        }
     }
 
     pub fn get_param_name_tokenstream(

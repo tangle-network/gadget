@@ -9,7 +9,7 @@ pub struct MyContext;
 #[job(
     id = 0,
     params(x),
-    result(_),
+
     event_listener(
         listener = TangleEventListener<MyContext, JobCalled>,
         pre_processor = services_pre_processor,
