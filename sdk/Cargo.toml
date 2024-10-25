@@ -1,6 +1,6 @@
 [package]
 name = "gadget-sdk"
-version = "0.2.2"
+version = "0.2.3"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -11,6 +11,7 @@ license.workspace = true
 
 [dependencies]
 auto_impl = { workspace = true }
+bollard = { workspace = true }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
 getrandom = { workspace = true, optional = true }
 hex = { workspace = true, features = ["alloc"] }
@@ -78,6 +79,7 @@ alloy-provider = { workspace = true, optional = true }
 alloy-rpc-types = { workspace = true }
 alloy-sol-types = { workspace = true }
 alloy-transport = { workspace = true }
+alloy-transport-http = { workspace = true }
 alloy-signer = { workspace = true }
 alloy-signer-local = { workspace = true }
 tokio-retry = { workspace = true }

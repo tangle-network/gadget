@@ -58,7 +58,14 @@ pub async fn handle<'a>(
 
         // Add required env vars for all child processes/gadgets
         let mut env_vars = vec![
-            ("RPC_URL".to_string(), gadget_config.url.to_string()),
+            (
+                "HTTP_RPC_URL".to_string(),
+                gadget_config.http_rpc_url.to_string(),
+            ),
+            (
+                "WS_RPC_URL".to_string(),
+                gadget_config.ws_rpc_url.to_string(),
+            ),
             (
                 "KEYSTORE_URI".to_string(),
                 blueprint_manager_opts.keystore_uri.clone(),
@@ -141,7 +148,8 @@ pub fn generate_process_arguments(
     arguments.extend([
         format!("--bind-addr={}", gadget_config.bind_addr),
         format!("--bind-port={}", gadget_config.bind_port),
-        format!("--url={}", gadget_config.url),
+        format!("--http-rpc-url={}", gadget_config.http_rpc_url),
+        format!("--ws-rpc-url={}", gadget_config.ws_rpc_url),
         format!("--keystore-uri={}", gadget_config.keystore_uri),
         format!("--chain={}", gadget_config.chain),
         format!("--verbose={}", opt.verbose),

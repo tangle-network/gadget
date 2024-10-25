@@ -1,16 +1,36 @@
 //! EVM Event Watcher Module
 
 use crate::events_watcher::error::Error;
-use alloy_network::Ethereum;
+use alloy_network::{Ethereum, EthereumWallet};
 use alloy_primitives::FixedBytes;
-use alloy_provider::Provider;
+use alloy_provider::{
+    fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller, WalletFiller},
+    Identity, Provider, RootProvider,
+};
 use alloy_sol_types::SolEvent;
 use alloy_transport::Transport;
+use alloy_transport_http::{Client, Http};
 use std::ops::Deref;
 
 pub trait Config: Send + Sync + Clone + 'static {
     type TH: Transport + Clone + Send + Sync;
     type PH: Provider<Self::TH, Ethereum> + Clone + Send + Sync;
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct DefaultNodeConfig {}
+
+impl Config for DefaultNodeConfig {
+    type TH = Http<Client>;
+    type PH = FillProvider<
+        JoinFill<
+            JoinFill<JoinFill<JoinFill<Identity, GasFiller>, NonceFiller>, ChainIdFiller>,
+            WalletFiller<EthereumWallet>,
+        >,
+        RootProvider<Http<Client>>,
+        Http<Client>,
+        Ethereum,
+    >;
 }
 
 pub trait EvmContract<T: Config>:

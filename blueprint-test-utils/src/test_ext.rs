@@ -39,7 +39,7 @@ use tracing::Instrument;
 use gadget_sdk::{error, info, warn};
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
-const LOCAL_TANGLE_NODE: &str = "ws://127.0.0.1:9944";
+const LOCAL_TANGLE_NODE_HTTP: &str = "http://127.0.0.1:9944";
 pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
 
 /// - `N`: number of nodes
@@ -102,7 +102,8 @@ pub async fn new_test_ext_blueprint_manager<
             verbose: 4,
             pretty: false,
             extra_input: additional_params.clone(),
-            local_tangle_node: Url::parse(&opts.rpc_url).expect("Should parse URL"),
+            http_rpc_url: Url::parse(&opts.http_rpc_url).expect("Should parse URL"),
+            ws_rpc_url: Url::parse(&opts.ws_rpc_url).expect("Should parse URL"),
         };
 
         let handle = f(test_input).await;
@@ -136,7 +137,7 @@ pub async fn new_test_ext_blueprint_manager<
         }
     };
 
-    let client = OnlineClient::from_url(LOCAL_TANGLE_NODE)
+    let client = OnlineClient::from_url(LOCAL_TANGLE_NODE_HTTP)
         .await
         .expect("Failed to create an account-based localhost client");
 
@@ -146,7 +147,7 @@ pub async fn new_test_ext_blueprint_manager<
     // TODO: allow the function called to specify the registration args
 
     for handle in handles {
-        let client = OnlineClient::from_url(LOCAL_TANGLE_NODE)
+        let client = OnlineClient::from_url(LOCAL_TANGLE_NODE_HTTP)
             .await
             .expect("Failed to create an account-based localhost client");
         let registration_args = registration_args.clone();
@@ -241,7 +242,7 @@ pub async fn new_test_ext_blueprint_manager<
     }
 }
 
-fn find_open_tcp_bind_port() -> u16 {
+pub fn find_open_tcp_bind_port() -> u16 {
     let listener = std::net::TcpListener::bind(format!("{LOCAL_BIND_ADDR}:0"))
         .expect("Should bind to localhost");
     listener

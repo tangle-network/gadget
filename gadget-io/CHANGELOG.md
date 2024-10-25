@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4](https://github.com/tangle-network/gadget/compare/gadget-io-v0.0.3...gadget-io-v0.0.4) - 2024-10-25
+
+### Other
+
+- Leverage blueprint in incredible squaring aggregator ([#365](https://github.com/tangle-network/gadget/pull/365))
+
 ## [0.0.3](https://github.com/tangle-network/gadget/compare/gadget-io-v0.0.2...gadget-io-v0.0.3) - 2024-10-23
 
 ### Fixed

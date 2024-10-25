@@ -9,8 +9,8 @@ use tangle_subxt::subxt_signer::bip39;
 use tangle_subxt::subxt_signer::ExposeSecret;
 use tangle_subxt::subxt_signer::SecretUri;
 
-const SIGNER_ENV: &str = "SIGNER";
-const EVM_SIGNER_ENV: &str = "EVM_SIGNER";
+pub(crate) const SIGNER_ENV: &str = "SIGNER";
+pub(crate) const EVM_SIGNER_ENV: &str = "EVM_SIGNER";
 
 const SURI_HELP_MSG: &str = r#"
 The `SURI` can be parsed from a string. The string takes this form:
@@ -79,71 +79,4 @@ pub fn load_evm_signer_from_env() -> Result<PrivateKeySigner> {
     };
 
     Ok(key)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::env;
-
-    #[test]
-    fn test_load_signer_from_env() -> color_eyre::Result<()> {
-        color_eyre::install().unwrap_or(());
-        let s = [1u8; 32];
-        let secret = bip39::Mnemonic::from_entropy(&s[..])?.to_string();
-        // Test with a valid mnemonic phrase
-        env::set_var(SIGNER_ENV, secret);
-        load_signer_from_env()?;
-
-        // Test with a valid hex string
-        env::set_var(
-            SIGNER_ENV,
-            "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        );
-        load_signer_from_env()?;
-
-        // Test with an invalid mnemonic phrase
-        env::set_var(SIGNER_ENV, "invalid mnemonic phrase");
-        assert!(load_signer_from_env().is_err());
-
-        // Test with an invalid hex string
-        env::set_var(SIGNER_ENV, "0xinvalidhexstring");
-        assert!(load_signer_from_env().is_err());
-
-        // Test when the SIGNER environment variable is not set
-        env::remove_var(SIGNER_ENV);
-        assert!(load_signer_from_env().is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn test_load_evm_signer_from_env() -> color_eyre::Result<()> {
-        color_eyre::install().unwrap_or(());
-        let s = [1u8; 32];
-        let secret = bip39::Mnemonic::from_entropy(&s[..])?.to_string();
-        // Test with a valid mnemonic phrase
-        env::set_var(EVM_SIGNER_ENV, secret);
-        load_evm_signer_from_env()?;
-
-        // Test with a valid hex string
-        env::set_var(
-            EVM_SIGNER_ENV,
-            "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        );
-        load_evm_signer_from_env()?;
-
-        // Test with an invalid mnemonic phrase
-        env::set_var(EVM_SIGNER_ENV, "invalid mnemonic phrase");
-        assert!(load_evm_signer_from_env().is_err());
-
-        // Test with an invalid hex string
-        env::set_var(EVM_SIGNER_ENV, "0xinvalidhexstring");
-        assert!(load_evm_signer_from_env().is_err());
-
-        // Test when the EVM_SIGNER environment variable is not set
-        env::remove_var(EVM_SIGNER_ENV);
-        assert!(load_evm_signer_from_env().is_err());
-
-        Ok(())
-    }
 }
