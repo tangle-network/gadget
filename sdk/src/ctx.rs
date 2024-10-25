@@ -21,7 +21,7 @@
 //! }
 //! // By deriving KeystoreContext, you can now access the keystore client from your struct.
 //!
-//! #[job(id = 0, params(who), result(_))]
+//! #[job(id = 0, params(who))]
 //! async fn my_job(ctx: &MyContext, who: String) -> Result<String, MyError> {
 //!   // Access the keystore client from the context.
 //!   let keystore = ctx.keystore();

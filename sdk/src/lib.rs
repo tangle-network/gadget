@@ -69,6 +69,7 @@ pub mod utils;
 
 // Re-exports
 pub use alloy_rpc_types;
+pub use async_trait;
 pub use error::Error;
 pub use futures;
 pub use gadget_blueprint_proc_macro::*;

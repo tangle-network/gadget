@@ -29,7 +29,7 @@ use super::Context;
 #[sdk::job(
     id = 0,
     params(curve, t, num_keys, hd_wallet),
-    result(_),
+
     verifier(evm = "HelloBlueprint")
 )]
 pub async fn keygen(

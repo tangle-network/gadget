@@ -164,7 +164,6 @@ impl<'a> MultiJobRunner<'a> {
     /// #         #[gadget_sdk::job(
     /// #              id = 0,
     /// #              params(x),
-    /// #              result(_),
     /// #              event_listener(
     /// #                  listener = TangleEventListener,
     /// #                  event = JobCalled,
@@ -176,7 +175,6 @@ impl<'a> MultiJobRunner<'a> {
     /// #         #[gadget_sdk::job(
     /// #              id = 1,
     /// #              params(x),
-    /// #              result(_),
     /// #              event_listener(
     /// #                  listener = TangleEventListener,
     /// #                  event = JobCalled,
@@ -188,7 +186,6 @@ impl<'a> MultiJobRunner<'a> {
     /// #         #[gadget_sdk::job(
     /// #              id = 2,
     /// #              params(x),
-    /// #              result(_),
     /// #              event_listener(
     /// #                  listener = TangleEventListener,
     /// #                  event = JobCalled,
@@ -303,7 +300,6 @@ impl<'a> MultiJobRunner<'a> {
     /// #         #[gadget_sdk::job(
     /// #              id = 0,
     /// #              params(x),
-    /// #              result(_),
     /// #              event_listener(
     /// #                  listener = TangleEventListener,
     /// #                  event = JobCalled,

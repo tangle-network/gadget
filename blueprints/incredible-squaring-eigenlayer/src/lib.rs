@@ -68,7 +68,7 @@ pub fn noop(_: u32) {
 #[job(
     id = 1,
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
-    result(_),
+
     event_listener(
         listener = EvmContractEventListener(
             instance = IncredibleSquaringTaskManager,
