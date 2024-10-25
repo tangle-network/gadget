@@ -2,15 +2,15 @@ use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::run_blueprint_manager;
 use blueprint_manager::sdk;
 use blueprint_manager::sdk::utils::msg_to_error;
+use clap::Parser;
 use gadget_io::GadgetConfig;
 use sdk::entry;
-use structopt::StructOpt;
 
 #[tokio::main]
 #[allow(clippy::needless_return)]
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
-    let mut blueprint_manager_config = BlueprintManagerConfig::from_args();
+    let mut blueprint_manager_config = BlueprintManagerConfig::parse();
 
     blueprint_manager_config.data_dir = std::path::absolute(&blueprint_manager_config.data_dir)?;
 

@@ -14,11 +14,11 @@ pub struct Source {
 #[derive(Args, Debug, Clone)]
 #[group(requires = "repo")]
 pub struct RepoArgs {
-    #[arg(short, long, required = false, group = "source")]
+    #[arg(short, long, env, required = false, group = "source")]
     repo: String,
-    #[arg(short, long)]
+    #[arg(short, long, env)]
     branch: Option<String>,
-    #[arg(short, long, conflicts_with = "branch")]
+    #[arg(short, long, env, conflicts_with = "branch")]
     tag: Option<String>,
 }
 

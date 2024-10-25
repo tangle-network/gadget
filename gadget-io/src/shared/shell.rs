@@ -7,8 +7,8 @@ use core::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Default, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "std", derive(structopt::StructOpt))]
-#[cfg_attr(feature = "std", structopt(rename_all = "snake_case"))]
+#[cfg_attr(feature = "std", derive(clap::ValueEnum))]
+#[cfg_attr(feature = "std", clap(rename_all = "snake_case"))]
 #[serde(rename_all = "snake_case")]
 pub enum SupportedChains {
     #[default]
