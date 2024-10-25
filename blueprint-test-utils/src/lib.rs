@@ -469,18 +469,17 @@ mod test_macros {
 mod tests_standard {
     use super::*;
     use crate::test_ext::new_test_ext_blueprint_manager;
-    use alloy_provider::network::EthereumWallet;
-    use cargo_tangle::deploy::{Opts, PrivateKeySigner};
-    use gadget_sdk::config::StdGadgetConfiguration;
+
+    use cargo_tangle::deploy::Opts;
+
     use gadget_sdk::logging::setup_log;
-    use gadget_sdk::{debug, error, info};
+    use gadget_sdk::{error, info};
     use helpers::{
         deploy_task_manager, setup_eigenlayer_test_environment, setup_task_response_listener,
         setup_task_spawner, BlueprintProcessManager, EigenlayerTestEnvironment,
     };
     use std::sync::Arc;
     use tokio::sync::Mutex;
-    use tokio::time::timeout;
 
     const ANVIL_STATE_PATH: &str =
         "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
@@ -598,9 +597,9 @@ mod tests_standard {
             &http_endpoint,
             registry_coordinator_address,
             pauser_registry_address,
-            owner_address.clone(),
-            aggregator_address.clone(),
-            task_generator_address.clone(),
+            *owner_address,
+            *aggregator_address,
+            *task_generator_address,
         )
         .await;
 
@@ -620,7 +619,7 @@ mod tests_standard {
         let task_spawner = setup_task_spawner(
             task_manager_address,
             registry_coordinator_address,
-            task_generator_address.clone(),
+            *task_generator_address,
             accounts.to_vec(),
             http_endpoint.clone(),
         )

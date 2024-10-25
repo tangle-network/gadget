@@ -23,13 +23,13 @@ use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
 use gadget_sdk::events_watcher::InitializableEventHandler;
+use gadget_sdk::info;
 use gadget_sdk::run::GadgetRunner;
 use gadget_sdk::structopt::StructOpt;
 use gadget_sdk::{
     config::{ContextConfig, GadgetConfiguration},
     events_watcher::evm::DefaultNodeConfig,
 };
-use gadget_sdk::{error, info};
 pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
     pub env: GadgetConfiguration<R>,
 }

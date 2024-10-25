@@ -37,24 +37,17 @@ use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServic
 use eigensdk::types::avs::{TaskIndex, TaskResponseDigest};
 use std::collections::HashMap;
 
+pub type BlsAggServiceInMemory = BlsAggregatorService<
+    AvsRegistryServiceChainCaller<AvsRegistryChainReader, OperatorInfoServiceInMemory>,
+>;
+
 #[derive(Clone, EigenlayerContext, KeystoreContext)]
 pub struct AggregatorContext {
     pub port_address: String,
     pub task_manager_address: Address,
     pub tasks: Arc<Mutex<HashMap<TaskIndex, Task>>>,
     pub tasks_responses: Arc<Mutex<HashMap<TaskIndex, HashMap<TaskResponseDigest, TaskResponse>>>>,
-    pub bls_aggregation_service: Option<
-        Arc<
-            Mutex<
-                BlsAggregatorService<
-                    AvsRegistryServiceChainCaller<
-                        AvsRegistryChainReader,
-                        OperatorInfoServiceInMemory,
-                    >,
-                >,
-            >,
-        >,
-    >,
+    pub bls_aggregation_service: Option<Arc<Mutex<BlsAggServiceInMemory>>>,
     pub http_rpc_url: String,
     pub wallet: EthereumWallet,
     pub response_cache: Arc<Mutex<VecDeque<SignedTaskResponse>>>,

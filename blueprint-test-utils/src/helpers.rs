@@ -93,7 +93,7 @@ pub async fn setup_eigenlayer_test_environment(
     http_endpoint: &str,
     ws_endpoint: &str,
 ) -> EigenlayerTestEnvironment {
-    let provider = get_provider_http(&http_endpoint);
+    let provider = get_provider_http(http_endpoint);
 
     let accounts = provider.get_accounts().await.unwrap();
 
@@ -196,6 +196,12 @@ impl BlueprintProcess {
 
 pub struct BlueprintProcessManager {
     processes: Arc<Mutex<Vec<BlueprintProcess>>>,
+}
+
+impl Default for BlueprintProcessManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BlueprintProcessManager {
@@ -345,7 +351,6 @@ pub async fn setup_task_spawner(
     let operators = vec![vec![accounts[0]]];
     let quorums = Bytes::from(vec![0]);
     async move {
-        let mut task_count = 0;
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(10000)).await;
 
@@ -358,8 +363,7 @@ pub async fn setup_task_spawner(
             .unwrap()
             .status()
             {
-                info!("Deployed a new task");
-                task_count += 1;
+                info!("Created a new task...");
             }
 
             if get_receipt(
@@ -369,7 +373,7 @@ pub async fn setup_task_spawner(
             .unwrap()
             .status()
             {
-                info!("Updated operators for quorum 0");
+                info!("Updated operators for quorum...");
             }
 
             tokio::process::Command::new("sh")
