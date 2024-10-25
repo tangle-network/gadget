@@ -50,6 +50,30 @@ pub enum FieldType {
     AccountId,
 }
 
+impl AsRef<str> for FieldType {
+    fn as_ref(&self) -> &str {
+        match self {
+            FieldType::Uint8 => "u8",
+            FieldType::Uint16 => "u16",
+            FieldType::Uint32 => "u32",
+            FieldType::Uint64 => "u64",
+            FieldType::Int8 => "i8",
+            FieldType::Int16 => "i16",
+            FieldType::Int32 => "i32",
+            FieldType::Int64 => "i64",
+            FieldType::Uint128 => "u128",
+            FieldType::U256 => "U256",
+            FieldType::Int128 => "i128",
+            FieldType::Float64 => "f64",
+            FieldType::Bool => "bool",
+            FieldType::String => "String",
+            FieldType::Bytes => "Bytes",
+            FieldType::AccountId => "AccountId",
+            ty => unimplemented!("Unsupported FieldType {ty:?}"),
+        }
+    }
+}
+
 /// The main definition of a service.
 ///
 /// This contains the metadata of the service, the job definitions, and other hooks, along with the
@@ -177,7 +201,6 @@ pub struct ReportMetadata<'a> {
 
 /// Service Blueprint Manager is a smart contract that will manage the service lifecycle.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum BlueprintManager {
     /// A Smart contract that will manage the service lifecycle.

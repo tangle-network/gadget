@@ -1,6 +1,6 @@
 [package]
 name = "gadget-sdk"
-version = "0.1.2"
+version = "0.2.2"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -11,6 +11,7 @@ license.workspace = true
 
 [dependencies]
 auto_impl = { workspace = true }
+bollard = { workspace = true }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
 getrandom = { workspace = true, optional = true }
 hex = { workspace = true, features = ["alloc"] }
@@ -86,6 +87,7 @@ tokio-retry = { workspace = true }
 # Macros
 gadget-blueprint-proc-macro = { workspace = true, default-features = false }
 gadget-context-derive = { workspace = true, default-features = false }
+gadget-blueprint-proc-macro-core = { workspace = true, default-features = false }
 
 # Benchmarking deps
 sysinfo = { workspace = true }

@@ -24,12 +24,11 @@ use IncredibleSquaringTaskManager::TaskResponse;
     event_listener(
         listener = EvmContractEventListener(
             instance = IncredibleSquaringTaskManager,
-            event = IncredibleSquaringTaskManager::NewTaskCreated,
-            event_converter = convert_event_to_inputs,
-            callback = noop,
             abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
         ),
         event = IncredibleSquaringTaskManager::NewTaskCreated,
+        pre_processor = convert_event_to_inputs,
+        post_processor = noop,
     ),
 )]
 pub async fn xsquare_eigen(

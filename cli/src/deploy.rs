@@ -55,10 +55,18 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
         .exec()
         .context("Getting Metadata about the workspace")?;
 
-    let package = find_package(&metadata, pkg_name)?;
-    let mut blueprint = load_blueprint_metadata(package)?;
-    build_contracts_if_needed(package, &blueprint).context("Building contracts")?;
-    deploy_contracts_to_tangle(http_rpc_url.as_ref(), package, &mut blueprint, signer_evm).await?;
+    let package = find_package(&metadata, pkg_name)?.clone();
+    let package_clone = &package.clone();
+    let mut blueprint =
+        tokio::task::spawn_blocking(move || load_blueprint_metadata(&package)).await??;
+    build_contracts_if_needed(package_clone, &blueprint).context("Building contracts")?;
+    deploy_contracts_to_tangle(
+        http_rpc_url.as_ref(),
+        package_clone,
+        &mut blueprint,
+        signer_evm,
+    )
+    .await?;
 
     bake_blueprint(blueprint)
 }
@@ -115,7 +123,9 @@ pub async fn deploy_to_tangle(
     Ok(event.blueprint_id)
 }
 
-pub fn load_blueprint_metadata(package: &cargo_metadata::Package) -> Result<ServiceBlueprint> {
+pub fn load_blueprint_metadata(
+    package: &cargo_metadata::Package,
+) -> Result<ServiceBlueprint<'static>> {
     let blueprint_json_path = package
         .manifest_path
         .parent()
@@ -264,9 +274,16 @@ fn bake_blueprint(
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["website"]);
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["code_repository"]);
     convert_to_bytes_or_null(&mut blueprint_json["metadata"]["category"]);
+
+    // Set the Hooks to be empty to be compatible with the old blueprint format.
+    // This is because the new blueprint format has manager field instead of different hooks.
+    blueprint_json["registration_hook"] = serde_json::json!("None");
+    blueprint_json["request_hook"] = serde_json::json!("None");
     for job in blueprint_json["jobs"].as_array_mut().unwrap() {
         convert_to_bytes_or_null(&mut job["metadata"]["name"]);
         convert_to_bytes_or_null(&mut job["metadata"]["description"]);
+        // Set an empty verifier to be compatible with the old blueprint format.
+        job["verifier"] = serde_json::json!("None");
     }
 
     // Retrieves the Gadget information from the blueprint.json file.
@@ -308,7 +325,6 @@ fn bake_blueprint(
         }
     }
 
-    println!("Job: {blueprint_json}");
     let blueprint = serde_json::from_value(blueprint_json)?;
     Ok(blueprint)
 }

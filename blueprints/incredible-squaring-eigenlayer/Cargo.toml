@@ -58,9 +58,6 @@ jsonrpc-http-server = { workspace = true }
 blueprint-test-utils = { workspace = true }
 gadget-io = { workspace = true }
 
-[build-dependencies]
-blueprint-metadata = { workspace = true }
-
 [features]
 default = ["std"]
 std = []
