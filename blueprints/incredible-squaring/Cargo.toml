@@ -39,4 +39,4 @@ default = ["std"]
 std = []
 
 [package.metadata.blueprint]
-manager = { evm = "IncredibleSquaringBlueprint" }
+manager = { Evm = "IncredibleSquaringBlueprint" }

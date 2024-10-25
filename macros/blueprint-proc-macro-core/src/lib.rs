@@ -201,7 +201,6 @@ pub struct ReportMetadata<'a> {
 
 /// Service Blueprint Manager is a smart contract that will manage the service lifecycle.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum BlueprintManager {
     /// A Smart contract that will manage the service lifecycle.

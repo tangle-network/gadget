@@ -6,6 +6,7 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::Job
 #[derive(Clone)]
 pub struct MyContext;
 
+/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
 #[job(
     id = 0,
     params(x),
