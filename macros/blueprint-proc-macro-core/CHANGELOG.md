@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-core-v0.1.4...gadget-blueprint-proc-macro-core-v0.1.5) - 2024-10-25
+
+### Fixed
+
+- *(cargo-tangle)* bake blueprint json ([#397](https://github.com/tangle-network/gadget/pull/397))
+
 ## [0.1.4](https://github.com/tangle-network/gadget/compare/gadget-blueprint-proc-macro-core-v0.1.3...gadget-blueprint-proc-macro-core-v0.1.4) - 2024-10-24
 
 ### Other
