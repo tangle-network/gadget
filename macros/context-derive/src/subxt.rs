@@ -31,7 +31,7 @@ pub fn generate_context_impl(
                     match CLIENT.get() {
                         Some(client) => Ok(client.clone()),
                         None => {
-                            let rpc_url = #field_access.rpc_endpoint.as_str();
+                            let rpc_url = #field_access.http_rpc_endpoint.as_str();
                             let client = subxt::OnlineClient::from_url(rpc_url).await?;
                             CLIENT.set(client.clone()).map(|_| client).map_err(|_| {
                                 subxt::Error::Io(std::io::Error::new(
