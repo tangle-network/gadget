@@ -11,6 +11,7 @@ license.workspace = true
 
 [dependencies]
 auto_impl = { workspace = true }
+bollard = { workspace = true }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }
 getrandom = { workspace = true, optional = true }
 hex = { workspace = true, features = ["alloc"] }

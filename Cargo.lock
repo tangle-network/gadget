@@ -4782,6 +4782,7 @@ dependencies = [
  "auto_impl",
  "backon",
  "bincode",
+ "bollard",
  "ed25519-zebra 4.0.3",
  "eigensdk",
  "elliptic-curve",
