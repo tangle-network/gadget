@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/tangle-network/tangle/raw/master/assets/Tangle%20%20Banner.png" alt="Gadget Logo">
+  <img src="https://github.com/tangle-network/tangle/blob/main/assets/Tangle%20%20Banner.png" alt="Gadget Logo">
 </p>
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/Apache-2.0)
