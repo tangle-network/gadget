@@ -24,7 +24,7 @@ pub enum Error {
     Config(#[from] crate::config::Error),
 
     #[error("Job runner error: {0}")]
-    Runner(#[from] crate::job_runner::Error),
+    Runner(#[from] crate::runners::RunnerError),
 
     #[error("Docker error: {0}")]
     Docker(#[from] bollard::errors::Error),

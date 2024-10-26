@@ -165,7 +165,7 @@ fn keygen_2_of_3() {
 mod tests {
     use async_trait::async_trait;
     use gadget_sdk as sdk;
-    use gadget_sdk::job_runner::MultiJobRunner;
+    use gadget_sdk::runners::MultiJobRunner;
     use sdk::event_listener::periodic::PeriodicEventListener;
     use sdk::event_listener::EventListener;
     use sdk::job;

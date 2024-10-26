@@ -1,9 +1,9 @@
 use color_eyre::{eyre::eyre, Result};
 use gadget_sdk::info;
-use gadget_sdk::runners::tangle::TangleConfig;
+use gadget_sdk::runners::symbiotic::SymbioticConfig;
 use gadget_sdk::runners::BlueprintRunner;
 use gadget_sdk::tangle_subxt::subxt::tx::Signer;
-use incredible_squaring_blueprint as blueprint;
+use incredible_squaring_blueprint_symbiotic as blueprint;
 
 #[gadget_sdk::main(env)]
 async fn main() {
@@ -20,10 +20,8 @@ async fn main() {
     };
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
-    let tangle_config = TangleConfig {
-        price_targets: Default::default(),
-    };
-    BlueprintRunner::new(tangle_config, env)
+    let symb_config = SymbioticConfig {};
+    BlueprintRunner::new(symb_config, env)
         .add_job(x_square)
         .run()
         .await?;
