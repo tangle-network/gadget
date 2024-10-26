@@ -26,14 +26,19 @@ impl BlueprintConfig for EigenlayerConfig {
         let operator = env.keystore()?.ecdsa_key()?;
         let operator_address = operator.alloy_key()?.address();
 
-        let avs_registry_reader = eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
-            get_logger(),
-            eigenlayer_contracts.registry_coordinator_addr,
-            eigenlayer_contracts.operator_state_retriever_addr,
-            env.http_rpc_endpoint.clone(),
-        ).await?;
+        let avs_registry_reader =
+            eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
+                get_logger(),
+                eigenlayer_contracts.registry_coordinator_addr,
+                eigenlayer_contracts.operator_state_retriever_addr,
+                env.http_rpc_endpoint.clone(),
+            )
+            .await?;
 
-        match avs_registry_reader.is_operator_registered(operator_address).await {
+        match avs_registry_reader
+            .is_operator_registered(operator_address)
+            .await
+        {
             Ok(is_registered) => Ok(!is_registered),
             Err(e) => Err(RunnerError::AvsRegistryError(e)),
         }

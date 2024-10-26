@@ -1,4 +1,9 @@
-use crate::{config::GadgetConfiguration, error, events_watcher::evm::{get_provider_http, get_wallet_provider_http}, info};
+use crate::{
+    config::GadgetConfiguration,
+    error,
+    events_watcher::evm::{get_provider_http, get_wallet_provider_http},
+    info,
+};
 use alloy_network::EthereumWallet;
 use symbiotic_rs::OperatorRegistry;
 
@@ -20,7 +25,8 @@ impl BlueprintConfig for SymbioticConfig {
             get_provider_http(env.http_rpc_endpoint.as_ref()),
         );
 
-        let is_registered = operator_registry.isEntity(operator_address)
+        let is_registered = operator_registry
+            .isEntity(operator_address)
             .call()
             .await
             .map(|r| r._0)
