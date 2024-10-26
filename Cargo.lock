@@ -4792,6 +4792,7 @@ dependencies = [
  "subxt",
  "subxt-core",
  "subxt-signer",
+ "symbiotic-rs",
  "sysinfo",
  "tangle-subxt",
  "thiserror",
@@ -11752,6 +11753,17 @@ dependencies = [
  "thiserror",
  "url",
  "zip",
+]
+
+[[package]]
+name = "symbiotic-rs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02f31217207638b7cba9751cedb9ddb612478423d7bf8700091cf1f9970bbc5f"
+dependencies = [
+ "alloy-contract",
+ "alloy-sol-types 0.7.7",
+ "serde",
 ]
 
 [[package]]

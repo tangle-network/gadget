@@ -17,6 +17,28 @@ pub struct EigenlayerConfig {}
 
 #[async_trait::async_trait]
 impl BlueprintConfig for EigenlayerConfig {
+    async fn requires_registration(
+        &self,
+        env: &GadgetConfiguration<parking_lot::RawRwLock>,
+    ) -> Result<bool, RunnerError> {
+        // Check if the operator has already registered for the service
+        let eigenlayer_contracts = env.eigenlayer_contract_addrs;
+        let operator = env.keystore()?.ecdsa_key()?;
+        let operator_address = operator.alloy_key()?.address();
+
+        let avs_registry_reader = eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
+            get_logger(),
+            eigenlayer_contracts.registry_coordinator_addr,
+            eigenlayer_contracts.operator_state_retriever_addr,
+            env.http_rpc_endpoint.clone(),
+        ).await?;
+
+        match avs_registry_reader.is_operator_registered(operator_address).await {
+            Ok(is_registered) => Ok(!is_registered),
+            Err(e) => Err(RunnerError::AvsRegistryError(e)),
+        }
+    }
+
     async fn register(
         &self,
         env: &GadgetConfiguration<parking_lot::RawRwLock>,

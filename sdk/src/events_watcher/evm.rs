@@ -80,6 +80,18 @@ pub fn get_provider_http(http_endpoint: &str) -> RootProvider<BoxTransport> {
     provider
 }
 
+pub fn get_wallet_provider_http(http_endpoint: &str, wallet: EthereumWallet) -> RootProvider<BoxTransport> {
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(wallet)
+        .on_http(http_endpoint.parse().unwrap())
+        .root()
+        .clone()
+        .boxed();
+
+    provider
+}
+
 pub async fn get_provider_ws(ws_endpoint: &str) -> RootProvider<BoxTransport> {
     let provider = ProviderBuilder::new()
         .with_recommended_fillers()

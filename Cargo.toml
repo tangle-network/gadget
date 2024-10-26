@@ -181,6 +181,9 @@ secp256k1 = "0.29.1"
 eigensdk = { version = "0.1.0", features = ["full", "utils", "types"] }
 testcontainers = { version = "0.20.1" }
 
+# Symbiotic
+symbiotic-rs = { version = "0.1.0" }
+
 # Config for 'cargo dist'
 [workspace.metadata.dist]
 # The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)

@@ -46,8 +46,14 @@ pub enum RunnerError {
     #[error(transparent)]
     AvsRegistryError(#[from] eigensdk::client_avsregistry::error::AvsRegistryError),
 
+    #[error(transparent)]
+    TransportError(#[from] alloy_transport::RpcError<alloy_transport::TransportErrorKind>),
+
     #[error("Environment not set")]
     EnvironmentNotSet,
+
+    #[error("Symbiotic error: {0}")]
+    SymbioticError(String),
 }
 
 #[async_trait::async_trait]
@@ -56,7 +62,10 @@ pub trait BlueprintConfig: Send + Sync + 'static {
         &self,
         env: &GadgetConfiguration<parking_lot::RawRwLock>,
     ) -> Result<(), RunnerError>;
-    async fn requires_registration(&self) -> Result<bool, RunnerError> {
+    async fn requires_registration(
+        &self,
+        _env: &GadgetConfiguration<parking_lot::RawRwLock>,
+    ) -> Result<bool, RunnerError> {
         Ok(true)
     }
 }
@@ -102,7 +111,7 @@ impl BlueprintRunner {
     }
 
     pub async fn run(&mut self) -> Result<(), RunnerError> {
-        if self.config.requires_registration().await? {
+        if self.config.requires_registration(&self.env).await? {
             self.config.register(&self.env).await?
         }
 

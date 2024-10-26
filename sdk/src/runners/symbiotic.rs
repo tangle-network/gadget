@@ -1,4 +1,6 @@
-use crate::config::GadgetConfiguration;
+use crate::{config::GadgetConfiguration, error, events_watcher::evm::{get_provider_http, get_wallet_provider_http}, info};
+use alloy_network::EthereumWallet;
+use symbiotic_rs::OperatorRegistry;
 
 use super::{BlueprintConfig, RunnerError};
 
@@ -7,10 +9,52 @@ pub struct SymbioticConfig {}
 
 #[async_trait::async_trait]
 impl BlueprintConfig for SymbioticConfig {
+    async fn requires_registration(
+        &self,
+        env: &GadgetConfiguration<parking_lot::RawRwLock>,
+    ) -> Result<bool, RunnerError> {
+        let symbiotic_contract_addrs = env.symbiotic_contract_addrs;
+        let operator_address = env.first_ecdsa_signer()?.alloy_key()?.address();
+        let operator_registry = OperatorRegistry::new(
+            symbiotic_contract_addrs.operator_registry_addr,
+            get_provider_http(env.http_rpc_endpoint.as_ref()),
+        );
+
+        let is_registered = operator_registry.isEntity(operator_address)
+            .call()
+            .await
+            .map(|r| r._0)
+            .map_err(|e| RunnerError::SymbioticError(e.to_string()))?;
+
+        Ok(!is_registered)
+    }
+
     async fn register(
         &self,
-        _env: &GadgetConfiguration<parking_lot::RawRwLock>,
+        env: &GadgetConfiguration<parking_lot::RawRwLock>,
     ) -> Result<(), RunnerError> {
+        let symbiotic_contract_addrs = env.symbiotic_contract_addrs;
+        let operator_signer = env.first_ecdsa_signer()?.alloy_key()?;
+        let wallet = EthereumWallet::new(operator_signer);
+        let provider = get_wallet_provider_http(env.http_rpc_endpoint.as_ref(), wallet);
+        let operator_registry = OperatorRegistry::new(
+            symbiotic_contract_addrs.operator_registry_addr,
+            provider.clone(),
+        );
+
+        let result = operator_registry
+            .registerOperator()
+            .send()
+            .await?
+            .get_receipt()
+            .await?;
+
+        if result.status() {
+            info!("Operator registered successfully");
+        } else {
+            error!("Operator registration failed");
+        }
+
         Ok(())
     }
 }

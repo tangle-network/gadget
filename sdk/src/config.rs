@@ -25,6 +25,7 @@ pub enum Protocol {
     #[default]
     Tangle,
     Eigenlayer,
+    Symbiotic,
 }
 
 impl Protocol {
@@ -54,6 +55,7 @@ impl Protocol {
         match self {
             Self::Tangle => "tangle",
             Self::Eigenlayer => "eigenlayer",
+            Self::Symbiotic => "symbiotic",
         }
     }
 }
@@ -71,6 +73,7 @@ impl core::str::FromStr for Protocol {
         match s.to_lowercase().as_str() {
             "tangle" => Ok(Self::Tangle),
             "eigenlayer" => Ok(Self::Eigenlayer),
+            "symbiotic" => Ok(Self::Symbiotic),
             _ => Err(Error::UnsupportedProtocol(s.to_string())),
         }
     }
@@ -122,8 +125,10 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     pub span: tracing::Span,
     /// Whether the gadget is in test mode
     pub test_mode: bool,
-    /// Basic Eigenlayer contract system
+    /// Eigenlayer contract system
     pub eigenlayer_contract_addrs: EigenlayerContractAddresses,
+    /// Symbiotic contract system
+    pub symbiotic_contract_addrs: SymbioticContractAddresses,
     _lock: core::marker::PhantomData<RwLock>,
 }
 
@@ -139,6 +144,24 @@ pub struct EigenlayerContractAddresses {
     pub strategy_manager_addr: Address,
     /// The address of the avs registry contract
     pub avs_directory_addr: Address,
+}
+
+#[derive(Default, Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct SymbioticContractAddresses {
+    /// The address of the operator registry contract
+    pub operator_registry_addr: Address,
+    /// The address of the network registry contract
+    pub network_registry_addr: Address,
+    /// The address of the base delegator contract
+    pub base_delegator_addr: Address,
+    /// The address of the network opt-in service contract
+    pub network_opt_in_service_addr: Address,
+    /// The address of the vault opt-in service contract
+    pub vault_opt_in_service_addr: Address,
+    /// The address of the slasher contract
+    pub slasher_addr: Address,
+    /// The address of the veto slasher contract
+    pub veto_slasher_addr: Address,
 }
 
 impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
@@ -157,6 +180,7 @@ impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
             .field("bind_addr", &self.bind_addr)
             .field("test_mode", &self.test_mode)
             .field("eigenlayer_contract_addrs", &self.eigenlayer_contract_addrs)
+            .field("symboitic_contract_addrs", &self.symbiotic_contract_addrs)
             .finish()
     }
 }
@@ -172,6 +196,7 @@ impl<RwLock: lock_api::RawRwLock> Clone for GadgetConfiguration<RwLock> {
             blueprint_id: self.blueprint_id,
             service_id: self.service_id,
             eigenlayer_contract_addrs: self.eigenlayer_contract_addrs,
+            symbiotic_contract_addrs: self.symbiotic_contract_addrs,
             is_registration: self.is_registration,
             protocol: self.protocol,
             bind_port: self.bind_port,
@@ -195,6 +220,7 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
             blueprint_id: 0,
             service_id: Some(0),
             eigenlayer_contract_addrs: Default::default(),
+            symbiotic_contract_addrs: Default::default(),
             is_registration: false,
             protocol: Protocol::Tangle,
             bind_port: 0,
@@ -349,6 +375,62 @@ pub enum GadgetCLICoreSettings {
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
         avs_directory_addr: Option<Address>,
+        /// The address of the operator registry
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "OPERATOR_REGISTRY_ADDR",
+            required_if_eq("protocol", Protocol::Symbiotic.as_str())
+        )]
+        operator_registry: Option<Address>,
+        /// The address of the network registry
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "NETWORK_REGISTRY_ADDR",
+            required_if_eq("protocol", Protocol::Symbiotic.as_str())
+        )]
+        network_registry: Option<Address>,
+        /// The address of the base delegator
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "BASE_DELEGATOR_ADDR",
+            required_if_eq("protocol", Protocol::Symbiotic.as_str())
+        )]
+        base_delegator: Option<Address>,
+        /// The address of the network opt-in service
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "NETWORK_OPT_IN_SERVICE_ADDR",
+            required_if_eq("protocol", Protocol::Symbiotic.as_str())
+        )]
+        network_opt_in_service: Option<Address>,
+        /// The address of the vault opt-in service
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "VAULT_OPT_IN_SERVICE_ADDR",
+            required_if_eq("protocol", Protocol::Symbiotic.as_str())
+        )]
+        vault_opt_in_service: Option<Address>,
+        /// The address of the slasher
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "SLASHER_ADDR",
+            required_if_eq("protocol", Protocol::Symbiotic.as_str())
+        )]
+        slasher: Option<Address>,
+        /// The address of the veto slasher
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "VETO_SLASHER_ADDR",
+            required_if_eq("protocol", Protocol::Symbiotic.as_str())
+        )]
+        veto_slasher: Option<Address>,
     },
 }
 
@@ -436,6 +518,15 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
             delegation_manager_addr: delegation_manager.unwrap_or_default(),
             strategy_manager_addr: strategy_manager.unwrap_or_default(),
             avs_directory_addr: strategy_manager.unwrap_or_default(),
+        },
+        symbiotic_contract_addrs: SymbioticContractAddresses {
+            operator_registry_addr: registry_coordinator.unwrap_or_default(),
+            network_registry_addr: operator_state_retriever.unwrap_or_default(),
+            base_delegator_addr: delegation_manager.unwrap_or_default(),
+            network_opt_in_service_addr: strategy_manager.unwrap_or_default(),
+            vault_opt_in_service_addr: strategy_manager.unwrap_or_default(),
+            slasher_addr: strategy_manager.unwrap_or_default(),
+            veto_slasher_addr: strategy_manager.unwrap_or_default(),
         },
         _lock: core::marker::PhantomData,
     })
