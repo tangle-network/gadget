@@ -494,7 +494,7 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     pub async fn client(&self) -> Result<crate::clients::tangle::runtime::TangleClient, Error> {
         let client =
             subxt::OnlineClient::<crate::clients::tangle::runtime::TangleConfig>::from_url(
-                self.http_rpc_endpoint.clone(),
+                self.ws_rpc_endpoint.clone(),
             )
             .await?;
         Ok(client)

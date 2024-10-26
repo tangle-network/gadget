@@ -1,5 +1,6 @@
 use crate::executor::process::utils::*;
 use crate::executor::OS_COMMAND;
+use crate::info;
 use crate::{craft_child_process, run_command};
 use failure::format_err;
 use nix::libc::pid_t;
@@ -89,27 +90,20 @@ impl GadgetProcess {
                     Ok(output) => {
                         match output {
                             Err(e) => {
-                                // TODO: Error logging
-                                println!(
-                                    "{} encountered read error {}",
-                                    self.process_name.to_string_lossy(),
-                                    e
-                                );
+                                info!("{} ended with: {}", self.process_name.to_string_lossy(), e);
                                 return ProcessOutput::Exhausted(messages);
                             }
                             Ok(inbound_message) => {
                                 if inbound_message.is_empty() {
                                     // Stream is completed - process is finished
-                                    println!(
+                                    info!(
                                         "{} : STREAM COMPLETED - ENDING",
                                         self.process_name.to_string_lossy()
                                     );
-                                    // TODO: Log
                                     return ProcessOutput::Exhausted(messages);
                                 } else {
                                     // We received output from child process
-                                    // TODO: Log
-                                    println!(
+                                    info!(
                                         "{} : MESSAGE LOG : {}",
                                         self.process_name.to_string_lossy(),
                                         inbound_message
@@ -121,8 +115,7 @@ impl GadgetProcess {
                         }
                     }
                     Err(_timeout) => {
-                        // TODO: Log
-                        println!(
+                        info!(
                             "{:?} read attempt timed out after {} second(s), continuing...",
                             self.process_name.clone(),
                             timeout
@@ -138,8 +131,7 @@ impl GadgetProcess {
                 ProcessOutput::Output(messages)
             }
         } else {
-            // TODO: Error logging
-            println!(
+            info!(
                 "{} encountered read error",
                 self.process_name.to_string_lossy()
             );
@@ -167,15 +159,14 @@ impl GadgetProcess {
                         let inbound_message = output;
                         if inbound_message.is_empty() {
                             // Stream is completed - process is finished
-                            println!(
+                            info!(
                                 "{} : STREAM COMPLETED - ENDING",
                                 self.process_name.to_string_lossy()
                             );
                             return ProcessOutput::Exhausted(messages);
                         } else {
                             // We received output from child process
-                            // TODO: Log
-                            println!(
+                            info!(
                                 "{} : MESSAGE LOG : {}",
                                 self.process_name.to_string_lossy(),
                                 inbound_message.clone()
@@ -189,8 +180,7 @@ impl GadgetProcess {
                         }
                     }
                     Err(err) => {
-                        // TODO: Log
-                        println!(
+                        info!(
                             "{} read attempt failed: {}",
                             self.process_name.to_string_lossy(),
                             err
@@ -201,8 +191,7 @@ impl GadgetProcess {
             }
         }
         // Reaching this point means there was some sort of error - we never got the substring
-        // TODO: Error logging
-        println!(
+        info!(
             "{} encountered read error",
             self.process_name.to_string_lossy()
         );
@@ -221,8 +210,7 @@ impl GadgetProcess {
             }
             None => {
                 // No need to worry, the previously running process died
-                // TODO: Log
-                println!(
+                info!(
                     "LOG : Process restart attempt found no process for PID {:?}",
                     self.pid
                 );
