@@ -34,6 +34,18 @@ pub enum RunnerError {
     #[error(transparent)]
     SubxtError(#[from] subxt::Error),
 
+    #[error(transparent)]
+    KeystoreError(#[from] crate::keystore::Error),
+
+    #[error(transparent)]
+    ContractError(#[from] alloy_contract::Error),
+
+    #[error(transparent)]
+    ElContractsError(#[from] eigensdk::client_elcontracts::error::ElContractsError),
+
+    #[error(transparent)]
+    AvsRegistryError(#[from] eigensdk::client_avsregistry::error::AvsRegistryError),
+
     #[error("Environment not set")]
     EnvironmentNotSet,
 }
@@ -106,7 +118,7 @@ impl BlueprintRunner {
         for job in self.jobs.drain(..) {
             all_futures.push(Box::pin(async move {
                 match job.init_event_handler().await {
-                    Some(receiver) => receiver.await.map_err(|e| RunnerError::Recv(e))?,
+                    Some(receiver) => receiver.await.map_err(RunnerError::Recv)?,
                     None => Ok(()),
                 }
             })

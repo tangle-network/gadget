@@ -165,7 +165,8 @@ fn keygen_2_of_3() {
 mod tests {
     use async_trait::async_trait;
     use gadget_sdk as sdk;
-    use gadget_sdk::runners::MultiJobRunner;
+    use gadget_sdk::runners::tangle::TangleConfig;
+    use gadget_sdk::runners::BlueprintRunner;
     use sdk::event_listener::periodic::PeriodicEventListener;
     use sdk::event_listener::EventListener;
     use sdk::job;
@@ -316,14 +317,16 @@ mod tests {
     #[tokio::test]
     async fn test_web_poller_event_workflow_works() {
         gadget_sdk::logging::setup_log();
+        let env = gadget_sdk::config::load(Default::default()).expect("Failed to load environment");
         let count = &Arc::new(AtomicUsize::new(0));
         let job = WebPollerEventHandler {
             count: count.clone(),
         };
 
+        let tangle_config = TangleConfig::default();
         let task0 = async move {
-            MultiJobRunner::new(None)
-                .job(job)
+            BlueprintRunner::new(tangle_config, env)
+                .add_job(job)
                 .run()
                 .await
                 .expect("Job failed");

@@ -5977,7 +5977,6 @@ dependencies = [
  "parking_lot 0.12.3",
  "serde_json",
  "sp-core",
- "structopt",
  "subxt-signer",
  "tokio",
  "tokio-util 0.7.12",

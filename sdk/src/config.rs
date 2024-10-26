@@ -137,6 +137,8 @@ pub struct EigenlayerContractAddresses {
     pub delegation_manager_addr: Address,
     /// The address of the strategy manager contract
     pub strategy_manager_addr: Address,
+    /// The address of the avs registry contract
+    pub avs_directory_addr: Address,
 }
 
 impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
@@ -340,6 +342,13 @@ pub enum GadgetCLICoreSettings {
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
         strategy_manager: Option<Address>,
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "AVS_DIRECTORY_ADDR",
+            required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+        )]
+        avs_directory_addr: Option<Address>,
     },
 }
 
@@ -426,6 +435,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
             operator_state_retriever_addr: operator_state_retriever.unwrap_or_default(),
             delegation_manager_addr: delegation_manager.unwrap_or_default(),
             strategy_manager_addr: strategy_manager.unwrap_or_default(),
+            avs_directory_addr: strategy_manager.unwrap_or_default(),
         },
         _lock: core::marker::PhantomData,
     })

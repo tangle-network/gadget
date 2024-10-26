@@ -1,7 +1,7 @@
 use alloy_contract::{CallBuilder, CallDecoder};
-use alloy_provider::{RootProvider, WsConnect};
 use alloy_rpc_types::TransactionReceipt;
 use futures::StreamExt;
+use gadget_sdk::events_watcher::evm::{get_provider_http, get_provider_ws};
 use gadget_sdk::{error, info};
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -14,8 +14,8 @@ use url::Url;
 
 use crate::test_ext::{find_open_tcp_bind_port, NAME_IDS};
 use alloy_primitives::{address, Address, Bytes, U256};
-use alloy_provider::{network::Ethereum, Provider, ProviderBuilder};
-use alloy_transport::{BoxTransport, Transport, TransportError};
+use alloy_provider::{network::Ethereum, Provider};
+use alloy_transport::{Transport, TransportError};
 use gadget_io::SupportedChains;
 use gadget_sdk::config::Protocol;
 
@@ -53,30 +53,6 @@ alloy_sol_types::sol!(
     RegistryCoordinator,
     "./../blueprints/incredible-squaring-eigenlayer/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
 );
-
-pub fn get_provider_http(http_endpoint: &str) -> RootProvider<BoxTransport> {
-    let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
-        .on_http(http_endpoint.parse().unwrap())
-        .root()
-        .clone()
-        .boxed();
-
-    provider
-}
-
-pub async fn get_provider_ws(ws_endpoint: &str) -> RootProvider<BoxTransport> {
-    let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
-        .on_ws(WsConnect::new(ws_endpoint))
-        .await
-        .unwrap()
-        .root()
-        .clone()
-        .boxed();
-
-    provider
-}
 
 pub struct EigenlayerTestEnvironment {
     pub http_endpoint: String,
