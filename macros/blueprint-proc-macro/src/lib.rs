@@ -122,6 +122,19 @@ pub fn load_abi(input: TokenStream) -> TokenStream {
 }
 
 /// A procedural macro that annotates a function as a main function for the blueprint.
+///
+/// ```rust,no_run
+/// # use gadget_sdk as sdk;
+/// #[sdk::main(env)]
+/// pub async fn main() {
+///    // Your main function code here
+/// }
+/// ```
+///
+/// # Parameters
+/// - `env`: Sets up the environment for the main function.
+/// - `skip_logging`: A flag to skip the logging setup for the main function.
+/// - ...: are passes as-is to the `#[tokio::main]` attribute.
 #[proc_macro_attribute]
 pub fn main(args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ItemFn);

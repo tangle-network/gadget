@@ -1,6 +1,6 @@
 [package]
 name = "gadget-io"
-version = "0.0.3"
+version = "0.0.4"
 license.workspace = true
 edition = "2021"
 description = "Tangle's gadget IO library for writing Tangle blueprints"
@@ -8,6 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
+clap = { workspace = true, features = ["derive", "wrap_help", "env"], optional = true }
 cfg-if = { workspace = true }
 hex = { workspace = true }
 multiaddr = { workspace = true, default-features = false }
@@ -18,7 +19,6 @@ serde = { workspace = true }
 sp-application-crypto = { workspace = true, default-features = false, features = ["full_crypto"] }
 sp-core = { workspace = true, features = ["serde", "full_crypto"] }
 sp-keystore = { workspace = true, optional = true }
-structopt = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, optional = true, features = ["time", "rt", "sync", "macros"] }
 tracing = { workspace = true, default-features = false, features = ["log", "attributes"] }
@@ -37,9 +37,9 @@ default = ["std"]
 std = [
     "dep:tokio",
     "sp-application-crypto/std",
+    "dep:clap",
     "dep:sp-keystore",
     "dep:sc-keystore",
-    "dep:structopt",
     "dep:scale-info",
     "dep:parity-scale-codec",
     "tracing/std",

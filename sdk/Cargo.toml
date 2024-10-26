@@ -1,6 +1,6 @@
 [package]
 name = "gadget-sdk"
-version = "0.2.2"
+version = "0.2.3"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -23,7 +23,7 @@ parking_lot = { workspace = true, optional = true }
 rand = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true }
 tokio-stream = { workspace = true, features = ["io-util", "sync"] }
-structopt = { workspace = true }
+clap = { workspace = true, features = ["derive", "wrap_help"] }
 url = { workspace = true, features = ["serde"] }
 uuid = { workspace = true }
 failure = { workspace = true }
@@ -91,7 +91,6 @@ gadget-blueprint-proc-macro-core = { workspace = true, default-features = false 
 
 # Benchmarking deps
 sysinfo = { workspace = true }
-
 
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]

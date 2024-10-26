@@ -22,10 +22,10 @@ use eigensdk::client_elcontracts::writer::ELChainWriter;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
+use gadget_sdk::clap::Parser;
 use gadget_sdk::events_watcher::InitializableEventHandler;
 use gadget_sdk::info;
 use gadget_sdk::run::GadgetRunner;
-use gadget_sdk::structopt::StructOpt;
 use gadget_sdk::{
     config::{ContextConfig, GadgetConfiguration},
     events_watcher::evm::DefaultNodeConfig,
@@ -211,7 +211,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 
 pub async fn execute_runner() -> Result<()> {
     gadget_sdk::logging::setup_log();
-    let config = ContextConfig::from_args();
+    let config = ContextConfig::parse();
     let env = gadget_sdk::config::load(config).expect("Failed to load environment");
     let mut runner = Box::new(EigenlayerGadgetRunner::new(env.clone()).await);
 
