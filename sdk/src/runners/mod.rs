@@ -54,6 +54,12 @@ pub enum RunnerError {
 
     #[error("Symbiotic error: {0}")]
     SymbioticError(String),
+
+    #[error("Invalid protocol: {0}")]
+    InvalidProtocol(String),
+
+    #[error("Storage error: {0}")]
+    StorageError(String),
 }
 
 #[async_trait::async_trait]

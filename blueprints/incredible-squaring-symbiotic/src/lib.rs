@@ -1,7 +1,29 @@
-use gadget_sdk::event_listener::tangle::jobs::{services_post_processor, services_pre_processor};
-use gadget_sdk::event_listener::tangle::TangleEventListener;
-use gadget_sdk::job;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::events::JobCalled;
+use alloy_sol_types::sol;
+use gadget_sdk::{job, load_abi};
+
+use alloy_contract::ContractInstance;
+use alloy_json_abi::JsonAbi;
+use alloy_network::Ethereum;
+use alloy_primitives::{FixedBytes, U256};
+use serde::{Deserialize, Serialize};
+use std::{ops::Deref, sync::OnceLock};
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    #[derive(Debug, Serialize, Deserialize)]
+    IncredibleSquaringTaskManager,
+    "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
+);
+
+load_abi!(
+    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+    "contracts/out/IncredibleSquaringTaskManager.sol/IncredibleSquaringTaskManager.json"
+);
+
+pub fn noop(_: U256) {
+    // This function intentionally does nothing
+}
 
 #[derive(Clone)]
 pub struct MyContext;
@@ -12,11 +34,23 @@ pub struct MyContext;
     params(x),
     result(_),
     event_listener(
-        listener = TangleEventListener<JobCalled, MyContext>,
-        pre_processor = services_pre_processor,
-        post_processor = services_post_processor,
+        listener = EvmContractEventListener(
+            instance = IncredibleSquaringTaskManager,
+            abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+        ),
+        event = IncredibleSquaringTaskManager::NewTaskCreated,
+        pre_processor = convert_event_to_inputs,
+        post_processor = noop,
     ),
 )]
-pub fn xsquare(x: u64, context: MyContext) -> Result<u64, gadget_sdk::Error> {
-    Ok(x.saturating_pow(2))
+pub fn xsquare(context: MyContext, x: U256) -> Result<U256, gadget_sdk::Error> {
+    Ok(x.saturating_pow(U256::from(2)))
+}
+
+/// Converts the event to inputs.
+pub fn convert_event_to_inputs(
+    event: IncredibleSquaringTaskManager::NewTaskCreated,
+    _i: u32,
+) -> (U256,) {
+    (event.task.numberToBeSquared,)
 }

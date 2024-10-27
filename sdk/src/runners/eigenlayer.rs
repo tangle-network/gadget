@@ -1,13 +1,13 @@
+use crate::config::protocol::ProtocolSpecificSettings;
+use crate::{
+    config::GadgetConfiguration, events_watcher::evm::get_provider_http, info, keystore::BackendExt,
+};
 use alloy_primitives::{Bytes, FixedBytes, U256};
 use eigensdk::{
     client_avsregistry::writer::AvsRegistryChainWriter,
     client_elcontracts::{reader::ELChainReader, writer::ELChainWriter},
     logging::get_logger,
     types::operator::Operator,
-};
-
-use crate::{
-    config::GadgetConfiguration, events_watcher::evm::get_provider_http, info, keystore::BackendExt,
 };
 
 use super::{BlueprintConfig, RunnerError};
@@ -21,20 +21,27 @@ impl BlueprintConfig for EigenlayerConfig {
         &self,
         env: &GadgetConfiguration<parking_lot::RawRwLock>,
     ) -> Result<bool, RunnerError> {
-        // Check if the operator has already registered for the service
-        let eigenlayer_contracts = env.eigenlayer_contract_addrs;
+        let ProtocolSpecificSettings::Eigenlayer(contract_addresses) = &env.protocol_specific
+        else {
+            return Err(RunnerError::InvalidProtocol(
+                "Expected Eigenlayer protocol".into(),
+            ));
+        };
+        let registry_coordinator_address = contract_addresses.registry_coordinator_address;
+        let operator_state_retriever_address = contract_addresses.operator_state_retriever_address;
         let operator = env.keystore()?.ecdsa_key()?;
         let operator_address = operator.alloy_key()?.address();
 
         let avs_registry_reader =
             eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
                 get_logger(),
-                eigenlayer_contracts.registry_coordinator_addr,
-                eigenlayer_contracts.operator_state_retriever_addr,
+                registry_coordinator_address,
+                operator_state_retriever_address,
                 env.http_rpc_endpoint.clone(),
             )
             .await?;
 
+        // Check if the operator has already registered for the service
         match avs_registry_reader
             .is_operator_registered(operator_address)
             .await
@@ -53,14 +60,26 @@ impl BlueprintConfig for EigenlayerConfig {
             return Ok(());
         }
 
-        let eigenlayer_contracts = env.eigenlayer_contract_addrs;
+        let ProtocolSpecificSettings::Eigenlayer(contract_addresses) = &env.protocol_specific
+        else {
+            return Err(RunnerError::InvalidProtocol(
+                "Expected Eigenlayer protocol".into(),
+            ));
+        };
+
+        let registry_coordinator_address = contract_addresses.registry_coordinator_address;
+        let operator_state_retriever_address = contract_addresses.operator_state_retriever_address;
+        let delegation_manager_address = contract_addresses.delegation_manager_address;
+        let strategy_manager_address = contract_addresses.strategy_manager_address;
+        let avs_directory_address = contract_addresses.avs_directory_address;
+
         let operator = env.keystore()?.ecdsa_key()?;
         let operator_private_key = hex::encode(operator.signer().seed());
         let operator_address = operator.alloy_key()?.address();
         let provider = get_provider_http(&env.http_rpc_endpoint);
 
         let delegation_manager = eigensdk::utils::binding::DelegationManager::new(
-            eigenlayer_contracts.delegation_manager_addr,
+            delegation_manager_address,
             provider.clone(),
         );
         let slasher_address = delegation_manager.slasher().call().await.map(|a| a._0)?;
@@ -70,8 +89,8 @@ impl BlueprintConfig for EigenlayerConfig {
             logger.clone(),
             env.http_rpc_endpoint.clone(),
             operator_private_key.clone(),
-            eigenlayer_contracts.registry_coordinator_addr,
-            eigenlayer_contracts.operator_state_retriever_addr,
+            registry_coordinator_address,
+            operator_state_retriever_address,
         )
         .await
         .expect("avs writer build fail ");
@@ -93,14 +112,14 @@ impl BlueprintConfig for EigenlayerConfig {
         let el_chain_reader = ELChainReader::new(
             logger,
             slasher_address,
-            eigenlayer_contracts.delegation_manager_addr,
-            eigenlayer_contracts.avs_directory_addr,
+            delegation_manager_address,
+            avs_directory_address,
             env.http_rpc_endpoint.clone(),
         );
 
         let el_writer = ELChainWriter::new(
-            eigenlayer_contracts.delegation_manager_addr,
-            eigenlayer_contracts.strategy_manager_addr,
+            delegation_manager_address,
+            strategy_manager_address,
             el_chain_reader,
             env.http_rpc_endpoint.clone(),
             operator_private_key,

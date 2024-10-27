@@ -1,6 +1,8 @@
+use crate::config::ProtocolSpecificSettings;
 use crate::{config::GadgetConfiguration, runners::RunnerError};
 use crate::{info, tx};
 use sp_core::Pair;
+use subxt::tx::Signer;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets as TanglePriceTargets;
@@ -40,6 +42,49 @@ pub struct TangleConfig {
 
 #[async_trait::async_trait]
 impl BlueprintConfig for TangleConfig {
+    async fn requires_registration(
+        &self,
+        env: &GadgetConfiguration<parking_lot::RawRwLock>,
+    ) -> Result<bool, RunnerError> {
+        // Get the blueprint_id from the Tangle protocol specific settings
+        let blueprint_id = match &env.protocol_specific {
+            ProtocolSpecificSettings::Tangle(settings) => settings.blueprint_id,
+            _ => {
+                return Err(RunnerError::InvalidProtocol(
+                    "Expected Tangle protocol".into(),
+                ))
+            }
+        };
+
+        // Ensure blueprint_id is set
+        if blueprint_id == 0 {
+            return Err(RunnerError::ConfigError(
+                crate::config::Error::MissingBlueprintId,
+            ));
+        }
+
+        // Check if the operator is already registered
+        let client = env.client().await?;
+        let signer = env.first_sr25519_signer()?;
+        let account_id = signer.account_id();
+
+        let operator_profile_query = api::storage().services().operators_profile(account_id);
+        let operator_profile = client
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&operator_profile_query)
+            .await?
+            .ok_or_else(|| RunnerError::StorageError("Operator profile not found".into()))?;
+        let is_registered = operator_profile
+            .blueprints
+            .0
+            .iter()
+            .any(|&id| id == blueprint_id);
+
+        Ok(!is_registered)
+    }
+
     async fn register(
         &self,
         env: &GadgetConfiguration<parking_lot::RawRwLock>,
@@ -48,8 +93,23 @@ impl BlueprintConfig for TangleConfig {
         let signer = env.first_sr25519_signer()?;
         let ecdsa_pair = env.first_ecdsa_signer()?;
 
+        // Parse Tangle protocol specific settings
+        let ProtocolSpecificSettings::Tangle(blueprint_settings) = &env.protocol_specific else {
+            return Err(RunnerError::InvalidProtocol(
+                "Expected Tangle protocol".into(),
+            ));
+        };
+        let blueprint_id = blueprint_settings.blueprint_id;
+
+        // Ensure blueprint_id is set
+        if blueprint_id == 0 {
+            return Err(RunnerError::ConfigError(
+                crate::config::Error::MissingBlueprintId,
+            ));
+        }
+
         let xt = api::tx().services().register(
-            env.blueprint_id,
+            blueprint_id,
             services::OperatorPreferences {
                 key: ecdsa_pair.signer().public().0,
                 price_targets: self.price_targets.clone().0,

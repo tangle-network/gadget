@@ -1,8 +1,9 @@
 use crate::{
-    config::GadgetConfiguration,
+    config::{GadgetConfiguration, ProtocolSpecificSettings},
     error,
     events_watcher::evm::{get_provider_http, get_wallet_provider_http},
     info,
+    keystore::BackendExt,
 };
 use alloy_network::EthereumWallet;
 use symbiotic_rs::OperatorRegistry;
@@ -18,11 +19,17 @@ impl BlueprintConfig for SymbioticConfig {
         &self,
         env: &GadgetConfiguration<parking_lot::RawRwLock>,
     ) -> Result<bool, RunnerError> {
-        let symbiotic_contract_addrs = env.symbiotic_contract_addrs;
-        let operator_address = env.first_ecdsa_signer()?.alloy_key()?.address();
+        let ProtocolSpecificSettings::Symbiotic(contract_addresses) = &env.protocol_specific else {
+            return Err(RunnerError::InvalidProtocol(
+                "Expected Symbiotic protocol".into(),
+            ));
+        };
+        let operator_registry_address = contract_addresses.operator_registry_address;
+
+        let operator_address = env.keystore()?.ecdsa_key()?.alloy_key()?.address();
         let operator_registry = OperatorRegistry::new(
-            symbiotic_contract_addrs.operator_registry_addr,
-            get_provider_http(env.http_rpc_endpoint.as_ref()),
+            operator_registry_address,
+            get_provider_http(&env.http_rpc_endpoint),
         );
 
         let is_registered = operator_registry
@@ -39,14 +46,17 @@ impl BlueprintConfig for SymbioticConfig {
         &self,
         env: &GadgetConfiguration<parking_lot::RawRwLock>,
     ) -> Result<(), RunnerError> {
-        let symbiotic_contract_addrs = env.symbiotic_contract_addrs;
-        let operator_signer = env.first_ecdsa_signer()?.alloy_key()?;
+        let ProtocolSpecificSettings::Symbiotic(contract_addresses) = &env.protocol_specific else {
+            return Err(RunnerError::InvalidProtocol(
+                "Expected Symbiotic protocol".into(),
+            ));
+        };
+        let operator_registry_address = contract_addresses.operator_registry_address;
+
+        let operator_signer = env.keystore()?.ecdsa_key()?.alloy_key()?;
         let wallet = EthereumWallet::new(operator_signer);
-        let provider = get_wallet_provider_http(env.http_rpc_endpoint.as_ref(), wallet);
-        let operator_registry = OperatorRegistry::new(
-            symbiotic_contract_addrs.operator_registry_addr,
-            provider.clone(),
-        );
+        let provider = get_wallet_provider_http(&env.http_rpc_endpoint, wallet);
+        let operator_registry = OperatorRegistry::new(operator_registry_address, provider.clone());
 
         let result = operator_registry
             .registerOperator()
