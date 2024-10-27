@@ -17,7 +17,7 @@ pub struct BlueprintManagerConfig {
     #[arg(long, short = 'd', default_value = "./data")]
     pub data_dir: PathBuf,
     /// The verbosity level, can be used multiple times
-    #[arg(long, short = 'v', action = clap::ArgAction::Count)]
+    #[arg(long, short = 'v')]
     pub verbose: u8,
     /// Whether to use pretty logging
     #[arg(long)]

@@ -52,6 +52,9 @@ pub enum RunnerError {
     #[error("Environment not set")]
     EnvironmentNotSet,
 
+    #[error("Eigenlayer error: {0}")]
+    EigenlayerError(String),
+
     #[error("Symbiotic error: {0}")]
     SymbioticError(String),
 

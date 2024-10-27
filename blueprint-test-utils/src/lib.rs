@@ -472,6 +472,7 @@ mod tests_standard {
 
     use cargo_tangle::deploy::Opts;
 
+    use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
     use helpers::{
@@ -649,6 +650,7 @@ mod tests_standard {
                 vec![xsquare_task_program_path],
                 &http_endpoint,
                 ws_endpoint.as_ref(),
+                Protocol::Eigenlayer,
             )
             .await
             .unwrap();

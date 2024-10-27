@@ -1981,6 +1981,7 @@ dependencies = [
  "futures",
  "gadget-io",
  "gadget-sdk",
+ "lazy_static",
  "libp2p",
  "log",
  "parking_lot 0.12.3",

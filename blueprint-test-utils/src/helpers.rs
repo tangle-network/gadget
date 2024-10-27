@@ -1,8 +1,11 @@
 use alloy_contract::{CallBuilder, CallDecoder};
 use alloy_rpc_types::TransactionReceipt;
 use futures::StreamExt;
+use gadget_sdk::config::protocol::{EigenlayerContractAddresses, SymbioticContractAddresses};
 use gadget_sdk::events_watcher::evm::{get_provider_http, get_provider_ws};
 use gadget_sdk::{error, info};
+use lazy_static::lazy_static;
+use std::env;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -53,6 +56,30 @@ alloy_sol_types::sol!(
     RegistryCoordinator,
     "./../blueprints/incredible-squaring-eigenlayer/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
 );
+
+lazy_static! {
+    pub static ref REGISTRY_COORDINATOR_ADDRESS: Address = env::var("REGISTRY_COORDINATOR_ADDRESS")
+        .map(|addr| addr.parse().expect("Invalid REGISTRY_COORDINATOR_ADDRESS"))
+        .unwrap_or_else(|_| address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690"));
+    pub static ref OPERATOR_STATE_RETRIEVER_ADDRESS: Address =
+        env::var("OPERATOR_STATE_RETRIEVER_ADDRESS")
+            .map(|addr| addr
+                .parse()
+                .expect("Invalid OPERATOR_STATE_RETRIEVER_ADDRESS"))
+            .unwrap_or_else(|_| address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8"));
+    pub static ref DELEGATION_MANAGER_ADDRESS: Address = env::var("DELEGATION_MANAGER_ADDRESS")
+        .map(|addr| addr.parse().expect("Invalid DELEGATION_MANAGER_ADDRESS"))
+        .unwrap_or_else(|_| address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9"));
+    pub static ref STRATEGY_MANAGER_ADDRESS: Address = env::var("STRATEGY_MANAGER_ADDRESS")
+        .map(|addr| addr.parse().expect("Invalid STRATEGY_MANAGER_ADDRESS"))
+        .unwrap_or_else(|_| address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707"));
+    pub static ref AVS_DIRECTORY_ADDRESS: Address = env::var("AVS_DIRECTORY_ADDRESS")
+        .map(|addr| addr.parse().expect("Invalid AVS_DIRECTORY_ADDRESS"))
+        .unwrap_or_else(|_| address!("0000000000000000000000000000000000000000"));
+    pub static ref TASK_MANAGER_ADDRESS: Address = env::var("TASK_MANAGER_ADDRESS")
+        .map(|addr| addr.parse().expect("Invalid TASK_MANAGER_ADDRESS"))
+        .unwrap_or_else(|_| address!("0000000000000000000000000000000000000000"));
+}
 
 pub struct EigenlayerTestEnvironment {
     pub http_endpoint: String,
@@ -193,6 +220,7 @@ impl BlueprintProcessManager {
         instance_id: usize,
         http_endpoint: &str,
         ws_endpoint: &str,
+        protocol: Protocol,
     ) -> Result<BlueprintProcess, std::io::Error> {
         let tmp_store = uuid::Uuid::new_v4().to_string();
         let keystore_uri = format!(
@@ -209,7 +237,7 @@ impl BlueprintProcessManager {
             std::path::absolute(&keystore_uri).expect("Failed to resolve keystore URI");
         let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
 
-        let arguments = vec![
+        let mut arguments = vec![
             "run".to_string(),
             format!("--bind-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
             format!("--bind-port={}", find_open_tcp_bind_port()),
@@ -221,16 +249,73 @@ impl BlueprintProcessManager {
             format!("--pretty={}", true),
             format!("--blueprint-id={}", instance_id),
             format!("--service-id={}", instance_id),
-            format!("--protocol={}", Protocol::Eigenlayer),
+            format!("--protocol={}", protocol),
         ];
+
+        match protocol {
+            Protocol::Tangle => {
+                arguments.push(format!("--blueprint-id={}", instance_id));
+                arguments.push(format!("--service-id={}", instance_id));
+            }
+            Protocol::Eigenlayer => {
+                arguments.push(format!(
+                    "--registry-coordinator-address={}",
+                    EigenlayerContractAddresses::default().registry_coordinator_address
+                ));
+                arguments.push(format!(
+                    "--operator-state-retriever-address={}",
+                    EigenlayerContractAddresses::default().operator_state_retriever_address
+                ));
+                arguments.push(format!(
+                    "--delegation-manager-address={}",
+                    EigenlayerContractAddresses::default().delegation_manager_address
+                ));
+                arguments.push(format!(
+                    "--strategy-manager-address={}",
+                    EigenlayerContractAddresses::default().strategy_manager_address
+                ));
+                arguments.push(format!(
+                    "--avs-directory-address={}",
+                    EigenlayerContractAddresses::default().avs_directory_address
+                ));
+            }
+            Protocol::Symbiotic => {
+                arguments.push(format!(
+                    "--operator-registry-address={}",
+                    SymbioticContractAddresses::default().operator_registry_address
+                ));
+                arguments.push(format!(
+                    "--network-registry-address={}",
+                    SymbioticContractAddresses::default().network_registry_address
+                ));
+                arguments.push(format!(
+                    "--base-delegator-address={}",
+                    SymbioticContractAddresses::default().base_delegator_address
+                ));
+                arguments.push(format!(
+                    "--network-opt-in-service-address={}",
+                    SymbioticContractAddresses::default().network_opt_in_service_address
+                ));
+                arguments.push(format!(
+                    "--vault-opt-in-service-address={}",
+                    SymbioticContractAddresses::default().vault_opt_in_service_address
+                ));
+                arguments.push(format!(
+                    "--slasher-address={}",
+                    SymbioticContractAddresses::default().slasher_address
+                ));
+                arguments.push(format!(
+                    "--veto-slasher-address={}",
+                    SymbioticContractAddresses::default().veto_slasher_address
+                ));
+            }
+        }
 
         let mut env_vars = HashMap::new();
         env_vars.insert("HTTP_RPC_URL".to_string(), http_endpoint.to_string());
         env_vars.insert("WS_RPC_URL".to_string(), ws_endpoint.to_string());
         env_vars.insert("KEYSTORE_URI".to_string(), keystore_uri_str.clone());
         env_vars.insert("DATA_DIR".to_string(), keystore_uri_str);
-        env_vars.insert("BLUEPRINT_ID".to_string(), instance_id.to_string());
-        env_vars.insert("SERVICE_ID".to_string(), instance_id.to_string());
         env_vars.insert("REGISTRATION_MODE_ON".to_string(), "true".to_string());
 
         BlueprintProcess::new(program_path, arguments, env_vars).await
@@ -242,11 +327,17 @@ impl BlueprintProcessManager {
         blueprint_paths: Vec<PathBuf>,
         http_endpoint: &str,
         ws_endpoint: &str,
+        protocol: Protocol,
     ) -> Result<(), std::io::Error> {
         for (index, program_path) in blueprint_paths.into_iter().enumerate() {
-            let process =
-                Self::start_blueprint_process(program_path, index, http_endpoint, ws_endpoint)
-                    .await?;
+            let process = Self::start_blueprint_process(
+                program_path,
+                index,
+                http_endpoint,
+                ws_endpoint,
+                protocol,
+            )
+            .await?;
             self.processes.lock().await.push(process);
         }
         Ok(())
@@ -332,7 +423,7 @@ pub async fn setup_task_spawner(
 
             if get_receipt(
                 task_manager
-                    .createNewTask(U256::from(2), 100u32, Bytes::from(vec![0]))
+                    .createNewTask(U256::from(2), 100u32, quorums.clone())
                     .from(task_generator_address),
             )
             .await

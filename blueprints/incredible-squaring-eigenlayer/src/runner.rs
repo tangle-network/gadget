@@ -54,7 +54,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             return Ok(());
         }
 
-        let provider = eigensdk::utils::get_provider(&EIGENLAYER_HTTP_ENDPOINT);
+        let provider = eigensdk::utils::get_provider(&self.env.http_rpc_endpoint);
 
         let delegation_manager = eigensdk::utils::binding::DelegationManager::new(
             *DELEGATION_MANAGER_ADDRESS,
