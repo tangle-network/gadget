@@ -234,12 +234,9 @@ impl BlueprintProcessManager {
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         }
 
-        match protocol {
-            Protocol::Eigenlayer => {
-                in_memory_keystore.bls_bn254_generate_from_string("1371012690269088913462269866874713266643928125698382731338806296762673180359922".to_string())
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-            }
-            _ => {}
+        if let Protocol::Eigenlayer = protocol {
+            in_memory_keystore.bls_bn254_generate_from_string("1371012690269088913462269866874713266643928125698382731338806296762673180359922".to_string())
+                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         };
 
         let mut arguments = vec![
