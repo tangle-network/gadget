@@ -152,17 +152,17 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         }),
         Protocol::Symbiotic => ProtocolSpecificSettings::Symbiotic(SymbioticContractAddresses {
             operator_registry_address: operator_registry
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                .ok_or(Error::MissingSymbioticContractAddresses)?,
             network_registry_address: network_registry
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                .ok_or(Error::MissingSymbioticContractAddresses)?,
             base_delegator_address: base_delegator
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                .ok_or(Error::MissingSymbioticContractAddresses)?,
             network_opt_in_service_address: network_opt_in_service
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
+                .ok_or(Error::MissingSymbioticContractAddresses)?,
             vault_opt_in_service_address: vault_opt_in_service
-                .ok_or(Error::MissingEigenlayerContractAddresses)?,
-            slasher_address: slasher.ok_or(Error::MissingEigenlayerContractAddresses)?,
-            veto_slasher_address: veto_slasher.ok_or(Error::MissingEigenlayerContractAddresses)?,
+                .ok_or(Error::MissingSymbioticContractAddresses)?,
+            slasher_address: slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
+            veto_slasher_address: veto_slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
         }),
         Protocol::Tangle => ProtocolSpecificSettings::Tangle(TangleInstanceSettings {
             blueprint_id: blueprint_id.ok_or(Error::MissingBlueprintId)?,
