@@ -2,9 +2,9 @@ use alloy_contract::{CallBuilder, CallDecoder};
 use alloy_primitives::hex;
 use alloy_rpc_types::TransactionReceipt;
 use gadget_sdk::config::protocol::{EigenlayerContractAddresses, SymbioticContractAddresses};
+use gadget_sdk::error;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::Backend;
-use gadget_sdk::error;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -140,7 +140,7 @@ impl BlueprintProcessManager {
             format!("--ws-rpc-url={}", Url::parse(ws_endpoint).unwrap()),
             format!("--keystore-uri={}", keystore_uri_str.clone()),
             format!("--chain={}", SupportedChains::LocalTestnet),
-            format!("--verbose={}", 3),
+            format!("--vvv"),
             format!("--pretty"),
             format!("--blueprint-id={}", instance_id),
             format!("--service-id={}", instance_id),

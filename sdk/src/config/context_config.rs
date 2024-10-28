@@ -43,7 +43,7 @@ pub enum GadgetCLICoreSettings {
         keystore_uri: String,
         #[arg(long, value_enum, env)]
         chain: SupportedChains,
-        #[arg(long, short = 'v', value_parser = clap::value_parser!(u8).range(0..=255))]
+        #[arg(long, short = 'v', global = true, action = clap::ArgAction::Count)]
         verbose: u8,
         /// Whether to use pretty logging
         #[arg(long, env)]
