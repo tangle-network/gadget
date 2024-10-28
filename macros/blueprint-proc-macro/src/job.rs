@@ -774,7 +774,7 @@ impl Parse for JobArgs {
 
         if let ResultsKind::Types(ref r) = result {
             if r.is_empty() {
-                return Err(input.error("Expected at least one parameter for the `result` attribute, or `_` to infer the type, or nothing to infer the type from the function return type"));
+                return Err(input.error("`result` attribute empty, expected at least one parameter, or `_` to infer the type"));
             }
         }
 
