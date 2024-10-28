@@ -4,7 +4,7 @@ use alloy_rpc_types::TransactionReceipt;
 use gadget_sdk::config::protocol::{EigenlayerContractAddresses, SymbioticContractAddresses};
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::Backend;
-use gadget_sdk::{error, info};
+use gadget_sdk::error;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
