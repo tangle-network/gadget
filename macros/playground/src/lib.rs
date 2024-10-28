@@ -323,9 +323,8 @@ mod tests {
             count: count.clone(),
         };
 
-        let tangle_config = TangleConfig::default();
         let task0 = async move {
-            BlueprintRunner::new(tangle_config, env)
+            BlueprintRunner::new((), env)
                 .add_job(job)
                 .run()
                 .await
@@ -357,8 +356,8 @@ mod tests {
         let env_vars = [
             ("RPC_URL".to_string(), "ws://127.0.0.1".to_string()),
             ("KEYSTORE_URI".to_string(), "/".to_string()),
-            ("BLUEPRINT_ID".to_string(), 0.to_string()),
-            ("SERVICE_ID".to_string(), 0.to_string()),
+            ("BLUEPRINT_ID".to_string(), 1.to_string()),
+            ("SERVICE_ID".to_string(), 1.to_string()),
             ("DATA_DIR".to_string(), "/".to_string()),
         ];
 

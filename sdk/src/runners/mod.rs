@@ -69,8 +69,10 @@ pub enum RunnerError {
 pub trait BlueprintConfig: Send + Sync + 'static {
     async fn register(
         &self,
-        env: &GadgetConfiguration<parking_lot::RawRwLock>,
-    ) -> Result<(), RunnerError>;
+        _env: &GadgetConfiguration<parking_lot::RawRwLock>,
+    ) -> Result<(), RunnerError> {
+        Ok(())
+    }
     async fn requires_registration(
         &self,
         _env: &GadgetConfiguration<parking_lot::RawRwLock>,
@@ -78,6 +80,8 @@ pub trait BlueprintConfig: Send + Sync + 'static {
         Ok(true)
     }
 }
+
+impl BlueprintConfig for () {}
 
 #[async_trait::async_trait]
 pub trait BackgroundService: Send + Sync + 'static {
