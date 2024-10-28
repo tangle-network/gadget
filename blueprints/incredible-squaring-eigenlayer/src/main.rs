@@ -27,10 +27,38 @@ async fn main() {
         .with_recommended_fillers()
         .wallet(wallet.clone())
         .on_http(env.http_rpc_endpoint.parse()?);
-
+    info!("Task Manager Address: {:?}", *TASK_MANAGER_ADDRESS);
     let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
         *TASK_MANAGER_ADDRESS,
         provider,
+    );
+
+    info!("Protocol: Eigenlayer");
+    info!(
+        "Registry Coordinator Address: {:?}",
+        env.protocol_specific
+            .eigenlayer()?
+            .registry_coordinator_address
+    );
+    info!(
+        "Operator State Retriever Address: {:?}",
+        env.protocol_specific
+            .eigenlayer()?
+            .operator_state_retriever_address
+    );
+    info!(
+        "Delegation Manager Address: {:?}",
+        env.protocol_specific
+            .eigenlayer()?
+            .delegation_manager_address
+    );
+    info!(
+        "Strategy Manager Address: {:?}",
+        env.protocol_specific.eigenlayer()?.strategy_manager_address
+    );
+    info!(
+        "AVS Directory Address: {:?}",
+        env.protocol_specific.eigenlayer()?.avs_directory_address
     );
 
     let server_address = format!("{}:{}", env.bind_addr, 8081);

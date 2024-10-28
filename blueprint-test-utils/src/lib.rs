@@ -658,7 +658,7 @@ mod tests_standard {
         // Wait for the process to complete or timeout
         let timeout_duration = Duration::from_secs(300);
         let result = helpers::wait_for_responses(
-            successful_responses_clone,
+            successful_responses_clone.clone(),
             num_successful_responses_required,
             timeout_duration,
         )
@@ -675,8 +675,10 @@ mod tests_standard {
                 });
         } else {
             panic!(
-                "Test timed out after {} seconds",
-                timeout_duration.as_secs()
+                "Test timed out after {} seconds with {} successful responses out of {} required",
+                timeout_duration.as_secs(),
+                successful_responses_clone.lock().await,
+                num_successful_responses_required
             );
         }
     }

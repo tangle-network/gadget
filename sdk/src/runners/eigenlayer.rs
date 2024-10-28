@@ -6,7 +6,7 @@ use alloy_primitives::{Bytes, FixedBytes, U256};
 use eigensdk::{
     client_avsregistry::writer::AvsRegistryChainWriter,
     client_elcontracts::{reader::ELChainReader, writer::ELChainWriter},
-    logging::get_logger,
+    logging::get_test_logger,
     types::operator::Operator,
 };
 
@@ -34,7 +34,7 @@ impl BlueprintConfig for EigenlayerConfig {
 
         let avs_registry_reader =
             eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
-                get_logger(),
+                get_test_logger(),
                 registry_coordinator_address,
                 operator_state_retriever_address,
                 env.http_rpc_endpoint.clone(),
@@ -84,7 +84,7 @@ impl BlueprintConfig for EigenlayerConfig {
         );
         let slasher_address = delegation_manager.slasher().call().await.map(|a| a._0)?;
 
-        let logger = get_logger();
+        let logger = get_test_logger();
         let avs_registry_writer = AvsRegistryChainWriter::build_avs_registry_chain_writer(
             logger.clone(),
             env.http_rpc_endpoint.clone(),

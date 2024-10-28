@@ -116,7 +116,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 operator_state_retriever,
                 delegation_manager,
                 strategy_manager,
-                avs_registry,
+                avs_directory,
                 operator_registry,
                 network_registry,
                 base_delegator,
@@ -144,7 +144,8 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 .ok_or(Error::MissingEigenlayerContractAddresses)?,
             strategy_manager_address: strategy_manager
                 .ok_or(Error::MissingEigenlayerContractAddresses)?,
-            avs_directory_address: avs_registry.ok_or(Error::MissingEigenlayerContractAddresses)?,
+            avs_directory_address: avs_directory
+                .ok_or(Error::MissingEigenlayerContractAddresses)?,
         }),
         Protocol::Symbiotic => ProtocolSpecificSettings::Symbiotic(SymbioticContractAddresses {
             operator_registry_address: operator_registry

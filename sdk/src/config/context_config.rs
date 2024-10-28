@@ -43,7 +43,7 @@ pub enum GadgetCLICoreSettings {
         keystore_uri: String,
         #[arg(long, value_enum, env)]
         chain: SupportedChains,
-        #[arg(long, short = 'v', action = clap::ArgAction::Count, env)]
+        #[arg(long, short = 'v', value_parser = clap::value_parser!(u8).range(0..=255))]
         verbose: u8,
         /// Whether to use pretty logging
         #[arg(long, env)]
@@ -52,6 +52,7 @@ pub enum GadgetCLICoreSettings {
         keystore_password: Option<String>,
         /// The protocol to use
         #[arg(long, value_enum, env)]
+        #[serde(default = "default_protocol")]
         protocol: Protocol,
         /// The blueprint ID for Tangle protocol
         #[arg(
@@ -73,7 +74,7 @@ pub enum GadgetCLICoreSettings {
         #[arg(
             long,
             value_name = "ADDR",
-            env = "REGISTRY_COORDINATOR_ADDR",
+            env = "REGISTRY_COORDINATOR_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str()),
         )]
         registry_coordinator: Option<Address>,
@@ -81,7 +82,7 @@ pub enum GadgetCLICoreSettings {
         #[arg(
             long,
             value_name = "ADDR",
-            env = "OPERATOR_STATE_RETRIEVER_ADDR",
+            env = "OPERATOR_STATE_RETRIEVER_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
         operator_state_retriever: Option<Address>,
@@ -89,7 +90,7 @@ pub enum GadgetCLICoreSettings {
         #[arg(
             long,
             value_name = "ADDR",
-            env = "DELEGATION_MANAGER_ADDR",
+            env = "DELEGATION_MANAGER_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
         delegation_manager: Option<Address>,
@@ -97,23 +98,23 @@ pub enum GadgetCLICoreSettings {
         #[arg(
             long,
             value_name = "ADDR",
-            env = "STRATEGY_MANAGER_ADDR",
+            env = "STRATEGY_MANAGER_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
         strategy_manager: Option<Address>,
-        /// The address of the AVS registry
+        /// The address of the AVS directory
         #[arg(
             long,
             value_name = "ADDR",
-            env = "AVS_REGISTRY_ADDR",
+            env = "AVS_DIRECTORY_ADDRESS",
             required_if_eq("protocol", Protocol::Eigenlayer.as_str())
         )]
-        avs_registry: Option<Address>,
+        avs_directory: Option<Address>,
         /// The address of the operator registry
         #[arg(
             long,
             value_name = "ADDR",
-            env = "OPERATOR_REGISTRY_ADDR",
+            env = "OPERATOR_REGISTRY_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
         operator_registry: Option<Address>,
@@ -121,7 +122,7 @@ pub enum GadgetCLICoreSettings {
         #[arg(
             long,
             value_name = "ADDR",
-            env = "NETWORK_REGISTRY_ADDR",
+            env = "NETWORK_REGISTRY_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
         network_registry: Option<Address>,
@@ -129,7 +130,7 @@ pub enum GadgetCLICoreSettings {
         #[arg(
             long,
             value_name = "ADDR",
-            env = "BASE_DELEGATOR_ADDR",
+            env = "BASE_DELEGATOR_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
         base_delegator: Option<Address>,
@@ -137,7 +138,7 @@ pub enum GadgetCLICoreSettings {
         #[arg(
             long,
             value_name = "ADDR",
-            env = "NETWORK_OPT_IN_SERVICE_ADDR",
+            env = "NETWORK_OPT_IN_SERVICE_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
         network_opt_in_service: Option<Address>,
@@ -145,7 +146,7 @@ pub enum GadgetCLICoreSettings {
         #[arg(
             long,
             value_name = "ADDR",
-            env = "VAULT_OPT_IN_SERVICE_ADDR",
+            env = "VAULT_OPT_IN_SERVICE_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
         vault_opt_in_service: Option<Address>,
@@ -153,7 +154,7 @@ pub enum GadgetCLICoreSettings {
         #[arg(
             long,
             value_name = "ADDR",
-            env = "SLASHER_ADDR",
+            env = "SLASHER_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
         slasher: Option<Address>,
@@ -161,7 +162,7 @@ pub enum GadgetCLICoreSettings {
         #[arg(
             long,
             value_name = "ADDR",
-            env = "VETO_SLASHER_ADDR",
+            env = "VETO_SLASHER_ADDRESS",
             required_if_eq("protocol", Protocol::Symbiotic.as_str())
         )]
         veto_slasher: Option<Address>,
@@ -190,7 +191,7 @@ impl Default for GadgetCLICoreSettings {
             operator_state_retriever: None,
             delegation_manager: None,
             strategy_manager: None,
-            avs_registry: None,
+            avs_directory: None,
             operator_registry: None,
             network_registry: None,
             base_delegator: None,
@@ -200,4 +201,8 @@ impl Default for GadgetCLICoreSettings {
             veto_slasher: None,
         }
     }
+}
+
+fn default_protocol() -> Protocol {
+    Protocol::Tangle
 }

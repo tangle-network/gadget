@@ -1,6 +1,6 @@
 use super::*;
 use alloc::string::ToString;
-use alloy_primitives::Address;
+use alloy_primitives::{address, Address};
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 
@@ -77,7 +77,7 @@ pub struct TangleInstanceSettings {
     pub service_id: u64,
 }
 
-#[derive(Default, Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct EigenlayerContractAddresses {
     /// The address of the registry coordinator contract
     pub registry_coordinator_address: Address,
@@ -89,6 +89,18 @@ pub struct EigenlayerContractAddresses {
     pub strategy_manager_address: Address,
     /// The address of the avs registry contract
     pub avs_directory_address: Address,
+}
+
+impl Default for EigenlayerContractAddresses {
+    fn default() -> Self {
+        Self {
+            registry_coordinator_address: address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690"),
+            operator_state_retriever_address: address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8"),
+            delegation_manager_address: address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9"),
+            strategy_manager_address: address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707"),
+            avs_directory_address: address!("0000000000000000000000000000000000000000"),
+        }
+    }
 }
 
 #[derive(Default, Debug, Copy, Clone, Serialize, Deserialize)]

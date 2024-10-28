@@ -1,11 +1,12 @@
 use alloy_contract::{CallBuilder, CallDecoder};
+use alloy_primitives::hex;
 use alloy_rpc_types::TransactionReceipt;
 use futures::StreamExt;
 use gadget_sdk::config::protocol::{EigenlayerContractAddresses, SymbioticContractAddresses};
 use gadget_sdk::events_watcher::evm::{get_provider_http, get_provider_ws};
+use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
+use gadget_sdk::keystore::Backend;
 use gadget_sdk::{error, info};
-use lazy_static::lazy_static;
-use std::env;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -56,30 +57,6 @@ alloy_sol_types::sol!(
     RegistryCoordinator,
     "./../blueprints/incredible-squaring-eigenlayer/contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
 );
-
-lazy_static! {
-    pub static ref REGISTRY_COORDINATOR_ADDRESS: Address = env::var("REGISTRY_COORDINATOR_ADDRESS")
-        .map(|addr| addr.parse().expect("Invalid REGISTRY_COORDINATOR_ADDRESS"))
-        .unwrap_or_else(|_| address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690"));
-    pub static ref OPERATOR_STATE_RETRIEVER_ADDRESS: Address =
-        env::var("OPERATOR_STATE_RETRIEVER_ADDRESS")
-            .map(|addr| addr
-                .parse()
-                .expect("Invalid OPERATOR_STATE_RETRIEVER_ADDRESS"))
-            .unwrap_or_else(|_| address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8"));
-    pub static ref DELEGATION_MANAGER_ADDRESS: Address = env::var("DELEGATION_MANAGER_ADDRESS")
-        .map(|addr| addr.parse().expect("Invalid DELEGATION_MANAGER_ADDRESS"))
-        .unwrap_or_else(|_| address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9"));
-    pub static ref STRATEGY_MANAGER_ADDRESS: Address = env::var("STRATEGY_MANAGER_ADDRESS")
-        .map(|addr| addr.parse().expect("Invalid STRATEGY_MANAGER_ADDRESS"))
-        .unwrap_or_else(|_| address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707"));
-    pub static ref AVS_DIRECTORY_ADDRESS: Address = env::var("AVS_DIRECTORY_ADDRESS")
-        .map(|addr| addr.parse().expect("Invalid AVS_DIRECTORY_ADDRESS"))
-        .unwrap_or_else(|_| address!("0000000000000000000000000000000000000000"));
-    pub static ref TASK_MANAGER_ADDRESS: Address = env::var("TASK_MANAGER_ADDRESS")
-        .map(|addr| addr.parse().expect("Invalid TASK_MANAGER_ADDRESS"))
-        .unwrap_or_else(|_| address!("0000000000000000000000000000000000000000"));
-}
 
 pub struct EigenlayerTestEnvironment {
     pub http_endpoint: String,
@@ -237,6 +214,34 @@ impl BlueprintProcessManager {
             std::path::absolute(&keystore_uri).expect("Failed to resolve keystore URI");
         let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
 
+        let in_memory_keystore = FilesystemKeystore::open(keystore_uri_str.clone())
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        for seed in [
+            "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+            "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+            "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
+            "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
+            "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a",
+            "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba",
+            "0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e",
+            "0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356",
+            "0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97",
+            "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6",
+        ] {
+            let seed_bytes = hex::decode(&seed[2..]).expect("Invalid hex seed");
+            in_memory_keystore
+                .ecdsa_generate_new(Some(&seed_bytes))
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        }
+
+        match protocol {
+            Protocol::Eigenlayer => {
+                in_memory_keystore.bls_bn254_generate_from_string("1371012690269088913462269866874713266643928125698382731338806296762673180359922".to_string())
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            }
+            _ => {}
+        };
+
         let mut arguments = vec![
             "run".to_string(),
             format!("--bind-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
@@ -246,7 +251,7 @@ impl BlueprintProcessManager {
             format!("--keystore-uri={}", keystore_uri_str.clone()),
             format!("--chain={}", SupportedChains::LocalTestnet),
             format!("--verbose={}", 3),
-            format!("--pretty={}", true),
+            format!("--pretty"),
             format!("--blueprint-id={}", instance_id),
             format!("--service-id={}", instance_id),
             format!("--protocol={}", protocol),
@@ -259,23 +264,23 @@ impl BlueprintProcessManager {
             }
             Protocol::Eigenlayer => {
                 arguments.push(format!(
-                    "--registry-coordinator-address={}",
+                    "--registry-coordinator={}",
                     EigenlayerContractAddresses::default().registry_coordinator_address
                 ));
                 arguments.push(format!(
-                    "--operator-state-retriever-address={}",
+                    "--operator-state-retriever={}",
                     EigenlayerContractAddresses::default().operator_state_retriever_address
                 ));
                 arguments.push(format!(
-                    "--delegation-manager-address={}",
+                    "--delegation-manager={}",
                     EigenlayerContractAddresses::default().delegation_manager_address
                 ));
                 arguments.push(format!(
-                    "--strategy-manager-address={}",
+                    "--strategy-manager={}",
                     EigenlayerContractAddresses::default().strategy_manager_address
                 ));
                 arguments.push(format!(
-                    "--avs-directory-address={}",
+                    "--avs-directory={}",
                     EigenlayerContractAddresses::default().avs_directory_address
                 ));
             }
