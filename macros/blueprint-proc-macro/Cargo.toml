@@ -22,7 +22,7 @@ indexmap = { workspace = true }
 
 [dev-dependencies]
 trybuild = { workspace = true }
-gadget-sdk = { workspace = true, features = ["std"] }
+gadget-sdk = { path = "../../sdk", features = ["std"] }
 tracing = { workspace = true }
 async-trait = { workspace = true }
 
