@@ -82,8 +82,7 @@ jobs:
           blueprint-manager,
           gadget-context-derive,
           gadget-blueprint-proc-macro,
-          gadget-blueprint-proc-macro-playground,
-          blueprint-test-utils
+          gadget-blueprint-proc-macro-playground
         ]
     steps:
       - name: checkout code
