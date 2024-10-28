@@ -1,11 +1,15 @@
 use crate::{
     constants::{
-        AVS_DIRECTORY_ADDRESS, DELEGATION_MANAGER_ADDRESS, EIGENLAYER_HTTP_ENDPOINT,
-        OPERATOR_ADDRESS, OPERATOR_METADATA_URL, OPERATOR_STATE_RETRIEVER_ADDRESS, PRIVATE_KEY,
-        REGISTRY_COORDINATOR_ADDRESS, SIGNATURE_EXPIRY, STRATEGY_MANAGER_ADDRESS,
-        TASK_MANAGER_ADDRESS,
+        AGGREGATOR_PRIVATE_KEY, AVS_DIRECTORY_ADDRESS, DELEGATION_MANAGER_ADDRESS,
+        EIGENLAYER_HTTP_ENDPOINT, OPERATOR_ADDRESS, OPERATOR_METADATA_URL,
+        OPERATOR_STATE_RETRIEVER_ADDRESS, PRIVATE_KEY, REGISTRY_COORDINATOR_ADDRESS,
+        SIGNATURE_EXPIRY, STRATEGY_MANAGER_ADDRESS, TASK_MANAGER_ADDRESS,
     },
-    IncredibleSquaringTaskManager, NodeConfig, XsquareEigenEventHandler,
+    contexts::{aggregator::AggregatorContext, client::AggregatorClient},
+    jobs::{
+        compute_x_square::XsquareEigenEventHandler, initialize_task::InitializeBlsTaskEventHandler,
+    },
+    IncredibleSquaringTaskManager,
 };
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Bytes, FixedBytes, U256};
@@ -18,10 +22,14 @@ use eigensdk::client_elcontracts::writer::ELChainWriter;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
-use gadget_sdk::config::GadgetConfiguration;
 use gadget_sdk::events_watcher::InitializableEventHandler;
 use gadget_sdk::info;
 use gadget_sdk::run::GadgetRunner;
+use gadget_sdk::structopt::StructOpt;
+use gadget_sdk::{
+    config::{ContextConfig, GadgetConfiguration},
+    events_watcher::evm::DefaultNodeConfig,
+};
 pub struct EigenlayerGadgetRunner<R: lock_api::RawRwLock> {
     pub env: GadgetConfiguration<R>,
 }
@@ -134,12 +142,14 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 
     async fn run(&mut self) -> Result<()> {
         // Get the ECDSA key from the private key seed using alloy
-        let signer: PrivateKeySigner = PRIVATE_KEY.parse().expect("failed to generate wallet ");
+        let signer: PrivateKeySigner = AGGREGATOR_PRIVATE_KEY
+            .parse()
+            .expect("failed to generate wallet ");
         let wallet = EthereumWallet::from(signer);
 
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
-            .wallet(wallet)
+            .wallet(wallet.clone())
             .on_http(EIGENLAYER_HTTP_ENDPOINT.parse()?);
 
         let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
@@ -147,20 +157,74 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
             provider,
         );
 
-        let x_square_eigen = XsquareEigenEventHandler::<NodeConfig> {
-            contract: contract.into(),
+        let aggregator_client = AggregatorClient::new(&format!("{}:{}", self.env.bind_addr, 8081))?;
+        let x_square_eigen = XsquareEigenEventHandler::<DefaultNodeConfig> {
+            ctx: aggregator_client,
+            contract: contract.clone().into(),
         };
 
-        info!("Contract address: {:?}", *TASK_MANAGER_ADDRESS);
+        let aggregator_context = AggregatorContext::new(
+            format!("{}:{}", self.env.bind_addr, 8081),
+            *TASK_MANAGER_ADDRESS,
+            self.env.http_rpc_endpoint.clone(),
+            wallet,
+            self.env.clone(),
+        )
+        .await
+        .unwrap();
 
-        info!("Starting the Incredible Squaring event handler");
-        let finished = x_square_eigen
+        let initialize_task = InitializeBlsTaskEventHandler::<DefaultNodeConfig> {
+            ctx: aggregator_context.clone(),
+            contract: contract.clone().into(),
+        };
+
+        let (handle, aggregator_shutdown_tx) =
+            aggregator_context.start(self.env.ws_rpc_endpoint.clone());
+
+        info!("Starting the Incredible Squaring task initializer");
+        let init_task_finished = initialize_task
             .init_event_handler()
             .await
             .expect("Event Listener init already called");
-        info!("Event handler started...");
-        let res = finished.await;
-        info!("Event handler finished with {res:?}");
+        info!("Starting the Incredible Squaring event handler");
+        let x_square_finished = x_square_eigen
+            .init_event_handler()
+            .await
+            .expect("Event Listener init already called");
+        tokio::select! {
+            _ = init_task_finished => {
+                info!("Initialize task finished");
+                let _ = aggregator_shutdown_tx.send(()).unwrap();
+                handle.abort();
+                info!("Aggregator shutdown signal sent after init task finished");
+            },
+            _ = x_square_finished => {
+                info!("X square task finished");
+                let _ = aggregator_shutdown_tx.send(()).unwrap();
+                handle.abort();
+                info!("Aggregator shutdown signal sent after x square task finished");
+            },
+        };
         Ok(())
     }
+}
+
+pub async fn execute_runner() -> Result<()> {
+    gadget_sdk::logging::setup_log();
+    let config = ContextConfig::from_args();
+    let env = gadget_sdk::config::load(config).expect("Failed to load environment");
+    let mut runner = Box::new(EigenlayerGadgetRunner::new(env.clone()).await);
+
+    info!("~~~ Executing the incredible squaring blueprint ~~~");
+
+    info!("Registering...");
+    if env.should_run_registration() {
+        runner.register().await?;
+    }
+
+    info!("Running...");
+    runner.run().await?;
+
+    info!("Exiting...");
+    Ok(())
 }

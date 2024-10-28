@@ -168,7 +168,8 @@ pub async fn run_blueprint_manager<F: SendFuture<'static, ()>>(
     let sub_account_id = tangle_key.account_id().clone();
 
     let tangle_client =
-        TangleRuntimeClient::from_url(gadget_config.url.as_str(), sub_account_id.clone()).await?;
+        TangleRuntimeClient::from_url(gadget_config.ws_rpc_url.as_str(), sub_account_id.clone())
+            .await?;
     let services_client = ServicesClient::new(tangle_client.client());
     let mut active_gadgets = HashMap::new();
 

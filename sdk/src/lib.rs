@@ -65,6 +65,7 @@ pub mod job_runner;
 /// Gadget Context and context extensions
 pub mod ctx;
 
+pub mod docker;
 pub mod utils;
 
 // Re-exports

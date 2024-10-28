@@ -1,6 +1,6 @@
 [package]
 name = "gadget-io"
-version = "0.0.3"
+version = "0.0.4"
 license.workspace = true
 edition = "2021"
 description = "Tangle's gadget IO library for writing Tangle blueprints"

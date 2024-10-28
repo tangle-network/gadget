@@ -35,6 +35,12 @@
 use core::future::Future;
 
 use crate::keystore::backend::GenericKeyStore;
+use eigensdk::{
+    client_avsregistry::{reader::AvsRegistryChainReader, writer::AvsRegistryChainWriter},
+    services_avsregistry::chaincaller::AvsRegistryServiceChainCaller,
+    services_blsaggregation::bls_agg::BlsAggregatorService,
+    services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory,
+};
 // derives
 pub use gadget_context_derive::*;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::{
@@ -95,4 +101,40 @@ pub trait ServicesContext {
         &self,
         client: &subxt::OnlineClient<Self::Config>,
     ) -> impl Future<Output = Result<Vec<(subxt::utils::AccountId32, Percent)>, subxt::Error>>;
+}
+
+/// `EigenlayerContext` trait provides access to Eigenlayer utilities
+#[async_trait::async_trait]
+pub trait EigenlayerContext {
+    /// Provides a reader for the AVS registry.
+    async fn avs_registry_reader(&self) -> Result<AvsRegistryChainReader, std::io::Error>;
+
+    /// Provides a writer for the AVS registry.
+    async fn avs_registry_writer(
+        &self,
+        private_key: String,
+    ) -> Result<AvsRegistryChainWriter, std::io::Error>;
+
+    /// Provides an operator info service.
+    async fn operator_info_service_in_memory(
+        &self,
+    ) -> Result<OperatorInfoServiceInMemory, std::io::Error>;
+
+    /// Provides an AVS registry service chain caller.
+    async fn avs_registry_service_chain_caller_in_memory(
+        &self,
+    ) -> Result<
+        AvsRegistryServiceChainCaller<AvsRegistryChainReader, OperatorInfoServiceInMemory>,
+        std::io::Error,
+    >;
+
+    /// Provides a BLS aggregation service.
+    async fn bls_aggregation_service_in_memory(
+        &self,
+    ) -> Result<
+        BlsAggregatorService<
+            AvsRegistryServiceChainCaller<AvsRegistryChainReader, OperatorInfoServiceInMemory>,
+        >,
+        std::io::Error,
+    >;
 }

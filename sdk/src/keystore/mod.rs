@@ -60,6 +60,7 @@ use subxt_core::tx::signer::{PairSigner, Signer};
 use subxt_core::utils::{AccountId32, MultiAddress, MultiSignature};
 #[cfg(any(feature = "std", feature = "wasm"))]
 use tangle_subxt::subxt;
+use w3f_bls::{Keypair, TinyBLS381};
 
 #[cfg(any(feature = "std", feature = "wasm"))]
 #[derive(Clone, Debug)]
@@ -389,6 +390,21 @@ pub trait BackendExt: Backend {
         seed.copy_from_slice(&ed25519_secret.as_ref()[0..32]);
         Ok(TanglePairSigner {
             pair: subxt::tx::PairSigner::new(sp_core::ed25519::Pair::from_seed(&seed)),
+        })
+    }
+
+    #[cfg(any(feature = "std", feature = "wasm"))]
+    fn bls381_key(&self) -> Result<Keypair<TinyBLS381>, Error> {
+        let first_key = self
+            .iter_bls381()
+            .next()
+            .ok_or_else(|| Error::Bls("No BLS 381 keys found".to_string()))?;
+        let bls_secret = self
+            .expose_bls381_secret(&first_key)?
+            .ok_or_else(|| Error::Bls("No BLS 381 secret found".to_string()))?;
+        Ok(w3f_bls::Keypair {
+            public: first_key,
+            secret: bls_secret,
         })
     }
 

@@ -4,7 +4,6 @@ members = [
     "blueprint-metadata",
     "blueprints/incredible-squaring",
     "blueprints/incredible-squaring-eigenlayer",
-    "blueprints/incredible-squaring-eigenlayer/aggregator",
     "blueprints/periodic-web-poller",
     "blueprints/tangle-raw",
     "cli",
@@ -45,20 +44,19 @@ single_match_else = "allow"
 broken_intra_doc_links = "deny"
 
 [workspace.dependencies]
-gadget-io = { version = "0.0.3", path = "./gadget-io", default-features = false }
+gadget-io = { version = "0.0.4", path = "./gadget-io", default-features = false }
 blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
-gadget-sdk = { path = "./sdk", default-features = false, version = "0.2.2" }
+gadget-sdk = { path = "./sdk", default-features = false, version = "0.2.3" }
 
 incredible-squaring-blueprint-eigenlayer = { path = "./blueprints/incredible-squaring-eigenlayer", default-features = false, version = "0.1.1" }
-incredible-squaring-aggregator = { path = "./blueprints/incredible-squaring-eigenlayer/aggregator", default-features = false, version = "0.1.1" }
 periodic-web-poller-blueprint = { path = "./blueprints/periodic-web-poller", default-features = false, version = "0.1.1" }
 tangle-raw-blueprint = { path = "./blueprints/tangle-raw", default-features = false, version = "0.1.1" }
-gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.2.2" }
-gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.4" }
-gadget-context-derive = { path = "./macros/context-derive", default-features = false, version = "0.1.2" }
-blueprint-metadata = { path = "./blueprint-metadata", default-features = false, version = "0.1.5" }
-cargo-tangle = { path = "./cli", version = "0.2.0" }
+gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.2.3" }
+gadget-blueprint-proc-macro-core = { path = "./macros/blueprint-proc-macro-core", default-features = false, version = "0.1.5" }
+gadget-context-derive = { path = "./macros/context-derive", default-features = false, version = "0.1.3" }
+blueprint-metadata = { path = "./blueprint-metadata", default-features = false, version = "0.1.6" }
+cargo-tangle = { path = "./cli", version = "0.2.1" }
 cargo_metadata = { version = "0.18.1" }
 
 # Tangle-related dependencies
@@ -90,6 +88,7 @@ auto_impl = "1.2.0"
 backon = { version = "1.2.0", default-features = false }
 bincode = "1.3.3"
 bip39 = "2.1.0"
+bollard = "0.16.1"
 cargo-generate = { version = "0.21.3", default-features = false }
 cfg-if = "1.0.0"
 clap = "4.5.16"

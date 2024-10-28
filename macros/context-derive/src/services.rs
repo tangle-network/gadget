@@ -22,7 +22,6 @@ pub fn generate_context_impl(
     quote! {
         impl #impl_generics gadget_sdk::ctx::ServicesContext for #name #ty_generics #where_clause {
             type Config = gadget_sdk::ext::subxt::PolkadotConfig;
-            /// Get the current blueprint information from the context.
             fn current_blueprint(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
@@ -49,7 +48,6 @@ pub fn generate_context_impl(
                 }
             }
 
-            /// Query the current blueprint owner from the context.
             fn current_blueprint_owner(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
@@ -70,9 +68,6 @@ pub fn generate_context_impl(
                 }
             }
 
-            /// Get the current service operators from the context.
-            /// This function will return a list of service operators that are selected to run this service
-            /// instance.
             fn current_service_operators(
                 &self,
                 client: &gadget_sdk::ext::subxt::OnlineClient<Self::Config>,
