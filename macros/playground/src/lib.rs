@@ -165,7 +165,6 @@ fn keygen_2_of_3() {
 mod tests {
     use async_trait::async_trait;
     use gadget_sdk as sdk;
-    use gadget_sdk::runners::tangle::TangleConfig;
     use gadget_sdk::runners::BlueprintRunner;
     use sdk::event_listener::periodic::PeriodicEventListener;
     use sdk::event_listener::EventListener;

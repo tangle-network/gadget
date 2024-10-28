@@ -1,4 +1,4 @@
-use alloy_primitives::{address, Address};
+use alloy_primitives::Address;
 use alloy_provider::Provider;
 use gadget_sdk::info;
 use gadget_sdk::{

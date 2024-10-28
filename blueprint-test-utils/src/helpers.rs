@@ -9,13 +9,12 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::{collections::HashMap, time::Duration};
+use std::collections::HashMap;
 use tokio::process::Child;
 use tokio::sync::Mutex;
 use url::Url;
 
 use crate::test_ext::{find_open_tcp_bind_port, NAME_IDS};
-use alloy_primitives::{address, Address, Bytes, U256};
 use alloy_provider::{network::Ethereum, Provider};
 use alloy_transport::{Transport, TransportError};
 use gadget_io::SupportedChains;
