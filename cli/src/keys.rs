@@ -136,10 +136,10 @@ pub fn generate_key(
         }
     };
 
-    println!("Generated {:?} key:", key_type);
-    println!("Public key: {}", public);
-    if show_secret {
-        println!("Private key: {}", secret);
+    eprintln!("Generated {:?} key:", key_type);
+    eprintln!("Public key: {}", public);
+    if show_secret || keystore.is_mem() {
+        eprintln!("Private key: {}", secret);
     }
 
     Ok(())

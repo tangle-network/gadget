@@ -12,11 +12,15 @@ use gadget_io::SupportedChains;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use structopt::StructOpt;
 use url::Url;
 
 /// The protocol on which a gadget will be executed.
 #[derive(Default, Debug, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "std",
+    derive(clap::ValueEnum),
+    clap(rename_all = "lowercase")
+)]
 pub enum Protocol {
     #[default]
     Tangle,
@@ -45,14 +49,18 @@ impl Protocol {
     pub fn from_env() -> Result<Self, Error> {
         Ok(Protocol::default())
     }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Tangle => "tangle",
+            Self::Eigenlayer => "eigenlayer",
+        }
+    }
 }
 
 impl core::fmt::Display for Protocol {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        match self {
-            Self::Tangle => write!(f, "tangle"),
-            Self::Eigenlayer => write!(f, "eigenlayer"),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -110,6 +118,7 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     pub bind_port: u16,
     /// The Address of the Network that will be interacted with
     pub bind_addr: IpAddr,
+    /// Specifies custom tracing span for the gadget
     pub span: tracing::Span,
     /// Whether the gadget is in test mode
     pub test_mode: bool,
@@ -118,35 +127,16 @@ pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
     _lock: core::marker::PhantomData<RwLock>,
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct EigenlayerContractAddresses {
+    /// The address of the registry coordinator contract
     pub registry_coordinator_addr: Address,
+    /// The address of the operator state retriever contract
     pub operator_state_retriever_addr: Address,
+    /// The address of the operator registry contract
     pub delegation_manager_addr: Address,
+    /// The address of the strategy manager contract
     pub strategy_manager_addr: Address,
-}
-
-impl Default for EigenlayerContractAddresses {
-    fn default() -> Self {
-        EigenlayerContractAddresses {
-            registry_coordinator_addr: std::env::var("REGISTRY_COORDINATOR_ADDR")
-                .unwrap_or_default()
-                .parse()
-                .unwrap(),
-            operator_state_retriever_addr: std::env::var("OPERATOR_STATE_RETRIEVER_ADDR")
-                .unwrap_or_default()
-                .parse()
-                .unwrap(),
-            delegation_manager_addr: std::env::var("DELEGATION_MANAGER_ADDR")
-                .unwrap_or_default()
-                .parse()
-                .unwrap(),
-            strategy_manager_addr: std::env::var("STRATEGY_MANAGER_ADDR")
-                .unwrap_or_default()
-                .parse()
-                .unwrap(),
-        }
-    }
 }
 
 impl<RwLock: lock_api::RawRwLock> Debug for GadgetConfiguration<RwLock> {
@@ -261,72 +251,95 @@ pub enum Error {
     /// Invalid ECDSA keypair found in the keystore.
     #[error("Invalid ECDSA keypair found in the keystore")]
     InvalidEcdsaKeypair,
-    /// Missing `KEYSTORE_URI` environment
-    #[error("Missing keystore URI")]
+    /// Test setup error
+    #[error("Test setup error: {0}")]
     TestSetup(String),
     /// Missing `EigenlayerContractAddresses`
     #[error("Missing EigenlayerContractAddresses")]
     MissingEigenlayerContractAddresses,
 }
 
-#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
-#[structopt(name = "General CLI Context")]
+#[derive(Debug, Clone, clap::Parser, Serialize, Deserialize)]
+#[command(name = "General CLI Context")]
 #[cfg(feature = "std")]
 pub struct ContextConfig {
     /// Pass through arguments to another command
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     pub gadget_core_settings: GadgetCLICoreSettings,
 }
 
-#[derive(Debug, Clone, StructOpt, Serialize, Deserialize)]
+#[derive(Debug, Clone, clap::Parser, Serialize, Deserialize)]
 #[cfg(feature = "std")]
 pub enum GadgetCLICoreSettings {
-    #[structopt(name = "run")]
+    #[command(name = "run")]
     Run {
-        #[structopt(long, short = "b", parse(try_from_str), env)]
+        #[arg(long, short = 'b', env)]
         bind_addr: IpAddr,
-        #[structopt(long, short = "p", env)]
+        #[arg(long, short = 'p', env)]
         bind_port: u16,
-        #[structopt(long, short = "t", env)]
+        #[arg(long, short = 't', env)]
         test_mode: bool,
-        #[structopt(long, short = "l", env)]
+        #[arg(long, short = 'l', env)]
         log_id: Option<String>,
-        #[structopt(long, short = "u", parse(try_from_str = url::Url::parse), env)]
+        #[arg(long, env)]
         #[serde(default = "gadget_io::defaults::http_rpc_url")]
         http_rpc_url: Url,
-        #[structopt(long, short = "ws", parse(try_from_str = url::Url::parse), env)]
+        #[arg(long, env)]
         #[serde(default = "gadget_io::defaults::ws_rpc_url")]
         ws_rpc_url: Url,
-        #[structopt(long, parse(try_from_str = <Multiaddr as std::str::FromStr>::from_str), env)]
+        #[arg(long, value_parser = <Multiaddr as std::str::FromStr>::from_str, action = clap::ArgAction::Append, env)]
         #[serde(default)]
         bootnodes: Option<Vec<Multiaddr>>,
-        #[structopt(long, short = "d", env)]
+        #[arg(long, short = 'd', env)]
         keystore_uri: String,
-        #[structopt(
-            long,
-            default_value,
-            possible_values = &[
-                "local_testnet",
-                "local_mainnet",
-                "testnet",
-                "mainnet"
-            ],
-            env
-        )]
+        #[arg(long, value_enum, env)]
         chain: SupportedChains,
-        #[structopt(long, short = "v", parse(from_occurrences), env)]
-        verbose: i32,
+        #[arg(long, short = 'v', action = clap::ArgAction::Count, env)]
+        verbose: u8,
         /// Whether to use pretty logging
-        #[structopt(long, env)]
+        #[arg(long, env)]
         pretty: bool,
-        #[structopt(long, env)]
+        #[arg(long, env)]
         keystore_password: Option<String>,
-        #[structopt(long, env)]
+        #[arg(long, env)]
         blueprint_id: u64,
-        #[structopt(long, env)]
+        #[arg(long, env)]
         service_id: Option<u64>,
-        #[structopt(long, parse(try_from_str), env)]
+        /// The protocol to use
+        #[arg(long, value_enum, env)]
         protocol: Protocol,
+        /// The address of the registry coordinator
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "REGISTRY_COORDINATOR_ADDR",
+            required_if_eq("protocol", Protocol::Eigenlayer.as_str()),
+        )]
+        registry_coordinator: Option<Address>,
+        /// The address of the operator state retriever
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "OPERATOR_STATE_RETRIEVER_ADDR",
+            required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+        )]
+        operator_state_retriever: Option<Address>,
+        /// The address of the delegation manager
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "DELEGATION_MANAGER_ADDR",
+            required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+        )]
+        delegation_manager: Option<Address>,
+        /// The address of the strategy manager
+        #[arg(
+            long,
+            value_name = "ADDR",
+            env = "STRATEGY_MANAGER_ADDR",
+            required_if_eq("protocol", Protocol::Eigenlayer.as_str())
+        )]
+        strategy_manager: Option<Address>,
     },
 }
 
@@ -373,6 +386,10 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 blueprint_id,
                 service_id,
                 protocol,
+                registry_coordinator,
+                operator_state_retriever,
+                delegation_manager,
+                strategy_manager,
                 ..
             },
         ..
@@ -402,7 +419,14 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         },
         is_registration,
         protocol,
-        eigenlayer_contract_addrs: Default::default(),
+        // Eigenlayer contract addresses will be None if the protocol is not Eigenlayer
+        // otherwise, they will be the values provided by the user
+        eigenlayer_contract_addrs: EigenlayerContractAddresses {
+            registry_coordinator_addr: registry_coordinator.unwrap_or_default(),
+            operator_state_retriever_addr: operator_state_retriever.unwrap_or_default(),
+            delegation_manager_addr: delegation_manager.unwrap_or_default(),
+            strategy_manager_addr: strategy_manager.unwrap_or_default(),
+        },
         _lock: core::marker::PhantomData,
     })
 }
@@ -498,5 +522,16 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
             )
             .await?;
         Ok(client)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn verify_cli() {
+        use clap::CommandFactory;
+        ContextConfig::command().debug_assert();
     }
 }

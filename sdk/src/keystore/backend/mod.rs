@@ -72,6 +72,22 @@ impl<RwLock: lock_api::RawRwLock> GenericKeyStore<RwLock> {
             ),
         })
     }
+
+    /// Returns `true` if the generic key store is [`Mem`].
+    ///
+    /// [`Mem`]: GenericKeyStore::Mem
+    #[must_use]
+    pub fn is_mem(&self) -> bool {
+        matches!(self, Self::Mem(..))
+    }
+
+    /// Returns `true` if the generic key store is [`Fs`].
+    ///
+    /// [`Fs`]: GenericKeyStore::Fs
+    #[must_use]
+    pub fn is_fs(&self) -> bool {
+        matches!(self, Self::Fs(..))
+    }
 }
 
 impl<RwLock: lock_api::RawRwLock> super::Backend for GenericKeyStore<RwLock> {
