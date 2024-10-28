@@ -42,7 +42,7 @@ async fn main() {
     info!("~~~ Executing the incredible squaring blueprint ~~~");
     let symb_config = SymbioticConfig {};
     BlueprintRunner::new(symb_config, env)
-        .add_job(x_square)
+        .job(x_square)
         .run()
         .await?;
 

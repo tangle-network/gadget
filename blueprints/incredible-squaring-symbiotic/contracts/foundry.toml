@@ -2,4 +2,5 @@
 src = "src"
 out = "out"
 libs = ["lib"]
-solc_version = "0.8.25"
+solc_version = "0.8.20"
+viaIR = true

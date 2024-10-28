@@ -324,7 +324,7 @@ mod tests {
 
         let task0 = async move {
             BlueprintRunner::new((), env)
-                .add_job(job)
+                .job(job)
                 .run()
                 .await
                 .expect("Job failed");

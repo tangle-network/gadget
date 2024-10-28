@@ -108,7 +108,7 @@ impl BlueprintRunner {
         }
     }
 
-    pub fn add_job<J, T>(&mut self, job: J) -> &mut Self
+    pub fn job<J, T>(&mut self, job: J) -> &mut Self
     where
         J: Into<JobBuilder<T>>,
         T: InitializableEventHandler + Send + 'static,
@@ -118,7 +118,7 @@ impl BlueprintRunner {
         self
     }
 
-    pub fn add_background_service(&mut self, service: Box<dyn BackgroundService>) -> &mut Self {
+    pub fn background_service(&mut self, service: Box<dyn BackgroundService>) -> &mut Self {
         self.background_services.push(service);
         self
     }

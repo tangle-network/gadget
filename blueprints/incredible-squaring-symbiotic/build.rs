@@ -15,7 +15,7 @@ fn main() {
 
     // Get the project root directory
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-
+    print!("root: {:?}", root);
     // Try to find the `forge` executable dynamically
     let forge_executable = match Command::new("which").arg("forge").output() {
         Ok(output) => {

@@ -89,9 +89,9 @@ async fn main() {
     info!("~~~ Executing the incredible squaring blueprint ~~~");
     let eigen_config = EigenlayerConfig {};
     BlueprintRunner::new(eigen_config, env)
-        .add_job(x_square_eigen)
-        .add_job(initialize_task)
-        .add_background_service(Box::new(aggregator_context))
+        .job(x_square_eigen)
+        .job(initialize_task)
+        .background_service(Box::new(aggregator_context))
         .run()
         .await?;
 

@@ -1,5 +1,5 @@
-@openzeppelin-upgrades/=lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable/
-@openzeppelin/=lib/eigenlayer-middleware/lib/openzeppelin-contracts/
+@openzeppelin-upgrades/=lib/core/lib/openzeppelin-contracts-upgradeable/
+@openzeppelin/=lib/core/lib/openzeppelin-contracts/
 ds-test/=lib/ds-test/src/
 @symbiotic/=lib/core/src/
 forge-std/=lib/forge-std/src/

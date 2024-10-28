@@ -25,7 +25,7 @@ async fn main() {
     info!("~~~ Executing the incredible squaring blueprint ~~~");
     let tangle_config = TangleConfig::default();
     BlueprintRunner::new(tangle_config, env)
-        .add_job(x_square)
+        .job(x_square)
         .run()
         .await?;
 

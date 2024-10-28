@@ -5,11 +5,11 @@ use gadget_sdk::config::protocol::{EigenlayerContractAddresses, SymbioticContrac
 use gadget_sdk::error;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::Backend;
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::collections::HashMap;
 use tokio::process::Child;
 use tokio::sync::Mutex;
 use url::Url;
