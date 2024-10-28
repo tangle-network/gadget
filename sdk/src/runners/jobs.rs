@@ -1,8 +1,6 @@
 use crate::events_watcher::InitializableEventHandler;
 
 /// A builder for blueprint jobs
-///
-/// Unless custom registration functions are needed, this can be avoided. See [`MultiJobRunner::job`].
 pub struct JobBuilder<T>
 where
     T: InitializableEventHandler + Send,
