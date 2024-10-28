@@ -39,6 +39,10 @@ pub mod helpers;
 pub mod sync;
 pub mod test_ext;
 
+pub mod eigenlayer_test_env;
+pub mod incredible_squaring_helpers;
+pub mod symbiotic_test_env;
+
 pub type TestClient = TangleClient;
 
 pub struct PerTestNodeInput<T> {
@@ -472,12 +476,14 @@ mod tests_standard {
 
     use cargo_tangle::deploy::Opts;
 
+    use eigenlayer_test_env::{setup_eigenlayer_test_environment, EigenlayerTestEnvironment};
+    use gadget_sdk::config::protocol::EigenlayerContractAddresses;
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
-    use helpers::{
-        deploy_task_manager, setup_eigenlayer_test_environment, setup_task_response_listener,
-        setup_task_spawner, BlueprintProcessManager, EigenlayerTestEnvironment,
+    use helpers::BlueprintProcessManager;
+    use incredible_squaring_helpers::{
+        deploy_task_manager, setup_task_response_listener, setup_task_spawner, wait_for_responses,
     };
     use std::sync::Arc;
     use tokio::sync::Mutex;
@@ -587,7 +593,11 @@ mod tests_standard {
             accounts,
             http_endpoint,
             ws_endpoint,
-            registry_coordinator_address,
+            eigenlayer_contract_addresses:
+                EigenlayerContractAddresses {
+                    registry_coordinator_address,
+                    ..
+                },
             pauser_registry_address,
             ..
         } = setup_eigenlayer_test_environment(&http_endpoint, &ws_endpoint).await;
@@ -657,7 +667,7 @@ mod tests_standard {
 
         // Wait for the process to complete or timeout
         let timeout_duration = Duration::from_secs(300);
-        let result = helpers::wait_for_responses(
+        let result = wait_for_responses(
             successful_responses_clone.clone(),
             num_successful_responses_required,
             timeout_duration,
