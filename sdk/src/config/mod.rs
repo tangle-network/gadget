@@ -63,6 +63,9 @@ pub enum Error {
     /// Missing `EigenlayerContractAddresses`
     #[error("Missing EigenlayerContractAddresses")]
     MissingEigenlayerContractAddresses,
+    /// Missing `SymbioticContractAddresses`
+    #[error("Missing EigenlayerContractAddresses")]
+    MissingSymbioticContractAddresses,
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.
