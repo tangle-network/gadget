@@ -1,10 +1,6 @@
+use alloy_primitives::U256;
 use alloy_sol_types::sol;
 use gadget_sdk::{job, load_abi};
-
-use alloy_contract::ContractInstance;
-use alloy_json_abi::JsonAbi;
-use alloy_network::Ethereum;
-use alloy_primitives::{FixedBytes, U256};
 use serde::{Deserialize, Serialize};
 use std::{ops::Deref, sync::OnceLock};
 

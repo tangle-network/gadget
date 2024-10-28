@@ -54,7 +54,7 @@ pub(crate) fn generate_evm_event_handler(
         #[derive(Debug, Clone)]
         pub struct #instance_wrapper_name<T, P> {
             instance: #instance_base::#instance_name<T, P>,
-            contract_instance: OnceLock<ContractInstance<T, P, alloy_network::Ethereum>>,
+            contract_instance: OnceLock<alloy_contract::ContractInstance<T, P, alloy_network::Ethereum>>,
         }
 
         impl<T, P> From<#instance_base::#instance_name<T, P>> for #instance_wrapper_name<T, P>
@@ -79,12 +79,12 @@ pub(crate) fn generate_evm_event_handler(
                 }
             }
 
-            /// Lazily creates the [`ContractInstance`] if it does not exist, otherwise returning a reference to it.
+            /// Lazily creates the [`alloy_contract::ContractInstance`] if it does not exist, otherwise returning a reference to it.
             #[allow(clippy::clone_on_copy)]
-            fn get_contract_instance(&self) -> &ContractInstance<T, P, Ethereum> {
+            fn get_contract_instance(&self) -> &alloy_contract::ContractInstance<T, P, alloy_network::Ethereum> {
                 self.contract_instance.get_or_init(|| {
-                    let abi_location = alloy_contract::Interface::new(JsonAbi::from_json_str(&#abi_string).unwrap());
-                    ContractInstance::new(
+                    let abi_location = alloy_contract::Interface::new(alloy_json_abi::JsonAbi::from_json_str(&#abi_string).unwrap());
+                    alloy_contract::ContractInstance::new(
                         self.instance.address().clone(),
                         self.instance.provider().clone(),
                         abi_location,
@@ -99,9 +99,9 @@ pub(crate) fn generate_evm_event_handler(
             T: alloy_transport::Transport + Clone + Send + Sync + 'static,
             P: alloy_provider::Provider<T> + Clone + Send + Sync + 'static,
         {
-           type Target = ContractInstance<T, P, Ethereum>;
+           type Target = alloy_contract::ContractInstance<T, P, alloy_network::Ethereum>;
 
-           /// Dereferences the [`#instance_wrapper_name`] to its [`ContractInstance`].
+           /// Dereferences the [`#instance_wrapper_name`] to its [`alloy_contract::ContractInstance`].
            fn deref(&self) -> &Self::Target {
                self.get_contract_instance()
             }
@@ -113,11 +113,11 @@ pub(crate) fn generate_evm_event_handler(
         impl<T> gadget_sdk::events_watcher::evm::EvmEventHandler<T> for #struct_name <T>
         where
             T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config +'static,
-            #instance_wrapper_name <T::TH, T::PH>: std::ops::Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, Ethereum>>,
+            #instance_wrapper_name <T::TH, T::PH>: std::ops::Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, alloy_network::Ethereum>>,
         {
             type Contract = #instance_wrapper_name <T::TH, T::PH>;
             type Event = #event;
-            const GENESIS_TX_HASH: FixedBytes<32> = FixedBytes([0; 32]);
+            const GENESIS_TX_HASH: alloy_primitives::FixedBytes<32> = alloy_primitives::FixedBytes([0; 32]);
 
             async fn handle(&self, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::events_watcher::Error> {
                 use alloy_provider::Provider;
