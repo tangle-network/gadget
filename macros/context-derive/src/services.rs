@@ -36,7 +36,10 @@ pub fn generate_context_impl(
                 use gadget_sdk::ext::subxt;
 
                 async move {
-                    let blueprint_id = #field_access.blueprint_id;
+                    let blueprint_id = match #field_access.protocol_settings {
+                        crate::config::ProtocolSpecificSettings::Tangle(settings) => settings.blueprint_id,
+                        _ => return Err(subxt::Error::Other("Blueprint id is only available for Tangle protocol".to_string())),
+                    };
                     let blueprint = api::storage().services().blueprints(blueprint_id);
                     let storage = client.storage().at_latest().await?;
                     let result = storage.fetch(&blueprint).await?;
@@ -57,7 +60,10 @@ pub fn generate_context_impl(
                 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
                 use gadget_sdk::ext::subxt;
                 async move {
-                    let blueprint_id = #field_access.blueprint_id;
+                    let blueprint_id = match #field_access.protocol_settings {
+                        crate::config::ProtocolSpecificSettings::Tangle(settings) => settings.blueprint_id,
+                        _ => return Err(subxt::Error::Other("Blueprint id is only available for Tangle protocol".to_string())),
+                    };
                     let blueprint = api::storage().services().blueprints(blueprint_id);
                     let storage = client.storage().at_latest().await?;
                     let result = storage.fetch(&blueprint).await?;
@@ -89,9 +95,9 @@ pub fn generate_context_impl(
                 use gadget_sdk::ext::subxt;
 
                 async move {
-                    let service_instance_id = match #field_access.service_id {
-                        Some(service_id) => service_id,
-                        None => return Err(subxt::Error::Other("Service instance id is not set".to_string())),
+                    let service_instance_id = match #field_access.protocol_settings {
+                        crate::config::ProtocolSpecificSettings::Tangle(settings) => settings.service_id,
+                        _ => return Err(subxt::Error::Other("Service instance id is only available for Tangle protocol".to_string())),
                     };
                     let service_instance = api::storage().services().instances(service_instance_id);
                     let storage = client.storage().at_latest().await?;
