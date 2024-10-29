@@ -15,19 +15,6 @@ lazy_static! {
     pub static ref AGGREGATOR_PRIVATE_KEY: String = env::var("PRIVATE_KEY").unwrap_or_else(|_| {
         "2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6".to_string()
     });
-    pub static ref SR_SECRET_BYTES: Vec<u8> = env::var("SR_SECRET_BYTES")
-        .map(|v| v.into_bytes())
-        .unwrap_or_else(|_| vec![0; 32]);
-    pub static ref REGISTRY_COORDINATOR_ADDRESS: Address =
-        address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
-    pub static ref OPERATOR_STATE_RETRIEVER_ADDRESS: Address =
-        address!("1613beb3b2c4f22ee086b2b38c1476a3ce7f78e8");
-    pub static ref DELEGATION_MANAGER_ADDRESS: Address =
-        address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
-    pub static ref STRATEGY_MANAGER_ADDRESS: Address =
-        address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
-    pub static ref AVS_DIRECTORY_ADDRESS: Address =
-        address!("0000000000000000000000000000000000000000");
     pub static ref TASK_MANAGER_ADDRESS: Address = env::var("TASK_MANAGER_ADDRESS")
         .map(|addr| addr.parse().expect("Invalid TASK_MANAGER_ADDRESS"))
         .unwrap_or_else(|_| address!("0000000000000000000000000000000000000000"));

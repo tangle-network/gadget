@@ -24,7 +24,7 @@ pub enum Error {
     Config(#[from] crate::config::Error),
 
     #[error("Job runner error: {0}")]
-    Runner(#[from] crate::job_runner::Error),
+    Runner(#[from] crate::runners::RunnerError),
 
     #[error("Docker error: {0}")]
     Docker(#[from] bollard::errors::Error),
@@ -55,10 +55,13 @@ pub enum Error {
     #[cfg(feature = "std")]
     #[error("Metrics error: {0}")]
     Metrics(#[from] crate::metrics::Error),
+
     #[error("Io error: {0}")]
     IoError(#[from] std::io::Error),
+
     #[error("The type has been skipped in the preprocessor")]
     SkipPreProcessedType,
+
     #[error("Other error: {0}")]
     Other(String),
 }

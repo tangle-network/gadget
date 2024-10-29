@@ -24,6 +24,7 @@ color-eyre = { workspace = true }
 log = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
+lazy_static = { workspace = true }
 
 # Substrate
 sp-core = { workspace = true, default-features = false }

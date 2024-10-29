@@ -1,11 +1,8 @@
 #![allow(dead_code)]
 use crate::contexts::client::{AggregatorClient, SignedTaskResponse};
 use crate::{noop, IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING};
-use alloy_contract::ContractInstance;
-use alloy_network::Ethereum;
 use alloy_primitives::keccak256;
-use alloy_primitives::{hex, Bytes, FixedBytes, U256};
-use alloy_sol_types::private::alloy_json_abi::JsonAbi;
+use alloy_primitives::{hex, Bytes, U256};
 use alloy_sol_types::SolType;
 use ark_bn254::Fq;
 use ark_ff::{BigInteger, PrimeField};

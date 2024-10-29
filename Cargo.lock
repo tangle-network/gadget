@@ -1939,6 +1939,7 @@ dependencies = [
  "futures",
  "gadget-io",
  "gadget-sdk",
+ "lazy_static",
  "libp2p",
  "log",
  "parking_lot 0.12.3",
@@ -4747,6 +4748,7 @@ dependencies = [
  "subxt",
  "subxt-core",
  "subxt-signer",
+ "symbiotic-rs",
  "sysinfo",
  "tangle-subxt",
  "thiserror",
@@ -5910,6 +5912,49 @@ dependencies = [
  "tokio-util 0.7.12",
  "tracing",
  "uuid 1.11.0",
+]
+
+[[package]]
+name = "incredible-squaring-blueprint-symbiotic"
+version = "0.1.1"
+dependencies = [
+ "alloy-consensus",
+ "alloy-contract",
+ "alloy-json-abi",
+ "alloy-network",
+ "alloy-primitives 0.7.7",
+ "alloy-provider",
+ "alloy-pubsub",
+ "alloy-rpc-client 0.4.2",
+ "alloy-rpc-types",
+ "alloy-rpc-types-eth",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-sol-types 0.7.7",
+ "alloy-transport 0.1.4",
+ "alloy-transport-http 0.1.4",
+ "ark-bn254",
+ "ark-ec",
+ "ark-ff 0.4.2",
+ "async-trait",
+ "blueprint-metadata",
+ "color-eyre",
+ "ed25519-zebra 4.0.3",
+ "eigensdk",
+ "gadget-sdk",
+ "hex",
+ "k256",
+ "lazy_static",
+ "libp2p",
+ "lock_api",
+ "parking_lot 0.12.3",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "subxt-signer",
+ "tokio",
+ "tokio-util 0.7.12",
+ "tracing",
 ]
 
 [[package]]
@@ -11681,6 +11726,17 @@ dependencies = [
  "thiserror",
  "url",
  "zip",
+]
+
+[[package]]
+name = "symbiotic-rs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02f31217207638b7cba9751cedb9ddb612478423d7bf8700091cf1f9970bbc5f"
+dependencies = [
+ "alloy-contract",
+ "alloy-sol-types 0.7.7",
+ "serde",
 ]
 
 [[package]]

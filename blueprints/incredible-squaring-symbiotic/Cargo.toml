@@ -1,7 +1,7 @@
 [package]
-name = "incredible-squaring-blueprint-eigenlayer"
+name = "incredible-squaring-blueprint-symbiotic"
 version = "0.1.1"
-description = "A Simple Blueprint to demo how blueprints work on Eigenlayer"
+description = "A Simple Blueprint to demo how blueprints work on Symbiotic"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,7 +15,6 @@ tracing = { workspace = true }
 async-trait = { workspace = true }
 gadget-sdk = { workspace = true, features = ["std"] }
 color-eyre = { workspace = true }
-lazy_static = { workspace = true }
 lock_api = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["full"] }
 tokio-util = { workspace = true }
@@ -42,22 +41,18 @@ ark-ec = { workspace = true }
 parking_lot = { workspace = true }
 libp2p = { workspace = true }
 ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde", "pem"] }
-clap = { workspace = true, features = ["derive", "wrap_help"] }
 hex = { workspace = true }
 k256 = { workspace = true }
-reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-uuid = { workspace = true, features = ["v4"] }
-bip39 = { workspace = true }
-thiserror = { workspace = true }
-jsonrpc-core = { workspace = true }
-jsonrpc-http-server = { workspace = true }
+lazy_static = { workspace = true }
 
-[dev-dependencies]
-blueprint-test-utils = { workspace = true }
-gadget-io = { workspace = true }
+[build-dependencies]
+blueprint-metadata = { workspace = true }
 
 [features]
 default = ["std"]
 std = []
+
+[package.metadata.blueprint]
+manager = { Evm = "IncredibleSquaringBlueprint" }

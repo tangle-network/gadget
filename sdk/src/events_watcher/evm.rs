@@ -5,10 +5,10 @@ use alloy_network::{Ethereum, EthereumWallet};
 use alloy_primitives::FixedBytes;
 use alloy_provider::{
     fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller, WalletFiller},
-    Identity, Provider, RootProvider,
+    Identity, Provider, ProviderBuilder, RootProvider, WsConnect,
 };
 use alloy_sol_types::SolEvent;
-use alloy_transport::Transport;
+use alloy_transport::{BoxTransport, Transport};
 use alloy_transport_http::{Client, Http};
 use std::ops::Deref;
 
@@ -67,4 +67,43 @@ pub trait EvmEventHandler<T: Config>: Send + Sync + 'static {
     const GENESIS_TX_HASH: FixedBytes<32>;
     /// Handle a log event.
     async fn handle(&self, log: &alloy_rpc_types::Log, event: &Self::Event) -> Result<(), Error>;
+}
+
+pub fn get_provider_http(http_endpoint: &str) -> RootProvider<BoxTransport> {
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .on_http(http_endpoint.parse().unwrap())
+        .root()
+        .clone()
+        .boxed();
+
+    provider
+}
+
+pub fn get_wallet_provider_http(
+    http_endpoint: &str,
+    wallet: EthereumWallet,
+) -> RootProvider<BoxTransport> {
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(wallet)
+        .on_http(http_endpoint.parse().unwrap())
+        .root()
+        .clone()
+        .boxed();
+
+    provider
+}
+
+pub async fn get_provider_ws(ws_endpoint: &str) -> RootProvider<BoxTransport> {
+    let provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .on_ws(WsConnect::new(ws_endpoint))
+        .await
+        .unwrap()
+        .root()
+        .clone()
+        .boxed();
+
+    provider
 }
