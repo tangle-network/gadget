@@ -267,7 +267,7 @@ impl GadgetProcess {
             nix::unistd::Pid::from_raw(self.pid.as_u32() as pid_t),
             Signal::SIGTERM,
         )
-        .map_err(|e| Error::KillFailed(e))?;
+        .map_err(Error::KillFailed)?;
 
         Ok(())
     }
