@@ -3,9 +3,10 @@ use api::services::events::JobResultSubmitted;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use gadget_io::{GadgetConfig, SupportedChains};
-use gadget_sdk::clients::tangle::runtime::TangleClient;
+use gadget_sdk::clients::tangle::runtime::{TangleClient, TangleConfig};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::create_blueprint::Blueprint;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
@@ -20,7 +21,7 @@ use std::error::Error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use subxt::tx::Signer;
+use subxt::tx::{Signer, TxProgress};
 use subxt::utils::AccountId32;
 use url::Url;
 use uuid::Uuid;
@@ -146,6 +147,10 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
     // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
     let sr_seed = &sr.as_ref().secret.to_bytes();
 
+    let ed = sp_core::ed25519::Pair::from_string(&suri, None).expect("Should be valid ED keypair");
+    // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
+    let ed_seed = &ed.seed();
+
     let ecdsa =
         sp_core::ecdsa::Pair::from_string(&suri, None).expect("Should be valid ECDSA keypair");
     // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
@@ -154,6 +159,9 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
     keystore
         .sr25519_generate_new(Some(sr_seed))
         .expect("Should be valid SR25519 seed");
+    keystore
+        .ed25519_generate_new(Some(ed_seed))
+        .expect("Should be valid ED25519 seed");
     keystore
         .ecdsa_generate_new(Some(&ecdsa_seed))
         .expect("Should be valid ECDSA seed");
@@ -198,6 +206,16 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
         }
     }
 
+    match keystore.ed25519_key() {
+        Ok(ed25519_key) => {
+            assert_eq!(ed25519_key.signer().public().0, ed.public().0);
+        }
+        Err(err) => {
+            log::error!(target: "gadget", "Failed to load ed25519 key: {err}");
+            panic!("Failed to load ed25519 key: {err}");
+        }
+    }
+
     Ok(())
 }
 
@@ -211,7 +229,7 @@ pub async fn create_blueprint(
         .tx()
         .sign_and_submit_then_watch_default(&call, account_id)
         .await?;
-    res.wait_for_finalized_success().await?;
+    wait_for_in_block_success(res).await?;
     Ok(())
 }
 
@@ -228,7 +246,7 @@ pub async fn join_delegators(
         .sign_and_submit_then_watch_default(&call_pre, account_id)
         .await?;
 
-    res_pre.wait_for_finalized_success().await?;
+    wait_for_in_block_success(res_pre).await?;
     Ok(())
 }
 
@@ -247,7 +265,7 @@ pub async fn register_blueprint(
         .tx()
         .sign_and_submit_then_watch_default(&call, account_id)
         .await?;
-    res.wait_for_finalized_success().await?;
+    wait_for_in_block_success(res).await?;
     Ok(())
 }
 
@@ -263,13 +281,13 @@ pub async fn submit_job(
         .tx()
         .sign_and_submit_then_watch_default(&call, user)
         .await?;
-    let _res = res.wait_for_finalized_success().await?;
+    wait_for_in_block_success(res).await?;
     Ok(())
 }
 
-/// Registers a service for a given blueprint. This is meant for testing, and will allow any node
+/// Requests a service with a given blueprint. This is meant for testing, and will allow any node
 /// to make a call to run a service, and will have all nodes running the service.
-pub async fn register_service(
+pub async fn request_service(
     client: &TestClient,
     user: &TanglePairSigner<sp_core::sr25519::Pair>,
     blueprint_id: u64,
@@ -280,14 +298,44 @@ pub async fn register_service(
         test_nodes.clone(),
         test_nodes,
         Default::default(),
-        Default::default(),
+        vec![0],
         1000,
     );
     let res = client
         .tx()
         .sign_and_submit_then_watch_default(&call, user)
         .await?;
-    res.wait_for_finalized_success().await?;
+    wait_for_in_block_success(res).await?;
+    Ok(())
+}
+
+/// Approves a service request. This is meant for testing, and will always approve the request.
+pub async fn approve_service(
+    client: &TestClient,
+    caller: &TanglePairSigner<sp_core::sr25519::Pair>,
+    request_id: u64,
+    restaking_percent: u8,
+) -> Result<(), Box<dyn Error>> {
+    let call = api::tx()
+        .services()
+        .approve(request_id, Percent(restaking_percent));
+    let res = client
+        .tx()
+        .sign_and_submit_then_watch_default(&call, caller)
+        .await?;
+    wait_for_in_block_success(res).await?;
+    Ok(())
+}
+
+pub async fn wait_for_in_block_success(
+    mut res: TxProgress<TangleConfig, TestClient>,
+) -> Result<(), Box<dyn Error>> {
+    while let Some(Ok(event)) = res.next().await {
+        let Some(block) = event.as_in_block() else {
+            continue;
+        };
+        block.wait_for_success().await?;
+    }
     Ok(())
 }
 

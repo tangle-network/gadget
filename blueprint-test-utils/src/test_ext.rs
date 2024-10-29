@@ -23,6 +23,7 @@ use gadget_sdk::clients::tangle::runtime::TangleClient;
 use gadget_sdk::tangle_subxt::subxt::OnlineClient;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api as api;
 use libp2p::Multiaddr;
 use std::collections::HashSet;
 use std::future::Future;
@@ -39,7 +40,6 @@ use tracing::Instrument;
 use gadget_sdk::{error, info, warn};
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
-const LOCAL_TANGLE_NODE_HTTP: &str = "http://127.0.0.1:9944";
 pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
 
 /// - `N`: number of nodes
@@ -129,7 +129,7 @@ pub async fn new_test_ext_blueprint_manager<
     }
 
     // Step 1: Create the blueprint using alice's identity
-    let blueprint_id = match cargo_tangle::deploy::deploy_to_tangle(opts).await {
+    let blueprint_id = match cargo_tangle::deploy::deploy_to_tangle(opts.clone()).await {
         Ok(id) => id,
         Err(err) => {
             error!("Failed to deploy blueprint: {err}");
@@ -137,7 +137,7 @@ pub async fn new_test_ext_blueprint_manager<
         }
     };
 
-    let client = OnlineClient::from_url(LOCAL_TANGLE_NODE_HTTP)
+    let client = OnlineClient::from_url(&opts.ws_rpc_url)
         .await
         .expect("Failed to create an account-based localhost client");
 
@@ -147,7 +147,7 @@ pub async fn new_test_ext_blueprint_manager<
     // TODO: allow the function called to specify the registration args
 
     for handle in handles {
-        let client = OnlineClient::from_url(LOCAL_TANGLE_NODE_HTTP)
+        let client = OnlineClient::from_url(&opts.ws_rpc_url)
             .await
             .expect("Failed to create an account-based localhost client");
         let registration_args = registration_args.clone();
@@ -209,13 +209,42 @@ pub async fn new_test_ext_blueprint_manager<
         .collect();
 
     // Use Alice's account to register the service
-    info!("Registering service for blueprint ID {blueprint_id} using Alice's keys ...");
+    info!("Requesting service for blueprint ID {blueprint_id} using Alice's keys ...");
+    let next_request_id_addr = api::storage().services().next_service_request_id();
+    let next_request_id = client
+        .storage()
+        .at_latest()
+        .await
+        .expect("Failed to fetch latest block")
+        .fetch_or_default(&next_request_id_addr)
+        .await
+        .expect("Failed to fetch next request ID");
+
     if let Err(err) =
-        super::register_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes).await
+        super::request_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes).await
     {
         error!("Failed to register service: {err}");
         panic!("Failed to register service: {err}");
     }
+
+    // Approve the service request for each node
+    let futures = handles.iter().map(|handle| async {
+        let keypair = handle.sr25519_id().clone();
+        let percentage = 50;
+        info!(
+            "Approving service request {next_request_id} for {} with {percentage}%",
+            keypair.account_id()
+        );
+        if let Err(err) =
+            super::approve_service(&client, &keypair, next_request_id, percentage).await
+        {
+            error!("Failed to approve service request: {err}");
+            panic!("Failed to approve service request: {err}");
+        }
+    });
+
+    let futures_ordered = FuturesOrdered::from_iter(futures);
+    let _ = futures_ordered.collect::<Vec<_>>().await;
 
     // Now, start every blueprint manager. With the blueprint submitted and every operator registered
     // to the blueprint, we can now start the blueprint manager, expecting that the blueprint manager
