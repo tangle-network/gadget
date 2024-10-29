@@ -104,7 +104,7 @@ impl<Ctx: Clone + Send + Sync + 'static, Evt: Send + Sync + 'static>
 
         let background_task = async move {
             let _ = rx.await;
-            has_stopped_clone.store(false, Ordering::SeqCst);
+            has_stopped_clone.store(true, Ordering::SeqCst);
         };
 
         drop(tokio::task::spawn(background_task));
