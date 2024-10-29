@@ -165,7 +165,7 @@ fn keygen_2_of_3() {
 mod tests {
     use async_trait::async_trait;
     use gadget_sdk as sdk;
-    use gadget_sdk::job_runner::MultiJobRunner;
+    use gadget_sdk::runners::BlueprintRunner;
     use sdk::event_listener::periodic::PeriodicEventListener;
     use sdk::event_listener::EventListener;
     use sdk::job;
@@ -316,13 +316,14 @@ mod tests {
     #[tokio::test]
     async fn test_web_poller_event_workflow_works() {
         gadget_sdk::logging::setup_log();
+        let env = gadget_sdk::config::load(Default::default()).expect("Failed to load environment");
         let count = &Arc::new(AtomicUsize::new(0));
         let job = WebPollerEventHandler {
             count: count.clone(),
         };
 
         let task0 = async move {
-            MultiJobRunner::new(None)
+            BlueprintRunner::new((), env)
                 .job(job)
                 .run()
                 .await
@@ -354,8 +355,8 @@ mod tests {
         let env_vars = [
             ("RPC_URL".to_string(), "ws://127.0.0.1".to_string()),
             ("KEYSTORE_URI".to_string(), "/".to_string()),
-            ("BLUEPRINT_ID".to_string(), 0.to_string()),
-            ("SERVICE_ID".to_string(), 0.to_string()),
+            ("BLUEPRINT_ID".to_string(), 1.to_string()),
+            ("SERVICE_ID".to_string(), 1.to_string()),
             ("DATA_DIR".to_string(), "/".to_string()),
         ];
 

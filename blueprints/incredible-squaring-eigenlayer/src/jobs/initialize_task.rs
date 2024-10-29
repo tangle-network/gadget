@@ -2,10 +2,6 @@ use crate::{
     contexts::aggregator::AggregatorContext, noop, IncredibleSquaringTaskManager,
     INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
 };
-use alloy_contract::ContractInstance;
-use alloy_json_abi::JsonAbi;
-use alloy_network::Ethereum;
-use alloy_primitives::FixedBytes;
 use gadget_sdk::{info, job};
 use std::{convert::Infallible, ops::Deref, sync::OnceLock};
 use IncredibleSquaringTaskManager::Task;
