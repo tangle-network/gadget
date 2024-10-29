@@ -1,12 +1,11 @@
+use super::error::Error;
 use crate::executor::process::utils::*;
 use crate::executor::OS_COMMAND;
 use crate::{craft_child_process, run_command};
-use failure::format_err;
 use nix::libc::pid_t;
 use nix::sys::signal;
 use nix::sys::signal::Signal;
-use serde::{Deserialize, Serialize};
-use std::error::Error;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::ffi::OsString;
 use std::time::Duration;
 use sysinfo::ProcessStatus::{
@@ -27,7 +26,8 @@ pub struct GadgetProcess {
     /// The name of the process itself
     pub process_name: OsString,
     /// Process ID
-    pub pid: u32,
+    #[serde(serialize_with = "serialize_pid", deserialize_with = "deserialize_pid")]
+    pub pid: Pid,
     /// History of output from process for reviewing/tracking progress
     pub output: Vec<String>,
     /// Stream for output from child process
@@ -35,18 +35,33 @@ pub struct GadgetProcess {
     pub stream: Option<Lines<BufReader<tokio::process::ChildStdout>>>,
 }
 
+fn serialize_pid<S>(pid: &Pid, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_u32(pid.as_u32())
+}
+
+fn deserialize_pid<'de, D>(deserializer: D) -> Result<Pid, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = u32::deserialize(deserializer)?;
+    Ok(Pid::from_u32(value))
+}
+
 impl GadgetProcess {
     pub fn new(
         command: String,
-        pid: Option<u32>,
+        pid: u32,
         output: Vec<String>,
         stream: Lines<BufReader<tokio::process::ChildStdout>>,
-    ) -> Result<GadgetProcess, Box<dyn Error>> {
+    ) -> Result<GadgetProcess, Error> {
         let s = System::new_all();
-        let pid = pid.ok_or("No PID found")?;
+        let pid = Pid::from_u32(pid);
         let process_name = s
-            .process(Pid::from_u32(pid))
-            .ok_or(format!("Process {pid} doesn't exist"))?
+            .process(pid)
+            .ok_or(Error::ProcessNotFound(pid))?
             .name()
             .to_os_string();
         Ok(GadgetProcess {
@@ -194,10 +209,10 @@ impl GadgetProcess {
     }
 
     /// Restart a GadgetProcess, killing the previously running process if it exists. Returns the new GadgetProcess
-    pub(crate) async fn restart_process(&mut self) -> Result<GadgetProcess, Box<dyn Error>> {
+    pub(crate) async fn restart_process(&mut self) -> Result<GadgetProcess, Error> {
         // Kill current process running this command
         let s = System::new_all();
-        match s.process(Pid::from_u32(self.pid)) {
+        match s.process(self.pid) {
             Some(process) => {
                 if process.name() == self.process_name {
                     self.kill()?;
@@ -216,43 +231,45 @@ impl GadgetProcess {
     }
 
     /// Checks the status of this GadgetProcess
-    pub(crate) fn status(&self) -> Result<Status, Box<dyn Error>> {
+    pub(crate) fn status(&self) -> Status {
         let s = System::new_all();
-        match s.process(Pid::from_u32(self.pid)) {
-            Some(process) => Ok(Status::from(process.status())),
+        match s.process(self.pid) {
+            Some(process) => Status::from(process.status()),
             None => {
                 // If it isn't found, then the process died
-                Ok(Status::Dead)
+                Status::Dead
             }
         }
     }
 
     /// Gets process name by PID
     #[allow(dead_code)]
-    pub(crate) fn get_name(&self) -> Result<OsString, Box<dyn Error>> {
+    pub(crate) fn get_name(&self) -> Result<OsString, Error> {
         let s = System::new_all();
         let name = s
-            .process(Pid::from_u32(self.pid))
-            .ok_or(format!("Process {} doesn't exist", self.pid))?
+            .process(self.pid)
+            .ok_or(Error::ProcessNotFound(self.pid))?
             .name();
         Ok(name.into())
     }
 
     /// Terminates the process depicted by this GadgetProcess - will fail if the PID is now being reused
-    pub(crate) fn kill(&self) -> Result<(), Box<dyn Error>> {
+    pub(crate) fn kill(&self) -> Result<(), Error> {
         let running_process = self.get_name()?;
-        if running_process == self.process_name {
-            Ok(signal::kill(
-                nix::unistd::Pid::from_raw(self.pid as pid_t),
-                Signal::SIGTERM,
-            )?)
-        } else {
-            Err(Box::from(format_err!(
-                "Expected {} and found {} running instead - process termination aborted",
-                self.process_name.to_string_lossy(),
-                running_process.to_string_lossy()
-            )))
+        if running_process != self.process_name {
+            return Err(Error::ProcessMismatch(
+                self.process_name.to_string_lossy().into_owned(),
+                running_process.to_string_lossy().into_owned(),
+            ));
         }
+
+        signal::kill(
+            nix::unistd::Pid::from_raw(self.pid.as_u32() as pid_t),
+            Signal::SIGTERM,
+        )
+        .map_err(|e| Error::KillFailed(e))?;
+
+        Ok(())
     }
 }
 
