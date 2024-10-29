@@ -42,7 +42,7 @@ pub async fn run_executor(instructions: &str) {
     let mut ended = Vec::new();
     for (service, process) in &mut manager.children {
         println!("LOG : Process {}", service.clone());
-        let status = process.status().unwrap();
+        let status = process.status();
         println!("\tSTATUS: {:?}", status);
         let output = process.read_until_default_timeout().await;
         println!("\n{} read result:\n\t {:?}\n", service, output);
