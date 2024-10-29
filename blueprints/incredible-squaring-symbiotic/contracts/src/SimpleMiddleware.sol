@@ -2,7 +2,8 @@
 pragma solidity 0.8.20;
 
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
 import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
@@ -19,7 +20,7 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {SimpleKeyRegistry32} from "./SimpleKeyRegistry32.sol";
 import {MapWithTimeData} from "./libraries/MapWithTimeData.sol";
 
-contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
+contract SimpleMiddleware is SimpleKeyRegistry32, Initializable, OwnableUpgradeable {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using MapWithTimeData for EnumerableMap.AddressToUintMap;
     using Subnetwork for address;
@@ -54,7 +55,6 @@ contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
     address public immutable OPERATOR_REGISTRY;
     address public immutable VAULT_REGISTRY;
     address public immutable OPERATOR_NET_OPTIN;
-    address public immutable OWNER;
     uint48 public immutable EPOCH_DURATION;
     uint48 public immutable SLASHING_WINDOW;
     uint48 public immutable START_TIME;
@@ -76,15 +76,21 @@ contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
         _;
     }
 
+    modifier onlyOperator() {
+        if (!operators.contains(msg.sender)) {
+            revert NotOperator();
+        }
+        _;
+    }
+
     constructor(
         address _network,
         address _operatorRegistry,
         address _vaultRegistry,
         address _operatorNetOptin,
-        address _owner,
         uint48 _epochDuration,
         uint48 _slashingWindow
-    ) SimpleKeyRegistry32() Ownable(_owner) {
+    ) SimpleKeyRegistry32() {
         if (_slashingWindow < _epochDuration) {
             revert SlashingWindowTooShort();
         }
@@ -92,12 +98,14 @@ contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
         START_TIME = Time.timestamp();
         EPOCH_DURATION = _epochDuration;
         NETWORK = _network;
-        OWNER = _owner;
         OPERATOR_REGISTRY = _operatorRegistry;
         VAULT_REGISTRY = _vaultRegistry;
         OPERATOR_NET_OPTIN = _operatorNetOptin;
         SLASHING_WINDOW = _slashingWindow;
+    }
 
+    function initialize(address initialOwner) public initializer {
+        _transferOwnership(initialOwner);
         subnetworksCnt = 1;
     }
 
