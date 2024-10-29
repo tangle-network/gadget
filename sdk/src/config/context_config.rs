@@ -70,6 +70,9 @@ pub enum GadgetCLICoreSettings {
             required_if_eq("protocol", Protocol::Tangle.as_str())
         )]
         service_id: Option<u64>,
+        /// Whether to skip the registration process for a Blueprint
+        #[arg(long, env = "SKIP_REGISTRATION")]
+        skip_registration: Option<bool>,
         /// The address of the registry coordinator
         #[arg(
             long,
@@ -187,6 +190,7 @@ impl Default for GadgetCLICoreSettings {
             protocol: Protocol::default(),
             blueprint_id: Some(1),
             service_id: Some(1),
+            skip_registration: None,
             registry_coordinator: None,
             operator_state_retriever: None,
             delegation_manager: None,

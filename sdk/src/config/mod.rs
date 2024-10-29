@@ -115,6 +115,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
                 protocol,
                 blueprint_id,
                 service_id,
+                skip_registration,
                 registry_coordinator,
                 operator_state_retriever,
                 delegation_manager,
@@ -167,6 +168,7 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
         Protocol::Tangle => ProtocolSpecificSettings::Tangle(TangleInstanceSettings {
             blueprint_id: blueprint_id.ok_or(Error::MissingBlueprintId)?,
             service_id: service_id.ok_or(Error::MissingServiceId)?,
+            skip_registration: skip_registration.unwrap_or(false),
         }),
     };
 

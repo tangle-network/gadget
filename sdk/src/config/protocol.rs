@@ -75,6 +75,8 @@ pub struct TangleInstanceSettings {
     pub blueprint_id: u64,
     /// The service ID for the Tangle blueprint instance
     pub service_id: u64,
+    /// Whether to skip the registration process
+    pub skip_registration: bool,
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]

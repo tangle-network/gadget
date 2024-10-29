@@ -14,10 +14,6 @@
 	path = blueprints/incredible-squaring-eigenlayer/contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
 
-[submodule "blueprints/tangle-avs-blueprint/contracts/lib/forge-std"]
-    path = blueprints/tangle-avs-blueprint/contracts/lib/forge-std
-    url = https://github.com/foundry-rs/forge-std
-
 # For the ecdsa-threshold-mpc blueprint
 [submodule "blueprints/ecdsa-threshold-mpc/contracts/lib/forge-std"]
 	path = blueprints/ecdsa-threshold-mpc/contracts/lib/forge-std

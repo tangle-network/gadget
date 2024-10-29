@@ -108,6 +108,7 @@ impl<RwLock: lock_api::RawRwLock> Default for GadgetConfiguration<RwLock> {
             protocol_specific: ProtocolSpecificSettings::Tangle(TangleInstanceSettings {
                 blueprint_id: 0,
                 service_id: 0,
+                skip_registration: false,
             }),
             bind_port: 0,
             bind_addr: core::net::IpAddr::V4(core::net::Ipv4Addr::new(127, 0, 0, 1)),
