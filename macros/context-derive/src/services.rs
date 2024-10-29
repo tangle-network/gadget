@@ -37,7 +37,7 @@ pub fn generate_context_impl(
 
                 async move {
                     let blueprint_id = match #field_access.protocol_specific {
-                        crate::config::ProtocolSpecificSettings::Tangle(settings) => settings.blueprint_id,
+                        gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => settings.blueprint_id,
                         _ => return Err(subxt::Error::Other("Blueprint id is only available for Tangle protocol".to_string())),
                     };
                     let blueprint = api::storage().services().blueprints(blueprint_id);
@@ -61,7 +61,7 @@ pub fn generate_context_impl(
                 use gadget_sdk::ext::subxt;
                 async move {
                     let blueprint_id = match #field_access.protocol_specific {
-                        crate::config::ProtocolSpecificSettings::Tangle(settings) => settings.blueprint_id,
+                        gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => settings.blueprint_id,
                         _ => return Err(subxt::Error::Other("Blueprint id is only available for Tangle protocol".to_string())),
                     };
                     let blueprint = api::storage().services().blueprints(blueprint_id);
@@ -96,7 +96,7 @@ pub fn generate_context_impl(
 
                 async move {
                     let service_instance_id = match #field_access.protocol_specific {
-                        crate::config::ProtocolSpecificSettings::Tangle(settings) => settings.service_id,
+                        gadget_sdk::config::ProtocolSpecificSettings::Tangle(settings) => settings.service_id,
                         _ => return Err(subxt::Error::Other("Service instance id is only available for Tangle protocol".to_string())),
                     };
                     let service_instance = api::storage().services().instances(service_instance_id);
