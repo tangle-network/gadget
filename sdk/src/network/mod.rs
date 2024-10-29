@@ -14,6 +14,7 @@ pub mod handlers;
 #[cfg(target_family = "wasm")]
 pub mod matchbox;
 pub mod setup;
+pub mod messaging;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct IdentifierInfo {

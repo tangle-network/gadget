@@ -59,8 +59,6 @@ impl<X: SolEvent + Clone + Send + Sync + 'static> EvmEvent for X {}
 /// EventWatcher trait exists for deployments that are smart-contract / EVM based
 #[async_trait::async_trait]
 pub trait EvmEventHandler<T: Config>: Send + Sync + 'static {
-    /// The contract that this event watcher is watching.
-    type Contract: EvmContract<T>;
     /// The type of event this handler is for.
     type Event: EvmEvent;
     /// The genesis transaction hash for the contract.

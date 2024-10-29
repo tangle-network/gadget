@@ -37,7 +37,7 @@ pub enum GadgetCommands {
     #[command(visible_alias = "c")]
     Create {
         /// The name of the blueprint
-        #[arg(short, long)]
+        #[arg(short, long, value_name = "NAME", env = "NAME")]
         name: String,
 
         #[command(flatten)]
@@ -48,13 +48,23 @@ pub enum GadgetCommands {
     #[command(visible_alias = "d")]
     Deploy {
         /// HTTP RPC URL to use
-        #[arg(long, value_name = "URL", default_value = "https://rpc.tangle.tools")]
+        #[arg(
+            long,
+            value_name = "URL",
+            default_value = "https://rpc.tangle.tools",
+            env
+        )]
         http_rpc_url: String,
         /// Tangle RPC URL to use
-        #[arg(long, value_name = "URL", default_value = "wss://rpc.tangle.tools")]
+        #[arg(
+            long,
+            value_name = "URL",
+            default_value = "wss://rpc.tangle.tools",
+            env
+        )]
         ws_rpc_url: String,
         /// The package to deploy (if the workspace has multiple packages).
-        #[arg(short, long, value_name = "PACKAGE")]
+        #[arg(short, long, value_name = "PACKAGE", env = "CARGO_PACKAGE")]
         package: Option<String>,
     },
     /// Generate a key
@@ -63,12 +73,14 @@ pub enum GadgetCommands {
         #[arg(short, long, value_enum)]
         key_type: KeyType,
 
-        /// The path to save the key (optional)
+        /// The path to save the key to, if not provided, the key will be printed
+        /// to the console instead
         #[arg(short, long)]
         path: Option<PathBuf>,
 
-        /// The SURI or seed to use for the generation of the key (optional)
-        #[arg(short, long)]
+        /// The seed to use for the generation of the key in hex format without 0x prefix,
+        /// if not provided, a random seed will be generated
+        #[arg(short, long, value_name = "SEED_HEX", env = "SEED")]
         seed: Option<String>,
 
         /// If true, the secret key will be printed along with the public key
@@ -127,12 +139,8 @@ async fn main() -> color_eyre::Result<()> {
                 seed,
                 show_secret,
             } => {
-                keys::generate_key(
-                    key_type,
-                    path,
-                    seed.as_deref().map(str::as_bytes),
-                    show_secret,
-                )?;
+                let seed = seed.map(hex::decode).transpose()?;
+                keys::generate_key(key_type, path, seed.as_deref(), show_secret)?;
             }
         },
     }
@@ -152,4 +160,15 @@ fn init_tracing_subscriber() {
         .with(tracing_subscriber::EnvFilter::from_default_env())
         .with(fmt_layer)
         .init();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn verify_cli() {
+        use clap::CommandFactory;
+        Cli::command().debug_assert();
+    }
 }

@@ -1380,17 +1380,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "atty"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
-dependencies = [
- "hermit-abi 0.1.19",
- "libc",
- "winapi",
-]
-
-[[package]]
 name = "auth-git2"
 version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1936,6 +1925,7 @@ version = "0.1.1"
 dependencies = [
  "async-trait",
  "auto_impl",
+ "clap",
  "color-eyre",
  "failure",
  "futures",
@@ -1949,7 +1939,6 @@ dependencies = [
  "serde",
  "sha2 0.10.8",
  "sp-core",
- "structopt",
  "tangle-subxt",
  "tokio",
  "toml",
@@ -2183,7 +2172,7 @@ dependencies = [
  "anstyle",
  "anyhow",
  "auth-git2",
- "clap 4.5.20",
+ "clap",
  "console",
  "dialoguer",
  "env_logger",
@@ -2237,7 +2226,7 @@ dependencies = [
  "alloy-signer-local",
  "cargo-generate",
  "cargo_metadata",
- "clap 4.5.20",
+ "clap",
  "clap-cargo",
  "color-eyre",
  "escargot",
@@ -2404,21 +2393,6 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "2.34.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0610544180c38b88101fecf2dd634b174a62eef6946f84dfc6a7127512b381c"
-dependencies = [
- "ansi_term",
- "atty",
- "bitflags 1.3.2",
- "strsim 0.8.0",
- "textwrap",
- "unicode-width",
- "vec_map",
-]
-
-[[package]]
-name = "clap"
 version = "4.5.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b97f376d85a664d5837dbae44bf546e6477a679ff6610010f17276f686d867e8"
@@ -2434,7 +2408,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b2ea69cefa96b848b73ad516ad1d59a195cdf9263087d977f648a818c8b43e"
 dependencies = [
  "anstyle",
- "clap 4.5.20",
+ "clap",
 ]
 
 [[package]]
@@ -4739,6 +4713,7 @@ name = "gadget-io"
 version = "0.0.4"
 dependencies = [
  "cfg-if 1.0.0",
+ "clap",
  "hex",
  "js-sys",
  "multiaddr",
@@ -4750,7 +4725,6 @@ dependencies = [
  "sp-application-crypto",
  "sp-core",
  "sp-keystore",
- "structopt",
  "thiserror",
  "tokio",
  "tracing",
@@ -4784,6 +4758,7 @@ dependencies = [
  "backon",
  "bincode",
  "bollard",
+ "clap",
  "ed25519-zebra 4.0.3",
  "eigensdk",
  "elliptic-curve",
@@ -4798,6 +4773,7 @@ dependencies = [
  "http-body-util",
  "hyper 1.5.0",
  "hyper-util",
+ "itertools 0.13.0",
  "k256",
  "libp2p",
  "lock_api",
@@ -4814,7 +4790,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sqlx",
- "structopt",
  "subxt",
  "subxt-core",
  "subxt-signer",
@@ -5346,15 +5321,6 @@ dependencies = [
 
 [[package]]
 name = "heck"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d621efb26863f0e9924c6ac577e8275e5e6b77455db64ffa6c65c904e9e132c"
-dependencies = [
- "unicode-segmentation",
-]
-
-[[package]]
-name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
@@ -5367,15 +5333,6 @@ name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
-
-[[package]]
-name = "hermit-abi"
-version = "0.1.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
-dependencies = [
- "libc",
-]
 
 [[package]]
 name = "hermit-abi"
@@ -5944,7 +5901,6 @@ dependencies = [
  "parking_lot 0.12.3",
  "serde_json",
  "sp-core",
- "structopt",
  "subxt-signer",
  "tokio",
  "tokio-util 0.7.12",
@@ -5976,6 +5932,7 @@ dependencies = [
  "async-trait",
  "bip39",
  "blueprint-test-utils",
+ "clap",
  "color-eyre",
  "ed25519-zebra 4.0.3",
  "eigensdk",
@@ -5993,7 +5950,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-core",
- "structopt",
  "subxt-signer",
  "thiserror",
  "tokio",
@@ -8567,7 +8523,6 @@ dependencies = [
  "reqwest 0.12.8",
  "serde_json",
  "sp-core",
- "structopt",
  "subxt-signer",
  "tokio",
  "tokio-util 0.7.12",
@@ -11514,12 +11469,6 @@ dependencies = [
 
 [[package]]
 name = "strsim"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
-
-[[package]]
-name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
@@ -11551,30 +11500,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.85",
-]
-
-[[package]]
-name = "structopt"
-version = "0.3.26"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c6b5c64445ba8094a6ab0c3cd2ad323e07171012d9c98b0b15651daf1787a10"
-dependencies = [
- "clap 2.34.0",
- "lazy_static",
- "structopt-derive",
-]
-
-[[package]]
-name = "structopt-derive"
-version = "0.4.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcb5ae327f9cc13b68763b5749770cb9e048a99bd9dfdfa58d0cf05d5f64afe0"
-dependencies = [
- "heck 0.3.3",
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -11945,7 +11870,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tangle-raw-blueprint"
+name = "tangle-raw-event-listener-blueprint"
 version = "0.1.1"
 dependencies = [
  "blueprint-metadata",
@@ -12065,15 +11990,6 @@ dependencies = [
  "tokio-stream",
  "tokio-util 0.7.12",
  "url",
-]
-
-[[package]]
-name = "textwrap"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
-dependencies = [
- "unicode-width",
 ]
 
 [[package]]
@@ -12862,12 +12778,6 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
-
-[[package]]
-name = "vec_map"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 
 [[package]]
 name = "version_check"

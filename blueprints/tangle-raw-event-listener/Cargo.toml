@@ -1,5 +1,5 @@
 [package]
-name = "tangle-raw-blueprint"
+name = "tangle-raw-event-listener-blueprint"
 version = "0.1.1"
 description = "A Simple Blueprint to demo how to listen to raw events from Tangle"
 authors.workspace = true

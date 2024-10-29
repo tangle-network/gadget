@@ -21,7 +21,6 @@ sp-core = { workspace = true }
 subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"] }
 parking_lot = { workspace = true }
 ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde", "pem"] }
-structopt = { workspace = true }
 hex = { workspace = true }
 k256 = { workspace = true }
 serde_json = { workspace = true }

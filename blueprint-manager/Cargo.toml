@@ -12,9 +12,9 @@ path = "src/main.rs"
 sp-core = { workspace = true }
 gadget-io = { workspace = true }
 gadget-sdk = { workspace = true, default-features = true }
+clap = { workspace = true, features = ["derive", "wrap_help"] }
 color-eyre = { workspace = true, features = ["tracing-error", "color-spantrace", "issue-url"] }
 serde = { workspace = true }
-structopt = { workspace = true }
 tangle-subxt = { workspace = true }
 toml = { workspace = true }
 hex = { workspace = true }

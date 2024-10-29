@@ -22,10 +22,10 @@ use eigensdk::client_elcontracts::writer::ELChainWriter;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
+use gadget_sdk::clap::Parser;
 use gadget_sdk::events_watcher::InitializableEventHandler;
 use gadget_sdk::info;
 use gadget_sdk::run::GadgetRunner;
-use gadget_sdk::structopt::StructOpt;
 use gadget_sdk::{
     config::{ContextConfig, GadgetConfiguration},
     events_watcher::evm::DefaultNodeConfig,
@@ -158,9 +158,11 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         );
 
         let aggregator_client = AggregatorClient::new(&format!("{}:{}", self.env.bind_addr, 8081))?;
+        // TODO: implicit fields should be implicitly constructed via an auto-drived new function on the autogen job struct
         let x_square_eigen = XsquareEigenEventHandler::<DefaultNodeConfig> {
             ctx: aggregator_client,
             contract: contract.clone().into(),
+            contract_instance: Default::default(),
         };
 
         let aggregator_context = AggregatorContext::new(
@@ -211,7 +213,7 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 
 pub async fn execute_runner() -> Result<()> {
     gadget_sdk::logging::setup_log();
-    let config = ContextConfig::from_args();
+    let config = ContextConfig::parse();
     let env = gadget_sdk::config::load(config).expect("Failed to load environment");
     let mut runner = Box::new(EigenlayerGadgetRunner::new(env.clone()).await);
 

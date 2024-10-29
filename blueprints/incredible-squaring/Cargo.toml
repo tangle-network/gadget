@@ -26,7 +26,6 @@ ark-ec = { workspace = true }
 parking_lot = { workspace = true }
 libp2p = { workspace = true }
 ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde", "pem"] }
-structopt = { workspace = true }
 hex = { workspace = true }
 k256 = { workspace = true }
 serde_json = { workspace = true }

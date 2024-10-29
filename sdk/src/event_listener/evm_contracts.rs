@@ -3,37 +3,51 @@ use crate::event_listener::get_exponential_backoff;
 use crate::events_watcher::evm::{Config as ConfigT, EvmEventHandler};
 use crate::store::LocalDatabase;
 use crate::{error, Error};
-use alloy_contract::Event;
+use alloy_contract::{ContractInstance, Event};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockNumberOrTag, Filter};
 use alloy_sol_types::SolEvent;
-use std::sync::Arc;
+use alloy_network::Ethereum;
 use tokio_retry::Retry;
 use tracing::{info, warn};
 use uuid::Uuid;
 
-pub struct EthereumHandlerWrapper<W: EvmEventHandler<C>, C: ConfigT> {
-    handler: Arc<W>,
-    contract: W::Contract,
+pub trait EthereumContractBound: Clone + Send + Sync +
+crate::events_watcher::evm::Config<
+    TH: alloy_transport::Transport + Clone + Send + Sync + 'static,
+    PH: alloy_provider::Provider<<Self as crate::events_watcher::evm::Config>::TH> + Clone + Send + Sync + 'static> + 'static {}
+
+// Impl EthereumContractBound for any T satisfying the bounds
+impl<T> EthereumContractBound for T where T: Clone + Send + Sync +
+crate::events_watcher::evm::Config<
+    TH: alloy_transport::Transport + Clone + Send + Sync + 'static,
+    PH: alloy_provider::Provider<<T as crate::events_watcher::evm::Config>::TH> + Clone + Send + Sync + 'static> + 'static {}
+
+pub struct EthereumHandlerWrapper<W: EvmEventHandler<C>, T: EthereumContractBound, C: ConfigT> {
+    instance: W,
     chain_id: u64,
     local_db: LocalDatabase<u64>,
-    _phantom: std::marker::PhantomData<C>,
+    _phantom: std::marker::PhantomData<(C, T)>,
 }
 
-pub type EvmWatcherWrapperContext<W, Config> = (<W as EvmEventHandler<Config>>::Contract, Arc<W>);
+pub trait EvmContractInstance<T: EthereumContractBound> {
+    fn get_instance(&self) -> &ContractInstance<T::TH, T::PH, Ethereum>;
+}
+
+pub type EvmWatcherWrapperContext<W> = W;
 
 #[async_trait::async_trait]
-impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
+impl<Config: ConfigT, T: EthereumContractBound, Watcher: Clone + EvmEventHandler<Config> + EvmContractInstance<T>>
     EventListener<
         Vec<(Watcher::Event, alloy_rpc_types::Log)>,
-        EvmWatcherWrapperContext<Watcher, Config>,
-    > for EthereumHandlerWrapper<Watcher, Config>
+        EvmWatcherWrapperContext<Watcher>,
+    > for EthereumHandlerWrapper<Watcher, T, Config>
 {
-    async fn new(context: &EvmWatcherWrapperContext<Watcher, Config>) -> Result<Self, Error>
+    async fn new(context: &EvmWatcherWrapperContext<Watcher>) -> Result<Self, Error>
     where
         Self: Sized,
     {
-        let provider = context.0.provider().root();
+        let provider = context.get_instance().provider().root();
         // Add more detailed error handling and logging
         let chain_id = provider
             .get_chain_id()
@@ -44,16 +58,16 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
         Ok(Self {
             chain_id,
             local_db,
-            handler: context.1.clone(),
-            contract: context.0.clone(),
+            instance: context.clone(),
             _phantom: std::marker::PhantomData,
         })
     }
 
     async fn next_event(&mut self) -> Option<Vec<(Watcher::Event, alloy_rpc_types::Log)>> {
-        let contract = &self.contract;
+        let contract = &self.instance;
         let step = 100;
         let target_block_number: u64 = contract
+            .get_instance()
             .provider()
             .get_block_number()
             .await
@@ -62,7 +76,7 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
         // Get the latest block number
         let block = self
             .local_db
-            .get(&format!("LAST_BLOCK_NUMBER_{}", contract.address()))
+            .get(&format!("LAST_BLOCK_NUMBER_{}", contract.get_instance().address()))
             .unwrap_or(0);
 
         let should_cooldown = block >= target_block_number;
@@ -73,22 +87,22 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
         let dest_block = core::cmp::min(block + step, target_block_number);
 
         // Query events
-        let events_filter = Event::new(contract.provider(), Filter::new())
-            .address(*contract.address())
+        let events_filter = Event::new(contract.get_instance().provider(), Filter::new())
+            .address(*contract.get_instance().address())
             .from_block(BlockNumberOrTag::Number(block + 1))
             .to_block(BlockNumberOrTag::Number(dest_block))
             .event_signature(Watcher::Event::SIGNATURE_HASH);
 
-        info!("Querying events for filter, address: {}, from_block: {}, to_block: {}, event_signature: {}", contract.address(), block + 1, dest_block, Watcher::Event::SIGNATURE_HASH);
+        info!("Querying events for filter, address: {}, from_block: {}, to_block: {}, event_signature: {}", contract.get_instance().address(), block + 1, dest_block, Watcher::Event::SIGNATURE_HASH);
         match events_filter.query().await {
             Ok(events) => {
                 self.local_db.set(
-                    &format!("LAST_BLOCK_NUMBER_{}", contract.address()),
+                    &format!("LAST_BLOCK_NUMBER_{}", contract.get_instance().address()),
                     dest_block,
                 );
 
                 self.local_db.set(
-                    &format!("TARGET_BLOCK_{}", contract.address()),
+                    &format!("TARGET_BLOCK_{}", contract.get_instance().address()),
                     target_block_number,
                 );
 
@@ -110,7 +124,7 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
         let mut tasks = vec![];
         for (event, log) in &events {
             let backoff = get_exponential_backoff::<MAX_RETRIES>();
-            let handler = self.handler.clone();
+            let handler = self.instance.clone();
             let task = async move {
                 Retry::spawn(backoff, || async { handler.handle(log, event).await }).await
             };
@@ -149,7 +163,7 @@ impl<Config: ConfigT, Watcher: EvmEventHandler<Config>>
     }
 }
 
-impl<Config: ConfigT, Watcher: EvmEventHandler<Config>> EthereumHandlerWrapper<Watcher, Config> {
+impl<Config: ConfigT, T: EthereumContractBound, Watcher: Clone + EvmEventHandler<Config> + EvmContractInstance<T>> EthereumHandlerWrapper<Watcher, T, Config> {
     async fn run_event_loop(&mut self) -> Result<(), Error> {
         while let Some(events) = self.next_event().await {
             if events.is_empty() {

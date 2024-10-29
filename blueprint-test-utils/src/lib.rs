@@ -47,7 +47,7 @@ pub struct PerTestNodeInput<T> {
     bind_ip: IpAddr,
     bind_port: u16,
     bootnodes: Vec<Multiaddr>,
-    verbose: i32,
+    verbose: u8,
     pretty: bool,
     #[allow(dead_code)]
     extra_input: T,

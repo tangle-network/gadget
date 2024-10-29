@@ -13,12 +13,15 @@ use syn::{Expr, ItemFn, Token};
 mod kw {
     // Presented as #[sdk::main(env)]
     syn::custom_keyword!(env);
+    // Presented as #[sdk::main(skip_logger)]
+    syn::custom_keyword!(skip_logger);
 }
 
 // Add fields which are passed onto tokio, and those that are reserved for the sdk_main macro
 pub(crate) struct SdkMainArgs {
     tokio_args: Option<Vec<Expr>>,
     env: bool,
+    skip_logger: bool,
 }
 
 pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<TokenStream> {
@@ -43,12 +46,20 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
     let standard_setup = if args.env {
         quote! {
             // Load the environment and create the gadget runner
-            let config: gadget_sdk::config::ContextConfig = gadget_sdk::structopt::StructOpt::from_args();
+            let config: gadget_sdk::config::ContextConfig = gadget_sdk::clap::Parser::parse();
             let env = gadget_sdk::config::load(config.clone()).expect("Failed to load environment");
             gadget_sdk::utils::check_for_test(&config).expect("Failed to check for test");
         }
     } else {
         proc_macro2::TokenStream::default()
+    };
+
+    let logger = if args.skip_logger {
+        quote! {}
+    } else {
+        quote! {
+            gadget_sdk::logging::setup_log();
+        }
     };
 
     // Next, we need to consider the input. It should be in the form "async fn main() { ... }"
@@ -59,7 +70,7 @@ pub(crate) fn sdk_main_impl(args: &SdkMainArgs, input: &ItemFn) -> syn::Result<T
         use gadget_sdk::tokio;
         #[tokio::main #tokio_args]
         async fn main() -> Result<(), Box<dyn std::error::Error>> {
-            gadget_sdk::logging::setup_log();
+            #logger
             #standard_setup
             inner_main(#env_passed_var).await?;
             Ok(())
@@ -79,6 +90,7 @@ impl Parse for SdkMainArgs {
         // to the SdkMainArgs struct. Otherwise, add it to the tokio args
         let mut tokio_args = vec![];
         let mut env = false;
+        let mut skip_logger = false;
         // Parse through everything
         while !input.is_empty() {
             if input.peek(Token![,]) {
@@ -88,7 +100,11 @@ impl Parse for SdkMainArgs {
             if input.peek(kw::env) {
                 let _ = input.parse::<kw::env>()?;
                 env = true;
+            } else if input.peek(kw::skip_logger) {
+                let _ = input.parse::<kw::skip_logger>()?;
+                skip_logger = true;
             } else {
+                // Parse the input as an expression
                 tokio_args.push(input.parse()?);
             }
         }
@@ -99,6 +115,10 @@ impl Parse for SdkMainArgs {
             Some(tokio_args)
         };
 
-        Ok(SdkMainArgs { tokio_args, env })
+        Ok(SdkMainArgs {
+            tokio_args,
+            env,
+            skip_logger,
+        })
     }
 }
