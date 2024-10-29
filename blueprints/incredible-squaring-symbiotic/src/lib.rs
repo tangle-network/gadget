@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::{ops::Deref, sync::OnceLock};
 
 sol!(
-    #[allow(missing_docs)]
+    #[allow(missing_docs, clippy::too_many_arguments)]
     #[sol(rpc)]
     #[derive(Debug, Serialize, Deserialize)]
     IncredibleSquaringTaskManager,
