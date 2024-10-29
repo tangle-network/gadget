@@ -128,73 +128,97 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
 
 /// Adds keys relevant for the test to the keystore, and performs some necessary
 /// cross-compatability tests to ensure key use consistency between different parts of the codebase
+///
+/// Accepted `node_index` values:
+/// - 0-4: Pre-made Tangle accounts (SR25519 and ECDSA are predetermined while BLS is random)
+/// - 5+: Randomly generated keys (All key types are generated randomly)
+///
+/// # Errors
+///
+/// - If the keystore path cannot be created
+/// - If key generation fails for any reason `Invalid Seed` or `Random Key Generation Failed` Error
+/// - If the sanity checks for the generated keys fail
+///
 pub async fn inject_test_keys<P: AsRef<Path>>(
     keystore_path: P,
     node_index: usize,
 ) -> color_eyre::Result<()> {
     let path = keystore_path.as_ref();
-    let name = NAME_IDS[node_index];
     tokio::fs::create_dir_all(path).await?;
 
-    let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
-        keystore_path.as_ref(),
-    )?);
+    if node_index >= NAME_IDS.len() {
+        let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
+            keystore_path.as_ref(),
+        )?);
+        keystore
+            .sr25519_generate_new(None)
+            .expect("Random SR25519 Key Generation Failed");
+        keystore
+            .ecdsa_generate_new(None)
+            .expect("Random ECDSA Key Generation Failed");
+        keystore
+            .bls_bn254_generate_new(None)
+            .expect("Random BLS Key Generation Failed");
+    } else {
+        let name = NAME_IDS[node_index];
 
-    let suri = format!("//{name}"); // <---- is the exact same as the ones in the chainspec
+        let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
+            keystore_path.as_ref(),
+        )?);
 
-    let sr = sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
-    // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
-    let sr_seed = &sr.as_ref().secret.to_bytes();
+        let suri = format!("//{name}"); // <---- is the exact same as the ones in the chainspec
 
-    let ecdsa =
-        sp_core::ecdsa::Pair::from_string(&suri, None).expect("Should be valid ECDSA keypair");
-    // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
-    let ecdsa_seed = ecdsa.seed();
+        let sr =
+            sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
+        let sr_seed = &sr.as_ref().secret.to_bytes();
 
-    keystore
-        .sr25519_generate_new(Some(sr_seed))
-        .expect("Should be valid SR25519 seed");
-    keystore
-        .ecdsa_generate_new(Some(&ecdsa_seed))
-        .expect("Should be valid ECDSA seed");
-    keystore
-        .bls_bn254_generate_from_string(
-            "1371012690269088913462269866874713266643928125698382731338806296762673180359922"
-                .to_string(),
-        )
-        .expect("Should be valid BLS seed");
+        let ecdsa =
+            sp_core::ecdsa::Pair::from_string(&suri, None).expect("Should be valid ECDSA keypair");
+        let ecdsa_seed = ecdsa.seed();
 
-    // Perform sanity checks on conversions between secrets to ensure
-    // consistency as the program executes
-    let bytes: [u8; 64] = sr.as_ref().secret.to_bytes();
-    let secret_key_again = keystore::sr25519::secret_from_bytes(&bytes).expect("Should be valid");
-    assert_eq!(&bytes[..], &secret_key_again.to_bytes()[..]);
+        keystore
+            .sr25519_generate_new(Some(sr_seed))
+            .expect("Invalid SR25519 seed");
+        keystore
+            .ecdsa_generate_new(Some(&ecdsa_seed))
+            .expect("Invalid ECDSA seed");
+        keystore
+            .bls_bn254_generate_new(None)
+            .expect("Random BLS Key Generation Failed");
 
-    let sr2 = TanglePairSigner::new(
-        sp_core::sr25519::Pair::from_seed_slice(&bytes).expect("Should be valid SR25519 keypair"),
-    );
+        // Perform sanity checks on conversions between secrets to ensure
+        // consistency as the program executes
+        let bytes: [u8; 64] = sr.as_ref().secret.to_bytes();
+        let secret_key_again =
+            keystore::sr25519::secret_from_bytes(&bytes).expect("Invalid SR25519 Bytes");
+        assert_eq!(&bytes[..], &secret_key_again.to_bytes()[..]);
 
-    let sr1_account_id: AccountId32 = AccountId32(sr.as_ref().public.to_bytes());
-    let sr2_account_id: AccountId32 = sr2.account_id().clone();
-    assert_eq!(sr1_account_id, sr2_account_id);
+        let sr2 = TanglePairSigner::new(
+            sp_core::sr25519::Pair::from_seed_slice(&bytes).expect("Invalid SR25519 keypair"),
+        );
 
-    match keystore.ecdsa_key() {
-        Ok(ecdsa_key) => {
-            assert_eq!(ecdsa_key.signer().seed(), ecdsa_seed);
+        let sr1_account_id: AccountId32 = AccountId32(sr.as_ref().public.to_bytes());
+        let sr2_account_id: AccountId32 = sr2.account_id().clone();
+        assert_eq!(sr1_account_id, sr2_account_id);
+
+        match keystore.ecdsa_key() {
+            Ok(ecdsa_key) => {
+                assert_eq!(ecdsa_key.signer().seed(), ecdsa_seed);
+            }
+            Err(err) => {
+                log::error!(target: "gadget", "Failed to load ecdsa key: {err}");
+                panic!("Failed to load ecdsa key: {err}");
+            }
         }
-        Err(err) => {
-            log::error!(target: "gadget", "Failed to load ecdsa key: {err}");
-            panic!("Failed to load ecdsa key: {err}");
-        }
-    }
 
-    match keystore.sr25519_key() {
-        Ok(sr25519_key) => {
-            assert_eq!(sr25519_key.signer().public().0, sr.public().0);
-        }
-        Err(err) => {
-            log::error!(target: "gadget", "Failed to load sr25519 key: {err}");
-            panic!("Failed to load sr25519 key: {err}");
+        match keystore.sr25519_key() {
+            Ok(sr25519_key) => {
+                assert_eq!(sr25519_key.signer().public().0, sr.public().0);
+            }
+            Err(err) => {
+                log::error!(target: "gadget", "Failed to load sr25519 key: {err}");
+                panic!("Failed to load sr25519 key: {err}");
+            }
         }
     }
 
