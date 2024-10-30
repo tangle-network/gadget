@@ -168,6 +168,9 @@ jobs:
       - name: install cargo-nextest
         run: cargo install cargo-nextest --locked
 
+      - name: Build (release) integration test
+        run: cargo build --release -p incredible-squaring-blueprint-eigenlayer
+
       - name: tests
         run: RUST_LOG=gadget=trace cargo test --package blueprint-test-utils test_eigenlayer_incredible_squaring_blueprint -- --nocapture
 
