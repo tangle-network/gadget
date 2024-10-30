@@ -1,9 +1,8 @@
 use color_eyre::{eyre::eyre, Result};
 use gadget_sdk::info;
-use gadget_sdk::runners::tangle::TangleConfig;
-use gadget_sdk::runners::BlueprintRunner;
+use gadget_sdk::runners::{tangle::TangleConfig, BlueprintRunner};
 use gadget_sdk::tangle_subxt::subxt::tx::Signer;
-use incredible_squaring_blueprint as blueprint;
+use tangle_raw_event_listener_blueprint as blueprint;
 
 #[gadget_sdk::main(env)]
 async fn main() {
@@ -12,15 +11,16 @@ async fn main() {
 
     info!("Starting the event watcher for {} ...", signer.account_id());
 
-    let x_square = blueprint::XsquareEventHandler {
+    let x_square = blueprint::RawEventHandler {
         service_id: env.service_id().expect("No service ID found"),
         context: blueprint::MyContext,
         client,
         signer,
     };
 
-    info!("~~~ Executing the incredible squaring blueprint ~~~");
     let tangle_config = TangleConfig::default();
+
+    info!("~~~ Executing the incredible squaring blueprint ~~~");
     BlueprintRunner::new(tangle_config, env)
         .job(x_square)
         .run()

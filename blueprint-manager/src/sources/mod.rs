@@ -156,7 +156,6 @@ pub fn generate_process_arguments(
         format!("--ws-rpc-url={}", gadget_config.ws_rpc_url),
         format!("--keystore-uri={}", gadget_config.keystore_uri),
         format!("--chain={}", gadget_config.chain),
-        format!("-{}", "v".repeat(gadget_config.verbose as usize)),
         format!("--blueprint-id={}", blueprint_id),
         format!("--service-id={}", service_id),
         format!("--protocol={}", protocol),
@@ -171,6 +170,11 @@ pub fn generate_process_arguments(
 
     if let Some(keystore_password) = &gadget_config.keystore_password {
         arguments.push(format!("--keystore-password={}", keystore_password));
+    }
+
+    // Uses occurrences of clap short -v
+    if opt.verbose > 0 {
+        arguments.push(format!("-{}", "v".repeat(opt.verbose as usize)));
     }
 
     Ok(arguments)

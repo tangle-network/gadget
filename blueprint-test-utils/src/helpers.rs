@@ -139,8 +139,8 @@ impl BlueprintProcessManager {
             format!("--ws-rpc-url={}", Url::parse(ws_endpoint).unwrap()),
             format!("--keystore-uri={}", keystore_uri_str.clone()),
             format!("--chain={}", SupportedChains::LocalTestnet),
-            format!("--vvv"),
-            format!("--pretty"),
+            "-vvv".to_string(),
+            "--pretty".to_string(),
             format!("--blueprint-id={}", instance_id),
             format!("--service-id={}", instance_id),
             format!("--protocol={}", protocol),
@@ -167,10 +167,6 @@ impl BlueprintProcessManager {
                 arguments.push(format!(
                     "--strategy-manager={}",
                     EigenlayerContractAddresses::default().strategy_manager_address
-                ));
-                arguments.push(format!(
-                    "--avs-directory={}",
-                    EigenlayerContractAddresses::default().avs_directory_address
                 ));
             }
             Protocol::Symbiotic => {

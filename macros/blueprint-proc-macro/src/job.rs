@@ -66,7 +66,6 @@ pub(crate) fn job_impl(args: &JobArgs, input: &ItemFn) -> syn::Result<TokenStrea
         args.skip_codegen,
         &param_map,
         &args.params,
-        &result_type,
     );
 
     // Generate Event Workflow, if not being skipped
@@ -220,9 +219,9 @@ pub(crate) fn generate_event_workflow_tokenstream(
     skip_codegen: bool,
     param_types: &IndexMap<Ident, Type>,
     params: &[Ident],
-    result_types: &[FieldType],
 ) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
-    let (event_handler_args, event_handler_arg_types) = get_event_handler_args(param_types, params);
+    let (mut event_handler_args, _event_handler_arg_types) =
+        get_event_handler_args(param_types, params);
     let (_, _, struct_name) = generate_fn_name_and_struct(input, suffix);
     let (fn_name_string, _job_def_name, job_id_name) = get_job_id_field_name(input);
     // Generate Event Listener, if not being skipped
@@ -260,11 +259,11 @@ pub(crate) fn generate_event_workflow_tokenstream(
             let next_listener = if matches!(listener_meta.listener_type, ListenerType::Evm) {
                 // How to inject not just this event handler, but all event handlers here?
                 let wrapper = quote! {
-                    gadget_sdk::event_listener::evm_contracts::EthereumHandlerWrapper<#autogen_struct_name, _>
+                    gadget_sdk::event_listener::evm_contracts::EthereumHandlerWrapper<_, _, _>
                 };
 
                 let ctx_create = quote! {
-                    (ctx.contract.clone(), std::sync::Arc::new(ctx.clone()) as std::sync::Arc<#autogen_struct_name>)
+                    ctx.clone()
                 };
 
                 if event_listener_calls.is_empty() {
@@ -300,17 +299,39 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 // Generate the variable that we are passing as the context into EventListener::create(&mut ctx)
                 // We assume the first supplied event handler arg is the context we are injecting into the event listener
                 // Then, pass that into the EventFlowWrapper
-                let (context, field_in_self) = event_handler_args
+                let fn_name_ident = &input.sig.ident;
+                let static_ctx_get_override = quote! { CTX.get().unwrap() };
+                let mut ordered_inputs =
+                    get_fn_call_ordered(param_types, params, Some(static_ctx_get_override));
+
+                let asyncness = get_asyncness(input);
+                let call_id_static_name = get_current_call_id_field_name(input);
+
+                // Raw events have no pre-processor, therefore their inputs are passed directly into the job function
+                // and NOT as job params
+                let is_raw = listener_meta.is_raw();
+
+                // TODO: task 001: find better way to identify which ident is the raw event
+                // for now, we assume the raw event is always listed first
+                if is_raw {
+                    let _ = event_handler_args.remove(0);
+                }
+
+                let field_in_self_getter = event_handler_args
                     .first()
-                    .map(|ctx| (quote! {self}, (*ctx).clone()))
+                    .map(|field_in_self| {
+                        // If is_raw, assume the actual context is the second param
+                        quote! { ctx. #field_in_self .clone() }
+                    })
                     .expect("No context found");
 
                 let autogen_struct_name = quote! { #struct_name #type_args };
 
+                /*
                 let context_ty = event_handler_arg_types
                     .first()
                     .map(|ty| quote! {#ty})
-                    .unwrap_or_default();
+                    .unwrap_or_default();*/
 
                 if event_listener_calls.is_empty() {
                     event_listener_calls.push(quote! {
@@ -319,7 +340,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 }
 
                 event_listener_calls.push(quote! {
-                    listeners.push(#listener_function_name(&#context).await.expect("Event listener already initialized"));
+                    listeners.push(#listener_function_name(&self).await.expect("Event listener already initialized"));
                 });
 
                 let pre_processor_function =
@@ -331,13 +352,6 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     };
 
                 // The job_processor is just the job function. Since it may contain multiple params, we need a new function to call it.
-                let fn_name_ident = &input.sig.ident;
-                let static_ctx_get_override = quote! { CTX.get().unwrap() };
-                let ordered_inputs =
-                    get_fn_call_ordered(param_types, params, Some(static_ctx_get_override));
-
-                let asyncness = get_asyncness(input);
-                let call_id_static_name = get_current_call_id_field_name(input);
                 let job_processor_wrapper = if matches!(
                     listener_meta.listener_type,
                     ListenerType::Tangle
@@ -345,15 +359,28 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     let params = declared_params_to_field_types(params, param_types)
                         .expect("Failed to generate params");
                     let params_tokens = event_listeners.get_param_name_tokenstream(&params, true);
+
+                    let job_processor_call = if params_tokens.is_empty() {
+                        let second_param = ordered_inputs.pop().expect("Expected a context");
+                        quote! {
+                            // If no args are specified, assume this job has no parameters and thus takes in the raw event
+                            #fn_name_ident (param0, #second_param) #asyncness .map_err(|err| gadget_sdk::Error::Other(err.to_string()))
+                        }
+                    } else {
+                        quote! {
+                            let mut args_iter = param0.args.clone().into_iter();
+                            #(#params_tokens)*
+                            #fn_name_ident (#(#ordered_inputs)*) #asyncness .map_err(|err| gadget_sdk::Error::Other(err.to_string()))
+                        }
+                    };
+
                     quote! {
-                        move |event: gadget_sdk::event_listener::tangle::jobs::TangleJobEvent<#context_ty>| async move {
-                            if let Some(call_id) = event.call_id {
+                        move |param0: gadget_sdk::event_listener::tangle::TangleEvent<_, _>| async move {
+                            if let Some(call_id) = param0.call_id {
                                 #call_id_static_name.store(call_id, std::sync::atomic::Ordering::Relaxed);
                             }
 
-                            let mut args_iter = event.args.clone().into_iter();
-                            #(#params_tokens)*
-                            #fn_name_ident (#(#ordered_inputs)*) #asyncness .map_err(|err| gadget_sdk::Error::Other(err.to_string()))
+                            #job_processor_call
                         }
                     }
                 } else {
@@ -368,16 +395,11 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     &listener_meta.post_processor
                 {
                     if matches!(listener_meta.listener_type, ListenerType::Tangle) {
-                        let result_tokens =
-                            event_listeners.get_param_result_tokenstream(result_types);
                         quote! {
                             |job_result| async move {
                                 let ctx = CTX.get().unwrap();
-                                let mut result = Vec::new();
-                                // TODO: Will need to decouple this from jobs
-                                #(#result_tokens)*
-                                let tangle_job_result = gadget_sdk::event_listener::tangle::jobs::TangleJobResult {
-                                    results: result,
+                                let tangle_job_result = gadget_sdk::event_listener::tangle::TangleResult::<_> {
+                                    results: job_result,
                                     service_id: ctx.service_id,
                                     call_id: #call_id_static_name.load(std::sync::atomic::Ordering::Relaxed),
                                     client: ctx.client.clone(),
@@ -395,22 +417,20 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     quote! { |_evt| async move { Ok(()) } }
                 };
 
-                let context_declaration = if matches!(
-                    listener_meta.listener_type,
-                    ListenerType::Tangle
-                ) {
-                    quote! {
-                        let context = gadget_sdk::event_listener::tangle::TangleListenerInput::<#context_ty> {
-                            client: ctx.client.clone(),
-                            signer: ctx.signer.clone(),
-                            job_id: #job_id_name,
-                            service_id: ctx.service_id,
-                            context: ctx. #field_in_self .clone(),
-                        };
-                    }
-                } else {
-                    quote! { let context = ctx. #field_in_self .clone(); }
-                };
+                let context_declaration =
+                    if matches!(listener_meta.listener_type, ListenerType::Tangle) {
+                        quote! {
+                            let context = gadget_sdk::event_listener::tangle::TangleListenerInput {
+                                client: ctx.client.clone(),
+                                signer: ctx.signer.clone(),
+                                job_id: #job_id_name,
+                                service_id: ctx.service_id,
+                                context: #field_in_self_getter,
+                            };
+                        }
+                    } else {
+                        quote! { let context = #field_in_self_getter; }
+                    };
 
                 quote! {
                     async fn #listener_function_name #bounded_type_args(ctx: &#autogen_struct_name) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
@@ -524,7 +544,7 @@ pub fn generate_autogen_struct(
     let (event_handler_args, _) = get_event_handler_args(param_types, params);
 
     let mut additional_var_indexes = vec![];
-    let additional_params = event_handler_args
+    let mut additional_params = event_handler_args
         .iter()
         .map(|ident| {
             let mut ty = param_types[*ident].clone();
@@ -539,6 +559,14 @@ pub fn generate_autogen_struct(
             }
         })
         .collect::<Vec<_>>();
+
+    // TODO: task 001: find better way to identify which ident is the raw event
+    // for now, we assume the raw event is always listed first
+    if event_listener_args.get_event_listener().is_raw() {
+        // We don't care to add the first event to the autogen struct
+        let _ = additional_var_indexes.remove(0);
+        let _ = additional_params.remove(0);
+    }
 
     let mut required_fields = vec![];
     let mut type_params_bounds = proc_macro2::TokenStream::default();
@@ -555,10 +583,11 @@ pub fn generate_autogen_struct(
 
     // Even if multiple evm listeners, we only need this once
     if event_listener_args.has_evm() {
-        let (_, _, instance_wrapper_name, _) = get_evm_instance_data(event_listener_args);
+        let (_, _, _, instance_name) = get_evm_instance_data(event_listener_args);
 
         required_fields.push(quote! {
-            pub contract: #instance_wrapper_name<T::TH, T::PH>,
+            pub contract: #instance_name,
+            pub contract_instance: std::sync::OnceLock<alloy_contract::ContractInstance<T::TH, T::PH, alloy_network::Ethereum>>,
         });
 
         type_params = quote! { <T> };
@@ -579,7 +608,7 @@ pub fn generate_autogen_struct(
             #(#additional_params)*
         }
 
-        #[async_trait::async_trait]
+        #[gadget_sdk::async_trait::async_trait]
         impl #type_params_bounds gadget_sdk::events_watcher::InitializableEventHandler for #struct_name #type_params {
             async fn init_event_handler(
                 &self,
@@ -742,15 +771,11 @@ impl Parse for JobArgs {
 
         let id = id.ok_or_else(|| input.error("Missing `id` argument in attribute"))?;
 
-        if params.is_empty() {
-            return Err(input.error("Missing `params` argument in attribute"));
-        }
-
-        let result = result.ok_or_else(|| input.error("Missing 'result' argument in attribute"))?;
+        let result = result.unwrap_or(ResultsKind::Infered);
 
         if let ResultsKind::Types(ref r) = result {
             if r.is_empty() {
-                return Err(input.error("Expected at least one parameter for the `result` attribute, or `_` to infer the type"));
+                return Err(input.error("`result` attribute empty, expected at least one parameter, or `_` to infer the type"));
             }
         }
 
@@ -885,6 +910,12 @@ pub(crate) struct SingleListener {
     pub event: Option<Type>,
     pub post_processor: Option<Type>,
     pub pre_processor: Option<Type>,
+}
+
+impl SingleListener {
+    pub fn is_raw(&self) -> bool {
+        self.pre_processor.is_none() && matches!(self.listener_type, ListenerType::Tangle)
+    }
 }
 
 /// Extracts a value from form: "tag = value"
@@ -1026,60 +1057,6 @@ pub(crate) struct EvmArgs {
 impl EventListenerArgs {
     pub fn get_event_listener(&self) -> &SingleListener {
         &self.listeners[0]
-    }
-
-    pub fn get_param_result_tokenstream(
-        &self,
-        fields: &[FieldType],
-    ) -> Vec<proc_macro2::TokenStream> {
-        let event_listener = self.get_event_listener();
-        if fields.len() == 1 {
-            let ident = format_ident!("job_result");
-            match event_listener.listener_type {
-                ListenerType::Evm => {
-                    vec![quote! { let #ident = job_result; }]
-                }
-
-                ListenerType::Tangle => {
-                    vec![crate::tangle::field_type_to_result_token(
-                        &ident, &fields[0],
-                    )]
-                }
-
-                ListenerType::Custom => {
-                    vec![quote! { let #ident = job_result; }]
-                }
-            }
-        } else {
-            fields
-                .iter()
-                .enumerate()
-                .map(|(i, t)| {
-                    let ident = format_ident!("result_{i}");
-                    match event_listener.listener_type {
-                        ListenerType::Evm => {
-                            quote! {
-                                let #ident = job_result[#i];
-                            }
-                        }
-
-                        ListenerType::Tangle => {
-                            let s = crate::tangle::field_type_to_result_token(&ident, t);
-                            quote! {
-                                let #ident = job_result[#i];
-                                #s
-                            }
-                        }
-
-                        ListenerType::Custom => {
-                            quote! {
-                                let #ident = job_result[#i];
-                            }
-                        }
-                    }
-                })
-                .collect::<Vec<_>>()
-        }
     }
 
     pub fn get_param_name_tokenstream(

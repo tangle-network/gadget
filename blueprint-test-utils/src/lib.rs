@@ -313,24 +313,6 @@ pub async fn request_service(
     Ok(())
 }
 
-/// Approves a service request. This is meant for testing, and will always approve the request.
-pub async fn approve_service(
-    client: &TestClient,
-    caller: &TanglePairSigner<sp_core::sr25519::Pair>,
-    request_id: u64,
-    restaking_percent: u8,
-) -> Result<(), Box<dyn Error>> {
-    let call = api::tx()
-        .services()
-        .approve(request_id, Percent(restaking_percent));
-    let res = client
-        .tx()
-        .sign_and_submit_then_watch_default(&call, caller)
-        .await?;
-    wait_for_in_block_success(res).await?;
-    Ok(())
-}
-
 pub async fn wait_for_in_block_success(
     mut res: TxProgress<TangleConfig, TestClient>,
 ) -> Result<(), Box<dyn Error>> {
@@ -410,6 +392,39 @@ pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>
     Ok(res)
 }
 
+/// Approves a service request. This is meant for testing, and will always approve the request.
+pub async fn approve_service(
+    client: &TestClient,
+    caller: &TanglePairSigner<sp_core::sr25519::Pair>,
+    request_id: u64,
+    restaking_percent: u8,
+) -> Result<(), Box<dyn Error>> {
+    gadget_sdk::info!("Approving service request ...");
+    let call = api::tx()
+        .services()
+        .approve(request_id, Percent(restaking_percent));
+    let res = client
+        .tx()
+        .sign_and_submit_then_watch_default(&call, caller)
+        .await?;
+    res.wait_for_finalized_success().await?;
+    Ok(())
+}
+
+pub async fn get_next_request_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
+    gadget_sdk::info!("Fetching next request ID ...");
+    let next_request_id_addr = api::storage().services().next_service_request_id();
+    let next_request_id = client
+        .storage()
+        .at_latest()
+        .await
+        .expect("Failed to fetch latest block")
+        .fetch_or_default(&next_request_id_addr)
+        .await
+        .expect("Failed to fetch next request ID");
+    Ok(next_request_id)
+}
+
 #[macro_export]
 macro_rules! test_blueprint {
     (
@@ -420,7 +435,7 @@ macro_rules! test_blueprint {
         [$($expected_output:expr),+]
     ) => {
         use $crate::{
-            get_next_call_id, get_next_service_id, run_test_blueprint_manager,
+            get_next_call_id, run_test_blueprint_manager,
             submit_job, wait_for_completion_of_tangle_job, Opts, setup_log,
         };
 
@@ -457,11 +472,10 @@ macro_rules! test_blueprint {
                 run_test_blueprint_manager,
             )
             .await
-            .execute_with_async(move |client, handles| async move {
+            .execute_with_async(move |client, handles, blueprint| async move {
                 let keypair = handles[0].sr25519_id().clone();
-                let service_id = get_next_service_id(client)
-                    .await
-                    .expect("Failed to get next service id");
+                let selected_service = &blueprint.services[0];
+                let service_id = selected_service.id;
                 let call_id = get_next_call_id(client)
                     .await
                     .expect("Failed to get next job id");
@@ -570,17 +584,14 @@ mod tests_standard {
 
         new_test_ext_blueprint_manager::<5, 1, (), _, _>((), opts, run_test_blueprint_manager)
             .await
-            .execute_with_async(move |client, handles| async move {
+            .execute_with_async(move |client, handles, blueprint| async move {
                 // At this point, blueprint has been deployed, every node has registered
                 // as an operator for the relevant services, and, all gadgets are running
 
                 // What's left: Submit a job, wait for the job to finish, then assert the job results
                 let keypair = handles[0].sr25519_id().clone();
-
-                let service_id = get_next_service_id(client)
-                    .await
-                    .expect("Failed to get next service id")
-                    .saturating_sub(1);
+                let selected_service = &blueprint.services[0];
+                let service_id = selected_service.id;
                 let call_id = get_next_call_id(client)
                     .await
                     .expect("Failed to get next job id")
