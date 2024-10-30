@@ -138,7 +138,11 @@ pub fn generate_process_arguments(
     arguments.push("run".to_string());
 
     if opt.test_mode {
-        arguments.push("--test-mode=true".to_string());
+        arguments.push("--test-mode".to_string());
+    }
+
+    if opt.pretty {
+        arguments.push("--pretty".to_string());
     }
 
     for bootnode in &gadget_config.bootnodes {
@@ -152,8 +156,7 @@ pub fn generate_process_arguments(
         format!("--ws-rpc-url={}", gadget_config.ws_rpc_url),
         format!("--keystore-uri={}", gadget_config.keystore_uri),
         format!("--chain={}", gadget_config.chain),
-        format!("--verbose={}", opt.verbose),
-        format!("--pretty={}", opt.pretty),
+        format!("-{}", "v".repeat(gadget_config.verbose as usize)),
         format!("--blueprint-id={}", blueprint_id),
         format!("--service-id={}", service_id),
         format!("--protocol={}", protocol),

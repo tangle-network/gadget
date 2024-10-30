@@ -1,7 +1,7 @@
 use crate::sources::BinarySourceFetcher;
 use async_trait::async_trait;
 use color_eyre::Report;
-use gadget_sdk::{info, trace};
+use gadget_sdk::trace;
 use std::path::PathBuf;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::TestFetcher;
 
@@ -26,52 +26,21 @@ impl BinarySourceFetcher for TestSourceFetcher {
             .map_err(|err| Report::msg(format!("Failed to parse `base_path`: {:?}", err)))?;
         let git_repo_root = get_git_repo_root_path().await?;
 
+        let profile = if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        };
         let base_path = std::path::absolute(git_repo_root.join(&base_path_str))?;
-        let binary_path = git_repo_root.join(&base_path).join("bin").join(&cargo_bin);
+        let binary_path = git_repo_root
+            .join(&base_path)
+            .join("target")
+            .join(profile)
+            .join(&cargo_bin);
         let binary_path = std::path::absolute(&binary_path)?;
 
         trace!("Base Path: {}", base_path.display());
         trace!("Binary Path: {}", binary_path.display());
-        info!("Building binary...");
-
-        let env = std::env::vars().collect::<Vec<(String, String)>>();
-
-        // Note: even if multiple gadgets are built, only the leader will actually build
-        // while the followers will just hang on the Cargo.lock file and then instantly
-        // finish compilation
-        let tokio_build_process = tokio::process::Command::new("cargo")
-            .arg("install")
-            .arg("--path")
-            .arg(&base_path)
-            //            .arg("--bin")
-            //            .arg(cargo_bin)
-            .arg("--root")
-            .arg(&base_path)
-            .stdout(std::process::Stdio::inherit()) // Inherit the stdout of this process
-            .stderr(std::process::Stdio::inherit()) // Inherit the stderr of this process
-            .stdin(std::process::Stdio::null())
-            .current_dir(&std::env::current_dir()?)
-            .envs(env)
-            .output()
-            .await
-            .map_err(|err| Report::msg(format!("Failed to run `cargo install`: {:?}", err)))?;
-
-        if !tokio_build_process.status.success() {
-            return Err(Report::msg(format!(
-                "Failed to build binary: {:?}",
-                tokio_build_process
-            )));
-        }
-
-        if !binary_path.exists() {
-            return Err(Report::msg(format!(
-                "Binary not found at path: {}",
-                binary_path.display()
-            )));
-        }
-
-        info!("Successfully built binary to {}", binary_path.display());
-
         Ok(binary_path)
     }
 
