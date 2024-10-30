@@ -140,10 +140,10 @@ jobs:
         run: echo "${HOME}/.foundry/bin" >> $GITHUB_PATH
 
       - name: Forge build
-        run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts
+        run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
 
-      - name: Verify Forge installation
-        run: forge --version
+      - name: Verify Forge and Docker installation
+        run: forge --version && docker --version
 
       - name: Run anvil in background
         run: anvil --version && anvil &
