@@ -125,7 +125,7 @@ jobs:
 
   integration-test-eigenlayer:
     timeout-minutes: 90
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - name: checkout code
         uses: actions/checkout@v2
@@ -141,6 +141,9 @@ jobs:
 
       - name: Forge build
         run: forge update && cd blueprints/incredible-squaring-eigenlayer && forge build --root ./contracts && cd ../../
+
+      - name: setup-docker
+        run: brew install docker
 
       - name: Verify Forge and Docker installation
         run: forge --version && docker --version
