@@ -125,7 +125,6 @@ jobs:
 
   integration-test-eigenlayer:
     timeout-minutes: 90
-    name: cargo test
     runs-on: macos-14
     steps:
       - name: checkout code
