@@ -38,6 +38,7 @@ alloy-contract = { workspace = true }
 alloy-rpc-types-eth = { workspace = true }
 alloy-node-bindings = { workspace = true }
 thiserror = { workspace = true }
+lazy_static = { workspace = true }
 
 eigensdk = { workspace = true }
 testcontainers = { workspace = true }

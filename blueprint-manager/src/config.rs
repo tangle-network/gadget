@@ -16,7 +16,7 @@ pub struct BlueprintManagerConfig {
     /// The directory in which all gadgets will store their data
     #[arg(long, short = 'd', default_value = "./data")]
     pub data_dir: PathBuf,
-    /// The verbosity level, can be used multiple times
+    /// The verbosity level, can be used multiple times to increase verbosity
     #[arg(long, short = 'v', action = clap::ArgAction::Count)]
     pub verbose: u8,
     /// Whether to use pretty logging

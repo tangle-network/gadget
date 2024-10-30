@@ -58,7 +58,7 @@ macro_rules! run_command {
     ($cmd:expr) => {{
         // Spawn child running process
         let child: Child = craft_child_process!($cmd);
-        let pid = child.id().clone();
+        let pid = child.id().ok_or(Error::UnexpectedExit)?;
         let stream = create_stream(child);
         GadgetProcess::new(
             $cmd.to_string(),
@@ -70,7 +70,7 @@ macro_rules! run_command {
     ($cmd:expr, $($args:expr),*) => {{
         // Spawn child running process
         let child = craft_child_process!($cmd,$($args),*);
-        let pid = child.id().clone();
+        let pid = child.id().ok_or(Error::UnexpectedExit)?;
         let stream = create_stream(child);
         GadgetProcess::new(
             $cmd.to_string(),

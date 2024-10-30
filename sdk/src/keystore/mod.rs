@@ -52,12 +52,15 @@ use alloy_signer_local::LocalSigner;
 use eigensdk::crypto_bls;
 pub use error::Error;
 use k256::ecdsa::SigningKey;
-use sp_core::crypto::{DeriveError, SecretStringError};
-use sp_core::DeriveJunction;
+use sp_core::{
+    crypto::{DeriveError, SecretStringError},
+    DeriveJunction, Pair,
+};
 use std::path::{Path, PathBuf};
-use subxt::ext::sp_core::Pair as PairSubxt;
-use subxt_core::tx::signer::{PairSigner, Signer};
-use subxt_core::utils::{AccountId32, MultiAddress, MultiSignature};
+use subxt_core::{
+    tx::signer::{PairSigner, Signer},
+    utils::{AccountId32, MultiAddress, MultiSignature},
+};
 #[cfg(any(feature = "std", feature = "wasm"))]
 use tangle_subxt::subxt;
 use w3f_bls::{Keypair, TinyBLS381};
