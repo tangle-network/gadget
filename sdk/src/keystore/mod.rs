@@ -47,6 +47,7 @@ pub mod sr25519;
 mod tests;
 
 use crate::clients::tangle::runtime::TangleConfig;
+use alloy_primitives::keccak256;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use alloy_signer_local::LocalSigner;
 use eigensdk::crypto_bls;
@@ -171,6 +172,15 @@ impl TanglePairSigner<sp_core::ecdsa::Pair> {
         let res = LocalSigner::from_slice(&k256_ecdsa_secret_key)
             .map_err(|err| Error::Alloy(err.to_string()))?;
         Ok(res)
+    }
+
+    /// Returns the Alloy Address for the ECDSA key pair.
+    pub fn alloy_address(&self) -> alloy_primitives::Address {
+        let public = self.public();
+        let hash = keccak256(&public.0[1..]);
+        let mut address = alloy_primitives::Address::default();
+        address.0.copy_from_slice(&hash[12..]);
+        address
     }
 }
 
