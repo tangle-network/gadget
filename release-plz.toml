@@ -2,3 +2,27 @@
 allow_dirty = true         # allow updating repositories with uncommitted changes
 publish_allow_dirty = true # add `--allow-dirty` to `cargo publish`
 publish_timeout = "10m"    # set a timeout for `cargo publish`
+
+commit_preprocessors = [
+    # Allow shortened crate names
+    { pattern = '^(\w+!?)\(sdk\):', replace = "$1(gadget-sdk):" },
+    { pattern = '^(\w+!?)\(cli\):', replace = "$1(cargo-tangle):" },
+]
+
+commit_parsers = [
+    { message = "^feat", group = "added" },
+    { message = "^changed", group = "changed" },
+    { message = "^deprecated", group = "deprecated" },
+    { message = "^fix", group = "fixed" },
+    { message = "^security", group = "security" },
+    { message = "^.*", group = "other" },
+    # Ignore CI commits
+    { message = "^\\w+!?\\(ci\\)", skip = true },
+    # Ignore Clippy commits
+    { message = "^chore\\(clippy\\)", skip = true },
+    { message = "^chore(?:\\(([^)]+)\\))?: clippy", skip = true },
+    # Ignore any formatting commits
+    { message = "^chore(?:\\(([^)]+)\\))?: fmt", skip = true },
+    # Ignore dependency commits
+    { message = "^chore\\(deps.*\\)", skip = true },
+]
