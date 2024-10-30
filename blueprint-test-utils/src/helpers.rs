@@ -14,13 +14,14 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 use url::Url;
 
-use crate::test_ext::{find_open_tcp_bind_port, NAME_IDS};
+use crate::test_ext::{find_open_tcp_bind_port, ANVIL_PRIVATE_KEYS, NAME_IDS};
 use alloy_provider::{network::Ethereum, Provider};
 use alloy_transport::{Transport, TransportError};
 use gadget_io::SupportedChains;
 use gadget_sdk::config::Protocol;
 
 use thiserror::Error;
+use crate::{inject_test_keys, KeyGenType};
 
 #[derive(Error, Debug)]
 pub enum BlueprintError {
@@ -106,8 +107,10 @@ impl BlueprintProcessManager {
             std::path::absolute(&keystore_uri).expect("Failed to resolve keystore URI");
         let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
 
-        let in_memory_keystore = FilesystemKeystore::open(keystore_uri_str.clone())
+        let filesystem_keystore = FilesystemKeystore::open(keystore_uri_str.clone())
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        // let _ = ANVIL_PRIVATE_KEYS.iter().enumerate().map(|(key, _)| inject_test_keys(&keystore_uri_normalized.clone(), KeyGenType::Anvil(key)));
+
         for seed in [
             "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
             "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
@@ -121,15 +124,17 @@ impl BlueprintProcessManager {
             "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6",
         ] {
             let seed_bytes = hex::decode(&seed[2..]).expect("Invalid hex seed");
-            in_memory_keystore
+            filesystem_keystore
                 .ecdsa_generate_new(Some(&seed_bytes))
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         }
 
         if let Protocol::Eigenlayer = protocol {
-            in_memory_keystore.bls_bn254_generate_from_string("1371012690269088913462269866874713266643928125698382731338806296762673180359922".to_string())
-                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            filesystem_keystore.bls_bn254_generate_from_string("1371012690269088913462269866874713266643928125698382731338806296762673180359922".to_string())
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         };
+
+
 
         let mut arguments = vec![
             "run".to_string(),
@@ -139,7 +144,7 @@ impl BlueprintProcessManager {
             format!("--ws-rpc-url={}", Url::parse(ws_endpoint).unwrap()),
             format!("--keystore-uri={}", keystore_uri_str.clone()),
             format!("--chain={}", SupportedChains::LocalTestnet),
-            format!("--vvv"),
+            // format!("--vvv"),
             format!("--pretty"),
             format!("--blueprint-id={}", instance_id),
             format!("--service-id={}", instance_id),
