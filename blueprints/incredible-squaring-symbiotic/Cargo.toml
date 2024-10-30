@@ -1,0 +1,58 @@
+[package]
+name = "incredible-squaring-blueprint-symbiotic"
+version = "0.1.1"
+description = "A Simple Blueprint to demo how blueprints work on Symbiotic"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+eigensdk = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+gadget-sdk = { workspace = true, features = ["std"] }
+color-eyre = { workspace = true }
+lock_api = { workspace = true }
+tokio = { workspace = true, default-features = false, features = ["full"] }
+tokio-util = { workspace = true }
+sp-core = { workspace = true }
+subxt-signer = { workspace = true, features = ["sr25519", "subxt", "std"] }
+alloy-contract = { workspace = true }
+alloy-consensus = { workspace = true }
+alloy-json-abi = { workspace = true, features = ["serde_json"] }
+alloy-network = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-pubsub = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-rpc-types-eth = { workspace = true }
+alloy-rpc-client = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-signer-local = { workspace = true }
+alloy-sol-types = { workspace = true, features = ["json"] }
+alloy-transport = { workspace = true }
+alloy-transport-http = { workspace = true }
+ark-bn254 = { workspace = true }
+ark-ff = { workspace = true }
+ark-ec = { workspace = true }
+parking_lot = { workspace = true }
+libp2p = { workspace = true }
+ed25519-zebra = { workspace = true, features = ["pkcs8", "default", "der", "std", "serde", "pem"] }
+hex = { workspace = true }
+k256 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+lazy_static = { workspace = true }
+
+[build-dependencies]
+blueprint-metadata = { workspace = true }
+
+[features]
+default = ["std"]
+std = []
+
+[package.metadata.blueprint]
+manager = { Evm = "IncredibleSquaringBlueprint" }

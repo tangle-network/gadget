@@ -156,6 +156,8 @@ pub fn generate_process_arguments(
         format!("--ws-rpc-url={}", gadget_config.ws_rpc_url),
         format!("--keystore-uri={}", gadget_config.keystore_uri),
         format!("--chain={}", gadget_config.chain),
+        format!("--verbose={}", opt.verbose),
+        format!("--pretty={}", opt.pretty),
         format!("--blueprint-id={}", blueprint_id),
         format!("--service-id={}", service_id),
         format!("--protocol={}", protocol),

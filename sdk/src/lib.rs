@@ -48,6 +48,8 @@ pub mod random;
 /// Gadget Runner Module
 #[cfg(feature = "std")] // TODO: Eventually open this up to WASM
 pub mod run;
+/// Blueprint runners
+pub mod runners;
 /// Slashing and quality of service utilities
 pub mod slashing;
 /// Database storage
@@ -59,8 +61,6 @@ pub mod tracer;
 /// Transaction Management Module
 #[cfg(any(feature = "std", feature = "wasm"))]
 pub mod tx;
-
-pub mod job_runner;
 
 /// Gadget Context and context extensions
 pub mod ctx;

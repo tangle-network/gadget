@@ -31,7 +31,6 @@ use std::time::Duration;
 use futures::stream::FuturesOrdered;
 use url::Url;
 use std::path::PathBuf;
-use futures::future::select_ok;
 use subxt::tx::Signer;
 use gadget_sdk::keystore::KeystoreUriSanitizer;
 use sp_core::Pair;
@@ -39,6 +38,7 @@ use tracing::Instrument;
 use gadget_sdk::{error, info, warn};
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
 use gadget_sdk::subxt_core::config::Header;
+use gadget_sdk::utils::get_client;
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
@@ -133,7 +133,7 @@ pub async fn new_test_ext_blueprint_manager<
     let local_tangle_node_http = opts.http_rpc_url.clone();
 
     // Step 1: Create the blueprint using alice's identity
-    let blueprint_id = match cargo_tangle::deploy::deploy_to_tangle(opts).await {
+    let blueprint_id = match cargo_tangle::deploy::deploy_to_tangle(opts.clone()).await {
         Ok(id) => id,
         Err(err) => {
             error!("Failed to deploy blueprint: {err}");
@@ -211,7 +211,8 @@ pub async fn new_test_ext_blueprint_manager<
         .collect();
 
     // Use Alice's account to register the service
-    info!("Registering service for blueprint ID {blueprint_id} using Alice's keys ...");
+    info!("Requesting service for blueprint ID {blueprint_id} using Alice's keys ...");
+
     if let Err(err) =
         super::request_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes).await
     {
@@ -291,14 +292,6 @@ pub async fn new_test_ext_blueprint_manager<
         span,
         blueprint,
     }
-}
-
-/// Returns either client. Allows flexibility in choosing between HTTP and WS clients
-/// depending on the local setup
-pub async fn get_client(ws_url: &str, http_url: &str) -> Result<TangleClient, color_eyre::Report> {
-    let task0 = TangleClient::from_url(ws_url);
-    let task1 = TangleClient::from_url(http_url);
-    Ok(select_ok([Box::pin(task0), Box::pin(task1)]).await?.0)
 }
 
 pub fn find_open_tcp_bind_port() -> u16 {

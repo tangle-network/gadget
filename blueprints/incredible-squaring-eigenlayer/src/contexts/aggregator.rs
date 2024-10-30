@@ -17,6 +17,7 @@ use gadget_sdk::{
     config::StdGadgetConfiguration,
     ctx::{EigenlayerContext, KeystoreContext},
     debug, error, info,
+    runners::{BackgroundService, RunnerError},
 };
 use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
@@ -84,7 +85,7 @@ impl AggregatorContext {
         Ok(aggregator_context)
     }
 
-    pub fn start(self, _ws_rpc_url: String) -> (JoinHandle<()>, oneshot::Sender<()>) {
+    pub fn start(self) -> (JoinHandle<()>, oneshot::Sender<()>) {
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         let aggregator = Arc::new(Mutex::new(self));
 
@@ -415,5 +416,34 @@ impl AggregatorContext {
         );
 
         Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl BackgroundService for AggregatorContext {
+    async fn start(&self) -> Result<oneshot::Receiver<Result<(), RunnerError>>, RunnerError> {
+        let (tx, rx) = oneshot::channel();
+
+        let aggregator = self.clone();
+
+        tokio::spawn(async move {
+            let (handle, shutdown_tx) = aggregator.start();
+
+            // Wait for the handle to complete
+            if let Err(e) = handle.await {
+                error!("Aggregator task failed: {:?}", e);
+                let _ = tx.send(Err(RunnerError::EigenlayerError(format!(
+                    "Aggregator task failed: {:?}",
+                    e
+                ))));
+            } else {
+                let _ = tx.send(Ok(()));
+            }
+
+            // Drop the shutdown sender to ensure proper cleanup
+            drop(shutdown_tx);
+        });
+
+        Ok(rx)
     }
 }

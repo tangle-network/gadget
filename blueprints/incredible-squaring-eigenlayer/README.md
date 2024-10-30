@@ -1,6 +1,6 @@
 ## Incredible Squaring Blueprint for Eigenlayer
 
-A simple AVS blueprint that only has one job - taking **x** and returning **x<sup>2</sup>**.
+A simple AVS blueprint that only has one job - taking **x** and signing **x<sup>2</sup>**, and then aggregating the BLS signatures and submitting it onchain.
 
 ## Prerequisites
 

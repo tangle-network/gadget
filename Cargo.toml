@@ -4,6 +4,7 @@ members = [
     "blueprint-metadata",
     "blueprints/incredible-squaring",
     "blueprints/incredible-squaring-eigenlayer",
+    "blueprints/incredible-squaring-symbiotic",
     "blueprints/periodic-web-poller",
     "blueprints/tangle-raw-event-listener",
     "cli",
@@ -46,7 +47,9 @@ blueprint-manager = { version = "0.1.1", path = "./blueprint-manager" }
 blueprint-test-utils = { path = "./blueprint-test-utils" }
 gadget-sdk = { path = "./sdk", default-features = false, version = "0.2.3" }
 
+incredible-squaring-blueprint = { path = "./blueprints/incredible-squaring", default-features = false, version = "0.1.1" }
 incredible-squaring-blueprint-eigenlayer = { path = "./blueprints/incredible-squaring-eigenlayer", default-features = false, version = "0.1.1" }
+incredible-squaring-blueprint-symbiotic = { path = "./blueprints/incredible-squaring-symbiotic", default-features = false, version = "0.1.1" }
 periodic-web-poller-blueprint = { path = "./blueprints/periodic-web-poller", default-features = false, version = "0.1.1" }
 tangle-raw-event-listener-blueprint = { path = "./blueprints/tangle-raw-event-listener", default-features = false, version = "0.1.1" }
 gadget-blueprint-proc-macro = { path = "./macros/blueprint-proc-macro", default-features = false, version = "0.2.3" }
@@ -180,6 +183,9 @@ secp256k1 = "0.29.1"
 # Eigenlayer
 eigensdk = { version = "0.1.0", features = ["full", "utils", "types"] }
 testcontainers = { version = "0.20.1" }
+
+# Symbiotic
+symbiotic-rs = { version = "0.1.0" }
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]

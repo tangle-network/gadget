@@ -24,7 +24,10 @@ pub enum Error {
     Config(#[from] crate::config::Error),
 
     #[error("Job runner error: {0}")]
-    Runner(#[from] crate::job_runner::Error),
+    Runner(#[from] crate::runners::RunnerError),
+
+    #[error("Executor error: {0}")]
+    Executor(#[from] crate::executor::process::Error),
 
     #[error("Docker error: {0}")]
     Docker(#[from] bollard::errors::Error),
@@ -44,6 +47,9 @@ pub enum Error {
     #[cfg(any(feature = "std", feature = "wasm"))]
     Subxt(#[from] subxt::Error),
 
+    #[error("{0}")]
+    Json(#[from] serde_json::Error),
+
     #[cfg(feature = "std")]
     #[error("Events watcher error: {0}")]
     EventsWatcher(#[from] crate::events_watcher::error::Error),
@@ -55,10 +61,13 @@ pub enum Error {
     #[cfg(feature = "std")]
     #[error("Metrics error: {0}")]
     Metrics(#[from] crate::metrics::Error),
+
     #[error("Io error: {0}")]
     IoError(#[from] std::io::Error),
+
     #[error("The type has been skipped in the preprocessor")]
     SkipPreProcessedType,
+
     #[error("Other error: {0}")]
     Other(String),
 }
