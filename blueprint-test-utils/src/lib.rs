@@ -83,9 +83,12 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
     let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
 
-    inject_test_keys(&keystore_uri_normalized, KeyGenType::Tangle(input.instance_id as usize))
-        .await
-        .expect("Failed to inject testing-related SR25519 keys");
+    inject_test_keys(
+        &keystore_uri_normalized,
+        KeyGenType::Tangle(input.instance_id as usize),
+    )
+    .await
+    .expect("Failed to inject testing-related SR25519 keys");
 
     // Canonicalize to prove the directory exists
     let _ = keystore_uri_normalized
@@ -173,14 +176,14 @@ pub async fn inject_test_keys<P: AsRef<Path>>(
     match key_gen_type {
         KeyGenType::Random => {
             inject_random_key(&keystore_path)?;
-        },
+        }
         KeyGenType::Anvil(index) => {
             let private_key = ANVIL_PRIVATE_KEYS[index];
             inject_anvil_key(&keystore_path, private_key)?;
-        },
+        }
         KeyGenType::Tangle(index) => {
             inject_tangle_key(&keystore_path, NAME_IDS[index])?;
-        },
+        }
     }
 
     Ok(())
@@ -222,8 +225,7 @@ fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre
 
     let suri = format!("//{name}"); // <---- is the exact same as the ones in the chainspec
 
-    let sr =
-        sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
+    let sr = sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
     let sr_seed = &sr.as_ref().secret.to_bytes();
 
     let ecdsa =

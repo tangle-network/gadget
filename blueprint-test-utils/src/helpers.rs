@@ -20,8 +20,8 @@ use alloy_transport::{Transport, TransportError};
 use gadget_io::SupportedChains;
 use gadget_sdk::config::Protocol;
 
-use thiserror::Error;
 use crate::{inject_test_keys, KeyGenType};
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum BlueprintError {
@@ -133,8 +133,6 @@ impl BlueprintProcessManager {
             filesystem_keystore.bls_bn254_generate_from_string("1371012690269088913462269866874713266643928125698382731338806296762673180359922".to_string())
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         };
-
-
 
         let mut arguments = vec![
             "run".to_string(),
