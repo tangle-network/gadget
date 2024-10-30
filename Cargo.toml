@@ -111,6 +111,7 @@ lock_api = "0.4.12"
 log = "0.4.22"
 multiaddr = { version = "0.18.1", default-features = false }
 nix = { version = "0.29.0", features = ["process", "signal"] }
+num-bigint = "0.4.6"
 parking_lot = "0.12.3"
 proc-macro2 = "1.0"
 prometheus = { version = "0.13.4", default-features = false }

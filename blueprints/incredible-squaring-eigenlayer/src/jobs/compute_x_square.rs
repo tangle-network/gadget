@@ -1,23 +1,22 @@
 #![allow(dead_code)]
 use crate::contexts::client::{AggregatorClient, SignedTaskResponse};
 use crate::{noop, IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING};
-use alloy_primitives::{hex, Bytes, U256};
-use alloy_primitives::{keccak256, FixedBytes};
+use alloy_primitives::keccak256;
+use alloy_primitives::{Bytes, U256};
 use alloy_sol_types::SolType;
-use ark_bn254::Fq;
-use ark_ff::{BigInteger, PrimeField};
-use color_eyre::owo_colors::OwoColorize;
 use color_eyre::Result;
-use eigensdk::crypto_bls::BlsKeyPair;
-use eigensdk::crypto_bls::OperatorId;
-use eigensdk::types::operator::operator_id_from_g1_pub_key;
 use gadget_sdk::ctx::KeystoreContext;
 use gadget_sdk::keystore::BackendExt;
+use gadget_sdk::runners::eigenlayer::derive_operator_id;
 use gadget_sdk::{error, info, job};
 use std::{convert::Infallible, ops::Deref, sync::OnceLock};
 use IncredibleSquaringTaskManager::TaskResponse;
 
-/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
+/// Sends a signed task response to the BLS Aggregator.
+/// This job is triggered by the `NewTaskCreated` event emitted by the `IncredibleSquaringTaskManager`.
+/// The job calculates the square of the number to be squared and sends the signed task response to the BLS Aggregator.
+/// The job returns 1 if the task response was sent successfully.
+/// The job returns 0 if the task response failed to send or failed to get the BLS key.
 #[job(
     id = 0,
     params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
@@ -46,18 +45,14 @@ pub async fn xsquare_eigen(
         numberSquared: number_to_be_squared.saturating_pow(U256::from(2u32)),
     };
 
-    // let bls_key_pair = BlsKeyPair::new(
-    //     "1371012690269088913462269866874713266643928125698382731338806296762673180359922"
-    //         .to_string(),
-    // )
-    // .unwrap();
-
-    let bls_key_pair = ctx.keystore().unwrap().bls_bn254_key().unwrap();
-    let mut operator_id = operator_id_from_g1_pub_key(bls_key_pair.public_key()).unwrap();
-    let operator_id = FixedBytes(operator_id);
-    println!("Operator ID: {:?}", operator_id);
-    // let operator_id: OperatorId =
-    //     hex!("fd329fe7e54f459b9c104064efe0172db113a50b5f394949b4ef80b3c34ca7f5").into();
+    let bls_key_pair = match ctx.keystore().and_then(|ks| Ok(ks.bls_bn254_key())) {
+        Ok(kp) => match kp {
+            Ok(k) => k,
+            Err(e) => return Ok(0),
+        },
+        Err(e) => return Ok(0),
+    };
+    let operator_id = derive_operator_id(bls_key_pair.public_key());
 
     // Sign the Hashed Message and send it to the BLS Aggregator
     let msg_hash = keccak256(<TaskResponse as SolType>::abi_encode(&task_response));
@@ -100,12 +95,4 @@ pub fn convert_event_to_inputs(
         quorum_threshold_percentage,
         task_index,
     )
-}
-
-/// Helper for converting a PrimeField to its U256 representation for Ethereum compatibility
-/// (U256 reads data as big endian)
-pub fn point_to_u256(point: Fq) -> U256 {
-    let point = point.into_bigint();
-    let point_bytes = point.to_bytes_be();
-    U256::from_be_slice(&point_bytes[..])
 }
