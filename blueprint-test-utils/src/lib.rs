@@ -1,4 +1,4 @@
-use crate::test_ext::NAME_IDS;
+use crate::test_ext::{ANVIL_PRIVATE_KEYS, NAME_IDS};
 use api::services::events::JobResultSubmitted;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
@@ -20,6 +20,8 @@ use std::error::Error;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use alloy_primitives::hex;
+use color_eyre::eyre::eyre;
 use subxt::tx::Signer;
 use subxt::utils::AccountId32;
 use url::Url;
@@ -81,7 +83,7 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
         std::path::absolute(keystore_uri).expect("Failed to resolve keystore URI");
     let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
 
-    inject_test_keys(&keystore_uri_normalized, input.instance_id as usize)
+    inject_test_keys(&keystore_uri_normalized, KeyGenType::Tangle(input.instance_id as usize))
         .await
         .expect("Failed to inject testing-related SR25519 keys");
 
@@ -130,6 +132,24 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
     }
 }
 
+/// The possible keys to be generated when injecting keys in a keystore for testing.
+///
+/// - `Random`: A random key will be generated
+/// - `Anvil`: Injects one of the premade Anvil key of the given index where that index is 0-9
+/// - `Tangle`: Injects the premade Tangle key of the given index where that index is 0-4
+///
+/// # Errors
+///
+/// - If the given index is out of bounds for the specified type
+/// - Random Key Generation Failure
+/// - Generated Key Sanity Check Error
+#[derive(Debug, Clone, Copy)]
+pub enum KeyGenType {
+    Random,
+    Anvil(usize),
+    Tangle(usize),
+}
+
 /// Adds keys relevant for the test to the keystore, and performs some necessary
 /// cross-compatability tests to ensure key use consistency between different parts of the codebase
 ///
@@ -145,87 +165,136 @@ pub async fn run_test_blueprint_manager<T: Send + Clone + 'static>(
 ///
 pub async fn inject_test_keys<P: AsRef<Path>>(
     keystore_path: P,
-    node_index: usize,
+    key_gen_type: KeyGenType,
 ) -> color_eyre::Result<()> {
     let path = keystore_path.as_ref();
     tokio::fs::create_dir_all(path).await?;
 
-    if node_index >= NAME_IDS.len() {
-        let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
-            keystore_path.as_ref(),
-        )?);
-        keystore
-            .sr25519_generate_new(None)
-            .expect("Random SR25519 Key Generation Failed");
-        keystore
-            .ecdsa_generate_new(None)
-            .expect("Random ECDSA Key Generation Failed");
-        keystore
-            .bls_bn254_generate_new(None)
-            .expect("Random BLS Key Generation Failed");
-    } else {
-        let name = NAME_IDS[node_index];
+    match key_gen_type {
+        KeyGenType::Random => {
+            inject_random_key(&keystore_path)?;
+        },
+        KeyGenType::Anvil(index) => {
+            let private_key = ANVIL_PRIVATE_KEYS[index];
+            inject_anvil_key(&keystore_path, private_key)?;
+        },
+        KeyGenType::Tangle(index) => {
+            inject_tangle_key(&keystore_path, NAME_IDS[index])?;
+        },
+    }
 
-        let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
-            keystore_path.as_ref(),
-        )?);
+    Ok(())
+}
 
-        let suri = format!("//{name}"); // <---- is the exact same as the ones in the chainspec
+/// Injects the pre-made Anvil key of the given index where that index is 0-9
+///
+/// # Errors
+/// - Fails if the given index is out of bounds
+/// - May fail if the keystore path cannot be created or accessed
+///
+fn inject_anvil_key<P: AsRef<Path>>(keystore_path: P, seed: &str) -> color_eyre::Result<()> {
+    let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
+        keystore_path.as_ref(),
+    )?);
 
-        let sr =
-            sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
-        let sr_seed = &sr.as_ref().secret.to_bytes();
+    let seed_bytes = hex::decode(&seed[2..]).expect("Invalid hex seed");
+    keystore
+        .ecdsa_generate_new(Some(&seed_bytes))
+        .map_err(|e| eyre!(e))?;
 
-        let ecdsa =
-            sp_core::ecdsa::Pair::from_string(&suri, None).expect("Should be valid ECDSA keypair");
-        let ecdsa_seed = ecdsa.seed();
+    keystore
+        .bls_bn254_generate_new(None)
+        .map_err(|e| eyre!(e))?;
 
-        keystore
-            .sr25519_generate_new(Some(sr_seed))
-            .expect("Invalid SR25519 seed");
-        keystore
-            .ecdsa_generate_new(Some(&ecdsa_seed))
-            .expect("Invalid ECDSA seed");
-        keystore
-            .bls_bn254_generate_new(None)
-            .expect("Random BLS Key Generation Failed");
+    Ok(())
+}
 
-        // Perform sanity checks on conversions between secrets to ensure
-        // consistency as the program executes
-        let bytes: [u8; 64] = sr.as_ref().secret.to_bytes();
-        let secret_key_again =
-            keystore::sr25519::secret_from_bytes(&bytes).expect("Invalid SR25519 Bytes");
-        assert_eq!(&bytes[..], &secret_key_again.to_bytes()[..]);
+/// Injects the pre-made Tangle key of the given index where that index is 0-4
+///
+/// # Errors
+/// - Fails if the given index is out of bounds
+/// - May fail if the keystore path cannot be created or accessed
+///
+fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre::Result<()> {
+    let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
+        keystore_path.as_ref(),
+    )?);
 
-        let sr2 = TanglePairSigner::new(
-            sp_core::sr25519::Pair::from_seed_slice(&bytes).expect("Invalid SR25519 keypair"),
-        );
+    let suri = format!("//{name}"); // <---- is the exact same as the ones in the chainspec
 
-        let sr1_account_id: AccountId32 = AccountId32(sr.as_ref().public.to_bytes());
-        let sr2_account_id: AccountId32 = sr2.account_id().clone();
-        assert_eq!(sr1_account_id, sr2_account_id);
+    let sr =
+        sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
+    let sr_seed = &sr.as_ref().secret.to_bytes();
 
-        match keystore.ecdsa_key() {
-            Ok(ecdsa_key) => {
-                assert_eq!(ecdsa_key.signer().seed(), ecdsa_seed);
-            }
-            Err(err) => {
-                log::error!(target: "gadget", "Failed to load ecdsa key: {err}");
-                panic!("Failed to load ecdsa key: {err}");
-            }
+    let ecdsa =
+        sp_core::ecdsa::Pair::from_string(&suri, None).expect("Should be valid ECDSA keypair");
+    let ecdsa_seed = ecdsa.seed();
+
+    keystore
+        .sr25519_generate_new(Some(sr_seed))
+        .expect("Invalid SR25519 seed");
+    keystore
+        .ecdsa_generate_new(Some(&ecdsa_seed))
+        .expect("Invalid ECDSA seed");
+    keystore
+        .bls_bn254_generate_new(None)
+        .expect("Random BLS Key Generation Failed");
+
+    // Perform sanity checks on conversions between secrets to ensure
+    // consistency as the program executes
+    let bytes: [u8; 64] = sr.as_ref().secret.to_bytes();
+    let secret_key_again =
+        keystore::sr25519::secret_from_bytes(&bytes).expect("Invalid SR25519 Bytes");
+    assert_eq!(&bytes[..], &secret_key_again.to_bytes()[..]);
+
+    let sr2 = TanglePairSigner::new(
+        sp_core::sr25519::Pair::from_seed_slice(&bytes).expect("Invalid SR25519 keypair"),
+    );
+
+    let sr1_account_id: AccountId32 = AccountId32(sr.as_ref().public.to_bytes());
+    let sr2_account_id: AccountId32 = sr2.account_id().clone();
+    assert_eq!(sr1_account_id, sr2_account_id);
+
+    match keystore.ecdsa_key() {
+        Ok(ecdsa_key) => {
+            assert_eq!(ecdsa_key.signer().seed(), ecdsa_seed);
         }
-
-        match keystore.sr25519_key() {
-            Ok(sr25519_key) => {
-                assert_eq!(sr25519_key.signer().public().0, sr.public().0);
-            }
-            Err(err) => {
-                log::error!(target: "gadget", "Failed to load sr25519 key: {err}");
-                panic!("Failed to load sr25519 key: {err}");
-            }
+        Err(err) => {
+            log::error!(target: "gadget", "Failed to load ecdsa key: {err}");
+            panic!("Failed to load ecdsa key: {err}");
         }
     }
 
+    match keystore.sr25519_key() {
+        Ok(sr25519_key) => {
+            assert_eq!(sr25519_key.signer().public().0, sr.public().0);
+        }
+        Err(err) => {
+            log::error!(target: "gadget", "Failed to load sr25519 key: {err}");
+            panic!("Failed to load sr25519 key: {err}");
+        }
+    }
+    Ok(())
+}
+
+/// Injects a random key into the keystore at the given path
+///
+/// # Errors
+/// - May fail if the keystore path cannot be created or accessed
+///
+pub fn inject_random_key<P: AsRef<Path>>(keystore_path: P) -> color_eyre::Result<()> {
+    let keystore = GenericKeyStore::<parking_lot::RawRwLock>::Fs(FilesystemKeystore::open(
+        keystore_path.as_ref(),
+    )?);
+    keystore
+        .sr25519_generate_new(None)
+        .expect("Random SR25519 Key Generation Failed");
+    keystore
+        .ecdsa_generate_new(None)
+        .expect("Random ECDSA Key Generation Failed");
+    keystore
+        .bls_bn254_generate_new(None)
+        .expect("Random BLS Key Generation Failed");
     Ok(())
 }
 

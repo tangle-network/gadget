@@ -26,6 +26,9 @@ pub enum Error {
     #[error("Job runner error: {0}")]
     Runner(#[from] crate::runners::RunnerError),
 
+    #[error("Executor error: {0}")]
+    Executor(#[from] crate::executor::process::Error),
+
     #[error("Docker error: {0}")]
     Docker(#[from] bollard::errors::Error),
 
@@ -43,6 +46,9 @@ pub enum Error {
     #[error("Subxt error: {0}")]
     #[cfg(any(feature = "std", feature = "wasm"))]
     Subxt(#[from] subxt::Error),
+
+    #[error("{0}")]
+    Json(#[from] serde_json::Error),
 
     #[cfg(feature = "std")]
     #[error("Events watcher error: {0}")]

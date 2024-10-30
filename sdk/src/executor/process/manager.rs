@@ -1,11 +1,11 @@
+use super::error::Error;
 use crate::executor::process::types::{GadgetProcess, ProcessOutput, Status};
 use crate::executor::process::utils::*;
 use crate::executor::OS_COMMAND;
 use crate::{craft_child_process, run_command};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::error::Error;
-use sysinfo::{Pid, System};
+use sysinfo::System;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::broadcast;
@@ -27,9 +27,11 @@ impl GadgetProcessManager {
 
     /// Load the state of previously running processes to recover gadget-executor
     #[allow(dead_code)]
-    pub(crate) async fn new_from_saved(file: &str) -> Result<GadgetProcessManager, Box<dyn Error>> {
-        let file = std::fs::File::open(file).unwrap();
-        let mut new_manager: GadgetProcessManager = serde_json::from_reader(file).unwrap();
+    pub(crate) async fn new_from_saved(
+        file: &str,
+    ) -> Result<GadgetProcessManager, crate::error::Error> {
+        let file = std::fs::File::open(file)?;
+        let mut new_manager: GadgetProcessManager = serde_json::from_reader(file)?;
 
         // Restarts processes that were previously running
         new_manager.restart_dead().await?;
@@ -39,7 +41,7 @@ impl GadgetProcessManager {
 
     /// Store the state of the current processes
     #[allow(dead_code)]
-    pub(crate) async fn save_state(&self) -> Result<String, Box<dyn Error>> {
+    pub(crate) async fn save_state(&self) -> Result<String, crate::error::Error> {
         let serialized_data = serde_json::to_string(self)?;
         let mut file = File::create("./savestate.json").await?;
         file.write_all(serialized_data.clone().as_bytes()).await?;
@@ -48,11 +50,7 @@ impl GadgetProcessManager {
 
     /// Runs the given command and stores it using the identifier as the key. Returns the identifier used
     #[allow(unused_results)]
-    pub async fn run(
-        &mut self,
-        identifier: String,
-        command: &str,
-    ) -> Result<String, Box<dyn Error>> {
+    pub async fn run(&mut self, identifier: String, command: &str) -> Result<String, Error> {
         let gadget_process = run_command!(command)?;
         self.children.insert(identifier.clone(), gadget_process);
         Ok(identifier)
@@ -75,14 +73,11 @@ impl GadgetProcessManager {
 
     /// Focuses on the given service until its stream is exhausted, meaning that the process ran to completion. Returns a
     /// ProcessOutput with its output (if there is any).
-    pub async fn focus_service_to_completion(
-        &mut self,
-        service: String,
-    ) -> Result<String, Box<dyn Error>> {
+    pub async fn focus_service_to_completion(&mut self, service: String) -> Result<String, Error> {
         let process = self
             .children
             .get_mut(&service)
-            .ok_or(format!("Failed to focus on {service}, it does not exist"))?;
+            .ok_or(Error::ServiceNotFound(service))?;
         let mut output_stream = String::new();
         loop {
             match process.read_until_default_timeout().await {
@@ -111,17 +106,17 @@ impl GadgetProcessManager {
         &mut self,
         service: String,
         specified_output: String,
-    ) -> Result<ProcessOutput, Box<dyn Error>> {
+    ) -> Result<ProcessOutput, Error> {
         let process = self
             .children
             .get_mut(&service)
-            .ok_or(format!("Failed to focus on {service}, it does not exist"))?;
+            .ok_or(Error::ServiceNotFound(service))?;
         Ok(process.read_until_receiving_string(specified_output).await)
     }
 
     /// Removes processes that are no longer running from the manager. Returns a Vector of the names of processes removed
     #[allow(dead_code)]
-    pub(crate) async fn remove_dead(&mut self) -> Result<Vec<String>, Box<dyn Error>> {
+    pub(crate) async fn remove_dead(&mut self) -> Result<Vec<String>, Error> {
         let dead_processes = Vec::new();
         let mut to_remove = Vec::new();
         let s = System::new_all();
@@ -129,7 +124,7 @@ impl GadgetProcessManager {
         // Find dead processes and gather them for return & removal
         for (key, value) in self.children.iter() {
             let current_pid = value.pid;
-            if let Some(process) = s.process(Pid::from_u32(current_pid)) {
+            if let Some(process) = s.process(current_pid) {
                 if process.name() == value.process_name {
                     // Still running
                     continue;
@@ -149,36 +144,23 @@ impl GadgetProcessManager {
     /// Finds all dead processes that still exist in map and starts them again. This function
     /// is used to restart all processes after loading a Manager from a file.
     #[allow(unused_results)]
-    pub(crate) async fn restart_dead(&mut self) -> Result<(), Box<dyn Error>> {
+    pub(crate) async fn restart_dead(&mut self) -> Result<(), Error> {
         let mut restarted_processes = Vec::new();
         let mut to_remove = Vec::new();
         // Find dead processes and restart them
         for (key, value) in self.children.iter_mut() {
             match value.status() {
-                Ok(status) => {
-                    match status {
-                        Status::Active | Status::Sleeping => {
-                            // TODO: Metrics + Logs for these living processes
-                            // Check if this process is still running what is expected
-                            // If it is still correctly running, we just move along
-                            continue;
-                        }
-                        Status::Inactive | Status::Dead => {
-                            // Dead, should be restarted
-                        }
-                        Status::Unknown(code) => {
-                            println!("LOG : {} yielded {}", key.clone(), code);
-                        }
-                    }
+                Status::Active | Status::Sleeping => {
+                    // TODO: Metrics + Logs for these living processes
+                    // Check if this process is still running what is expected
+                    // If it is still correctly running, we just move along
+                    continue;
                 }
-                Err(err) => {
-                    // TODO: Log error
-                    // Error generally means it died and no longer exists - restart it
-                    println!(
-                        "LOG : {} yielded {} while attempting to restart dead processes",
-                        key.clone(),
-                        err
-                    );
+                Status::Inactive | Status::Dead => {
+                    // Dead, should be restarted
+                }
+                Status::Unknown(code) => {
+                    println!("LOG : {} yielded {}", key.clone(), code);
                 }
             }
             restarted_processes.push((key.clone(), value.restart_process().await?));
