@@ -1,9 +1,8 @@
 use crate::{
     config::{GadgetConfiguration, ProtocolSpecificSettings},
-    error,
-    events_watcher::evm::{get_provider_http, get_wallet_provider_http},
-    info,
+    error, info,
     keystore::BackendExt,
+    utils::evm::{get_provider_http, get_wallet_provider_http},
 };
 use alloy_network::EthereumWallet;
 use symbiotic_rs::OperatorRegistry;

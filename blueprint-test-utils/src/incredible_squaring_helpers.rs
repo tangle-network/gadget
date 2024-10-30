@@ -1,5 +1,5 @@
 use futures::StreamExt;
-use gadget_sdk::events_watcher::evm::{get_provider_http, get_provider_ws};
+use gadget_sdk::utils::evm::{get_provider_http, get_provider_ws};
 use gadget_sdk::{error, info};
 use std::sync::Arc;
 use std::time::Duration;

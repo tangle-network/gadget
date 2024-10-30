@@ -1,7 +1,12 @@
+use crate::test_ext::{find_open_tcp_bind_port, NAME_IDS};
 use alloy_contract::{CallBuilder, CallDecoder};
 use alloy_primitives::hex;
+use alloy_provider::{network::Ethereum, Provider};
 use alloy_rpc_types::TransactionReceipt;
+use alloy_transport::{Transport, TransportError};
+use gadget_io::SupportedChains;
 use gadget_sdk::config::protocol::{EigenlayerContractAddresses, SymbioticContractAddresses};
+use gadget_sdk::config::Protocol;
 use gadget_sdk::error;
 use gadget_sdk::keystore::backend::fs::FilesystemKeystore;
 use gadget_sdk::keystore::Backend;
@@ -10,18 +15,10 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
+use thiserror::Error;
 use tokio::process::Child;
 use tokio::sync::Mutex;
 use url::Url;
-
-use crate::test_ext::{find_open_tcp_bind_port, ANVIL_PRIVATE_KEYS, NAME_IDS};
-use alloy_provider::{network::Ethereum, Provider};
-use alloy_transport::{Transport, TransportError};
-use gadget_io::SupportedChains;
-use gadget_sdk::config::Protocol;
-
-use crate::{inject_test_keys, KeyGenType};
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum BlueprintError {
