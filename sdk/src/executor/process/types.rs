@@ -18,7 +18,7 @@ use sysinfo::{Pid, ProcessStatus, System};
 pub use tokio::process::Child;
 use tokio::sync::broadcast;
 
-const DEFAULT_READ_TIMEOUT: u64 = 1000;
+const DEFAULT_READ_TIMEOUT: u64 = 60; // seconds
 
 /// A process spawned by gadget-executor, running some service or command(s)
 #[derive(Serialize, Deserialize, Debug)]
@@ -124,6 +124,7 @@ impl GadgetProcess {
                     }
                 }
             }
+            info!("EXECUTOR READ LOOP ENDED");
 
             if messages.is_empty() {
                 ProcessOutput::Waiting

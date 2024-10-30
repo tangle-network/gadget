@@ -1,7 +1,7 @@
 pub use futures::{FutureExt, StreamExt};
 pub use std::process::Stdio;
 pub use tokio::io::BufReader;
-use tokio::io::{AsyncRead, ReadBuf};
+use tokio::io::{AsyncBufReadExt, AsyncRead, ReadBuf};
 use tokio::macros::support::poll_fn;
 pub use tokio::process::{Child, Command};
 use tokio::sync::broadcast;
@@ -37,24 +37,34 @@ macro_rules! craft_child_process {
 #[allow(unused_results)]
 pub(crate) fn create_stream(mut child: Child) -> broadcast::Receiver<String> {
     let (tx, rx) = broadcast::channel(1000);
+    let stdout = child.stdout.take().expect("Failed to take stdout");
+    let stderr = child.stderr.take().expect("Failed to take stderr");
 
-    // Spawn a task to read from both stdout and stderr
+    let mut stdout_reader = BufReader::new(stdout).lines();
+    let mut stderr_reader = BufReader::new(stderr).lines();
+
     tokio::spawn(async move {
-        let mut stdout = BufReader::new(child.stdout.take().expect("Failed to take stdout"));
-        let mut stderr = BufReader::new(child.stderr.take().expect("Failed to take stderr"));
-
         loop {
-            let mut out_buffer = [0u8; 1024];
-            let mut read_out_buf = ReadBuf::new(&mut out_buffer);
-            let mut err_buffer = [0u8; 1024];
-            let mut read_err_buf = ReadBuf::new(&mut err_buffer);
-
             tokio::select! {
-                result = poll_fn(|cx| Pin::new(&mut stdout).poll_read(cx, &mut read_out_buf)) => {
-                    handle_output(result, &read_out_buf, &tx, "stdout").await;
+                result = stdout_reader.next_line() => {
+                    if let Ok(Some(line)) = result {
+                        if tx.send(format!("stdout: {}", line)).is_err() {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
                 }
-                result = poll_fn(|cx| Pin::new(&mut stderr).poll_read(cx, &mut read_err_buf)) => {
-                    handle_output(result, &read_err_buf, &tx, "stderr").await;
+                result = stderr_reader.next_line() => {
+                    if let Ok(Some(line)) = result {
+                        if tx.send(format!("stderr: {}", line)).is_err() {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                _ = child.wait() => {
                     break;
                 }
             }
@@ -69,7 +79,7 @@ pub(crate) fn create_stream(mut child: Child) -> broadcast::Receiver<String> {
     rx
 }
 
-async fn handle_output(
+fn handle_output(
     result: std::io::Result<()>,
     read_buf: &ReadBuf<'_>,
     tx: &broadcast::Sender<String>,
