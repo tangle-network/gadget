@@ -19,7 +19,6 @@ lazy_static! {
 
 #[gadget_sdk::main(env)]
 async fn main() {
-    // Get the ECDSA key from the private key seed using alloy
     let operator_signer = env.keystore()?.ecdsa_key()?.alloy_key()?;
     let wallet = EthereumWallet::new(operator_signer);
     let provider = get_wallet_provider_http(&env.http_rpc_endpoint, wallet);

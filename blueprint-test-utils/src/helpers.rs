@@ -127,8 +127,9 @@ impl BlueprintProcessManager {
         }
 
         if let Protocol::Eigenlayer = protocol {
-            in_memory_keystore.bls_bn254_generate_from_string("1371012690269088913462269866874713266643928125698382731338806296762673180359922".to_string())
+            let public = in_memory_keystore.bls_bn254_generate_from_string("1371012690269088913462269866874713266643928125698382731338806296762673180359922".to_string())
                  .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            println!("Public key: {:?}", public);
         };
 
         let mut arguments = vec![
@@ -139,7 +140,7 @@ impl BlueprintProcessManager {
             format!("--ws-rpc-url={}", Url::parse(ws_endpoint).unwrap()),
             format!("--keystore-uri={}", keystore_uri_str.clone()),
             format!("--chain={}", SupportedChains::LocalTestnet),
-            format!("--vvv"),
+            format!("-vvv"),
             format!("--pretty"),
             format!("--blueprint-id={}", instance_id),
             format!("--service-id={}", instance_id),
