@@ -251,9 +251,7 @@ impl<T: ValueIntoFieldType> ValueIntoFieldType for Option<T> {
 
 impl ValueIntoFieldType for String {
     fn into_field_type(self) -> Field<AccountId32> {
-        Field::String(BoundedString(BoundedVec(
-            self.into_bytes(),
-        )))
+        Field::String(BoundedString(BoundedVec(self.into_bytes())))
     }
 }
 

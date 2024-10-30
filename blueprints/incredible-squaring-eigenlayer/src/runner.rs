@@ -162,7 +162,6 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         let x_square_eigen = XsquareEigenEventHandler::<DefaultNodeConfig> {
             ctx: aggregator_client,
             contract: contract.clone().into(),
-            contract_instance: Default::default(),
         };
 
         let aggregator_context = AggregatorContext::new(

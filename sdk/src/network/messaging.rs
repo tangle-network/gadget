@@ -1,23 +1,33 @@
-use std::fmt::Display;
 use async_trait::async_trait;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::Add;
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use itertools::Itertools;
+use std::sync::Arc;
 use tokio::sync::RwLock;
-use tokio::time::{Duration, sleep};
+use tokio::time::{sleep, Duration};
 
 const OUTBOUND_POLL: Duration = Duration::from_millis(100);
 const INBOUND_POLL: Duration = Duration::from_millis(100);
 
 #[async_trait]
 pub trait MessageMetadata {
-    type JobId:  Display + Hash + Eq + Copy + Send + Sync + 'static;
+    type JobId: Display + Hash + Eq + Copy + Send + Sync + 'static;
     type PeerId: Display + Hash + Eq + Copy + Send + Sync + 'static;
-    type MessageId: Add<usize, Output=Self::MessageId> + Eq + PartialEq + Display + Hash + Ord + PartialOrd + Copy + Send + Sync + 'static;
+    type MessageId: Add<usize, Output = Self::MessageId>
+        + Eq
+        + PartialEq
+        + Display
+        + Hash
+        + Ord
+        + PartialOrd
+        + Copy
+        + Send
+        + Sync
+        + 'static;
 
     fn job_id(&self) -> Self::JobId;
     fn source_id(&self) -> Self::PeerId;
@@ -72,7 +82,7 @@ pub trait Backend<M: MessageMetadata> {
         &self,
         peer_id: M::PeerId,
         job_id: M::JobId,
-        message_id: M::MessageId
+        message_id: M::MessageId,
     ) -> Result<(), BackendError>;
     async fn get_pending_outbound(&self) -> Result<Vec<M>, BackendError>;
     async fn get_pending_inbound(&self) -> Result<Vec<M>, BackendError>;
@@ -113,7 +123,7 @@ impl<M: MessageMetadata> MessageTracker<M> {
     fn can_send(&self, job_id: &M::JobId, peer_id: &M::PeerId, msg_id: &M::MessageId) -> bool {
         match self.last_acked.get(&(*job_id, *peer_id)) {
             Some(last_id) => *msg_id == *last_id + 1usize,
-            None => true // If there is no message for this job/peer_id combo, send it
+            None => true, // If there is no message for this job/peer_id combo, send it
         }
     }
 }
@@ -132,12 +142,13 @@ where
     tracker: Arc<RwLock<MessageTracker<M>>>,
 }
 
-impl <M, B, L, N> Clone for MessageSystem<M, B, L, N>
+impl<M, B, L, N> Clone for MessageSystem<M, B, L, N>
 where
     M: MessageMetadata + Clone + Send + Sync + Serialize + for<'de> Deserialize<'de> + 'static,
     B: Backend<M> + Send + Sync + 'static,
     L: LocalDelivery<M> + Send + Sync + 'static,
-    N: Network<Message = M> + Send + Sync + 'static {
+    N: Network<Message = M> + Send + Sync + 'static,
+{
     fn clone(&self) -> Self {
         Self {
             backend: self.backend.clone(),
@@ -241,9 +252,10 @@ where
             messages.sort_by_key(|m| m.message_id());
 
             // Find the first message we can send based on ACKs
-            if let Some(msg) = messages.into_iter().find(|m|
-                tracker.can_send(&job_id, &peer_id, &m.message_id())
-            ) {
+            if let Some(msg) = messages
+                .into_iter()
+                .find(|m| tracker.can_send(&job_id, &peer_id, &m.message_id()))
+            {
                 if let Err(e) = self.network.send_message(&Payload::Message(msg)).await {
                     eprintln!("Failed to send message: {:?}", e);
                 }
@@ -261,23 +273,30 @@ where
         };
 
         // Sort the pending messages in order by MessageID
-        let pending_messages: Vec<M> = pending_messages.into_iter().sorted_by_key(|r| r.message_id()).collect();
+        let pending_messages: Vec<M> = pending_messages
+            .into_iter()
+            .sorted_by_key(|r| r.message_id())
+            .collect();
 
         for message in pending_messages {
             match self.local_delivery.deliver(message.clone()).await {
                 Ok(()) => {
                     // Create and send ACK
-                    if let Err(e) = self.network.send_message(&self.create_ack_message(&message)).await {
+                    if let Err(e) = self
+                        .network
+                        .send_message(&self.create_ack_message(&message))
+                        .await
+                    {
                         crate::error!("Failed to send ACK: {e:?}");
                         continue;
                     }
 
                     // Clear delivered message from backend
-                    if let Err(e) = self.backend.clear_message(
-                        message.source_id(),
-                        message.job_id(),
-                        message.message_id()
-                    ).await {
+                    if let Err(e) = self
+                        .backend
+                        .clear_message(message.source_id(), message.job_id(), message.message_id())
+                        .await
+                    {
                         crate::error!("Failed to clear delivered message: {e:?}");
                     }
                 }
@@ -293,15 +312,23 @@ where
         loop {
             if let Some(message) = self.network.next_message().await {
                 match message {
-                    Payload::Ack { job_id, from_id, message_id } => {
+                    Payload::Ack {
+                        job_id,
+                        from_id,
+                        message_id,
+                    } => {
                         // Update the tracker with the new ACK
                         let mut tracker = self.tracker.write().await;
                         tracker.update_ack(job_id, from_id, message_id);
 
-                        if let Err(e) = self.backend.clear_message(from_id, job_id, message_id).await {
+                        if let Err(e) = self
+                            .backend
+                            .clear_message(from_id, job_id, message_id)
+                            .await
+                        {
                             crate::error!("Failed to clear ACKed message: {e:?}");
                         }
-                    },
+                    }
                     Payload::Message(msg) => {
                         if let Err(e) = self.backend.store_inbound(msg).await {
                             crate::error!("Failed to store inbound message: {e:?}");
@@ -335,7 +362,8 @@ pub struct InMemoryBackend<M: MessageMetadata> {
     inbound: Mailbox<M::JobId, M::PeerId, M::MessageId, M>,
 }
 
-type Mailbox<JobId, PeerId, MessageId, Message> = Arc<RwLock<HashMap<(JobId, PeerId, MessageId), Message>>>;
+type Mailbox<JobId, PeerId, MessageId, Message> =
+    Arc<RwLock<HashMap<(JobId, PeerId, MessageId), Message>>>;
 
 impl<M: MessageMetadata> InMemoryBackend<M> {
     pub fn new() -> Self {
@@ -356,36 +384,48 @@ impl<M: MessageMetadata> Default for InMemoryBackend<M> {
 impl<M: MessageMetadata + Clone + Send + Sync + 'static> Backend<M> for InMemoryBackend<M> {
     async fn store_outbound(&self, message: M) -> Result<(), BackendError> {
         let mut outbound = self.outbound.write().await;
-        let (job_id, source_id, message_id) = (
-            message.job_id(),
-            message.source_id(),
-            message.message_id()
-        );
+        let (job_id, source_id, message_id) =
+            (message.job_id(), message.source_id(), message.message_id());
 
-        if outbound.insert((
-                            message.job_id(),
-                            message.destination_id(),
-                            message.message_id()
-                        ), message).is_some() {
-            crate::warn!("Overwriting existing message in outbound storage jid={}/dest={}/id={}", job_id, source_id, message_id);
+        if outbound
+            .insert(
+                (
+                    message.job_id(),
+                    message.destination_id(),
+                    message.message_id(),
+                ),
+                message,
+            )
+            .is_some()
+        {
+            crate::warn!(
+                "Overwriting existing message in outbound storage jid={}/dest={}/id={}",
+                job_id,
+                source_id,
+                message_id
+            );
         }
         Ok(())
     }
 
     async fn store_inbound(&self, message: M) -> Result<(), BackendError> {
         let mut inbound = self.inbound.write().await;
-        let (job_id, source_id, message_id) = (
-            message.job_id(),
-            message.source_id(),
-            message.message_id()
-        );
+        let (job_id, source_id, message_id) =
+            (message.job_id(), message.source_id(), message.message_id());
 
-        if inbound.insert((
-                           message.job_id(),
-                           message.source_id(),
-                           message.message_id()
-                       ), message).is_some() {
-            crate::warn!("Overwriting existing message in inbound storage jid={}/src={}/id={}", job_id, source_id, message_id);
+        if inbound
+            .insert(
+                (message.job_id(), message.source_id(), message.message_id()),
+                message,
+            )
+            .is_some()
+        {
+            crate::warn!(
+                "Overwriting existing message in inbound storage jid={}/src={}/id={}",
+                job_id,
+                source_id,
+                message_id
+            );
         }
         Ok(())
     }
@@ -394,7 +434,7 @@ impl<M: MessageMetadata + Clone + Send + Sync + 'static> Backend<M> for InMemory
         &self,
         peer_id: M::PeerId,
         job_id: M::JobId,
-        message_id: M::MessageId
+        message_id: M::MessageId,
     ) -> Result<(), BackendError> {
         // Try to remove from both outbound and inbound
         let mut outbound = self.outbound.write().await;

@@ -13,8 +13,8 @@ pub mod gossip;
 pub mod handlers;
 #[cfg(target_family = "wasm")]
 pub mod matchbox;
-pub mod setup;
 pub mod messaging;
+pub mod setup;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct IdentifierInfo {
