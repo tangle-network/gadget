@@ -81,12 +81,10 @@ impl GadgetProcess {
     /// # Errors
     /// - If the [stream](broadcast::Receiver) has died
     /// - If the [GadgetProcess] has been deserialized and the [stream](broadcast::Receiver) is None
-    pub fn resubscribe(&self) -> Result<broadcast::Receiver<String>, Box<dyn Error>> {
+    pub fn resubscribe(&self) -> Result<broadcast::Receiver<String>, Error> {
         match &self.stream {
             Some(stream) => Ok(stream.resubscribe()),
-            None => Err(Box::from(format_err!(
-                "Failed to resubscribe, stream is None"
-            ))),
+            None => Err(Error::StreamError(self.pid)),
         }
     }
 
@@ -239,10 +237,10 @@ impl GadgetProcess {
     pub(crate) fn status(&self) -> Result<Status, Error> {
         let s = System::new_all();
         match s.process(self.pid) {
-            Some(process) => Status::from(process.status()),
+            Some(process) => Ok(Status::from(process.status())),
             None => {
                 // If it isn't found, then the process died
-                Status::Dead
+                Ok(Status::Dead)
             }
         }
     }

@@ -1,8 +1,7 @@
 pub use futures::{FutureExt, StreamExt};
 pub use std::process::Stdio;
 pub use tokio::io::BufReader;
-use tokio::io::{AsyncBufReadExt, AsyncRead, ReadBuf};
-use tokio::macros::support::poll_fn;
+use tokio::io::{AsyncBufReadExt, ReadBuf};
 pub use tokio::process::{Child, Command};
 use tokio::sync::broadcast;
 

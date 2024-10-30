@@ -62,12 +62,12 @@ impl GadgetProcessManager {
         &mut self,
         identifier: String,
         command: &str,
-    ) -> Result<broadcast::Receiver<String>, Box<dyn Error>> {
+    ) -> Result<broadcast::Receiver<String>, Error> {
         self.run(identifier.clone(), command).await?;
         let process = self
             .children
             .get_mut(&identifier)
-            .ok_or(format!("Failed to start {identifier}, it does not exist"))?;
+            .ok_or(Error::ServiceNotFound(identifier))?;
         process.resubscribe()
     }
 
@@ -149,7 +149,7 @@ impl GadgetProcessManager {
         let mut to_remove = Vec::new();
         // Find dead processes and restart them
         for (key, value) in self.children.iter_mut() {
-            match value.status() {
+            match value.status()? {
                 Status::Active | Status::Sleeping => {
                     // TODO: Metrics + Logs for these living processes
                     // Check if this process is still running what is expected
