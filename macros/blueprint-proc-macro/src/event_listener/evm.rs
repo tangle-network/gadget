@@ -10,7 +10,7 @@ pub(crate) fn get_evm_instance_data(
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
     let instance_wrapper_name = format_ident!("{}InstanceWrapper", instance_base);
-    let instance = quote! { #instance_base::#instance_name<T::TH, T::PH, alloy_network::Ethereum> };
+    let instance = quote! { #instance_base::#instance_name<alloy_transport::BoxTransport, alloy_provider::RootProvider<alloy_transport::BoxTransport>, alloy_network::Ethereum> };
 
     (
         instance_base,
@@ -110,12 +110,11 @@ pub(crate) fn generate_evm_event_handler(
 
         #[automatically_derived]
         #[async_trait::async_trait]
-        impl<T> gadget_sdk::events_watcher::evm::EvmEventHandler<T> for #struct_name <T>
+        impl gadget_sdk::events_watcher::evm::EvmEventHandler for #struct_name
         where
-            T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config +'static,
-            #instance_wrapper_name <T::TH, T::PH>: std::ops::Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, alloy_network::Ethereum>>,
+            #instance_wrapper_name <alloy_transport::BoxTransport, alloy_provider::RootProvider<alloy_transport::BoxTransport>>: std::ops::Deref<Target = alloy_contract::ContractInstance<alloy_transport::BoxTransport, alloy_provider::RootProvider<alloy_transport::BoxTransport>, alloy_network::Ethereum>>,
         {
-            type Contract = #instance_wrapper_name <T::TH, T::PH>;
+            type Contract = #instance_wrapper_name <alloy_transport::BoxTransport, alloy_provider::RootProvider<alloy_transport::BoxTransport>>;
             type Event = #event;
             const GENESIS_TX_HASH: alloy_primitives::FixedBytes<32> = alloy_primitives::FixedBytes([0; 32]);
 
@@ -162,6 +161,6 @@ pub(crate) fn generate_evm_event_handler(
             }
         }
 
-        impl<T: gadget_sdk::events_watcher::evm::Config> gadget_sdk::event_listener::markers::IsEvm for #struct_name <T> {}
+        impl gadget_sdk::event_listener::markers::IsEvm for #struct_name {}
     }
 }

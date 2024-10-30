@@ -1,9 +1,7 @@
 use alloy_network::EthereumWallet;
-use alloy_provider::ProviderBuilder;
 use alloy_signer_local::PrivateKeySigner;
-use color_eyre::Result;
 use gadget_sdk::{
-    events_watcher::evm::DefaultNodeConfig,
+    events_watcher::evm::get_wallet_provider_http,
     info,
     runners::{eigenlayer::EigenlayerConfig, BlueprintRunner},
 };
@@ -18,73 +16,33 @@ use incredible_squaring_blueprint_eigenlayer::{
 
 #[gadget_sdk::main(env)]
 async fn main() {
-    // Get the ECDSA key from the private key seed using alloy
     let signer: PrivateKeySigner = AGGREGATOR_PRIVATE_KEY
         .parse()
         .expect("failed to generate wallet ");
     let wallet = EthereumWallet::from(signer);
-    let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
-        .wallet(wallet.clone())
-        .on_http(env.http_rpc_endpoint.parse()?);
-    info!("Task Manager Address: {:?}", *TASK_MANAGER_ADDRESS);
+    let provider = get_wallet_provider_http(&env.http_rpc_endpoint, wallet.clone());
+
+    let server_address = format!("{}:{}", env.bind_addr, 8081);
+    let aggregator_client = AggregatorClient::new(&server_address, env.clone())?;
+    let aggregator_context =
+        AggregatorContext::new(server_address, *TASK_MANAGER_ADDRESS, wallet, env.clone())
+            .await
+            .unwrap();
+
     let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
         *TASK_MANAGER_ADDRESS,
         provider,
     );
 
-    info!("Protocol: Eigenlayer");
-    info!(
-        "Registry Coordinator Address: {:?}",
-        env.protocol_specific
-            .eigenlayer()?
-            .registry_coordinator_address
-    );
-    info!(
-        "Operator State Retriever Address: {:?}",
-        env.protocol_specific
-            .eigenlayer()?
-            .operator_state_retriever_address
-    );
-    info!(
-        "Delegation Manager Address: {:?}",
-        env.protocol_specific
-            .eigenlayer()?
-            .delegation_manager_address
-    );
-    info!(
-        "Strategy Manager Address: {:?}",
-        env.protocol_specific.eigenlayer()?.strategy_manager_address
-    );
-    info!(
-        "AVS Directory Address: {:?}",
-        env.protocol_specific.eigenlayer()?.avs_directory_address
-    );
-
-    let server_address = format!("{}:{}", env.bind_addr, 8081);
-    let aggregator_client = AggregatorClient::new(&server_address)?;
-    let x_square_eigen = XsquareEigenEventHandler::<DefaultNodeConfig> {
-        ctx: aggregator_client,
-        contract: contract.clone().into(),
-    };
-
-    let aggregator_context = AggregatorContext::new(
-        server_address,
-        *TASK_MANAGER_ADDRESS,
-        env.http_rpc_endpoint.clone(),
-        wallet,
-        env.clone(),
-    )
-    .await
-    .unwrap();
-
-    let initialize_task = InitializeBlsTaskEventHandler::<DefaultNodeConfig> {
+    let initialize_task = InitializeBlsTaskEventHandler {
         ctx: aggregator_context.clone(),
         contract: contract.clone().into(),
     };
 
-    // let (handle, aggregator_shutdown_tx) =
-    // aggregator_context.start(env.ws_rpc_endpoint.clone());
+    let x_square_eigen = XsquareEigenEventHandler {
+        ctx: aggregator_client,
+        contract: contract.clone().into(),
+    };
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
     let eigen_config = EigenlayerConfig {};

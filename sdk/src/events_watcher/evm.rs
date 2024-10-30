@@ -3,52 +3,36 @@
 use crate::events_watcher::error::Error;
 use alloy_network::{Ethereum, EthereumWallet};
 use alloy_primitives::FixedBytes;
-use alloy_provider::{
-    fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller, WalletFiller},
-    Identity, Provider, ProviderBuilder, RootProvider, WsConnect,
-};
+use alloy_provider::{Provider, ProviderBuilder, RootProvider, WsConnect};
 use alloy_sol_types::SolEvent;
-use alloy_transport::{BoxTransport, Transport};
-use alloy_transport_http::{Client, Http};
+use alloy_transport::BoxTransport;
 use std::ops::Deref;
 
-pub trait Config: Send + Sync + Clone + 'static {
-    type TH: Transport + Clone + Send + Sync;
-    type PH: Provider<Self::TH, Ethereum> + Clone + Send + Sync;
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct DefaultNodeConfig {}
-
-impl Config for DefaultNodeConfig {
-    type TH = Http<Client>;
-    type PH = FillProvider<
-        JoinFill<
-            JoinFill<JoinFill<JoinFill<Identity, GasFiller>, NonceFiller>, ChainIdFiller>,
-            WalletFiller<EthereumWallet>,
+pub trait EvmContract:
+    Deref<
+        Target = alloy_contract::ContractInstance<
+            BoxTransport,
+            RootProvider<BoxTransport>,
+            Ethereum,
         >,
-        RootProvider<Http<Client>>,
-        Http<Client>,
-        Ethereum,
-    >;
-}
-
-pub trait EvmContract<T: Config>:
-    Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, Ethereum>>
-    + Send
+    > + Send
     + Clone
     + Sync
     + 'static
 {
 }
 impl<
-        T: Config,
-        X: Deref<Target = alloy_contract::ContractInstance<T::TH, T::PH, Ethereum>>
-            + Send
+        X: Deref<
+                Target = alloy_contract::ContractInstance<
+                    BoxTransport,
+                    RootProvider<BoxTransport>,
+                    Ethereum,
+                >,
+            > + Send
             + Clone
             + Sync
             + 'static,
-    > EvmContract<T> for X
+    > EvmContract for X
 {
 }
 
@@ -58,9 +42,9 @@ impl<X: SolEvent + Clone + Send + Sync + 'static> EvmEvent for X {}
 /// A trait for watching events from a contract.
 /// EventWatcher trait exists for deployments that are smart-contract / EVM based
 #[async_trait::async_trait]
-pub trait EvmEventHandler<T: Config>: Send + Sync + 'static {
+pub trait EvmEventHandler: Send + Sync + 'static {
     /// The contract that this event watcher is watching.
-    type Contract: EvmContract<T>;
+    type Contract: EvmContract;
     /// The type of event this handler is for.
     type Event: EvmEvent;
     /// The genesis transaction hash for the contract.

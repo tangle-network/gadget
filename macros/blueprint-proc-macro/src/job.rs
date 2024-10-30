@@ -238,29 +238,16 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 idx,
                 suffix.to_lowercase()
             );
-            let is_not_evm = !matches!(listener_meta.listener_type, ListenerType::Evm);
             // convert the listener var, which is just a struct name, to an ident
             let listener = listener_meta.listener.to_token_stream();
 
-            let type_args = if is_not_evm {
-                proc_macro2::TokenStream::default()
-            } else {
-                quote! { <T> }
-            };
-
-            let bounded_type_args = if is_not_evm {
-                proc_macro2::TokenStream::default()
-            } else {
-                quote! { <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config +'static> }
-            };
-
-            let autogen_struct_name = quote! { #struct_name #type_args };
+            let autogen_struct_name = quote! { #struct_name };
 
             // Check for special cases
             let next_listener = if matches!(listener_meta.listener_type, ListenerType::Evm) {
                 // How to inject not just this event handler, but all event handlers here?
                 let wrapper = quote! {
-                    gadget_sdk::event_listener::evm_contracts::EthereumHandlerWrapper<#autogen_struct_name, _>
+                    gadget_sdk::event_listener::evm_contracts::EthereumHandlerWrapper<#autogen_struct_name>
                 };
 
                 let ctx_create = quote! {
@@ -278,7 +265,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 });
 
                 quote! {
-                    async fn #listener_function_name #bounded_type_args(ctx: &#autogen_struct_name) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
+                    async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
                         static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                         if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
                             ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -305,7 +292,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                     .map(|ctx| (quote! {self}, (*ctx).clone()))
                     .expect("No context found");
 
-                let autogen_struct_name = quote! { #struct_name #type_args };
+                let autogen_struct_name = quote! { #struct_name };
 
                 let context_ty = event_handler_arg_types
                     .first()
@@ -413,7 +400,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
                 };
 
                 quote! {
-                    async fn #listener_function_name #bounded_type_args(ctx: &#autogen_struct_name) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
+                    async fn #listener_function_name (ctx: &#autogen_struct_name) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
                         static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                         if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
                             ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -541,8 +528,6 @@ pub fn generate_autogen_struct(
         .collect::<Vec<_>>();
 
     let mut required_fields = vec![];
-    let mut type_params_bounds = proc_macro2::TokenStream::default();
-    let mut type_params = proc_macro2::TokenStream::default();
 
     // Even if multiple tangle listeners, we only need this once
     if event_listener_args.has_tangle() {
@@ -558,12 +543,8 @@ pub fn generate_autogen_struct(
         let (_, _, instance_wrapper_name, _) = get_evm_instance_data(event_listener_args);
 
         required_fields.push(quote! {
-            pub contract: #instance_wrapper_name<T::TH, T::PH>,
+            pub contract: #instance_wrapper_name<alloy_transport::BoxTransport, alloy_provider::RootProvider<alloy_transport::BoxTransport>>,
         });
-
-        type_params = quote! { <T> };
-        type_params_bounds =
-            quote! { <T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config + 'static> };
     }
 
     let combined_event_listener = generate_combined_event_listener_selector(&struct_name);
@@ -574,13 +555,13 @@ pub fn generate_autogen_struct(
         #[doc = #fn_name_string]
         #[doc = "`]"]
         #[derive(Clone)]
-        pub struct #struct_name #type_params_bounds {
+        pub struct #struct_name {
             #(#required_fields)*
             #(#additional_params)*
         }
 
         #[async_trait::async_trait]
-        impl #type_params_bounds gadget_sdk::events_watcher::InitializableEventHandler for #struct_name #type_params {
+        impl gadget_sdk::events_watcher::InitializableEventHandler for #struct_name {
             async fn init_event_handler(
                 &self,
             ) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {

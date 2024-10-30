@@ -1,7 +1,6 @@
 use alloy_network::EthereumWallet;
-use alloy_provider::ProviderBuilder;
 use color_eyre::Result;
-use gadget_sdk::events_watcher::evm::DefaultNodeConfig;
+use gadget_sdk::events_watcher::evm::get_wallet_provider_http;
 use gadget_sdk::runners::symbiotic::SymbioticConfig;
 use gadget_sdk::runners::BlueprintRunner;
 use gadget_sdk::{info, keystore::BackendExt};
@@ -23,20 +22,16 @@ async fn main() {
     // Get the ECDSA key from the private key seed using alloy
     let operator_signer = env.keystore()?.ecdsa_key()?.alloy_key()?;
     let wallet = EthereumWallet::new(operator_signer);
-
-    let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
-        .wallet(wallet.clone())
-        .on_http(env.http_rpc_endpoint.parse()?);
+    let provider = get_wallet_provider_http(&env.http_rpc_endpoint, wallet);
 
     let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
         *TASK_MANAGER_ADDRESS,
         provider,
     );
 
-    let x_square = blueprint::XsquareEventHandler::<DefaultNodeConfig> {
+    let x_square = blueprint::XsquareEventHandler {
         context: blueprint::MyContext {},
-        contract: contract.clone().into(),
+        contract: contract.into(),
     };
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");

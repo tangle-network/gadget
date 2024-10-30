@@ -1,6 +1,7 @@
 use alloy_rpc_client::ReqwestClient;
 use color_eyre::Result;
 use eigensdk::crypto_bls::{OperatorId, Signature};
+use gadget_sdk::{config::StdGadgetConfiguration, ctx::KeystoreContext};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -20,17 +21,19 @@ pub struct SignedTaskResponse {
 }
 
 /// Client for interacting with the Aggregator RPC
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, KeystoreContext)]
 pub struct AggregatorClient {
     client: ReqwestClient,
+    #[config]
+    pub std_config: StdGadgetConfiguration,
 }
 
 impl AggregatorClient {
     /// Creates a new AggregatorClient
-    pub fn new(aggregator_address: &str) -> Result<Self> {
+    pub fn new(aggregator_address: &str, std_config: StdGadgetConfiguration) -> Result<Self> {
         let url = Url::parse(&format!("http://{}", aggregator_address))?;
         let client = ReqwestClient::new_http(url);
-        Ok(Self { client })
+        Ok(Self { client, std_config })
     }
 
     /// Sends a signed task response to the aggregator
@@ -78,7 +81,7 @@ mod tests {
 
     #[test]
     fn test_new_client() {
-        let client = AggregatorClient::new("127.0.0.1:8545");
+        let client = AggregatorClient::new("127.0.0.1:8545", Default::default());
         assert!(client.is_ok());
     }
 
