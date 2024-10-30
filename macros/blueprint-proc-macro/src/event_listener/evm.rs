@@ -7,7 +7,6 @@ use crate::job::EventListenerArgs;
 pub(crate) fn get_evm_instance_data(
     event_handler: &EventListenerArgs,
 ) -> (Ident, Ident, Ident, TokenStream) {
-    // IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance
     let instance_base = event_handler.instance().unwrap();
     let instance_name = format_ident!("{}Instance", instance_base);
     let instance_wrapper_name = format_ident!("{}InstanceWrapper", instance_base);

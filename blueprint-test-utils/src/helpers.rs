@@ -168,10 +168,6 @@ impl BlueprintProcessManager {
                     "--strategy-manager={}",
                     EigenlayerContractAddresses::default().strategy_manager_address
                 ));
-                arguments.push(format!(
-                    "--avs-directory={}",
-                    EigenlayerContractAddresses::default().avs_directory_address
-                ));
             }
             Protocol::Symbiotic => {
                 arguments.push(format!(
