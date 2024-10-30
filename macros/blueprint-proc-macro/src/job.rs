@@ -583,10 +583,11 @@ pub fn generate_autogen_struct(
 
     // Even if multiple evm listeners, we only need this once
     if event_listener_args.has_evm() {
-        let (_, _, instance_wrapper_name, _) = get_evm_instance_data(event_listener_args);
+        let (_, _, _, instance_name) = get_evm_instance_data(event_listener_args);
 
         required_fields.push(quote! {
-            pub contract: #instance_wrapper_name<T::TH, T::PH>,
+            pub contract: #instance_name,
+            pub contract_instance: std::sync::OnceLock<alloy_contract::ContractInstance<T::TH, T::PH, alloy_network::Ethereum>>,
         });
 
         type_params = quote! { <T> };

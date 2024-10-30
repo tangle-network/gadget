@@ -158,10 +158,11 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
         );
 
         let aggregator_client = AggregatorClient::new(&format!("{}:{}", self.env.bind_addr, 8081))?;
-        // TODO: implicit fields should be implicitly constructed via an auto-drived new function on the autogen job struct
+        // TODO: implicit fields should be implicitly constructed via an auto-derived new function on the autogen job struct
         let x_square_eigen = XsquareEigenEventHandler::<DefaultNodeConfig> {
             ctx: aggregator_client,
-            contract: contract.clone().into(),
+            contract: contract.clone(),
+            contract_instance: Default::default(),
         };
 
         let aggregator_context = AggregatorContext::new(
@@ -176,7 +177,8 @@ impl GadgetRunner for EigenlayerGadgetRunner<parking_lot::RawRwLock> {
 
         let initialize_task = InitializeBlsTaskEventHandler::<DefaultNodeConfig> {
             ctx: aggregator_context.clone(),
-            contract: contract.clone().into(),
+            contract,
+            contract_instance: Default::default(),
         };
 
         let (handle, aggregator_shutdown_tx) =

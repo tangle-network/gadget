@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use crate::contexts::client::{AggregatorClient, SignedTaskResponse};
-use crate::{noop, IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING};
+use crate::{IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING};
 use alloy_primitives::keccak256;
 use alloy_primitives::{hex, Bytes, U256};
 use alloy_sol_types::SolType;
@@ -10,105 +10,24 @@ use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
 use gadget_sdk::{error, info, job};
-use std::{convert::Infallible, ops::Deref, sync::OnceLock};
+use std::{convert::Infallible, ops::Deref};
 use IncredibleSquaringTaskManager::TaskResponse;
 
-#[doc = "Job definition for the function "]
-#[doc = "[`"]
-#[doc = "xsquare_eigen"]
-#[doc = "`]"]
-#[automatically_derived]
-#[doc(hidden)]
-pub const XSQUARE_EIGEN_JOB_DEF: &str = "{\"metadata\":{\"name\":\"xsquare_eigen\",\"description\":null},\"params\":[\"U256\",\"Uint32\",\"Bytes\",\"Uint8\",\"Uint32\"],\"result\":[\"Uint32\"]}";
-#[doc = "Job ID for the function "]
-#[doc = "[`"]
-#[doc = "xsquare_eigen"]
-#[doc = "`]"]
-#[automatically_derived]
-pub const XSQUARE_EIGEN_JOB_ID: u8 = 0;
-static XSQUARE_EIGEN_ACTIVE_CALL_ID: std::sync::atomic::AtomicU64 =
-    std::sync::atomic::AtomicU64::new(0);
-#[doc = r" Event handler for the function"]
-#[doc = "[`"]
-#[doc = "xsquare_eigen"]
-#[doc = "`]"]
-#[derive(Clone)]
-pub struct XsquareEigenEventHandler<
-    T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config + 'static,
-> {
-    pub contract: IncredibleSquaringTaskManagerInstanceWrapper<T::TH, T::PH>,
-    contract_instance:
-        OnceLock<alloy_contract::ContractInstance<T::TH, T::PH, alloy_network::Ethereum>>,
-    pub ctx: AggregatorClient,
-}
-#[gadget_sdk::async_trait::async_trait]
-impl<T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config + 'static>
-    gadget_sdk::events_watcher::InitializableEventHandler for XsquareEigenEventHandler<T>
-{
-    async fn init_event_handler(
-        &self,
-    ) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
-        let mut listeners = vec![];
-        listeners.push(
-            run_listener_xsquare_eigen_0eventhandler(&self)
-                .await
-                .expect("Event listener already initialized"),
-        );
-        let (tx, rx) = gadget_sdk::tokio::sync::oneshot::channel();
-        let task = async move {
-            let mut futures = gadget_sdk::futures::stream::FuturesUnordered::new();
-            for listener in listeners {
-                futures.push(listener);
-            }
-            if let Some(res) = gadget_sdk::futures::stream::StreamExt::next(&mut futures).await {
-                gadget_sdk::error!(
-                    "An Event Handler for {} has stopped running",
-                    stringify!(XsquareEigenEventHandler)
-                );
-                let res = match res {
-                    Ok(res) => res,
-                    Err(e) => Err(gadget_sdk::Error::Other(format!(
-                        "Error in Event Handler for {}: {e:?}",
-                        stringify!(XsquareEigenEventHandler)
-                    ))),
-                };
-                tx.send(res).unwrap();
-            }
-        };
-        let _ = gadget_sdk::tokio::spawn(task);
-        Some(rx)
-    }
-}
-async fn run_listener_xsquare_eigen_0eventhandler<
-    T: Clone + Send + Sync + gadget_sdk::events_watcher::evm::Config + 'static,
->(
-    ctx: &XsquareEigenEventHandler<T>,
-) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
-    static ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-    if !ONCE.load(std::sync::atomic::Ordering::Relaxed) {
-        ONCE.store(true, std::sync::atomic::Ordering::Relaxed);
-        let (tx, rx) = gadget_sdk::tokio::sync::oneshot::channel();
-        let ctx = ctx.clone();
-        let mut instance = <gadget_sdk::event_listener::evm_contracts::EthereumHandlerWrapper<
-            _,
-            _,
-            _,
-        > as gadget_sdk::event_listener::EventListener<_, _>>::new(&ctx)
-        .await
-        .expect("Failed to create event listener");
-        let task = async move {
-            let res =
-                gadget_sdk::event_listener::EventListener::<_, _>::execute(&mut instance).await;
-            let _ = tx.send(res);
-        };
-        gadget_sdk::tokio::task::spawn(task);
-        return Some(rx);
-    }
-    None
-}
-#[allow(unused_variables)]
-#[doc = " Returns x^2 saturating to [`u64::MAX`] if overflow occurs."]
-
+/// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.
+#[job(
+    id = 0,
+    params(number_to_be_squared, task_created_block, quorum_numbers, quorum_threshold_percentage, task_index),
+    result(_),
+    event_listener(
+        listener = EvmContractEventListener(
+            instance = IncredibleSquaringTaskManager,
+            abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+        ),
+        event = IncredibleSquaringTaskManager::NewTaskCreated,
+        pre_processor = convert_event_to_inputs,
+        post_processor = noop,
+    ),
+)]
 pub async fn xsquare_eigen(
     ctx: AggregatorClient,
     number_to_be_squared: U256,
@@ -153,77 +72,6 @@ pub async fn xsquare_eigen(
     }
 
     Ok(1)
-}
-impl<T: gadget_sdk::event_listener::evm_contracts::EthereumContractBound>
-    gadget_sdk::event_listener::evm_contracts::EvmContractInstance<T>
-    for XsquareEigenEventHandler<T>
-{
-    fn get_instance(
-        &self,
-    ) -> &alloy_contract::ContractInstance<T::TH, T::PH, alloy_network::Ethereum> {
-        self.deref()
-    }
-}
-impl<T: gadget_sdk::event_listener::evm_contracts::EthereumContractBound> Deref
-    for XsquareEigenEventHandler<T>
-{
-    type Target = alloy_contract::ContractInstance<T::TH, T::PH, alloy_network::Ethereum>;
-    fn deref(&self) -> &Self::Target {
-        self.contract_instance.get_or_init(|| {
-            let abi_location = alloy_contract::Interface::new(
-                alloy_json_abi::JsonAbi::from_json_str(
-                    &INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
-                )
-                .unwrap(),
-            );
-            alloy_contract::ContractInstance::new(
-                self.contract.address().clone(),
-                self.contract.provider().clone(),
-                abi_location,
-            )
-        })
-    }
-}
-#[automatically_derived]
-#[gadget_sdk::async_trait::async_trait]
-impl<T: gadget_sdk::event_listener::evm_contracts::EthereumContractBound>
-    gadget_sdk::events_watcher::evm::EvmEventHandler<T> for XsquareEigenEventHandler<T>
-{
-    type Event = IncredibleSquaringTaskManager::NewTaskCreated;
-    const GENESIS_TX_HASH: alloy_primitives::FixedBytes<32> = alloy_primitives::FixedBytes([0; 32]);
-    async fn handle(
-        &self,
-        log: &gadget_sdk::alloy_rpc_types::Log,
-        event: &Self::Event,
-    ) -> Result<(), gadget_sdk::events_watcher::Error> {
-        use alloy_provider::Provider;
-        use alloy_sol_types::SolEvent;
-        use alloy_sol_types::SolInterface;
-        let contract = &self.contract;
-        let decoded: alloy_primitives::Log<Self::Event> =
-            <Self::Event as SolEvent>::decode_log(&log.inner, true)?;
-        let (_, index) = decoded.topics();
-        let inputs = convert_event_to_inputs(decoded.data, index);
-        let param0 = inputs.0;
-        let param1 = inputs.1;
-        let param2 = inputs.2;
-        let param3 = inputs.3;
-        let param4 = inputs.4;
-        let job_result =
-            match xsquare_eigen(self.ctx.clone(), param0, param1, param2, param3, param4).await {
-                Ok(r) => r,
-                Err(e) => {
-                    ::gadget_sdk::error!("Error in job: {e}");
-                    let error = gadget_sdk::events_watcher::Error::Handler(Box::new(e));
-                    return Err(error);
-                }
-            };
-        Ok(())
-    }
-}
-impl<T: gadget_sdk::event_listener::evm_contracts::EthereumContractBound>
-    gadget_sdk::event_listener::markers::IsEvm for XsquareEigenEventHandler<T>
-{
 }
 
 /// Converts the event to inputs.
