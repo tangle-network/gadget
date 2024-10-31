@@ -103,20 +103,24 @@ impl GadgetProcess {
                     Ok(output) => {
                         match output {
                             Err(e) => {
-                                info!("{} ended with: {}", self.process_name.to_string_lossy(), e);
+                                crate::debug!(
+                                    "{} ended with: {}",
+                                    self.process_name.to_string_lossy(),
+                                    e
+                                );
                                 return ProcessOutput::Exhausted(messages);
                             }
                             Ok(inbound_message) => {
                                 if inbound_message.is_empty() {
                                     // Stream is completed - process is finished
-                                    info!(
+                                    crate::debug!(
                                         "{} : STREAM COMPLETED - ENDING",
                                         self.process_name.to_string_lossy()
                                     );
                                     return ProcessOutput::Exhausted(messages);
                                 } else {
                                     // We received output from child process
-                                    info!(
+                                    crate::debug!(
                                         "{} : MESSAGE LOG : {}",
                                         self.process_name.to_string_lossy(),
                                         inbound_message
@@ -137,7 +141,7 @@ impl GadgetProcess {
                     }
                 }
             }
-            info!("EXECUTOR READ LOOP ENDED");
+            crate::debug!("EXECUTOR READ LOOP ENDED");
 
             if messages.is_empty() {
                 ProcessOutput::Waiting
@@ -145,7 +149,7 @@ impl GadgetProcess {
                 ProcessOutput::Output(messages)
             }
         } else {
-            info!(
+            crate::warn!(
                 "{} encountered read error",
                 self.process_name.to_string_lossy()
             );
@@ -173,14 +177,14 @@ impl GadgetProcess {
                         let inbound_message = output;
                         if inbound_message.is_empty() {
                             // Stream is completed - process is finished
-                            info!(
+                            crate::debug!(
                                 "{} : STREAM COMPLETED - ENDING",
                                 self.process_name.to_string_lossy()
                             );
                             return ProcessOutput::Exhausted(messages);
                         } else {
                             // We received output from child process
-                            info!(
+                            crate::debug!(
                                 "{} : MESSAGE LOG : {}",
                                 self.process_name.to_string_lossy(),
                                 inbound_message.clone()
@@ -194,7 +198,7 @@ impl GadgetProcess {
                         }
                     }
                     Err(err) => {
-                        info!(
+                        crate::warn!(
                             "{} read attempt failed: {}",
                             self.process_name.to_string_lossy(),
                             err
@@ -205,7 +209,7 @@ impl GadgetProcess {
             }
         }
         // Reaching this point means there was some sort of error - we never got the substring
-        info!(
+        crate::warn!(
             "{} encountered read error",
             self.process_name.to_string_lossy()
         );
@@ -224,8 +228,8 @@ impl GadgetProcess {
             }
             None => {
                 // No need to worry, the previously running process died
-                info!(
-                    "LOG : Process restart attempt found no process for PID {:?}",
+                crate::warn!(
+                    "Process restart attempt found no process for PID {:?}",
                     self.pid
                 );
             }

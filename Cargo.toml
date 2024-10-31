@@ -146,6 +146,7 @@ indexmap = "2.5.0"
 lazy_static = "1.5.0"
 jsonrpc-core = "18.0.0"
 jsonrpc-http-server = "18.0.0"
+tempfile = "3.10.1"
 
 alloy-primitives = "0.7.2"
 alloy-json-abi = "0.7.2"

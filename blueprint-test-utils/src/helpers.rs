@@ -89,14 +89,15 @@ impl BlueprintProcessManager {
         ws_endpoint: &str,
         protocol: Protocol,
     ) -> Result<BlueprintProcess, std::io::Error> {
-        let tmp_store = uuid::Uuid::new_v4().to_string();
-        let keystore_uri = format!(
-            "./target/keystores/{}/{tmp_store}/",
-            NAME_IDS[instance_id].to_lowercase()
-        );
+        let tmp_dir = tempfile::TempDir::new()?;
+        let keystore_uri = tmp_dir.path().join(format!(
+            "keystores/{}/{}",
+            NAME_IDS[instance_id].to_lowercase(),
+            uuid::Uuid::new_v4()
+        ));
         assert!(
-            !std::path::Path::new(&keystore_uri).exists(),
-            "Keystore URI cannot exist: {}",
+            !keystore_uri.exists(),
+            "Keystore URI cannot exist: {:?}",
             keystore_uri
         );
 

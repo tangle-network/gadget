@@ -20,9 +20,9 @@ pub type StdGadgetConfiguration = GadgetConfiguration<parking_lot::RawRwLock>;
 /// Gadget environment.
 #[non_exhaustive]
 pub struct GadgetConfiguration<RwLock: lock_api::RawRwLock> {
-    /// Tangle HTTP RPC endpoint.
+    /// HTTP RPC endpoint for host network.
     pub http_rpc_endpoint: String,
-    /// Tangle WS RPC endpoint.
+    /// WS RPC endpoint for host network.
     pub ws_rpc_endpoint: String,
     /// Keystore URI
     ///
@@ -199,15 +199,47 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
         self.is_registration
     }
 
-    /// Returns a new [`subxt::OnlineClient`] for the Tangle.
+    /// Returns a new [`subxt::OnlineClient`] for Tangle.
+    ///
+    /// When the [`Protocol`] field of the [`GadgetConfiguration`] is:
+    /// - `Tangle`: Creates a [`TangleClient`](crate::clients::tangle::runtime::TangleClient) from
+    ///   the RPC endpoints provided in the [`GadgetConfiguration`].
+    /// - Any other protocol: Creates a [`TangleClient`](crate::clients::tangle::runtime::TangleClient) from
+    ///   the provided bind address and port (assuming that address targets Tangle - fails otherwise).
     ///
     /// # Errors
     /// This function will return an error if we are unable to connect to the Tangle RPC endpoint.
     #[cfg(any(feature = "std", feature = "wasm"))]
     pub async fn client(&self) -> Result<crate::clients::tangle::runtime::TangleClient, Error> {
-        get_client(&self.ws_rpc_endpoint, &self.http_rpc_endpoint)
-            .await
-            .map_err(|err| Error::BadRpcConnection(err.to_string()))
+        match self.protocol {
+            Protocol::Tangle => get_client(&self.ws_rpc_endpoint, &self.http_rpc_endpoint)
+                .await
+                .map_err(|err| Error::BadRpcConnection(err.to_string())),
+            _ => {
+                // If not using the Tangle protocol, attempt to create client with target endpoint
+                get_client(&self.target_endpoint_ws(), &self.target_endpoint_http())
+                    .await
+                    .map_err(|err| Error::BadRpcConnection(err.to_string()))
+            }
+        }
+    }
+
+    /// Returns the HTTP endpoint string from the bind address and bind port specified in the [`GadgetConfiguration`].
+    ///
+    /// # Note
+    /// This endpoint is *not* the same as the WS RPC endpoint in the [`GadgetConfiguration`]. This is the target endpoint
+    /// rather than the endpoint for the network that matches the specified [`Protocol`].
+    pub fn target_endpoint_http(&self) -> String {
+        format!("http://{}:{}", self.bind_addr, self.bind_port)
+    }
+
+    /// Returns the WS endpoint string from the bind address and bind port specified in the [`GadgetConfiguration`].
+    ///
+    /// # Note
+    /// This endpoint is *not* the same as the HTTP RPC endpoint in the [`GadgetConfiguration`]. This is the target endpoint
+    /// rather than the endpoint for the network that matches the specified [`Protocol`].
+    pub fn target_endpoint_ws(&self) -> String {
+        format!("ws://{}:{}", self.bind_addr, self.bind_port)
     }
 
     /// Only relevant if this is a Tangle protocol.

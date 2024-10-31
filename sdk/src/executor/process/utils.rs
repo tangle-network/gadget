@@ -54,18 +54,17 @@ pub(crate) fn create_stream(mut child: Child) -> broadcast::Receiver<String> {
         loop {
             tokio::select! {
                 result = stdout_reader.next_line() => {
-                    crate::error!("READ TO STDOUT: {:?}", result);
                     match result {
                         Ok(Some(line)) => {
                             stdout_none_count = 0;
                             if !line.is_empty() && tx.send(format!("stdout: {}", line)).is_err() {
-                                    break;
+                                break;
                             }
                         }
                         Ok(None) => {
                             stdout_none_count += 1;
                             if stdout_none_count >= MAX_CONSECUTIVE_NONE {
-                                crate::info!("Reached maximum consecutive None values for stdout");
+                                crate::warn!("Reached maximum consecutive None values for stdout");
                                 break;
                             }
                         }
@@ -76,18 +75,17 @@ pub(crate) fn create_stream(mut child: Child) -> broadcast::Receiver<String> {
                     }
                 }
                 result = stderr_reader.next_line() => {
-                    crate::error!("READ TO STDERR: {:?}", result);
                     match result {
                         Ok(Some(line)) => {
                             stderr_none_count = 0;
                             if !line.is_empty() && tx.send(format!("stderr: {}", line)).is_err() {
-                                    break;
-                                                            }
+                                break;
+                            }
                         }
                         Ok(None) => {
                             stderr_none_count += 1;
                             if stderr_none_count >= MAX_CONSECUTIVE_NONE {
-                                crate::info!("Reached maximum consecutive None values for stderr");
+                                crate::warn!("Reached maximum consecutive None values for stderr");
                                 break;
                             }
                         }
@@ -113,7 +111,7 @@ pub(crate) fn create_stream(mut child: Child) -> broadcast::Receiver<String> {
             .wait()
             .await
             .expect("Child process encountered an error...");
-        println!("Child process ended with status: {}", status);
+        crate::info!("Child process ended with status: {}", status);
     });
 
     rx
@@ -135,12 +133,12 @@ fn handle_output(
                 let message = format!("[{}] {}", source, line.trim());
                 if tx.send(message.clone()).is_err() {
                     // there are no active receivers, stop the task
-                    eprintln!("Error sending message: {}", message);
+                    crate::error!("Error sending message: {}", message);
                 }
             }
         }
         Err(e) => {
-            eprintln!("Error reading from {}: {}", source, e);
+            crate::error!("Error reading from {}: {}", source, e);
         }
     }
 }
