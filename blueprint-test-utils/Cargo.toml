@@ -10,6 +10,7 @@ publish = false
 default = ["std"]
 std = ["sp-core/std", "gadget-io/std", "gadget-sdk/std"]
 wasm = ["gadget-io/wasm-bindgen", "gadget-sdk/wasm"]
+eigenlayer_test = []
 
 [dependencies]
 # Core dependencies

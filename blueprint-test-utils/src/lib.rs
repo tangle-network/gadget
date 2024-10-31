@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use crate::test_ext::{ANVIL_PRIVATE_KEYS, NAME_IDS};
 use api::services::events::JobResultSubmitted;
 use blueprint_manager::config::BlueprintManagerConfig;
@@ -31,7 +32,6 @@ use gadget_sdk::{info, error};
 
 pub use gadget_sdk::logging::setup_log;
 
-#[allow(unused_imports)]
 use cargo_tangle::deploy::Opts;
 
 pub type InputValue = runtime_types::tangle_primitives::services::field::Field<AccountId32>;
@@ -42,6 +42,7 @@ pub mod helpers;
 pub mod sync;
 pub mod test_ext;
 
+#[cfg(feature = "eigenlayer_test")]
 pub mod eigenlayer_test_env;
 pub mod incredible_squaring_helpers;
 pub mod symbiotic_test_env;
@@ -632,19 +633,21 @@ mod tests_standard {
     use crate::test_ext::new_test_ext_blueprint_manager;
 
     use cargo_tangle::deploy::Opts;
-
+    #[cfg(feature = "eigenlayer_test")]
     use eigenlayer_test_env::{setup_eigenlayer_test_environment, EigenlayerTestEnvironment};
     use gadget_sdk::config::protocol::EigenlayerContractAddresses;
     use gadget_sdk::config::Protocol;
     use gadget_sdk::logging::setup_log;
     use gadget_sdk::{error, info};
     use helpers::BlueprintProcessManager;
+    #[cfg(feature = "eigenlayer_test")]
     use incredible_squaring_helpers::{
         deploy_task_manager, setup_task_response_listener, setup_task_spawner, wait_for_responses,
     };
     use std::sync::Arc;
     use tokio::sync::Mutex;
 
+    #[cfg(feature = "eigenlayer_test")]
     const ANVIL_STATE_PATH: &str =
         "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
 
@@ -732,6 +735,7 @@ mod tests_standard {
 
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::needless_return)]
+    #[cfg(feature = "eigenlayer_test")]
     async fn test_eigenlayer_incredible_squaring_blueprint() {
         setup_log();
 
