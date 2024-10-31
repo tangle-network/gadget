@@ -4,7 +4,7 @@ use crate::keystore::backend::GenericKeyStore;
 use crate::keystore::BackendExt;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::TanglePairSigner;
-use crate::utils::get_client;
+use crate::utils::test_utils::get_client;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
 use core::net::IpAddr;

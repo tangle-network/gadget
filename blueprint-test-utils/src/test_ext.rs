@@ -38,7 +38,7 @@ use tracing::Instrument;
 use gadget_sdk::{error, info, warn};
 use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
 use gadget_sdk::subxt_core::config::Header;
-use gadget_sdk::utils::get_client;
+use gadget_sdk::utils::test_utils::get_client;
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
 pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
