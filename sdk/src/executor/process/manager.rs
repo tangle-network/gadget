@@ -71,8 +71,7 @@ impl GadgetProcessManager {
         process.resubscribe()
     }
 
-    /// Focuses on the given service until its stream is exhausted, meaning that the process ran to completion. Returns a
-    /// ProcessOutput with its output (if there is any).
+    /// Focuses on the given service until its stream is exhausted, meaning that the process ran to completion.
     pub async fn focus_service_to_completion(&mut self, service: String) -> Result<String, Error> {
         let process = self
             .children

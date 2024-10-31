@@ -1,9 +1,11 @@
 pub use futures::{FutureExt, StreamExt};
 pub use std::process::Stdio;
+use std::time::Duration;
 pub use tokio::io::BufReader;
 use tokio::io::{AsyncBufReadExt, ReadBuf};
 pub use tokio::process::{Child, Command};
 use tokio::sync::broadcast;
+use tokio::time::sleep;
 
 #[cfg(target_family = "unix")]
 pub(crate) static OS_COMMAND: (&str, &str) = ("sh", "-c");
@@ -42,32 +44,71 @@ pub(crate) fn create_stream(mut child: Child) -> broadcast::Receiver<String> {
     let mut stdout_reader = BufReader::new(stdout).lines();
     let mut stderr_reader = BufReader::new(stderr).lines();
 
+    const CHILD_PROCESS_TIMEOUT: Duration = Duration::from_millis(10000);
+    const MAX_CONSECUTIVE_NONE: usize = 5;
+
     tokio::spawn(async move {
+        let mut stdout_none_count = 0;
+        let mut stderr_none_count = 0;
+
         loop {
             tokio::select! {
                 result = stdout_reader.next_line() => {
-                    if let Ok(Some(line)) = result {
-                        if tx.send(format!("stdout: {}", line)).is_err() {
+                    crate::error!("READ TO STDOUT: {:?}", result);
+                    match result {
+                        Ok(Some(line)) => {
+                            stdout_none_count = 0;
+                            if !line.is_empty() && tx.send(format!("stdout: {}", line)).is_err() {
+                                    break;
+                            }
+                        }
+                        Ok(None) => {
+                            stdout_none_count += 1;
+                            if stdout_none_count >= MAX_CONSECUTIVE_NONE {
+                                crate::info!("Reached maximum consecutive None values for stdout");
+                                break;
+                            }
+                        }
+                        Err(e) => {
+                            crate::error!("Error reading from stdout: {}", e);
                             break;
                         }
-                    } else {
-                        break;
                     }
                 }
                 result = stderr_reader.next_line() => {
-                    if let Ok(Some(line)) = result {
-                        if tx.send(format!("stderr: {}", line)).is_err() {
+                    crate::error!("READ TO STDERR: {:?}", result);
+                    match result {
+                        Ok(Some(line)) => {
+                            stderr_none_count = 0;
+                            if !line.is_empty() && tx.send(format!("stderr: {}", line)).is_err() {
+                                    break;
+                                                            }
+                        }
+                        Ok(None) => {
+                            stderr_none_count += 1;
+                            if stderr_none_count >= MAX_CONSECUTIVE_NONE {
+                                crate::info!("Reached maximum consecutive None values for stderr");
+                                break;
+                            }
+                        }
+                        Err(e) => {
+                            crate::error!("Error reading from stderr: {}", e);
                             break;
                         }
-                    } else {
-                        break;
                     }
                 }
-                _ = child.wait() => {
+                _ = sleep(CHILD_PROCESS_TIMEOUT) => {
+                    crate::info!("Child process timeout reached, waiting for process to exit");
+                    if let Ok(status) = child.wait().await {
+                        crate::info!("Child process exited with status: {}", status);
+                    } else {
+                        crate::error!("Failed to get child process exit status");
+                    }
                     break;
                 }
             }
         }
+
         let status = child
             .wait()
             .await

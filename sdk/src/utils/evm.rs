@@ -153,6 +153,13 @@ pub async fn register_as_operator(
         .map_err(Error::ElContract)
 }
 
+/// Register the account of the given ECDSA pair with the AVS registry coordinator.
+///
+/// # Returns
+/// - [`FixedBytes<32>`] - The transaction hash on success, otherwise an error
+///
+/// # Errors
+/// - [`Error::AvsRegistry`] - If the registration call to the contract itself fails
 pub async fn register_with_avs_registry_coordinator(
     http_endpoint: &str,
     ecdsa_pair: TanglePairSigner<sp_core::ecdsa::Pair>,
