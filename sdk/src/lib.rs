@@ -70,6 +70,7 @@ pub mod utils;
 
 // Re-exports
 pub use alloy_rpc_types;
+pub use async_trait;
 pub use clap;
 pub use error::Error;
 pub use futures;

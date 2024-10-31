@@ -65,7 +65,8 @@ async fn main() {
     let aggregator_client = AggregatorClient::new(&server_address)?;
     let x_square_eigen = XsquareEigenEventHandler::<DefaultNodeConfig> {
         ctx: aggregator_client,
-        contract: contract.clone().into(),
+        contract: contract.clone(),
+        contract_instance: Default::default(),
     };
 
     let aggregator_context = AggregatorContext::new(
@@ -80,11 +81,9 @@ async fn main() {
 
     let initialize_task = InitializeBlsTaskEventHandler::<DefaultNodeConfig> {
         ctx: aggregator_context.clone(),
-        contract: contract.clone().into(),
+        contract,
+        contract_instance: Default::default(),
     };
-
-    // let (handle, aggregator_shutdown_tx) =
-    // aggregator_context.start(env.ws_rpc_endpoint.clone());
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
     let eigen_config = EigenlayerConfig {};

@@ -4,6 +4,7 @@ use crate::keystore::backend::GenericKeyStore;
 use crate::keystore::BackendExt;
 #[cfg(any(feature = "std", feature = "wasm"))]
 use crate::keystore::TanglePairSigner;
+use crate::utils::get_client;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
 use core::net::IpAddr;
@@ -203,11 +204,15 @@ impl<RwLock: lock_api::RawRwLock> GadgetConfiguration<RwLock> {
     /// This function will return an error if we are unable to connect to the Tangle RPC endpoint.
     #[cfg(any(feature = "std", feature = "wasm"))]
     pub async fn client(&self) -> Result<crate::clients::tangle::runtime::TangleClient, Error> {
-        let client =
-            subxt::OnlineClient::<crate::clients::tangle::runtime::TangleConfig>::from_url(
-                self.ws_rpc_endpoint.clone(),
-            )
-            .await?;
-        Ok(client)
+        get_client(&self.ws_rpc_endpoint, &self.http_rpc_endpoint)
+            .await
+            .map_err(|err| Error::BadRpcConnection(err.to_string()))
+    }
+
+    /// Only relevant if this is a Tangle protocol.
+    pub fn service_id(&self) -> Option<u64> {
+        let tangle_settings = self.protocol_specific.tangle().ok()?;
+        let TangleInstanceSettings { service_id, .. } = tangle_settings;
+        Some(*service_id)
     }
 }

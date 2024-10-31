@@ -10,6 +10,7 @@ license.workspace = true
 
 
 [dependencies]
+itertools = { workspace = true }
 auto_impl = { workspace = true }
 bollard = { workspace = true }
 elliptic-curve = { workspace = true, features = ["alloc", "sec1"] }

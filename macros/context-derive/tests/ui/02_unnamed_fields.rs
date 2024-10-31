@@ -12,6 +12,5 @@ fn main() {
         let tangle_client = ctx.tangle_client().await.unwrap();
         let _services = ctx.current_service_operators(&tangle_client).await;
     };
-    // Run the async block
     let _ = body;
 }
