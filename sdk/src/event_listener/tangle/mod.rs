@@ -6,11 +6,10 @@ use async_trait::async_trait;
 use gadget_blueprint_proc_macro_core::FieldType;
 pub use subxt_core::utils::AccountId32;
 use std::collections::VecDeque;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use subxt::backend::StreamOfResults;
-use subxt_core::events::EventDetails;
+use subxt_core::events::{EventDetails, StaticEvent};
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString;
 pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
@@ -21,7 +20,7 @@ use tokio::sync::Mutex;
 
 pub mod jobs;
 
-pub struct TangleEventListener<Ctx, Evt = ()> {
+pub struct TangleEventListener<Ctx, Evt: EventMatcher = AllEvents> {
     current_block: Option<u32>,
     job_id: Job,
     service_id: ServiceId,
@@ -31,8 +30,7 @@ pub struct TangleEventListener<Ctx, Evt = ()> {
     client: TangleClient,
     has_stopped: Arc<AtomicBool>,
     stopper_tx: Arc<parking_lot::Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
-    enqueued_events: VecDeque<EventDetails<TangleConfig>>,
-    _phantom: PhantomData<Evt>,
+    enqueued_events: VecDeque<Evt::Output>,
 }
 
 pub type BlockNumber = u32;
@@ -52,8 +50,8 @@ pub struct TangleListenerInput<Ctx> {
 /// sort through a series of events to find the ones it is interested in for
 /// pre-processing.
 #[derive(Clone)]
-pub struct TangleEvent<Ctx, Evt = ()> {
-    pub evt: EventDetails<TangleConfig>,
+pub struct TangleEvent<Ctx, Evt: EventMatcher = AllEvents> {
+    pub evt: Evt::Output,
     pub context: Ctx,
     pub call_id: Option<CallId>,
     pub args: job_called::Args,
@@ -63,10 +61,9 @@ pub struct TangleEvent<Ctx, Evt = ()> {
     pub job_id: Job,
     pub service_id: ServiceId,
     pub stopper: Arc<parking_lot::Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
-    pub _phantom: PhantomData<Evt>,
 }
 
-impl<Ctx, Evt> TangleEvent<Ctx, Evt> {
+impl<Ctx, Evt: EventMatcher> TangleEvent<Ctx, Evt> {
     /// Stops the event listener
     pub fn stop(&self) -> bool {
         let mut lock = self.stopper.lock();
@@ -78,10 +75,32 @@ impl<Ctx, Evt> TangleEvent<Ctx, Evt> {
     }
 }
 
-impl<Ctx> IsTangle for TangleEventListener<Ctx> {}
+pub trait EventMatcher: Send + 'static {
+    type Output: Send + 'static;
+    fn try_decode(event: EventDetails<TangleConfig>) -> Option<Self::Output>;
+}
+
+impl<T: StaticEvent + Send + 'static> EventMatcher for T {
+    type Output = T;
+    fn try_decode(event: EventDetails<TangleConfig>) -> Option<Self::Output> {
+        event.as_event::<T>().ok().flatten()
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct AllEvents;
+
+impl EventMatcher for AllEvents {
+    type Output = EventDetails<TangleConfig>;
+    fn try_decode(event: EventDetails<TangleConfig>) -> Option<Self::Output> {
+        Some(event)
+    }
+}
+
+impl<Ctx, Evt: EventMatcher> IsTangle for TangleEventListener<Ctx, Evt> {}
 
 #[async_trait]
-impl<Ctx: Clone + Send + Sync + 'static, Evt: Send + Sync + 'static>
+impl<Ctx: Clone + Send + Sync + 'static, Evt: EventMatcher>
     EventListener<TangleEvent<Ctx, Evt>, TangleListenerInput<Ctx>>
     for TangleEventListener<Ctx, Evt>
 {
@@ -122,7 +141,6 @@ impl<Ctx: Clone + Send + Sync + 'static, Evt: Send + Sync + 'static>
             stopper_tx: Arc::new(parking_lot::Mutex::new(Some(tx))),
             has_stopped,
             enqueued_events: VecDeque::new(),
-            _phantom: PhantomData,
         })
     }
 
@@ -144,7 +162,6 @@ impl<Ctx: Clone + Send + Sync + 'static, Evt: Send + Sync + 'static>
                     client: self.client.clone(),
                     job_id: self.job_id,
                     service_id: self.service_id,
-                    _phantom: PhantomData,
                 });
             }
 
@@ -152,17 +169,22 @@ impl<Ctx: Clone + Send + Sync + 'static, Evt: Send + Sync + 'static>
             let block_number = next_events.number();
             self.current_block = Some(block_number);
 
-            let next_events = next_events.events().await.ok()?;
-            let mut root_events = next_events.iter().flatten().collect::<VecDeque<_>>();
+            let mut events = next_events
+                .events()
+                .await
+                .ok()?
+                .iter()
+                .filter_map(|r| r.ok().and_then(Evt::try_decode))
+                .collect::<VecDeque<_>>();
 
-            crate::info!("Found {} possible events ...", root_events.len());
+            crate::info!("Found {} possible events ...", events.len());
 
-            if let Some(evt) = root_events.pop_front() {
-                if !root_events.is_empty() {
+            if let Some(evt) = events.pop_front() {
+                if !events.is_empty() {
                     // Store for the next iteration; we can override this since we know
                     // by this point in the code there are no more events to process in
                     // the queue
-                    self.enqueued_events = root_events;
+                    self.enqueued_events = events;
                 }
 
                 return Some(TangleEvent {
@@ -176,7 +198,6 @@ impl<Ctx: Clone + Send + Sync + 'static, Evt: Send + Sync + 'static>
                     client: self.client.clone(),
                     job_id: self.job_id,
                     service_id: self.service_id,
-                    _phantom: PhantomData,
                 });
             }
         }

@@ -1,4 +1,4 @@
-use crate::event_listener::tangle::{TangleEvent, TangleResult, ValueIntoFieldType};
+use crate::event_listener::tangle::{EventMatcher, TangleEvent, TangleResult, ValueIntoFieldType};
 use crate::Error;
 use subxt_core::events::StaticEvent;
 use tangle_subxt::tangle_testnet_runtime::api;
@@ -7,11 +7,13 @@ use tangle_subxt::tangle_testnet_runtime::api::services::events::{
     job_called, JobCalled, JobResultSubmitted,
 };
 
-pub trait ServicesJobPalletItem: StaticEvent {
+pub trait ServicesJobPalletItem:
+    EventMatcher<Output = Self> + StaticEvent + Send + 'static
+{
     fn call_id(&self) -> job_called::CallId;
     fn job_id(&self) -> Job;
     fn service_id(&self) -> ServiceId;
-    fn args(self) -> Option<job_called::Args> {
+    fn args(&self) -> Option<job_called::Args> {
         None
     }
 }
@@ -29,7 +31,7 @@ impl ServicesJobPalletItem for JobCalled {
         self.service_id
     }
 
-    fn args(self) -> Option<job_called::Args> {
+    fn args(&self) -> Option<job_called::Args> {
         Some(self.args.clone())
     }
 }
@@ -54,18 +56,17 @@ pub async fn services_pre_processor<Ctx, Event: ServicesJobPalletItem>(
     let this_service_id = event.service_id;
     let this_job_id = event.job_id;
     crate::info!("Pre-processing event for sid/bid = {this_service_id}/{this_job_id} ...");
-    if let Ok(Some(evt)) = event.evt.as_event::<Event>() {
-        let service_id = evt.service_id();
-        let job = evt.job_id();
-        let call_id = evt.call_id();
-        let args = evt.args().unwrap_or_default();
+    let evt = &event.evt;
+    let service_id = evt.service_id();
+    let job = evt.job_id();
+    let call_id = evt.call_id();
+    let args = evt.args().unwrap_or_default();
 
-        if job == this_job_id && service_id == this_service_id {
-            crate::info!("Found actionable event for sid/bid = {service_id}/{job} ...");
-            event.call_id = Some(call_id);
-            event.args = args;
-            return Ok(event);
-        }
+    if job == this_job_id && service_id == this_service_id {
+        crate::info!("Found actionable event for sid/bid = {service_id}/{job} ...");
+        event.call_id = Some(call_id);
+        event.args = args;
+        return Ok(event);
     }
 
     Err(Error::SkipPreProcessedType)
