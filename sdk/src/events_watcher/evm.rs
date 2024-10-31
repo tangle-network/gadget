@@ -2,7 +2,6 @@
 
 use crate::events_watcher::error::Error;
 use alloy_network::{Ethereum, EthereumWallet};
-use alloy_primitives::FixedBytes;
 use alloy_provider::{
     fillers::{ChainIdFiller, FillProvider, GasFiller, JoinFill, NonceFiller, WalletFiller},
     Identity, Provider, ProviderBuilder, RootProvider, WsConnect,
@@ -61,8 +60,6 @@ impl<X: SolEvent + Clone + Send + Sync + 'static> EvmEvent for X {}
 pub trait EvmEventHandler<T: Config>: Send + Sync + 'static {
     /// The type of event this handler is for.
     type Event: EvmEvent;
-    /// The genesis transaction hash for the contract.
-    const GENESIS_TX_HASH: FixedBytes<32>;
     /// Handle a log event.
     async fn handle(&self, log: &alloy_rpc_types::Log, event: &Self::Event) -> Result<(), Error>;
 }

@@ -50,9 +50,9 @@ impl ServicesJobPalletItem for JobResultSubmitted {
     }
 }
 
-pub async fn services_pre_processor<Ctx, Event: ServicesJobPalletItem>(
-    mut event: TangleEvent<Ctx, Event>,
-) -> Result<TangleEvent<Ctx, Event>, Error> {
+pub async fn services_pre_processor<C, E: ServicesJobPalletItem>(
+    mut event: TangleEvent<C, E>,
+) -> Result<TangleEvent<C, E>, Error> {
     let this_service_id = event.service_id;
     let this_job_id = event.job_id;
     crate::info!("Pre-processing event for sid/bid = {this_service_id}/{this_job_id} ...");

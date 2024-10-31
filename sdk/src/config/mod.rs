@@ -101,7 +101,6 @@ fn load_inner<RwLock: lock_api::RawRwLock>(
     use protocol::{
         EigenlayerContractAddresses, SymbioticContractAddresses, TangleInstanceSettings,
     };
-
     let is_registration = std::env::var("REGISTRATION_MODE_ON").is_ok();
     let ContextConfig {
         gadget_core_settings:

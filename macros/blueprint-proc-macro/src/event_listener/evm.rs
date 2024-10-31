@@ -71,7 +71,6 @@ pub(crate) fn generate_evm_event_handler(
         impl<T: gadget_sdk::event_listener::evm_contracts::EthereumContractBound> gadget_sdk::events_watcher::evm::EvmEventHandler<T> for #struct_name <T>
         {
             type Event = #event;
-            const GENESIS_TX_HASH: alloy_primitives::FixedBytes<32> = alloy_primitives::FixedBytes([0; 32]);
             async fn handle(&self, log: &gadget_sdk::alloy_rpc_types::Log, event: &Self::Event) -> Result<(), gadget_sdk::events_watcher::Error> {
                 use alloy_provider::Provider;
                 use alloy_sol_types::SolEvent;

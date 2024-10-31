@@ -20,39 +20,39 @@ use tokio::sync::Mutex;
 
 pub mod jobs;
 
-pub struct TangleEventListener<Ctx, Evt: EventMatcher = AllEvents> {
+pub struct TangleEventListener<C, E: EventMatcher = AllEvents> {
     current_block: Option<u32>,
     job_id: Job,
     service_id: ServiceId,
     listener: Mutex<StreamOfResults<subxt::blocks::Block<TangleConfig, TangleClient>>>,
-    context: Ctx,
+    context: C,
     signer: crate::keystore::TanglePairSigner<sp_core::sr25519::Pair>,
     client: TangleClient,
     has_stopped: Arc<AtomicBool>,
     stopper_tx: Arc<parking_lot::Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
-    enqueued_events: VecDeque<Evt::Output>,
+    enqueued_events: VecDeque<E::Output>,
 }
 
 pub type BlockNumber = u32;
 
 #[derive(Clone)]
-pub struct TangleListenerInput<Ctx> {
+pub struct TangleListenerInput<C> {
     pub client: TangleClient,
     pub job_id: Job,
     pub service_id: ServiceId,
     pub signer: crate::keystore::TanglePairSigner<sp_core::sr25519::Pair>,
-    pub context: Ctx,
+    pub context: C,
 }
 
 /// Emitted by the [`TangleEventListener`] when a new event is received.
 ///
-/// Root events are preferred to be used as the Evt, as then the application can
+/// Root events are preferred to be used as the E, as then the application can
 /// sort through a series of events to find the ones it is interested in for
 /// pre-processing.
 #[derive(Clone)]
-pub struct TangleEvent<Ctx, Evt: EventMatcher = AllEvents> {
-    pub evt: Evt::Output,
-    pub context: Ctx,
+pub struct TangleEvent<C, E: EventMatcher = AllEvents> {
+    pub evt: E::Output,
+    pub context: C,
     pub call_id: Option<CallId>,
     pub args: job_called::Args,
     pub block_number: BlockNumber,
@@ -63,7 +63,7 @@ pub struct TangleEvent<Ctx, Evt: EventMatcher = AllEvents> {
     pub stopper: Arc<parking_lot::Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
 }
 
-impl<Ctx, Evt: EventMatcher> TangleEvent<Ctx, Evt> {
+impl<C, E: EventMatcher> TangleEvent<C, E> {
     /// Stops the event listener
     pub fn stop(&self) -> bool {
         let mut lock = self.stopper.lock();
@@ -97,14 +97,16 @@ impl EventMatcher for AllEvents {
     }
 }
 
-impl<Ctx, Evt: EventMatcher> IsTangle for TangleEventListener<Ctx, Evt> {}
+impl<C, E: EventMatcher> IsTangle for TangleEventListener<C, E> {}
+
+pub trait ThreadSafeCloneable: Clone + Send + Sync + 'static {}
+impl<T: Clone + Send + Sync + 'static> ThreadSafeCloneable for T {}
 
 #[async_trait]
-impl<Ctx: Clone + Send + Sync + 'static, Evt: EventMatcher>
-    EventListener<TangleEvent<Ctx, Evt>, TangleListenerInput<Ctx>>
-    for TangleEventListener<Ctx, Evt>
+impl<C: ThreadSafeCloneable, E: EventMatcher>
+    EventListener<TangleEvent<C, E>, TangleListenerInput<C>> for TangleEventListener<C, E>
 {
-    async fn new(context: &TangleListenerInput<Ctx>) -> Result<Self, Error>
+    async fn new(context: &TangleListenerInput<C>) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -144,7 +146,7 @@ impl<Ctx: Clone + Send + Sync + 'static, Evt: EventMatcher>
         })
     }
 
-    async fn next_event(&mut self) -> Option<TangleEvent<Ctx, Evt>> {
+    async fn next_event(&mut self) -> Option<TangleEvent<C, E>> {
         loop {
             if self.has_stopped.load(Ordering::SeqCst) {
                 return None;
@@ -169,41 +171,20 @@ impl<Ctx: Clone + Send + Sync + 'static, Evt: EventMatcher>
             let block_number = next_events.number();
             self.current_block = Some(block_number);
 
-            let mut events = next_events
+            let events = next_events
                 .events()
                 .await
                 .ok()?
                 .iter()
-                .filter_map(|r| r.ok().and_then(Evt::try_decode))
+                .filter_map(|r| r.ok().and_then(E::try_decode))
                 .collect::<VecDeque<_>>();
 
             crate::info!("Found {} possible events ...", events.len());
-
-            if let Some(evt) = events.pop_front() {
-                if !events.is_empty() {
-                    // Store for the next iteration; we can override this since we know
-                    // by this point in the code there are no more events to process in
-                    // the queue
-                    self.enqueued_events = events;
-                }
-
-                return Some(TangleEvent {
-                    evt,
-                    context: self.context.clone(),
-                    signer: self.signer.clone(),
-                    call_id: None,
-                    stopper: self.stopper_tx.clone(),
-                    args: vec![],
-                    block_number,
-                    client: self.client.clone(),
-                    job_id: self.job_id,
-                    service_id: self.service_id,
-                });
-            }
+            self.enqueued_events = events;
         }
     }
 
-    async fn handle_event(&mut self, _event: TangleEvent<Ctx, Evt>) -> Result<(), Error> {
+    async fn handle_event(&mut self, _event: TangleEvent<C, E>) -> Result<(), Error> {
         unimplemented!("placeholder; will be removed")
     }
 }

@@ -259,7 +259,7 @@ pub(crate) fn generate_event_workflow_tokenstream(
             let next_listener = if matches!(listener_meta.listener_type, ListenerType::Evm) {
                 // How to inject not just this event handler, but all event handlers here?
                 let wrapper = quote! {
-                    gadget_sdk::event_listener::evm_contracts::EthereumHandlerWrapper<_, _, _>
+                    gadget_sdk::event_listener::evm_contracts::EthereumHandlerWrapper<_, _>
                 };
 
                 let ctx_create = quote! {

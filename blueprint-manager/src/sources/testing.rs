@@ -32,15 +32,33 @@ impl BinarySourceFetcher for TestSourceFetcher {
             "release"
         };
         let base_path = std::path::absolute(git_repo_root.join(&base_path_str))?;
-        let binary_path = git_repo_root
-            .join(&base_path)
-            .join("target")
-            .join(profile)
-            .join(&cargo_bin);
+        let binary_path = base_path.join("target").join(profile).join(&cargo_bin);
         let binary_path = std::path::absolute(&binary_path)?;
 
         trace!("Base Path: {}", base_path.display());
         trace!("Binary Path: {}", binary_path.display());
+
+        // Run cargo build on the cargo_bin and ensure it build to the binary_path
+        let mut command = tokio::process::Command::new("cargo");
+        command
+            .arg("build")
+            .arg(format!(
+                "--target-dir={}",
+                base_path.join("target").display()
+            ))
+            .arg("--bin")
+            .arg(&cargo_bin);
+
+        if !cfg!(debug_assertions) {
+            command.arg("--release");
+        }
+
+        let output = command.current_dir(&base_path).output().await?;
+
+        if !output.status.success() {
+            return Err(Report::msg(format!("Failed to build binary: {:?}", output)));
+        }
+
         Ok(binary_path)
     }
 

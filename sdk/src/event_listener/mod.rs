@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use std::iter::Take;
 use tokio_retry::strategy::ExponentialBackoff;
 
+pub mod evm;
 pub mod evm_contracts;
 pub mod executor;
 pub mod markers;
