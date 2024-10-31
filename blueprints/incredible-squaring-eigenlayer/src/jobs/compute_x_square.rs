@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use crate::contexts::client::{AggregatorClient, SignedTaskResponse};
-use crate::{noop, IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING};
+use crate::{IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING};
 use alloy_primitives::keccak256;
 use alloy_primitives::{hex, Bytes, U256};
 use alloy_sol_types::SolType;
@@ -10,7 +10,7 @@ use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
 use gadget_sdk::{error, info, job};
-use std::{convert::Infallible, ops::Deref, sync::OnceLock};
+use std::{convert::Infallible, ops::Deref};
 use IncredibleSquaringTaskManager::TaskResponse;
 
 /// Returns x^2 saturating to [`u64::MAX`] if overflow occurs.

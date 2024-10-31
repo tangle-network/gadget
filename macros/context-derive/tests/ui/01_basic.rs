@@ -20,6 +20,5 @@ fn main() {
         let _services = ctx.current_service_operators(&tangle_client).await.unwrap();
     };
 
-    // Run the async block
     let _ = body;
 }

@@ -20,7 +20,6 @@ use blueprint_manager::executor::BlueprintManagerHandle;
 use blueprint_manager::sdk::entry::SendFuture;
 use cargo_tangle::deploy::Opts;
 use gadget_sdk::clients::tangle::runtime::TangleClient;
-use gadget_sdk::tangle_subxt::subxt::OnlineClient;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
 use libp2p::Multiaddr;
@@ -37,9 +36,11 @@ use gadget_sdk::keystore::KeystoreUriSanitizer;
 use sp_core::Pair;
 use tracing::Instrument;
 use gadget_sdk::{error, info, warn};
+use gadget_sdk::clients::tangle::services::{RpcServicesWithBlueprint, ServicesClient};
+use gadget_sdk::subxt_core::config::Header;
+use gadget_sdk::utils::get_client;
 
 const LOCAL_BIND_ADDR: &str = "127.0.0.1";
-const LOCAL_TANGLE_NODE_HTTP: &str = "http://127.0.0.1:9944";
 pub const NAME_IDS: [&str; 5] = ["Alice", "Bob", "Charlie", "Dave", "Eve"];
 pub const ANVIL_PRIVATE_KEYS: [&str; 10] = [
     "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
@@ -140,8 +141,11 @@ pub async fn new_test_ext_blueprint_manager<
         handles.push(handle);
     }
 
+    let local_tangle_node_ws = opts.ws_rpc_url.clone();
+    let local_tangle_node_http = opts.http_rpc_url.clone();
+
     // Step 1: Create the blueprint using alice's identity
-    let blueprint_id = match cargo_tangle::deploy::deploy_to_tangle(opts).await {
+    let blueprint_id = match cargo_tangle::deploy::deploy_to_tangle(opts.clone()).await {
         Ok(id) => id,
         Err(err) => {
             error!("Failed to deploy blueprint: {err}");
@@ -149,7 +153,7 @@ pub async fn new_test_ext_blueprint_manager<
         }
     };
 
-    let client = OnlineClient::from_url(LOCAL_TANGLE_NODE_HTTP)
+    let client = get_client(&local_tangle_node_ws, &local_tangle_node_http)
         .await
         .expect("Failed to create an account-based localhost client");
 
@@ -159,9 +163,7 @@ pub async fn new_test_ext_blueprint_manager<
     // TODO: allow the function called to specify the registration args
 
     for handle in handles {
-        let client = OnlineClient::from_url(LOCAL_TANGLE_NODE_HTTP)
-            .await
-            .expect("Failed to create an account-based localhost client");
+        let client = client.clone();
         let registration_args = registration_args.clone();
 
         let task = async move {
@@ -210,24 +212,73 @@ pub async fn new_test_ext_blueprint_manager<
         futures_ordered.push_back(task);
     }
 
-    let mut handles = futures_ordered
+    let handles = futures_ordered
         .collect::<Vec<BlueprintManagerHandle>>()
         .await;
 
-    // Step 3: register a service
+    // Step 3: request a service
     let all_nodes = handles
         .iter()
         .map(|handle| handle.sr25519_id().account_id().clone())
         .collect();
 
     // Use Alice's account to register the service
-    info!("Registering service for blueprint ID {blueprint_id} using Alice's keys ...");
+    info!("Requesting service for blueprint ID {blueprint_id} using Alice's keys ...");
+
     if let Err(err) =
-        super::register_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes).await
+        super::request_service(&client, handles[0].sr25519_id(), blueprint_id, all_nodes).await
     {
         error!("Failed to register service: {err}");
         panic!("Failed to register service: {err}");
     }
+
+    let next_request_id = super::get_next_request_id(&client)
+        .await
+        .expect("Failed to get next request ID")
+        .saturating_sub(1);
+
+    // Step 2: Have each identity register to a blueprint
+    let mut futures_ordered = FuturesOrdered::new();
+
+    for handle in handles {
+        let client = client.clone();
+        let task = async move {
+            let keypair = handle.sr25519_id().clone();
+            if let Err(err) = super::approve_service(&client, &keypair, next_request_id, 20).await {
+                let _span = handle.span().enter();
+                error!("Failed to approve service request {next_request_id}: {err}");
+                panic!("Failed to approve service request {next_request_id}: {err}");
+            }
+
+            handle
+        };
+
+        futures_ordered.push_back(task);
+    }
+
+    let mut handles = futures_ordered
+        .collect::<Vec<BlueprintManagerHandle>>()
+        .await;
+
+    let now = client
+        .blocks()
+        .at_latest()
+        .await
+        .expect("Unable to get block")
+        .header()
+        .hash()
+        .0;
+    let services_client = ServicesClient::new(client.clone());
+    let blueprints = services_client
+        .query_operator_blueprints(now, handles[0].sr25519_id().account_id().clone())
+        .await
+        .expect("Failed to query operator blueprints");
+    assert!(!blueprints.is_empty(), "No blueprints found");
+
+    let blueprint = blueprints
+        .into_iter()
+        .find(|r| r.blueprint_id == blueprint_id)
+        .expect("Blueprint not found in operator's blueprints");
 
     // Now, start every blueprint manager. With the blueprint submitted and every operator registered
     // to the blueprint, we can now start the blueprint manager, expecting that the blueprint manager
@@ -251,6 +302,7 @@ pub async fn new_test_ext_blueprint_manager<
         client,
         handles,
         span,
+        blueprint,
     }
 }
 
@@ -267,33 +319,42 @@ pub struct LocalhostTestExt {
     client: TangleClient,
     handles: Vec<BlueprintManagerHandle>,
     span: tracing::Span,
+    blueprint: RpcServicesWithBlueprint,
 }
 
 impl LocalhostTestExt {
     /// An identity function (For future reverse-compatible changes)
     pub fn execute_with<
-        T: FnOnce(&TangleClient, &Vec<BlueprintManagerHandle>) -> R + Send + 'static,
+        T: FnOnce(&TangleClient, &Vec<BlueprintManagerHandle>, &RpcServicesWithBlueprint) -> R
+            + Send
+            + 'static,
         R: Send + 'static,
     >(
         &self,
         function: T,
     ) -> R {
         let _span = self.span.enter();
-        function(&self.client, &self.handles)
+        function(&self.client, &self.handles, &self.blueprint)
     }
 
     /// An identity function (For future reverse-compatible changes)
     pub async fn execute_with_async<
         'a,
         'b: 'a,
-        T: FnOnce(&'a TangleClient, &'a Vec<BlueprintManagerHandle>) -> R + Send + 'a,
+        T: FnOnce(
+                &'a TangleClient,
+                &'a Vec<BlueprintManagerHandle>,
+                &'a RpcServicesWithBlueprint,
+            ) -> R
+            + Send
+            + 'a,
         R: Future<Output = Out> + Send + 'a,
         Out: Send + 'b,
     >(
         &'a self,
         function: T,
     ) -> Out {
-        function(&self.client, &self.handles)
+        function(&self.client, &self.handles, &self.blueprint)
             .instrument(self.span.clone())
             .await
     }

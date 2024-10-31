@@ -36,7 +36,8 @@ async fn main() {
 
     let x_square = blueprint::XsquareEventHandler::<DefaultNodeConfig> {
         context: blueprint::MyContext {},
-        contract: contract.clone().into(),
+        contract: contract.clone(),
+        contract_instance: Default::default(),
     };
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");

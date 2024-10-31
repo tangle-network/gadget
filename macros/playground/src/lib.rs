@@ -34,7 +34,7 @@ pub struct MyContext;
 // ==================
 
 /// Simple Threshold (t) Keygen Job for n parties.
-#[job(id = 0, params(n, t), event_listener(listener = TangleEventListener<TangleClient, JobCalled>, pre_processor = services_pre_processor), result(_))]
+#[job(id = 0, params(n, t), event_listener(listener = TangleEventListener<TangleClient, JobCalled>, pre_processor = services_pre_processor))]
 pub fn keygen(context: TangleClient, n: u16, t: u16) -> Result<Vec<u8>, Error> {
     let _ = (n, t, context);
     Ok(vec![0; 33])
@@ -45,7 +45,6 @@ pub fn keygen(context: TangleClient, n: u16, t: u16) -> Result<Vec<u8>, Error> {
     id = 1,
     params(keygen_id, data),
     event_listener(listener = TangleEventListener<TangleClient, JobCalled>, pre_processor = services_pre_processor),
-    result(_)
 )]
 pub async fn sign(context: TangleClient, keygen_id: u64, data: Vec<u8>) -> Result<Vec<u8>, Error> {
     let _ = (keygen_id, data);
@@ -60,7 +59,6 @@ pub async fn sign(context: TangleClient, keygen_id: u64, data: Vec<u8>) -> Resul
         pre_processor = services_pre_processor,
         post_processor = services_post_processor,
     ),
-    result(_)
 )]
 pub fn refresh(
     context: TangleClient,
@@ -77,8 +75,7 @@ pub fn refresh(
         listener = TangleEventListener<TangleClient, JobCalled>,
         pre_processor = services_pre_processor,
         post_processor = services_post_processor,
-    ),
-    result(_))]
+    ))]
 pub fn say_hello(context: TangleClient, who: Option<String>) -> Result<String, Error> {
     match who {
         Some(who) => Ok(format!("Hello, {}!", who)),
@@ -109,7 +106,7 @@ pub fn on_request(nft_id: u64);
         pre_processor = services_pre_processor,
         post_processor = services_post_processor,
     ),
-    result(_),
+
     report_type = "job",
     verifier(evm = "KeygenContract")
 )]
@@ -126,7 +123,7 @@ fn report_keygen(
 #[report(
     params(uptime, response_time, error_rate),
     event_listener(listener = TangleEventListener<TangleClient, JobResultSubmitted>, pre_processor = services_pre_processor,),
-    result(_),
+
     report_type = "qos",
     interval = 3600,
     metric_thresholds(uptime = 99, response_time = 1000, error_rate = 5)
@@ -234,7 +231,7 @@ mod tests {
     #[job(
         id = 0,
         params(value),
-        result(_),
+
         event_listener(
             listener = PeriodicEventListener<1500, WebPoller, serde_json::Value, Arc<AtomicUsize>>,
             pre_processor = pre_process,

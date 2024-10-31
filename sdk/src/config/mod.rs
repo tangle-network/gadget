@@ -66,6 +66,8 @@ pub enum Error {
     /// Missing `SymbioticContractAddresses`
     #[error("Missing EigenlayerContractAddresses")]
     MissingSymbioticContractAddresses,
+    #[error("Bad RPC Connection: {0}")]
+    BadRpcConnection(String),
 }
 
 /// Loads the [`GadgetConfiguration`] from the current environment.

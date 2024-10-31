@@ -3,9 +3,10 @@ use api::services::events::JobResultSubmitted;
 use blueprint_manager::config::BlueprintManagerConfig;
 use blueprint_manager::executor::BlueprintManagerHandle;
 use gadget_io::{GadgetConfig, SupportedChains};
-use gadget_sdk::clients::tangle::runtime::TangleClient;
+use gadget_sdk::clients::tangle::runtime::{TangleClient, TangleConfig};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::sp_arithmetic::per_things::Percent;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Args, Job};
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::create_blueprint::Blueprint;
 use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::{Preferences, RegistrationArgs};
@@ -22,7 +23,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use alloy_primitives::hex;
 use color_eyre::eyre::eyre;
-use subxt::tx::Signer;
+use subxt::tx::{Signer, TxProgress};
 use subxt::utils::AccountId32;
 use url::Url;
 use uuid::Uuid;
@@ -228,6 +229,10 @@ fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre
     let sr = sp_core::sr25519::Pair::from_string(&suri, None).expect("Should be valid SR keypair");
     let sr_seed = &sr.as_ref().secret.to_bytes();
 
+    let ed = sp_core::ed25519::Pair::from_string(&suri, None).expect("Should be valid ED keypair");
+    // using Pair::from_string is the exact same as TPublic::from_string in the chainspec
+    let ed_seed = &ed.seed();
+
     let ecdsa =
         sp_core::ecdsa::Pair::from_string(&suri, None).expect("Should be valid ECDSA keypair");
     let ecdsa_seed = ecdsa.seed();
@@ -235,6 +240,9 @@ fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre
     keystore
         .sr25519_generate_new(Some(sr_seed))
         .expect("Invalid SR25519 seed");
+    keystore
+        .ed25519_generate_new(Some(ed_seed))
+        .expect("Should be valid ED25519 seed");
     keystore
         .ecdsa_generate_new(Some(&ecdsa_seed))
         .expect("Invalid ECDSA seed");
@@ -276,6 +284,16 @@ fn inject_tangle_key<P: AsRef<Path>>(keystore_path: P, name: &str) -> color_eyre
             panic!("Failed to load sr25519 key: {err}");
         }
     }
+
+    match keystore.ed25519_key() {
+        Ok(ed25519_key) => {
+            assert_eq!(ed25519_key.signer().public().0, ed.public().0);
+        }
+        Err(err) => {
+            log::error!(target: "gadget", "Failed to load ed25519 key: {err}");
+            panic!("Failed to load ed25519 key: {err}");
+        }
+    }
     Ok(())
 }
 
@@ -310,7 +328,7 @@ pub async fn create_blueprint(
         .tx()
         .sign_and_submit_then_watch_default(&call, account_id)
         .await?;
-    res.wait_for_finalized_success().await?;
+    wait_for_in_block_success(res).await?;
     Ok(())
 }
 
@@ -327,7 +345,7 @@ pub async fn join_delegators(
         .sign_and_submit_then_watch_default(&call_pre, account_id)
         .await?;
 
-    res_pre.wait_for_finalized_success().await?;
+    wait_for_in_block_success(res_pre).await?;
     Ok(())
 }
 
@@ -346,7 +364,7 @@ pub async fn register_blueprint(
         .tx()
         .sign_and_submit_then_watch_default(&call, account_id)
         .await?;
-    res.wait_for_finalized_success().await?;
+    wait_for_in_block_success(res).await?;
     Ok(())
 }
 
@@ -362,13 +380,13 @@ pub async fn submit_job(
         .tx()
         .sign_and_submit_then_watch_default(&call, user)
         .await?;
-    let _res = res.wait_for_finalized_success().await?;
+    wait_for_in_block_success(res).await?;
     Ok(())
 }
 
-/// Registers a service for a given blueprint. This is meant for testing, and will allow any node
+/// Requests a service with a given blueprint. This is meant for testing, and will allow any node
 /// to make a call to run a service, and will have all nodes running the service.
-pub async fn register_service(
+pub async fn request_service(
     client: &TestClient,
     user: &TanglePairSigner<sp_core::sr25519::Pair>,
     blueprint_id: u64,
@@ -379,14 +397,26 @@ pub async fn register_service(
         test_nodes.clone(),
         test_nodes,
         Default::default(),
-        Default::default(),
+        vec![0],
         1000,
     );
     let res = client
         .tx()
         .sign_and_submit_then_watch_default(&call, user)
         .await?;
-    res.wait_for_finalized_success().await?;
+    wait_for_in_block_success(res).await?;
+    Ok(())
+}
+
+pub async fn wait_for_in_block_success(
+    mut res: TxProgress<TangleConfig, TestClient>,
+) -> Result<(), Box<dyn Error>> {
+    while let Some(Ok(event)) = res.next().await {
+        let Some(block) = event.as_in_block() else {
+            continue;
+        };
+        block.wait_for_success().await?;
+    }
     Ok(())
 }
 
@@ -457,6 +487,39 @@ pub async fn get_next_call_id(client: &TestClient) -> Result<u64, Box<dyn Error>
     Ok(res)
 }
 
+/// Approves a service request. This is meant for testing, and will always approve the request.
+pub async fn approve_service(
+    client: &TestClient,
+    caller: &TanglePairSigner<sp_core::sr25519::Pair>,
+    request_id: u64,
+    restaking_percent: u8,
+) -> Result<(), Box<dyn Error>> {
+    gadget_sdk::info!("Approving service request ...");
+    let call = api::tx()
+        .services()
+        .approve(request_id, Percent(restaking_percent));
+    let res = client
+        .tx()
+        .sign_and_submit_then_watch_default(&call, caller)
+        .await?;
+    res.wait_for_finalized_success().await?;
+    Ok(())
+}
+
+pub async fn get_next_request_id(client: &TestClient) -> Result<u64, Box<dyn Error>> {
+    gadget_sdk::info!("Fetching next request ID ...");
+    let next_request_id_addr = api::storage().services().next_service_request_id();
+    let next_request_id = client
+        .storage()
+        .at_latest()
+        .await
+        .expect("Failed to fetch latest block")
+        .fetch_or_default(&next_request_id_addr)
+        .await
+        .expect("Failed to fetch next request ID");
+    Ok(next_request_id)
+}
+
 #[macro_export]
 macro_rules! test_blueprint {
     (
@@ -467,7 +530,7 @@ macro_rules! test_blueprint {
         [$($expected_output:expr),+]
     ) => {
         use $crate::{
-            get_next_call_id, get_next_service_id, run_test_blueprint_manager,
+            get_next_call_id, run_test_blueprint_manager,
             submit_job, wait_for_completion_of_tangle_job, Opts, setup_log,
         };
 
@@ -504,11 +567,10 @@ macro_rules! test_blueprint {
                 run_test_blueprint_manager,
             )
             .await
-            .execute_with_async(move |client, handles| async move {
+            .execute_with_async(move |client, handles, blueprint| async move {
                 let keypair = handles[0].sr25519_id().clone();
-                let service_id = get_next_service_id(client)
-                    .await
-                    .expect("Failed to get next service id");
+                let selected_service = &blueprint.services[0];
+                let service_id = selected_service.id;
                 let call_id = get_next_call_id(client)
                     .await
                     .expect("Failed to get next job id");
@@ -617,17 +679,14 @@ mod tests_standard {
 
         new_test_ext_blueprint_manager::<5, 1, (), _, _>((), opts, run_test_blueprint_manager)
             .await
-            .execute_with_async(move |client, handles| async move {
+            .execute_with_async(move |client, handles, blueprint| async move {
                 // At this point, blueprint has been deployed, every node has registered
                 // as an operator for the relevant services, and, all gadgets are running
 
                 // What's left: Submit a job, wait for the job to finish, then assert the job results
                 let keypair = handles[0].sr25519_id().clone();
-
-                let service_id = get_next_service_id(client)
-                    .await
-                    .expect("Failed to get next service id")
-                    .saturating_sub(1);
+                let selected_service = &blueprint.services[0];
+                let service_id = selected_service.id;
                 let call_id = get_next_call_id(client)
                     .await
                     .expect("Failed to get next job id")

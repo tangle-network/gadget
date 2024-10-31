@@ -2,7 +2,7 @@ use alloy_primitives::U256;
 use alloy_sol_types::sol;
 use gadget_sdk::{job, load_abi};
 use serde::{Deserialize, Serialize};
-use std::{ops::Deref, sync::OnceLock};
+use std::ops::Deref;
 
 sol!(
     #[allow(missing_docs, clippy::too_many_arguments)]

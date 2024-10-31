@@ -1,9 +1,9 @@
 use crate::{
-    contexts::aggregator::AggregatorContext, noop, IncredibleSquaringTaskManager,
+    contexts::aggregator::AggregatorContext, IncredibleSquaringTaskManager,
     INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
 };
 use gadget_sdk::{info, job};
-use std::{convert::Infallible, ops::Deref, sync::OnceLock};
+use std::{convert::Infallible, ops::Deref};
 use IncredibleSquaringTaskManager::Task;
 
 const TASK_CHALLENGE_WINDOW_BLOCK: u32 = 100;

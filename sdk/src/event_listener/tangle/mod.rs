@@ -4,13 +4,15 @@ use crate::event_listener::EventListener;
 use crate::Error;
 use async_trait::async_trait;
 use gadget_blueprint_proc_macro_core::FieldType;
-pub use sp_core::crypto::AccountId32;
+pub use subxt_core::utils::AccountId32;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use subxt::backend::StreamOfResults;
 use subxt_core::events::EventDetails;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::BoundedString;
 pub use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::call::{Job, ServiceId};
 use tangle_subxt::tangle_testnet_runtime::api::services::events::job_called;
@@ -189,6 +191,70 @@ pub trait FieldTypeIntoValue: Sized {
     fn convert(field: Field<AccountId32>, field_type: FieldType) -> Self;
 }
 
+pub trait ValueIntoFieldType {
+    fn into_field_type(self) -> Field<AccountId32>;
+}
+
+macro_rules! impl_value_to_field_type {
+    ($($t:ty => $j:path),*) => {
+        $(
+            impl ValueIntoFieldType for $t {
+                fn into_field_type(self) -> Field<AccountId32> {
+                    $j(self)
+                }
+            }
+        )*
+    };
+}
+
+impl_value_to_field_type!(
+    u8 => Field::Uint8,
+    u16 => Field::Uint16,
+    u32 => Field::Uint32,
+    u64 => Field::Uint64,
+    i8 => Field::Int8,
+    i16 => Field::Int16,
+    i32 => Field::Int32,
+    i64 => Field::Int64,
+    bool => Field::Bool,
+    AccountId32 => Field::AccountId
+);
+
+impl<T: ValueIntoFieldType> ValueIntoFieldType for Vec<T> {
+    fn into_field_type(self) -> Field<AccountId32> {
+        Field::Array(BoundedVec(
+            self.into_iter()
+                .map(ValueIntoFieldType::into_field_type)
+                .collect(),
+        ))
+    }
+}
+
+impl<T: ValueIntoFieldType, const N: usize> ValueIntoFieldType for [T; N] {
+    fn into_field_type(self) -> Field<AccountId32> {
+        Field::Array(BoundedVec(
+            self.into_iter()
+                .map(ValueIntoFieldType::into_field_type)
+                .collect(),
+        ))
+    }
+}
+
+impl<T: ValueIntoFieldType> ValueIntoFieldType for Option<T> {
+    fn into_field_type(self) -> Field<AccountId32> {
+        match self {
+            Some(val) => val.into_field_type(),
+            None => Field::None,
+        }
+    }
+}
+
+impl ValueIntoFieldType for String {
+    fn into_field_type(self) -> Field<AccountId32> {
+        Field::String(BoundedString(BoundedVec(self.into_bytes())))
+    }
+}
+
 macro_rules! impl_field_type_to_value {
     ($($t:ty => $f:pat => $j:path),*) => {
         $(
@@ -235,4 +301,12 @@ impl FieldTypeIntoValue for String {
             _ => panic!("Invalid field type!"),
         }
     }
+}
+
+pub struct TangleResult<Res> {
+    pub results: Res,
+    pub service_id: ServiceId,
+    pub call_id: job_called::CallId,
+    pub client: TangleClient,
+    pub signer: crate::keystore::TanglePairSigner<sp_core::sr25519::Pair>,
 }
