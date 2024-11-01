@@ -1,9 +1,8 @@
 use alloy_network::EthereumWallet;
-use alloy_provider::ProviderBuilder;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::Result;
+use gadget_sdk::utils::evm::get_wallet_provider_http;
 use gadget_sdk::{
-    events_watcher::evm::DefaultNodeConfig,
     info,
     runners::{eigenlayer::EigenlayerConfig, BlueprintRunner},
 };
@@ -24,10 +23,8 @@ async fn main() {
         .parse()
         .expect("failed to generate wallet ");
     let wallet = EthereumWallet::from(signer);
-    let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
-        .wallet(wallet.clone())
-        .on_http(env.http_rpc_endpoint.parse()?);
+    let provider = get_wallet_provider_http(&env.http_rpc_endpoint, wallet.clone());
+
     info!("Task Manager Address: {:?}", *TASK_MANAGER_ADDRESS);
     let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
         *TASK_MANAGER_ADDRESS,
@@ -84,7 +81,7 @@ async fn main() {
     .await
     .unwrap();
 
-    let initialize_task = InitializeBlsTaskEventHandler::<DefaultNodeConfig> {
+    let initialize_task = InitializeBlsTaskEventHandler {
         ctx: aggregator_context.clone(),
         contract,
         contract_instance: Default::default(),

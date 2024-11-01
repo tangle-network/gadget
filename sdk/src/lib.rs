@@ -25,7 +25,7 @@ pub mod error;
 pub mod event_listener;
 /// Blockchain Events Watcher Module
 #[cfg(any(feature = "std", feature = "wasm"))]
-pub mod events_watcher;
+pub mod event_utils;
 /// Command execution module
 #[cfg(feature = "std")]
 pub mod executor;

@@ -9,7 +9,7 @@ use symbiotic_rs::OperatorRegistry;
 
 use super::{BlueprintConfig, RunnerError};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct SymbioticConfig {}
 
 #[async_trait::async_trait]

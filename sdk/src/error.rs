@@ -51,10 +51,6 @@ pub enum Error {
     Json(#[from] serde_json::Error),
 
     #[cfg(feature = "std")]
-    #[error("Events watcher error: {0}")]
-    EventsWatcher(#[from] crate::events_watcher::error::Error),
-
-    #[cfg(feature = "std")]
     #[error("Prometheus error: {err}")]
     Prometheus { err: String },
 

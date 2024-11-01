@@ -191,10 +191,6 @@ impl<
     async fn next_event(&mut self) -> Option<Event> {
         self.event_listener.next_event().await
     }
-
-    async fn handle_event(&mut self, _event: Event) -> Result<(), crate::Error> {
-        unreachable!("Not called here")
-    }
 }
 
 #[cfg(test)]
@@ -223,10 +219,6 @@ mod tests {
         async fn next_event(&mut self) -> Option<TestEvent> {
             tokio::time::sleep(Duration::from_millis(1000)).await;
             Some(self.0.clone())
-        }
-
-        async fn handle_event(&mut self, _event: TestEvent) -> Result<(), Error> {
-            unreachable!("Not handled here")
         }
     }
 

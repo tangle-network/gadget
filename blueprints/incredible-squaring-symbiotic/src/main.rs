@@ -1,13 +1,12 @@
 use alloy_network::EthereumWallet;
-use alloy_provider::ProviderBuilder;
 use color_eyre::Result;
-use gadget_sdk::events_watcher::evm::DefaultNodeConfig;
 use gadget_sdk::runners::symbiotic::SymbioticConfig;
 use gadget_sdk::runners::BlueprintRunner;
 use gadget_sdk::{info, keystore::BackendExt};
 use incredible_squaring_blueprint_symbiotic::{self as blueprint, IncredibleSquaringTaskManager};
 
 use alloy_primitives::{address, Address};
+use gadget_sdk::utils::evm::get_wallet_provider_http;
 use lazy_static::lazy_static;
 use std::env;
 
@@ -24,24 +23,21 @@ async fn main() {
     let operator_signer = env.keystore()?.ecdsa_key()?.alloy_key()?;
     let wallet = EthereumWallet::new(operator_signer);
 
-    let provider = ProviderBuilder::new()
-        .with_recommended_fillers()
-        .wallet(wallet.clone())
-        .on_http(env.http_rpc_endpoint.parse()?);
+    let provider = get_wallet_provider_http(&env.http_rpc_endpoint, wallet);
 
     let contract = IncredibleSquaringTaskManager::IncredibleSquaringTaskManagerInstance::new(
         *TASK_MANAGER_ADDRESS,
         provider,
     );
 
-    let x_square = blueprint::XsquareEventHandler::<DefaultNodeConfig> {
+    let x_square = blueprint::XsquareEventHandler {
         context: blueprint::MyContext {},
         contract: contract.clone(),
         contract_instance: Default::default(),
     };
 
     info!("~~~ Executing the incredible squaring blueprint ~~~");
-    let symb_config = SymbioticConfig {};
+    let symb_config = SymbioticConfig::default();
     BlueprintRunner::new(symb_config, env)
         .job(x_square)
         .run()
