@@ -404,8 +404,8 @@ fn generate_qos_report_event_handler(
 
         #[automatically_derived]
         #[gadget_sdk::async_trait::async_trait]
-        impl gadget_sdk::events_watcher::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
-            async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::events_watcher::Error> {
+        impl gadget_sdk::event_utils::substrate::EventHandler<gadget_sdk::clients::tangle::runtime::TangleConfig, #event_type> for #struct_name {
+            async fn handle(&self, event: &#event_type) -> Result<Vec<gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<gadget_sdk::subxt_core::utils::AccountId32>>, gadget_sdk::event_utils::Error> {
                 use std::time::Duration;
                 use gadget_sdk::slashing::reports::{QoSReporter, DefaultQoSReporter};
 
@@ -417,10 +417,10 @@ fn generate_qos_report_event_handler(
                 loop {
                     if std::time::Instant::now() >= next_check {
                         let metrics = reporter.collect_metrics().await
-                            .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e.into()))?;
+                            .map_err(|e| gadget_sdk::event_utils::Error::Handler(e.into()))?;
 
                         let report_result = reporter.report(&metrics).await
-                            .map_err(|e| gadget_sdk::events_watcher::Error::Handler(e.into()))?;
+                            .map_err(|e| gadget_sdk::event_utils::Error::Handler(e.into()))?;
 
                         next_check = std::time::Instant::now() + interval;
                     }
@@ -444,7 +444,7 @@ fn generate_qos_report_event_handler(
         }
 
         #[gadget_sdk::async_trait::async_trait]
-        impl gadget_sdk::events_watcher::InitializableEventHandler for #struct_name {
+        impl gadget_sdk::event_utils::InitializableEventHandler for #struct_name {
             async fn init_event_handler(&self) -> Option<gadget_sdk::tokio::sync::oneshot::Receiver<Result<(), gadget_sdk::Error>>> {
                 #(#event_listener_calls)*
                 #combined_event_listener

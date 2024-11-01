@@ -2,6 +2,7 @@ use crate::{
     contexts::aggregator::AggregatorContext, IncredibleSquaringTaskManager,
     INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
 };
+use gadget_sdk::event_listener::evm::contracts::EvmContractEventListener;
 use gadget_sdk::{info, job};
 use std::{convert::Infallible, ops::Deref};
 use IncredibleSquaringTaskManager::Task;
@@ -13,15 +14,11 @@ const BLOCK_TIME_SECONDS: u32 = 12;
 #[job(
     id = 1,
     params(task, task_index),
-    result(_),
     event_listener(
-        listener = EvmContractEventListener(
-            instance = IncredibleSquaringTaskManager,
-            abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
-        ),
-        event = IncredibleSquaringTaskManager::NewTaskCreated,
+        listener = EvmContractEventListener<IncredibleSquaringTaskManager::NewTaskCreated>,
+        instance = IncredibleSquaringTaskManager,
+        abi = INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
         pre_processor = convert_event_to_inputs,
-        post_processor = noop,
     ),
 )]
 pub async fn initialize_bls_task(
@@ -59,10 +56,12 @@ pub async fn initialize_bls_task(
 /// Uses a tuple to represent the return type because
 /// the macro will index all values in the #[job] function
 /// and parse the return type by the index.
-pub fn convert_event_to_inputs(
-    event: IncredibleSquaringTaskManager::NewTaskCreated,
-    _index: u32,
-) -> (Task, u32) {
-    let task_index = event.taskIndex;
-    (event.task, task_index)
+pub async fn convert_event_to_inputs(
+    event: (
+        IncredibleSquaringTaskManager::NewTaskCreated,
+        alloy_rpc_types::Log,
+    ),
+) -> Result<(Task, u32), gadget_sdk::Error> {
+    let task_index = event.0.taskIndex;
+    Ok((event.0.task, task_index))
 }

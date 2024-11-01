@@ -89,8 +89,8 @@ impl BlueprintProcessManager {
         ws_endpoint: &str,
         protocol: Protocol,
     ) -> Result<BlueprintProcess, std::io::Error> {
-        let tmp_dir = tempfile::TempDir::new()?;
-        let keystore_uri = tmp_dir.path().join(format!(
+        let tmp_dir = std::env::current_dir()?;
+        let keystore_uri = tmp_dir.join(format!(
             "keystores/{}/{}",
             NAME_IDS[instance_id].to_lowercase(),
             uuid::Uuid::new_v4()
@@ -134,8 +134,8 @@ impl BlueprintProcessManager {
 
         let mut arguments = vec![
             "run".to_string(),
-            format!("--bind-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
-            format!("--bind-port={}", find_open_tcp_bind_port()),
+            format!("--target-addr={}", IpAddr::from_str("127.0.0.1").unwrap()),
+            format!("--target-port={}", find_open_tcp_bind_port()),
             format!("--http-rpc-url={}", Url::parse(http_endpoint).unwrap()),
             format!("--ws-rpc-url={}", Url::parse(ws_endpoint).unwrap()),
             format!("--keystore-uri={}", keystore_uri_str.clone()),
@@ -168,6 +168,10 @@ impl BlueprintProcessManager {
                 arguments.push(format!(
                     "--strategy-manager={}",
                     EigenlayerContractAddresses::default().strategy_manager_address
+                ));
+                arguments.push(format!(
+                    "--avs-directory={}",
+                    EigenlayerContractAddresses::default().avs_directory_address
                 ));
             }
             Protocol::Symbiotic => {

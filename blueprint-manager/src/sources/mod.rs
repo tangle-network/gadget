@@ -150,14 +150,12 @@ pub fn generate_process_arguments(
     }
 
     arguments.extend([
-        format!("--bind-addr={}", gadget_config.bind_addr),
-        format!("--bind-port={}", gadget_config.bind_port),
+        format!("--target-addr={}", gadget_config.bind_addr),
+        format!("--target-port={}", gadget_config.bind_port),
         format!("--http-rpc-url={}", gadget_config.http_rpc_url),
         format!("--ws-rpc-url={}", gadget_config.ws_rpc_url),
         format!("--keystore-uri={}", gadget_config.keystore_uri),
         format!("--chain={}", gadget_config.chain),
-        format!("--blueprint-id={}", blueprint_id),
-        format!("--service-id={}", service_id),
         format!("--protocol={}", protocol),
         format!(
             "--log-id=Blueprint-{blueprint_id}-Service-{service_id}-{}",

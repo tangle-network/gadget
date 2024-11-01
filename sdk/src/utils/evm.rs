@@ -1,4 +1,4 @@
-use crate::events_watcher::Error;
+use crate::Error;
 use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, U256};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider, WsConnect};
@@ -81,5 +81,5 @@ pub async fn get_slasher_address(
         .call()
         .await
         .map(|a| a._0)
-        .map_err(Error::AlloyContract)
+        .map_err(|err| Error::Client(err.to_string()))
 }

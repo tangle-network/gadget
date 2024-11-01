@@ -1,6 +1,6 @@
 use crate::config::GadgetConfiguration;
 use crate::error;
-use crate::events_watcher::InitializableEventHandler;
+use crate::event_utils::InitializableEventHandler;
 use std::future::Future;
 use std::pin::Pin;
 use tokio::sync::oneshot;
