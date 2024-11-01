@@ -35,8 +35,8 @@ impl Debug for VerifiedBlueprint<'_> {
     }
 }
 
-pub async fn handle_services<'a>(
-    blueprints: &[VerifiedBlueprint<'a>],
+pub async fn handle_services(
+    blueprints: &[VerifiedBlueprint<'_>],
     gadget_config: &GadgetConfig,
     blueprint_manager_opts: &BlueprintManagerConfig,
     active_gadgets: &mut ActiveGadgets,
