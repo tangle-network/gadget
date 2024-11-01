@@ -17,3 +17,7 @@ serde_test.workspace = true
 
 [lints]
 workspace = true
+
+[features]
+default = ["std"]
+std = []

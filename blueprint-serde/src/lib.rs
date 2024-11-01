@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(feature = "std", no_std)]
 
 mod de;
 pub mod error;
